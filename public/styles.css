@@ -384,7 +384,7 @@ tr:last-child td {
 .toast {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  top: 20px;
   z-index: 20;
   max-width: 360px;
   border: 1px solid var(--border);

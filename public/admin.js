@@ -1189,9 +1189,22 @@ function showDesktopUpdatePage() {
 async function runDesktopAction(action, shouldRender = true) {
   try {
     const state = await action();
-    if (shouldRender) renderDesktopUpdateState(state);
+    if (shouldRender) {
+      renderDesktopUpdateState(state);
+      if (state && state.status === 'not-available') toast(desktopUpdateStatusText(state));
+    }
   } catch (error) {
-    showError(error);
+    if (shouldRender) {
+      renderDesktopUpdateState({
+        status: 'error',
+        message: desktopActionErrorMessage(error),
+        canDownload: false,
+        canInstall: false,
+        progress: null
+      });
+    } else {
+      toast(desktopActionErrorMessage(error));
+    }
   }
 }
 
@@ -1517,6 +1530,17 @@ function showError(error) {
   toast(error.message || String(error));
 }
 
+function desktopActionErrorMessage(error) {
+  const text = String((error && error.message) || error || '');
+  if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
+    return '当前 GitHub Releases 里还没有可用更新包。';
+  }
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
+    return '暂时无法连接 GitHub 更新服务，请稍后再试。';
+  }
+  return '操作失败，详细原因已写入日志。';
+}
+
 function resetSongForm() {
   setValue('songId', '');
   setValue('songName', '');
@@ -1824,6 +1848,8 @@ function formatMoney(value) {
 function toast(message) {
   const node = document.getElementById('toast');
   node.textContent = message;
+  node.classList.remove('show');
+  void node.offsetWidth;
   node.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => node.classList.remove('show'), 2600);

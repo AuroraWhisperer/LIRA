@@ -251,7 +251,11 @@ async function checkForUpdates() {
     return updateState;
   }
 
-  await autoUpdater.checkForUpdates();
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    setUpdateError(error);
+  }
   return updateState;
 }
 
@@ -263,7 +267,11 @@ async function downloadUpdate() {
     canDownload: false,
     canInstall: false
   });
-  await autoUpdater.downloadUpdate();
+  try {
+    await autoUpdater.downloadUpdate();
+  } catch (error) {
+    setUpdateError(error);
+  }
   return updateState;
 }
 
