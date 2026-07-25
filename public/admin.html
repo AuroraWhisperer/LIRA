@@ -1,0 +1,984 @@
+<!-- 日期：2026-07-24 -->
+<!-- 编写人：Aurora -->
+<!-- 当前项目版本：1.0.0 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>点歌助手</title>
+    <link rel="stylesheet" href="/styles.css?v=20260725-26">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>点歌助手</h1>
+
+        </div>
+        <div class="status-strip">
+          <span id="wsStatus" class="pill warn">前端未连接</span>
+          <span id="liveStatus" class="pill warn">弹幕监听未启用</span>
+          <span id="songCount" class="pill">歌库 0 首</span>
+          <button id="shutdownBtn" class="danger" type="button">退出程序</button>
+        </div>
+      </header>
+
+      <section class="layout">
+        <div class="stack">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>SC 队列</h2>
+              <div class="actions">
+                <span id="superChatSize" class="pill">0 条</span>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="superChatList" class="queue-list sc-list"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>点歌队列</h2>
+              <div class="actions">
+                <span id="queueSize" class="pill">0 首</span>
+                <button id="nextBtn" class="primary">切歌</button>
+                <button id="clearBtn" class="danger">清空全部队列</button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div id="queueList" class="queue-list"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>快速入队</h2>
+            </div>
+            <div class="panel-body stack">
+              <form id="manualForm" class="stack">
+                <label>
+                  歌曲名
+                  <input id="manualSong" required placeholder="例如：晴天">
+                </label>
+                <div class="grid-2">
+                  <label>
+                    歌手
+                    <input id="manualArtist" placeholder="可选">
+                  </label>
+                  <label>
+                    点歌人
+                    <input id="manualRequester" value="主播">
+                  </label>
+                </div>
+                <button class="primary" type="submit">手动添加</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:16px">
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="songsPage" type="button">歌库</button>
+          <button class="tab" data-tab="settingsPage" type="button">设置</button>
+          <button class="tab" data-tab="themePage" type="button">点歌板</button>
+          <button class="tab" data-tab="displayPage" type="button">展示板</button>
+          <button class="tab" data-tab="overlayPage" type="button">直播画面</button>
+          <button class="tab" data-tab="importPage" type="button">导入导出</button>
+          <button class="tab" data-tab="giftPage" type="button">礼物</button>
+          <button class="tab" data-tab="performancePage" type="button">性能</button>
+          <button id="desktopUpdateTab" class="tab desktop-only" data-tab="desktopUpdatePage" type="button" hidden>桌面更新</button>
+        </div>
+
+        <div id="songsPage" class="tab-page active">
+          <div class="panel-body stack">
+            <form id="songForm" class="grid-3">
+              <input id="songId" type="hidden">
+              <label>
+                歌曲名字
+                <input id="songName" required>
+              </label>
+              <label>
+                歌手
+                <input id="songArtist">
+              </label>
+              <label>
+                歌曲分类
+                <input id="songCategory" value="默认">
+              </label>
+              <label>
+                标签
+                <input id="songTags" placeholder="多个标签用逗号隔开">
+              </label>
+              <label>
+                是否可点
+                <select id="songIsEnabled">
+                  <option value="true">是</option>
+                  <option value="false">否</option>
+                </select>
+              </label>
+              <label>
+                语言
+                <input id="songLanguage" placeholder="例如：国语">
+              </label>
+              <label>
+                来源平台
+                <input id="songSourcePlatform" placeholder="例如：全民 K 歌">
+              </label>
+              <label>
+                原始分组
+                <input id="songOriginalGroup">
+              </label>
+              <label>
+                备注
+                <input id="songNote">
+              </label>
+              <button class="primary" type="submit">保存歌曲</button>
+              <button id="resetSongForm" type="button">清空表单</button>
+            </form>
+
+            <div class="grid-3">
+              <label>
+                搜索
+                <input id="songSearch" placeholder="歌名或歌手">
+              </label>
+              <label>
+                分类
+                <select id="categoryFilter"></select>
+              </label>
+              <label>
+                语言
+                <select id="languageFilter"></select>
+              </label>
+            </div>
+            <div class="grid-3">
+              <label>
+                歌手
+                <select id="artistFilter"></select>
+              </label>
+              <label>
+                只看可点
+                <select id="enabledFilter">
+                  <option value="false">全部歌曲</option>
+                  <option value="true">只看可点</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>首字母</th>
+                    <th>歌曲名字</th>
+                    <th>歌手</th>
+                    <th>歌曲分类</th>
+                    <th>标签</th>
+                    <th>状态</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="songsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="settingsPage" class="tab-page">
+          <div class="panel-body stack">
+            <form id="settingsForm" class="stack">
+              <div class="grid-3">
+                <label>
+                  Bilibili 直播间号或链接
+                  <input id="roomId" placeholder="例如：123456 或 https://live.bilibili.com/123456">
+                </label>
+                <label>
+                  启用 Bilibili 监听
+                  <select id="enableBilibili">
+                    <option value="false">暂不启用</option>
+                    <option value="true">启用</option>
+                  </select>
+                </label>
+                <label>
+                  暂停接收点歌
+                  <select id="paused">
+                    <option value="false">接收点歌</option>
+                    <option value="true">暂停点歌</option>
+                  </select>
+                </label>
+              </div>
+              <div class="grid-3">
+                <label>
+                  队列最大长度
+                  <input id="queueLimit" type="number" min="1" max="300">
+                </label>
+                <label>
+                  点歌板显示等待数
+                  <input id="overlayDisplayCount" type="number" min="0" max="20">
+                </label>
+                <label>
+                  用户冷却秒数
+                  <input id="userCooldownSeconds" type="number" min="0" max="3600">
+                </label>
+              </div>
+              <div class="grid-2">
+                <label>
+                  只允许点歌库歌曲
+                  <select id="onlyFromLibrary">
+                    <option value="false">不限制</option>
+                    <option value="true">只允许歌库歌曲</option>
+                  </select>
+                </label>
+                <label>
+                  允许重复点歌
+                  <select id="allowDuplicate">
+                    <option value="true">允许</option>
+                    <option value="false">不允许</option>
+                  </select>
+                </label>
+              </div>
+              <button class="primary" type="submit">保存设置</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="themePage" class="tab-page">
+          <div class="panel-body stack">
+            <form id="themeForm" class="stack">
+              <!-- 风格选择器 — 始终可见 -->
+              <div class="style-picker">
+                <input id="overlayQueueStyle" type="hidden" value="classic">
+                <button class="style-option active" type="button" data-overlay-style="classic">
+                  <strong>点歌板风格 1</strong>
+                  <span>经典队列展示</span>
+                </button>
+                <button class="style-option" type="button" data-overlay-style="festival">
+                  <strong>点歌板风格 2</strong>
+                  <span>透明榜单身份样式</span>
+                </button>
+              </div>
+
+              <!-- ====== 点歌板风格 1 专属设置 ====== -->
+              <div id="classicThemeArea" class="theme-area">
+
+                <fieldset class="theme-section">
+                  <legend>一键主题预设</legend>
+                  <div class="preset-grid" id="classicPresets"></div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>颜色设置</legend>
+                  <div class="swatch-row">
+                    <label>
+                      主色
+                      <input id="themePrimary" type="color">
+                    </label>
+                    <label>
+                      辅助色
+                      <input id="themeAccent" type="color">
+                    </label>
+                    <label>
+                      文字色
+                      <input id="themeText" type="color">
+                    </label>
+                    <label>
+                      背景色
+                      <input id="themeBackground" type="color">
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>文字样式</legend>
+                  <div class="grid-2">
+                    <label>
+                      字体
+                      <select id="overlayFontFamily">
+                        <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
+                        <option value="Microsoft YaHei">微软雅黑（默认）</option>
+                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
+                        <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
+                        <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
+                        <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
+                        <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
+                      </select>
+                    </label>
+                    <label>
+                      字重
+                      <select id="overlayFontWeight">
+                        <option value="600">较细</option>
+                        <option value="700">中等</option>
+                        <option value="800" selected>粗体（默认）</option>
+                        <option value="900">超粗</option>
+                      </select>
+                    </label>
+                    <label>
+                      歌名颜色
+                      <input id="overlaySongColor" type="color" value="">
+                      <span class="hint">留空则使用文字色</span>
+                    </label>
+                    <label>
+                      点歌人颜色
+                      <input id="overlayRequesterColor" type="color" value="">
+                      <span class="hint">留空则比文字色略淡</span>
+                    </label>
+                    <label>
+                      面板标题
+                      <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列">
+                      <span class="hint">自定义点歌板顶部标题文字</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>序号显示</legend>
+                  <div class="grid-2">
+                    <label>
+                      显示歌曲序号
+                      <select id="overlayShowIndex">
+                        <option value="true">显示</option>
+                        <option value="false">隐藏</option>
+                      </select>
+                    </label>
+                    <label>
+                      仅在歌曲超过此数量时显示
+                      <select id="overlayIndexThreshold">
+                        <option value="0">始终显示</option>
+                        <option value="2">超过 2 首</option>
+                        <option value="3">超过 3 首</option>
+                        <option value="4">超过 4 首</option>
+                        <option value="5">超过 5 首</option>
+                      </select>
+                      <span class="hint">设为"始终显示"则始终显示序号</span>
+                    </label>
+                    <label>
+                      序号颜色
+                      <input id="overlayIndexColor" type="color" value="">
+                      <span class="hint">留空则使用辅助色</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>玻璃质感效果</legend>
+                  <div class="grid-2">
+                    <label>
+                      前台低占用模式
+                      <select id="overlayLowPowerMode">
+                        <option value="false">关闭（默认，保留原效果）</option>
+                        <option value="true">开启（关闭毛玻璃和发光）</option>
+                      </select>
+                      <span class="hint">开启后展示板和点歌板会关闭实时毛玻璃、发光和重阴影，滚动保持原来的顺滑效果。</span>
+                    </label>
+                    <label>
+                      背景模糊
+                      <span class="range-row">
+                        <input id="backdropBlur" type="range" min="0" max="30" step="1">
+                        <input id="backdropBlurNumber" type="number" min="0" max="30" step="1">
+                      </span>
+                      <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
+                    </label>
+                    <label>
+                      发光强度
+                      <span class="range-row">
+                        <input id="glowIntensity" type="range" min="0" max="20" step="1">
+                        <input id="glowIntensityNumber" type="number" min="0" max="20" step="1">
+                      </span>
+                      <span class="hint">辅助色的发光强度，0 为关闭</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>渐变背景</legend>
+                  <div class="grid-2">
+                    <label>
+                      启用渐变
+                      <select id="enableGradient">
+                        <option value="false">关闭（纯色背景）</option>
+                        <option value="true">开启（渐变背景）</option>
+                      </select>
+                    </label>
+                    <label>
+                      渐变结束色
+                      <input id="gradientEnd" type="color">
+                      <span class="hint">搭配背景色形成双色渐变，建议选相近色系</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>字号设置</legend>
+                  <div class="grid-2">
+                    <label>
+                      点歌内容字号
+                      <span class="range-row">
+                        <input id="queueSongFontSize" type="range" min="5" max="35" step="1">
+                        <input id="queueSongFontSizeNumber" type="number" min="5" max="35" step="1">
+                      </span>
+                    </label>
+                    <label>
+                      队列标题字号
+                      <span class="range-row">
+                        <input id="queueTitleFontSize" type="range" min="5" max="20" step="1">
+                        <input id="queueTitleFontSizeNumber" type="number" min="5" max="20" step="1">
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>面板设置</legend>
+                  <div class="grid-2">
+                    <label>
+                      背景透明度
+                      <span class="range-row">
+                        <input id="themeOpacity" type="range" min="0" max="1" step="0.01">
+                        <input id="themeOpacityNumber" type="number" min="0" max="1" step="0.01">
+                      </span>
+                    </label>
+                    <label>
+                      圆角大小
+                      <input id="themeRadius" type="number" min="0" max="24">
+                      <span class="hint">数值越大越圆润，推荐 12-16</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <div class="actions">
+                  <button id="quickBeautifyBtn" class="primary" type="button">✨ 一键毛玻璃美化</button>
+                  <button id="resetClassicTheme" type="button">恢复默认</button>
+                </div>
+              </div>
+
+              <!-- ====== 两风格通用：滚动方式 ====== -->
+              <fieldset class="theme-section shared-theme-section">
+                <legend>滚动方式</legend>
+                <div class="grid-2">
+                  <label>
+                    队列滚动模式
+                    <select id="queueScrollMode">
+                      <option value="loop">循环滚动（首尾相接）</option>
+                      <option value="bounce">往返滚动（到底后返回）</option>
+                    </select>
+                  </label>
+                  <label>
+                    点歌板滚动速率
+                    <span class="range-row">
+                      <input id="queueScrollSpeedRange" type="range" min="1" max="100" step="1">
+                      <input id="queueScrollSpeed" type="number" min="1" max="100" step="1">
+                    </span>
+                    <span class="hint">1-100</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <!-- ====== 点歌板风格 2 专属设置 ====== -->
+              <div id="festivalThemeArea" class="theme-area" hidden>
+                <fieldset class="theme-section">
+                  <legend>置顶公告</legend>
+                  <div class="grid-1">
+                    <label>
+                      置顶内容 1
+                      <input id="overlayPin1" placeholder="留空则不显示，显示在点歌板2最上方">
+                    </label>
+                    <label>
+                      置顶内容 2
+                      <input id="overlayPin2" placeholder="留空则不显示，显示在点歌板2最上方">
+                    </label>
+                    <label>
+                      置顶内容 3
+                      <input id="overlayPin3" placeholder="留空则不显示，显示在点歌板2最上方">
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>规则展示</legend>
+                  <div class="festival-rule-panel">
+                    <label class="festival-rule-font">
+                      规则小块字号
+                      <span class="range-row">
+                        <input id="overlayRuleFontSize" type="range" min="8" max="18" step="1">
+                        <input id="overlayRuleFontSizeNumber" type="number" min="8" max="18" step="1">
+                      </span>
+                    </label>
+                    <div class="festival-rule-settings">
+                      <label class="festival-rule-setting">
+                        <span>规则 1</span>
+                        <input id="overlayRule1" placeholder="例如：弹幕输入 点歌 歌名">
+                        <input id="overlayRuleColor1" type="color">
+                      </label>
+                      <label class="festival-rule-setting">
+                        <span>规则 2</span>
+                        <input id="overlayRule2" placeholder="留空则不显示">
+                        <input id="overlayRuleColor2" type="color">
+                      </label>
+                      <label class="festival-rule-setting">
+                        <span>规则 3</span>
+                        <input id="overlayRule3" placeholder="留空则不显示">
+                        <input id="overlayRuleColor3" type="color">
+                      </label>
+                      <label class="festival-rule-setting">
+                        <span>规则 4</span>
+                        <input id="overlayRule4" placeholder="留空则不显示">
+                        <input id="overlayRuleColor4" type="color">
+                      </label>
+                      <label class="festival-rule-setting">
+                        <span>规则 5</span>
+                        <input id="overlayRule5" placeholder="留空则不显示">
+                        <input id="overlayRuleColor5" type="color">
+                      </label>
+                      <label class="festival-rule-setting">
+                        <span>规则 6</span>
+                        <input id="overlayRule6" placeholder="留空则不显示">
+                        <input id="overlayRuleColor6" type="color">
+                      </label>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+
+              <button class="primary" type="submit">保存点歌板主题</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="displayPage" class="tab-page">
+          <div class="panel-body stack">
+            <form id="displayForm" class="stack">
+              <label>
+                歌单滚动速率
+                <span class="range-row">
+                  <input id="scrollSecondsRange" type="range" min="1" max="200" step="1">
+                  <input id="scrollSeconds" type="number" min="1" max="200" step="1">
+                </span>
+                <span class="hint">数值越大滚动越快，1 最慢，200 最快</span>
+              </label>
+
+              <div class="grid-2" style="margin-bottom:12px">
+                <label>
+                  歌曲排序方式
+                  <select id="songBoardSortMode">
+                    <option value="initial">按首字母</option>
+                    <option value="category">按歌曲风格</option>
+                    <option value="artist">按歌手</option>
+                    <option value="language">按语言</option>
+                    <option value="length">按歌曲名字长度</option>
+                  </select>
+                  <span class="hint">控制歌单展示板的歌曲分组排列方式</span>
+                </label>
+              </div>
+
+              <div class="sync-toggle-row">
+                <label class="switch-control">
+                  <input id="songBoardSyncTheme" type="checkbox" checked>
+                  <span class="switch-track"></span>
+                  <span>同步点歌板主题</span>
+                </label>
+                <span class="hint">关闭后可独立自定义歌单展示板颜色、字体和效果</span>
+              </div>
+
+              <div id="songBoardThemeArea" hidden>
+                <fieldset class="theme-section">
+                  <legend>歌单展示板预设</legend>
+                  <div class="preset-grid" id="songBoardPresets"></div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>颜色设置</legend>
+                  <div class="swatch-row">
+                    <label>
+                      主色
+                      <input id="songBoardThemePrimary" type="color">
+                    </label>
+                    <label>
+                      辅助色
+                      <input id="songBoardThemeAccent" type="color">
+                    </label>
+                    <label>
+                      文字色
+                      <input id="songBoardThemeText" type="color">
+                    </label>
+                    <label>
+                      背景色
+                      <input id="songBoardThemeBackground" type="color">
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>文字样式</legend>
+                  <div class="grid-2">
+                    <label>
+                      字体
+                      <select id="songBoardFontFamily">
+                        <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
+                        <option value="Microsoft YaHei">微软雅黑（默认）</option>
+                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
+                        <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
+                        <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
+                        <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
+                        <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
+                      </select>
+                    </label>
+                    <label>
+                      字重
+                      <select id="songBoardFontWeight">
+                        <option value="600">较细</option>
+                        <option value="700">中等</option>
+                        <option value="800" selected>粗体（默认）</option>
+                        <option value="900">超粗</option>
+                      </select>
+                    </label>
+                    <label>
+                      歌名颜色
+                      <input id="songBoardSongColor" type="color" value="">
+                      <span class="hint">留空则使用文字色</span>
+                    </label>
+                    <label>
+                      面板标题
+                      <input id="songBoardTitle" placeholder="留空显示默认：可点歌单">
+                      <span class="hint">自定义歌单展示板顶部标题文字</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>字号设置</legend>
+                  <div class="grid-2">
+                    <label>
+                      歌名字号
+                      <span class="range-row">
+                        <input id="songBoardSongFontSize" type="range" min="10" max="40" step="1">
+                        <input id="songBoardSongFontSizeNumber" type="number" min="10" max="40" step="1">
+                      </span>
+                    </label>
+                    <label>
+                      标题字号
+                      <span class="range-row">
+                        <input id="songBoardTitleFontSize" type="range" min="10" max="28" step="1">
+                        <input id="songBoardTitleFontSizeNumber" type="number" min="10" max="28" step="1">
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>玻璃质感效果</legend>
+                  <div class="grid-2">
+                    <label>
+                      背景模糊
+                      <span class="range-row">
+                        <input id="songBoardBackdropBlur" type="range" min="0" max="30" step="1">
+                        <input id="songBoardBackdropBlurNumber" type="number" min="0" max="30" step="1">
+                      </span>
+                      <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
+                    </label>
+                    <label>
+                      发光强度
+                      <span class="range-row">
+                        <input id="songBoardGlowIntensity" type="range" min="0" max="20" step="1">
+                        <input id="songBoardGlowIntensityNumber" type="number" min="0" max="20" step="1">
+                      </span>
+                      <span class="hint">辅助色的发光强度，0 为关闭</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>渐变背景</legend>
+                  <div class="grid-2">
+                    <label>
+                      启用渐变
+                      <select id="songBoardEnableGradient">
+                        <option value="false">关闭（纯色背景）</option>
+                        <option value="true">开启（渐变背景）</option>
+                      </select>
+                    </label>
+                    <label>
+                      渐变结束色
+                      <input id="songBoardGradientEnd" type="color">
+                      <span class="hint">搭配背景色形成双色渐变</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="theme-section">
+                  <legend>面板设置</legend>
+                  <div class="grid-2">
+                    <label>
+                      背景透明度
+                      <span class="range-row">
+                        <input id="songBoardThemeOpacity" type="range" min="0" max="1" step="0.01">
+                        <input id="songBoardThemeOpacityNumber" type="number" min="0" max="1" step="0.01">
+                      </span>
+                    </label>
+                    <label>
+                      圆角大小
+                      <input id="songBoardThemeRadius" type="number" min="0" max="24">
+                      <span class="hint">数值越大越圆润，推荐 12-16</span>
+                    </label>
+                  </div>
+                </fieldset>
+
+                <div class="actions">
+                  <button id="songBoardResetTheme" type="button">恢复默认</button>
+                </div>
+              </div>
+
+              <button class="primary" type="submit">保存展示板</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="overlayPage" class="tab-page">
+          <div class="panel-body stack">
+            <div class="overlay-address-head">
+              <div>
+                <h3>直播画面地址</h3>
+                <p>把下面两个网页源地址复制到直播姬或 OBS。</p>
+              </div>
+              <button id="copyOverlayUrls" class="primary" type="button">复制两个地址</button>
+            </div>
+
+            <div class="overlay-address-grid">
+              <section class="overlay-address-item">
+                <div>
+                  <strong>点歌板</strong>
+                  <span>显示当前点歌和等待队列</span>
+                </div>
+                <code id="queueUrl"></code>
+                <button type="button" data-copy-url="queueUrl">复制</button>
+              </section>
+
+              <section class="overlay-address-item">
+                <div>
+                  <strong>歌曲展示滚动版</strong>
+                  <span>滚动展示歌库</span>
+                </div>
+                <code id="songsUrl"></code>
+                <button type="button" data-copy-url="songsUrl">复制</button>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <div id="importPage" class="tab-page">
+          <div class="panel-body stack">
+            <div class="actions">
+              <a href="/api/songs/template.xlsx"><button type="button">下载导入模板 Excel</button></a>
+              <a href="/api/songs/template.csv"><button type="button">下载导入模板</button></a>
+              <a href="/api/songs/export.xlsx"><button type="button">导出歌库 Excel</button></a>
+              <a href="/api/songs/export.csv"><button type="button">导出歌库 CSV</button></a>
+              <button id="clearDatabaseBtn" class="danger" type="button">清空歌库</button>
+              <button id="clearSuperChatsBtn" class="danger" type="button">清空 SC 记录</button>
+              <button id="clearAllBtn" class="danger" type="button" style="border-color:#c0392b;color:#fff;background:#c0392b;">清空全部数据</button>
+            </div>
+            <label>
+              选择 Excel / CSV / TSV 文件
+              <input id="importFile" type="file" accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values">
+            </label>
+            <label>
+              或从 Excel 复制表格后粘贴
+              <textarea id="importText" placeholder="歌曲名字	歌手	歌曲分类	备注	标签	是否可点	语言	来源平台	原始分组"></textarea>
+            </label>
+            <button id="importBtn" class="primary" type="button">导入歌库</button>
+            <p class="hint">当前临时表头可以直接用。后续把 `歌曲分类` 改成 `分类`、`类别` 或 `分组` 也能识别。清空歌库只会删除歌曲和分类，不会删除直播间号、主题颜色和其他设置。</p>
+            <div id="importResult" class="hint"></div>
+          </div>
+        </div>
+
+        <div id="giftPage" class="tab-page">
+          <div class="panel-body stack">
+            <section class="gift-section">
+              <div class="gift-section-head">
+                <div>
+                  <h3>月底冲刺</h3>
+                  <p>打开后，新收到的付费礼物会计入本轮目标；盲盒按盒子成本计入。</p>
+                </div>
+                <span id="giftSprintStatus" class="pill warn">未开启</span>
+              </div>
+
+              <form id="giftSprintForm" class="grid-3">
+                <label>
+                  礼物扣减开关
+                  <select id="enableGiftSprint">
+                    <option value="false">关闭</option>
+                    <option value="true">打开</option>
+                  </select>
+                </label>
+                <label>
+                  冲刺总目标（元）
+                  <input id="giftSprintTargetRmb" type="number" min="0" step="0.01" placeholder="例如：10000">
+                </label>
+                <div class="gift-form-actions">
+                  <button class="primary" type="submit">保存目标</button>
+                  <button id="giftSprintResetBtn" type="button">重置本轮已收</button>
+                </div>
+              </form>
+
+              <div class="gift-sprint-grid">
+                <section class="gift-stat">
+                  <span>目标</span>
+                  <strong id="giftSprintTarget">¥0.00</strong>
+                </section>
+                <section class="gift-stat">
+                  <span>已收到</span>
+                  <strong id="giftSprintReceived">¥0.00</strong>
+                </section>
+                <section class="gift-stat">
+                  <span>剩余</span>
+                  <strong id="giftSprintRemaining">¥0.00</strong>
+                </section>
+                <section class="gift-stat highlight">
+                  <span>还需要水晶球</span>
+                  <strong id="giftSprintCrystalBalls">0 个</strong>
+                </section>
+              </div>
+
+              <div>
+                <h4>最近礼物</h4>
+                <div id="giftRecentList" class="queue-list gift-list"></div>
+              </div>
+            </section>
+
+          </div>
+        </div>
+
+        <div id="performancePage" class="tab-page">
+          <div class="panel-body stack">
+            <div class="monitor-hero">
+              <div>
+                <h3>性能检测</h3>
+                <p id="metricsStatus">未检测</p>
+              </div>
+              <div class="monitor-actions">
+                <label class="switch-control" title="检测最近 5 秒的资源使用率">
+                  <input id="metricsToggle" type="checkbox">
+                  <span class="switch-track"></span>
+                  <span id="metricsToggleText">开始检测</span>
+                </label>
+                <button id="metricsRefreshBtn" class="primary" type="button">检测 5 秒</button>
+              </div>
+            </div>
+
+            <div class="monitor-grid">
+              <section class="metric-card">
+                <div class="metric-head">
+                  <span>整机 CPU</span>
+                  <small>全部程序</small>
+                </div>
+                <div class="metric-value" id="metricSystemCpu">--</div>
+                <div class="metric-bar"><span id="metricSystemCpuBar"></span></div>
+                <div class="metric-detail" id="metricSystemCpuDetail">等待检测</div>
+              </section>
+
+              <section class="metric-card">
+                <div class="metric-head">
+                  <span>整机 GPU</span>
+                  <small>全部程序</small>
+                </div>
+                <div class="metric-value" id="metricSystemGpu">--</div>
+                <div class="metric-bar"><span id="metricSystemGpuBar"></span></div>
+                <div class="metric-detail" id="metricSystemGpuDetail">等待检测</div>
+              </section>
+
+              <section class="metric-card">
+                <div class="metric-head">
+                  <span>整机内存</span>
+                  <small>全部程序</small>
+                </div>
+                <div class="metric-value" id="metricSystemMemory">--</div>
+                <div class="metric-bar"><span id="metricSystemMemoryBar"></span></div>
+                <div class="metric-detail" id="metricSystemMemoryDetail">等待检测</div>
+              </section>
+
+              <section class="metric-card">
+                <div class="metric-head">
+                  <span>本软件 CPU</span>
+                  <small>点歌助手</small>
+                </div>
+                <div class="metric-value" id="metricAppCpu">--</div>
+                <div class="metric-bar"><span id="metricAppCpuBar"></span></div>
+                <div class="metric-detail" id="metricAppCpuDetail">等待检测</div>
+              </section>
+
+              <section class="metric-card">
+                <div class="metric-head">
+                  <span>本软件 GPU</span>
+                  <small>点歌助手</small>
+                </div>
+                <div class="metric-value" id="metricAppGpu">--</div>
+                <div class="metric-bar"><span id="metricAppGpuBar"></span></div>
+                <div class="metric-detail" id="metricAppGpuDetail">等待检测</div>
+              </section>
+
+              <section class="metric-card">
+                <div class="metric-head">
+                  <span>本软件内存</span>
+                  <small>点歌助手</small>
+                </div>
+                <div class="metric-value" id="metricAppMemory">--</div>
+                <div class="metric-bar"><span id="metricAppMemoryBar"></span></div>
+                <div class="metric-detail" id="metricAppMemoryDetail">等待检测</div>
+              </section>
+            </div>
+
+            <div class="monitor-footer">
+              <span id="metricsSampleWindow">采样窗口：--</span>
+              <span id="metricsSampleTime">检测时间：--</span>
+              <span id="metricsProcessPid">本次服务进程：--</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="desktopUpdatePage" class="tab-page desktop-only" hidden>
+          <div class="panel-body stack">
+            <div class="desktop-update-hero">
+              <div>
+                <h3>桌面版更新</h3>
+                <p id="desktopUpdateStatus">等待桌面端连接</p>
+              </div>
+              <span id="desktopVersionPill" class="pill">版本 --</span>
+            </div>
+
+            <div class="desktop-update-grid">
+              <section class="desktop-update-card">
+                <h4>GitHub 远程更新</h4>
+                <p>从项目 Releases 读取新版本，优先使用差分下载，完成后重启应用。</p>
+                <div class="actions">
+                  <button id="desktopCheckUpdateBtn" class="primary" type="button">检查更新</button>
+                  <button id="desktopDownloadUpdateBtn" type="button" disabled>下载更新</button>
+                  <button id="desktopInstallUpdateBtn" class="danger" type="button" disabled>应用更新</button>
+                </div>
+              </section>
+
+              <section class="desktop-update-card">
+                <h4>本机数据</h4>
+                <p>歌库、队列记录和设置保存在用户数据目录，不会写进安装目录。</p>
+                <div class="actions">
+                  <button id="desktopOpenDataBtn" type="button">打开数据目录</button>
+                  <button id="desktopOpenLogBtn" type="button">打开日志目录</button>
+                  <button id="desktopOpenGithubBtn" type="button">打开 GitHub 项目</button>
+                </div>
+              </section>
+            </div>
+
+            <div class="desktop-update-progress">
+              <span id="desktopUpdateProgressBar"></span>
+            </div>
+            <p id="desktopUpdateHint" class="hint">只有通过安装包安装后的 exe 才会启用自动更新；开发模式会显示为不可检查。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <div id="toast" class="toast"></div>
+    <script src="/admin.js?v=20260725-26"></script>
+  </body>
+</html>

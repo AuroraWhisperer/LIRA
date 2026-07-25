@@ -1,0 +1,71 @@
+{
+  "name": "bilibili-live-song-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Bilibili live song request assistant MVP.",
+  "author": "Aurora",
+  "main": "src/electron/main.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "desktop": "electron .",
+    "check": "node --check src/server.js && node --check src/electron/main.js && node --check src/electron/preload.js && node --check scripts/create-icon.js",
+    "make:icon": "node scripts/create-icon.js",
+    "dist:win": "npm run make:icon && electron-builder --win nsis --x64",
+    "release:win": "npm run make:icon && electron-builder --win nsis --x64 --publish always"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.4"
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.11.1"
+  },
+  "build": {
+    "appId": "com.aurorawhisperer.bilibili-live-song-plugin",
+    "productName": "点歌助手",
+    "artifactName": "bilibili-live-song-plugin-setup-${version}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "bilibili-live-song-plugin-setup-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "点歌助手",
+      "uninstallDisplayName": "点歌助手",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "AuroraWhisperer",
+        "repo": "Request-song-for-bilibili",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
