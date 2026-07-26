@@ -1,5 +1,5 @@
 /* 编写人：Aurora */
-/* 当前项目版本：1.0.0 */
+/* 当前项目版本：1.1.0 */
 :root {
   color-scheme: light;
   --page-bg: #f6f7fb;
@@ -532,22 +532,22 @@ tr:last-child td {
   align-items: center;
 }
 
-.festival-rule-panel {
+.identity-rule-panel {
   display: grid;
   gap: 12px;
 }
 
-.festival-rule-font {
+.identity-rule-font {
   max-width: 420px;
 }
 
-.festival-rule-settings {
+.identity-rule-settings {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
 }
 
-.festival-rule-setting {
+.identity-rule-setting {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) 46px;
   gap: 8px;
@@ -558,13 +558,13 @@ tr:last-child td {
   padding: 10px;
 }
 
-.festival-rule-setting > span {
+.identity-rule-setting > span {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
 }
 
-.festival-rule-setting input[type="color"] {
+.identity-rule-setting input[type="color"] {
   min-height: 34px;
   padding: 2px;
 }
@@ -878,6 +878,10 @@ tr:last-child td {
   background: var(--surface);
 }
 
+.theme-section .grid-2 {
+  align-items: start;
+}
+
 .theme-section legend {
   font-weight: 800;
   font-size: 14px;
@@ -1131,7 +1135,7 @@ tr:last-child td {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.festival-list.no-index .festival-row {
+.identity-list.no-index .identity-row {
   grid-template-columns: none;
 }
 
@@ -1163,7 +1167,7 @@ tr:last-child td {
   text-align: center;
 }
 
-.queue-festival {
+.queue-identity {
   width: min(430px, calc(100vw - 32px));
   border: 1px solid rgba(225, 235, 255, 0.08);
   border-radius: 8px;
@@ -1171,35 +1175,35 @@ tr:last-child td {
   box-shadow: none;
 }
 
-.queue-festival.gradient-bg {
+.queue-identity.gradient-bg {
   background: rgba(0, 0, 0, 0.04);
 }
 
-.queue-festival.low-power {
+.queue-identity.low-power {
   box-shadow: none;
 }
 
-.queue-festival .overlay-header {
+.queue-identity .overlay-header {
   display: none;
 }
 
-.queue-festival .overlay-content {
+.queue-identity .overlay-content {
   padding: 4px;
 }
 
-.festival-list-window {
-  height: var(--festival-window-height, 256px);
+.identity-list-window {
+  height: var(--identity-window-height, 256px);
   max-height: calc(100vh - 120px);
   overflow: hidden;
 }
 
-.festival-sc-list {
+.identity-sc-list {
   display: grid;
   gap: 3px;
   margin-bottom: 3px;
 }
 
-.festival-sc-row {
+.identity-sc-row {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1216,7 +1220,7 @@ tr:last-child td {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 
-.festival-sc-price {
+.identity-sc-price {
   flex: 0 0 auto;
   height: 16px;
   display: inline-flex;
@@ -1230,30 +1234,30 @@ tr:last-child td {
   text-shadow: none;
 }
 
-.festival-sc-message {
+.identity-sc-message {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.festival-sc-message > span {
+.identity-sc-message > span {
   display: inline-block;
   min-width: 0;
 }
 
-.festival-sc-message.is-scrolling > span {
+.identity-sc-message.is-scrolling > span {
   padding-left: 100%;
-  animation: festival-sc-marquee 9s linear infinite;
+  animation: identity-sc-marquee 9s linear infinite;
 }
 
-.festival-pins {
+.identity-pins {
   display: grid;
   gap: 3px;
   margin-bottom: 6px;
 }
 
-.festival-pin-row {
+.identity-pin-row {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1271,7 +1275,7 @@ tr:last-child td {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 
-.festival-pin-label {
+.identity-pin-label {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -1286,7 +1290,7 @@ tr:last-child td {
   white-space: nowrap;
 }
 
-.festival-pin-content {
+.identity-pin-content {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -1294,20 +1298,20 @@ tr:last-child td {
   text-overflow: ellipsis;
 }
 
-.festival-list {
+.identity-list {
   display: grid;
-  gap: var(--festival-row-gap, 4px);
+  gap: var(--identity-row-gap, 4px);
 }
 
-.festival-list.scrolling {
-  animation: festival-scroll var(--scroll-seconds, 42s) linear infinite;
+.identity-list.scrolling {
+  animation: identity-scroll var(--scroll-seconds, 42s) linear infinite;
 }
 
-.festival-list.scrolling-bounce {
-  animation: festival-scroll-bounce var(--scroll-seconds, 42s) ease-in-out infinite;
+.identity-list.scrolling-bounce {
+  animation: identity-scroll-bounce var(--scroll-seconds, 42s) ease-in-out infinite;
 }
 
-.festival-row {
+.identity-row {
   --identity-color: #aab5d8;
   --identity-bg: #7780bd;
   --identity-text: #ffffff;
@@ -1317,8 +1321,8 @@ tr:last-child td {
   gap: 8px;
   align-items: center;
   box-sizing: border-box;
-  height: var(--festival-row-height, 24px);
-  min-height: var(--festival-row-height, 24px);
+  height: var(--identity-row-height, 24px);
+  min-height: var(--identity-row-height, 24px);
   border: 0;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.22);
@@ -1332,50 +1336,50 @@ tr:last-child td {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 
-.festival-row.guard-1 {
+.identity-row.guard-1 {
   --identity-color: #ff6b7d;
   --identity-bg: #f25f72;
   --identity-text: #ffffff;
 }
 
-.festival-row.guard-2 {
+.identity-row.guard-2 {
   --identity-color: #b58aff;
   --identity-bg: #8d67e8;
   --identity-text: #ffffff;
 }
 
-.festival-row.guard-3 {
+.identity-row.guard-3 {
   --identity-color: #5eb8ff;
   --identity-bg: #4b91e8;
   --identity-text: #ffffff;
 }
 
-.festival-row.medal-blue-purple {
+.identity-row.medal-blue-purple {
   --medal-bg: #7d83c5;
   --medal-text: #ffffff;
 }
 
-.festival-row.medal-light-blue {
+.identity-row.medal-light-blue {
   --medal-bg: #65c3f7;
   --medal-text: #ffffff;
 }
 
-.festival-row.medal-deep-blue {
+.identity-row.medal-deep-blue {
   --medal-bg: #5e91f2;
   --medal-text: #ffffff;
 }
 
-.festival-row.medal-purple {
+.identity-row.medal-purple {
   --medal-bg: #9d68df;
   --medal-text: #ffffff;
 }
 
-.festival-row.medal-red {
+.identity-row.medal-red {
   --medal-bg: #ef6f85;
   --medal-text: #ffffff;
 }
 
-.festival-rank {
+.identity-rank {
   flex: 0 0 auto;
   min-width: 24px;
   color: var(--overlay-index-color, #fbbf24);
@@ -1384,17 +1388,17 @@ tr:last-child td {
   font-size: calc(12px * var(--overlay-font-scale, 1));
 }
 
-.festival-song,
-.festival-requester,
-.festival-identity,
-.festival-medal {
+.identity-song,
+.identity-requester,
+.identity-badge,
+.identity-medal {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.festival-song {
+.identity-song {
   flex: 0 1 auto;
   max-width: 44%;
   color: #ffffff;
@@ -1402,7 +1406,7 @@ tr:last-child td {
   font-weight: 900;
 }
 
-.festival-requester {
+.identity-requester {
   flex: 0 1 auto;
   max-width: 32%;
   color: #a8c8f0;
@@ -1410,8 +1414,8 @@ tr:last-child td {
   font-weight: 760;
 }
 
-.festival-identity,
-.festival-medal {
+.identity-badge,
+.identity-medal {
   flex: 0 0 auto;
   height: 16px;
   display: inline-flex;
@@ -1425,30 +1429,30 @@ tr:last-child td {
   text-shadow: none;
 }
 
-.festival-identity {
+.identity-badge {
   background: var(--identity-bg);
   color: var(--identity-text);
 }
 
-.festival-identity.identity-fan {
+.identity-badge.identity-fan {
   background: #7f88c8;
   color: #ffffff;
 }
 
-.festival-medal {
+.identity-medal {
   min-width: 24px;
   max-width: 32px;
   background: var(--medal-bg);
   color: var(--medal-text);
 }
 
-.festival-footer {
+.identity-footer {
   display: block;
   margin-top: 4px;
   overflow: hidden;
 }
 
-.festival-rules {
+.identity-rules {
   display: flex;
   flex-wrap: nowrap;
   gap: 5px;
@@ -1456,7 +1460,7 @@ tr:last-child td {
   overflow: hidden;
 }
 
-.festival-rules span {
+.identity-rules span {
   flex: 0 0 auto;
   min-width: 0;
   max-width: 120px;
@@ -1469,7 +1473,7 @@ tr:last-child td {
   background: rgba(0, 0, 0, 0.18);
   color: rgba(255, 255, 255, 0.92);
   padding: 2px 6px;
-  font-size: var(--festival-rule-font-size, calc(10px * var(--overlay-font-scale, 1)));
+  font-size: var(--identity-rule-font-size, calc(10px * var(--overlay-font-scale, 1)));
   font-weight: 720;
   line-height: 1.1;
   text-overflow: ellipsis;
@@ -1477,18 +1481,18 @@ tr:last-child td {
   white-space: nowrap;
 }
 
-.festival-rules .festival-rule-1 { background: var(--festival-rule-1-bg, #f5b72f); }
-.festival-rules .festival-rule-2 { background: var(--festival-rule-2-bg, #65aef7); }
-.festival-rules .festival-rule-3 { background: var(--festival-rule-3-bg, #8d67e8); }
-.festival-rules .festival-rule-4 { background: var(--festival-rule-4-bg, #f25f72); }
-.festival-rules .festival-rule-5 { background: var(--festival-rule-5-bg, #21b6a8); }
-.festival-rules .festival-rule-6 {
-  background: var(--festival-rule-6-bg, rgba(255, 255, 255, 0.86));
+.identity-rules .identity-rule-1 { background: var(--identity-rule-1-bg, #f5b72f); }
+.identity-rules .identity-rule-2 { background: var(--identity-rule-2-bg, #65aef7); }
+.identity-rules .identity-rule-3 { background: var(--identity-rule-3-bg, #8d67e8); }
+.identity-rules .identity-rule-4 { background: var(--identity-rule-4-bg, #f25f72); }
+.identity-rules .identity-rule-5 { background: var(--identity-rule-5-bg, #21b6a8); }
+.identity-rules .identity-rule-6 {
+  background: var(--identity-rule-6-bg, rgba(255, 255, 255, 0.86));
   color: #273142;
 }
 
-.festival-empty {
-  height: var(--festival-window-height, 210px);
+.identity-empty {
+  height: var(--identity-window-height, 210px);
   display: grid;
   place-items: center;
   color: #d7f8ff;
@@ -1497,9 +1501,9 @@ tr:last-child td {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.46);
 }
 
-.overlay-panel.low-power .festival-row,
-.overlay-panel.low-power .festival-empty,
-.overlay-panel.low-power .festival-pin-row {
+.overlay-panel.low-power .identity-row,
+.overlay-panel.low-power .identity-empty,
+.overlay-panel.low-power .identity-pin-row {
   text-shadow: none;
 }
 
@@ -1571,16 +1575,16 @@ tr:last-child td {
   }
 }
 
-@keyframes festival-scroll {
+@keyframes identity-scroll {
   from {
     transform: translateY(0);
   }
   to {
-    transform: translateY(calc(-1 * var(--festival-loop-distance, 280px)));
+    transform: translateY(calc(-1 * var(--identity-loop-distance, 280px)));
   }
 }
 
-@keyframes festival-sc-marquee {
+@keyframes identity-sc-marquee {
   from {
     transform: translateX(0);
   }
@@ -1712,7 +1716,7 @@ body.desktop-shell .panel-header h2::before {
   .grid-3,
   .swatch-row,
   .style-picker,
-  .festival-rule-settings,
+  .identity-rule-settings,
   .overlay-address-grid,
   .monitor-grid,
   .gift-sprint-grid,

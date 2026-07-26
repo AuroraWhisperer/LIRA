@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 当前项目版本：1.0.0
+// 当前项目版本：1.1.0
 'use strict';
 
 let state = null;

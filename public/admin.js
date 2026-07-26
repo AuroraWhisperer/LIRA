@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 当前项目版本：1.0.0
+// 当前项目版本：1.1.0
 'use strict';
 
 let appState = null;
@@ -35,7 +35,7 @@ const defaultThemeLook = {
   overlayShowIndex: 'true',
   overlayIndexThreshold: '0',
   overlayIndexColor: '#fbbf24',
-  queueScrollMode: 'loop',
+  queueScrollMode: 'bounce',
   queueScrollSpeed: '62'
 };
 
@@ -1705,19 +1705,19 @@ function scaleToFontSize(scale, baseSize) {
 }
 
 function setOverlayStyle(style) {
-  const nextStyle = style === 'festival' ? 'festival' : 'classic';
+  const nextStyle = (style === 'identity' || style === 'festival') ? 'identity' : 'classic';
   setValue('overlayQueueStyle', nextStyle);
   document.querySelectorAll('[data-overlay-style]').forEach((button) => {
     button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
   });
   const classicArea = document.getElementById('classicThemeArea');
-  const festivalArea = document.getElementById('festivalThemeArea');
-  if (nextStyle === 'festival') {
+  const identityArea = document.getElementById('identityThemeArea');
+  if (nextStyle === 'identity') {
     if (classicArea) classicArea.hidden = true;
-    if (festivalArea) festivalArea.hidden = false;
+    if (identityArea) identityArea.hidden = false;
   } else {
     if (classicArea) classicArea.hidden = false;
-    if (festivalArea) festivalArea.hidden = true;
+    if (identityArea) identityArea.hidden = true;
     renderClassicPresetCards();
   }
 }

@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 当前项目版本：1.0.0
+// 当前项目版本：1.1.0
 'use strict';
 
 let state = null;
@@ -54,7 +54,7 @@ function connectSocket() {
 function render() {
   if (!state) return;
   const settings = state.settings || {};
-  const style = settings.overlayQueueStyle === 'festival' ? 'festival' : 'classic';
+  const style = (settings.overlayQueueStyle === 'identity' || settings.overlayQueueStyle === 'festival') ? 'identity' : 'classic';
   applyTheme(settings, style);
 
   const queue = state.queue || {};
@@ -62,8 +62,8 @@ function render() {
   const waiting = queue.waiting || [];
   const content = document.getElementById('queueContent');
 
-  if (style === 'festival') {
-    renderFestivalQueue(settings, current, waiting, content, state.superChats || []);
+  if (style === 'identity') {
+    renderIdentityQueue(settings, current, waiting, content, state.superChats || []);
     return;
   }
 
@@ -128,17 +128,17 @@ function renderClassicQueue(settings, current, waiting, content) {
   `;
 }
 
-function renderFestivalQueue(settings, current, waiting, content, superChats = []) {
+function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
   const items = [current].concat(waiting).filter(Boolean);
   const visibleRows = Math.max(1, Math.min(7, Number(settings.overlayDisplayCount || 7)));
   const rowHeight = 24;
   const rowGap = 4;
   const rowStep = rowHeight + rowGap;
   const windowHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap);
-  document.documentElement.style.setProperty('--festival-visible-rows', String(visibleRows));
-  document.documentElement.style.setProperty('--festival-row-height', `${rowHeight}px`);
-  document.documentElement.style.setProperty('--festival-row-gap', `${rowGap}px`);
-  document.documentElement.style.setProperty('--festival-window-height', `${windowHeight}px`);
+  document.documentElement.style.setProperty('--identity-visible-rows', String(visibleRows));
+  document.documentElement.style.setProperty('--identity-row-height', `${rowHeight}px`);
+  document.documentElement.style.setProperty('--identity-row-gap', `${rowGap}px`);
+  document.documentElement.style.setProperty('--identity-window-height', `${windowHeight}px`);
 
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
@@ -149,11 +149,11 @@ function renderFestivalQueue(settings, current, waiting, content, superChats = [
     settings.overlayPin3
   ].map((item) => String(item || '').trim()).filter(Boolean);
   const pinHtml = pins.length ? `
-    <div class="festival-pins">
+    <div class="identity-pins">
       ${pins.map((pin) => `
-        <div class="festival-pin-row">
-          <span class="festival-pin-label">置顶</span>
-          <span class="festival-pin-content">${escapeHtml(pin)}</span>
+        <div class="identity-pin-row">
+          <span class="identity-pin-label">置顶</span>
+          <span class="identity-pin-content">${escapeHtml(pin)}</span>
         </div>
       `).join('')}
     </div>
@@ -167,14 +167,14 @@ function renderFestivalQueue(settings, current, waiting, content, superChats = [
     settings.overlayRule6
   ].map((item) => String(item || '').trim()).filter(Boolean);
   const ruleHtml = rules.length ? `
-    <div class="festival-rules">
-      ${rules.map((rule, index) => `<span class="festival-rule-${(index % 6) + 1}">${escapeHtml(rule)}</span>`).join('')}
+    <div class="identity-rules">
+      ${rules.map((rule, index) => `<span class="identity-rule-${(index % 6) + 1}">${escapeHtml(rule)}</span>`).join('')}
     </div>
   ` : '';
-  const superChatHtml = renderFestivalSuperChats(superChats);
+  const superChatHtml = renderIdentitySuperChats(superChats);
   const rows = items.length > 0
-    ? items.map((item, i) => renderFestivalRow(item, i, shouldShowIndex)).join('')
-    : '<div class="festival-empty">当前还没有点歌</div>';
+    ? items.map((item, i) => renderIdentityRow(item, i, shouldShowIndex)).join('')
+    : '<div class="identity-empty">当前还没有点歌</div>';
   const shouldScroll = items.length > visibleRows;
   const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
   const scrollSeconds = queueScrollSeconds(settings);
@@ -182,13 +182,13 @@ function renderFestivalQueue(settings, current, waiting, content, superChats = [
 
   if (shouldScroll) {
     const hiddenRows = Math.max(1, items.length - visibleRows);
-    document.documentElement.style.setProperty('--festival-bounce-distance', `${hiddenRows * rowStep}px`);
-    document.documentElement.style.setProperty('--festival-loop-distance', `${items.length * rowStep}px`);
+    document.documentElement.style.setProperty('--identity-bounce-distance', `${hiddenRows * rowStep}px`);
+    document.documentElement.style.setProperty('--identity-loop-distance', `${items.length * rowStep}px`);
     const scrollClass = scrollMode === 'bounce' ? 'scrolling-bounce' : 'scrolling';
     const scrollRowsHtml = scrollMode === 'bounce' ? rows : `${rows}${rows}`;
     if (scrollMode === 'bounce') {
       const totalSeconds = scrollSeconds + 3;
-      setFestivalBounceKeyframes((scrollSeconds / totalSeconds) * 100);
+      setIdentityBounceKeyframes((scrollSeconds / totalSeconds) * 100);
       document.documentElement.style.setProperty('--scroll-seconds', `${totalSeconds}s`);
     } else {
       document.documentElement.style.setProperty('--scroll-seconds', `${scrollSeconds}s`);
@@ -197,52 +197,52 @@ function renderFestivalQueue(settings, current, waiting, content, superChats = [
     content.innerHTML = `
       ${pinHtml}
       ${superChatHtml}
-      <div class="festival-list-window">
-        <div class="festival-list ${scrollClass}${noIndexClass}">
+      <div class="identity-list-window">
+        <div class="identity-list ${scrollClass}${noIndexClass}">
           ${scrollRowsHtml}
         </div>
       </div>
-      ${ruleHtml ? `<div class="festival-footer">${ruleHtml}</div>` : ''}
+      ${ruleHtml ? `<div class="identity-footer">${ruleHtml}</div>` : ''}
     `;
   } else {
     document.documentElement.style.setProperty('--scroll-seconds', `${scrollSeconds}s`);
     content.innerHTML = `
       ${pinHtml}
       ${superChatHtml}
-      <div class="festival-list-window">
-        <div class="festival-list paused${noIndexClass}">
+      <div class="identity-list-window">
+        <div class="identity-list paused${noIndexClass}">
           ${rows}
         </div>
       </div>
-      ${ruleHtml ? `<div class="festival-footer">${ruleHtml}</div>` : ''}
+      ${ruleHtml ? `<div class="identity-footer">${ruleHtml}</div>` : ''}
     `;
   }
 }
 
-function renderFestivalSuperChats(superChats) {
+function renderIdentitySuperChats(superChats) {
   const items = (Array.isArray(superChats) ? superChats : []).filter((item) => Number(item.price || 0) >= 2);
   if (items.length === 0) return '';
   return `
-    <div class="festival-sc-list">
-      ${items.map(renderFestivalSuperChat).join('')}
+    <div class="identity-sc-list">
+      ${items.map(renderIdentitySuperChat).join('')}
     </div>
   `;
 }
 
-function renderFestivalSuperChat(item) {
+function renderIdentitySuperChat(item) {
   const message = String(item.message || '').trim();
   const shouldScroll = Array.from(message).length > 24;
   return `
-    <div class="festival-sc-row">
-      <span class="festival-sc-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
-      <span class="festival-sc-message ${shouldScroll ? 'is-scrolling' : ''}">
+    <div class="identity-sc-row">
+      <span class="identity-sc-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
+      <span class="identity-sc-message ${shouldScroll ? 'is-scrolling' : ''}">
         <span>${escapeHtml(message || '醒目留言')}</span>
       </span>
     </div>
   `;
 }
 
-function renderFestivalRow(item, index, showIndex = true) {
+function renderIdentityRow(item, index, showIndex = true) {
   const guardLevel = normalizeGuardLevel(item.requester_guard_level);
   const medalLevel = Number(item.requester_medal_level || 0);
   const medalName = String(item.requester_medal_name || '').trim();
@@ -251,12 +251,12 @@ function renderFestivalRow(item, index, showIndex = true) {
   const medalClass = medalLevelClass(medalLevel);
 
   return `
-    <div class="festival-row guard-${guardLevel} medal-${medalClass}">
-      ${showIndex ? `<span class="festival-rank">${index + 1}</span>` : ''}
-      <span class="festival-song">${item.is_pinned ? '📌 ' : ''}${escapeHtml(item.song_name)}</span>
-      <span class="festival-requester">${escapeHtml(item.requester_name || '观众')}</span>
-      ${identityText ? `<span class="festival-identity ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
-      ${medalLevel > 0 ? `<span class="festival-medal">${medalLevel}</span>` : ''}
+    <div class="identity-row guard-${guardLevel} medal-${medalClass}">
+      ${showIndex ? `<span class="identity-rank">${index + 1}</span>` : ''}
+      <span class="identity-song">${item.is_pinned ? '📌 ' : ''}${escapeHtml(item.song_name)}</span>
+      <span class="identity-requester">${escapeHtml(item.requester_name || '观众')}</span>
+      ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
+      ${medalLevel > 0 ? `<span class="identity-medal">${medalLevel}</span>` : ''}
     </div>
   `;
 }
@@ -319,7 +319,7 @@ function applyTheme(settings, style) {
   root.style.setProperty('--overlay-song-color', songColor || settings.themeText || '#fff7fb');
   root.style.setProperty('--overlay-requester-color', settings.overlayRequesterColor || '');
   root.style.setProperty('--overlay-index-color', settings.overlayIndexColor || '');
-  setFestivalRuleThemeVars(root, settings);
+  setIdentityRuleThemeVars(root, settings);
 
   const titleEl = panel.querySelector('.overlay-title');
   if (titleEl) {
@@ -341,19 +341,19 @@ function applyTheme(settings, style) {
   )}px`);
   root.style.setProperty('--scroll-seconds', `${queueScrollSeconds(settings)}s`);
 
-  panel.style.backgroundColor = style === 'festival'
+  panel.style.backgroundColor = style === 'identity'
     ? ''
     : hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity || 0.76);
 }
 
-function setFestivalRuleThemeVars(root, settings) {
-  const defaultColors = ['#f5b72f', '#65aef7', '#8d67e8', '#f25f72', '#21b6a8', '#ffffff'];
+function setIdentityRuleThemeVars(root, settings) {
+  const defaultColors = ['#f5b72f', '#65aef7', '#8d67e8', '#f25f72', '#21b6a8', '#f97316'];
   for (let index = 0; index < defaultColors.length; index += 1) {
     const key = `overlayRuleColor${index + 1}`;
-    root.style.setProperty(`--festival-rule-${index + 1}-bg`, settings[key] || defaultColors[index]);
+    root.style.setProperty(`--identity-rule-${index + 1}-bg`, settings[key] || defaultColors[index]);
   }
   const ruleFontSize = Math.max(8, normalizeFontSize(settings.overlayRuleFontSize, 10, 18));
-  root.style.setProperty('--festival-rule-font-size', `${ruleFontSize}px`);
+  root.style.setProperty('--identity-rule-font-size', `${ruleFontSize}px`);
 }
 
 function hexToRgb(hex) {
@@ -409,18 +409,18 @@ function setClassicBounceKeyframes(downPercent) {
 }`;
 }
 
-function setFestivalBounceKeyframes(downPercent) {
+function setIdentityBounceKeyframes(downPercent) {
   const safePercent = Math.max(1, Math.min(99, Number(downPercent) || 90)).toFixed(4);
-  let style = document.getElementById('festivalBounceKeyframes');
+  let style = document.getElementById('identityBounceKeyframes');
   if (!style) {
     style = document.createElement('style');
-    style.id = 'festivalBounceKeyframes';
+    style.id = 'identityBounceKeyframes';
     document.head.appendChild(style);
   }
   style.textContent = `
-@keyframes festival-scroll-bounce {
+@keyframes identity-scroll-bounce {
   0% { transform: translateY(0); }
-  ${safePercent}% { transform: translateY(calc(-1 * var(--festival-bounce-distance, 64px))); }
+  ${safePercent}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
   100% { transform: translateY(0); }
 }`;
 }

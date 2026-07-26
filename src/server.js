@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.0.1
+// 当前项目版本：1.1.0
 'use strict';
 
 const http = require('node:http');
@@ -38,7 +38,7 @@ const CRYSTAL_BALL_VALUE_RMB = 100;
 
 const DEFAULT_SETTINGS = {
   roomId: '',
-  enableBilibili: 'false',
+  enableBilibili: 'true',
   enableGiftSprint: 'false',
   giftSprintTargetRmb: '0',
   enableGiftBotFallback: 'true',
@@ -50,9 +50,9 @@ const DEFAULT_SETTINGS = {
   allowDuplicate: 'true',
   queueLimit: '50',
   overlayDisplayCount: '6',
-  userCooldownSeconds: '10',
-  scrollSeconds: '20',
-  queueScrollMode: 'loop',
+  userCooldownSeconds: '0',
+  scrollSeconds: '100',
+  queueScrollMode: 'bounce',
   queueScrollSpeed: '62',
   queueScrollSpeedRangeVersion: '3',
   themePrimary: '#ff6f91',
@@ -82,7 +82,7 @@ const DEFAULT_SETTINGS = {
   overlayPin2: '',
   overlayPin3: '',
   overlayRule1: '弹幕输入 点歌 歌名',
-  overlayRule2: '',
+  overlayRule2: '支持随机点歌',
   overlayRule3: '',
   overlayRule4: '',
   overlayRule5: '',
@@ -92,7 +92,7 @@ const DEFAULT_SETTINGS = {
   overlayRuleColor3: '#8d67e8',
   overlayRuleColor4: '#f25f72',
   overlayRuleColor5: '#21b6a8',
-  overlayRuleColor6: '#ffffff',
+  overlayRuleColor6: '#f97316',
   overlayRuleFontSize: '10',
   songBoardSyncTheme: 'true',
   songBoardThemePrimary: '#ff6f91',
@@ -320,7 +320,7 @@ for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
   `).run(key, value, now());
 }
 migrateQueueScrollSpeedSetting(queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value);
-clearLegacyFestivalRuleDefaults();
+clearLegacyIdentityRuleDefaults();
 ensureCategory('默认');
 clearActiveQueueOnStartup();
 
@@ -2455,9 +2455,8 @@ function setSetting(key, value) {
   `).run(key, value, now());
 }
 
-function clearLegacyFestivalRuleDefaults() {
+function clearLegacyIdentityRuleDefaults() {
   const legacyRules = {
-    overlayRule2: '随机点歌',
     overlayRule3: '同一观众 10 秒冷却',
     overlayRule4: '按队列顺序演唱'
   };
