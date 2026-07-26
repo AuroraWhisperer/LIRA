@@ -87,8 +87,6 @@ function setMainPage(pageId) {
   document.querySelectorAll('.main-page-tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.mainPage === nextPageId);
   });
-  const title = document.getElementById('appTitle');
-  if (title) title.textContent = nextPageId === 'playbackAssistantPage' ? '播放' : '点歌';
   if (location.hash !== (nextPageId === 'playbackAssistantPage' ? '#playback' : '')) {
     history.replaceState(null, '', nextPageId === 'playbackAssistantPage' ? '#playback' : location.pathname + location.search);
   }
@@ -442,8 +440,9 @@ function initPerformanceMonitor() {
 }
 
 function initOverlayUrls() {
-  document.getElementById('queueUrl').textContent = `${location.origin}/queue`;
-  document.getElementById('songsUrl').textContent = `${location.origin}/songlist`;
+  const origin = location.origin.replace('127.0.0.1', 'localhost');
+  document.getElementById('queueUrl').textContent = `${origin}/queue`;
+  document.getElementById('songsUrl').textContent = `${origin}/songlist`;
 }
 
 function connectSocket() {
@@ -1383,25 +1382,27 @@ function fillForm(values) {
   const syncCheckbox = document.getElementById('songBoardSyncTheme');
   const syncArea = document.getElementById('songBoardThemeArea');
   if (syncCheckbox && syncArea) {
-    const synced = (values && values.songBoardSyncTheme) !== 'false';
-    syncCheckbox.checked = synced;
-    syncArea.hidden = synced;
-    if (synced) {
-      // Copy main theme values into song board fields for seamless toggle-off
-      setValue('songBoardThemePrimary', (values && values.themePrimary) || '#ff6f91');
-      setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
-      setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
-      setValue('songBoardThemeBackground', (values && values.themeBackground) || '#181823');
-      setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.35');
-      setValue('songBoardThemeRadius', (values && values.themeRadius) || '8');
-      setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '0');
-      setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '0');
-      setValue('songBoardEnableGradient', (values && values.enableGradient) || 'false');
-      setValue('songBoardGradientEnd', (values && values.gradientEnd) || '#181823');
-      setValue('songBoardFontFamily', (values && values.overlayFontFamily) || 'Microsoft YaHei');
-      setValue('songBoardFontWeight', (values && values.overlayFontWeight) || '800');
-      setValue('songBoardSongColor', (values && values.overlaySongColor) || '');
-      setValue('songBoardTitle', (values && values.overlayTitle) || '');
+    if (values && 'songBoardSyncTheme' in values) {
+      const synced = values.songBoardSyncTheme !== 'false';
+      syncCheckbox.checked = synced;
+      syncArea.hidden = synced;
+      if (synced) {
+        // Copy main theme values into song board fields for seamless toggle-off
+        setValue('songBoardThemePrimary', (values && values.themePrimary) || '#ff6f91');
+        setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
+        setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
+        setValue('songBoardThemeBackground', (values && values.themeBackground) || '#181823');
+        setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.35');
+        setValue('songBoardThemeRadius', (values && values.themeRadius) || '8');
+        setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '0');
+        setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '0');
+        setValue('songBoardEnableGradient', (values && values.enableGradient) || 'false');
+        setValue('songBoardGradientEnd', (values && values.gradientEnd) || '#181823');
+        setValue('songBoardFontFamily', (values && values.overlayFontFamily) || 'Microsoft YaHei');
+        setValue('songBoardFontWeight', (values && values.overlayFontWeight) || '800');
+        setValue('songBoardSongColor', (values && values.overlaySongColor) || '');
+        setValue('songBoardTitle', (values && values.overlayTitle) || '');
+      }
     }
   }
 

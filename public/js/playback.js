@@ -45,7 +45,6 @@
         shuffleCursor: 0,
         restoredTime: 0
       };
-      let playbackObjectUrls = new Set();
       let playbackStreamRetryCount = 0;
       let playbackAuthState = null;
       let playbackProviderHealth = null;
@@ -68,14 +67,6 @@
 
         restorePlaybackState();
         audio.volume = playbackState.volume;
-
-        const fileInput = document.getElementById('playbackFileInput');
-        if (fileInput) {
-          fileInput.addEventListener('change', () => {
-            addPlaybackFiles(Array.from(fileInput.files || []));
-            fileInput.value = '';
-          });
-        }
 
         document.getElementById('playbackClearQueue')?.addEventListener('click', clearPlaybackQueue);
         document.getElementById('playbackImportSongQueue')?.addEventListener('click', importSongQueueToPlayback);
@@ -453,9 +444,12 @@
         if (playbackHomeItemType === 'playlist') {
           resultNode.innerHTML = playbackHomeItems.map((playlist, index) => `
             <div class="queue-row playback-home-row">
-              <div>
-                <div class="song">${escapeHtml(playlist.title || '')}</div>
-                <div class="meta">${escapeHtml(formatPlaybackPlaylistMeta(playlist))}</div>
+              <div class="playback-row-main">
+                ${renderPlaybackArtwork(playlist, { fallback: '单' })}
+                <div>
+                  <div class="song">${escapeHtml(playlist.title || '')}</div>
+                  <div class="meta">${escapeHtml(formatPlaybackPlaylistMeta(playlist))}</div>
+                </div>
               </div>
               <div class="queue-actions">
                 <button type="button" data-playback-playlist-index="${index}">打开</button>
@@ -476,9 +470,12 @@
           </div>
           ${playbackHomeItems.map((track, index) => `
             <div class="queue-row playback-home-row">
-              <div>
-                <div class="song">${escapeHtml(track.title || '')}</div>
-                <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
+              <div class="playback-row-main">
+                ${renderPlaybackArtwork(track)}
+                <div>
+                  <div class="song">${escapeHtml(track.title || '')}</div>
+                  <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
+                </div>
               </div>
               <div class="queue-actions">
                 <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}">入队</button>
@@ -612,9 +609,12 @@
 
         resultNode.innerHTML = playbackSearchResults.map((track, index) => `
           <div class="queue-row playback-search-row">
-            <div>
-              <div class="song">${escapeHtml(track.title || '')}</div>
-              <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
+            <div class="playback-row-main">
+              ${renderPlaybackArtwork(track)}
+              <div>
+                <div class="song">${escapeHtml(track.title || '')}</div>
+                <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
+              </div>
             </div>
             <div class="queue-actions">
               <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}">入队</button>
@@ -797,6 +797,17 @@
         if (track.vip) parts.push('VIP');
         if (track.playable === false) parts.push('可能不可播');
         return parts.join(' · ');
+      }
+
+      function renderPlaybackArtwork(item, options = {}) {
+        const coverUrl = String(item && item.coverUrl || '').trim();
+        const fallback = options.fallback || '音';
+        return `
+          <div class="playback-artwork${coverUrl ? ' has-image' : ''}" aria-hidden="true">
+            ${coverUrl ? `<img src="${escapeAttr(coverUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+            <span>${escapeHtml(fallback)}</span>
+          </div>
+        `;
       }
 
       async function runPlaybackMatchTest() {
@@ -1034,34 +1045,6 @@
         }
       }
 
-      function addPlaybackFiles(files) {
-        const audioFiles = files.filter((file) => file && file.type.startsWith('audio/'));
-        if (!audioFiles.length) {
-          toast('请选择音频文件');
-          return;
-        }
-
-        for (const file of audioFiles) {
-          const objectUrl = URL.createObjectURL(file);
-          playbackObjectUrls.add(objectUrl);
-          playbackState.normalQueue.push({
-            id: `local:${file.name}:${file.size}:${file.lastModified}`,
-            source: 'local',
-            title: file.name.replace(/\.[^.]+$/, ''),
-            artists: ['本地音频'],
-            album: '',
-            durationMs: 0,
-            fileName: file.name,
-            objectUrl
-          });
-        }
-
-        rebuildPlaybackShuffleOrder();
-        savePlaybackState();
-        renderPlayback();
-        toast(`已加入 ${audioFiles.length} 首本地音频`);
-      }
-
       function clearPlaybackQueue() {
         const audio = getPlaybackAudio();
         if (audio) {
@@ -1069,8 +1052,6 @@
           audio.removeAttribute('src');
           audio.load();
         }
-        for (const objectUrl of playbackObjectUrls) URL.revokeObjectURL(objectUrl);
-        playbackObjectUrls = new Set();
         playbackState.current = null;
         playbackState.currentOrigin = '';
         playbackState.requestedQueue = [];
@@ -1498,6 +1479,7 @@
         const cover = document.getElementById('playbackCover');
         if (cover) cover.textContent = track ? '♪' : '音';
         const playBtn = document.getElementById('playbackPlayPause');
+        if (cover) renderPlaybackCurrentCover(cover, track);
         if (playBtn) playBtn.textContent = audio && !audio.paused ? '暂停' : '播放';
         const lyricBtn = document.getElementById('playbackLyricBtn');
         if (lyricBtn) {
@@ -1598,9 +1580,12 @@
         const canRequest = !readonly && (origin === 'normal' || origin === 'radio');
         return `
           <div class="queue-row playback-queue-row${origin === playbackState.currentOrigin && playbackState.current && track.id === playbackState.current.id ? ' active' : ''}">
-            <div>
-              <div class="song">${escapeHtml(track.title)}</div>
-              <div class="meta">${escapeHtml(meta)}</div>
+            <div class="playback-row-main">
+              ${renderPlaybackArtwork(track)}
+              <div>
+                <div class="song">${escapeHtml(track.title)}</div>
+                <div class="meta">${escapeHtml(meta)}</div>
+              </div>
             </div>
             ${readonly ? '' : `
               <div class="queue-actions">
@@ -1609,6 +1594,15 @@
               </div>
             `}
           </div>
+        `;
+      }
+
+      function renderPlaybackCurrentCover(cover, track) {
+        const coverUrl = String(track && track.coverUrl || '').trim();
+        cover.classList.toggle('has-image', Boolean(coverUrl));
+        cover.innerHTML = `
+          ${coverUrl ? `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
+          <span>${track ? '♪' : '音'}</span>
         `;
       }
 

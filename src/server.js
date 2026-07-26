@@ -390,6 +390,7 @@ function shutdownApplication(options = {}) {
     bilibiliClient.stop();
     bilibiliClient = null;
   }
+  blivedmRuntime.stop();
 
   for (const socket of Array.from(sockets)) {
     try {

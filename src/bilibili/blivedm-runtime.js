@@ -18,6 +18,7 @@ function createBlivedmRuntime({
     supportedGiftCommands: [],
     missingGiftCommands: []
   };
+  let stopped = false;
 
   function getCompatibility() {
     return compatibility;
@@ -42,6 +43,7 @@ function createBlivedmRuntime({
 
     blivedmCompat.checkBlivedmCompatibility()
       .then((result) => {
+        if (stopped) return;
         compatibility = result;
         writeCache(result);
         applyRuntimeGiftCommands(result.missingGiftCommands);
@@ -53,6 +55,7 @@ function createBlivedmRuntime({
         broadcastSnapshot('blivedm:checked');
       })
       .catch((error) => {
+        if (stopped) return;
         compatibility = fallbackCompatibility(error, cached);
         console.warn(`[Bilibili] blivedm compatibility check failed: ${error.message}`);
         broadcastSnapshot('blivedm:error');
@@ -117,7 +120,10 @@ function createBlivedmRuntime({
   return {
     getCompatibility,
     checkOnStartup,
-    runManualCheck
+    runManualCheck,
+    stop() {
+      stopped = true;
+    }
   };
 }
 

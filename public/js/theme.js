@@ -355,13 +355,77 @@ const songBoardThemePresets = {
     songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
     scrollSeconds: '80'
   },
+
+  // === 新增5种预设（v1.3.3） ===
+  terracotta: {
+    songBoardThemePrimary: '#c67b5c', songBoardThemeAccent: '#8b9a6b',
+    songBoardThemeText: '#3d2e26', songBoardThemeBackground: '#f5f0e8',
+    songBoardThemeOpacity: '0.40', songBoardThemeRadius: '12',
+    songBoardBackdropBlur: '16', songBoardGlowIntensity: '2',
+    songBoardEnableGradient: 'true', songBoardGradientEnd: '#e8ddd0',
+    songBoardFontFamily: 'KaiTi, STKaiti, serif',
+    songBoardFontWeight: '700', songBoardSongColor: '#8b5a3c',
+    songBoardTitle: '可点歌单',
+    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
+    scrollSeconds: '80'
+  },
+  coral: {
+    songBoardThemePrimary: '#ff6b6b', songBoardThemeAccent: '#4ecdc4',
+    songBoardThemeText: '#fff5f5', songBoardThemeBackground: '#1a2a2a',
+    songBoardThemeOpacity: '0.32', songBoardThemeRadius: '14',
+    songBoardBackdropBlur: '20', songBoardGlowIntensity: '6',
+    songBoardEnableGradient: 'true', songBoardGradientEnd: '#0d4040',
+    songBoardFontFamily: 'Microsoft YaHei, SimHei, sans-serif',
+    songBoardFontWeight: '800', songBoardSongColor: '#ffb3b3',
+    songBoardTitle: '可点歌单',
+    songBoardSongFontSize: '17', songBoardTitleFontSize: '15',
+    scrollSeconds: '80'
+  },
+  ink: {
+    songBoardThemePrimary: '#6b5b4f', songBoardThemeAccent: '#c41e3a',
+    songBoardThemeText: '#2c2416', songBoardThemeBackground: '#f5f0e1',
+    songBoardThemeOpacity: '0.38', songBoardThemeRadius: '8',
+    songBoardBackdropBlur: '10', songBoardGlowIntensity: '0',
+    songBoardEnableGradient: 'false', songBoardGradientEnd: '#f5f0e1',
+    songBoardFontFamily: 'KaiTi, STKaiti, SimSun, serif',
+    songBoardFontWeight: '600', songBoardSongColor: '#4a3728',
+    songBoardTitle: '可点歌单',
+    songBoardSongFontSize: '16', songBoardTitleFontSize: '16',
+    scrollSeconds: '80'
+  },
+  slate: {
+    songBoardThemePrimary: '#6b7b8d', songBoardThemeAccent: '#f0a500',
+    songBoardThemeText: '#f5f7fa', songBoardThemeBackground: '#1e2328',
+    songBoardThemeOpacity: '0.34', songBoardThemeRadius: '10',
+    songBoardBackdropBlur: '18', songBoardGlowIntensity: '4',
+    songBoardEnableGradient: 'true', songBoardGradientEnd: '#2a3038',
+    songBoardFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+    songBoardFontWeight: '700', songBoardSongColor: '#c0c8d4',
+    songBoardTitle: '可点歌单',
+    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
+    scrollSeconds: '80'
+  },
+  burgundy: {
+    songBoardThemePrimary: '#a61e4d', songBoardThemeAccent: '#d4a574',
+    songBoardThemeText: '#faf0f0', songBoardThemeBackground: '#1a1018',
+    songBoardThemeOpacity: '0.28', songBoardThemeRadius: '14',
+    songBoardBackdropBlur: '24', songBoardGlowIntensity: '5',
+    songBoardEnableGradient: 'true', songBoardGradientEnd: '#2d1528',
+    songBoardFontFamily: 'system-ui, -apple-system, sans-serif',
+    songBoardFontWeight: '800', songBoardSongColor: '#e8b4b8',
+    songBoardTitle: '可点歌单',
+    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
+    scrollSeconds: '80'
+  },
 };
 
 const songBoardPresetLabels = {
   pure: '🪟 纯透极简',
   sunset: '🌅 暖橘落日', starry: '✨ 星夜幻紫', ocean: '🌊 深海湛蓝',
   sky: '☁️ 晴空浅蓝', mint: '🌿 薄荷浅绿', peach: '🍑 蜜桃奶白',
-  emerald: '🌲 翡翠深林', rose: '🌹 丝绒玫瑰'
+  emerald: '🌲 翡翠深林', rose: '🌹 丝绒玫瑰',
+  terracotta: '🪨 陶土侘寂', coral: '🐠 珊瑚海礁',
+  ink: '🖋 墨香宣纸', slate: '⚙️ 工业灰调', burgundy: '🍷 勃艮第醇'
 };
 
 const songBoardPresetSwatches = {
@@ -373,7 +437,12 @@ const songBoardPresetSwatches = {
   mint: ['#e6f2ea', '#10b981', '#f59e0b', '#1a2d20'],
   peach: ['#fce7f0', '#ec4899', '#8b5cf6', '#3d1a2a'],
   emerald: ['#0a1a10', '#34d399', '#fbbf24', '#f0fdf4'],
-  rose: ['#1a0e14', '#f472b6', '#c084fc', '#fff1f5']
+  rose: ['#1a0e14', '#f472b6', '#c084fc', '#fff1f5'],
+  terracotta: ['#f5f0e8', '#c67b5c', '#8b9a6b', '#3d2e26'],
+  coral: ['#1a2a2a', '#ff6b6b', '#4ecdc4', '#fff5f5'],
+  ink: ['#f5f0e1', '#6b5b4f', '#c41e3a', '#2c2416'],
+  slate: ['#1e2328', '#6b7b8d', '#f0a500', '#f5f7fa'],
+  burgundy: ['#1a1018', '#a61e4d', '#d4a574', '#faf0f0']
 };
 
   window.AdminApp = window.AdminApp || {};

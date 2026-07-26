@@ -12,7 +12,6 @@
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <h1 id="appTitle">点歌</h1>
           <nav class="main-page-tabs" aria-label="主功能">
             <button class="main-page-tab active" data-main-page="songAssistantPage" type="button">点歌</button>
             <button class="main-page-tab" data-main-page="playbackAssistantPage" type="button">播放</button>
@@ -141,9 +140,13 @@
                 备注
                 <input id="songNote">
               </label>
-              <button class="primary" type="submit">保存歌曲</button>
-              <button id="resetSongForm" type="button">清空表单</button>
+              <div class="form-actions-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <button class="primary" type="submit">保存歌曲</button>
+                <button id="resetSongForm" type="button">清空表单</button>
+              </div>
             </form>
+
+            <hr class="section-divider">
 
             <div class="grid-3">
               <label>
@@ -268,15 +271,15 @@
 
                 <fieldset class="theme-section">
                   <legend>队列布局</legend>
+                  <label style="margin-bottom:12px">
+                    固定 6 首歌高度
+                    <select id="queueFixedSixRows">
+                      <option value="true">开启</option>
+                      <option value="false">关闭</option>
+                    </select>
+                    <span class="hint">开启后，点歌板风格 1 无论当前几首歌，都保持 6 行总高度。</span>
+                  </label>
                   <div class="grid-2">
-                    <label>
-                      固定 6 首歌高度
-                      <select id="queueFixedSixRows">
-                        <option value="true">开启</option>
-                        <option value="false">关闭</option>
-                      </select>
-                      <span class="hint">开启后，点歌板风格 1 无论当前几首歌，都保持 6 行总高度。</span>
-                    </label>
                     <label>
                       队列滚动模式
                       <select id="queueScrollMode">
@@ -1008,7 +1011,7 @@
           <div class="panel-body playback-head-inner">
             <div>
               <h2>播放</h2>
-              <p class="hint">本页独立承载播放器、音乐平台登录、在线搜索、队列优先级、桌面歌词与播放状态恢复。</p>
+              <p class="hint">独立播放器 · 平台登录 · 在线搜索 · 桌面歌词 · 状态自动恢复</p>
             </div>
             <div class="source-tabs" role="tablist" aria-label="音乐平台">
               <button class="source-tab active" type="button" data-source="qq">QQ音乐</button>
@@ -1033,7 +1036,7 @@
                 <div class="playback-avatar">音</div>
                 <div>
                   <strong id="playbackUserName">未连接音乐账户</strong>
-                  <span id="playbackVipState">账号歌单和推荐将在 Provider 接入后显示</span>
+                  <span id="playbackVipState">登录后可查看歌单、推荐与收藏</span>
                 </div>
               </div>
               <div id="playbackProviderHealth" class="hint">等待检查音乐 Provider 状态</div>
@@ -1044,34 +1047,34 @@
               <div class="playback-home-grid">
                 <button class="playback-home-card" type="button" data-playback-home-action="personalized">
                   <strong>为你推荐</strong>
-                  <span>打开平台推荐歌单</span>
+                  <span>根据听歌偏好智能推荐</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="daily">
                   <strong>每日推荐</strong>
-                  <span>登录后读取每日歌曲</span>
+                  <span>每日 30 首个性推荐</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="radio">
                   <strong>心动 / 电台</strong>
-                  <span>加入电台队列</span>
+                  <span>基于当前歌曲智能续播</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="liked">
                   <strong>我喜欢</strong>
-                  <span>登录后读取收藏歌单</span>
+                  <span>已点亮红心的歌曲</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="created-playlists">
                   <strong>我的歌单</strong>
-                  <span>登录后读取自建歌单</span>
+                  <span>自己创建的歌单列表</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="collected-playlists">
                   <strong>收藏歌单</strong>
-                  <span>登录后读取收藏歌单</span>
+                  <span>收藏的其他用户歌单</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="recent">
                   <strong>最近播放</strong>
-                  <span>登录后读取最近歌曲</span>
+                  <span>近期播放过的歌曲</span>
                 </button>
               </div>
-              <div id="playbackHomeResults" class="playback-home-results hint">选择入口后会在这里显示歌单或歌曲。</div>
+              <div id="playbackHomeResults" class="playback-home-results hint">点击上方卡片，歌单将展示在此处</div>
             </div>
           </section>
 
@@ -1085,10 +1088,6 @@
               </div>
             </div>
             <div class="panel-body stack">
-              <label>
-                选择本地音频加入普通队列
-                <input id="playbackFileInput" type="file" accept="audio/*" multiple>
-              </label>
               <div id="playbackQueueList" class="queue-list playback-queue-list"></div>
             </div>
           </section>
@@ -1116,7 +1115,7 @@
                 <input id="playbackSearchLimit" type="number" min="1" max="30" step="1" value="12">
               </label>
             </div>
-            <div id="playbackSearchResults" class="playback-search-results hint">选择网易云音乐后可搜索歌曲并加入播放队列；QQ 音乐先保留登录验证和 Provider 占位。</div>
+            <div id="playbackSearchResults" class="playback-search-results hint">输入关键词搜索歌曲，结果可加入播放队列</div>
           </div>
         </section>
 
@@ -1142,7 +1141,7 @@
                 <input id="playbackMatchDuration" type="number" min="0" step="1000" placeholder="可选">
               </label>
             </div>
-            <div id="playbackMatchResults" class="playback-match-results hint">输入歌名后可用本地歌库测试匹配分数。</div>
+            <div id="playbackMatchResults" class="playback-match-results hint">用本地歌库测试歌曲匹配准确度</div>
           </div>
         </section>
 
