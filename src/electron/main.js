@@ -3,40 +3,38 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  Menu,
-  shell
+  app, BrowserWindow, dialog, ipcMain, Menu, session, shell
 } = require('electron');
-const { autoUpdater } = require('electron-updater');
+const authMgr = require('./auth-manager');
+const loginWin = require('./login-window');
+const lyricWin = require('./lyric-window');
+const updateMgr = require('./update-manager');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song';
+const MUSIC_LOGIN_CONFIG = authMgr.MUSIC_LOGIN_CONFIG;
 
 let mainWindow = null;
+let desktopBaseUrl = '';
 let shutdownApplication = null;
 let gracefulQuitStarted = false;
 let forceQuitTimer = null;
+let musicMediaHeadersConfigured = false;
 let dataDir = '';
 let logDir = '';
 let logFile = '';
 let updateState = {
-  status: 'idle',
-  message: '尚未检查更新',
-  version: app.getVersion(),
-  canDownload: false,
-  canInstall: false,
-  progress: null,
-  updateVersion: ''
+  status: 'idle', message: '尚未检查更新', version: app.getVersion(),
+  canDownload: false, canInstall: false, progress: null, updateVersion: ''
 };
+
+// ---- app lifecycle ----
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.whenReady().then(startDesktopApp).catch((error) => {
+  app.whenReady().then(startDesktopApp).catch(function (error) {
     dialog.showErrorBox('启动失败', error.message || String(error));
     app.quit();
   });
@@ -44,69 +42,76 @@ if (!gotLock) {
 
 app.setName('点歌助手');
 
-app.on('second-instance', () => {
+app.on('second-instance', function () {
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.focus();
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('before-quit', (event) => {
+app.on('before-quit', function (event) {
   if (gracefulQuitStarted || !shutdownApplication) return;
-
   event.preventDefault();
   gracefulQuitStarted = true;
-  forceQuitTimer = setTimeout(() => {
+  forceQuitTimer = setTimeout(function () {
     app.releaseSingleInstanceLock();
     app.exit(0);
   }, 5000);
   shutdownApplication({ exitProcess: false })
-    .catch((error) => console.warn(`Shutdown failed: ${error.message}`))
-    .finally(() => {
-      if (forceQuitTimer) {
-        clearTimeout(forceQuitTimer);
-        forceQuitTimer = null;
-      }
+    .catch(function (error) { console.warn('Shutdown failed:', error.message); })
+    .finally(function () {
+      if (forceQuitTimer) { clearTimeout(forceQuitTimer); forceQuitTimer = null; }
       app.releaseSingleInstanceLock();
       app.exit(0);
     });
 });
 
+// ---- startup ----
+
 async function startDesktopApp() {
   configureDesktopEnvironment();
   configureMenu();
   configureUpdateIpc();
-  configureAutoUpdater();
+  configureMusicIpc();
+  configureMusicMediaRequestHeaders();
+  updateMgr.configureAutoUpdater({ onStateChange: onUpdateStateChange, writeLog: writeLog });
+  await restoreMusicCookieSnapshots();
 
-  const serverModule = require('../server');
+  var serverModule = require('../server');
   shutdownApplication = serverModule.shutdownApplication;
-  const serverInfo = await serverModule.startServer({
+  var serverInfo = await serverModule.startServer({
     host: process.env.HOST || '127.0.0.1',
-    startPort: Number(process.env.PORT || 3000)
+    startPort: Number(process.env.PORT || 3000),
+    musicAuth: {
+      getAuthState: getMusicAuthState,
+      getCookieHeader: getMusicCookieHeader
+    }
   });
 
   createMainWindow(serverInfo.baseUrl);
 
   if (!app.isPackaged) {
-    setUpdateState({
+    updateState = {
+      ...updateState,
       status: 'dev-disabled',
       message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
       canDownload: false,
       canInstall: false
-    });
+    };
+    sendUpdateState();
   }
 }
 
 function configureDesktopEnvironment() {
-  dataDir = app.isPackaged
-    ? path.join(app.getPath('userData'), 'data')
-    : path.join(ROOT_DIR, 'data');
-  logDir = path.join(app.getPath('userData'), 'logs');
+  var appDir = app.isPackaged
+    ? path.dirname(app.getPath('exe'))
+    : ROOT_DIR;
+  dataDir = path.join(appDir, 'data');
+  logDir = path.join(appDir, 'logs');
   logFile = path.join(logDir, 'desktop.log');
-
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(logDir, { recursive: true });
   process.env.SONG_PLUGIN_DATA_DIR = dataDir;
@@ -114,197 +119,198 @@ function configureDesktopEnvironment() {
   if (!process.env.HOST) process.env.HOST = '127.0.0.1';
 }
 
+function configureMenu() {
+  Menu.setApplicationMenu(null);
+}
+
 function createMainWindow(baseUrl) {
-  const windowOptions = {
-    width: 1120,
-    height: 720,
-    minWidth: 960,
-    minHeight: 620,
-    show: false,
-    title: '点歌助手',
-    backgroundColor: '#f7f3ef',
+  desktopBaseUrl = baseUrl;
+  var opts = {
+    width: 1120, height: 720, minWidth: 960, minHeight: 620,
+    show: false, title: '点歌助手', backgroundColor: '#f7f3ef',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false
+      contextIsolation: true, nodeIntegration: false, sandbox: false
     }
   };
+  var iconPath = path.join(ROOT_DIR, 'build', 'icon.png');
+  if (fs.existsSync(iconPath)) opts.icon = iconPath;
 
-  const iconPath = path.join(ROOT_DIR, 'build', 'icon.png');
-  if (fs.existsSync(iconPath)) windowOptions.icon = iconPath;
+  mainWindow = new BrowserWindow(opts);
+  mainWindow.loadURL(baseUrl + '/admin?desktop=1');
 
-  mainWindow = new BrowserWindow(windowOptions);
-  mainWindow.loadURL(`${baseUrl}/admin?desktop=1`);
-
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.once('ready-to-show', function () {
     mainWindow.show();
     sendUpdateState();
     if (app.isPackaged) {
-      setTimeout(() => {
-        checkForUpdates().catch((error) => setUpdateError(error));
+      setTimeout(function () {
+        checkForUpdates().catch(function (e) { setUpdateError(e); });
       }, 1000);
     }
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+  mainWindow.webContents.setWindowOpenHandler(function (detail) {
+    shell.openExternal(detail.url);
     return { action: 'deny' };
   });
 
-  mainWindow.webContents.on('will-navigate', (event, url) => {
+  mainWindow.webContents.on('will-navigate', function (event, url) {
     if (url.startsWith(baseUrl)) return;
     event.preventDefault();
     shell.openExternal(url);
   });
 
-  mainWindow.on('closed', () => {
+  mainWindow.on('closed', function () {
     mainWindow = null;
   });
 }
 
-function configureMenu() {
-  Menu.setApplicationMenu(null);
-}
+// ---- IPC handlers ----
 
 function configureUpdateIpc() {
-  ipcMain.handle('desktop:get-info', () => ({
-    version: app.getVersion(),
-    isPackaged: app.isPackaged,
-    platform: process.platform,
-    dataDir,
-    logFile,
-    githubRepoUrl: GITHUB_REPO_URL,
-    updateState
-  }));
-
-  ipcMain.handle('desktop:check-for-updates', () => checkForUpdates());
-  ipcMain.handle('desktop:download-update', () => downloadUpdate());
-  ipcMain.handle('desktop:install-update', () => installUpdate());
-  ipcMain.handle('desktop:open-data-dir', () => (dataDir ? shell.openPath(dataDir) : ''));
-  ipcMain.handle('desktop:open-log-dir', () => (logDir ? shell.openPath(logDir) : ''));
-  ipcMain.handle('desktop:open-github', () => shell.openExternal(GITHUB_REPO_URL));
+  ipcMain.handle('desktop:get-info', function () {
+    return {
+      version: app.getVersion(), isPackaged: app.isPackaged,
+      platform: process.platform, dataDir: dataDir, logFile: logFile,
+      githubRepoUrl: GITHUB_REPO_URL, updateState: updateState
+    };
+  });
+  ipcMain.handle('desktop:check-for-updates', function () { return checkForUpdates(); });
+  ipcMain.handle('desktop:download-update', function () { return downloadUpdate(); });
+  ipcMain.handle('desktop:install-update', function () { return installUpdate(); });
+  ipcMain.handle('desktop:open-data-dir', function () { return dataDir ? shell.openPath(dataDir) : ''; });
+  ipcMain.handle('desktop:open-log-dir', function () { return logDir ? shell.openPath(logDir) : ''; });
+  ipcMain.handle('desktop:open-github', function () { return shell.openExternal(GITHUB_REPO_URL); });
 }
 
-function configureAutoUpdater() {
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.allowPrerelease = false;
-  autoUpdater.disableDifferentialDownload = false;
-
-  autoUpdater.on('checking-for-update', () => {
-    setUpdateState({
-      status: 'checking',
-      message: '正在连接 GitHub 检查新版本...',
-      canDownload: false,
-      canInstall: false,
-      progress: null
-    });
+function configureMusicIpc() {
+  ipcMain.handle('music:get-auth-state', function (_e, p) { return getMusicAuthState(p); });
+  ipcMain.handle('music:login', function (_e, p) { return loginMusicAccount(p); });
+  ipcMain.handle('music:logout', function (_e, p) { return logoutMusicAccount(p); });
+  ipcMain.handle('music:open-lyric-window', function () { return openLyricWindow(); });
+  ipcMain.handle('music:close-lyric-window', function () { return closeLyricWindow(); });
+  ipcMain.handle('music:update-lyric-window', function (_e, s) { return updateLyricWindow(s); });
+  ipcMain.handle('music:set-lyric-window-locked', function (_e, l) { return setLyricWindowLocked(l); });
+  ipcMain.handle('music:provider-health', async function (_e, platform) {
+    var createMusicProviderRegistry = require('../music/provider-registry').createMusicProviderRegistry;
+    return createMusicProviderRegistry({
+      getAuthState: getMusicAuthState,
+      getCookieHeader: getMusicCookieHeader
+    }).healthCheck(platform);
   });
+}
 
-  autoUpdater.on('update-available', (info) => {
-    setUpdateState({
-      status: 'available',
-      message: `发现新版本 ${info.version}，可以下载更新。`,
-      canDownload: true,
-      canInstall: false,
-      progress: null,
-      updateVersion: info.version || ''
-    });
+function configureMusicMediaRequestHeaders() {
+  if (musicMediaHeadersConfigured) return;
+  musicMediaHeadersConfigured = true;
+  session.defaultSession.webRequest.onBeforeSendHeaders({
+    urls: [
+      '*://*.music.163.com/*', '*://*.music.126.net/*',
+      '*://*.qqmusic.qq.com/*', '*://*.gtimg.cn/*', '*://*.y.qq.com/*'
+    ]
+  }, function (details, callback) {
+    var headers = { ...details.requestHeaders };
+    var host = '';
+    try { host = new URL(details.url).hostname.toLowerCase(); } catch (_) {}
+    if (host.endsWith('music.163.com') || host.endsWith('music.126.net')) {
+      if (!headers.Referer && !headers.referer) headers.Referer = 'https://music.163.com/';
+    } else if (host.endsWith('qqmusic.qq.com') || host.endsWith('gtimg.cn') || host.endsWith('y.qq.com')) {
+      if (!headers.Referer && !headers.referer) headers.Referer = 'https://y.qq.com/';
+      if (!headers.Origin && !headers.origin) headers.Origin = 'https://y.qq.com';
+    }
+    callback({ requestHeaders: headers });
   });
+}
 
-  autoUpdater.on('update-not-available', () => {
-    setUpdateState({
-      status: 'not-available',
-      message: '当前已经是最新版本。',
-      canDownload: false,
-      canInstall: false,
-      progress: null,
-      updateVersion: ''
-    });
-  });
+// ---- thin wrappers (delegate to extracted modules) ----
 
-  autoUpdater.on('download-progress', (progress) => {
-    const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
-    setUpdateState({
-      status: 'downloading',
-      message: `正在下载更新：${percent.toFixed(1)}%`,
-      canDownload: false,
-      canInstall: false,
-      progress: {
-        percent,
-        transferred: progress.transferred || 0,
-        total: progress.total || 0
-      }
-    });
-  });
+function getMusicAuthState(platform) {
+  return authMgr.getMusicAuthState(platform, dataDir);
+}
 
-  autoUpdater.on('update-downloaded', (info) => {
-    setUpdateState({
-      status: 'downloaded',
-      message: `更新 ${info.version || updateState.updateVersion} 已下载，重启后完成安装。`,
-      canDownload: false,
-      canInstall: true,
-      progress: { percent: 100 },
-      updateVersion: info.version || updateState.updateVersion || ''
-    });
-  });
+function getMusicCookieHeader(platform) {
+  return authMgr.getMusicCookieHeader(platform);
+}
 
-  autoUpdater.on('error', setUpdateError);
+function logoutMusicAccount(platform) {
+  return authMgr.logoutMusicAccount(platform, dataDir);
+}
+
+function persistMusicCookieSnapshot(platform) {
+  return authMgr.persistMusicCookieSnapshot(platform, dataDir);
+}
+
+function restoreMusicCookieSnapshot(platform) {
+  return authMgr.restoreMusicCookieSnapshot(platform, dataDir);
+}
+
+function normalizeMusicPlatform(value) {
+  return authMgr.normalizeMusicPlatform(value);
+}
+
+function isAllowedMusicLoginUrl(platform, url) {
+  return authMgr.isAllowedMusicLoginUrl(platform, url);
+}
+
+async function restoreMusicCookieSnapshots() {
+  var platforms = Object.keys(MUSIC_LOGIN_CONFIG);
+  for (var i = 0; i < platforms.length; i++) {
+    await restoreMusicCookieSnapshot(platforms[i]);
+  }
+}
+
+async function loginMusicAccount(platform) {
+  return loginWin.loginMusicAccount(mainWindow, platform, dataDir);
+}
+
+function openLyricWindow() {
+  return lyricWin.openLyricWindow(desktopBaseUrl, path.join(__dirname, 'preload.js'));
+}
+
+function closeLyricWindow() {
+  return lyricWin.closeLyricWindow();
+}
+
+function updateLyricWindow(state) {
+  return lyricWin.updateLyricWindow(state);
+}
+
+function setLyricWindowLocked(locked) {
+  return lyricWin.setLyricWindowLocked(locked);
 }
 
 async function checkForUpdates() {
-  if (!app.isPackaged) {
-    setUpdateState({
-      status: 'dev-disabled',
-      message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
-      canDownload: false,
-      canInstall: false
-    });
-    return updateState;
-  }
-
-  try {
-    await autoUpdater.checkForUpdates();
-  } catch (error) {
-    setUpdateError(error);
-  }
-  return updateState;
+  return updateMgr.checkForUpdates();
 }
 
 async function downloadUpdate() {
-  if (!app.isPackaged) return checkForUpdates();
-  setUpdateState({
-    status: 'downloading',
-    message: '正在准备下载 GitHub 最新安装包...',
-    canDownload: false,
-    canInstall: false
-  });
-  try {
-    await autoUpdater.downloadUpdate();
-  } catch (error) {
-    setUpdateError(error);
-  }
-  return updateState;
+  return updateMgr.downloadUpdate();
 }
 
 function installUpdate() {
-  if (!updateState.canInstall) return updateState;
-  setUpdateState({
-    status: 'installing',
-    message: '正在重启并静默更新...',
-    canDownload: false,
-    canInstall: false
-  });
-  gracefulQuitStarted = true;
-  app.releaseSingleInstanceLock();
-  autoUpdater.quitAndInstall(true, true);
+  return updateMgr.installUpdate();
+}
+
+function onUpdateStateChange(state) {
+  updateState = state;
+  sendUpdateState();
+}
+
+function setUpdateState(nextState) {
+  updateState = { ...updateState, ...nextState, version: app.getVersion() };
+  sendUpdateState();
   return updateState;
+}
+
+function sendUpdateState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('desktop:update-state', updateState);
+  }
 }
 
 function setUpdateError(error) {
   writeLog('update-error', error);
-  const friendly = friendlyUpdateError(error);
+  var friendly = updateMgr.friendlyUpdateError(error);
   setUpdateState({
     status: friendly.status,
     message: friendly.message,
@@ -313,54 +319,10 @@ function setUpdateError(error) {
   });
 }
 
-function setUpdateState(nextState) {
-  updateState = {
-    ...updateState,
-    ...nextState,
-    version: app.getVersion()
-  };
-  sendUpdateState();
-  return updateState;
-}
-
-function sendUpdateState() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send('desktop:update-state', updateState);
-}
-
-function friendlyUpdateError(error) {
-  const text = `${error && error.message ? error.message : ''}\n${String(error || '')}`;
-  if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
-    return {
-      status: 'not-available',
-      message: '当前 GitHub Releases 里还没有可用更新包。'
-    };
-  }
-
-  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
-    return {
-      status: 'error',
-      message: '暂时无法连接 GitHub 更新服务，请稍后再试。'
-    };
-  }
-
-  return {
-    status: 'error',
-    message: '暂时无法检查更新，详细原因已写入日志。'
-  };
-}
-
 function writeLog(scope, value) {
-  const message = value instanceof Error
-    ? `${value.stack || value.message}`
-    : typeof value === 'string'
-      ? value
-      : JSON.stringify(value);
-  const line = `[${new Date().toISOString()}] [${scope}] ${message}\n`;
-
-  try {
-    fs.appendFileSync(logFile, line, 'utf8');
-  } catch (_) {
-    // Logging must never block app startup or update checks.
-  }
+  var msg = value instanceof Error
+    ? (value.stack || value.message)
+    : (typeof value === 'string' ? value : JSON.stringify(value));
+  var line = '[' + new Date().toISOString() + '] [' + scope + '] ' + msg + '\n';
+  try { fs.appendFileSync(logFile, line, 'utf8'); } catch (_) {}
 }
