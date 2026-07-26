@@ -1115,15 +1115,17 @@ tr:last-child td {
 }
 
 .overlay-waiting {
+  --classic-row-height: 35px;
+  --classic-row-gap: 5px;
   display: grid;
-  gap: 5px;
+  gap: var(--classic-row-gap, 5px);
   margin-top: 8px;
 }
 
 .classic-list-window {
   --classic-row-height: 35px;
   --classic-row-gap: 5px;
-  height: 235px;
+  height: var(--classic-window-height, 235px);
   overflow: hidden;
   margin-top: 8px;
 }

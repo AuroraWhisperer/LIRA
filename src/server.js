@@ -49,11 +49,10 @@ const DEFAULT_SETTINGS = {
   onlyFromLibrary: 'false',
   allowDuplicate: 'true',
   queueLimit: '50',
-  overlayDisplayCount: '6',
   userCooldownSeconds: '0',
   scrollSeconds: '100',
   queueScrollMode: 'bounce',
-  queueScrollSpeed: '62',
+  queueScrollSpeed: '80',
   queueScrollSpeedRangeVersion: '3',
   themePrimary: '#ff6f91',
   themeAccent: '#21b6a8',
@@ -2482,7 +2481,7 @@ function migrateQueueScrollSpeedSetting(version) {
     ? Math.round(1 + ((Math.max(50, Math.min(200, savedSpeed)) - 50) / 150) * 99)
     : Number.isFinite(savedSpeed)
       ? Math.max(1, Math.min(100, Math.round(savedSpeed)))
-      : 62;
+      : 80;
   const updatedAt = now();
   songDb.prepare(`
     INSERT INTO settings (key, value, updated_at)

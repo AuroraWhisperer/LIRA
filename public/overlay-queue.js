@@ -38,8 +38,10 @@ function connectSocket() {
       if (payload.reason && payload.reason.startsWith('songs:')) {
         return;
       }
+      const scrollState = payload.reason === 'queue:add' ? captureScrollAnimation() : null;
       state = payload.state;
       render();
+      restoreScrollAnimation(scrollState);
     }
   });
 
@@ -70,13 +72,45 @@ function render() {
   renderClassicQueue(settings, current, waiting, content);
 }
 
+function captureScrollAnimation() {
+  const list = document.querySelector('.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce');
+  if (!list || typeof list.getAnimations !== 'function') return null;
+  const animation = list.getAnimations().find((item) => item.effect);
+  if (!animation || animation.currentTime === null) return null;
+  return {
+    className: list.className,
+    currentTime: Number(animation.currentTime) || 0
+  };
+}
+
+function restoreScrollAnimation(scrollState) {
+  if (!scrollState) return;
+  const list = document.querySelector('.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce');
+  if (!list || list.className !== scrollState.className || typeof list.getAnimations !== 'function') return;
+  const animation = list.getAnimations().find((item) => item.effect);
+  if (!animation) return;
+  const timing = animation.effect.getTiming();
+  const duration = Number(timing.duration);
+  animation.currentTime = Number.isFinite(duration) && duration > 0
+    ? scrollState.currentTime % duration
+    : scrollState.currentTime;
+}
+
 function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
   const visibleRows = 6;
+  const rowHeight = 35;
+  const rowGap = 5;
+  const rowStep = rowHeight + rowGap;
+  const windowHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap);
   const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
   const shouldShowIndex = showIndex && (threshold === 0 || items.length > threshold);
+  document.documentElement.style.setProperty('--classic-visible-rows', String(visibleRows));
+  document.documentElement.style.setProperty('--classic-row-height', `${rowHeight}px`);
+  document.documentElement.style.setProperty('--classic-row-gap', `${rowGap}px`);
+  document.documentElement.style.setProperty('--classic-window-height', `${windowHeight}px`);
 
   if (items.length === 0) {
     content.innerHTML = '<div class="overlay-empty">当前还没有点歌</div>';
@@ -103,8 +137,6 @@ function renderClassicQueue(settings, current, waiting, content) {
     return;
   }
 
-  document.documentElement.style.setProperty('--classic-visible-rows', String(visibleRows));
-  const rowStep = 28;
   const hiddenRows = Math.max(1, items.length - visibleRows);
   document.documentElement.style.setProperty('--classic-loop-distance', `${items.length * rowStep}px`);
   document.documentElement.style.setProperty('--classic-bounce-distance', `${hiddenRows * rowStep}px`);
@@ -130,7 +162,7 @@ function renderClassicQueue(settings, current, waiting, content) {
 
 function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
   const items = [current].concat(waiting).filter(Boolean);
-  const visibleRows = Math.max(1, Math.min(7, Number(settings.overlayDisplayCount || 7)));
+  const visibleRows = 6;
   const rowHeight = 24;
   const rowGap = 4;
   const rowStep = rowHeight + rowGap;
@@ -371,7 +403,7 @@ function hexToRgb(hex) {
 
 function queueScrollSeconds(settings) {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
-  const speed = Math.round(Number(urlSpeed || settings.queueScrollSpeed || 62));
+  const speed = Math.round(Number(urlSpeed || settings.queueScrollSpeed || 80));
   const displaySpeed = normalizeQueueScrollSpeed(speed);
   const actualSpeed = 50 + ((displaySpeed - 1) / 99) * 150;
   const seconds = Number((50 - ((actualSpeed - 50) / 150) * 49).toFixed(2));
@@ -379,7 +411,7 @@ function queueScrollSeconds(settings) {
 }
 
 function normalizeQueueScrollSpeed(speed) {
-  if (!Number.isFinite(speed)) return 62;
+  if (!Number.isFinite(speed)) return 80;
   if (speed > 100) {
     return Math.round(1 + ((Math.max(50, Math.min(200, speed)) - 50) / 150) * 99);
   }
