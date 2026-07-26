@@ -28,6 +28,9 @@ const songService = require('./music/song-service');
 const giftService = require('./bilibili/gift-service');
 const biliHelpers = require('./bilibili/helpers');
 const wbiSigner = require('./bilibili/wbi-signer');
+// BilibiliDanmakuClient is intentionally kept in this file as glue code
+// (references server-level getSettings/songDb/broadcastSnapshot closures).
+// The extracted src/bilibili/danmaku-client.js serves as reference documentation.
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
