@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.2.2
+// 当前项目版本：1.2.3
 'use strict';
 
 const http = require('node:http');
@@ -37,7 +37,8 @@ const SUPER_CHAT_PIN_THRESHOLD = 2;
 const SUPER_CHAT_DISPLAY_THRESHOLD = 2;
 const CRYSTAL_BALL_VALUE_RMB = 100;
 const BLIVEDM_RAW_BASE = 'https://raw.githubusercontent.com/xfgryujk/blivedm/master';
-const BLIVEDM_COMPAT_CHECK_TIMEOUT_MS = 8000;
+const BLIVEDM_COMPAT_CHECK_TIMEOUT_MS = 20000;
+const BLIVEDM_COMPAT_CACHE_KEY = 'blivedmCompatibilityCache';
 
 const DEFAULT_SETTINGS = {
   roomId: '',
@@ -416,20 +417,27 @@ function startServer(options = {}) {
 }
 
 function checkBlivedmCompatibilityOnStartup() {
-  blivedmCompatibility = {
-    ...blivedmCompatibility,
-    status: 'checking',
-    checkedAt: now(),
-    message: '正在检查 blivedm 最新礼物协议...'
-  };
+  const cached = readBlivedmCompatibilityCache();
+  blivedmCompatibility = cached
+    ? {
+        ...cached,
+        status: cached.missingGiftCommands && cached.missingGiftCommands.length > 0 ? 'warn' : 'cached',
+        message: `使用上次 blivedm 检查结果，正在后台刷新...`
+      }
+    : {
+        ...blivedmCompatibility,
+        status: 'checking',
+        checkedAt: now(),
+        message: '正在检查 blivedm 最新礼物协议...'
+      };
+  applyRuntimeGiftCommands(blivedmCompatibility.missingGiftCommands);
   broadcastSnapshot('blivedm:checking');
 
   checkBlivedmCompatibility()
     .then((result) => {
       blivedmCompatibility = result;
-      for (const cmd of result.missingGiftCommands) {
-        runtimeGiftCommandPrefixes.add(cmd);
-      }
+      writeBlivedmCompatibilityCache(result);
+      applyRuntimeGiftCommands(result.missingGiftCommands);
       if (result.missingGiftCommands.length > 0) {
         console.warn(`[Bilibili] blivedm has newer gift CMD(s): ${result.missingGiftCommands.join(', ')}`);
       } else {
@@ -438,17 +446,83 @@ function checkBlivedmCompatibilityOnStartup() {
       broadcastSnapshot('blivedm:checked');
     })
     .catch((error) => {
-      blivedmCompatibility = {
-        status: 'error',
-        checkedAt: now(),
-        message: `blivedm 检查失败：${error.message}`,
-        remoteGiftCommands: [],
-        supportedGiftCommands: getSupportedBilibiliGiftCommands(),
-        missingGiftCommands: []
-      };
+      blivedmCompatibility = fallbackBlivedmCompatibility(error, cached);
       console.warn(`[Bilibili] blivedm compatibility check failed: ${error.message}`);
       broadcastSnapshot('blivedm:error');
     });
+}
+
+async function runManualBlivedmCompatibilityCheck() {
+  blivedmCompatibility = {
+    ...blivedmCompatibility,
+    status: 'checking',
+    checkedAt: now(),
+    message: '正在手动检查 blivedm 最新礼物协议...'
+  };
+  broadcastSnapshot('blivedm:manual-checking');
+
+  try {
+    const result = await checkBlivedmCompatibility();
+    blivedmCompatibility = result;
+    writeBlivedmCompatibilityCache(result);
+    applyRuntimeGiftCommands(result.missingGiftCommands);
+    broadcastSnapshot('blivedm:manual-checked');
+    return blivedmCompatibility;
+  } catch (error) {
+    const cached = readBlivedmCompatibilityCache();
+    blivedmCompatibility = fallbackBlivedmCompatibility(error, cached);
+    broadcastSnapshot('blivedm:manual-error');
+    return blivedmCompatibility;
+  }
+}
+
+function fallbackBlivedmCompatibility(error, cached) {
+  if (cached) {
+    return {
+      ...cached,
+      status: 'cached',
+      message: `blivedm 检查超时，已使用上次成功结果：${cached.checkedAt || '未知时间'}`
+    };
+  }
+  return {
+    status: 'fallback',
+    checkedAt: now(),
+    message: `blivedm 检查超时，已使用内置协议。${error && error.message ? `原因：${error.message}` : ''}`,
+    remoteGiftCommands: [],
+    supportedGiftCommands: getSupportedBilibiliGiftCommands(),
+    missingGiftCommands: []
+  };
+}
+
+function applyRuntimeGiftCommands(commands) {
+  for (const cmd of Array.isArray(commands) ? commands : []) {
+    if (cmd) runtimeGiftCommandPrefixes.add(cmd);
+  }
+}
+
+function readBlivedmCompatibilityCache() {
+  const row = songDb.prepare('SELECT value FROM settings WHERE key = ?').get(BLIVEDM_COMPAT_CACHE_KEY);
+  if (!row || !row.value) return null;
+  const parsed = safeParseJson(row.value);
+  if (!parsed || typeof parsed !== 'object') return null;
+  return {
+    status: parsed.status || 'cached',
+    checkedAt: cleanText(parsed.checkedAt),
+    message: cleanText(parsed.message) || '使用上次 blivedm 检查结果。',
+    remoteGiftCommands: Array.isArray(parsed.remoteGiftCommands) ? parsed.remoteGiftCommands.map(cleanText).filter(Boolean) : [],
+    supportedGiftCommands: Array.isArray(parsed.supportedGiftCommands) ? parsed.supportedGiftCommands.map(cleanText).filter(Boolean) : getSupportedBilibiliGiftCommands(),
+    missingGiftCommands: Array.isArray(parsed.missingGiftCommands) ? parsed.missingGiftCommands.map(cleanText).filter(Boolean) : []
+  };
+}
+
+function writeBlivedmCompatibilityCache(result) {
+  setSetting(BLIVEDM_COMPAT_CACHE_KEY, safeJsonStringify({
+    checkedAt: result.checkedAt,
+    message: result.message,
+    remoteGiftCommands: result.remoteGiftCommands,
+    supportedGiftCommands: result.supportedGiftCommands,
+    missingGiftCommands: result.missingGiftCommands
+  }));
 }
 
 async function checkBlivedmCompatibility() {
@@ -560,6 +634,12 @@ async function handleApi(req, res, requestUrl) {
   if (method === 'GET' && pathName === '/api/system/metrics') {
     const windowMs = Number(requestUrl.searchParams.get('windowMs') || 5000);
     sendJson(res, 200, { ok: true, data: await getSystemMetrics(windowMs) });
+    return;
+  }
+
+  if (pathName === '/api/gifts/blivedm/check') {
+    const result = await runManualBlivedmCompatibilityCheck();
+    sendJson(res, 200, { ok: true, data: result });
     return;
   }
 
@@ -2925,15 +3005,15 @@ class BilibiliDanmakuClient {
     this.startedAtMs = Date.now();
     this.connect().catch((error) => {
       console.warn(`[Bilibili] connect failed: ${error.message}`);
-      const historyFallbackActive = Boolean(this.historyTimer);
+      if (!this.historyTimer) {
+        this.startHistoryPolling(this.roomId);
+      }
       this.report({
-        connected: historyFallbackActive,
+        connected: true,
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: historyFallbackActive
-          ? '直播弹幕长连失败，历史消息监听中'
-          : publicBilibiliErrorMessage(error)
+        message: '直播弹幕长连失败，历史消息监听中'
       });
       this.scheduleReconnect();
     });
@@ -2946,15 +3026,15 @@ class BilibiliDanmakuClient {
       await this.connect({ waitForOpen: true });
     } catch (error) {
       console.warn(`[Bilibili] reconnect failed: ${error.message}`);
-      const historyFallbackActive = Boolean(this.historyTimer);
+      if (!this.historyTimer) {
+        this.startHistoryPolling(this.roomId);
+      }
       this.report({
-        connected: historyFallbackActive,
+        connected: true,
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: historyFallbackActive
-          ? '直播弹幕长连失败，历史消息监听中'
-          : publicBilibiliErrorMessage(error, true)
+        message: '直播弹幕长连失败，历史消息监听中'
       });
       this.scheduleReconnect();
       throw error;
@@ -2996,7 +3076,10 @@ class BilibiliDanmakuClient {
     });
 
     const roomInfo = await this.resolveRoomInfo();
-    this.startHistoryPolling(roomInfo.roomId);
+    const isLive = Number(roomInfo.liveStatus) === 1;
+    if (!isLive || options.alwaysHistory) {
+      this.startHistoryPolling(roomInfo.roomId);
+    }
     this.startOnlineRankPolling(roomInfo.roomId, roomInfo.uid);
     this.startLiveStatusPolling(roomInfo);
     const danmuInfo = await this.resolveDanmuInfo(roomInfo.roomId);
@@ -3021,7 +3104,10 @@ class BilibiliDanmakuClient {
         key: danmuInfo.token
       });
       this.heartbeatTimer = setInterval(() => this.sendPacket(2, 1, {}), 30000);
-      const isLive = Number(roomInfo.liveStatus) === 1;
+      if (isLive) {
+        clearInterval(this.historyTimer);
+        this.historyTimer = null;
+      }
       this.report({
         connected: true,
         enabled: true,
@@ -3146,6 +3232,9 @@ class BilibiliDanmakuClient {
       if (this.ws !== ws) return;
       clearInterval(this.heartbeatTimer);
       if (!this.stopped) {
+        if (!this.historyTimer) {
+          this.startHistoryPolling(this.roomId);
+        }
         this.report({
           connected: Boolean(this.historyTimer),
           enabled: true,
@@ -3309,6 +3398,8 @@ class BilibiliDanmakuClient {
     this.liveStatusTimer = null;
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
+    clearInterval(this.historyTimer);
+    this.historyTimer = null;
 
     console.log(`[Bilibili] room ${roomId} is live; reconnecting danmaku listener.`);
     this.report({

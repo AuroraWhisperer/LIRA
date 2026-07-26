@@ -718,6 +718,7 @@ function initForms() {
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('shutdownBtn').addEventListener('click', shutdownServer);
   document.getElementById('reconnectBtn').addEventListener('click', reconnectBilibili);
+  document.getElementById('giftProtocolCheckBtn').addEventListener('click', checkGiftProtocol);
 
   document.getElementById('copyOverlayUrls').addEventListener('click', async () => {
     const text = `${document.getElementById('queueUrl').textContent}\n${document.getElementById('songsUrl').textContent}`;
@@ -945,6 +946,10 @@ function renderGiftCompatibilityStatus(compatibility) {
   const missing = Array.isArray(compatibility.missingGiftCommands) ? compatibility.missingGiftCommands : [];
   if (status === 'ok') {
     node.textContent = `blivedm 协议检查正常：${compatibility.checkedAt ? formatTime(compatibility.checkedAt) : '刚刚'} 已覆盖礼物 CMD`;
+  } else if (status === 'cached') {
+    node.textContent = compatibility.message || 'blivedm 检查超时，已使用上次成功结果';
+  } else if (status === 'fallback') {
+    node.textContent = compatibility.message || 'blivedm 检查超时，已使用内置协议';
   } else if (status === 'warn' && missing.length > 0) {
     node.textContent = `blivedm 有新礼物 CMD 未解析：${missing.join('、')}；已纳入运行时告警日志`;
   } else if (status === 'checking') {
@@ -1772,6 +1777,27 @@ async function readJsonResponse(response, fallbackMessage) {
   } catch (_) {
     const preview = text.replace(/\s+/g, ' ').slice(0, 80);
     throw new Error(`${fallbackMessage}：服务返回了非 JSON 内容（HTTP ${response.status}${preview ? `，${preview}` : ''}）`);
+  }
+}
+
+async function checkGiftProtocol() {
+  const btn = document.getElementById('giftProtocolCheckBtn');
+  btn.disabled = true;
+  btn.textContent = '检查中...';
+  try {
+    const response = await fetch('/api/gifts/blivedm/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const payload = await readJsonResponse(response, '协议检查失败');
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `协议检查失败（HTTP ${response.status}）`);
+    }
+    appState.blivedmCompatibility = payload.data || {};
+    renderState();
+    toast((payload.data && payload.data.message) || '协议检查完成');
+  } catch (error) {
+    toast(error.message || String(error));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '检查协议';
   }
 }
 
