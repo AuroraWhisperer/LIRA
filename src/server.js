@@ -25,6 +25,7 @@ const scService = require('./bilibili/superchat-service');
 const blivedmCompat = require('./bilibili/blivedm-compat');
 const bilibiliMsg = require('./bilibili/bilibili-message-handler');
 const songService = require('./music/song-service');
+const giftService = require('./bilibili/gift-service');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -728,68 +729,18 @@ function getSuperChatSnapshot() {
 }
 
 function getGiftSnapshot() {
-  const recent = giftDb.prepare(`
-    SELECT *
-    FROM gift_events
-    WHERE status = 'active'
-    ORDER BY datetime(created_at) DESC, id DESC
-    LIMIT 30
-  `).all().map(normalizeGiftRow);
-  return {
-    recent
-  };
+  return giftService.getGiftSnapshot({ db: { giftDb } });
 }
 
 function getGiftSprintSnapshot() {
-  const settings = getSettings();
-  const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
-  const row = giftDb.prepare(`
-    SELECT
-      COALESCE(SUM(
-        CASE
-          WHEN is_blind_box = 1 AND blind_box_price IS NOT NULL AND blind_box_price > 0
-            THEN blind_box_price
-          ELSE total_price
-        END
-      ), 0) AS receivedRmb,
-      COUNT(*) AS countedGiftCount
-    FROM gift_events
-    WHERE status = 'active' AND counted_in_sprint = 1
-  `).get() || {};
-  const receivedRmb = normalizeMoney(row.receivedRmb);
-  const remainingRmb = Math.max(0, normalizeMoney(targetRmb - receivedRmb));
-  return {
-    enabled: settings.enableGiftSprint === 'true',
-    targetRmb,
-    receivedRmb,
-    remainingRmb,
-    crystalBallValueRmb: CRYSTAL_BALL_VALUE_RMB,
-    remainingCrystalBalls: Math.ceil(remainingRmb / CRYSTAL_BALL_VALUE_RMB),
-    countedGiftCount: Number(row.countedGiftCount || 0)
-  };
+  return giftService.getGiftSprintSnapshot({ settings: getSettings, db: { giftDb } });
 }
 
 function normalizeSuperChatRow(row) {
   return scService.normalizeSuperChatRow(row);
 }
 
-function normalizeGiftRow(row) {
-  if (!row) return null;
-  const blindBoxPrice = row.blind_box_price === null || row.blind_box_price === undefined ? null : normalizeMoney(row.blind_box_price);
-  const totalPrice = normalizeMoney(row.total_price);
-  return {
-    ...row,
-    num: normalizePositiveInteger(row.num) || 1,
-    unit_price: normalizeMoney(row.unit_price),
-    total_price: totalPrice,
-    is_blind_box: Boolean(row.is_blind_box),
-    blind_box_name: cleanText(row.blind_box_name),
-    blind_box_price: blindBoxPrice,
-    blind_profit: row.blind_profit === null || row.blind_profit === undefined ? null : normalizeSignedMoney(row.blind_profit),
-    counted_in_sprint: Boolean(row.counted_in_sprint),
-    sprint_count_price: Boolean(row.is_blind_box) && blindBoxPrice !== null ? blindBoxPrice : totalPrice
-  };
-}
+function normalizeGiftRow(row) { return giftService.normalizeGiftRow(row); }
 
 function normalizeQueueRow(row) {
   if (!row) return null;
@@ -898,63 +849,7 @@ function addSuperChatItem(input) {
 }
 
 function addGiftEvent(input) {
-  const settings = getSettings();
-  if (settings.enableGiftSprint !== 'true') {
-    return null;
-  }
-
-  const gift = normalizeGiftInput(input);
-  if (!gift.giftName && !gift.giftId) {
-    return null;
-  }
-
-  if (gift.platformId) {
-    const existing = giftDb.prepare(`
-      SELECT *
-      FROM gift_events
-      WHERE platform_id = ?
-      LIMIT 1
-    `).get(gift.platformId);
-    if (existing) {
-      if (existing.status === 'deleted') return null;
-      return updateGiftEventIfProgressed(existing, gift);
-    }
-  }
-  const recentDuplicate = findRecentGiftCommandDuplicate(gift);
-  if (recentDuplicate) {
-    return recentDuplicate;
-  }
-
-  const countedInSprint = gift.totalPrice > 0 ? 1 : 0;
-  const result = giftDb.prepare(`
-    INSERT INTO gift_events (
-      platform_id, cmd, gift_id, gift_name,
-      uid, user_name, num, unit_price, total_price, coin_type,
-      is_blind_box, blind_box_name, blind_box_price, blind_profit,
-      counted_in_sprint, status, raw_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)
-  `).run(
-    gift.platformId,
-    gift.cmd,
-    gift.giftId,
-    gift.giftName,
-    gift.uid,
-    gift.userName,
-    gift.num,
-    gift.unitPrice,
-    gift.totalPrice,
-    gift.coinType,
-    gift.isBlindBox ? 1 : 0,
-    gift.blindBoxName,
-    gift.blindBoxPrice,
-    gift.blindProfit,
-    countedInSprint,
-    gift.rawJson,
-    gift.createdAt,
-    gift.createdAt
-  );
-
-  return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(result.lastInsertRowid)));
+  return giftService.addGiftEvent({ settings: getSettings, db: { giftDb } }, input);
 }
 
 function updateGiftEventIfProgressed(row, gift) {
@@ -1053,95 +948,14 @@ function findRecentGiftCommandDuplicate(gift) {
   return row ? normalizeGiftRow(row) : null;
 }
 
-function normalizeGiftInput(input) {
-  const num = normalizePositiveInteger(input && input.num) || 1;
-  const unitPrice = normalizeMoney(input && input.unitPrice);
-  const totalPrice = normalizeMoney((input && input.totalPrice) || (unitPrice * num));
-  const blindBoxPrice = input && input.blindBoxPrice === null ? null : normalizeNullableMoney(input && input.blindBoxPrice);
-  const blindProfit = blindBoxPrice === null ? null : normalizeSignedMoney(totalPrice - blindBoxPrice);
-  return {
-    platformId: cleanText(input && input.platformId),
-    cmd: cleanText(input && input.cmd),
-    giftId: cleanText(input && input.giftId),
-    giftName: cleanText(input && input.giftName),
-    uid: cleanText(input && input.uid),
-    userName: cleanText(input && input.userName) || '观众',
-    num,
-    unitPrice,
-    totalPrice,
-    coinType: cleanText(input && input.coinType),
-    isBlindBox: Boolean(input && input.isBlindBox),
-    blindBoxName: cleanText(input && input.blindBoxName),
-    blindBoxPrice,
-    blindProfit,
-    rawJson: cleanText(input && input.rawJson),
-    createdAt: timestampToIso(input && input.messageTimestamp) || now()
-  };
-}
+function normalizeGiftInput(input) { return giftService.normalizeGiftInput(input); }
 
 function handleGiftBotDanmaku(danmaku) {
-  const settings = getSettings();
-  if (settings.enableGiftSprint !== 'true' || settings.enableGiftBotFallback !== 'true') {
-    return null;
-  }
-
-  const botName = cleanText(danmaku && danmaku.userName);
-  if (!isConfiguredGiftBotName(botName, settings)) {
-    return null;
-  }
-
-  const text = cleanText(danmaku && danmaku.message);
-  if (!text) return null;
-
-  cleanupGiftBotPending();
-  const messageTimestamp = normalizeTimestampMs(danmaku && danmaku.messageTimestamp) || Date.now();
-  const pendingKey = normalizeGiftBotName(botName);
-  const parsed = parseGiftBotDanmakuMessage(text, giftBotPendingByName.get(pendingKey));
-  if (!parsed) return null;
-
-  if (parsed.type === 'pending-user') {
-    const resolvedAlias = resolveGiftBotAlias(parsed.userAlias, settings);
-    giftBotPendingByName.set(pendingKey, {
-      userAlias: resolvedAlias.userName,
-      uid: resolvedAlias.uid,
-      messageTimestamp,
-      createdAtMs: Date.now()
-    });
-    return { parsed, item: null };
-  }
-
-  if (parsed.type === 'profit-report') {
-    const item = updateLastGiftBotReportProfit(pendingKey, {
-      ...parsed,
-      botName,
-      message: text,
-      messageTimestamp
-    });
-    return { parsed, item };
-  }
-
-  const pending = giftBotPendingByName.get(pendingKey);
-  if (pending && Date.now() - pending.createdAtMs <= GIFT_BOT_PENDING_MAX_AGE_MS) {
-    parsed.userAlias = parsed.userAlias || pending.userAlias;
-    parsed.uid = parsed.uid || pending.uid;
-  }
-  giftBotPendingByName.delete(pendingKey);
-
-  const item = addOrMergeGiftBotEvent({
-    ...parsed,
-    userName: parsed.userAlias || '机器人识别观众',
-    uid: parsed.uid || '',
-    botName,
-    message: text,
-    messageTimestamp
-  });
-  if (item) {
-    giftBotLastReportByName.set(pendingKey, {
-      giftEventId: item.id,
-      createdAtMs: Date.now()
-    });
-  }
-  return { parsed, item };
+  return giftService.handleGiftBotDanmaku({
+    settings: getSettings,
+    db: { giftDb },
+    state: { giftBotPendingByName, giftBotLastReportByName }
+  }, danmaku);
 }
 
 function updateLastGiftBotReportProfit(pendingKey, report) {
@@ -1437,16 +1251,7 @@ function normalizeGiftBotName(value) {
 }
 
 function resetGiftSprintProgress() {
-  const result = giftDb.prepare(`
-    UPDATE gift_events
-    SET counted_in_sprint = 0, updated_at = ?
-    WHERE counted_in_sprint = 1
-  `).run(now());
-  return {
-    reset: true,
-    changedCount: Number(result.changes || 0),
-    giftSprint: getGiftSprintSnapshot()
-  };
+  return giftService.resetGiftSprintProgress({ settings: getSettings, db: { giftDb } });
 }
 
 function handleSuperChatAction(action, rawId) {
