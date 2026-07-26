@@ -1,6 +1,6 @@
 {
   "name": "bilibili-live-song-plugin",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "private": true,
   "license": "UNLICENSED",
   "description": "Local Bilibili live song request assistant MVP.",
@@ -53,8 +53,9 @@
     },
     "nsis": {
       "artifactName": "bilibili-live-song-plugin-setup-${version}.${ext}",
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
       "shortcutName": "点歌助手",
       "uninstallDisplayName": "点歌助手",
       "createDesktopShortcut": true,

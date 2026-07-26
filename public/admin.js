@@ -88,7 +88,7 @@ function setMainPage(pageId) {
     button.classList.toggle('active', button.dataset.mainPage === nextPageId);
   });
   const title = document.getElementById('appTitle');
-  if (title) title.textContent = nextPageId === 'playbackAssistantPage' ? '播放助手' : '点歌助手';
+  if (title) title.textContent = nextPageId === 'playbackAssistantPage' ? '播放' : '点歌';
   if (location.hash !== (nextPageId === 'playbackAssistantPage' ? '#playback' : '')) {
     history.replaceState(null, '', nextPageId === 'playbackAssistantPage' ? '#playback' : location.pathname + location.search);
   }
