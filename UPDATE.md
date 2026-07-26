@@ -1,6 +1,10 @@
 # 打包与更新说明
 
-当前版本：`1.1.1`
+当前版本：`1.1.2`
+
+## v1.1.2 变更
+
+- 管理端点歌队列中，第 1 位未置顶歌曲不再显示“置顶”按钮；如果第 1 位已经置顶，仍显示“取消置顶”。
 
 ## 本机打包
 
@@ -12,8 +16,8 @@ npm.cmd run dist:win
 生成文件在 `release/`：
 
 ```text
-bilibili-live-song-plugin-setup-1.1.1.exe
-bilibili-live-song-plugin-setup-1.1.1.exe.blockmap
+bilibili-live-song-plugin-setup-1.1.2.exe
+bilibili-live-song-plugin-setup-1.1.2.exe.blockmap
 latest.yml
 ```
 

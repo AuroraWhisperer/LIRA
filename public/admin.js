@@ -738,7 +738,9 @@ function renderState() {
     list.innerHTML = '<div class="empty">队列为空</div>';
   } else {
     list.innerHTML = queueItems.map((item, index) => {
-      const pinButton = `
+      const pinButton = index === 0 && !item.is_pinned
+        ? ''
+        : `
               <button class="icon" title="${item.is_pinned ? '取消置顶' : '置顶'}" type="button" data-action="${item.is_pinned ? 'unpin' : 'pin'}" data-id="${item.id}">${item.is_pinned ? '↧' : '↑'}</button>`;
       return `
           <div class="queue-row">
