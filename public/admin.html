@@ -6,14 +6,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>点歌助手</title>
-    <link rel="stylesheet" href="/styles.css?v=20260726-01">
+    <link rel="stylesheet" href="/styles.css?v=20260726-03">
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <h1>点歌助手</h1>
-
+          <h1 id="appTitle">点歌助手</h1>
+          <nav class="main-page-tabs" aria-label="主功能">
+            <button class="main-page-tab active" data-main-page="songAssistantPage" type="button">点歌</button>
+            <button class="main-page-tab" data-main-page="playbackAssistantPage" type="button">播放</button>
+          </nav>
         </div>
         <div class="status-strip">
           <span id="wsStatus" class="pill warn">前端未连接</span>
@@ -24,6 +27,7 @@
         </div>
       </header>
 
+      <div id="songAssistantPage" class="main-page active">
       <section class="layout">
         <div class="stack">
           <section class="panel">
@@ -997,8 +1001,193 @@
           </div>
         </div>
       </section>
+      </div>
+
+      <section id="playbackAssistantPage" class="main-page playback-page">
+        <div class="playback-head panel">
+          <div class="panel-body playback-head-inner">
+            <div>
+              <h2>播放助手</h2>
+              <p class="hint">本页独立承载播放器、音乐平台登录、在线搜索、队列优先级、桌面歌词与播放状态恢复。</p>
+            </div>
+            <div class="source-tabs" role="tablist" aria-label="音乐平台">
+              <button class="source-tab active" type="button" data-source="qq">QQ音乐</button>
+              <button class="source-tab" type="button" data-source="netease">网易云音乐</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="playback-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>账户与推荐</h2>
+              <div class="actions">
+                <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
+                <button id="playbackHealthBtn" type="button">检查接口</button>
+                <button id="playbackLoginBtn" type="button">扫码登录</button>
+                <button id="playbackLogoutBtn" class="danger" type="button">退出登录</button>
+              </div>
+            </div>
+            <div class="panel-body stack">
+              <div class="playback-user">
+                <div class="playback-avatar">音</div>
+                <div>
+                  <strong id="playbackUserName">未连接音乐账户</strong>
+                  <span id="playbackVipState">账号歌单和推荐将在 Provider 接入后显示</span>
+                </div>
+              </div>
+              <div id="playbackProviderHealth" class="hint">等待检查音乐 Provider 状态</div>
+              <div class="playback-cache-row">
+                <span id="playbackCacheStatus" class="hint">缓存大小：正在读取...</span>
+                <button id="playbackClearCacheBtn" type="button">清理缓存</button>
+              </div>
+              <div class="playback-home-grid">
+                <button class="playback-home-card" type="button" data-playback-home-action="personalized">
+                  <strong>为你推荐</strong>
+                  <span>打开平台推荐歌单</span>
+                </button>
+                <button class="playback-home-card" type="button" data-playback-home-action="daily">
+                  <strong>每日推荐</strong>
+                  <span>登录后读取每日歌曲</span>
+                </button>
+                <button class="playback-home-card" type="button" data-playback-home-action="radio">
+                  <strong>心动 / 电台</strong>
+                  <span>加入电台队列</span>
+                </button>
+                <button class="playback-home-card" type="button" data-playback-home-action="liked">
+                  <strong>我喜欢</strong>
+                  <span>登录后读取收藏歌单</span>
+                </button>
+                <button class="playback-home-card" type="button" data-playback-home-action="created-playlists">
+                  <strong>我的歌单</strong>
+                  <span>登录后读取自建歌单</span>
+                </button>
+                <button class="playback-home-card" type="button" data-playback-home-action="collected-playlists">
+                  <strong>收藏歌单</strong>
+                  <span>登录后读取收藏歌单</span>
+                </button>
+                <button class="playback-home-card" type="button" data-playback-home-action="recent">
+                  <strong>最近播放</strong>
+                  <span>登录后读取最近歌曲</span>
+                </button>
+              </div>
+              <div id="playbackHomeResults" class="playback-home-results hint">选择入口后会在这里显示歌单或歌曲。</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>播放队列</h2>
+              <div class="actions">
+                <span id="playbackQueueSize" class="pill">0 首</span>
+                <button id="playbackImportSongQueue" type="button">导入点歌队列</button>
+                <button id="playbackClearQueue" class="danger" type="button">清空</button>
+              </div>
+            </div>
+            <div class="panel-body stack">
+              <label>
+                选择本地音频加入普通队列
+                <input id="playbackFileInput" type="file" accept="audio/*" multiple>
+              </label>
+              <div id="playbackQueueList" class="queue-list playback-queue-list"></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel playback-search-panel">
+          <div class="panel-header">
+            <h2>在线搜索</h2>
+            <div class="actions">
+              <button id="playbackSearchBtn" type="button">搜索</button>
+            </div>
+          </div>
+          <div class="panel-body stack">
+            <div class="form-grid three">
+              <label>
+                关键词
+                <input id="playbackSearchKeyword" placeholder="歌名 / 歌手">
+              </label>
+              <label>
+                平台
+                <input id="playbackSearchSource" value="跟随当前平台" disabled>
+              </label>
+              <label>
+                数量
+                <input id="playbackSearchLimit" type="number" min="1" max="30" step="1" value="12">
+              </label>
+            </div>
+            <div id="playbackSearchResults" class="playback-search-results hint">选择网易云音乐后可搜索歌曲并加入播放队列；QQ 音乐先保留登录验证和 Provider 占位。</div>
+          </div>
+        </section>
+
+        <section class="panel playback-match-panel">
+          <div class="panel-header">
+            <h2>点歌匹配测试</h2>
+            <div class="actions">
+              <button id="playbackMatchBtn" type="button">测试匹配</button>
+            </div>
+          </div>
+          <div class="panel-body stack">
+            <div class="grid-3">
+              <label>
+                歌曲名
+                <input id="playbackMatchSong" placeholder="例如：晴天">
+              </label>
+              <label>
+                歌手
+                <input id="playbackMatchArtist" placeholder="可选">
+              </label>
+              <label>
+                时长毫秒
+                <input id="playbackMatchDuration" type="number" min="0" step="1000" placeholder="可选">
+              </label>
+            </div>
+            <div id="playbackMatchResults" class="playback-match-results hint">输入歌名后可用本地歌库测试匹配分数。</div>
+          </div>
+        </section>
+
+        <section class="panel playback-player-panel">
+          <div class="panel-body playback-player">
+            <div class="playback-cover" id="playbackCover">♪</div>
+            <div class="playback-now">
+              <strong id="playbackTrackTitle">未选择歌曲</strong>
+              <span id="playbackTrackArtist">从本地测试音频开始</span>
+              <div class="playback-progress-row">
+                <span id="playbackCurrentTime">00:00</span>
+                <input id="playbackSeek" type="range" min="0" max="0" step="0.1" value="0">
+                <span id="playbackDuration">00:00</span>
+              </div>
+            </div>
+            <div class="playback-controls">
+              <div class="playback-control-buttons">
+                <button id="playbackPrev" class="icon" type="button" title="上一首">‹</button>
+                <button id="playbackPlayPause" class="primary playback-play" type="button" title="播放/暂停">播放</button>
+                <button id="playbackNext" class="icon" type="button" title="下一首">›</button>
+              </div>
+              <div class="playback-options">
+                <select id="playbackMode" title="播放模式">
+                  <option value="sequence">顺序播放</option>
+                  <option value="shuffle">随机播放</option>
+                  <option value="repeat-one">单曲循环</option>
+                </select>
+                <button id="playbackLyricBtn" type="button">桌面歌词</button>
+                <button id="playbackLyricLockBtn" type="button" disabled>锁定</button>
+                <label class="playback-volume">
+                  音量
+                  <input id="playbackVolume" type="range" min="0" max="1" step="0.01" value="0.75">
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
     </main>
+    <audio id="music-player" preload="metadata"></audio>
     <div id="toast" class="toast-stack"></div>
-    <script src="/admin.js?v=20260726-01"></script>
+    <script src="/js/utils.js?v=20260726-01"></script>
+    <script src="/js/theme.js?v=20260726-01"></script>
+    <script src="/js/playback.js?v=20260726-01"></script>
+    <script src="/js/desktop.js?v=20260726-01"></script>
+    <script src="/admin.js?v=20260726-04"></script>
   </body>
 </html>
