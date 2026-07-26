@@ -2,395 +2,60 @@
 // 当前项目版本：1.1.1
 'use strict';
 
+const {
+  multilingualFontFallback,
+  escapeHtml,
+  escapeAttr,
+  value,
+  setValue,
+  formatTime,
+  formatDateTime,
+  formatBytes,
+  formatDuration,
+  formatSuperChatPrice,
+  formatMoney,
+  formatCompactNumber,
+  withMultilingualFallback,
+  toast,
+  showStackedToast,
+  api,
+  readJsonResponse,
+  showError,
+  debounce,
+  normalizeRangeValue
+} = window.AdminApp.utils;
+const { initDesktopShell } = window.AdminApp.desktop;
+
 let appState = null;
 let songs = [];
 let categories = [];
-let activeToastKeys = new Set();
-let desktopUpdateNoticeKey = '';
 let songReloadTimer = null;
 let shuttingDown = false;
 let metricsRunning = false;
 let latestGiftNoticeKey = null;
-
-const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
-
-const defaultThemeLook = {
-  themePrimary: '#ff6f91',
-  themeAccent: '#21b6a8',
-  themeText: '#ffffff',
-  themeBackground: '#181823',
-  queueSongFontSize: '20',
-  queueTitleFontSize: '15',
-  themeOpacity: '0.35',
-  themeRadius: '12',
-  overlayLowPowerMode: 'false',
-  backdropBlur: '0',
-  glowIntensity: '0',
-  enableGradient: 'false',
-  gradientEnd: '#181823',
-  overlayFontFamily: 'Microsoft YaHei',
-  overlayFontWeight: '800',
-  overlaySongColor: '',
-  overlayRequesterColor: '',
-  overlayTitle: '',
-  overlayShowIndex: 'true',
-  overlayIndexThreshold: '0',
-  overlayIndexColor: '#fbbf24',
-  queueFixedSixRows: 'true',
-  queueScrollMode: 'bounce',
-  queueScrollSpeed: '80'
-};
-
-const classicThemePresets = {
-  // === 极简（纯透背景） ===
-  pure: {
-    themePrimary: '#555555', themeAccent: '#888888',
-    themeText: '#1a1a1a', themeBackground: '#ffffff',
-    themeOpacity: '0.00', themeRadius: '0',
-    backdropBlur: '0', glowIntensity: '0',
-    enableGradient: 'false', gradientEnd: '#ffffff',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '600',
-    overlaySongColor: '#1a1a1a',
-    overlayRequesterColor: '#666666',
-    queueScrollSpeed: '80'
-  },
-  // === 浅色系（明亮白透毛玻璃） ===
-  cream: {
-    themePrimary: '#f59e0b', themeAccent: '#d97706',
-    themeText: '#3d2a14', themeBackground: '#f5ede4',
-    themeOpacity: '0.45', themeRadius: '14',
-    backdropBlur: '24', glowIntensity: '2',
-    enableGradient: 'true', gradientEnd: '#e8d5c0',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'KaiTi, STKaiti, serif',
-    overlayFontWeight: '700',
-    overlaySongColor: '#5c3d1a',
-    overlayRequesterColor: '#8b6914',
-    queueScrollSpeed: '80'
-  },
-  sky: {
-    themePrimary: '#3b82f6', themeAccent: '#f59e0b',
-    themeText: '#1a2e3d', themeBackground: '#e8f2f8',
-    themeOpacity: '0.42', themeRadius: '12',
-    backdropBlur: '22', glowIntensity: '2',
-    enableGradient: 'true', gradientEnd: '#d8e8f4',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '700',
-    overlaySongColor: '#1e40af',
-    overlayRequesterColor: '#64748b',
-    queueScrollSpeed: '80'
-  },
-  peach: {
-    themePrimary: '#ec4899', themeAccent: '#8b5cf6',
-    themeText: '#3d1a2a', themeBackground: '#fce7f0',
-    themeOpacity: '0.45', themeRadius: '16',
-    backdropBlur: '24', glowIntensity: '3',
-    enableGradient: 'true', gradientEnd: '#f0d8e4',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'system-ui, -apple-system, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#be185d',
-    overlayRequesterColor: '#9d174d',
-    queueScrollSpeed: '80'
-  },
-  mint: {
-    themePrimary: '#10b981', themeAccent: '#f59e0b',
-    themeText: '#1a2d20', themeBackground: '#e6f2ea',
-    themeOpacity: '0.42', themeRadius: '14',
-    backdropBlur: '22', glowIntensity: '2',
-    enableGradient: 'true', gradientEnd: '#d4e8da',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '700',
-    overlaySongColor: '#065f46',
-    overlayRequesterColor: '#64748b',
-    queueScrollSpeed: '80'
-  },
-  // === 深色系（暗色氛围毛玻璃） ===
-  sakura: {
-    themePrimary: '#ff7eb3', themeAccent: '#7ec8e3',
-    themeText: '#fff5f7', themeBackground: '#1a1424',
-    themeOpacity: '0.28', themeRadius: '16',
-    backdropBlur: '22', glowIntensity: '4',
-    enableGradient: 'true', gradientEnd: '#2d1a2e',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'system-ui, -apple-system, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#fda4af',
-    overlayRequesterColor: '#c0a4b8',
-    queueScrollSpeed: '80'
-  },
-  starry: {
-    themePrimary: '#c4b5fd', themeAccent: '#67e8f9',
-    themeText: '#f5f3ff', themeBackground: '#0f0a1e',
-    themeOpacity: '0.26', themeRadius: '14',
-    backdropBlur: '24', glowIntensity: '6',
-    enableGradient: 'true', gradientEnd: '#1e1050',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '700',
-    overlaySongColor: '#ddd6fe',
-    overlayRequesterColor: '#a5b4fc',
-    queueScrollSpeed: '80'
-  },
-  ocean: {
-    themePrimary: '#60a5fa', themeAccent: '#fbbf24',
-    themeText: '#f0f9ff', themeBackground: '#0c1929',
-    themeOpacity: '0.30', themeRadius: '12',
-    backdropBlur: '20', glowIntensity: '4',
-    enableGradient: 'true', gradientEnd: '#061a34',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'Microsoft YaHei, SimHei, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#93c5fd',
-    overlayRequesterColor: '#7b9cc4',
-    queueScrollSpeed: '80'
-  },
-  sunset: {
-    themePrimary: '#fb923c', themeAccent: '#f472b6',
-    themeText: '#fffbf0', themeBackground: '#2a1508',
-    themeOpacity: '0.30', themeRadius: '14',
-    backdropBlur: '18', glowIntensity: '6',
-    enableGradient: 'true', gradientEnd: '#3d1f0a',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'SimHei, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#fdba74',
-    overlayRequesterColor: '#d6a074',
-    queueScrollSpeed: '80'
-  },
-  cyber: {
-    themePrimary: '#22d3ee', themeAccent: '#e879f9',
-    themeText: '#f0f9ff', themeBackground: '#0a0a14',
-    themeOpacity: '0.32', themeRadius: '6',
-    backdropBlur: '14', glowIntensity: '14',
-    enableGradient: 'true', gradientEnd: '#140a28',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#67e8f9',
-    overlayRequesterColor: '#d8b4fe',
-    queueScrollSpeed: '80'
-  },
-  gold: {
-    themePrimary: '#fbbf24', themeAccent: '#f59e0b',
-    themeText: '#fefce8', themeBackground: '#0c0a08',
-    themeOpacity: '0.32', themeRadius: '10',
-    backdropBlur: '22', glowIntensity: '6',
-    enableGradient: 'true', gradientEnd: '#1c1608',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'KaiTi, STKaiti, serif',
-    overlayFontWeight: '700',
-    overlaySongColor: '#fde68a',
-    overlayRequesterColor: '#a3a18a',
-    queueScrollSpeed: '80'
-  },
-  lavender: {
-    themePrimary: '#c084fc', themeAccent: '#f9a8d4',
-    themeText: '#faf5ff', themeBackground: '#170f1f',
-    themeOpacity: '0.28', themeRadius: '16',
-    backdropBlur: '24', glowIntensity: '6',
-    enableGradient: 'true', gradientEnd: '#2d1050',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'system-ui, -apple-system, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#e9d5ff',
-    overlayRequesterColor: '#c4b5fd',
-    queueScrollSpeed: '80'
-  },
-  // === 新增3种预设（v1.1.2） ===
-  emerald: {
-    themePrimary: '#34d399', themeAccent: '#fbbf24',
-    themeText: '#f0fdf4', themeBackground: '#0a1a10',
-    themeOpacity: '0.30', themeRadius: '12',
-    backdropBlur: '20', glowIntensity: '5',
-    enableGradient: 'true', gradientEnd: '#061208',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    overlayFontWeight: '700',
-    overlaySongColor: '#6ee7b7',
-    overlayRequesterColor: '#86a894',
-    queueScrollSpeed: '80'
-  },
-  rose: {
-    themePrimary: '#f472b6', themeAccent: '#c084fc',
-    themeText: '#fff1f5', themeBackground: '#1a0e14',
-    themeOpacity: '0.30', themeRadius: '14',
-    backdropBlur: '22', glowIntensity: '5',
-    enableGradient: 'true', gradientEnd: '#2d1020',
-    queueSongFontSize: '20', queueTitleFontSize: '15',
-    overlayFontFamily: 'system-ui, -apple-system, sans-serif',
-    overlayFontWeight: '800',
-    overlaySongColor: '#f9a8d4',
-    overlayRequesterColor: '#c4a0b0',
-    queueScrollSpeed: '80'
-  },
-};
-
-const classicPresetLabels = {
-  pure: '🪟 纯透极简',
-  cream: '🥛 奶油杏白', sky: '☁️ 晴空浅蓝', peach: '🍑 蜜桃奶白',
-  mint: '🌿 薄荷浅绿',
-  sakura: '🌸 樱粉甜梦', starry: '✨ 星夜幻紫', ocean: '🌊 深海湛蓝',
-  sunset: '🌅 暖橘落日', cyber: '⚡ 赛博霓虹',
-  gold: '🥇 暗夜黑金', lavender: '💜 薰衣草雾',
-  emerald: '🌲 翡翠深林', rose: '🌹 丝绒玫瑰'
-};
-
-const classicPresetSwatches = {
-  pure: ['#ffffff', '#555555', '#888888', '#1a1a1a'],
-  cream: ['#f5ede4', '#f59e0b', '#d97706', '#3d2a14'],
-  sky: ['#e8f2f8', '#3b82f6', '#f59e0b', '#1a2e3d'],
-  peach: ['#fce7f0', '#ec4899', '#8b5cf6', '#3d1a2a'],
-  mint: ['#e6f2ea', '#10b981', '#f59e0b', '#1a2d20'],
-  sakura: ['#1a1424', '#ff7eb3', '#7ec8e3', '#fff5f7'],
-  starry: ['#0f0a1e', '#c4b5fd', '#67e8f9', '#f5f3ff'],
-  ocean: ['#0c1929', '#60a5fa', '#fbbf24', '#f0f9ff'],
-  sunset: ['#2a1508', '#fb923c', '#f472b6', '#fffbf0'],
-  cyber: ['#0a0a14', '#22d3ee', '#e879f9', '#f0f9ff'],
-  gold: ['#0c0a08', '#fbbf24', '#f59e0b', '#fefce8'],
-  lavender: ['#170f1f', '#c084fc', '#f9a8d4', '#faf5ff'],
-  emerald: ['#0a1a10', '#34d399', '#fbbf24', '#f0fdf4'],
-  rose: ['#1a0e14', '#f472b6', '#c084fc', '#fff1f5']
-};
-
-const songBoardThemePresets = {
-  pure: {
-    songBoardThemePrimary: '#555555', songBoardThemeAccent: '#888888',
-    songBoardThemeText: '#1a1a1a', songBoardThemeBackground: '#ffffff',
-    songBoardThemeOpacity: '0.00', songBoardThemeRadius: '0',
-    songBoardBackdropBlur: '0', songBoardGlowIntensity: '0',
-    songBoardEnableGradient: 'false', songBoardGradientEnd: '#ffffff',
-    songBoardFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    songBoardFontWeight: '600', songBoardSongColor: '#1a1a1a',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  sunset: {
-    songBoardThemePrimary: '#fb923c', songBoardThemeAccent: '#f472b6',
-    songBoardThemeText: '#fffbf0', songBoardThemeBackground: '#2a1508',
-    songBoardThemeOpacity: '0.30', songBoardThemeRadius: '14',
-    songBoardBackdropBlur: '18', songBoardGlowIntensity: '6',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#3d1f0a',
-    songBoardFontFamily: 'SimHei, Microsoft YaHei, sans-serif',
-    songBoardFontWeight: '800', songBoardSongColor: '#fdba74',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '17', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  starry: {
-    songBoardThemePrimary: '#c4b5fd', songBoardThemeAccent: '#67e8f9',
-    songBoardThemeText: '#f5f3ff', songBoardThemeBackground: '#0f0a1e',
-    songBoardThemeOpacity: '0.26', songBoardThemeRadius: '14',
-    songBoardBackdropBlur: '24', songBoardGlowIntensity: '6',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#1e1050',
-    songBoardFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    songBoardFontWeight: '700', songBoardSongColor: '#ddd6fe',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  ocean: {
-    songBoardThemePrimary: '#60a5fa', songBoardThemeAccent: '#fbbf24',
-    songBoardThemeText: '#f0f9ff', songBoardThemeBackground: '#0c1929',
-    songBoardThemeOpacity: '0.30', songBoardThemeRadius: '12',
-    songBoardBackdropBlur: '20', songBoardGlowIntensity: '4',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#061a34',
-    songBoardFontFamily: 'Microsoft YaHei, SimHei, sans-serif',
-    songBoardFontWeight: '800', songBoardSongColor: '#93c5fd',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  sky: {
-    songBoardThemePrimary: '#3b82f6', songBoardThemeAccent: '#f59e0b',
-    songBoardThemeText: '#1a2e3d', songBoardThemeBackground: '#e8f2f8',
-    songBoardThemeOpacity: '0.42', songBoardThemeRadius: '12',
-    songBoardBackdropBlur: '22', songBoardGlowIntensity: '2',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#d8e8f4',
-    songBoardFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    songBoardFontWeight: '700', songBoardSongColor: '#1e40af',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  mint: {
-    songBoardThemePrimary: '#10b981', songBoardThemeAccent: '#f59e0b',
-    songBoardThemeText: '#1a2d20', songBoardThemeBackground: '#e6f2ea',
-    songBoardThemeOpacity: '0.42', songBoardThemeRadius: '14',
-    songBoardBackdropBlur: '22', songBoardGlowIntensity: '2',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#d4e8da',
-    songBoardFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    songBoardFontWeight: '700', songBoardSongColor: '#065f46',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  peach: {
-    songBoardThemePrimary: '#ec4899', songBoardThemeAccent: '#8b5cf6',
-    songBoardThemeText: '#3d1a2a', songBoardThemeBackground: '#fce7f0',
-    songBoardThemeOpacity: '0.45', songBoardThemeRadius: '16',
-    songBoardBackdropBlur: '24', songBoardGlowIntensity: '3',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#f0d8e4',
-    songBoardFontFamily: 'system-ui, -apple-system, sans-serif',
-    songBoardFontWeight: '800', songBoardSongColor: '#be185d',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  emerald: {
-    songBoardThemePrimary: '#34d399', songBoardThemeAccent: '#fbbf24',
-    songBoardThemeText: '#f0fdf4', songBoardThemeBackground: '#0a1a10',
-    songBoardThemeOpacity: '0.30', songBoardThemeRadius: '12',
-    songBoardBackdropBlur: '20', songBoardGlowIntensity: '5',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#061208',
-    songBoardFontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
-    songBoardFontWeight: '700', songBoardSongColor: '#6ee7b7',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-  rose: {
-    songBoardThemePrimary: '#f472b6', songBoardThemeAccent: '#c084fc',
-    songBoardThemeText: '#fff1f5', songBoardThemeBackground: '#1a0e14',
-    songBoardThemeOpacity: '0.30', songBoardThemeRadius: '14',
-    songBoardBackdropBlur: '22', songBoardGlowIntensity: '5',
-    songBoardEnableGradient: 'true', songBoardGradientEnd: '#2d1020',
-    songBoardFontFamily: 'system-ui, -apple-system, sans-serif',
-    songBoardFontWeight: '800', songBoardSongColor: '#f9a8d4',
-    songBoardTitle: '可点歌单',
-    songBoardSongFontSize: '16', songBoardTitleFontSize: '15',
-    scrollSeconds: '80'
-  },
-};
-
-const songBoardPresetLabels = {
-  pure: '🪟 纯透极简',
-  sunset: '🌅 暖橘落日', starry: '✨ 星夜幻紫', ocean: '🌊 深海湛蓝',
-  sky: '☁️ 晴空浅蓝', mint: '🌿 薄荷浅绿', peach: '🍑 蜜桃奶白',
-  emerald: '🌲 翡翠深林', rose: '🌹 丝绒玫瑰'
-};
-
-const songBoardPresetSwatches = {
-  pure: ['#ffffff', '#555555', '#888888', '#1a1a1a'],
-  sunset: ['#2a1508', '#fb923c', '#f472b6', '#fffbf0'],
-  starry: ['#0f0a1e', '#c4b5fd', '#67e8f9', '#f5f3ff'],
-  ocean: ['#0c1929', '#60a5fa', '#fbbf24', '#f0f9ff'],
-  sky: ['#e8f2f8', '#3b82f6', '#f59e0b', '#1a2e3d'],
-  mint: ['#e6f2ea', '#10b981', '#f59e0b', '#1a2d20'],
-  peach: ['#fce7f0', '#ec4899', '#8b5cf6', '#3d1a2a'],
-  emerald: ['#0a1a10', '#34d399', '#fbbf24', '#f0fdf4'],
-  rose: ['#1a0e14', '#f472b6', '#c084fc', '#fff1f5']
-};
+const {
+  defaultThemeLook,
+  classicThemePresets,
+  classicPresetLabels,
+  classicPresetSwatches,
+  songBoardThemePresets,
+  songBoardPresetLabels,
+  songBoardPresetSwatches
+} = window.AdminApp.theme;
 
 let songLanguages = new Set();
 let songArtists = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
+  initMainPages();
+  window.AdminApp.playback.initPlaybackAssistant({
+    getSongs: () => songs,
+    reloadSongs,
+    toast,
+    showError,
+    api,
+    readJsonResponse
+  });
   initTabs();
   initDesktopShell();
   initForms();
@@ -400,6 +65,34 @@ document.addEventListener('DOMContentLoaded', () => {
   reloadAll();
   renderSongBoardPresetCards();
 });
+
+function initMainPages() {
+  const buttons = document.querySelectorAll('.main-page-tab');
+  if (!buttons.length) return;
+
+  buttons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setMainPage(button.dataset.mainPage || 'songAssistantPage');
+    });
+  });
+
+  setMainPage(location.hash === '#playback' ? 'playbackAssistantPage' : 'songAssistantPage');
+}
+
+function setMainPage(pageId) {
+  const nextPageId = pageId === 'playbackAssistantPage' ? 'playbackAssistantPage' : 'songAssistantPage';
+  document.querySelectorAll('.main-page').forEach((page) => {
+    page.classList.toggle('active', page.id === nextPageId);
+  });
+  document.querySelectorAll('.main-page-tab').forEach((button) => {
+    button.classList.toggle('active', button.dataset.mainPage === nextPageId);
+  });
+  const title = document.getElementById('appTitle');
+  if (title) title.textContent = nextPageId === 'playbackAssistantPage' ? '播放助手' : '点歌助手';
+  if (location.hash !== (nextPageId === 'playbackAssistantPage' ? '#playback' : '')) {
+    history.replaceState(null, '', nextPageId === 'playbackAssistantPage' ? '#playback' : location.pathname + location.search);
+  }
+}
 
 function initTabs() {
   document.querySelectorAll('.tab').forEach((button) => {
@@ -1304,195 +997,6 @@ async function runMetricsSample() {
   }
 }
 
-function initDesktopShell() {
-  const desktop = window.songAssistantDesktop;
-  if (!desktop) return;
-
-  document.body.classList.add('desktop-shell');
-  document.querySelectorAll('.desktop-only').forEach((node) => {
-    node.hidden = false;
-  });
-
-  const checkButton = document.getElementById('desktopCheckUpdateBtn');
-  const downloadButton = document.getElementById('desktopDownloadUpdateBtn');
-  const installButton = document.getElementById('desktopInstallUpdateBtn');
-  const dataButton = document.getElementById('desktopOpenDataBtn');
-  const logButton = document.getElementById('desktopOpenLogBtn');
-  const githubButton = document.getElementById('desktopOpenGithubBtn');
-
-  if (checkButton) {
-    checkButton.addEventListener('click', () => {
-      renderDesktopUpdateState({
-        status: 'checking',
-        message: '正在连接 GitHub 检查新版本...',
-        canDownload: false,
-        canInstall: false,
-        progress: null
-      });
-      runDesktopAction(() => desktop.checkForUpdates());
-    });
-  }
-  if (downloadButton) {
-    downloadButton.addEventListener('click', () => runDesktopAction(() => desktop.downloadUpdate()));
-  }
-  if (installButton) {
-    installButton.addEventListener('click', () => {
-      if (!confirm('确认重启并更新到新版本？')) return;
-      runDesktopAction(() => desktop.installUpdate());
-    });
-  }
-  if (dataButton) {
-    dataButton.addEventListener('click', () => runDesktopAction(() => desktop.openDataDir(), false));
-  }
-  if (logButton) {
-    logButton.addEventListener('click', () => runDesktopAction(() => desktop.openLogDir(), false));
-  }
-  if (githubButton) {
-    githubButton.addEventListener('click', () => runDesktopAction(() => desktop.openGithub(), false));
-  }
-
-  desktop.onShowUpdatePage(showDesktopUpdatePage);
-  desktop.onUpdateState(handleDesktopUpdateState);
-  desktop.getInfo()
-    .then((info) => {
-      const versionNode = document.getElementById('desktopVersionPill');
-      if (versionNode) versionNode.textContent = `版本 ${info.version || '--'}`;
-      handleDesktopUpdateState(info.updateState);
-    })
-    .catch(showError);
-}
-
-function showDesktopUpdatePage() {
-  const button = document.getElementById('desktopUpdateTab');
-  const page = document.getElementById('desktopUpdatePage');
-  if (!button || !page) return;
-
-  document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
-  document.querySelectorAll('.tab-page').forEach((item) => item.classList.remove('active'));
-  button.classList.add('active');
-  page.classList.add('active');
-}
-
-function handleDesktopUpdateState(state) {
-  renderDesktopUpdateState(state);
-  maybeShowDesktopUpdateNotice(state);
-}
-
-function maybeShowDesktopUpdateNotice(state) {
-  if (!state || (state.status !== 'available' && state.status !== 'downloaded')) return;
-
-  const updateVersion = state.updateVersion || state.version || '';
-  const noticeKey = updateVersion || state.status;
-  if (desktopUpdateNoticeKey === noticeKey) return;
-
-  desktopUpdateNoticeKey = noticeKey;
-  showDesktopUpdateNotice(updateVersion, state.status);
-}
-
-function showDesktopUpdateNotice(updateVersion, status) {
-  const versionText = updateVersion ? ` v${updateVersion}` : '';
-  const title = status === 'downloaded'
-    ? `更新${versionText}已下载`
-    : `发现新版本${versionText}`;
-  const body = status === 'downloaded'
-    ? '点击前往桌面版更新页面，重启后完成安装。'
-    : '点击前往桌面版更新页面处理更新。';
-
-  showStackedToast({
-    key: `desktop-update:${updateVersion || status}`,
-    title,
-    message: body,
-    className: 'desktop-update-toast',
-    duration: 3000,
-    onClick: showDesktopUpdatePage
-  });
-}
-
-function showDesktopNoUpdateNotice(message) {
-  showStackedToast({
-    key: 'desktop-update:not-available',
-    title: '已经是最新版本',
-    message: message || '当前版本不需要更新。',
-    className: 'desktop-update-toast desktop-update-toast-good',
-    duration: 4200,
-    onClick: showDesktopUpdatePage
-  });
-}
-
-async function runDesktopAction(action, shouldRender = true) {
-  try {
-    const state = await action();
-    if (shouldRender) {
-      renderDesktopUpdateState(state);
-      if (state && state.status === 'not-available') showDesktopNoUpdateNotice(desktopUpdateStatusText(state));
-    }
-  } catch (error) {
-    if (shouldRender) {
-      renderDesktopUpdateState({
-        status: 'error',
-        message: desktopActionErrorMessage(error),
-        canDownload: false,
-        canInstall: false,
-        progress: null
-      });
-    } else {
-      toast(desktopActionErrorMessage(error));
-    }
-  }
-}
-
-function renderDesktopUpdateState(state) {
-  if (!state) return;
-
-  const statusNode = document.getElementById('desktopUpdateStatus');
-  const hintNode = document.getElementById('desktopUpdateHint');
-  const progressBar = document.getElementById('desktopUpdateProgressBar');
-  const checkButton = document.getElementById('desktopCheckUpdateBtn');
-  const downloadButton = document.getElementById('desktopDownloadUpdateBtn');
-  const installButton = document.getElementById('desktopInstallUpdateBtn');
-  const percent = state.progress && Number.isFinite(Number(state.progress.percent))
-    ? Math.max(0, Math.min(100, Number(state.progress.percent)))
-    : 0;
-
-  if (statusNode) {
-    statusNode.textContent = desktopUpdateStatusText(state);
-    statusNode.dataset.status = state.status || 'idle';
-  }
-  if (hintNode) {
-    hintNode.textContent = desktopUpdateHintText(state);
-  }
-  if (progressBar) {
-    progressBar.style.width = `${percent}%`;
-  }
-  if (checkButton) {
-    checkButton.disabled = state.status === 'checking' || state.status === 'downloading' || state.status === 'installing';
-    checkButton.textContent = state.status === 'checking' ? '检查中...' : '检查更新';
-  }
-  if (downloadButton) {
-    downloadButton.disabled = !state.canDownload;
-    downloadButton.textContent = state.status === 'downloading' ? '下载中...' : '下载更新';
-  }
-  if (installButton) {
-    installButton.disabled = !state.canInstall;
-  }
-}
-
-function desktopUpdateHintText(state) {
-  if (state.status === 'available') return '新版本来自 GitHub Releases。若 blockmap 可用，会优先下载变化的部分。';
-  if (state.status === 'downloaded') return '更新已经就绪，建议在直播结束后重启更新。';
-  if (state.status === 'dev-disabled') return '当前是开发模式；打包安装后的 exe 会自动检查 GitHub 更新。';
-  if (state.status === 'not-available') return '发布新版本时，需要把安装包、blockmap 和 latest.yml 上传到 GitHub Releases。';
-  if (state.status === 'error') return '详细错误已写入本机日志；界面只显示可操作的简短状态。';
-  return '桌面版会保留本地数据目录，更新 exe 不会清空歌库。';
-}
-
-function desktopUpdateStatusText(state) {
-  const fallback = '等待检查更新';
-  const message = String((state && state.message) || fallback).replace(/\s+/g, ' ').trim();
-  if (message.length <= 120) return message;
-  return `${message.slice(0, 120)}...`;
-}
-
 function setMetricsBusy(isBusy) {
   const toggle = document.getElementById('metricsToggle');
   const toggleText = document.getElementById('metricsToggleText');
@@ -1772,37 +1276,6 @@ async function readFileAsBase64(file) {
   return btoa(binary);
 }
 
-async function api(url, body) {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {})
-    });
-    const payload = await readJsonResponse(response, '请求失败');
-    if (!payload.ok) throw new Error(payload.error || '请求失败');
-    return payload;
-  } catch (error) {
-    showError(error);
-    throw error;
-  }
-}
-
-async function readJsonResponse(response, fallbackMessage) {
-  const text = await response.text();
-  if (!text) {
-    if (!response.ok) throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
-    return {};
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch (_) {
-    const preview = text.replace(/\s+/g, ' ').slice(0, 80);
-    throw new Error(`${fallbackMessage}：服务返回了非 JSON 内容（HTTP ${response.status}${preview ? `，${preview}` : ''}）`);
-  }
-}
-
 async function checkGiftProtocol() {
   const btn = document.getElementById('giftProtocolCheckBtn');
   btn.disabled = true;
@@ -1833,21 +1306,6 @@ function reconnectErrorMessage(error) {
     return text;
   }
   return text || '刷新直播失败，请稍后重试。';
-}
-
-function showError(error) {
-  toast(error.message || String(error));
-}
-
-function desktopActionErrorMessage(error) {
-  const text = String((error && error.message) || error || '');
-  if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
-    return '当前 GitHub Releases 里还没有可用更新包。';
-  }
-  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
-    return '暂时无法连接 GitHub 更新服务，请稍后再试。';
-  }
-  return '操作失败，详细原因已写入日志。';
 }
 
 function resetSongForm() {
@@ -1938,14 +1396,6 @@ function fillForm(values) {
     setValue('queueScrollSpeed', queueScrollSpeed);
     setValue('queueScrollSpeedRange', queueScrollSpeed);
   }
-}
-
-function normalizeRangeValue(input, min, max, fallback) {
-  const valueNumber = Number(input);
-  const fallbackNumber = Number(fallback);
-  const safeValue = Number.isFinite(valueNumber) ? valueNumber : fallbackNumber;
-  const clamped = Math.max(min, Math.min(max, safeValue));
-  return String(Math.round(clamped * 100) / 100);
 }
 
 function normalizeQueueScrollSpeedForDisplay(input) {
@@ -2048,21 +1498,6 @@ function syncAllRangeInputs(values) {
   setValue('scrollSecondsRange', v.scrollSeconds || value('scrollSeconds'));
 }
 
-function value(id) {
-  return document.getElementById(id).value.trim();
-}
-
-function setValue(id, nextValue) {
-  const element = document.getElementById(id);
-  if (element) element.value = nextValue ?? '';
-}
-
-function withMultilingualFallback(fontFamily) {
-  const selected = String(fontFamily || '').trim();
-  if (!selected) return multilingualFontFallback;
-  return `${selected}, ${multilingualFontFallback}`;
-}
-
 function requesterLabel(item) {
   const name = String((item && item.requester_name) || '').trim();
   if (name) return name;
@@ -2106,120 +1541,4 @@ function stripRandomScopePrefix(value) {
     text = text.slice(1).trim();
   }
   return text;
-}
-
-function formatTime(value) {
-  if (!value) return '';
-  return new Date(value).toLocaleTimeString('zh-CN', { hour12: false });
-}
-
-function formatDateTime(value) {
-  if (!value) return '--';
-  return new Date(value).toLocaleString('zh-CN', { hour12: false });
-}
-
-function formatBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes < 0) return '--';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let size = bytes;
-  let unitIndex = 0;
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-  return `${size >= 10 ? size.toFixed(1) : size.toFixed(2)} ${units[unitIndex]}`;
-}
-
-function formatDuration(seconds) {
-  const total = Number(seconds);
-  if (!Number.isFinite(total) || total <= 0) return '--';
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const rest = Math.floor(total % 60);
-  if (hours > 0) return `${hours}小时${minutes}分钟`;
-  if (minutes > 0) return `${minutes}分钟${rest}秒`;
-  return `${rest}秒`;
-}
-
-function formatSuperChatPrice(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return '0';
-  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
-
-function formatMoney(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return '¥0.00';
-  return `¥${number.toFixed(2)}`;
-}
-
-function toast(message) {
-  showStackedToast({
-    key: `toast:${message}`,
-    message,
-    duration: 2600
-  });
-}
-
-function showStackedToast(options) {
-  const container = document.getElementById('toast');
-  if (!container) return;
-
-  const key = options.key || `toast:${options.title || ''}:${options.message || ''}`;
-  if (activeToastKeys.has(key)) return;
-  activeToastKeys.add(key);
-
-  const node = document.createElement('div');
-  node.className = `toast${options.className ? ` ${options.className}` : ''}`;
-  if (options.title) {
-    node.innerHTML = `<strong>${escapeHtml(options.title)}</strong><span>${escapeHtml(options.message || '')}</span>`;
-  } else {
-    node.textContent = options.message || '';
-  }
-
-  if (typeof options.onClick === 'function') {
-    node.setAttribute('role', 'button');
-    node.setAttribute('tabindex', '0');
-    node.addEventListener('click', options.onClick);
-    node.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      options.onClick();
-    });
-  }
-
-  container.prepend(node);
-  void node.offsetWidth;
-  node.classList.add('show');
-
-  const duration = Number.isFinite(Number(options.duration)) ? Number(options.duration) : 2600;
-  setTimeout(() => {
-    node.classList.remove('show');
-    setTimeout(() => {
-      activeToastKeys.delete(key);
-      node.remove();
-    }, 180);
-  }, duration);
-}
-
-function debounce(fn, wait) {
-  let timer = null;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), wait);
-  };
-}
-
-function escapeHtml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function escapeAttr(value) {
-  return escapeHtml(value).replace(/`/g, '&#96;');
 }

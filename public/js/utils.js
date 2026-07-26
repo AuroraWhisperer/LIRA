@@ -19,8 +19,7 @@
   }
 
   function value(id) {
-    const el = document.getElementById(id);
-    return el ? el.value.trim() : '';
+    return document.getElementById(id).value.trim();
   }
 
   function setValue(id, nextValue) {
@@ -109,6 +108,11 @@
       node.setAttribute('role', 'button');
       node.setAttribute('tabindex', '0');
       node.addEventListener('click', options.onClick);
+      node.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        options.onClick();
+      });
     }
     container.prepend(node);
     void node.offsetWidth;

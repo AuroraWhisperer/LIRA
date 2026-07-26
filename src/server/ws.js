@@ -23,63 +23,85 @@ function handleWebSocketUpgrade(context, req, socket) {
   );
 
   context.state.sockets.add(socket);
-  sendWebSocketFrame(socket, JSON.stringify({
+  socket.on('close', () => context.state.sockets.delete(socket));
+  socket.on('error', () => context.state.sockets.delete(socket));
+  socket.on('data', (buffer) => handleWebSocketFrame(context, socket, buffer));
+  sendWebSocket(socket, {
     type: 'snapshot',
     reason: 'connect',
     state: context.getState()
-  }), 0x1);
+  });
+}
 
-  socket.on('close', () => context.state.sockets.delete(socket));
-  socket.on('error', () => context.state.sockets.delete(socket));
+function handleWebSocketFrame(context, socket, buffer) {
+  if (!buffer.length) return;
+  const opcode = buffer[0] & 0x0f;
+  if (opcode === 0x8) {
+    sendWebSocketFrame(socket, Buffer.alloc(0), 0x8);
+    context.state.sockets.delete(socket);
+    socket.end();
+    return;
+  }
+  if (opcode === 0x9) {
+    sendWebSocketFrame(socket, readWebSocketPayload(buffer), 0xA);
+  }
+}
+
+function readWebSocketPayload(buffer) {
+  let length = buffer[1] & 0x7f;
+  let offset = 2;
+  if (length === 126) {
+    length = buffer.readUInt16BE(offset);
+    offset += 2;
+  } else if (length === 127) {
+    length = Number(buffer.readBigUInt64BE(offset));
+    offset += 8;
+  }
+
+  const masked = Boolean(buffer[1] & 0x80);
+  let mask;
+  if (masked) {
+    mask = buffer.subarray(offset, offset + 4);
+    offset += 4;
+  }
+
+  const payload = Buffer.from(buffer.subarray(offset, offset + length));
+  if (masked && mask) {
+    for (let index = 0; index < payload.length; index += 1) {
+      payload[index] ^= mask[index % 4];
+    }
+  }
+  return payload;
 }
 
 function broadcastSnapshot(context, reason) {
-  const state = context.getState();
-  const payload = JSON.stringify({ type: 'snapshot', reason, state });
-  for (const socket of context.state.sockets) {
-    try { sendWebSocketFrame(socket, payload, 0x1); } catch (_) {
-      socket.destroy();
-      context.state.sockets.delete(socket);
-    }
+  const payload = { type: 'snapshot', reason, state: context.getState() };
+  for (const socket of Array.from(context.state.sockets)) {
+    sendWebSocket(socket, payload);
   }
+}
+
+function sendWebSocket(socket, payload) {
+  sendWebSocketFrame(socket, Buffer.from(JSON.stringify(payload)), 0x1);
 }
 
 function sendWebSocketFrame(socket, payload, opcode) {
-  const data = Buffer.from(payload, 'utf8');
-  const frame = buildWebSocketFrame(data, opcode);
-  socket.write(frame);
-}
-
-function buildWebSocketFrame(data, opcode) {
-  const length = data.length;
+  const length = payload.length;
   let header;
-  const maskKey = crypto.randomBytes(4);
-  const masked = Buffer.alloc(length);
-
   if (length < 126) {
-    header = Buffer.alloc(6);
-    header[0] = 0x80 | opcode;
-    header[1] = 0x80 | length;
-    header.writeUInt32BE(maskKey.readUInt32BE(0), 2);
+    header = Buffer.from([0x80 | opcode, length]);
   } else if (length < 65536) {
-    header = Buffer.alloc(8);
+    header = Buffer.alloc(4);
     header[0] = 0x80 | opcode;
-    header[1] = 0x80 | 126;
+    header[1] = 126;
     header.writeUInt16BE(length, 2);
-    header.writeUInt32BE(maskKey.readUInt32BE(0), 4);
   } else {
-    header = Buffer.alloc(14);
+    header = Buffer.alloc(10);
     header[0] = 0x80 | opcode;
-    header[1] = 0x80 | 127;
+    header[1] = 127;
     header.writeBigUInt64BE(BigInt(length), 2);
-    header.writeUInt32BE(maskKey.readUInt32BE(0), 10);
   }
-
-  for (let i = 0; i < length; i++) {
-    masked[i] = data[i] ^ maskKey[i % 4];
-  }
-
-  return Buffer.concat([header, masked]);
+  socket.write(Buffer.concat([header, payload]));
 }
 
-module.exports = { handleWebSocketUpgrade, broadcastSnapshot };
+module.exports = { handleWebSocketUpgrade, broadcastSnapshot, sendWebSocket };

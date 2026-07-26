@@ -2,16 +2,32 @@
 // HTTP 请求/响应辅助函数，无业务逻辑。
 'use strict';
 
-function readJsonBody(req) {
+const fs = require('node:fs');
+const path = require('node:path');
+
+function readJsonBody(req, maxBodyBytes = 0) {
   return new Promise((resolve, reject) => {
+    let total = 0;
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
+    const maxBytes = Number(maxBodyBytes || 0);
+    req.on('data', (chunk) => {
+      total += chunk.length;
+      if (maxBytes > 0 && total > maxBytes) {
+        reject(new Error('Request body is too large.'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
-      try {
-        const raw = Buffer.concat(chunks).toString('utf8');
-        resolve(raw ? JSON.parse(raw) : {});
-      } catch (_) {
+      if (chunks.length === 0) {
         resolve({});
+        return;
+      }
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch (_) {
+        reject(new Error('Invalid JSON body.'));
       }
     });
     req.on('error', reject);
@@ -22,7 +38,7 @@ function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(body, 'utf8')
+    'Cache-Control': 'no-store'
   });
   res.end(body);
 }
@@ -30,25 +46,23 @@ function sendJson(res, status, payload) {
 function sendCsv(res, filename, content) {
   res.writeHead(200, {
     'Content-Type': 'text/csv; charset=utf-8',
-    'Content-Disposition': `attachment; filename="${filename}"`
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Cache-Control': 'no-store'
   });
   res.end(content);
 }
 
 function sendBuffer(res, status, contentTypeValue, filename, content) {
-  const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
   res.writeHead(status, {
     'Content-Type': contentTypeValue,
     'Content-Disposition': `attachment; filename="${filename}"`,
-    'Content-Length': buffer.length
+    'Content-Length': content.length,
+    'Cache-Control': 'no-store'
   });
-  res.end(buffer);
+  res.end(content);
 }
 
 function servePageOrAsset(publicDir, req, res, requestUrl) {
-  const fs = require('node:fs');
-  const path = require('node:path');
-
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, { ok: false, error: 'Method not allowed.' });
     return;
@@ -92,16 +106,11 @@ function contentType(filePath) {
   const mimeTypes = {
     '.html': 'text/html; charset=utf-8',
     '.css': 'text/css; charset=utf-8',
-    '.js': 'text/javascript; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon'
+    '.svg': 'image/svg+xml; charset=utf-8'
   };
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-module.exports = { readJsonBody, sendJson, sendCsv, sendBuffer, servePageOrAsset };
+module.exports = { readJsonBody, sendJson, sendCsv, sendBuffer, servePageOrAsset, contentType };

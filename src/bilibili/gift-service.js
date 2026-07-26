@@ -4,6 +4,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const packetParser = require('./packet-parser');
 const {
   cleanText, now, timestampToIso,
   normalizePositiveInteger, normalizeMoney, normalizeSignedMoney, normalizeNullableMoney,
@@ -51,6 +52,74 @@ function addGiftEvent(context, input) {
   );
 
   return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(result.lastInsertRowid)));
+}
+
+function repairGiftV2Events(context) {
+  const giftDb = context.db.giftDb;
+  const rows = giftDb.prepare(`
+    SELECT *
+    FROM gift_events
+    WHERE status = 'active'
+      AND cmd LIKE 'SEND_GIFT_V2%'
+      AND total_price <= 0
+      AND raw_json != ''
+    ORDER BY id ASC
+    LIMIT 200
+  `).all();
+  if (rows.length === 0) return;
+
+  const statement = giftDb.prepare(`
+    UPDATE gift_events
+    SET platform_id = ?,
+        gift_id = ?,
+        gift_name = ?,
+        uid = ?,
+        user_name = ?,
+        num = ?,
+        unit_price = ?,
+        total_price = ?,
+        coin_type = ?,
+        counted_in_sprint = ?,
+        created_at = ?,
+        updated_at = ?
+    WHERE id = ?
+  `);
+
+  let repaired = 0;
+  giftDb.exec('BEGIN');
+  try {
+    for (const row of rows) {
+      const packet = safeParseJson(row.raw_json);
+      const parsed = packetParser.extractBilibiliGiftMessage(packet);
+      const gift = parsed ? normalizeGiftInput(parsed) : null;
+      if (!gift || gift.totalPrice <= 0) continue;
+
+      statement.run(
+        gift.platformId || cleanText(row.platform_id),
+        gift.giftId || cleanText(row.gift_id),
+        gift.giftName || cleanText(row.gift_name),
+        gift.uid || cleanText(row.uid),
+        gift.userName || cleanText(row.user_name),
+        gift.num,
+        gift.unitPrice,
+        gift.totalPrice,
+        gift.coinType || cleanText(row.coin_type),
+        1,
+        gift.createdAt || cleanText(row.created_at),
+        now(),
+        row.id
+      );
+      repaired += 1;
+    }
+    giftDb.exec('COMMIT');
+  } catch (error) {
+    giftDb.exec('ROLLBACK');
+    throw error;
+  }
+
+  if (repaired > 0) {
+    console.log(`[Startup] repaired ${repaired} SEND_GIFT_V2 gift record(s).`);
+  }
 }
 
 // ── 礼物机器人弹幕解析 ──
@@ -463,6 +532,7 @@ function splitSettingList(value) {
 
 module.exports = {
   CRYSTAL_BALL_VALUE_RMB,
+  repairGiftV2Events,
   addGiftEvent,
   handleGiftBotDanmaku,
   resetGiftSprintProgress,

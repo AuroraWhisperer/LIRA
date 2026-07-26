@@ -346,6 +346,8 @@ function legacySuperChatFingerprint(row) {
 function clearSongLibraryData(db) {
   db.exec('BEGIN');
   try {
+    db.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
+    db.prepare('UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL').run();
     db.prepare('DELETE FROM songs').run();
     db.prepare('DELETE FROM song_categories').run();
     db.prepare('DELETE FROM import_batches').run();
@@ -396,11 +398,11 @@ function clearAllData(songDb, superChatDb, giftDb) {
     counts.queue = (songDb.prepare("SELECT COUNT(*) AS count FROM queue WHERE status != 'deleted'").get() || {}).count || 0;
     counts.requests = (songDb.prepare('SELECT COUNT(*) AS count FROM requests').get() || {}).count || 0;
 
+    songDb.prepare('DELETE FROM requests').run();
+    songDb.prepare('DELETE FROM queue').run();
     songDb.prepare('DELETE FROM songs').run();
     songDb.prepare('DELETE FROM song_categories').run();
     songDb.prepare('DELETE FROM import_batches').run();
-    songDb.prepare('DELETE FROM queue').run();
-    songDb.prepare('DELETE FROM requests').run();
     songDb.prepare(`
       DELETE FROM sqlite_sequence
       WHERE name IN ('songs', 'song_categories', 'import_batches', 'queue', 'requests')

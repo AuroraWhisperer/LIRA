@@ -3,38 +3,31 @@
 // 从 server.js 提取，保持原始实现。通过 handlers 回调与外部通信。
 'use strict';
 
-const crypto = require('node:crypto');
-const http = require('node:http');
-const https = require('node:https');
-const zlib = require('node:zlib');
-const { URL } = require('node:url');
-
+const packetParser = require('./packet-parser');
+const bilibiliHelpers = require('./helpers');
+const wbiSigner = require('./wbi-signer');
+const { SUPER_CHAT_PIN_THRESHOLD } = require('./superchat-service');
 const {
-  cleanText, normalizeTimestampMs, normalizeGuardLevel,
-  normalizePositiveInteger, normalizeMoney, normalizeSignedMoney,
-  normalizeSuperChatPrice, safeJsonStringify, safeParseJson,
-  normalizeRoomInput, publicBilibiliErrorMessage, now,
-  timestampToIso, formatLogTimestamp, normalizeNullableMoney,
-  escapePowerShellSingleQuoted, readObjectValue, parseBooleanLike,
-  sleep, clampPercent
+  cleanText,
+  normalizeTimestampMs,
+  normalizeGuardLevel,
+  normalizePositiveInteger,
+  publicBilibiliErrorMessage,
+  now
 } = require('../shared/utils');
 
-// WBI 签名常量（Bilibili API 必需）
-const WBI_MIXIN_KEY_ENC_TAB = [
-  46, 47, 18, 2, 53, 8, 23, 32,
-  15, 50, 10, 31, 58, 3, 45, 35,
-  27, 43, 5, 49, 33, 9, 42, 19,
-  29, 28, 14, 39, 12, 38, 41, 13,
-  37, 48, 7, 16, 24, 55, 40, 61,
-  26, 17, 0, 1, 60, 51, 30, 4,
-  22, 25, 54, 21, 56, 59, 6, 63,
-  57, 62, 11, 36, 20, 34, 44, 52
-];
+const BILIBILI_ONLINE_RANK_POLL_MS = 60 * 1000;
+const BILIBILI_ONLINE_RANK_PAGE_SIZE = 50;
+const BILIBILI_ONLINE_RANK_MAX_PAGES = 3;
+const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
+const BILIBILI_LIVE_STATUS_POLL_MS = 10 * 60 * 1000;
 
 class BilibiliDanmakuClient {
-  constructor(roomId, handlers) {
+  constructor(roomId, handlers, options = {}) {
     this.roomId = cleanText(roomId);
     this.handlers = handlers;
+    this.diagnostics = options.diagnostics || createEmptyDiagnostics();
+    this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
     this.stopped = true;
     this.ws = null;
     this.heartbeatTimer = null;
@@ -177,9 +170,9 @@ class BilibiliDanmakuClient {
       const data = event.data instanceof ArrayBuffer
         ? Buffer.from(event.data)
         : Buffer.from(await event.data.arrayBuffer());
-      bilibiliDiagnostics.lastPacketAt = now();
+      this.diagnostics.lastPacketAt = now();
       for (const message of parseBilibiliPackets(data)) {
-        recordBilibiliCommandDiagnostic(message && message.cmd);
+        bilibiliHelpers.recordBilibiliCommandDiagnostic(this.diagnostics, message && message.cmd);
         if (message.cmd && String(message.cmd).startsWith('DANMU_MSG')) {
           const info = message.info || [];
           const userInfo = info[2] || [];
@@ -259,15 +252,15 @@ class BilibiliDanmakuClient {
             messageTimestamp: superChat.messageTimestamp,
             isPinned: superChat.price >= SUPER_CHAT_PIN_THRESHOLD
           });
-        } else if (isBilibiliGiftCommand(message.cmd)) {
-          const gift = extractBilibiliGiftMessage(message);
+        } else if (packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes)) {
+          const gift = packetParser.extractBilibiliGiftMessage(message);
           if (!gift) {
-            logUnparsedGiftLikeCommand(message, 'known-gift-command');
-            recordBilibiliGiftDiagnostic(message.cmd, 'known-gift-command');
+            bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'known-gift-command');
+            bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'known-gift-command');
             continue;
           }
-          bilibiliDiagnostics.lastGiftAt = now();
-          bilibiliDiagnostics.parsedGiftCount += 1;
+          this.diagnostics.lastGiftAt = now();
+          this.diagnostics.parsedGiftCount += 1;
           const requester = this.resolveRequesterIdentity({
             uid: gift.uid,
             userName: gift.userName
@@ -277,9 +270,9 @@ class BilibiliDanmakuClient {
             uid: requester.uid,
             userName: requester.userName
           });
-        } else if (isBilibiliGiftLikeCommand(message.cmd)) {
-          logUnparsedGiftLikeCommand(message, 'gift-like-command');
-          recordBilibiliGiftDiagnostic(message.cmd, 'gift-like-command');
+        } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd, this.runtimeGiftCommandPrefixes)) {
+          bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'gift-like-command');
+          bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'gift-like-command');
         }
       }
     });
@@ -723,5 +716,135 @@ class BilibiliDanmakuClient {
   }
 }
 
+function createEmptyDiagnostics() {
+  return {
+    lastPacketAt: '',
+    lastCommandAt: '',
+    lastGiftAt: '',
+    parsedGiftCount: 0,
+    unparsedGiftCount: 0,
+    commandCounts: {},
+    recentCommands: [],
+    recentGiftLikeCommands: []
+  };
+}
+
+function parseBilibiliPackets(buffer) {
+  return packetParser.parseBilibiliPackets(buffer);
+}
+
+function extractBilibiliDanmakuTimestamp(info) {
+  return packetParser.extractBilibiliDanmakuTimestamp(info);
+}
+
+function extractBilibiliDanmakuUserMeta(info) {
+  return packetParser.extractBilibiliDanmakuUserMeta(info);
+}
+
+function extractBilibiliHistoryUserMeta(item) {
+  return packetParser.extractBilibiliHistoryUserMeta(item);
+}
+
+function extractBilibiliSuperChatMessage(packet) {
+  return packetParser.extractBilibiliSuperChatMessage(packet);
+}
+
+function extractBilibiliOnlineRankUserMeta(item) {
+  return packetParser.extractBilibiliOnlineRankUserMeta(item);
+}
+
+function isCapturableBilibiliTimestamp(timestampMs, startedAtMs) {
+  return bilibiliHelpers.isCapturableBilibiliTimestamp(timestampMs, startedAtMs);
+}
+
+function buildBilibiliCommandKey(uid, message, timestampMs) {
+  return bilibiliHelpers.buildBilibiliCommandKey(uid, message, timestampMs);
+}
+
+function readBilibiliOnlineRankItems(data) {
+  return bilibiliHelpers.readBilibiliOnlineRankItems(data);
+}
+
+function isBilibiliCommandText(message) {
+  const text = cleanText(message);
+  return text.startsWith('点歌') || text.startsWith('随机');
+}
+
+function normalizeRequesterIdentity(input) {
+  return {
+    uid: cleanText(input && input.uid),
+    userName: cleanText(input && input.userName),
+    guardLevel: normalizeGuardLevel(input && input.guardLevel),
+    medalName: cleanText(input && input.medalName),
+    medalLevel: normalizePositiveInteger(input && input.medalLevel),
+    seenAt: normalizePositiveInteger(input && input.seenAt)
+  };
+}
+
+function mergeRequesterIdentity(primary, fallback) {
+  const base = normalizeRequesterIdentity(primary);
+  const extra = normalizeRequesterIdentity(fallback);
+  return {
+    uid: base.uid || extra.uid,
+    userName: chooseRequesterUserName(base.userName, extra.userName),
+    guardLevel: base.guardLevel || extra.guardLevel,
+    medalName: base.medalName || extra.medalName,
+    medalLevel: base.medalLevel || extra.medalLevel,
+    seenAt: Math.max(base.seenAt, extra.seenAt)
+  };
+}
+
+function chooseRequesterUserName(primary, fallback) {
+  if (!primary) return fallback;
+  if (!fallback) return primary;
+  if (isMaskedDisplayName(primary) && !isMaskedDisplayName(fallback)) {
+    return fallback;
+  }
+  return primary;
+}
+
+function isMaskedDisplayName(value) {
+  return /\*{2,}/.test(cleanText(value));
+}
+
+function requesterNameKey(value) {
+  return cleanText(value).toLowerCase();
+}
+
+function parseBilibiliTimeline(value) {
+  return normalizeTimestampMs(value);
+}
+
+async function signBilibiliWbiParams(params, headers) {
+  return wbiSigner.signBilibiliWbiParams(params, headers);
+}
+
+function formatBilibiliApiError(endpointName, response, payload, extraHint) {
+  const code = payload && payload.code;
+  const message = (payload && (payload.message || payload.msg)) || '未知错误';
+  const hint = bilibiliErrorHint(code);
+  const data = payload && payload.data ? ` data=${JSON.stringify(payload.data).slice(0, 220)}` : '';
+  return `Bilibili API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
+}
+
+function bilibiliErrorHint(code) {
+  if (Number(code) === -352) {
+    return '原因：B 站风控/校验失败，通常与 WBI 签名、正常浏览器请求头、Cookie/设备标识或当前网络/IP 风控有关。';
+  }
+  if (Number(code) === 60004) {
+    return '原因：直播间不存在或填写的不是直播间号。';
+  }
+  if (Number(code) === -400) {
+    return '原因：请求参数错误。';
+  }
+  if (Number(code) === -412) {
+    return '原因：请求被风控拦截。';
+  }
+  return '原因：B 站接口返回了非成功业务码。';
+}
+
+function redactUrl(url) {
+  return String(url).replace(/(w_rid=)[^&]+/g, '$1<redacted>');
+}
 
 module.exports = { BilibiliDanmakuClient };
