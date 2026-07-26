@@ -11,6 +11,12 @@ const zlib = require('node:zlib');
 const childProcess = require('node:child_process');
 const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
+const httpUtils = require('./server/http-utils');
+const wsTransport = require('./server/ws');
+const sharedUtils = require('./shared/utils');
+const { createDatabases } = require('./storage/database');
+const settingsStoreModule = require('./storage/settings-store');
+const { createMusicProviderRegistry, normalizeMusicPlatform } = require('./music/provider-registry');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -3827,516 +3833,74 @@ function splitJsonObjects(text) {
   return chunks;
 }
 
+function getWebSocketContext() {
+  return {
+    state: { sockets },
+    getState
+  };
+}
+
 function handleWebSocketUpgrade(req, socket) {
-  const key = req.headers['sec-websocket-key'];
-  if (!key) {
-    socket.destroy();
-    return;
-  }
-
-  const accept = crypto
-    .createHash('sha1')
-    .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-    .digest('base64');
-
-  socket.write([
-    'HTTP/1.1 101 Switching Protocols',
-    'Upgrade: websocket',
-    'Connection: Upgrade',
-    `Sec-WebSocket-Accept: ${accept}`,
-    '',
-    ''
-  ].join('\r\n'));
-
-  sockets.add(socket);
-  socket.on('close', () => sockets.delete(socket));
-  socket.on('error', () => sockets.delete(socket));
-  socket.on('data', (buffer) => handleWebSocketFrame(socket, buffer));
-  sendWebSocket(socket, { type: 'snapshot', reason: 'connect', state: getState() });
-}
-
-function handleWebSocketFrame(socket, buffer) {
-  if (!buffer.length) return;
-  const opcode = buffer[0] & 0x0f;
-  if (opcode === 0x8) {
-    sendWebSocketFrame(socket, Buffer.alloc(0), 0x8);
-    sockets.delete(socket);
-    socket.end();
-    return;
-  }
-  if (opcode === 0x9) {
-    sendWebSocketFrame(socket, readWebSocketPayload(buffer), 0xA);
-  }
-}
-
-function readWebSocketPayload(buffer) {
-  let length = buffer[1] & 0x7f;
-  let offset = 2;
-  if (length === 126) {
-    length = buffer.readUInt16BE(offset);
-    offset += 2;
-  } else if (length === 127) {
-    length = Number(buffer.readBigUInt64BE(offset));
-    offset += 8;
-  }
-
-  const masked = Boolean(buffer[1] & 0x80);
-  let mask;
-  if (masked) {
-    mask = buffer.subarray(offset, offset + 4);
-    offset += 4;
-  }
-
-  const payload = Buffer.from(buffer.subarray(offset, offset + length));
-  if (masked && mask) {
-    for (let index = 0; index < payload.length; index += 1) {
-      payload[index] ^= mask[index % 4];
-    }
-  }
-  return payload;
+  wsTransport.handleWebSocketUpgrade(getWebSocketContext(), req, socket);
 }
 
 function broadcastSnapshot(reason) {
-  const payload = { type: 'snapshot', reason, state: getState() };
-  for (const socket of Array.from(sockets)) {
-    sendWebSocket(socket, payload);
-  }
+  wsTransport.broadcastSnapshot(getWebSocketContext(), reason);
 }
 
 function sendWebSocket(socket, payload) {
-  sendWebSocketFrame(socket, Buffer.from(JSON.stringify(payload)), 0x1);
-}
-
-function sendWebSocketFrame(socket, payload, opcode) {
-  const length = payload.length;
-  let header;
-  if (length < 126) {
-    header = Buffer.from([0x80 | opcode, length]);
-  } else if (length < 65536) {
-    header = Buffer.alloc(4);
-    header[0] = 0x80 | opcode;
-    header[1] = 126;
-    header.writeUInt16BE(length, 2);
-  } else {
-    header = Buffer.alloc(10);
-    header[0] = 0x80 | opcode;
-    header[1] = 127;
-    header.writeBigUInt64BE(BigInt(length), 2);
-  }
-  socket.write(Buffer.concat([header, payload]));
+  wsTransport.sendWebSocket(socket, payload);
 }
 
 function servePageOrAsset(req, res, requestUrl) {
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    sendJson(res, 405, { ok: false, error: 'Method not allowed.' });
-    return;
-  }
-
-  const pageMap = new Map([
-    ['/', 'admin.html'],
-    ['/admin', 'admin.html'],
-    ['/settings', 'admin.html'],
-    ['/songs', 'admin.html'],
-    ['/queue', 'overlay-queue.html'],
-    ['/songlist', 'overlay-songs.html']
-  ]);
-  const assetPath = pageMap.get(requestUrl.pathname)
-    || requestUrl.pathname.replace(/^\/+/, '');
-  const resolvedPath = path.resolve(PUBLIC_DIR, assetPath);
-  if (!resolvedPath.startsWith(PUBLIC_DIR)) {
-    sendJson(res, 403, { ok: false, error: 'Forbidden.' });
-    return;
-  }
-
-  fs.readFile(resolvedPath, (error, content) => {
-    if (error) {
-      sendJson(res, 404, { ok: false, error: 'Not found.' });
-      return;
-    }
-    res.writeHead(200, {
-      'Content-Type': contentType(resolvedPath),
-      'Cache-Control': 'no-store'
-    });
-    if (req.method === 'HEAD') {
-      res.end();
-    } else {
-      res.end(content);
-    }
-  });
+  httpUtils.servePageOrAsset(PUBLIC_DIR, req, res, requestUrl);
 }
 
 function contentType(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  return {
-    '.html': 'text/html; charset=utf-8',
-    '.css': 'text/css; charset=utf-8',
-    '.js': 'application/javascript; charset=utf-8',
-    '.json': 'application/json; charset=utf-8',
-    '.svg': 'image/svg+xml; charset=utf-8'
-  }[ext] || 'application/octet-stream';
+  return httpUtils.contentType(filePath);
 }
 
 function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let total = 0;
-    const chunks = [];
-    req.on('data', (chunk) => {
-      total += chunk.length;
-      if (total > MAX_BODY_BYTES) {
-        reject(new Error('Request body is too large.'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (chunks.length === 0) {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-      } catch (_) {
-        reject(new Error('Invalid JSON body.'));
-      }
-    });
-    req.on('error', reject);
-  });
+  return httpUtils.readJsonBody(req, MAX_BODY_BYTES);
 }
 
 function sendJson(res, status, payload) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
-  });
-  res.end(JSON.stringify(payload));
+  httpUtils.sendJson(res, status, payload);
 }
 
 function sendCsv(res, filename, content) {
-  res.writeHead(200, {
-    'Content-Type': 'text/csv; charset=utf-8',
-    'Content-Disposition': `attachment; filename="${filename}"`,
-    'Cache-Control': 'no-store'
-  });
-  res.end(content);
+  httpUtils.sendCsv(res, filename, content);
 }
 
 function sendBuffer(res, status, contentTypeValue, filename, content) {
-  res.writeHead(status, {
-    'Content-Type': contentTypeValue,
-    'Content-Disposition': `attachment; filename="${filename}"`,
-    'Content-Length': content.length,
-    'Cache-Control': 'no-store'
-  });
-  res.end(content);
+  httpUtils.sendBuffer(res, status, contentTypeValue, filename, content);
 }
 
 function buildSongsCsv(rows) {
-  return [SONG_EXPORT_HEADERS.join(',')]
-    .concat(rows.map((song) => songToExportRow(song).map(csvCell).join(',')))
-    .join('\n');
-}
-
-function templateSongs() {
-  return [
-    {
-      name: '晴天',
-      artist: '周杰伦',
-      category_name: '流行',
-      note: '',
-      tags: '周杰伦,原歌单',
-      is_enabled: true,
-      language: '国语',
-      source_platform: '',
-      original_group: '周杰伦'
-    },
-    {
-      name: '小幸运',
-      artist: '田馥甄',
-      category_name: '甜歌',
-      note: '',
-      tags: '',
-      is_enabled: true,
-      language: '国语',
-      source_platform: '',
-      original_group: ''
-    }
-  ];
-}
-
-function songToExportRow(song) {
-  return [
-    song.name || '',
-    song.artist || '',
-    song.category_name || '默认',
-    song.note || '',
-    song.tags || '',
-    song.is_enabled ? '是' : '否',
-    song.language || '',
-    song.source_platform || '',
-    song.original_group || ''
-  ];
-}
-
-function parseSongsFromXlsx(buffer) {
-  if (!buffer.length) {
-    throw new Error('Excel 文件为空。');
-  }
-
-  const files = readZipFiles(buffer);
-  const worksheetEntry = Array.from(files.keys()).find((name) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(name));
-  if (!worksheetEntry) {
-    throw new Error('Excel 文件里没有找到工作表。');
-  }
-
-  const sharedStrings = parseSharedStrings(files.get('xl/sharedStrings.xml') || '');
-  const table = parseWorksheetXml(files.get(worksheetEntry), sharedStrings);
-  if (table.length === 0) return [];
-
-  const header = table[0].map((cell) => cleanText(cell));
-  const allAliases = Object.values(SONG_IMPORT_ALIASES).flat();
-  const hasHeader = header.some((cell) => allAliases.includes(cell));
-  const bodyRows = hasHeader ? table.slice(1) : table;
-  const defaultHeader = SONG_EXPORT_HEADERS;
-
-  return bodyRows.map((row) => {
-    const output = {};
-    const sourceHeader = hasHeader ? header : defaultHeader;
-    for (let index = 0; index < sourceHeader.length; index += 1) {
-      output[sourceHeader[index]] = row[index] || '';
-    }
-    return output;
-  }).filter((row) => cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)));
-}
-
-function parseWorksheetXml(xml, sharedStrings) {
-  const rows = [];
-  const rowRegex = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
-  let rowMatch;
-  while ((rowMatch = rowRegex.exec(xml))) {
-    const row = [];
-    const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/g;
-    let cellMatch;
-    while ((cellMatch = cellRegex.exec(rowMatch[1]))) {
-      const attrs = cellMatch[1] || cellMatch[3] || '';
-      const body = cellMatch[2] || '';
-      const ref = getXmlAttr(attrs, 'r');
-      const columnIndex = ref ? columnNameToIndex(ref.replace(/\d+/g, '')) : row.length;
-      row[columnIndex] = readWorksheetCell(attrs, body, sharedStrings);
-    }
-    if (row.some((cell) => cleanText(cell))) {
-      rows.push(row.map((cell) => cell || ''));
-    }
-  }
-  return rows;
-}
-
-function readWorksheetCell(attrs, body, sharedStrings) {
-  const type = getXmlAttr(attrs, 't');
-  if (type === 'inlineStr') {
-    return extractXmlTexts(body).join('');
-  }
-
-  const valueMatch = body.match(/<v[^>]*>([\s\S]*?)<\/v>/);
-  const value = valueMatch ? unescapeXml(valueMatch[1]) : '';
-  if (type === 's') {
-    return sharedStrings[Number(value)] || '';
-  }
-  if (type === 'b') {
-    return value === '1' ? '是' : '否';
-  }
-  return value;
-}
-
-function parseSharedStrings(xml) {
-  const values = [];
-  const stringRegex = /<si\b[^>]*>([\s\S]*?)<\/si>/g;
-  let match;
-  while ((match = stringRegex.exec(xml))) {
-    values.push(extractXmlTexts(match[1]).join(''));
-  }
-  return values;
-}
-
-function extractXmlTexts(xml) {
-  const values = [];
-  const textRegex = /<t\b[^>]*>([\s\S]*?)<\/t>/g;
-  let match;
-  while ((match = textRegex.exec(xml))) {
-    values.push(unescapeXml(match[1]));
-  }
-  return values;
-}
-
-function readZipFiles(buffer) {
-  const files = new Map();
-  const eocdOffset = findEndOfCentralDirectory(buffer);
-  if (eocdOffset < 0) {
-    throw new Error('Excel 文件不是有效的 .xlsx 格式。');
-  }
-
-  const entryCount = buffer.readUInt16LE(eocdOffset + 10);
-  const centralOffset = buffer.readUInt32LE(eocdOffset + 16);
-  let offset = centralOffset;
-  for (let index = 0; index < entryCount; index += 1) {
-    if (buffer.readUInt32LE(offset) !== 0x02014b50) {
-      throw new Error('Excel 文件 ZIP 中央目录损坏。');
-    }
-    const method = buffer.readUInt16LE(offset + 10);
-    const compressedSize = buffer.readUInt32LE(offset + 20);
-    const nameLength = buffer.readUInt16LE(offset + 28);
-    const extraLength = buffer.readUInt16LE(offset + 30);
-    const commentLength = buffer.readUInt16LE(offset + 32);
-    const localOffset = buffer.readUInt32LE(offset + 42);
-    const filename = buffer.subarray(offset + 46, offset + 46 + nameLength).toString('utf8');
-
-    if (buffer.readUInt32LE(localOffset) !== 0x04034b50) {
-      throw new Error(`Excel 文件 ZIP 本地头损坏：${filename}`);
-    }
-    const localNameLength = buffer.readUInt16LE(localOffset + 26);
-    const localExtraLength = buffer.readUInt16LE(localOffset + 28);
-    const dataStart = localOffset + 30 + localNameLength + localExtraLength;
-    const compressedData = buffer.subarray(dataStart, dataStart + compressedSize);
-
-    if (method === 0) {
-      files.set(filename, compressedData.toString('utf8'));
-    } else if (method === 8) {
-      files.set(filename, zlib.inflateRawSync(compressedData).toString('utf8'));
-    }
-
-    offset += 46 + nameLength + extraLength + commentLength;
-  }
-  return files;
-}
-
-function findEndOfCentralDirectory(buffer) {
-  for (let offset = buffer.length - 22; offset >= Math.max(0, buffer.length - 65557); offset -= 1) {
-    if (buffer.readUInt32LE(offset) === 0x06054b50) return offset;
-  }
-  return -1;
-}
-
-function buildSongsWorkbook(rows) {
-  const tableRows = [SONG_EXPORT_HEADERS].concat(rows.map(songToExportRow));
-  const sheetRows = tableRows.map((row, rowIndex) => {
-    const rowNumber = rowIndex + 1;
-    const cells = row.map((cell, columnIndex) => {
-      const cellName = `${columnName(columnIndex)}${rowNumber}`;
-      return `<c r="${cellName}" t="inlineStr"><is><t>${escapeXml(cell)}</t></is></c>`;
-    }).join('');
-    return `<row r="${rowNumber}">${cells}</row>`;
-  }).join('');
-
-  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
-  <sheetFormatPr defaultRowHeight="18"/>
-  <cols>
-    <col min="1" max="1" width="24" customWidth="1"/>
-    <col min="2" max="2" width="18" customWidth="1"/>
-    <col min="3" max="3" width="16" customWidth="1"/>
-    <col min="4" max="9" width="20" customWidth="1"/>
-  </cols>
-  <sheetData>${sheetRows}</sheetData>
-</worksheet>`;
-
-  return createZip([
-    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-</Types>`],
-    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>`],
-    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <sheets><sheet name="歌库" sheetId="1" r:id="rId1"/></sheets>
-</workbook>`],
-    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>`],
-    ['xl/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="1"><font><sz val="11"/><name val="Microsoft YaHei"/></font></fonts>
-  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
-  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
-</styleSheet>`],
-    ['xl/worksheets/sheet1.xml', sheetXml]
-  ]);
-}
-
-function createZip(files) {
-  const localParts = [];
-  const centralParts = [];
-  let offset = 0;
-  const { time, date } = dosDateTime(new Date());
-
-  for (const [filename, content] of files) {
-    const name = Buffer.from(filename, 'utf8');
-    const data = Buffer.from(content, 'utf8');
-    const crc = crc32(data);
-
-    const localHeader = Buffer.alloc(30);
-    localHeader.writeUInt32LE(0x04034b50, 0);
-    localHeader.writeUInt16LE(20, 4);
-    localHeader.writeUInt16LE(0, 6);
-    localHeader.writeUInt16LE(0, 8);
-    localHeader.writeUInt16LE(time, 10);
-    localHeader.writeUInt16LE(date, 12);
-    localHeader.writeUInt32LE(crc, 14);
-    localHeader.writeUInt32LE(data.length, 18);
-    localHeader.writeUInt32LE(data.length, 22);
-    localHeader.writeUInt16LE(name.length, 26);
-    localHeader.writeUInt16LE(0, 28);
-    localParts.push(localHeader, name, data);
-
-    const centralHeader = Buffer.alloc(46);
-    centralHeader.writeUInt32LE(0x02014b50, 0);
-    centralHeader.writeUInt16LE(20, 4);
-    centralHeader.writeUInt16LE(20, 6);
-    centralHeader.writeUInt16LE(0, 8);
-    centralHeader.writeUInt16LE(0, 10);
-    centralHeader.writeUInt16LE(time, 12);
-    centralHeader.writeUInt16LE(date, 14);
-    centralHeader.writeUInt32LE(crc, 16);
-    centralHeader.writeUInt32LE(data.length, 20);
-    centralHeader.writeUInt32LE(data.length, 24);
-    centralHeader.writeUInt16LE(name.length, 28);
-    centralHeader.writeUInt16LE(0, 30);
-    centralHeader.writeUInt16LE(0, 32);
-    centralHeader.writeUInt16LE(0, 34);
-    centralHeader.writeUInt16LE(0, 36);
-    centralHeader.writeUInt32LE(0, 38);
-    centralHeader.writeUInt32LE(offset, 42);
-    centralParts.push(centralHeader, name);
-
-    offset += localHeader.length + name.length + data.length;
-  }
-
-  const centralDirectory = Buffer.concat(centralParts);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(0, 4);
-  end.writeUInt16LE(0, 6);
-  end.writeUInt16LE(files.length, 8);
-  end.writeUInt16LE(files.length, 10);
-  end.writeUInt32LE(centralDirectory.length, 12);
-  end.writeUInt32LE(offset, 16);
-  end.writeUInt16LE(0, 20);
-
-  return Buffer.concat([...localParts, centralDirectory, end]);
-}
-
-async function listenWithFallback(startPort, host = HOST) {
+	return sharedUtils.buildSongsCsv(rows);
+}function templateSongs() {
+	return sharedUtils.templateSongs();
+}function songToExportRow(song) {
+	return sharedUtils.songToExportRow(song);
+}function parseSongsFromXlsx(buffer) {
+	return sharedUtils.parseSongsFromXlsx(buffer);
+}function parseWorksheetXml(xml, sharedStrings) {
+	return sharedUtils.parseWorksheetXml(xml, sharedStrings);
+}function readWorksheetCell(attrs, body, sharedStrings) {
+	return sharedUtils.readWorksheetCell(attrs, body, sharedStrings);
+}function parseSharedStrings(xml) {
+	return sharedUtils.parseSharedStrings(xml);
+}function extractXmlTexts(xml) {
+	return sharedUtils.extractXmlTexts(xml);
+}function readZipFiles(buffer) {
+	return sharedUtils.readZipFiles(buffer);
+}function findEndOfCentralDirectory(buffer) {
+	return sharedUtils.findEndOfCentralDirectory(buffer);
+}function buildSongsWorkbook(rows) {
+	return sharedUtils.buildSongsWorkbook(rows);
+}function createZip(files) {
+	return sharedUtils.createZip(files);
+}async function listenWithFallback(startPort, host = HOST) {
   for (let port = startPort; port < startPort + 20; port += 1) {
     const ok = await tryListen(port, host);
     if (ok) return port;
@@ -4492,33 +4056,16 @@ function normalizePathForCompare(value) {
 }
 
 function cleanText(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim();
-}
-
-function normalizePositiveInteger(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return 0;
-  return Math.floor(number);
-}
-
-function normalizeMoney(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return 0;
-  return Math.round(number * 100) / 100;
-}
-
-function normalizeSignedMoney(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 0;
-  return Math.round(number * 100) / 100;
-}
-
-function normalizeNullableMoney(value) {
-  if (value === null || value === undefined || value === '') return null;
-  return normalizeMoney(value);
-}
-
-function normalizeBilibiliGiftCoin(value) {
+	return sharedUtils.cleanText(value);
+}function normalizePositiveInteger(value) {
+	return sharedUtils.normalizePositiveInteger(value);
+}function normalizeMoney(value) {
+	return sharedUtils.normalizeMoney(value);
+}function normalizeSignedMoney(value) {
+	return sharedUtils.normalizeSignedMoney(value);
+}function normalizeNullableMoney(value) {
+	return sharedUtils.normalizeNullableMoney(value);
+}function normalizeBilibiliGiftCoin(value) {
   if (typeof value === 'string') {
     const match = value.match(/[\d.]+/);
     return match ? Number(match[0]) : 0;
@@ -4533,12 +4080,8 @@ function normalizeBilibiliCoinRmb(value) {
 }
 
 function parseBooleanLike(value) {
-  if (value === true || value === 1) return true;
-  const text = cleanText(value).toLowerCase();
-  return text === 'true' || text === '1' || text === 'yes';
-}
-
-function guardLevelName(level) {
+	return sharedUtils.parseBooleanLike(value);
+}function guardLevelName(level) {
   if (Number(level) === 3) return '舰长';
   if (Number(level) === 2) return '提督';
   if (Number(level) === 1) return '总督';
@@ -4566,30 +4109,10 @@ function logUnparsedGiftLikeCommand(message, reason) {
 }
 
 function normalizeGuardLevel(value) {
-  const level = normalizePositiveInteger(value);
-  return [1, 2, 3].includes(level) ? level : 0;
-}
-
-function normalizeRoomInput(value) {
-  const text = cleanText(value);
-  if (!text) return '';
-  if (/^\d+$/.test(text)) return text;
-
-  const decoded = decodeURIComponent(text);
-  const explicitPatterns = [
-    /live\.bilibili\.com\/(?:blanc\/)?(\d+)/i,
-    /[?&](?:room_id|id)=(\d+)/i
-  ];
-  for (const pattern of explicitPatterns) {
-    const match = decoded.match(pattern);
-    if (match) return match[1];
-  }
-
-  const looseDigits = decoded.match(/\d{3,}/);
-  return looseDigits ? looseDigits[0] : '';
-}
-
-async function signBilibiliWbiParams(params, headers) {
+	return sharedUtils.normalizeGuardLevel(value);
+}function normalizeRoomInput(value) {
+	return sharedUtils.normalizeRoomInput(value);
+}async function signBilibiliWbiParams(params, headers) {
   const mixinKey = await getBilibiliWbiMixinKey(headers);
   const signedParams = {
     ...params,
@@ -4674,36 +4197,8 @@ function bilibiliErrorHint(code) {
 }
 
 function publicBilibiliErrorMessage(error, isReconnect = false) {
-  const prefix = isReconnect ? '重连失败' : '连接失败';
-  const message = error && error.message ? error.message : String(error);
-  if (message.includes('code=-352')) {
-    return `${prefix}：B站风控/校验失败（-352），请看启动窗口详情。`;
-  }
-  if (message.includes('code=-101')) {
-    return `${prefix}：B站要求登录信息，请看启动窗口详情。`;
-  }
-  if (message.includes('code=60004')) {
-    return `${prefix}：直播间不存在，请检查房间号。`;
-  }
-  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(message)) {
-    return `${prefix}：无法连接 B站服务，请检查网络或稍后重试。`;
-  }
-  if (/non-JSON|Unexpected token|Unexpected end/i.test(message)) {
-    return `${prefix}：B站接口返回异常内容，请稍后重试。`;
-  }
-  if (message.includes('room_init')) {
-    return `${prefix}：直播间信息获取失败，请检查房间号。`;
-  }
-  if (message.includes('getDanmuInfo')) {
-    return `${prefix}：弹幕连接信息获取失败，请看启动窗口详情。`;
-  }
-  if (message.includes('wbi_nav')) {
-    return `${prefix}：B站签名参数获取失败，请看启动窗口详情。`;
-  }
-  return `${prefix}：${message.slice(0, 80)}`;
-}
-
-function isBilibiliCommandText(message) {
+	return sharedUtils.publicBilibiliErrorMessage(error, isReconnect);
+}function isBilibiliCommandText(message) {
   const text = cleanText(message);
   return text.startsWith('点歌') || text.startsWith('随机');
 }
@@ -5117,13 +4612,8 @@ function extractBilibiliOnlineRankUserMeta(item) {
 }
 
 function normalizeSuperChatPrice(value) {
-  const number = Number(value);
-  if (Number.isFinite(number)) return number;
-  const match = String(value || '').match(/[\d.]+/);
-  return match ? Number(match[0]) || 0 : 0;
-}
-
-function readBilibiliOnlineRankItems(data) {
+	return sharedUtils.normalizeSuperChatPrice(value);
+}function readBilibiliOnlineRankItems(data) {
   if (!data || typeof data !== 'object') return [];
   const candidates = [
     data.OnlineRankItem,
@@ -5282,16 +4772,8 @@ function firstProtoObject(values) {
 }
 
 function readObjectValue(value, keys) {
-  if (!value || typeof value !== 'object') return '';
-  for (const key of keys) {
-    if (value[key] !== undefined && value[key] !== null) {
-      return value[key];
-    }
-  }
-  return '';
-}
-
-function readFirstObject(value, keys) {
+	return sharedUtils.readObjectValue(value, keys);
+}function readFirstObject(value, keys) {
   if (!value || typeof value !== 'object') return null;
   for (const key of keys) {
     if (value[key] && typeof value[key] === 'object') {
@@ -5302,143 +4784,48 @@ function readFirstObject(value, keys) {
 }
 
 function safeJsonStringify(value) {
-  try {
-    return JSON.stringify(value || {});
-  } catch (_) {
-    return '{}';
-  }
-}
-
-function safeParseJson(value) {
-  try {
-    return JSON.parse(value || '{}');
-  } catch (_) {
-    return {};
-  }
-}
-
-function parseBilibiliTimeline(value) {
+	return sharedUtils.safeJsonStringify(value);
+}function safeParseJson(value) {
+	return sharedUtils.safeParseJson(value);
+}function parseBilibiliTimeline(value) {
   return normalizeTimestampMs(value);
 }
 
 function normalizeTimestampMs(value) {
-  if (value === null || value === undefined || value === '') return 0;
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && numeric > 0) {
-    if (numeric > 1000000000000) return Math.floor(numeric);
-    if (numeric > 1000000000) return Math.floor(numeric * 1000);
-  }
-
-  const text = cleanText(value);
-  if (!text) return 0;
-  const normalizedText = text.includes('T') ? text : `${text.replace(' ', 'T')}+08:00`;
-  const timestamp = Date.parse(normalizedText);
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
-function timestampToIso(value) {
-  const timestamp = normalizeTimestampMs(value);
-  return timestamp ? new Date(timestamp).toISOString() : '';
-}
-
-function formatLogTimestamp(value) {
-  const timestamp = normalizeTimestampMs(value);
-  return timestamp ? new Date(timestamp).toISOString() : '';
-}
-
-function redactUrl(url) {
+	return sharedUtils.normalizeTimestampMs(value);
+}function timestampToIso(value) {
+	return sharedUtils.timestampToIso(value);
+}function formatLogTimestamp(value) {
+	return sharedUtils.formatLogTimestamp(value);
+}function redactUrl(url) {
   return String(url).replace(/(w_rid=)[^&]+/g, '$1<redacted>');
 }
 
 function clampPercent(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return null;
-  return Math.max(0, Math.min(100, Math.round(number * 10) / 10));
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function now() {
-  return new Date().toISOString();
-}
-
-function csvCell(value) {
-  const text = String(value || '');
-  if (/[",\r\n]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
-function escapeXml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function unescapeXml(value) {
-  return String(value || '')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => decodeXmlCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => decodeXmlCodePoint(Number.parseInt(code, 16)))
-    .replace(/&amp;/g, '&');
-}
-
-function decodeXmlCodePoint(codePoint) {
-  return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
-    ? String.fromCodePoint(codePoint)
-    : '';
-}
-
-function getXmlAttr(attrs, name) {
-  const match = String(attrs || '').match(new RegExp(`${name}="([^"]*)"`, 'i'));
-  return match ? unescapeXml(match[1]) : '';
-}
-
-function columnName(index) {
-  let value = index + 1;
-  let name = '';
-  while (value > 0) {
-    const remainder = (value - 1) % 26;
-    name = String.fromCharCode(65 + remainder) + name;
-    value = Math.floor((value - 1) / 26);
-  }
-  return name;
-}
-
-function columnNameToIndex(name) {
-  let value = 0;
-  for (const char of String(name || '').toUpperCase()) {
-    value = value * 26 + (char.charCodeAt(0) - 64);
-  }
-  return Math.max(0, value - 1);
-}
-
-function dosDateTime(dateValue) {
-  const year = Math.max(1980, dateValue.getFullYear());
-  return {
-    time: (dateValue.getHours() << 11) | (dateValue.getMinutes() << 5) | Math.floor(dateValue.getSeconds() / 2),
-    date: ((year - 1980) << 9) | ((dateValue.getMonth() + 1) << 5) | dateValue.getDate()
-  };
-}
-
-function crc32(buffer) {
-  let crc = 0xffffffff;
-  for (const byte of buffer) {
-    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
+	return sharedUtils.clampPercent(value);
+}function sleep(ms) {
+	return sharedUtils.sleep(ms);
+}function now() {
+	return sharedUtils.now();
+}function csvCell(value) {
+	return sharedUtils.csvCell(value);
+}function escapeXml(value) {
+	return sharedUtils.escapeXml(value);
+}function unescapeXml(value) {
+	return sharedUtils.unescapeXml(value);
+}function decodeXmlCodePoint(codePoint) {
+	return sharedUtils.decodeXmlCodePoint(codePoint);
+}function getXmlAttr(attrs, name) {
+	return sharedUtils.getXmlAttr(attrs, name);
+}function columnName(index) {
+	return sharedUtils.columnName(index);
+}function columnNameToIndex(name) {
+	return sharedUtils.columnNameToIndex(name);
+}function dosDateTime(dateValue) {
+	return sharedUtils.dosDateTime(dateValue);
+}function crc32(buffer) {
+	return sharedUtils.crc32(buffer);
+}const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
   for (let bit = 0; bit < 8; bit += 1) {
     value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
@@ -5447,28 +4834,8 @@ const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
 });
 
 function getInitial(text) {
-  const first = Array.from(cleanText(text))[0];
-  if (!first) return '#';
-  if (/^[a-z]$/i.test(first)) return first.toUpperCase();
-  if (/^\d$/.test(first)) return '#';
-
-  const pinyinBounds = [
-    ['A', '阿'], ['B', '八'], ['C', '嚓'], ['D', '咑'], ['E', '妸'],
-    ['F', '发'], ['G', '旮'], ['H', '铪'], ['J', '丌'], ['K', '咔'],
-    ['L', '垃'], ['M', '嘸'], ['N', '拏'], ['O', '噢'], ['P', '妑'],
-    ['Q', '七'], ['R', '呥'], ['S', '仨'], ['T', '他'], ['W', '屲'],
-    ['X', '夕'], ['Y', '丫'], ['Z', '帀']
-  ];
-  let result = '#';
-  for (const [letter, boundary] of pinyinBounds) {
-    if (first.localeCompare(boundary, 'zh-Hans-CN-u-co-pinyin') >= 0) {
-      result = letter;
-    }
-  }
-  return result;
-}
-
-module.exports = {
+	return sharedUtils.getInitial(text);
+}module.exports = {
   startServer,
   shutdownApplication
 };
