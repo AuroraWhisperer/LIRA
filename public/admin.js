@@ -10,7 +10,7 @@ let desktopUpdateNoticeKey = '';
 let songReloadTimer = null;
 let shuttingDown = false;
 let metricsRunning = false;
-let latestGiftNoticeId = null;
+let latestGiftNoticeKey = null;
 
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
@@ -832,7 +832,7 @@ function renderState() {
   const totalCount = queueItems.length;
   document.getElementById('queueSize').textContent = `${totalCount} 首`;
   renderSuperChatQueue(superChats);
-  renderGiftPanel(gifts, giftSprint, appState.liveStatus || {});
+  renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.blivedmCompatibility || {});
 
   const live = appState.liveStatus || {};
   const liveStatus = document.getElementById('liveStatus');
@@ -912,7 +912,7 @@ function renderSuperChatQueue(items) {
   });
 }
 
-function renderGiftPanel(gifts, sprint, live) {
+function renderGiftPanel(gifts, sprint, live, compatibility) {
   const status = document.getElementById('giftSprintStatus');
   if (!status) return;
 
@@ -934,20 +934,45 @@ function renderGiftPanel(gifts, sprint, live) {
   const recent = Array.isArray(gifts.recent) ? gifts.recent : [];
   notifyNewGift(recent);
   renderGiftRecentList(recent);
+  renderGiftCompatibilityStatus(compatibility);
+}
+
+function renderGiftCompatibilityStatus(compatibility) {
+  const node = document.getElementById('giftCompatibilityStatus');
+  if (!node) return;
+
+  const status = compatibility.status || 'idle';
+  const missing = Array.isArray(compatibility.missingGiftCommands) ? compatibility.missingGiftCommands : [];
+  if (status === 'ok') {
+    node.textContent = `blivedm 协议检查正常：${compatibility.checkedAt ? formatTime(compatibility.checkedAt) : '刚刚'} 已覆盖礼物 CMD`;
+  } else if (status === 'warn' && missing.length > 0) {
+    node.textContent = `blivedm 有新礼物 CMD 未解析：${missing.join('、')}；已纳入运行时告警日志`;
+  } else if (status === 'checking') {
+    node.textContent = '正在检查 blivedm 最新礼物协议...';
+  } else if (status === 'error') {
+    node.textContent = compatibility.message || 'blivedm 协议检查失败，请检查网络';
+  } else {
+    node.textContent = compatibility.message || 'blivedm 协议检查等待中';
+  }
 }
 
 function notifyNewGift(items) {
   const newest = items[0];
   const newestId = newest ? Number(newest.id || 0) : 0;
   if (!newestId) return;
+  const newestKey = [
+    newestId,
+    Number(newest.num || 1),
+    Number(newest.sprint_count_price ?? newest.total_price ?? 0)
+  ].join(':');
 
-  if (latestGiftNoticeId === null) {
-    latestGiftNoticeId = newestId;
+  if (latestGiftNoticeKey === null) {
+    latestGiftNoticeKey = newestKey;
     return;
   }
 
-  if (newestId <= latestGiftNoticeId) return;
-  latestGiftNoticeId = newestId;
+  if (newestKey === latestGiftNoticeKey) return;
+  latestGiftNoticeKey = newestKey;
   toast(`收到礼物：${newest.gift_name || '未知礼物'} x${Number(newest.num || 1)}，计入 ${formatMoney(newest.sprint_count_price ?? newest.total_price)}`);
 }
 
@@ -1575,7 +1600,7 @@ async function reconnectBilibili() {
     const payload = await readJsonResponse(response, '刷新直播失败');
     if (payload.data && payload.data.liveStatus) {
       appState.liveStatus = payload.data.liveStatus;
-      renderStatus();
+      renderState();
     }
     if (!response.ok || !payload.ok) {
       throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);

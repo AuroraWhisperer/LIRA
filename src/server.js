@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.2.1
+// 当前项目版本：1.2.2
 'use strict';
 
 const http = require('node:http');
@@ -36,6 +36,8 @@ const GIFT_BOT_MATCH_WINDOW_MS = 20 * 1000;
 const SUPER_CHAT_PIN_THRESHOLD = 2;
 const SUPER_CHAT_DISPLAY_THRESHOLD = 2;
 const CRYSTAL_BALL_VALUE_RMB = 100;
+const BLIVEDM_RAW_BASE = 'https://raw.githubusercontent.com/xfgryujk/blivedm/master';
+const BLIVEDM_COMPAT_CHECK_TIMEOUT_MS = 8000;
 
 const DEFAULT_SETTINGS = {
   roomId: '',
@@ -344,6 +346,15 @@ let shutdownPromise = null;
 let wbiKeyCache = null;
 const giftBotPendingByName = new Map();
 const giftBotLastReportByName = new Map();
+const runtimeGiftCommandPrefixes = new Set();
+let blivedmCompatibility = {
+  status: 'idle',
+  checkedAt: '',
+  message: '尚未检查 blivedm 礼物协议。',
+  remoteGiftCommands: [],
+  supportedGiftCommands: [],
+  missingGiftCommands: []
+};
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -397,10 +408,119 @@ function startServer(options = {}) {
     console.log(`Songs overlay: ${baseUrl}/songlist`);
     openAdminPageIfNeeded(baseUrl);
     configureBilibiliListener();
+    checkBlivedmCompatibilityOnStartup();
       return { server, port, host, baseUrl };
     });
 
   return startPromise;
+}
+
+function checkBlivedmCompatibilityOnStartup() {
+  blivedmCompatibility = {
+    ...blivedmCompatibility,
+    status: 'checking',
+    checkedAt: now(),
+    message: '正在检查 blivedm 最新礼物协议...'
+  };
+  broadcastSnapshot('blivedm:checking');
+
+  checkBlivedmCompatibility()
+    .then((result) => {
+      blivedmCompatibility = result;
+      for (const cmd of result.missingGiftCommands) {
+        runtimeGiftCommandPrefixes.add(cmd);
+      }
+      if (result.missingGiftCommands.length > 0) {
+        console.warn(`[Bilibili] blivedm has newer gift CMD(s): ${result.missingGiftCommands.join(', ')}`);
+      } else {
+        console.log('[Bilibili] blivedm gift protocol compatibility check passed.');
+      }
+      broadcastSnapshot('blivedm:checked');
+    })
+    .catch((error) => {
+      blivedmCompatibility = {
+        status: 'error',
+        checkedAt: now(),
+        message: `blivedm 检查失败：${error.message}`,
+        remoteGiftCommands: [],
+        supportedGiftCommands: getSupportedBilibiliGiftCommands(),
+        missingGiftCommands: []
+      };
+      console.warn(`[Bilibili] blivedm compatibility check failed: ${error.message}`);
+      broadcastSnapshot('blivedm:error');
+    });
+}
+
+async function checkBlivedmCompatibility() {
+  const handlersText = await fetchTextWithTimeout(`${BLIVEDM_RAW_BASE}/blivedm/handlers.py`, BLIVEDM_COMPAT_CHECK_TIMEOUT_MS);
+  const remoteGiftCommands = extractBlivedmGiftCommands(handlersText);
+  const supportedGiftCommands = getSupportedBilibiliGiftCommands();
+  const missingGiftCommands = remoteGiftCommands.filter((cmd) => !isSupportedBilibiliGiftCommand(cmd, supportedGiftCommands));
+
+  return {
+    status: missingGiftCommands.length > 0 ? 'warn' : 'ok',
+    checkedAt: now(),
+    message: missingGiftCommands.length > 0
+      ? `发现 blivedm 新礼物 CMD：${missingGiftCommands.join('、')}`
+      : 'blivedm 礼物 CMD 已覆盖。',
+    remoteGiftCommands,
+    supportedGiftCommands,
+    missingGiftCommands
+  };
+}
+
+async function fetchTextWithTimeout(url, timeoutMs) {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'bilibili-live-song-plugin',
+      'Accept': 'text/plain, */*'
+    },
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub HTTP ${response.status}`);
+  }
+  return response.text();
+}
+
+function extractBlivedmGiftCommands(text) {
+  const commands = new Set();
+  const pattern = /['"]([A-Z0-9_]*(?:GIFT|GUARD|USER_TOAST)[A-Z0-9_]*)['"]/g;
+  let match;
+  while ((match = pattern.exec(String(text || ''))) !== null) {
+    const cmd = cleanText(match[1]);
+    if (cmd && isBilibiliGiftRelevantCommandName(cmd)) {
+      commands.add(cmd);
+    }
+  }
+  return Array.from(commands).sort();
+}
+
+function isBilibiliGiftRelevantCommandName(cmd) {
+  const text = cleanText(cmd);
+  if (!text) return false;
+  return text.includes('GIFT')
+    || text.includes('GUARD')
+    || text.startsWith('USER_TOAST_MSG');
+}
+
+function getSupportedBilibiliGiftCommands() {
+  return [
+    'SEND_GIFT',
+    'SEND_GIFT_V2',
+    'BLIND_GIFT',
+    'COMBO_SEND',
+    'GUARD_BUY',
+    'USER_TOAST_MSG',
+    'USER_TOAST_MSG_V2',
+    'LIVE_OPEN_PLATFORM_SEND_GIFT',
+    'LIVE_OPEN_PLATFORM_GUARD'
+  ];
+}
+
+function isSupportedBilibiliGiftCommand(cmd, supportedCommands = getSupportedBilibiliGiftCommands()) {
+  const text = cleanText(cmd);
+  return supportedCommands.some((supported) => text === supported || text.startsWith(`${supported}_`));
 }
 
 if (require.main === module) {
@@ -678,7 +798,8 @@ function getState() {
     settings: getSettings(),
     categories: listCategories(),
     songCount: songDb.prepare('SELECT COUNT(*) AS count FROM songs').get().count,
-    liveStatus
+    liveStatus,
+    blivedmCompatibility
   };
 }
 
@@ -1094,7 +1215,8 @@ function addGiftEvent(input) {
       LIMIT 1
     `).get(gift.platformId);
     if (existing) {
-      return existing.status === 'deleted' ? null : normalizeGiftRow(existing);
+      if (existing.status === 'deleted') return null;
+      return updateGiftEventIfProgressed(existing, gift);
     }
   }
   const recentDuplicate = findRecentGiftCommandDuplicate(gift);
@@ -1132,6 +1254,65 @@ function addGiftEvent(input) {
   );
 
   return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(result.lastInsertRowid)));
+}
+
+function updateGiftEventIfProgressed(row, gift) {
+  const existingNum = normalizePositiveInteger(row.num) || 1;
+  const nextNum = normalizePositiveInteger(gift.num) || 1;
+  const existingTotal = normalizeMoney(row.total_price);
+  const nextTotal = normalizeMoney(gift.totalPrice);
+
+  if (nextNum <= existingNum && nextTotal <= existingTotal) {
+    return normalizeGiftRow(row);
+  }
+
+  const mergedNum = Math.max(existingNum, nextNum);
+  const mergedTotal = Math.max(existingTotal, nextTotal);
+  const mergedUnit = mergedNum > 0 ? normalizeMoney(mergedTotal / mergedNum) : normalizeMoney(gift.unitPrice);
+  const blindBoxPrice = gift.blindBoxPrice === null ? row.blind_box_price : gift.blindBoxPrice;
+  const blindProfit = blindBoxPrice === null || blindBoxPrice === undefined
+    ? null
+    : normalizeSignedMoney(mergedTotal - Number(blindBoxPrice || 0));
+  const updatedAt = gift.createdAt || now();
+
+  giftDb.prepare(`
+    UPDATE gift_events
+    SET gift_id = ?,
+        gift_name = ?,
+        uid = ?,
+        user_name = ?,
+        num = ?,
+        unit_price = ?,
+        total_price = ?,
+        coin_type = ?,
+        is_blind_box = ?,
+        blind_box_name = ?,
+        blind_box_price = ?,
+        blind_profit = ?,
+        counted_in_sprint = ?,
+        raw_json = ?,
+        updated_at = ?
+    WHERE id = ?
+  `).run(
+    gift.giftId || cleanText(row.gift_id),
+    gift.giftName || cleanText(row.gift_name),
+    gift.uid || cleanText(row.uid),
+    gift.userName || cleanText(row.user_name),
+    mergedNum,
+    mergedUnit,
+    mergedTotal,
+    gift.coinType || cleanText(row.coin_type),
+    gift.isBlindBox ? 1 : Number(row.is_blind_box || 0),
+    gift.blindBoxName || cleanText(row.blind_box_name),
+    blindBoxPrice,
+    blindProfit,
+    mergedTotal > 0 ? 1 : Number(row.counted_in_sprint || 0),
+    gift.rawJson || cleanText(row.raw_json),
+    updatedAt,
+    Number(row.id)
+  );
+
+  return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(row.id)));
 }
 
 function findRecentGiftCommandDuplicate(gift) {
@@ -2942,7 +3123,10 @@ class BilibiliDanmakuClient {
           });
         } else if (isBilibiliGiftCommand(message.cmd)) {
           const gift = extractBilibiliGiftMessage(message);
-          if (!gift) continue;
+          if (!gift) {
+            logUnparsedGiftLikeCommand(message, 'known-gift-command');
+            continue;
+          }
           const requester = this.resolveRequesterIdentity({
             uid: gift.uid,
             userName: gift.userName
@@ -2952,6 +3136,8 @@ class BilibiliDanmakuClient {
             uid: requester.uid,
             userName: requester.userName
           });
+        } else if (isBilibiliGiftLikeCommand(message.cmd)) {
+          logUnparsedGiftLikeCommand(message, 'gift-like-command');
         }
       }
     });
@@ -4169,6 +4355,44 @@ function normalizeBilibiliGiftCoin(value) {
   return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
+function normalizeBilibiliCoinRmb(value) {
+  const amount = normalizeBilibiliGiftCoin(value);
+  return amount > 0 ? normalizeMoney(amount / 1000) : 0;
+}
+
+function parseBooleanLike(value) {
+  if (value === true || value === 1) return true;
+  const text = cleanText(value).toLowerCase();
+  return text === 'true' || text === '1' || text === 'yes';
+}
+
+function guardLevelName(level) {
+  if (Number(level) === 3) return '舰长';
+  if (Number(level) === 2) return '提督';
+  if (Number(level) === 1) return '总督';
+  return '';
+}
+
+function buildBilibiliFallbackGiftId(packet, data) {
+  return crypto.createHash('sha1')
+    .update([
+      cleanText(packet && packet.cmd),
+      cleanText(readObjectValue(data, ['uid', 'mid', 'username', 'uname'])),
+      cleanText(readObjectValue(data, ['gift_name', 'giftName', 'role_name', 'roleName'])),
+      cleanText(readObjectValue(data, ['price', 'gift_price', 'giftPrice', 'total_price', 'totalPrice'])),
+      cleanText(readObjectValue(data, ['timestamp', 'ts', 'time', 'start_time', 'startTime'])) || Math.floor(Date.now() / 1000)
+    ].join('|'))
+    .digest('hex');
+}
+
+function logUnparsedGiftLikeCommand(message, reason) {
+  const cmd = cleanText(message && message.cmd);
+  const data = message && message.data && typeof message.data === 'object' ? message.data : {};
+  const keys = Object.keys(data).slice(0, 30).join(',');
+  const preview = safeJsonStringify(data).slice(0, 260);
+  console.warn(`[Bilibili] unparsed gift-like command: reason=${reason} cmd=${cmd} dataKeys=${keys} data=${preview}`);
+}
+
 function normalizeGuardLevel(value) {
   const level = normalizePositiveInteger(value);
   return [1, 2, 3].includes(level) ? level : 0;
@@ -4395,9 +4619,25 @@ function extractBilibiliSuperChatMessage(packet) {
 
 function isBilibiliGiftCommand(cmd) {
   const text = String(cmd || '');
+  if (runtimeGiftCommandPrefixes.has(text)) return true;
+  for (const prefix of runtimeGiftCommandPrefixes) {
+    if (text.startsWith(`${prefix}_`)) return true;
+  }
   return text.startsWith('SEND_GIFT')
     || text.startsWith('BLIND_GIFT')
-    || text.startsWith('COMBO_SEND');
+    || text.startsWith('COMBO_SEND')
+    || text.startsWith('GUARD_BUY')
+    || text.startsWith('USER_TOAST_MSG')
+    || text.startsWith('LIVE_OPEN_PLATFORM_SEND_GIFT')
+    || text.startsWith('LIVE_OPEN_PLATFORM_GUARD');
+}
+
+function isBilibiliGiftLikeCommand(cmd) {
+  const text = String(cmd || '');
+  return isBilibiliGiftCommand(text)
+    || text.includes('GIFT')
+    || text.includes('COMBO')
+    || text.includes('GUARD');
 }
 
 function extractBilibiliGiftMessage(packet) {
@@ -4405,14 +4645,89 @@ function extractBilibiliGiftMessage(packet) {
   if (!data || Object.keys(data).length === 0) return null;
 
   const cmd = cleanText(packet && packet.cmd);
+  if (cmd.startsWith('LIVE_OPEN_PLATFORM_SEND_GIFT')) {
+    return extractBilibiliOpenLiveGiftMessage(packet, data);
+  }
+
+  if (cmd.startsWith('LIVE_OPEN_PLATFORM_GUARD')) {
+    return extractBilibiliOpenLiveGuardGiftMessage(packet, data);
+  }
+
+  if (cmd.startsWith('GUARD_BUY') || cmd.startsWith('USER_TOAST_MSG')) {
+    const guardGift = extractBilibiliWebGuardGiftMessage(packet, data);
+    if (guardGift) return guardGift;
+  }
+
   if (cmd.startsWith('SEND_GIFT_V2') && data.pb) {
     const parsedV2 = extractBilibiliGiftV2Message(packet, data);
     if (parsedV2) return parsedV2;
+    logUnparsedGiftLikeCommand(packet, 'send-gift-v2-proto');
+    return null;
   }
 
+  return extractBilibiliWebGiftMessage(packet, data);
+}
+
+function extractBilibiliOpenLiveGiftMessage(packet, data) {
+  const giftNum = normalizePositiveInteger(readObjectValue(data, ['gift_num', 'giftNum'])) || 1;
+  const paid = parseBooleanLike(readObjectValue(data, ['paid', 'is_paid', 'isPaid']));
+  const unitCoin = normalizeBilibiliGiftCoin(
+    readObjectValue(data, ['r_price', 'rPrice'])
+    || readObjectValue(data, ['price'])
+  );
+  const totalPrice = paid ? normalizeMoney(unitCoin * giftNum / 1000) : 0;
+
+  return {
+    platformId: cleanText(readObjectValue(data, ['msg_id', 'msgId'])) || buildBilibiliFallbackGiftId(packet, data),
+    cmd: cleanText(packet && packet.cmd),
+    giftId: cleanText(readObjectValue(data, ['gift_id', 'giftId'])),
+    giftName: cleanText(readObjectValue(data, ['gift_name', 'giftName'])) || '未知礼物',
+    uid: cleanText(readObjectValue(data, ['open_id', 'openId', 'uid', 'mid'])),
+    userName: cleanText(readObjectValue(data, ['uname', 'user_name', 'userName', 'nickname'])) || '观众',
+    num: giftNum,
+    unitPrice: paid ? normalizeMoney(unitCoin / 1000) : 0,
+    totalPrice,
+    coinType: paid ? 'gold' : 'free',
+    isBlindBox: Boolean(readObjectValue(data, ['blind_gift', 'blindGift', 'combo_gift', 'comboGift'])),
+    blindBoxName: '',
+    blindBoxPrice: null,
+    rawJson: safeJsonStringify(packet),
+    messageTimestamp: normalizeTimestampMs(readObjectValue(data, ['timestamp', 'ts', 'time'])) || Date.now()
+  };
+}
+
+function extractBilibiliOpenLiveGuardGiftMessage(packet, data) {
+  const userInfo = readFirstObject(data, ['user_info', 'userInfo']) || {};
+  const guardLevel = normalizeGuardLevel(readObjectValue(data, ['guard_level', 'guardLevel']));
+  const num = normalizePositiveInteger(readObjectValue(data, ['guard_num', 'guardNum', 'num'])) || 1;
+  const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['price']));
+  const totalPrice = normalizeBilibiliCoinRmb(totalCoin);
+
+  return {
+    platformId: cleanText(readObjectValue(data, ['msg_id', 'msgId'])) || buildBilibiliFallbackGiftId(packet, data),
+    cmd: cleanText(packet && packet.cmd),
+    giftId: `guard-${guardLevel || 'unknown'}`,
+    giftName: guardLevelName(guardLevel) || '大航海',
+    uid: cleanText(readObjectValue(userInfo, ['open_id', 'openId', 'uid', 'mid'])),
+    userName: cleanText(readObjectValue(userInfo, ['uname', 'user_name', 'userName', 'nickname'])) || '观众',
+    num,
+    unitPrice: num > 0 ? normalizeMoney(totalPrice / num) : totalPrice,
+    totalPrice,
+    coinType: 'gold',
+    isBlindBox: false,
+    blindBoxName: '',
+    blindBoxPrice: null,
+    rawJson: safeJsonStringify(packet),
+    messageTimestamp: normalizeTimestampMs(readObjectValue(data, ['timestamp', 'ts', 'time'])) || Date.now()
+  };
+}
+
+function extractBilibiliWebGiftMessage(packet, data) {
+  const cmd = cleanText(packet && packet.cmd);
   const blindInfo = readFirstObject(data, ['blind_gift', 'blindGift', 'blind_box', 'blindBox', 'origin_info', 'originInfo']);
   const num = normalizePositiveInteger(readObjectValue(data, ['num', 'gift_num', 'giftNum', 'combo_num', 'comboNum'])) || 1;
-  const coinType = cleanText(readObjectValue(data, ['coin_type', 'coinType', 'coin']));
+  const coinType = cleanText(readObjectValue(data, ['coin_type', 'coinType', 'coin'])).toLowerCase();
+  const paid = coinType === 'gold' || parseBooleanLike(readObjectValue(data, ['paid', 'is_paid', 'isPaid']));
   const unitCoin = normalizeBilibiliGiftCoin(readObjectValue(data, [
     'price',
     'gift_price',
@@ -4428,10 +4743,8 @@ function extractBilibiliGiftMessage(packet) {
     'combo_total_coin',
     'comboTotalCoin'
   ]));
-  const unitPrice = coinType === 'silver' ? 0 : normalizeMoney(unitCoin / 1000);
-  const totalPrice = coinType === 'silver'
-    ? 0
-    : normalizeMoney((totalCoin > 0 ? totalCoin : unitCoin * num) / 1000);
+  const unitPrice = paid ? normalizeMoney(unitCoin / 1000) : 0;
+  const totalPrice = paid ? normalizeMoney((totalCoin > 0 ? totalCoin : unitCoin * num) / 1000) : 0;
   const blindBoxCoin = normalizeBilibiliGiftCoin(
     readObjectValue(blindInfo, [
       'original_gift_price',
@@ -4462,14 +4775,17 @@ function extractBilibiliGiftMessage(packet) {
 
   return {
     platformId: cleanText(readObjectValue(data, [
+      'msg_id',
+      'msgId',
       'tid',
       'gift_tid',
       'giftTid',
+      'rnd',
       'batch_combo_id',
       'batchComboId',
       'combo_id',
       'comboId'
-    ])),
+    ])) || buildBilibiliFallbackGiftId(packet, data),
     cmd,
     giftId: cleanText(readObjectValue(data, ['giftId', 'gift_id', 'giftid'])),
     giftName: cleanText(readObjectValue(data, ['giftName', 'gift_name'])) || '未知礼物',
@@ -4503,6 +4819,58 @@ function extractBilibiliGiftMessage(packet) {
   };
 }
 
+function extractBilibiliWebGuardGiftMessage(packet, data) {
+  const cmd = cleanText(packet && packet.cmd);
+  const senderInfo = readFirstObject(data, ['sender_uinfo', 'senderUinfo']) || {};
+  const senderBase = readFirstObject(senderInfo, ['base']) || {};
+  const guardInfo = readFirstObject(data, ['guard_info', 'guardInfo']) || data;
+  const payInfo = readFirstObject(data, ['pay_info', 'payInfo']) || data;
+  const giftInfo = readFirstObject(data, ['gift_info', 'giftInfo']) || data;
+  const guardLevel = normalizeGuardLevel(readObjectValue(guardInfo, ['guard_level', 'guardLevel']) || readObjectValue(data, ['guard_level', 'guardLevel']));
+  const giftName = cleanText(
+    readObjectValue(giftInfo, ['gift_name', 'giftName', 'role_name', 'roleName', 'role'])
+    || readObjectValue(data, ['gift_name', 'giftName', 'role_name', 'roleName', 'role'])
+  ) || guardLevelName(guardLevel) || '大航海';
+  const num = normalizePositiveInteger(readObjectValue(payInfo, ['num']) || readObjectValue(data, ['num', 'gift_num', 'giftNum'])) || 1;
+  const explicitTotalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['total_price', 'totalPrice', 'total_coin', 'totalCoin']));
+  const unitCoin = normalizeBilibiliGiftCoin(readObjectValue(payInfo, ['price']) || readObjectValue(data, ['price', 'gift_price', 'giftPrice']));
+  const totalPrice = normalizeBilibiliCoinRmb(explicitTotalCoin || unitCoin * num);
+  const unitPrice = num > 0 ? normalizeMoney(totalPrice / num) : totalPrice;
+
+  return {
+    platformId: cleanText(readObjectValue(data, [
+      'id',
+      'tid',
+      'gift_tid',
+      'giftTid',
+      'order_id',
+      'orderId',
+      'toast_msg_id',
+      'toastMsgId',
+      'msg_id',
+      'msgId'
+    ])) || buildBilibiliFallbackGiftId(packet, data),
+    cmd,
+    giftId: cleanText(readObjectValue(giftInfo, ['gift_id', 'giftId', 'giftid']) || readObjectValue(data, ['gift_id', 'giftId', 'giftid'])) || `guard-${guardLevel || 'unknown'}`,
+    giftName,
+    uid: cleanText(readObjectValue(senderInfo, ['uid', 'mid']) || readObjectValue(data, ['uid', 'mid'])),
+    userName: cleanText(
+      readObjectValue(senderBase, ['name', 'uname', 'user_name', 'userName'])
+      || readObjectValue(senderInfo, ['username', 'user_name', 'userName', 'uname', 'nickname'])
+      || readObjectValue(data, ['username', 'user_name', 'userName', 'uname', 'nickname'])
+    ) || '观众',
+    num,
+    unitPrice,
+    totalPrice,
+    coinType: 'guard',
+    isBlindBox: false,
+    blindBoxName: '',
+    blindBoxPrice: null,
+    rawJson: safeJsonStringify(packet),
+    messageTimestamp: normalizeTimestampMs(readObjectValue(data, ['timestamp', 'ts', 'time', 'start_time', 'startTime'])) || Date.now()
+  };
+}
+
 function extractBilibiliGiftV2Message(packet, data) {
   const root = decodeBilibiliGiftV2Proto(data.pb);
   if (!root) return null;
@@ -4513,8 +4881,13 @@ function extractBilibiliGiftV2Message(packet, data) {
   const cmd = cleanText(packet && packet.cmd);
   const giftId = cleanText(firstProtoScalar(giftInfo[1]));
   const giftName = cleanText(firstProtoScalar(giftInfo[2])) || '未知礼物';
-  const num = normalizePositiveInteger(firstProtoScalar(giftInfo[3]) || firstProtoScalar(giftInfo[4])) || 1;
-  const coinType = cleanText(firstProtoScalar(giftInfo[8]));
+  const num = Math.max(
+    normalizePositiveInteger(firstProtoScalar(giftInfo[3])),
+    normalizePositiveInteger(firstProtoScalar(giftInfo[4])),
+    1
+  );
+  const coinType = cleanText(firstProtoScalar(giftInfo[8])).toLowerCase();
+  const paid = coinType === 'gold';
   const unitCoin = normalizeBilibiliGiftCoin(
     firstProtoScalar(giftInfo[5])
     || firstProtoScalar(giftInfo[6])
@@ -4523,10 +4896,8 @@ function extractBilibiliGiftV2Message(packet, data) {
     firstProtoScalar(giftInfo[7])
     || firstProtoScalar(giftInfo[14])
   );
-  const unitPrice = coinType === 'silver' ? 0 : normalizeMoney(unitCoin / 1000);
-  const totalPrice = coinType === 'silver'
-    ? 0
-    : normalizeMoney((totalCoin > 0 ? totalCoin : unitCoin * num) / 1000);
+  const unitPrice = paid ? normalizeMoney(unitCoin / 1000) : 0;
+  const totalPrice = paid ? normalizeMoney(Math.max(totalCoin, unitCoin * num) / 1000) : 0;
   const timestamp = firstProtoScalar(giftInfo[10]);
   const comboId = cleanText(firstProtoScalar(giftInfo[12]));
   const tid = cleanText(firstProtoScalar(giftInfo[9]));
