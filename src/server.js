@@ -11,12 +11,17 @@ const zlib = require('node:zlib');
 const childProcess = require('node:child_process');
 const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
+const apiRoutes = require('./server/api-routes');
 const httpUtils = require('./server/http-utils');
+const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
 const sharedUtils = require('./shared/utils');
 const { createDatabases } = require('./storage/database');
 const settingsStoreModule = require('./storage/settings-store');
 const { createMusicProviderRegistry, normalizeMusicPlatform } = require('./music/provider-registry');
+const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
+const { initLyricsService } = require('./music/lyrics-service');
+const scService = require('./bilibili/superchat-service');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -26,6 +31,8 @@ const DATA_DIR = process.env.SONG_PLUGIN_DATA_DIR
 const SONG_DB_PATH = path.join(DATA_DIR, 'song-request-data.db');
 const SUPER_CHAT_DB_PATH = path.join(DATA_DIR, 'super-chat-data.db');
 const GIFT_DB_PATH = path.join(DATA_DIR, 'gift-data.db');
+const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
+const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
 const HOST = process.env.HOST || 'localhost';
 const START_PORT = Number(process.env.PORT || 3000);
 const PORT_CLEANUP_TIMEOUT_MS = 1200;
@@ -164,6 +171,7 @@ const db = createDatabases({ dataDir: DATA_DIR });
 	const songDb = db.songDb;
 	const superChatDb = db.superChatDb;
 	const giftDb = db.giftDb;
+	initLyricsService(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR);
 	repairGiftV2Events();
 
 const queueScrollSpeedRangeVersion = songDb.prepare(`
@@ -199,6 +207,7 @@ let startedPort = null;
 let startPromise = null;
 let shutdownPromise = null;
 let wbiKeyCache = null;
+let musicRegistry = createMusicProviderRegistry();
 const giftBotPendingByName = new Map();
 const giftBotLastReportByName = new Map();
 const runtimeGiftCommandPrefixes = new Set();
@@ -226,19 +235,19 @@ const server = http.createServer(async (req, res) => {
     const requestUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${START_PORT}`}`);
 
     if (requestUrl.pathname === '/ws') {
-      sendJson(res, 400, { ok: false, error: 'Use a WebSocket client for /ws.' });
+      httpUtils.sendJson(res, 400, { ok: false, error: 'Use a WebSocket client for /ws.' });
       return;
     }
 
     if (requestUrl.pathname.startsWith('/api/')) {
-      await handleApi(req, res, requestUrl);
+      await apiRoutes.handleApi(createApiContext(), req, res, requestUrl);
       return;
     }
 
     servePageOrAsset(req, res, requestUrl);
   } catch (error) {
     console.error(error);
-    sendJson(res, 500, { ok: false, error: error.message || 'Internal server error' });
+    httpUtils.sendJson(res, 500, { ok: false, error: error.message || 'Internal server error' });
   }
 });
 
@@ -257,13 +266,80 @@ function registerShutdownSignals() {
   process.once('SIGHUP', () => shutdownApplication());
 }
 
+function createApiContext() {
+  return {
+    defaultSettings: DEFAULT_SETTINGS,
+    maxBodyBytes: MAX_BODY_BYTES,
+    liveStatus,
+    musicRegistry,
+    getHealth: () => ({
+      rootDir: ROOT_DIR,
+      dataDir: DATA_DIR,
+      songDb: SONG_DB_PATH,
+      superChatDb: SUPER_CHAT_DB_PATH,
+      giftDb: GIFT_DB_PATH,
+      desktop: process.env.ELECTRON_DESKTOP === '1',
+      pid: process.pid,
+      liveStatus
+    }),
+    getState,
+    getSystemMetrics,
+    runManualBlivedmCompatibilityCheck,
+    listCategories,
+    listSongs,
+    normalizeRoomInput,
+    setSetting,
+    getSettings,
+    configureBilibiliListener,
+    broadcastSnapshot,
+    addQueueItem,
+    handleQueueAction,
+    handleSuperChatAction,
+    resetGiftSprintProgress,
+    saveSong,
+    deleteSong: (id) => {
+      songDb.prepare('DELETE FROM songs WHERE id = ?').run(id);
+    },
+    toggleSong: (id) => {
+      const song = songDb.prepare('SELECT is_enabled FROM songs WHERE id = ?').get(id);
+      if (!song) return { ok: false };
+      songDb.prepare('UPDATE songs SET is_enabled = ?, updated_at = ? WHERE id = ?')
+        .run(song.is_enabled ? 0 : 1, now(), id);
+      return { ok: true };
+    },
+    importSongs,
+    getMusicCacheStats: () => getMusicCacheStats(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
+    clearMusicCache: () => clearMusicCache(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
+    clearSongLibraryData,
+    clearSuperChatData,
+    clearAllData,
+    reconnectBilibiliListener,
+    publicBilibiliErrorMessage,
+    updateLiveStatus,
+    shutdownApplication
+  };
+}
+
+function getLifecycleOptions(port, host) {
+  return {
+    port,
+    host,
+    rootDir: ROOT_DIR,
+    dataDir: DATA_DIR,
+    cleanupTimeoutMs: PORT_CLEANUP_TIMEOUT_MS,
+    cleanupPollMs: PORT_CLEANUP_POLL_MS,
+    sleep
+  };
+}
+
 function startServer(options = {}) {
   if (startPromise) return startPromise;
 
+  musicRegistry = createMusicProviderRegistry(options.musicAuth || {});
   const startPort = Number(options.startPort || START_PORT);
   const host = options.host || HOST;
-  startPromise = cleanupOwnPortOccupant(startPort, host)
-    .then(() => listenWithFallback(startPort, host))
+  startPromise = lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host))
+    .then(() => lifecycle.listenWithFallback(server, { startPort, host }))
     .then((port) => {
     startedPort = port;
     const baseUrl = `http://${host}:${port}`;
@@ -533,270 +609,6 @@ if (require.main === module) {
   });
 }
 
-async function handleApi(req, res, requestUrl) {
-  const method = req.method || 'GET';
-  const pathName = requestUrl.pathname;
-
-  if (method === 'GET' && pathName === '/api/health') {
-    sendJson(res, 200, {
-      ok: true,
-      data: {
-        rootDir: ROOT_DIR,
-        dataDir: DATA_DIR,
-        songDb: SONG_DB_PATH,
-        superChatDb: SUPER_CHAT_DB_PATH,
-        giftDb: GIFT_DB_PATH,
-        desktop: process.env.ELECTRON_DESKTOP === '1',
-        pid: process.pid,
-        liveStatus
-      }
-    });
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/state') {
-    sendJson(res, 200, { ok: true, data: getState() });
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/system/metrics') {
-    const windowMs = Number(requestUrl.searchParams.get('windowMs') || 5000);
-    sendJson(res, 200, { ok: true, data: await getSystemMetrics(windowMs) });
-    return;
-  }
-
-  if (pathName === '/api/gifts/blivedm/check') {
-    const result = await runManualBlivedmCompatibilityCheck();
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/categories') {
-    sendJson(res, 200, { ok: true, data: listCategories() });
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/songs') {
-    sendJson(res, 200, {
-      ok: true,
-      data: listSongs({
-        query: requestUrl.searchParams.get('query') || '',
-        category: requestUrl.searchParams.get('category') || '',
-        language: requestUrl.searchParams.get('language') || '',
-        artist: requestUrl.searchParams.get('artist') || '',
-        enabledOnly: requestUrl.searchParams.get('enabledOnly') === 'true'
-      })
-    });
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/songs/template.csv') {
-    const csv = buildSongsCsv(templateSongs());
-    sendCsv(res, 'song-import-template.csv', `\uFEFF${csv}\n`);
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/songs/template.xlsx') {
-    sendBuffer(
-      res,
-      200,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'song-import-template.xlsx',
-      buildSongsWorkbook(templateSongs())
-    );
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/songs/export.csv') {
-    sendCsv(res, 'songs-export.csv', `\uFEFF${buildSongsCsv(listSongs({}))}\n`);
-    return;
-  }
-
-  if (method === 'GET' && pathName === '/api/songs/export.xlsx') {
-    sendBuffer(
-      res,
-      200,
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'songs-export.xlsx',
-      buildSongsWorkbook(listSongs({}))
-    );
-    return;
-  }
-
-  if (method !== 'POST') {
-    sendJson(res, 405, { ok: false, error: 'Method not allowed.' });
-    return;
-  }
-
-  const body = await readJsonBody(req);
-
-  if (pathName === '/api/settings') {
-    const allowedKeys = new Set(Object.keys(DEFAULT_SETTINGS));
-    for (const [key, rawValue] of Object.entries(body || {})) {
-      if (allowedKeys.has(key)) {
-        const value = key === 'roomId' ? normalizeRoomInput(rawValue) : String(rawValue);
-        setSetting(key, value);
-      }
-    }
-    configureBilibiliListener();
-    broadcastSnapshot('settings');
-    sendJson(res, 200, { ok: true, data: getState() });
-    return;
-  }
-
-  if (pathName === '/api/queue/add') {
-    const item = addQueueItem({
-      songName: body.songName,
-      artist: body.artist,
-      categoryName: body.categoryName,
-      requesterName: body.requesterName || '主播',
-      requesterUid: body.requesterUid || 'admin',
-      requesterGuardLevel: body.requesterGuardLevel,
-      requesterMedalName: body.requesterMedalName,
-      requesterMedalLevel: body.requesterMedalLevel,
-      source: body.source || 'admin',
-      message: body.message || ''
-    });
-    broadcastSnapshot('queue:add');
-    sendJson(res, 200, { ok: true, data: item });
-    return;
-  }
-
-  if (pathName === '/api/queue/action') {
-    const result = handleQueueAction(body.action, body.id);
-    broadcastSnapshot(`queue:${body.action}`);
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/superchats/action') {
-    const result = handleSuperChatAction(body.action, body.id);
-    broadcastSnapshot(`superchat:${body.action}`);
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/gifts/sprint/reset') {
-    const result = resetGiftSprintProgress();
-    broadcastSnapshot('gift:sprint:reset');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/songs/save') {
-    const result = saveSong(body);
-    broadcastSnapshot('songs:save');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/songs/delete') {
-    const id = Number(body.id);
-    songDb.prepare('DELETE FROM songs WHERE id = ?').run(id);
-    broadcastSnapshot('songs:delete');
-    sendJson(res, 200, { ok: true, data: { id } });
-    return;
-  }
-
-  if (pathName === '/api/songs/toggle') {
-    const id = Number(body.id);
-    const song = songDb.prepare('SELECT is_enabled FROM songs WHERE id = ?').get(id);
-    if (!song) {
-      sendJson(res, 404, { ok: false, error: 'Song not found.' });
-      return;
-    }
-    songDb.prepare('UPDATE songs SET is_enabled = ?, updated_at = ? WHERE id = ?')
-      .run(song.is_enabled ? 0 : 1, now(), id);
-    broadcastSnapshot('songs:toggle');
-    sendJson(res, 200, { ok: true, data: { id } });
-    return;
-  }
-
-  if (pathName === '/api/songs/import') {
-    const result = importSongs(Array.isArray(body.rows) ? body.rows : []);
-    broadcastSnapshot('songs:import');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/songs/import-xlsx') {
-    const buffer = Buffer.from(String(body.base64 || ''), 'base64');
-    const result = importSongs(parseSongsFromXlsx(buffer));
-    broadcastSnapshot('songs:import-xlsx');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/database/clear') {
-    if (body.confirm !== true) {
-      sendJson(res, 400, { ok: false, error: '缺少清空确认。' });
-      return;
-    }
-    const result = clearSongLibraryData();
-    broadcastSnapshot('database:clear');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/database/clear-superchats') {
-    if (body.confirm !== true) {
-      sendJson(res, 400, { ok: false, error: '缺少清空确认。' });
-      return;
-    }
-    const result = clearSuperChatData();
-    broadcastSnapshot('database:clear-superchats');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/database/clear-all') {
-    if (body.confirm !== true) {
-      sendJson(res, 400, { ok: false, error: '缺少清空确认。' });
-      return;
-    }
-    const result = clearAllData();
-    broadcastSnapshot('database:clear-all');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/bilibili/reconnect') {
-    try {
-      const result = await reconnectBilibiliListener();
-      sendJson(res, 200, { ok: true, data: result });
-    } catch (error) {
-      console.warn(`[Bilibili] manual reconnect failed: ${error.message}`);
-      const message = publicBilibiliErrorMessage(error, true);
-      updateLiveStatus({
-        connected: false,
-        enabled: true,
-        roomId: normalizeRoomInput(getSettings().roomId),
-        mode: 'bilibili',
-        message
-      });
-      sendJson(res, 500, {
-        ok: false,
-        error: message,
-        detail: error.message || String(error),
-        data: { liveStatus }
-      });
-    }
-    return;
-  }
-
-  if (pathName === '/api/system/shutdown') {
-    if (body.confirm !== true) {
-      sendJson(res, 400, { ok: false, error: '缺少退出确认。' });
-      return;
-    }
-    sendJson(res, 200, { ok: true, data: { shuttingDown: true } });
-    setTimeout(() => shutdownApplication(), 250);
-    return;
-  }
-
-  sendJson(res, 404, { ok: false, error: 'API route not found.' });
-}
-
 function getState() {
   return {
     queue: getQueueSnapshot(),
@@ -982,12 +794,7 @@ function getQueueSnapshot() {
 }
 
 function getSuperChatSnapshot() {
-  return superChatDb.prepare(`
-    SELECT *
-    FROM super_chats
-    WHERE status IN ('active', 'assisted')
-    ORDER BY price DESC, datetime(created_at) ASC, id ASC
-  `).all().map(normalizeSuperChatRow);
+  return scService.getSuperChatSnapshot({ db: { superChatDb } });
 }
 
 function getGiftSnapshot() {
@@ -1033,14 +840,7 @@ function getGiftSprintSnapshot() {
 }
 
 function normalizeSuperChatRow(row) {
-  if (!row) return null;
-  return {
-    ...row,
-    price: normalizeSuperChatPrice(row.price),
-    requester_guard_level: normalizeGuardLevel(row.requester_guard_level),
-    requester_medal_name: cleanText(row.requester_medal_name),
-    requester_medal_level: normalizePositiveInteger(row.requester_medal_level)
-  };
+  return scService.normalizeSuperChatRow(row);
 }
 
 function normalizeGiftRow(row) {
@@ -1164,45 +964,7 @@ function addQueueItem(input) {
 }
 
 function addSuperChatItem(input) {
-  const price = normalizeSuperChatPrice(input && input.price);
-  if (price < SUPER_CHAT_DISPLAY_THRESHOLD) {
-    return null;
-  }
-
-  const platformId = cleanText(input && input.platformId);
-  if (platformId) {
-    const existing = superChatDb.prepare(`
-      SELECT *
-      FROM super_chats
-      WHERE platform_id = ?
-      LIMIT 1
-    `).get(platformId);
-    if (existing) {
-      return existing.status === 'deleted' ? null : normalizeSuperChatRow(existing);
-    }
-  }
-
-  const createdAt = timestampToIso(input && input.messageTimestamp) || now();
-  const result = superChatDb.prepare(`
-    INSERT INTO super_chats (
-      platform_id, uid, user_name, price, message,
-      requester_guard_level, requester_medal_name, requester_medal_level,
-      status, source, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 'superchat', ?, ?)
-  `).run(
-    platformId,
-    cleanText(input && input.uid),
-    cleanText(input && input.userName) || '观众',
-    price,
-    cleanText(input && input.message),
-    normalizeGuardLevel(input && input.requesterGuardLevel),
-    cleanText(input && input.requesterMedalName),
-    normalizePositiveInteger(input && input.requesterMedalLevel),
-    createdAt,
-    createdAt
-  );
-
-  return normalizeSuperChatRow(superChatDb.prepare('SELECT * FROM super_chats WHERE id = ?').get(Number(result.lastInsertRowid)));
+  return scService.addSuperChatItem({ db: { superChatDb } }, input);
 }
 
 function addGiftEvent(input) {
@@ -1758,25 +1520,7 @@ function resetGiftSprintProgress() {
 }
 
 function handleSuperChatAction(action, rawId) {
-  const id = Number(rawId);
-  if (!Number.isFinite(id)) {
-    throw new Error('缺少 SC ID。');
-  }
-
-  const updatedAt = now();
-  if (action === 'delete') {
-    superChatDb.prepare('UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ?')
-      .run('deleted', updatedAt, id);
-    return getSuperChatSnapshot();
-  }
-
-  if (action === 'assist' || action === 'unassist') {
-    superChatDb.prepare('UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ?')
-      .run(action === 'assist' ? 'assisted' : 'active', updatedAt, id);
-    return getSuperChatSnapshot();
-  }
-
-  throw new Error('未知 SC 操作。');
+  return scService.handleSuperChatAction({ db: { superChatDb } }, action, rawId);
 }
 
 function handleQueueAction(action, rawId) {
@@ -3702,205 +3446,6 @@ function sendWebSocket(socket, payload) {
 
 function servePageOrAsset(req, res, requestUrl) {
   httpUtils.servePageOrAsset(PUBLIC_DIR, req, res, requestUrl);
-}
-
-function contentType(filePath) {
-  return httpUtils.contentType(filePath);
-}
-
-function readJsonBody(req) {
-  return httpUtils.readJsonBody(req, MAX_BODY_BYTES);
-}
-
-function sendJson(res, status, payload) {
-  httpUtils.sendJson(res, status, payload);
-}
-
-function sendCsv(res, filename, content) {
-  httpUtils.sendCsv(res, filename, content);
-}
-
-function sendBuffer(res, status, contentTypeValue, filename, content) {
-  httpUtils.sendBuffer(res, status, contentTypeValue, filename, content);
-}
-
-function buildSongsCsv(rows) {
-	return sharedUtils.buildSongsCsv(rows);
-}function templateSongs() {
-	return sharedUtils.templateSongs();
-}function songToExportRow(song) {
-	return sharedUtils.songToExportRow(song);
-}function parseSongsFromXlsx(buffer) {
-	return sharedUtils.parseSongsFromXlsx(buffer);
-}function parseWorksheetXml(xml, sharedStrings) {
-	return sharedUtils.parseWorksheetXml(xml, sharedStrings);
-}function readWorksheetCell(attrs, body, sharedStrings) {
-	return sharedUtils.readWorksheetCell(attrs, body, sharedStrings);
-}function parseSharedStrings(xml) {
-	return sharedUtils.parseSharedStrings(xml);
-}function extractXmlTexts(xml) {
-	return sharedUtils.extractXmlTexts(xml);
-}function readZipFiles(buffer) {
-	return sharedUtils.readZipFiles(buffer);
-}function findEndOfCentralDirectory(buffer) {
-	return sharedUtils.findEndOfCentralDirectory(buffer);
-}function buildSongsWorkbook(rows) {
-	return sharedUtils.buildSongsWorkbook(rows);
-}function createZip(files) {
-	return sharedUtils.createZip(files);
-}async function listenWithFallback(startPort, host = HOST) {
-  for (let port = startPort; port < startPort + 20; port += 1) {
-    const ok = await tryListen(port, host);
-    if (ok) return port;
-  }
-  throw new Error(`No available local port from ${startPort} to ${startPort + 19}.`);
-}
-
-function tryListen(port, host = HOST) {
-  return new Promise((resolve) => {
-    const onError = () => {
-      server.off('listening', onListening);
-      resolve(false);
-    };
-    const onListening = () => {
-      server.off('error', onError);
-      resolve(true);
-    };
-    server.once('error', onError);
-    server.once('listening', onListening);
-    server.listen(port, host);
-  });
-}
-
-async function cleanupOwnPortOccupant(port, host = HOST) {
-  if (port !== 3000) return;
-
-  const health = await readLocalHealth(port, host);
-  if (!health || !health.ok || !isOwnServiceHealth(health.data)) return;
-
-  console.log(`Found previous song helper service on ${host}:${port}; asking it to shut down...`);
-  await requestLocalShutdown(port, host);
-  if (await waitForPortRelease(port, host, PORT_CLEANUP_TIMEOUT_MS)) return;
-
-  const pid = Number(health.data && health.data.pid);
-  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return;
-
-  const processInfo = getProcessInfo(pid);
-  if (!isOwnProcessInfo(processInfo)) return;
-
-  console.log(`Previous service did not exit cleanly; stopping pid ${pid}.`);
-  try {
-    process.kill(pid, 'SIGTERM');
-  } catch (error) {
-    console.warn(`Could not stop previous service pid ${pid}: ${error.message}`);
-    return;
-  }
-  await waitForPortRelease(port, host, PORT_CLEANUP_TIMEOUT_MS);
-}
-
-async function readLocalHealth(port, host = HOST) {
-  try {
-    const response = await fetch(`http://${toLocalHost(host)}:${port}/api/health`, {
-      signal: AbortSignal.timeout(500)
-    });
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (_) {
-    return null;
-  }
-}
-
-async function requestLocalShutdown(port, host = HOST) {
-  try {
-    await fetch(`http://${toLocalHost(host)}:${port}/api/system/shutdown`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: true }),
-      signal: AbortSignal.timeout(500)
-    });
-  } catch (_) {
-    // The previous process can close the connection while shutting down.
-  }
-}
-
-async function waitForPortRelease(port, host = HOST, timeoutMs = PORT_CLEANUP_TIMEOUT_MS) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (!(await canConnectToPort(port, host))) return true;
-    await sleep(PORT_CLEANUP_POLL_MS);
-  }
-  return false;
-}
-
-function canConnectToPort(port, host = HOST) {
-  return new Promise((resolve) => {
-    const req = http.request({
-      host: toLocalHost(host),
-      port,
-      path: '/api/health',
-      method: 'GET',
-      timeout: 250
-    }, (res) => {
-      res.resume();
-      resolve(true);
-    });
-    req.on('timeout', () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.on('error', () => resolve(false));
-    req.end();
-  });
-}
-
-function isOwnServiceHealth(data) {
-  if (!data || typeof data !== 'object') return false;
-  const healthRoot = normalizePathForCompare(data.rootDir);
-  const healthData = normalizePathForCompare(data.dataDir);
-  const ownRoot = normalizePathForCompare(ROOT_DIR);
-  const ownData = normalizePathForCompare(DATA_DIR);
-
-  return (healthRoot && healthRoot === ownRoot)
-    || (healthData && healthData === ownData);
-}
-
-function getProcessInfo(pid) {
-  if (process.platform !== 'win32') return null;
-  try {
-    const output = childProcess.execFileSync('powershell.exe', [
-      '-NoProfile',
-      '-Command',
-      `Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" | Select-Object -First 1 ExecutablePath,CommandLine | ConvertTo-Json -Compress`
-    ], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 1200
-    });
-    return output.trim() ? JSON.parse(output) : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function isOwnProcessInfo(info) {
-  if (!info || typeof info !== 'object') return false;
-  const executablePath = normalizePathForCompare(info.ExecutablePath || '');
-  const commandLine = String(info.CommandLine || '').toLowerCase();
-  const ownRoot = normalizePathForCompare(ROOT_DIR);
-
-  return (executablePath && executablePath.endsWith('\\点歌助手.exe'))
-    || (ownRoot && commandLine.includes(ownRoot.toLowerCase()))
-    || commandLine.includes('src\\server.js')
-    || commandLine.includes('src/server.js');
-}
-
-function toLocalHost(host) {
-  return host === 'localhost' ? '127.0.0.1' : host;
-}
-
-function normalizePathForCompare(value) {
-  if (!value) return '';
-  return path.resolve(String(value)).replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase();
 }
 
 function cleanText(value) {
