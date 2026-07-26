@@ -10,7 +10,7 @@ Bilibili 直播弹幕点歌工具。运行在主播电脑本地，观众弹幕�
 
 ## 安装使用
 
-从 [Releases](https://github.com/AuroraWhisperer/Request-song/releases) 下载最新安装包，双击安装即可。桌面版内置本地服务和浏览器管理页，更新不会清空歌库。
+从 [Releases](https://github.com/AuroraWhisperer/Request-song/releases) 下载最新安装包，双击安装即可。
 
 ## 主要功能
 
