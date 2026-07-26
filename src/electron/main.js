@@ -18,6 +18,7 @@ const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song-for-bil
 let mainWindow = null;
 let shutdownApplication = null;
 let gracefulQuitStarted = false;
+let forceQuitTimer = null;
 let dataDir = '';
 let logDir = '';
 let logFile = '';
@@ -58,9 +59,20 @@ app.on('before-quit', (event) => {
 
   event.preventDefault();
   gracefulQuitStarted = true;
+  forceQuitTimer = setTimeout(() => {
+    app.releaseSingleInstanceLock();
+    app.exit(0);
+  }, 5000);
   shutdownApplication({ exitProcess: false })
     .catch((error) => console.warn(`Shutdown failed: ${error.message}`))
-    .finally(() => app.quit());
+    .finally(() => {
+      if (forceQuitTimer) {
+        clearTimeout(forceQuitTimer);
+        forceQuitTimer = null;
+      }
+      app.releaseSingleInstanceLock();
+      app.exit(0);
+    });
 });
 
 async function startDesktopApp() {
@@ -78,11 +90,7 @@ async function startDesktopApp() {
 
   createMainWindow(serverInfo.baseUrl);
 
-  if (app.isPackaged) {
-    setTimeout(() => {
-      checkForUpdates().catch((error) => setUpdateError(error));
-    }, 3000);
-  } else {
+  if (!app.isPackaged) {
     setUpdateState({
       status: 'dev-disabled',
       message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
@@ -132,6 +140,11 @@ function createMainWindow(baseUrl) {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     sendUpdateState();
+    if (app.isPackaged) {
+      setTimeout(() => {
+        checkForUpdates().catch((error) => setUpdateError(error));
+      }, 1000);
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -174,7 +187,7 @@ function configureUpdateIpc() {
 }
 
 function configureAutoUpdater() {
-  autoUpdater.autoDownload = false;
+  autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
   autoUpdater.disableDifferentialDownload = false;
@@ -279,11 +292,13 @@ function installUpdate() {
   if (!updateState.canInstall) return updateState;
   setUpdateState({
     status: 'installing',
-    message: '正在重启并安装更新...',
+    message: '正在重启并静默更新...',
     canDownload: false,
     canInstall: false
   });
-  autoUpdater.quitAndInstall(false, true);
+  gracefulQuitStarted = true;
+  app.releaseSingleInstanceLock();
+  autoUpdater.quitAndInstall(true, true);
   return updateState;
 }
 

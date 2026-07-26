@@ -1,4 +1,3 @@
-// 日期：2026-07-24
 // 编写人：Aurora
 // 当前项目版本：1.0.0
 'use strict';
@@ -6,7 +5,8 @@
 let appState = null;
 let songs = [];
 let categories = [];
-let toastTimer = null;
+let activeToastKeys = new Set();
+let desktopUpdateNoticeKey = '';
 let songReloadTimer = null;
 let shuttingDown = false;
 let metricsRunning = false;
@@ -1150,7 +1150,7 @@ function initDesktopShell() {
   }
   if (installButton) {
     installButton.addEventListener('click', () => {
-      if (!confirm('确认重启并安装更新？')) return;
+      if (!confirm('确认重启并更新到新版本？')) return;
       runDesktopAction(() => desktop.installUpdate());
     });
   }
@@ -1165,12 +1165,12 @@ function initDesktopShell() {
   }
 
   desktop.onShowUpdatePage(showDesktopUpdatePage);
-  desktop.onUpdateState(renderDesktopUpdateState);
+  desktop.onUpdateState(handleDesktopUpdateState);
   desktop.getInfo()
     .then((info) => {
       const versionNode = document.getElementById('desktopVersionPill');
       if (versionNode) versionNode.textContent = `版本 ${info.version || '--'}`;
-      renderDesktopUpdateState(info.updateState);
+      handleDesktopUpdateState(info.updateState);
     })
     .catch(showError);
 }
@@ -1186,12 +1186,58 @@ function showDesktopUpdatePage() {
   page.classList.add('active');
 }
 
+function handleDesktopUpdateState(state) {
+  renderDesktopUpdateState(state);
+  maybeShowDesktopUpdateNotice(state);
+}
+
+function maybeShowDesktopUpdateNotice(state) {
+  if (!state || (state.status !== 'available' && state.status !== 'downloaded')) return;
+
+  const updateVersion = state.updateVersion || state.version || '';
+  const noticeKey = updateVersion || state.status;
+  if (desktopUpdateNoticeKey === noticeKey) return;
+
+  desktopUpdateNoticeKey = noticeKey;
+  showDesktopUpdateNotice(updateVersion, state.status);
+}
+
+function showDesktopUpdateNotice(updateVersion, status) {
+  const versionText = updateVersion ? ` v${updateVersion}` : '';
+  const title = status === 'downloaded'
+    ? `更新${versionText}已下载`
+    : `发现新版本${versionText}`;
+  const body = status === 'downloaded'
+    ? '点击前往桌面版更新页面，重启后完成安装。'
+    : '点击前往桌面版更新页面处理更新。';
+
+  showStackedToast({
+    key: `desktop-update:${updateVersion || status}`,
+    title,
+    message: body,
+    className: 'desktop-update-toast',
+    duration: 3000,
+    onClick: showDesktopUpdatePage
+  });
+}
+
+function showDesktopNoUpdateNotice(message) {
+  showStackedToast({
+    key: 'desktop-update:not-available',
+    title: '已经是最新版本',
+    message: message || '当前版本不需要更新。',
+    className: 'desktop-update-toast',
+    duration: 3000,
+    onClick: showDesktopUpdatePage
+  });
+}
+
 async function runDesktopAction(action, shouldRender = true) {
   try {
     const state = await action();
     if (shouldRender) {
       renderDesktopUpdateState(state);
-      if (state && state.status === 'not-available') toast(desktopUpdateStatusText(state));
+      if (state && state.status === 'not-available') showDesktopNoUpdateNotice(desktopUpdateStatusText(state));
     }
   } catch (error) {
     if (shouldRender) {
@@ -1244,7 +1290,7 @@ function renderDesktopUpdateState(state) {
 
 function desktopUpdateHintText(state) {
   if (state.status === 'available') return '新版本来自 GitHub Releases。若 blockmap 可用，会优先下载变化的部分。';
-  if (state.status === 'downloaded') return '更新已经就绪，建议在直播结束后应用更新。';
+  if (state.status === 'downloaded') return '更新已经就绪，建议在直播结束后重启更新。';
   if (state.status === 'dev-disabled') return '当前是开发模式；打包安装后的 exe 会自动检查 GitHub 更新。';
   if (state.status === 'not-available') return '发布新版本时，需要把安装包、blockmap 和 latest.yml 上传到 GitHub Releases。';
   if (state.status === 'error') return '详细错误已写入本机日志；界面只显示可操作的简短状态。';
@@ -1846,13 +1892,52 @@ function formatMoney(value) {
 }
 
 function toast(message) {
-  const node = document.getElementById('toast');
-  node.textContent = message;
-  node.classList.remove('show');
+  showStackedToast({
+    key: `toast:${message}`,
+    message,
+    duration: 2600
+  });
+}
+
+function showStackedToast(options) {
+  const container = document.getElementById('toast');
+  if (!container) return;
+
+  const key = options.key || `toast:${options.title || ''}:${options.message || ''}`;
+  if (activeToastKeys.has(key)) return;
+  activeToastKeys.add(key);
+
+  const node = document.createElement('div');
+  node.className = `toast${options.className ? ` ${options.className}` : ''}`;
+  if (options.title) {
+    node.innerHTML = `<strong>${escapeHtml(options.title)}</strong><span>${escapeHtml(options.message || '')}</span>`;
+  } else {
+    node.textContent = options.message || '';
+  }
+
+  if (typeof options.onClick === 'function') {
+    node.setAttribute('role', 'button');
+    node.setAttribute('tabindex', '0');
+    node.addEventListener('click', options.onClick);
+    node.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      options.onClick();
+    });
+  }
+
+  container.prepend(node);
   void node.offsetWidth;
   node.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => node.classList.remove('show'), 2600);
+
+  const duration = Number.isFinite(Number(options.duration)) ? Number(options.duration) : 2600;
+  setTimeout(() => {
+    node.classList.remove('show');
+    setTimeout(() => {
+      activeToastKeys.delete(key);
+      node.remove();
+    }, 180);
+  }, duration);
 }
 
 function debounce(fn, wait) {
