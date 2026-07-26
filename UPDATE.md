@@ -1,6 +1,6 @@
 # 打包与更新说明
 
-当前版本：`1.1.0`
+当前版本：`1.1.1`
 
 ## 本机打包
 
@@ -12,8 +12,8 @@ npm.cmd run dist:win
 生成文件在 `release/`：
 
 ```text
-bilibili-live-song-plugin-setup-1.1.0.exe
-bilibili-live-song-plugin-setup-1.1.0.exe.blockmap
+bilibili-live-song-plugin-setup-1.1.1.exe
+bilibili-live-song-plugin-setup-1.1.1.exe.blockmap
 latest.yml
 ```
 

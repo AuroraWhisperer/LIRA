@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 当前项目版本：1.1.0
+// 当前项目版本：1.1.1
 'use strict';
 
 let appState = null;
@@ -1226,8 +1226,8 @@ function showDesktopNoUpdateNotice(message) {
     key: 'desktop-update:not-available',
     title: '已经是最新版本',
     message: message || '当前版本不需要更新。',
-    className: 'desktop-update-toast',
-    duration: 3000,
+    className: 'desktop-update-toast desktop-update-toast-good',
+    duration: 4200,
     onClick: showDesktopUpdatePage
   });
 }
@@ -1279,9 +1279,11 @@ function renderDesktopUpdateState(state) {
   }
   if (checkButton) {
     checkButton.disabled = state.status === 'checking' || state.status === 'downloading' || state.status === 'installing';
+    checkButton.textContent = state.status === 'checking' ? '检查中...' : '检查更新';
   }
   if (downloadButton) {
     downloadButton.disabled = !state.canDownload;
+    downloadButton.textContent = state.status === 'downloading' ? '下载中...' : '下载更新';
   }
   if (installButton) {
     installButton.disabled = !state.canInstall;
