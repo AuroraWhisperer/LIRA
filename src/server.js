@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.2.3
+// 当前项目版本：1.2.4
 'use strict';
 
 const http = require('node:http');
@@ -356,6 +356,16 @@ let blivedmCompatibility = {
   supportedGiftCommands: [],
   missingGiftCommands: []
 };
+const bilibiliDiagnostics = {
+  lastPacketAt: '',
+  lastCommandAt: '',
+  lastGiftAt: '',
+  parsedGiftCount: 0,
+  unparsedGiftCount: 0,
+  commandCounts: {},
+  recentCommands: [],
+  recentGiftLikeCommands: []
+};
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -544,17 +554,58 @@ async function checkBlivedmCompatibility() {
 }
 
 async function fetchTextWithTimeout(url, timeoutMs) {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'bilibili-live-song-plugin',
-      'Accept': 'text/plain, */*'
-    },
-    signal: AbortSignal.timeout(timeoutMs)
-  });
-  if (!response.ok) {
-    throw new Error(`GitHub HTTP ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'bilibili-live-song-plugin',
+        'Accept': 'text/plain, */*'
+      },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (!response.ok) {
+      throw new Error(`GitHub HTTP ${response.status}`);
+    }
+    return response.text();
+  } catch (error) {
+    if (process.platform !== 'win32') throw error;
+    console.warn(`[Bilibili] GitHub fetch failed, trying PowerShell fallback: ${error.message}`);
+    return fetchTextWithPowerShell(url, timeoutMs);
   }
-  return response.text();
+}
+
+function fetchTextWithPowerShell(url, timeoutMs) {
+  const timeoutSec = Math.max(5, Math.ceil(timeoutMs / 1000));
+  const command = [
+    '$ProgressPreference = "SilentlyContinue";',
+    `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;`,
+    `$response = Invoke-WebRequest -Uri '${escapePowerShellSingleQuoted(url)}' -UseBasicParsing -TimeoutSec ${timeoutSec};`,
+    '$response.Content'
+  ].join(' ');
+
+  return new Promise((resolve, reject) => {
+    childProcess.execFile('powershell.exe', [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      command
+    ], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: timeoutMs + 3000,
+      maxBuffer: 2 * 1024 * 1024
+    }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(`PowerShell fallback failed: ${error.message}${stderr ? ` ${stderr.trim()}` : ''}`));
+        return;
+      }
+      resolve(stdout);
+    });
+  });
+}
+
+function escapePowerShellSingleQuoted(value) {
+  return String(value || '').replace(/'/g, "''");
 }
 
 function extractBlivedmGiftCommands(text) {
@@ -595,6 +646,29 @@ function getSupportedBilibiliGiftCommands() {
 function isSupportedBilibiliGiftCommand(cmd, supportedCommands = getSupportedBilibiliGiftCommands()) {
   const text = cleanText(cmd);
   return supportedCommands.some((supported) => text === supported || text.startsWith(`${supported}_`));
+}
+
+function recordBilibiliCommandDiagnostic(cmd) {
+  const text = cleanText(cmd);
+  if (!text) return;
+  bilibiliDiagnostics.lastCommandAt = now();
+  bilibiliDiagnostics.commandCounts[text] = (bilibiliDiagnostics.commandCounts[text] || 0) + 1;
+  bilibiliDiagnostics.recentCommands.unshift({
+    cmd: text,
+    at: bilibiliDiagnostics.lastCommandAt
+  });
+  bilibiliDiagnostics.recentCommands = bilibiliDiagnostics.recentCommands.slice(0, 20);
+}
+
+function recordBilibiliGiftDiagnostic(cmd, reason) {
+  const text = cleanText(cmd) || 'UNKNOWN';
+  bilibiliDiagnostics.unparsedGiftCount += 1;
+  bilibiliDiagnostics.recentGiftLikeCommands.unshift({
+    cmd: text,
+    reason: cleanText(reason),
+    at: now()
+  });
+  bilibiliDiagnostics.recentGiftLikeCommands = bilibiliDiagnostics.recentGiftLikeCommands.slice(0, 20);
 }
 
 if (require.main === module) {
@@ -879,7 +953,8 @@ function getState() {
     categories: listCategories(),
     songCount: songDb.prepare('SELECT COUNT(*) AS count FROM songs').get().count,
     liveStatus,
-    blivedmCompatibility
+    blivedmCompatibility,
+    bilibiliDiagnostics
   };
 }
 
@@ -1065,7 +1140,7 @@ function getGiftSnapshot() {
   const recent = giftDb.prepare(`
     SELECT *
     FROM gift_events
-    WHERE status = 'active' AND counted_in_sprint = 1
+    WHERE status = 'active'
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 30
   `).all().map(normalizeGiftRow);
@@ -3127,7 +3202,9 @@ class BilibiliDanmakuClient {
       const data = event.data instanceof ArrayBuffer
         ? Buffer.from(event.data)
         : Buffer.from(await event.data.arrayBuffer());
+      bilibiliDiagnostics.lastPacketAt = now();
       for (const message of parseBilibiliPackets(data)) {
+        recordBilibiliCommandDiagnostic(message && message.cmd);
         if (message.cmd && String(message.cmd).startsWith('DANMU_MSG')) {
           const info = message.info || [];
           const userInfo = info[2] || [];
@@ -3211,8 +3288,11 @@ class BilibiliDanmakuClient {
           const gift = extractBilibiliGiftMessage(message);
           if (!gift) {
             logUnparsedGiftLikeCommand(message, 'known-gift-command');
+            recordBilibiliGiftDiagnostic(message.cmd, 'known-gift-command');
             continue;
           }
+          bilibiliDiagnostics.lastGiftAt = now();
+          bilibiliDiagnostics.parsedGiftCount += 1;
           const requester = this.resolveRequesterIdentity({
             uid: gift.uid,
             userName: gift.userName
@@ -3224,6 +3304,7 @@ class BilibiliDanmakuClient {
           });
         } else if (isBilibiliGiftLikeCommand(message.cmd)) {
           logUnparsedGiftLikeCommand(message, 'gift-like-command');
+          recordBilibiliGiftDiagnostic(message.cmd, 'gift-like-command');
         }
       }
     });

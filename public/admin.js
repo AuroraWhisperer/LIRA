@@ -833,7 +833,7 @@ function renderState() {
   const totalCount = queueItems.length;
   document.getElementById('queueSize').textContent = `${totalCount} 首`;
   renderSuperChatQueue(superChats);
-  renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.blivedmCompatibility || {});
+  renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.blivedmCompatibility || {}, appState.bilibiliDiagnostics || {});
 
   const live = appState.liveStatus || {};
   const liveStatus = document.getElementById('liveStatus');
@@ -913,7 +913,7 @@ function renderSuperChatQueue(items) {
   });
 }
 
-function renderGiftPanel(gifts, sprint, live, compatibility) {
+function renderGiftPanel(gifts, sprint, live, compatibility, diagnostics) {
   const status = document.getElementById('giftSprintStatus');
   if (!status) return;
 
@@ -936,6 +936,7 @@ function renderGiftPanel(gifts, sprint, live, compatibility) {
   notifyNewGift(recent);
   renderGiftRecentList(recent);
   renderGiftCompatibilityStatus(compatibility);
+  renderGiftDiagnosticsStatus(diagnostics);
 }
 
 function renderGiftCompatibilityStatus(compatibility) {
@@ -959,6 +960,28 @@ function renderGiftCompatibilityStatus(compatibility) {
   } else {
     node.textContent = compatibility.message || 'blivedm 协议检查等待中';
   }
+}
+
+function renderGiftDiagnosticsStatus(diagnostics) {
+  const node = document.getElementById('giftDiagnosticsStatus');
+  if (!node) return;
+
+  const recentCommands = Array.isArray(diagnostics.recentCommands) ? diagnostics.recentCommands : [];
+  const recentGiftLike = Array.isArray(diagnostics.recentGiftLikeCommands) ? diagnostics.recentGiftLikeCommands : [];
+  const lastCommand = recentCommands[0];
+  const lastGiftLike = recentGiftLike[0];
+  const parts = [];
+  if (diagnostics.lastPacketAt) {
+    parts.push(`最近收包 ${formatTime(diagnostics.lastPacketAt)}`);
+  }
+  if (lastCommand) {
+    parts.push(`最近 CMD ${lastCommand.cmd}`);
+  }
+  parts.push(`已解析礼物 ${Number(diagnostics.parsedGiftCount || 0)} 条`);
+  if (lastGiftLike) {
+    parts.push(`未解析礼物类 ${lastGiftLike.cmd}（${lastGiftLike.reason || 'unknown'}）`);
+  }
+  node.textContent = parts.join(' · ') || '等待直播消息诊断';
 }
 
 function notifyNewGift(items) {
