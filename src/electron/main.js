@@ -181,6 +181,20 @@ function configureUpdateIpc() {
   ipcMain.handle('desktop:open-data-dir', function () { return dataDir ? shell.openPath(dataDir) : ''; });
   ipcMain.handle('desktop:open-log-dir', function () { return logDir ? shell.openPath(logDir) : ''; });
   ipcMain.handle('desktop:open-github', function () { return shell.openExternal(GITHUB_REPO_URL); });
+  ipcMain.handle('desktop:restart', async function () {
+    try {
+      if (shutdownApplication) {
+        await shutdownApplication({ exitProcess: false });
+      }
+    } catch (_) {
+      // Server may already be stopped.
+    }
+    app.relaunch();
+    app.exit(0);
+  });
+  ipcMain.handle('desktop:close-window', function () {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  });
 }
 
 function configureMusicIpc() {

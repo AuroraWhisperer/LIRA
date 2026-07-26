@@ -189,6 +189,17 @@ function desktopUpdateHintText(state) {
   return '桌面版会保留本地数据目录，更新 exe 不会清空歌库。';
 }
 
+function desktopActionErrorMessage(error) {
+  const text = String((error && error.message) || error || '');
+  if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
+    return '当前 GitHub Releases 里还没有可用更新包。';
+  }
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
+    return '暂时无法连接 GitHub 更新服务，请稍后再试。';
+  }
+  return '操作失败，详细原因已写入日志。';
+}
+
 function desktopUpdateStatusText(state) {
   const fallback = '等待检查更新';
   const message = String((state && state.message) || fallback).replace(/\s+/g, ' ').trim();

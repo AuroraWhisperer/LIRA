@@ -1104,23 +1104,74 @@ async function shutdownServer() {
     return;
   }
   shuttingDown = true;
-  await api('/api/system/shutdown', { confirm: true });
-  toast('正在退出程序');
   document.getElementById('shutdownBtn').disabled = true;
   document.getElementById('shutdownBtn').textContent = '正在退出';
   document.getElementById('wsStatus').textContent = '正在退出';
-  setTimeout(() => {
-    document.body.innerHTML = `
-      <main class="app-shell">
-        <section class="panel">
-          <div class="panel-body stack">
-            <h1>点歌助手已退出</h1>
-            <p>本地服务已关闭，端口已释放。再次使用时双击项目里的 <code>一键启动.bat</code>。</p>
-          </div>
-        </section>
-      </main>
-    `;
-  }, 700);
+  document.getElementById('wsStatus').className = 'pill warn';
+
+  try {
+    await api('/api/system/shutdown', { confirm: true });
+  } catch (_) {
+    // Server may close before responding.
+  }
+
+  const isDesktop = !!window.songAssistantDesktop;
+  const hintText = isDesktop
+    ? '点击下方按钮重新启动点歌助手，恢复直播服务。'
+    : '本地服务已关闭，端口已释放。<br>再次使用时双击项目里的 <code>一键启动.bat</code>。';
+
+  document.body.innerHTML = `
+    <main class="app-shell shutdown-screen">
+      <section class="shutdown-card">
+        <div class="shutdown-icon" aria-hidden="true">
+          <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+            <circle cx="36" cy="36" r="34" stroke="currentColor" stroke-width="2.5" opacity="0.25"/>
+            <circle cx="36" cy="36" r="30" stroke="currentColor" stroke-width="1.5" opacity="0.12"/>
+            <path d="M36 16V36M36 46.5V48" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="36" cy="56" r="2.5" fill="currentColor" opacity="0.7"/>
+          </svg>
+        </div>
+
+        <h1 class="shutdown-title">点歌助手已退出</h1>
+        <p class="shutdown-subtitle">本地服务已安全关闭</p>
+
+        <ul class="shutdown-checklist">
+          <li><span class="check-mark">✓</span> 本地 HTTP 服务已停止</li>
+          <li><span class="check-mark">✓</span> 端口已释放</li>
+          <li><span class="check-mark">✓</span> 弹幕监听已断开</li>
+          <li><span class="check-mark">✓</span> 数据已保存</li>
+        </ul>
+
+        <div class="shutdown-actions">
+          ${isDesktop ? `<button id="restartAppBtn" class="primary shutdown-restart-btn" type="button">🔄 重新启动</button>` : ''}
+          <button id="closeWindowBtn" class="${isDesktop ? '' : 'primary'}" type="button">${isDesktop ? '关闭窗口' : '关闭页面'}</button>
+        </div>
+
+        <p class="shutdown-hint">${hintText}</p>
+      </section>
+    </main>
+  `;
+
+  if (isDesktop) {
+    document.getElementById('restartAppBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('restartAppBtn');
+      btn.disabled = true;
+      btn.textContent = '正在重新启动…';
+      try {
+        await window.songAssistantDesktop.restart();
+      } catch (_) {
+        btn.textContent = '重启失败，请手动启动';
+      }
+    });
+  }
+
+  document.getElementById('closeWindowBtn').addEventListener('click', () => {
+    if (isDesktop) {
+      window.songAssistantDesktop.closeWindow();
+    } else {
+      window.close();
+    }
+  });
 }
 
 async function reconnectBilibili() {

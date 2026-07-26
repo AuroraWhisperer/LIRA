@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('songAssistantDesktop', {
   checkForUpdates: () => ipcRenderer.invoke('desktop:check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('desktop:download-update'),
   installUpdate: () => ipcRenderer.invoke('desktop:install-update'),
+  restart: () => ipcRenderer.invoke('desktop:restart'),
+  closeWindow: () => ipcRenderer.invoke('desktop:close-window'),
   openDataDir: () => ipcRenderer.invoke('desktop:open-data-dir'),
   openLogDir: () => ipcRenderer.invoke('desktop:open-log-dir'),
   openGithub: () => ipcRenderer.invoke('desktop:open-github'),
