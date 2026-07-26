@@ -23,6 +23,8 @@ const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { initLyricsService } = require('./music/lyrics-service');
 const scService = require('./bilibili/superchat-service');
 const blivedmCompat = require('./bilibili/blivedm-compat');
+const bilibiliMsg = require('./bilibili/bilibili-message-handler');
+const songService = require('./music/song-service');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -1518,109 +1520,19 @@ function clearActiveQueueOnStartup() {
   }
 }
 
-function handleDanmakuMessage({
-  message,
-  userName,
-  uid,
-  source,
-  messageTimestamp,
-  requesterGuardLevel,
-  requesterMedalName,
-  requesterMedalLevel,
-  isPinned
-}) {
-  const text = cleanText(message);
-  const settings = getSettings();
-  const command = parseDanmakuCommand(text, settings);
-  if (!command) {
-    return { accepted: false, reason: '不是点歌指令。' };
-  }
-
-  if (settings.paused === 'true') {
-    return { accepted: false, reason: '当前已暂停接收点歌。', command };
-  }
-
-  const cooldownSeconds = Number(settings.userCooldownSeconds || DEFAULT_SETTINGS.userCooldownSeconds);
-  const cooldownKey = cleanText(uid) || cleanText(userName) || 'anonymous';
-  const lastAt = cooldownByUser.get(cooldownKey) || 0;
-  const elapsedSeconds = (Date.now() - lastAt) / 1000;
-  if (cooldownSeconds > 0 && elapsedSeconds < cooldownSeconds) {
-    return {
-      accepted: false,
-      reason: `用户冷却中，还需 ${Math.ceil(cooldownSeconds - elapsedSeconds)} 秒。`,
-      command
-    };
-  }
-
-  let queueItem;
-  if (command.type === 'random') {
-    const song = pickRandomSong(command.scopeText);
-    if (!song) {
-      return {
-        accepted: false,
-        reason: command.scopeText ? `没有找到歌手、风格或语言「${command.scopeText}」里的可随机歌曲。` : '歌库里还没有可随机歌曲。',
-        command
-      };
-    }
-    queueItem = addQueueItem({
-      songName: song.name,
-      artist: song.artist,
-      categoryName: song.category_name,
-      requesterName: userName,
-      requesterUid: uid,
-      requesterGuardLevel,
-      requesterMedalName,
-      requesterMedalLevel,
-      source: randomSourceValue(command.scopeText),
-      message: text,
-      messageTimestamp,
-      isPinned
-    });
-  } else {
-    queueItem = addQueueItem({
-      songName: command.songName,
-      requesterName: userName,
-      requesterUid: uid,
-      requesterGuardLevel,
-      requesterMedalName,
-      requesterMedalLevel,
-      source: source || 'danmaku',
-      message: text,
-      messageTimestamp,
-      isPinned
-    });
-  }
-
-  cooldownByUser.set(cooldownKey, Date.now());
-  return { accepted: true, command, queueItem };
+function handleDanmakuMessage(danmaku) {
+  return bilibiliMsg.handleDanmakuMessage({
+    settings: getSettings,
+    settingsStore: { getDefaultSettings: () => DEFAULT_SETTINGS },
+    state: { cooldownByUser },
+    songService: { pickRandomSong: (db, scope) => pickRandomSong(scope) },
+    addQueueItem: (input) => addQueueItem(input),
+    db: { songDb }
+  }, danmaku);
 }
 
-function parseDanmakuCommand(message, settings = getSettings()) {
-  const text = cleanText(message);
-  if (!text) return null;
-
-  if (text.startsWith('随机点歌')) {
-    return { type: 'random', scopeText: normalizeRandomScopeText(text.slice('随机点歌'.length)) };
-  }
-
-  if (text.startsWith('随机 ')) {
-    return { type: 'random', scopeText: normalizeRandomScopeText(text.slice('随机 '.length)) };
-  }
-
-  if (text.startsWith('随机') && text !== '随机') {
-    const scopeText = normalizeRandomScopeText(text.slice('随机'.length));
-    if (scopeText && scopeText !== '点歌') {
-      return { type: 'random', scopeText };
-    }
-  }
-
-  if (!text.startsWith('点歌')) {
-    return null;
-  }
-
-  const songName = cleanText(text.slice(2));
-  if (!songName) return null;
-  return { type: 'request', songName };
+function parseDanmakuCommand(message, settings) {
+  return bilibiliMsg.parseDanmakuCommand(message, settings || getSettings());
 }
 
 function findSong(songName, artist) {
