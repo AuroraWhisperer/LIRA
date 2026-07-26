@@ -1012,6 +1012,10 @@ tr:last-child td {
   contain: layout paint style;
 }
 
+.queue-classic {
+  width: min(405px, calc(100vw - 32px));
+}
+
 .overlay-panel.has-backdrop-blur {
   -webkit-backdrop-filter: blur(var(--overlay-blur, 0px));
   backdrop-filter: blur(var(--overlay-blur, 0px));

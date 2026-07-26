@@ -77,6 +77,7 @@ const DEFAULT_SETTINGS = {
   overlayShowIndex: 'true',
   overlayIndexThreshold: '0',
   overlayIndexColor: '#fbbf24',
+  queueFixedSixRows: 'true',
   overlayPin1: '',
   overlayPin2: '',
   overlayPin3: '',
@@ -549,20 +550,6 @@ async function handleApi(req, res, requestUrl) {
   if (pathName === '/api/gifts/sprint/reset') {
     const result = resetGiftSprintProgress();
     broadcastSnapshot('gift:sprint:reset');
-    sendJson(res, 200, { ok: true, data: result });
-    return;
-  }
-
-  if (pathName === '/api/danmaku/simulate') {
-    const result = handleDanmakuMessage({
-      message: body.message || '',
-      userName: body.userName || '模拟观众',
-      uid: body.uid || `mock-${Date.now()}`,
-      source: 'danmaku'
-    });
-    if (result.accepted) {
-      broadcastSnapshot('danmaku');
-    }
     sendJson(res, 200, { ok: true, data: result });
     return;
   }
@@ -4417,12 +4404,26 @@ function mergeRequesterIdentity(primary, fallback) {
   const extra = normalizeRequesterIdentity(fallback);
   return {
     uid: base.uid || extra.uid,
-    userName: base.userName || extra.userName,
+    userName: chooseRequesterUserName(base.userName, extra.userName),
     guardLevel: base.guardLevel || extra.guardLevel,
     medalName: base.medalName || extra.medalName,
     medalLevel: base.medalLevel || extra.medalLevel,
     seenAt: Math.max(base.seenAt, extra.seenAt)
   };
+}
+
+function chooseRequesterUserName(primary, fallback) {
+  if (!primary) return fallback;
+  if (!fallback) return primary;
+  if (isMaskedDisplayName(primary) && !isMaskedDisplayName(fallback)) {
+    return fallback;
+  }
+  return primary;
+}
+
+function isMaskedDisplayName(value) {
+  const text = cleanText(value);
+  return /\*{2,}/.test(text);
 }
 
 function requesterNameKey(value) {

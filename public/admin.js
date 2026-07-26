@@ -35,6 +35,7 @@ const defaultThemeLook = {
   overlayShowIndex: 'true',
   overlayIndexThreshold: '0',
   overlayIndexColor: '#fbbf24',
+  queueFixedSixRows: 'true',
   queueScrollMode: 'bounce',
   queueScrollSpeed: '80'
 };
@@ -1134,6 +1135,7 @@ function collectTheme() {
     overlayShowIndex: value('overlayShowIndex'),
     overlayIndexThreshold: value('overlayIndexThreshold'),
     overlayIndexColor: value('overlayIndexColor'),
+    queueFixedSixRows: value('queueFixedSixRows'),
     queueScrollMode: value('queueScrollMode'),
     queueScrollSpeed: normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed'))
   };

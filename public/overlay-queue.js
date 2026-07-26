@@ -4,6 +4,7 @@
 
 let state = null;
 let reconnectTimer = null;
+let forceReloadTimer = null;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +39,10 @@ function connectSocket() {
       if (payload.reason && payload.reason.startsWith('songs:')) {
         return;
       }
+      if (isSongRequestSnapshotReason(payload.reason)) {
+        scheduleForceReload();
+        return;
+      }
       const scrollState = payload.reason === 'queue:add' ? captureScrollAnimation() : null;
       state = payload.state;
       render();
@@ -51,6 +56,21 @@ function connectSocket() {
       connectSocket();
     }, 1600);
   });
+}
+
+function isSongRequestSnapshotReason(reason) {
+  return [
+    'queue:add',
+    'bilibili:danmaku',
+    'bilibili:superchat'
+  ].includes(reason);
+}
+
+function scheduleForceReload() {
+  clearTimeout(forceReloadTimer);
+  forceReloadTimer = setTimeout(() => {
+    location.reload();
+  }, 80);
 }
 
 function render() {
@@ -104,6 +124,7 @@ function renderClassicQueue(settings, current, waiting, content) {
   const rowStep = rowHeight + rowGap;
   const windowHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap);
   const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
+  const fixedSixRows = settings.queueFixedSixRows !== 'false';
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
   const shouldShowIndex = showIndex && (threshold === 0 || items.length > threshold);
@@ -133,7 +154,15 @@ function renderClassicQueue(settings, current, waiting, content) {
   const noIndexClass = shouldShowIndex ? '' : ' no-index';
 
   if (!shouldScroll) {
-    content.innerHTML = `<div class="overlay-waiting${noIndexClass}">${rowsHtml}</div>`;
+    content.innerHTML = fixedSixRows
+      ? `
+        <div class="classic-list-window">
+          <div class="classic-list${noIndexClass}">
+            ${rowsHtml}
+          </div>
+        </div>
+      `
+      : `<div class="overlay-waiting${noIndexClass}">${rowsHtml}</div>`;
     return;
   }
 
