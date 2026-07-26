@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.2.0
+// 当前项目版本：1.2.1
 'use strict';
 
 const http = require('node:http');
@@ -633,8 +633,26 @@ async function handleApi(req, res, requestUrl) {
   }
 
   if (pathName === '/api/bilibili/reconnect') {
-    configureBilibiliListener(true);
-    sendJson(res, 200, { ok: true, data: { liveStatus } });
+    try {
+      const result = await reconnectBilibiliListener();
+      sendJson(res, 200, { ok: true, data: result });
+    } catch (error) {
+      console.warn(`[Bilibili] manual reconnect failed: ${error.message}`);
+      const message = publicBilibiliErrorMessage(error, true);
+      updateLiveStatus({
+        connected: false,
+        enabled: true,
+        roomId: normalizeRoomInput(getSettings().roomId),
+        mode: 'bilibili',
+        message
+      });
+      sendJson(res, 500, {
+        ok: false,
+        error: message,
+        detail: error.message || String(error),
+        data: { liveStatus }
+      });
+    }
     return;
   }
 
@@ -2517,7 +2535,31 @@ function configureBilibiliListener(force = false) {
     bilibiliClient.stop();
   }
 
-  bilibiliClient = new BilibiliDanmakuClient(roomId, {
+  bilibiliClient = createBilibiliClient(roomId);
+  bilibiliClient.start();
+}
+
+async function reconnectBilibiliListener() {
+  const settings = getSettings();
+  const roomId = normalizeRoomInput(settings.roomId);
+  const enabled = settings.enableBilibili === 'true' && roomId;
+
+  if (!enabled) {
+    configureBilibiliListener(true);
+    return { liveStatus };
+  }
+
+  if (bilibiliClient) {
+    bilibiliClient.stop();
+  }
+
+  bilibiliClient = createBilibiliClient(roomId);
+  await bilibiliClient.restart();
+  return { liveStatus };
+}
+
+function createBilibiliClient(roomId) {
+  return new BilibiliDanmakuClient(roomId, {
     onMessage: (danmaku) => {
       try {
         const giftBotResult = handleGiftBotDanmaku(danmaku);
@@ -2578,7 +2620,6 @@ function configureBilibiliListener(force = false) {
     },
     onStatus: updateLiveStatus
   });
-  bilibiliClient.start();
 }
 
 function updateLiveStatus(nextStatus) {
@@ -2717,6 +2758,28 @@ class BilibiliDanmakuClient {
     });
   }
 
+  async restart() {
+    this.stopped = false;
+    this.startedAtMs = Date.now();
+    try {
+      await this.connect({ waitForOpen: true });
+    } catch (error) {
+      console.warn(`[Bilibili] reconnect failed: ${error.message}`);
+      const historyFallbackActive = Boolean(this.historyTimer);
+      this.report({
+        connected: historyFallbackActive,
+        enabled: true,
+        roomId: this.roomId,
+        mode: 'bilibili',
+        message: historyFallbackActive
+          ? '直播弹幕长连失败，历史消息监听中'
+          : publicBilibiliErrorMessage(error, true)
+      });
+      this.scheduleReconnect();
+      throw error;
+    }
+  }
+
   stop() {
     this.stopped = true;
     clearInterval(this.heartbeatTimer);
@@ -2742,7 +2805,7 @@ class BilibiliDanmakuClient {
     }
   }
 
-  async connect() {
+  async connect(options = {}) {
     this.report({
       connected: false,
       enabled: true,
@@ -2917,6 +2980,42 @@ class BilibiliDanmakuClient {
         mode: 'bilibili',
         message: '弹幕连接出现错误'
       });
+    });
+
+    if (options.waitForOpen) {
+      await this.waitForSocketOpen(ws);
+    }
+  }
+
+  waitForSocketOpen(ws) {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
+      }, 8000);
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        ws.removeEventListener('open', handleOpen);
+        ws.removeEventListener('error', handleError);
+        ws.removeEventListener('close', handleClose);
+      };
+      const handleOpen = () => {
+        cleanup();
+        resolve();
+      };
+      const handleError = () => {
+        cleanup();
+        reject(new Error('弹幕 WebSocket 连接失败。'));
+      };
+      const handleClose = () => {
+        cleanup();
+        reject(new Error('弹幕 WebSocket 连接已关闭。'));
+      };
+
+      ws.addEventListener('open', handleOpen);
+      ws.addEventListener('error', handleError);
+      ws.addEventListener('close', handleClose);
     });
   }
 
@@ -4189,6 +4288,12 @@ function publicBilibiliErrorMessage(error, isReconnect = false) {
   }
   if (message.includes('code=60004')) {
     return `${prefix}：直播间不存在，请检查房间号。`;
+  }
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(message)) {
+    return `${prefix}：无法连接 B站服务，请检查网络或稍后重试。`;
+  }
+  if (/non-JSON|Unexpected token|Unexpected end/i.test(message)) {
+    return `${prefix}：B站接口返回异常内容，请稍后重试。`;
   }
   if (message.includes('room_init')) {
     return `${prefix}：直播间信息获取失败，请检查房间号。`;

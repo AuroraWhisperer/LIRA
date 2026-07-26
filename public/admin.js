@@ -10,6 +10,7 @@ let desktopUpdateNoticeKey = '';
 let songReloadTimer = null;
 let shuttingDown = false;
 let metricsRunning = false;
+let latestGiftNoticeId = null;
 
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
@@ -831,7 +832,7 @@ function renderState() {
   const totalCount = queueItems.length;
   document.getElementById('queueSize').textContent = `${totalCount} 首`;
   renderSuperChatQueue(superChats);
-  renderGiftPanel(gifts, giftSprint);
+  renderGiftPanel(gifts, giftSprint, appState.liveStatus || {});
 
   const live = appState.liveStatus || {};
   const liveStatus = document.getElementById('liveStatus');
@@ -911,18 +912,43 @@ function renderSuperChatQueue(items) {
   });
 }
 
-function renderGiftPanel(gifts, sprint) {
+function renderGiftPanel(gifts, sprint, live) {
   const status = document.getElementById('giftSprintStatus');
   if (!status) return;
 
-  status.textContent = sprint.enabled ? '检测中' : '未开启';
-  status.className = sprint.enabled ? 'pill good' : 'pill warn';
+  if (!sprint.enabled) {
+    status.textContent = '未开启';
+    status.className = 'pill warn';
+  } else if (live.connected && !String(live.message || '').includes('历史消息监听中')) {
+    status.textContent = '礼物监听中';
+    status.className = 'pill good';
+  } else {
+    status.textContent = live.message || '直播监听未连接';
+    status.className = 'pill warn';
+  }
   document.getElementById('giftSprintTarget').textContent = formatMoney(sprint.targetRmb);
   document.getElementById('giftSprintReceived').textContent = formatMoney(sprint.receivedRmb);
   document.getElementById('giftSprintRemaining').textContent = formatMoney(sprint.remainingRmb);
   document.getElementById('giftSprintCrystalBalls').textContent = `${Number(sprint.remainingCrystalBalls || 0)} 个`;
 
-  renderGiftRecentList(Array.isArray(gifts.recent) ? gifts.recent : []);
+  const recent = Array.isArray(gifts.recent) ? gifts.recent : [];
+  notifyNewGift(recent);
+  renderGiftRecentList(recent);
+}
+
+function notifyNewGift(items) {
+  const newest = items[0];
+  const newestId = newest ? Number(newest.id || 0) : 0;
+  if (!newestId) return;
+
+  if (latestGiftNoticeId === null) {
+    latestGiftNoticeId = newestId;
+    return;
+  }
+
+  if (newestId <= latestGiftNoticeId) return;
+  latestGiftNoticeId = newestId;
+  toast(`收到礼物：${newest.gift_name || '未知礼物'} x${Number(newest.num || 1)}，计入 ${formatMoney(newest.sprint_count_price ?? newest.total_price)}`);
 }
 
 function renderGiftRecentList(items) {
@@ -1546,16 +1572,21 @@ async function reconnectBilibili() {
   btn.textContent = '刷新中…';
   try {
     const response = await fetch('/api/bilibili/reconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    const payload = await response.json();
-    if (payload.ok && payload.data && payload.data.liveStatus) {
+    const payload = await readJsonResponse(response, '刷新直播失败');
+    if (payload.data && payload.data.liveStatus) {
       appState.liveStatus = payload.data.liveStatus;
       renderStatus();
+    }
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
+    }
+    if (payload.data && payload.data.liveStatus) {
       toast('直播状态已刷新');
     } else {
-      toast('刷新失败，请重试');
+      throw new Error('刷新直播失败：服务未返回直播状态。');
     }
-  } catch (_) {
-    toast('刷新请求失败，请检查服务是否正常');
+  } catch (error) {
+    toast(reconnectErrorMessage(error));
   } finally {
     btn.disabled = false;
     btn.textContent = '刷新直播';
@@ -1695,13 +1726,39 @@ async function api(url, body) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {})
     });
-    const payload = await response.json();
+    const payload = await readJsonResponse(response, '请求失败');
     if (!payload.ok) throw new Error(payload.error || '请求失败');
     return payload;
   } catch (error) {
     showError(error);
     throw error;
   }
+}
+
+async function readJsonResponse(response, fallbackMessage) {
+  const text = await response.text();
+  if (!text) {
+    if (!response.ok) throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    const preview = text.replace(/\s+/g, ' ').slice(0, 80);
+    throw new Error(`${fallbackMessage}：服务返回了非 JSON 内容（HTTP ${response.status}${preview ? `，${preview}` : ''}）`);
+  }
+}
+
+function reconnectErrorMessage(error) {
+  const text = String((error && error.message) || error || '');
+  if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
+    return '刷新直播失败：本地服务未响应，请重启点歌助手后再试。';
+  }
+  if (/Unexpected end of JSON input|非 JSON/i.test(text)) {
+    return text;
+  }
+  return text || '刷新直播失败，请稍后重试。';
 }
 
 function showError(error) {
