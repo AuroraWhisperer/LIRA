@@ -1,4 +1,3 @@
-@REM Date: 2026-07-24
 @REM Author: Aurora
 @REM Project Version: 1.0.0
 @echo off

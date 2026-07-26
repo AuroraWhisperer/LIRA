@@ -20,7 +20,7 @@
     "electron-updater": "^6.8.4"
   },
   "devDependencies": {
-    "electron": "^43.1.1",
+    "electron": "43.2.0",
     "electron-builder": "^26.11.1"
   },
   "build": {
@@ -51,9 +51,8 @@
     },
     "nsis": {
       "artifactName": "bilibili-live-song-plugin-setup-${version}.${ext}",
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
       "shortcutName": "点歌助手",
       "uninstallDisplayName": "点歌助手",
       "createDesktopShortcut": true,
@@ -63,7 +62,7 @@
       {
         "provider": "github",
         "owner": "AuroraWhisperer",
-        "repo": "Request-song-for-bilibili",
+        "repo": "Request-song",
         "releaseType": "release"
       }
     ]

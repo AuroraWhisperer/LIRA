@@ -13,7 +13,7 @@ const {
 const { autoUpdater } = require('electron-updater');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
-const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song-for-bilibili';
+const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song';
 
 let mainWindow = null;
 let shutdownApplication = null;
