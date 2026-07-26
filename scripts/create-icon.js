@@ -15,6 +15,7 @@ fs.mkdirSync(BUILD_DIR, { recursive: true });
 if (fs.existsSync(SOURCE_ICON_PATH)) {
   const source = decodePng(fs.readFileSync(SOURCE_ICON_PATH));
   const square = cropCenterSquare(source);
+  removeEdgeBackground(square, 36);
   const resized = resizeNearest(square, SIZE, SIZE);
   const png = createPng(SIZE, SIZE, resized.pixels);
   fs.writeFileSync(path.join(BUILD_DIR, 'icon.png'), png);
@@ -213,6 +214,46 @@ function cropCenterSquare(image) {
     image.pixels.copy(pixels, targetStart, sourceStart, sourceStart + size * 4);
   }
   return { width: size, height: size, pixels };
+}
+
+function removeEdgeBackground(image, threshold) {
+  const visited = new Uint8Array(image.width * image.height);
+  const queue = [];
+
+  for (let x = 0; x < image.width; x += 1) {
+    queueTransparentCandidate(image, visited, queue, x, 0, threshold);
+    queueTransparentCandidate(image, visited, queue, x, image.height - 1, threshold);
+  }
+  for (let y = 1; y < image.height - 1; y += 1) {
+    queueTransparentCandidate(image, visited, queue, 0, y, threshold);
+    queueTransparentCandidate(image, visited, queue, image.width - 1, y, threshold);
+  }
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const point = queue[index];
+    const pixelIndex = (point.y * image.width + point.x) * 4;
+    image.pixels[pixelIndex + 3] = 0;
+    queueTransparentCandidate(image, visited, queue, point.x + 1, point.y, threshold);
+    queueTransparentCandidate(image, visited, queue, point.x - 1, point.y, threshold);
+    queueTransparentCandidate(image, visited, queue, point.x, point.y + 1, threshold);
+    queueTransparentCandidate(image, visited, queue, point.x, point.y - 1, threshold);
+  }
+}
+
+function queueTransparentCandidate(image, visited, queue, x, y, threshold) {
+  if (x < 0 || y < 0 || x >= image.width || y >= image.height) return;
+  const key = y * image.width + x;
+  if (visited[key]) return;
+  visited[key] = 1;
+  const index = key * 4;
+  const alpha = image.pixels[index + 3];
+  const isDark =
+    image.pixels[index] <= threshold
+    && image.pixels[index + 1] <= threshold
+    && image.pixels[index + 2] <= threshold;
+  if (alpha > 0 && isDark) {
+    queue.push({ x, y });
+  }
 }
 
 function resizeNearest(image, width, height) {

@@ -70,6 +70,17 @@ button.danger {
   color: var(--danger);
 }
 
+button.secondary {
+  border-color: var(--border);
+  color: var(--text);
+  background: transparent;
+}
+
+button.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 button.ghost {
   background: transparent;
 }

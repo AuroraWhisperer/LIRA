@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.1.1
+// 当前项目版本：1.2.0
 'use strict';
 
 const http = require('node:http');
@@ -30,6 +30,7 @@ const BILIBILI_ONLINE_RANK_POLL_MS = 60 * 1000;
 const BILIBILI_ONLINE_RANK_PAGE_SIZE = 50;
 const BILIBILI_ONLINE_RANK_MAX_PAGES = 3;
 const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
+const BILIBILI_LIVE_STATUS_POLL_MS = 10 * 60 * 1000;
 const GIFT_BOT_PENDING_MAX_AGE_MS = 15 * 1000;
 const GIFT_BOT_MATCH_WINDOW_MS = 20 * 1000;
 const SUPER_CHAT_PIN_THRESHOLD = 2;
@@ -628,6 +629,12 @@ async function handleApi(req, res, requestUrl) {
     const result = clearAllData();
     broadcastSnapshot('database:clear-all');
     sendJson(res, 200, { ok: true, data: result });
+    return;
+  }
+
+  if (pathName === '/api/bilibili/reconnect') {
+    configureBilibiliListener(true);
+    sendJson(res, 200, { ok: true, data: { liveStatus } });
     return;
   }
 
@@ -2482,7 +2489,7 @@ function migrateQueueScrollSpeedSetting(version) {
   `).run(updatedAt);
 }
 
-function configureBilibiliListener() {
+function configureBilibiliListener(force = false) {
   const settings = getSettings();
   const roomId = normalizeRoomInput(settings.roomId);
   const enabled = settings.enableBilibili === 'true' && roomId;
@@ -2502,7 +2509,7 @@ function configureBilibiliListener() {
     return;
   }
 
-  if (bilibiliClient && bilibiliClient.roomId === roomId) {
+  if (!force && bilibiliClient && bilibiliClient.roomId === roomId) {
     return;
   }
 
@@ -2682,6 +2689,9 @@ class BilibiliDanmakuClient {
     this.reconnectTimer = null;
     this.historyTimer = null;
     this.onlineRankTimer = null;
+    this.liveStatusTimer = null;
+    this.liveStatusCheckInFlight = false;
+    this.liveReconnectInFlight = false;
     this.seenCommandKeys = new Map();
     this.identityByUid = new Map();
     this.identityByName = new Map();
@@ -2713,9 +2723,19 @@ class BilibiliDanmakuClient {
     clearTimeout(this.reconnectTimer);
     clearInterval(this.historyTimer);
     clearInterval(this.onlineRankTimer);
+    clearInterval(this.liveStatusTimer);
+    this.liveStatusTimer = null;
+    this.closeSocket();
+  }
+
+  closeSocket() {
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
     if (this.ws) {
+      const ws = this.ws;
+      this.ws = null;
       try {
-        this.ws.close();
+        ws.close();
       } catch (_) {
         // Ignore shutdown errors.
       }
@@ -2734,12 +2754,14 @@ class BilibiliDanmakuClient {
     const roomInfo = await this.resolveRoomInfo();
     this.startHistoryPolling(roomInfo.roomId);
     this.startOnlineRankPolling(roomInfo.roomId, roomInfo.uid);
+    this.startLiveStatusPolling(roomInfo);
     const danmuInfo = await this.resolveDanmuInfo(roomInfo.roomId);
     const host = (danmuInfo.host_list || [])[0];
     if (!host) {
       throw new Error('没有可用的弹幕服务器。');
     }
 
+    this.closeSocket();
     const wsUrl = `wss://${host.host}:${host.wss_port || 443}/sub`;
     const ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
@@ -2763,7 +2785,7 @@ class BilibiliDanmakuClient {
         mode: 'bilibili',
         message: isLive
           ? `已连接直播间 ${roomInfo.roomId}`
-          : `直播间 ${roomInfo.roomId} 未开播，历史消息监听中`
+          : `直播间 ${roomInfo.roomId} 未开播，历史消息监听中；每 10 分钟自动检测开播`
       });
       if (!isLive) {
         console.warn(`[Bilibili] room ${roomInfo.roomId} is not live. live_status=${roomInfo.liveStatus}. History polling fallback is enabled.`);
@@ -2771,6 +2793,7 @@ class BilibiliDanmakuClient {
     });
 
     ws.addEventListener('message', async (event) => {
+      if (this.ws !== ws) return;
       const data = event.data instanceof ArrayBuffer
         ? Buffer.from(event.data)
         : Buffer.from(await event.data.arrayBuffer());
@@ -2871,6 +2894,7 @@ class BilibiliDanmakuClient {
     });
 
     ws.addEventListener('close', () => {
+      if (this.ws !== ws) return;
       clearInterval(this.heartbeatTimer);
       if (!this.stopped) {
         this.report({
@@ -2885,6 +2909,7 @@ class BilibiliDanmakuClient {
     });
 
     ws.addEventListener('error', () => {
+      if (this.ws !== ws) return;
       this.report({
         connected: false,
         enabled: true,
@@ -2950,6 +2975,83 @@ class BilibiliDanmakuClient {
         console.warn(`[Bilibili] online rank polling failed: ${error.message}`);
       });
     }, BILIBILI_ONLINE_RANK_POLL_MS);
+  }
+
+  startLiveStatusPolling(roomInfo) {
+    clearInterval(this.liveStatusTimer);
+    this.liveStatusTimer = null;
+
+    if (!roomInfo || Number(roomInfo.liveStatus) === 1) return;
+
+    this.liveStatusTimer = setInterval(() => {
+      this.checkLiveStatusForReconnect().catch((error) => {
+        console.warn(`[Bilibili] live status polling failed: ${error.message}`);
+      });
+    }, BILIBILI_LIVE_STATUS_POLL_MS);
+    if (typeof this.liveStatusTimer.unref === 'function') {
+      this.liveStatusTimer.unref();
+    }
+  }
+
+  async checkLiveStatusForReconnect() {
+    if (this.stopped || this.liveStatusCheckInFlight || this.liveReconnectInFlight) return;
+
+    this.liveStatusCheckInFlight = true;
+    try {
+      const roomInfo = await this.resolveRoomInfo();
+      if (Number(roomInfo.liveStatus) === 1) {
+        await this.reconnectAfterLiveStarted(roomInfo.roomId);
+        return;
+      }
+
+      this.report({
+        connected: Boolean(this.ws) || Boolean(this.historyTimer),
+        enabled: true,
+        roomId: this.roomId,
+        mode: 'bilibili',
+        message: `直播间 ${roomInfo.roomId} 未开播，历史消息监听中；每 10 分钟自动检测开播`
+      });
+    } finally {
+      this.liveStatusCheckInFlight = false;
+    }
+  }
+
+  async reconnectAfterLiveStarted(roomId) {
+    if (this.stopped || this.liveReconnectInFlight) return;
+
+    this.liveReconnectInFlight = true;
+    clearInterval(this.liveStatusTimer);
+    this.liveStatusTimer = null;
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+
+    console.log(`[Bilibili] room ${roomId} is live; reconnecting danmaku listener.`);
+    this.report({
+      connected: false,
+      enabled: true,
+      roomId: this.roomId,
+      mode: 'bilibili',
+      message: `检测到直播间 ${roomId} 已开播，正在重连礼物监听`
+    });
+
+    try {
+      this.startedAtMs = Date.now();
+      await this.connect();
+    } catch (error) {
+      console.warn(`[Bilibili] reconnect after live start failed: ${error.message}`);
+      this.report({
+        connected: Boolean(this.historyTimer),
+        enabled: true,
+        roomId: this.roomId,
+        mode: 'bilibili',
+        message: this.historyTimer
+          ? '检测到开播，但直播弹幕长连重连失败，历史消息监听中'
+          : publicBilibiliErrorMessage(error, true)
+      });
+      this.scheduleReconnect();
+    } finally {
+      this.liveReconnectInFlight = false;
+    }
   }
 
   async pollOnlineRank(roomId, ruid) {

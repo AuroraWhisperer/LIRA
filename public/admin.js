@@ -716,6 +716,7 @@ function initForms() {
   document.getElementById('clearSuperChatsBtn').addEventListener('click', clearSuperChats);
   document.getElementById('clearAllBtn').addEventListener('click', clearAll);
   document.getElementById('shutdownBtn').addEventListener('click', shutdownServer);
+  document.getElementById('reconnectBtn').addEventListener('click', reconnectBilibili);
 
   document.getElementById('copyOverlayUrls').addEventListener('click', async () => {
     const text = `${document.getElementById('queueUrl').textContent}\n${document.getElementById('songsUrl').textContent}`;
@@ -1537,6 +1538,28 @@ async function shutdownServer() {
       </main>
     `;
   }, 700);
+}
+
+async function reconnectBilibili() {
+  const btn = document.getElementById('reconnectBtn');
+  btn.disabled = true;
+  btn.textContent = '刷新中…';
+  try {
+    const response = await fetch('/api/bilibili/reconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const payload = await response.json();
+    if (payload.ok && payload.data && payload.data.liveStatus) {
+      appState.liveStatus = payload.data.liveStatus;
+      renderStatus();
+      toast('直播状态已刷新');
+    } else {
+      toast('刷新失败，请重试');
+    }
+  } catch (_) {
+    toast('刷新请求失败，请检查服务是否正常');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '刷新直播';
+  }
 }
 
 function parseTable(text) {
