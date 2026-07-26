@@ -22,6 +22,7 @@ const { createMusicProviderRegistry, normalizeMusicPlatform } = require('./music
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { initLyricsService } = require('./music/lyrics-service');
 const scService = require('./bilibili/superchat-service');
+const blivedmCompat = require('./bilibili/blivedm-compat');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -417,70 +418,24 @@ async function runManualBlivedmCompatibilityCheck() {
 }
 
 function fallbackBlivedmCompatibility(error, cached) {
-  if (cached) {
-    return {
-      ...cached,
-      status: 'cached',
-      message: `blivedm 检查超时，已使用上次成功结果：${cached.checkedAt || '未知时间'}`
-    };
-  }
-  return {
-    status: 'fallback',
-    checkedAt: now(),
-    message: `blivedm 检查超时，已使用内置协议。${error && error.message ? `原因：${error.message}` : ''}`,
-    remoteGiftCommands: [],
-    supportedGiftCommands: getSupportedBilibiliGiftCommands(),
-    missingGiftCommands: []
-  };
+  if (cached) return { ...cached, status: 'cached', message: `blivedm 检查超时，已使用上次成功结果：${cached.checkedAt || '未知时间'}` };
+  return { status: 'fallback', checkedAt: sharedUtils.now(), message: `blivedm 检查超时，已使用内置协议。${error && error.message ? '原因：' + error.message : ''}`, remoteGiftCommands: [], supportedGiftCommands: getSupportedBilibiliGiftCommands(), missingGiftCommands: [] };
 }
 
 function applyRuntimeGiftCommands(commands) {
-  for (const cmd of Array.isArray(commands) ? commands : []) {
-    if (cmd) runtimeGiftCommandPrefixes.add(cmd);
-  }
+  for (const cmd of Array.isArray(commands) ? commands : []) { if (cmd) runtimeGiftCommandPrefixes.add(cmd); }
 }
 
 function readBlivedmCompatibilityCache() {
-  const row = songDb.prepare('SELECT value FROM settings WHERE key = ?').get(BLIVEDM_COMPAT_CACHE_KEY);
-  if (!row || !row.value) return null;
-  const parsed = safeParseJson(row.value);
-  if (!parsed || typeof parsed !== 'object') return null;
-  return {
-    status: parsed.status || 'cached',
-    checkedAt: cleanText(parsed.checkedAt),
-    message: cleanText(parsed.message) || '使用上次 blivedm 检查结果。',
-    remoteGiftCommands: Array.isArray(parsed.remoteGiftCommands) ? parsed.remoteGiftCommands.map(cleanText).filter(Boolean) : [],
-    supportedGiftCommands: Array.isArray(parsed.supportedGiftCommands) ? parsed.supportedGiftCommands.map(cleanText).filter(Boolean) : getSupportedBilibiliGiftCommands(),
-    missingGiftCommands: Array.isArray(parsed.missingGiftCommands) ? parsed.missingGiftCommands.map(cleanText).filter(Boolean) : []
-  };
+  return blivedmCompat.readBlivedmCompatibilityCache(songDb);
 }
 
 function writeBlivedmCompatibilityCache(result) {
-  setSetting(BLIVEDM_COMPAT_CACHE_KEY, safeJsonStringify({
-    checkedAt: result.checkedAt,
-    message: result.message,
-    remoteGiftCommands: result.remoteGiftCommands,
-    supportedGiftCommands: result.supportedGiftCommands,
-    missingGiftCommands: result.missingGiftCommands
-  }));
+  blivedmCompat.writeBlivedmCompatibilityCache(songDb, result);
 }
 
 async function checkBlivedmCompatibility() {
-  const handlersText = await fetchTextWithTimeout(`${BLIVEDM_RAW_BASE}/blivedm/handlers.py`, BLIVEDM_COMPAT_CHECK_TIMEOUT_MS);
-  const remoteGiftCommands = extractBlivedmGiftCommands(handlersText);
-  const supportedGiftCommands = getSupportedBilibiliGiftCommands();
-  const missingGiftCommands = remoteGiftCommands.filter((cmd) => !isSupportedBilibiliGiftCommand(cmd, supportedGiftCommands));
-
-  return {
-    status: missingGiftCommands.length > 0 ? 'warn' : 'ok',
-    checkedAt: now(),
-    message: missingGiftCommands.length > 0
-      ? `发现 blivedm 新礼物 CMD：${missingGiftCommands.join('、')}`
-      : 'blivedm 礼物 CMD 已覆盖。',
-    remoteGiftCommands,
-    supportedGiftCommands,
-    missingGiftCommands
-  };
+  return blivedmCompat.checkBlivedmCompatibility();
 }
 
 async function fetchTextWithTimeout(url, timeoutMs) {
@@ -539,43 +494,16 @@ function escapePowerShellSingleQuoted(value) {
 }
 
 function extractBlivedmGiftCommands(text) {
-  const commands = new Set();
-  const pattern = /['"]([A-Z0-9_]*(?:GIFT|GUARD|USER_TOAST)[A-Z0-9_]*)['"]/g;
-  let match;
-  while ((match = pattern.exec(String(text || ''))) !== null) {
-    const cmd = cleanText(match[1]);
-    if (cmd && isBilibiliGiftRelevantCommandName(cmd)) {
-      commands.add(cmd);
-    }
-  }
-  return Array.from(commands).sort();
+  return blivedmCompat.extractBlivedmGiftCommands(text);
 }
-
 function isBilibiliGiftRelevantCommandName(cmd) {
-  const text = cleanText(cmd);
-  if (!text) return false;
-  return text.includes('GIFT')
-    || text.includes('GUARD')
-    || text.startsWith('USER_TOAST_MSG');
+  return blivedmCompat.isBilibiliGiftRelevantCommandName(cmd);
 }
-
 function getSupportedBilibiliGiftCommands() {
-  return [
-    'SEND_GIFT',
-    'SEND_GIFT_V2',
-    'BLIND_GIFT',
-    'COMBO_SEND',
-    'GUARD_BUY',
-    'USER_TOAST_MSG',
-    'USER_TOAST_MSG_V2',
-    'LIVE_OPEN_PLATFORM_SEND_GIFT',
-    'LIVE_OPEN_PLATFORM_GUARD'
-  ];
+  return blivedmCompat.getSupportedBilibiliGiftCommands();
 }
-
-function isSupportedBilibiliGiftCommand(cmd, supportedCommands = getSupportedBilibiliGiftCommands()) {
-  const text = cleanText(cmd);
-  return supportedCommands.some((supported) => text === supported || text.startsWith(`${supported}_`));
+function isSupportedBilibiliGiftCommand(cmd) {
+  return blivedmCompat.isSupportedBilibiliGiftCommand(cmd, getSupportedBilibiliGiftCommands());
 }
 
 function recordBilibiliCommandDiagnostic(cmd) {
