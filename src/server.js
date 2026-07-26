@@ -26,6 +26,7 @@ const blivedmCompat = require('./bilibili/blivedm-compat');
 const bilibiliMsg = require('./bilibili/bilibili-message-handler');
 const songService = require('./music/song-service');
 const giftService = require('./bilibili/gift-service');
+const biliHelpers = require('./bilibili/helpers');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -510,26 +511,10 @@ function isSupportedBilibiliGiftCommand(cmd) {
 }
 
 function recordBilibiliCommandDiagnostic(cmd) {
-  const text = cleanText(cmd);
-  if (!text) return;
-  bilibiliDiagnostics.lastCommandAt = now();
-  bilibiliDiagnostics.commandCounts[text] = (bilibiliDiagnostics.commandCounts[text] || 0) + 1;
-  bilibiliDiagnostics.recentCommands.unshift({
-    cmd: text,
-    at: bilibiliDiagnostics.lastCommandAt
-  });
-  bilibiliDiagnostics.recentCommands = bilibiliDiagnostics.recentCommands.slice(0, 20);
+  biliHelpers.recordBilibiliCommandDiagnostic(bilibiliDiagnostics, cmd);
 }
-
 function recordBilibiliGiftDiagnostic(cmd, reason) {
-  const text = cleanText(cmd) || 'UNKNOWN';
-  bilibiliDiagnostics.unparsedGiftCount += 1;
-  bilibiliDiagnostics.recentGiftLikeCommands.unshift({
-    cmd: text,
-    reason: cleanText(reason),
-    at: now()
-  });
-  bilibiliDiagnostics.recentGiftLikeCommands = bilibiliDiagnostics.recentGiftLikeCommands.slice(0, 20);
+  biliHelpers.recordBilibiliGiftDiagnostic(bilibiliDiagnostics, cmd, reason);
 }
 
 if (require.main === module) {
