@@ -2,6 +2,7 @@
   "name": "bilibili-live-song-plugin",
   "version": "1.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Local Bilibili live song request assistant MVP.",
   "author": "Aurora",
   "main": "src/electron/main.js",

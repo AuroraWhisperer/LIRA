@@ -1,10 +1,18 @@
 # Bilibili 直播弹幕点歌助手
 
-当前版本：`1.0.1`
+当前版本：`1.1.0`
 
 这是一个运行在主播电脑本地的 Bilibili 直播弹幕点歌助手。观众在直播间发送弹幕点歌后，程序把歌曲加入本地点歌队列，并通过直播姬或 OBS 的网页源显示到直播画面里。
 
 数据只保存在本机，不需要云服务器、云数据库、公网域名或固定月费。
+
+## 使用声明与授权
+
+本项目仅供个人学习、研究和参考使用。
+
+未经作者书面许可，严禁将本项目或其衍生版本用于商业用途，严禁二次修改、二次开发、再发布、转售、托管分发或以其他方式向他人提供。
+
+详细授权条款见 [LICENSE](LICENSE)。
 
 ## 项目结构
 
@@ -99,7 +107,7 @@
 
 ## 怎么启动
 
-桌面版方式：安装 `release/bilibili-live-song-plugin-setup-1.0.0.exe` 后，从桌面快捷方式或开始菜单打开“点歌助手”。桌面版会把数据库保存在系统用户数据目录，更新安装包不会清空歌库。
+桌面版方式：安装 `release/bilibili-live-song-plugin-setup-1.1.0.exe` 后，从桌面快捷方式或开始菜单打开“点歌助手”。桌面版会把数据库保存在系统用户数据目录，更新安装包不会清空歌库。
 
 推荐方式：双击项目里的：
 
@@ -128,31 +136,6 @@ http://127.0.0.1:3000/admin
 ```
 
 如果 `3000` 被占用，程序会自动尝试 `3001` 到 `3019`。实际地址会打印在启动窗口里。
-
-## Windows exe 打包与更新
-
-本机打包：
-
-```powershell
-npm.cmd install
-npm.cmd run dist:win
-```
-
-生成文件在 `release/`：
-
-```text
-bilibili-live-song-plugin-setup-1.0.0.exe
-bilibili-live-song-plugin-setup-1.0.0.exe.blockmap
-latest.yml
-```
-
-GitHub 自动更新依赖 Releases。发布新版本时，先修改 `package.json` 里的 `version`，再运行：
-
-```powershell
-npm.cmd run release:win
-```
-
-如果手动上传 Release，必须把安装包、同名 `.blockmap` 和 `latest.yml` 一起上传到 `AuroraWhisperer/Request-song` 的同一个 Release。桌面版“桌面更新”页会读取 `latest.yml`，发现新版本后优先通过 `.blockmap` 差分下载变化部分，并提示应用更新。
 
 ## 怎么退出
 
