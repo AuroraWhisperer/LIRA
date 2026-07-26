@@ -1,5 +1,6 @@
 data/
 node_modules/
 release/
+tmp/
 .claude/
 *.log
