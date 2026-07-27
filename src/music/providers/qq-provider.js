@@ -269,20 +269,21 @@ class QQMusicProvider {
   }
 
   async getRecentTracks(options = {}) {
-    await this.requireLogin('QQ 音乐“最近播放”需要先登录。');
+    await this.requireLogin('QQ 音乐”最近播放”需要先登录。');
     const limit = clampInteger(options.limit, 1, 100, 50);
     const uin = await this.requireUin();
-    const data = await this.requestJson(QQ_PROFILE_URL, {
-      cid: '205360838',
+    const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
+      ct: '20',
+      cid: '205360956',
       userid: uin,
-      reqfrom: '1',
-      g_tk: '5381',
-      format: 'json',
-      inCharset: 'utf8',
-      outCharset: 'utf-8',
-      platform: 'yqq.json'
+      reqtype: '4',
+      sin: '0',
+      ein: String(limit)
     });
-    const songs = extractQQRecentSongs(data, limit);
+    const songlist = data && data.data && Array.isArray(data.data.songlist)
+      ? data.data.songlist
+      : [];
+    const songs = songlist.map(mapQQSong).filter(Boolean).slice(0, limit);
     if (songs.length > 0) return songs;
     throw new Error('QQ 音乐没有返回最近播放歌曲，请确认账号已登录且最近播放未设为隐私。');
   }

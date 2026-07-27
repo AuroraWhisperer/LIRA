@@ -2,6 +2,7 @@
 // 当前项目版本：1.3.4
 'use strict';
 
+// ── Imports ─────────────────────────────────────────────────────────────────
 const {
   multilingualFontFallback,
   escapeHtml,
@@ -26,6 +27,7 @@ const {
 } = window.AdminApp.utils;
 const { initDesktopShell } = window.AdminApp.desktop;
 
+// ── Global state ─────────────────────────────────────────────────────────────
 let appState = null;
 let songs = [];
 let categories = [];
@@ -46,6 +48,8 @@ const {
 let songLanguages = new Set();
 let songArtists = new Set();
 
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', () => {
   initMainPages();
   window.AdminApp.playback.initPlaybackAssistant({
@@ -58,13 +62,20 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   initTabs();
   initDesktopShell();
-  initForms();
-  initOverlayUrls();
+  initQueueForm();
+  initSongForm();
+  initSettingsForm();
+  initThemeForm();
+  initDisplayForm();
   initPerformanceMonitor();
+  initOverlayUrls();
   connectSocket();
   reloadAll();
-  renderSongBoardPresetCards();
+  renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
+  renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
 });
+
+// ── Navigation ───────────────────────────────────────────────────────────────
 
 function initMainPages() {
   const buttons = document.querySelectorAll('.main-page-tab');
@@ -103,7 +114,45 @@ function initTabs() {
   });
 }
 
-function initForms() {
+function initPerformanceMonitor() {
+  const toggle = document.getElementById('metricsToggle');
+  const button = document.getElementById('metricsRefreshBtn');
+  if (!toggle || !button) return;
+
+  toggle.addEventListener('change', () => {
+    if (toggle.checked) {
+      runMetricsSample();
+    }
+  });
+  button.addEventListener('click', runMetricsSample);
+}
+
+function initOverlayUrls() {
+  const origin = location.origin.replace('127.0.0.1', 'localhost');
+  document.getElementById('queueUrl').textContent = `${origin}/queue`;
+  document.getElementById('songsUrl').textContent = `${origin}/songlist`;
+}
+
+// ── Form init ────────────────────────────────────────────────────────────────
+
+/**
+ * Bind a range input and its paired number input for two-way sync.
+ * @param {string} rangeId
+ * @param {string} numberId
+ * @param {number} min
+ * @param {number} max
+ * @param {number} fallback
+ */
+function bindRangePair(rangeId, numberId, min, max, fallback) {
+  document.getElementById(rangeId).addEventListener('input', () =>
+    setValue(numberId, value(rangeId))
+  );
+  document.getElementById(numberId).addEventListener('input', () =>
+    setValue(rangeId, normalizeRangeValue(value(numberId), min, max, fallback))
+  );
+}
+
+function initQueueForm() {
   document.getElementById('manualForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await api('/api/queue/add', {
@@ -124,7 +173,9 @@ function initForms() {
       await queueAction('clear');
     }
   });
+}
 
+function initSongForm() {
   document.getElementById('songForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await api('/api/songs/save', {
@@ -150,7 +201,9 @@ function initForms() {
   document.getElementById('languageFilter').addEventListener('change', reloadSongs);
   document.getElementById('artistFilter').addEventListener('change', reloadSongs);
   document.getElementById('enabledFilter').addEventListener('change', reloadSongs);
+}
 
+function initSettingsForm() {
   document.getElementById('settingsForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await api('/api/settings', collectSettings());
@@ -175,17 +228,20 @@ function initForms() {
     await reloadState();
   });
 
+  document.getElementById('importBtn').addEventListener('click', importSongs);
+  document.getElementById('clearDatabaseBtn').addEventListener('click', clearDatabase);
+  document.getElementById('clearSuperChatsBtn').addEventListener('click', clearSuperChats);
+  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+  document.getElementById('shutdownBtn').addEventListener('click', shutdownServer);
+  document.getElementById('reconnectBtn').addEventListener('click', reconnectBilibili);
+  document.getElementById('giftProtocolCheckBtn').addEventListener('click', checkGiftProtocol);
+}
+
+function initThemeForm() {
   document.getElementById('themeForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await api('/api/settings', collectTheme());
     toast('点歌板主题已保存');
-    await reloadState();
-  });
-
-  document.getElementById('displayForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    await api('/api/settings', collectDisplay());
-    toast('展示板已保存');
     await reloadState();
   });
 
@@ -198,7 +254,7 @@ function initForms() {
     fillForm(preset);
     syncAllRangeInputs(preset);
     toast(`已套用「${classicPresetLabels[card.dataset.theme]}」主题预设，保存后生效`);
-    renderClassicPresetCards();
+    renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
   });
 
   document.getElementById('quickBeautifyBtn').addEventListener('click', () => {
@@ -231,30 +287,6 @@ function initForms() {
     });
   });
 
-  document.getElementById('themeOpacity').addEventListener('input', () => {
-    setValue('themeOpacityNumber', value('themeOpacity'));
-  });
-  document.getElementById('themeOpacityNumber').addEventListener('input', () => {
-    setValue('themeOpacity', value('themeOpacityNumber'));
-  });
-  document.getElementById('queueSongFontSize').addEventListener('input', () => {
-    setValue('queueSongFontSizeNumber', value('queueSongFontSize'));
-  });
-  document.getElementById('queueSongFontSizeNumber').addEventListener('input', () => {
-    setValue('queueSongFontSize', normalizeRangeValue(value('queueSongFontSizeNumber'), 5, 35, 20));
-  });
-  document.getElementById('queueTitleFontSize').addEventListener('input', () => {
-    setValue('queueTitleFontSizeNumber', value('queueTitleFontSize'));
-  });
-  document.getElementById('queueTitleFontSizeNumber').addEventListener('input', () => {
-    setValue('queueTitleFontSize', normalizeRangeValue(value('queueTitleFontSizeNumber'), 5, 20, 15));
-  });
-  document.getElementById('overlayRuleFontSize').addEventListener('input', () => {
-    setValue('overlayRuleFontSizeNumber', value('overlayRuleFontSize'));
-  });
-  document.getElementById('overlayRuleFontSizeNumber').addEventListener('input', () => {
-    setValue('overlayRuleFontSize', normalizeRangeValue(value('overlayRuleFontSizeNumber'), 8, 18, 10));
-  });
   const autosaveTheme = debounce(async () => {
     await api('/api/settings', collectTheme());
   }, 180);
@@ -266,6 +298,7 @@ function initForms() {
     applyAdminQueueFontPreview();
     autosaveTheme();
   });
+
   document.getElementById('resetClassicTheme').addEventListener('click', async () => {
     const resetValues = {
       ...defaultThemeLook,
@@ -280,24 +313,30 @@ function initForms() {
     await reloadState();
   });
 
-  document.getElementById('backdropBlur').addEventListener('input', () => {
-    setValue('backdropBlurNumber', value('backdropBlur'));
-  });
-  document.getElementById('backdropBlurNumber').addEventListener('input', () => {
-    setValue('backdropBlur', normalizeRangeValue(value('backdropBlurNumber'), 0, 30, 0));
-  });
-  document.getElementById('glowIntensity').addEventListener('input', () => {
-    setValue('glowIntensityNumber', value('glowIntensity'));
-  });
-  document.getElementById('glowIntensityNumber').addEventListener('input', () => {
-    setValue('glowIntensity', normalizeRangeValue(value('glowIntensityNumber'), 0, 20, 0));
-  });
+  // range ↔ number pairs
+  bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.35);
+  bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 5, 35, 20);
+  bindRangePair('queueTitleFontSize', 'queueTitleFontSizeNumber', 5, 20, 15);
+  bindRangePair('overlayRuleFontSize', 'overlayRuleFontSizeNumber', 8, 18, 10);
+  bindRangePair('backdropBlur', 'backdropBlurNumber', 0, 30, 0);
+  bindRangePair('glowIntensity', 'glowIntensityNumber', 0, 20, 0);
+
   document.getElementById('queueScrollSpeedRange').addEventListener('input', () => {
     setValue('queueScrollSpeed', value('queueScrollSpeedRange'));
   });
   document.getElementById('queueScrollSpeed').addEventListener('input', () => {
     setValue('queueScrollSpeedRange', normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed')));
   });
+}
+
+function initDisplayForm() {
+  document.getElementById('displayForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await api('/api/settings', collectDisplay());
+    toast('展示板已保存');
+    await reloadState();
+  });
+
   const autosaveDisplay = debounce(async () => {
     await api('/api/settings', collectDisplay());
   }, 180);
@@ -332,6 +371,7 @@ function initForms() {
       setValue('songBoardGradientEnd', s.songBoardGradientEnd || s.gradientEnd || '#181823');
       setValue('songBoardFontFamily', s.songBoardFontFamily || s.overlayFontFamily || 'Microsoft YaHei');
       setValue('songBoardFontWeight', s.songBoardFontWeight || s.overlayFontWeight || '800');
+
       setValue('songBoardSongColor', s.songBoardSongColor || s.overlaySongColor || '');
       setValue('songBoardTitle', s.songBoardTitle || s.overlayTitle || '');
       setValue('songBoardSongFontSize', s.songBoardSongFontSize || '16');
@@ -341,37 +381,12 @@ function initForms() {
     }
   });
 
-  // Song board range ↔ number dual sync
-  document.getElementById('songBoardThemeOpacity').addEventListener('input', () => {
-    setValue('songBoardThemeOpacityNumber', value('songBoardThemeOpacity'));
-  });
-  document.getElementById('songBoardThemeOpacityNumber').addEventListener('input', () => {
-    setValue('songBoardThemeOpacity', normalizeRangeValue(value('songBoardThemeOpacityNumber'), 0, 1, 0.35));
-  });
-  document.getElementById('songBoardBackdropBlur').addEventListener('input', () => {
-    setValue('songBoardBackdropBlurNumber', value('songBoardBackdropBlur'));
-  });
-  document.getElementById('songBoardBackdropBlurNumber').addEventListener('input', () => {
-    setValue('songBoardBackdropBlur', normalizeRangeValue(value('songBoardBackdropBlurNumber'), 0, 30, 0));
-  });
-  document.getElementById('songBoardGlowIntensity').addEventListener('input', () => {
-    setValue('songBoardGlowIntensityNumber', value('songBoardGlowIntensity'));
-  });
-  document.getElementById('songBoardGlowIntensityNumber').addEventListener('input', () => {
-    setValue('songBoardGlowIntensity', normalizeRangeValue(value('songBoardGlowIntensityNumber'), 0, 20, 0));
-  });
-  document.getElementById('songBoardSongFontSize').addEventListener('input', () => {
-    setValue('songBoardSongFontSizeNumber', value('songBoardSongFontSize'));
-  });
-  document.getElementById('songBoardSongFontSizeNumber').addEventListener('input', () => {
-    setValue('songBoardSongFontSize', normalizeRangeValue(value('songBoardSongFontSizeNumber'), 10, 40, 16));
-  });
-  document.getElementById('songBoardTitleFontSize').addEventListener('input', () => {
-    setValue('songBoardTitleFontSizeNumber', value('songBoardTitleFontSize'));
-  });
-  document.getElementById('songBoardTitleFontSizeNumber').addEventListener('input', () => {
-    setValue('songBoardTitleFontSize', normalizeRangeValue(value('songBoardTitleFontSizeNumber'), 10, 28, 15));
-  });
+  // Song board range ↔ number pairs
+  bindRangePair('songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35);
+  bindRangePair('songBoardBackdropBlur', 'songBoardBackdropBlurNumber', 0, 30, 0);
+  bindRangePair('songBoardGlowIntensity', 'songBoardGlowIntensityNumber', 0, 20, 0);
+  bindRangePair('songBoardSongFontSize', 'songBoardSongFontSizeNumber', 10, 40, 16);
+  bindRangePair('songBoardTitleFontSize', 'songBoardTitleFontSizeNumber', 10, 28, 15);
 
   // Song board presets
   document.getElementById('songBoardPresets').addEventListener('click', (event) => {
@@ -382,7 +397,7 @@ function initForms() {
     if (!preset) return;
     fillForm(preset);
     songBoardSyncAllRangeInputs(preset);
-    renderSongBoardPresetCards();
+    renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
     toast(`已套用「${songBoardPresetLabels[card.dataset.theme]}」歌单展示板预设，保存后生效`);
   });
 
@@ -403,14 +418,6 @@ function initForms() {
     toast('歌单展示板主题已恢复默认');
   });
 
-  document.getElementById('importBtn').addEventListener('click', importSongs);
-  document.getElementById('clearDatabaseBtn').addEventListener('click', clearDatabase);
-  document.getElementById('clearSuperChatsBtn').addEventListener('click', clearSuperChats);
-  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
-  document.getElementById('shutdownBtn').addEventListener('click', shutdownServer);
-  document.getElementById('reconnectBtn').addEventListener('click', reconnectBilibili);
-  document.getElementById('giftProtocolCheckBtn').addEventListener('click', checkGiftProtocol);
-
   document.getElementById('copyOverlayUrls').addEventListener('click', async () => {
     const text = `${document.getElementById('queueUrl').textContent}\n${document.getElementById('songsUrl').textContent}`;
     await navigator.clipboard.writeText(text);
@@ -426,24 +433,7 @@ function initForms() {
   });
 }
 
-function initPerformanceMonitor() {
-  const toggle = document.getElementById('metricsToggle');
-  const button = document.getElementById('metricsRefreshBtn');
-  if (!toggle || !button) return;
-
-  toggle.addEventListener('change', () => {
-    if (toggle.checked) {
-      runMetricsSample();
-    }
-  });
-  button.addEventListener('click', runMetricsSample);
-}
-
-function initOverlayUrls() {
-  const origin = location.origin.replace('127.0.0.1', 'localhost');
-  document.getElementById('queueUrl').textContent = `${origin}/queue`;
-  document.getElementById('songsUrl').textContent = `${origin}/songlist`;
-}
+// ── Network / State ──────────────────────────────────────────────────────────
 
 function connectSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -510,6 +500,8 @@ function scheduleSongReload() {
   clearTimeout(songReloadTimer);
   songReloadTimer = setTimeout(() => reloadSongs().catch(showError), 240);
 }
+
+// ── Render ───────────────────────────────────────────────────────────────────
 
 function renderState() {
   if (!appState) return;
@@ -843,6 +835,124 @@ function renderSongs() {
   });
 }
 
+function renderPresetCards(containerId, presets, labels, swatches) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = Object.entries(presets).map(([key]) => {
+    const sw = swatches[key] || ['#181823', '#ccc', '#ccc', '#fff'];
+    const label = labels[key] || key;
+    return `
+      <div class="preset-card" data-theme="${key}">
+        <div class="swatch-preview">
+          <span style="background:${sw[0]}"></span>
+          <span style="background:${sw[1]}"></span>
+          <span style="background:${sw[2]}"></span>
+          <span style="background:${sw[3]}"></span>
+        </div>
+        <strong>${label}</strong>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderImportResult(result) {
+  document.getElementById('importResult').textContent =
+    `总行数 ${result.total}，成功 ${result.inserted}，重复 ${result.duplicate}，失败 ${result.failed}，新增分类 ${result.createdCategories}`;
+}
+
+async function runMetricsSample() {
+  if (metricsRunning) return;
+  metricsRunning = true;
+  setMetricsBusy(true);
+
+  try {
+    const response = await fetch('/api/system/metrics?windowMs=5000');
+    const payload = await response.json();
+    if (!payload.ok) throw new Error(payload.error || '性能检测失败');
+    renderMetrics(payload.data);
+    toast('性能检测完成');
+  } catch (error) {
+    showError(error);
+    renderMetricsError(error);
+  } finally {
+    metricsRunning = false;
+    setMetricsBusy(false);
+  }
+}
+
+function setMetricsBusy(isBusy) {
+  const toggle = document.getElementById('metricsToggle');
+  const toggleText = document.getElementById('metricsToggleText');
+  const button = document.getElementById('metricsRefreshBtn');
+  const status = document.getElementById('metricsStatus');
+
+  toggle.checked = isBusy;
+  toggle.disabled = isBusy;
+  button.disabled = isBusy;
+  toggleText.textContent = isBusy ? '检测中' : '开始检测';
+  button.textContent = isBusy ? '正在检测' : '检测 5 秒';
+  if (isBusy) {
+    status.textContent = '正在采样最近 5 秒';
+  }
+}
+
+function renderMetrics(metrics) {
+  const system = metrics.system || {};
+  const app = metrics.process || {};
+  document.getElementById('metricsStatus').textContent = '最近 5 秒检测完成';
+  setMetric('metricSystemCpu', system.cpuPercent, '5 秒平均值');
+  setMetric(
+    'metricSystemGpu',
+    system.gpuAvailable ? system.gpuPercent : null,
+    system.gpuAvailable ? '5 秒平均值' : (system.gpuMessage || '不可用')
+  );
+  setMetric(
+    'metricSystemMemory',
+    system.memoryPercent,
+    `${formatBytes(system.memoryUsedBytes)} / ${formatBytes(system.memoryTotalBytes)}`
+  );
+  setMetric('metricAppCpu', app.cpuPercent, `服务 PID ${app.pid}`);
+  setMetric(
+    'metricAppGpu',
+    app.gpuAvailable ? app.gpuPercent : null,
+    app.gpuAvailable ? `服务 PID ${app.pid}` : (app.gpuMessage || '不可用')
+  );
+  setMetric(
+    'metricAppMemory',
+    app.memoryPercent,
+    `占用 ${formatBytes(app.memoryRssBytes)}，堆内存 ${formatBytes(app.memoryHeapUsedBytes)}`
+  );
+  document.getElementById('metricsSampleWindow').textContent = `采样窗口：${Math.round((metrics.windowMs || 0) / 1000)} 秒`;
+  document.getElementById('metricsSampleTime').textContent = `检测时间：${formatDateTime(metrics.sampledAt)}`;
+  document.getElementById('metricsProcessPid').textContent = `本次服务进程：${app.pid || '--'}，已运行 ${formatDuration(app.uptimeSeconds)}，直播期间保持开启`;
+}
+
+function renderMetricsError(error) {
+  document.getElementById('metricsStatus').textContent = error.message || '检测失败';
+}
+
+function setMetric(id, percent, detail) {
+  const valueNode = document.getElementById(id);
+  const barNode = document.getElementById(`${id}Bar`);
+  const detailNode = document.getElementById(`${id}Detail`);
+  const val = Number(percent);
+  const available = Number.isFinite(val);
+
+  valueNode.textContent = available ? `${val.toFixed(1)}%` : '不可用';
+  barNode.style.width = available ? `${Math.max(0, Math.min(100, val))}%` : '0%';
+  detailNode.textContent = detail || '等待检测';
+  valueNode.closest('.metric-card').className = `metric-card ${metricLevel(val)}`;
+}
+
+function metricLevel(val) {
+  if (!Number.isFinite(val)) return 'muted';
+  if (val >= 85) return 'danger-level';
+  if (val >= 70) return 'warn-level';
+  return 'good-level';
+}
+
+// ── Actions ──────────────────────────────────────────────────────────────────
+
 async function queueAction(action, id) {
   console.log('[queueAction]', action, id);
   const result = await api('/api/queue/action', { action, id });
@@ -854,6 +964,188 @@ async function superChatAction(action, id) {
   await api('/api/superchats/action', { action, id });
   await reloadState();
 }
+
+async function clearDatabase() {
+  if (!confirm('确认清空歌库？只会删除歌曲和分类，直播间号、主题颜色和其他设置会保留。')) {
+    return;
+  }
+  await api('/api/database/clear', { confirm: true });
+  songs = [];
+  toast('歌库已清空');
+  await reloadAll();
+}
+
+async function clearSuperChats() {
+  if (!confirm('确认清空所有 SC（醒目留言）记录？此操作不可撤销。')) {
+    return;
+  }
+  const response = await api('/api/database/clear-superchats', { confirm: true });
+  toast(`SC 记录已清空（共 ${response.data.deletedCount} 条）`);
+  await reloadState();
+}
+
+async function clearAll() {
+  if (!confirm('⚠️ 确认清空全部数据？\n\n这将删除：歌库、分类、点歌队列、点歌记录、SC 记录\n保留：直播间号、主题颜色、所有设置\n\n此操作不可撤销！')) {
+    return;
+  }
+  const response = await api('/api/database/clear-all', { confirm: true });
+  const d = response.data.deletedCounts;
+  toast(`全部数据已清空 — 歌曲 ${d.songs} · 队列 ${d.queue} · 记录 ${d.requests} · SC ${d.sc}（共 ${response.data.totalDeleted} 条），设置已保留`);
+  songs = [];
+  await reloadAll();
+}
+
+function renderShutdownScreen(isDesktop) {
+  const hintText = isDesktop
+    ? '点击下方按钮重新启动点歌助手，恢复直播服务。'
+    : '本地服务已关闭，端口已释放。<br>再次使用时双击项目里的 <code>一键启动.bat</code>。';
+  return `
+    <main class="app-shell shutdown-screen">
+      <section class="shutdown-card">
+        <div class="shutdown-icon" aria-hidden="true">
+          <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+            <circle cx="36" cy="36" r="34" stroke="currentColor" stroke-width="2.5" opacity="0.25"/>
+            <circle cx="36" cy="36" r="30" stroke="currentColor" stroke-width="1.5" opacity="0.12"/>
+            <path d="M36 16V36M36 46.5V48" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+            <circle cx="36" cy="56" r="2.5" fill="currentColor" opacity="0.7"/>
+          </svg>
+        </div>
+        <h1 class="shutdown-title">点歌助手已退出</h1>
+        <p class="shutdown-subtitle">本地服务已安全关闭</p>
+        <ul class="shutdown-checklist">
+          <li><span class="check-mark">✓</span> 本地 HTTP 服务已停止</li>
+          <li><span class="check-mark">✓</span> 端口已释放</li>
+          <li><span class="check-mark">✓</span> 弹幕监听已断开</li>
+          <li><span class="check-mark">✓</span> 数据已保存</li>
+        </ul>
+        <div class="shutdown-actions">
+          ${isDesktop ? `<button id="restartAppBtn" class="primary shutdown-restart-btn" type="button">🔄 重新启动</button>` : ''}
+          <button id="closeWindowBtn" class="${isDesktop ? '' : 'primary'}" type="button">${isDesktop ? '关闭窗口' : '关闭页面'}</button>
+        </div>
+        <p class="shutdown-hint">${hintText}</p>
+      </section>
+    </main>
+  `;
+}
+
+async function shutdownServer() {
+  if (!confirm('确认退出点歌助手？退出后会关闭本地服务并释放端口。')) {
+    return;
+  }
+  shuttingDown = true;
+  document.getElementById('shutdownBtn').disabled = true;
+  document.getElementById('shutdownBtn').textContent = '正在退出';
+  document.getElementById('wsStatus').textContent = '正在退出';
+  document.getElementById('wsStatus').className = 'pill warn';
+
+  try {
+    await api('/api/system/shutdown', { confirm: true });
+  } catch (_) {
+    // Server may close before responding.
+  }
+
+  const isDesktop = !!window.songAssistantDesktop;
+  document.body.innerHTML = renderShutdownScreen(isDesktop);
+
+  if (isDesktop) {
+    document.getElementById('restartAppBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('restartAppBtn');
+      btn.disabled = true;
+      btn.textContent = '正在重新启动…';
+      try {
+        await window.songAssistantDesktop.restart();
+      } catch (_) {
+        btn.textContent = '重启失败，请手动启动';
+      }
+    });
+  }
+
+  document.getElementById('closeWindowBtn').addEventListener('click', () => {
+    if (isDesktop) {
+      window.songAssistantDesktop.closeWindow();
+    } else {
+      window.close();
+    }
+  });
+}
+
+async function reconnectBilibili() {
+  const btn = document.getElementById('reconnectBtn');
+  btn.disabled = true;
+  btn.textContent = '刷新中…';
+  try {
+    const response = await fetch('/api/bilibili/reconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const payload = await readJsonResponse(response, '刷新直播失败');
+    if (payload.data && payload.data.liveStatus) {
+      appState.liveStatus = payload.data.liveStatus;
+      renderState();
+    }
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
+    }
+    if (payload.data && payload.data.liveStatus) {
+      toast('直播状态已刷新');
+    } else {
+      throw new Error('刷新直播失败：服务未返回直播状态。');
+    }
+  } catch (error) {
+    toast(reconnectErrorMessage(error));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '刷新直播';
+  }
+}
+
+async function checkGiftProtocol() {
+  const btn = document.getElementById('giftProtocolCheckBtn');
+  btn.disabled = true;
+  btn.textContent = '检查中...';
+  try {
+    const response = await fetch('/api/gifts/blivedm/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const payload = await readJsonResponse(response, '协议检查失败');
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || `协议检查失败（HTTP ${response.status}）`);
+    }
+    appState.blivedmCompatibility = payload.data || {};
+    renderState();
+    toast((payload.data && payload.data.message) || '协议检查完成');
+  } catch (error) {
+    toast(error.message || String(error));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '检查协议';
+  }
+}
+
+async function importSongs() {
+  let text = value('importText');
+  const file = document.getElementById('importFile').files[0];
+  if (file) {
+    if (/\.xlsx$/i.test(file.name)) {
+      const response = await api('/api/songs/import-xlsx', {
+        fileName: file.name,
+        base64: await readFileAsBase64(file)
+      });
+      renderImportResult(response.data);
+      toast('Excel 导入完成');
+      await reloadAll();
+      return;
+    }
+    text = await readTextFile(file);
+  }
+  if (!text.trim()) {
+    toast('没有可导入内容');
+    return;
+  }
+
+  const rows = parseTable(text);
+  const response = await api('/api/songs/import', { rows });
+  renderImportResult(response.data);
+  toast('导入完成');
+  await reloadAll();
+}
+
+// ── Form helpers ─────────────────────────────────────────────────────────────
 
 function collectSettings() {
   return {
@@ -943,265 +1235,208 @@ function collectDisplay() {
   return body;
 }
 
-async function importSongs() {
-  let text = value('importText');
-  const file = document.getElementById('importFile').files[0];
-  if (file) {
-    if (/\.xlsx$/i.test(file.name)) {
-      const response = await api('/api/songs/import-xlsx', {
-        fileName: file.name,
-        base64: await readFileAsBase64(file)
-      });
-      renderImportResult(response.data);
-      toast('Excel 导入完成');
-      await reloadAll();
-      return;
-    }
-    text = await readTextFile(file);
+function resetSongForm() {
+  setValue('songId', '');
+  setValue('songName', '');
+  setValue('songArtist', '');
+  setValue('songCategory', '默认');
+  setValue('songTags', '');
+  setValue('songIsEnabled', 'true');
+  setValue('songLanguage', '');
+  setValue('songSourcePlatform', '');
+  setValue('songOriginalGroup', '');
+  setValue('songNote', '');
+}
+
+function fillForm(values) {
+  for (const [key, inputValue] of Object.entries(values || {})) {
+    const element = document.getElementById(key);
+    if (element) element.value = inputValue;
   }
-  if (!text.trim()) {
-    toast('没有可导入内容');
-    return;
-  }
+  setOverlayStyle(value('overlayQueueStyle') || 'classic');
 
-  const rows = parseTable(text);
-  const response = await api('/api/songs/import', { rows });
-  renderImportResult(response.data);
-  toast('导入完成');
-  await reloadAll();
-}
-
-function renderImportResult(result) {
-  document.getElementById('importResult').textContent =
-    `总行数 ${result.total}，成功 ${result.inserted}，重复 ${result.duplicate}，失败 ${result.failed}，新增分类 ${result.createdCategories}`;
-}
-
-async function runMetricsSample() {
-  if (metricsRunning) return;
-  metricsRunning = true;
-  setMetricsBusy(true);
-
-  try {
-    const response = await fetch('/api/system/metrics?windowMs=5000');
-    const payload = await response.json();
-    if (!payload.ok) throw new Error(payload.error || '性能检测失败');
-    renderMetrics(payload.data);
-    toast('性能检测完成');
-  } catch (error) {
-    showError(error);
-    renderMetricsError(error);
-  } finally {
-    metricsRunning = false;
-    setMetricsBusy(false);
-  }
-}
-
-function setMetricsBusy(isBusy) {
-  const toggle = document.getElementById('metricsToggle');
-  const toggleText = document.getElementById('metricsToggleText');
-  const button = document.getElementById('metricsRefreshBtn');
-  const status = document.getElementById('metricsStatus');
-
-  toggle.checked = isBusy;
-  toggle.disabled = isBusy;
-  button.disabled = isBusy;
-  toggleText.textContent = isBusy ? '检测中' : '开始检测';
-  button.textContent = isBusy ? '正在检测' : '检测 5 秒';
-  if (isBusy) {
-    status.textContent = '正在采样最近 5 秒';
-  }
-}
-
-function renderMetrics(metrics) {
-  const system = metrics.system || {};
-  const app = metrics.process || {};
-  document.getElementById('metricsStatus').textContent = '最近 5 秒检测完成';
-  setMetric('metricSystemCpu', system.cpuPercent, '5 秒平均值');
-  setMetric(
-    'metricSystemGpu',
-    system.gpuAvailable ? system.gpuPercent : null,
-    system.gpuAvailable ? '5 秒平均值' : (system.gpuMessage || '不可用')
-  );
-  setMetric(
-    'metricSystemMemory',
-    system.memoryPercent,
-    `${formatBytes(system.memoryUsedBytes)} / ${formatBytes(system.memoryTotalBytes)}`
-  );
-  setMetric('metricAppCpu', app.cpuPercent, `服务 PID ${app.pid}`);
-  setMetric(
-    'metricAppGpu',
-    app.gpuAvailable ? app.gpuPercent : null,
-    app.gpuAvailable ? `服务 PID ${app.pid}` : (app.gpuMessage || '不可用')
-  );
-  setMetric(
-    'metricAppMemory',
-    app.memoryPercent,
-    `占用 ${formatBytes(app.memoryRssBytes)}，堆内存 ${formatBytes(app.memoryHeapUsedBytes)}`
-  );
-
-  document.getElementById('metricsSampleWindow').textContent = `采样窗口：${Math.round((metrics.windowMs || 0) / 1000)} 秒`;
-  document.getElementById('metricsSampleTime').textContent = `检测时间：${formatDateTime(metrics.sampledAt)}`;
-  document.getElementById('metricsProcessPid').textContent = `本次服务进程：${app.pid || '--'}，已运行 ${formatDuration(app.uptimeSeconds)}，直播期间保持开启`;
-}
-
-function renderMetricsError(error) {
-  document.getElementById('metricsStatus').textContent = error.message || '检测失败';
-}
-
-function setMetric(id, percent, detail) {
-  const valueNode = document.getElementById(id);
-  const barNode = document.getElementById(`${id}Bar`);
-  const detailNode = document.getElementById(`${id}Detail`);
-  const value = Number(percent);
-  const available = Number.isFinite(value);
-
-  valueNode.textContent = available ? `${value.toFixed(1)}%` : '不可用';
-  barNode.style.width = available ? `${Math.max(0, Math.min(100, value))}%` : '0%';
-  detailNode.textContent = detail || '等待检测';
-  valueNode.closest('.metric-card').className = `metric-card ${metricLevel(value)}`;
-}
-
-function metricLevel(value) {
-  if (!Number.isFinite(value)) return 'muted';
-  if (value >= 85) return 'danger-level';
-  if (value >= 70) return 'warn-level';
-  return 'good-level';
-}
-
-async function clearDatabase() {
-  if (!confirm('确认清空歌库？只会删除歌曲和分类，直播间号、主题颜色和其他设置会保留。')) {
-    return;
-  }
-  await api('/api/database/clear', { confirm: true });
-  songs = [];
-  toast('歌库已清空');
-  await reloadAll();
-}
-
-async function clearSuperChats() {
-  if (!confirm('确认清空所有 SC（醒目留言）记录？此操作不可撤销。')) {
-    return;
-  }
-  const response = await api('/api/database/clear-superchats', { confirm: true });
-  toast(`SC 记录已清空（共 ${response.data.deletedCount} 条）`);
-  await reloadState();
-}
-
-async function clearAll() {
-  if (!confirm('⚠️ 确认清空全部数据？\n\n这将删除：歌库、分类、点歌队列、点歌记录、SC 记录\n保留：直播间号、主题颜色、所有设置\n\n此操作不可撤销！')) {
-    return;
-  }
-  const response = await api('/api/database/clear-all', { confirm: true });
-  const d = response.data.deletedCounts;
-  toast(`全部数据已清空 — 歌曲 ${d.songs} · 队列 ${d.queue} · 记录 ${d.requests} · SC ${d.sc}（共 ${response.data.totalDeleted} 条），设置已保留`);
-  songs = [];
-  await reloadAll();
-}
-
-async function shutdownServer() {
-  if (!confirm('确认退出点歌助手？退出后会关闭本地服务并释放端口。')) {
-    return;
-  }
-  shuttingDown = true;
-  document.getElementById('shutdownBtn').disabled = true;
-  document.getElementById('shutdownBtn').textContent = '正在退出';
-  document.getElementById('wsStatus').textContent = '正在退出';
-  document.getElementById('wsStatus').className = 'pill warn';
-
-  try {
-    await api('/api/system/shutdown', { confirm: true });
-  } catch (_) {
-    // Server may close before responding.
-  }
-
-  const isDesktop = !!window.songAssistantDesktop;
-  const hintText = isDesktop
-    ? '点击下方按钮重新启动点歌助手，恢复直播服务。'
-    : '本地服务已关闭，端口已释放。<br>再次使用时双击项目里的 <code>一键启动.bat</code>。';
-
-  document.body.innerHTML = `
-    <main class="app-shell shutdown-screen">
-      <section class="shutdown-card">
-        <div class="shutdown-icon" aria-hidden="true">
-          <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-            <circle cx="36" cy="36" r="34" stroke="currentColor" stroke-width="2.5" opacity="0.25"/>
-            <circle cx="36" cy="36" r="30" stroke="currentColor" stroke-width="1.5" opacity="0.12"/>
-            <path d="M36 16V36M36 46.5V48" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-            <circle cx="36" cy="56" r="2.5" fill="currentColor" opacity="0.7"/>
-          </svg>
-        </div>
-
-        <h1 class="shutdown-title">点歌助手已退出</h1>
-        <p class="shutdown-subtitle">本地服务已安全关闭</p>
-
-        <ul class="shutdown-checklist">
-          <li><span class="check-mark">✓</span> 本地 HTTP 服务已停止</li>
-          <li><span class="check-mark">✓</span> 端口已释放</li>
-          <li><span class="check-mark">✓</span> 弹幕监听已断开</li>
-          <li><span class="check-mark">✓</span> 数据已保存</li>
-        </ul>
-
-        <div class="shutdown-actions">
-          ${isDesktop ? `<button id="restartAppBtn" class="primary shutdown-restart-btn" type="button">🔄 重新启动</button>` : ''}
-          <button id="closeWindowBtn" class="${isDesktop ? '' : 'primary'}" type="button">${isDesktop ? '关闭窗口' : '关闭页面'}</button>
-        </div>
-
-        <p class="shutdown-hint">${hintText}</p>
-      </section>
-    </main>
-  `;
-
-  if (isDesktop) {
-    document.getElementById('restartAppBtn').addEventListener('click', async () => {
-      const btn = document.getElementById('restartAppBtn');
-      btn.disabled = true;
-      btn.textContent = '正在重新启动…';
-      try {
-        await window.songAssistantDesktop.restart();
-      } catch (_) {
-        btn.textContent = '重启失败，请手动启动';
+  // Song board sync toggle
+  const syncCheckbox = document.getElementById('songBoardSyncTheme');
+  const syncArea = document.getElementById('songBoardThemeArea');
+  if (syncCheckbox && syncArea) {
+    if (values && 'songBoardSyncTheme' in values) {
+      const synced = values.songBoardSyncTheme !== 'false';
+      syncCheckbox.checked = synced;
+      syncArea.hidden = synced;
+      if (synced) {
+        // Copy main theme values into song board fields for seamless toggle-off
+        setValue('songBoardThemePrimary', (values && values.themePrimary) || '#ff6f91');
+        setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
+        setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
+        setValue('songBoardThemeBackground', (values && values.themeBackground) || '#181823');
+        setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.35');
+        setValue('songBoardThemeRadius', (values && values.themeRadius) || '8');
+        setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '0');
+        setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '0');
+        setValue('songBoardEnableGradient', (values && values.enableGradient) || 'false');
+        setValue('songBoardGradientEnd', (values && values.gradientEnd) || '#181823');
+        setValue('songBoardFontFamily', (values && values.overlayFontFamily) || 'Microsoft YaHei');
+        setValue('songBoardFontWeight', (values && values.overlayFontWeight) || '800');
+        setValue('songBoardSongColor', (values && values.overlaySongColor) || '');
+        setValue('songBoardTitle', (values && values.overlayTitle) || '');
       }
-    });
+    }
   }
 
-  document.getElementById('closeWindowBtn').addEventListener('click', () => {
-    if (isDesktop) {
-      window.songAssistantDesktop.closeWindow();
-    } else {
-      window.close();
-    }
-  });
+  const songFontSize = normalizeFontSize(
+    values && values.queueSongFontSize,
+    scaleToFontSize(values && values.themeFontScale, 20),
+    35
+  );
+  const titleFontSize = normalizeFontSize(
+    values && values.queueTitleFontSize,
+    scaleToFontSize(values && values.themeFontScale, 15),
+    20
+  );
+  setValue('queueSongFontSize', songFontSize);
+  if (document.getElementById('queueSongFontSizeNumber')) {
+    setValue('queueSongFontSizeNumber', songFontSize);
+  }
+
+  setValue('queueTitleFontSize', titleFontSize);
+  if (document.getElementById('queueTitleFontSizeNumber')) {
+    setValue('queueTitleFontSizeNumber', titleFontSize);
+  }
+  const ruleFontSize = normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
+  if (document.getElementById('overlayRuleFontSize')) {
+    setValue('overlayRuleFontSize', ruleFontSize);
+  }
+  if (document.getElementById('overlayRuleFontSizeNumber')) {
+    setValue('overlayRuleFontSizeNumber', ruleFontSize);
+  }
+  if (document.getElementById('themeOpacityNumber')) {
+    setValue('themeOpacityNumber', value('themeOpacity'));
+  }
+  if (document.getElementById('backdropBlurNumber')) {
+    setValue('backdropBlurNumber', value('backdropBlur'));
+  }
+  if (document.getElementById('glowIntensityNumber')) {
+    setValue('glowIntensityNumber', value('glowIntensity'));
+  }
+  if (document.getElementById('scrollSecondsRange')) {
+    setValue('scrollSecondsRange', value('scrollSeconds'));
+  }
+  if (document.getElementById('queueScrollSpeedRange')) {
+    const queueScrollSpeed = normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
+    setValue('queueScrollSpeed', queueScrollSpeed);
+    setValue('queueScrollSpeedRange', queueScrollSpeed);
+  }
 }
 
-async function reconnectBilibili() {
-  const btn = document.getElementById('reconnectBtn');
-  btn.disabled = true;
-  btn.textContent = '刷新中…';
-  try {
-    const response = await fetch('/api/bilibili/reconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    const payload = await readJsonResponse(response, '刷新直播失败');
-    if (payload.data && payload.data.liveStatus) {
-      appState.liveStatus = payload.data.liveStatus;
-      renderState();
-    }
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
-    }
-    if (payload.data && payload.data.liveStatus) {
-      toast('直播状态已刷新');
-    } else {
-      throw new Error('刷新直播失败：服务未返回直播状态。');
-    }
-  } catch (error) {
-    toast(reconnectErrorMessage(error));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '刷新直播';
+function syncAllRangeInputs(values) {
+  const v = values || {};
+  setValue('backdropBlurNumber', v.backdropBlur || value('backdropBlur'));
+  setValue('glowIntensityNumber', v.glowIntensity || value('glowIntensity'));
+  setValue('themeOpacityNumber', v.themeOpacity || value('themeOpacity'));
+  setValue('queueSongFontSizeNumber', v.queueSongFontSize || value('queueSongFontSize'));
+  setValue('queueTitleFontSizeNumber', v.queueTitleFontSize || value('queueTitleFontSize'));
+  setValue('overlayRuleFontSizeNumber', v.overlayRuleFontSize || value('overlayRuleFontSize'));
+  const queueScrollSpeed = normalizeQueueScrollSpeedForDisplay(v.queueScrollSpeed || value('queueScrollSpeed'));
+  setValue('queueScrollSpeed', queueScrollSpeed);
+  setValue('queueScrollSpeedRange', queueScrollSpeed);
+  setValue('scrollSecondsRange', v.scrollSeconds || value('scrollSeconds'));
+}
+
+function songBoardSyncAllRangeInputs(values) {
+  const v = values || {};
+  setValue('songBoardThemeOpacityNumber', v.songBoardThemeOpacity || value('songBoardThemeOpacity'));
+  setValue('songBoardBackdropBlurNumber', v.songBoardBackdropBlur || value('songBoardBackdropBlur'));
+  setValue('songBoardGlowIntensityNumber', v.songBoardGlowIntensity || value('songBoardGlowIntensity'));
+  setValue('songBoardSongFontSizeNumber', v.songBoardSongFontSize || value('songBoardSongFontSize'));
+  setValue('songBoardTitleFontSizeNumber', v.songBoardTitleFontSize || value('songBoardTitleFontSize'));
+}
+
+function setOverlayStyle(style) {
+  const nextStyle = (style === 'identity' || style === 'festival') ? 'identity' : 'classic';
+  setValue('overlayQueueStyle', nextStyle);
+  document.querySelectorAll('[data-overlay-style]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
+  });
+  const classicArea = document.getElementById('classicThemeArea');
+  const identityArea = document.getElementById('identityThemeArea');
+  if (nextStyle === 'identity') {
+    if (classicArea) classicArea.hidden = true;
+    if (identityArea) identityArea.hidden = false;
+  } else {
+    if (classicArea) classicArea.hidden = false;
+    if (identityArea) identityArea.hidden = true;
+    renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
   }
+}
+
+// ── Data helpers ─────────────────────────────────────────────────────────────
+
+function normalizeQueueScrollSpeedForDisplay(input) {
+  const valueNumber = Number(input);
+  if (!Number.isFinite(valueNumber)) return '80';
+  if (valueNumber > 100) {
+    const actualSpeed = Math.max(50, Math.min(200, valueNumber));
+    return String(Math.round(1 + ((actualSpeed - 50) / 150) * 99));
+  }
+  return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
+}
+
+function normalizeFontSize(input, fallback, max = 20) {
+  return normalizeRangeValue(input, 5, max, fallback);
+}
+
+function scaleToFontSize(scale, baseSize) {
+  const normalizedScale = Number(normalizeRangeValue(scale, 0.25, 2, 1));
+  return Math.round(normalizedScale * baseSize);
+}
+
+function requesterLabel(item) {
+  const name = String((item && item.requester_name) || '').trim();
+  if (name) return name;
+  const uid = String((item && item.requester_uid) || '').trim();
+  return uid ? `观众 ${uid}` : '观众';
+}
+
+function sourceLabel(itemOrSource) {
+  const item = typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
+  const source = item ? item.source : itemOrSource;
+  if (source === 'random' || String(source || '').startsWith('random:')) {
+    const scope = String(source || '').startsWith('random:')
+      ? String(source).slice('random:'.length).trim()
+      : randomScopeLabel(item && item.request_message);
+    return scope ? `随机点歌 · ${scope}` : '随机点歌';
+  }
+  return {
+    admin: '手动',
+    danmaku: '弹幕',
+    superchat: '醒目留言',
+    history: '历史补偿',
+  }[source] || source || '未知';
+}
+
+function randomScopeLabel(message) {
+  const text = String(message || '').trim().replace(/\s+/g, ' ');
+  if (!text.startsWith('随机')) return '';
+  if (text.startsWith('随机点歌')) {
+    return stripRandomScopePrefix(text.slice('随机点歌'.length));
+  }
+  if (text.startsWith('随机 ')) {
+    return stripRandomScopePrefix(text.slice('随机 '.length));
+  }
+  const scope = stripRandomScopePrefix(text.slice('随机'.length));
+  return scope === '点歌' ? '' : scope;
+}
+
+function stripRandomScopePrefix(val) {
+  let text = String(val || '').trim();
+  while (text && '+＋:：-—'.includes(text[0])) {
+    text = text.slice(1).trim();
+  }
+  return text;
 }
 
 function parseTable(text) {
-  const clean = text.replace(/^\uFEFF/, '').trim();
+  const clean = text.replace(/^﻿/, '').trim();
   const delimiter = clean.includes('\t') ? '\t' : ',';
   const rows = parseDelimited(clean, delimiter);
   if (rows.length === 0) return [];
@@ -1295,8 +1530,8 @@ function readCell(row, index) {
   return index >= 0 ? (row[index] || '').trim() : '';
 }
 
-function parseEnabledCell(value) {
-  const text = String(value || '').trim().toLowerCase();
+function parseEnabledCell(val) {
+  const text = String(val || '').trim().toLowerCase();
   if (!text) return true;
   if (['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(text)) return true;
   if (['否', '不可点', '停用', 'false', 'no', 'n', '0'].includes(text)) return false;
@@ -1307,7 +1542,7 @@ async function readTextFile(file) {
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   const utf8Text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-  if (!utf8Text.includes('\uFFFD')) return utf8Text;
+  if (!utf8Text.includes('�')) return utf8Text;
   try {
     return new TextDecoder('gb18030', { fatal: false }).decode(bytes);
   } catch (_) {
@@ -1326,27 +1561,6 @@ async function readFileAsBase64(file) {
   return btoa(binary);
 }
 
-async function checkGiftProtocol() {
-  const btn = document.getElementById('giftProtocolCheckBtn');
-  btn.disabled = true;
-  btn.textContent = '检查中...';
-  try {
-    const response = await fetch('/api/gifts/blivedm/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    const payload = await readJsonResponse(response, '协议检查失败');
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || `协议检查失败（HTTP ${response.status}）`);
-    }
-    appState.blivedmCompatibility = payload.data || {};
-    renderState();
-    toast((payload.data && payload.data.message) || '协议检查完成');
-  } catch (error) {
-    toast(error.message || String(error));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '检查协议';
-  }
-}
-
 function reconnectErrorMessage(error) {
   const text = String((error && error.message) || error || '');
   if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
@@ -1356,241 +1570,4 @@ function reconnectErrorMessage(error) {
     return text;
   }
   return text || '刷新直播失败，请稍后重试。';
-}
-
-function resetSongForm() {
-  setValue('songId', '');
-  setValue('songName', '');
-  setValue('songArtist', '');
-  setValue('songCategory', '默认');
-  setValue('songTags', '');
-  setValue('songIsEnabled', 'true');
-  setValue('songLanguage', '');
-  setValue('songSourcePlatform', '');
-  setValue('songOriginalGroup', '');
-  setValue('songNote', '');
-}
-
-function fillForm(values) {
-  for (const [key, inputValue] of Object.entries(values || {})) {
-    const element = document.getElementById(key);
-    if (element) element.value = inputValue;
-  }
-  setOverlayStyle(value('overlayQueueStyle') || 'classic');
-
-  // Song board sync toggle
-  const syncCheckbox = document.getElementById('songBoardSyncTheme');
-  const syncArea = document.getElementById('songBoardThemeArea');
-  if (syncCheckbox && syncArea) {
-    if (values && 'songBoardSyncTheme' in values) {
-      const synced = values.songBoardSyncTheme !== 'false';
-      syncCheckbox.checked = synced;
-      syncArea.hidden = synced;
-      if (synced) {
-        // Copy main theme values into song board fields for seamless toggle-off
-        setValue('songBoardThemePrimary', (values && values.themePrimary) || '#ff6f91');
-        setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
-        setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
-        setValue('songBoardThemeBackground', (values && values.themeBackground) || '#181823');
-        setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.35');
-        setValue('songBoardThemeRadius', (values && values.themeRadius) || '8');
-        setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '0');
-        setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '0');
-        setValue('songBoardEnableGradient', (values && values.enableGradient) || 'false');
-        setValue('songBoardGradientEnd', (values && values.gradientEnd) || '#181823');
-        setValue('songBoardFontFamily', (values && values.overlayFontFamily) || 'Microsoft YaHei');
-        setValue('songBoardFontWeight', (values && values.overlayFontWeight) || '800');
-        setValue('songBoardSongColor', (values && values.overlaySongColor) || '');
-        setValue('songBoardTitle', (values && values.overlayTitle) || '');
-      }
-    }
-  }
-
-  const songFontSize = normalizeFontSize(
-    values && values.queueSongFontSize,
-    scaleToFontSize(values && values.themeFontScale, 20),
-    35
-  );
-  const titleFontSize = normalizeFontSize(
-    values && values.queueTitleFontSize,
-    scaleToFontSize(values && values.themeFontScale, 15),
-    20
-  );
-  setValue('queueSongFontSize', songFontSize);
-  if (document.getElementById('queueSongFontSizeNumber')) {
-    setValue('queueSongFontSizeNumber', songFontSize);
-  }
-  setValue('queueTitleFontSize', titleFontSize);
-  if (document.getElementById('queueTitleFontSizeNumber')) {
-    setValue('queueTitleFontSizeNumber', titleFontSize);
-  }
-  const ruleFontSize = normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
-  if (document.getElementById('overlayRuleFontSize')) {
-    setValue('overlayRuleFontSize', ruleFontSize);
-  }
-  if (document.getElementById('overlayRuleFontSizeNumber')) {
-    setValue('overlayRuleFontSizeNumber', ruleFontSize);
-  }
-  if (document.getElementById('themeOpacityNumber')) {
-    setValue('themeOpacityNumber', value('themeOpacity'));
-  }
-  if (document.getElementById('backdropBlurNumber')) {
-    setValue('backdropBlurNumber', value('backdropBlur'));
-  }
-  if (document.getElementById('glowIntensityNumber')) {
-    setValue('glowIntensityNumber', value('glowIntensity'));
-  }
-  if (document.getElementById('scrollSecondsRange')) {
-    setValue('scrollSecondsRange', value('scrollSeconds'));
-  }
-  if (document.getElementById('queueScrollSpeedRange')) {
-    const queueScrollSpeed = normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
-    setValue('queueScrollSpeed', queueScrollSpeed);
-    setValue('queueScrollSpeedRange', queueScrollSpeed);
-  }
-}
-
-function normalizeQueueScrollSpeedForDisplay(input) {
-  const valueNumber = Number(input);
-  if (!Number.isFinite(valueNumber)) return '80';
-  if (valueNumber > 100) {
-    const actualSpeed = Math.max(50, Math.min(200, valueNumber));
-    return String(Math.round(1 + ((actualSpeed - 50) / 150) * 99));
-  }
-  return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
-}
-
-function normalizeFontSize(input, fallback, max = 20) {
-  return normalizeRangeValue(input, 5, max, fallback);
-}
-
-function scaleToFontSize(scale, baseSize) {
-  const normalizedScale = Number(normalizeRangeValue(scale, 0.25, 2, 1));
-  return Math.round(normalizedScale * baseSize);
-}
-
-function setOverlayStyle(style) {
-  const nextStyle = (style === 'identity' || style === 'festival') ? 'identity' : 'classic';
-  setValue('overlayQueueStyle', nextStyle);
-  document.querySelectorAll('[data-overlay-style]').forEach((button) => {
-    button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
-  });
-  const classicArea = document.getElementById('classicThemeArea');
-  const identityArea = document.getElementById('identityThemeArea');
-  if (nextStyle === 'identity') {
-    if (classicArea) classicArea.hidden = true;
-    if (identityArea) identityArea.hidden = false;
-  } else {
-    if (classicArea) classicArea.hidden = false;
-    if (identityArea) identityArea.hidden = true;
-    renderClassicPresetCards();
-  }
-}
-
-function renderClassicPresetCards() {
-  const container = document.getElementById('classicPresets');
-  if (!container) return;
-  container.innerHTML = Object.entries(classicThemePresets).map(([key, preset]) => {
-    const swatches = classicPresetSwatches[key] || ['#181823', '#ccc', '#ccc', '#fff'];
-    const label = classicPresetLabels[key] || key;
-    return `
-      <div class="preset-card" data-theme="${key}">
-        <div class="swatch-preview">
-          <span style="background:${swatches[0]}"></span>
-          <span style="background:${swatches[1]}"></span>
-          <span style="background:${swatches[2]}"></span>
-          <span style="background:${swatches[3]}"></span>
-        </div>
-        <strong>${label}</strong>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderSongBoardPresetCards() {
-  const container = document.getElementById('songBoardPresets');
-  if (!container) return;
-  container.innerHTML = Object.entries(songBoardThemePresets).map(([key, preset]) => {
-    const swatches = songBoardPresetSwatches[key] || ['#181823', '#ccc', '#ccc', '#fff'];
-    const label = songBoardPresetLabels[key] || key;
-    return `
-      <div class="preset-card" data-theme="${key}">
-        <div class="swatch-preview">
-          <span style="background:${swatches[0]}"></span>
-          <span style="background:${swatches[1]}"></span>
-          <span style="background:${swatches[2]}"></span>
-          <span style="background:${swatches[3]}"></span>
-        </div>
-        <strong>${label}</strong>
-      </div>
-    `;
-  }).join('');
-}
-
-function songBoardSyncAllRangeInputs(values) {
-  const v = values || {};
-  setValue('songBoardThemeOpacityNumber', v.songBoardThemeOpacity || value('songBoardThemeOpacity'));
-  setValue('songBoardBackdropBlurNumber', v.songBoardBackdropBlur || value('songBoardBackdropBlur'));
-  setValue('songBoardGlowIntensityNumber', v.songBoardGlowIntensity || value('songBoardGlowIntensity'));
-  setValue('songBoardSongFontSizeNumber', v.songBoardSongFontSize || value('songBoardSongFontSize'));
-  setValue('songBoardTitleFontSizeNumber', v.songBoardTitleFontSize || value('songBoardTitleFontSize'));
-}
-
-function syncAllRangeInputs(values) {
-  const v = values || {};
-  setValue('backdropBlurNumber', v.backdropBlur || value('backdropBlur'));
-  setValue('glowIntensityNumber', v.glowIntensity || value('glowIntensity'));
-  setValue('themeOpacityNumber', v.themeOpacity || value('themeOpacity'));
-  setValue('queueSongFontSizeNumber', v.queueSongFontSize || value('queueSongFontSize'));
-  setValue('queueTitleFontSizeNumber', v.queueTitleFontSize || value('queueTitleFontSize'));
-  setValue('overlayRuleFontSizeNumber', v.overlayRuleFontSize || value('overlayRuleFontSize'));
-  const queueScrollSpeed = normalizeQueueScrollSpeedForDisplay(v.queueScrollSpeed || value('queueScrollSpeed'));
-  setValue('queueScrollSpeed', queueScrollSpeed);
-  setValue('queueScrollSpeedRange', queueScrollSpeed);
-  setValue('scrollSecondsRange', v.scrollSeconds || value('scrollSeconds'));
-}
-
-function requesterLabel(item) {
-  const name = String((item && item.requester_name) || '').trim();
-  if (name) return name;
-  const uid = String((item && item.requester_uid) || '').trim();
-  return uid ? `观众 ${uid}` : '观众';
-}
-
-function sourceLabel(itemOrSource) {
-  const item = typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
-  const source = item ? item.source : itemOrSource;
-  if (source === 'random' || String(source || '').startsWith('random:')) {
-    const scope = String(source || '').startsWith('random:')
-      ? String(source).slice('random:'.length).trim()
-      : randomScopeLabel(item && item.request_message);
-    return scope ? `随机点歌 · ${scope}` : '随机点歌';
-  }
-  return {
-    admin: '手动',
-    danmaku: '弹幕',
-    superchat: '醒目留言',
-    history: '历史补偿',
-  }[source] || source || '未知';
-}
-
-function randomScopeLabel(message) {
-  const text = String(message || '').trim().replace(/\s+/g, ' ');
-  if (!text.startsWith('随机')) return '';
-  if (text.startsWith('随机点歌')) {
-    return stripRandomScopePrefix(text.slice('随机点歌'.length));
-  }
-  if (text.startsWith('随机 ')) {
-    return stripRandomScopePrefix(text.slice('随机 '.length));
-  }
-  const scope = stripRandomScopePrefix(text.slice('随机'.length));
-  return scope === '点歌' ? '' : scope;
-}
-
-function stripRandomScopePrefix(value) {
-  let text = String(value || '').trim();
-  while (text && '+＋:：-—'.includes(text[0])) {
-    text = text.slice(1).trim();
-  }
-  return text;
 }

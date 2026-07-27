@@ -126,7 +126,7 @@ function configureMenu() {
 function createMainWindow(baseUrl) {
   desktopBaseUrl = baseUrl;
   var opts = {
-    width: 1120, height: 720, minWidth: 960, minHeight: 620,
+    width: 1280, height: 800, minWidth: 1024, minHeight: 680,
     show: false, title: '点歌助手', backgroundColor: '#f7f3ef',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

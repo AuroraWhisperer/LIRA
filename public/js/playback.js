@@ -495,11 +495,11 @@
           body.innerHTML = playbackHomeItems.map((playlist, index) => `
             <div class="playback-drawer-playlist-card" data-playback-playlist-index="${index}">
               ${renderPlaybackArtwork(playlist, { fallback: '单' })}
-              <div style="min-width:0;">
+              <div style="flex:1 1 auto;min-width:0;">
                 <div class="song" style="font-size:14px;font-weight:700;">${escapeHtml(playlist.title || '')}</div>
                 <div class="meta">${escapeHtml(formatPlaybackPlaylistMeta(playlist))}</div>
               </div>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0;color:var(--muted);"><polyline points="9 18 15 12 9 6"/></svg>
+              <span class="playlist-card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;"><polyline points="9 18 15 12 9 6"/></svg></span>
             </div>
           `).join('');
           updateDrawerActions(false);
@@ -553,7 +553,7 @@
         if (titleEl) titleEl.textContent = title || '浏览内容';
         if (subtitleEl) subtitleEl.textContent = subtitle || '';
         const backBtn = document.getElementById('playbackDrawerBack');
-        if (backBtn) backBtn.style.visibility = playbackDrawerHistory.length > 0 ? 'visible' : 'hidden';
+        if (backBtn) backBtn.style.display = playbackDrawerHistory.length > 0 ? '' : 'none';
         if (loading) setPlaybackDrawerLoading('正在加载...');
       }
 
@@ -579,7 +579,7 @@
         playbackHomeItemType = prev.itemType;
         renderPlaybackHomeResults('', prev.title);
         const backBtn = document.getElementById('playbackDrawerBack');
-        if (backBtn) backBtn.style.visibility = playbackDrawerHistory.length > 0 ? 'visible' : 'hidden';
+        if (backBtn) backBtn.style.display = playbackDrawerHistory.length > 0 ? '' : 'none';
       }
 
       function handlePlaybackHomeBulkAction(action) {
