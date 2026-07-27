@@ -282,9 +282,9 @@ class QQMusicProvider {
       outCharset: 'utf-8',
       platform: 'yqq.json'
     });
-    const songs = collectQQSongsFromObject(data).slice(0, limit);
+    const songs = extractQQRecentSongs(data, limit);
     if (songs.length > 0) return songs;
-    return this.getLikedTracks({ limit });
+    throw new Error('QQ 音乐没有返回最近播放歌曲，请确认账号已登录且最近播放未设为隐私。');
   }
 
   async getPlaylistTracks(playlistId, options = {}) {
@@ -440,27 +440,31 @@ class QQMusicProvider {
 }
 
 function mapQQSong(song) {
-  if (!song || !(song.mid || song.songmid || song.song_mid) || !(song.title || song.name || song.songname)) return null;
-  const sourceTrackId = String(song.mid || song.songmid || song.song_mid);
+  if (!song) return null;
+  const sourceTrackId = String(song.mid || song.songmid || song.song_mid || song.SongMid || song.songMid || '').trim();
+  const title = String(song.title || song.name || song.songname || song.SongName || song.SongTitle || '').trim();
+  if (!sourceTrackId || !title) return null;
   const album = song.album || {};
   const singers = Array.isArray(song.singer)
     ? song.singer
     : (Array.isArray(song.singers) ? song.singers : []);
+  const singerName = String(song.SingerName || song.SingerTitle || '').trim();
   const albumMid = album && (album.mid || album.pmid)
     ? String(album.mid || album.pmid)
-    : String(song.albummid || '');
+    : String(song.albummid || song.AlbumMid || '');
   return {
     id: `qq:${sourceTrackId}`,
     source: 'qq',
     sourceTrackId,
     sourceAlbumId: album && (album.mid || album.id) ? String(album.mid || album.id) : albumMid,
-    title: String(song.title || song.name || song.songname || '').trim(),
-    artists: singers.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean),
-    album: String(album && (album.title || album.name) || song.albumname || song.albumdesc || '').trim(),
-    durationMs: Math.max(0, Number(song.interval || 0) * 1000),
+    title,
+    artists: singers.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean)
+      .concat(singerName ? [singerName] : []),
+    album: String(album && (album.title || album.name) || song.albumname || song.albumdesc || song.AlbumName || song.AlbumTitle || '').trim(),
+    durationMs: Math.max(0, Number(song.interval || song.SongPlayTime || 0) * 1000),
     coverUrl: extractQQCoverUrl(song, albumMid),
     playable: true,
-    vip: Number(song.pay && song.pay.pay_play || 0) > 0
+    vip: Number(song.pay && song.pay.pay_play || song.Vip || 0) > 0
   };
 }
 
@@ -533,6 +537,12 @@ function extractQQCoverUrl(song, albumMid) {
     || song.imgurl
     || song.albumcover
     || song.strMediaMid
+    || song.AlbumPic
+    || song.AlbumPic150X150
+    || song.AlbumPic300X300
+    || song.AlbumPic500X500
+    || song.SingerPic
+    || song.SingerPic300X300
     || album.picUrl
     || album.picurl
     || album.imgurl
@@ -540,6 +550,36 @@ function extractQQCoverUrl(song, albumMid) {
   const text = String(directUrl || '').trim();
   if (/^https?:\/\//i.test(text)) return text;
   return buildQQCoverUrl(albumMid);
+}
+
+function extractQQRecentSongs(data, limit) {
+  const candidates = [];
+  collectQQRecentSongContainers(data, candidates, false);
+  for (const candidate of candidates) {
+    const songs = collectQQSongsFromObject(candidate).slice(0, limit);
+    if (songs.length > 0) return songs;
+  }
+  return [];
+}
+
+function collectQQRecentSongContainers(value, output = [], inRecentContainer = false) {
+  if (!value || typeof value !== 'object') return output;
+  if (Array.isArray(value)) {
+    for (const item of value) collectQQRecentSongContainers(item, output, inRecentContainer);
+    return output;
+  }
+
+  const type = Number(value.Type || value.type || value.ResourceType || value.resourceType || 0);
+  if (type === 2 && value.Detail) output.push(value.Detail);
+
+  for (const [key, child] of Object.entries(value)) {
+    const isRecentKey = /recent|playhistory|history/i.test(key);
+    if ((inRecentContainer || isRecentKey) && /songlist|song_list|list|items|detail/i.test(key)) {
+      output.push(child);
+    }
+    collectQQRecentSongContainers(child, output, inRecentContainer || isRecentKey);
+  }
+  return output;
 }
 
 function collectQQSongsFromObject(value, output = [], seen = new Set()) {

@@ -55,6 +55,7 @@
       let playbackLyricWindowLocked = false;
       let playbackRadioRefillRunning = false;
       let playbackInitialized = false;
+      let playbackDrawerHistory = [];
       function init(options = {}) {
         updateContext(options);
         if (playbackInitialized) return;
@@ -90,23 +91,15 @@
           });
         });
 
-        document.querySelectorAll('.source-tab').forEach((button) => {
-          button.addEventListener('click', () => {
-            playbackState.selectedSource = button.dataset.source === 'netease' ? 'netease' : 'qq';
-            playbackAuthState = null;
-            playbackProviderHealth = null;
-            playbackSearchResults = [];
-            playbackHomeItems = [];
-            playbackHomeItemType = '';
-            savePlaybackState();
-            renderPlayback();
-            renderPlaybackSearchResults();
-            renderPlaybackHomeResults();
-            refreshSelectedMusicProviderState();
-          });
-        });
+        // 抽屉事件
+        document.getElementById('playbackDrawerBackdrop')?.addEventListener('click', closePlaybackDrawer);
+        document.getElementById('playbackDrawerClose')?.addEventListener('click', closePlaybackDrawer);
+        document.getElementById('playbackDrawerBack')?.addEventListener('click', playbackDrawerGoBack);
+        document.getElementById('playbackDrawerPlayAll')?.addEventListener('click', () => handlePlaybackHomeBulkAction('play-all'));
+        document.getElementById('playbackDrawerShuffleAll')?.addEventListener('click', () => handlePlaybackHomeBulkAction('shuffle-all'));
 
-        document.getElementById('playbackHomeResults')?.addEventListener('click', (event) => {
+        // 抽屉内点击事件委托
+        document.getElementById('playbackDrawerBody')?.addEventListener('click', (event) => {
           const bulkButton = event.target.closest('[data-playback-home-bulk]');
           if (bulkButton) {
             handlePlaybackHomeBulkAction(bulkButton.dataset.playbackHomeBulk);
@@ -125,6 +118,22 @@
             trackButton.dataset.playbackHomeTrackAction,
             Number(trackButton.dataset.playbackHomeTrackIndex)
           );
+        });
+
+        document.querySelectorAll('.source-tab').forEach((button) => {
+          button.addEventListener('click', () => {
+            playbackState.selectedSource = button.dataset.source === 'netease' ? 'netease' : 'qq';
+            playbackAuthState = null;
+            playbackProviderHealth = null;
+            playbackSearchResults = [];
+            playbackHomeItems = [];
+            playbackHomeItemType = '';
+            savePlaybackState();
+            renderPlayback();
+            renderPlaybackSearchResults();
+            closePlaybackDrawer();
+            refreshSelectedMusicProviderState();
+          });
         });
 
         document.getElementById('playbackSearchResults')?.addEventListener('click', (event) => {
@@ -158,21 +167,41 @@
           }
         });
 
-        document.getElementById('playbackMode')?.addEventListener('change', (event) => {
-          playbackState.mode = event.target.value;
+        document.getElementById('playbackModeBtn')?.addEventListener('click', () => {
+          const modes = ['sequence', 'shuffle', 'repeat-one'];
+          const idx = modes.indexOf(playbackState.mode);
+          playbackState.mode = modes[(idx + 1) % modes.length];
           rebuildPlaybackShuffleOrder();
           savePlaybackState();
+          renderPlayback();
         });
 
         document.getElementById('playbackVolume')?.addEventListener('input', (event) => {
           playbackState.volume = Math.max(0, Math.min(1, Number(event.target.value)));
           audio.volume = playbackState.volume;
+          updatePlaybackVolumeUI();
+          savePlaybackState();
+        });
+
+        document.getElementById('playbackVolumeIcon')?.addEventListener('click', () => {
+          if (playbackState.volume > 0) {
+            playbackState._mutedVolume = playbackState.volume;
+            playbackState.volume = 0;
+          } else {
+            playbackState.volume = playbackState._mutedVolume > 0 ? playbackState._mutedVolume : 0.75;
+          }
+          audio.volume = playbackState.volume;
+          const volSlider = document.getElementById('playbackVolume');
+          if (volSlider) volSlider.value = String(playbackState.volume);
+          updatePlaybackVolumeUI();
           savePlaybackState();
         });
 
         document.getElementById('playbackSeek')?.addEventListener('input', (event) => {
           if (!Number.isFinite(audio.duration)) return;
           audio.currentTime = Math.max(0, Math.min(audio.duration, Number(event.target.value)));
+          const pct = audio.duration > 0 ? Math.round((audio.currentTime / audio.duration) * 1000) / 10 : 0;
+          event.target.style.setProperty('--seek-pos', pct + '%');
           savePlaybackState();
         });
 
@@ -376,8 +405,16 @@
       }
 
       async function loadPlaybackHomeContent(action) {
-        const resultNode = document.getElementById('playbackHomeResults');
-        if (resultNode) resultNode.textContent = '正在加载...';
+        const actionNames = {
+          personalized: '为你推荐', daily: '每日推荐', radio: '心动 / 电台',
+          liked: '我喜欢', 'created-playlists': '我的歌单',
+          'collected-playlists': '收藏歌单', recent: '最近播放'
+        };
+        openPlaybackDrawer(actionNames[action] || '浏览内容', '正在加载...', true);
+        // 高亮对应卡片
+        document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.playbackHomeAction === action);
+        });
         try {
           const response = await fetch('/api/music/home', {
             method: 'POST',
@@ -399,7 +436,7 @@
         } catch (error) {
           playbackHomeItems = [];
           playbackHomeItemType = '';
-          if (resultNode) resultNode.textContent = error.message || String(error);
+          setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
       }
@@ -407,8 +444,13 @@
       async function loadPlaybackPlaylistTracks(index) {
         const playlist = playbackHomeItems[index];
         if (!playlist) return;
-        const resultNode = document.getElementById('playbackHomeResults');
-        if (resultNode) resultNode.textContent = `正在打开歌单：${playlist.title || playlist.id}`;
+        // 保存当前状态用于返回
+        playbackDrawerHistory.push({
+          items: playbackHomeItems,
+          itemType: playbackHomeItemType,
+          title: document.getElementById('playbackDrawerTitle')?.textContent || ''
+        });
+        setPlaybackDrawerLoading(`正在打开歌单：${playlist.title || playlist.id}`);
         try {
           const response = await fetch('/api/music/home', {
             method: 'POST',
@@ -428,64 +470,116 @@
           playbackHomeItemType = 'track';
           renderPlaybackHomeResults('playlist-tracks', playlist.title || '');
         } catch (error) {
-          if (resultNode) resultNode.textContent = error.message || String(error);
+          setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
       }
 
       function renderPlaybackHomeResults(action = '', title = '') {
-        const resultNode = document.getElementById('playbackHomeResults');
-        if (!resultNode) return;
+        const body = document.getElementById('playbackDrawerBody');
+        if (!body) return;
         if (!playbackHomeItems.length) {
-          resultNode.textContent = '选择入口后会在这里显示歌单或歌曲。';
-          return;
-        }
-
-        if (playbackHomeItemType === 'playlist') {
-          resultNode.innerHTML = playbackHomeItems.map((playlist, index) => `
-            <div class="queue-row playback-home-row">
-              <div class="playback-row-main">
-                ${renderPlaybackArtwork(playlist, { fallback: '单' })}
-                <div>
-                  <div class="song">${escapeHtml(playlist.title || '')}</div>
-                  <div class="meta">${escapeHtml(formatPlaybackPlaylistMeta(playlist))}</div>
-                </div>
-              </div>
-              <div class="queue-actions">
-                <button type="button" data-playback-playlist-index="${index}">打开</button>
-              </div>
-            </div>
-          `).join('');
+          body.innerHTML = '<p class="hint" style="text-align:center;padding:40px 0;">暂无内容</p>';
+          updateDrawerActions(false);
           return;
         }
 
         const heading = title || playbackHomeActionTitle(action);
-        resultNode.innerHTML = `
-          <div class="playback-home-result-title">
-            <span>${escapeHtml(heading)} · ${playbackHomeItems.length} 首</span>
-            <span class="actions">
-              <button type="button" data-playback-home-bulk="play-all">播放全部</button>
-              <button type="button" data-playback-home-bulk="shuffle-all">随机播放</button>
-            </span>
-          </div>
-          ${playbackHomeItems.map((track, index) => `
-            <div class="queue-row playback-home-row">
-              <div class="playback-row-main">
-                ${renderPlaybackArtwork(track)}
-                <div>
-                  <div class="song">${escapeHtml(track.title || '')}</div>
-                  <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
-                </div>
+        document.getElementById('playbackDrawerTitle').textContent = heading;
+        const subtitle = document.getElementById('playbackDrawerSubtitle');
+        if (subtitle) subtitle.textContent = playbackHomeItemType === 'playlist'
+          ? `${playbackHomeItems.length} 个歌单`
+          : `${playbackHomeItems.length} 首`;
+
+        if (playbackHomeItemType === 'playlist') {
+          body.innerHTML = playbackHomeItems.map((playlist, index) => `
+            <div class="playback-drawer-playlist-card" data-playback-playlist-index="${index}">
+              ${renderPlaybackArtwork(playlist, { fallback: '单' })}
+              <div style="min-width:0;">
+                <div class="song" style="font-size:14px;font-weight:700;">${escapeHtml(playlist.title || '')}</div>
+                <div class="meta">${escapeHtml(formatPlaybackPlaylistMeta(playlist))}</div>
               </div>
-              <div class="queue-actions">
-                <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}">入队</button>
-                <button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>
-                <button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}">电台</button>
-                <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}">播放</button>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0;color:var(--muted);"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          `).join('');
+          updateDrawerActions(false);
+          return;
+        }
+
+        body.innerHTML = playbackHomeItems.map((track, index) => `
+          <div class="queue-row playback-home-row">
+            <div class="playback-row-main">
+              ${renderPlaybackArtwork(track)}
+              <div>
+                <div class="song">${escapeHtml(track.title || '')}</div>
+                <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
               </div>
             </div>
-          `).join('')}
-        `;
+            <div class="queue-actions">
+              <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}">入队</button>
+              <button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>
+              <button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}">电台</button>
+              <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}">播放</button>
+            </div>
+          </div>
+        `).join('');
+        updateDrawerActions(true);
+      }
+
+      function updateDrawerActions(show) {
+        const actions = document.getElementById('playbackDrawerActions');
+        if (actions) actions.hidden = !show;
+      }
+
+      function setPlaybackDrawerLoading(message) {
+        const body = document.getElementById('playbackDrawerBody');
+        if (body) body.innerHTML = `<div class="playback-drawer-loading"><span>${escapeHtml(message)}</span></div>`;
+        updateDrawerActions(false);
+      }
+
+      function setPlaybackDrawerError(message) {
+        const body = document.getElementById('playbackDrawerBody');
+        if (body) body.innerHTML = `<p class="hint" style="text-align:center;padding:40px 0;color:var(--danger);">${escapeHtml(message)}</p>`;
+        updateDrawerActions(false);
+      }
+
+      function openPlaybackDrawer(title, subtitle, loading) {
+        const drawer = document.getElementById('playbackDrawer');
+        const backdrop = document.getElementById('playbackDrawerBackdrop');
+        const titleEl = document.getElementById('playbackDrawerTitle');
+        const subtitleEl = document.getElementById('playbackDrawerSubtitle');
+        if (drawer) drawer.classList.add('open');
+        if (backdrop) backdrop.classList.add('open');
+        if (titleEl) titleEl.textContent = title || '浏览内容';
+        if (subtitleEl) subtitleEl.textContent = subtitle || '';
+        const backBtn = document.getElementById('playbackDrawerBack');
+        if (backBtn) backBtn.style.visibility = playbackDrawerHistory.length > 0 ? 'visible' : 'hidden';
+        if (loading) setPlaybackDrawerLoading('正在加载...');
+      }
+
+      function closePlaybackDrawer() {
+        const drawer = document.getElementById('playbackDrawer');
+        const backdrop = document.getElementById('playbackDrawerBackdrop');
+        if (drawer) drawer.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+        playbackDrawerHistory = [];
+        playbackHomeItems = [];
+        playbackHomeItemType = '';
+        // 取消卡片高亮
+        document.querySelectorAll('[data-playback-home-action]').forEach((btn) => btn.classList.remove('active'));
+      }
+
+      function playbackDrawerGoBack() {
+        if (!playbackDrawerHistory.length) {
+          closePlaybackDrawer();
+          return;
+        }
+        const prev = playbackDrawerHistory.pop();
+        playbackHomeItems = prev.items;
+        playbackHomeItemType = prev.itemType;
+        renderPlaybackHomeResults('', prev.title);
+        const backBtn = document.getElementById('playbackDrawerBack');
+        if (backBtn) backBtn.style.visibility = playbackDrawerHistory.length > 0 ? 'visible' : 'hidden';
       }
 
       function handlePlaybackHomeBulkAction(action) {
@@ -1014,6 +1108,7 @@
           title: track.title,
           artists: track.artists,
           album: track.album,
+          coverUrl: track.coverUrl || '',
           durationMs: track.durationMs,
           fileName: track.fileName,
           sourceTrackId: track.sourceTrackId,
@@ -1477,24 +1572,35 @@
             : '从本地测试音频开始';
         }
         const cover = document.getElementById('playbackCover');
-        if (cover) cover.textContent = track ? '♪' : '音';
-        const playBtn = document.getElementById('playbackPlayPause');
         if (cover) renderPlaybackCurrentCover(cover, track);
-        if (playBtn) playBtn.textContent = audio && !audio.paused ? '暂停' : '播放';
+        const playBtn = document.getElementById('playbackPlayPause');
+        if (playBtn) {
+          playBtn.classList.toggle('playing', audio && !audio.paused);
+          playBtn.title = audio && !audio.paused ? '暂停' : '播放';
+        }
         const lyricBtn = document.getElementById('playbackLyricBtn');
         if (lyricBtn) {
-          lyricBtn.textContent = playbackLyricWindowOpen ? '关闭歌词' : '桌面歌词';
+          lyricBtn.classList.toggle('active', playbackLyricWindowOpen);
           lyricBtn.disabled = !(window.musicAPI && typeof window.musicAPI.openLyricWindow === 'function');
         }
         const lyricLockBtn = document.getElementById('playbackLyricLockBtn');
         if (lyricLockBtn) {
-          lyricLockBtn.textContent = playbackLyricWindowLocked ? '解锁' : '锁定';
+          lyricLockBtn.classList.toggle('locked', playbackLyricWindowLocked);
           lyricLockBtn.disabled = !playbackLyricWindowOpen;
         }
         const volume = document.getElementById('playbackVolume');
         if (volume) volume.value = String(playbackState.volume);
-        const mode = document.getElementById('playbackMode');
-        if (mode) mode.value = playbackState.mode;
+        updatePlaybackVolumeUI();
+        const modeLabel = document.getElementById('playbackModeLabel');
+        const modeBtn = document.getElementById('playbackModeBtn');
+        if (modeLabel) {
+          const modeLabels = { 'sequence': '顺序', 'shuffle': '随机', 'repeat-one': '单曲' };
+          modeLabel.textContent = modeLabels[playbackState.mode] || '顺序';
+        }
+        if (modeBtn) {
+          modeBtn.dataset.mode = playbackState.mode;
+          modeBtn.title = { 'sequence': '顺序播放', 'shuffle': '随机播放', 'repeat-one': '单曲循环' }[playbackState.mode] || '播放模式';
+        }
         const queueSize = document.getElementById('playbackQueueSize');
         if (queueSize) queueSize.textContent = `${playbackQueueTotalCount()} 首`;
 
@@ -1600,10 +1706,11 @@
       function renderPlaybackCurrentCover(cover, track) {
         const coverUrl = String(track && track.coverUrl || '').trim();
         cover.classList.toggle('has-image', Boolean(coverUrl));
-        cover.innerHTML = `
-          ${coverUrl ? `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
-          <span>${track ? '♪' : '音'}</span>
-        `;
+        if (coverUrl) {
+          cover.innerHTML = `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">`;
+        } else {
+          cover.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+        }
       }
 
       function playbackQueueTotalCount() {
@@ -1618,12 +1725,25 @@
         if (seek) {
           seek.max = String(Math.max(0, duration));
           seek.value = String(Math.max(0, Math.min(currentTime, duration || currentTime)));
+          const pct = duration > 0 ? Math.round((currentTime / duration) * 1000) / 10 : 0;
+          seek.style.setProperty('--seek-pos', pct + '%');
         }
         const current = document.getElementById('playbackCurrentTime');
         if (current) current.textContent = formatPlaybackTime(currentTime);
         const total = document.getElementById('playbackDuration');
         if (total) total.textContent = formatPlaybackTime(duration);
         updatePlaybackMediaSessionPosition();
+      }
+
+      function updatePlaybackVolumeUI() {
+        const volSlider = document.getElementById('playbackVolume');
+        const volWrap = document.querySelector('.playback-volume-wrap');
+        if (volWrap) {
+          volWrap.classList.toggle('muted', playbackState.volume === 0);
+        }
+        if (volSlider) {
+          volSlider.style.setProperty('--vol-pos', Math.round(playbackState.volume * 100) + '%');
+        }
       }
 
       function updatePlaybackMediaSession() {
