@@ -85,6 +85,10 @@
         document.getElementById('playbackSearchKeyword')?.addEventListener('keydown', (event) => {
           if (event.key === 'Enter') runPlaybackSearch();
         });
+
+        // 点歌确认悬浮通知按钮
+        document.getElementById('pendingConfirmAcceptBtn')?.addEventListener('click', () => handlePlaybackPendingAction('confirm', 0));
+        document.getElementById('pendingConfirmRejectBtn')?.addEventListener('click', () => handlePlaybackPendingAction('ignore', 0));
         document.querySelectorAll('[data-playback-home-action]').forEach((button) => {
           button.addEventListener('click', () => {
             loadPlaybackHomeContent(button.dataset.playbackHomeAction || 'personalized');
@@ -589,11 +593,35 @@
           tracks = shufflePlaybackTracks(tracks);
           playbackState.mode = 'shuffle';
         }
-        playbackState.normalQueue.push(...tracks);
-        rebuildPlaybackShuffleOrder();
-        savePlaybackState();
-        renderPlayback();
-        toast(`已加入 ${tracks.length} 首到普通队列`);
+        if (action === 'play-all' || action === 'shuffle-all') {
+          const audio = getPlaybackAudio();
+          if (audio) {
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+          }
+          playbackState.current = null;
+          playbackState.currentOrigin = '';
+          playbackState.requestedQueue = [];
+          playbackState.normalQueue = [];
+          playbackState.radioQueue = [];
+          playbackState.pendingRequests = [];
+          playbackState.shuffleOrder = [];
+          playbackState.shuffleCursor = 0;
+          playbackState.restoredTime = 0;
+          const firstTrack = tracks[0];
+          playbackState.normalQueue.push(...tracks.slice(1));
+          rebuildPlaybackShuffleOrder();
+          savePlaybackState();
+          playPlaybackTrack(firstTrack, { origin: 'normal' });
+          toast(`开始播放歌单，共 ${tracks.length} 首`);
+        } else {
+          playbackState.normalQueue.push(...tracks);
+          rebuildPlaybackShuffleOrder();
+          savePlaybackState();
+          renderPlayback();
+          toast(`已加入 ${tracks.length} 首到普通队列`);
+        }
       }
 
       function handlePlaybackHomeTrackAction(action, index) {
@@ -1487,7 +1515,7 @@
         if (!picked) return;
         playbackState.requestedQueue.push({
           ...picked.track,
-          requestedBy: '测试点歌'
+          requestedBy: '插队优先'
         });
         rebuildPlaybackShuffleOrder();
         savePlaybackState();
@@ -1607,6 +1635,7 @@
         renderPlaybackQueue();
         renderPlaybackSearchResults();
         renderPlaybackProgress();
+        renderPendingConfirmPopup();
       }
 
       function renderPlaybackQueue() {
@@ -1653,6 +1682,31 @@
             </div>
           </div>
         `;
+      }
+
+      function renderPendingConfirmPopup() {
+        const popup = document.getElementById('pendingConfirmPopup');
+        if (!popup) return;
+        const items = playbackState.pendingRequests;
+        if (!items.length) {
+          popup.classList.remove('visible');
+          return;
+        }
+        const item = items[0];
+        const track = item.track || {};
+        const songNameEl = document.getElementById('pendingConfirmSongName');
+        const matchInfoEl = document.getElementById('pendingConfirmMatchInfo');
+        const requesterEl = document.getElementById('pendingConfirmRequester');
+        const countEl = document.getElementById('pendingConfirmCount');
+        if (songNameEl) songNameEl.textContent = item.songName || track.title || '未知歌曲';
+        if (matchInfoEl) {
+          const meta = formatPlaybackTrackMeta(track);
+          const scoreStr = item.score ? `  匹配度 ${item.score} 分` : '';
+          matchInfoEl.textContent = `候选：${track.title || ''}  ${meta}${scoreStr}`;
+        }
+        if (requesterEl) requesterEl.textContent = `来自：${item.requesterName || '观众'}`;
+        if (countEl) countEl.textContent = items.length > 1 ? `${items.length} 条待确认` : '';
+        popup.classList.add('visible');
       }
 
       function handlePlaybackPendingAction(action, index) {

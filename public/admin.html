@@ -6,7 +6,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>点歌助手</title>
-    <link rel="stylesheet" href="/styles.css?v=20260727-01">
+    <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
+    <link rel="stylesheet" href="/styles-admin.css?v=20260728-01">
+    <link rel="stylesheet" href="/styles-playback.css?v=20260728-01">
+    <link rel="stylesheet" href="/styles-desktop.css?v=20260728-01">
   </head>
   <body>
     <main class="app-shell">
@@ -1236,6 +1239,25 @@
       </section>
     </main>
     <audio id="music-player" preload="metadata"></audio>
+    <!-- 点歌确认悬浮通知 -->
+    <div id="pendingConfirmPopup" class="pending-confirm-popup">
+      <div class="pending-confirm-inner">
+        <div class="pending-confirm-header">
+          <span class="pending-confirm-icon">🎵</span>
+          <span class="pending-confirm-title">收到点歌请求</span>
+          <span id="pendingConfirmCount" class="pending-confirm-count"></span>
+        </div>
+        <div class="pending-confirm-body">
+          <div id="pendingConfirmSongName" class="pending-confirm-song"></div>
+          <div id="pendingConfirmMatchInfo" class="pending-confirm-match"></div>
+          <div id="pendingConfirmRequester" class="pending-confirm-requester"></div>
+        </div>
+        <div class="pending-confirm-actions">
+          <button id="pendingConfirmAcceptBtn" type="button" class="primary">✓ 下一首播放</button>
+          <button id="pendingConfirmRejectBtn" type="button">✗ 跳过</button>
+        </div>
+      </div>
+    </div>
     <div id="toast" class="toast-stack"></div>
     <script src="/js/utils.js?v=20260726-01"></script>
     <script src="/js/theme.js?v=20260726-01"></script>

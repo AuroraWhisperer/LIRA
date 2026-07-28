@@ -272,6 +272,32 @@ class QQMusicProvider {
     await this.requireLogin('QQ 音乐”最近播放”需要先登录。');
     const limit = clampInteger(options.limit, 1, 100, 50);
     const uin = await this.requireUin();
+
+    // Try newer musicu API first
+    let muDebug = null;
+    try {
+      const muData = await this.requestMusicu({
+        req_0: {
+          module: 'music.globalchannel.GlobalChannelSvr',
+          method: 'GetPlayHistory',
+          param: { uin, start: 0, num: limit }
+        }
+      });
+      muDebug = muData && muData.req_0;
+      const list = muData && muData.req_0 && muData.req_0.data
+        && Array.isArray(muData.req_0.data.result_song_list)
+        ? muData.req_0.data.result_song_list
+        : null;
+      if (list && list.length > 0) {
+        const songs = list
+          .map((item) => mapQQSong(item && (item.songInfo || item)))
+          .filter(Boolean)
+          .slice(0, limit);
+        if (songs.length > 0) return songs;
+      }
+    } catch (e) { muDebug = { error: e && e.message }; }
+
+    // Legacy API fallback
     const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
       ct: '20',
       cid: '205360956',
@@ -280,12 +306,20 @@ class QQMusicProvider {
       sin: '0',
       ein: String(limit)
     });
-    const songlist = data && data.data && Array.isArray(data.data.songlist)
-      ? data.data.songlist
-      : [];
+    const rawData = data && data.data;
+    const songlist = rawData && (
+      Array.isArray(rawData.songlist) ? rawData.songlist :
+      Array.isArray(rawData.song_list) ? rawData.song_list :
+      []
+    );
     const songs = songlist.map(mapQQSong).filter(Boolean).slice(0, limit);
     if (songs.length > 0) return songs;
-    throw new Error('QQ 音乐没有返回最近播放歌曲，请确认账号已登录且最近播放未设为隐私。');
+    const legacyKeys = rawData ? Object.keys(rawData) : 'null';
+    throw new Error(
+      `QQ 音乐没有返回最近播放歌曲。` +
+      `[musicu:${JSON.stringify(muDebug && { code: muDebug.code, dataKeys: muDebug.data ? Object.keys(muDebug.data) : null })}]` +
+      `[legacy keys:${JSON.stringify(legacyKeys)}]`
+    );
   }
 
   async getPlaylistTracks(playlistId, options = {}) {
