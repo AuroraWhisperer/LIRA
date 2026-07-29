@@ -39,8 +39,8 @@ function initDesktopShell() {
     downloadButton.addEventListener('click', () => runDesktopAction(() => desktop.downloadUpdate()));
   }
   if (installButton) {
-    installButton.addEventListener('click', () => {
-      if (!confirm('确认重启并更新到新版本？')) return;
+    installButton.addEventListener('click', async () => {
+      if (!await showRestartConfirmModal()) return;
       runDesktopAction(() => desktop.installUpdate());
     });
   }
@@ -205,6 +205,29 @@ function desktopUpdateStatusText(state) {
   const message = String((state && state.message) || fallback).replace(/\s+/g, ' ').trim();
   if (message.length <= 120) return message;
   return `${message.slice(0, 120)}...`;
+}
+
+function showRestartConfirmModal() {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('restartConfirmModal');
+    if (!overlay) { resolve(window.confirm('确认重启并更新到新版本？')); return; }
+    const okBtn = document.getElementById('restartConfirmOkBtn');
+    const cancelBtn = document.getElementById('restartConfirmCancelBtn');
+    overlay.hidden = false;
+    function close(result) {
+      overlay.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onBackdrop);
+      resolve(result);
+    }
+    function onOk() { close(true); }
+    function onCancel() { close(false); }
+    function onBackdrop(e) { if (e.target === overlay) close(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBackdrop);
+  });
 }
 
   window.AdminApp = window.AdminApp || {};

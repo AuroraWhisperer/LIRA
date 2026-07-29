@@ -1090,19 +1090,6 @@
             </div>
           </section>
 
-          <section class="panel">
-            <div class="panel-header">
-              <h2>播放队列</h2>
-              <div class="actions">
-                <span id="playbackQueueSize" class="pill">0 首</span>
-                <button id="playbackImportSongQueue" type="button">导入点歌队列</button>
-                <button id="playbackClearQueue" class="danger" type="button">清空</button>
-              </div>
-            </div>
-            <div class="panel-body stack">
-              <div id="playbackQueueList" class="queue-list playback-queue-list"></div>
-            </div>
-          </section>
         </div>
 
         <section class="panel playback-search-panel">
@@ -1194,6 +1181,9 @@
                 </button>
               </div>
               <div class="playback-extra-actions">
+                <button id="playbackQueueBtn" class="playback-icon-btn" type="button" title="播放队列">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
                 <button id="playbackLyricBtn" class="playback-icon-btn" type="button" title="桌面歌词">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </button>
@@ -1212,6 +1202,23 @@
             </div>
           </div>
         </section>
+
+        <!-- 播放队列弹窗 -->
+        <div class="queue-popup-backdrop" id="queuePopupBackdrop"></div>
+        <div class="queue-popup" id="queuePopup">
+          <div class="queue-popup-head">
+            <strong id="queuePopupTitle">播放队列</strong>
+            <span id="queuePopupSize" class="pill">0 首</span>
+            <div class="queue-popup-actions">
+              <button id="playbackImportSongQueue" type="button">导入点歌</button>
+              <button id="playbackClearQueue" class="danger" type="button">清空</button>
+            </div>
+            <button id="queuePopupClose" class="playback-icon-btn" type="button" title="关闭">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="queue-popup-body" id="playbackQueueList"></div>
+        </div>
 
         <!-- 右侧滑出抽屉 -->
         <div class="playback-drawer-backdrop" id="playbackDrawerBackdrop"></div>
@@ -1239,6 +1246,18 @@
       </section>
     </main>
     <audio id="music-player" preload="metadata"></audio>
+    <!-- 重启更新确认弹窗 -->
+    <div id="restartConfirmModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" hidden>
+      <div class="confirm-modal">
+        <div class="confirm-modal-icon">🔄</div>
+        <h3 class="confirm-modal-title">重启并更新</h3>
+        <p class="confirm-modal-body">应用将关闭并安装新版本。<br>直播进行中请在合适时机操作。</p>
+        <div class="confirm-modal-actions">
+          <button id="restartConfirmCancelBtn" type="button">取消</button>
+          <button id="restartConfirmOkBtn" class="danger-filled" type="button">确认重启</button>
+        </div>
+      </div>
+    </div>
     <!-- 点歌确认悬浮通知 -->
     <div id="pendingConfirmPopup" class="pending-confirm-popup">
       <div class="pending-confirm-inner">
