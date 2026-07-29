@@ -1110,11 +1110,11 @@
 
 .queue-popup {
   position: fixed;
+  top: 84px;
   bottom: 110px;
   right: 24px;
   z-index: 23;
   width: min(400px, calc(100vw - 48px));
-  max-height: min(520px, calc(100vh - 140px));
   display: flex;
   flex-direction: column;
   background: var(--surface, #fff);
@@ -1793,6 +1793,7 @@ body.player-dock-expanded .queue-popup {
 
   .queue-popup,
   body.player-dock-expanded .queue-popup {
+    top: 76px;
     bottom: 112px;
   }
 }

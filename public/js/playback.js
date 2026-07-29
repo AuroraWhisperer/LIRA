@@ -37,6 +37,9 @@
         normalQueue: [],
         normalQueueTracks: [],  // 完整歌单备份，用于循环重播
         radioQueue: [],
+        queueType: 'queue',
+        queueTitle: '播放队列',
+        playlistIndex: -1,
         pendingRequests: [],
         history: [],
         displayHistory: [],
@@ -53,6 +56,7 @@
       let playbackSearchResults = [];
       let playbackHomeItems = [];
       let playbackHomeItemType = '';
+      let playbackHomeAction = '';
       let playbackLyricWindowOpen = false;
       let playbackLyricWindowLocked = false;
       let playbackRadioRefillRunning = false;
@@ -140,6 +144,7 @@
             playbackSearchResults = [];
             playbackHomeItems = [];
             playbackHomeItemType = '';
+            playbackHomeAction = '';
             savePlaybackState();
             renderPlayback();
             renderPlaybackSearchResults();
@@ -177,10 +182,6 @@
 
           const button = event.target.closest('[data-playback-queue][data-playback-index]');
           if (!button) return;
-          if (button.dataset.playbackAction === 'request') {
-            movePlaybackTrackToRequested(button.dataset.playbackQueue, Number(button.dataset.playbackIndex));
-            return;
-          }
           const picked = takePlaybackQueueTrack(button.dataset.playbackQueue, Number(button.dataset.playbackIndex));
           if (picked) {
             playPlaybackTrack(picked.track, { origin: picked.origin });
@@ -368,6 +369,7 @@
           playbackState.current,
           ...playbackState.requestedQueue,
           ...playbackState.normalQueue,
+          ...playbackState.normalQueueTracks,
           ...playbackState.radioQueue,
           ...playbackState.history
         ].forEach(clearTrack);
@@ -431,6 +433,7 @@
         const tracks = playbackState.displayHistory;
         playbackHomeItems = tracks.slice();
         playbackHomeItemType = 'track';
+        playbackHomeAction = 'recent';
         openPlaybackDrawer('播放历史', `${tracks.length} 首`, false);
         const body = document.getElementById('playbackDrawerBody');
         if (!body) return;
@@ -491,10 +494,12 @@
             ? data.playlists
             : (Array.isArray(data.tracks) ? data.tracks : []);
           playbackHomeItemType = Array.isArray(data.playlists) ? 'playlist' : 'track';
-          renderPlaybackHomeResults(data.action || action);
+          playbackHomeAction = data.action || action;
+          renderPlaybackHomeResults(playbackHomeAction);
         } catch (error) {
           playbackHomeItems = [];
           playbackHomeItemType = '';
+          playbackHomeAction = '';
           setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
@@ -507,6 +512,7 @@
         playbackDrawerHistory.push({
           items: playbackHomeItems,
           itemType: playbackHomeItemType,
+          action: playbackHomeAction,
           title: document.getElementById('playbackDrawerTitle')?.textContent || ''
         });
         setPlaybackDrawerLoading(`正在打开歌单：${playlist.title || playlist.id}`);
@@ -527,6 +533,7 @@
             ? payload.data.tracks
             : [];
           playbackHomeItemType = 'track';
+          playbackHomeAction = 'playlist-tracks';
           renderPlaybackHomeResults('playlist-tracks', playlist.title || '');
         } catch (error) {
           setPlaybackDrawerError(error.message || String(error));
@@ -642,6 +649,7 @@
         playbackDrawerHistory = [];
         playbackHomeItems = [];
         playbackHomeItemType = '';
+        playbackHomeAction = '';
         // 取消卡片高亮
         document.querySelectorAll('[data-playback-home-action]').forEach((btn) => btn.classList.remove('active'));
       }
@@ -654,6 +662,7 @@
         const prev = playbackDrawerHistory.pop();
         playbackHomeItems = prev.items;
         playbackHomeItemType = prev.itemType;
+        playbackHomeAction = prev.action || '';
         renderPlaybackHomeResults('', prev.title);
         const backBtn = document.getElementById('playbackDrawerBack');
         if (backBtn) backBtn.style.display = playbackDrawerHistory.length > 0 ? '' : 'none';
@@ -667,40 +676,37 @@
           playbackState.mode = 'shuffle';
         }
         if (action === 'play-all' || action === 'shuffle-all') {
-          const audio = getPlaybackAudio();
-          if (audio) {
-            audio.pause();
-            audio.removeAttribute('src');
-            audio.load();
-          }
-          playbackState.current = null;
-          playbackState.currentOrigin = '';
-          playbackState.requestedQueue = [];
-          playbackState.normalQueue = [];
-          playbackState.normalQueueTracks = tracks.map((t) => ({ ...t })); // 存储完整歌单用于循环
-          playbackState.radioQueue = [];
-          playbackState.pendingRequests = [];
-          playbackState.shuffleOrder = [];
-          playbackState.shuffleCursor = 0;
-          playbackState.restoredTime = 0;
-          const firstTrack = tracks[0];
-          playbackState.normalQueue.push(...tracks.slice(1));
-          rebuildPlaybackShuffleOrder();
-          savePlaybackState();
-          playPlaybackTrack(firstTrack, { origin: 'normal' });
-          toast(`开始播放歌单，共 ${tracks.length} 首`);
+          const queueType = playbackHomeAction === 'radio' ? 'radio' : 'playlist';
+          startPlaybackCollection(tracks, 0, queueType);
+          toast(queueType === 'radio'
+            ? `开始播放电台，共载入 ${tracks.length} 首`
+            : `开始播放歌单，共 ${tracks.length} 首`);
         } else {
-          playbackState.normalQueue.push(...tracks);
+          appendPlaybackTracks(tracks);
           rebuildPlaybackShuffleOrder();
           savePlaybackState();
           renderPlayback();
-          toast(`已加入 ${tracks.length} 首到普通队列`);
+          toast(`已加入 ${tracks.length} 首到当前队列`);
         }
       }
 
       function handlePlaybackHomeTrackAction(action, index) {
         const track = playbackHomeItems[index];
         if (!track) return;
+        if (action === 'play' && playbackHomeAction !== 'recent') {
+          const selectedTrack = normalizePlaybackOnlineTrack(track);
+          if (
+            (playbackState.queueType === 'playlist' || playbackState.queueType === 'radio')
+            && playbackState.current
+          ) {
+            insertAndPlayPlaybackTrack(selectedTrack);
+            return;
+          }
+          const tracks = playbackHomeItems.map(normalizePlaybackOnlineTrack);
+          const queueType = playbackHomeAction === 'radio' ? 'radio' : 'playlist';
+          startPlaybackCollection(tracks, index, queueType);
+          return;
+        }
         queuePlaybackTrack(normalizePlaybackOnlineTrack(track), action, {
           requestedBy: '音乐首页'
         });
@@ -709,23 +715,23 @@
       function queuePlaybackTrack(track, action, options = {}) {
         if (!track) return;
         if (action === 'play') {
-          playPlaybackTrack(track, { origin: 'normal' });
+          insertAndPlayPlaybackTrack(track);
           return;
         }
         if (action === 'requested') {
-          playbackState.requestedQueue.push({
+          insertPlaybackTracksNext([{
             ...track,
             requestedBy: options.requestedBy || '手动添加'
-          });
-          toast('已加入点歌优先队列');
+          }]);
+          toast('已插入当前歌曲之后');
         } else if (action === 'radio') {
-          playbackState.radioQueue.push(track);
-          ensurePlaybackRadioQueueFilled();
-          toast('已加入电台队列');
+          startPlaybackCollection([track], 0, 'radio');
+          toast('已切换到电台队列');
+          return;
         } else {
-          playbackState.normalQueue.push(track);
+          appendPlaybackTracks([track]);
           rebuildPlaybackShuffleOrder();
-          toast('已加入普通队列');
+          toast('已加入当前队列');
         }
         savePlaybackState();
         renderPlayback();
@@ -827,20 +833,20 @@
         const queuedTrack = normalizePlaybackOnlineTrack(track);
 
         if (action === 'play') {
-          playPlaybackTrack(queuedTrack, { origin: 'normal' });
+          insertAndPlayPlaybackTrack(queuedTrack);
           return;
         }
 
         if (action === 'requested') {
-          playbackState.requestedQueue.push({
+          insertPlaybackTracksNext([{
             ...queuedTrack,
             requestedBy: '手动搜索'
-          });
-          toast('已加入点歌优先队列');
+          }]);
+          toast('已插入当前歌曲之后');
         } else {
-          playbackState.normalQueue.push(queuedTrack);
+          appendPlaybackTracks([queuedTrack]);
           rebuildPlaybackShuffleOrder();
-          toast('已加入普通队列');
+          toast('已加入当前队列');
         }
 
         savePlaybackState();
@@ -864,10 +870,11 @@
           let imported = 0;
           let skipped = 0;
           let pending = 0;
+          const importedTracks = [];
           for (const item of items.slice(0, 30)) {
             const matched = await resolvePlaybackTrackForQueueItem(item);
             if (matched && matched.autoAccept) {
-              playbackState.requestedQueue.push({
+              importedTracks.push({
                 ...matched.track,
                 requestedBy: item.requester_name || item.requesterName || '观众'
               });
@@ -888,6 +895,7 @@
             }
           }
 
+          insertPlaybackTracksNext(importedTracks);
           savePlaybackState();
           renderPlayback();
           toast(`已导入 ${imported} 首，待确认 ${pending} 首，跳过 ${skipped} 首`);
@@ -1145,6 +1153,136 @@
         return document.getElementById('music-player');
       }
 
+      function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '') {
+        const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
+        if (!items.length) return;
+        const index = Math.max(0, Math.min(items.length - 1, Number(selectedIndex) || 0));
+        const type = queueType === 'radio' ? 'radio' : 'playlist';
+        const audio = getPlaybackAudio();
+        if (audio) {
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
+        }
+
+        playbackState.current = null;
+        playbackState.currentOrigin = '';
+        playbackState.requestedQueue = [];
+        playbackState.normalQueue = [];
+        playbackState.normalQueueTracks = [];
+        playbackState.radioQueue = [];
+        playbackState.queueType = type;
+        playbackState.queueTitle = queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
+        playbackState.playlistIndex = type === 'playlist' ? index : -1;
+        playbackState.pendingRequests = [];
+        playbackState.shuffleOrder = [];
+        playbackState.shuffleCursor = 0;
+        playbackState.restoredTime = 0;
+
+        if (type === 'playlist') {
+          playbackState.normalQueueTracks = items.map((track) => ({ ...track }));
+          playbackState.normalQueue = items.slice(index + 1).map((track) => ({ ...track }));
+        } else {
+          playbackState.radioQueue = items.slice(index + 1).map((track) => ({ ...track }));
+        }
+
+        rebuildPlaybackShuffleOrder();
+        savePlaybackState();
+        playPlaybackTrack(items[index], { origin: type === 'radio' ? 'radio' : 'normal' });
+        if (type === 'radio') ensurePlaybackRadioQueueFilled();
+      }
+
+      function appendPlaybackTracks(tracks) {
+        const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
+        if (!items.length) return;
+        playbackState.requestedQueue = [];
+        if (playbackState.queueType === 'radio') {
+          playbackState.radioQueue.push(...items);
+          return;
+        }
+
+        if (playbackState.queueType !== 'playlist') {
+          playbackState.queueType = 'queue';
+          playbackState.queueTitle = '播放队列';
+          playbackState.normalQueueTracks = [];
+          playbackState.playlistIndex = -1;
+        } else {
+          playbackState.normalQueueTracks.push(...items.map((track) => ({ ...track })));
+        }
+        playbackState.radioQueue = [];
+        playbackState.normalQueue.push(...items);
+      }
+
+      function insertPlaybackTracksNext(tracks) {
+        const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
+        if (!items.length) return;
+        playbackState.requestedQueue = [];
+        if (playbackState.queueType === 'radio') {
+          playbackState.radioQueue.unshift(...items);
+        } else {
+          playbackState.radioQueue = [];
+          playbackState.normalQueue.unshift(...items);
+          if (playbackState.queueType === 'playlist') {
+            const insertAt = Math.max(0, Math.min(
+              playbackState.normalQueueTracks.length,
+              playbackState.playlistIndex + 1
+            ));
+            playbackState.normalQueueTracks.splice(
+              insertAt,
+              0,
+              ...items.map((track) => ({ ...track }))
+            );
+          } else {
+            playbackState.queueType = 'queue';
+            playbackState.queueTitle = '播放队列';
+            playbackState.normalQueueTracks = [];
+            playbackState.playlistIndex = -1;
+          }
+        }
+        rebuildPlaybackShuffleOrder();
+      }
+
+      function insertAndPlayPlaybackTrack(track) {
+        if (!track) return;
+        playbackState.requestedQueue = [];
+        const origin = 'normal';
+        if (playbackState.queueType === 'playlist' && playbackState.current) {
+          const insertAt = Math.max(0, Math.min(
+            playbackState.normalQueueTracks.length,
+            playbackState.playlistIndex + 1
+          ));
+          playbackState.normalQueueTracks.splice(insertAt, 0, { ...track });
+          playbackState.playlistIndex = insertAt;
+          playbackState.radioQueue = [];
+        } else if (playbackState.queueType === 'radio') {
+          const historyTracks = [
+            track,
+            ...playbackState.displayHistory.filter((item) => item.id !== track.id)
+          ];
+          startPlaybackCollection(historyTracks, 0, 'playlist', '历史播放');
+          return;
+        } else {
+          playbackState.queueType = 'queue';
+          playbackState.queueTitle = '播放队列';
+          playbackState.normalQueueTracks = [];
+          playbackState.radioQueue = [];
+          playbackState.playlistIndex = -1;
+        }
+        rebuildPlaybackShuffleOrder();
+        savePlaybackState();
+        playPlaybackTrack(track, { origin });
+      }
+
+      function activePlaybackQueue() {
+        return playbackState.queueType === 'radio'
+          ? playbackState.radioQueue
+          : playbackState.normalQueue;
+      }
+
+      function activePlaybackOrigin() {
+        return playbackState.queueType === 'radio' ? 'radio' : 'normal';
+      }
+
       function restorePlaybackState() {
         try {
           const raw = localStorage.getItem(playbackStorageKey);
@@ -1175,6 +1313,66 @@
             playbackState.current = playbackState.normalQueue[saved.currentIndex] || null;
             playbackState.currentOrigin = playbackState.current ? 'normal' : '';
           }
+          const savedQueueType = ['playlist', 'radio', 'queue'].includes(saved.queueType)
+            ? saved.queueType
+            : '';
+          playbackState.queueType = savedQueueType
+            || (playbackState.normalQueueTracks.length > 0
+              ? 'playlist'
+              : (playbackState.currentOrigin === 'radio' && playbackState.normalQueue.length === 0
+                ? 'radio'
+                : 'queue'));
+          if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length === 0) {
+            playbackState.queueType = 'queue';
+          }
+          playbackState.queueTitle = String(saved.queueTitle || '').trim()
+            || (playbackState.queueType === 'radio'
+              ? '电台队列'
+              : (playbackState.queueType === 'playlist' ? '歌单队列' : '播放队列'));
+
+          const prioritizedTracks = playbackState.requestedQueue;
+          playbackState.requestedQueue = [];
+          if (playbackState.queueType === 'playlist') {
+            const derivedIndex = playbackState.normalQueueTracks.length - playbackState.normalQueue.length - 1;
+            const matchingIndex = playbackState.current
+              ? playbackState.normalQueueTracks.findIndex((track) => track.id === playbackState.current.id)
+              : -1;
+            const restoredIndex = Number.isInteger(saved.playlistIndex)
+              ? saved.playlistIndex
+              : (derivedIndex >= 0 ? derivedIndex : matchingIndex);
+            playbackState.playlistIndex = Math.max(0, Math.min(
+              playbackState.normalQueueTracks.length - 1,
+              restoredIndex
+            ));
+            if (prioritizedTracks.length > 0) {
+              playbackState.normalQueueTracks.splice(
+                playbackState.playlistIndex + 1,
+                0,
+                ...prioritizedTracks.map((track) => ({ ...track }))
+              );
+              playbackState.normalQueue.unshift(...prioritizedTracks);
+            }
+            playbackState.radioQueue = [];
+            if (playbackState.current && playbackState.currentOrigin !== 'history') {
+              playbackState.currentOrigin = 'normal';
+            }
+          } else if (playbackState.queueType === 'radio') {
+            playbackState.radioQueue.unshift(...prioritizedTracks);
+            playbackState.normalQueue = [];
+            playbackState.normalQueueTracks = [];
+            playbackState.playlistIndex = -1;
+            if (playbackState.current && playbackState.currentOrigin !== 'history') {
+              playbackState.currentOrigin = 'radio';
+            }
+          } else {
+            playbackState.normalQueue.unshift(...prioritizedTracks);
+            playbackState.normalQueueTracks = [];
+            playbackState.radioQueue = [];
+            playbackState.playlistIndex = -1;
+            if (playbackState.current && playbackState.currentOrigin !== 'history') {
+              playbackState.currentOrigin = 'normal';
+            }
+          }
           playbackState.history = Array.isArray(saved.history) ? saved.history.map(normalizeSavedTrack) : [];
           playbackState.displayHistory = Array.isArray(saved.displayHistory) ? saved.displayHistory.map(normalizeSavedTrack) : [];
           playbackState.mode = ['sequence', 'shuffle', 'repeat-one'].includes(saved.mode) ? saved.mode : 'sequence';
@@ -1187,6 +1385,9 @@
           playbackState.normalQueue = [];
           playbackState.normalQueueTracks = [];
           playbackState.radioQueue = [];
+          playbackState.queueType = 'queue';
+          playbackState.queueTitle = '播放队列';
+          playbackState.playlistIndex = -1;
           playbackState.pendingRequests = [];
         }
       }
@@ -1232,6 +1433,9 @@
           normalQueue: playbackState.normalQueue.map(serialize).filter(Boolean),
           normalQueueTracks: playbackState.normalQueueTracks.map(serialize).filter(Boolean),
           radioQueue: playbackState.radioQueue.map(serialize).filter(Boolean),
+          queueType: playbackState.queueType,
+          queueTitle: playbackState.queueTitle,
+          playlistIndex: playbackState.playlistIndex,
           pendingRequests: playbackState.pendingRequests.map((item) => ({
             ...item,
             track: serialize(item.track)
@@ -1263,6 +1467,9 @@
         playbackState.normalQueue = [];
         playbackState.normalQueueTracks = [];
         playbackState.radioQueue = [];
+        playbackState.queueType = 'queue';
+        playbackState.queueTitle = '播放队列';
+        playbackState.playlistIndex = -1;
         playbackState.pendingRequests = [];
         playbackState.history = [];
         playbackState.shuffleOrder = [];
@@ -1515,15 +1722,18 @@
         const next = takeNextPlaybackTrack();
         if (next) {
           playPlaybackTrack(next.track, { origin: next.origin });
-          ensurePlaybackRadioQueueFilled();
+          if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
           return;
         }
 
-        // 歌单播完自动从头循环
-        if (fromEnded && playbackState.normalQueueTracks.length > 0) {
-          const tracks = playbackState.normalQueueTracks;
+        // 固定歌单按当前模式循环；临时插入的歌曲也已经写入完整歌单。
+        if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
+          const tracks = playbackState.mode === 'shuffle'
+            ? shufflePlaybackTracks(playbackState.normalQueueTracks)
+            : playbackState.normalQueueTracks.map((track) => ({ ...track }));
           const first = tracks[0];
-          playbackState.normalQueue = tracks.slice(1).map((t) => ({ ...t }));
+          playbackState.normalQueue = tracks.slice(1);
+          playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex((track) => track.id === first.id);
           rebuildPlaybackShuffleOrder();
           savePlaybackState();
           playPlaybackTrack(first, { origin: 'normal' });
@@ -1538,23 +1748,31 @@
         renderPlayback();
         savePlaybackState();
         syncPlaybackLyricWindow();
-        ensurePlaybackRadioQueueFilled();
+        if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
       }
 
       function takeNextPlaybackTrack() {
-        if (playbackState.requestedQueue.length > 0) {
-          return { origin: 'requested', track: playbackState.requestedQueue.shift() };
-        }
-
-        if (playbackState.normalQueue.length > 0) {
+        if (playbackState.queueType !== 'radio' && playbackState.normalQueue.length > 0) {
+          let track;
           if (playbackState.mode === 'shuffle') {
-            const track = takeNextShuffleNormalTrack();
-            if (track) return { origin: 'normal', track };
+            track = takeNextShuffleNormalTrack();
+          } else {
+            track = playbackState.normalQueue.shift();
           }
-          return { origin: 'normal', track: playbackState.normalQueue.shift() };
+          if (track && playbackState.queueType === 'playlist') {
+            if (playbackState.mode === 'sequence') {
+              playbackState.playlistIndex = Math.min(
+                playbackState.normalQueueTracks.length - 1,
+                playbackState.playlistIndex + 1
+              );
+            } else {
+              playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex((item) => item.id === track.id);
+            }
+          }
+          if (track) return { origin: 'normal', track };
         }
 
-        if (playbackState.radioQueue.length > 0) {
+        if (playbackState.queueType === 'radio' && playbackState.radioQueue.length > 0) {
           const track = playbackState.radioQueue.shift();
           ensurePlaybackRadioQueueFilled();
           return { origin: 'radio', track };
@@ -1564,6 +1782,7 @@
       }
 
       async function ensurePlaybackRadioQueueFilled() {
+        if (playbackState.queueType !== 'radio') return;
         if (playbackRadioRefillRunning) return;
         if (playbackState.radioQueue.length >= playbackRadioRefillThreshold) return;
         playbackRadioRefillRunning = true;
@@ -1579,6 +1798,7 @@
           });
           const payload = await readJsonResponse(response, '补充电台队列失败');
           if (!response.ok || !payload.ok) throw new Error(payload.error || '补充电台队列失败');
+          if (playbackState.queueType !== 'radio') return;
           const tracks = Array.isArray(payload.data && payload.data.tracks)
             ? payload.data.tracks.map(normalizePlaybackOnlineTrack)
             : [];
@@ -1599,29 +1819,23 @@
 
       function takePlaybackQueueTrack(origin, index) {
         const queueName = String(origin || '');
-        const queue = {
-          requested: playbackState.requestedQueue,
-          normal: playbackState.normalQueue,
-          radio: playbackState.radioQueue
-        }[queueName];
+        const activeOrigin = activePlaybackOrigin();
+        const queue = queueName === activeOrigin ? activePlaybackQueue() : null;
         if (!queue || !Number.isInteger(index) || index < 0 || index >= queue.length) return null;
+        const track = queue.splice(index, 1)[0];
+        if (playbackState.queueType === 'playlist') {
+          const sourceIndex = playbackState.normalQueueTracks.findIndex(
+            (item, itemIndex) => itemIndex > playbackState.playlistIndex && item.id === track.id
+          );
+          if (sourceIndex >= 0) playbackState.normalQueueTracks.splice(sourceIndex, 1);
+          const insertAt = playbackState.playlistIndex + 1;
+          playbackState.normalQueueTracks.splice(insertAt, 0, { ...track });
+          playbackState.playlistIndex = insertAt;
+        }
         return {
-          origin: queueName,
-          track: queue.splice(index, 1)[0]
+          origin: activeOrigin,
+          track
         };
-      }
-
-      function movePlaybackTrackToRequested(origin, index) {
-        const picked = takePlaybackQueueTrack(origin, index);
-        if (!picked) return;
-        playbackState.requestedQueue.push({
-          ...picked.track,
-          requestedBy: '插队优先'
-        });
-        rebuildPlaybackShuffleOrder();
-        savePlaybackState();
-        renderPlayback();
-        toast('已加入点歌优先队列');
       }
 
       function rebuildPlaybackShuffleOrder() {
@@ -1734,13 +1948,7 @@
         if (queueSize) queueSize.textContent = `${playbackQueueTotalCount()} 首`;
         const queueTitle = document.getElementById('queuePopupTitle');
         if (queueTitle) {
-          if (playbackState.radioQueue.length > 0 && playbackState.normalQueue.length === 0) {
-            queueTitle.textContent = '电台队列';
-          } else if (playbackState.normalQueueTracks.length > 0) {
-            queueTitle.textContent = '歌单队列';
-          } else {
-            queueTitle.textContent = '播放队列';
-          }
+          queueTitle.textContent = playbackState.queueTitle;
         }
 
         renderPlaybackQueue();
@@ -1757,13 +1965,17 @@
           return;
         }
         const sections = [];
-        sections.push(renderPlaybackQueueSection('点歌优先', playbackState.requestedQueue.map((track, index) => ({ track, origin: 'requested', index }))));
         sections.push(renderPlaybackPendingSection());
-        const normalLabel = playbackState.normalQueueTracks.length > 0 ? '歌单队列' : '普通队列';
-        sections.push(renderPlaybackQueueSection(normalLabel, playbackState.normalQueue.map((track, index) => ({ track, origin: 'normal', index }))));
-        sections.push(renderPlaybackQueueSection('电台队列', playbackState.radioQueue.map((track, index) => ({ track, origin: 'radio', index }))));
+        const queue = activePlaybackQueue();
+        const origin = activePlaybackOrigin();
+        sections.push(renderPlaybackQueueSection(
+          playbackState.queueTitle,
+          queue.map((track, index) => ({ track, origin, index }))
+        ));
         const html = sections.filter(Boolean).join('');
-        container.innerHTML = html || '<div class="empty">队列已空，播放完毕将自动循环</div>';
+        container.innerHTML = html || (playbackState.queueType === 'playlist'
+          ? '<div class="empty">本轮已到末尾，播放完毕将从第一首循环</div>'
+          : '<div class="empty">播放队列为空</div>');
       }
 
       function renderPlaybackDisplayHistorySection() {
@@ -1835,11 +2047,11 @@
         if (!Number.isInteger(index) || index < 0 || index >= playbackState.pendingRequests.length) return;
         const [item] = playbackState.pendingRequests.splice(index, 1);
         if (action === 'confirm' && item && item.track) {
-          playbackState.requestedQueue.push({
+          insertPlaybackTracksNext([{
             ...item.track,
             requestedBy: item.requesterName || '观众'
-          });
-          toast('已确认并加入点歌优先队列');
+          }]);
+          toast('已确认并插入当前歌曲之后');
         } else {
           toast('已忽略待确认点歌');
         }
@@ -1859,7 +2071,6 @@
 
       function renderPlaybackQueueRow(track, origin, index, readonly) {
         const meta = `${formatPlaybackTrackMeta(track)}${isPlaybackLocalTrack(track) && !track.objectUrl ? ' · 需重新选择文件' : ''}`;
-        const canRequest = !readonly && (origin === 'normal' || origin === 'radio');
         return `
           <div class="queue-row playback-queue-row${origin === playbackState.currentOrigin && playbackState.current && track.id === playbackState.current.id ? ' active' : ''}">
             <div class="playback-row-main">
@@ -1871,7 +2082,6 @@
             </div>
             ${readonly ? '' : `
               <div class="queue-actions">
-                ${canRequest ? `<button type="button" data-playback-action="request" data-playback-queue="${escapeAttr(origin)}" data-playback-index="${index}">插队</button>` : ''}
                 <button type="button" data-playback-queue="${escapeAttr(origin)}" data-playback-index="${index}">播放</button>
               </div>
             `}
@@ -1890,7 +2100,7 @@
       }
 
       function playbackQueueTotalCount() {
-        return playbackState.requestedQueue.length + playbackState.normalQueue.length + playbackState.radioQueue.length;
+        return activePlaybackQueue().length;
       }
 
       function renderPlaybackProgress() {

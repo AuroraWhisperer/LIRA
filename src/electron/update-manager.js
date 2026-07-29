@@ -19,7 +19,7 @@ function configureAutoUpdater({ onStateChange, writeLog }) {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
-  autoUpdater.disableDifferentialDownload = false;
+  autoUpdater.disableDifferentialDownload = true;
 
   autoUpdater.on('checking-for-update', () => {
     setUpdateState({
@@ -124,10 +124,13 @@ function friendlyUpdateError(error) {
   if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
     return { status: 'not-available', message: '当前 GitHub Releases 里还没有可用更新包。' };
   }
+  if (/checksum mismatch|sha512|sha256|hash mismatch/i.test(text)) {
+    return { status: 'error', message: '更新包校验失败，请前往 GitHub Releases 手动下载最新安装包。' };
+  }
   if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_NETWORK|ERR_INTERNET|network|timeout/i.test(text)) {
     return { status: 'error', message: '暂时无法连接 GitHub 更新服务，请稍后再试。' };
   }
   return { status: 'error', message: '暂时无法检查更新，详细原因已写入日志。' };
 }
 
-module.exports = { configureAutoUpdater, checkForUpdates, downloadUpdate, installUpdate, getUpdateState: () => updateState };
+module.exports = { configureAutoUpdater, checkForUpdates, downloadUpdate, installUpdate, getUpdateState: () => updateState, friendlyUpdateError };
