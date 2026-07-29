@@ -52,6 +52,7 @@ let songArtists = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
   initMainPages();
+  initWorkspaceControls();
   window.AdminApp.playback.initPlaybackAssistant({
     getSongs: () => songs,
     reloadSongs,
@@ -96,8 +97,11 @@ function setMainPage(pageId) {
     page.classList.toggle('active', page.id === nextPageId);
   });
   document.querySelectorAll('.main-page-tab').forEach((button) => {
-    button.classList.toggle('active', button.dataset.mainPage === nextPageId);
+    const isActive = button.dataset.mainPage === nextPageId;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', String(isActive));
   });
+  document.body.dataset.mainPage = nextPageId === 'playbackAssistantPage' ? 'playback' : 'songs';
   if (location.hash !== (nextPageId === 'playbackAssistantPage' ? '#playback' : '')) {
     history.replaceState(null, '', nextPageId === 'playbackAssistantPage' ? '#playback' : location.pathname + location.search);
   }
@@ -110,6 +114,55 @@ function initTabs() {
       document.querySelectorAll('.tab-page').forEach((item) => item.classList.remove('active'));
       button.classList.add('active');
       document.getElementById(button.dataset.tab).classList.add('active');
+      const overflow = button.closest('.tab-overflow');
+      document.querySelectorAll('.tab-overflow').forEach((details) => {
+        details.dataset.hasActiveTab = String(details === overflow);
+        details.open = false;
+      });
+    });
+  });
+}
+
+function initWorkspaceControls() {
+  const dockToggle = document.getElementById('playbackDockToggle');
+  const storageKey = 'song-assistant:player-dock-expanded';
+
+  const setDockExpanded = (expanded) => {
+    document.body.classList.toggle('player-dock-expanded', expanded);
+    if (dockToggle) {
+      dockToggle.setAttribute('aria-expanded', String(expanded));
+      dockToggle.title = expanded ? '收起播放器' : '展开播放器';
+    }
+    try {
+      localStorage.setItem(storageKey, expanded ? 'true' : 'false');
+    } catch {
+      // The dock still works when local storage is unavailable.
+    }
+  };
+
+  let dockExpanded = false;
+  try {
+    dockExpanded = localStorage.getItem(storageKey) === 'true';
+  } catch {
+    dockExpanded = false;
+  }
+  setDockExpanded(dockExpanded);
+
+  dockToggle?.addEventListener('click', () => {
+    setDockExpanded(!document.body.classList.contains('player-dock-expanded'));
+  });
+
+  const superChatToggle = document.getElementById('superChatToggle');
+  const superChatPanel = superChatToggle?.closest('.panel');
+  superChatToggle?.addEventListener('click', () => {
+    const collapsed = superChatPanel?.classList.toggle('is-collapsed') || false;
+    superChatToggle.setAttribute('aria-expanded', String(!collapsed));
+    superChatToggle.title = collapsed ? '展开 SC 队列' : '折叠 SC 队列';
+  });
+
+  document.addEventListener('click', (event) => {
+    document.querySelectorAll('.tab-overflow[open]').forEach((details) => {
+      if (!details.contains(event.target)) details.open = false;
     });
   });
 }
@@ -235,6 +288,15 @@ function initSettingsForm() {
   document.getElementById('shutdownBtn').addEventListener('click', shutdownServer);
   document.getElementById('reconnectBtn').addEventListener('click', reconnectBilibili);
   document.getElementById('giftProtocolCheckBtn').addEventListener('click', checkGiftProtocol);
+
+  if (window.songAssistantDesktop) {
+    const minBtn = document.getElementById('winMinBtn');
+    const maxBtn = document.getElementById('winMaxBtn');
+    const closeBtn = document.getElementById('winCloseBtn');
+    if (minBtn) minBtn.addEventListener('click', () => window.songAssistantDesktop.minimizeWindow());
+    if (maxBtn) maxBtn.addEventListener('click', () => window.songAssistantDesktop.maximizeWindow());
+    if (closeBtn) closeBtn.addEventListener('click', () => window.songAssistantDesktop.closeWindow());
+  }
 }
 
 function initThemeForm() {

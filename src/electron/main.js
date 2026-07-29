@@ -128,6 +128,7 @@ function createMainWindow(baseUrl) {
   var opts = {
     width: 1280, height: 800, minWidth: 1024, minHeight: 680,
     show: false, title: '点歌助手', backgroundColor: '#f7f3ef',
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: false
@@ -140,6 +141,7 @@ function createMainWindow(baseUrl) {
   mainWindow.loadURL(baseUrl + '/admin?desktop=1');
 
   mainWindow.once('ready-to-show', function () {
+    mainWindow.maximize();
     mainWindow.show();
     sendUpdateState();
     if (app.isPackaged) {
@@ -194,6 +196,15 @@ function configureUpdateIpc() {
   });
   ipcMain.handle('desktop:close-window', function () {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  });
+  ipcMain.handle('desktop:minimize-window', function () {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+  });
+  ipcMain.handle('desktop:maximize-window', function () {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) mainWindow.unmaximize();
+      else mainWindow.maximize();
+    }
   });
 }
 
