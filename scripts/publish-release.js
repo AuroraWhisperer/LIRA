@@ -2,6 +2,7 @@
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -89,12 +90,22 @@ function ensureGithubRelease() {
   }
 
   log(`Creating GitHub release ${TAG} up front to avoid electron-builder's create-race`);
-  run('gh', [
-    'release', 'create', TAG,
-    '--repo', `${OWNER}/${REPO}`,
-    '--title', VERSION,
-    '--notes', extractReleaseNotes(VERSION),
-  ]);
+  // Notes go through a temp file + --notes-file rather than a raw --notes arg:
+  // execFileSync runs with shell:true on Windows, and release notes routinely
+  // contain backticks (inline code in the changelog) that a shell would treat
+  // as command substitution, corrupting or failing the whole "gh" invocation.
+  const notesPath = path.join(os.tmpdir(), `release-notes-${TAG}.md`);
+  fs.writeFileSync(notesPath, extractReleaseNotes(VERSION), 'utf8');
+  try {
+    run('gh', [
+      'release', 'create', TAG,
+      '--repo', `${OWNER}/${REPO}`,
+      '--title', VERSION,
+      '--notes-file', notesPath,
+    ]);
+  } finally {
+    fs.rmSync(notesPath, { force: true });
+  }
 }
 
 function extractReleaseNotes(version) {
