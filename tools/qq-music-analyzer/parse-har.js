@@ -12,7 +12,13 @@ function parseHarFile(harPath) {
 
   console.log(`正在解析: ${harPath}\n`);
 
-  const harContent = JSON.parse(fs.readFileSync(harPath, 'utf8'));
+  // 读取并移除BOM
+  let rawContent = fs.readFileSync(harPath, 'utf8');
+  if (rawContent.charCodeAt(0) === 0xFEFF) {
+    rawContent = rawContent.slice(1);
+  }
+
+  const harContent = JSON.parse(rawContent);
   const entries = harContent.log?.entries || [];
 
   console.log(`总共找到 ${entries.length} 个请求\n`);
@@ -48,6 +54,21 @@ function parseHarFile(harPath) {
       responseHeaders[h.name.toLowerCase()] = h.value;
     });
 
+    // 提取请求体
+    // 注意：Fiddler 导出 HAR 时，如果 content-type 是 x-www-form-urlencoded，
+    // 会把整个 body 塞进 postData.params[0].value 而留空 postData.text。
+    // QQ音乐客户端发的其实是 JSON（却标了 urlencoded），所以必须两处都读。
+    let requestBody = '';
+    if (request.postData) {
+      if (request.postData.text) {
+        requestBody = request.postData.text;
+      } else if (Array.isArray(request.postData.params)) {
+        requestBody = request.postData.params
+          .map(p => (p.name ? `${p.name}=${p.value || ''}` : (p.value || '')))
+          .join('&');
+      }
+    }
+
     // 提取响应体
     let responseBody = '';
     if (response.content && response.content.text) {
@@ -67,9 +88,10 @@ function parseHarFile(harPath) {
       method: request.method,
       url: request.url,
       requestHeaders,
+      requestBody,
       statusCode: response.status,
       responseHeaders,
-      responseBody: responseBody.substring(0, 50000) // 限制大小
+      responseBody: responseBody.substring(0, 200000) // 限制大小
     };
 
     outputStream.write(JSON.stringify(record) + '\n');
@@ -90,31 +112,42 @@ function parseHarFile(harPath) {
     console.log(`[${i + 1}] ${status} - ${size}B - ${url.substring(0, 100)}${url.length > 100 ? '...' : ''}`);
   });
 
-  // 分析musicu.fcg请求
-  console.log('\n=== musicu.fcg 请求详情 ===');
-  const musicuRequests = qqMusicRequests.filter(e =>
-    e.request.url.includes('musicu.fcg')
+  // 分析 musicu.fcg / musics.fcg 请求（GET 走 ?data=，POST 走 body）
+  console.log('\n=== fcg 统一接口调用的模块列表 ===');
+  const fcgRequests = qqMusicRequests.filter(e =>
+    /musicu\.fcg|musics\.fcg/.test(e.request.url)
   );
 
-  musicuRequests.slice(0, 5).forEach((entry, i) => {
-    console.log(`\n[${i + 1}] ${entry.request.url}`);
+  fcgRequests.forEach((entry, i) => {
+    const req = entry.request;
+    console.log(`\n[${i + 1}] ${req.method} ${req.url.split('?')[0]}`);
+
+    // 拿到调用描述 JSON：优先 POST body，其次 URL 的 data 参数
+    let payload = '';
+    if (req.postData) {
+      payload = req.postData.text ||
+        (req.postData.params || []).map(p => p.value || '').join('');
+    }
+    if (!payload) {
+      try {
+        payload = new URL(req.url).searchParams.get('data') || '';
+        payload = decodeURIComponent(payload);
+      } catch (e) { /* ignore */ }
+    }
+    if (!payload) {
+      console.log('  (无调用描述)');
+      return;
+    }
 
     try {
-      const url = new URL(entry.request.url);
-      const dataParam = url.searchParams.get('data');
-
-      if (dataParam) {
-        const data = JSON.parse(decodeURIComponent(dataParam));
-        console.log('模块:');
-        Object.keys(data).forEach(key => {
-          if (key !== 'comm' && data[key]?.module) {
-            console.log(`  ${key}: ${data[key].module}.${data[key].method}`);
-            console.log(`  参数:`, JSON.stringify(data[key].param).substring(0, 100));
-          }
-        });
-      }
+      const data = JSON.parse(payload);
+      Object.keys(data).forEach(key => {
+        if (key === 'comm' || !data[key]?.module) return;
+        console.log(`  ${key}: ${data[key].module}.${data[key].method}`);
+        console.log(`     param: ${JSON.stringify(data[key].param)}`);
+      });
     } catch (e) {
-      console.log('无法解析data参数');
+      console.log(`  解析失败，原始内容: ${payload.substring(0, 200)}`);
     }
   });
 }

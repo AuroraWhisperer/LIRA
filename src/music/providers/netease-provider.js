@@ -80,22 +80,27 @@ class NeteaseMusicProvider {
   async getDailyTracks(options = {}) {
     await this.requireLogin('每日推荐需要先登录网易云音乐。');
     const limit = clampInteger(options.limit, 1, 100, 30);
+    const page = clampInteger(options.page, 1, 50, 1);
     const data = await this.requestJson('/api/v1/discovery/recommend/songs');
     const songs = data && data.recommend && Array.isArray(data.recommend)
       ? data.recommend
       : [];
-    return songs.slice(0, limit).map(mapNeteaseSong).filter(Boolean);
+    // 网易云每日推荐是「当天固定一份」，接口不分页。这里按 page 开窗口往后取，
+    // 取完就绕回开头 —— 换一批只能在当天这份列表里换，不会有全新的歌。
+    return sliceByPage(songs, limit, page).map(mapNeteaseSong).filter(Boolean);
   }
 
   async getRadioTracks(options = {}) {
     const limit = clampInteger(options.limit, 1, 50, 20);
+    const page = clampInteger(options.page, 1, 50, 1);
+    // newsong 接口忽略 offset，但支持 limit 到 100，所以一次多拿再按 page 切窗口。
     const data = await this.requestJson('/api/personalized/newsong', {
-      limit: String(limit)
+      limit: '100'
     });
     const songs = data && Array.isArray(data.result)
       ? data.result.map((item) => item && (item.song || item))
       : [];
-    return songs.map(mapNeteaseSong).filter(Boolean);
+    return sliceByPage(songs, limit, page).map(mapNeteaseSong).filter(Boolean);
   }
 
   async getLikedTracks(options = {}) {
@@ -320,6 +325,17 @@ function clampInteger(value, min, max, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(min, Math.min(max, Math.trunc(number)));
+}
+
+// 从固定长度的列表里按页取一段，超出末尾就绕回开头，保证永远有内容返回。
+function sliceByPage(list, limit, page) {
+  const items = Array.isArray(list) ? list : [];
+  if (items.length === 0) return [];
+  if (items.length <= limit) return items.slice(0, limit);
+  const start = ((page - 1) * limit) % items.length;
+  const window = items.slice(start, start + limit);
+  if (window.length >= limit) return window;
+  return window.concat(items.slice(0, limit - window.length));
 }
 
 function sanitizeAuthState(auth) {

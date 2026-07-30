@@ -9,7 +9,6 @@ const QQ_PLAYLIST_DETAIL_URL = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdin
 const QQ_PROFILE_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg';
 const QQ_CREATED_PLAYLIST_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
 const QQ_COLLECTED_ASSET_URL = 'https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg';
-const QQ_DAILY_PAGE_URL = 'https://c.y.qq.com/node/musicmac/v6/index.html';
 const REQUEST_TIMEOUT_MS = 10000;
 const STREAM_TTL_MS = 5 * 60 * 1000;
 
@@ -156,54 +155,185 @@ class QQMusicProvider {
 
   async getPersonalizedPlaylists(options = {}) {
     const limit = clampInteger(options.limit, 1, 30, 12);
-    const data = await this.requestMusicu({
-      recomPlaylist: {
-        module: 'playlist.HotRecommendServer',
-        method: 'get_hot_recommend',
-        param: { async: 1, cmd: 2 }
+    const page = clampInteger(options.page, 1, 50, 1);
+    const vUniq = Array.isArray(options.vUniq) ? options.vUniq.slice(0, 200) : [];
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader) || '0';
+    const guid = buildGuid();
+
+    const data = await this.requestMusicuPost(
+      {
+        req_1: {
+          module: 'music.recommend.RecommendFeed',
+          method: 'get_recommend_feed',
+          param: {
+            direction: 1,
+            page,
+            v_cache: [],
+            v_uniq: vUniq,
+            s_num: 4
+          }
+        }
+      },
+      {
+        format: 'json',
+        ct: 20,
+        cv: 2241,
+        platform: 'wk_v17',
+        guid,
+        uin,
+        inCharset: 'utf-8',
+        outCharset: 'utf-8',
+        notice: 0,
+        needNewCode: 1
       }
-    });
-    const playlists = data && data.recomPlaylist && data.recomPlaylist.data
-      && Array.isArray(data.recomPlaylist.data.v_hot)
-      ? data.recomPlaylist.data.v_hot
+    );
+
+    const shelves = data && data.req_1 && data.req_1.data && Array.isArray(data.req_1.data.v_shelf)
+      ? data.req_1.data.v_shelf
       : [];
-    return playlists.slice(0, limit).map(mapQQPlaylist).filter(Boolean);
+    const playlists = [];
+    shelves.forEach((shelf) => {
+      const niches = Array.isArray(shelf.v_niche) ? shelf.v_niche : [];
+      niches.forEach((niche) => {
+        const cards = Array.isArray(niche.v_card) ? niche.v_card : [];
+        cards.forEach((card) => {
+          if (card.type === 500) {
+            const mapped = mapRecommendCard(card);
+            if (mapped) playlists.push(mapped);
+          }
+        });
+      });
+    });
+    return playlists.slice(0, limit);
   }
 
   async getDailyTracks(options = {}) {
-    await this.requireLogin('QQ 音乐每日推荐需要先登录。');
     const limit = clampInteger(options.limit, 1, 100, 30);
-    const page = await this.requestText(QQ_DAILY_PAGE_URL);
-    const playlistIds = extractDailyPlaylistIds(page);
-    for (const playlistId of playlistIds) {
-      const tracks = await this.getPlaylistTracks(playlistId, { limit }).catch(() => []);
-      if (tracks.length > 0) return tracks;
+    const page = clampInteger(options.page, 1, 50, 1);
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader) || '0';
+    const guid = buildGuid();
+
+    // 「每日推荐」= 推荐 Feed 里的 type 200（单曲卡片），和「为你推荐」同一个接口。
+    // 客户端的真实流程（已从 HAR 抓包确认）：
+    //   1. get_recommend_feed → 取 type 200 卡片（shelf 207）
+    //   2. CgiGetTrackInfo(ids, types:[200...], source:"AiNoFree") → 拿完整歌曲信息
+    const tracks = [];
+    const seen = new Set();
+    const maxPages = Math.min(5, Math.max(1, Math.ceil(limit / 9)));
+    for (let p = page; p < page + maxPages && tracks.length < limit; p++) {
+      const data = await this.requestMusicuPost(
+        {
+          req_1: {
+            module: 'music.recommend.RecommendFeed',
+            method: 'get_recommend_feed',
+            param: { direction: 1, page: p, v_cache: [], v_uniq: [], s_num: 4 }
+          }
+        },
+        {
+          format: 'json', ct: 20, cv: 2241, platform: 'wk_v17',
+          guid, uin, inCharset: 'utf-8', outCharset: 'utf-8', notice: 0, needNewCode: 1
+        }
+      ).catch(() => null);
+
+      const shelves = data && data.req_1 && data.req_1.data
+        && Array.isArray(data.req_1.data.v_shelf) ? data.req_1.data.v_shelf : [];
+
+      // 从所有 shelf 收集 type 200 的歌曲 id
+      const songIds = [];
+      shelves.forEach((shelf) => {
+        (shelf.v_niche || []).forEach((niche) => {
+          (niche.v_card || []).forEach((card) => {
+            if (card.type === 200 && card.id && !seen.has(String(card.id))) {
+              songIds.push(card.id);
+            }
+          });
+        });
+      });
+      if (songIds.length === 0) break;
+
+      // 第二步：批量拉完整歌曲信息（含 mid / singer / album / interval）
+      const resolved = await this.resolveTrackInfoByIds(songIds, uin, guid);
+      for (const song of resolved) {
+        const mapped = mapQQSong(song);
+        if (!mapped || seen.has(mapped.sourceTrackId)) continue;
+        seen.add(mapped.sourceTrackId);
+        tracks.push(mapped);
+        if (tracks.length >= limit) break;
+      }
+      // 对已见 id 做保护，避免下一页重复
+      songIds.forEach((id) => seen.add(String(id)));
     }
-    const fallback = await this.getRadioTracks({ limit });
-    if (fallback.length > 0) return fallback;
-    throw new Error('没有从 QQ 音乐读取到每日推荐歌曲，请确认账号已登录并稍后重试。');
+
+    if (tracks.length > 0) return tracks;
+    // Feed 没有单曲卡片（极少情况）时退回电台
+    return this.getRadioTracks({ limit, page });
+  }
+
+  // 把 type 200 的 songId 列表批量转成完整歌曲对象（含 mid）
+  async resolveTrackInfoByIds(ids, uin, guid) {
+    if (!ids || ids.length === 0) return [];
+    const data = await this.requestMusicuPost(
+      {
+        req_1: {
+          module: 'music.trackInfo.UniformRuleCtrl',
+          method: 'CgiGetTrackInfo',
+          param: {
+            ids: ids.map(Number),
+            types: ids.map(() => 200),
+            source: 'AiNoFree'
+          }
+        }
+      },
+      {
+        format: 'json', ct: 20, cv: 2241, platform: 'wk_v17',
+        guid: guid || buildGuid(),
+        uin: uin || '0',
+        inCharset: 'utf-8', outCharset: 'utf-8', notice: 0, needNewCode: 1
+      }
+    ).catch(() => null);
+    return data && data.req_1 && data.req_1.data
+      && Array.isArray(data.req_1.data.tracks) ? data.req_1.data.tracks : [];
   }
 
   async getRadioTracks(options = {}) {
     const limit = clampInteger(options.limit, 1, 50, 20);
-    const data = await this.requestMusicu({
-      songlist: {
-        module: 'mb_track_radio_svr',
-        method: 'get_radio_track',
-        param: {
-          id: clampInteger(options.radioId, 1, 9999, 101),
-          firstplay: 1,
-          num: Math.max(15, limit)
+    const page = clampInteger(options.page, 1, 50, 1);
+    const radioId = clampInteger(options.radioId, 1, 9999, 101);
+    // 电台一次只回 5 首左右，所以要连抓几轮凑够 limit。
+    // firstplay=1 表示「开始新一轮」，之后用 0 才会继续往下发新歌；
+    // 每次调用换新 guid 也能让服务端换一批，两个手段一起用。
+    const tracks = [];
+    const seen = new Set();
+    const maxRounds = Math.min(12, Math.max(3, Math.ceil(limit / 4)));
+    for (let round = 0; round < maxRounds && tracks.length < limit; round++) {
+      const data = await this.requestMusicu({
+        songlist: {
+          module: 'mb_track_radio_svr',
+          method: 'get_radio_track',
+          param: {
+            id: radioId,
+            firstplay: round === 0 && page === 1 ? 1 : 0,
+            num: Math.max(15, limit)
+          }
         }
+      }).catch(() => null);
+      const batch = extractRadioSongs(data);
+      if (batch.length === 0) break;
+      let fresh = 0;
+      for (const song of batch) {
+        const mapped = mapQQSong(song);
+        if (!mapped || seen.has(mapped.sourceTrackId)) continue;
+        seen.add(mapped.sourceTrackId);
+        tracks.push(mapped);
+        fresh++;
+        if (tracks.length >= limit) break;
       }
-    });
-    const radioData = data && data.songlist && data.songlist.data ? data.songlist.data : {};
-    const songs = Array.isArray(radioData.tracks)
-      ? radioData.tracks
-      : (Array.isArray(radioData.track_list)
-        ? radioData.track_list
-        : (Array.isArray(radioData.songlist) ? radioData.songlist : []));
-    return songs.slice(0, limit).map(mapQQSong).filter(Boolean);
+      // 服务端开始重复发同一批就停，避免空转。
+      if (fresh === 0) break;
+    }
+    return tracks.slice(0, limit);
   }
 
   async getLikedTracks(options = {}) {
@@ -361,6 +491,26 @@ class QQMusicProvider {
         }
       })
     });
+  }
+
+  async requestMusicuPost(modules = {}, comm = {}) {
+    const url = new URL(QQ_MUSICU_URL);
+    const headers = await this.buildHeaders();
+    headers['Content-Type'] = 'application/json';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ...modules, comm }),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    try {
+      return JSON.parse(stripJsonp(text));
+    } catch (error) {
+      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
+    }
   }
 
   async requestText(rawUrl, params = {}) {
@@ -521,6 +671,21 @@ function mapQQPlaylist(playlist) {
   };
 }
 
+function mapRecommendCard(card) {
+  if (!card || !card.id || !card.title) return null;
+  return {
+    id: String(card.id),
+    source: 'qq',
+    title: String(card.title || '').trim(),
+    description: String(card.subtitle || '').trim(),
+    coverUrl: String(card.cover || ''),
+    trackCount: 0,
+    playCount: Math.max(0, Number(card.cnt || 0)),
+    creatorUserId: '',
+    dirId: ''
+  };
+}
+
 function extractSourceTrackId(track) {
   const sourceTrackId = String(track && (track.sourceTrackId || track.id) || '')
     .replace(/^qq:/, '')
@@ -545,17 +710,12 @@ function stripJsonp(text) {
   return match ? match[1] : raw;
 }
 
-function extractDailyPlaylistIds(html) {
-  const raw = String(html || '');
-  const dailyBlock = raw.match(/playlist__name[^>]*>\s*今日私享[\s\S]{0,1500}?data-rid=["']?(\d+)/)
-    || raw.match(/data-rid=["']?(\d+)[^>]{0,500}>[\s\S]{0,500}?今日私享/);
-  const ids = [];
-  if (dailyBlock) ids.push(dailyBlock[1]);
-  for (const match of raw.matchAll(/data-rid=["']?(\d+)/g)) {
-    if (!ids.includes(match[1])) ids.push(match[1]);
-    if (ids.length >= 20) break;
-  }
-  return ids;
+function extractRadioSongs(data) {
+  const radioData = data && data.songlist && data.songlist.data ? data.songlist.data : {};
+  if (Array.isArray(radioData.tracks)) return radioData.tracks;
+  if (Array.isArray(radioData.track_list)) return radioData.track_list;
+  if (Array.isArray(radioData.songlist)) return radioData.songlist;
+  return [];
 }
 
 function buildQQCoverUrl(albumMid) {

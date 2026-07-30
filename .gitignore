@@ -7,3 +7,9 @@ build/
 scripts/capture-ui.js
 .claude/
 *.log
+
+# QQ音乐抓包分析工具 - 包含敏感信息
+tools/qq-music-analyzer/*.har
+tools/qq-music-analyzer/*.jsonl
+tools/qq-music-analyzer/analysis-report.json
+tools/qq-music-analyzer/recommend-feed-response.json

@@ -39,8 +39,13 @@ async function getMusicHomeContent(registry, body) {
   const action = cleanText(input.action || 'personalized');
   const limit = Math.max(1, Math.min(1000, Number(input.limit) || 20));
   const provider = registry.get(platform);
-  const cacheable = ['personalized', 'playlist-tracks', 'radio'].includes(action);
-  const cacheKey = cacheable ? musicCacheKey('home', { platform, action, limit, playlistId: cleanText(input.playlistId) }) : '';
+  // radio / daily 的重点就是每次给新歌，缓存会让它们永远返回同一批，所以不缓存。
+  const cacheable = ['personalized', 'playlist-tracks'].includes(action);
+  const page = Math.max(1, Math.min(50, Number(input.page) || 1));
+  const bypassCache = input.refresh === true || page > 1;
+  const cacheKey = cacheable && !bypassCache
+    ? musicCacheKey('home', { platform, action, limit, playlistId: cleanText(input.playlistId) })
+    : '';
   if (cacheKey) {
     const cached = readMusicJsonCache(apiCacheDir, cacheKey, MUSIC_API_CACHE_TTL_MS);
     if (cached) return { ...cached, cached: true };
@@ -48,8 +53,8 @@ async function getMusicHomeContent(registry, body) {
 
   let result;
   if (action === 'personalized') {
-    result = { source: platform, action, playlists: await provider.getPersonalizedPlaylists({ limit: Math.min(limit, 30) }) };
-    writeMusicJsonCache(apiCacheDir, cacheKey, result);
+    result = { source: platform, action, playlists: await provider.getPersonalizedPlaylists({ limit: Math.min(limit, 30), page }) };
+    if (cacheKey) writeMusicJsonCache(apiCacheDir, cacheKey, result);
     return result;
   }
   if (action === 'playlist-tracks') {
@@ -59,12 +64,8 @@ async function getMusicHomeContent(registry, body) {
     writeMusicJsonCache(apiCacheDir, cacheKey, result);
     return result;
   }
-  if (action === 'daily') return { source: platform, action, tracks: await provider.getDailyTracks({ limit }) };
-  if (action === 'radio') {
-    result = { source: platform, action, tracks: await provider.getRadioTracks({ limit }) };
-    writeMusicJsonCache(apiCacheDir, cacheKey, result);
-    return result;
-  }
+  if (action === 'daily') return { source: platform, action, tracks: await provider.getDailyTracks({ limit, page }) };
+  if (action === 'radio') return { source: platform, action, tracks: await provider.getRadioTracks({ limit, page }) };
   if (action === 'liked') return { source: platform, action, tracks: await provider.getLikedTracks({ limit }) };
   if (action === 'created-playlists') return { source: platform, action, playlists: await provider.getCreatedPlaylists({ limit: Math.min(limit, 50) }) };
   if (action === 'collected-playlists') return { source: platform, action, playlists: await provider.getCollectedPlaylists({ limit: Math.min(limit, 50) }) };

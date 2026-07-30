@@ -61,6 +61,7 @@
       let playbackHomeItems = [];
       let playbackHomeItemType = '';
       let playbackHomeAction = '';
+      let playbackHomePage = 1;
       let playbackLyricWindowOpen = false;
       let playbackLyricWindowLocked = false;
       let playbackRadioRefillRunning = false;
@@ -115,8 +116,14 @@
         document.getElementById('playbackDrawerBackdrop')?.addEventListener('click', closePlaybackDrawer);
         document.getElementById('playbackDrawerClose')?.addEventListener('click', closePlaybackDrawer);
         document.getElementById('playbackDrawerBack')?.addEventListener('click', playbackDrawerGoBack);
-        document.getElementById('playbackDrawerPlayAll')?.addEventListener('click', () => handlePlaybackHomeBulkAction('play-all'));
-        document.getElementById('playbackDrawerShuffleAll')?.addEventListener('click', () => handlePlaybackHomeBulkAction('shuffle-all'));
+
+        // 抽屉底部按钮 - 事件委托
+        document.getElementById('playbackDrawerActions')?.addEventListener('click', (event) => {
+          const target = event.target;
+          if (target.id === 'playbackDrawerPlayAll') handlePlaybackHomeBulkAction('play-all');
+          else if (target.id === 'playbackDrawerShuffleAll') handlePlaybackHomeBulkAction('shuffle-all');
+          else if (target.id === 'playbackDrawerRefresh') refreshPlaybackHomeContent();
+        });
 
         // 抽屉内点击事件委托
         document.getElementById('playbackDrawerBody')?.addEventListener('click', (event) => {
@@ -482,6 +489,7 @@
           liked: '我喜欢', 'created-playlists': '我的歌单',
           'collected-playlists': '收藏歌单', recent: '最近播放'
         };
+        playbackHomePage = 1;
         openPlaybackDrawer(actionNames[action] || '浏览内容', '正在加载...', true);
         // 高亮对应卡片
         document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
@@ -494,7 +502,8 @@
             body: JSON.stringify({
               platform: playbackState.selectedSource,
               action,
-              limit: action === 'personalized' ? 12 : 30
+              limit: action === 'personalized' ? 12 : 30,
+              page: 1
             })
           });
           const payload = await readJsonResponse(response, '加载音乐内容失败');
@@ -510,6 +519,7 @@
           playbackHomeItems = [];
           playbackHomeItemType = '';
           playbackHomeAction = '';
+          playbackHomePage = 1;
           setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
@@ -523,6 +533,7 @@
           items: playbackHomeItems,
           itemType: playbackHomeItemType,
           action: playbackHomeAction,
+          page: playbackHomePage,
           title: document.getElementById('playbackDrawerTitle')?.textContent || ''
         });
         setPlaybackDrawerLoading(`正在打开歌单：${playlist.title || playlist.id}`);
@@ -546,6 +557,46 @@
           playbackHomeAction = 'playlist-tracks';
           renderPlaybackHomeResults('playlist-tracks', playlist.title || '');
         } catch (error) {
+          setPlaybackDrawerError(error.message || String(error));
+          showError(error);
+        }
+      }
+
+      async function refreshPlaybackHomeContent() {
+        const action = playbackHomeAction;
+        if (!action || !['personalized', 'daily', 'radio'].includes(action)) return;
+        playbackHomePage += 1;
+        setPlaybackDrawerLoading('正在刷新...');
+        try {
+          const response = await fetch('/api/music/home', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              platform: playbackState.selectedSource,
+              action,
+              limit: action === 'personalized' ? 12 : 30,
+              page: playbackHomePage,
+              refresh: true
+            })
+          });
+          const payload = await readJsonResponse(response, '刷新内容失败');
+          if (!response.ok || !payload.ok) throw new Error(payload.error || '刷新内容失败');
+          const data = payload.data || {};
+          const items = Array.isArray(data.playlists)
+            ? data.playlists
+            : (Array.isArray(data.tracks) ? data.tracks : []);
+          if (items.length === 0) {
+            // 没有更多了：保留当前列表，别把界面刷成空的。
+            playbackHomePage = Math.max(1, playbackHomePage - 1);
+            renderPlaybackHomeResults(action);
+            showError(new Error('没有更多内容了'));
+            return;
+          }
+          playbackHomeItems = items;
+          playbackHomeItemType = Array.isArray(data.playlists) ? 'playlist' : 'track';
+          renderPlaybackHomeResults(action);
+        } catch (error) {
+          playbackHomePage = Math.max(1, playbackHomePage - 1);
           setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
@@ -578,7 +629,7 @@
               <span class="playlist-card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;"><polyline points="9 18 15 12 9 6"/></svg></span>
             </div>
           `).join('');
-          updateDrawerActions(false);
+          updateDrawerActions(false, action);
           return;
         }
 
@@ -599,12 +650,22 @@
             </div>
           </div>
         `).join('');
-        updateDrawerActions(true);
+        updateDrawerActions(true, action);
       }
 
-      function updateDrawerActions(show) {
+      function updateDrawerActions(showPlayAll, action = '') {
         const actions = document.getElementById('playbackDrawerActions');
-        if (actions) actions.hidden = !show;
+        if (!actions) return;
+        const canRefresh = ['personalized', 'daily', 'radio'].includes(action);
+        actions.innerHTML = '';
+        if (showPlayAll) {
+          actions.innerHTML += '<button id="playbackDrawerPlayAll" type="button">播放全部</button>';
+          actions.innerHTML += '<button id="playbackDrawerShuffleAll" type="button">随机播放</button>';
+        }
+        if (canRefresh) {
+          actions.innerHTML += '<button id="playbackDrawerRefresh" type="button">换一批</button>';
+        }
+        actions.hidden = !showPlayAll && !canRefresh;
       }
 
       function setPlaybackDrawerLoading(message) {
@@ -676,6 +737,7 @@
         playbackHomeItems = prev.items;
         playbackHomeItemType = prev.itemType;
         playbackHomeAction = prev.action || '';
+        playbackHomePage = prev.page || 1;
         renderPlaybackHomeResults('', prev.title);
         const backBtn = document.getElementById('playbackDrawerBack');
         if (backBtn) backBtn.style.display = playbackDrawerHistory.length > 0 ? '' : 'none';
@@ -2401,6 +2463,8 @@
         renderFullscreenLyrics(track, audio);
       }
 
+      let fullscreenLyricsInitialized = false;
+
       function renderFullscreenLyrics(track, audio) {
         const container = document.getElementById('playerFsLyrics');
         if (!container) return;
@@ -2429,11 +2493,24 @@
         const existingCount = container.querySelectorAll('.player-fs-lyric-line').length;
         if (existingCount !== lines.length) {
           container.innerHTML = lines.map((line, i) => `
-            <div class="player-fs-lyric-line" data-lyric-index="${i}">
-              <span class="lyric-text">${escapeHtml(line.text || '')}</span>
-              ${line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
+            <div class="player-fs-lyric-line" data-lyric-index="${i}" data-lyric-start-ms="${line.startMs || 0}">
+              <button class="lyric-seek-btn" type="button" aria-label="从此处播放" title="从此处播放">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+              </button>
+              <div class="lyric-content">
+                <span class="lyric-text">${escapeHtml(line.text || '')}</span>
+                ${line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
+              </div>
             </div>
           `).join('');
+
+          // 绑定点击事件
+          if (!fullscreenLyricsInitialized) {
+            container.addEventListener('click', handleFullscreenLyricClick);
+            fullscreenLyricsInitialized = true;
+          }
         }
 
         // 更新当前行高亮
@@ -2441,7 +2518,7 @@
           el.classList.toggle('active', i === currentIndex);
         });
 
-        // 滚动到当前行（居中）
+        // 自动滚动到当前行（居中）
         const activeLine = container.querySelector('.player-fs-lyric-line.active');
         if (activeLine) {
           const wrap = document.getElementById('playerFsLyricsWrap');
@@ -2455,6 +2532,27 @@
             });
           }
         }
+      }
+
+      function handleFullscreenLyricClick(event) {
+        const lineEl = event.target.closest('.player-fs-lyric-line');
+        if (!lineEl) return;
+
+        const startMs = Number(lineEl.dataset.lyricStartMs);
+        if (!Number.isFinite(startMs) || startMs < 0) return;
+
+        const audio = getPlaybackAudio();
+        if (!audio) return;
+
+        audio.currentTime = startMs / 1000;
+        if (audio.paused) {
+          audio.play().catch((error) => {
+            console.warn('[playback] play after seek failed:', error);
+          });
+        }
+
+        renderPlaybackProgress();
+        savePlaybackState();
       }
 
     updateContext(initialOptions);

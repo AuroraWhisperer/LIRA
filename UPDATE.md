@@ -1,6 +1,20 @@
 # 打包与更新说明
 
-当前版本：`1.3.11`
+当前版本：`1.3.12`
+
+---
+
+## v1.3.12 变更
+
+- QQ 音乐「为你推荐」「每日推荐」改用真实客户端接口 `RecommendFeed`（推荐 Feed），替代旧的网页抓取 / 热门推荐接口，每日推荐支持批量拉取完整歌曲信息（含 mid）。
+- QQ 音乐电台连续多轮拉取并去重，凑够请求数量后再返回，避免一次请求歌曲不够。
+- 网易云「每日推荐」「私人电台」支持分页换一批，超出列表末尾自动绕回开头。
+- 全屏歌词支持点击任意一行跳转播放（悬浮显示播放按钮）。
+- 全屏播放器背景改为直接展示彩色渐变，移除白色遮罩层。
+- 全屏播放器新增点击背景关闭、ESC 键关闭，小屏幕下关闭按钮加大。
+- 播放首页推荐/每日/电台内容新增"换一批"按钮。
+- 新增 `scripts/publish-release.js` 规范发布流程，替代直接调用 `electron-builder --publish always`（见 `RELEASE_GUIDE.md`）。
+- `tools/qq-music-analyzer`：HAR 解析支持 BOM 去除、POST body 提取、`musics.fcg` 请求识别；新增若干抓包分析辅助脚本。
 
 ---
 
@@ -248,8 +262,8 @@ npm.cmd run dist:win
 生成文件在 `release/`：
 
 ```text
-bilibili-live-song-plugin-setup-1.3.11.exe
-bilibili-live-song-plugin-setup-1.3.11.exe.blockmap
+bilibili-live-song-plugin-setup-1.3.12.exe
+bilibili-live-song-plugin-setup-1.3.12.exe.blockmap
 latest.yml
 ```
 
