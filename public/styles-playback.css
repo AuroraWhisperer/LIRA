@@ -1532,7 +1532,7 @@ body.player-dock-expanded .playback-page.active {
   background-position: center;
   filter: blur(80px);
   transform: scale(1.15);
-  opacity: 0.92;
+  opacity: 1;
   transition: background-image 600ms ease;
 }
 
@@ -1540,7 +1540,7 @@ body.player-dock-expanded .playback-page.active {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px);
 }
 
