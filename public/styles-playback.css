@@ -1536,14 +1536,6 @@ body.player-dock-expanded .playback-page.active {
   transition: background-image 600ms ease;
 }
 
-.player-fs-bg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(20px);
-}
-
 /* 30 套色彩混合背景板：按歌曲自动选择 */
 .player-fs-bg {
   background-image:
