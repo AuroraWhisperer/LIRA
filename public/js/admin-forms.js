@@ -48,6 +48,22 @@
     // 收起按钮
     fsCloseBtn?.addEventListener('click', closeFullscreenPlayer);
 
+    // 点击全屏播放器背景区域关闭
+    fsEl?.addEventListener('click', (e) => {
+      // 只在点击背景或黑胶唱片区域时关闭，不包括歌词和控制区
+      if (e.target === fsEl || e.target.classList.contains('player-fs-bg') ||
+          e.target.closest('.player-fs-vinyl')) {
+        closeFullscreenPlayer();
+      }
+    });
+
+    // ESC键关闭全屏播放器
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && fsEl?.classList.contains('open')) {
+        closeFullscreenPlayer();
+      }
+    });
+
     function openFullscreenPlayer() {
       if (!fsEl) return;
       fsEl.classList.add('open');

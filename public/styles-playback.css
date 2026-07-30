@@ -1917,6 +1917,25 @@ body.player-dock-expanded .playback-page.active {
   .lyric-trans {
     font-size: 15px;
   }
+
+  /* 小屏幕时增大关闭按钮并改善可见性 */
+  .player-fs-close-btn {
+    width: 48px;
+    height: 48px;
+    top: 16px;
+    left: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 6px 20px rgba(22, 31, 43, 0.25);
+  }
+
+  .player-fs-close-btn svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .player-fs-close-btn:hover {
+    transform: scale(1.12);
+  }
 }
 
 .queue-popup {
