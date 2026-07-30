@@ -15,6 +15,10 @@ body.desktop-shell {
     linear-gradient(180deg, #fff7ed 0, #f7f3ef 280px, #f3f6fb 100%);
 }
 
+body.desktop-shell.player-fs-open .topbar {
+  -webkit-app-region: no-drag;
+}
+
 body.desktop-shell .topbar {
   -webkit-app-region: drag;
   border-bottom: 2px solid rgba(199, 154, 59, 0.22);
@@ -381,11 +385,6 @@ body.desktop-shell .win-btn.close-win:hover {
   background: rgba(255, 100, 140, 0.15);
   color: #e8406a;
   opacity: 1;
-}
-
-body.desktop-shell .win-btn.close-win:hover svg path {
-  fill: currentColor;
-  stroke: none;
 }
 
 body.desktop-shell .win-btn:active {

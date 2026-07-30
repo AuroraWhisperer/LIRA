@@ -57,10 +57,24 @@
       }
     });
 
-    // ESC键关闭全屏播放器
+    // ESC键关闭全屏播放器，空格键播放/暂停
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && fsEl?.classList.contains('open')) {
         closeFullscreenPlayer();
+      }
+      // 空格键控制播放/暂停（在全屏播放器打开时）
+      if (e.key === ' ' && fsEl?.classList.contains('open')) {
+        e.preventDefault();
+        const audio = document.getElementById('music-player');
+        if (audio) {
+          if (audio.paused) {
+            audio.play().catch((error) => {
+              console.warn('[playback] play failed:', error);
+            });
+          } else {
+            audio.pause();
+          }
+        }
       }
     });
 

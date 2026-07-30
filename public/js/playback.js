@@ -116,13 +116,13 @@
         document.getElementById('playbackDrawerBackdrop')?.addEventListener('click', closePlaybackDrawer);
         document.getElementById('playbackDrawerClose')?.addEventListener('click', closePlaybackDrawer);
         document.getElementById('playbackDrawerBack')?.addEventListener('click', playbackDrawerGoBack);
+        document.getElementById('playbackDrawerRefresh')?.addEventListener('click', refreshPlaybackHomeContent);
 
         // 抽屉底部按钮 - 事件委托
         document.getElementById('playbackDrawerActions')?.addEventListener('click', (event) => {
           const target = event.target;
           if (target.id === 'playbackDrawerPlayAll') handlePlaybackHomeBulkAction('play-all');
           else if (target.id === 'playbackDrawerShuffleAll') handlePlaybackHomeBulkAction('shuffle-all');
-          else if (target.id === 'playbackDrawerRefresh') refreshPlaybackHomeContent();
         });
 
         // 抽屉内点击事件委托
@@ -256,6 +256,7 @@
           renderPlaybackProgress();
           savePlaybackState();
           syncPlaybackLyricWindow();
+          renderFullscreenPlayer();
         });
         audio.addEventListener('play', () => {
           renderPlayback();
@@ -655,17 +656,22 @@
 
       function updateDrawerActions(showPlayAll, action = '') {
         const actions = document.getElementById('playbackDrawerActions');
-        if (!actions) return;
+        const refreshBtn = document.getElementById('playbackDrawerRefresh');
         const canRefresh = ['personalized', 'daily', 'radio'].includes(action);
+
+        // 头部刷新按钮
+        if (refreshBtn) {
+          refreshBtn.hidden = !canRefresh;
+        }
+
+        // 底部操作按钮
+        if (!actions) return;
         actions.innerHTML = '';
         if (showPlayAll) {
           actions.innerHTML += '<button id="playbackDrawerPlayAll" type="button">播放全部</button>';
           actions.innerHTML += '<button id="playbackDrawerShuffleAll" type="button">随机播放</button>';
         }
-        if (canRefresh) {
-          actions.innerHTML += '<button id="playbackDrawerRefresh" type="button">换一批</button>';
-        }
-        actions.hidden = !showPlayAll && !canRefresh;
+        actions.hidden = !showPlayAll;
       }
 
       function setPlaybackDrawerLoading(message) {
@@ -2020,7 +2026,14 @@
           sourceStatus.classList.toggle('warn', !loggedIn);
         }
         const loginBtn = document.getElementById('playbackLoginBtn');
-        if (loginBtn) loginBtn.textContent = `登录${sourceName}`;
+        const logoutBtn = document.getElementById('playbackLogoutBtn');
+        if (loginBtn) {
+          loginBtn.textContent = `登录${sourceName}`;
+          loginBtn.style.display = loggedIn ? 'none' : '';
+        }
+        if (logoutBtn) {
+          logoutBtn.style.display = loggedIn ? '' : 'none';
+        }
         const userName = document.getElementById('playbackUserName');
         if (userName) {
           userName.textContent = loggedIn ? `${sourceName} Cookie 已就绪` : '未连接音乐账户';
@@ -2437,6 +2450,7 @@
         const artEl = document.getElementById('playerFsArt');
         const bgEl = document.getElementById('playerFsBg');
         const vinylDiscEl = document.getElementById('playerFsVinylDisc');
+        const tonearmEl = document.getElementById('playerFsTonearm');
         const coverUrl = track && track.coverUrl ? track.coverUrl : '';
 
         if (artEl) {
@@ -2454,9 +2468,21 @@
         // 更新背景色板
         applyFullscreenBgTheme(bgEl, track);
 
-        // 唱片旋转动画
+        // 唱片旋转动画：播放时旋转，暂停时保持当前角度
         if (vinylDiscEl) {
-          vinylDiscEl.classList.toggle('spinning', isPlaying);
+          if (isPlaying) {
+            vinylDiscEl.classList.add('spinning');
+            vinylDiscEl.classList.remove('paused');
+          } else {
+            // 暂停时移除spinning但不重置transform，保持当前角度
+            vinylDiscEl.classList.remove('spinning');
+            vinylDiscEl.classList.add('paused');
+          }
+        }
+
+        // 唱针状态：播放时落下，暂停时抬起
+        if (tonearmEl) {
+          tonearmEl.classList.toggle('playing', isPlaying);
         }
 
         // 渲染歌词
