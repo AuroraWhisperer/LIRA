@@ -39,8 +39,8 @@ function handleDanmakuMessage(context, {
 
   let queueItem;
   if (command.type === 'random') {
-    const songService = context.songService;
-    const song = songService.pickRandomSong(context.db.songDb, command.scopeText);
+    // 通过 context.pickRandomSong 调用，不直接持有 DB 句柄
+    const song = context.pickRandomSong(command.scopeText);
     if (!song) {
       const reason = command.scopeText
         ? `没有找到歌手、风格或语言「${command.scopeText}」里的可随机歌曲。`
@@ -76,7 +76,16 @@ function handleDanmakuMessage(context, {
     });
   }
 
-  context.state.cooldownByUser.set(cooldownKey, Date.now());
+  const acceptedAt = Date.now();
+  context.state.cooldownByUser.set(cooldownKey, acceptedAt);
+  // 内存 Map 是读路径，DB 只为重启后能恢复冷却；写失败不影响本次点歌
+  if (context.cooldownStore) {
+    try {
+      context.cooldownStore.touch(cooldownKey, { uid, userName, at: acceptedAt });
+    } catch (error) {
+      console.warn(`[Cooldown] persist failed: key=${cooldownKey} error=${error.message}`);
+    }
+  }
   return { accepted: true, command, queueItem };
 }
 

@@ -81,7 +81,13 @@ const DEFAULT_SETTINGS = {
   songBoardTitle: '',
   songBoardSongFontSize: '16',
   songBoardTitleFontSize: '15',
-  songBoardSortMode: 'initial'
+  songBoardSortMode: 'initial',
+  // 数据保留期（天），0 表示不清理。默认只清理礼物原始报文，业务数据保持永久保留。
+  giftRawJsonRetentionDays: '30',
+  giftEventRetentionDays: '0',
+  requestRetentionDays: '0',
+  superChatRetentionDays: '0',
+  autoRetentionOnStartup: 'true'
 };
 
 function createSettingsStore(db) {
@@ -94,18 +100,21 @@ function createSettingsStore(db) {
     `).run(key, value, now());
   }
 
+  let cache = null;
+
   return {
     getDefaultSettings() {
       return { ...DEFAULT_SETTINGS };
     },
 
     getSettings() {
+      if (cache) return cache;
       const rows = db.prepare('SELECT key, value FROM settings').all();
-      const settings = { ...DEFAULT_SETTINGS };
+      cache = { ...DEFAULT_SETTINGS };
       for (const row of rows) {
-        settings[row.key] = row.value;
+        cache[row.key] = row.value;
       }
-      return settings;
+      return cache;
     },
 
     setSetting(key, value) {
@@ -114,6 +123,7 @@ function createSettingsStore(db) {
         VALUES (?, ?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
       `).run(key, value, now());
+      cache = null;
     }
   };
 }

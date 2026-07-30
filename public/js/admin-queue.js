@@ -1,0 +1,225 @@
+// 编写人：Aurora
+// 队列和 SuperChat 管理
+'use strict';
+
+(function () {
+  const {
+    escapeHtml,
+    escapeAttr,
+    value,
+    setValue,
+    formatTime,
+    formatSuperChatPrice,
+    withMultilingualFallback,
+    toast,
+    api
+  } = window.AdminApp.utils;
+
+  function initQueueForm() {
+    document.getElementById('manualForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await api('/api/queue/add', {
+        songName: value('manualSong'),
+        artist: value('manualArtist'),
+        requesterName: value('manualRequester') || '主播',
+        source: 'admin'
+      });
+      setValue('manualSong', '');
+      setValue('manualArtist', '');
+      toast('已添加到队列');
+      if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+        await window.AdminApp.state.reloadState();
+      }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
+    document.getElementById('clearBtn').addEventListener('click', async () => {
+      if (confirm('确认清空当前点歌和全部等待队列？')) {
+        await queueAction('clear');
+      }
+    });
+  }
+
+  function renderState(appState, songs) {
+    if (!appState) return;
+    const current = appState.queue.current;
+    const waiting = appState.queue.waiting || [];
+    const queueItems = [current].concat(waiting).filter(Boolean);
+    const settings = appState.settings || {};
+    const superChats = Array.isArray(appState.superChats) ? appState.superChats : [];
+    const gifts = appState.gifts || {};
+    const giftSprint = appState.giftSprint || {};
+
+    document.getElementById('songCount').textContent = `歌库 ${appState.songCount || 0} 首`;
+    const totalCount = queueItems.length;
+    document.getElementById('queueSize').textContent = `${totalCount} 首`;
+    renderSuperChatQueue(superChats);
+    if (window.AdminApp.gifts && window.AdminApp.gifts.renderGiftPanel) {
+      window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.blivedmCompatibility || {}, appState.bilibiliDiagnostics || {});
+    }
+
+    const live = appState.liveStatus || {};
+    const liveStatus = document.getElementById('liveStatus');
+    liveStatus.textContent = live.message || '弹幕监听未启用';
+    liveStatus.className = live.connected ? 'pill good' : 'pill warn';
+
+    const list = document.getElementById('queueList');
+    applyAdminQueueFontPreview(settings);
+    if (queueItems.length === 0) {
+      list.innerHTML = '<div class="empty">队列为空</div>';
+    } else {
+      list.innerHTML = queueItems.map((item, index) => {
+        const pinButton = index === 0 && !item.is_pinned
+          ? ''
+          : `
+                <button class="icon" title="${item.is_pinned ? '取消置顶' : '置顶'}" type="button" data-action="${item.is_pinned ? 'unpin' : 'pin'}" data-id="${item.id}">${item.is_pinned ? '↧' : '↑'}</button>`;
+        return `
+            <div class="queue-row">
+              <div>
+                <div class="song">${item.is_pinned ? '📌 ' : ''}${index + 1}. ${escapeHtml(item.song_name)}</div>
+                <div class="meta">${escapeHtml(requesterLabel(item))} · ${escapeHtml(sourceLabel(item))} · ${formatTime(item.created_at)}</div>
+              </div>
+              <div class="queue-actions">
+                ${pinButton}
+                <button class="icon" title="复制歌名" type="button" data-copy="${escapeAttr(item.song_name)}">⧉</button>
+                <button class="icon" title="删除" type="button" data-action="delete" data-id="${item.id}">×</button>
+              </div>
+            </div>
+          `;
+      }).join('');
+    }
+
+    if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
+      window.AdminApp.forms.fillForm(settings);
+    }
+    if (window.AdminApp.songs && window.AdminApp.songs.renderCategoryFilter) {
+      const categories = window.AdminApp.state.getCategories();
+      window.AdminApp.songs.renderCategoryFilter(categories);
+    }
+
+    document.querySelectorAll('[data-action]').forEach((button) => {
+      button.addEventListener('click', () => queueAction(button.dataset.action, button.dataset.id));
+    });
+    document.querySelectorAll('[data-copy]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        toast('歌名已复制');
+      });
+    });
+  }
+
+  function renderSuperChatQueue(items) {
+    const list = document.getElementById('superChatList');
+    const size = document.getElementById('superChatSize');
+    if (!list || !size) return;
+
+    size.textContent = `${items.length} 条`;
+    if (items.length === 0) {
+      list.innerHTML = '<div class="empty">SC 队列为空</div>';
+      return;
+    }
+
+    list.innerHTML = items.map((item, index) => `
+      <div class="queue-row sc-row ${item.status === 'assisted' ? 'assisted' : ''}">
+        <div>
+          <div class="song">
+            <span class="sc-admin-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
+            ${index + 1}. ${escapeHtml(item.message || '醒目留言')}
+          </div>
+          <div class="meta">${escapeHtml(item.user_name || '观众')} · ${formatTime(item.created_at)}${item.status === 'assisted' ? ' · 已辅助' : ''}</div>
+        </div>
+        <div class="queue-actions">
+          <button class="icon" title="${item.status === 'assisted' ? '取消辅助' : '标记辅助'}" type="button" data-sc-action="${item.status === 'assisted' ? 'unassist' : 'assist'}" data-id="${item.id}">${item.status === 'assisted' ? '↺' : '✓'}</button>
+          <button class="icon" title="复制 SC" type="button" data-copy="${escapeAttr(item.message || '')}">⧉</button>
+          <button class="icon" title="删除 SC" type="button" data-sc-action="delete" data-id="${item.id}">×</button>
+        </div>
+      </div>
+    `).join('');
+
+    document.querySelectorAll('[data-sc-action]').forEach((button) => {
+      button.addEventListener('click', () => superChatAction(button.dataset.scAction, button.dataset.id));
+    });
+  }
+
+  function applyAdminQueueFontPreview(settings = {}) {
+    const list = document.getElementById('queueList');
+    if (!list) return;
+    const fontFamily = settings.overlayFontFamily || value('overlayFontFamily') || 'Microsoft YaHei';
+    const fontWeight = settings.overlayFontWeight || value('overlayFontWeight') || '700';
+    list.style.setProperty('--admin-queue-font-family', withMultilingualFallback(fontFamily));
+    list.style.setProperty('--admin-queue-font-weight', fontWeight);
+  }
+
+  async function queueAction(action, id) {
+    console.log('[queueAction]', action, id);
+    const result = await api('/api/queue/action', { action, id });
+    console.log('[queueAction] result:', result);
+    if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+      await window.AdminApp.state.reloadState();
+    }
+  }
+
+  async function superChatAction(action, id) {
+    await api('/api/superchats/action', { action, id });
+    if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+      await window.AdminApp.state.reloadState();
+    }
+  }
+
+  function requesterLabel(item) {
+    const name = String((item && item.requester_name) || '').trim();
+    if (name) return name;
+    const uid = String((item && item.requester_uid) || '').trim();
+    return uid ? `观众 ${uid}` : '观众';
+  }
+
+  function sourceLabel(itemOrSource) {
+    const item = typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
+    const source = item ? item.source : itemOrSource;
+    if (source === 'random' || String(source || '').startsWith('random:')) {
+      const scope = String(source || '').startsWith('random:')
+        ? String(source).slice('random:'.length).trim()
+        : randomScopeLabel(item && item.request_message);
+      return scope ? `随机点歌 · ${scope}` : '随机点歌';
+    }
+    return {
+      admin: '手动',
+      danmaku: '弹幕',
+      superchat: '醒目留言',
+      history: '历史补偿',
+    }[source] || source || '未知';
+  }
+
+  function randomScopeLabel(message) {
+    const text = String(message || '').trim().replace(/\s+/g, ' ');
+    if (!text.startsWith('随机')) return '';
+    if (text.startsWith('随机点歌')) {
+      return stripRandomScopePrefix(text.slice('随机点歌'.length));
+    }
+    if (text.startsWith('随机 ')) {
+      return stripRandomScopePrefix(text.slice('随机 '.length));
+    }
+    const scope = stripRandomScopePrefix(text.slice('随机'.length));
+    return scope === '点歌' ? '' : scope;
+  }
+
+  function stripRandomScopePrefix(val) {
+    let text = String(val || '').trim();
+    while (text && '+＋:：-—'.includes(text[0])) {
+      text = text.slice(1).trim();
+    }
+    return text;
+  }
+
+  window.AdminApp = window.AdminApp || {};
+  window.AdminApp.queue = {
+    initQueueForm,
+    renderState,
+    renderSuperChatQueue,
+    applyAdminQueueFontPreview,
+    queueAction,
+    superChatAction,
+    requesterLabel,
+    sourceLabel
+  };
+})();

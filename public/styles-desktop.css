@@ -367,27 +367,34 @@ body.desktop-shell .win-btn {
   color: var(--text);
   cursor: pointer;
   padding: 0;
-  opacity: 0.55;
-  transition: background 100ms ease, color 100ms ease, opacity 100ms ease;
+  opacity: 0.5;
+  transition: background 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease;
 }
 
 body.desktop-shell .win-btn:hover {
-  background: rgba(36, 26, 22, 0.08);
+  background: rgba(255, 140, 170, 0.12);
   opacity: 1;
+  transform: scale(1.12);
 }
 
 body.desktop-shell .win-btn.close-win:hover {
-  background: #e81123;
-  color: #fff;
+  background: rgba(255, 100, 140, 0.15);
+  color: #e8406a;
   opacity: 1;
 }
 
+body.desktop-shell .win-btn.close-win:hover svg path {
+  fill: currentColor;
+  stroke: none;
+}
+
 body.desktop-shell .win-btn:active {
-  background: rgba(36, 26, 22, 0.14);
+  background: rgba(255, 120, 160, 0.22);
+  transform: scale(0.96);
 }
 
 body.desktop-shell .win-btn.close-win:active {
-  background: #c11c31;
+  background: rgba(232, 64, 106, 0.2);
 }
 
 /* ---- full-screen workspace polish ---- */

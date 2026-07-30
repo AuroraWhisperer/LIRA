@@ -36,11 +36,11 @@ test('playlist playback keeps one queue and loops with directly played search tr
   };
   const app = createPlaybackApp(savedState);
 
-  app.init();
+  await app.init();
   await flushAsyncWork();
 
   assert.equal(app.element('queuePopupTitle').textContent, '歌单队列');
-  assert.equal(app.element('queuePopupSize').textContent, '2 首');
+  assert.equal(app.element('queuePopupSize').textContent, '3 首');
   assert.match(app.element('playbackQueueList').innerHTML, /歌单第二首[\s\S]*歌单第三首/);
   assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /不应显示的电台歌曲|不应保留的电台歌曲/);
   assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /插队/);
@@ -107,7 +107,7 @@ test('playing a wanted track from radio switches to a looping history queue', as
     volume: 0.75
   });
 
-  app.init();
+  await app.init();
   await flushAsyncWork();
 
   app.element('playbackSearchKeyword').value = '新想听的歌';
@@ -207,6 +207,23 @@ function createPlaybackApp(initialState) {
 
   async function fetch(url, options = {}) {
     fetchCalls.push({ url: String(url), options });
+    if (url.startsWith('/api/playback/queue-state')) {
+      if (options.method === 'POST') {
+        const body = options.body instanceof sandbox.Blob
+          ? options.body.parts.join('')
+          : options.body;
+        const parsed = JSON.parse(body);
+        if (parsed.payload) {
+          storage.set('songAssistantPlaybackState:v1', JSON.stringify(parsed.payload));
+        }
+        return response({ ok: true, data: {} });
+      }
+      const saved = storage.get('songAssistantPlaybackState:v1');
+      return response({
+        ok: true,
+        data: { payload: saved ? JSON.parse(saved) : null, updatedAt: '' }
+      });
+    }
     if (url === '/api/music/search') {
       return response({
         ok: true,
@@ -242,20 +259,42 @@ function createPlaybackApp(initialState) {
     return response({ ok: true, data: {} });
   }
 
+  const timers = new Map();
+  let timerIdCounter = 1;
+
   const sandbox = {
     console,
     document,
     encodeURIComponent,
     fetch,
     localStorage,
-    navigator: {},
+    navigator: {
+      sendBeacon(url, data) {
+        fetchCalls.push({ url: String(url), options: { method: 'POST', body: data } });
+        return true;
+      }
+    },
+    setTimeout(callback, delay) {
+      const id = timerIdCounter++;
+      timers.set(id, { callback, delay });
+      return id;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    },
+    Blob: class {
+      constructor(parts, options) {
+        this.parts = parts;
+        this.type = options?.type || '';
+      }
+    },
     window
   };
   vm.runInNewContext(playbackScript, sandbox, { filename: 'public/js/playback.js' });
 
   return {
     init() {
-      window.AdminApp.playback.initPlaybackAssistant({
+      return window.AdminApp.playback.initPlaybackAssistant({
         readJsonResponse: window.AdminApp.utils.readJsonResponse,
         showError: window.AdminApp.utils.showError,
         toast: window.AdminApp.utils.toast
@@ -269,7 +308,27 @@ function createPlaybackApp(initialState) {
     },
     savedState() {
       assert.deepEqual(errors, []);
-      return JSON.parse(storage.get('songAssistantPlaybackState:v1'));
+
+      // Flush any pending debounced saves
+      for (const timer of timers.values()) {
+        timer.callback();
+      }
+      timers.clear();
+
+      const localState = storage.get('songAssistantPlaybackState:v1');
+      if (localState) {
+        return JSON.parse(localState);
+      }
+      const serverSaveCall = fetchCalls.findLast(
+        ({ url, options }) => url.startsWith('/api/playback/queue-state') && options.method === 'POST'
+      );
+      if (!serverSaveCall || !serverSaveCall.options.body) {
+        throw new Error('No saved state found in localStorage or fetch calls');
+      }
+      const bodyText = serverSaveCall.options.body instanceof sandbox.Blob
+        ? serverSaveCall.options.body.parts.join('')
+        : serverSaveCall.options.body;
+      return JSON.parse(JSON.parse(bodyText).payload);
     },
     radioRefillRequests() {
       return fetchCalls.filter(({ url, options }) => {
@@ -285,7 +344,8 @@ class FakeElement {
     this.classList = {
       add() {},
       remove() {},
-      toggle() {}
+      toggle() {},
+      contains() { return false; }
     };
     this.dataset = {};
     this.disabled = false;

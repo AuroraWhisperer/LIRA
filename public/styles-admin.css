@@ -1303,7 +1303,7 @@ button.danger-filled:hover {
 
 .song-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(500px, 0.8fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 16px;
   height: calc(100vh - 58px - 96px);
   padding: 16px;

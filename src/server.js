@@ -13,11 +13,12 @@ const systemMetrics = require('./server/system-metrics');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
 const sharedUtils = require('./shared/utils');
-const { createDatabases } = require('./storage/database');
+const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const settingsStoreModule = require('./storage/settings-store');
 const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { initLyricsService } = require('./music/lyrics-service');
+const blivedmCompat = require('./bilibili/blivedm-compat');
 const { createBlivedmRuntime } = require('./bilibili/blivedm-runtime');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const giftService = require('./bilibili/gift-service');
@@ -30,6 +31,7 @@ const DATA_DIR = process.env.SONG_PLUGIN_DATA_DIR
 const SONG_DB_PATH = path.join(DATA_DIR, 'song-request-data.db');
 const SUPER_CHAT_DB_PATH = path.join(DATA_DIR, 'super-chat-data.db');
 const GIFT_DB_PATH = path.join(DATA_DIR, 'gift-data.db');
+const MUSIC_DB_PATH = path.join(DATA_DIR, 'music-data.db');
 const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
 const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
 const HOST = process.env.HOST || 'localhost';
@@ -39,7 +41,7 @@ const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const DEFAULT_SETTINGS = settingsStoreModule.DEFAULT_SETTINGS;
 
-const db = createDatabases({ dataDir: DATA_DIR });
+const db = createDatabases({ dataDir: DATA_DIR, defaultSettings: DEFAULT_SETTINGS });
 const songDb = db.songDb;
 const superChatDb = db.superChatDb;
 const giftDb = db.giftDb;
@@ -61,6 +63,7 @@ settingsStoreModule.migrateQueueScrollSpeedSetting(
 settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);
 domainServices.songs.ensureCategory('默认');
 domainServices.queue.clearOnStartup();
+runStartupRetention();
 
 const liveStatus = {
   connected: false,
@@ -80,7 +83,10 @@ let shutdownPromise = null;
 let musicRegistry = createMusicProviderRegistry();
 const runtimeGiftCommandPrefixes = new Set();
 const blivedmRuntime = createBlivedmRuntime({
-  songDb,
+  cache: {
+    read: () => blivedmCompat.readBlivedmCompatibilityCache(songDb),
+    write: (result) => blivedmCompat.writeBlivedmCompatibilityCache(songDb, result)
+  },
   runtimeGiftCommandPrefixes,
   broadcastSnapshot
 });
@@ -131,50 +137,90 @@ function registerShutdownSignals() {
   process.once('SIGHUP', () => shutdownApplication());
 }
 
+// 按领域分组注入路由层，避免上下文退化成平铺的 Fat Context
 function createApiContext() {
   return {
-    defaultSettings: DEFAULT_SETTINGS,
     maxBodyBytes: MAX_BODY_BYTES,
-    liveStatus,
-    musicRegistry,
-    getHealth: () => ({
-      rootDir: ROOT_DIR,
-      dataDir: DATA_DIR,
-      songDb: SONG_DB_PATH,
-      superChatDb: SUPER_CHAT_DB_PATH,
-      giftDb: GIFT_DB_PATH,
-      desktop: process.env.ELECTRON_DESKTOP === '1',
-      pid: process.pid,
-      liveStatus
-    }),
-    getState,
-    getSystemMetrics: systemMetrics.getSystemMetrics,
-    runManualBlivedmCompatibilityCheck: blivedmRuntime.runManualCheck,
-    listCategories: domainServices.songs.listCategories,
-    listSongs: domainServices.songs.list,
-    normalizeRoomInput: sharedUtils.normalizeRoomInput,
-    setSetting: settingsStore.setSetting,
-    getSettings: settingsStore.getSettings,
-    configureBilibiliListener,
     broadcastSnapshot,
-    addQueueItem: domainServices.queue.add,
-    handleQueueAction: domainServices.queue.handleAction,
-    handleSuperChatAction: domainServices.superChats.handleAction,
-    resetGiftSprintProgress: domainServices.gifts.resetSprint,
-    saveSong: domainServices.songs.save,
-    deleteSong: domainServices.songs.delete,
-    toggleSong: domainServices.songs.toggle,
-    importSongs: domainServices.songs.import,
-    getMusicCacheStats: () => getMusicCacheStats(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
-    clearMusicCache: () => clearMusicCache(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
-    clearSongLibraryData: domainServices.data.clearSongLibrary,
-    clearSuperChatData: domainServices.data.clearSuperChats,
-    clearAllData: domainServices.data.clearAll,
-    reconnectBilibiliListener,
-    publicBilibiliErrorMessage: sharedUtils.publicBilibiliErrorMessage,
-    updateLiveStatus,
-    shutdownApplication
+    songs: {
+      list: domainServices.songs.list,
+      save: domainServices.songs.save,
+      delete: domainServices.songs.delete,
+      toggle: domainServices.songs.toggle,
+      import: domainServices.songs.import,
+      listCategories: domainServices.songs.listCategories
+    },
+    queue: {
+      add: domainServices.queue.add,
+      handleAction: domainServices.queue.handleAction
+    },
+    superChat: {
+      handleAction: domainServices.superChats.handleAction
+    },
+    gifts: {
+      resetSprint: domainServices.gifts.resetSprint,
+      runBlivedmCheck: blivedmRuntime.runManualCheck
+    },
+    data: {
+      clearSongLibrary: domainServices.data.clearSongLibrary,
+      clearSuperChats: domainServices.data.clearSuperChats,
+      clearPlayback: domainServices.data.clearPlayback,
+      clearAll: domainServices.data.clearAll,
+      getSchemaVersions: domainServices.data.getSchemaVersions,
+      getRetentionStats: domainServices.data.getRetentionStats,
+      runRetention: domainServices.data.runRetention
+    },
+    playback: domainServices.playback,
+    theme: domainServices.theme,
+    bilibili: {
+      liveStatus,
+      configure: configureBilibiliListener,
+      reconnect: reconnectBilibiliListener,
+      updateStatus: updateLiveStatus
+    },
+    settings: {
+      defaults: DEFAULT_SETTINGS,
+      get: settingsStore.getSettings,
+      set: settingsStore.setSetting
+    },
+    system: {
+      getHealth: () => ({
+        rootDir: ROOT_DIR,
+        dataDir: DATA_DIR,
+        songDb: SONG_DB_PATH,
+        superChatDb: SUPER_CHAT_DB_PATH,
+        giftDb: GIFT_DB_PATH,
+        musicDb: MUSIC_DB_PATH,
+        schemaVersions: domainServices.data.getSchemaVersions(),
+        desktop: process.env.ELECTRON_DESKTOP === '1',
+        pid: process.pid,
+        liveStatus
+      }),
+      getState,
+      getMetrics: systemMetrics.getSystemMetrics,
+      shutdown: shutdownApplication
+    },
+    music: {
+      registry: musicRegistry,
+      getCacheStats: () => getMusicCacheStats(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
+      clearCache: () => clearMusicCache(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR)
+    }
   };
+}
+
+// 启动时按 settings 里的保留期清理过期数据；清理失败不能阻断启动
+function runStartupRetention() {
+  if (settingsStore.getSettings().autoRetentionOnStartup !== 'true') return;
+  try {
+    const result = domainServices.data.runRetention();
+    const total = result.giftRawJsonCleared + result.giftEventsDeleted
+      + result.requestsDeleted + result.superChatsDeleted + result.cooldownsDeleted;
+    if (total > 0) {
+      console.log(`[Startup] retention: rawJson=${result.giftRawJsonCleared} gifts=${result.giftEventsDeleted} requests=${result.requestsDeleted} sc=${result.superChatsDeleted} cooldowns=${result.cooldownsDeleted}`);
+    }
+  } catch (error) {
+    console.warn('[Startup] retention failed:', error.message);
+  }
 }
 
 function getLifecycleOptions(port, host) {
@@ -256,16 +302,12 @@ function configureBilibiliListener(force = false) {
     return;
   }
 
+  // 相同房间且非强制时跳过，避免无谓断线重连
   if (!force && bilibiliClient && bilibiliClient.roomId === roomId) {
     return;
   }
 
-  if (bilibiliClient) {
-    bilibiliClient.stop();
-  }
-
-  bilibiliClient = createBilibiliClient(roomId);
-  bilibiliClient.start();
+  replaceBilibiliClient(roomId);
 }
 
 async function reconnectBilibiliListener() {
@@ -274,17 +316,26 @@ async function reconnectBilibiliListener() {
   const enabled = settings.enableBilibili === 'true' && roomId;
 
   if (!enabled) {
+    // 未启用时复用 configure 的禁用逻辑，不重复写状态更新
     configureBilibiliListener(true);
     return { liveStatus };
   }
 
-  if (bilibiliClient) {
-    bilibiliClient.stop();
-  }
-
-  bilibiliClient = createBilibiliClient(roomId);
-  await bilibiliClient.restart();
+  // 强制重连：等待握手完成再返回
+  await replaceBilibiliClient(roomId, true);
   return { liveStatus };
+}
+
+// 共用：停止旧客户端、创建新客户端并启动
+// restart=true 时 await 握手完成（reconnect 场景），否则 start() 立即返回（configure 场景）
+async function replaceBilibiliClient(roomId, restart = false) {
+  if (bilibiliClient) bilibiliClient.stop();
+  bilibiliClient = createBilibiliClient(roomId);
+  if (restart) {
+    await bilibiliClient.restart();
+  } else {
+    bilibiliClient.start();
+  }
 }
 
 function createBilibiliClient(roomId) {
@@ -408,21 +459,9 @@ function shutdownApplication(options = {}) {
     const exit = () => {
       if (finished) return;
       finished = true;
-      try {
-        songDb.close();
-      } catch (_) {
-        // Ignore close errors during shutdown.
-      }
-      try {
-        superChatDb.close();
-      } catch (_) {
-        // Ignore close errors during shutdown.
-      }
-      try {
-        giftDb.close();
-      } catch (_) {
-        // Ignore close errors during shutdown.
-      }
+      optimizeDatabases(db);
+      // 各 DB 的关闭错误由 closeDatabases 内部静默处理，无需逐一 try/catch
+      closeDatabases(db);
       resolve();
       if (exitProcess) process.exit(0);
     };

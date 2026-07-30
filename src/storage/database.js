@@ -1,6 +1,7 @@
 // 编写人：Aurora
-// 数据库创建、迁移、列补全、清空操作。
+// 数据库创建、迁移注册、清空操作。
 // 通过 createDatabases({ dataDir }) 显式初始化，不自动创建连接。
+// DDL 在 schema.js，各表读写在同目录的 *-store.js。
 'use strict';
 
 const fs = require('node:fs');
@@ -13,6 +14,15 @@ const {
   normalizeGuardLevel,
   normalizePositiveInteger
 } = require('../shared/utils');
+const schema = require('./schema');
+const { seedThemePresets } = require('./theme-store');
+
+const DB_FILE_NAMES = {
+  songDb: 'song-request-data.db',
+  superChatDb: 'super-chat-data.db',
+  giftDb: 'gift-data.db',
+  musicDb: 'music-data.db'
+};
 
 // ── 工厂函数：创建并初始化所有数据库 ──
 
@@ -20,186 +30,92 @@ function createDatabases(options = {}) {
   const dataDir = String(options.dataDir || '');
   if (!dataDir) throw new Error('dataDir is required to create databases.');
 
-  const SONG_DB_PATH = path.join(dataDir, 'song-request-data.db');
-  const SUPER_CHAT_DB_PATH = path.join(dataDir, 'super-chat-data.db');
-  const GIFT_DB_PATH = path.join(dataDir, 'gift-data.db');
-
   fs.mkdirSync(dataDir, { recursive: true });
 
-  const songDb = openSqliteDatabase(SONG_DB_PATH, { foreignKeys: true });
-  const superChatDb = openSqliteDatabase(SUPER_CHAT_DB_PATH);
-  const giftDb = openSqliteDatabase(GIFT_DB_PATH);
+  const songDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.songDb), { foreignKeys: true });
+  const superChatDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.superChatDb));
+  const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
+  const musicDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.musicDb), { foreignKeys: true });
 
-  // Song DB schema
-  songDb.exec(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
+  // 建表是幂等的，每次启动都跑；一次性的数据搬迁走下面的迁移步骤
+  songDb.exec(schema.SONG_SCHEMA);
+  superChatDb.exec(schema.SUPER_CHAT_SCHEMA);
+  giftDb.exec(schema.GIFT_SCHEMA);
+  musicDb.exec(schema.MUSIC_SCHEMA);
 
-    CREATE TABLE IF NOT EXISTS song_categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_enabled INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS songs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      name_pinyin TEXT NOT NULL DEFAULT '',
-      name_initial TEXT NOT NULL DEFAULT '#',
-      artist TEXT NOT NULL DEFAULT '',
-      category_id INTEGER,
-      is_enabled INTEGER NOT NULL DEFAULT 1,
-      note TEXT NOT NULL DEFAULT '',
-      tags TEXT NOT NULL DEFAULT '',
-      language TEXT NOT NULL DEFAULT '',
-      source_platform TEXT NOT NULL DEFAULT '',
-      original_group TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (category_id) REFERENCES song_categories(id)
-    );
-
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_songs_name_artist
-      ON songs(name, artist);
-    CREATE INDEX IF NOT EXISTS idx_songs_initial
-      ON songs(name_initial);
-    CREATE INDEX IF NOT EXISTS idx_songs_category
-      ON songs(category_id);
-
-    CREATE TABLE IF NOT EXISTS queue (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      song_id INTEGER,
-      song_name TEXT NOT NULL,
-      artist TEXT NOT NULL DEFAULT '',
-      category_name TEXT NOT NULL DEFAULT '',
-      requester_uid TEXT NOT NULL DEFAULT '',
-      requester_name TEXT NOT NULL DEFAULT '',
-      requester_guard_level INTEGER NOT NULL DEFAULT 0,
-      requester_medal_name TEXT NOT NULL DEFAULT '',
-      requester_medal_level INTEGER NOT NULL DEFAULT 0,
-      source TEXT NOT NULL DEFAULT 'admin',
-      status TEXT NOT NULL DEFAULT 'waiting',
-      is_pinned INTEGER NOT NULL DEFAULT 0,
-      pinned_at TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (song_id) REFERENCES songs(id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_queue_status
-      ON queue(status, is_pinned, pinned_at, created_at);
-
-    CREATE TABLE IF NOT EXISTS requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      queue_id INTEGER,
-      song_id INTEGER,
-      song_name TEXT NOT NULL,
-      artist TEXT NOT NULL DEFAULT '',
-      category_name TEXT NOT NULL DEFAULT '',
-      requester_uid TEXT NOT NULL DEFAULT '',
-      requester_name TEXT NOT NULL DEFAULT '',
-      requester_guard_level INTEGER NOT NULL DEFAULT 0,
-      requester_medal_name TEXT NOT NULL DEFAULT '',
-      requester_medal_level INTEGER NOT NULL DEFAULT 0,
-      message TEXT NOT NULL DEFAULT '',
-      source TEXT NOT NULL DEFAULT 'admin',
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (queue_id) REFERENCES queue(id),
-      FOREIGN KEY (song_id) REFERENCES songs(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS import_batches (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      total_count INTEGER NOT NULL,
-      inserted_count INTEGER NOT NULL,
-      duplicate_count INTEGER NOT NULL,
-      failed_count INTEGER NOT NULL,
-      created_category_count INTEGER NOT NULL,
-      created_at TEXT NOT NULL
-    );
-  `);
-
-  // SuperChat DB schema
-  superChatDb.exec(`
-    CREATE TABLE IF NOT EXISTS super_chats (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      platform_id TEXT NOT NULL DEFAULT '',
-      uid TEXT NOT NULL DEFAULT '',
-      user_name TEXT NOT NULL DEFAULT '',
-      price REAL NOT NULL DEFAULT 0,
-      message TEXT NOT NULL DEFAULT '',
-      requester_guard_level INTEGER NOT NULL DEFAULT 0,
-      requester_medal_name TEXT NOT NULL DEFAULT '',
-      requester_medal_level INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'active',
-      source TEXT NOT NULL DEFAULT 'superchat',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_super_chats_status
-      ON super_chats(status, created_at);
-  `);
-
-  // Gift DB schema
-  giftDb.exec(`
-    CREATE TABLE IF NOT EXISTS gift_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      platform_id TEXT NOT NULL DEFAULT '',
-      cmd TEXT NOT NULL DEFAULT '',
-      gift_id TEXT NOT NULL DEFAULT '',
-      gift_name TEXT NOT NULL DEFAULT '',
-      uid TEXT NOT NULL DEFAULT '',
-      user_name TEXT NOT NULL DEFAULT '',
-      num INTEGER NOT NULL DEFAULT 1,
-      unit_price REAL NOT NULL DEFAULT 0,
-      total_price REAL NOT NULL DEFAULT 0,
-      coin_type TEXT NOT NULL DEFAULT '',
-      is_blind_box INTEGER NOT NULL DEFAULT 0,
-      blind_box_name TEXT NOT NULL DEFAULT '',
-      blind_box_price REAL,
-      blind_profit REAL,
-      counted_in_sprint INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'active',
-      raw_json TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_gift_events_status
-      ON gift_events(status, created_at);
-    CREATE INDEX IF NOT EXISTS idx_gift_events_sprint
-      ON gift_events(counted_in_sprint, status, created_at);
-  `);
-
-  // Run migrations
-  ensureSongColumns(songDb);
-  ensureQueueColumns(songDb);
-  ensureRequesterMetaColumns(songDb, 'queue');
-  ensureRequesterMetaColumns(songDb, 'requests');
-  ensureGiftColumns(giftDb);
-  // repairGiftV2Events needs Bilibili parsing — kept in server.js for now,
-  // will move to bilibili/gift-service.js later.
+  const databases = { songDb, superChatDb, giftDb, musicDb };
+  runAllMigrations(databases, options);
   migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb);
 
-  return { songDb, superChatDb, giftDb };
+  return databases;
+}
+
+// ── 迁移注册表 ──
+// 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
+
+function runAllMigrations(databases, options = {}) {
+  const { songDb, superChatDb, giftDb, musicDb } = databases;
+  const defaultSettings = options.defaultSettings || {};
+  const results = [];
+
+  results.push(schema.runMigrations(songDb, 'song_db', [
+    // v1：老版本遗留的列补全
+    (db) => {
+      ensureSongColumns(db);
+      ensureQueueColumns(db);
+      ensureRequesterMetaColumns(db, 'queue');
+      ensureRequesterMetaColumns(db, 'requests');
+    },
+    // v2：主题预设内置项 + 现有外观留档
+    (db) => {
+      seedThemePresets(db, defaultSettings);
+    }
+  ]));
+
+  // 醒目留言库此前完全没有迁移入口，v1 建立基线以便后续加列
+  results.push(schema.runMigrations(superChatDb, 'super_chat_db', [
+    () => { /* 基线：建表已在 SUPER_CHAT_SCHEMA 完成 */ }
+  ]));
+
+  results.push(schema.runMigrations(giftDb, 'gift_db', [
+    (db) => { ensureGiftColumns(db); }
+  ]));
+
+  results.push(schema.runMigrations(musicDb, 'music_db', [
+    () => { /* 基线：建表已在 MUSIC_SCHEMA 完成 */ }
+  ]));
+
+  for (const result of results) {
+    if (result.applied > 0) {
+      console.log(`[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`);
+    }
+  }
+  return results;
+}
+
+function getSchemaVersions(databases) {
+  return {
+    songDb: schema.getSchemaVersion(databases.songDb, 'song_db'),
+    superChatDb: schema.getSchemaVersion(databases.superChatDb, 'super_chat_db'),
+    giftDb: schema.getSchemaVersion(databases.giftDb, 'gift_db'),
+    musicDb: schema.getSchemaVersion(databases.musicDb, 'music_db')
+  };
 }
 
 // ── 底层：打开单个数据库 ──
 
 function openSqliteDatabase(filePath, options = {}) {
   const database = new DatabaseSync(filePath);
-  const pragmas = ['PRAGMA journal_mode = WAL'];
+  const pragmas = [
+    'PRAGMA journal_mode = WAL',
+    'PRAGMA synchronous = NORMAL',
+    'PRAGMA cache_size = -8000',
+    'PRAGMA temp_store = MEMORY'
+  ];
   if (options.foreignKeys === true) {
     pragmas.push('PRAGMA foreign_keys = ON');
   }
-  database.exec(`${pragmas.join(';\n')};`);
+  database.exec(pragmas.map((p) => `${p};`).join('\n'));
   return database;
 }
 
@@ -277,7 +193,10 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
   if (!legacyTable) return;
 
   const rows = songDb.prepare('SELECT * FROM super_chats ORDER BY id ASC').all();
-  if (rows.length === 0) return;
+  if (rows.length === 0) {
+    dropLegacySuperChatTable(songDb, 0);
+    return;
+  }
 
   let migrated = 0;
   superChatDb.exec('BEGIN');
@@ -329,6 +248,18 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
 
   if (migrated > 0) {
     console.log(`[Startup] migrated ${migrated} legacy super chat record(s).`);
+  }
+  dropLegacySuperChatTable(songDb, migrated);
+}
+
+function dropLegacySuperChatTable(songDb, migrated) {
+  try {
+    songDb.exec('DROP TABLE IF EXISTS super_chats');
+    if (migrated > 0) {
+      console.log('[Startup] dropped legacy super_chats table from song database.');
+    }
+  } catch (error) {
+    console.warn('[Startup] failed to drop legacy super_chats table:', error.message);
   }
 }
 
@@ -387,22 +318,42 @@ function clearSuperChatData(db) {
   }
 }
 
-function clearAllData(songDb, superChatDb, giftDb) {
-  const counts = { songs: 0, categories: 0, queue: 0, requests: 0, sc: 0, gifts: 0 };
+/** 清空播放器数据；主题预设留在 songDb，不受影响 */
+function clearPlaybackData(musicDb) {
+  musicDb.exec('BEGIN');
+  try {
+    const history = (musicDb.prepare('SELECT COUNT(*) AS count FROM play_history').get() || {}).count || 0;
+    musicDb.prepare('DELETE FROM play_history').run();
+    musicDb.prepare('DELETE FROM play_queue_state').run();
+    musicDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'").run();
+    musicDb.exec('COMMIT');
+    return { cleared: true, scope: 'playback', deletedCount: history };
+  } catch (error) {
+    musicDb.exec('ROLLBACK');
+    throw error;
+  }
+}
 
-  // Clear song DB tables except settings
+function clearAllData(songDb, superChatDb, giftDb, musicDb) {
+  const counts = {
+    songs: 0, categories: 0, queue: 0, requests: 0,
+    sc: 0, gifts: 0, playHistory: 0
+  };
+
+  // 点歌库：settings 和 theme_presets 保留，其余业务数据清空
   songDb.exec('BEGIN');
   try {
-    counts.songs = (songDb.prepare('SELECT COUNT(*) AS count FROM songs').get() || {}).count || 0;
-    counts.categories = (songDb.prepare('SELECT COUNT(*) AS count FROM song_categories').get() || {}).count || 0;
+    counts.songs = countRows(songDb, 'songs');
+    counts.categories = countRows(songDb, 'song_categories');
     counts.queue = (songDb.prepare("SELECT COUNT(*) AS count FROM queue WHERE status != 'deleted'").get() || {}).count || 0;
-    counts.requests = (songDb.prepare('SELECT COUNT(*) AS count FROM requests').get() || {}).count || 0;
+    counts.requests = countRows(songDb, 'requests');
 
     songDb.prepare('DELETE FROM requests').run();
     songDb.prepare('DELETE FROM queue').run();
     songDb.prepare('DELETE FROM songs').run();
     songDb.prepare('DELETE FROM song_categories').run();
     songDb.prepare('DELETE FROM import_batches').run();
+    songDb.prepare('DELETE FROM user_cooldowns').run();
     songDb.prepare(`
       DELETE FROM sqlite_sequence
       WHERE name IN ('songs', 'song_categories', 'import_batches', 'queue', 'requests')
@@ -413,10 +364,9 @@ function clearAllData(songDb, superChatDb, giftDb) {
     throw error;
   }
 
-  // Clear SC database
   superChatDb.exec('BEGIN');
   try {
-    counts.sc = (superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get() || {}).count || 0;
+    counts.sc = countRows(superChatDb, 'super_chats');
     superChatDb.prepare('DELETE FROM super_chats').run();
     superChatDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'super_chats'").run();
     superChatDb.exec('COMMIT');
@@ -425,10 +375,9 @@ function clearAllData(songDb, superChatDb, giftDb) {
     throw error;
   }
 
-  // Clear gift database
   giftDb.exec('BEGIN');
   try {
-    counts.gifts = (giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get() || {}).count || 0;
+    counts.gifts = countRows(giftDb, 'gift_events');
     giftDb.prepare('DELETE FROM gift_events').run();
     giftDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'").run();
     giftDb.exec('COMMIT');
@@ -437,18 +386,64 @@ function clearAllData(songDb, superChatDb, giftDb) {
     throw error;
   }
 
+  if (musicDb) {
+    counts.playHistory = clearPlaybackData(musicDb).deletedCount;
+  }
+
   return {
     cleared: true,
     scope: 'all',
-    preserved: ['settings'],
+    preserved: ['settings', 'themePresets'],
     deletedCounts: counts,
     totalDeleted: Object.values(counts).reduce((a, b) => a + b, 0)
   };
 }
 
+function countRows(db, tableName) {
+  return (db.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get() || {}).count || 0;
+}
+
+// ── 数据库关闭与优化 ──
+
+/** 关闭所有数据库连接；由 server.js shutdown 统一调用，不在各处散写 .close() */
+function closeDatabases(...databases) {
+  for (const db of flattenDatabases(databases)) {
+    try { db.close(); } catch (_) { /* 忽略关闭时错误 */ }
+  }
+}
+
+function optimizeDatabases(...databases) {
+  for (const db of flattenDatabases(databases)) {
+    try {
+      db.exec('PRAGMA optimize');
+    } catch (error) {
+      console.warn('[Shutdown] database optimize failed:', error.message);
+    }
+  }
+}
+
+// 同时接受 (songDb, superChatDb, ...) 和 ({ songDb, superChatDb, ... }) 两种传法
+function flattenDatabases(args) {
+  const list = [];
+  for (const entry of args) {
+    if (!entry) continue;
+    if (typeof entry.close === 'function' || typeof entry.exec === 'function') {
+      list.push(entry);
+    } else if (typeof entry === 'object') {
+      for (const value of Object.values(entry)) {
+        if (value && typeof value.exec === 'function') list.push(value);
+      }
+    }
+  }
+  return list;
+}
+
 module.exports = {
+  DB_FILE_NAMES,
   createDatabases,
   openSqliteDatabase,
+  runAllMigrations,
+  getSchemaVersions,
   ensureSongColumns,
   ensureQueueColumns,
   ensureRequesterMetaColumns,
@@ -456,5 +451,8 @@ module.exports = {
   migrateLegacySuperChatsToDedicatedDatabase,
   clearSongLibraryData,
   clearSuperChatData,
-  clearAllData
+  clearPlaybackData,
+  clearAllData,
+  closeDatabases,
+  optimizeDatabases
 };

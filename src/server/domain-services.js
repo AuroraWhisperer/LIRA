@@ -3,46 +3,55 @@
 'use strict';
 
 const database = require('../storage/database');
+const retention = require('../storage/retention');
+const { createPlaybackStore } = require('../storage/playback-store');
+const { createThemeStore } = require('../storage/theme-store');
+const { createCooldownStore } = require('../storage/cooldown-store');
 const songService = require('../music/song-service');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift-service');
 const superChatService = require('../bilibili/superchat-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
-const { now } = require('../shared/utils');
 
 function createDomainServices({ db, settingsStore }) {
+  const cooldownStore = createCooldownStore(db.songDb);
+  const playbackStore = createPlaybackStore(db.musicDb);
+  const themeStore = createThemeStore(db.songDb, settingsStore);
+
   const state = {
     cooldownByUser: new Map(),
     giftBotPendingByName: new Map(),
     giftBotLastReportByName: new Map()
   };
 
+  // 冷却记录重启后从 DB 恢复，避免观众靠重启绕过冷却
+  const restoredCooldowns = cooldownStore.loadInto(state.cooldownByUser);
+  if (restoredCooldowns > 0) {
+    console.log(`[Startup] restored ${restoredCooldowns} user cooldown record(s).`);
+  }
+
   const baseContext = {
     db,
     settings: () => settingsStore.getSettings(),
     settingsStore,
     songService,
+    cooldownStore,
     state
   };
 
   const songs = {
-    save: (input) => songService.saveSong(db.songDb, input),
-    list: (options) => songService.listSongs(db.songDb, options),
-    find: (songName, artist) => songService.findSong(db.songDb, songName, artist),
+    save:           (input) => songService.saveSong(db.songDb, input),
+    list:           (options) => songService.listSongs(db.songDb, options),
+    find:           (songName, artist) => songService.findSong(db.songDb, songName, artist),
     listCategories: () => songService.listCategories(db.songDb),
     ensureCategory: (name) => songService.ensureCategory(db.songDb, name),
-    import: (rows) => songService.importSongs(db.songDb, rows),
-    count: () => db.songDb.prepare('SELECT COUNT(*) AS count FROM songs').get().count,
-    delete(id) {
-      db.songDb.prepare('DELETE FROM songs WHERE id = ?').run(id);
-    },
-    toggle(id) {
-      const song = db.songDb.prepare('SELECT is_enabled FROM songs WHERE id = ?').get(id);
-      if (!song) return { ok: false };
-      db.songDb.prepare('UPDATE songs SET is_enabled = ?, updated_at = ? WHERE id = ?')
-        .run(song.is_enabled ? 0 : 1, now(), id);
-      return { ok: true };
-    }
+    import:         (rows) => songService.importSongs(db.songDb, rows),
+    // 下面三个原来在 facade 层写了内联 SQL，现统一委托给 song-service
+    count:  () => songService.countSongs(db.songDb),
+    delete: (id) => songService.deleteSong(db.songDb, id),
+    toggle: (id) => songService.toggleSong(db.songDb, id),
+    // 随机选歌：供 bilibili-message-handler 通过 context 调用，屏蔽 DB 句柄
+    pickRandom: (scopeText) => songService.pickRandomSong(db.songDb, scopeText)
   };
 
   const queueContext = {
@@ -76,7 +85,9 @@ function createDomainServices({ db, settingsStore }) {
     handleDanmaku(danmaku) {
       return bilibiliMessageHandler.handleDanmakuMessage({
         ...baseContext,
-        addQueueItem: queue.add
+        addQueueItem: queue.add,
+        // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
+        pickRandomSong: songs.pickRandom
       }, danmaku);
     },
     logDanmaku: bilibiliMessageHandler.logDanmakuCommand
@@ -90,10 +101,18 @@ function createDomainServices({ db, settingsStore }) {
       return result;
     },
     clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
+    clearPlayback: () => database.clearPlaybackData(db.musicDb),
     clearAll() {
-      const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb);
+      const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb);
+      state.cooldownByUser.clear();
       songs.ensureCategory('默认');
       return result;
+    },
+    getSchemaVersions: () => database.getSchemaVersions(db),
+    getRetentionStats: () => retention.getRetentionStats(db),
+    runRetention(options = {}) {
+      const policy = options.policy || retention.readRetentionPolicy(settingsStore.getSettings());
+      return retention.applyRetentionPolicies(db, { policy, dryRun: options.dryRun === true });
     }
   };
 
@@ -104,7 +123,10 @@ function createDomainServices({ db, settingsStore }) {
     gifts,
     superChats,
     messages,
-    data
+    data,
+    playback: playbackStore,
+    theme: themeStore,
+    cooldowns: cooldownStore
   };
 }
 

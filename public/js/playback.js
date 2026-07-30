@@ -25,7 +25,11 @@
       let api = U.api;
       let readJsonResponse = U.readJsonResponse;
 
-      const playbackStorageKey = 'songAssistantPlaybackState:v1';
+      const playbackStorageKey = 'songAssistantPlaybackState:v1'; // 仅用于旧数据一次性迁移
+      const playbackClientId = 'default';
+      const playbackStateSaveDebounceMs = 1500;
+      let playbackStateSaveTimer = null;
+      let playbackStateSavePending = null;
       const playbackStreamRefreshMarginMs = 30 * 1000;
       const playbackStreamMaxRetries = 1;
       const playbackRadioRefillThreshold = 3;
@@ -63,7 +67,7 @@
       let playbackInitialized = false;
       let playbackDrawerHistory = [];
       let queuePopupOpen = false;
-      function init(options = {}) {
+      async function init(options = {}) {
         updateContext(options);
         if (playbackInitialized) return;
         playbackInitialized = true;
@@ -73,7 +77,7 @@
           return;
         }
 
-        restorePlaybackState();
+        await restorePlaybackState();
         audio.volume = playbackState.volume;
 
         document.getElementById('playbackClearQueue')?.addEventListener('click', clearPlaybackQueue);
@@ -180,6 +184,12 @@
             return;
           }
 
+          const playlistJumpBtn = event.target.closest('[data-playback-playlist-jump]');
+          if (playlistJumpBtn) {
+            jumpToPlaylistTrack(Number(playlistJumpBtn.dataset.playbackPlaylistJump));
+            return;
+          }
+
           const button = event.target.closest('[data-playback-queue][data-playback-index]');
           if (!button) return;
           const picked = takePlaybackQueueTrack(button.dataset.playbackQueue, Number(button.dataset.playbackIndex));
@@ -252,7 +262,7 @@
         });
         audio.addEventListener('ended', () => playbackNext(true));
         audio.addEventListener('error', () => handlePlaybackError());
-        window.addEventListener('pagehide', savePlaybackState);
+        window.addEventListener('pagehide', flushPlaybackStateOnUnload);
 
         renderPlayback();
         refreshSelectedMusicProviderState();
@@ -524,7 +534,7 @@
               platform: playbackState.selectedSource,
               action: 'playlist-tracks',
               playlistId: playlist.id,
-              limit: 50
+              limit: 1000
             })
           });
           const payload = await readJsonResponse(response, '打开歌单失败');
@@ -616,6 +626,9 @@
         document.getElementById('queuePopupBackdrop')?.classList.add('open');
         document.getElementById('playbackQueueBtn')?.classList.add('active');
         renderPlaybackQueue();
+        if (playbackState.queueType === 'playlist') {
+          scrollQueueToCurrentTrack();
+        }
       }
       function closeQueuePopup() {
         queuePopupOpen = false;
@@ -1283,11 +1296,34 @@
         return playbackState.queueType === 'radio' ? 'radio' : 'normal';
       }
 
-      function restorePlaybackState() {
+      /** 读取服务端保存的播放状态；若服务端没有数据，尝试从旧版 localStorage 迁移一次。 */
+      async function loadSavedPlaybackPayload() {
+        try {
+          const response = await fetch(`/api/playback/queue-state?clientId=${encodeURIComponent(playbackClientId)}`);
+          const payload = await readJsonResponse(response, '读取播放状态失败');
+          if (payload.ok && payload.data && payload.data.payload) {
+            return payload.data.payload;
+          }
+        } catch (_) {
+          // 服务不可用时退回本地缓存，不阻塞播放器初始化
+        }
+
         try {
           const raw = localStorage.getItem(playbackStorageKey);
-          if (!raw) return;
-          const saved = JSON.parse(raw);
+          if (!raw) return null;
+          const legacy = JSON.parse(raw);
+          schedulePlaybackStateSave(legacy);
+          localStorage.removeItem(playbackStorageKey);
+          return legacy;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      async function restorePlaybackState() {
+        try {
+          const saved = await loadSavedPlaybackPayload();
+          if (!saved) return;
           const normalizeSavedTrack = (track) => ({
             ...track,
             objectUrl: ''
@@ -1447,10 +1483,53 @@
           history: playbackState.history.slice(-50).map(serialize).filter(Boolean),
           displayHistory: playbackState.displayHistory.slice(0, 200).map(serialize).filter(Boolean)
         };
-        try {
-          localStorage.setItem(playbackStorageKey, JSON.stringify(payload));
-        } catch (_) {
-          // Playback state is helpful but not critical.
+        schedulePlaybackStateSave(payload);
+      }
+
+      /** 播放状态改为服务端持久化（/api/playback/queue-state），debounce 避免 timeupdate 高频请求打爆接口。 */
+      function schedulePlaybackStateSave(payload) {
+        playbackStateSavePending = payload;
+        if (playbackStateSaveTimer) clearTimeout(playbackStateSaveTimer);
+        playbackStateSaveTimer = setTimeout(flushPlaybackStateSave, playbackStateSaveDebounceMs);
+      }
+
+      function flushPlaybackStateSave() {
+        if (playbackStateSaveTimer) {
+          clearTimeout(playbackStateSaveTimer);
+          playbackStateSaveTimer = null;
+        }
+        if (!playbackStateSavePending) return;
+        const payload = playbackStateSavePending;
+        playbackStateSavePending = null;
+        fetch('/api/playback/queue-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId: playbackClientId, payload })
+        }).catch(() => {
+          // 播放状态保存失败不影响播放，下次保存会覆盖。
+        });
+      }
+
+      /** 页面隐藏/关闭时用 sendBeacon 尽力保存最后一次状态，fetch 在此时可能被浏览器中止。 */
+      function flushPlaybackStateOnUnload() {
+        if (!playbackStateSavePending) return;
+        const payload = playbackStateSavePending;
+        playbackStateSavePending = null;
+        if (playbackStateSaveTimer) {
+          clearTimeout(playbackStateSaveTimer);
+          playbackStateSaveTimer = null;
+        }
+        const body = JSON.stringify({ clientId: playbackClientId, payload });
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: 'application/json' });
+          navigator.sendBeacon('/api/playback/queue-state', blob);
+        } else {
+          fetch('/api/playback/queue-state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+            keepalive: true
+          }).catch(() => {});
         }
       }
 
@@ -1955,6 +2034,7 @@
         renderPlaybackSearchResults();
         renderPlaybackProgress();
         renderPendingConfirmPopup();
+        renderFullscreenPlayer();
       }
 
       function renderPlaybackQueue() {
@@ -1966,16 +2046,78 @@
         }
         const sections = [];
         sections.push(renderPlaybackPendingSection());
-        const queue = activePlaybackQueue();
-        const origin = activePlaybackOrigin();
-        sections.push(renderPlaybackQueueSection(
-          playbackState.queueTitle,
-          queue.map((track, index) => ({ track, origin, index }))
-        ));
+        if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
+          sections.push(renderPlaybackFullPlaylistSection());
+        } else {
+          const queue = activePlaybackQueue();
+          const origin = activePlaybackOrigin();
+          sections.push(renderPlaybackQueueSection(
+            playbackState.queueTitle,
+            queue.map((track, index) => ({ track, origin, index }))
+          ));
+        }
         const html = sections.filter(Boolean).join('');
-        container.innerHTML = html || (playbackState.queueType === 'playlist'
-          ? '<div class="empty">本轮已到末尾，播放完毕将从第一首循环</div>'
-          : '<div class="empty">播放队列为空</div>');
+        container.innerHTML = html || '<div class="empty">播放队列为空</div>';
+      }
+
+      function renderPlaybackFullPlaylistSection() {
+        const tracks = playbackState.normalQueueTracks;
+        if (!tracks.length) return '';
+        const currentIndex = playbackState.playlistIndex;
+        const rows = tracks.map((track, index) => {
+          const isCurrent = index === currentIndex;
+          const isPast = index < currentIndex;
+          return renderPlaybackPlaylistRow(track, index, isCurrent, isPast);
+        }).join('');
+        return `
+          <section class="playback-queue-section">
+            <h3>${escapeHtml(playbackState.queueTitle)} <span>${tracks.length}</span></h3>
+            ${rows}
+          </section>
+        `;
+      }
+
+      function renderPlaybackPlaylistRow(track, index, isCurrent, isPast) {
+        const meta = `${formatPlaybackTrackMeta(track)}${isPlaybackLocalTrack(track) && !track.objectUrl ? ' · 需重新选择文件' : ''}`;
+        const stateClass = isCurrent ? ' playlist-current' : (isPast ? ' playlist-past' : '');
+        const btnLabel = isCurrent ? '重播' : '播放';
+        return `
+          <div class="queue-row playback-queue-row${stateClass}">
+            <div class="playback-row-main">
+              ${renderPlaybackArtwork(track)}
+              <div>
+                <div class="song">${isCurrent ? '<span class="playlist-now-icon" aria-hidden="true">▶</span> ' : ''}${escapeHtml(track.title)}</div>
+                <div class="meta">${escapeHtml(meta)}</div>
+              </div>
+            </div>
+            <div class="queue-actions">
+              <button type="button" data-playback-playlist-jump="${index}">${btnLabel}</button>
+            </div>
+          </div>
+        `;
+      }
+
+      function jumpToPlaylistTrack(index) {
+        const tracks = playbackState.normalQueueTracks;
+        if (!tracks || index < 0 || index >= tracks.length) return;
+        const track = tracks[index];
+        playbackState.playlistIndex = index;
+        playbackState.normalQueue = tracks.slice(index + 1).map((t) => ({ ...t }));
+        playbackState.radioQueue = [];
+        rebuildPlaybackShuffleOrder();
+        savePlaybackState();
+        playPlaybackTrack(track, { origin: 'normal' });
+      }
+
+      function scrollQueueToCurrentTrack() {
+        const container = document.getElementById('playbackQueueList');
+        if (!container) return;
+        requestAnimationFrame(() => {
+          const currentRow = container.querySelector('.playback-queue-row.playlist-current');
+          if (currentRow) {
+            currentRow.scrollIntoView({ block: 'center', behavior: 'instant' });
+          }
+        });
       }
 
       function renderPlaybackDisplayHistorySection() {
@@ -2100,6 +2242,9 @@
       }
 
       function playbackQueueTotalCount() {
+        if (playbackState.queueType === 'playlist') {
+          return playbackState.normalQueueTracks.length;
+        }
         return activePlaybackQueue().length;
       }
 
@@ -2119,6 +2264,7 @@
         const total = document.getElementById('playbackDuration');
         if (total) total.textContent = formatPlaybackTime(duration);
         updatePlaybackMediaSessionPosition();
+        renderFullscreenPlayer();
       }
 
       function updatePlaybackVolumeUI() {
@@ -2182,6 +2328,133 @@
         const minutes = Math.floor(total / 60);
         const rest = total % 60;
         return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+      }
+
+      const FULLSCREEN_BG_THEME_COUNT = 30;
+
+      function pickFullscreenBgTheme(track) {
+        const seed = track
+          ? String(track.id || `${track.title || ''}|${(track.artists || []).join(',')}`)
+          : '';
+        if (!seed) return 1;
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+          hash = (hash * 31 + seed.charCodeAt(i)) % 2147483647;
+        }
+        return (hash % FULLSCREEN_BG_THEME_COUNT) + 1;
+      }
+
+      function applyFullscreenBgTheme(bgEl, track) {
+        if (!bgEl) return;
+        const theme = `theme-${pickFullscreenBgTheme(track)}`;
+        if (bgEl.dataset.bgTheme === theme) return;
+        if (bgEl.dataset.bgTheme) bgEl.classList.remove(bgEl.dataset.bgTheme);
+        bgEl.classList.add(theme);
+        bgEl.dataset.bgTheme = theme;
+      }
+
+      function renderFullscreenPlayer() {
+        const fsEl = document.getElementById('playerFullscreen');
+        if (!fsEl || !fsEl.classList.contains('open')) return;
+
+        const track = playbackState.current;
+        const audio = getPlaybackAudio();
+        const isPlaying = audio && !audio.paused;
+
+        // 更新标题和歌手
+        const titleEl = document.getElementById('playerFsTitle');
+        const artistEl = document.getElementById('playerFsArtist');
+        if (titleEl) titleEl.textContent = track ? track.title : '未选择歌曲';
+        if (artistEl) {
+          artistEl.textContent = track
+            ? (track.artists || []).join(' / ') || '未知歌手'
+            : '—';
+        }
+
+        // 更新封面艺术
+        const artEl = document.getElementById('playerFsArt');
+        const bgEl = document.getElementById('playerFsBg');
+        const vinylDiscEl = document.getElementById('playerFsVinylDisc');
+        const coverUrl = track && track.coverUrl ? track.coverUrl : '';
+
+        if (artEl) {
+          artEl.classList.toggle('has-image', Boolean(coverUrl));
+          if (coverUrl) {
+            const existing = artEl.querySelector('img');
+            if (!existing || existing.src !== coverUrl) {
+              artEl.innerHTML = `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">`;
+            }
+          } else {
+            artEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+          }
+        }
+
+        // 更新背景色板
+        applyFullscreenBgTheme(bgEl, track);
+
+        // 唱片旋转动画
+        if (vinylDiscEl) {
+          vinylDiscEl.classList.toggle('spinning', isPlaying);
+        }
+
+        // 渲染歌词
+        renderFullscreenLyrics(track, audio);
+      }
+
+      function renderFullscreenLyrics(track, audio) {
+        const container = document.getElementById('playerFsLyrics');
+        if (!container) return;
+
+        const lines = track && track.lyrics && Array.isArray(track.lyrics.lines)
+          ? track.lyrics.lines
+          : [];
+
+        if (!lines.length) {
+          container.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
+          return;
+        }
+
+        const currentMs = audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
+
+        // 找到当前行索引
+        let currentIndex = -1;
+        for (let i = lines.length - 1; i >= 0; i--) {
+          if (lines[i].startMs <= currentMs) {
+            currentIndex = i;
+            break;
+          }
+        }
+
+        // 重新渲染（仅在歌词变化时）
+        const existingCount = container.querySelectorAll('.player-fs-lyric-line').length;
+        if (existingCount !== lines.length) {
+          container.innerHTML = lines.map((line, i) => `
+            <div class="player-fs-lyric-line" data-lyric-index="${i}">
+              <span class="lyric-text">${escapeHtml(line.text || '')}</span>
+              ${line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
+            </div>
+          `).join('');
+        }
+
+        // 更新当前行高亮
+        container.querySelectorAll('.player-fs-lyric-line').forEach((el, i) => {
+          el.classList.toggle('active', i === currentIndex);
+        });
+
+        // 滚动到当前行（居中）
+        const activeLine = container.querySelector('.player-fs-lyric-line.active');
+        if (activeLine) {
+          const wrap = document.getElementById('playerFsLyricsWrap');
+          if (wrap) {
+            const lineTop = activeLine.offsetTop;
+            const wrapHeight = wrap.clientHeight;
+            const targetScroll = lineTop - wrapHeight / 2 + activeLine.clientHeight / 2;
+            wrap.scrollTo({
+              top: Math.max(0, targetScroll),
+              behavior: 'smooth'
+            });
+          }
+        }
       }
 
     updateContext(initialOptions);

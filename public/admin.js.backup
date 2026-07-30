@@ -124,33 +124,36 @@ function initTabs() {
 }
 
 function initWorkspaceControls() {
-  const dockToggle = document.getElementById('playbackDockToggle');
-  const storageKey = 'song-assistant:player-dock-expanded';
+  // 全屏播放器
+  const playerPanel = document.querySelector('.playback-player-panel');
+  const fsEl = document.getElementById('playerFullscreen');
+  const fsCloseBtn = document.getElementById('playerFsClose');
 
-  const setDockExpanded = (expanded) => {
-    document.body.classList.toggle('player-dock-expanded', expanded);
-    if (dockToggle) {
-      dockToggle.setAttribute('aria-expanded', String(expanded));
-      dockToggle.title = expanded ? '收起播放器' : '展开播放器';
-    }
-    try {
-      localStorage.setItem(storageKey, expanded ? 'true' : 'false');
-    } catch {
-      // The dock still works when local storage is unavailable.
-    }
-  };
-
-  let dockExpanded = false;
-  try {
-    dockExpanded = localStorage.getItem(storageKey) === 'true';
-  } catch {
-    dockExpanded = false;
-  }
-  setDockExpanded(dockExpanded);
-
-  dockToggle?.addEventListener('click', () => {
-    setDockExpanded(!document.body.classList.contains('player-dock-expanded'));
+  // 点击播放器面板（排除按钮和输入框）打开全屏
+  playerPanel?.addEventListener('click', (e) => {
+    if (e.target.closest('button, input, a, .playback-seek-wrap')) return;
+    openFullscreenPlayer();
   });
+
+  // 收起按钮
+  fsCloseBtn?.addEventListener('click', closeFullscreenPlayer);
+
+  function openFullscreenPlayer() {
+    if (!fsEl) return;
+    fsEl.classList.add('open');
+    fsEl.removeAttribute('aria-hidden');
+    document.body.classList.add('player-fs-open');
+  }
+
+  function closeFullscreenPlayer() {
+    if (!fsEl) return;
+    fsEl.classList.remove('open');
+    fsEl.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('player-fs-open');
+  }
+
+  window.openFullscreenPlayer = openFullscreenPlayer;
+  window.closeFullscreenPlayer = closeFullscreenPlayer;
 
   const superChatToggle = document.getElementById('superChatToggle');
   const superChatPanel = superChatToggle?.closest('.panel');

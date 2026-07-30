@@ -164,6 +164,27 @@ function findSong(db, songName, artist) {
   `).get(cleanName) || null;
 }
 
+// ── 单曲写操作（供 domain-services 调用，避免在 facade 层散写 SQL）──
+
+/** 按 id 删除歌曲；调用方不需要了解表结构 */
+function deleteSong(db, id) {
+  db.prepare('DELETE FROM songs WHERE id = ?').run(Number(id));
+}
+
+/** 切换歌曲启用状态，返回 { ok: true/false } */
+function toggleSong(db, id) {
+  const song = db.prepare('SELECT is_enabled FROM songs WHERE id = ?').get(Number(id));
+  if (!song) return { ok: false };
+  db.prepare('UPDATE songs SET is_enabled = ?, updated_at = ? WHERE id = ?')
+    .run(song.is_enabled ? 0 : 1, now(), Number(id));
+  return { ok: true };
+}
+
+/** 返回歌库歌曲总数 */
+function countSongs(db) {
+  return db.prepare('SELECT COUNT(*) AS count FROM songs').get().count;
+}
+
 // ── 分类 ──
 
 function listCategories(db) {
@@ -387,6 +408,9 @@ module.exports = {
   saveSong,
   listSongs,
   findSong,
+  deleteSong,
+  toggleSong,
+  countSongs,
   listCategories,
   ensureCategory,
   importSongs,

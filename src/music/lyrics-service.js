@@ -37,7 +37,7 @@ async function getMusicHomeContent(registry, body) {
   const input = body && typeof body === 'object' ? body : {};
   const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const action = cleanText(input.action || 'personalized');
-  const limit = Math.max(1, Math.min(100, Number(input.limit) || 20));
+  const limit = Math.max(1, Math.min(1000, Number(input.limit) || 20));
   const provider = registry.get(platform);
   const cacheable = ['personalized', 'playlist-tracks', 'radio'].includes(action);
   const cacheKey = cacheable ? musicCacheKey('home', { platform, action, limit, playlistId: cleanText(input.playlistId) }) : '';

@@ -8,7 +8,7 @@
     <title>点歌助手</title>
     <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
     <link rel="stylesheet" href="/styles-admin.css?v=20260729-01">
-    <link rel="stylesheet" href="/styles-playback.css?v=20260730-01">
+    <link rel="stylesheet" href="/styles-playback.css?v=20260730-02">
     <link rel="stylesheet" href="/styles-desktop.css?v=20260729-01">
   </head>
   <body>
@@ -48,13 +48,13 @@
         </div>
         <div class="window-controls" id="windowControls">
           <button class="win-btn minimize" id="winMinBtn" type="button" title="最小化">
-            <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+            <svg width="10" height="2" viewBox="0 0 10 2"><line x1="1" y1="1" x2="9" y2="1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           </button>
           <button class="win-btn maximize" id="winMaxBtn" type="button" title="最大化/还原">
-            <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+            <svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" rx="2.5" ry="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
           </button>
           <button class="win-btn close-win" id="winCloseBtn" type="button" title="关闭">
-            <svg width="10" height="10" viewBox="0 0 10 10"><line x1="0.5" y1="0.5" x2="9.5" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="9.5" y1="0.5" x2="0.5" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M5,8.5 C1.5,6.5 0,5 0,3.5 C0,2 1,1 2.5,1 C3.5,1 4.5,1.5 5,2.5 C5.5,1.5 6.5,1 7.5,1 C9,1 10,2 10,3.5 C10,5 8.5,6.5 5,8.5 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>
           </button>
         </div>
       </header>
@@ -1050,12 +1050,7 @@
       <section id="playbackAssistantPage" class="main-page playback-page">
         <header class="playback-page-header">
           <div class="playback-head-inner">
-            <div>
-              <span class="page-kicker">音乐中心</span>
-              <h2>发现与播放</h2>
-              <p class="hint">搜索、推荐和歌单集中在这里，播放控制始终固定在底部</p>
-            </div>
-            <div class="source-tabs" role="tablist" aria-label="音乐平台">
+            <div class="source-tabs" role="tablist" aria-label="选择播放器">
               <button class="source-tab active" type="button" data-source="qq">
                 <img class="source-tab-icon" src="/img/qqmusic-icon.png" alt="" draggable="false">
                 QQ音乐
@@ -1065,35 +1060,22 @@
                 网易云音乐
               </button>
             </div>
-          </div>
-        </header>
-
-        <div class="playback-grid">
-          <section class="panel playback-account-panel">
-            <div class="panel-header">
-              <h2>当前账号</h2>
-              <div class="actions">
+            <div class="playback-account-compact">
+              <div class="playback-account-status">
                 <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
                 <button id="playbackHealthBtn" type="button">检查接口</button>
-                <button id="playbackLoginBtn" type="button">扫码登录</button>
+                <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
                 <button id="playbackLogoutBtn" class="danger" type="button">退出登录</button>
               </div>
-            </div>
-            <div class="panel-body stack">
-              <div class="playback-user">
-                <div class="playback-avatar">音</div>
-                <div>
-                  <strong id="playbackUserName">未连接音乐账户</strong>
-                  <span id="playbackVipState">登录后可查看歌单、推荐与收藏</span>
-                </div>
-              </div>
-              <div id="playbackProviderHealth" class="hint">等待检查音乐 Provider 状态</div>
               <div class="playback-cache-row">
                 <span id="playbackCacheStatus" class="hint">缓存大小：正在读取...</span>
                 <button id="playbackClearCacheBtn" type="button">清理缓存</button>
               </div>
             </div>
-          </section>
+          </div>
+        </header>
+
+        <div class="playback-grid">
 
           <section class="panel playback-discovery-panel">
             <div class="panel-header">
@@ -1249,10 +1231,6 @@
                   </button>
                   <input id="playbackVolume" class="playback-volume-slider" type="range" min="0" max="1" step="0.01" value="0.75" title="音量">
                 </div>
-                <button id="playbackDockToggle" class="playback-icon-btn playback-dock-toggle" type="button" title="展开播放器" aria-expanded="false">
-                  <svg class="dock-expand-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 15 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  <svg class="dock-collapse-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
               </div>
             </div>
           </div>
@@ -1273,6 +1251,37 @@
             </button>
           </div>
           <div class="queue-popup-body" id="playbackQueueList"></div>
+        </div>
+
+        <!-- 全屏播放器 -->
+        <div class="player-fullscreen" id="playerFullscreen" aria-hidden="true">
+          <div class="player-fs-bg" id="playerFsBg"></div>
+          <button class="player-fs-close-btn" id="playerFsClose" type="button" title="收起播放器" aria-label="收起播放器">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="player-fs-content">
+            <div class="player-fs-art-wrap">
+              <div class="player-fs-vinyl" id="playerFsVinyl">
+                <div class="player-fs-vinyl-disc" id="playerFsVinylDisc">
+                  <div class="player-fs-art" id="playerFsArt">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                  </div>
+                  <div class="player-fs-vinyl-center"></div>
+                </div>
+              </div>
+            </div>
+            <div class="player-fs-panel">
+              <div class="player-fs-track">
+                <h2 class="player-fs-title" id="playerFsTitle">未选择歌曲</h2>
+                <p class="player-fs-artist" id="playerFsArtist">—</p>
+              </div>
+              <div class="player-fs-lyrics-wrap" id="playerFsLyricsWrap">
+                <div class="player-fs-lyrics" id="playerFsLyrics">
+                  <div class="player-fs-lyrics-empty">暂无歌词</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 右侧滑出抽屉 -->
@@ -1336,6 +1345,17 @@
     <script src="/js/theme.js?v=20260726-01"></script>
     <script src="/js/playback.js?v=20260730-01"></script>
     <script src="/js/desktop.js?v=20260726-01"></script>
-    <script src="/admin.js?v=20260729-01"></script>
+    <!-- Admin 模块 - 拆分后的文件 -->
+    <script src="/js/admin-forms.js?v=20260730-01"></script>
+    <script src="/js/admin-import.js?v=20260730-01"></script>
+    <script src="/js/admin-state.js?v=20260730-01"></script>
+    <script src="/js/admin-queue.js?v=20260730-01"></script>
+    <script src="/js/admin-songs.js?v=20260730-01"></script>
+    <script src="/js/admin-theme.js?v=20260730-01"></script>
+    <script src="/js/admin-display.js?v=20260730-01"></script>
+    <script src="/js/admin-settings.js?v=20260730-01"></script>
+    <script src="/js/admin-gifts.js?v=20260730-01"></script>
+    <script src="/js/admin-metrics.js?v=20260730-01"></script>
+    <script src="/js/admin-main.js?v=20260730-01"></script>
   </body>
 </html>

@@ -148,7 +148,7 @@ class NeteaseMusicProvider {
   async getPlaylistTracks(playlistId, options = {}) {
     const id = String(playlistId || '').trim();
     if (!id) throw new Error('缺少网易云歌单 ID。');
-    const limit = clampInteger(options.limit, 1, 200, 50);
+    const limit = clampInteger(options.limit, 1, 1000, 1000);
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
       n: String(limit),

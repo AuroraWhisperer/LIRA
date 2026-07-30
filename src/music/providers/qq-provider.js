@@ -325,7 +325,7 @@ class QQMusicProvider {
   async getPlaylistTracks(playlistId, options = {}) {
     const id = String(playlistId || '').trim();
     if (!id) throw new Error('缺少 QQ 音乐歌单 ID。');
-    const limit = clampInteger(options.limit, 1, 200, 50);
+    const limit = clampInteger(options.limit, 1, 1000, 1000);
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, {
       type: '1',
       json: '1',

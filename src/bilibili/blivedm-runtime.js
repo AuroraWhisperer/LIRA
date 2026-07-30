@@ -5,8 +5,9 @@
 const blivedmCompat = require('./blivedm-compat');
 const { now } = require('../shared/utils');
 
+// cache: { read(), write(result) } —— 由调用方注入，runtime 不感知 DB 句柄
 function createBlivedmRuntime({
-  songDb,
+  cache,
   runtimeGiftCommandPrefixes,
   broadcastSnapshot
 }) {
@@ -110,11 +111,11 @@ function createBlivedmRuntime({
   }
 
   function readCache() {
-    return blivedmCompat.readBlivedmCompatibilityCache(songDb);
+    return cache.read();
   }
 
   function writeCache(result) {
-    blivedmCompat.writeBlivedmCompatibilityCache(songDb, result);
+    cache.write(result);
   }
 
   return {
