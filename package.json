@@ -1,6 +1,6 @@
 {
   "name": "bilibili-live-song-plugin",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "private": true,
   "license": "UNLICENSED",
   "description": "Local Bilibili live song request assistant MVP.",

@@ -126,10 +126,10 @@
             <span class="sc-admin-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
             ${index + 1}. ${escapeHtml(item.message || '醒目留言')}
           </div>
-          <div class="meta">${escapeHtml(item.user_name || '观众')} · ${formatTime(item.created_at)}${item.status === 'assisted' ? ' · 已辅助' : ''}</div>
+          <div class="meta">${escapeHtml(item.user_name || '观众')} · ${formatTime(item.created_at)}${item.status === 'assisted' ? ' · 已处理' : ''}</div>
         </div>
         <div class="queue-actions">
-          <button class="icon" title="${item.status === 'assisted' ? '取消辅助' : '标记辅助'}" type="button" data-sc-action="${item.status === 'assisted' ? 'unassist' : 'assist'}" data-id="${item.id}">${item.status === 'assisted' ? '↺' : '✓'}</button>
+          <button class="icon" title="${item.status === 'assisted' ? '取消处理' : '标记已处理'}" type="button" data-sc-action="${item.status === 'assisted' ? 'unassist' : 'assist'}" data-id="${item.id}">${item.status === 'assisted' ? '↺' : '✓'}</button>
           <button class="icon" title="复制 SC" type="button" data-copy="${escapeAttr(item.message || '')}">⧉</button>
           <button class="icon" title="删除 SC" type="button" data-sc-action="delete" data-id="${item.id}">×</button>
         </div>

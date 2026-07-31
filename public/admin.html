@@ -8,7 +8,7 @@
     <title>点歌助手</title>
     <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
     <link rel="stylesheet" href="/styles-admin.css?v=20260731-01">
-    <link rel="stylesheet" href="/styles-playback.css?v=20260730-02">
+    <link rel="stylesheet" href="/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/styles-desktop.css?v=20260729-01">
   </head>
   <body>
@@ -1148,12 +1148,10 @@
               </button>
             </div>
             <div class="playback-account-compact">
-              <div class="playback-cache-row">
-                <button id="playbackClearCacheBtn" type="button">清理缓存</button>
-              </div>
               <div class="playback-account-status">
                 <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
                 <button id="playbackHealthBtn" type="button">检查接口</button>
+                <button id="playbackClearCacheBtn" type="button">清理缓存</button>
                 <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
                 <button id="playbackLogoutBtn" class="danger" type="button">退出登录</button>
               </div>
@@ -1491,6 +1489,6 @@
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <script src="/js/admin/main.js?v=20260731-02"></script>
     <!-- Playback 模块必须在 main.js 之后加载 -->
-    <script type="module" src="/js/playback.js?v=20260731-02"></script>
+    <script type="module" src="/js/playback.js?v=20260731-03"></script>
   </body>
 </html>
