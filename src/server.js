@@ -75,6 +75,9 @@ const liveStatus = {
   updatedAt: sharedUtils.now()
 };
 
+let bilibiliAuthProvider = null; // { getAuthState, getCookieHeader, getUid }
+let bilibiliAuthCache = { cookieHeader: '', uid: 0 }; // 同步缓存，createBilibiliClient 同频读取
+
 const sockets = new Set();
 let bilibiliClient = null;
 let isShuttingDown = false;
@@ -183,7 +186,8 @@ function createApiContext() {
       liveStatus,
       configure: configureBilibiliListener,
       reconnect: reconnectBilibiliListener,
-      updateStatus: updateLiveStatus
+      updateStatus: updateLiveStatus,
+      auth: bilibiliAuthProvider
     },
     settings: {
       defaults: DEFAULT_SETTINGS,
@@ -246,6 +250,7 @@ function startServer(options = {}) {
   if (startPromise) return startPromise;
 
   musicRegistry = createMusicProviderRegistry(options.musicAuth || {});
+  bilibiliAuthProvider = options.bilibiliAuth || null;
   const startPort = Number(options.startPort || START_PORT);
   const host = options.host || HOST;
   startPromise = lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host))
@@ -337,11 +342,26 @@ async function reconnectBilibiliListener() {
 // restart=true 时 await 握手完成（reconnect 场景），否则 start() 立即返回（configure 场景）
 async function replaceBilibiliClient(roomId, restart = false) {
   if (bilibiliClient) bilibiliClient.stop();
+  // 重建前先刷新 Bilibili 登录态缓存
+  await refreshBilibiliAuthCache();
   bilibiliClient = createBilibiliClient(roomId);
   if (restart) {
     await bilibiliClient.restart();
   } else {
     bilibiliClient.start();
+  }
+}
+
+async function refreshBilibiliAuthCache() {
+  if (!bilibiliAuthProvider) return;
+  try {
+    const [cookieHeader, uid] = await Promise.all([
+      bilibiliAuthProvider.getCookieHeader().catch(() => ''),
+      bilibiliAuthProvider.getUid().catch(() => 0)
+    ]);
+    bilibiliAuthCache = { cookieHeader: cookieHeader || '', uid: Number(uid) || 0 };
+  } catch (_) {
+    // 非 Electron 模式或 auth 不可用，保持默认值
   }
 }
 
@@ -409,7 +429,11 @@ function createBilibiliClient(roomId) {
   }, {
     diagnostics: bilibiliDiagnostics,
     runtimeGiftCommandPrefixes,
-    messageBuffer
+    messageBuffer,
+    bilibiliAuth: {
+      cookieHeader: bilibiliAuthCache.cookieHeader,
+      uid: bilibiliAuthCache.uid
+    }
   });
 }
 

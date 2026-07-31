@@ -26,6 +26,7 @@ const routes = {
         category: request.query.get('category') || '',
         language: request.query.get('language') || '',
         artist: request.query.get('artist') || '',
+        tags: request.query.get('tags') || '',
         enabledOnly: request.query.get('enabledOnly') === 'true'
       })
     });

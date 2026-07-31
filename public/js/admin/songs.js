@@ -26,7 +26,6 @@
         isEnabled: value('songIsEnabled') === 'true',
         language: value('songLanguage'),
         sourcePlatform: value('songSourcePlatform'),
-        originalGroup: value('songOriginalGroup'),
         note: value('songNote')
       });
       resetSongForm();
@@ -57,6 +56,11 @@
         window.AdminApp.state.reloadSongs();
       }
     });
+    document.getElementById('tagFilter').addEventListener('change', () => {
+      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
+        window.AdminApp.state.reloadSongs();
+      }
+    });
     document.getElementById('enabledFilter').addEventListener('change', () => {
       if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
         window.AdminApp.state.reloadSongs();
@@ -73,17 +77,23 @@
     setValue('songIsEnabled', 'true');
     setValue('songLanguage', '');
     setValue('songSourcePlatform', '');
-    setValue('songOriginalGroup', '');
     setValue('songNote', '');
   }
 
-  function renderSongs(songs, songLanguages, songArtists) {
+  function renderSongs(songs, songLanguages, songArtists, songTags) {
     for (const song of songs) {
       if (song.language) songLanguages.add(song.language);
       if (song.artist) songArtists.add(song.artist);
+      if (song.tags) {
+        song.tags.split(',').forEach(function(tag) {
+          var trimmed = tag.trim();
+          if (trimmed) songTags.add(trimmed);
+        });
+      }
     }
     renderLanguageFilter(songLanguages);
     renderArtistFilter(songArtists);
+    renderTagFilter(songTags);
 
     const table = document.getElementById('songsTable');
     if (songs.length === 0) {
@@ -122,7 +132,6 @@
         setValue('songIsEnabled', song.is_enabled ? 'true' : 'false');
         setValue('songLanguage', song.language || '');
         setValue('songSourcePlatform', song.source_platform || '');
-        setValue('songOriginalGroup', song.original_group || '');
         setValue('songNote', song.note || '');
         toast('已加载到编辑表单');
       });
@@ -197,6 +206,16 @@
     select.value = selected;
   }
 
+  function renderTagFilter(songTags) {
+    const select = document.getElementById('tagFilter');
+    const selected = select.value;
+    const sorted = Array.from(songTags).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+    select.innerHTML = '<option value="">全部标签</option>' + sorted.map((tag) => (
+      `<option value="${escapeAttr(tag)}">${escapeHtml(tag)}</option>`
+    )).join('');
+    select.value = selected;
+  }
+
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.songs = {
     initSongForm,
@@ -204,6 +223,7 @@
     renderSongs,
     renderCategoryFilter,
     renderLanguageFilter,
-    renderArtistFilter
+    renderArtistFilter,
+    renderTagFilter
   };
 })();

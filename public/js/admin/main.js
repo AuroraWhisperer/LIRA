@@ -87,7 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 表单初始化
   if (window.AdminApp.queue) window.AdminApp.queue.initQueueForm();
   if (window.AdminApp.songs) window.AdminApp.songs.initSongForm();
-  if (window.AdminApp.settings) window.AdminApp.settings.initSettingsForm();
+  if (window.AdminApp.settings) {
+    window.AdminApp.settings.initSettingsForm();
+    window.AdminApp.settings.initBilibiliAuth();
+  }
   if (window.AdminApp.theme) window.AdminApp.theme.initThemeForm();
   if (window.AdminApp.display) {
     window.AdminApp.display.initDisplayForm();

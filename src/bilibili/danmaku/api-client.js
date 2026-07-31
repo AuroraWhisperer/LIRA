@@ -6,8 +6,16 @@ const wbiSigner = require('../wbi-signer');
 const { cleanText } = require('../../shared/utils');
 
 class BilibiliApiClient {
-  constructor(roomId) {
+  constructor(roomId, options = {}) {
     this.roomId = roomId;
+    this.cookieHeader = options.cookieHeader || '';
+    this.uid = options.uid || 0;
+  }
+
+  // 允许外部更新 cookie（运行时登录后）
+  updateAuth(cookieHeader, uid) {
+    this.cookieHeader = cookieHeader || '';
+    this.uid = Number(uid) || 0;
   }
 
   async resolveRoomInfo() {
@@ -87,13 +95,17 @@ class BilibiliApiClient {
   }
 
   requestHeaders() {
-    return {
+    const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
       'Origin': 'https://live.bilibili.com',
       'Referer': `https://live.bilibili.com/${encodeURIComponent(this.roomId)}`
     };
+    if (this.cookieHeader) {
+      headers['Cookie'] = this.cookieHeader;
+    }
+    return headers;
   }
 }
 

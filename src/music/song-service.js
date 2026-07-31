@@ -7,26 +7,24 @@ const { now, cleanText, getInitial } = require('../shared/utils');
 
 const SONG_EXPORT_HEADERS = [
   '歌曲名字',
-  '歌手',
+  '原唱/首发歌手',
   '歌曲分类',
-  '备注',
-  '标签',
+  '歌曲标签',
   '是否可点',
   '语言',
-  '来源平台',
-  '原始分组'
+  '核对平台',
+  '核对备注'
 ];
 
 const SONG_IMPORT_ALIASES = {
   name: ['name', 'songName', '歌曲名字', '歌曲名称', '歌名', '曲名'],
-  artist: ['artist', 'singer', '歌手', '演唱者', '原唱'],
+  artist: ['artist', 'singer', '原唱/首发歌手', '歌手', '演唱者', '原唱'],
   categoryName: ['categoryName', 'category', '歌曲分类', '类别', '分类', '分组'],
-  note: ['note', '备注', '说明'],
-  tags: ['tags', 'tag', '标签', '歌曲标签'],
+  note: ['note', '核对备注', '备注', '说明'],
+  tags: ['tags', 'tag', '歌曲标签', '标签'],
   isEnabled: ['isEnabled', 'enabled', '是否可点', '可点', '是否启用', '启用'],
   language: ['language', '语言', '语种'],
-  sourcePlatform: ['sourcePlatform', 'source', '来源平台', '平台', '来源'],
-  originalGroup: ['originalGroup', '原始分组', '原分组', '原分类']
+  sourcePlatform: ['sourcePlatform', 'source', '核对平台', '来源平台', '平台', '来源']
 };
 
 // ── 歌曲 CRUD ──
@@ -46,19 +44,18 @@ function saveSong(db, input) {
   const tags = cleanText(input.tags);
   const language = cleanText(input.language);
   const sourcePlatform = cleanText(input.sourcePlatform || input.source_platform);
-  const originalGroup = cleanText(input.originalGroup || input.original_group);
 
   if (input.id) {
     db.prepare(`
       UPDATE songs
       SET name = ?, name_pinyin = ?, name_initial = ?, artist = ?, category_id = ?,
           is_enabled = ?, note = ?, tags = ?, language = ?, source_platform = ?,
-          original_group = ?, updated_at = ?
+          updated_at = ?
       WHERE id = ?
     `).run(
       name, initial, initial, artist, categoryId,
       enabled, note, tags, language, sourcePlatform,
-      originalGroup, updatedAt, Number(input.id)
+      updatedAt, Number(input.id)
     );
     return db.prepare('SELECT * FROM songs WHERE id = ?').get(Number(input.id));
   }
@@ -70,38 +67,39 @@ function saveSong(db, input) {
     db.prepare(`
       UPDATE songs
       SET category_id = ?, is_enabled = ?, note = ?, tags = ?, language = ?,
-          source_platform = ?, original_group = ?, updated_at = ?
+          source_platform = ?, updated_at = ?
       WHERE id = ?
-    `).run(categoryId, enabled, note, tags, language, sourcePlatform, originalGroup, updatedAt, existing.id);
+    `).run(categoryId, enabled, note, tags, language, sourcePlatform, updatedAt, existing.id);
     return db.prepare('SELECT * FROM songs WHERE id = ?').get(existing.id);
   }
 
   const result = db.prepare(`
     INSERT INTO songs (
       name, name_pinyin, name_initial, artist, category_id,
-      is_enabled, note, tags, language, source_platform, original_group,
+      is_enabled, note, tags, language, source_platform,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     name, initial, initial, artist, categoryId,
-    enabled, note, tags, language, sourcePlatform, originalGroup,
+    enabled, note, tags, language, sourcePlatform,
     updatedAt, updatedAt
   );
 
   return db.prepare('SELECT * FROM songs WHERE id = ?').get(Number(result.lastInsertRowid));
 }
 
-function listSongs(db, { query = '', category = '', language = '', artist = '', enabledOnly = false } = {}) {
+function listSongs(db, { query = '', category = '', language = '', artist = '', tags = '', enabledOnly = false } = {}) {
   const conditions = [];
   const args = [];
   const cleanQuery = cleanText(query);
   const cleanCat = cleanText(category);
   const cleanLang = cleanText(language);
   const cleanArt = cleanText(artist);
+  const cleanTags = cleanText(tags);
 
   if (cleanQuery) {
-    conditions.push('(songs.name LIKE ? OR songs.artist LIKE ?)');
-    args.push(`%${cleanQuery}%`, `%${cleanQuery}%`);
+    conditions.push('(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ?)');
+    args.push(`%${cleanQuery}%`, `%${cleanQuery}%`, `%${cleanQuery}%`);
   }
   if (cleanCat) {
     conditions.push('song_categories.name = ?');
@@ -114,6 +112,10 @@ function listSongs(db, { query = '', category = '', language = '', artist = '', 
   if (cleanArt) {
     conditions.push('songs.artist = ?');
     args.push(cleanArt);
+  }
+  if (cleanTags) {
+    conditions.push('songs.tags LIKE ?');
+    args.push(`%${cleanTags}%`);
   }
   if (enabledOnly) {
     conditions.push('songs.is_enabled = 1');
@@ -251,13 +253,13 @@ function importSongs(db, rows) {
       db.prepare(`
         INSERT INTO songs (
           name, name_pinyin, name_initial, artist, category_id,
-          is_enabled, note, tags, language, source_platform, original_group,
+          is_enabled, note, tags, language, source_platform,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         row.name, initial, initial, row.artist, categoryId,
         row.isEnabled ? 1 : 0, row.note, row.tags, row.language,
-        row.sourcePlatform, row.originalGroup,
+        row.sourcePlatform,
         createdAt, createdAt
       );
       inserted += 1;
@@ -290,12 +292,11 @@ function normalizeImportedSongRow(row) {
     name: cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)),
     artist: cleanText(firstValue(row, SONG_IMPORT_ALIASES.artist)),
     categoryName: cleanText(firstValue(row, SONG_IMPORT_ALIASES.categoryName) || '默认') || '默认',
-    note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note)),
     tags: cleanText(firstValue(row, SONG_IMPORT_ALIASES.tags)),
     isEnabled: parseEnabled(firstValue(row, SONG_IMPORT_ALIASES.isEnabled), true),
     language: cleanText(firstValue(row, SONG_IMPORT_ALIASES.language)),
     sourcePlatform: cleanText(firstValue(row, SONG_IMPORT_ALIASES.sourcePlatform)),
-    originalGroup: cleanText(firstValue(row, SONG_IMPORT_ALIASES.originalGroup))
+    note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note))
   };
 }
 

@@ -152,7 +152,7 @@
                 <input id="songName" required>
               </label>
               <label>
-                歌手
+                原唱/首发歌手
                 <input id="songArtist">
               </label>
               <label>
@@ -160,7 +160,7 @@
                 <input id="songCategory" value="默认">
               </label>
               <label>
-                标签
+                歌曲标签
                 <input id="songTags" placeholder="多个标签用逗号隔开">
               </label>
               <label>
@@ -175,15 +175,11 @@
                 <input id="songLanguage" placeholder="例如：国语">
               </label>
               <label>
-                来源平台
-                <input id="songSourcePlatform" placeholder="例如：全民 K 歌">
+                核对平台
+                <input id="songSourcePlatform" placeholder="例如：QQ音乐 / 网易云音乐">
               </label>
               <label>
-                原始分组
-                <input id="songOriginalGroup">
-              </label>
-              <label>
-                备注
+                核对备注
                 <input id="songNote">
               </label>
               <div class="form-actions-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
@@ -197,7 +193,7 @@
             <div class="grid-3">
               <label>
                 搜索
-                <input id="songSearch" placeholder="歌名或歌手">
+                <input id="songSearch" placeholder="歌名、歌手或标签">
               </label>
               <label>
                 分类
@@ -214,6 +210,10 @@
                 <select id="artistFilter"></select>
               </label>
               <label>
+                标签
+                <select id="tagFilter"></select>
+              </label>
+              <label>
                 只看可点
                 <select id="enabledFilter">
                   <option value="false">全部歌曲</option>
@@ -228,11 +228,11 @@
                   <tr>
                     <th>首字母</th>
                     <th>歌曲名字</th>
-                    <th>歌手</th>
+                    <th>原唱/首发歌手</th>
                     <th>歌曲分类</th>
-                    <th>标签</th>
+                    <th>歌曲标签</th>
                     <th>状态</th>
-                    <th>备注</th>
+                    <th>核对备注</th>
                     <th>操作</th>
                   </tr>
                 </thead>
@@ -244,6 +244,18 @@
 
         <div id="settingsPage" class="tab-page">
           <div class="panel-body stack">
+            <!-- Bilibili 账号登录 -->
+            <fieldset class="theme-section" style="border-color: #fb7299;">
+              <legend>🔐 Bilibili 账号登录 <span style="font-weight:400;font-size:0.85em;color:#888;">（推荐登录，提升弹幕和礼物捕获稳定性）</span></legend>
+              <div class="bilibili-auth-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <span id="bilibiliAuthStatus" class="pill warn">未登录</span>
+                <span id="bilibiliAuthUid" style="color:#888;font-size:0.9em;"></span>
+                <button id="bilibiliLoginBtn" class="primary" type="button" style="background:#fb7299;border-color:#fb7299;">📱 扫码登录 Bilibili</button>
+                <button id="bilibiliLogoutBtn" class="danger" type="button" style="display:none;">退出登录</button>
+              </div>
+              <p class="hint" style="margin-top:8px;">登录后可避免 B 站对匿名连接的限流，确保弹幕和礼物消息不丢包。仅桌面版可用，点击按钮后在弹出的 B 站页面扫码登录。</p>
+            </fieldset>
+
             <form id="settingsForm" class="stack">
               <div class="grid-3">
                 <label>
@@ -832,10 +844,10 @@
             </label>
             <label>
               或从 Excel 复制表格后粘贴
-              <textarea id="importText" placeholder="歌曲名字	歌手	歌曲分类	备注	标签	是否可点	语言	来源平台	原始分组"></textarea>
+              <textarea id="importText" placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	核对平台	核对备注"></textarea>
             </label>
             <button id="importBtn" class="primary" type="button">导入歌库</button>
-            <p class="hint">当前临时表头可以直接用。后续把 `歌曲分类` 改成 `分类`、`类别` 或 `分组` 也能识别。清空歌库只会删除歌曲和分类，不会删除直播间号、主题颜色和其他设置。</p>
+            <p class="hint">支持粘贴 TSV/CSV 或上传 Excel (.xlsx) 文件。表头可以用「原唱/首发歌手」「歌曲标签」「核对平台」「核对备注」等，旧格式也会自动识别。清空歌库只会删除歌曲和分类，不会删除直播间号、主题颜色和其他设置。</p>
             <div id="importResult" class="hint"></div>
           </div>
         </div>
@@ -1179,7 +1191,7 @@
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="daily">
                   <strong>每日推荐</strong>
-                  <span>每天刷新，30 首基于听歌偏好的推荐</span>
+                  <span>每天刷新，100 首基于听歌偏好的推荐</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="radio">
                   <strong>心动 / 电台</strong>

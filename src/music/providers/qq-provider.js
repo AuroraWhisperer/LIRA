@@ -337,13 +337,14 @@ class QQMusicProvider {
   }
 
   async getLikedTracks(options = {}) {
-    await this.requireLogin('QQ 音乐“我喜欢”需要先登录。');
+    await this.requireLogin('QQ 音乐”我喜欢”需要先登录。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
+    const offset = clampInteger(options.offset, 0, 200000, 0);
     const playlists = await this.getCreatedPlaylists({ limit: 50, includeLiked: true });
     const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title))
       || playlists[0];
     if (!liked) return [];
-    return this.getPlaylistTracks(liked.id, { limit });
+    return this.getPlaylistTracks(liked.id, { limit, offset });
   }
 
   async getCreatedPlaylists(options = {}) {
@@ -456,6 +457,7 @@ class QQMusicProvider {
     const id = String(playlistId || '').trim();
     if (!id) throw new Error('缺少 QQ 音乐歌单 ID。');
     const limit = clampInteger(options.limit, 1, 5000, 1000);
+    const offset = clampInteger(options.offset, 0, 200000, 0);
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, {
       type: '1',
       json: '1',
@@ -474,7 +476,7 @@ class QQMusicProvider {
     });
     const cdlist = data && Array.isArray(data.cdlist) ? data.cdlist : [];
     const songlist = cdlist[0] && Array.isArray(cdlist[0].songlist) ? cdlist[0].songlist : [];
-    return songlist.slice(0, limit).map(mapQQSong).filter(Boolean);
+    return songlist.slice(offset, offset + limit).map(mapQQSong).filter(Boolean);
   }
 
   async requestMusicu(modules = {}) {

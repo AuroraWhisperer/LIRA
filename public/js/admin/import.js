@@ -51,14 +51,13 @@
     const header = rows[0].map((cell) => cell.trim());
     const aliases = {
       name: ['歌曲名字', '歌曲名称', '歌名', '曲名', 'name', 'songName'],
-      artist: ['歌手', '演唱者', '原唱', 'artist', 'singer'],
+      artist: ['原唱/首发歌手', '歌手', '演唱者', '原唱', 'artist', 'singer'],
       categoryName: ['歌曲分类', '类别', '分类', '分组', 'category', 'categoryName'],
-      note: ['备注', '说明', 'note'],
-      tags: ['标签', '歌曲标签', 'tags', 'tag'],
+      tags: ['歌曲标签', '标签', 'tags', 'tag'],
       isEnabled: ['是否可点', '可点', '是否启用', '启用', 'isEnabled', 'enabled'],
       language: ['语言', '语种', 'language'],
-      sourcePlatform: ['来源平台', '平台', '来源', 'sourcePlatform', 'source'],
-      originalGroup: ['原始分组', '原分组', '原分类', 'originalGroup']
+      sourcePlatform: ['核对平台', '来源平台', '平台', '来源', 'sourcePlatform', 'source'],
+      note: ['核对备注', '备注', '说明', 'note']
     };
     const hasHeader = Object.values(aliases).flat().some((name) => header.includes(name));
     const bodyRows = hasHeader ? rows.slice(1) : rows;
@@ -67,24 +66,22 @@
       name: hasHeader ? findHeader(header, aliases.name) : 0,
       artist: hasHeader ? findHeader(header, aliases.artist) : 1,
       categoryName: hasHeader ? findHeader(header, aliases.categoryName) : 2,
-      note: hasHeader ? findHeader(header, aliases.note) : 3,
-      tags: hasHeader ? findHeader(header, aliases.tags) : 4,
-      isEnabled: hasHeader ? findHeader(header, aliases.isEnabled) : 5,
-      language: hasHeader ? findHeader(header, aliases.language) : 6,
-      sourcePlatform: hasHeader ? findHeader(header, aliases.sourcePlatform) : 7,
-      originalGroup: hasHeader ? findHeader(header, aliases.originalGroup) : 8
+      tags: hasHeader ? findHeader(header, aliases.tags) : 3,
+      isEnabled: hasHeader ? findHeader(header, aliases.isEnabled) : 4,
+      language: hasHeader ? findHeader(header, aliases.language) : 5,
+      sourcePlatform: hasHeader ? findHeader(header, aliases.sourcePlatform) : 6,
+      note: hasHeader ? findHeader(header, aliases.note) : 7
     };
 
     return bodyRows.map((row) => ({
       name: readCell(row, indexes.name),
       artist: readCell(row, indexes.artist),
       categoryName: readCell(row, indexes.categoryName) || '默认',
-      note: readCell(row, indexes.note),
       tags: readCell(row, indexes.tags),
       isEnabled: parseEnabledCell(readCell(row, indexes.isEnabled)),
       language: readCell(row, indexes.language),
       sourcePlatform: readCell(row, indexes.sourcePlatform),
-      originalGroup: readCell(row, indexes.originalGroup)
+      note: readCell(row, indexes.note)
     })).filter((row) => row.name.trim());
   }
 

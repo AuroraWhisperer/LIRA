@@ -8,6 +8,17 @@ const { normalizeRoomInput, publicBilibiliErrorMessage } = require('../../shared
 const prefixes = ['/api/bilibili/'];
 
 const routes = {
+  async 'GET /api/bilibili/auth/state'(context, _request, res) {
+    try {
+      const authState = context.bilibili.auth
+        ? await context.bilibili.auth.getAuthState()
+        : { loggedIn: false, uid: 0, message: '非 Electron 桌面环境，Bilibili 登录不可用' };
+      sendJson(res, 200, { ok: true, data: authState });
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: err.message || '获取 Bilibili 登录状态失败' });
+    }
+  },
+
   async 'POST /api/bilibili/reconnect'(context, request, res) {
     try {
       sendJson(res, 200, { ok: true, data: await context.bilibili.reconnect() });

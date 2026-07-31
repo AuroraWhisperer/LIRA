@@ -6,6 +6,7 @@ const {
   app, BrowserWindow, dialog, ipcMain, Menu, session, shell
 } = require('electron');
 const authMgr = require('./auth-manager');
+const bilibiliAuth = require('./bilibili-auth');
 const loginWin = require('./login-window');
 const lyricWin = require('./lyric-window');
 const updateMgr = require('./update-manager');
@@ -76,9 +77,12 @@ async function startDesktopApp() {
   configureMenu();
   configureUpdateIpc();
   configureMusicIpc();
+  configureBilibiliIpc();
   configureMusicMediaRequestHeaders();
+  configureBilibiliMediaRequestHeaders();
   updateMgr.configureAutoUpdater({ onStateChange: onUpdateStateChange, writeLog: writeLog });
   await restoreMusicCookieSnapshots();
+  await restoreBilibiliCookieSnapshot();
 
   var serverModule = require('../server');
   shutdownApplication = serverModule.shutdownApplication;
@@ -88,6 +92,11 @@ async function startDesktopApp() {
     musicAuth: {
       getAuthState: getMusicAuthState,
       getCookieHeader: getMusicCookieHeader
+    },
+    bilibiliAuth: {
+      getAuthState: getBilibiliAuthState,
+      getCookieHeader: getBilibiliCookieHeader,
+      getUid: getBilibiliUid
     }
   });
 
@@ -259,7 +268,29 @@ function configureMusicMediaRequestHeaders() {
   });
 }
 
+function configureBilibiliIpc() {
+  ipcMain.handle('bilibili:get-auth-state', function () { return getBilibiliAuthState(); });
+  ipcMain.handle('bilibili:login', function () { return loginBilibiliAccount(); });
+  ipcMain.handle('bilibili:logout', function () { return logoutBilibiliAccount(); });
+}
+
+function configureBilibiliMediaRequestHeaders() {
+  session.defaultSession.webRequest.onBeforeSendHeaders({
+    urls: ['*://*.bilibili.com/*', '*://*.hdslb.com/*']
+  }, function (details, callback) {
+    var headers = { ...details.requestHeaders };
+    var host = '';
+    try { host = new URL(details.url).hostname.toLowerCase(); } catch (_) {}
+    if (host.endsWith('bilibili.com') || host.endsWith('hdslb.com')) {
+      if (!headers.Referer && !headers.referer) headers.Referer = 'https://www.bilibili.com/';
+      if (!headers.Origin && !headers.origin) headers.Origin = 'https://www.bilibili.com';
+    }
+    callback({ requestHeaders: headers });
+  });
+}
+
 // ---- thin wrappers (delegate to extracted modules) ----
+
 
 function getMusicAuthState(platform) {
   return authMgr.getMusicAuthState(platform, dataDir);
@@ -287,6 +318,89 @@ function normalizeMusicPlatform(value) {
 
 function isAllowedMusicLoginUrl(platform, url) {
   return authMgr.isAllowedMusicLoginUrl(platform, url);
+}
+
+// ── Bilibili auth wrappers ──
+
+function getBilibiliAuthState() {
+  return bilibiliAuth.getBilibiliAuthState(dataDir);
+}
+
+function getBilibiliCookieHeader() {
+  return bilibiliAuth.getBilibiliCookieHeader();
+}
+
+function getBilibiliUid() {
+  return bilibiliAuth.getBilibiliUid();
+}
+
+function restoreBilibiliCookieSnapshot() {
+  return bilibiliAuth.restoreBilibiliCookieSnapshot(dataDir);
+}
+
+async function loginBilibiliAccount() {
+  // Bilibili login window — same pattern as music login
+  const config = bilibiliAuth.BILIBILI_LOGIN_CONFIG;
+  const { BrowserWindow } = require('electron');
+  const loginWindow = new BrowserWindow({
+    width: 1000, height: 720,
+    title: `登录${config.name}`,
+    parent: mainWindow || undefined,
+    modal: false, show: true,
+    webPreferences: {
+      partition: config.partition,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  });
+
+  const loginSession = loginWindow.webContents.session;
+  loginSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+
+  loginWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (bilibiliAuth.isAllowedBilibiliLoginUrl(url)) {
+      loginWindow.loadURL(url).catch((error) => writeLog('bilibili-login-navigation', error));
+    } else {
+      require('electron').shell.openExternal(url).catch((error) => writeLog('bilibili-login-external', error));
+    }
+    return { action: 'deny' };
+  });
+
+  loginWindow.webContents.on('will-navigate', (event, url) => {
+    if (bilibiliAuth.isAllowedBilibiliLoginUrl(url)) return;
+    event.preventDefault();
+    require('electron').shell.openExternal(url);
+  });
+
+  let cookieSaveTimer = null;
+  const scheduleCookieSave = () => {
+    clearTimeout(cookieSaveTimer);
+    cookieSaveTimer = setTimeout(() => {
+      bilibiliAuth.persistBilibiliCookieSnapshot(dataDir).catch((error) => writeLog('bilibili-cookie-save', error));
+    }, 800);
+  };
+  loginSession.cookies.on('changed', scheduleCookieSave);
+
+  await loginWindow.loadURL(config.loginUrl);
+
+  return new Promise((resolve) => {
+    loginWindow.on('closed', async () => {
+      clearTimeout(cookieSaveTimer);
+      loginSession.cookies.removeListener('changed', scheduleCookieSave);
+      let snapshot = null;
+      try { snapshot = await bilibiliAuth.persistBilibiliCookieSnapshot(dataDir); }
+      catch (error) { writeLog('bilibili-cookie-save', error); }
+      resolve({
+        snapshot,
+        state: await bilibiliAuth.getBilibiliAuthState(dataDir)
+      });
+    });
+  });
+}
+
+async function logoutBilibiliAccount() {
+  return bilibiliAuth.logoutBilibiliAccount(dataDir);
 }
 
 async function restoreMusicCookieSnapshots() {

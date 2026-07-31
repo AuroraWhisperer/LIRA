@@ -10,6 +10,82 @@
     readJsonResponse
   } = window.AdminApp.utils;
 
+  function initBilibiliAuth() {
+    const statusEl = document.getElementById('bilibiliAuthStatus');
+    const uidEl = document.getElementById('bilibiliAuthUid');
+    const loginBtn = document.getElementById('bilibiliLoginBtn');
+    const logoutBtn = document.getElementById('bilibiliLogoutBtn');
+
+    // 检查是否在 Electron 桌面环境中
+    const isDesktop = !!window.bilibiliAuth;
+    if (!isDesktop) {
+      statusEl.textContent = 'Web 模式（不可用）';
+      statusEl.className = 'pill';
+      loginBtn.disabled = true;
+      loginBtn.title = 'Bilibili 扫码登录仅在桌面版中可用';
+      return;
+    }
+
+    async function refreshAuthState() {
+      try {
+        const state = await window.bilibiliAuth.getAuthState();
+        if (state && state.loggedIn) {
+          statusEl.textContent = '已登录';
+          statusEl.className = 'pill good';
+          uidEl.textContent = state.uid ? `UID: ${state.uid}` : '';
+          loginBtn.style.display = 'none';
+          logoutBtn.style.display = '';
+        } else {
+          statusEl.textContent = '未登录';
+          statusEl.className = 'pill warn';
+          uidEl.textContent = '';
+          loginBtn.style.display = '';
+          logoutBtn.style.display = 'none';
+        }
+      } catch (err) {
+        statusEl.textContent = '状态未知';
+        statusEl.className = 'pill';
+      }
+    }
+
+    loginBtn.addEventListener('click', async () => {
+      loginBtn.disabled = true;
+      loginBtn.textContent = '⏳ 请在弹出窗口中扫码…';
+      try {
+        const result = await window.bilibiliAuth.login();
+        if (result && result.state) {
+          await refreshAuthState();
+          // 登录成功后提示重连以使用新 cookie
+          toast('Bilibili 登录成功！建议点击"刷新直播"以使用登录态重连。');
+        }
+      } catch (err) {
+        toast('登录失败：' + (err.message || String(err)));
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = '📱 扫码登录 Bilibili';
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      if (!confirm('确认退出 Bilibili 登录？退出后弹幕连接将回退到匿名模式。')) return;
+      logoutBtn.disabled = true;
+      logoutBtn.textContent = '退出中…';
+      try {
+        await window.bilibiliAuth.logout();
+        await refreshAuthState();
+        toast('Bilibili 已退出登录。建议点击"刷新直播"重连。');
+      } catch (err) {
+        toast('退出失败：' + (err.message || String(err)));
+      } finally {
+        logoutBtn.disabled = false;
+        logoutBtn.textContent = '退出登录';
+      }
+    });
+
+    // 初始加载状态
+    refreshAuthState();
+  }
+
   function initSettingsForm() {
     document.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -266,6 +342,7 @@
 
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.settings = {
+    initBilibiliAuth,
     initSettingsForm,
     collectSettings,
     clearDatabase,

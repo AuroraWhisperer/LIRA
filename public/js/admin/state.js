@@ -13,6 +13,7 @@
   let shuttingDown = false;
   let songLanguages = new Set();
   let songArtists = new Set();
+  let songTags = new Set();
 
   function connectSocket() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -70,6 +71,7 @@
     if (value('categoryFilter')) params.set('category', value('categoryFilter'));
     if (value('languageFilter')) params.set('language', value('languageFilter'));
     if (value('artistFilter')) params.set('artist', value('artistFilter'));
+    if (value('tagFilter')) params.set('tags', value('tagFilter'));
     if (value('enabledFilter') === 'true') params.set('enabledOnly', 'true');
 
     const response = await fetch(`/api/songs?${params}`);
@@ -78,7 +80,7 @@
     songs = payload.data || [];
     await reloadState();
     if (window.AdminApp.songs && window.AdminApp.songs.renderSongs) {
-      window.AdminApp.songs.renderSongs(songs, songLanguages, songArtists);
+      window.AdminApp.songs.renderSongs(songs, songLanguages, songArtists, songTags);
     }
   }
 

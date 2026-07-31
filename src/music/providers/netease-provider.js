@@ -106,12 +106,13 @@ class NeteaseMusicProvider {
   async getLikedTracks(options = {}) {
     await this.requireLogin('我喜欢需要先登录网易云音乐。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
+    const offset = clampInteger(options.offset, 0, 200000, 0);
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, { limit: 50 });
     const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title))
       || playlists[0];
     if (!likedPlaylist) return [];
-    return this.getPlaylistTracks(likedPlaylist.id, { limit });
+    return this.getPlaylistTracks(likedPlaylist.id, { limit, offset });
   }
 
   async getCreatedPlaylists(options = {}) {
@@ -154,6 +155,7 @@ class NeteaseMusicProvider {
     const id = String(playlistId || '').trim();
     if (!id) throw new Error('缺少网易云歌单 ID。');
     const limit = clampInteger(options.limit, 1, 5000, 1000);
+    const offset = clampInteger(options.offset, 0, 200000, 0);
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
       n: String(limit),
@@ -162,7 +164,7 @@ class NeteaseMusicProvider {
     const tracks = data && data.playlist && Array.isArray(data.playlist.tracks)
       ? data.playlist.tracks
       : [];
-    return tracks.slice(0, limit).map(mapNeteaseSong).filter(Boolean);
+    return tracks.slice(offset, offset + limit).map(mapNeteaseSong).filter(Boolean);
   }
 
   async getUserPlaylists(userId, options = {}) {

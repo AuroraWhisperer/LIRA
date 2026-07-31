@@ -54,3 +54,9 @@ contextBridge.exposeInMainWorld('musicAPI', {
     return () => ipcRenderer.removeListener('music:lyric-state', listener);
   }
 });
+
+contextBridge.exposeInMainWorld('bilibiliAuth', {
+  getAuthState: () => ipcRenderer.invoke('bilibili:get-auth-state'),
+  login: () => ipcRenderer.invoke('bilibili:login'),
+  logout: () => ipcRenderer.invoke('bilibili:logout')
+});

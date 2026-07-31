@@ -25,7 +25,11 @@ class BilibiliDanmakuClient {
     this.startedAtMs = Date.now();
 
     // 初始化子模块
-    this.apiClient = new BilibiliApiClient(this.roomId);
+    const bilibiliAuth = options.bilibiliAuth || {};
+    this.apiClient = new BilibiliApiClient(this.roomId, {
+      cookieHeader: bilibiliAuth.cookieHeader || '',
+      uid: bilibiliAuth.uid || 0
+    });
     this.wsConnection = new WebSocketConnection();
     this.identityCache = new IdentityCache();
     this.deduplicator = new MessageDeduplicator();
@@ -141,7 +145,7 @@ class BilibiliDanmakuClient {
 
     const wsUrl = `wss://${host.host}:${host.wss_port || 443}/sub`;
     const authPayload = {
-      uid: 0,
+      uid: this.apiClient.uid || 0,
       roomid: roomInfo.roomId,
       protover: 3,
       platform: 'web',

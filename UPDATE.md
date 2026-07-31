@@ -1,6 +1,20 @@
 # 打包与更新说明
 
-当前版本：`1.4.6`
+当前版本：`1.5.0`
+
+---
+
+## v1.5.0 变更
+
+- 🎉 **Bilibili 扫码登录支持**（桌面版）：Electron 桌面版新增 Bilibili 账号扫码登录功能，登录后弹幕连接使用账号 Cookie，可在管理后台「账号管理」区域管理登录/退出状态。
+  - 新增 `src/electron/bilibili-auth.js`：Bilibili Cookie 管理模块，支持 Cookie 加密持久化存储和恢复。
+  - 新增 `src/server/routes/bilibili-routes.js` `/api/bilibili/auth/state` 接口，前端可查询 Bilibili 登录状态。
+  - Electron 主进程新增 Bilibili IPC 通道和请求头注入（Referer/Origin）。
+  - 服务端重连前自动刷新 Bilibili 登录态缓存，确保弹幕客户端使用最新 Cookie。
+- 📋 **歌曲导入导出字段优化**：导出表头更新——「歌手」→「原唱/首发歌手」、「来源平台」→「核对平台」、「备注」→「核对备注」；移除「原始分组」字段；导入别名同步更新以兼容新旧格式。
+- 🔧 **礼物抓包脚本大幅增强**：`scripts/capture-gifts.js` 支持 Cookie 文件参数（可登录态抓包）、新增 WebSocket 诊断计数器（帧数、字节数、Brotli/Zlib 解压统计、JSON 解析错误、空闲间隔检测）、实时礼物计数。
+- 🎵 音乐服务（song-service、lyrics、网易/QQ 提供商）细节优化。
+- 🖥️ 管理后台设置面板新增 Bilibili 登录状态 UI（桌面版）。
 
 ---
 

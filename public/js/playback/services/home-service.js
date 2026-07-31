@@ -166,7 +166,7 @@ export class HomeService {
         body: JSON.stringify({
           platform: this.state.selectedSource,
           action,
-          limit: action === 'personalized' ? 12 : 30,
+          limit: action === 'personalized' ? 12 : 100,
           page: this.homePage,
           refresh: true
         })

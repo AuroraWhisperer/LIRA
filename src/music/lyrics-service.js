@@ -38,6 +38,7 @@ async function getMusicHomeContent(registry, body) {
   const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const action = cleanText(input.action || 'personalized');
   const limit = Math.max(1, Math.min(5000, Number(input.limit) || 100));
+  const offset = Math.max(0, Number(input.offset) || 0);
   const provider = registry.get(platform);
   // radio / daily 的重点就是每次给新歌，缓存会让它们永远返回同一批，所以不缓存。
   const cacheable = ['personalized', 'playlist-tracks'].includes(action);
@@ -66,7 +67,7 @@ async function getMusicHomeContent(registry, body) {
   }
   if (action === 'daily') return { source: platform, action, tracks: await provider.getDailyTracks({ limit, page }) };
   if (action === 'radio') return { source: platform, action, tracks: await provider.getRadioTracks({ limit, page }) };
-  if (action === 'liked') return { source: platform, action, tracks: await provider.getLikedTracks({ limit }) };
+  if (action === 'liked') return { source: platform, action, tracks: await provider.getLikedTracks({ limit, offset }) };
   if (action === 'created-playlists') return { source: platform, action, playlists: await provider.getCreatedPlaylists({ limit }) };
   if (action === 'collected-playlists') return { source: platform, action, playlists: await provider.getCollectedPlaylists({ limit }) };
   if (action === 'recent') return { source: platform, action, tracks: await provider.getRecentTracks({ limit }) };
