@@ -71,11 +71,13 @@ function createDomainServices({ db, settingsStore }) {
   const giftContext = baseContext;
   const gifts = {
     getSnapshot: () => giftService.getGiftSnapshot(giftContext),
+    getHistory: (options) => giftService.getGiftHistory(giftContext, options),
     getSprintSnapshot: () => giftService.getGiftSprintSnapshot(giftContext),
     getBlindBoxStats: () => giftService.getBlindBoxStats(giftContext),
     add: (input) => giftService.addGiftEvent(giftContext, input),
     handleBotDanmaku: (danmaku) => giftService.handleGiftBotDanmaku(giftContext, danmaku),
-    resetSprint: () => giftService.resetGiftSprintProgress(giftContext)
+    resetSprint: () => giftService.resetGiftSprintProgress(giftContext),
+    search: (opts) => giftService.searchGifts(giftContext, opts || {})
   };
 
   const superChats = {
@@ -105,6 +107,14 @@ function createDomainServices({ db, settingsStore }) {
     },
     clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
     clearPlayback: () => database.clearPlaybackData(db.musicDb),
+    clearGifts() {
+      const result = database.clearGiftData(db.giftDb);
+      state.giftBotPendingByName.clear();
+      state.giftBotLastReportByName.clear();
+      state.giftComboPending.clear();
+      state.blindBoxCache = null;
+      return result;
+    },
     clearAll() {
       const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb);
       state.cooldownByUser.clear();

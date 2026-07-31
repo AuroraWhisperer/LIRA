@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>点歌助手</title>
     <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/styles-admin.css?v=20260731-01">
+    <link rel="stylesheet" href="/styles-admin.css?v=20260731-04">
     <link rel="stylesheet" href="/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/styles-desktop.css?v=20260729-01">
   </head>
@@ -193,7 +193,7 @@
             <div class="grid-3">
               <label>
                 搜索
-                <input id="songSearch" placeholder="歌名、歌手或标签">
+                <input id="songSearch" placeholder="歌名、歌手、分类或标签">
               </label>
               <label>
                 分类
@@ -918,7 +918,6 @@
                   <span id="giftDetectLabel">已开启</span>
                 </label>
                 <span id="giftSprintStatus" class="pill warn">未开启</span>
-                <button id="giftProtocolCheckBtn" class="secondary" type="button">检查协议</button>
               </div>
               <div id="giftStatusLine" class="hint">等待直播消息…</div>
             </fieldset>
@@ -958,7 +957,9 @@
 
             <!-- 3. 最近礼物 -->
             <fieldset class="theme-section gift-recent-section">
-              <legend>📦 最近礼物</legend>
+              <legend>📦 最近礼物
+                <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物流水">查看全部 →</button>
+              </legend>
               <div id="giftRecentList" class="gift-cards"></div>
             </fieldset>
 
@@ -968,25 +969,39 @@
               <div class="blind-box-form-row">
                 <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒">
                 <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本(元)">
-                <input id="blindBoxOutputs" type="text" placeholder="开出礼物，逗号分隔">
+                <input id="blindBoxOutputs" type="text" placeholder="礼物:价格，如 电影票:2, 棉花糖:9">
                 <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
                 <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
               </div>
               <div id="blindBoxList" class="blind-box-list"></div>
               <div id="blindBoxAdvanced" hidden>
                 <textarea id="giftBlindBoxConfig" rows="6" placeholder='[
-  { "name": "心动盲盒", "price": 15, "outputs": ["电影票","棉花糖","爱心抱枕","绮彩权杖","时空之站","神驹宝玺","浪漫城堡"] },
-  { "name": "幸运盲盒", "price": 5, "outputs": ["幸运泡泡","好运柚叶","星光铃铛","梦雾纸签","福灵小兽","星愿花园"] }
+  { "name": "心动盲盒", "price": 15, "outputs": [{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}] },
+  { "name": "幸运盲盒", "price": 5, "outputs": [{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}] }
 ]'></textarea>
                 <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
               </div>
             </fieldset>
 
             <!-- 5. 盲盒盈亏 -->
-            <fieldset class="theme-section gift-blindbox-stats-section">
-              <legend>📊 今日盲盒盈亏</legend>
+            <section class="theme-section gift-blindbox-stats-section" data-state="loading">
+              <div class="blind-stats-heading">
+                <span class="blind-stats-heading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 19V9m6 10V5m6 14v-7m4 7H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <div>
+                  <h3>今日盲盒盈亏</h3>
+                  <p>按观众汇总今天的开盒表现</p>
+                </div>
+              </div>
               <div class="gift-blind-stats-summary" id="blindBoxStatsSummary">
-                <span class="hint">加载中…</span>
+                <div class="blind-stats-status" role="status">
+                  <span class="blind-stats-status-icon is-loading" aria-hidden="true"></span>
+                  <strong>正在加载统计</strong>
+                  <span>马上就好…</span>
+                </div>
               </div>
               <div class="gift-blind-stats-table-wrap">
                 <table class="blind-stats-table" id="blindBoxStatsTable">
@@ -1004,7 +1019,7 @@
                   </tbody>
                 </table>
               </div>
-            </fieldset>
+            </section>
 
           </div>
         </div>
@@ -1494,9 +1509,7 @@
                   </div>
                   <div class="player-fs-vinyl-center"></div>
                 </div>
-                <div class="player-fs-tonearm" id="playerFsTonearm">
-                  <div class="player-fs-tonearm-stylus"></div>
-                </div>
+                <div class="player-fs-tonearm" id="playerFsTonearm"></div>
               </div>
             </div>
             <div class="player-fs-panel">
@@ -1508,22 +1521,22 @@
                 <div class="player-fs-lyrics" id="playerFsLyrics">
                   <div class="player-fs-lyrics-empty">暂无歌词</div>
                 </div>
-              </div>
-              <div class="player-fs-lyric-toggles" id="playerFsLyricToggles" style="display:none">
-                <button class="fs-lyric-toggle" id="fsLyricToggleTrans" type="button"
-                  title="在原文基础上叠加中文翻译" aria-label="翻译歌词">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 8h14"/><path d="M12 3v14"/><path d="M3 18l3-3h12l3 3"/>
-                  </svg>
-                  <span>翻译</span>
-                </button>
-                <button class="fs-lyric-toggle" id="fsLyricToggleRoma" type="button"
-                  title="在原文基础上叠加罗马音音译（日/韩等外文歌曲）" aria-label="罗马音歌词">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
-                  </svg>
-                  <span>罗马音</span>
-                </button>
+                <div class="player-fs-lyric-toggles" id="playerFsLyricToggles" style="display:none">
+                  <button class="fs-lyric-toggle" id="fsLyricToggleTrans" type="button"
+                    title="在原文基础上叠加中文翻译" aria-label="翻译歌词">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 8h14"/><path d="M12 3v14"/><path d="M3 18l3-3h12l3 3"/>
+                    </svg>
+                    <span>翻译</span>
+                  </button>
+                  <button class="fs-lyric-toggle" id="fsLyricToggleRoma" type="button"
+                    title="在原文基础上叠加罗马音音译（日/韩等外文歌曲）" aria-label="罗马音歌词">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+                    </svg>
+                    <span>罗马音</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1540,6 +1553,7 @@
               <strong id="playbackDrawerTitle">浏览内容</strong>
               <span id="playbackDrawerSubtitle"></span>
             </div>
+            <button id="playbackDrawerPlayAllHeader" class="playback-drawer-play-all-btn" type="button" title="顺序播放时从第一首开始，随机播放时从随机一首开始" hidden>播放全部</button>
             <button id="playbackDrawerRefresh" class="playback-icon-btn" type="button" title="换一批" hidden>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </button>
@@ -1553,6 +1567,36 @@
           <div class="playback-drawer-actions" id="playbackDrawerActions" hidden>
             <button id="playbackDrawerPlayAll" type="button">播放全部</button>
             <button id="playbackDrawerShuffleAll" type="button">随机播放</button>
+          </div>
+        </aside>
+
+        <!-- 全部礼物流水抽屉 -->
+        <div class="gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
+        <aside class="gift-drawer" id="giftHistoryDrawer">
+          <div class="gift-drawer-head">
+            <div class="gift-drawer-title">
+              <strong>全部礼物流水</strong>
+              <span id="giftHistoryTotal">共 0 条</span>
+            </div>
+            <button id="giftHistoryClearBtn" class="danger sm" type="button" title="清空全部礼物记录">一键清除</button>
+            <button id="giftHistoryClose" class="playback-icon-btn" type="button" title="关闭" aria-label="关闭">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="gift-drawer-body">
+            <table class="gift-history-table">
+              <thead>
+                <tr><th>时间</th><th>礼物</th><th>数量</th><th>金额</th><th>用户</th><th>备注</th></tr>
+              </thead>
+              <tbody id="giftHistoryBody">
+                <tr><td colspan="6" class="empty">加载中…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="gift-drawer-footer">
+            <button id="giftHistoryPrev" type="button" disabled>← 上一页</button>
+            <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
+            <button id="giftHistoryNext" type="button" disabled>下一页 →</button>
           </div>
         </aside>
     </main>
@@ -1606,10 +1650,10 @@
     <script src="/js/admin/theme.js?v=20260730-01"></script>
     <script src="/js/admin/display.js?v=20260730-01"></script>
     <script src="/js/admin/settings.js?v=20260730-01"></script>
-    <script src="/js/admin/gifts.js?v=20260731-01"></script>
+    <script src="/js/admin/gifts.js?v=20260731-04"></script>
     <script src="/js/admin/metrics.js?v=20260730-01"></script>
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
-    <script src="/js/admin/main.js?v=20260731-02"></script>
+    <script src="/js/admin/main.js?v=20260731-03"></script>
     <!-- Playback 模块必须在 main.js 之后加载 -->
     <!-- 强制清除模块缓存 -->
     <script>
@@ -1622,6 +1666,6 @@
         });
       }
     </script>
-    <script type="module" src="/js/playback.js?v=20260731-10"></script>
+    <script type="module" src="/js/playback.js?v=20260731-11"></script>
   </body>
 </html>

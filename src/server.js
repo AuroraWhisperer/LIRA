@@ -18,8 +18,6 @@ const settingsStoreModule = require('./storage/settings-store');
 const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { initLyricsService } = require('./music/lyrics-service');
-const blivedmCompat = require('./bilibili/blivedm-compat');
-const { createBlivedmRuntime } = require('./bilibili/blivedm-runtime');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const giftService = require('./bilibili/gift-service');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
@@ -87,14 +85,6 @@ let startPromise = null;
 let shutdownPromise = null;
 let musicRegistry = createMusicProviderRegistry();
 const runtimeGiftCommandPrefixes = new Set();
-const blivedmRuntime = createBlivedmRuntime({
-  cache: {
-    read: () => blivedmCompat.readBlivedmCompatibilityCache(songDb),
-    write: (result) => blivedmCompat.writeBlivedmCompatibilityCache(songDb, result)
-  },
-  runtimeGiftCommandPrefixes,
-  broadcastSnapshot
-});
 const bilibiliDiagnostics = {
   lastPacketAt: '',
   lastCommandAt: '',
@@ -165,8 +155,9 @@ function createApiContext() {
     },
     gifts: {
       resetSprint: domainServices.gifts.resetSprint,
+      getHistory: (options) => domainServices.gifts.getHistory(options),
       getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
-      runBlivedmCheck: blivedmRuntime.runManualCheck
+      search: domainServices.gifts.search
     },
     debug: {
       getGiftMessages: () => messageBuffer.getAll(),
@@ -177,6 +168,7 @@ function createApiContext() {
       clearSongLibrary: domainServices.data.clearSongLibrary,
       clearSuperChats: domainServices.data.clearSuperChats,
       clearPlayback: domainServices.data.clearPlayback,
+      clearGifts: domainServices.data.clearGifts,
       clearAll: domainServices.data.clearAll,
       getSchemaVersions: domainServices.data.getSchemaVersions,
       getRetentionStats: domainServices.data.getRetentionStats,
@@ -267,7 +259,6 @@ function startServer(options = {}) {
     console.log(`Blindbox overlay: ${baseUrl}/blindbox`);
     openAdminPageIfNeeded(baseUrl);
     configureBilibiliListener();
-    blivedmRuntime.checkOnStartup();
       return { server, port, host, baseUrl };
     });
 
@@ -292,7 +283,6 @@ function getState() {
     categories: domainServices.songs.listCategories(),
     songCount: domainServices.songs.count(),
     liveStatus,
-    blivedmCompatibility: blivedmRuntime.getCompatibility(),
     bilibiliDiagnostics
   };
 }
@@ -472,46 +462,51 @@ function shutdownApplication(options = {}) {
   if (isShuttingDown) return Promise.resolve();
   isShuttingDown = true;
   console.log('Shutting down local song request service...');
-  if (bilibiliClient) {
-    bilibiliClient.stop();
-    bilibiliClient = null;
-  }
-  blivedmRuntime.stop();
 
-  for (const socket of Array.from(sockets)) {
-    try {
-      sendWebSocket(socket, { type: 'shutdown', reason: 'manual' });
-      socket.end();
-    } catch (_) {
-      socket.destroy();
-    }
-  }
-  sockets.clear();
-
-  shutdownPromise = new Promise((resolve) => {
-    let finished = false;
-
-    const exit = () => {
-      if (finished) return;
-      finished = true;
-      optimizeDatabases(db);
-      // 各 DB 的关闭错误由 closeDatabases 内部静默处理，无需逐一 try/catch
-      closeDatabases(db);
-      resolve();
-      if (exitProcess) process.exit(0);
-    };
-
-    if (startedPort === null) {
-      exit();
-      return;
+  shutdownPromise = (async () => {
+    // Flush renderer state before closing the server (e.g., save playback snapshot)
+    if (preShutdownHook) {
+      try { await preShutdownHook(); } catch (error) { console.warn('Pre-shutdown hook failed:', error); }
     }
 
-    server.close(exit);
-    if (typeof server.closeAllConnections === 'function') {
-      server.closeAllConnections();
+    if (bilibiliClient) {
+      bilibiliClient.stop();
+      bilibiliClient = null;
     }
-    setTimeout(exit, 1500).unref();
-  });
+    for (const socket of Array.from(sockets)) {
+      try {
+        sendWebSocket(socket, { type: 'shutdown', reason: 'manual' });
+        socket.end();
+      } catch (_) {
+        socket.destroy();
+      }
+    }
+    sockets.clear();
+
+    return new Promise((resolve) => {
+      let finished = false;
+
+      const exit = () => {
+        if (finished) return;
+        finished = true;
+        optimizeDatabases(db);
+        closeDatabases(db);
+        resolve();
+        if (exitProcess) process.exit(0);
+      };
+
+      if (startedPort === null) {
+        exit();
+        return;
+      }
+
+      server.close(exit);
+      if (typeof server.closeAllConnections === 'function') {
+        server.closeAllConnections();
+      }
+      setTimeout(exit, 1500).unref();
+    });
+  })();
 
   return shutdownPromise;
 }
@@ -539,7 +534,25 @@ function servePageOrAsset(req, res, requestUrl) {
   httpUtils.servePageOrAsset(PUBLIC_DIR, req, res, requestUrl);
 }
 
+/** Pre-shutdown hook called before server/db close. Allows Electron main to flush renderer state. */
+let preShutdownHook = null;
+function setPreShutdownHook(fn) {
+  preShutdownHook = typeof fn === 'function' ? fn : null;
+}
+
+/** Persist playback snapshot directly (used by Electron main process via IPC). */
+function persistPlaybackSnapshot(payload, clientId) {
+  if (!domainServices.playback) return { ok: false, error: 'Playback store not ready' };
+  try {
+    return domainServices.playback.saveQueueState(payload, { clientId: clientId || 'default' });
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
 module.exports = {
   startServer,
-  shutdownApplication
+  shutdownApplication,
+  setPreShutdownHook,
+  persistPlaybackSnapshot
 };

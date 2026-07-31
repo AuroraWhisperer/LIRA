@@ -1,14 +1,10 @@
 // 编写人：Aurora
-// 礼物域路由：冲刺进度重置和 blivedm 协议兼容性检查。
+// 礼物域路由：冲刺进度重置。
 'use strict';
 
 const { sendJson } = require('../http-utils');
 
 const prefixes = ['/api/gifts/'];
-
-async function checkBlivedm(context, request, res) {
-  sendJson(res, 200, { ok: true, data: await context.gifts.runBlivedmCheck() });
-}
 
 const routes = {
   'POST /api/gifts/sprint/reset'(context, request, res) {
@@ -17,14 +13,30 @@ const routes = {
     sendJson(res, 200, { ok: true, data: result });
   },
 
+  'GET /api/gifts/history'(context, request, res) {
+    const page = Number(request.query.get('page')) || 1;
+    const limit = Number(request.query.get('limit')) || 50;
+    const data = context.gifts.getHistory({ page, limit });
+    sendJson(res, 200, { ok: true, data });
+  },
+
   'GET /api/gifts/blind-box-stats'(context, request, res) {
     const stats = context.gifts.getBlindBoxStats();
     sendJson(res, 200, { ok: true, data: stats });
   },
 
-  // 管理页用 GET 触发，兼容旧版 POST 调用
-  'GET /api/gifts/blivedm/check': checkBlivedm,
-  'POST /api/gifts/blivedm/check': checkBlivedm
+  'GET /api/gifts/search'(context, request, res) {
+    const query = request.query || new Map();
+    const getParam = (name) => {
+      const val = query.get ? query.get(name) : query[name];
+      return val || '';
+    };
+    const from = getParam('from');
+    const to = getParam('to');
+    const limit = Math.min(Number(getParam('limit')) || 100, 500);
+    const rows = context.gifts.search({ from, to, limit });
+    sendJson(res, 200, { ok: true, data: rows });
+  }
 };
 
 module.exports = { prefixes, routes };

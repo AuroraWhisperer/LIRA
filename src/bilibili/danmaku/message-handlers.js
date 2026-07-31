@@ -124,13 +124,11 @@ class MessageHandlers {
     const isKnownCmd = packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes);
     const gift = packetParser.extractBilibiliGiftMessage(message);
 
-    // 详细日志：每条 gift-like 消息都打印，方便排查
-    const dataKeys = message.data && typeof message.data === 'object'
-      ? Object.keys(message.data).slice(0, 15).join(',') : 'N/A';
-    console.log(`[GiftDebug] CMD=${message.cmd || '(none)'} knownCmd=${isKnownCmd} dataKeys=[${dataKeys}]`);
-
     if (!gift || !isValidGiftResult(gift)) {
-      console.log(`[GiftDebug] └─ REJECTED: ${!gift ? 'extractBilibiliGiftMessage returned null' : 'validation failed (giftId="' + (gift.giftId || '') + '" giftName="' + (gift.giftName || '') + '" totalPrice=' + (gift.totalPrice || 0) + ')'}`);
+      // 只对被拒绝的消息打日志，减少正常礼物的同步 I/O
+      const dataKeys = message.data && typeof message.data === 'object'
+        ? Object.keys(message.data).slice(0, 15).join(',') : 'N/A';
+      console.log(`[GiftDebug] REJECTED CMD=${message.cmd || '(none)'} knownCmd=${isKnownCmd} reason=${!gift ? 'null-result' : 'validation-failed(giftId="' + (gift.giftId || '') + '" giftName="' + (gift.giftName || '') + '" totalPrice=' + (gift.totalPrice || 0) + '")'} dataKeys=[${dataKeys}]`);
       if (this.messageBuffer) {
         this.messageBuffer.record({
           cmd: message.cmd,
@@ -151,7 +149,8 @@ class MessageHandlers {
       return;
     }
 
-    console.log(`[GiftDebug] └─ ACCEPTED: gift="${gift.giftName}" x${gift.num} ¥${gift.totalPrice} user="${gift.userName}" coin=${gift.coinType}`);
+    // 成功解析的礼物只打单行精简日志
+    console.log(`[Gift] ${gift.giftName} x${gift.num} ¥${gift.totalPrice} user="${gift.userName}" coin=${gift.coinType} blind=${gift.isBlindBox ? 'yes' : 'no'}`);
     this.diagnostics.lastGiftAt = now();
     this.diagnostics.parsedGiftCount += 1;
     if (this.messageBuffer) {

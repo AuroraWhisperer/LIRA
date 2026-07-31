@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  app, BrowserWindow, dialog, ipcMain, Menu, session, shell
+  app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell
 } = require('electron');
 const authMgr = require('./auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
@@ -20,6 +20,7 @@ let desktopBaseUrl = '';
 let shutdownApplication = null;
 let gracefulQuitStarted = false;
 let forceQuitTimer = null;
+let playbackFlushResolve = null;
 let musicMediaHeadersConfigured = false;
 let dataDir = '';
 let logDir = '';
@@ -30,6 +31,12 @@ let updateState = {
 };
 
 // ---- app lifecycle ----
+
+// Register local-media:// protocol for local audio file playback
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'local-media',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true }
+}]);
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -75,6 +82,7 @@ app.on('before-quit', function (event) {
 async function startDesktopApp() {
   configureDesktopEnvironment();
   configureMenu();
+  configureLocalMediaProtocol();
   configureUpdateIpc();
   configureMusicIpc();
   configureBilibiliIpc();
@@ -86,6 +94,10 @@ async function startDesktopApp() {
 
   var serverModule = require('../server');
   shutdownApplication = serverModule.shutdownApplication;
+
+  // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
+  serverModule.setPreShutdownHook(requestPlaybackFlush);
+
   var serverInfo = await serverModule.startServer({
     host: process.env.HOST || '127.0.0.1',
     startPort: Number(process.env.PORT || 3000),
@@ -130,6 +142,74 @@ function configureDesktopEnvironment() {
 
 function configureMenu() {
   Menu.setApplicationMenu(null);
+}
+
+function configureLocalMediaProtocol() {
+  protocol.handle('local-media', function (request) {
+    // Parse URL: local-media://media/<base64url-encoded-path>
+    var urlPath = '';
+    try { urlPath = new URL(request.url).pathname; } catch (_) { return new Response('Bad URL', { status: 400 }); }
+    var encoded = urlPath.replace(/^\/+/, '');
+    var filePath = '';
+    try { filePath = Buffer.from(encoded, 'base64url').toString('utf8'); } catch (_) {
+      return new Response('Invalid path encoding', { status: 400 });
+    }
+
+    // Validate path exists within allowed directories
+    if (!filePath || !fs.existsSync(filePath)) {
+      return new Response('File not found', { status: 404 });
+    }
+
+    var stat = fs.statSync(filePath);
+    var fileSize = stat.size;
+    var ext = path.extname(filePath).toLowerCase();
+    var mimeTypes = {
+      '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav',
+      '.aac': 'audio/aac', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4',
+      '.wma': 'audio/x-ms-wma'
+    };
+    var contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    // Handle Range requests for seeking
+    var rangeHeader = request.headers.get('range');
+    if (rangeHeader) {
+      var match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      if (match) {
+        var start = parseInt(match[1], 10);
+        var end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+        if (start >= fileSize) {
+          return new Response('', { status: 416, headers: { 'Content-Range': 'bytes */' + fileSize } });
+        }
+        end = Math.min(end, fileSize - 1);
+        var chunkSize = end - start + 1;
+        var buffer = Buffer.alloc(chunkSize);
+        var fd = fs.openSync(filePath, 'r');
+        try { fs.readSync(fd, buffer, 0, chunkSize, start); } finally { fs.closeSync(fd); }
+        return new Response(buffer, {
+          status: 206,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Range': 'bytes ' + start + '-' + end + '/' + fileSize,
+            'Content-Length': String(chunkSize),
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'no-store'
+          }
+        });
+      }
+    }
+
+    // Full file response
+    var fullBuffer = fs.readFileSync(filePath);
+    return new Response(fullBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': String(fileSize),
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'no-store'
+      }
+    });
+  });
 }
 
 function createMainWindow(baseUrl) {
@@ -243,6 +323,53 @@ function configureMusicIpc() {
       getAuthState: getMusicAuthState,
       getCookieHeader: getMusicCookieHeader
     }).healthCheck(platform);
+  });
+  ipcMain.handle('music:select-local-files', async function () {
+    var result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择本地音频文件',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: '音频文件', extensions: ['mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a', 'wma'] }]
+    });
+    if (result.canceled) return { ok: true, canceled: true, files: [] };
+    var pathModule = require('node:path');
+    var files = (result.filePaths || []).map(function (p) { return { path: p, name: pathModule.basename(p), ext: pathModule.extname(p) }; });
+    return { ok: true, canceled: false, files: files };
+  });
+  ipcMain.handle('music:resolve-local-media-urls', async function (_e, paths) {
+    var results = {};
+    var list = Array.isArray(paths) ? paths : [];
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      try {
+        if (fs.existsSync(p)) {
+          var encoded = Buffer.from(p, 'utf8').toString('base64url');
+          results[p] = { ok: true, url: 'local-media://media/' + encoded };
+        } else {
+          results[p] = { ok: false, reason: 'missing' };
+        }
+      } catch (_err) {
+        results[p] = { ok: false, reason: 'error' };
+      }
+    }
+    return { results: results };
+  });
+  ipcMain.handle('playback:save-state', function (_e, data) {
+    var serverModule = require('../server');
+    if (typeof serverModule.persistPlaybackSnapshot !== 'function') {
+      return { ok: false, error: 'Playback store not available' };
+    }
+    return serverModule.persistPlaybackSnapshot(
+      (data && data.payload) || {},
+      (data && data.clientId) || 'default'
+    );
+  });
+  ipcMain.handle('playback:flush-ack', function () {
+    if (playbackFlushResolve) {
+      var resolve = playbackFlushResolve;
+      playbackFlushResolve = null;
+      resolve();
+    }
+    return { ok: true };
   });
 }
 
@@ -468,6 +595,25 @@ function setUpdateError(error) {
     canDownload: false,
     canInstall: false
   });
+}
+
+async function requestPlaybackFlush() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    await new Promise(function (resolve) {
+      playbackFlushResolve = resolve;
+      mainWindow.webContents.send('app:prepare-shutdown');
+      // Guard: resolve after 2s even if renderer doesn't ack
+      setTimeout(function () {
+        if (playbackFlushResolve) {
+          playbackFlushResolve = null;
+          resolve();
+        }
+      }, 2000);
+    });
+  } catch (_) {
+    // Renderer may already be gone; proceed with shutdown
+  }
 }
 
 function writeLog(scope, value) {

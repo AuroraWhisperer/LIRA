@@ -4,6 +4,40 @@
 
 import * as PlaybackUtils from '../utils.js';
 
+const TONEARM_SVG = `
+  <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
+    <defs>
+      <linearGradient id="playerFsMetal" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#7c8389"/>
+        <stop offset="0.28" stop-color="#f8fafb"/>
+        <stop offset="0.52" stop-color="#aeb5ba"/>
+        <stop offset="0.78" stop-color="#fff"/>
+        <stop offset="1" stop-color="#6e7479"/>
+      </linearGradient>
+      <filter id="playerFsArmShadow" x="-40%" y="-20%" width="180%" height="160%">
+        <feDropShadow dx="7" dy="9" stdDeviation="7" flood-color="#20242a" flood-opacity=".22"/>
+      </filter>
+    </defs>
+    <g filter="url(#playerFsArmShadow)">
+      <rect x="130" y="0" width="42" height="62" rx="5" fill="url(#playerFsMetal)"/>
+      <rect x="124" y="10" width="54" height="12" rx="3" fill="url(#playerFsMetal)"/>
+      <rect x="124" y="36" width="54" height="12" rx="3" fill="url(#playerFsMetal)"/>
+      <rect x="145" y="56" width="12" height="38" rx="5" fill="url(#playerFsMetal)"/>
+      <circle cx="151" cy="105" r="42" fill="#eef0f1" fill-opacity=".72"/>
+      <circle cx="151" cy="105" r="27" fill="url(#playerFsMetal)"/>
+      <circle cx="151" cy="105" r="18" fill="#f5f6f6"/>
+      <circle cx="151" cy="105" r="17" fill="none" stroke="#c8cccf" stroke-width="2"/>
+      <path d="M151 126 C151 230 158 294 128 348 C116 369 101 387 83 401" fill="none" stroke="#737a80" stroke-width="13" stroke-linecap="round"/>
+      <path d="M148 126 C148 230 154 291 124 344 C112 365 98 382 80 396" fill="none" stroke="url(#playerFsMetal)" stroke-width="8" stroke-linecap="round"/>
+      <g transform="translate(80 398) rotate(42)">
+        <rect x="-23" y="-16" width="48" height="34" rx="13" fill="#f6f7f7"/>
+        <circle cx="0" cy="1" r="8" fill="#d8dcde"/>
+        <path d="M19 11 L48 27" stroke="#81878c" stroke-width="4" stroke-linecap="round"/>
+        <path d="M47 27 L58 36" stroke="#373d42" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    </g>
+  </svg>`;
+
 /**
  * 全屏播放器管理器
  */
@@ -37,6 +71,9 @@ export class FullscreenPlayer {
     this.bgEl = document.getElementById('playerFsBg');
     this.vinylDiscEl = document.getElementById('playerFsVinylDisc');
     this.tonearmEl = document.getElementById('playerFsTonearm');
+    if (this.tonearmEl && !String(this.tonearmEl.innerHTML || '').includes('data-player-tonearm="curved"')) {
+      this.tonearmEl.innerHTML = TONEARM_SVG;
+    }
     this.lyricsContainer = document.getElementById('playerFsLyrics');
     this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
     this.lyricTogglesEl = document.getElementById('playerFsLyricToggles');
@@ -341,6 +378,10 @@ export class FullscreenPlayer {
    * @param {string} mode - 'trans' | 'roma'
    */
   _toggleLyricMode(mode) {
+    // 禁用态不响应点击
+    const btn = mode === 'trans' ? this.lyricToggleTransBtn : this.lyricToggleRomaBtn;
+    if (btn && btn.classList.contains('disabled')) return;
+
     if (this.lyricMode === mode) {
       // 再次点击同一按钮 → 关闭
       this.lyricMode = 'none';
@@ -372,13 +413,27 @@ export class FullscreenPlayer {
     const hasTranslation = lines.some((line) => line.translation);
     const hasRoma = lines.some((line) => line.roma);
 
-    this.lyricTogglesEl.style.display = (hasTranslation || hasRoma) ? 'flex' : 'none';
+    // 有歌词就显示按钮区域，无数据时按钮呈半禁用态
+    const hasLyrics = lines.length > 0;
+    this.lyricTogglesEl.style.display = hasLyrics ? 'flex' : 'none';
 
     if (this.lyricToggleTransBtn) {
-      this.lyricToggleTransBtn.style.display = hasTranslation ? '' : 'none';
+      this.lyricToggleTransBtn.style.display = '';
+      this.lyricToggleTransBtn.classList.toggle('disabled', !hasTranslation);
+      if (!hasTranslation) {
+        this.lyricToggleTransBtn.title = '当前歌曲无翻译数据';
+      } else {
+        this.lyricToggleTransBtn.title = '在原文基础上叠加中文翻译';
+      }
     }
     if (this.lyricToggleRomaBtn) {
-      this.lyricToggleRomaBtn.style.display = hasRoma ? '' : 'none';
+      this.lyricToggleRomaBtn.style.display = '';
+      this.lyricToggleRomaBtn.classList.toggle('disabled', !hasRoma);
+      if (!hasRoma) {
+        this.lyricToggleRomaBtn.title = '当前歌曲无罗马音数据';
+      } else {
+        this.lyricToggleRomaBtn.title = '在原文基础上叠加罗马音音译（日/韩等外文歌曲）';
+      }
     }
 
     // 重置模式（切歌时）

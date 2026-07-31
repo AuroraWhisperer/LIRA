@@ -98,12 +98,12 @@ function listSongs(db, { query = '', category = '', language = '', artist = '', 
   const cleanTags = cleanText(tags);
 
   if (cleanQuery) {
-    conditions.push('(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ?)');
-    args.push(`%${cleanQuery}%`, `%${cleanQuery}%`, `%${cleanQuery}%`);
+    conditions.push('(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ? OR song_categories.name LIKE ?)');
+    args.push(`%${cleanQuery}%`, `%${cleanQuery}%`, `%${cleanQuery}%`, `%${cleanQuery}%`);
   }
   if (cleanCat) {
-    conditions.push('song_categories.name = ?');
-    args.push(cleanCat);
+    conditions.push('song_categories.name LIKE ?');
+    args.push(`%${cleanCat}%`);
   }
   if (cleanLang) {
     conditions.push('songs.language = ?');
@@ -340,8 +340,8 @@ function listRandomSongCandidates(db, scopeText) {
     SELECT songs.*, song_categories.name AS category_name
     FROM songs
     JOIN song_categories ON song_categories.id = songs.category_id
-    WHERE songs.is_enabled = 1 AND song_categories.is_enabled = 1 AND song_categories.name = ?
-  `).all(scope);
+    WHERE songs.is_enabled = 1 AND song_categories.is_enabled = 1 AND song_categories.name LIKE ?
+  `).all(`%${scope}%`);
   if (categoryRows.length > 0) return categoryRows;
 
   const languageAliases = randomLanguageAliases(scope);

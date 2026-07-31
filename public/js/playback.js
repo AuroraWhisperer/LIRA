@@ -237,6 +237,9 @@ import { HomeService } from './playback/services/home-service.js';
         document.getElementById('playbackDrawerBack')?.addEventListener('click', playbackDrawerGoBack);
         document.getElementById('playbackDrawerRefresh')?.addEventListener('click', refreshPlaybackHomeContent);
 
+        // 抽屉头部播放全部按钮
+        document.getElementById('playbackDrawerPlayAllHeader')?.addEventListener('click', handlePlaybackDrawerHeaderPlayAll);
+
         // 抽屉底部按钮 - 事件委托
         document.getElementById('playbackDrawerActions')?.addEventListener('click', (event) => {
           const target = event.target;
@@ -390,11 +393,28 @@ import { HomeService } from './playback/services/home-service.js';
           renderPlayback();
           updatePlaybackMediaSession();
           syncPlaybackLyricWindow();
+          savePlaybackState();
         });
         audio.addEventListener('ended', () => playbackNext(true));
         audio.addEventListener('error', () => handlePlaybackError());
         window.addEventListener('pagehide', flushPlaybackStateOnUnload);
         window.addEventListener('pagehide', () => { cacheManager.clearAll(); });
+
+        // Electron prepare-shutdown: flush playback state via IPC before server closes
+        if (window.musicAPI && typeof window.musicAPI.onPrepareShutdown === 'function') {
+          window.musicAPI.onPrepareShutdown(async () => {
+            if (!playbackStateSavePending && playbackState.current) {
+              savePlaybackState();
+            }
+            if (playbackStateSavePending && window.musicAPI.savePlaybackState) {
+              try {
+                await window.musicAPI.savePlaybackState(playbackClientId, playbackStateSavePending);
+                playbackStateSavePending = null;
+              } catch (_) {}
+            }
+            try { await window.musicAPI.confirmShutdownFlush(); } catch (_) {}
+          });
+        }
 
         renderPlayback();
         refreshSelectedMusicProviderState();
@@ -732,6 +752,27 @@ import { HomeService } from './playback/services/home-service.js';
           renderPlayback();
           toast(`已加入 ${tracks.length} 首到当前队列`);
         }
+      }
+
+      function handlePlaybackDrawerHeaderPlayAll() {
+        const homeState = homeService.getHomeState();
+        if (homeState.itemType !== 'track' || !homeState.items.length) return;
+
+        const tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
+        let startIndex = 0;
+        const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
+
+        if (playbackState.mode === 'shuffle') {
+          // 随机播放模式：从随机一首开始
+          startIndex = Math.floor(Math.random() * tracks.length);
+        }
+        // 顺序播放或单曲循环：从第一首开始（startIndex = 0）
+
+        startPlaybackCollection(tracks, startIndex, queueType);
+        const label = queueType === 'radio' ? '电台' : '歌单';
+        toast(playbackState.mode === 'shuffle'
+          ? `随机播放${label}，共 ${tracks.length} 首`
+          : `播放全部${label}，共 ${tracks.length} 首`);
       }
 
       function handlePlaybackHomeTrackAction(action, index) {
@@ -1173,6 +1214,14 @@ import { HomeService } from './playback/services/home-service.js';
             ? saved.selectedSource
             : 'qq';
           playbackState.restoredTime = Math.max(0, Number(saved.currentTime || 0));
+          playbackState.shuffleOrder = Array.isArray(saved.shuffleOrder) ? saved.shuffleOrder : [];
+          playbackState.shuffleCursor = Math.max(0, Number(saved.shuffleCursor || 0));
+          // Rebuild shuffle if restored in shuffle mode
+          if (playbackState.mode === 'shuffle' && playbackState.shuffleOrder.length === 0) {
+            rebuildPlaybackShuffleOrder();
+          }
+          // Batch-restore local file URLs
+          await restoreLocalFileUrls();
           console.log('[Playback] State restored, selectedSource:', playbackState.selectedSource);
         } catch (_) {
           playbackState.current = null;
@@ -1185,6 +1234,85 @@ import { HomeService } from './playback/services/home-service.js';
           playbackState.playlistIndex = -1;
           playbackState.pendingRequests = [];
         }
+      }
+
+      /** Batch-resolve local file URLs after state restore */
+      async function restoreLocalFileUrls() {
+        var localTracks = [];
+        var collect = function (t) {
+          if (t && t.source === 'local' && !t.objectUrl && t.filePath) localTracks.push(t);
+        };
+        collect(playbackState.current);
+        (playbackState.requestedQueue || []).forEach(collect);
+        (playbackState.normalQueue || []).forEach(collect);
+        (playbackState.normalQueueTracks || []).forEach(collect);
+        (playbackState.radioQueue || []).forEach(collect);
+        (playbackState.history || []).forEach(collect);
+
+        var paths = [];
+        var seen = {};
+        for (var i = 0; i < localTracks.length; i++) {
+          var fp = localTracks[i].filePath;
+          if (fp && !seen[fp]) { seen[fp] = true; paths.push(fp); }
+        }
+        if (!paths.length) return;
+        if (!window.musicAPI || typeof window.musicAPI.resolveLocalMediaUrls !== 'function') return;
+
+        try {
+          var result = await window.musicAPI.resolveLocalMediaUrls(paths);
+          var map = (result && result.results) || {};
+          for (var j = 0; j < localTracks.length; j++) {
+            var t = localTracks[j];
+            var entry = t.filePath ? map[t.filePath] : null;
+            if (entry && entry.ok) {
+              t.objectUrl = entry.url;
+              t.fileMissing = false;
+            } else {
+              t.objectUrl = '';
+              t.fileMissing = true;
+            }
+          }
+          renderPlayback();
+        } catch (_) {
+          // Non-fatal: local tracks will re-check on play
+        }
+      }
+
+      /** Ensure a local track is playable (has objectUrl). If not, try IPC restore or prompt reselect. */
+      async function ensureLocalTrackPlayable(track) {
+        if (!PlaybackUtils.isLocalTrack(track)) return true;
+        if (track.objectUrl) { track.fileMissing = false; return true; }
+
+        // Try IPC restore from saved filePath
+        if (track.filePath && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
+          try {
+            var res = await window.musicAPI.resolveLocalMediaUrls([track.filePath]);
+            var entry = res && res.results && res.results[track.filePath];
+            if (entry && entry.ok) {
+              track.objectUrl = entry.url;
+              track.fileMissing = false;
+              savePlaybackState();
+              return true;
+            }
+          } catch (_) {}
+        }
+
+        // File missing: prompt re-selection
+        toast('文件已移动或删除，请重新选择本地文件');
+        try {
+          var updated = await localFileManager.reselectLocalFile(track);
+          if (updated && updated.objectUrl) {
+            Object.assign(track, updated);
+            track.fileMissing = false;
+            savePlaybackState();
+            renderPlayback();
+            return true;
+          }
+        } catch (_) {}
+
+        track.fileMissing = true;
+        renderPlayback();
+        return false;
       }
 
       function savePlaybackState() {
@@ -1200,6 +1328,7 @@ import { HomeService } from './playback/services/home-service.js';
             coverUrl: track.coverUrl || '',
             durationMs: track.durationMs,
             fileName: track.fileName,
+            filePath: track.filePath || '',
             sourceTrackId: track.sourceTrackId,
             sourceAlbumId: track.sourceAlbumId,
             playable: track.playable,
@@ -1226,6 +1355,8 @@ import { HomeService } from './playback/services/home-service.js';
           volume: playbackState.volume,
           mode: playbackState.mode,
           selectedSource: playbackState.selectedSource,
+          shuffleOrder: playbackState.shuffleOrder,
+          shuffleCursor: playbackState.shuffleCursor,
           history: playbackState.history.slice(-50).map(serialize).filter(Boolean),
           displayHistory: playbackState.displayHistory.slice(0, 200).map(serialize).filter(Boolean)
         };
@@ -1256,8 +1387,12 @@ import { HomeService } from './playback/services/home-service.js';
         });
       }
 
-      /** 页面隐藏/关闭时用 sendBeacon 尽力保存最后一次状态，fetch 在此时可能被浏览器中止。 */
+      /** 页面隐藏/关闭时尽力保存最后一次状态。优先通过 IPC 直写 DB（Electron），失败则退回 sendBeacon。 */
       function flushPlaybackStateOnUnload() {
+        // If nothing pending but we have current state, generate a fresh save
+        if (!playbackStateSavePending && playbackState.current) {
+          savePlaybackState();
+        }
         if (!playbackStateSavePending) return;
         const payload = playbackStateSavePending;
         playbackStateSavePending = null;
@@ -1265,6 +1400,15 @@ import { HomeService } from './playback/services/home-service.js';
           clearTimeout(playbackStateSaveTimer);
           playbackStateSaveTimer = null;
         }
+
+        // Try IPC save first (Electron desktop — writes directly to SQLite before server closes)
+        if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
+          try {
+            window.musicAPI.savePlaybackState(playbackClientId, payload);
+          } catch (_) {}
+        }
+
+        // Fallback: sendBeacon / keepalive fetch for browser mode
         const body = JSON.stringify({ clientId: playbackClientId, payload });
         if (navigator.sendBeacon) {
           const blob = new Blob([body], { type: 'application/json' });
@@ -1328,6 +1472,7 @@ import { HomeService } from './playback/services/home-service.js';
           }
         } else {
           audio.pause();
+          savePlaybackState();
         }
         renderPlayback();
       }
@@ -1335,6 +1480,12 @@ import { HomeService } from './playback/services/home-service.js';
       async function playPlaybackTrack(track, options = {}) {
         const audio = getPlaybackAudio();
         if (!audio || !track) return;
+
+        // For local tracks, ensure the file is accessible before trying to play
+        if (PlaybackUtils.isLocalTrack(track)) {
+          const ok = await ensureLocalTrackPlayable(track);
+          if (!ok) return;
+        }
 
         let streamUrl = '';
         try {

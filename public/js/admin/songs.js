@@ -81,6 +81,9 @@
   }
 
   function renderSongs(songs, songLanguages, songArtists, songTags) {
+    songLanguages.clear();
+    songArtists.clear();
+    songTags.clear();
     for (const song of songs) {
       if (song.language) songLanguages.add(song.language);
       if (song.artist) songArtists.add(song.artist);

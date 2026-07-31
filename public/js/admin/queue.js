@@ -63,7 +63,7 @@
     if (giftToggle) giftToggle.checked = settings.enableGiftSprint === 'true';
 
     if (window.AdminApp.gifts && window.AdminApp.gifts.renderGiftPanel) {
-      window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.blivedmCompatibility || {}, appState.bilibiliDiagnostics || {});
+      window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.bilibiliDiagnostics || {});
     }
 
     // 盲盒盈亏统计（独立加载，不阻塞渲染）

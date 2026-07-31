@@ -18,6 +18,7 @@ export class Drawer {
     this.actionsEl = null;
     this.backBtn = null;
     this.refreshBtn = null;
+    this.headerPlayAllBtn = null;
     this.history = [];
   }
 
@@ -33,6 +34,7 @@ export class Drawer {
     this.actionsEl = document.getElementById('playbackDrawerActions');
     this.backBtn = document.getElementById('playbackDrawerBack');
     this.refreshBtn = document.getElementById('playbackDrawerRefresh');
+    this.headerPlayAllBtn = document.getElementById('playbackDrawerPlayAllHeader');
   }
 
   /**
@@ -208,6 +210,11 @@ export class Drawer {
     // 头部刷新按钮
     if (this.refreshBtn) {
       this.refreshBtn.hidden = !canRefresh;
+    }
+
+    // 头部播放全部按钮
+    if (this.headerPlayAllBtn) {
+      this.headerPlayAllBtn.hidden = !showPlayAll;
     }
 
     // 底部操作按钮

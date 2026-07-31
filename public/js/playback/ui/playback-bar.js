@@ -82,7 +82,8 @@ export class PlaybackBar {
     if (this.artistEl) {
       const isLocal = track ? PlaybackUtils.isLocalTrack(track) : false;
       const needsFile = isLocal && track && !track.objectUrl;
-      const suffix = needsFile ? ' · 需重新选择文件' : '';
+      const fileMissing = isLocal && track && track.fileMissing;
+      const suffix = fileMissing ? ' · 文件已移动，请重新选择' : (needsFile ? ' · 需重新选择文件' : '');
 
       this.artistEl.textContent = track
         ? `${(track.artists || []).join(' / ') || '未知歌手'}${suffix}`

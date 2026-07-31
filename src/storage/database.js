@@ -78,7 +78,11 @@ function runAllMigrations(databases, options = {}) {
   ]));
 
   results.push(schema.runMigrations(giftDb, 'gift_db', [
-    (db) => { ensureGiftColumns(db); }
+    (db) => { ensureGiftColumns(db); },
+    (db) => {
+      // v2: 补齐 platform_id 索引，避免全表扫描导致礼物漏记
+      db.exec('CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id ON gift_events(platform_id)');
+    }
   ]));
 
   results.push(schema.runMigrations(musicDb, 'music_db', [
@@ -334,6 +338,21 @@ function clearPlaybackData(musicDb) {
   }
 }
 
+function clearGiftData(giftDb) {
+  let count = 0;
+  giftDb.exec('BEGIN');
+  try {
+    count = countRows(giftDb, 'gift_events');
+    giftDb.prepare('DELETE FROM gift_events').run();
+    giftDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'").run();
+    giftDb.exec('COMMIT');
+  } catch (error) {
+    giftDb.exec('ROLLBACK');
+    throw error;
+  }
+  return { gifts: count };
+}
+
 function clearAllData(songDb, superChatDb, giftDb, musicDb) {
   const counts = {
     songs: 0, categories: 0, queue: 0, requests: 0,
@@ -452,6 +471,7 @@ module.exports = {
   clearSongLibraryData,
   clearSuperChatData,
   clearPlaybackData,
+  clearGiftData,
   clearAllData,
   closeDatabases,
   optimizeDatabases

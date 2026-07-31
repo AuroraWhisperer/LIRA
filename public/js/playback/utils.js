@@ -190,7 +190,10 @@ export function normalizeSavedPendingRequest(item) {
 export function normalizeSavedTrack(track) {
   return {
     ...track,
-    objectUrl: ''
+    objectUrl: '',
+    fileName: track.fileName || '',
+    filePath: track.filePath || '',
+    fileMissing: track.fileMissing || false
   };
 }
 

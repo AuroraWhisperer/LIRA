@@ -24,6 +24,7 @@ const routes = {
   'POST /api/database/clear': clearRoute((context) => context.data.clearSongLibrary(), 'database:clear'),
   'POST /api/database/clear-superchats': clearRoute((context) => context.data.clearSuperChats(), 'database:clear-superchats'),
   'POST /api/database/clear-playback': clearRoute((context) => context.data.clearPlayback(), 'database:clear-playback'),
+  'POST /api/database/clear-gifts': clearRoute((context) => context.data.clearGifts(), 'database:clear-gifts'),
   'POST /api/database/clear-all': clearRoute((context) => context.data.clearAll(), 'database:clear-all'),
 
   // 存储占用与各库 schema 版本，供管理页展示

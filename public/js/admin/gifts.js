@@ -5,15 +5,18 @@
 (function () {
   const {
     escapeHtml,
+    escapeAttr,
     formatTime,
+    formatDateTime,
     formatMoney,
     toast,
-    readJsonResponse
+    readJsonResponse,
+    dangerConfirm
   } = window.AdminApp.utils;
 
   let latestGiftNoticeKey = null;
 
-  function renderGiftPanel(gifts, sprint, live, compatibility, diagnostics) {
+  function renderGiftPanel(gifts, sprint, live, diagnostics) {
     // 礼物检测 toggle & 状态
     const toggle = document.getElementById('giftDetectToggle');
     const label = document.getElementById('giftDetectLabel');
@@ -36,8 +39,8 @@
       }
     }
 
-    // 诊断合并为一行
-    renderGiftStatusLine(compatibility, diagnostics);
+    // 诊断统计
+    renderGiftStatusLine(diagnostics);
 
     // 月底冲刺统计
     document.getElementById('giftSprintTarget').textContent = formatMoney(sprint.targetRmb);
@@ -54,26 +57,11 @@
     renderBlindBoxList();
   }
 
-  function renderGiftStatusLine(compatibility, diagnostics) {
+  function renderGiftStatusLine(diagnostics) {
     const node = document.getElementById('giftStatusLine');
     if (!node) return;
 
     const parts = [];
-    const compStatus = (compatibility && compatibility.status) || 'idle';
-
-    // 协议状态
-    if (compStatus === 'ok') {
-      parts.push('协议正常');
-    } else if (compStatus === 'warn') {
-      const missing = Array.isArray(compatibility.missingGiftCommands) ? compatibility.missingGiftCommands : [];
-      if (missing.length > 0) {
-        parts.push(`新CMD未解析：${missing.join('、')}`);
-      }
-    } else if (compStatus === 'checking') {
-      parts.push('检查协议中…');
-    } else if (compStatus === 'error') {
-      parts.push('协议检查失败');
-    }
 
     // 诊断统计
     if (diagnostics) {
@@ -90,15 +78,6 @@
     }
 
     node.textContent = parts.join(' · ') || '等待直播消息…';
-  }
-
-  // 保留旧接口兼容（不再操作独立 DOM）
-  function renderGiftCompatibilityStatus(compatibility) {
-    // 合并到 giftStatusLine，由 renderGiftPanel 统一刷新
-  }
-
-  function renderGiftDiagnosticsStatus(diagnostics) {
-    // 合并到 giftStatusLine，由 renderGiftPanel 统一刷新
   }
 
   function notifyNewGift(items) {
@@ -132,8 +111,16 @@
     list.innerHTML = items.map((item) => {
       const sprintPrice = item.sprint_count_price ?? item.total_price;
       const blindProfit = item.blind_profit;
+      const guardBadge = getGuardBadge(item);
+      const typeIcon = guardBadge
+        ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
+        : item.is_blind_box
+          ? '<span class="gift-type-icon gift-blind-box-icon" aria-label="盲盒" title="盲盒">🎁</span>'
+          : '';
       let cardClass = 'gift-card';
       let blindLine = '';
+
+      if (typeIcon) cardClass += ' has-type-icon';
 
       if (item.is_blind_box && item.blind_box_name) {
         const profitSign = blindProfit > 0 ? '+' : '';
@@ -146,16 +133,33 @@
 
       return `
         <div class="${cardClass}">
-          <div class="gift-name">${escapeHtml(item.gift_name || '未知礼物')} x${Number(item.num || 1)}${item.is_blind_box ? ' 🎁' : ''}</div>
+          <div class="gift-name">${escapeHtml(item.gift_name || '未知礼物')} x${Number(item.num || 1)}</div>
           <div class="gift-meta">
             <span>${escapeHtml(item.user_name || '观众')}</span>
             <span>计入 ${formatMoney(sprintPrice)}</span>
             ${blindLine}
             <span>${formatTime(item.created_at)}</span>
           </div>
+          ${typeIcon}
         </div>
       `;
     }).join('');
+  }
+
+  function getGuardBadge(item) {
+    const giftName = String(item && item.gift_name || '').trim().toLowerCase();
+    const giftId = String(item && item.gift_id || '').trim().toLowerCase();
+
+    if (giftName.includes('总督') || giftName.includes('governor') || giftId === 'guard-1') {
+      return { name: '总督', src: '/img/bilibili-guard-governor.png' };
+    }
+    if (giftName.includes('提督') || giftName.includes('prefect') || giftName.includes('admiral') || giftId === 'guard-2') {
+      return { name: '提督', src: '/img/bilibili-guard-prefect.png' };
+    }
+    if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
+      return { name: '舰长', src: '/img/bilibili-guard-captain.png' };
+    }
+    return null;
   }
 
   function renderBlindBoxList() {
@@ -187,7 +191,12 @@
     container.innerHTML = config.map((item, index) => {
       const name = escapeHtml(item.name || '未命名');
       const price = formatMoney(item.price);
-      const outputs = Array.isArray(item.outputs) ? item.outputs.map(o => escapeHtml(o)).join('、') : '—';
+      const outputs = Array.isArray(item.outputs) ? item.outputs.map(o => {
+        if (typeof o === 'object' && o !== null) {
+          return `${escapeHtml(o.name)} ¥${formatMoney(o.price)}`;
+        }
+        return escapeHtml(String(o));
+      }).join('、') : '—';
       return `
         <span class="blind-box-chip">
           🎁 ${name} · ¥${price} → ${outputs}
@@ -195,33 +204,6 @@
         </span>
       `;
     }).join('');
-  }
-
-  async function checkGiftProtocol() {
-    const btn = document.getElementById('giftProtocolCheckBtn');
-    btn.disabled = true;
-    btn.textContent = '检查中...';
-    try {
-      const response = await fetch('/api/gifts/blivedm/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      const payload = await readJsonResponse(response, '协议检查失败');
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || `协议检查失败（HTTP ${response.status}）`);
-      }
-      const appState = window.AdminApp.state.getAppState();
-      if (appState) {
-        appState.blivedmCompatibility = payload.data || {};
-      }
-      if (window.AdminApp.queue && window.AdminApp.queue.renderState) {
-        const songs = window.AdminApp.state.getSongs();
-        window.AdminApp.queue.renderState(appState, songs);
-      }
-      toast((payload.data && payload.data.message) || '协议检查完成');
-    } catch (error) {
-      toast(error.message || String(error));
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '检查协议';
-    }
   }
 
   let blindBoxStatsLoading = false;
@@ -243,7 +225,17 @@
       renderBlindBoxStats(payload.data);
     } catch (error) {
       const summary = document.getElementById('blindBoxStatsSummary');
-      if (summary) summary.innerHTML = '<span class="hint">统计加载失败</span>';
+      const section = summary && summary.closest('.gift-blindbox-stats-section');
+      if (section) section.dataset.state = 'error';
+      if (summary) {
+        summary.innerHTML = `
+          <div class="blind-stats-status is-error" role="status">
+            <span class="blind-stats-status-icon" aria-hidden="true">!</span>
+            <strong>统计加载失败</strong>
+            <span>请稍后重试</span>
+          </div>
+        `;
+      }
       const body = document.getElementById('blindBoxStatsBody');
       if (body) body.innerHTML = '<tr><td colspan="5" class="empty">加载失败</td></tr>';
     } finally {
@@ -262,18 +254,39 @@
 
     // 汇总行
     const summaryEl = document.getElementById('blindBoxStatsSummary');
+    const section = summaryEl && summaryEl.closest('.gift-blindbox-stats-section');
     if (summaryEl) {
       if (!summary || summary.boxCount === 0) {
-        summaryEl.innerHTML = '<span class="hint">今天还没有盲盒礼物</span>';
+        if (section) section.dataset.state = 'empty';
+        summaryEl.innerHTML = `
+          <div class="blind-stats-status" role="status">
+            <span class="blind-stats-status-icon" aria-hidden="true">◇</span>
+            <strong>今天还没有盲盒礼物</strong>
+            <span>收到盲盒后，这里会自动汇总成本、开出价值和盈亏</span>
+          </div>
+        `;
       } else {
-        const profitSign = summary.totalProfit > 0 ? '+' : '';
+        const profitSign = summary.totalProfit > 0 ? '+' : summary.totalProfit < 0 ? '-' : '';
         const profitClass = summary.totalProfit > 0 ? 'profit-up' : summary.totalProfit < 0 ? 'profit-down' : '';
+        if (section) section.dataset.state = 'ready';
         summaryEl.innerHTML = `
           <div class="stats-summary-row">
-            <span class="stat-chip">📦 ${summary.boxCount} 个盒子</span>
-            <span class="stat-chip">💰 成本 ¥${formatMoney(summary.totalCost)}</span>
-            <span class="stat-chip">🎁 开出 ¥${formatMoney(summary.totalValue)}</span>
-            <span class="stat-chip ${profitClass}">${summary.totalProfit >= 0 ? '📈' : '📉'} 盈亏 <strong>${profitSign}¥${formatMoney(Math.abs(summary.totalProfit))}</strong></span>
+            <div class="stat-chip">
+              <span class="stat-chip-icon">盒</span>
+              <span class="stat-chip-copy"><small>盲盒数量</small><strong>${summary.boxCount}</strong></span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-icon">¥</span>
+              <span class="stat-chip-copy"><small>总成本</small><strong>${formatMoney(summary.totalCost)}</strong></span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-icon">礼</span>
+              <span class="stat-chip-copy"><small>开出价值</small><strong>${formatMoney(summary.totalValue)}</strong></span>
+            </div>
+            <div class="stat-chip ${profitClass}">
+              <span class="stat-chip-icon">${summary.totalProfit >= 0 ? '↗' : '↘'}</span>
+              <span class="stat-chip-copy"><small>今日盈亏</small><strong>${profitSign}${formatMoney(Math.abs(summary.totalProfit))}</strong></span>
+            </div>
           </div>
         `;
       }
@@ -289,30 +302,167 @@
     }
 
     body.innerHTML = perUser.map((user) => {
-      const profitSign = user.totalProfit > 0 ? '+' : '';
+      const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
       const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
       return `
         <tr>
           <td class="user-cell">${escapeHtml(user.userName)}</td>
           <td>${user.boxCount}</td>
-          <td>¥${formatMoney(user.totalCost)}</td>
-          <td>¥${formatMoney(user.totalValue)}</td>
-          <td class="${profitClass}">${profitSign}¥${formatMoney(Math.abs(user.totalProfit))}</td>
+          <td>${formatMoney(user.totalCost)}</td>
+          <td>${formatMoney(user.totalValue)}</td>
+          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</td>
         </tr>
       `;
     }).join('');
   }
 
+  // ── 全部礼物流水抽屉 ──
+
+  const GIFT_HISTORY_LIMIT = 50;
+  let giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
+  let giftHistorySeq = 0;
+
+  function initGiftHistoryDrawer() {
+    const openBtn = document.getElementById('giftHistoryOpenBtn');
+    const closeBtn = document.getElementById('giftHistoryClose');
+    const backdrop = document.getElementById('giftHistoryBackdrop');
+
+    openBtn && openBtn.addEventListener('click', () => {
+      giftHistory.page = 1;
+      openGiftHistoryDrawer();
+      loadGiftHistory(1);
+    });
+    closeBtn && closeBtn.addEventListener('click', closeGiftHistoryDrawer);
+    backdrop && backdrop.addEventListener('click', closeGiftHistoryDrawer);
+
+    const clearBtn = document.getElementById('giftHistoryClearBtn');
+    clearBtn && clearBtn.addEventListener('click', async () => {
+      const confirmed = await dangerConfirm({
+        title: '清空全部礼物记录',
+        message: '此操作将永久删除所有礼物流水，无法恢复。',
+        confirmLabel: '确认清空'
+      });
+      if (!confirmed) return;
+      try {
+        const response = await fetch('/api/database/clear-gifts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: true })
+        });
+        const payload = await readJsonResponse(response, '清空礼物失败');
+        if (!payload.ok) throw new Error(payload.error || '清空失败');
+        toast('已清空全部礼物记录');
+        giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
+        renderGiftHistory();
+        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+          window.AdminApp.state.reloadState();
+        }
+      } catch (error) {
+        toast(error.message || '清空礼物失败');
+      }
+    });
+
+    const prevBtn = document.getElementById('giftHistoryPrev');
+    const nextBtn = document.getElementById('giftHistoryNext');
+    prevBtn && prevBtn.addEventListener('click', () => {
+      if (giftHistory.page > 1) loadGiftHistory(giftHistory.page - 1);
+    });
+    nextBtn && nextBtn.addEventListener('click', () => {
+      if (giftHistory.page < giftHistory.totalPages) loadGiftHistory(giftHistory.page + 1);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeGiftHistoryDrawer();
+    });
+  }
+
+  function openGiftHistoryDrawer() {
+    const drawer = document.getElementById('giftHistoryDrawer');
+    const backdrop = document.getElementById('giftHistoryBackdrop');
+    drawer && drawer.classList.add('open');
+    backdrop && backdrop.classList.add('open');
+  }
+
+  function closeGiftHistoryDrawer() {
+    const drawer = document.getElementById('giftHistoryDrawer');
+    const backdrop = document.getElementById('giftHistoryBackdrop');
+    drawer && drawer.classList.remove('open');
+    backdrop && backdrop.classList.remove('open');
+  }
+
+  async function loadGiftHistory(page) {
+    const seq = ++giftHistorySeq;
+    const body = document.getElementById('giftHistoryBody');
+    if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
+
+    try {
+      const response = await fetch(`/api/gifts/history?page=${page}&limit=${GIFT_HISTORY_LIMIT}`);
+      const payload = await readJsonResponse(response, '礼物流水加载失败');
+      if (!response.ok || !payload.ok) throw new Error(payload.error || `礼物流水加载失败（HTTP ${response.status}）`);
+      if (seq !== giftHistorySeq) return;
+      giftHistory = { ...giftHistory, ...payload.data };
+      renderGiftHistory();
+    } catch (error) {
+      if (seq !== giftHistorySeq) return;
+      if (body) body.innerHTML = `<tr><td colspan="6" class="empty">加载失败：${escapeHtml(error.message)}</td></tr>`;
+    }
+  }
+
+  function renderGiftHistory() {
+    const totalEl = document.getElementById('giftHistoryTotal');
+    const body = document.getElementById('giftHistoryBody');
+    if (totalEl) totalEl.textContent = `共 ${giftHistory.total} 条`;
+
+    if (!giftHistory.items || giftHistory.items.length === 0) {
+      if (body) body.innerHTML = '<tr><td colspan="6" class="empty">暂无礼物记录</td></tr>';
+    } else {
+      if (body) body.innerHTML = giftHistory.items.map(renderGiftHistoryRow).join('');
+    }
+
+    const prev = document.getElementById('giftHistoryPrev');
+    const next = document.getElementById('giftHistoryNext');
+    const info = document.getElementById('giftHistoryPageInfo');
+    if (prev) prev.disabled = giftHistory.page <= 1;
+    if (next) next.disabled = giftHistory.page >= giftHistory.totalPages;
+    if (info) info.textContent = `第 ${giftHistory.page}/${giftHistory.totalPages} 页`;
+  }
+
+  function renderGiftHistoryRow(item) {
+    const price = item.sprint_count_price ?? item.total_price;
+    const guardBadge = getGuardBadge(item);
+    const remarks = [];
+    if (guardBadge) {
+      remarks.push(`<span class="gift-remark-tag guard"><img class="gift-guard-icon" src="${escapeAttr(guardBadge.src)}" alt="${escapeAttr(guardBadge.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy"> ${escapeHtml(guardBadge.name)}</span>`);
+    }
+    if (item.is_blind_box) {
+      const blindProfit = item.blind_profit;
+      const profitSign = blindProfit > 0 ? '+' : '';
+      const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
+      remarks.push(`<span class="gift-remark-tag blind">🎁 盲盒 ${profitSign}${formatMoney(blindProfit || 0)}</span>`);
+    }
+    return `
+      <tr>
+        <td>${formatDateTime(item.created_at)}</td>
+        <td class="gift-name-cell" title="${escapeAttr(item.gift_name || '')}">${escapeHtml(item.gift_name || '未知礼物')}</td>
+        <td>${Number(item.num || 1)}</td>
+        <td>${formatMoney(price)}</td>
+        <td class="gift-user-cell" title="${escapeAttr(item.user_name || '')}">${escapeHtml(item.user_name || '观众')}</td>
+        <td>${remarks.length ? remarks.join(' ') : '<span class="hint">—</span>'}</td>
+      </tr>
+    `;
+  }
+
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.gifts = {
     renderGiftPanel,
-    renderGiftCompatibilityStatus,
-    renderGiftDiagnosticsStatus,
     notifyNewGift,
     renderGiftRecentList,
     renderBlindBoxList,
-    checkGiftProtocol,
     loadBlindBoxStats,
-    renderBlindBoxStats
+    renderBlindBoxStats,
+    initGiftHistoryDrawer,
+    openGiftHistoryDrawer,
+    closeGiftHistoryDrawer,
+    loadGiftHistory
   };
 })();

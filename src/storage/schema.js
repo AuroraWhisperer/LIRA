@@ -252,6 +252,8 @@ const GIFT_SCHEMA = `
     ON gift_events(counted_in_sprint, status, created_at);
   CREATE INDEX IF NOT EXISTS idx_gift_events_created_at
     ON gift_events(created_at);
+  CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id
+    ON gift_events(platform_id);
 `;
 
 // ── 播放器 DDL ──

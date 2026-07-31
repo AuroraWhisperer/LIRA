@@ -52,6 +52,17 @@ contextBridge.exposeInMainWorld('musicAPI', {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('music:lyric-state', listener);
     return () => ipcRenderer.removeListener('music:lyric-state', listener);
+  },
+  selectLocalFiles: () => ipcRenderer.invoke('music:select-local-files'),
+  resolveLocalMediaUrls: (paths) => ipcRenderer.invoke('music:resolve-local-media-urls', paths),
+  savePlaybackState: (clientId, payload) => ipcRenderer.invoke('playback:save-state', { clientId, payload }),
+  confirmShutdownFlush: () => ipcRenderer.invoke('playback:flush-ack'),
+  onPrepareShutdown: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+
+    const listener = () => callback();
+    ipcRenderer.on('app:prepare-shutdown', listener);
+    return () => ipcRenderer.removeListener('app:prepare-shutdown', listener);
   }
 });
 

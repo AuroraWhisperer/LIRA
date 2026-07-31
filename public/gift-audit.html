@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>礼物审计 · 气泡×WebSocket 交叉对比</title>
+<style>
+  :root {
+    --bg: #0f0f14; --surface: #1a1a24; --surface2: #222233; --border: #333350;
+    --text: #d0d0e0; --text2: #9090a8; --green: #4caf93; --red: #e0556a;
+    --yellow: #d4a843; --blue: #5b9bd5; --purple: #a78bfa; --orange: #e0883a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 4px; }
+  .subtitle { color: var(--text2); font-size: 0.82rem; margin-bottom: 16px; }
+
+  /* Conn bar */
+  .conn-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; margin-bottom: 14px; font-size: 0.82rem;
+  }
+  .conn-bar .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .conn-bar .dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; }
+  .conn-bar .dot.dead { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* Layout */
+  .main-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;
+  }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--surface2);
+    border-bottom: 1px solid var(--border); font-size: 0.85rem; font-weight: 600;
+  }
+  .panel-body { padding: 12px; }
+
+  textarea {
+    width: 100%; height: 200px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 10px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem; resize: vertical;
+  }
+  textarea:focus { outline: none; border-color: var(--blue); }
+
+  .toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px;
+  }
+  button, .btn {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; font-family: inherit;
+    white-space: nowrap;
+  }
+  button:hover { background: #333355; }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  button.primary:hover { background: #4a8bc5; }
+  button.danger { background: var(--red); border-color: var(--red); color: #fff; }
+  button.danger:hover { background: #c04a5a; }
+  input[type="text"], input[type="datetime-local"] {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 0.8rem; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--blue); }
+
+  /* Stats row */
+  .stats-row {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+  }
+  .stat-chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;
+  }
+  .stat-chip .val { font-size: 1.4rem; font-weight: 700; }
+  .stat-chip .lbl { font-size: 0.72rem; color: var(--text2); }
+  .stat-chip.match .val { color: var(--green); }
+  .stat-chip.miss .val { color: var(--red); }
+  .stat-chip.extra .val { color: var(--yellow); }
+
+  /* Tables */
+  .table-wrap {
+    max-height: 400px; overflow-y: auto; border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  th {
+    text-align: left; padding: 7px 10px; background: var(--surface2);
+    color: var(--text2); font-weight: 600; position: sticky; top: 0; z-index: 1;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 6px 10px; border-bottom: 1px solid rgba(51,51,80,0.4); }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.7rem; font-weight: 600;
+  }
+  .badge-match { background: rgba(76,175,147,0.2); color: var(--green); }
+  .badge-miss { background: rgba(224,85,106,0.2); color: var(--red); }
+  .badge-extra { background: rgba(212,168,67,0.2); color: var(--yellow); }
+  .badge-info { background: rgba(91,155,213,0.2); color: var(--blue); }
+
+  /* Comparison panel */
+  .comparison-section { margin-top: 14px; }
+  .comparison-section h3 {
+    font-size: 0.9rem; margin-bottom: 8px; color: var(--text2);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Quick actions */
+  .quick-actions {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .quick-actions button { font-size: 0.75rem; padding: 4px 10px; }
+
+  /* Diff highlight */
+  .diff-highlight { background: rgba(224,85,106,0.12); }
+  .row-fade { opacity: 0.6; }
+
+  .empty-state { text-align: center; padding: 30px; color: var(--text2); font-size: 0.85rem; }
+  .hint { color: var(--text2); font-size: 0.75rem; }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    padding: 8px 20px; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+    z-index: 999; animation: slideDown 0.3s ease-out; pointer-events: none;
+  }
+  .toast.ok { background: var(--green); color: #fff; }
+  .toast.warn { background: var(--yellow); color: #000; }
+  @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+
+  /* Gift ID display */
+  .gift-id { font-family: monospace; font-size: 0.72rem; color: var(--text2); }
+  .user-name-display { font-weight: 600; }
+  .gift-name-display { color: var(--blue); }
+
+  /* Collapsible raw */
+  .raw-toggle { cursor: pointer; color: var(--blue); font-size: 0.72rem; }
+  .raw-content {
+    display: none; font-family: monospace; font-size: 0.7rem; white-space: pre-wrap;
+    background: var(--bg); padding: 6px; border-radius: 4px; margin-top: 4px;
+    max-height: 150px; overflow-y: auto; word-break: break-all;
+  }
+  .raw-content.open { display: block; }
+
+  /* Help section */
+  .help-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; margin-top: 14px;
+    font-size: 0.78rem; color: var(--text2); line-height: 1.7;
+  }
+  .help-section strong { color: var(--text); }
+  .help-section code {
+    background: var(--surface2); padding: 1px 6px; border-radius: 3px;
+    font-size: 0.73rem; color: var(--blue);
+  }
+</style>
+</head>
+<body>
+
+<h1>🔍 礼物审计 · 气泡 × WebSocket 交叉对比</h1>
+<p class="subtitle">
+  粘贴 Bilibili 直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与 WebSocket 捕获记录交叉对比
+  <span id="connInfo" style="margin-left:12px;color:var(--text2)">连接中...</span>
+</p>
+
+<div class="conn-bar" id="connBar">
+  <span style="color:var(--text2)">加载中...</span>
+</div>
+
+<!-- 操作区 -->
+<div class="panel" style="margin-bottom:14px">
+  <div class="panel-header">
+    <span>📋 气泡 HTML 输入</span>
+    <span class="hint">从 Bilibili 直播间 DevTools 复制 <code>.bubble-list</code> 元素的 outerHTML</span>
+  </div>
+  <div class="panel-body">
+    <div class="quick-actions">
+      <button onclick="setTimeNow()" title="将下方时间设为当前时间">🕐 设为当前时间</button>
+      <button onclick="setTime1MinAgo()">⏪ 1分钟前</button>
+      <button onclick="setTime5MinAgo()">⏪ 5分钟前</button>
+      <button onclick="loadExample()">📝 加载示例</button>
+    </div>
+    <div class="toolbar">
+      <label style="font-size:0.8rem;color:var(--text2)">捕获时间</label>
+      <input type="datetime-local" id="captureTime" style="width:220px">
+    </div>
+    <textarea id="bubbleHtml" placeholder="在此粘贴 Bilibili 直播间气泡 HTML...
+
+从浏览器 DevTools 中找到 .bubble-list 元素，右键 → Copy → Copy outerHTML，然后粘贴到这里"></textarea>
+    <div class="toolbar">
+      <button class="primary" onclick="parseAndCompare()">🔍 解析并对比</button>
+      <button onclick="clearAll()">🗑️ 清空</button>
+      <button id="btnFetchServer" onclick="fetchServerGifts()">📡 拉取服务器礼物记录</button>
+      <span id="serverStatus" class="hint"></span>
+    </div>
+  </div>
+</div>
+
+<!-- 统计 -->
+<div class="stats-row" id="statsRow" style="display:none">
+  <div class="stat-chip info"><div class="val" id="statBubble">0</div><div class="lbl">气泡礼物数</div></div>
+  <div class="stat-chip info"><div class="val" id="statServer">0</div><div class="lbl">WebSocket 记录数</div></div>
+  <div class="stat-chip match"><div class="val" id="statMatch">0</div><div class="lbl">✅ 双边匹配</div></div>
+  <div class="stat-chip miss"><div class="val" id="statMiss">0</div><div class="lbl">⚠️ 仅气泡 (漏记)</div></div>
+  <div class="stat-chip extra"><div class="val" id="statExtra">0</div><div class="lbl">📡 仅WebSocket</div></div>
+</div>
+
+<!-- 双栏对比 -->
+<div class="main-grid">
+  <!-- 气泡解析结果 -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>💬 气泡解析结果</span>
+      <span class="hint" id="bubbleCount">0 条</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:35px">#</th>
+            <th>用户</th>
+            <th>礼物名</th>
+            <th style="width:55px">连击</th>
+            <th style="width:50px">状态</th>
+          </tr>
+        </thead>
+        <tbody id="bubbleTableBody">
+          <tr><td colspan="5" class="empty-state">等待解析...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 服务器记录 -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>📡 WebSocket 捕获记录</span>
+      <span class="hint" id="serverCount">0 条</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px">#</th>
+            <th>时间</th>
+            <th>用户</th>
+            <th>礼物名</th>
+            <th style="width:45px">数量</th>
+            <th style="width:55px">金额</th>
+            <th style="width:50px">状态</th>
+          </tr>
+        </thead>
+        <tbody id="serverTableBody">
+          <tr><td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 详细对比结果 -->
+<div class="comparison-section" id="comparisonSection" style="display:none">
+  <div class="panel">
+    <div class="panel-header">
+      <span>🔬 逐条对比详情</span>
+      <span class="hint">气泡礼物与 WebSocket 记录的匹配状态</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:35px">#</th>
+            <th>来源</th>
+            <th>用户</th>
+            <th>礼物名 (Gift ID)</th>
+            <th style="width:50px">数量</th>
+            <th style="width:55px">金额</th>
+            <th>匹配信息</th>
+            <th style="width:60px">状态</th>
+          </tr>
+        </thead>
+        <tbody id="comparisonBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 帮助 -->
+<div class="help-section">
+  <strong>🛠️ 使用说明</strong><br>
+  1. 在 Bilibili 直播间页面按 <code>F12</code> 打开 DevTools<br>
+  2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在 <code>#player-section</code> 内）<br>
+  3. 右键 → <code>Copy → Copy outerHTML</code><br>
+  4. 粘贴到上方文本框，设置捕获时间，点击 <strong>解析并对比</strong><br>
+  5. <strong style="color:var(--red)">⚠️ 仅气泡</strong> = WebSocket 可能漏记的礼物；<strong style="color:var(--green)">✅ 双边匹配</strong> = 正常捕获<br>
+  <br>
+  <strong>💡 技巧：</strong>可以多次（每隔几分钟）复制气泡 HTML 并解析，观察漏记规律。
+  配合 <a href="/debug-gifts" style="color:var(--blue)">/debug-gifts</a> 实时监控 WebSocket 收包情况。
+</div>
+
+<script>
+// ── 全局状态 ──
+let bubbleGifts = [];
+let serverGifts = [];
+let comparisonResults = [];
+let ws = null;
+let serverGiftCache = []; // 累积的服务器礼物
+
+// ── WebSocket ──
+function connectWs() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(proto + '//' + location.host + '/ws');
+  ws.onopen = () => {
+    document.getElementById('connInfo').textContent = 'WebSocket 已连接';
+    document.getElementById('connInfo').style.color = 'var(--green)';
+  };
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'snapshot' && msg.data) {
+        renderConnBar(msg.data);
+        // 自动更新服务器礼物缓存
+        if (msg.data.gifts && Array.isArray(msg.data.gifts.recent)) {
+          for (const g of msg.data.gifts.recent) {
+            if (!serverGiftCache.find(s => s.id === g.id)) {
+              serverGiftCache.push(g);
+            }
+          }
+          // 限制缓存大小
+          if (serverGiftCache.length > 500) serverGiftCache = serverGiftCache.slice(-300);
+        }
+      }
+    } catch(e) {}
+  };
+  ws.onclose = () => {
+    document.getElementById('connInfo').textContent = 'WebSocket 断开 · 重新连接中';
+    document.getElementById('connInfo').style.color = 'var(--yellow)';
+    setTimeout(connectWs, 2000);
+  };
+  ws.onerror = () => ws.close();
+}
+
+async function fetchConnBar() {
+  try {
+    const resp = await fetch('/api/state');
+    const json = await resp.json();
+    if (json.ok) renderConnBar(json.data);
+  } catch(e) {}
+}
+
+function renderConnBar(state) {
+  const live = state.liveStatus || {};
+  const diag = state.bilibiliDiagnostics || {};
+  const connected = live.connected;
+  document.getElementById('connBar').innerHTML = `
+    <span class="dot ${connected ? 'live' : 'dead'}"></span>
+    <span style="font-weight:600;color:${connected ? 'var(--green)' : 'var(--red)'}">${connected ? '已连接' : '未连接'}</span>
+    <span class="hint">房间 ${escHtml(String(live.roomId || '—'))} · ${escHtml(live.mode || '—')}</span>
+    <span class="hint">已解析 ${diag.parsedGiftCount || 0} 条礼物 · 未识别 ${diag.unparsedGiftCount || 0} 条</span>
+    <span class="hint">收包 ${escHtml((diag.lastPacketAt || '').slice(11, 19) || '—')}</span>
+    <a href="/admin" target="_blank" style="color:var(--blue);text-decoration:none;margin-left:auto">⚙️ 管理</a>
+    <a href="/debug-gifts" target="_blank" style="color:var(--blue);text-decoration:none">🔍 诊断</a>
+  `;
+}
+
+// ── 时间工具 ──
+function setTimeNow() {
+  const now = new Date();
+  document.getElementById('captureTime').value = toLocalDateTime(now);
+}
+function setTime1MinAgo() {
+  const d = new Date(Date.now() - 60000);
+  document.getElementById('captureTime').value = toLocalDateTime(d);
+}
+function setTime5MinAgo() {
+  const d = new Date(Date.now() - 300000);
+  document.getElementById('captureTime').value = toLocalDateTime(d);
+}
+function toLocalDateTime(date) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// ── 气泡 HTML 解析 ──
+function parseBubbleHtml(html) {
+  const results = [];
+  // 匹配每个 super-gift-item
+  const itemRegex = /<div[^>]*class="[^"]*super-gift-item[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*super-gift-item[^"]*"|$)/g;
+  let match;
+
+  // 也尝试匹配 gift-item（非 super 的普通气泡）
+  const allItems = [];
+  const giftItemRegex = /<div[^>]*class="[^"]*(?:super-)?gift-item[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*(?:super-)?gift-item[^"]*"|<\/div>\s*<\/div>\s*$)/g;
+  while ((match = giftItemRegex.exec(html)) !== null) {
+    allItems.push(match[1] || match[0]);
+  }
+
+  // 如果上述正则没匹配到，尝试按 user-name 分段
+  if (allItems.length === 0) {
+    const segments = html.split(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>/);
+    for (let i = 1; i < segments.length; i++) {
+      const seg = segments[i];
+      const userName = (seg.match(/^([^<]+)/) || ['',''])[1].trim();
+      const giftNameMatch = seg.match(/<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/);
+      const giftName = giftNameMatch ? giftNameMatch[1].trim() : '';
+      const giftFrameMatch = seg.match(/gift-(\d+)-\d+/);
+      const giftId = giftFrameMatch ? giftFrameMatch[1] : '';
+
+      // 解析连击数字
+      let comboCount = 1;
+      const numbersMatch = seg.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+      if (numbersMatch) {
+        const digits = [];
+        const digitRegex = /number-(\d)/g;
+        let dMatch;
+        while ((dMatch = digitRegex.exec(numbersMatch[1])) !== null) {
+          digits.push(dMatch[1]);
+        }
+        if (digits.length > 0) comboCount = parseInt(digits.join(''), 10) || 1;
+      }
+
+      if (userName && giftName) {
+        results.push({ userName, giftName, giftId, comboCount });
+      }
+    }
+    return results;
+  }
+
+  for (const itemHtml of allItems) {
+    // 提取用户名
+    const userNameMatch = itemHtml.match(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/);
+    const userName = userNameMatch ? userNameMatch[1].trim() : '';
+
+    // 提取礼物名
+    const giftNameMatch = itemHtml.match(/<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/);
+    const giftName = giftNameMatch ? giftNameMatch[1].trim() : '';
+
+    // 提取 gift ID（从 gift-XXXXX-50 格式）
+    const giftFrameMatch = itemHtml.match(/gift-(\d+)-\d+/);
+    const giftId = giftFrameMatch ? giftFrameMatch[1] : '';
+
+    // 提取连击数
+    let comboCount = 1;
+    const numbersMatch = itemHtml.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    if (numbersMatch) {
+      const digits = [];
+      const digitRegex = /number-(\d)/g;
+      let dMatch;
+      while ((dMatch = digitRegex.exec(numbersMatch[1])) !== null) {
+        digits.push(dMatch[1]);
+      }
+      if (digits.length > 0) comboCount = parseInt(digits.join(''), 10) || 1;
+    }
+
+    if (userName && giftName) {
+      // 去重：相同用户+相同礼物+相同连击数视为同一条
+      const dup = results.find(r =>
+        r.userName === userName && r.giftName === giftName && r.comboCount === comboCount
+      );
+      if (!dup) {
+        results.push({ userName, giftName, giftId, comboCount });
+      }
+    }
+  }
+  return results;
+}
+
+// ── 从服务器拉取礼物 ──
+async function fetchServerGifts() {
+  const btn = document.getElementById('btnFetchServer');
+  const status = document.getElementById('serverStatus');
+  btn.disabled = true;
+  status.textContent = '加载中...';
+  try {
+    const resp = await fetch('/api/state');
+    const json = await resp.json();
+    if (!json.ok) throw new Error(json.error || 'Failed');
+    const gifts = json.data.gifts || {};
+    const recent = Array.isArray(gifts.recent) ? gifts.recent : [];
+    // 合并到缓存
+    for (const g of recent) {
+      if (!serverGiftCache.find(s => s.id === g.id)) {
+        serverGiftCache.push(g);
+      }
+    }
+    status.textContent = `已加载 ${recent.length} 条（缓存共 ${serverGiftCache.length} 条）`;
+    status.style.color = 'var(--green)';
+    renderServerTable(recent);
+  } catch(e) {
+    status.textContent = '加载失败: ' + e.message;
+    status.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── 主流程：解析并对比 ──
+async function parseAndCompare() {
+  const html = document.getElementById('bubbleHtml').value.trim();
+  if (!html) {
+    showToast('请先粘贴气泡 HTML', 'warn');
+    return;
+  }
+
+  // 解析气泡
+  bubbleGifts = parseBubbleHtml(html);
+  document.getElementById('bubbleCount').textContent = bubbleGifts.length + ' 条';
+  renderBubbleTable(bubbleGifts);
+
+  // 确保有服务器数据
+  if (serverGiftCache.length === 0) {
+    await fetchServerGifts();
+  }
+
+  // 执行对比
+  const captureTimeStr = document.getElementById('captureTime').value;
+  const captureTime = captureTimeStr ? new Date(captureTimeStr).getTime() : Date.now();
+
+  comparisonResults = crossReference(bubbleGifts, serverGiftCache, captureTime);
+  renderComparison(comparisonResults);
+  updateStats();
+
+  document.getElementById('comparisonSection').style.display = 'block';
+  document.getElementById('statsRow').style.display = 'flex';
+
+  // 滚动到对比结果
+  document.getElementById('comparisonSection').scrollIntoView({ behavior: 'smooth' });
+
+  const missed = comparisonResults.filter(r => r.status === 'miss').length;
+  if (missed > 0) {
+    showToast(`⚠️ 发现 ${missed} 条疑似漏记礼物`, 'warn');
+  } else {
+    showToast('✅ 所有气泡礼物均在 WebSocket 中有记录', 'ok');
+  }
+}
+
+// ── 交叉对比引擎 ──
+function crossReference(bubbles, servers, captureTimeMs) {
+  const results = [];
+  const serverMatched = new Set();
+  const TIME_WINDOW_MS = 5 * 60 * 1000; // 5分钟时间窗口
+
+  for (const bubble of bubbles) {
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (let i = 0; i < servers.length; i++) {
+      if (serverMatched.has(i)) continue;
+      const server = servers[i];
+
+      // 计算匹配分数
+      let score = 0;
+
+      // 用户名匹配（模糊）
+      const bubbleUser = normalizeName(bubble.userName);
+      const serverUser = normalizeName(server.user_name || '');
+      if (bubbleUser === serverUser) {
+        score += 40;
+      } else if (bubbleUser.includes(serverUser) || serverUser.includes(bubbleUser)) {
+        score += 25;
+      } else {
+        // 计算字符重叠度
+        const overlap = charOverlap(bubbleUser, serverUser);
+        if (overlap > 0.7) score += 15;
+        else if (overlap > 0.5) score += 8;
+        else continue; // 用户名完全不匹配，跳过
+      }
+
+      // 礼物名匹配
+      const bubbleGift = normalizeName(bubble.giftName);
+      const serverGift = normalizeName(server.gift_name || '');
+      if (bubbleGift === serverGift) {
+        score += 40;
+      } else if (bubbleGift.includes(serverGift) || serverGift.includes(bubbleGift)) {
+        score += 30;
+      } else {
+        const overlap = charOverlap(bubbleGift, serverGift);
+        if (overlap > 0.7) score += 20;
+        else if (overlap > 0.5) score += 10;
+        else continue; // 礼物名完全不匹配
+      }
+
+      // Gift ID 匹配（精确）
+      if (bubble.giftId && String(server.gift_id || '') === bubble.giftId) {
+        score += 15;
+      }
+
+      // 连击数匹配
+      if (bubble.comboCount > 0 && Number(server.num || 1) === bubble.comboCount) {
+        score += 10;
+      } else if (Math.abs(Number(server.num || 1) - bubble.comboCount) <= 2) {
+        score += 5;
+      }
+
+      // 时间接近度加分
+      if (server.created_at) {
+        const serverTime = new Date(server.created_at).getTime();
+        const timeDiff = Math.abs(serverTime - captureTimeMs);
+        if (timeDiff < TIME_WINDOW_MS) {
+          score += Math.round((1 - timeDiff / TIME_WINDOW_MS) * 10);
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = { serverIndex: i, server, score };
+      }
+    }
+
+    if (bestMatch && bestScore >= 50) {
+      serverMatched.add(bestMatch.serverIndex);
+      results.push({
+        source: 'bubble',
+        userName: bubble.userName,
+        giftName: bubble.giftName,
+        giftId: bubble.giftId,
+        count: bubble.comboCount,
+        price: bestMatch.server.total_price || 0,
+        matchInfo: `匹配: ${bestMatch.server.user_name || '?'} · ${bestMatch.server.gift_name || '?'} · 分数=${bestMatch.score}`,
+        status: 'match',
+        serverId: bestMatch.server.id
+      });
+    } else {
+      results.push({
+        source: 'bubble',
+        userName: bubble.userName,
+        giftName: bubble.giftName,
+        giftId: bubble.giftId,
+        count: bubble.comboCount,
+        price: 0,
+        matchInfo: bestMatch ? `最佳候选: ${bestMatch.server.user_name || '?'} · 分数=${bestMatch.score} (不足50)` : '无匹配候选项',
+        status: 'miss'
+      });
+    }
+  }
+
+  // 未匹配的服务器记录（气泡中没有的）
+  for (let i = 0; i < servers.length; i++) {
+    if (!serverMatched.has(i)) {
+      const s = servers[i];
+      results.push({
+        source: 'server',
+        userName: s.user_name || '观众',
+        giftName: s.gift_name || '未知',
+        giftId: String(s.gift_id || ''),
+        count: s.num || 1,
+        price: s.total_price || 0,
+        matchInfo: `WebSocket 记录 · ${(s.created_at || '').slice(11, 19)}`,
+        status: 'extra'
+      });
+    }
+  }
+
+  return results;
+}
+
+function normalizeName(name) {
+  return (name || '').trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function charOverlap(a, b) {
+  if (!a || !b) return 0;
+  const setA = new Set(a.split(''));
+  const setB = new Set(b.split(''));
+  let overlap = 0;
+  for (const c of setA) { if (setB.has(c)) overlap++; }
+  return overlap / Math.max(setA.size, setB.size);
+}
+
+// ── 渲染 ──
+function renderBubbleTable(gifts) {
+  const tbody = document.getElementById('bubbleTableBody');
+  if (gifts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">未解析到礼物（请检查 HTML 格式）</td></tr>';
+    return;
+  }
+  tbody.innerHTML = gifts.map((g, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><span class="user-name-display">${escHtml(g.userName)}</span></td>
+      <td><span class="gift-name-display">${escHtml(g.giftName)}</span><br><span class="gift-id">ID:${escHtml(g.giftId || '?')}</span></td>
+      <td>×${g.comboCount}</td>
+      <td><span class="badge badge-info">气泡</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('bubbleCount').textContent = gifts.length + ' 条';
+}
+
+function renderServerTable(gifts) {
+  serverGifts = gifts;
+  const tbody = document.getElementById('serverTableBody');
+  if (gifts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无 WebSocket 记录</td></tr>';
+    return;
+  }
+  tbody.innerHTML = gifts.map((g, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${(g.created_at || '').slice(11, 19)}</td>
+      <td><span class="user-name-display">${escHtml(g.user_name || '观众')}</span></td>
+      <td><span class="gift-name-display">${escHtml(g.gift_name || '未知')}</span><br><span class="gift-id">ID:${escHtml(g.gift_id || '?')}</span></td>
+      <td>×${g.num || 1}</td>
+      <td>¥${(g.total_price || 0).toFixed(2)}</td>
+      <td><span class="badge badge-info">WS</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('serverCount').textContent = gifts.length + ' 条';
+}
+
+function renderComparison(results) {
+  const tbody = document.getElementById('comparisonBody');
+  if (results.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">无对比数据</td></tr>';
+    return;
+  }
+
+  // 按状态排序：漏记优先
+  const sorted = [...results].sort((a, b) => {
+    const order = { miss: 0, extra: 1, match: 2 };
+    return (order[a.status] || 3) - (order[b.status] || 3);
+  });
+
+  tbody.innerHTML = sorted.map((r, i) => {
+    let statusBadge, rowClass;
+    switch (r.status) {
+      case 'match':
+        statusBadge = '<span class="badge badge-match">✅ 匹配</span>';
+        rowClass = '';
+        break;
+      case 'miss':
+        statusBadge = '<span class="badge badge-miss">⚠️ 仅气泡</span>';
+        rowClass = 'diff-highlight';
+        break;
+      case 'extra':
+        statusBadge = '<span class="badge badge-extra">📡 仅WS</span>';
+        rowClass = 'row-fade';
+        break;
+      default:
+        statusBadge = '<span class="badge badge-info">—</span>';
+        rowClass = '';
+    }
+    return `
+      <tr class="${rowClass}">
+        <td>${i + 1}</td>
+        <td>${r.source === 'bubble' ? '💬 气泡' : '📡 WS'}</td>
+        <td><span class="user-name-display">${escHtml(r.userName)}</span></td>
+        <td>${escHtml(r.giftName)} <span class="gift-id">${r.giftId ? 'ID:' + escHtml(r.giftId) : ''}</span></td>
+        <td>×${r.count}</td>
+        <td>${r.price > 0 ? '¥' + Number(r.price).toFixed(2) : '—'}</td>
+        <td style="font-size:0.72rem;color:var(--text2)">${escHtml(r.matchInfo)}</td>
+        <td>${statusBadge}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function updateStats() {
+  const total = comparisonResults.length;
+  const match = comparisonResults.filter(r => r.status === 'match').length;
+  const miss = comparisonResults.filter(r => r.status === 'miss').length;
+  const extra = comparisonResults.filter(r => r.status === 'extra').length;
+
+  document.getElementById('statBubble').textContent = bubbleGifts.length;
+  document.getElementById('statServer').textContent = serverGiftCache.length;
+  document.getElementById('statMatch').textContent = match;
+  document.getElementById('statMiss').textContent = miss;
+  document.getElementById('statExtra').textContent = extra;
+  document.getElementById('statsRow').style.display = 'flex';
+}
+
+// ── 工具函数 ──
+function clearAll() {
+  document.getElementById('bubbleHtml').value = '';
+  bubbleGifts = [];
+  serverGifts = [];
+  comparisonResults = [];
+  document.getElementById('bubbleTableBody').innerHTML = '<tr><td colspan="5" class="empty-state">等待解析...</td></tr>';
+  document.getElementById('serverTableBody').innerHTML = '<tr><td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td></tr>';
+  document.getElementById('comparisonBody').innerHTML = '';
+  document.getElementById('comparisonSection').style.display = 'none';
+  document.getElementById('statsRow').style.display = 'none';
+  document.getElementById('bubbleCount').textContent = '0 条';
+  document.getElementById('serverCount').textContent = '0 条';
+}
+
+function loadExample() {
+  document.getElementById('bubbleHtml').value = `<!-- 示例：Bilibili 直播气泡 HTML -->
+<!-- 请替换为从 DevTools 复制的真实 .bubble-list outerHTML -->
+<div class="bubble-list">
+  <div class="super-gift-item">
+    <div class="user-name" title="示例用户A">示例用户A</div>
+    <span class="gift-name">粉丝团灯牌</span>
+    <div class="gift-frame gift-31164-50"></div>
+    <div class="combo-amount">
+      <span class="multiply"></span>
+      <div class="numbers">
+        <span class="number number-1"></span>
+        <span class="number number-5"></span>
+      </div>
+    </div>
+  </div>
+</div>`;
+  setTimeNow();
+  showToast('已加载示例，请替换为真实 HTML', 'ok');
+}
+
+function showToast(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || 'ok');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+function escHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = String(s ?? '');
+  return div.innerHTML;
+}
+
+// ── 启动 ──
+setTimeNow();
+connectWs();
+fetchConnBar();
+// 兜底轮询
+setInterval(() => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) fetchConnBar();
+}, 5000);
+</script>
+</body>
+</html>

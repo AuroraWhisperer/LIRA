@@ -1,5 +1,47 @@
 'use strict';
 
+// 判断字符是否为汉字（CJK Unified Ideographs + Extension A + Compatibility）
+function isCJK(c) {
+  const cp = c.codePointAt(0);
+  return (cp >= 0x4E00 && cp <= 0x9FFF)      // CJK Unified Ideographs
+      || (cp >= 0x3400 && cp <= 0x4DBF)      // CJK Extension A
+      || (cp >= 0xF900 && cp <= 0xFAFF);     // CJK Compatibility Ideographs
+}
+
+function extractKanaReadings(rawLyric) {
+  const text = String(rawLyric || '');
+  const kanaMatch = text.match(/\[kana:([^\]]+)\]/);
+  if (!kanaMatch) return null;
+  // 格式：1<読み1>1<読み2>... 分隔符为数字
+  return kanaMatch[1].split(/\d+/).filter(Boolean);
+}
+
+function mapKanaToLines(lines, kanaReadings) {
+  const result = new Map();
+  let readingIdx = 0;
+
+  for (const line of lines) {
+    const chars = [...line.text];
+    const lineKana = [];
+
+    for (const ch of chars) {
+      if (isCJK(ch)) {
+        if (readingIdx < kanaReadings.length) {
+          lineKana.push(kanaReadings[readingIdx]);
+          readingIdx++;
+        }
+      }
+    }
+
+    if (lineKana.length > 0) {
+      // 将汉字读音用空格连接，方便阅读
+      result.set(line.startMs, lineKana.join(' '));
+    }
+  }
+
+  return result;
+}
+
 function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   const lines = parseLrc(rawLyric);
   const translations = parseLrc(rawTranslation);
@@ -9,13 +51,24 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   const romaLines = parseLrc(rawRoma);
   const romaByStart = new Map(romaLines.map((line) => [line.startMs, line.text]));
 
-  return lines.map((line, index) => ({
-    ...line,
-    endMs: lines[index + 1] ? lines[index + 1].startMs : undefined,
-    translation: translationByStart.get(line.startMs) || '',
-    roma: romaByStart.get(line.startMs) || '',
-    words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : []
-  }));
+  // 提取 QQ 音乐 [kana:...] 标签中的假名注音
+  const kanaReadings = extractKanaReadings(rawLyric);
+  let kanaByLineStart = null;
+  if (kanaReadings && kanaReadings.length > 0) {
+    kanaByLineStart = mapKanaToLines(lines, kanaReadings);
+  }
+
+  return lines.map((line, index) => {
+    const romaFromApi = romaByStart.get(line.startMs) || '';
+    const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
+    return {
+      ...line,
+      endMs: lines[index + 1] ? lines[index + 1].startMs : undefined,
+      translation: translationByStart.get(line.startMs) || '',
+      roma: romaFromApi || kanaFromTag,
+      words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : []
+    };
+  });
 }
 
 function parseLrc(rawText) {

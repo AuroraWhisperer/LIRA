@@ -98,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (window.AdminApp.desktopLyric) window.AdminApp.desktopLyric.initDesktopLyricForm();
   if (window.AdminApp.metrics) window.AdminApp.metrics.initPerformanceMonitor();
+  if (window.AdminApp.gifts && window.AdminApp.gifts.initGiftHistoryDrawer) {
+    window.AdminApp.gifts.initGiftHistoryDrawer();
+  }
 
   // 网络和数据
   if (window.AdminApp.state) {

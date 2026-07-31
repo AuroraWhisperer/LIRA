@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS = {
   enableGiftBotFallback: 'true',
   giftBotNames: '_薯条bb,薯条bb',
   giftBotAliasMap: '',
-  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":["电影票","棉花糖","爱心抱枕","绮彩权杖","时空之站","神驹宝玺","浪漫城堡"]},{"name":"幸运盲盒","price":5,"outputs":["幸运泡泡","好运柚叶","星光铃铛","梦雾纸签","福灵小兽","星愿花园"]}]',
+  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":[{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}]},{"name":"幸运盲盒","price":5,"outputs":[{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}]}]',
   paused: 'false',
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
@@ -177,13 +177,66 @@ function migrateBlindBoxConfig(db) {
     SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'
   `).get();
   const value = (row && row.value) || '';
-  if (value.trim() !== '') return; // 用户已有配置，不覆盖
   const defaultConfig = DEFAULT_SETTINGS.giftBlindBoxConfig;
-  if (!defaultConfig) return;
+
+  // 空配置 → 写入新默认值
+  if (value.trim() === '') {
+    if (!defaultConfig) return;
+    const updatedAt = now();
+    db.prepare(`
+      UPDATE settings SET value = ?, updated_at = ? WHERE key = 'giftBlindBoxConfig'
+    `).run(defaultConfig, updatedAt);
+    return;
+  }
+
+  // 旧格式迁移：如果 outputs 中所有条目都是纯字符串（无独立价格），自动升级为新格式
+  let config;
+  try {
+    config = JSON.parse(value);
+    if (!Array.isArray(config)) return;
+  } catch (_) {
+    return;
+  }
+
+  let needsUpgrade = false;
+  for (const box of config) {
+    const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
+    for (const output of outputs) {
+      if (typeof output === 'string') {
+        needsUpgrade = true;
+        break;
+      }
+    }
+    if (needsUpgrade) break;
+  }
+
+  if (!needsUpgrade) return;
+
+  // 用已知默认价格映射升级
+  const knownPrices = {
+    '心动盲盒': { '电影票': 2, '棉花糖': 9, '爱心抱枕': 16, '绮彩权杖': 40, '时空之站': 100, '神驹宝玺': 200, '浪漫城堡': 2233 },
+    '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 }
+  };
+
+  for (const box of config) {
+    const boxName = (box && box.name) || '';
+    const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
+    const priceMap = knownPrices[boxName] || {};
+    box.outputs = outputs.map(output => {
+      if (typeof output === 'object' && output !== null) return output; // 已经是对象格式
+      const name = String(output);
+      const giftPrice = priceMap[name];
+      if (giftPrice !== undefined && giftPrice > 0) {
+        return { name, price: giftPrice };
+      }
+      return output; // 未知价格，保留原字符串
+    });
+  }
+
   const updatedAt = now();
   db.prepare(`
     UPDATE settings SET value = ?, updated_at = ? WHERE key = 'giftBlindBoxConfig'
-  `).run(defaultConfig, updatedAt);
+  `).run(JSON.stringify(config), updatedAt);
 }
 
 module.exports = {

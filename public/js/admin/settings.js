@@ -151,7 +151,18 @@
       if (isNaN(price) || price < 0) { toast('请输入有效成本'); return; }
       if (!outputsRaw) { toast('请输入可能开出的礼物'); return; }
 
-      const outputs = outputsRaw.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const outputs = outputsRaw.split(/[,，]/).map(s => s.trim()).filter(Boolean).map(s => {
+        // 支持 "礼物名" 或 "礼物名:价格" 两种格式
+        const colonIdx = s.lastIndexOf(':');
+        if (colonIdx > 0) {
+          const giftName = s.slice(0, colonIdx).trim();
+          const giftPrice = parseFloat(s.slice(colonIdx + 1).trim());
+          if (giftName && !isNaN(giftPrice) && giftPrice > 0) {
+            return { name: giftName, price: giftPrice };
+          }
+        }
+        return s; // 纯名称，无独立价格
+      });
       if (outputs.length === 0) { toast('请输入可能开出的礼物'); return; }
 
       // 读取现有配置
@@ -291,11 +302,6 @@
     document.getElementById('clearAllBtn').addEventListener('click', clearAll);
     document.getElementById('shutdownBtn').addEventListener('click', shutdownServer);
     document.getElementById('reconnectBtn').addEventListener('click', reconnectBilibili);
-    document.getElementById('giftProtocolCheckBtn').addEventListener('click', () => {
-      if (window.AdminApp.gifts && window.AdminApp.gifts.checkGiftProtocol) {
-        window.AdminApp.gifts.checkGiftProtocol();
-      }
-    });
 
     if (window.songAssistantDesktop) {
       const minBtn = document.getElementById('winMinBtn');

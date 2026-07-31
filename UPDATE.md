@@ -1,8 +1,24 @@
 # 打包与更新说明
 
-当前版本：`1.5.1`
+当前版本：`1.5.2`
 
 ---
+
+## v1.5.2 变更
+
+- 📊 **礼物审计页面**：新增 `public/gift-audit.html` 礼物对账/审计页面，支持礼物流水查询、收支核对、异常检测等功能。
+- 🛡️ **大航海图标资源**：新增提督/总督/舰长图标（`bilibili-guard-*.png`），提升大航海礼物展示效果。
+- 🔌 **Electron 本地媒体协议**：新增 `local-media://` 自定义协议，支持本地音频文件直接播放；新增预关闭 flush 钩子，确保渲染进程播放状态在服务端关闭前持久化。
+- 🎁 **礼物服务重大修复**：
+  - Combo 缓冲区数值修复：`SEND_GIFT` 合并时改用 `Math.max` 而非累加，避免 Bilibili 发送递增 `combo_num` 时的数值膨胀问题。
+  - 网络乱序修复：新增 `findRecentComboSendForBuffer` 处理 `COMBO_SEND` 比 `SEND_GIFT` 先到达 WebSocket 的竞态场景。
+- 🎬 **播放器大幅增强**：`playback.js`（+153 行）、`local/manager.js`、`ui/fullscreen.js`（+61 行）、`ui/drawer.js`、`ui/components.js`、`ui/playback-bar.js`、`utils.js` 多处优化和功能增强。
+- 🖥️ **管理后台优化**：`admin.html`（+110 行）、`gifts.js`（+296 行）、`main.js`、`queue.js`、`settings.js`、`songs.js` 功能增强。
+- 🎨 **CSS 重构**：`styles-admin.css`（+442 行）大幅扩展，`styles-playback.css` 清理冗余。
+- ⚡ **Electron 主进程增强**：`main.js`（+148 行）新增本地媒体协议、预关闭钩子等；`preload.js` 增强。
+- 🎵 **歌词与歌曲服务优化**：`lyrics.js`（+67 行）、`song-service.js` 改进。
+- 🗄️ **存储层优化**：`database.js`、`schema.js`、`settings-store.js`（+61 行）增强。
+- 🧹 **清理**：移除过期的 `blivedm-compat.js`、`blivedm-runtime.js` 兼容层。
 
 ## v1.5.1 变更
 

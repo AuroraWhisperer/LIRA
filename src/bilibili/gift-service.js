@@ -35,16 +35,27 @@ function extractComboRootKey(platformId) {
 function mergeIntoComboBuffer(context, gift, comboKey) {
   const pending = context.state.giftComboPending.get(comboKey);
   if (pending) {
-    pending.gift.num += gift.num;
-    pending.gift.totalPrice = normalizeMoney(pending.gift.totalPrice + gift.totalPrice);
+    // 使用 Math.max 而非累加，避免 Bilibili 发送递增 combo_num 时数值膨胀
+    pending.gift.num = Math.max(pending.gift.num, gift.num);
+    pending.gift.totalPrice = Math.max(pending.gift.totalPrice, gift.totalPrice);
     pending.gift.unitPrice = pending.gift.num > 0
       ? normalizeMoney(pending.gift.totalPrice / pending.gift.num)
       : gift.unitPrice;
     pending.gift.createdAt = gift.createdAt;
     pending.gift.platformId = gift.platformId;
+    pending.gift.cmd = gift.cmd;
     pending.gift.rawJson = gift.rawJson;
     pending.createdAtMs = Date.now();
   } else {
+    // 检查是否已有 COMBO_SEND 先入库（网络乱序：COMBO_SEND 比 SEND_GIFT 先到）
+    const existingComboSend = findRecentComboSendForBuffer(context, comboKey, gift);
+    if (existingComboSend) {
+      // 直接在已有 COMBO_SEND 记录上合并 SEND_GIFT 的补充信息，不再缓冲
+      updateGiftEventIfProgressed(context, existingComboSend, gift);
+      // 标记已合并，避免后续 flushStaleComboBuffers 重复插入
+      context.state.giftComboPending.set(comboKey, { gift, createdAtMs: Date.now(), mergedIntoExisting: true });
+      return;
+    }
     context.state.giftComboPending.set(comboKey, { gift, createdAtMs: Date.now() });
   }
 }
@@ -54,16 +65,51 @@ function flushStaleComboBuffers(context) {
   for (const [key, pending] of context.state.giftComboPending.entries()) {
     if (pending && pending.createdAtMs < cutoff) {
       context.state.giftComboPending.delete(key);
+      // 已经合并到已有 COMBO_SEND 的条目不需要再单独插入
+      if (pending.mergedIntoExisting) continue;
       // skipComboBuffer=true 避免再次缓冲
       addGiftEvent(context, pending.gift, true);
     }
   }
 }
 
+// 查找最近入库的 COMBO_SEND 记录，用于处理网络乱序
+// （COMBO_SEND 比 SEND_GIFT 先到达 WebSocket 的情况）
+function findRecentComboSendForBuffer(context, comboKey, gift) {
+  if (!comboKey || !gift) return null;
+  const createdAtMs = Date.parse(gift.createdAt) || Date.now();
+  const startIso = new Date(createdAtMs - GIFT_COMBO_PENDING_MAX_AGE_MS).toISOString();
+  const endIso = new Date(createdAtMs + 2000).toISOString();
+  // 按 comboKey（platform_id 前缀）和 uid/gift_id 匹配最近的 COMBO_SEND
+  const rows = context.db.giftDb.prepare(`
+    SELECT * FROM gift_events
+    WHERE status = 'active'
+      AND created_at BETWEEN ? AND ?
+      AND cmd LIKE 'COMBO_SEND%'
+      AND platform_id LIKE ?
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT 5
+  `).all(startIso, endIso, comboKey + '%');
+  if (rows.length === 0) return null;
+  // 优先匹配相同 uid 和 gift_id
+  const exact = rows.find(r =>
+    cleanText(r.uid) === cleanText(gift.uid) &&
+    cleanText(r.gift_id) === cleanText(gift.giftId)
+  );
+  return exact || rows[0];
+}
+
 // ── 盲盒匹配 ──
 
 // 从 giftBlindBoxConfig 解析盲盒配置，构建 gift_name → 盲盒信息的查找表
-// 配置格式：[{ "name": "星光盲盒", "price": 10, "outputs": ["心动卡", "星光"] }]
+// 配置格式：
+//   [{
+//     "name": "星光盲盒", "price": 10,
+//     "outputs": [
+//       "心动卡",                                  // 仅名称，实际价值 = 盲盒成本
+//       { "name": "星光", "price": 12 }            // 名称 + 实际价值
+//     ]
+//   }]
 function loadBlindBoxMap(context) {
   const settings = context.settings();
   const raw = cleanText(settings.giftBlindBoxConfig);
@@ -85,14 +131,21 @@ function loadBlindBoxMap(context) {
   const map = new Map();
   for (const box of configs) {
     const boxName = cleanText(box && box.name);
-    const price = normalizeMoney(box && box.price);
+    const boxPrice = normalizeMoney(box && box.price);
     const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
-    if (!boxName || price <= 0 || outputs.length === 0) continue;
-    for (const outputName of outputs) {
-      const key = cleanText(outputName);
+    if (!boxName || boxPrice <= 0 || outputs.length === 0) continue;
+    for (const output of outputs) {
+      let key, giftPrice;
+      if (typeof output === 'object' && output !== null) {
+        key = cleanText(output.name);
+        giftPrice = normalizeMoney(output.price) || null;
+      } else {
+        key = cleanText(String(output));
+        giftPrice = null; // 无独立价格时回退用盲盒成本
+      }
       if (!key) continue;
       // 同一个礼物名可能出现在多个盲盒，后者覆盖前者
-      map.set(key, { blindBoxName: boxName, price });
+      map.set(key, { blindBoxName: boxName, boxPrice, giftPrice });
     }
   }
 
@@ -124,7 +177,14 @@ function addGiftEvent(context, input, skipComboBuffer) {
     const comboKey = extractComboRootKey(gift.platformId);
     const cmd = cleanText(gift.cmd);
     if (comboKey && cmd.startsWith('COMBO_SEND')) {
-      // 连击结束信号：清除缓冲，COMBO_SEND 自身作为最终记录插入
+      // 连击结束信号：将缓冲中的 SEND_GIFT 数据合并到 COMBO_SEND
+      const pending = context.state.giftComboPending.get(comboKey);
+      if (pending) {
+        // 使用缓冲中累积的较大值
+        gift.num = Math.max(gift.num, pending.gift.num);
+        gift.totalPrice = Math.max(gift.totalPrice, pending.gift.totalPrice);
+        if (gift.num > 0) gift.unitPrice = normalizeMoney(gift.totalPrice / gift.num);
+      }
       context.state.giftComboPending.delete(comboKey);
     } else if (comboKey) {
       // 连击中的单次 SEND_GIFT：缓冲并累积
@@ -140,7 +200,12 @@ function addGiftEvent(context, input, skipComboBuffer) {
     if (matchedBox) {
       gift.isBlindBox = true;
       gift.blindBoxName = matchedBox.blindBoxName;
-      gift.blindBoxPrice = normalizeMoney(matchedBox.price * gift.num);
+      gift.blindBoxPrice = normalizeMoney(matchedBox.boxPrice * gift.num);
+      // 如果配置了礼物的实际价值，用它覆盖协议的 totalPrice（协议发的是盲盒成本价）
+      if (matchedBox.giftPrice !== null && matchedBox.giftPrice !== undefined && matchedBox.giftPrice > 0) {
+        gift.totalPrice = normalizeMoney(matchedBox.giftPrice * gift.num);
+        gift.unitPrice = matchedBox.giftPrice;
+      }
       gift.blindProfit = normalizeSignedMoney(gift.totalPrice - gift.blindBoxPrice);
     }
   }
@@ -331,18 +396,37 @@ function getGiftSnapshot(context) {
   return { recent };
 }
 
+function getGiftHistory(context, options = {}) {
+  flushStaleComboBuffers(context);
+  const giftDb = context.db.giftDb;
+  const limit = Math.min(100, Math.max(1, Math.floor(Number(options.limit) || 50)));
+  const page = Math.max(1, Math.floor(Number(options.page) || 1));
+
+  const totalRow = giftDb.prepare(`
+    SELECT COUNT(*) AS count
+    FROM gift_events
+    WHERE status = 'active' AND total_price > 0
+  `).get() || {};
+  const total = Number(totalRow.count || 0);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+
+  const items = giftDb.prepare(`
+    SELECT * FROM gift_events
+    WHERE status = 'active' AND total_price > 0
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT ? OFFSET ?
+  `).all(limit, (safePage - 1) * limit).map(normalizeGiftRow);
+
+  return { items, total, page: safePage, limit, totalPages };
+}
+
 function getGiftSprintSnapshot(context) {
   const settings = context.settings();
   const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
   const row = context.db.giftDb.prepare(`
     SELECT
-      COALESCE(SUM(
-        CASE
-          WHEN is_blind_box = 1 AND blind_box_price IS NOT NULL AND blind_box_price > 0
-            THEN blind_box_price
-          ELSE total_price
-        END
-      ), 0) AS receivedRmb,
+      COALESCE(SUM(total_price), 0) AS receivedRmb,
       COUNT(*) AS countedGiftCount
     FROM gift_events
     WHERE status = 'active' AND counted_in_sprint = 1
@@ -359,6 +443,30 @@ function getGiftSprintSnapshot(context) {
     remainingCrystalBalls: Math.ceil(remainingRmb / CRYSTAL_BALL_VALUE_RMB),
     countedGiftCount: Number(row.countedGiftCount || 0)
   };
+}
+
+// ── 礼物查询 ──
+
+function searchGifts(context, { from, to, limit = 100 }) {
+  // 先清理超时缓冲
+  flushStaleComboBuffers(context);
+  const giftDb = context.db.giftDb;
+  let sql = `SELECT * FROM gift_events WHERE status = 'active' AND total_price > 0`;
+  const params = [];
+
+  if (from) {
+    sql += ` AND created_at >= ?`;
+    params.push(from);
+  }
+  if (to) {
+    sql += ` AND created_at <= ?`;
+    params.push(to);
+  }
+
+  sql += ` ORDER BY datetime(created_at) DESC, id DESC LIMIT ?`;
+  params.push(Math.min(limit, 500));
+
+  return giftDb.prepare(sql).all(...params).map(normalizeGiftRow);
 }
 
 // ── 盲盒盈亏统计 ──
@@ -448,7 +556,7 @@ function normalizeGiftRow(row) {
     blind_box_price: blindBoxPrice,
     blind_profit: row.blind_profit === null || row.blind_profit === undefined ? null : normalizeSignedMoney(row.blind_profit),
     counted_in_sprint: Boolean(row.counted_in_sprint),
-    sprint_count_price: Boolean(row.is_blind_box) && blindBoxPrice !== null ? blindBoxPrice : totalPrice
+    sprint_count_price: totalPrice
   };
 }
 
@@ -737,8 +845,10 @@ module.exports = {
   handleGiftBotDanmaku,
   resetGiftSprintProgress,
   getGiftSnapshot,
+  getGiftHistory,
   getGiftSprintSnapshot,
   getBlindBoxStats,
+  searchGifts,
   normalizeGiftRow,
   normalizeGiftInput
 };

@@ -151,7 +151,8 @@ export function renderQueueRow(track, origin, index, readonly, currentTrack, cur
 
   const isLocal = PlaybackUtils.isLocalTrack(track);
   const needsFile = isLocal && !track.objectUrl;
-  const meta = `${PlaybackUtils.formatTrackMeta(track)}${needsFile ? ' · 需重新选择文件' : ''}`;
+  const fileMissing = isLocal && track.fileMissing;
+  const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : (needsFile ? ' · 需重新选择文件' : '')}`;
   const isActive = origin === currentOrigin && currentTrack && track.id === currentTrack.id;
 
   return `
@@ -185,7 +186,8 @@ export function renderPlaylistRow(track, index, isCurrent, isPast) {
 
   const isLocal = PlaybackUtils.isLocalTrack(track);
   const needsFile = isLocal && !track.objectUrl;
-  const meta = `${PlaybackUtils.formatTrackMeta(track)}${needsFile ? ' · 需重新选择文件' : ''}`;
+  const fileMissing = isLocal && track.fileMissing;
+  const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : (needsFile ? ' · 需重新选择文件' : '')}`;
   const stateClass = isCurrent ? ' playlist-current' : (isPast ? ' playlist-past' : '');
   const btnLabel = isCurrent ? '重播' : '播放';
 
