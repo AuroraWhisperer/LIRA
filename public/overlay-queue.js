@@ -1,9 +1,10 @@
 // 编写人：Aurora
-// 当前项目版本：1.1.1
+// 当前项目版本：1.4.6
 'use strict';
 
 let state = null;
 let reconnectTimer = null;
+let reconnectAttempts = 0;
 let forceReloadTimer = null;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
@@ -13,11 +14,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadState() {
-  const response = await fetch('/api/state');
-  const payload = await response.json();
-  if (payload.ok) {
-    state = payload.data;
-    render();
+  try {
+    const response = await fetch('/api/state');
+    const payload = await response.json();
+    if (payload.ok) {
+      state = payload.data;
+      render();
+    }
+  } catch (error) {
+    console.warn('[overlay-queue] loadState failed:', error.message || error);
   }
 }
 
@@ -27,6 +32,7 @@ function connectSocket() {
 
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);
+    reconnectAttempts = 0;
   });
 
   socket.addEventListener('message', (event) => {
@@ -51,10 +57,12 @@ function connectSocket() {
   });
 
   socket.addEventListener('close', () => {
+    const delay = Math.min(30000, 800 * Math.pow(2, Math.min(reconnectAttempts, 6)));
+    reconnectAttempts += 1;
     reconnectTimer = setTimeout(() => {
       loadState();
       connectSocket();
-    }, 1600);
+    }, delay);
   });
 }
 

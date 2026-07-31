@@ -47,6 +47,8 @@ function handleWebSocketFrame(context, socket, buffer) {
   }
 }
 
+const MAX_FRAME_BYTES = 256 * 1024; // 256 KB
+
 function readWebSocketPayload(buffer) {
   let length = buffer[1] & 0x7f;
   let offset = 2;
@@ -57,6 +59,9 @@ function readWebSocketPayload(buffer) {
     length = Number(buffer.readBigUInt64BE(offset));
     offset += 8;
   }
+
+  if (!Number.isFinite(length) || length < 0 || length > MAX_FRAME_BYTES) return Buffer.alloc(0);
+  if (buffer.length < offset + length) return Buffer.alloc(0);
 
   const masked = Boolean(buffer[1] & 0x80);
   let mask;

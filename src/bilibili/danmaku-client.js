@@ -19,6 +19,7 @@ class BilibiliDanmakuClient {
     this.handlers = handlers;
     this.diagnostics = options.diagnostics || createEmptyDiagnostics();
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
+    this.messageBuffer = options.messageBuffer || null;
     this.stopped = true;
     this.reconnectTimer = null;
     this.startedAtMs = Date.now();
@@ -35,7 +36,8 @@ class BilibiliDanmakuClient {
       this.diagnostics,
       {
         runtimeGiftCommandPrefixes: this.runtimeGiftCommandPrefixes,
-        startedAtMs: this.startedAtMs
+        startedAtMs: this.startedAtMs,
+        messageBuffer: this.messageBuffer
       }
     );
     this.historyPoller = new HistoryPoller(

@@ -32,6 +32,35 @@ function guardLevelName(level) {
   return '';
 }
 
+// 硬编码的 Bilibili 大航海价格 (RMB)，用于 API 未返回价格时的回退值
+const HARDCODED_GUARD_PRICE_RMB = { 1: 19998, 2: 1998, 3: 198 };
+
+function getGuardPriceRmb(guardLevel) {
+  const level = Number(guardLevel);
+  return HARDCODED_GUARD_PRICE_RMB[level] || 0;
+}
+
+// 从礼物名称 / 角色名称中反向检测大航海等级
+// 能处理 "舰长"、"提督"、"总督"、"Captain" 等变体
+function detectGuardLevelFromName(name) {
+  const text = cleanText(name).replace(/\s+/g, '').toLowerCase();
+  // 中文精准匹配（避免 "舰长" 误匹配 "开通舰长" 等变体）
+  if (text.includes('总督')) return 1;
+  if (text.includes('提督')) return 2;
+  if (text.includes('舰长')) return 3;
+  // 英文回退
+  if (text.includes('governor') || text.includes('viceroy')) return 1;
+  if (text.includes('admiral') || text.includes('commodore')) return 2;
+  if (text.includes('captain') || text.includes('commander')) return 3;
+  // 数字回退：Bilibili 有时直接给 "3" 之类
+  const numMatch = text.match(/^(\d)$/);
+  if (numMatch) {
+    const n = Number(numMatch[1]);
+    if ([1, 2, 3].includes(n)) return n;
+  }
+  return 0;
+}
+
 function buildBilibiliFallbackGiftId(packet, data) {
   return crypto.createHash('sha1')
     .update([
@@ -56,6 +85,8 @@ module.exports = {
   normalizeBilibiliGiftCoin,
   normalizeBilibiliCoinRmb,
   guardLevelName,
+  getGuardPriceRmb,
+  detectGuardLevelFromName,
   buildBilibiliFallbackGiftId,
   logUnparsedGiftLikeCommand
 };

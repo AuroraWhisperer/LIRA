@@ -30,7 +30,15 @@ function addGiftEvent(context, input) {
     const existing = giftDb.prepare('SELECT * FROM gift_events WHERE platform_id = ? LIMIT 1').get(gift.platformId);
     if (existing) {
       if (existing.status === 'deleted') return null;
-      return updateGiftEventIfProgressed(context, existing, gift);
+      // 同一 platformId（如 batch_combo_id）但不同用户 → 不同人的礼物，不应去重
+      const existingUid = cleanText(existing.uid);
+      const existingUser = cleanText(existing.user_name);
+      if ((existingUid && gift.uid && existingUid !== gift.uid) ||
+          (existingUser && gift.userName && existingUser !== gift.userName)) {
+        // 不同用户，跳过 platformId 去重，走正常插入
+      } else {
+        return updateGiftEventIfProgressed(context, existing, gift);
+      }
     }
   }
   const recentDuplicate = findRecentGiftCommandDuplicate(context, gift);

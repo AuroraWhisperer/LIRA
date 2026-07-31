@@ -1,0 +1,1759 @@
+{
+  "startedAt": "2026-07-31T11:46:02.964Z",
+  "roomId": "25614477",
+  "roomInfo": {
+    "room_id": 25614477,
+    "short_id": 0,
+    "uid": 507316149,
+    "need_p2p": 0,
+    "is_hidden": false,
+    "is_locked": false,
+    "is_portrait": false,
+    "live_status": 1,
+    "hidden_till": 0,
+    "lock_till": 0,
+    "encrypted": false,
+    "pwd_verified": false,
+    "live_time": 1785498158,
+    "room_shield": 0,
+    "is_sp": 0,
+    "special_type": 0
+  },
+  "danmuInfo": {
+    "host_list": [
+      {
+        "host": "zj-cn-live-comet.chat.bilibili.com",
+        "port": 2243,
+        "wss_port": 2245,
+        "ws_port": 2244
+      },
+      {
+        "host": "zj-cn-live-comet.chat.bilibili.com",
+        "port": 2243,
+        "wss_port": 2245,
+        "ws_port": 2244
+      },
+      {
+        "host": "zj-cn-live-comet.chat.bilibili.com",
+        "port": 2243,
+        "wss_port": 2245,
+        "ws_port": 2244
+      },
+      {
+        "host": "bd-gz-live-comet-14.chat.bilibili.com",
+        "port": 2243,
+        "wss_port": 2245,
+        "ws_port": 2244
+      },
+      {
+        "host": "bd-sz-live-comet-07.chat.bilibili.com",
+        "port": 2243,
+        "wss_port": 2245,
+        "ws_port": 2244
+      },
+      {
+        "host": "broadcastlv.chat.bilibili.com",
+        "port": 2243,
+        "wss_port": 2245,
+        "ws_port": 2244
+      }
+    ],
+    "token": "o3iHLdSuLA1zfzeKRgOybCfma0aDIFWr8XaTgKRKXcMCZI6TmGqiv6Kfvehj6xT6rNxec7FH5cpyuafGnizcj_ThG-ATJ1Ma7qBp1jmwZHRcgkgvDS89TKit6AB9RWy3PvAcwY-oyALVAUkXVgjqmpwmmRcFbZPYPBpQThNo9aOiK6Lfgc652TXPXP3o6VNHiRQHIwitM06PObUfAY6XybNkJc_eqZTaCnQVGzItD-_wGueZv2McPgv5O0L3Bu5Il3KuwrT7qatUwAeuRG8="
+  },
+  "messages": [
+    {
+      "index": 1,
+      "timestamp": "2026-07-31T11:46:11.167Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:3546721307069178:507316149:31164:1785498369.0859",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:3546721307069178:507316149:31164:1785498369.0859",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 3546721307069178,
+          "uname": "千棠棠棠棠"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:3546721307069178:507316149:31164:1785498369.0848",
+          "combo_num": 1,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 3546721307069178,
+          "uname": "千棠棠棠棠"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 84,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i0.hdslb.com/bfs/face/05fd8c179af8279dda75455fad824ceb48767012.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 2,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 2,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 31164,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 0,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 1,
+          "medal_color": 6126494,
+          "medal_color_border": 6126494,
+          "medal_color_end": 6126494,
+          "medal_color_start": 6126494,
+          "medal_level": 5,
+          "medal_name": "火火友",
+          "special": "",
+          "target_id": 403107461
+        },
+        "name_color": "",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46337383,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607160549691904",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/05fd8c179af8279dda75455fad824ceb48767012.jpg",
+            "is_mystery": false,
+            "name": "千棠棠棠棠",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/05fd8c179af8279dda75455fad824ceb48767012.jpg",
+              "name": "千棠棠棠棠"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": {
+            "color": 6126494,
+            "color_border": 6126494,
+            "color_end": 6126494,
+            "color_start": 6126494,
+            "guard_icon": "",
+            "guard_level": 0,
+            "honor_icon": "",
+            "id": 0,
+            "is_light": 1,
+            "level": 8,
+            "name": "花似锦",
+            "ruid": 507316149,
+            "score": 100,
+            "typ": 0,
+            "user_receive_count": 0,
+            "v2_medal_color_border": "#5762A799",
+            "v2_medal_color_end": "#5762A799",
+            "v2_medal_color_level": "#5762A7E6",
+            "v2_medal_color_start": "#5762A799",
+            "v2_medal_color_text": "#FFFFFF"
+          },
+          "title": null,
+          "uhead_frame": null,
+          "uid": 3546721307069178,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607160549691904",
+        "timestamp": 1785498369,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 3546721307069178,
+        "uname": "千棠棠棠棠",
+        "wealth_level": 4
+      },
+      "hasPb": false
+    },
+    {
+      "index": 2,
+      "timestamp": "2026-07-31T11:46:11.167Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:3707020899256943:507316149:31164:1785498369.3653",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:3707020899256943:507316149:31164:1785498369.3653",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 3707020899256943,
+          "uname": "茉绸白露"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:3707020899256943:507316149:31164:1785498369.3639",
+          "combo_num": 1,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 3707020899256943,
+          "uname": "茉绸白露"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 42,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i2.hdslb.com/bfs/face/501b4743cdc49129a45e989dc487a8d174d8bcac.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 1,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 1,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 31164,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 0,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 0,
+          "medal_color": 6126494,
+          "medal_color_border": 12632256,
+          "medal_color_end": 12632256,
+          "medal_color_start": 12632256,
+          "medal_level": 7,
+          "medal_name": "小咕露",
+          "special": "",
+          "target_id": 1007707792
+        },
+        "name_color": "",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46337383,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607161724088320",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i2.hdslb.com/bfs/face/501b4743cdc49129a45e989dc487a8d174d8bcac.jpg",
+            "is_mystery": false,
+            "name": "茉绸白露",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i2.hdslb.com/bfs/face/501b4743cdc49129a45e989dc487a8d174d8bcac.jpg",
+              "name": "茉绸白露"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 3707020899256943,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607161724088320",
+        "timestamp": 1785498369,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 3707020899256943,
+        "uname": "茉绸白露",
+        "wealth_level": 4
+      },
+      "hasPb": false
+    },
+    {
+      "index": 3,
+      "timestamp": "2026-07-31T11:46:11.167Z",
+      "cmd": "COMBO_SEND",
+      "data": {
+        "action": "投喂",
+        "batch_combo_id": "batch:gift:combo_id:3493079724066916:507316149:31164:1785498363.2914",
+        "batch_combo_num": 2,
+        "coin_type": "gold",
+        "combo_id": "gift:combo_id:3493079724066916:507316149:31164:1785498363.2904",
+        "combo_num": 2,
+        "combo_total_coin": 200,
+        "dmscore": 84,
+        "gift_id": 31164,
+        "gift_info": {
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_name": "粉丝团灯牌",
+        "gift_num": 0,
+        "group_medal": null,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_show": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 0,
+          "medal_color": 6067854,
+          "medal_color_border": 12632256,
+          "medal_color_end": 12632256,
+          "medal_color_start": 12632256,
+          "medal_level": 4,
+          "medal_name": "粉丝团",
+          "special": "",
+          "target_id": 20432063
+        },
+        "name_color": "",
+        "r_uname": "年锦i",
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "ruid": 507316149,
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i1.hdslb.com/bfs/face/8a47822f1cdce7ae34ea2562ac73dda673c49a4a.jpg",
+            "is_mystery": false,
+            "name": "銀欽",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i1.hdslb.com/bfs/face/8a47822f1cdce7ae34ea2562ac73dda673c49a4a.jpg",
+              "name": "銀欽"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": {
+            "color": 6126494,
+            "color_border": 6126494,
+            "color_end": 6126494,
+            "color_start": 6126494,
+            "guard_icon": "",
+            "guard_level": 0,
+            "honor_icon": "",
+            "id": 0,
+            "is_light": 1,
+            "level": 8,
+            "name": "花似锦",
+            "ruid": 507316149,
+            "score": 113,
+            "typ": 0,
+            "user_receive_count": 0,
+            "v2_medal_color_border": "#5762A799",
+            "v2_medal_color_end": "#5762A799",
+            "v2_medal_color_level": "#5762A7E6",
+            "v2_medal_color_start": "#5762A799",
+            "v2_medal_color_text": "#FFFFFF"
+          },
+          "title": null,
+          "uhead_frame": null,
+          "uid": 3493079724066916,
+          "wealth": null
+        },
+        "total_num": 2,
+        "uid": 3493079724066916,
+        "uname": "銀欽",
+        "wealth_level": 5
+      },
+      "hasPb": false
+    },
+    {
+      "index": 4,
+      "timestamp": "2026-07-31T11:46:11.167Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:1051725812:507316149:31164:1785498369.8065",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:1051725812:507316149:31164:1785498369.8065",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 1051725812,
+          "uname": "鸢尾rain"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:1051725812:507316149:31164:1785498369.8054",
+          "combo_num": 1,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 1051725812,
+          "uname": "鸢尾rain"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 140,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i2.hdslb.com/bfs/face/258795c5462a29d29efcb1741416ca1858a214c0.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 2,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 2,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 31164,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 0,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 1,
+          "medal_color": 13081892,
+          "medal_color_border": 13081892,
+          "medal_color_end": 13081892,
+          "medal_color_start": 13081892,
+          "medal_level": 17,
+          "medal_name": "花似锦",
+          "special": "",
+          "target_id": 507316149
+        },
+        "name_color": "",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46337383,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607163557009408",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i2.hdslb.com/bfs/face/258795c5462a29d29efcb1741416ca1858a214c0.jpg",
+            "is_mystery": false,
+            "name": "鸢尾rain",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i2.hdslb.com/bfs/face/258795c5462a29d29efcb1741416ca1858a214c0.jpg",
+              "name": "鸢尾rain"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": {
+            "color": 13081892,
+            "color_border": 13081892,
+            "color_end": 13081892,
+            "color_start": 13081892,
+            "guard_icon": "",
+            "guard_level": 0,
+            "honor_icon": "",
+            "id": 0,
+            "is_light": 1,
+            "level": 17,
+            "name": "花似锦",
+            "ruid": 507316149,
+            "score": 867,
+            "typ": 0,
+            "user_receive_count": 0,
+            "v2_medal_color_border": "#C770A499",
+            "v2_medal_color_end": "#C770A499",
+            "v2_medal_color_level": "#C770A4E6",
+            "v2_medal_color_start": "#C770A499",
+            "v2_medal_color_text": "#FFFFFF"
+          },
+          "title": null,
+          "uhead_frame": null,
+          "uid": 1051725812,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607163557009408",
+        "timestamp": 1785498369,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 1051725812,
+        "uname": "鸢尾rain",
+        "wealth_level": 7
+      },
+      "hasPb": false
+    },
+    {
+      "index": 5,
+      "timestamp": "2026-07-31T11:46:11.167Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:399780965:507316149:31164:1785498369.9370",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:399780965:507316149:31164:1785498369.9370",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 399780965,
+          "uname": "千灯星如唔"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:399780965:507316149:31164:1785498369.9356",
+          "combo_num": 1,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 399780965,
+          "uname": "千灯星如唔"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 112,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i2.hdslb.com/bfs/face/7947bab985f9e87d2ab042e1f650d86da819e7fc.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 2,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 2,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 31164,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 0,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 1,
+          "medal_color": 13081892,
+          "medal_color_border": 13081892,
+          "medal_color_end": 13081892,
+          "medal_color_start": 13081892,
+          "medal_level": 20,
+          "medal_name": "橙味羊",
+          "special": "",
+          "target_id": 382926563
+        },
+        "name_color": "",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46337383,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607164077044736",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i2.hdslb.com/bfs/face/7947bab985f9e87d2ab042e1f650d86da819e7fc.jpg",
+            "is_mystery": false,
+            "name": "千灯星如唔",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i2.hdslb.com/bfs/face/7947bab985f9e87d2ab042e1f650d86da819e7fc.jpg",
+              "name": "千灯星如唔"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": {
+            "color": 12478086,
+            "color_border": 12478086,
+            "color_end": 12478086,
+            "color_start": 12478086,
+            "guard_icon": "",
+            "guard_level": 0,
+            "honor_icon": "",
+            "id": 0,
+            "is_light": 1,
+            "level": 14,
+            "name": "花似锦",
+            "ruid": 507316149,
+            "score": 513,
+            "typ": 0,
+            "user_receive_count": 0,
+            "v2_medal_color_border": "#C770A499",
+            "v2_medal_color_end": "#C770A499",
+            "v2_medal_color_level": "#C770A4E6",
+            "v2_medal_color_start": "#C770A499",
+            "v2_medal_color_text": "#FFFFFF"
+          },
+          "title": null,
+          "uhead_frame": null,
+          "uid": 399780965,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607164077044736",
+        "timestamp": 1785498369,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 399780965,
+        "uname": "千灯星如唔",
+        "wealth_level": 8
+      },
+      "hasPb": false
+    },
+    {
+      "index": 6,
+      "timestamp": "2026-07-31T11:46:28.026Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:3546719176362427:507316149:34001:1785498385.9244",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:3546719176362427:507316149:34001:1785498385.9244",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 34001,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 3546719176362427,
+          "uname": "怙昙"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:3546719176362427:507316149:34001:1785498385.9234",
+          "combo_num": 1,
+          "gift_id": 34001,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 3546719176362427,
+          "uname": "怙昙"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 42,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i1.hdslb.com/bfs/face/9100c19eeaf7d012cf6ecff7267ee61aeeba376d.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 2,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 2,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 34001,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 0,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 0,
+          "medal_color": 0,
+          "medal_color_border": 0,
+          "medal_color_end": 0,
+          "medal_color_start": 0,
+          "medal_level": 0,
+          "medal_name": "",
+          "special": "",
+          "target_id": 0
+        },
+        "name_color": "",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46339181,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607231177555456",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i1.hdslb.com/bfs/face/9100c19eeaf7d012cf6ecff7267ee61aeeba376d.jpg",
+            "is_mystery": false,
+            "name": "怙昙",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i1.hdslb.com/bfs/face/9100c19eeaf7d012cf6ecff7267ee61aeeba376d.jpg",
+              "name": "怙昙"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 3546719176362427,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607231177555456",
+        "timestamp": 1785498385,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 3546719176362427,
+        "uname": "怙昙",
+        "wealth_level": 0
+      },
+      "hasPb": false
+    },
+    {
+      "index": 7,
+      "timestamp": "2026-07-31T11:46:35.824Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:1de3eb9a27109ebaea75b429675ed54b:507316149:31164:1785498393.8757",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:1de3eb9a27109ebaea75b429675ed54b:507316149:31164:1785498393.8757",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 0,
+          "uname": "你***"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:1de3eb9a27109ebaea75b429675ed54b:507316149:31164:1785498393.8743",
+          "combo_num": 1,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 0,
+          "uname": "你***"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 56,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i2.hdslb.com/bfs/face/524a91c7d4439d17eed18e1438bf0508721d5bb9.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 2,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 2,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 31164,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 3,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 0,
+          "icon_id": 0,
+          "is_lighted": 0,
+          "medal_color": 0,
+          "medal_color_border": 0,
+          "medal_color_end": 0,
+          "medal_color_start": 0,
+          "medal_level": 0,
+          "medal_name": "",
+          "special": "",
+          "target_id": 0
+        },
+        "name_color": "#00D1F1",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46339228,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607264509730304",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i2.hdslb.com/bfs/face/524a91c7d4439d17eed18e1438bf0508721d5bb9.jpg",
+            "is_mystery": false,
+            "name": "你***",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i2.hdslb.com/bfs/face/524a91c7d4439d17eed18e1438bf0508721d5bb9.jpg",
+              "name": "你***"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": {
+            "color": 398668,
+            "color_border": 6809855,
+            "color_end": 6850801,
+            "color_start": 398668,
+            "guard_icon": "https://i0.hdslb.com/bfs/live/fd26e0053f3d24672ffdabcb1f6d2545e26b1e33.png",
+            "guard_level": 3,
+            "honor_icon": "",
+            "id": 0,
+            "is_light": 1,
+            "level": 27,
+            "name": "花似锦",
+            "ruid": 507316149,
+            "score": 13382,
+            "typ": 0,
+            "user_receive_count": 0,
+            "v2_medal_color_border": "#5FC7F4",
+            "v2_medal_color_end": "#3FB4F699",
+            "v2_medal_color_level": "#3FB4F6E6",
+            "v2_medal_color_start": "#3FB4F699",
+            "v2_medal_color_text": "#FFFFFF"
+          },
+          "title": null,
+          "uhead_frame": null,
+          "uid": 0,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607264509730304",
+        "timestamp": 1785498393,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 0,
+        "uname": "你***",
+        "wealth_level": 19
+      },
+      "hasPb": false
+    },
+    {
+      "index": 8,
+      "timestamp": "2026-07-31T11:46:38.588Z",
+      "cmd": "USER_TOAST_MSG_V2",
+      "data": {
+        "sender_uinfo": {
+          "uid": 397220448,
+          "base": {
+            "name": "是个银类",
+            "face": ""
+          }
+        },
+        "receiver_uinfo": {
+          "uid": 507316149,
+          "base": {
+            "name": "年锦i",
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg"
+          }
+        },
+        "guard_info": {
+          "guard_level": 3,
+          "role_name": "舰长",
+          "room_guard_count": 3239,
+          "op_type": 2,
+          "start_time": 1785498397,
+          "end_time": 1785498397
+        },
+        "group_guard_info": null,
+        "pay_info": {
+          "payflow_id": "2607311946025392104487002",
+          "price": 168000,
+          "num": 1,
+          "unit": "月"
+        },
+        "gift_info": {
+          "gift_id": 10003
+        },
+        "effect_info": {
+          "effect_id": 5846,
+          "room_effect_id": 5851,
+          "face_effect_id": 44,
+          "room_gift_effect_id": 0,
+          "room_group_effect_id": 1337,
+          "ship_effect_id": 5851
+        },
+        "toast_msg": "<%是个银类%> 在主播年锦i的直播间开通了舰长，今天是TA陪伴主播的第31天",
+        "option": {
+          "anchor_show": true,
+          "user_show": true,
+          "is_group": 0,
+          "is_show": 0,
+          "source": 0,
+          "svga_block": 0,
+          "color": "#00D1F1"
+        }
+      },
+      "hasPb": false
+    },
+    {
+      "index": 9,
+      "timestamp": "2026-07-31T11:46:51.391Z",
+      "cmd": "USER_TOAST_MSG",
+      "data": {
+        "anchor_show": true,
+        "color": "#00D1F1",
+        "dmscore": 204,
+        "effect_id": 5846,
+        "end_time": 1785498410,
+        "face_effect_id": 44,
+        "gift_id": 10003,
+        "group_name": "",
+        "group_op_type": 0,
+        "group_role_name": "",
+        "guard_level": 3,
+        "is_group": 0,
+        "is_show": 0,
+        "num": 1,
+        "op_type": 2,
+        "payflow_id": "2607311946501162123310868",
+        "price": 168000,
+        "role_name": "舰长",
+        "room_effect_id": 5851,
+        "room_gift_effect_id": 0,
+        "room_group_effect_id": 1337,
+        "ship_effect_id": 5851,
+        "source": 0,
+        "start_time": 1785498410,
+        "svga_block": 0,
+        "target_guard_count": 3240,
+        "toast_msg": "<%雪见时雨_%> 在主播年锦i的直播间开通了舰长，今天是TA陪伴主播的第31天",
+        "uid": 2118472331,
+        "unit": "月",
+        "user_show": true,
+        "username": "雪见时雨_"
+      },
+      "hasPb": false
+    },
+    {
+      "index": 10,
+      "timestamp": "2026-07-31T11:46:59.204Z",
+      "cmd": "SEND_GIFT",
+      "data": {
+        "action": "投喂",
+        "bag_gift": null,
+        "batch_combo_id": "batch:gift:combo_id:5c1dda4c0b85b71358c8e621544ffbc8:507316149:31164:1785498416.9661",
+        "batch_combo_send": {
+          "action": "投喂",
+          "batch_combo_id": "batch:gift:combo_id:5c1dda4c0b85b71358c8e621544ffbc8:507316149:31164:1785498416.9661",
+          "batch_combo_num": 1,
+          "blind_gift": null,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 0,
+          "uname": "萌***"
+        },
+        "beatId": "",
+        "benefits": null,
+        "biz_source": "live",
+        "blind_gift": null,
+        "broadcast_id": 0,
+        "coin_type": "gold",
+        "combo_resources_id": 10,
+        "combo_send": {
+          "action": "投喂",
+          "combo_id": "gift:combo_id:5c1dda4c0b85b71358c8e621544ffbc8:507316149:31164:1785498416.9650",
+          "combo_num": 1,
+          "gift_id": 31164,
+          "gift_name": "粉丝团灯牌",
+          "gift_num": 1,
+          "send_master": null,
+          "uid": 0,
+          "uname": "萌***"
+        },
+        "combo_stay_time": 5,
+        "combo_total_coin": 100,
+        "crit_prob": 0,
+        "demarcation": 1,
+        "discount_price": 100,
+        "dmscore": 56,
+        "draw": 0,
+        "effect": 3,
+        "effect_block": 0,
+        "effect_config": null,
+        "face": "https://i2.hdslb.com/bfs/face/bd21b86565a09b6acabfbbbec889d597fac6f0ca.jpg",
+        "face_effect": {
+          "candidate_face_effects": [
+            {
+              "effect_id": 6036469,
+              "gender": 2,
+              "source": 2
+            },
+            {
+              "effect_id": 5632012,
+              "gender": 2,
+              "source": 1
+            }
+          ],
+          "face_effect_type": 1
+        },
+        "face_effect_id": 0,
+        "face_effect_type": 0,
+        "face_effect_v2": {
+          "id": 5632012,
+          "type": 1
+        },
+        "float_sc_resource_id": 0,
+        "giftId": 31164,
+        "giftName": "粉丝团灯牌",
+        "giftType": 0,
+        "gift_info": {
+          "effect_id": 0,
+          "gif": "https://i0.hdslb.com/bfs/live/816f8b7aa2132888fce928cdfb17b9cf21cc0823.gif",
+          "has_imaged_gift": 0,
+          "img_basic": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png",
+          "webp": "https://i0.hdslb.com/bfs/live/32b799120e1614fa6275b6d15da7a52b21dd019d.webp"
+        },
+        "gift_tag": [
+          1201
+        ],
+        "gold": 0,
+        "group_medal": null,
+        "guard_level": 3,
+        "is_first": true,
+        "is_join_receiver": false,
+        "is_naming": false,
+        "is_special_batch": 0,
+        "magnification": 1,
+        "medal_info": {
+          "anchor_roomid": 0,
+          "anchor_uname": "",
+          "guard_level": 3,
+          "icon_id": 0,
+          "is_lighted": 1,
+          "medal_color": 398668,
+          "medal_color_border": 6809855,
+          "medal_color_end": 6850801,
+          "medal_color_start": 398668,
+          "medal_level": 26,
+          "medal_name": "花似锦",
+          "special": "",
+          "target_id": 507316149
+        },
+        "name_color": "#00D1F1",
+        "num": 1,
+        "original_gift_name": "",
+        "price": 100,
+        "rcost": 46342610,
+        "receive_user_info": {
+          "uid": 507316149,
+          "uname": "年锦i"
+        },
+        "receiver_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+            "is_mystery": false,
+            "name": "年锦i",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 9,
+              "title": "Gr电子竞技俱乐部选手",
+              "type": 0
+            },
+            "origin_info": {
+              "face": "https://i0.hdslb.com/bfs/face/b76b27dcaaa99bb78143a3a33e1fa0d41d522372.jpg",
+              "name": "年锦i"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": null,
+          "title": null,
+          "uhead_frame": null,
+          "uid": 507316149,
+          "wealth": null
+        },
+        "remain": 0,
+        "rnd": "4800607361226118144",
+        "send_master": null,
+        "sender_uinfo": {
+          "anon": null,
+          "base": {
+            "face": "https://i2.hdslb.com/bfs/face/bd21b86565a09b6acabfbbbec889d597fac6f0ca.jpg",
+            "is_mystery": false,
+            "name": "萌***",
+            "name_color": 0,
+            "name_color_str": "",
+            "official_info": {
+              "desc": "",
+              "role": 0,
+              "title": "",
+              "type": -1
+            },
+            "origin_info": {
+              "face": "https://i2.hdslb.com/bfs/face/bd21b86565a09b6acabfbbbec889d597fac6f0ca.jpg",
+              "name": "萌***"
+            },
+            "risk_ctrl_info": null
+          },
+          "guard": null,
+          "guard_leader": null,
+          "medal": {
+            "color": 398668,
+            "color_border": 6809855,
+            "color_end": 6850801,
+            "color_start": 398668,
+            "guard_icon": "https://i0.hdslb.com/bfs/live/fd26e0053f3d24672ffdabcb1f6d2545e26b1e33.png",
+            "guard_level": 3,
+            "honor_icon": "",
+            "id": 0,
+            "is_light": 1,
+            "level": 26,
+            "name": "花似锦",
+            "ruid": 507316149,
+            "score": 9496,
+            "typ": 0,
+            "user_receive_count": 0,
+            "v2_medal_color_border": "#5FC7F4",
+            "v2_medal_color_end": "#3FB4F699",
+            "v2_medal_color_level": "#3FB4F6E6",
+            "v2_medal_color_start": "#3FB4F699",
+            "v2_medal_color_text": "#FFFFFF"
+          },
+          "title": null,
+          "uhead_frame": null,
+          "uid": 0,
+          "wealth": null
+        },
+        "silver": 0,
+        "super": 0,
+        "super_batch_gift_num": 1,
+        "super_gift_num": 1,
+        "svga_block": 0,
+        "switch": true,
+        "tag_image": "",
+        "tid": "4800607361226118144",
+        "timestamp": 1785498416,
+        "top_list": null,
+        "total_coin": 100,
+        "uid": 0,
+        "uname": "萌***",
+        "wealth_level": 14
+      },
+      "hasPb": false
+    }
+  ],
+  "cmdSummary": {
+    "DANMU_MSG": 33,
+    "SEND_GIFT": 7,
+    "COMBO_SEND": 1,
+    "ENTRY_EFFECT": 5,
+    "LIKE_INFO_V3_UPDATE": 2,
+    "LIKE_INFO_V3_CLICK": 2,
+    "INTERACT_WORD_V2": 8,
+    "DM_INTERACTION": 10,
+    "RANK_CHANGED_V2": 1,
+    "ONLINE_RANK_COUNT": 1,
+    "SUPER_CHAT_MESSAGE": 1,
+    "WATCHED_CHANGE": 1,
+    "USER_TOAST_MSG_V2": 1,
+    "USER_TOAST_MSG": 1
+  },
+  "totalPackets": 31
+}

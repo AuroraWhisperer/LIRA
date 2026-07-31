@@ -15,6 +15,7 @@ class MessageHandlers {
     this.diagnostics = diagnostics;
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
     this.startedAtMs = options.startedAtMs || Date.now();
+    this.messageBuffer = options.messageBuffer || null;
   }
 
   updateStartTime(startedAtMs) {
@@ -30,11 +31,10 @@ class MessageHandlers {
         this.handleDanmaku(message);
       } else if (message.cmd && String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')) {
         this.handleSuperChat(message);
-      } else if (packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes)) {
-        this.handleGift(message);
       } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd, this.runtimeGiftCommandPrefixes)) {
-        bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'gift-like-command');
-        bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'gift-like-command');
+        // 所有 gift-like 消息都尝试解析，包括未知 CMD
+        // extractBilibiliGiftMessage 有通用 fallback 能处理大部分格式
+        this.handleGift(message);
       }
     }
   }
@@ -121,14 +121,48 @@ class MessageHandlers {
   }
 
   handleGift(message) {
+    const isKnownCmd = packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes);
     const gift = packetParser.extractBilibiliGiftMessage(message);
-    if (!gift) {
-      bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'known-gift-command');
-      bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'known-gift-command');
+
+    // 详细日志：每条 gift-like 消息都打印，方便排查
+    const dataKeys = message.data && typeof message.data === 'object'
+      ? Object.keys(message.data).slice(0, 15).join(',') : 'N/A';
+    console.log(`[GiftDebug] CMD=${message.cmd || '(none)'} knownCmd=${isKnownCmd} dataKeys=[${dataKeys}]`);
+
+    if (!gift || !isValidGiftResult(gift)) {
+      console.log(`[GiftDebug] └─ REJECTED: ${!gift ? 'extractBilibiliGiftMessage returned null' : 'validation failed (giftId="' + (gift.giftId || '') + '" giftName="' + (gift.giftName || '') + '" totalPrice=' + (gift.totalPrice || 0) + ')'}`);
+      if (this.messageBuffer) {
+        this.messageBuffer.record({
+          cmd: message.cmd,
+          category: isKnownCmd ? 'parse-failed' : 'unrecognized-cmd',
+          rawData: message.data,
+          detail: gift
+            ? `Parsed but validation failed: giftId="${gift.giftId || ''}" giftName="${gift.giftName || ''}" totalPrice=${gift.totalPrice || 0}`
+            : `extractBilibiliGiftMessage returned null; data keys: ${dataKeys}`
+        });
+      }
+      if (isKnownCmd) {
+        bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'known-gift-command');
+        bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'known-gift-command');
+      } else {
+        bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'gift-like-command');
+        bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'gift-like-command');
+      }
       return;
     }
+
+    console.log(`[GiftDebug] └─ ACCEPTED: gift="${gift.giftName}" x${gift.num} ¥${gift.totalPrice} user="${gift.userName}" coin=${gift.coinType}`);
     this.diagnostics.lastGiftAt = now();
     this.diagnostics.parsedGiftCount += 1;
+    if (this.messageBuffer) {
+      this.messageBuffer.record({
+        cmd: message.cmd,
+        category: 'parsed-ok',
+        rawData: message.data,
+        parsed: gift,
+        detail: isKnownCmd ? '' : `New/unrecognized CMD parsed successfully via fallback`
+      });
+    }
     const requester = this.identityCache.resolve({
       uid: gift.uid,
       userName: gift.userName
@@ -144,6 +178,23 @@ class MessageHandlers {
 function isBilibiliCommandText(message) {
   const text = cleanText(message);
   return text.startsWith('点歌') || text.startsWith('随机');
+}
+
+/**
+ * 验证解析后的礼物结果是否有意义的数据。
+ * 过滤掉非礼物消息（CMD 碰巧含 GIFT 关键字但没有实际礼物字段）。
+ */
+function isValidGiftResult(gift) {
+  if (!gift) return false;
+  // 有真实 giftId（非空）
+  if (gift.giftId && gift.giftId !== '') return true;
+  // 有真实 giftName（非默认占位）
+  if (gift.giftName && gift.giftName !== '未知礼物') return true;
+  // 有付费金额 —— 即使名字解析不出来，有金额就是真礼物
+  if (gift.totalPrice > 0) return true;
+  // 盲盒
+  if (gift.isBlindBox && gift.blindBoxPrice !== null && gift.blindBoxPrice > 0) return true;
+  return false;
 }
 
 module.exports = { MessageHandlers };

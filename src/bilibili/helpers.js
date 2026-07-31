@@ -91,9 +91,9 @@ function normalizeRequesterIdentity(input) {
 }
 
 function guardLevelName(level) {
-  if (Number(level) === 3) return '';
-  if (Number(level) === 2) return '';
-  if (Number(level) === 1) return '';
+  if (Number(level) === 3) return '舰长';
+  if (Number(level) === 2) return '提督';
+  if (Number(level) === 1) return '总督';
   return '';
 }
 

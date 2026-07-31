@@ -2,6 +2,8 @@
 // 首页服务 - 负责首页内容加载（推荐、每日、电台、歌单等）
 'use strict';
 
+import { getHomeActionTitle } from '../utils.js';
+
 /**
  * 首页服务类
  */
@@ -112,7 +114,7 @@ export class HomeService {
           platform: this.state.selectedSource,
           action: 'playlist-tracks',
           playlistId: playlist.id,
-          limit: 1000
+          limit: 5000
         })
       });
 
@@ -286,21 +288,11 @@ export class HomeService {
   }
 
   /**
-   * 获取动作名称
+   * 获取动作名称（委托给 utils.js 统一维护）
    * @param {string} action - 动作类型
    * @returns {string}
    */
   static getActionName(action) {
-    const names = {
-      personalized: '为你推荐',
-      daily: '每日推荐',
-      radio: '心动 / 电台',
-      liked: '我喜欢',
-      'created-playlists': '我的歌单',
-      'collected-playlists': '收藏歌单',
-      recent: '最近播放',
-      'playlist-tracks': '歌单详情'
-    };
-    return names[action] || '浏览内容';
+    return getHomeActionTitle(action);
   }
 }

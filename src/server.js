@@ -1,5 +1,5 @@
 ﻿// 编写人：Aurora
-// 当前项目版本：1.2.4
+// 当前项目版本：1.4.6
 'use strict';
 
 const http = require('node:http');
@@ -22,6 +22,7 @@ const blivedmCompat = require('./bilibili/blivedm-compat');
 const { createBlivedmRuntime } = require('./bilibili/blivedm-runtime');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const giftService = require('./bilibili/gift-service');
+const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -100,6 +101,7 @@ const bilibiliDiagnostics = {
   recentCommands: [],
   recentGiftLikeCommands: []
 };
+const messageBuffer = createMessageBuffer(500);
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -160,6 +162,11 @@ function createApiContext() {
     gifts: {
       resetSprint: domainServices.gifts.resetSprint,
       runBlivedmCheck: blivedmRuntime.runManualCheck
+    },
+    debug: {
+      getGiftMessages: () => messageBuffer.getAll(),
+      getGiftMessageStats: () => messageBuffer.getStats(),
+      clearGiftMessages: () => messageBuffer.clear()
     },
     data: {
       clearSongLibrary: domainServices.data.clearSongLibrary,
@@ -401,7 +408,8 @@ function createBilibiliClient(roomId) {
     onStatus: updateLiveStatus
   }, {
     diagnostics: bilibiliDiagnostics,
-    runtimeGiftCommandPrefixes
+    runtimeGiftCommandPrefixes,
+    messageBuffer
   });
 }
 

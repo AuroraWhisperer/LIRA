@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>礼物消息诊断</title>
+<style>
+  :root {
+    --bg: #0f0f14; --surface: #1a1a24; --surface2: #222233; --border: #333350;
+    --text: #d0d0e0; --text2: #9090a8; --green: #4caf93; --red: #e0556a;
+    --yellow: #d4a843; --blue: #5b9bd5; --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg); color: var(--text); padding: 20px; min-height: 100vh;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: var(--text2); font-size: 0.85rem; margin-bottom: 14px; }
+
+  /* Conn bar */
+  .conn-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; font-size: 0.85rem;
+  }
+  .conn-bar .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .conn-bar .dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; }
+  .conn-bar .dot.dead { background: var(--red); }
+  .conn-bar .status-text { font-weight: 600; }
+  .conn-bar .status-text.live { color: var(--green); }
+  .conn-bar .status-text.dead { color: var(--red); }
+  .conn-bar .meta { color: var(--text2); font-size: 0.8rem; }
+  .conn-bar a { color: var(--blue); text-decoration: none; margin-left: auto; }
+  .conn-bar a:hover { text-decoration: underline; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* Stats */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; margin-bottom: 14px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; transition: background 0.3s;
+  }
+  .stat-card.flash { background: rgba(91,155,213,0.2); }
+  .stat-card .value { font-size: 1.8rem; font-weight: 700; transition: color 0.3s; }
+  .stat-card .label { font-size: 0.8rem; color: var(--text2); margin-top: 2px; }
+  .stat-card.ok .value { color: var(--green); }
+  .stat-card.fail .value { color: var(--red); }
+  .stat-card.warn .value { color: var(--yellow); }
+  .stat-card.info .value { color: var(--blue); }
+
+  /* CMD breakdown */
+  .cmd-breakdown {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; max-height: 300px; overflow-y: auto;
+  }
+  .cmd-breakdown h3 { font-size: 0.9rem; margin-bottom: 8px; color: var(--text2); }
+  .cmd-row {
+    display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 0.8rem;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  }
+  .cmd-row .cmd-name { flex: 1; min-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmd-row .bar-bg {
+    flex: 2; height: 12px; background: var(--surface2);
+    border-radius: 4px; overflow: hidden; display: flex; min-width: 60px;
+  }
+  .cmd-row .bar-ok { background: var(--green); height: 100%; }
+  .cmd-row .bar-fail { background: var(--red); height: 100%; }
+  .cmd-row .bar-unrec { background: var(--yellow); height: 100%; }
+  .cmd-row .count { min-width: 60px; text-align: right; font-size: 0.78rem; color: var(--text2); }
+
+  /* Controls */
+  .controls {
+    display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+  }
+  button {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.82rem; font-family: inherit;
+  }
+  button:hover { background: #333355; }
+  button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  /* Table */
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; max-height: 60vh; overflow-y: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  th {
+    text-align: left; padding: 8px 12px; background: var(--surface2);
+    color: var(--text2); font-weight: 600; position: sticky; top: 0; z-index: 1;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 7px 12px; border-bottom: 1px solid rgba(51,51,80,0.4); vertical-align: top; }
+  tr.new-row { animation: rowFlash 0.8s ease-out; }
+  @keyframes rowFlash { from { background: rgba(91,155,213,0.25); } }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.72rem; font-weight: 600;
+  }
+  .badge-ok { background: rgba(76,175,147,0.2); color: var(--green); }
+  .badge-fail { background: rgba(224,85,106,0.2); color: var(--red); }
+  .badge-unrec { background: rgba(212,168,67,0.2); color: var(--yellow); }
+
+  .raw-data-full {
+    display: none; font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.72rem; white-space: pre-wrap; word-break: break-all;
+    max-height: 200px; overflow-y: auto; background: var(--surface2);
+    padding: 8px; border-radius: 4px; margin-top: 4px;
+  }
+  .raw-data-full.open { display: block; }
+  .clickable { cursor: pointer; color: var(--blue); text-decoration: underline; }
+  .empty-state { text-align: center; padding: 40px; color: var(--text2); }
+  .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+  /* New message indicator */
+  .new-indicator {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--blue); color: #fff; padding: 8px 20px; border-radius: 20px;
+    font-size: 0.85rem; font-weight: 600; z-index: 999;
+    animation: slideDown 0.3s ease-out; pointer-events: none;
+  }
+  @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+
+  /* Log feed */
+  .log-feed {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-top: 14px;
+    max-height: 200px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 0.75rem; line-height: 1.6;
+  }
+  .log-feed h3 { font-size: 0.85rem; color: var(--text2); margin-bottom: 6px; }
+  .log-line { padding: 1px 0; }
+  .log-line.accept { color: var(--green); }
+  .log-line.reject { color: var(--red); }
+  .log-line.info { color: var(--text2); }
+</style>
+</head>
+<body>
+<h1>🔍 礼物消息诊断</h1>
+<p class="subtitle">WebSocket 实时推送 · 礼物到达即刻刷新 · <span id="connInfo" style="color:var(--text2)">连接中...</span></p>
+
+<div class="conn-bar" id="connBar">
+  <span style="color:var(--text2)">加载中...</span>
+</div>
+
+<div class="stats-grid" id="statsGrid"></div>
+
+<div class="cmd-breakdown" id="cmdBreakdown">
+  <h3>按 CMD 分类统计（点击 CMD 名筛选）</h3>
+  <div id="cmdList">等待数据...</div>
+</div>
+
+<div class="controls">
+  <button id="btnAll" class="active" onclick="setFilter('all')">全部</button>
+  <button id="btnOk" onclick="setFilter('parsed-ok')">✅ 解析成功</button>
+  <button id="btnFail" onclick="setFilter('parse-failed')">❌ 解析失败</button>
+  <button id="btnUnrec" onclick="setFilter('unrecognized-cmd')">⚠️ 未识别CMD</button>
+  <button onclick="clearMessages()">🗑️ 清空缓冲区</button>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:45px">#</th>
+        <th style="width:95px">时间</th>
+        <th style="width:170px">CMD</th>
+        <th style="width:72px">状态</th>
+        <th>解析结果</th>
+        <th>详情</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <tr><td colspan="6" class="empty-state"><div class="icon">📡</div>等待 WebSocket 礼物事件...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="log-feed" id="logFeed">
+  <h3>📋 实时日志</h3>
+  <div id="logLines"><span class="log-line info">等待服务器推送...</span></div>
+</div>
+
+<script>
+let filter = 'all';
+let ws = null;
+let lastFetchId = 0;
+let prevTotal = 0;
+const MAX_LOGS = 80;
+
+// ── WebSocket ──
+function connectWs() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = proto + '//' + location.host + '/ws';
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    document.getElementById('connInfo').textContent = 'WebSocket 已连接 · 实时接收';
+    document.getElementById('connInfo').style.color = 'var(--green)';
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'snapshot') {
+        // 礼物事件到达 → 立即拉取 debug 数据
+        fetchDebugData();
+      }
+    } catch(e) {}
+  };
+
+  ws.onclose = () => {
+    document.getElementById('connInfo').textContent = 'WebSocket 断开 · 1s 轮询中';
+    document.getElementById('connInfo').style.color = 'var(--yellow)';
+    setTimeout(connectWs, 2000);
+  };
+
+  ws.onerror = () => {
+    ws.close();
+  };
+}
+
+// ── Data fetching ──
+async function fetchDebugData() {
+  const fetchId = ++lastFetchId;
+  try {
+    const [stateResp, debugResp] = await Promise.all([
+      fetch('/api/state').catch(() => null),
+      fetch('/api/debug/gift-messages').catch(() => null)
+    ]);
+
+    if (fetchId !== lastFetchId) return; // 过期请求
+
+    if (stateResp && stateResp.ok) {
+      const stateJson = await stateResp.json();
+      if (stateJson.ok) renderConnBar(stateJson.data);
+    }
+
+    if (debugResp && debugResp.ok) {
+      const debugJson = await debugResp.json();
+      if (debugJson.ok) render(debugJson.data);
+    }
+  } catch(e) {}
+}
+
+// ── Render ──
+function renderConnBar(state) {
+  const live = state.liveStatus || {};
+  const connected = live.connected;
+  const roomId = live.roomId || '—';
+  const mode = live.mode || 'disabled';
+  const message = live.message || '';
+
+  document.getElementById('connBar').innerHTML = `
+    <span class="dot ${connected ? 'live' : 'dead'}"></span>
+    <span class="status-text ${connected ? 'live' : 'dead'}">${connected ? '已连接' : '未连接'}</span>
+    <span class="meta">房间号：<strong>${escHtml(String(roomId))}</strong></span>
+    <span class="meta">模式：${escHtml(mode)}</span>
+    <span class="meta" title="${escHtml(message)}">${escHtml(message.slice(0, 40))}</span>
+    <a href="/admin" target="_blank">⚙️ 管理后台</a>
+  `;
+}
+
+function render(data) {
+  const { messages, stats } = data;
+
+  // Flash stats if total changed
+  if (stats.total !== prevTotal) {
+    prevTotal = stats.total;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.add('flash'));
+    setTimeout(() => document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('flash')), 500);
+    showNewIndicator(stats.total);
+  }
+
+  renderStats(stats);
+  renderCmdBreakdown(stats.byCmd);
+  renderTable(messages);
+}
+
+function showNewIndicator(total) {
+  const el = document.createElement('div');
+  el.className = 'new-indicator';
+  el.textContent = `📩 新消息 · 总计 ${total} 条`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+function renderStats(stats) {
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card info"><div class="value">${stats.total || 0}</div><div class="label">总消息数（缓冲 ${stats.maxEntries || 0}）</div></div>
+    <div class="stat-card ok"><div class="value">${stats.parsedOk || 0}</div><div class="label">✅ 解析成功</div></div>
+    <div class="stat-card fail"><div class="value">${stats.parseFailed || 0}</div><div class="label">❌ 解析失败</div></div>
+    <div class="stat-card warn"><div class="value">${stats.unrecognized || 0}</div><div class="label">⚠️ 未识别CMD</div></div>
+  `;
+}
+
+function renderCmdBreakdown(byCmd) {
+  if (!byCmd || Object.keys(byCmd).length === 0) {
+    document.getElementById('cmdList').innerHTML = '<div style="color:var(--text2);font-size:0.82rem">暂无数据</div>';
+    return;
+  }
+  const entries = Object.entries(byCmd).sort((a,b) => b[1].total - a[1].total);
+  const maxTotal = Math.max(...entries.map(e => e[1].total), 1);
+  document.getElementById('cmdList').innerHTML = entries.map(([cmd, counts]) => {
+    const okPct = (counts.parsedOk / maxTotal * 100).toFixed(0);
+    const failPct = (counts.parseFailed / maxTotal * 100).toFixed(0);
+    const unrecPct = (counts.unrecognized / maxTotal * 100).toFixed(0);
+    return `
+      <div class="cmd-row">
+        <span class="cmd-name clickable" title="点击筛选此 CMD" onclick="setCmdFilter('${escHtml(cmd)}')">${escHtml(cmd)}</span>
+        <span class="bar-bg">
+          <span class="bar-ok" style="width:${okPct}%"></span>
+          <span class="bar-fail" style="width:${failPct}%"></span>
+          <span class="bar-unrec" style="width:${unrecPct}%"></span>
+        </span>
+        <span class="count">${counts.total} 条</span>
+      </div>
+    `;
+  }).join('');
+}
+
+let cmdFilter = null;
+function setCmdFilter(cmd) {
+  cmdFilter = cmdFilter === cmd ? null : cmd;
+  renderTable(window._lastMessages || []);
+}
+
+function renderTable(messages) {
+  window._lastMessages = messages;
+  let filtered = filter === 'all' ? messages : messages.filter(m => m.category === filter);
+  if (cmdFilter) filtered = filtered.filter(m => m.cmd === cmdFilter);
+  const items = [...filtered].reverse();
+
+  if (items.length === 0) {
+    document.getElementById('tableBody').innerHTML =
+      '<tr><td colspan="6" class="empty-state"><div class="icon">📭</div>没有匹配的消息</td></tr>';
+    return;
+  }
+
+  document.getElementById('tableBody').innerHTML = items.map((m, i) => {
+    const badgeCls = m.category === 'parsed-ok' ? 'badge-ok' :
+                     m.category === 'parse-failed' ? 'badge-fail' : 'badge-unrec';
+    const badgeText = m.category === 'parsed-ok' ? '解析成功' :
+                      m.category === 'parse-failed' ? '解析失败' : '未识别CMD';
+    const isNew = i < 3; // newest 3 get flash
+
+    let parsedInfo = '';
+    if (m.parsed) {
+      const p = m.parsed;
+      parsedInfo = `${p.giftName || '?'} x${p.num || 1} · ¥${(p.totalPrice || 0).toFixed(2)} · ${p.userName || '?'} · ${p.coinType || '?'}`;
+      if (p.isBlindBox) parsedInfo += ' · 🎁盲盒';
+    }
+
+    const rawId = 'raw-' + m.index;
+    return `
+      <tr class="${isNew ? 'new-row' : ''}">
+        <td>${m.index}</td>
+        <td>${(m.timestamp || '').slice(11, 19)}</td>
+        <td><code style="font-size:0.73rem">${escHtml(m.cmd || '(none)')}</code></td>
+        <td><span class="badge ${badgeCls}">${badgeText}</span></td>
+        <td>${escHtml(parsedInfo)}</td>
+        <td>
+          ${m.detail ? '<div style="font-size:0.72rem;color:var(--text2);margin-bottom:2px">' + escHtml(m.detail) + '</div>' : ''}
+          ${m.rawData ? '<span class="clickable" onclick="toggleRaw(\'' + rawId + '\')">查看原始数据</span>' +
+            '<div class="raw-data-full" id="' + rawId + '">' + escHtml(m.rawData) + '</div>' : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function toggleRaw(id) { document.getElementById(id).classList.toggle('open'); }
+
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+  const map = {all:'btnAll', 'parsed-ok':'btnOk', 'parse-failed':'btnFail', 'unrecognized-cmd':'btnUnrec'};
+  document.getElementById(map[f]).classList.add('active');
+  renderTable(window._lastMessages || []);
+}
+
+async function clearMessages() {
+  try {
+    await fetch('/api/debug/gift-messages/clear', { method: 'POST' });
+    prevTotal = 0;
+    fetchDebugData();
+  } catch(e) {}
+}
+
+function escHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = String(s ?? '');
+  return div.innerHTML;
+}
+
+// ── Startup ──
+connectWs();
+fetchDebugData();
+// 兜底：每 1s 轮询（WebSocket 连不上时生效）
+setInterval(() => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) fetchDebugData();
+}, 1000);
+</script>
+</body>
+</html>

@@ -42,12 +42,9 @@ export class ProviderManager {
         return;
       }
 
-      // Web 版回退到 HTTP API
-      const response = await fetch('/api/music/provider-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: this.state.selectedSource })
-      });
+      // Web 版回退到 HTTP API（/api/music/health）
+      const platform = encodeURIComponent(this.state.selectedSource);
+      const response = await fetch(`/api/music/health?platform=${platform}`);
 
       const readJson = this.readJsonResponse || ((r) => r.json());
       const data = await readJson(response, '获取提供商状态失败');
@@ -67,6 +64,9 @@ export class ProviderManager {
    * @returns {Promise<void>}
    */
   async refreshAuthState() {
+    // 每次显式刷新都重置标记（切 source / 手动刷新等场景应该重试）
+    this._authStateApiUnavailable = false;
+
     try {
       // 桌面版优先使用 Electron IPC
       if (window.musicAPI && typeof window.musicAPI.getAuthState === 'function') {
@@ -75,8 +75,7 @@ export class ProviderManager {
         return;
       }
 
-      // Web 版：先检查接口是否存在（通过 HEAD 请求或缓存的可用性标记）
-      // 如果之前已知接口不可用，直接跳过
+      // Web 版：如果之前已知接口不可用，直接跳过
       if (this._authStateApiUnavailable) {
         this.authState = null;
         this.onStateChange();

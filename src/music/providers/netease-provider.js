@@ -105,7 +105,7 @@ class NeteaseMusicProvider {
 
   async getLikedTracks(options = {}) {
     await this.requireLogin('我喜欢需要先登录网易云音乐。');
-    const limit = clampInteger(options.limit, 1, 100, 50);
+    const limit = clampInteger(options.limit, 1, 5000, 200);
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, { limit: 50 });
     const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title))
@@ -118,7 +118,7 @@ class NeteaseMusicProvider {
     await this.requireLogin('我的歌单需要先登录网易云音乐。');
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: clampInteger(options.limit, 1, 100, 50)
+      limit: clampInteger(options.limit, 1, 500, 200)
     });
     return playlists.filter((playlist) => playlist.creatorUserId === profile.userId);
   }
@@ -127,7 +127,7 @@ class NeteaseMusicProvider {
     await this.requireLogin('收藏歌单需要先登录网易云音乐。');
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: clampInteger(options.limit, 1, 100, 50)
+      limit: clampInteger(options.limit, 1, 500, 200)
     });
     return playlists.filter((playlist) => playlist.creatorUserId !== profile.userId);
   }
@@ -153,7 +153,7 @@ class NeteaseMusicProvider {
   async getPlaylistTracks(playlistId, options = {}) {
     const id = String(playlistId || '').trim();
     if (!id) throw new Error('缺少网易云歌单 ID。');
-    const limit = clampInteger(options.limit, 1, 1000, 1000);
+    const limit = clampInteger(options.limit, 1, 5000, 1000);
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
       n: String(limit),
@@ -168,7 +168,7 @@ class NeteaseMusicProvider {
   async getUserPlaylists(userId, options = {}) {
     const uid = String(userId || '').trim();
     if (!uid) throw new Error('缺少网易云用户 ID。');
-    const limit = clampInteger(options.limit, 1, 100, 50);
+    const limit = clampInteger(options.limit, 1, 500, 200);
     const data = await this.requestJson('/api/user/playlist', {
       uid,
       limit: String(limit),

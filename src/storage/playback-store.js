@@ -6,7 +6,7 @@
 const { now, cleanText, safeParseJson } = require('../shared/utils');
 
 const DEFAULT_CLIENT_ID = 'default';
-const PLAY_HISTORY_LIMIT = 500;
+const PLAY_HISTORY_LIMIT = 1000;
 
 function normalizeClientId(value) {
   return cleanText(value).slice(0, 60) || DEFAULT_CLIENT_ID;
@@ -73,7 +73,7 @@ function createPlaybackStore(db) {
 
     listHistory(options = {}) {
       const clientId = normalizeClientId(options.clientId);
-      const limit = Math.max(1, Math.min(PLAY_HISTORY_LIMIT, Number(options.limit) || 200));
+      const limit = Math.max(1, Math.min(PLAY_HISTORY_LIMIT, Number(options.limit) || 500));
       return db.prepare(`
         SELECT * FROM play_history
         WHERE client_id = ?

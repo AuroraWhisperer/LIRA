@@ -2,6 +2,8 @@
 // 流媒体服务 - 负责播放 URL 解析、刷新和错误重试
 'use strict';
 
+import { isLocalTrack, hasUsableUrl, serializeTrackForProvider } from '../utils.js';
+
 /**
  * 流媒体服务类
  */
@@ -25,7 +27,7 @@ export class StreamService {
     if (!track) return '';
 
     // 本地音频直接返回 objectUrl
-    if (this.isLocalTrack(track)) {
+    if (isLocalTrack(track)) {
       if (!track.objectUrl) {
         this.toast('本地音频需要重新选择文件后才能播放');
         return '';
@@ -34,7 +36,7 @@ export class StreamService {
     }
 
     // 如果不强制刷新且 URL 仍可用，直接返回
-    if (!options.forceRefresh && this.hasUsableUrl(track)) {
+    if (!options.forceRefresh && hasUsableUrl(track, this.refreshMarginMs)) {
       return track.playUrl;
     }
 
@@ -62,7 +64,7 @@ export class StreamService {
    * @returns {Promise<Object>} 流信息
    */
   async resolveStream(track, options = {}) {
-    const payloadTrack = this.serializeTrackForProvider(track);
+    const payloadTrack = serializeTrackForProvider(track);
 
     const response = await fetch('/api/music/resolve-stream', {
       method: 'POST',
@@ -94,7 +96,7 @@ export class StreamService {
     if (!track) return;
 
     // 本地音频播放失败
-    if (this.isLocalTrack(track)) {
+    if (isLocalTrack(track)) {
       this.toast('当前音频播放失败，请重新选择文件或切换下一首');
       return;
     }
@@ -135,50 +137,4 @@ export class StreamService {
     this.retryCount = 0;
   }
 
-  /**
-   * 检查曲目的播放 URL 是否可用
-   * @param {Object} track - 曲目信息
-   * @returns {boolean}
-   */
-  hasUsableUrl(track) {
-    if (!track || !track.playUrl) return false;
-
-    const expireAt = Number(track.playUrlExpireAt || 0);
-    if (expireAt === 0) return true;
-
-    const now = Date.now();
-    const marginMs = this.refreshMarginMs;
-
-    return now < expireAt - marginMs;
-  }
-
-  /**
-   * 检查是否为本地音频
-   * @private
-   * @param {Object} track - 曲目信息
-   * @returns {boolean}
-   */
-  isLocalTrack(track) {
-    return track && track.source === 'local';
-  }
-
-  /**
-   * 序列化曲目信息用于 API 调用
-   * @private
-   * @param {Object} track - 曲目信息
-   * @returns {Object}
-   */
-  serializeTrackForProvider(track) {
-    if (!track) return null;
-
-    return {
-      id: track.id,
-      source: track.source,
-      title: track.title,
-      artists: track.artists,
-      album: track.album,
-      sourceTrackId: track.sourceTrackId,
-      sourceAlbumId: track.sourceAlbumId
-    };
-  }
 }

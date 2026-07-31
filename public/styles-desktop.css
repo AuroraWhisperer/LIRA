@@ -29,6 +29,9 @@ body.desktop-shell .topbar {
   margin-bottom: 0;
   padding: 0 0 0 0;
   box-shadow: 0 2px 12px rgba(87, 58, 28, 0.07);
+  min-height: 58px;
+  background: rgba(255, 252, 248, 0.96);
+  backdrop-filter: blur(16px);
 }
 
 body.desktop-shell .topbar > * {
@@ -401,12 +404,6 @@ body.desktop-shell .win-btn.close-win:active {
 
 body.desktop-shell {
   overflow: hidden;
-}
-
-body.desktop-shell .topbar {
-  min-height: 58px;
-  background: rgba(255, 252, 248, 0.96);
-  backdrop-filter: blur(16px);
 }
 
 body.desktop-shell .primary-nav-slot {

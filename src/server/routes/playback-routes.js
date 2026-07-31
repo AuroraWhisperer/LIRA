@@ -27,7 +27,7 @@ const routes = {
   'GET /api/playback/history': storeRoute((context, request) => ({
     tracks: context.playback.listHistory({
       clientId: clientIdOf(request),
-      limit: Number(request.query.get('limit')) || 200
+      limit: Number(request.query.get('limit')) || 500
     })
   })),
 

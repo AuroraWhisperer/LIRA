@@ -1,11 +1,12 @@
 // 编写人：Aurora
-// 当前项目版本：1.1.1
+// 当前项目版本：1.4.6
 'use strict';
 
 let state = null;
 let songs = [];
 let reloadTimer = null;
 let reconnectTimer = null;
+let reconnectAttempts = 0;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,15 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadAll() {
-  const category = new URLSearchParams(location.search).get('category') || '';
-  const [stateResponse, songsResponse] = await Promise.all([
-    fetch('/api/state'),
-    fetch(`/api/songs?enabledOnly=true${category ? `&category=${encodeURIComponent(category)}` : ''}`)
-  ]);
-  const statePayload = await stateResponse.json();
-  const songsPayload = await songsResponse.json();
-  if (statePayload.ok) state = statePayload.data;
-  if (songsPayload.ok) songs = songsPayload.data;
+  try {
+    const category = new URLSearchParams(location.search).get('category') || '';
+    const [stateResponse, songsResponse] = await Promise.all([
+      fetch('/api/state'),
+      fetch(`/api/songs?enabledOnly=true${category ? `&category=${encodeURIComponent(category)}` : ''}`)
+    ]);
+    const statePayload = await stateResponse.json();
+    const songsPayload = await songsResponse.json();
+    if (statePayload.ok) state = statePayload.data;
+    if (songsPayload.ok) songs = songsPayload.data;
+  } catch (error) {
+    console.warn('[overlay-songs] loadAll failed:', error.message || error);
+  }
   render();
 }
 
@@ -32,6 +37,7 @@ function connectSocket() {
 
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);
+    reconnectAttempts = 0;
   });
 
   socket.addEventListener('message', (event) => {
@@ -52,10 +58,12 @@ function connectSocket() {
   });
 
   socket.addEventListener('close', () => {
+    const delay = Math.min(30000, 800 * Math.pow(2, Math.min(reconnectAttempts, 6)));
+    reconnectAttempts += 1;
     reconnectTimer = setTimeout(() => {
       loadAll();
       connectSocket();
-    }, 1600);
+    }, delay);
   });
 }
 

@@ -12,7 +12,7 @@ import { PlayerController } from './playback/player/controller.js';
 import { ProviderManager } from './playback/provider/manager.js';
 import { ContentLoader } from './playback/content/loader.js';
 import { LocalFileManager } from './playback/local/manager.js';
-import { APIClient } from './playback/api/client.js';
+
 import { PlaybackConfig } from './playback/config.js';
 import { SearchService } from './playback/services/search-service.js';
 import { StreamService } from './playback/services/stream-service.js';
@@ -59,11 +59,6 @@ import { HomeService } from './playback/services/home-service.js';
     const stateManager = new StateManager();
     const storageManager = new StorageManager();
     const playbackState = stateManager.getState();
-
-    // API 客户端
-    const apiClient = new APIClient({
-      onError: (error) => showError(error)
-    });
 
     // 提供商管理器
     const providerManager = new ProviderManager({

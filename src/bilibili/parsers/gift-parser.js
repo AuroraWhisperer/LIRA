@@ -18,6 +18,8 @@ const {
   normalizeBilibiliGiftCoin,
   normalizeBilibiliCoinRmb,
   guardLevelName,
+  getGuardPriceRmb,
+  detectGuardLevelFromName,
   buildBilibiliFallbackGiftId,
   logUnparsedGiftLikeCommand
 } = require('../utils/gift-normalizers');
@@ -49,7 +51,7 @@ function extractBilibiliGiftMessage(packet) {
     const parsedV2 = extractBilibiliGiftV2Message(packet, data);
     if (parsedV2) return parsedV2;
     logUnparsedGiftLikeCommand(packet, 'send-gift-v2-proto');
-    return null;
+    // 不直接返回 null —— fall through 到 web parser 尝试 JSON 字段提取
   }
 
   return extractBilibiliWebGiftMessage(packet, data);
@@ -135,10 +137,21 @@ function extractBilibiliOpenLiveGiftMessage(packet, data) {
 
 function extractBilibiliOpenLiveGuardGiftMessage(packet, data) {
   const userInfo = readFirstObject(data, ['user_info', 'userInfo']) || {};
-  const guardLevel = normalizePositiveInteger(readObjectValue(data, ['guard_level', 'guardLevel']));
+
+  // 大航海等级：优先从 guard_level 取，再从礼物名称反推
+  let guardLevel = normalizePositiveInteger(readObjectValue(data, ['guard_level', 'guardLevel']));
+  if (!guardLevel) {
+    const giftName = cleanText(readObjectValue(data, ['gift_name', 'giftName', 'role_name', 'roleName']));
+    guardLevel = detectGuardLevelFromName(giftName);
+  }
+
   const num = normalizePositiveInteger(readObjectValue(data, ['guard_num', 'guardNum', 'num'])) || 1;
-  const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['price']));
-  const totalPrice = normalizeBilibiliCoinRmb(totalCoin);
+  // 价格：协议字段优先，找不到则用硬编码回退
+  const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['price', 'total_price', 'totalPrice', 'paid', 'amount']));
+  let totalPrice = normalizeBilibiliCoinRmb(totalCoin);
+  if (!totalPrice && guardLevel) {
+    totalPrice = normalizeMoney(getGuardPriceRmb(guardLevel) * num);
+  }
 
   return {
     platformId: cleanText(readObjectValue(data, ['msg_id', 'msgId'])) || buildBilibiliFallbackGiftId(packet, data),
@@ -150,7 +163,7 @@ function extractBilibiliOpenLiveGuardGiftMessage(packet, data) {
     num,
     unitPrice: num > 0 ? normalizeMoney(totalPrice / num) : totalPrice,
     totalPrice,
-    coinType: 'gold',
+    coinType: 'guard',
     isBlindBox: false,
     blindBoxName: '',
     blindBoxPrice: null,
@@ -263,15 +276,43 @@ function extractBilibiliWebGuardGiftMessage(packet, data) {
   const guardInfo = readFirstObject(data, ['guard_info', 'guardInfo']) || data;
   const payInfo = readFirstObject(data, ['pay_info', 'payInfo']) || data;
   const giftInfo = readFirstObject(data, ['gift_info', 'giftInfo']) || data;
-  const guardLevel = normalizePositiveInteger(readObjectValue(guardInfo, ['guard_level', 'guardLevel']) || readObjectValue(data, ['guard_level', 'guardLevel']));
-  const giftName = cleanText(
+
+  // 大航海等级：优先从 guard_level 取，再从角色/礼物名称反推
+  let guardLevel = normalizePositiveInteger(
+    readObjectValue(guardInfo, ['guard_level', 'guardLevel', 'privilege_type', 'privilegeType'])
+    || readObjectValue(data, ['guard_level', 'guardLevel', 'privilege_type', 'privilegeType'])
+  );
+
+  // 尝试从礼物名称中提取角色名（Bilibili 可能直接把 "舰长" 放在 gift_name / role_name）
+  // USER_TOAST_MSG_V2: role_name 在 guard_info 子对象中
+  const rawGiftName = cleanText(
     readObjectValue(giftInfo, ['gift_name', 'giftName', 'role_name', 'roleName', 'role'])
+    || readObjectValue(guardInfo, ['role_name', 'roleName', 'gift_name', 'giftName', 'role'])
     || readObjectValue(data, ['gift_name', 'giftName', 'role_name', 'roleName', 'role'])
-  ) || guardLevelName(guardLevel) || '大航海';
+  );
+
+  if (!guardLevel) {
+    guardLevel = detectGuardLevelFromName(rawGiftName);
+  }
+
+  const giftName = rawGiftName || guardLevelName(guardLevel) || '大航海';
   const num = normalizePositiveInteger(readObjectValue(payInfo, ['num']) || readObjectValue(data, ['num', 'gift_num', 'giftNum'])) || 1;
-  const explicitTotalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['total_price', 'totalPrice', 'total_coin', 'totalCoin']));
-  const unitCoin = normalizeBilibiliGiftCoin(readObjectValue(payInfo, ['price']) || readObjectValue(data, ['price', 'gift_price', 'giftPrice']));
-  const totalPrice = normalizeBilibiliCoinRmb(explicitTotalCoin || unitCoin * num);
+
+  // 价格提取：多字段回退 + 硬编码回退
+  const explicitTotalCoin = normalizeBilibiliGiftCoin(
+    readObjectValue(data, ['total_price', 'totalPrice', 'total_coin', 'totalCoin', 'pay_amount', 'payAmount'])
+  );
+  const unitCoin = normalizeBilibiliGiftCoin(
+    readObjectValue(payInfo, ['price', 'amount'])
+    || readObjectValue(data, ['price', 'gift_price', 'giftPrice', 'amount'])
+  );
+  let totalPrice = normalizeBilibiliCoinRmb(explicitTotalCoin || unitCoin * num);
+
+  // 硬编码价格回退：Bilibili 大航海价格固定
+  if (!totalPrice && guardLevel) {
+    totalPrice = normalizeMoney(getGuardPriceRmb(guardLevel) * num);
+  }
+
   const unitPrice = num > 0 ? normalizeMoney(totalPrice / num) : totalPrice;
 
   return {

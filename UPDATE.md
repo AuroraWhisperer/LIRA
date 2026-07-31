@@ -1,6 +1,17 @@
 # 打包与更新说明
 
-当前版本：`1.4.5`
+当前版本：`1.4.6`
+
+---
+
+## v1.4.6 变更
+
+- CSS 样式重构：删除 `styles.css`，样式按组件拆分至 `styles-admin.css`、`styles-playback.css`、`styles-desktop.css`，减少冗余、便于维护。
+- 播放助手前端重构：`playback.js` 及子模块（api/client、content/loader、provider/manager、services）大幅优化，提升代码结构和可维护性。
+- 礼物诊断与调试功能：新增 debug 路由、礼物消息缓冲区诊断模块、礼物抓取脚本，便于排查 B站 礼物相关问题。
+- B站弹幕与礼物模块优化：弹幕消息处理、礼物解析、礼物标准化等模块多处改进，增强稳定性。
+- 新增 `captured-gifts-*.json` 礼物抓取样本和 `public/debug-gifts.html` 调试页面。
+- 服务端 WebSocket、歌词服务、音乐提供商（网易/QQ）等模块细节优化。
 
 ---
 

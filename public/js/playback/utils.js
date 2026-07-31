@@ -219,14 +219,14 @@ export function pickBackgroundTheme(track, themeCount = 30) {
  */
 export function getHomeActionTitle(action) {
   return {
-    personalized: '推荐歌单',
+    personalized: '为你推荐',
     daily: '每日推荐',
     radio: '心动 / 电台',
     liked: '我喜欢',
     'created-playlists': '我的歌单',
     'collected-playlists': '收藏歌单',
     recent: '最近播放',
-    'playlist-tracks': '歌单歌曲'
+    'playlist-tracks': '歌单详情'
   }[action] || '音乐内容';
 }
 

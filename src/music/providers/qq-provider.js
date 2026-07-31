@@ -338,7 +338,7 @@ class QQMusicProvider {
 
   async getLikedTracks(options = {}) {
     await this.requireLogin('QQ 音乐“我喜欢”需要先登录。');
-    const limit = clampInteger(options.limit, 1, 100, 50);
+    const limit = clampInteger(options.limit, 1, 5000, 200);
     const playlists = await this.getCreatedPlaylists({ limit: 50, includeLiked: true });
     const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title))
       || playlists[0];
@@ -348,7 +348,7 @@ class QQMusicProvider {
 
   async getCreatedPlaylists(options = {}) {
     await this.requireLogin('QQ 音乐“我的歌单”需要先登录。');
-    const limit = clampInteger(options.limit, 1, 100, 50);
+    const limit = clampInteger(options.limit, 1, 500, 200);
     const uin = await this.requireUin();
     const data = await this.requestJson(QQ_CREATED_PLAYLIST_URL, {
       hostUin: '0',
@@ -381,8 +381,8 @@ class QQMusicProvider {
   }
 
   async getCollectedPlaylists(options = {}) {
-    await this.requireLogin('QQ 音乐“收藏歌单”需要先登录。');
-    const limit = clampInteger(options.limit, 1, 100, 50);
+    await this.requireLogin('QQ 音乐”收藏歌单”需要先登录。');
+    const limit = clampInteger(options.limit, 1, 500, 200);
     const uin = await this.requireUin();
     const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
       ct: '20',
@@ -455,7 +455,7 @@ class QQMusicProvider {
   async getPlaylistTracks(playlistId, options = {}) {
     const id = String(playlistId || '').trim();
     if (!id) throw new Error('缺少 QQ 音乐歌单 ID。');
-    const limit = clampInteger(options.limit, 1, 1000, 1000);
+    const limit = clampInteger(options.limit, 1, 5000, 1000);
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, {
       type: '1',
       json: '1',
