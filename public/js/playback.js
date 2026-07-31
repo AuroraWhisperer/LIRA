@@ -348,6 +348,7 @@ import { HomeService } from './playback/services/home-service.js';
           const pct = audio.duration > 0 ? Math.round((audio.currentTime / audio.duration) * 1000) / 10 : 0;
           event.target.style.setProperty('--seek-pos', pct + '%');
           renderFullscreenPlayer();
+          syncPlaybackLyricWindow();
           savePlaybackState();
         });
 
@@ -554,12 +555,12 @@ import { HomeService } from './playback/services/home-service.js';
               </div>
             </div>
             <div class="queue-actions">
-              <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}">入队</button>
+              <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}" title="添加到播放队列末尾">入队</button>
               ${result.action === 'radio'
-                ? `<button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}">电台</button>`
-                : `<button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>`
+                ? `<button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}" title="切换到电台队列并播放">电台</button>`
+                : `<button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}" title="插入到当前播放歌曲之后">插队</button>`
               }
-              <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}">播放</button>
+              <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}" title="立即播放这首歌">播放</button>
             </div>
           </div>
         `).join('');
@@ -567,6 +568,12 @@ import { HomeService } from './playback/services/home-service.js';
       }
 
       async function loadPlaybackHomeContent(action) {
+        // 检查是否已登录
+        if (!playbackAuthState || !playbackAuthState.loggedIn) {
+          toast('请先登录播放器');
+          return;
+        }
+
         if (action === 'recent') {
           loadPlaybackLocalRecentHistory();
           return;
@@ -795,9 +802,9 @@ import { HomeService } from './playback/services/home-service.js';
               </div>
             </div>
             <div class="queue-actions">
-              <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}">入队</button>
-              <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}">插队</button>
-              <button type="button" data-playback-search-action="play" data-playback-search-index="${index}">播放</button>
+              <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}" title="添加到播放队列末尾">入队</button>
+              <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>
+              <button type="button" data-playback-search-action="play" data-playback-search-index="${index}" title="立即播放这首歌">播放</button>
             </div>
           </div>
         `).join('');

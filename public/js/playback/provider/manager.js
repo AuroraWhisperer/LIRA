@@ -84,14 +84,8 @@ export class ProviderManager {
    */
   async checkProviderHealth(options = {}) {
     try {
-      const response = await fetch('/api/music/health', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: this.state.selectedSource,
-          force: options.force || false
-        })
-      });
+      const platform = encodeURIComponent(this.state.selectedSource);
+      const response = await fetch(`/api/music/health?platform=${platform}`);
 
       const readJson = this.readJsonResponse || ((r) => r.json());
       const data = await readJson(response, '健康检查失败');

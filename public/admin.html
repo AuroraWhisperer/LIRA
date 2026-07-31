@@ -345,13 +345,9 @@
                 </fieldset>
 
                 <fieldset class="theme-section">
-                  <legend>一键主题预设</legend>
+                  <legend>配色方案</legend>
                   <div class="preset-grid" id="classicPresets"></div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>颜色设置</legend>
-                  <div class="swatch-row">
+                  <div class="swatch-row" style="margin-top:16px">
                     <label>
                       主色
                       <input id="themePrimary" type="color">
@@ -372,7 +368,7 @@
                 </fieldset>
 
                 <fieldset class="theme-section">
-                  <legend>文字样式</legend>
+                  <legend>文字设置</legend>
                   <div class="grid-2">
                     <label>
                       字体
@@ -403,6 +399,20 @@
                       </select>
                     </label>
                     <label>
+                      点歌内容字号
+                      <span class="range-row">
+                        <input id="queueSongFontSize" type="range" min="5" max="35" step="1">
+                        <input id="queueSongFontSizeNumber" type="number" min="5" max="35" step="1">
+                      </span>
+                    </label>
+                    <label>
+                      队列标题字号
+                      <span class="range-row">
+                        <input id="queueTitleFontSize" type="range" min="5" max="20" step="1">
+                        <input id="queueTitleFontSizeNumber" type="number" min="5" max="20" step="1">
+                      </span>
+                    </label>
+                    <label>
                       歌名颜色
                       <input id="overlaySongColor" type="color" value="">
                       <span class="hint">留空则使用文字色</span>
@@ -412,7 +422,7 @@
                       <input id="overlayRequesterColor" type="color" value="">
                       <span class="hint">留空则比文字色略淡</span>
                     </label>
-                    <label>
+                    <label style="grid-column: 1 / -1;">
                       面板标题
                       <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列">
                       <span class="hint">自定义点歌板顶部标题文字</span>
@@ -450,7 +460,7 @@
                 </fieldset>
 
                 <fieldset class="theme-section">
-                  <legend>玻璃质感效果</legend>
+                  <legend>面板外观</legend>
                   <div class="grid-2">
                     <label>
                       前台低占用模式
@@ -459,6 +469,18 @@
                         <option value="true">开启（关闭毛玻璃和发光）</option>
                       </select>
                       <span class="hint">开启后展示板和点歌板会关闭实时毛玻璃、发光和重阴影，滚动保持原来的顺滑效果。</span>
+                    </label>
+                    <label>
+                      背景透明度
+                      <span class="range-row">
+                        <input id="themeOpacity" type="range" min="0" max="1" step="0.01">
+                        <input id="themeOpacityNumber" type="number" min="0" max="1" step="0.01">
+                      </span>
+                    </label>
+                    <label>
+                      圆角大小
+                      <input id="themeRadius" type="number" min="0" max="24">
+                      <span class="hint">数值越大越圆润，推荐 12-16</span>
                     </label>
                     <label>
                       背景模糊
@@ -476,14 +498,8 @@
                       </span>
                       <span class="hint">辅助色的发光强度，0 为关闭</span>
                     </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>渐变背景</legend>
-                  <div class="grid-2">
                     <label>
-                      启用渐变
+                      启用渐变背景
                       <select id="enableGradient">
                         <option value="false">关闭（纯色背景）</option>
                         <option value="true">开启（渐变背景）</option>
@@ -493,44 +509,6 @@
                       渐变结束色
                       <input id="gradientEnd" type="color">
                       <span class="hint">搭配背景色形成双色渐变，建议选相近色系</span>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>字号设置</legend>
-                  <div class="grid-2">
-                    <label>
-                      点歌内容字号
-                      <span class="range-row">
-                        <input id="queueSongFontSize" type="range" min="5" max="35" step="1">
-                        <input id="queueSongFontSizeNumber" type="number" min="5" max="35" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      队列标题字号
-                      <span class="range-row">
-                        <input id="queueTitleFontSize" type="range" min="5" max="20" step="1">
-                        <input id="queueTitleFontSizeNumber" type="number" min="5" max="20" step="1">
-                      </span>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>面板设置</legend>
-                  <div class="grid-2">
-                    <label>
-                      背景透明度
-                      <span class="range-row">
-                        <input id="themeOpacity" type="range" min="0" max="1" step="0.01">
-                        <input id="themeOpacityNumber" type="number" min="0" max="1" step="0.01">
-                      </span>
-                    </label>
-                    <label>
-                      圆角大小
-                      <input id="themeRadius" type="number" min="0" max="24">
-                      <span class="hint">数值越大越圆润，推荐 12-16</span>
                     </label>
                   </div>
                 </fieldset>
@@ -1125,22 +1103,22 @@
 
             <div class="desktop-update-grid">
               <section class="desktop-update-card">
-                <h4>GitHub 远程更新</h4>
-                <p>从项目 Releases 读取新版本，优先使用差分下载，完成后重启应用。</p>
+                <h4>🔄 版本更新</h4>
+                <p>从 GitHub Releases 获取新版本，支持增量下载节省流量。</p>
                 <div class="actions">
                   <button id="desktopCheckUpdateBtn" class="primary" type="button">检查更新</button>
                   <button id="desktopDownloadUpdateBtn" type="button" disabled>下载更新</button>
-                  <button id="desktopInstallUpdateBtn" class="danger" type="button" disabled>重启更新</button>
+                  <button id="desktopInstallUpdateBtn" class="danger" type="button" disabled>安装更新</button>
                 </div>
               </section>
 
               <section class="desktop-update-card">
-                <h4>本机数据</h4>
-                <p>歌库、队列记录和设置保存在用户数据目录，不会写进安装目录。</p>
+                <h4>📁 本地数据</h4>
+                <p>歌库、设置等数据独立存储，更新不影响已有内容。</p>
                 <div class="actions">
-                  <button id="desktopOpenDataBtn" type="button">打开数据目录</button>
-                  <button id="desktopOpenLogBtn" type="button">打开日志目录</button>
-                  <button id="desktopOpenGithubBtn" type="button">打开 GitHub 项目</button>
+                  <button id="desktopOpenDataBtn" type="button">数据目录</button>
+                  <button id="desktopOpenLogBtn" type="button">日志目录</button>
+                  <button id="desktopOpenGithubBtn" type="button">项目主页</button>
                 </div>
               </section>
             </div>
@@ -1175,6 +1153,9 @@
                 <button id="playbackHealthBtn" type="button">检查接口</button>
                 <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
                 <button id="playbackLogoutBtn" class="danger" type="button">退出登录</button>
+              </div>
+              <div class="playback-status-row">
+                <span id="playbackProviderHealth" class="playback-health-status">等待检查音乐 Provider 状态</span>
               </div>
               <div class="playback-cache-row">
                 <span id="playbackCacheStatus" class="hint">缓存大小：正在读取...</span>
@@ -1462,12 +1443,12 @@
       <div class="confirm-modal">
         <div class="confirm-modal-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6m12-4a9 9 0 0 1-15 6.7L3 16"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
           </svg>
         </div>
-        <h3 class="confirm-modal-title">重启并更新</h3>
-        <p class="confirm-modal-body">应用将关闭并安装新版本。直播进行中请在合适时机操作。</p>
+        <h3 class="confirm-modal-title">发现新版本</h3>
+        <p class="confirm-modal-body">安装更新需要重启应用，建议在直播间歇时更新。</p>
         <div class="confirm-modal-actions">
           <button id="restartConfirmCancelBtn" type="button">取消</button>
           <button id="restartConfirmOkBtn" class="danger-filled" type="button">确认重启</button>

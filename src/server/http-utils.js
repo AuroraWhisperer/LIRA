@@ -64,7 +64,7 @@ function sendBuffer(res, status, contentTypeValue, filename, content) {
 
 function servePageOrAsset(publicDir, req, res, requestUrl) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    sendJson(res, 405, { ok: false, error: 'Method not allowed.' });
+    sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '静态资源仅支持 GET 请求' });
     return;
   }
 

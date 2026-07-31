@@ -254,12 +254,12 @@ export function renderHomeTrackRow(track, index, context, action = '') {
         </div>
       </div>
       <div class="queue-actions">
-        <button type="button" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}">入队</button>
+        <button type="button" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}" title="添加到播放队列末尾">入队</button>
         ${showRadioButton
-          ? `<button type="button" data-${dataPrefix}-action="radio" data-${dataPrefix}-index="${index}">电台</button>`
-          : `<button type="button" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}">插队</button>`
+          ? `<button type="button" data-${dataPrefix}-action="radio" data-${dataPrefix}-index="${index}" title="切换到电台队列并播放">电台</button>`
+          : `<button type="button" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}" title="插入到当前播放歌曲之后">插队</button>`
         }
-        <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}">播放</button>
+        <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="立即播放这首歌">播放</button>
       </div>
     </div>
   `;

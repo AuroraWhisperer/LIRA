@@ -39,13 +39,18 @@
     const fsEl = document.getElementById('playerFullscreen');
     const fsCloseBtn = document.getElementById('playerFsClose');
 
-    // 点击播放器面板（排除按钮和输入框）打开全屏
+    // 点击播放器面板（排除按钮和输入框）切换全屏
     playerPanel?.addEventListener('click', (e) => {
       if (e.target.closest('button, input, a, .playback-seek-wrap')) return;
-      openFullscreenPlayer();
+      // 如果全屏播放器已经打开，则关闭；否则打开
+      if (fsEl?.classList.contains('open')) {
+        closeFullscreenPlayer();
+      } else {
+        openFullscreenPlayer();
+      }
     });
 
-    // 收起按钮 - 只有这个按钮可以关闭全屏播放器
+    // 收起按钮 - 关闭全屏播放器
     fsCloseBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       closeFullscreenPlayer();

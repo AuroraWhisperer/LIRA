@@ -209,9 +209,24 @@ export class PlaybackBar {
     // 更新 Provider 健康状态
     const providerHealth = document.getElementById('playbackProviderHealth');
     if (providerHealth) {
-      providerHealth.textContent = healthState
-        ? healthState.message || `Provider 状态：${healthState.status || '未知'}`
-        : '等待检查音乐 Provider 状态';
+      if (healthState) {
+        const message = healthState.message || `Provider 状态：${healthState.status || '未知'}`;
+        const details = healthState.details ? ` (${healthState.details})` : '';
+        providerHealth.textContent = message + details;
+
+        // 根据状态设置样式
+        providerHealth.classList.remove('error', 'success', 'warning');
+        if (healthState.ok) {
+          providerHealth.classList.add('success');
+        } else if (healthState.status === 'error') {
+          providerHealth.classList.add('error');
+        } else {
+          providerHealth.classList.add('warning');
+        }
+      } else {
+        providerHealth.textContent = '等待检查音乐 Provider 状态';
+        providerHealth.classList.remove('error', 'success', 'warning');
+      }
     }
 
     // 更新搜索框的音乐源显示

@@ -47,9 +47,9 @@ async function handleApi(context, req, res, requestUrl) {
 
   if (!handler) {
     if (pathExists) {
-      sendJson(res, 405, { ok: false, error: 'Method not allowed.' });
+      sendJson(res, 405, { ok: false, error: '请求方法不支持', details: `该接口不支持 ${method} 请求` });
     } else {
-      sendJson(res, 404, { ok: false, error: 'API route not found.' });
+      sendJson(res, 404, { ok: false, error: 'API 接口不存在', details: `未找到接口：${pathName}` });
     }
     return;
   }

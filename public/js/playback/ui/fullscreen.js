@@ -19,6 +19,7 @@ export class FullscreenPlayer {
     this.lyricsContainer = null;
     this.lyricsWrap = null;
     this.lyricsInitialized = false;
+    this.lastActiveLyricIndex = -1; // 跟踪上一次的活动歌词索引
   }
 
   /**
@@ -156,6 +157,7 @@ export class FullscreenPlayer {
 
     if (!lines.length) {
       this.lyricsContainer.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
+      this.lastActiveLyricIndex = -1; // 重置索引
       return;
     }
 
@@ -168,13 +170,18 @@ export class FullscreenPlayer {
     const existingCount = this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').length;
     if (existingCount !== lines.length) {
       this.renderLyricLines(lines);
+      this.lastActiveLyricIndex = -1; // 歌词列表变化，重置索引以触发初始滚动
     }
 
     // 更新当前行高亮
     this.updateLyricHighlight(currentIndex);
 
-    // 自动滚动到当前行
-    this.scrollToActiveLyric();
+    // 只有在当前歌词索引发生变化时才滚动（无论播放还是暂停）
+    // 播放时会持续跟随，暂停时只在手动拖动进度条时滚动一次
+    if (currentIndex !== this.lastActiveLyricIndex && currentIndex >= 0) {
+      this.scrollToActiveLyric();
+      this.lastActiveLyricIndex = currentIndex;
+    }
   }
 
   /**
