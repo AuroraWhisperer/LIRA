@@ -1850,40 +1850,6 @@ body.player-dock-expanded .playback-page.active {
     -1px 0 2px rgba(255, 255, 255, 0.3);
 }
 
-/* 唱针头部（固定装置）- 更精致的金属球 */
-.player-fs-tonearm::after {
-  content: '';
-  position: absolute;
-  top: -8px;
-  right: 0px;
-  width: 32px;
-  height: 32px;
-  background:
-    radial-gradient(circle at 32% 28%,
-      #ffffff 0%,
-      #f8fafb 12%,
-      #edf1f5 25%,
-      #dfe5ec 42%,
-      #c8d2de 60%,
-      #aeb9c9 78%,
-      #95a2b5 92%,
-      #8a98ad 100%
-    );
-  border-radius: 50%;
-  box-shadow:
-    /* 主要立体阴影 */
-    0 8px 20px rgba(0, 0, 0, 0.22),
-    0 3px 8px rgba(0, 0, 0, 0.14),
-    /* 顶部强烈高光带 */
-    0 -4px 10px rgba(255, 255, 255, 0.75) inset,
-    /* 整体金属亮环 */
-    0 0 0 2px rgba(255, 255, 255, 0.5) inset,
-    /* 底部深度感 */
-    0 5px 15px rgba(0, 0, 0, 0.3) inset,
-    /* 环境反射 */
-    -3px -3px 8px rgba(255, 255, 255, 0.25) inset;
-}
-
 /* 唱针末端（针头本体）- 更细长的渐变 */
 .player-fs-tonearm-stylus {
   position: absolute;

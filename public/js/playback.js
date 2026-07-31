@@ -454,14 +454,18 @@ import { HomeService } from './playback/services/home-service.js';
 
         try {
           const platform = playbackState.selectedSource;
-          playbackAuthState = await window.musicAPI.logout(playbackState.selectedSource);
+          await window.musicAPI.logout(playbackState.selectedSource);
+          // 清除前端状态
+          playbackAuthState = null;
           clearPlaybackPlatformAfterLogout(platform);
-          await checkSelectedMusicProviderHealth({ silent: true });
+          // 重新从后端获取最新状态，确保前后端同步
+          await refreshSelectedMusicProviderState();
           toast(`${sourceName}已退出登录`);
         } catch (error) {
           showError(error);
+          // 即使出错也要尝试刷新状态
+          await refreshSelectedMusicProviderState().catch(() => {});
         }
-        renderPlayback();
       }
 
       function clearPlaybackPlatformAfterLogout(platform) {

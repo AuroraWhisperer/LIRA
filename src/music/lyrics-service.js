@@ -37,7 +37,7 @@ async function getMusicHomeContent(registry, body) {
   const input = body && typeof body === 'object' ? body : {};
   const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const action = cleanText(input.action || 'personalized');
-  const limit = Math.max(1, Math.min(1000, Number(input.limit) || 20));
+  const limit = Math.max(1, Math.min(1000, Number(input.limit) || 30));
   const provider = registry.get(platform);
   // radio / daily 的重点就是每次给新歌，缓存会让它们永远返回同一批，所以不缓存。
   const cacheable = ['personalized', 'playlist-tracks'].includes(action);
