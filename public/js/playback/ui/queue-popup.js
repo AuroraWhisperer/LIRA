@@ -25,11 +25,6 @@ export class QueuePopup {
     this.backdrop = document.getElementById('queuePopupBackdrop');
     this.queueBtn = document.getElementById('playbackQueueBtn');
     this.listContainer = document.getElementById('playbackQueueList');
-
-    // 绑定事件
-    this.queueBtn?.addEventListener('click', () => this.toggle());
-    document.getElementById('queuePopupClose')?.addEventListener('click', () => this.close());
-    this.backdrop?.addEventListener('click', () => this.close());
   }
 
   /**

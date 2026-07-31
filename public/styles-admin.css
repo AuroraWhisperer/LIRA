@@ -1144,65 +1144,89 @@ tr:last-child td {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(22, 31, 43, 0.48);
-  backdrop-filter: blur(5px);
-  animation: confirm-modal-fade 0.15s ease;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  animation: confirm-modal-fade 0.18s ease;
+}
+
+.confirm-modal-overlay[hidden] {
+  display: none;
 }
 
 .confirm-modal {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 24px 64px rgba(22, 31, 43, 0.2), 0 0 0 1px rgba(255,255,255,0.6) inset;
-  padding: 32px 28px 24px;
-  width: 320px;
+  background: #fff;
+  border: 1px solid #e1e4e8;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 24px;
+  width: 360px;
   max-width: calc(100vw - 40px);
-  text-align: center;
-  animation: confirm-modal-up 0.2s cubic-bezier(.2, .9, .2, 1);
+  animation: confirm-modal-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .confirm-modal-icon {
-  font-size: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  font-size: 24px;
   line-height: 1;
-  margin-bottom: 14px;
 }
 
 .confirm-modal-title {
   margin: 0 0 8px;
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
 }
 
 .confirm-modal-body {
-  margin: 0 0 22px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.65;
+  margin: 0 0 24px;
+  color: #5a5a5a;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
 }
 
 .confirm-modal-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .confirm-modal-actions button {
   flex: 1;
-  min-height: 40px;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 10px;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.confirm-modal-actions button:first-child {
+  background: #f6f8fa;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.confirm-modal-actions button:first-child:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
 }
 
 button.danger-filled {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: #c53030;
+  border: 1px solid #c53030;
   color: #fff;
 }
 
 button.danger-filled:hover {
-  background: #a93226;
-  border-color: #a93226;
+  background: #9b2c2c;
+  border-color: #9b2c2c;
 }
 
 /* ===== 2026 desktop workspace redesign ===== */

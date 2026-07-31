@@ -33,11 +33,6 @@ export class Drawer {
     this.actionsEl = document.getElementById('playbackDrawerActions');
     this.backBtn = document.getElementById('playbackDrawerBack');
     this.refreshBtn = document.getElementById('playbackDrawerRefresh');
-
-    // 绑定事件
-    this.backdrop?.addEventListener('click', () => this.close());
-    document.getElementById('playbackDrawerClose')?.addEventListener('click', () => this.close());
-    this.backBtn?.addEventListener('click', () => this.goBack());
   }
 
   /**

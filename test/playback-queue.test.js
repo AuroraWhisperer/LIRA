@@ -6,11 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-
-const playbackScript = fs.readFileSync(
-  path.join(__dirname, '..', 'public', 'js', 'playback.js'),
-  'utf8'
-);
+const { fileURLToPath, pathToFileURL } = require('node:url');
 
 test('playlist playback keeps one queue and loops with directly played search tracks', async () => {
   const savedState = {
@@ -34,7 +30,7 @@ test('playlist playback keeps one queue and loops with directly played search tr
     selectedSource: 'qq',
     volume: 0.75
   };
-  const app = createPlaybackApp(savedState);
+  const app = await createPlaybackApp(savedState);
 
   await app.init();
   await flushAsyncWork();
@@ -94,7 +90,7 @@ test('playlist playback keeps one queue and loops with directly played search tr
 test('playing a wanted track from radio switches to a looping history queue', async () => {
   const currentRadioTrack = track('radio-current', '当前电台歌曲');
   const olderTrack = track('history-old', '更早播放的歌曲');
-  const app = createPlaybackApp({
+  const app = await createPlaybackApp({
     current: currentRadioTrack,
     currentOrigin: 'radio',
     requestedQueue: [],
@@ -144,7 +140,7 @@ test('playing a wanted track from radio switches to a looping history queue', as
   assert.equal(app.radioRefillRequests(), 0);
 });
 
-function createPlaybackApp(initialState) {
+async function createPlaybackApp(initialState) {
   const elements = new Map();
   const storage = new Map([
     ['songAssistantPlaybackState:v1', JSON.stringify(initialState)]
@@ -290,7 +286,31 @@ function createPlaybackApp(initialState) {
     },
     window
   };
-  vm.runInNewContext(playbackScript, sandbox, { filename: 'public/js/playback.js' });
+  const context = vm.createContext(sandbox);
+  const playbackEntry = path.join(__dirname, '..', 'public', 'js', 'playback.js');
+  const moduleCache = new Map();
+
+  async function loadModule(filePath) {
+    const identifier = pathToFileURL(filePath).href;
+    if (moduleCache.has(identifier)) return moduleCache.get(identifier);
+
+    const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
+      context,
+      identifier,
+      initializeImportMeta(meta) {
+        meta.url = identifier;
+      }
+    });
+    moduleCache.set(identifier, module);
+    await module.link((specifier, referencingModule) => {
+      const dependencyUrl = new URL(specifier, referencingModule.identifier);
+      return loadModule(fileURLToPath(dependencyUrl));
+    });
+    return module;
+  }
+
+  const playbackModule = await loadModule(playbackEntry);
+  await playbackModule.evaluate();
 
   return {
     init() {

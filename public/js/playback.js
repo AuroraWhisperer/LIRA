@@ -390,6 +390,8 @@ import { HomeService } from './playback/services/home-service.js';
           providerManager.refreshAuthState(),
           providerManager.checkProviderHealth({ silent: true })
         ]);
+        playbackAuthState = providerManager.getAuthState();
+        playbackProviderHealth = providerManager.getProviderHealth();
         renderPlayback();
       }
 
@@ -825,31 +827,6 @@ import { HomeService } from './playback/services/home-service.js';
 
         savePlaybackState();
         renderPlayback();
-      }
-
-      async function importSongQueueToPlayback() {
-        const button = document.getElementById('playbackImportSongQueue');
-        if (button) button.disabled = true;
-
-        try {
-          const platforms = preferredPlaybackSearchPlatforms();
-          const result = await importService.importFromSongQueue({
-            maxItems: 30,
-            platforms: platforms
-          });
-
-          if (result.tracks.length > 0) {
-            insertPlaybackTracksNext(result.tracks);
-            savePlaybackState();
-            renderPlayback();
-          }
-
-          toast(`已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
-        } catch (error) {
-          showError(error);
-        } finally {
-          if (button) button.disabled = false;
-        }
       }
 
       async function importSongQueueToPlayback() {
@@ -1522,7 +1499,7 @@ import { HomeService } from './playback/services/home-service.js';
           if (!response.ok || !payload.ok) throw new Error(payload.error || '补充电台队列失败');
           if (playbackState.queueType !== 'radio') return;
           const tracks = Array.isArray(payload.data && payload.data.tracks)
-            ? payload.data.tracks.map(normalizePlaybackOnlineTrack)
+            ? payload.data.tracks.map(PlaybackUtils.normalizeOnlineTrack)
             : [];
           const recentIds = new Set(playbackState.history.slice(-30).map((track) => track.id));
           for (const track of tracks) {
@@ -1762,4 +1739,9 @@ import { HomeService } from './playback/services/home-service.js';
   window.AdminApp.playback = {
     initPlaybackAssistant
   };
+
+  // 模块加载完成后触发自定义事件，通知 main.js 可以初始化了
+  if (typeof CustomEvent !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('playback-module-loaded'));
+  }
 })();

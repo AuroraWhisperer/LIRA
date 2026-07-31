@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>点歌助手</title>
     <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/styles-admin.css?v=20260729-01">
+    <link rel="stylesheet" href="/styles-admin.css?v=20260731-01">
     <link rel="stylesheet" href="/styles-playback.css?v=20260730-02">
     <link rel="stylesheet" href="/styles-desktop.css?v=20260729-01">
   </head>
@@ -1460,9 +1460,14 @@
     <!-- 重启更新确认弹窗 -->
     <div id="restartConfirmModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" hidden>
       <div class="confirm-modal">
-        <div class="confirm-modal-icon">🔄</div>
+        <div class="confirm-modal-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </div>
         <h3 class="confirm-modal-title">重启并更新</h3>
-        <p class="confirm-modal-body">应用将关闭并安装新版本。<br>直播进行中请在合适时机操作。</p>
+        <p class="confirm-modal-body">应用将关闭并安装新版本。直播进行中请在合适时机操作。</p>
         <div class="confirm-modal-actions">
           <button id="restartConfirmCancelBtn" type="button">取消</button>
           <button id="restartConfirmOkBtn" class="danger-filled" type="button">确认重启</button>
@@ -1491,7 +1496,6 @@
     <div id="toast" class="toast-stack"></div>
     <script src="/js/utils.js?v=20260726-01"></script>
     <script src="/js/theme.js?v=20260726-01"></script>
-    <script src="/js/playback.js?v=20260730-01"></script>
     <script src="/js/desktop.js?v=20260726-01"></script>
     <!-- Admin 模块 - 拆分后的文件 -->
     <script src="/js/admin/forms.js?v=20260730-01"></script>
@@ -1505,6 +1509,8 @@
     <script src="/js/admin/gifts.js?v=20260730-01"></script>
     <script src="/js/admin/metrics.js?v=20260730-01"></script>
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
-    <script src="/js/admin/main.js?v=20260730-01"></script>
+    <script src="/js/admin/main.js?v=20260731-02"></script>
+    <!-- Playback 模块必须在 main.js 之后加载 -->
+    <script type="module" src="/js/playback.js?v=20260731-02"></script>
   </body>
 </html>

@@ -47,15 +47,8 @@ function setMainPage(pageId) {
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-  // 导航和工作区
-  initMainPages();
-  if (window.AdminApp.forms) {
-    window.AdminApp.forms.initWorkspaceControls();
-    window.AdminApp.forms.initTabs();
-  }
-
-  // 播放助手
+// 初始化播放助手
+function initPlaybackAssistant() {
   if (window.AdminApp.playback && window.AdminApp.playback.initPlaybackAssistant) {
     const { toast, showError, api, readJsonResponse } = window.AdminApp.utils;
     const getSongs = window.AdminApp.state ? window.AdminApp.state.getSongs : () => [];
@@ -68,6 +61,22 @@ document.addEventListener('DOMContentLoaded', () => {
       api,
       readJsonResponse
     });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // 导航和工作区
+  initMainPages();
+  if (window.AdminApp.forms) {
+    window.AdminApp.forms.initWorkspaceControls();
+    window.AdminApp.forms.initTabs();
+  }
+
+  // 播放助手 - 监听模块加载完成事件
+  window.addEventListener('playback-module-loaded', initPlaybackAssistant, { once: true });
+  // 如果模块已经加载完成（DOMContentLoaded 晚于模块加载），立即初始化
+  if (window.AdminApp.playback && window.AdminApp.playback.initPlaybackAssistant) {
+    initPlaybackAssistant();
   }
 
   // 桌面环境
