@@ -54,8 +54,21 @@
     const totalCount = queueItems.length;
     document.getElementById('queueSize').textContent = `${totalCount} 首`;
     renderSuperChatQueue(superChats);
+
+    // 先填充表单（确保盲盒 textarea 等已就绪），再渲染礼物面板
+    if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
+      window.AdminApp.forms.fillForm(settings);
+    }
+    const giftToggle = document.getElementById('giftDetectToggle');
+    if (giftToggle) giftToggle.checked = settings.enableGiftSprint === 'true';
+
     if (window.AdminApp.gifts && window.AdminApp.gifts.renderGiftPanel) {
       window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.blivedmCompatibility || {}, appState.bilibiliDiagnostics || {});
+    }
+
+    // 盲盒盈亏统计（独立加载，不阻塞渲染）
+    if (window.AdminApp.gifts && window.AdminApp.gifts.loadBlindBoxStats) {
+      window.AdminApp.gifts.loadBlindBoxStats();
     }
 
     const live = appState.liveStatus || {};
@@ -89,9 +102,6 @@
       }).join('');
     }
 
-    if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
-      window.AdminApp.forms.fillForm(settings);
-    }
     if (window.AdminApp.songs && window.AdminApp.songs.renderCategoryFilter) {
       const categories = window.AdminApp.state.getCategories();
       window.AdminApp.songs.renderCategoryFilter(categories);

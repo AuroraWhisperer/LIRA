@@ -8,11 +8,12 @@ const { now } = require('../shared/utils');
 const DEFAULT_SETTINGS = {
   roomId: '',
   enableBilibili: 'true',
-  enableGiftSprint: 'false',
+  enableGiftSprint: 'true',
   giftSprintTargetRmb: '0',
   enableGiftBotFallback: 'true',
   giftBotNames: '_薯条bb,薯条bb',
   giftBotAliasMap: '',
+  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":["电影票","棉花糖","爱心抱枕","绮彩权杖","时空之站","神驹宝玺","浪漫城堡"]},{"name":"幸运盲盒","price":5,"outputs":["幸运泡泡","好运柚叶","星光铃铛","梦雾纸签","福灵小兽","星愿花园"]}]',
   paused: 'false',
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
@@ -171,9 +172,24 @@ function migrateQueueScrollSpeedSetting(db, savedVersion) {
   `).run(updatedAt);
 }
 
+function migrateBlindBoxConfig(db) {
+  const row = db.prepare(`
+    SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'
+  `).get();
+  const value = (row && row.value) || '';
+  if (value.trim() !== '') return; // 用户已有配置，不覆盖
+  const defaultConfig = DEFAULT_SETTINGS.giftBlindBoxConfig;
+  if (!defaultConfig) return;
+  const updatedAt = now();
+  db.prepare(`
+    UPDATE settings SET value = ?, updated_at = ? WHERE key = 'giftBlindBoxConfig'
+  `).run(defaultConfig, updatedAt);
+}
+
 module.exports = {
   DEFAULT_SETTINGS,
   createSettingsStore,
   clearLegacyIdentityRuleDefaults,
-  migrateQueueScrollSpeedSetting
+  migrateQueueScrollSpeedSetting,
+  migrateBlindBoxConfig
 };

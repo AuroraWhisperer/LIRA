@@ -7,7 +7,8 @@
     value,
     toast,
     api,
-    readJsonResponse
+    readJsonResponse,
+    dangerConfirm
   } = window.AdminApp.utils;
 
   function initBilibiliAuth() {
@@ -86,6 +87,10 @@
     refreshAuthState();
   }
 
+  async function saveSettings(updates) {
+    await api('/api/settings', updates);
+  }
+
   function initSettingsForm() {
     document.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -99,44 +104,182 @@
     document.getElementById('giftSprintForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       await api('/api/settings', {
-        enableGiftSprint: value('enableGiftSprint'),
         giftSprintTargetRmb: value('giftSprintTargetRmb')
       });
-      toast('礼物冲刺设置已保存');
+      toast('冲刺目标已保存');
       if (window.AdminApp.state && window.AdminApp.state.reloadState) {
         await window.AdminApp.state.reloadState();
       }
     });
 
-    // 监听礼物扣减开关变化，立即生效
-    document.getElementById('enableGiftSprint').addEventListener('change', async (event) => {
-      const enabled = event.target.value;
+    // 礼物检测 toggle（checkbox 立即生效）
+    document.getElementById('giftDetectToggle').addEventListener('change', async (event) => {
+      const enabled = event.target.checked ? 'true' : 'false';
       try {
         await api('/api/settings', {
           enableGiftSprint: enabled
         });
-        toast(enabled === 'true' ? '礼物扣减已开启' : '礼物扣减已关闭');
+        toast(enabled === 'true' ? '礼物检测已开启' : '礼物检测已关闭');
         if (window.AdminApp.state && window.AdminApp.state.reloadState) {
           await window.AdminApp.state.reloadState();
         }
       } catch (error) {
         toast('保存失败：' + (error.message || String(error)));
-        // 保存失败时恢复原值
         const currentSettings = window.AdminApp.state.getAppState();
         if (currentSettings && currentSettings.settings) {
-          event.target.value = currentSettings.settings.enableGiftSprint || 'false';
+          event.target.checked = currentSettings.settings.enableGiftSprint === 'true';
         }
       }
     });
 
     document.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
-      if (!confirm('确认重置本轮礼物冲刺已收金额？礼物流水会保留，只是不再计入本轮冲刺。')) return;
+      if (!confirm('确认重置本轮已收金额？礼物流水会保留。')) return;
       await api('/api/gifts/sprint/reset', {});
-      toast('本轮礼物冲刺已重置');
+      toast('本轮冲刺已重置');
       if (window.AdminApp.state && window.AdminApp.state.reloadState) {
         await window.AdminApp.state.reloadState();
       }
     });
+
+    // 盲盒映射：表单添加
+    document.getElementById('blindBoxAddBtn').addEventListener('click', async () => {
+      const name = (value('blindBoxName') || '').trim();
+      const price = parseFloat(value('blindBoxPrice'));
+      const outputsRaw = (value('blindBoxOutputs') || '').trim();
+
+      if (!name) { toast('请输入盲盒名'); return; }
+      if (isNaN(price) || price < 0) { toast('请输入有效成本'); return; }
+      if (!outputsRaw) { toast('请输入可能开出的礼物'); return; }
+
+      const outputs = outputsRaw.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      if (outputs.length === 0) { toast('请输入可能开出的礼物'); return; }
+
+      // 读取现有配置
+      const textarea = document.getElementById('giftBlindBoxConfig');
+      let config = [];
+      const raw = (textarea.value || '').trim();
+      if (raw) {
+        try {
+          config = JSON.parse(raw);
+          if (!Array.isArray(config)) config = [];
+        } catch (e) { config = []; }
+      }
+
+      config.push({ name, price, outputs });
+      const newRaw = JSON.stringify(config, null, 2);
+      textarea.value = newRaw;
+      await saveSettings({ giftBlindBoxConfig: newRaw });
+      toast(`已添加盲盒「${name}」`);
+
+      // 清空输入
+      document.getElementById('blindBoxName').value = '';
+      document.getElementById('blindBoxPrice').value = '';
+      document.getElementById('blindBoxOutputs').value = '';
+
+      if (window.AdminApp.gifts && window.AdminApp.gifts.renderBlindBoxList) {
+        window.AdminApp.gifts.renderBlindBoxList();
+      }
+    });
+
+    // 盲盒映射：chip 删除（事件委托）
+    document.getElementById('blindBoxList').addEventListener('click', async (event) => {
+      const btn = event.target.closest('.chip-delete');
+      if (!btn) return;
+      const index = parseInt(btn.dataset.blindIndex, 10);
+      if (isNaN(index)) return;
+
+      const textarea = document.getElementById('giftBlindBoxConfig');
+      const raw = (textarea.value || '').trim();
+      let config = [];
+      try { config = JSON.parse(raw); if (!Array.isArray(config)) config = []; } catch (e) { config = []; }
+
+      if (index < 0 || index >= config.length) return;
+      const removed = config[index];
+      config.splice(index, 1);
+      const newRaw = config.length > 0 ? JSON.stringify(config, null, 2) : '';
+      textarea.value = newRaw;
+      await saveSettings({ giftBlindBoxConfig: newRaw });
+      toast(`已移除盲盒「${removed.name || '未命名'}」`);
+
+      if (window.AdminApp.gifts && window.AdminApp.gifts.renderBlindBoxList) {
+        window.AdminApp.gifts.renderBlindBoxList();
+      }
+    });
+
+    // 盲盒映射：高级编辑 toggle
+    document.getElementById('blindBoxAdvancedToggle').addEventListener('click', () => {
+      const advanced = document.getElementById('blindBoxAdvanced');
+      const btn = document.getElementById('blindBoxAdvancedToggle');
+      if (advanced.hidden) {
+        advanced.hidden = false;
+        btn.textContent = '高级 ▴';
+      } else {
+        advanced.hidden = true;
+        btn.textContent = '高级 ▾';
+      }
+    });
+
+    // 盲盒映射：JSON 直接保存
+    document.getElementById('giftBlindBoxSaveBtn').addEventListener('click', async () => {
+      const textarea = document.getElementById('giftBlindBoxConfig');
+      let raw = textarea.value.trim();
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
+          raw = JSON.stringify(parsed); // 规范化
+        } catch (e) {
+          toast('盲盒配置 JSON 格式错误：' + e.message);
+          return;
+        }
+      }
+      await saveSettings({ giftBlindBoxConfig: raw });
+      toast('盲盒配置已保存');
+      if (window.AdminApp.gifts && window.AdminApp.gifts.renderBlindBoxList) {
+        window.AdminApp.gifts.renderBlindBoxList();
+      }
+      if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+        await window.AdminApp.state.reloadState();
+      }
+    });
+
+    // 盲盒投屏：所有控件变更时实时更新 URL
+    const blindboxControls = [
+      'blindboxOverlayTitle', 'blindboxOverlayTop',
+      'blindboxWinnersOnly', 'blindboxCompact',
+      'blindboxNoScroll', 'blindboxLowPower'
+    ];
+    for (const id of blindboxControls) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener('input', () => updateBlindboxOverlayUrl());
+      el.addEventListener('change', () => {
+        updateBlindboxOverlayUrl();
+        // 标题变更时自动保存
+        if (id === 'blindboxOverlayTitle') {
+          saveSettings({ blindboxOverlayTitle: el.value.trim() }).catch(() => {});
+        }
+      });
+    }
+
+    // 盲盒投屏：复制链接
+    document.getElementById('blindboxCopyUrlBtn').addEventListener('click', async () => {
+      const url = buildBlindboxOverlayUrl();
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('投屏地址已复制');
+      } catch (e) {
+        prompt('复制以下地址：', url);
+      }
+    });
+
+    // 盲盒投屏：预览
+    document.getElementById('blindboxOpenUrlBtn').addEventListener('click', () => {
+      window.open(buildBlindboxOverlayUrl(), '_blank');
+    });
+
+    // 初始化 URL 显示
+    updateBlindboxOverlayUrl();
 
     document.getElementById('importBtn').addEventListener('click', () => {
       if (window.AdminApp.imports && window.AdminApp.imports.importSongs) {
@@ -181,6 +324,33 @@
     }
   }
 
+  function buildBlindboxOverlayUrl() {
+    const base = `${location.protocol}//${location.host}/blindbox`;
+    const params = [];
+    const add = (key, value) => { if (value) params.push(`${key}=${encodeURIComponent(value)}`); };
+
+    const top = val('blindboxOverlayTop');
+    if (top && top !== '0') add('top', top);
+
+    const title = val('blindboxOverlayTitle').trim();
+    if (title) add('title', title);
+
+    if (checked('blindboxWinnersOnly')) add('winners', '1');
+    if (checked('blindboxCompact')) add('compact', '1');
+    if (checked('blindboxNoScroll')) add('noScroll', '1');
+    if (checked('blindboxLowPower')) add('quality', 'low');
+
+    return params.length ? `${base}?${params.join('&')}` : base;
+  }
+
+  function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+  function checked(id) { const el = document.getElementById(id); return el ? el.checked : false; }
+
+  function updateBlindboxOverlayUrl() {
+    const code = document.getElementById('blindboxOverlayUrl');
+    if (code) code.textContent = buildBlindboxOverlayUrl();
+  }
+
   function collectSettings() {
     return {
       roomId: value('roomId'),
@@ -194,9 +364,14 @@
   }
 
   async function clearDatabase() {
-    if (!confirm('确认清空歌库？只会删除歌曲和分类，直播间号、主题颜色和其他设置会保留。')) {
-      return;
-    }
+    const ok = await dangerConfirm({
+      title: '清空歌库',
+      message: '只会删除歌曲和分类，直播间号、主题颜色和其他设置会保留。',
+      deletes: ['歌曲', '分类'],
+      keeps: ['直播间号', '主题颜色', '所有设置'],
+      confirmLabel: '确认清空歌库'
+    });
+    if (!ok) return;
     await api('/api/database/clear', { confirm: true });
     toast('歌库已清空');
     if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
@@ -205,9 +380,13 @@
   }
 
   async function clearSuperChats() {
-    if (!confirm('确认清空所有 SC（醒目留言）记录？此操作不可撤销。')) {
-      return;
-    }
+    const ok = await dangerConfirm({
+      title: '清空 SC 记录',
+      message: '确认清空所有 SC（醒目留言）记录？',
+      deletes: ['SC 记录'],
+      confirmLabel: '确认清空'
+    });
+    if (!ok) return;
     const response = await api('/api/database/clear-superchats', { confirm: true });
     toast(`SC 记录已清空（共 ${response.data.deletedCount} 条）`);
     if (window.AdminApp.state && window.AdminApp.state.reloadState) {
@@ -216,9 +395,14 @@
   }
 
   async function clearAll() {
-    if (!confirm('⚠️ 确认清空全部数据？\n\n这将删除：歌库、分类、点歌队列、点歌记录、SC 记录\n保留：直播间号、主题颜色、所有设置\n\n此操作不可撤销！')) {
-      return;
-    }
+    const ok = await dangerConfirm({
+      title: '清空全部数据',
+      message: '此操作将删除以下所有数据：',
+      deletes: ['歌库', '分类', '点歌队列', '点歌记录', 'SC 记录'],
+      keeps: ['直播间号', '主题颜色', '所有设置'],
+      confirmLabel: '确认清空全部'
+    });
+    if (!ok) return;
     const response = await api('/api/database/clear-all', { confirm: true });
     const d = response.data.deletedCounts;
     toast(`全部数据已清空 — 歌曲 ${d.songs} · 队列 ${d.queue} · 记录 ${d.requests} · SC ${d.sc}（共 ${response.data.totalDeleted} 条），设置已保留`);
@@ -350,6 +534,7 @@
     clearAll,
     shutdownServer,
     reconnectBilibili,
-    renderShutdownScreen
+    renderShutdownScreen,
+    updateBlindboxOverlayUrl
   };
 })();

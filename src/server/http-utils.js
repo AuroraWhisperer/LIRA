@@ -75,6 +75,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl) {
     ['/songs', 'admin.html'],
     ['/queue', 'overlay-queue.html'],
     ['/songlist', 'overlay-songs.html'],
+    ['/blindbox', 'overlay-blindbox.html'],
     ['/lyrics', 'lyric-window.html']
   ]);
   const assetPath = pageMap.get(requestUrl.pathname)

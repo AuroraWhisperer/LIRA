@@ -172,6 +172,84 @@
     return String(Math.round(clamped * 100) / 100);
   }
 
+  /**
+   * 右上角危险操作确认弹窗 — 替代原生 confirm()
+   * @param {Object} opts
+   * @param {string} opts.title       - 弹窗标题
+   * @param {string} opts.message     - 主消息（正文）
+   * @param {string[]} [opts.deletes] - 将被删除的项目列表
+   * @param {string[]} [opts.keeps]   - 保留的项目列表
+   * @param {string} [opts.confirmLabel] - 确认按钮文案，默认 "确认清空"
+   * @returns {Promise<boolean>}
+   */
+  function dangerConfirm(opts) {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'danger-confirm-backdrop';
+
+      const deletesHtml = opts.deletes && opts.deletes.length
+        ? `<ul>${opts.deletes.map(d => `<li>${escapeHtml(d)}</li>`).join('')}</ul>`
+        : '';
+      const keepsHtml = opts.keeps && opts.keeps.length
+        ? `<div class="danger-confirm-keep"><strong>保留：</strong>${opts.keeps.map(k => escapeHtml(k)).join(' · ')}</div>`
+        : '';
+
+      backdrop.innerHTML = `
+        <div class="danger-confirm-popup" role="alertdialog" aria-labelledby="dc-title" aria-describedby="dc-msg">
+          <div class="danger-confirm-body">
+            <div class="danger-confirm-header">
+              <div class="danger-confirm-icon-wrap" aria-hidden="true">!</div>
+              <div class="danger-confirm-header-text">
+                <h3 class="danger-confirm-title" id="dc-title">${escapeHtml(opts.title || '确认操作')}</h3>
+                <span class="danger-confirm-subtitle">此操作不可撤销</span>
+              </div>
+            </div>
+            <div class="danger-confirm-message" id="dc-msg">
+              ${escapeHtml(opts.message || '')}${deletesHtml}
+            </div>
+            ${keepsHtml}
+            <div class="danger-confirm-actions">
+              <button class="danger-confirm-cancel" type="button">取消</button>
+              <button class="danger-confirm-execute" type="button">${escapeHtml(opts.confirmLabel || '确认清空')}</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(backdrop);
+
+      const cancelBtn = backdrop.querySelector('.danger-confirm-cancel');
+      const executeBtn = backdrop.querySelector('.danger-confirm-execute');
+
+      function close(result) {
+        backdrop.classList.add('is-leaving');
+        backdrop.addEventListener('animationend', () => {
+          backdrop.remove();
+          resolve(result);
+        }, { once: true });
+        // 兜底：animationend 不触发时也清理
+        setTimeout(() => { if (backdrop.parentNode) { backdrop.remove(); resolve(result); } }, 300);
+      }
+
+      cancelBtn.addEventListener('click', () => close(false));
+      executeBtn.addEventListener('click', () => close(true));
+
+      // 点击遮罩关闭
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close(false);
+      });
+
+      // ESC 关闭
+      function onKey(e) {
+        if (e.key === 'Escape') { close(false); }
+      }
+      document.addEventListener('keydown', onKey, { once: true });
+
+      // 自动聚焦确认按钮
+      requestAnimationFrame(() => executeBtn.focus());
+    });
+  }
+
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.utils = {
     multilingualFontFallback,
@@ -179,6 +257,7 @@
     formatTime, formatDateTime, formatBytes, formatDuration,
     formatSuperChatPrice, formatMoney, formatCompactNumber,
     withMultilingualFallback, toast, showStackedToast,
-    api, readJsonResponse, showError, debounce, normalizeRangeValue
+    api, readJsonResponse, showError, debounce, normalizeRangeValue,
+    dangerConfirm
   };
 })();

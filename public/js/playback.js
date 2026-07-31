@@ -12,6 +12,7 @@ import { PlayerController } from './playback/player/controller.js';
 import { ProviderManager } from './playback/provider/manager.js';
 import { ContentLoader } from './playback/content/loader.js';
 import { LocalFileManager } from './playback/local/manager.js';
+import { CacheManager } from './playback/cache/manager.js';
 
 import { PlaybackConfig } from './playback/config.js';
 import { SearchService } from './playback/services/search-service.js';
@@ -70,12 +71,24 @@ import { HomeService } from './playback/services/home-service.js';
     });
     providerManager.setJsonResponseReader((r, msg) => readJsonResponse(r, msg));
 
+    // 缓存管理器（会话级：关闭 exe 时清空）
+    const cacheManager = new CacheManager();
+
     // 内容加载器
     const contentLoader = new ContentLoader({
       state: playbackState,
       providerManager: providerManager,
+      cacheManager: cacheManager,
       onError: (error) => showError(error),
-      readJsonResponse: (r, msg) => readJsonResponse(r, msg)
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg),
+      onBackgroundUpdate: (update) => {
+        // 后台静默刷新检测到变化：更新当前抽屉内容
+        if (homeService.getHomeState().action === update.action) {
+          homeService._applyBackgroundUpdate(update);
+          renderPlaybackHomeResults(update.action, update.title);
+          toast(HomeService.getActionName(update.action) + '已自动更新');
+        }
+      }
     });
 
     // 本地文件管理器
@@ -381,6 +394,7 @@ import { HomeService } from './playback/services/home-service.js';
         audio.addEventListener('ended', () => playbackNext(true));
         audio.addEventListener('error', () => handlePlaybackError());
         window.addEventListener('pagehide', flushPlaybackStateOnUnload);
+        window.addEventListener('pagehide', () => { cacheManager.clearAll(); });
 
         renderPlayback();
         refreshSelectedMusicProviderState();

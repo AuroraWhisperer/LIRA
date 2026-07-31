@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`1.5.0`
+当前版本：`1.5.1`
 
 ---
+
+## v1.5.1 变更
+
+- 🎰 **盲盒盈亏投屏**：新增盲盒盈亏独立投屏页面（`overlay-blindbox.html/js`），支持今日盈亏统计、欧皇排行榜、盈利者筛选、紧凑模式、低功耗模式等参数配置。管理后台「投屏地址」区域新增盲盒盈亏 URL 生成器，可自定义标题、显示人数等参数。
+- 🎵 **播放器缓存管理**：新增 `public/js/playback/cache/manager.js` 播放缓存模块，优化播放器性能和资源管理。
+- 💽 **唱盘底盘视觉优化**：新增唱盘底盘图片 `player-turntable-chassis.png`，提升播放器视觉效果。
+- 🎁 **礼物服务增强**：`gift-service.js` 礼物处理逻辑大幅优化，`gift-parser.js` 和 `gift-routes.js` 细节改进，增强礼物解析和路由稳定性。
+- 🖥️ **管理后台优化**：`admin.html` 布局改进（新增盲盒投屏配置区），`display.js`、`gifts.js`、`queue.js`、`settings.js` 多处功能增强和代码优化。
+- 🎬 **播放器前端增强**：`playback.js`、`content/loader.js`、`services/home-service.js`、`ui/fullscreen.js` 大量优化，提升播放器交互体验。
+- 🎨 **CSS 样式重构**：`styles-admin.css`（+582 行）、`styles-playback.css`（+240 行）大幅增强，配合盲盒投屏和 UI 改进。
+- 🔧 **工具函数增强**：`utils.js` 新增多个通用工具函数。
+- 🧹 **清理**：移除过期的 `captured-gifts-*.json` 抓包样本文件。
 
 ## v1.5.0 变更
 

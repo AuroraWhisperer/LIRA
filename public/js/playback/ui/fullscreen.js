@@ -18,8 +18,12 @@ export class FullscreenPlayer {
     this.tonearmEl = null;
     this.lyricsContainer = null;
     this.lyricsWrap = null;
+    this.lyricTogglesEl = null;
+    this.lyricToggleTransBtn = null;
+    this.lyricToggleRomaBtn = null;
     this.lyricsInitialized = false;
-    this.lastActiveLyricIndex = -1; // 跟踪上一次的活动歌词索引
+    this.lastActiveLyricIndex = -1;
+    this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
   }
 
   /**
@@ -35,6 +39,16 @@ export class FullscreenPlayer {
     this.tonearmEl = document.getElementById('playerFsTonearm');
     this.lyricsContainer = document.getElementById('playerFsLyrics');
     this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
+    this.lyricTogglesEl = document.getElementById('playerFsLyricToggles');
+    this.lyricToggleTransBtn = document.getElementById('fsLyricToggleTrans');
+    this.lyricToggleRomaBtn = document.getElementById('fsLyricToggleRoma');
+
+    if (this.lyricToggleTransBtn) {
+      this.lyricToggleTransBtn.addEventListener('click', () => this._toggleLyricMode('trans'));
+    }
+    if (this.lyricToggleRomaBtn) {
+      this.lyricToggleRomaBtn.addEventListener('click', () => this._toggleLyricMode('roma'));
+    }
   }
 
   /**
@@ -61,6 +75,9 @@ export class FullscreenPlayer {
 
     // 渲染歌词
     this.renderLyrics(track, audio);
+
+    // 更新歌词切换按钮可见性
+    this._updateLyricToggles(track);
   }
 
   /**
@@ -127,12 +144,10 @@ export class FullscreenPlayer {
   updateVinylAnimation(isPlaying) {
     // 唱片旋转动画：播放时旋转，暂停时保持当前角度
     if (this.vinylDiscEl) {
+      this.vinylDiscEl.classList.add('spinning');
       if (isPlaying) {
-        this.vinylDiscEl.classList.add('spinning');
         this.vinylDiscEl.classList.remove('paused');
       } else {
-        // 暂停时移除spinning但不重置transform，保持当前角度
-        this.vinylDiscEl.classList.remove('spinning');
         this.vinylDiscEl.classList.add('paused');
       }
     }
@@ -155,9 +170,12 @@ export class FullscreenPlayer {
       ? track.lyrics.lines
       : [];
 
+    // 保存歌词行引用，供 _toggleLyricMode 重渲染使用
+    this._lastLyricLines = lines;
+
     if (!lines.length) {
       this.lyricsContainer.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
-      this.lastActiveLyricIndex = -1; // 重置索引
+      this.lastActiveLyricIndex = -1;
       return;
     }
 
@@ -217,6 +235,9 @@ export class FullscreenPlayer {
 
     const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
+    const showTrans = this.lyricMode === 'trans';
+    const showRoma = this.lyricMode === 'roma';
+
     this.lyricsContainer.innerHTML = lines.map((line, i) => `
       <div class="player-fs-lyric-line" data-lyric-index="${i}" data-lyric-start-ms="${line.startMs || 0}">
         <button class="lyric-seek-btn" type="button" aria-label="从此处播放" title="从此处播放">
@@ -226,7 +247,8 @@ export class FullscreenPlayer {
         </button>
         <div class="lyric-content">
           <span class="lyric-text">${escapeHtml(line.text || '')}</span>
-          ${line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
+          ${showTrans && line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
+          ${showRoma && line.roma ? `<span class="lyric-trans">${escapeHtml(line.roma)}</span>` : ''}
         </div>
       </div>
     `).join('');
@@ -311,6 +333,68 @@ export class FullscreenPlayer {
     // 触发进度更新和状态保存（需要通过回调）
     if (this.onSeek) {
       this.onSeek();
+    }
+  }
+
+  /**
+   * 切换歌词显示模式
+   * @param {string} mode - 'trans' | 'roma'
+   */
+  _toggleLyricMode(mode) {
+    if (this.lyricMode === mode) {
+      // 再次点击同一按钮 → 关闭
+      this.lyricMode = 'none';
+    } else {
+      this.lyricMode = mode;
+    }
+    this._updateLyricToggleButtons();
+
+    // 重新渲染歌词以反映新模式
+    if (this.lyricsContainer) {
+      const lines = this._lastLyricLines;
+      if (lines && lines.length > 0) {
+        this.renderLyricLines(lines);
+      }
+    }
+  }
+
+  /**
+   * 更新歌词切换按钮的可见性和激活状态
+   * @param {Object} track - 轨道对象
+   */
+  _updateLyricToggles(track) {
+    if (!this.lyricTogglesEl) return;
+
+    const lines = track && track.lyrics && Array.isArray(track.lyrics.lines)
+      ? track.lyrics.lines
+      : [];
+
+    const hasTranslation = lines.some((line) => line.translation);
+    const hasRoma = lines.some((line) => line.roma);
+
+    this.lyricTogglesEl.style.display = (hasTranslation || hasRoma) ? 'flex' : 'none';
+
+    if (this.lyricToggleTransBtn) {
+      this.lyricToggleTransBtn.style.display = hasTranslation ? '' : 'none';
+    }
+    if (this.lyricToggleRomaBtn) {
+      this.lyricToggleRomaBtn.style.display = hasRoma ? '' : 'none';
+    }
+
+    // 重置模式（切歌时）
+    this.lyricMode = 'none';
+    this._updateLyricToggleButtons();
+  }
+
+  /**
+   * 同步按钮激活样式
+   */
+  _updateLyricToggleButtons() {
+    if (this.lyricToggleTransBtn) {
+      this.lyricToggleTransBtn.classList.toggle('active', this.lyricMode === 'trans');
+    }
+    if (this.lyricToggleRomaBtn) {
+      this.lyricToggleRomaBtn.classList.toggle('active', this.lyricMode === 'roma');
     }
   }
 

@@ -91,7 +91,8 @@ function parseLyricPayload(body) {
   const lyric = cleanTextPreserveLines(body.lyric).slice(0, 512 * 1024);
   const translation = cleanTextPreserveLines(body.translation).slice(0, 512 * 1024);
   const wordLyric = cleanTextPreserveLines(body.wordLyric || body.yrc).slice(0, 512 * 1024);
-  return { lines: parseLyricResult(lyric, translation, wordLyric) };
+  const roma = cleanTextPreserveLines(body.roma || '').slice(0, 512 * 1024);
+  return { lines: parseLyricResult(lyric, translation, wordLyric, roma) };
 }
 
 function matchMusicTrackCandidates(body) {

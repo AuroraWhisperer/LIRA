@@ -1,16 +1,19 @@
 'use strict';
 
-function parseLyricResult(rawLyric, rawTranslation, rawWordLyric) {
+function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   const lines = parseLrc(rawLyric);
   const translations = parseLrc(rawTranslation);
   const translationByStart = new Map(translations.map((line) => [line.startMs, line.text]));
   const wordLines = parseWordLyric(rawWordLyric);
   const wordLineByStart = new Map(wordLines.map((line) => [line.startMs, line]));
+  const romaLines = parseLrc(rawRoma);
+  const romaByStart = new Map(romaLines.map((line) => [line.startMs, line.text]));
 
   return lines.map((line, index) => ({
     ...line,
     endMs: lines[index + 1] ? lines[index + 1].startMs : undefined,
     translation: translationByStart.get(line.startMs) || '',
+    roma: romaByStart.get(line.startMs) || '',
     words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : []
   }));
 }

@@ -17,6 +17,11 @@ const routes = {
     sendJson(res, 200, { ok: true, data: result });
   },
 
+  'GET /api/gifts/blind-box-stats'(context, request, res) {
+    const stats = context.gifts.getBlindBoxStats();
+    sendJson(res, 200, { ok: true, data: stats });
+  },
+
   // 管理页用 GET 触发，兼容旧版 POST 调用
   'GET /api/gifts/blivedm/check': checkBlivedm,
   'POST /api/gifts/blivedm/check': checkBlivedm

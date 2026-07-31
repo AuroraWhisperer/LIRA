@@ -185,13 +185,12 @@ function extractBilibiliWebGiftMessage(packet, data) {
     'discount_price',
     'discountPrice'
   ]));
+  // 注意：combo_total_coin 是连击累计总价，非本次礼物价格，不能作为 totalCoin 回退值
   const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, [
     'total_coin',
     'totalCoin',
     'total_price',
-    'totalPrice',
-    'combo_total_coin',
-    'comboTotalCoin'
+    'totalPrice'
   ]));
   const unitPrice = paid ? normalizeMoney(unitCoin / 1000) : 0;
   const totalPrice = paid ? normalizeMoney((totalCoin > 0 ? totalCoin : unitCoin * num) / 1000) : 0;

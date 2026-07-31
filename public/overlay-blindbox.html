@@ -1,0 +1,29 @@
+<!-- 编写人：AuroraWhisperer -->
+<!-- 盲盒盈亏展示 overlay — 投屏到直播间展示 -->
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>盲盒盈亏</title>
+    <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
+    <link rel="stylesheet" href="/styles-overlay.css?v=20260728-01">
+    <link rel="stylesheet" href="/styles-blindbox-overlay.css?v=20260731-01">
+  </head>
+  <body class="overlay-body">
+    <section class="overlay-panel blindbox-panel">
+      <header class="overlay-header blindbox-header">
+        <div id="blindboxTitle" class="overlay-title">🎁 今日盲盒盈亏</div>
+      </header>
+      <div class="overlay-content blindbox-content">
+        <!-- 汇总卡片 -->
+        <div class="blindbox-summary" id="blindboxSummary"></div>
+        <!-- 欧皇榜 -->
+        <div class="blindbox-leaderboard" id="blindboxLeaderboard"></div>
+        <!-- 底部提示 -->
+        <div class="blindbox-footer" id="blindboxFooter"></div>
+      </div>
+    </section>
+    <script src="/overlay-blindbox.js?v=20260731-01"></script>
+  </body>
+</html>

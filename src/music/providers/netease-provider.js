@@ -195,7 +195,8 @@ class NeteaseMusicProvider {
       lines: parseLyricResult(
         data && data.lrc ? data.lrc.lyric : '',
         data && data.tlyric ? data.tlyric.lyric : '',
-        data && data.yrc ? data.yrc.lyric : ''
+        data && data.yrc ? data.yrc.lyric : '',
+        data && data.romalrc ? data.romalrc.lyric : ''
       )
     };
   }

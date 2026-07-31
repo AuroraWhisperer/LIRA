@@ -802,9 +802,9 @@
             <div class="overlay-address-head">
               <div>
                 <h3>直播画面地址</h3>
-                <p>把下面两个网页源地址复制到直播姬或 OBS。</p>
+                <p>把下面网页源地址复制到直播姬或 OBS。</p>
               </div>
-              <button id="copyOverlayUrls" class="primary" type="button">复制两个地址</button>
+              <button id="copyOverlayUrls" class="primary" type="button">复制全部地址</button>
             </div>
 
             <div class="overlay-address-grid">
@@ -826,6 +826,59 @@
                 <button type="button" data-copy-url="songsUrl">复制</button>
               </section>
             </div>
+
+            <!-- 盲盒盈亏 — 单独的 URL 生成器 -->
+            <fieldset class="theme-section" style="margin-top:16px">
+              <legend>🎰 盲盒盈亏</legend>
+              <p class="hint" style="margin-bottom:12px">今日盲盒盈亏、欧皇排行榜。调好参数复制链接到 OBS 浏览器源。</p>
+
+              <div class="blindbox-builder">
+                <div class="blindbox-builder-row">
+                  <label>
+                    <span class="blindbox-builder-label">📝 投屏标题</span>
+                    <input id="blindboxOverlayTitle" type="text" placeholder="默认：🎁 今日盲盒盈亏">
+                    <span class="hint">留空则显示默认标题</span>
+                  </label>
+                  <label>
+                    <span class="blindbox-builder-label">👥 显示人数</span>
+                    <input id="blindboxOverlayTop" type="number" min="0" max="50" value="5" placeholder="5">
+                    <span class="hint">填 0 显示全部，建议 5~10</span>
+                  </label>
+                </div>
+
+                <div class="blindbox-builder-switches">
+                  <label class="blindbox-switch">
+                    <input id="blindboxWinnersOnly" type="checkbox" checked>
+                    <span>🏆 仅显示盈利者</span>
+                    <span class="hint">隐藏亏了的观众，只晒欧皇</span>
+                  </label>
+                  <label class="blindbox-switch">
+                    <input id="blindboxCompact" type="checkbox">
+                    <span>📐 紧凑模式</span>
+                    <span class="hint">缩小间距，适合小窗口</span>
+                  </label>
+                  <label class="blindbox-switch">
+                    <input id="blindboxNoScroll" type="checkbox">
+                    <span>⏸️ 禁止滚动</span>
+                    <span class="hint">内容固定不滚动</span>
+                  </label>
+                  <label class="blindbox-switch">
+                    <input id="blindboxLowPower" type="checkbox">
+                    <span>⚡ 低功耗</span>
+                    <span class="hint">关闭特效，减少 OBS 占用</span>
+                  </label>
+                </div>
+
+                <div class="blindbox-url-bar">
+                  <span class="blindbox-url-label">🔗 投屏链接</span>
+                  <code id="blindboxOverlayUrl">http://localhost:3000/blindbox</code>
+                  <div class="blindbox-url-actions">
+                    <button id="blindboxCopyUrlBtn" class="primary" type="button">📋 复制</button>
+                    <button id="blindboxOpenUrlBtn" class="secondary" type="button">🔗 预览</button>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
           </div>
         </div>
 
@@ -852,68 +905,109 @@
           </div>
         </div>
 
-        <div id="giftPage" class="tab-page">
+                <div id="giftPage" class="tab-page">
           <div class="panel-body stack">
-            <section class="gift-section">
-              <div class="gift-section-head">
-                <div>
-                  <h3>月底冲刺</h3>
-                  <p>打开后，新收到的付费礼物会计入本轮目标；盲盒按盒子成本计入。</p>
-                </div>
-                <div class="actions">
-                  <button id="giftProtocolCheckBtn" class="secondary" type="button">检查协议</button>
-                  <span id="giftSprintStatus" class="pill warn">未开启</span>
-                </div>
+
+            <!-- 1. 礼物检测 -->
+            <fieldset class="theme-section gift-detect-section">
+              <legend>🎛️ 礼物检测</legend>
+              <div class="gift-detect-head">
+                <label class="switch-control">
+                  <input id="giftDetectToggle" type="checkbox" checked>
+                  <span class="switch-track"></span>
+                  <span id="giftDetectLabel">已开启</span>
+                </label>
+                <span id="giftSprintStatus" class="pill warn">未开启</span>
+                <button id="giftProtocolCheckBtn" class="secondary" type="button">检查协议</button>
               </div>
-              <div id="giftCompatibilityStatus" class="hint">blivedm 协议检查等待中</div>
-              <div id="giftDiagnosticsStatus" class="hint">等待直播消息诊断</div>
+              <div id="giftStatusLine" class="hint">等待直播消息…</div>
+            </fieldset>
 
-              <form id="giftSprintForm" class="grid-3">
-                <label>
-                  礼物扣减开关
-                  <select id="enableGiftSprint">
-                    <option value="false">关闭</option>
-                    <option value="true">打开</option>
-                  </select>
-                </label>
-                <label>
-                  冲刺总目标（元）
-                  <input id="giftSprintTargetRmb" type="number" min="0" step="0.01" placeholder="例如：10000">
-                </label>
-                <div class="gift-form-actions">
-                  <button class="primary" type="submit">保存目标</button>
-                  <button id="giftSprintResetBtn" type="button">重置本轮已收</button>
-                </div>
-              </form>
-
+            <!-- 2. 月底冲刺 -->
+            <fieldset class="theme-section">
+              <legend>🎯 月底冲刺</legend>
               <div class="gift-sprint-grid">
                 <section class="gift-stat">
                   <span>目标</span>
                   <strong id="giftSprintTarget">¥0.00</strong>
                 </section>
                 <section class="gift-stat">
-                  <span>已收到</span>
+                  <span>已收</span>
                   <strong id="giftSprintReceived">¥0.00</strong>
                 </section>
                 <section class="gift-stat">
-                  <span>剩余</span>
+                  <span>还差</span>
                   <strong id="giftSprintRemaining">¥0.00</strong>
                 </section>
                 <section class="gift-stat highlight">
-                  <span>还需要水晶球</span>
+                  <span>≈ 水晶球</span>
                   <strong id="giftSprintCrystalBalls">0 个</strong>
                 </section>
               </div>
+              <form id="giftSprintForm" class="gift-sprint-form-row">
+                <label>
+                  冲刺目标(元)
+                  <input id="giftSprintTargetRmb" type="number" min="0" step="0.01" placeholder="例如：10000">
+                </label>
+                <div class="gift-form-actions">
+                  <button class="primary" type="submit">保存</button>
+                  <button id="giftSprintResetBtn" type="button">重置本轮</button>
+                </div>
+              </form>
+            </fieldset>
 
-              <div>
-                <h4>最近礼物</h4>
-                <div id="giftRecentList" class="queue-list gift-list"></div>
+            <!-- 3. 最近礼物 -->
+            <fieldset class="theme-section gift-recent-section">
+              <legend>📦 最近礼物</legend>
+              <div id="giftRecentList" class="gift-cards"></div>
+            </fieldset>
+
+            <!-- 4. 盲盒映射 -->
+            <fieldset class="theme-section gift-blindbox-section">
+              <legend>🎰 盲盒映射</legend>
+              <div class="blind-box-form-row">
+                <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒">
+                <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本(元)">
+                <input id="blindBoxOutputs" type="text" placeholder="开出礼物，逗号分隔">
+                <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
+                <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
               </div>
-            </section>
+              <div id="blindBoxList" class="blind-box-list"></div>
+              <div id="blindBoxAdvanced" hidden>
+                <textarea id="giftBlindBoxConfig" rows="6" placeholder='[
+  { "name": "心动盲盒", "price": 15, "outputs": ["电影票","棉花糖","爱心抱枕","绮彩权杖","时空之站","神驹宝玺","浪漫城堡"] },
+  { "name": "幸运盲盒", "price": 5, "outputs": ["幸运泡泡","好运柚叶","星光铃铛","梦雾纸签","福灵小兽","星愿花园"] }
+]'></textarea>
+                <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
+              </div>
+            </fieldset>
+
+            <!-- 5. 盲盒盈亏 -->
+            <fieldset class="theme-section gift-blindbox-stats-section">
+              <legend>📊 今日盲盒盈亏</legend>
+              <div class="gift-blind-stats-summary" id="blindBoxStatsSummary">
+                <span class="hint">加载中…</span>
+              </div>
+              <div class="gift-blind-stats-table-wrap">
+                <table class="blind-stats-table" id="blindBoxStatsTable">
+                  <thead>
+                    <tr>
+                      <th>观众</th>
+                      <th>盒子数</th>
+                      <th>成本</th>
+                      <th>开出</th>
+                      <th>盈亏</th>
+                    </tr>
+                  </thead>
+                  <tbody id="blindBoxStatsBody">
+                    <tr><td colspan="5" class="empty">暂无数据</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </fieldset>
 
           </div>
         </div>
-
         <div id="desktopLyricPage" class="tab-page">
           <div class="panel-body stack">
             <form id="desktopLyricForm" class="stack">
@@ -1415,6 +1509,22 @@
                   <div class="player-fs-lyrics-empty">暂无歌词</div>
                 </div>
               </div>
+              <div class="player-fs-lyric-toggles" id="playerFsLyricToggles" style="display:none">
+                <button class="fs-lyric-toggle" id="fsLyricToggleTrans" type="button"
+                  title="在原文基础上叠加中文翻译" aria-label="翻译歌词">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 8h14"/><path d="M12 3v14"/><path d="M3 18l3-3h12l3 3"/>
+                  </svg>
+                  <span>翻译</span>
+                </button>
+                <button class="fs-lyric-toggle" id="fsLyricToggleRoma" type="button"
+                  title="在原文基础上叠加罗马音音译（日/韩等外文歌曲）" aria-label="罗马音歌词">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+                  </svg>
+                  <span>罗马音</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1496,7 +1606,7 @@
     <script src="/js/admin/theme.js?v=20260730-01"></script>
     <script src="/js/admin/display.js?v=20260730-01"></script>
     <script src="/js/admin/settings.js?v=20260730-01"></script>
-    <script src="/js/admin/gifts.js?v=20260730-01"></script>
+    <script src="/js/admin/gifts.js?v=20260731-01"></script>
     <script src="/js/admin/metrics.js?v=20260730-01"></script>
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <script src="/js/admin/main.js?v=20260731-02"></script>

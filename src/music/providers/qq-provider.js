@@ -97,7 +97,9 @@ class QQMusicProvider {
       sourceTrackId,
       lines: parseLyricResult(
         decodeQQBase64(data && data.lyric),
-        decodeQQBase64(data && data.trans)
+        decodeQQBase64(data && data.trans),
+        '',
+        decodeQQBase64(data && data.romalrc)
       )
     };
   }

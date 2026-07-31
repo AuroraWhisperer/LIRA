@@ -21,7 +21,9 @@ function createDomainServices({ db, settingsStore }) {
   const state = {
     cooldownByUser: new Map(),
     giftBotPendingByName: new Map(),
-    giftBotLastReportByName: new Map()
+    giftBotLastReportByName: new Map(),
+    giftComboPending: new Map(),
+    blindBoxCache: null
   };
 
   // 冷却记录重启后从 DB 恢复，避免观众靠重启绕过冷却
@@ -70,6 +72,7 @@ function createDomainServices({ db, settingsStore }) {
   const gifts = {
     getSnapshot: () => giftService.getGiftSnapshot(giftContext),
     getSprintSnapshot: () => giftService.getGiftSprintSnapshot(giftContext),
+    getBlindBoxStats: () => giftService.getBlindBoxStats(giftContext),
     add: (input) => giftService.addGiftEvent(giftContext, input),
     handleBotDanmaku: (danmaku) => giftService.handleGiftBotDanmaku(giftContext, danmaku),
     resetSprint: () => giftService.resetGiftSprintProgress(giftContext)

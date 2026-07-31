@@ -62,6 +62,7 @@ settingsStoreModule.migrateQueueScrollSpeedSetting(
   queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value
 );
 settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);
+settingsStoreModule.migrateBlindBoxConfig(songDb);
 domainServices.songs.ensureCategory('默认');
 domainServices.queue.clearOnStartup();
 runStartupRetention();
@@ -164,6 +165,7 @@ function createApiContext() {
     },
     gifts: {
       resetSprint: domainServices.gifts.resetSprint,
+      getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
       runBlivedmCheck: blivedmRuntime.runManualCheck
     },
     debug: {
@@ -262,6 +264,7 @@ function startServer(options = {}) {
     console.log(`Admin: ${baseUrl}/admin`);
     console.log(`Queue overlay: ${baseUrl}/queue`);
     console.log(`Songs overlay: ${baseUrl}/songlist`);
+    console.log(`Blindbox overlay: ${baseUrl}/blindbox`);
     openAdminPageIfNeeded(baseUrl);
     configureBilibiliListener();
     blivedmRuntime.checkOnStartup();

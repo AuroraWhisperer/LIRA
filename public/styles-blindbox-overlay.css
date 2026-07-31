@@ -1,0 +1,327 @@
+/* 编写人：AuroraWhisperer */
+/* 盲盒盈亏 overlay 样式 */
+
+/* ── Panel ── */
+.blindbox-panel {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: visible;
+}
+
+.blindbox-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 16px;
+}
+
+.blindbox-content {
+  padding: 12px 14px 16px;
+  display: grid;
+  gap: 14px;
+}
+
+/* ── 汇总卡片 ── */
+.blindbox-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.blindbox-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: center;
+  transition: background 200ms ease;
+}
+
+.blindbox-stat-card .stat-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.blindbox-stat-card .stat-value {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--overlay-text, #fff7fb);
+}
+
+.blindbox-stat-card .stat-label {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 35%);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.blindbox-stat-card.profit-up {
+  background: rgba(33, 182, 168, 0.12);
+  border-color: rgba(33, 182, 168, 0.25);
+}
+
+.blindbox-stat-card.profit-up .stat-value {
+  color: #21b6a8;
+}
+
+.blindbox-stat-card.profit-down {
+  background: rgba(220, 20, 60, 0.10);
+  border-color: rgba(220, 20, 60, 0.20);
+}
+
+.blindbox-stat-card.profit-down .stat-value {
+  color: #e74c3c;
+}
+
+/* ── 空态 ── */
+.blindbox-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 40%);
+}
+
+.blindbox-empty .empty-icon {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+.blindbox-empty .empty-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ── 排行榜 ── */
+.blindbox-leaderboard {
+  display: grid;
+  gap: 5px;
+}
+
+.leaderboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 45%);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.leaderboard-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 🥇🥈🥉 前三名高亮 */
+.leaderboard-row.rank-1 {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.14), rgba(245, 158, 11, 0.08));
+  border-color: rgba(251, 191, 36, 0.30);
+}
+
+.leaderboard-row.rank-2 {
+  background: linear-gradient(135deg, rgba(192, 200, 212, 0.12), rgba(156, 163, 175, 0.06));
+  border-color: rgba(192, 200, 212, 0.22);
+}
+
+.leaderboard-row.rank-3 {
+  background: linear-gradient(135deg, rgba(217, 149, 118, 0.12), rgba(180, 120, 80, 0.06));
+  border-color: rgba(217, 149, 118, 0.22);
+}
+
+/* 亏损用户暗色 */
+.leaderboard-row.is-loss {
+  opacity: 0.72;
+}
+
+/* ── 排名徽章 ── */
+.rank-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 900;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 30%);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rank-1 .rank-badge {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1200;
+  font-size: 16px;
+  width: 30px;
+  height: 30px;
+}
+
+.rank-2 .rank-badge {
+  background: linear-gradient(135deg, #c0c8d4, #9ca3af);
+  color: #1a1a1a;
+}
+
+.rank-3 .rank-badge {
+  background: linear-gradient(135deg, #d99576, #b47850);
+  color: #1a0e06;
+}
+
+/* ── 用户信息 ── */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--overlay-text, #fff7fb);
+}
+
+.rank-1 .user-name {
+  color: #fde68a;
+  font-size: 15px;
+}
+
+.user-title {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.user-title.lucky-king {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #1a1200;
+}
+
+.user-title.lucky {
+  background: rgba(33, 182, 168, 0.25);
+  color: #21b6a8;
+}
+
+/* ── 数据列 ── */
+.box-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 15%);
+  text-align: center;
+  min-width: 28px;
+}
+
+.profit-value {
+  font-size: 14px;
+  font-weight: 800;
+  text-align: right;
+  min-width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+.profit-value.is-up {
+  color: #21b6a8;
+}
+
+.profit-value.is-down {
+  color: #e74c3c;
+}
+
+/* ── 只显示欧皇模式（仅盈利者） ── */
+.blindbox-panel.winners-only .leaderboard-row.is-loss {
+  display: none;
+}
+
+/* ── 紧凑模式 ── */
+.blindbox-panel.compact .blindbox-content {
+  gap: 8px;
+  padding: 8px 10px 12px;
+}
+
+.blindbox-panel.compact .blindbox-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.blindbox-panel.compact .blindbox-stat-card {
+  padding: 6px 4px;
+  border-radius: 7px;
+}
+
+.blindbox-panel.compact .blindbox-stat-card .stat-value {
+  font-size: 15px;
+}
+
+.blindbox-panel.compact .blindbox-stat-card .stat-icon {
+  font-size: 14px;
+}
+
+.blindbox-panel.compact .leaderboard-row {
+  padding: 5px 8px;
+  gap: 6px;
+  border-radius: 6px;
+}
+
+.blindbox-panel.compact .user-name {
+  font-size: 12px;
+}
+
+.blindbox-panel.compact .profit-value {
+  font-size: 12px;
+}
+
+.blindbox-panel.compact .rank-badge {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.blindbox-panel.compact .rank-1 .rank-badge {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+}
+
+/* ── 底部 ── */
+.blindbox-footer {
+  text-align: center;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 55%);
+  padding-top: 2px;
+}
+
+/* ── 低功耗模式 ── */
+.blindbox-panel.low-power .leaderboard-row,
+.blindbox-panel.low-power .leaderboard-row:hover {
+  transition: none;
+}
+
+.blindbox-panel.low-power .rank-1,
+.blindbox-panel.low-power .rank-2,
+.blindbox-panel.low-power .rank-3 {
+  background: rgba(255, 255, 255, 0.05);
+}

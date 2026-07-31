@@ -21,6 +21,7 @@ export class HomeService {
     this.homeAction = '';
     this.homePage = 1;
     this.drawerHistory = [];
+    this._currentPlaylistId = '';
   }
 
   /**
@@ -85,6 +86,7 @@ export class HomeService {
 
   /**
    * 加载歌单详情（曲目列表）
+   * 委托给 ContentLoader，由其统一处理缓存逻辑
    * @param {number} playlistIndex - 歌单索引
    * @returns {Promise<Object>}
    */
@@ -98,6 +100,10 @@ export class HomeService {
       throw new Error('State not initialized');
     }
 
+    if (!this.contentLoader) {
+      throw new Error('ContentLoader not initialized');
+    }
+
     // 保存当前状态到历史记录
     this.pushHistory({
       items: this.homeItems,
@@ -107,27 +113,18 @@ export class HomeService {
     });
 
     try {
-      const response = await fetch('/api/music/home', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: this.state.selectedSource,
-          action: 'playlist-tracks',
-          playlistId: playlist.id,
-          limit: 5000
-        })
+      const result = await this.contentLoader.loadHomeContent('playlist-tracks', {
+        playlistId: playlist.id
       });
 
-      const payload = await this.readJsonResponse(response, '打开歌单失败');
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || '打开歌单失败');
-      }
+      // 记录当前歌单 ID，供刷新时使用
+      this._currentPlaylistId = playlist.id;
 
-      this.homeItems = Array.isArray(payload.data && payload.data.tracks)
-        ? payload.data.tracks
-        : [];
-      this.homeItemType = 'track';
-      this.homeAction = 'playlist-tracks';
+      // ContentLoader 已经设置了 homeItems 等状态，同步到 HomeService
+      this.homeItems = result.items;
+      this.homeItemType = result.itemType;
+      this.homeAction = result.action;
+      this.homePage = 1;
 
       return {
         items: this.homeItems,
@@ -142,19 +139,51 @@ export class HomeService {
   }
 
   /**
-   * 刷新当前内容（换一批）
+   * 刷新当前内容
+   * - 推荐/每日/电台：翻页换一批
+   * - 我喜欢/歌单/歌单详情：强制重新拉取并更新缓存
    * @returns {Promise<Object>}
    */
   async refreshContent() {
     const action = this.homeAction;
 
-    // 只有部分类型支持刷新
-    if (!action || !['personalized', 'daily', 'radio'].includes(action)) {
-      throw new Error('Current content cannot be refreshed');
+    if (!action) {
+      throw new Error('没有可刷新的内容');
     }
 
     if (!this.state) {
       throw new Error('State not initialized');
+    }
+
+    // —— 可缓存类型：走 ContentLoader 强制刷新 ——
+    const CACHED_ACTIONS = ['liked', 'created-playlists', 'collected-playlists', 'playlist-tracks'];
+    if (CACHED_ACTIONS.includes(action) && this.contentLoader) {
+      try {
+        const result = await this.contentLoader.loadHomeContent(action, {
+          forceRefresh: true,
+          playlistId: this._currentPlaylistId
+        });
+
+        this.homeItems = result.items;
+        this.homeItemType = result.itemType;
+        this.homeAction = result.action;
+        this.homePage = 1;
+
+        return {
+          items: this.homeItems,
+          itemType: this.homeItemType,
+          action: this.homeAction,
+          page: this.homePage
+        };
+      } catch (error) {
+        this.onError(error);
+        throw error;
+      }
+    }
+
+    // —— 推荐/每日/电台：翻页换一批 ——
+    if (!['personalized', 'daily', 'radio'].includes(action)) {
+      throw new Error('当前内容不支持刷新');
     }
 
     this.homePage += 1;
@@ -183,7 +212,6 @@ export class HomeService {
         : (Array.isArray(data.tracks) ? data.tracks : []);
 
       if (items.length === 0) {
-        // 没有更多内容，恢复页码
         this.homePage = Math.max(1, this.homePage - 1);
         throw new Error('没有更多内容了');
       }
@@ -215,6 +243,17 @@ export class HomeService {
       action: this.homeAction,
       page: this.homePage
     };
+  }
+
+  /**
+   * 应用后台刷新结果（由 ContentLoader.onBackgroundUpdate 触发）
+   * @param {{items, itemType, action}} update
+   */
+  _applyBackgroundUpdate(update) {
+    this.homeItems = Array.isArray(update.items) ? update.items : [];
+    this.homeItemType = update.itemType || this.homeItemType;
+    this.homeAction = update.action || this.homeAction;
+    this.homePage = 1;
   }
 
   /**

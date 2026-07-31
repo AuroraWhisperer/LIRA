@@ -121,9 +121,13 @@
     });
 
     document.getElementById('copyOverlayUrls').addEventListener('click', async () => {
-      const text = `${document.getElementById('queueUrl').textContent}\n${document.getElementById('songsUrl').textContent}`;
+      const text = [
+        document.getElementById('queueUrl').textContent,
+        document.getElementById('songsUrl').textContent,
+        document.getElementById('blindboxOverlayUrl').textContent
+      ].join('\n');
       await navigator.clipboard.writeText(text);
-      toast('overlay 地址已复制');
+      toast('全部 overlay 地址已复制');
     });
 
     document.querySelectorAll('[data-copy-url]').forEach((button) => {
@@ -139,6 +143,10 @@
     const origin = location.origin.replace('127.0.0.1', 'localhost');
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
+    // 盲盒盈亏的 URL 由 settings.js 的 buildBlindboxOverlayUrl 生成
+    if (window.AdminApp.settings && window.AdminApp.settings.updateBlindboxOverlayUrl) {
+      window.AdminApp.settings.updateBlindboxOverlayUrl();
+    }
   }
 
   function collectDisplay() {
