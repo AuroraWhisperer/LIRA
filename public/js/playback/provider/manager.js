@@ -33,6 +33,14 @@ export class ProviderManager {
    */
   async refreshProviderState() {
     try {
+      // 桌面版优先使用 Electron IPC
+      if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
+        this.providerHealth = await window.musicAPI.providerHealth(this.state.selectedSource);
+        this.onStateChange();
+        return;
+      }
+
+      // Web 版回退到 HTTP API
       const response = await fetch('/api/music/provider-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,6 +66,14 @@ export class ProviderManager {
    */
   async refreshAuthState() {
     try {
+      // 桌面版优先使用 Electron IPC
+      if (window.musicAPI && typeof window.musicAPI.getAuthState === 'function') {
+        this.authState = await window.musicAPI.getAuthState(this.state.selectedSource);
+        this.onStateChange();
+        return;
+      }
+
+      // Web 版回退到 HTTP API
       const response = await fetch('/api/music/auth-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -134,20 +134,20 @@ export class PlaybackBar {
   /**
    * 渲染歌词按钮
    * @param {Object} lyricState - 歌词状态
-   * @param {boolean} lyricState.windowOpen - 歌词窗口是否打开
-   * @param {boolean} lyricState.windowLocked - 歌词窗口是否锁定
+   * @param {boolean} lyricState.open - 歌词窗口是否打开
+   * @param {boolean} lyricState.locked - 歌词窗口是否锁定
    */
   renderLyricButtons(lyricState = {}) {
     // 歌词按钮
     if (this.lyricBtn) {
-      this.lyricBtn.classList.toggle('active', lyricState.windowOpen);
+      this.lyricBtn.classList.toggle('active', lyricState.open);
       this.lyricBtn.disabled = !(window.musicAPI && typeof window.musicAPI.openLyricWindow === 'function');
     }
 
     // 歌词锁定按钮
     if (this.lyricLockBtn) {
-      this.lyricLockBtn.classList.toggle('locked', lyricState.windowLocked);
-      this.lyricLockBtn.disabled = !lyricState.windowOpen;
+      this.lyricLockBtn.classList.toggle('locked', lyricState.locked);
+      this.lyricLockBtn.disabled = !lyricState.open;
     }
   }
 

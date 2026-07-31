@@ -1148,6 +1148,9 @@
               </button>
             </div>
             <div class="playback-account-compact">
+              <div class="playback-cache-row">
+                <button id="playbackClearCacheBtn" type="button">清理缓存</button>
+              </div>
               <div class="playback-account-status">
                 <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
                 <button id="playbackHealthBtn" type="button">检查接口</button>
@@ -1155,11 +1158,7 @@
                 <button id="playbackLogoutBtn" class="danger" type="button">退出登录</button>
               </div>
               <div class="playback-status-row">
-                <span id="playbackProviderHealth" class="playback-health-status">等待检查音乐 Provider 状态</span>
-              </div>
-              <div class="playback-cache-row">
-                <span id="playbackCacheStatus" class="hint">缓存大小：正在读取...</span>
-                <button id="playbackClearCacheBtn" type="button">清理缓存</button>
+                <span id="playbackProviderHealth" class="playback-health-status">等待检查</span>
               </div>
             </div>
           </div>
