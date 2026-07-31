@@ -15,6 +15,8 @@ export class ProviderManager {
     this.providerHealth = null;
     // 认证状态
     this.authState = null;
+    // 标记认证状态 API 是否不可用（避免重复请求404接口）
+    this._authStateApiUnavailable = false;
   }
 
   /**
@@ -73,12 +75,28 @@ export class ProviderManager {
         return;
       }
 
-      // Web 版回退到 HTTP API
+      // Web 版：先检查接口是否存在（通过 HEAD 请求或缓存的可用性标记）
+      // 如果之前已知接口不可用，直接跳过
+      if (this._authStateApiUnavailable) {
+        this.authState = null;
+        this.onStateChange();
+        return;
+      }
+
+      // Web 版回退到 HTTP API（如果后端实现了该接口）
       const response = await fetch('/api/music/auth-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform: this.state.selectedSource })
       });
+
+      // Web 版可能没有实现此接口，404/501 时使用空状态并标记接口不可用
+      if (response.status === 404 || response.status === 501) {
+        this._authStateApiUnavailable = true;
+        this.authState = null;
+        this.onStateChange();
+        return;
+      }
 
       const readJson = this.readJsonResponse || ((r) => r.json());
       const data = await readJson(response, '获取认证状态失败');
@@ -88,8 +106,14 @@ export class ProviderManager {
         this.onStateChange();
       }
     } catch (error) {
-      console.error('[ProviderManager] refreshAuthState failed:', error);
-      this.onError(error);
+      // 网络错误或其他错误，标记接口不可用（避免后续重复请求）
+      if (error.message && error.message.includes('Failed to fetch')) {
+        this._authStateApiUnavailable = true;
+      }
+      console.warn('[ProviderManager] refreshAuthState failed (this is normal for web version):', error.message);
+      this.authState = null;
+      this.onStateChange();
+      // Web 版没有认证接口是正常的，不需要显示错误
     }
   }
 

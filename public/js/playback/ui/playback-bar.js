@@ -80,8 +80,8 @@ export class PlaybackBar {
 
     // 歌手
     if (this.artistEl) {
-      const isLocal = PlaybackUtils.isLocalTrack(track);
-      const needsFile = isLocal && !track.objectUrl;
+      const isLocal = track ? PlaybackUtils.isLocalTrack(track) : false;
+      const needsFile = isLocal && track && !track.objectUrl;
       const suffix = needsFile ? ' · 需重新选择文件' : '';
 
       this.artistEl.textContent = track
@@ -158,12 +158,16 @@ export class PlaybackBar {
    * @param {string} selectedSource - 选中的音乐源
    */
   renderProviderState(authState, healthState, selectedSource) {
+    console.log('[PlaybackBar] renderProviderState called with selectedSource:', selectedSource);
+
     const sourceName = PlaybackUtils.getSourceName(selectedSource);
     const loggedIn = Boolean(authState && authState.loggedIn);
 
     // 更新音乐源标签
     document.querySelectorAll('.source-tab').forEach((button) => {
-      button.classList.toggle('active', button.dataset.source === selectedSource);
+      const shouldBeActive = button.dataset.source === selectedSource;
+      button.classList.toggle('active', shouldBeActive);
+      console.log(`[PlaybackBar] Tab ${button.dataset.source}: active=${shouldBeActive}`);
     });
 
     // 更新状态显示
@@ -174,15 +178,25 @@ export class PlaybackBar {
       sourceStatus.classList.toggle('warn', !loggedIn);
     }
 
-    // 更新登录/登出按钮
+    // 更新登录/登出按钮（确保互斥显示）
     const loginBtn = document.getElementById('playbackLoginBtn');
     const logoutBtn = document.getElementById('playbackLogoutBtn');
-    if (loginBtn) {
+    if (loginBtn && logoutBtn) {
+      // 始终更新登录按钮文本，确保切换音乐源时文本正确
       loginBtn.textContent = `登录${sourceName}`;
-      loginBtn.style.display = loggedIn ? 'none' : '';
-    }
-    if (logoutBtn) {
-      logoutBtn.style.display = loggedIn ? '' : 'none';
+
+      // 确保只显示一个按钮
+      if (loggedIn) {
+        loginBtn.style.display = 'none';
+        loginBtn.disabled = true;
+        logoutBtn.style.display = '';
+        logoutBtn.disabled = false;
+      } else {
+        loginBtn.style.display = '';
+        loginBtn.disabled = false;
+        logoutBtn.style.display = 'none';
+        logoutBtn.disabled = true;
+      }
     }
 
     // 更新用户名显示

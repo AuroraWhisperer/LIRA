@@ -1153,7 +1153,7 @@
                 <button id="playbackHealthBtn" type="button">检查接口</button>
                 <button id="playbackClearCacheBtn" type="button">清理缓存</button>
                 <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
-                <button id="playbackLogoutBtn" class="danger" type="button">退出登录</button>
+                <button id="playbackLogoutBtn" class="danger" type="button" style="display: none;">退出登录</button>
               </div>
               <div class="playback-status-row">
                 <span id="playbackProviderHealth" class="playback-health-status">等待检查</span>
@@ -1489,6 +1489,17 @@
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <script src="/js/admin/main.js?v=20260731-02"></script>
     <!-- Playback 模块必须在 main.js 之后加载 -->
-    <script type="module" src="/js/playback.js?v=20260731-03"></script>
+    <!-- 强制清除模块缓存 -->
+    <script>
+      // 清除所有 playback 相关的缓存
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) {
+            caches.delete(name);
+          });
+        });
+      }
+    </script>
+    <script type="module" src="/js/playback.js?v=20260731-10"></script>
   </body>
 </html>

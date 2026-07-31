@@ -260,7 +260,11 @@ import { HomeService } from './playback/services/home-service.js';
 
         document.querySelectorAll('.source-tab').forEach((button) => {
           button.addEventListener('click', () => {
-            playbackState.selectedSource = button.dataset.source === 'netease' ? 'netease' : 'qq';
+            const newSource = button.dataset.source;
+            console.log('[Playback] Tab clicked:', newSource, 'Current:', playbackState.selectedSource);
+
+            // 直接使用 data-source 的值，不需要三元运算符
+            playbackState.selectedSource = newSource;
             playbackAuthState = null;
             playbackProviderHealth = null;
             searchService.clearResults();
@@ -270,6 +274,8 @@ import { HomeService } from './playback/services/home-service.js';
             renderPlaybackSearchResults();
             closePlaybackDrawer();
             refreshSelectedMusicProviderState();
+
+            console.log('[Playback] After click, selectedSource:', playbackState.selectedSource);
           });
         });
 
@@ -1153,8 +1159,12 @@ import { HomeService } from './playback/services/home-service.js';
           playbackState.displayHistory = Array.isArray(saved.displayHistory) ? saved.displayHistory.map(PlaybackUtils.normalizeSavedTrack) : [];
           playbackState.mode = ['sequence', 'shuffle', 'repeat-one'].includes(saved.mode) ? saved.mode : 'sequence';
           playbackState.volume = Math.max(0, Math.min(1, Number(saved.volume ?? 0.75)));
-          playbackState.selectedSource = saved.selectedSource === 'netease' ? 'netease' : 'qq';
+          // 直接使用保存的值，不要用三元运算符判断
+          playbackState.selectedSource = (saved.selectedSource === 'qq' || saved.selectedSource === 'netease')
+            ? saved.selectedSource
+            : 'qq';
           playbackState.restoredTime = Math.max(0, Number(saved.currentTime || 0));
+          console.log('[Playback] State restored, selectedSource:', playbackState.selectedSource);
         } catch (_) {
           playbackState.current = null;
           playbackState.requestedQueue = [];
@@ -1170,22 +1180,25 @@ import { HomeService } from './playback/services/home-service.js';
 
       function savePlaybackState() {
         const audio = getPlaybackAudio();
-        const serialize = (track) => track ? ({
-          id: track.id,
-          source: track.source,
-          title: track.title,
-          artists: track.artists,
-          album: track.album,
-          coverUrl: track.coverUrl || '',
-          durationMs: track.durationMs,
-          fileName: track.fileName,
-          sourceTrackId: track.sourceTrackId,
-          sourceAlbumId: track.sourceAlbumId,
-          playable: track.playable,
-          vip: track.vip,
-          unavailable: track.source === 'local' && !track.objectUrl,
-          playedAt: track.playedAt || 0
-        }) : null;
+        const serialize = (track) => {
+          if (!track) return null;
+          return {
+            id: track.id,
+            source: track.source,
+            title: track.title,
+            artists: track.artists,
+            album: track.album,
+            coverUrl: track.coverUrl || '',
+            durationMs: track.durationMs,
+            fileName: track.fileName,
+            sourceTrackId: track.sourceTrackId,
+            sourceAlbumId: track.sourceAlbumId,
+            playable: track.playable,
+            vip: track.vip,
+            unavailable: (track.source === 'local' && !track.objectUrl) || false,
+            playedAt: track.playedAt || 0
+          };
+        };
         const payload = {
           current: serialize(playbackState.current),
           currentOrigin: playbackState.currentOrigin,
@@ -1574,6 +1587,7 @@ import { HomeService } from './playback/services/home-service.js';
       }
 
       function renderPlayback() {
+        console.log('[Playback] renderPlayback called, selectedSource:', playbackState.selectedSource);
         const audio = getPlaybackAudio();
 
         // 获取歌词服务的窗口状态
@@ -1585,6 +1599,7 @@ import { HomeService } from './playback/services/home-service.js';
         });
 
         // 渲染音乐源状态
+        console.log('[Playback] Calling renderProviderState with:', playbackState.selectedSource);
         uiRenderer.renderProviderState(
           playbackAuthState,
           playbackProviderHealth,
