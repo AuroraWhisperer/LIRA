@@ -814,12 +814,14 @@
   background: rgba(0, 0, 0, 0.35);
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
   transition: opacity 280ms ease;
 }
 
 .playback-drawer-backdrop.open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
 }
 
 .playback-drawer {
@@ -1109,11 +1111,13 @@
   background: rgba(0, 0, 0, 0.2);
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
   transition: opacity 220ms ease;
 }
 .queue-popup-backdrop.open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
 }
 
 .queue-popup {
@@ -1524,12 +1528,14 @@ body.player-dock-expanded .playback-page.active {
   transform: translateY(100%);
   transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1),
               opacity 320ms ease;
+  visibility: hidden;
 }
 
 .player-fullscreen.open {
   pointer-events: auto;
   opacity: 1;
   transform: translateY(0);
+  visibility: visible;
 }
 
 /* 模糊背景 */
@@ -1597,32 +1603,35 @@ body.player-dock-expanded .playback-page.active {
   top: 20px;
   left: 20px;
   z-index: 2;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--text);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(22, 31, 43, 0.85);
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(22, 31, 43, 0.15);
+  padding: 0;
   transition: all 200ms ease;
+  box-shadow: none;
 }
 
 .player-fs-close-btn:hover {
-  background: rgba(255, 255, 255, 0.98);
-  transform: scale(1.08);
-  box-shadow: 0 6px 20px rgba(22, 31, 43, 0.22);
+  background: rgba(22, 31, 43, 0.08);
+  color: var(--text);
+  transform: scale(1.06);
 }
 
 .player-fs-close-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
 }
 
 .player-fs-close-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.8;
+  filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.9));
 }
 
 /* 主内容区 */
@@ -2160,23 +2169,21 @@ body.player-dock-expanded .playback-page.active {
     font-size: 15px;
   }
 
-  /* 小屏幕时增大关闭按钮并改善可见性 */
+  /* 小屏幕时按钮样式保持一致，略微增大 */
   .player-fs-close-btn {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     top: 16px;
     left: 16px;
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 6px 20px rgba(22, 31, 43, 0.25);
   }
 
   .player-fs-close-btn svg {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
   }
 
   .player-fs-close-btn:hover {
-    transform: scale(1.12);
+    transform: scale(1.08);
   }
 }
 

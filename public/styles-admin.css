@@ -1391,6 +1391,21 @@ body.player-dock-expanded .song-workspace {
   transform: rotate(180deg);
 }
 
+/* 可折叠面板的 header 可点击样式 */
+.panel:has(.section-toggle) .panel-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 150ms ease;
+}
+
+.panel:has(.section-toggle) .panel-header:hover {
+  background-color: var(--hover-bg, rgba(255, 255, 255, 0.03));
+}
+
+.panel:has(.section-toggle) .panel-header:active {
+  background-color: var(--active-bg, rgba(255, 255, 255, 0.05));
+}
+
 .collapsible-panel-body {
   max-height: 230px;
   overflow: hidden;

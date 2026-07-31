@@ -45,16 +45,10 @@
       openFullscreenPlayer();
     });
 
-    // 收起按钮
-    fsCloseBtn?.addEventListener('click', closeFullscreenPlayer);
-
-    // 点击全屏播放器背景区域关闭
-    fsEl?.addEventListener('click', (e) => {
-      // 只在点击背景或黑胶唱片区域时关闭，不包括歌词和控制区
-      if (e.target === fsEl || e.target.classList.contains('player-fs-bg') ||
-          e.target.closest('.player-fs-vinyl')) {
-        closeFullscreenPlayer();
-      }
+    // 收起按钮 - 只有这个按钮可以关闭全屏播放器
+    fsCloseBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeFullscreenPlayer();
     });
 
     // ESC键关闭全屏播放器，空格键播放/暂停
@@ -97,18 +91,34 @@
 
     const superChatToggle = document.getElementById('superChatToggle');
     const superChatPanel = superChatToggle?.closest('.panel');
-    superChatToggle?.addEventListener('click', () => {
+    const superChatHeader = superChatPanel?.querySelector('.panel-header');
+
+    // 点击整个 header 区域都可以展开/收起
+    superChatHeader?.addEventListener('click', (e) => {
+      // 排除点击其他按钮（如 SC 队列可能有其他操作按钮）
+      if (e.target.closest('button:not(#superChatToggle)')) return;
+
       const collapsed = superChatPanel?.classList.toggle('is-collapsed') || false;
-      superChatToggle.setAttribute('aria-expanded', String(!collapsed));
-      superChatToggle.title = collapsed ? '展开 SC 队列' : '折叠 SC 队列';
+      if (superChatToggle) {
+        superChatToggle.setAttribute('aria-expanded', String(!collapsed));
+        superChatToggle.title = collapsed ? '展开 SC 队列' : '折叠 SC 队列';
+      }
     });
 
     const quickAddToggle = document.getElementById('quickAddToggle');
     const quickAddPanel = quickAddToggle?.closest('.panel');
-    quickAddToggle?.addEventListener('click', () => {
+    const quickAddHeader = quickAddPanel?.querySelector('.panel-header');
+
+    // 点击整个 header 区域都可以展开/收起
+    quickAddHeader?.addEventListener('click', (e) => {
+      // 排除点击其他按钮
+      if (e.target.closest('button:not(#quickAddToggle)')) return;
+
       const collapsed = quickAddPanel?.classList.toggle('is-collapsed') || false;
-      quickAddToggle.setAttribute('aria-expanded', String(!collapsed));
-      quickAddToggle.title = collapsed ? '展开快速入队' : '折叠快速入队';
+      if (quickAddToggle) {
+        quickAddToggle.setAttribute('aria-expanded', String(!collapsed));
+        quickAddToggle.title = collapsed ? '展开快速入队' : '折叠快速入队';
+      }
     });
 
     document.addEventListener('click', (event) => {
