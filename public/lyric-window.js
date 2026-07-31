@@ -28,10 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderLyricState() {
   const line = document.getElementById('lyricLine');
   const translation = document.getElementById('lyricTranslation');
-  const meta = document.getElementById('lyricMeta');
-  const progress = document.getElementById('lyricProgress');
 
-  const fallbackLine = lyricState.trackTitle || '暂无歌词';
+  const fallbackLine = '暂无歌词';
   if (line) {
     if (Array.isArray(lyricState.words) && lyricState.words.length > 0) {
       line.innerHTML = lyricState.words.map((word) => {
@@ -45,16 +43,6 @@ function renderLyricState() {
   if (translation) {
     translation.textContent = lyricState.translation || '';
     translation.hidden = !lyricState.translation;
-  }
-  if (meta) {
-    const artists = Array.isArray(lyricState.artists) ? lyricState.artists.filter(Boolean).join(' / ') : '';
-    meta.textContent = artists
-      ? `${lyricState.trackTitle || '当前歌曲'} - ${artists}`
-      : lyricState.trackTitle || '播放助手';
-  }
-  if (progress) {
-    const percent = Math.max(0, Math.min(100, Number(lyricState.progress || 0) * 100));
-    progress.style.width = `${percent}%`;
   }
 
   document.body.classList.toggle('is-playing', lyricState.playing === true);

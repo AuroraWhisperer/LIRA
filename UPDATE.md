@@ -1,6 +1,14 @@
 # 打包与更新说明
 
-当前版本：`1.3.13`
+当前版本：`1.3.14`
+
+---
+
+## v1.3.14 变更
+
+- 代码重构：admin 相关 JS 文件模块化拆分到 `public/js/admin/` 目录。
+- 代码重构：playback 相关 JS 文件模块化拆分到 `public/js/playback/` 目录。
+- 代码重构：Bilibili 弹幕客户端代码按功能拆分到 `src/bilibili/danmaku/`、`src/bilibili/parsers/`、`src/bilibili/protocols/`、`src/bilibili/utils/` 目录。
 
 ---
 

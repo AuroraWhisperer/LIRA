@@ -2,6 +2,25 @@
 // 播放助手模块。挂载到 window.AdminApp.playback
 'use strict';
 
+import * as PlaybackUtils from './playback/utils.js';
+import * as PlaybackComponents from './playback/ui/components.js';
+import { UIRenderer } from './playback/ui/index.js';
+import { StateManager } from './playback/state/manager.js';
+import { StorageManager } from './playback/state/storage.js';
+import { QueueManager } from './playback/queue/manager.js';
+import { PlayerController } from './playback/player/controller.js';
+import { ProviderManager } from './playback/provider/manager.js';
+import { ContentLoader } from './playback/content/loader.js';
+import { LocalFileManager } from './playback/local/manager.js';
+import { APIClient } from './playback/api/client.js';
+import { PlaybackConfig } from './playback/config.js';
+import { SearchService } from './playback/services/search-service.js';
+import { StreamService } from './playback/services/stream-service.js';
+import { LyricService } from './playback/services/lyric-service.js';
+import { MatchService } from './playback/services/match-service.js';
+import { ImportService } from './playback/services/import-service.js';
+import { HomeService } from './playback/services/home-service.js';
+
 (function () {
   const U = window.AdminApp.utils;
   const escapeHtml = U.escapeHtml;
@@ -18,57 +37,137 @@
   }
 
   function createPlaybackController(initialOptions = {}) {
-      let getSongs = () => [];
-      let reloadSongs = async () => {};
-      let toast = U.toast;
-      let showError = U.showError;
-      let api = U.api;
-      let readJsonResponse = U.readJsonResponse;
+    let getSongs = () => [];
+    let reloadSongs = async () => {};
+    let toast = U.toast;
+    let showError = U.showError;
+    let api = U.api;
+    let readJsonResponse = U.readJsonResponse;
 
-      const playbackStorageKey = 'songAssistantPlaybackState:v1'; // 仅用于旧数据一次性迁移
-      const playbackClientId = 'default';
-      const playbackStateSaveDebounceMs = 1500;
-      let playbackStateSaveTimer = null;
-      let playbackStateSavePending = null;
-      const playbackStreamRefreshMarginMs = 30 * 1000;
-      const playbackStreamMaxRetries = 1;
-      const playbackRadioRefillThreshold = 3;
-      const playbackRadioRefillBatchSize = 10;
-      const playbackState = {
-        current: null,
-        currentOrigin: '',
-        requestedQueue: [],
-        normalQueue: [],
-        normalQueueTracks: [],  // 完整歌单备份，用于循环重播
-        radioQueue: [],
-        queueType: 'queue',
-        queueTitle: '播放队列',
-        playlistIndex: -1,
-        pendingRequests: [],
-        history: [],
-        displayHistory: [],
-        mode: 'sequence',
-        volume: 0.75,
-        selectedSource: 'qq',
-        shuffleOrder: [],
-        shuffleCursor: 0,
-        restoredTime: 0
-      };
-      let playbackStreamRetryCount = 0;
-      let playbackAuthState = null;
-      let playbackProviderHealth = null;
-      let playbackSearchResults = [];
-      let playbackHomeItems = [];
-      let playbackHomeItemType = '';
-      let playbackHomeAction = '';
-      let playbackHomePage = 1;
-      let playbackLyricWindowOpen = false;
-      let playbackLyricWindowLocked = false;
-      let playbackRadioRefillRunning = false;
-      let playbackInitialized = false;
-      let playbackDrawerHistory = [];
-      let queuePopupOpen = false;
-      async function init(options = {}) {
+    // 使用配置常量
+    const playbackStorageKey = PlaybackConfig.STORAGE_KEY;
+    const playbackClientId = PlaybackConfig.CLIENT_ID;
+    const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
+    let playbackStateSaveTimer = null;
+    let playbackStateSavePending = null;
+    const playbackStreamRefreshMarginMs = PlaybackConfig.STREAM_REFRESH_MARGIN_MS;
+    const playbackStreamMaxRetries = PlaybackConfig.STREAM_MAX_RETRIES;
+    const playbackRadioRefillThreshold = PlaybackConfig.RADIO_REFILL_THRESHOLD;
+    const playbackRadioRefillBatchSize = PlaybackConfig.RADIO_REFILL_BATCH_SIZE;
+
+    // 状态和存储管理器
+    const stateManager = new StateManager();
+    const storageManager = new StorageManager();
+    const playbackState = stateManager.getState();
+
+    // API 客户端
+    const apiClient = new APIClient({
+      onError: (error) => showError(error)
+    });
+
+    // 提供商管理器
+    const providerManager = new ProviderManager({
+      state: playbackState,
+      onStateChange: () => {
+        renderPlayback();
+      },
+      onError: (error) => showError(error)
+    });
+    providerManager.setJsonResponseReader((r, msg) => readJsonResponse(r, msg));
+
+    // 内容加载器
+    const contentLoader = new ContentLoader({
+      state: playbackState,
+      providerManager: providerManager,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg)
+    });
+
+    // 本地文件管理器
+    const localFileManager = new LocalFileManager({
+      onError: (error) => showError(error)
+    });
+
+    // 队列管理器
+    const queueManager = new QueueManager({
+      state: playbackState,
+      radioRefillThreshold: playbackRadioRefillThreshold,
+      radioRefillBatchSize: playbackRadioRefillBatchSize
+    });
+
+    // 播放器控制器（稍后设置音频元素）
+    const playerController = new PlayerController({
+      state: playbackState,
+      queueManager: queueManager,
+      onTrackChange: (track, options) => {
+        playPlaybackTrack(track, options);
+      },
+      onStateChange: () => {
+        renderPlayback();
+        savePlaybackState();
+      },
+      onError: (error) => {
+        showError(error);
+      }
+    });
+
+    // 搜索服务
+    const searchService = new SearchService({
+      state: playbackState,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg),
+      toast: (msg) => toast(msg)
+    });
+
+    // 流媒体服务
+    const streamService = new StreamService({
+      refreshMarginMs: playbackStreamRefreshMarginMs,
+      maxRetries: playbackStreamMaxRetries,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg),
+      toast: (msg) => toast(msg)
+    });
+
+    // 歌词服务
+    const lyricService = new LyricService({
+      state: playbackState,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg)
+    });
+
+    // 匹配服务
+    const matchService = new MatchService({
+      state: playbackState,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg),
+      toast: (msg) => toast(msg)
+    });
+
+    // 导入服务
+    const importService = new ImportService({
+      matchService: matchService,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg),
+      toast: (msg) => toast(msg)
+    });
+
+    // 首页服务
+    const homeService = new HomeService({
+      state: playbackState,
+      contentLoader: contentLoader,
+      onError: (error) => showError(error),
+      readJsonResponse: (r, msg) => readJsonResponse(r, msg),
+      toast: (msg) => toast(msg)
+    });
+
+    let playbackAuthState = null;
+    let playbackProviderHealth = null;
+    let playbackRadioRefillRunning = false;
+    let playbackInitialized = false;
+
+    // UI 渲染器
+    const uiRenderer = new UIRenderer();
+    async function init(options = {}) {
         updateContext(options);
         if (playbackInitialized) return;
         playbackInitialized = true;
@@ -77,6 +176,18 @@
           playbackInitialized = false;
           return;
         }
+
+        // 初始化 UI 渲染器
+        uiRenderer.init();
+
+        // 设置播放器控制器的音频元素
+        playerController.setAudio(audio);
+
+        // 设置全屏播放器 seek 回调
+        uiRenderer.getFullscreenPlayer().setSeekCallback(() => {
+          renderPlaybackProgress();
+          savePlaybackState();
+        });
 
         await restorePlaybackState();
         audio.volume = playbackState.volume;
@@ -152,10 +263,8 @@
             playbackState.selectedSource = button.dataset.source === 'netease' ? 'netease' : 'qq';
             playbackAuthState = null;
             playbackProviderHealth = null;
-            playbackSearchResults = [];
-            playbackHomeItems = [];
-            playbackHomeItemType = '';
-            playbackHomeAction = '';
+            searchService.clearResults();
+            homeService.clearHomeState();
             savePlaybackState();
             renderPlayback();
             renderPlaybackSearchResults();
@@ -206,9 +315,7 @@
         });
 
         document.getElementById('playbackModeBtn')?.addEventListener('click', () => {
-          const modes = ['sequence', 'shuffle', 'repeat-one'];
-          const idx = modes.indexOf(playbackState.mode);
-          playbackState.mode = modes[(idx + 1) % modes.length];
+          playbackState.mode = PlaybackUtils.getNextMode(playbackState.mode);
           rebuildPlaybackShuffleOrder();
           savePlaybackState();
           renderPlayback();
@@ -217,7 +324,7 @@
         document.getElementById('playbackVolume')?.addEventListener('input', (event) => {
           playbackState.volume = Math.max(0, Math.min(1, Number(event.target.value)));
           audio.volume = playbackState.volume;
-          updatePlaybackVolumeUI();
+          PlaybackComponents.updateVolumeUI(playbackState.volume);
           savePlaybackState();
         });
 
@@ -231,7 +338,7 @@
           audio.volume = playbackState.volume;
           const volSlider = document.getElementById('playbackVolume');
           if (volSlider) volSlider.value = String(playbackState.volume);
-          updatePlaybackVolumeUI();
+          PlaybackComponents.updateVolumeUI(playbackState.volume);
           savePlaybackState();
         });
 
@@ -240,6 +347,7 @@
           audio.currentTime = Math.max(0, Math.min(audio.duration, Number(event.target.value)));
           const pct = audio.duration > 0 ? Math.round((audio.currentTime / audio.duration) * 1000) / 10 : 0;
           event.target.style.setProperty('--seek-pos', pct + '%');
+          renderFullscreenPlayer();
           savePlaybackState();
         });
 
@@ -279,38 +387,15 @@
 
       async function refreshSelectedMusicProviderState() {
         await Promise.all([
-          refreshSelectedMusicAuthState(),
-          checkSelectedMusicProviderHealth({ silent: true })
+          providerManager.refreshAuthState(),
+          providerManager.checkProviderHealth({ silent: true })
         ]);
         renderPlayback();
       }
 
       async function refreshSelectedMusicAuthState() {
-        if (!window.musicAPI || typeof window.musicAPI.getAuthState !== 'function') {
-          playbackAuthState = {
-            platform: playbackState.selectedSource,
-            loggedIn: false,
-            cookieCount: 0,
-            keyCookieNames: [],
-            encryptedSnapshotExists: false,
-            desktopUnavailable: true
-          };
-          return playbackAuthState;
-        }
-
-        try {
-          playbackAuthState = await window.musicAPI.getAuthState(playbackState.selectedSource);
-        } catch (error) {
-          playbackAuthState = {
-            platform: playbackState.selectedSource,
-            loggedIn: false,
-            cookieCount: 0,
-            keyCookieNames: [],
-            encryptedSnapshotExists: false,
-            error: error.message || String(error)
-          };
-        }
-        return playbackAuthState;
+        await providerManager.refreshAuthState();
+        return providerManager.getAuthState();
       }
 
       async function checkSelectedMusicProviderHealth(options = {}) {
@@ -361,7 +446,7 @@
           toast('退出音乐账号需要在桌面版里使用');
           return;
         }
-        const sourceName = selectedPlaybackSourceName();
+        const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
         if (!confirm(`确认退出${sourceName}登录？`)) return;
 
         try {
@@ -407,10 +492,6 @@
         savePlaybackState();
       }
 
-      function selectedPlaybackSourceName() {
-        return playbackState.selectedSource === 'netease' ? '网易云音乐' : 'QQ音乐';
-      }
-
       async function refreshPlaybackMusicCacheStats() {
         const status = document.getElementById('playbackCacheStatus');
         if (!status) return;
@@ -448,31 +529,34 @@
         document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
           btn.classList.toggle('active', btn.dataset.playbackHomeAction === 'recent');
         });
-        const tracks = playbackState.displayHistory;
-        playbackHomeItems = tracks.slice();
-        playbackHomeItemType = 'track';
-        playbackHomeAction = 'recent';
-        openPlaybackDrawer('播放历史', `${tracks.length} 首`, false);
+
+        const result = homeService.loadLocalRecentHistory();
+        openPlaybackDrawer('播放历史', `${result.items.length} 首`, false);
+
         const body = document.getElementById('playbackDrawerBody');
         if (!body) return;
-        if (!tracks.length) {
+
+        if (!result.items.length) {
           body.innerHTML = '<p class="hint" style="text-align:center;padding:40px 0;">暂无播放记录</p>';
           updateDrawerActions(false);
           return;
         }
-        body.innerHTML = tracks.map((track, index) => `
+
+        body.innerHTML = result.items.map((track, index) => `
           <div class="queue-row playback-home-row">
             <div class="playback-row-main">
-              ${renderPlaybackArtwork(track)}
+              ${PlaybackUtils.renderArtwork(track)}
               <div>
                 <div class="song">${escapeHtml(track.title || '')}</div>
-                <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
+                <div class="meta">${escapeHtml(PlaybackUtils.formatTrackMeta(track))}</div>
               </div>
             </div>
             <div class="queue-actions">
               <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}">入队</button>
-              <button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>
-              <button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}">电台</button>
+              ${result.action === 'radio'
+                ? `<button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}">电台</button>`
+                : `<button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>`
+              }
               <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}">播放</button>
             </div>
           </div>
@@ -485,78 +569,34 @@
           loadPlaybackLocalRecentHistory();
           return;
         }
-        const actionNames = {
-          personalized: '为你推荐', daily: '每日推荐', radio: '心动 / 电台',
-          liked: '我喜欢', 'created-playlists': '我的歌单',
-          'collected-playlists': '收藏歌单', recent: '最近播放'
-        };
-        playbackHomePage = 1;
-        openPlaybackDrawer(actionNames[action] || '浏览内容', '正在加载...', true);
+
+        const actionName = HomeService.getActionName(action);
+        openPlaybackDrawer(actionName, '正在加载...', true);
+
         // 高亮对应卡片
         document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
           btn.classList.toggle('active', btn.dataset.playbackHomeAction === action);
         });
+
         try {
-          const response = await fetch('/api/music/home', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: playbackState.selectedSource,
-              action,
-              limit: action === 'personalized' ? 12 : 30,
-              page: 1
-            })
-          });
-          const payload = await readJsonResponse(response, '加载音乐内容失败');
-          if (!response.ok || !payload.ok) throw new Error(payload.error || '加载音乐内容失败');
-          const data = payload.data || {};
-          playbackHomeItems = Array.isArray(data.playlists)
-            ? data.playlists
-            : (Array.isArray(data.tracks) ? data.tracks : []);
-          playbackHomeItemType = Array.isArray(data.playlists) ? 'playlist' : 'track';
-          playbackHomeAction = data.action || action;
-          renderPlaybackHomeResults(playbackHomeAction);
+          const result = await homeService.loadContent(action);
+          renderPlaybackHomeResults(result.action);
         } catch (error) {
-          playbackHomeItems = [];
-          playbackHomeItemType = '';
-          playbackHomeAction = '';
-          playbackHomePage = 1;
           setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
       }
 
       async function loadPlaybackPlaylistTracks(index) {
-        const playlist = playbackHomeItems[index];
+        const homeState = homeService.getHomeState();
+        const playlist = homeState.items[index];
         if (!playlist) return;
-        // 保存当前状态用于返回
-        playbackDrawerHistory.push({
-          items: playbackHomeItems,
-          itemType: playbackHomeItemType,
-          action: playbackHomeAction,
-          page: playbackHomePage,
-          title: document.getElementById('playbackDrawerTitle')?.textContent || ''
-        });
+
         setPlaybackDrawerLoading(`正在打开歌单：${playlist.title || playlist.id}`);
+
         try {
-          const response = await fetch('/api/music/home', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: playbackState.selectedSource,
-              action: 'playlist-tracks',
-              playlistId: playlist.id,
-              limit: 1000
-            })
-          });
-          const payload = await readJsonResponse(response, '打开歌单失败');
-          if (!response.ok || !payload.ok) throw new Error(payload.error || '打开歌单失败');
-          playbackHomeItems = Array.isArray(payload.data && payload.data.tracks)
-            ? payload.data.tracks
-            : [];
-          playbackHomeItemType = 'track';
-          playbackHomeAction = 'playlist-tracks';
-          renderPlaybackHomeResults('playlist-tracks', playlist.title || '');
+          const result = await homeService.loadPlaylistTracks(index);
+          renderPlaybackHomeResults(result.action, result.title);
         } catch (error) {
           setPlaybackDrawerError(error.message || String(error));
           showError(error);
@@ -564,200 +604,95 @@
       }
 
       async function refreshPlaybackHomeContent() {
-        const action = playbackHomeAction;
-        if (!action || !['personalized', 'daily', 'radio'].includes(action)) return;
-        playbackHomePage += 1;
         setPlaybackDrawerLoading('正在刷新...');
+
         try {
-          const response = await fetch('/api/music/home', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: playbackState.selectedSource,
-              action,
-              limit: action === 'personalized' ? 12 : 30,
-              page: playbackHomePage,
-              refresh: true
-            })
-          });
-          const payload = await readJsonResponse(response, '刷新内容失败');
-          if (!response.ok || !payload.ok) throw new Error(payload.error || '刷新内容失败');
-          const data = payload.data || {};
-          const items = Array.isArray(data.playlists)
-            ? data.playlists
-            : (Array.isArray(data.tracks) ? data.tracks : []);
-          if (items.length === 0) {
-            // 没有更多了：保留当前列表，别把界面刷成空的。
-            playbackHomePage = Math.max(1, playbackHomePage - 1);
-            renderPlaybackHomeResults(action);
-            showError(new Error('没有更多内容了'));
-            return;
-          }
-          playbackHomeItems = items;
-          playbackHomeItemType = Array.isArray(data.playlists) ? 'playlist' : 'track';
-          renderPlaybackHomeResults(action);
+          const result = await homeService.refreshContent();
+          renderPlaybackHomeResults(result.action);
         } catch (error) {
-          playbackHomePage = Math.max(1, playbackHomePage - 1);
+          const homeState = homeService.getHomeState();
+          renderPlaybackHomeResults(homeState.action);
           setPlaybackDrawerError(error.message || String(error));
           showError(error);
         }
       }
 
       function renderPlaybackHomeResults(action = '', title = '') {
-        const body = document.getElementById('playbackDrawerBody');
-        if (!body) return;
-        if (!playbackHomeItems.length) {
-          body.innerHTML = '<p class="hint" style="text-align:center;padding:40px 0;">暂无内容</p>';
-          updateDrawerActions(false);
-          return;
-        }
-
-        const heading = title || playbackHomeActionTitle(action);
-        document.getElementById('playbackDrawerTitle').textContent = heading;
-        const subtitle = document.getElementById('playbackDrawerSubtitle');
-        if (subtitle) subtitle.textContent = playbackHomeItemType === 'playlist'
-          ? `${playbackHomeItems.length} 个歌单`
-          : `${playbackHomeItems.length} 首`;
-
-        if (playbackHomeItemType === 'playlist') {
-          body.innerHTML = playbackHomeItems.map((playlist, index) => `
-            <div class="playback-drawer-playlist-card" data-playback-playlist-index="${index}">
-              ${renderPlaybackArtwork(playlist, { fallback: '单' })}
-              <div style="flex:1 1 auto;min-width:0;">
-                <div class="song" style="font-size:14px;font-weight:700;">${escapeHtml(playlist.title || '')}</div>
-                <div class="meta">${escapeHtml(formatPlaybackPlaylistMeta(playlist))}</div>
-              </div>
-              <span class="playlist-card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;"><polyline points="9 18 15 12 9 6"/></svg></span>
-            </div>
-          `).join('');
-          updateDrawerActions(false, action);
-          return;
-        }
-
-        body.innerHTML = playbackHomeItems.map((track, index) => `
-          <div class="queue-row playback-home-row">
-            <div class="playback-row-main">
-              ${renderPlaybackArtwork(track)}
-              <div>
-                <div class="song">${escapeHtml(track.title || '')}</div>
-                <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
-              </div>
-            </div>
-            <div class="queue-actions">
-              <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}">入队</button>
-              <button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>
-              <button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}">电台</button>
-              <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}">播放</button>
-            </div>
-          </div>
-        `).join('');
-        updateDrawerActions(true, action);
+        const homeState = homeService.getHomeState();
+        uiRenderer.getDrawer().renderContent(
+          homeState.items,
+          homeState.itemType,
+          action,
+          title,
+          homeState.page
+        );
       }
 
       function updateDrawerActions(showPlayAll, action = '') {
-        const actions = document.getElementById('playbackDrawerActions');
-        const refreshBtn = document.getElementById('playbackDrawerRefresh');
-        const canRefresh = ['personalized', 'daily', 'radio'].includes(action);
-
-        // 头部刷新按钮
-        if (refreshBtn) {
-          refreshBtn.hidden = !canRefresh;
-        }
-
-        // 底部操作按钮
-        if (!actions) return;
-        actions.innerHTML = '';
-        if (showPlayAll) {
-          actions.innerHTML += '<button id="playbackDrawerPlayAll" type="button">播放全部</button>';
-          actions.innerHTML += '<button id="playbackDrawerShuffleAll" type="button">随机播放</button>';
-        }
-        actions.hidden = !showPlayAll;
+        uiRenderer.getDrawer().updateActions(showPlayAll, action);
       }
 
       function setPlaybackDrawerLoading(message) {
-        const body = document.getElementById('playbackDrawerBody');
-        if (body) body.innerHTML = `<div class="playback-drawer-loading"><span>${escapeHtml(message)}</span></div>`;
-        updateDrawerActions(false);
+        uiRenderer.getDrawer().setLoading(message);
       }
 
       function setPlaybackDrawerError(message) {
-        const body = document.getElementById('playbackDrawerBody');
-        if (body) body.innerHTML = `<p class="hint" style="text-align:center;padding:40px 0;color:var(--danger);">${escapeHtml(message)}</p>`;
-        updateDrawerActions(false);
+        uiRenderer.getDrawer().setError(message);
       }
 
       // ===== 队列弹窗 =====
       function openQueuePopup() {
-        queuePopupOpen = true;
-        document.getElementById('queuePopup')?.classList.add('open');
-        document.getElementById('queuePopupBackdrop')?.classList.add('open');
-        document.getElementById('playbackQueueBtn')?.classList.add('active');
-        renderPlaybackQueue();
+        const queuePopup = uiRenderer.getQueuePopup();
+        queuePopup.open();
+        queuePopup.render(playbackState);
         if (playbackState.queueType === 'playlist') {
-          scrollQueueToCurrentTrack();
+          queuePopup.scrollToCurrent();
         }
       }
       function closeQueuePopup() {
-        queuePopupOpen = false;
-        document.getElementById('queuePopup')?.classList.remove('open');
-        document.getElementById('queuePopupBackdrop')?.classList.remove('open');
-        document.getElementById('playbackQueueBtn')?.classList.remove('active');
+        uiRenderer.getQueuePopup().close();
       }
       function toggleQueuePopup() {
-        if (queuePopupOpen) closeQueuePopup(); else openQueuePopup();
+        uiRenderer.getQueuePopup().toggle();
+        if (uiRenderer.getQueuePopup().isOpen) {
+          uiRenderer.getQueuePopup().render(playbackState);
+          if (playbackState.queueType === 'playlist') {
+            uiRenderer.getQueuePopup().scrollToCurrent();
+          }
+        }
       }
 
       function openPlaybackDrawer(title, subtitle, loading) {
-        const drawer = document.getElementById('playbackDrawer');
-        const backdrop = document.getElementById('playbackDrawerBackdrop');
-        const titleEl = document.getElementById('playbackDrawerTitle');
-        const subtitleEl = document.getElementById('playbackDrawerSubtitle');
-        if (drawer) drawer.classList.add('open');
-        if (backdrop) backdrop.classList.add('open');
-        if (titleEl) titleEl.textContent = title || '浏览内容';
-        if (subtitleEl) subtitleEl.textContent = subtitle || '';
-        const backBtn = document.getElementById('playbackDrawerBack');
-        if (backBtn) backBtn.style.display = playbackDrawerHistory.length > 0 ? '' : 'none';
-        if (loading) setPlaybackDrawerLoading('正在加载...');
+        uiRenderer.getDrawer().open(title, subtitle, loading);
       }
 
       function closePlaybackDrawer() {
-        const drawer = document.getElementById('playbackDrawer');
-        const backdrop = document.getElementById('playbackDrawerBackdrop');
-        if (drawer) drawer.classList.remove('open');
-        if (backdrop) backdrop.classList.remove('open');
-        playbackDrawerHistory = [];
-        playbackHomeItems = [];
-        playbackHomeItemType = '';
-        playbackHomeAction = '';
-        // 取消卡片高亮
-        document.querySelectorAll('[data-playback-home-action]').forEach((btn) => btn.classList.remove('active'));
+        uiRenderer.getDrawer().close();
+        homeService.clearHomeState();
+        homeService.clearHistory();
       }
 
       function playbackDrawerGoBack() {
-        if (!playbackDrawerHistory.length) {
-          closePlaybackDrawer();
-          return;
+        const previous = homeService.goBack();
+        if (previous) {
+          renderPlaybackHomeResults(previous.action, previous.title);
+        } else {
+          uiRenderer.getDrawer().goBack();
         }
-        const prev = playbackDrawerHistory.pop();
-        playbackHomeItems = prev.items;
-        playbackHomeItemType = prev.itemType;
-        playbackHomeAction = prev.action || '';
-        playbackHomePage = prev.page || 1;
-        renderPlaybackHomeResults('', prev.title);
-        const backBtn = document.getElementById('playbackDrawerBack');
-        if (backBtn) backBtn.style.display = playbackDrawerHistory.length > 0 ? '' : 'none';
       }
 
       function handlePlaybackHomeBulkAction(action) {
-        if (playbackHomeItemType !== 'track' || !playbackHomeItems.length) return;
-        let tracks = playbackHomeItems.map(normalizePlaybackOnlineTrack);
+        const homeState = homeService.getHomeState();
+        if (homeState.itemType !== 'track' || !homeState.items.length) return;
+
+        let tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
         if (action === 'shuffle-all') {
-          tracks = shufflePlaybackTracks(tracks);
+          tracks = PlaybackUtils.shuffleTracks(tracks);
           playbackState.mode = 'shuffle';
         }
+
         if (action === 'play-all' || action === 'shuffle-all') {
-          const queueType = playbackHomeAction === 'radio' ? 'radio' : 'playlist';
+          const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
           startPlaybackCollection(tracks, 0, queueType);
           toast(queueType === 'radio'
             ? `开始播放电台，共载入 ${tracks.length} 首`
@@ -772,10 +707,13 @@
       }
 
       function handlePlaybackHomeTrackAction(action, index) {
-        const track = playbackHomeItems[index];
+        const track = homeService.getItemByIndex(index);
         if (!track) return;
-        if (action === 'play' && playbackHomeAction !== 'recent') {
-          const selectedTrack = normalizePlaybackOnlineTrack(track);
+
+        const homeState = homeService.getHomeState();
+
+        if (action === 'play' && homeState.action !== 'recent') {
+          const selectedTrack = PlaybackUtils.normalizeOnlineTrack(track);
           if (
             (playbackState.queueType === 'playlist' || playbackState.queueType === 'radio')
             && playbackState.current
@@ -783,12 +721,13 @@
             insertAndPlayPlaybackTrack(selectedTrack);
             return;
           }
-          const tracks = playbackHomeItems.map(normalizePlaybackOnlineTrack);
-          const queueType = playbackHomeAction === 'radio' ? 'radio' : 'playlist';
+          const tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
+          const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
           startPlaybackCollection(tracks, index, queueType);
           return;
         }
-        queuePlaybackTrack(normalizePlaybackOnlineTrack(track), action, {
+
+        queuePlaybackTrack(PlaybackUtils.normalizeOnlineTrack(track), action, {
           requestedBy: '音乐首页'
         });
       }
@@ -818,85 +757,39 @@
         renderPlayback();
       }
 
-      function playbackHomeActionTitle(action) {
-        return {
-          personalized: '推荐歌单',
-          daily: '每日推荐',
-          radio: '心动 / 电台',
-          liked: '我喜欢',
-          'created-playlists': '我的歌单',
-          'collected-playlists': '收藏歌单',
-          recent: '最近播放',
-          'playlist-tracks': '歌单歌曲'
-        }[action] || '音乐内容';
-      }
-
-      function shufflePlaybackTracks(tracks) {
-        const items = tracks.slice();
-        for (let i = items.length - 1; i > 0; i -= 1) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [items[i], items[j]] = [items[j], items[i]];
-        }
-        return items;
-      }
-
-      function formatPlaybackPlaylistMeta(playlist) {
-        const parts = [];
-        if (playlist.trackCount) parts.push(`${playlist.trackCount} 首`);
-        if (playlist.playCount) parts.push(`${formatCompactNumber(playlist.playCount)} 次播放`);
-        if (playlist.description) parts.push(playlist.description);
-        return parts.join(' · ') || '歌单';
-      }
-
       async function runPlaybackSearch() {
         const keyword = value('playbackSearchKeyword');
         const resultNode = document.getElementById('playbackSearchResults');
-        if (!keyword) {
-          toast('请输入要搜索的歌名或歌手');
-          return;
-        }
 
         if (resultNode) resultNode.textContent = '正在搜索...';
         try {
-          const response = await fetch('/api/music/search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              platform: playbackState.selectedSource,
-              keyword,
-              limit: Number(value('playbackSearchLimit') || 12)
-            })
-          });
-          const payload = await readJsonResponse(response, '在线搜索失败');
-          if (!response.ok || !payload.ok) throw new Error(payload.error || '在线搜索失败');
-          playbackSearchResults = Array.isArray(payload.data && payload.data.tracks)
-            ? payload.data.tracks
-            : [];
+          const limit = Number(value('playbackSearchLimit') || 12);
+          await searchService.search(keyword, limit);
           renderPlaybackSearchResults();
         } catch (error) {
-          playbackSearchResults = [];
           if (resultNode) resultNode.textContent = error.message || String(error);
-          showError(error);
         }
       }
 
       function renderPlaybackSearchResults() {
         const resultNode = document.getElementById('playbackSearchResults');
         if (!resultNode) return;
-        if (!playbackSearchResults.length) {
+
+        const searchResults = searchService.getResults();
+        if (!searchResults.length) {
           resultNode.innerHTML = playbackState.selectedSource === 'netease'
             ? '输入关键词后可搜索网易云音乐。'
             : 'QQ 音乐 Provider 尚未接入，当前只保留登录验证。';
           return;
         }
 
-        resultNode.innerHTML = playbackSearchResults.map((track, index) => `
+        resultNode.innerHTML = searchResults.map((track, index) => `
           <div class="queue-row playback-search-row">
             <div class="playback-row-main">
-              ${renderPlaybackArtwork(track)}
+              ${PlaybackUtils.renderArtwork(track)}
               <div>
                 <div class="song">${escapeHtml(track.title || '')}</div>
-                <div class="meta">${escapeHtml(formatPlaybackTrackMeta(track))}</div>
+                <div class="meta">${escapeHtml(PlaybackUtils.formatTrackMeta(track))}</div>
               </div>
             </div>
             <div class="queue-actions">
@@ -909,9 +802,9 @@
       }
 
       function handlePlaybackSearchAction(action, index) {
-        const track = playbackSearchResults[index];
+        const track = searchService.getResultByIndex(index);
         if (!track) return;
-        const queuedTrack = normalizePlaybackOnlineTrack(track);
+        const queuedTrack = PlaybackUtils.normalizeOnlineTrack(track);
 
         if (action === 'play') {
           insertAndPlayPlaybackTrack(queuedTrack);
@@ -937,49 +830,21 @@
       async function importSongQueueToPlayback() {
         const button = document.getElementById('playbackImportSongQueue');
         if (button) button.disabled = true;
+
         try {
-          const response = await fetch('/api/state');
-          const payload = await readJsonResponse(response, '读取点歌队列失败');
-          if (!payload.ok) throw new Error(payload.error || '读取点歌队列失败');
-          const queue = payload.data && payload.data.queue ? payload.data.queue : {};
-          const items = [queue.current].concat(Array.isArray(queue.waiting) ? queue.waiting : []).filter(Boolean);
-          if (!items.length) {
-            toast('点歌队列为空');
-            return;
+          const platforms = preferredPlaybackSearchPlatforms();
+          const result = await importService.importFromSongQueue({
+            maxItems: 30,
+            platforms: platforms
+          });
+
+          if (result.tracks.length > 0) {
+            insertPlaybackTracksNext(result.tracks);
+            savePlaybackState();
+            renderPlayback();
           }
 
-          let imported = 0;
-          let skipped = 0;
-          let pending = 0;
-          const importedTracks = [];
-          for (const item of items.slice(0, 30)) {
-            const matched = await resolvePlaybackTrackForQueueItem(item);
-            if (matched && matched.autoAccept) {
-              importedTracks.push({
-                ...matched.track,
-                requestedBy: item.requester_name || item.requesterName || '观众'
-              });
-              imported += 1;
-            } else if (matched && matched.track) {
-              playbackState.pendingRequests.push({
-                id: `pending:${item.id || Date.now()}:${matched.track.id}`,
-                songName: item.song_name || item.songName || '',
-                artist: item.artist || '',
-                requesterName: item.requester_name || item.requesterName || '观众',
-                score: matched.score,
-                reasons: matched.reasons,
-                track: matched.track
-              });
-              pending += 1;
-            } else {
-              skipped += 1;
-            }
-          }
-
-          insertPlaybackTracksNext(importedTracks);
-          savePlaybackState();
-          renderPlayback();
-          toast(`已导入 ${imported} 首，待确认 ${pending} 首，跳过 ${skipped} 首`);
+          toast(`已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
         } catch (error) {
           showError(error);
         } finally {
@@ -987,136 +852,43 @@
         }
       }
 
-      async function resolvePlaybackTrackForQueueItem(item) {
-        const songName = item.song_name || item.songName || '';
-        const artist = item.artist || '';
-        if (!songName) return null;
-        const platforms = preferredPlaybackSearchPlatforms();
-        let fallbackMatch = null;
-        for (const platform of platforms) {
-          try {
-            const matched = await resolvePlaybackTrackForQueueItemOnPlatform(item, platform);
-            if (!matched) continue;
-            if (matched.autoAccept) return matched;
-            if (!fallbackMatch || matched.score > fallbackMatch.score) fallbackMatch = matched;
-          } catch (error) {
-            console.warn('[playback] request match failed:', platform, error.message || error);
+      async function importSongQueueToPlayback() {
+        const button = document.getElementById('playbackImportSongQueue');
+        if (button) button.disabled = true;
+
+        try {
+          const currentSource = playbackState.current && playbackState.current.source;
+          const platforms = PlaybackUtils.preferredPlatforms(currentSource, playbackState.selectedSource);
+          const result = await importService.importFromSongQueue({
+            maxItems: 30,
+            platforms: platforms
+          });
+
+          if (result.tracks.length > 0) {
+            insertPlaybackTracksNext(result.tracks);
+            savePlaybackState();
+            renderPlayback();
           }
+
+          toast(`已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
+        } catch (error) {
+          showError(error);
+        } finally {
+          if (button) button.disabled = false;
         }
-        return fallbackMatch;
-      }
-
-      async function resolvePlaybackTrackForQueueItemOnPlatform(item, platform) {
-        const songName = item.song_name || item.songName || '';
-        const artist = item.artist || '';
-        const searchResponse = await fetch('/api/music/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform,
-            keyword: artist ? `${songName} ${artist}` : songName,
-            limit: 10
-          })
-        });
-        const searchPayload = await readJsonResponse(searchResponse, '搜索点歌候选失败');
-        if (!searchResponse.ok || !searchPayload.ok) return null;
-        const candidates = Array.isArray(searchPayload.data && searchPayload.data.tracks)
-          ? searchPayload.data.tracks
-          : [];
-        if (!candidates.length) return null;
-
-        const matchResponse = await fetch('/api/music/match-track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ songName, artist, candidates })
-        });
-        const matchPayload = await readJsonResponse(matchResponse, '点歌匹配失败');
-        if (!matchResponse.ok || !matchPayload.ok) return null;
-        const best = matchPayload.data && Array.isArray(matchPayload.data.results)
-          ? matchPayload.data.results[0]
-          : null;
-        if (!best || !best.track) return null;
-        return {
-          autoAccept: Boolean(best.autoAccept),
-          score: Number(best.score || 0),
-          reasons: Array.isArray(best.reasons) ? best.reasons : [],
-          track: normalizePlaybackOnlineTrack(best.track)
-        };
-      }
-
-      function preferredPlaybackSearchPlatforms() {
-        const currentSource = playbackState.current && playbackState.current.source;
-        const preferred = currentSource === 'qq' || currentSource === 'netease'
-          ? currentSource
-          : playbackState.selectedSource;
-        return preferred === 'qq' ? ['qq', 'netease'] : ['netease', 'qq'];
-      }
-
-      function normalizePlaybackOnlineTrack(track) {
-        const source = track.source === 'netease' ? 'netease' : 'qq';
-        const sourceTrackId = String(track.sourceTrackId || track.id || '').replace(`${source}:`, '');
-        return {
-          id: track.id || `${source}:${sourceTrackId}`,
-          source,
-          title: track.title || track.name || '未知歌曲',
-          artists: Array.isArray(track.artists) ? track.artists : [],
-          album: track.album || '',
-          durationMs: Math.max(0, Number(track.durationMs) || 0),
-          coverUrl: track.coverUrl || '',
-          sourceTrackId,
-          sourceAlbumId: track.sourceAlbumId || '',
-          playable: track.playable !== false,
-          vip: track.vip === true
-        };
-      }
-
-      function formatPlaybackTrackMeta(track) {
-        const artists = Array.isArray(track.artists) && track.artists.length
-          ? track.artists.join(' / ')
-          : '未知歌手';
-        const parts = [
-          artists,
-          track.album || '',
-          formatPlaybackTime((track.durationMs || 0) / 1000)
-        ].filter(Boolean);
-        if (track.vip) parts.push('VIP');
-        if (track.playable === false) parts.push('可能不可播');
-        return parts.join(' · ');
-      }
-
-      function renderPlaybackArtwork(item, options = {}) {
-        const coverUrl = String(item && item.coverUrl || '').trim();
-        const fallback = options.fallback || '音';
-        return `
-          <div class="playback-artwork${coverUrl ? ' has-image' : ''}" aria-hidden="true">
-            ${coverUrl ? `<img src="${escapeAttr(coverUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">` : ''}
-            <span>${escapeHtml(fallback)}</span>
-          </div>
-        `;
       }
 
       async function runPlaybackMatchTest() {
         const resultNode = document.getElementById('playbackMatchResults');
         const songName = value('playbackMatchSong');
-        if (!songName) {
-          toast('请输入要测试的歌名');
-          return;
-        }
 
         if (resultNode) resultNode.textContent = '正在匹配...';
+
         try {
-          const response = await fetch('/api/music/match-track', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              songName,
-              artist: value('playbackMatchArtist'),
-              durationMs: Number(value('playbackMatchDuration') || 0)
-            })
-          });
-          const payload = await readJsonResponse(response, '点歌匹配测试失败');
-          if (!payload.ok) throw new Error(payload.error || '点歌匹配测试失败');
-          renderPlaybackMatchResults(payload.data);
+          const artist = value('playbackMatchArtist');
+          const durationMs = Number(value('playbackMatchDuration') || 0);
+          const data = await matchService.testMatch(songName, artist, durationMs);
+          renderPlaybackMatchResults(data);
         } catch (error) {
           if (resultNode) resultNode.textContent = error.message || String(error);
           showError(error);
@@ -1145,89 +917,31 @@
       }
 
       async function togglePlaybackLyricWindow() {
-        if (!window.musicAPI || typeof window.musicAPI.openLyricWindow !== 'function') {
-          toast('桌面歌词需要在桌面版里使用');
-          return;
-        }
-
         try {
-          if (playbackLyricWindowOpen) {
-            await window.musicAPI.closeLyricWindow();
-            playbackLyricWindowOpen = false;
-          } else {
-            await window.musicAPI.openLyricWindow();
-            playbackLyricWindowOpen = true;
+          const newState = await lyricService.toggleWindow();
+          if (newState) {
             await syncPlaybackLyricWindow(true);
           }
+          renderPlayback();
         } catch (error) {
           showError(error);
         }
-        renderPlayback();
       }
 
       async function togglePlaybackLyricLock() {
-        if (!window.musicAPI || typeof window.musicAPI.setLyricWindowLocked !== 'function') return;
-        playbackLyricWindowLocked = !playbackLyricWindowLocked;
         try {
-          const result = await window.musicAPI.setLyricWindowLocked(playbackLyricWindowLocked);
-          playbackLyricWindowLocked = Boolean(result && result.locked);
+          await lyricService.toggleWindowLock();
+          renderPlayback();
         } catch (error) {
           showError(error);
         }
-        renderPlayback();
       }
 
       async function syncPlaybackLyricWindow(force = false) {
-        if (!playbackLyricWindowOpen && !force) return;
-        if (!window.musicAPI || typeof window.musicAPI.updateLyricWindow !== 'function') return;
-        const wasOpen = playbackLyricWindowOpen;
         const audio = getPlaybackAudio();
         const track = playbackState.current || null;
-        const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
-        const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
-        const progress = duration > 0 ? currentTime / duration : 0;
-        const lyricLine = findPlaybackLyricLine(track, currentTime * 1000);
-
-        try {
-          const result = await window.musicAPI.updateLyricWindow({
-            trackTitle: track ? track.title : '',
-            artists: track && Array.isArray(track.artists) ? track.artists : [],
-            lineText: lyricLine ? lyricLine.text : '',
-            translation: lyricLine ? lyricLine.translation : '',
-            words: lyricLine && Array.isArray(lyricLine.words) ? lyricLine.words : [],
-            currentMs: Math.round(currentTime * 1000),
-            progress,
-            playing: audio ? !audio.paused : false,
-            locked: playbackLyricWindowLocked
-          });
-          playbackLyricWindowOpen = Boolean(result && result.open);
-        } catch (_) {
-          playbackLyricWindowOpen = false;
-        }
-        if (wasOpen !== playbackLyricWindowOpen) renderPlayback();
-      }
-
-      function findPlaybackLyricLine(track, currentMs) {
-        const lines = track && track.lyrics && Array.isArray(track.lyrics.lines)
-          ? track.lyrics.lines
-          : [];
-        if (!lines.length) return null;
-
-        let low = 0;
-        let high = lines.length - 1;
-        let result = null;
-        const target = Math.max(0, Number(currentMs) || 0);
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          const line = lines[mid];
-          if (Number(line.startMs) <= target) {
-            result = line;
-            low = mid + 1;
-          } else {
-            high = mid - 1;
-          }
-        }
-        return result;
+        const changed = await lyricService.syncWindow(track, audio, force);
+        if (changed) renderPlayback();
       }
 
       function getPlaybackAudio() {
@@ -1295,31 +1009,7 @@
       }
 
       function insertPlaybackTracksNext(tracks) {
-        const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
-        if (!items.length) return;
-        playbackState.requestedQueue = [];
-        if (playbackState.queueType === 'radio') {
-          playbackState.radioQueue.unshift(...items);
-        } else {
-          playbackState.radioQueue = [];
-          playbackState.normalQueue.unshift(...items);
-          if (playbackState.queueType === 'playlist') {
-            const insertAt = Math.max(0, Math.min(
-              playbackState.normalQueueTracks.length,
-              playbackState.playlistIndex + 1
-            ));
-            playbackState.normalQueueTracks.splice(
-              insertAt,
-              0,
-              ...items.map((track) => ({ ...track }))
-            );
-          } else {
-            playbackState.queueType = 'queue';
-            playbackState.queueTitle = '播放队列';
-            playbackState.normalQueueTracks = [];
-            playbackState.playlistIndex = -1;
-          }
-        }
+        queueManager.insertTracksNext(tracks);
         rebuildPlaybackShuffleOrder();
       }
 
@@ -1355,13 +1045,11 @@
       }
 
       function activePlaybackQueue() {
-        return playbackState.queueType === 'radio'
-          ? playbackState.radioQueue
-          : playbackState.normalQueue;
+        return queueManager.getActiveQueue();
       }
 
       function activePlaybackOrigin() {
-        return playbackState.queueType === 'radio' ? 'radio' : 'normal';
+        return queueManager.getActiveOrigin();
       }
 
       /** 读取服务端保存的播放状态；若服务端没有数据，尝试从旧版 localStorage 迁移一次。 */
@@ -1392,26 +1080,22 @@
         try {
           const saved = await loadSavedPlaybackPayload();
           if (!saved) return;
-          const normalizeSavedTrack = (track) => ({
-            ...track,
-            objectUrl: ''
-          });
-          playbackState.current = saved.current ? normalizeSavedTrack(saved.current) : null;
+          playbackState.current = saved.current ? PlaybackUtils.normalizeSavedTrack(saved.current) : null;
           playbackState.currentOrigin = ['requested', 'normal', 'radio', 'history'].includes(saved.currentOrigin) ? saved.currentOrigin : '';
           playbackState.requestedQueue = Array.isArray(saved.requestedQueue)
-            ? saved.requestedQueue.map(normalizeSavedTrack)
+            ? saved.requestedQueue.map(PlaybackUtils.normalizeSavedTrack)
             : [];
           playbackState.normalQueue = Array.isArray(saved.normalQueue)
-            ? saved.normalQueue.map(normalizeSavedTrack)
-            : (Array.isArray(saved.tracks) ? saved.tracks.map(normalizeSavedTrack) : []);
+            ? saved.normalQueue.map(PlaybackUtils.normalizeSavedTrack)
+            : (Array.isArray(saved.tracks) ? saved.tracks.map(PlaybackUtils.normalizeSavedTrack) : []);
           playbackState.normalQueueTracks = Array.isArray(saved.normalQueueTracks)
-            ? saved.normalQueueTracks.map(normalizeSavedTrack)
+            ? saved.normalQueueTracks.map(PlaybackUtils.normalizeSavedTrack)
             : [];
           playbackState.radioQueue = Array.isArray(saved.radioQueue)
-            ? saved.radioQueue.map(normalizeSavedTrack)
+            ? saved.radioQueue.map(PlaybackUtils.normalizeSavedTrack)
             : [];
           playbackState.pendingRequests = Array.isArray(saved.pendingRequests)
-            ? saved.pendingRequests.map(normalizeSavedPendingRequest).filter(Boolean)
+            ? saved.pendingRequests.map(PlaybackUtils.normalizeSavedPendingRequest).filter(Boolean)
             : [];
           if (!playbackState.current && Number.isInteger(saved.currentIndex) && saved.currentIndex >= 0) {
             playbackState.current = playbackState.normalQueue[saved.currentIndex] || null;
@@ -1477,8 +1161,8 @@
               playbackState.currentOrigin = 'normal';
             }
           }
-          playbackState.history = Array.isArray(saved.history) ? saved.history.map(normalizeSavedTrack) : [];
-          playbackState.displayHistory = Array.isArray(saved.displayHistory) ? saved.displayHistory.map(normalizeSavedTrack) : [];
+          playbackState.history = Array.isArray(saved.history) ? saved.history.map(PlaybackUtils.normalizeSavedTrack) : [];
+          playbackState.displayHistory = Array.isArray(saved.displayHistory) ? saved.displayHistory.map(PlaybackUtils.normalizeSavedTrack) : [];
           playbackState.mode = ['sequence', 'shuffle', 'repeat-one'].includes(saved.mode) ? saved.mode : 'sequence';
           playbackState.volume = Math.max(0, Math.min(1, Number(saved.volume ?? 0.75)));
           playbackState.selectedSource = saved.selectedSource === 'netease' ? 'netease' : 'qq';
@@ -1494,22 +1178,6 @@
           playbackState.playlistIndex = -1;
           playbackState.pendingRequests = [];
         }
-      }
-
-      function normalizeSavedPendingRequest(item) {
-        if (!item || !item.track) return null;
-        return {
-          id: item.id || `pending:${Date.now()}:${Math.random()}`,
-          songName: item.songName || '',
-          artist: item.artist || '',
-          requesterName: item.requesterName || '观众',
-          score: Math.max(0, Number(item.score) || 0),
-          reasons: Array.isArray(item.reasons) ? item.reasons : [],
-          track: {
-            ...item.track,
-            objectUrl: ''
-          }
-        };
       }
 
       function savePlaybackState() {
@@ -1610,18 +1278,10 @@
         }
         playbackState.current = null;
         playbackState.currentOrigin = '';
-        playbackState.requestedQueue = [];
-        playbackState.normalQueue = [];
-        playbackState.normalQueueTracks = [];
-        playbackState.radioQueue = [];
-        playbackState.queueType = 'queue';
-        playbackState.queueTitle = '播放队列';
-        playbackState.playlistIndex = -1;
         playbackState.pendingRequests = [];
         playbackState.history = [];
-        playbackState.shuffleOrder = [];
-        playbackState.shuffleCursor = 0;
         playbackState.restoredTime = 0;
+        queueManager.clearQueue();
         savePlaybackState();
         renderPlayback();
         syncPlaybackLyricWindow();
@@ -1683,7 +1343,7 @@
           return;
         }
 
-        if (!options.isRetry) playbackStreamRetryCount = 0;
+        if (!options.isRetry) streamService.resetRetryCount();
         if (playbackState.current && playbackState.current.id !== track.id && !options.fromHistory) {
           playbackState.history.push(playbackState.current);
           playbackState.history = playbackState.history.slice(-50);
@@ -1724,124 +1384,39 @@
       }
 
       async function loadPlaybackLyrics(track) {
-        if (!track || isPlaybackLocalTrack(track) || (track.lyrics && Array.isArray(track.lyrics.lines))) return;
-        try {
-          const response = await fetch('/api/music/lyrics', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ track: serializeTrackForProvider(track) })
-          });
-          const payload = await readJsonResponse(response, '获取歌词失败');
-          if (!response.ok || !payload.ok) throw new Error(payload.error || '获取歌词失败');
-          if (playbackState.current && playbackState.current.id === track.id) {
-            playbackState.current.lyrics = payload.data;
-            syncPlaybackLyricWindow(true);
-          }
-        } catch (error) {
-          console.warn('[playback] load lyrics failed:', error.message || error);
+        if (!track) return;
+        const lyrics = await lyricService.loadLyrics(track);
+        if (lyrics && playbackState.current && playbackState.current.id === track.id) {
+          playbackState.current.lyrics = lyrics;
+          syncPlaybackLyricWindow(true);
         }
       }
 
       async function getPlaybackTrackUrl(track, options = {}) {
-        if (isPlaybackLocalTrack(track)) {
-          if (!track.objectUrl) {
-            toast('本地音频需要重新选择文件后才能播放');
-            return '';
-          }
-          return track.objectUrl;
-        }
-
-        if (!options.forceRefresh && hasUsablePlaybackUrl(track)) {
-          return track.playUrl;
-        }
-
-        const stream = await resolvePlaybackStream(track, {
-          forceRefresh: options.forceRefresh === true
-        });
-        if (!stream || !stream.url) {
-          toast('当前账号无法播放该歌曲');
-          return '';
-        }
-
-        track.playUrl = stream.url;
-        track.playUrlExpireAt = Number(stream.expireAt || stream.playUrlExpireAt || 0);
-        return track.playUrl;
-      }
-
-      function isPlaybackLocalTrack(track) {
-        return !track || track.source === 'local';
-      }
-
-      function hasUsablePlaybackUrl(track) {
-        if (!track || !track.playUrl) return false;
-        const expireAt = Number(track.playUrlExpireAt || 0);
-        return !expireAt || expireAt - Date.now() > playbackStreamRefreshMarginMs;
-      }
-
-      async function resolvePlaybackStream(track, options = {}) {
-        const payloadTrack = serializeTrackForProvider(track);
-        const response = await fetch('/api/music/resolve-stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            track: payloadTrack,
-            forceRefresh: options.forceRefresh === true
-          })
-        });
-        const payload = await readJsonResponse(response, '解析播放地址失败');
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.error || `解析播放地址失败（HTTP ${response.status}）`);
-        }
-        return payload.data;
-      }
-
-      function serializeTrackForProvider(track) {
-        return {
-          id: track.id,
-          source: track.source,
-          title: track.title,
-          artists: Array.isArray(track.artists) ? track.artists : [],
-          album: track.album || '',
-          durationMs: track.durationMs || 0,
-          coverUrl: track.coverUrl || '',
-          sourceTrackId: track.sourceTrackId || track.id,
-          sourceAlbumId: track.sourceAlbumId || '',
-          playable: track.playable !== false,
-          vip: track.vip === true
-        };
+        return await streamService.getTrackUrl(track, options);
       }
 
       async function handlePlaybackError() {
         const track = playbackState.current;
-        if (!track) return;
-
-        if (isPlaybackLocalTrack(track)) {
-          toast('当前音频播放失败，请重新选择文件或切换下一首');
-          renderPlayback();
-          return;
-        }
-
-        if (playbackStreamRetryCount >= playbackStreamMaxRetries) {
-          toast('播放地址刷新后仍失败，已跳过当前歌曲');
-          playbackNext(false);
-          return;
-        }
-
-        playbackStreamRetryCount += 1;
         const audio = getPlaybackAudio();
-        const resumeAt = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
-        try {
-          await playPlaybackTrack(track, {
-            origin: playbackState.currentOrigin,
-            forceRefresh: true,
-            isRetry: true,
-            startAt: resumeAt
-          });
-          toast('播放地址已刷新');
-        } catch (error) {
-          showError(error);
-          playbackNext(false);
-        }
+
+        await streamService.handlePlaybackError(
+          track,
+          audio,
+          (track, resumeAt) => {
+            // 重试成功回调
+            playPlaybackTrack(track, {
+              origin: playbackState.currentOrigin,
+              forceRefresh: true,
+              isRetry: true,
+              startAt: resumeAt
+            });
+          },
+          () => {
+            // 重试失败回调
+            playbackNext(false);
+          }
+        );
       }
 
       function playbackPrevious() {
@@ -1876,7 +1451,7 @@
         // 固定歌单按当前模式循环；临时插入的歌曲也已经写入完整歌单。
         if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
           const tracks = playbackState.mode === 'shuffle'
-            ? shufflePlaybackTracks(playbackState.normalQueueTracks)
+            ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)
             : playbackState.normalQueueTracks.map((track) => ({ ...track }));
           const first = tracks[0];
           playbackState.normalQueue = tracks.slice(1);
@@ -2012,164 +1587,56 @@
 
       function renderPlayback() {
         const audio = getPlaybackAudio();
-        const track = playbackState.current || null;
-        const sourceName = selectedPlaybackSourceName();
-        const loggedIn = Boolean(playbackAuthState && playbackAuthState.loggedIn);
 
-        document.querySelectorAll('.source-tab').forEach((button) => {
-          button.classList.toggle('active', button.dataset.source === playbackState.selectedSource);
+        // 获取歌词服务的窗口状态
+        const lyricWindowState = lyricService.getWindowState();
+
+        // 使用 UI 渲染器渲染所有界面
+        uiRenderer.renderAll(playbackState, audio, {
+          lyric: lyricWindowState
         });
-        const sourceStatus = document.getElementById('playbackSourceStatus');
-        if (sourceStatus) {
-          sourceStatus.textContent = loggedIn ? `${sourceName}已检测到登录` : `${sourceName}待登录`;
-          sourceStatus.classList.toggle('good', loggedIn);
-          sourceStatus.classList.toggle('warn', !loggedIn);
-        }
-        const loginBtn = document.getElementById('playbackLoginBtn');
-        const logoutBtn = document.getElementById('playbackLogoutBtn');
-        if (loginBtn) {
-          loginBtn.textContent = `登录${sourceName}`;
-          loginBtn.style.display = loggedIn ? 'none' : '';
-        }
-        if (logoutBtn) {
-          logoutBtn.style.display = loggedIn ? '' : 'none';
-        }
-        const userName = document.getElementById('playbackUserName');
-        if (userName) {
-          userName.textContent = loggedIn ? `${sourceName} Cookie 已就绪` : '未连接音乐账户';
-        }
-        const vipState = document.getElementById('playbackVipState');
-        if (vipState) {
-          if (playbackAuthState && playbackAuthState.desktopUnavailable) {
-            vipState.textContent = '扫码登录验证需要在桌面版里使用';
-          } else if (playbackAuthState && playbackAuthState.error) {
-            vipState.textContent = playbackAuthState.error;
-          } else if (loggedIn) {
-            const keys = Array.isArray(playbackAuthState.keyCookieNames) ? playbackAuthState.keyCookieNames.join('、') : '';
-            vipState.textContent = `Cookie ${playbackAuthState.cookieCount || 0} 个，关键字段：${keys || '待确认'}，加密快照：${playbackAuthState.encryptedSnapshotExists ? '已保存' : '未保存'}`;
-          } else {
-            vipState.textContent = '账号歌单和推荐将在 Provider 接入后显示';
-          }
-        }
-        const providerHealth = document.getElementById('playbackProviderHealth');
-        if (providerHealth) {
-          providerHealth.textContent = playbackProviderHealth
-            ? playbackProviderHealth.message || `Provider 状态：${playbackProviderHealth.status || '未知'}`
-            : '等待检查音乐 Provider 状态';
-        }
-        const searchSource = document.getElementById('playbackSearchSource');
-        if (searchSource) searchSource.value = sourceName;
 
-        const title = document.getElementById('playbackTrackTitle');
-        if (title) title.textContent = track ? track.title : '未选择歌曲';
-        const artist = document.getElementById('playbackTrackArtist');
-        if (artist) {
-          artist.textContent = track
-            ? `${(track.artists || []).join(' / ') || '未知歌手'}${isPlaybackLocalTrack(track) && !track.objectUrl ? ' · 需重新选择文件' : ''}`
-            : '从本地测试音频开始';
-        }
-        const cover = document.getElementById('playbackCover');
-        if (cover) renderPlaybackCurrentCover(cover, track);
-        const playBtn = document.getElementById('playbackPlayPause');
-        if (playBtn) {
-          playBtn.classList.toggle('playing', audio && !audio.paused);
-          playBtn.title = audio && !audio.paused ? '暂停' : '播放';
-        }
-        const lyricBtn = document.getElementById('playbackLyricBtn');
-        if (lyricBtn) {
-          lyricBtn.classList.toggle('active', playbackLyricWindowOpen);
-          lyricBtn.disabled = !(window.musicAPI && typeof window.musicAPI.openLyricWindow === 'function');
-        }
-        const lyricLockBtn = document.getElementById('playbackLyricLockBtn');
-        if (lyricLockBtn) {
-          lyricLockBtn.classList.toggle('locked', playbackLyricWindowLocked);
-          lyricLockBtn.disabled = !playbackLyricWindowOpen;
-        }
-        const volume = document.getElementById('playbackVolume');
-        if (volume) volume.value = String(playbackState.volume);
-        updatePlaybackVolumeUI();
-        const modeLabel = document.getElementById('playbackModeLabel');
-        const modeBtn = document.getElementById('playbackModeBtn');
-        if (modeLabel) {
-          const modeLabels = { 'sequence': '顺序', 'shuffle': '随机', 'repeat-one': '单曲' };
-          modeLabel.textContent = modeLabels[playbackState.mode] || '顺序';
-        }
-        if (modeBtn) {
-          modeBtn.dataset.mode = playbackState.mode;
-          modeBtn.title = { 'sequence': '顺序播放', 'shuffle': '随机播放', 'repeat-one': '单曲循环' }[playbackState.mode] || '播放模式';
-        }
-        const queueSize = document.getElementById('queuePopupSize');
-        if (queueSize) queueSize.textContent = `${playbackQueueTotalCount()} 首`;
-        const queueTitle = document.getElementById('queuePopupTitle');
-        if (queueTitle) {
-          queueTitle.textContent = playbackState.queueTitle;
-        }
+        // 渲染音乐源状态
+        uiRenderer.renderProviderState(
+          playbackAuthState,
+          playbackProviderHealth,
+          playbackState.selectedSource
+        );
 
-        renderPlaybackQueue();
+        // 渲染搜索结果和待确认弹窗
         renderPlaybackSearchResults();
-        renderPlaybackProgress();
         renderPendingConfirmPopup();
-        renderFullscreenPlayer();
+      }
+
+      function renderPendingConfirmPopup() {
+        const popup = document.getElementById('pendingConfirmPopup');
+        if (!popup) return;
+
+        const pending = playbackState.pendingRequests[0];
+        if (!pending) {
+          popup.classList.remove('visible');
+          return;
+        }
+
+        const track = pending.track || {};
+        const songName = document.getElementById('pendingConfirmSongName');
+        const matchInfo = document.getElementById('pendingConfirmMatchInfo');
+        const requester = document.getElementById('pendingConfirmRequester');
+        const count = document.getElementById('pendingConfirmCount');
+
+        if (songName) songName.textContent = pending.songName || track.title || '';
+        if (matchInfo) {
+          const reasons = Array.isArray(pending.reasons) ? pending.reasons.join('；') : '';
+          matchInfo.textContent = `匹配：${track.title || ''} · ${PlaybackUtils.formatTrackMeta(track)} · ${pending.score || 0} 分${reasons ? ' · ' + reasons : ''}`;
+        }
+        if (requester) requester.textContent = `点歌人：${pending.requesterName || '观众'}`;
+        if (count) count.textContent = playbackState.pendingRequests.length > 1 ? `+${playbackState.pendingRequests.length - 1}` : '';
+
+        popup.classList.add('visible');
       }
 
       function renderPlaybackQueue() {
-        const container = document.getElementById('playbackQueueList');
-        if (!container) return;
-        if (playbackQueueTotalCount() === 0 && !playbackState.current) {
-          container.innerHTML = '<div class="empty">播放队列为空</div>';
-          return;
-        }
-        const sections = [];
-        sections.push(renderPlaybackPendingSection());
-        if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
-          sections.push(renderPlaybackFullPlaylistSection());
-        } else {
-          const queue = activePlaybackQueue();
-          const origin = activePlaybackOrigin();
-          sections.push(renderPlaybackQueueSection(
-            playbackState.queueTitle,
-            queue.map((track, index) => ({ track, origin, index }))
-          ));
-        }
-        const html = sections.filter(Boolean).join('');
-        container.innerHTML = html || '<div class="empty">播放队列为空</div>';
-      }
-
-      function renderPlaybackFullPlaylistSection() {
-        const tracks = playbackState.normalQueueTracks;
-        if (!tracks.length) return '';
-        const currentIndex = playbackState.playlistIndex;
-        const rows = tracks.map((track, index) => {
-          const isCurrent = index === currentIndex;
-          const isPast = index < currentIndex;
-          return renderPlaybackPlaylistRow(track, index, isCurrent, isPast);
-        }).join('');
-        return `
-          <section class="playback-queue-section">
-            <h3>${escapeHtml(playbackState.queueTitle)} <span>${tracks.length}</span></h3>
-            ${rows}
-          </section>
-        `;
-      }
-
-      function renderPlaybackPlaylistRow(track, index, isCurrent, isPast) {
-        const meta = `${formatPlaybackTrackMeta(track)}${isPlaybackLocalTrack(track) && !track.objectUrl ? ' · 需重新选择文件' : ''}`;
-        const stateClass = isCurrent ? ' playlist-current' : (isPast ? ' playlist-past' : '');
-        const btnLabel = isCurrent ? '重播' : '播放';
-        return `
-          <div class="queue-row playback-queue-row${stateClass}">
-            <div class="playback-row-main">
-              ${renderPlaybackArtwork(track)}
-              <div>
-                <div class="song">${isCurrent ? '<span class="playlist-now-icon" aria-hidden="true">▶</span> ' : ''}${escapeHtml(track.title)}</div>
-                <div class="meta">${escapeHtml(meta)}</div>
-              </div>
-            </div>
-            <div class="queue-actions">
-              <button type="button" data-playback-playlist-jump="${index}">${btnLabel}</button>
-            </div>
-          </div>
-        `;
+        uiRenderer.getQueuePopup().render(playbackState);
       }
 
       function jumpToPlaylistTrack(index) {
@@ -2184,22 +1651,11 @@
         playPlaybackTrack(track, { origin: 'normal' });
       }
 
-      function scrollQueueToCurrentTrack() {
-        const container = document.getElementById('playbackQueueList');
-        if (!container) return;
-        requestAnimationFrame(() => {
-          const currentRow = container.querySelector('.playback-queue-row.playlist-current');
-          if (currentRow) {
-            currentRow.scrollIntoView({ block: 'center', behavior: 'instant' });
-          }
-        });
-      }
-
       function renderPlaybackDisplayHistorySection() {
         const tracks = playbackState.displayHistory;
         if (!tracks.length) return '';
         const clearBtn = `<button type="button" class="link-btn" data-playback-clear-display-history style="font-size:11px;color:var(--text-muted);">清空</button>`;
-        const rows = tracks.map((track) => renderPlaybackQueueRow(track, 'history', -1, true)).join('');
+        const rows = tracks.map((track) => PlaybackComponents.renderQueueRow(track, 'history', -1, true, playbackState.current, playbackState.currentOrigin)).join('');
         return `
           <section class="playback-queue-section">
             <h3>播放历史 <span>${tracks.length}</span>${clearBtn}</h3>
@@ -2213,351 +1669,55 @@
         return `
           <section class="playback-queue-section">
             <h3>待确认点歌 <span>${playbackState.pendingRequests.length}</span></h3>
-            ${playbackState.pendingRequests.map((item, index) => renderPlaybackPendingRow(item, index)).join('')}
+            ${playbackState.pendingRequests.map((item, index) => PlaybackComponents.renderPendingRow(item, index)).join('')}
           </section>
         `;
       }
 
-      function renderPlaybackPendingRow(item, index) {
-        const track = item.track || {};
-        const reasons = Array.isArray(item.reasons) ? item.reasons.join('；') : '';
-        return `
-          <div class="queue-row playback-queue-row pending">
-            <div>
-              <div class="song">${escapeHtml(item.songName || track.title || '')}</div>
-              <div class="meta">${escapeHtml(`候选：${track.title || ''} · ${formatPlaybackTrackMeta(track)} · ${item.score || 0} 分 · ${reasons || '无命中原因'}`)}</div>
-            </div>
-            <div class="queue-actions">
-              <button type="button" data-playback-pending-action="confirm" data-playback-pending-index="${index}">确认</button>
-              <button type="button" data-playback-pending-action="ignore" data-playback-pending-index="${index}">忽略</button>
-            </div>
-          </div>
-        `;
-      }
-
-      function renderPendingConfirmPopup() {
-        const popup = document.getElementById('pendingConfirmPopup');
-        if (!popup) return;
-        const items = playbackState.pendingRequests;
-        if (!items.length) {
-          popup.classList.remove('visible');
-          return;
-        }
-        const item = items[0];
-        const track = item.track || {};
-        const songNameEl = document.getElementById('pendingConfirmSongName');
-        const matchInfoEl = document.getElementById('pendingConfirmMatchInfo');
-        const requesterEl = document.getElementById('pendingConfirmRequester');
-        const countEl = document.getElementById('pendingConfirmCount');
-        if (songNameEl) songNameEl.textContent = item.songName || track.title || '未知歌曲';
-        if (matchInfoEl) {
-          const meta = formatPlaybackTrackMeta(track);
-          const scoreStr = item.score ? `  匹配度 ${item.score} 分` : '';
-          matchInfoEl.textContent = `候选：${track.title || ''}  ${meta}${scoreStr}`;
-        }
-        if (requesterEl) requesterEl.textContent = `来自：${item.requesterName || '观众'}`;
-        if (countEl) countEl.textContent = items.length > 1 ? `${items.length} 条待确认` : '';
-        popup.classList.add('visible');
-      }
-
       function handlePlaybackPendingAction(action, index) {
-        if (!Number.isInteger(index) || index < 0 || index >= playbackState.pendingRequests.length) return;
-        const [item] = playbackState.pendingRequests.splice(index, 1);
-        if (action === 'confirm' && item && item.track) {
-          insertPlaybackTracksNext([{
-            ...item.track,
-            requestedBy: item.requesterName || '观众'
-          }]);
-          toast('已确认并插入当前歌曲之后');
+        if (action === 'confirm') {
+          const track = matchService.confirmPendingRequest(index);
+          if (track) {
+            insertPlaybackTracksNext([track]);
+            toast('已确认并插入当前歌曲之后');
+          }
         } else {
-          toast('已忽略待确认点歌');
+          const success = matchService.ignorePendingRequest(index);
+          if (success) {
+            toast('已忽略待确认点歌');
+          }
         }
         savePlaybackState();
         renderPlayback();
       }
 
-      function renderPlaybackQueueSection(title, rows, readonly = false) {
-        if (!rows.length) return '';
-        return `
-          <section class="playback-queue-section">
-            <h3>${escapeHtml(title)} <span>${rows.length}</span></h3>
-            ${rows.map(({ track, origin, index }) => renderPlaybackQueueRow(track, origin, index, readonly)).join('')}
-          </section>
-        `;
-      }
-
-      function renderPlaybackQueueRow(track, origin, index, readonly) {
-        const meta = `${formatPlaybackTrackMeta(track)}${isPlaybackLocalTrack(track) && !track.objectUrl ? ' · 需重新选择文件' : ''}`;
-        return `
-          <div class="queue-row playback-queue-row${origin === playbackState.currentOrigin && playbackState.current && track.id === playbackState.current.id ? ' active' : ''}">
-            <div class="playback-row-main">
-              ${renderPlaybackArtwork(track)}
-              <div>
-                <div class="song">${escapeHtml(track.title)}</div>
-                <div class="meta">${escapeHtml(meta)}</div>
-              </div>
-            </div>
-            ${readonly ? '' : `
-              <div class="queue-actions">
-                <button type="button" data-playback-queue="${escapeAttr(origin)}" data-playback-index="${index}">播放</button>
-              </div>
-            `}
-          </div>
-        `;
-      }
-
-      function renderPlaybackCurrentCover(cover, track) {
-        const coverUrl = String(track && track.coverUrl || '').trim();
-        cover.classList.toggle('has-image', Boolean(coverUrl));
-        if (coverUrl) {
-          cover.innerHTML = `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">`;
-        } else {
-          cover.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
-        }
-      }
-
       function playbackQueueTotalCount() {
-        if (playbackState.queueType === 'playlist') {
-          return playbackState.normalQueueTracks.length;
-        }
-        return activePlaybackQueue().length;
+        return queueManager.getTotalCount();
       }
 
       function renderPlaybackProgress() {
         const audio = getPlaybackAudio();
-        const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : playbackState.restoredTime;
-        const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
-        const seek = document.getElementById('playbackSeek');
-        if (seek) {
-          seek.max = String(Math.max(0, duration));
-          seek.value = String(Math.max(0, Math.min(currentTime, duration || currentTime)));
-          const pct = duration > 0 ? Math.round((currentTime / duration) * 1000) / 10 : 0;
-          seek.style.setProperty('--seek-pos', pct + '%');
-        }
-        const current = document.getElementById('playbackCurrentTime');
-        if (current) current.textContent = formatPlaybackTime(currentTime);
-        const total = document.getElementById('playbackDuration');
-        if (total) total.textContent = formatPlaybackTime(duration);
-        updatePlaybackMediaSessionPosition();
-        renderFullscreenPlayer();
-      }
-
-      function updatePlaybackVolumeUI() {
-        const volSlider = document.getElementById('playbackVolume');
-        const volWrap = document.querySelector('.playback-volume-wrap');
-        if (volWrap) {
-          volWrap.classList.toggle('muted', playbackState.volume === 0);
-        }
-        if (volSlider) {
-          volSlider.style.setProperty('--vol-pos', Math.round(playbackState.volume * 100) + '%');
-        }
+        uiRenderer.renderProgress(audio, playbackState.restoredTime);
+        uiRenderer.updateMediaSessionPosition(audio);
       }
 
       function updatePlaybackMediaSession() {
-        if (!('mediaSession' in navigator)) return;
-        const track = playbackState.current;
-        if (!track) {
-          navigator.mediaSession.metadata = null;
-          return;
-        }
-        try {
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: track.title || '',
-            artist: Array.isArray(track.artists) ? track.artists.join(' / ') : '',
-            album: track.album || '',
-            artwork: track.coverUrl ? [{ src: track.coverUrl, sizes: '300x300', type: 'image/jpeg' }] : []
-          });
-          navigator.mediaSession.playbackState = getPlaybackAudio()?.paused ? 'paused' : 'playing';
-          navigator.mediaSession.setActionHandler('play', () => togglePlayback());
-          navigator.mediaSession.setActionHandler('pause', () => togglePlayback());
-          navigator.mediaSession.setActionHandler('previoustrack', () => playbackPrevious());
-          navigator.mediaSession.setActionHandler('nexttrack', () => playbackNext(false));
-          navigator.mediaSession.setActionHandler('seekto', (details) => {
-            const audio = getPlaybackAudio();
-            if (!audio || !Number.isFinite(details.seekTime)) return;
-            audio.currentTime = Math.max(0, Math.min(audio.duration || details.seekTime, details.seekTime));
-          });
-          updatePlaybackMediaSessionPosition();
-        } catch (_) {
-          // Media Session is best-effort and should never block playback.
-        }
+        const audio = getPlaybackAudio();
+        uiRenderer.updateMediaSession(playbackState.current, audio, {
+          onTogglePlayback: togglePlayback,
+          onPrevious: playbackPrevious,
+          onNext: () => playbackNext(false)
+        });
       }
 
       function updatePlaybackMediaSessionPosition() {
-        if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function') return;
         const audio = getPlaybackAudio();
-        if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
-        try {
-          navigator.mediaSession.setPositionState({
-            duration: audio.duration,
-            playbackRate: audio.playbackRate || 1,
-            position: Math.max(0, Math.min(audio.currentTime || 0, audio.duration))
-          });
-        } catch (_) {
-          // Ignore invalid transient duration/position values.
-        }
-      }
-
-      function formatPlaybackTime(seconds) {
-        const total = Math.max(0, Math.floor(Number(seconds) || 0));
-        const minutes = Math.floor(total / 60);
-        const rest = total % 60;
-        return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
-      }
-
-      const FULLSCREEN_BG_THEME_COUNT = 30;
-
-      function pickFullscreenBgTheme(track) {
-        const seed = track
-          ? String(track.id || `${track.title || ''}|${(track.artists || []).join(',')}`)
-          : '';
-        if (!seed) return 1;
-        let hash = 0;
-        for (let i = 0; i < seed.length; i++) {
-          hash = (hash * 31 + seed.charCodeAt(i)) % 2147483647;
-        }
-        return (hash % FULLSCREEN_BG_THEME_COUNT) + 1;
-      }
-
-      function applyFullscreenBgTheme(bgEl, track) {
-        if (!bgEl) return;
-        const theme = `theme-${pickFullscreenBgTheme(track)}`;
-        if (bgEl.dataset.bgTheme === theme) return;
-        if (bgEl.dataset.bgTheme) bgEl.classList.remove(bgEl.dataset.bgTheme);
-        bgEl.classList.add(theme);
-        bgEl.dataset.bgTheme = theme;
+        uiRenderer.updateMediaSessionPosition(audio);
       }
 
       function renderFullscreenPlayer() {
-        const fsEl = document.getElementById('playerFullscreen');
-        if (!fsEl || !fsEl.classList.contains('open')) return;
-
-        const track = playbackState.current;
         const audio = getPlaybackAudio();
-        const isPlaying = audio && !audio.paused;
-
-        // 更新标题和歌手
-        const titleEl = document.getElementById('playerFsTitle');
-        const artistEl = document.getElementById('playerFsArtist');
-        if (titleEl) titleEl.textContent = track ? track.title : '未选择歌曲';
-        if (artistEl) {
-          artistEl.textContent = track
-            ? (track.artists || []).join(' / ') || '未知歌手'
-            : '—';
-        }
-
-        // 更新封面艺术
-        const artEl = document.getElementById('playerFsArt');
-        const bgEl = document.getElementById('playerFsBg');
-        const vinylDiscEl = document.getElementById('playerFsVinylDisc');
-        const tonearmEl = document.getElementById('playerFsTonearm');
-        const coverUrl = track && track.coverUrl ? track.coverUrl : '';
-
-        if (artEl) {
-          artEl.classList.toggle('has-image', Boolean(coverUrl));
-          if (coverUrl) {
-            const existing = artEl.querySelector('img');
-            if (!existing || existing.src !== coverUrl) {
-              artEl.innerHTML = `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">`;
-            }
-          } else {
-            artEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
-          }
-        }
-
-        // 更新背景色板
-        applyFullscreenBgTheme(bgEl, track);
-
-        // 唱片旋转动画：播放时旋转，暂停时保持当前角度
-        if (vinylDiscEl) {
-          if (isPlaying) {
-            vinylDiscEl.classList.add('spinning');
-            vinylDiscEl.classList.remove('paused');
-          } else {
-            // 暂停时移除spinning但不重置transform，保持当前角度
-            vinylDiscEl.classList.remove('spinning');
-            vinylDiscEl.classList.add('paused');
-          }
-        }
-
-        // 唱针状态：播放时落下，暂停时抬起
-        if (tonearmEl) {
-          tonearmEl.classList.toggle('playing', isPlaying);
-        }
-
-        // 渲染歌词
-        renderFullscreenLyrics(track, audio);
-      }
-
-      let fullscreenLyricsInitialized = false;
-
-      function renderFullscreenLyrics(track, audio) {
-        const container = document.getElementById('playerFsLyrics');
-        if (!container) return;
-
-        const lines = track && track.lyrics && Array.isArray(track.lyrics.lines)
-          ? track.lyrics.lines
-          : [];
-
-        if (!lines.length) {
-          container.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
-          return;
-        }
-
-        const currentMs = audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
-
-        // 找到当前行索引
-        let currentIndex = -1;
-        for (let i = lines.length - 1; i >= 0; i--) {
-          if (lines[i].startMs <= currentMs) {
-            currentIndex = i;
-            break;
-          }
-        }
-
-        // 重新渲染（仅在歌词变化时）
-        const existingCount = container.querySelectorAll('.player-fs-lyric-line').length;
-        if (existingCount !== lines.length) {
-          container.innerHTML = lines.map((line, i) => `
-            <div class="player-fs-lyric-line" data-lyric-index="${i}" data-lyric-start-ms="${line.startMs || 0}">
-              <button class="lyric-seek-btn" type="button" aria-label="从此处播放" title="从此处播放">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-              </button>
-              <div class="lyric-content">
-                <span class="lyric-text">${escapeHtml(line.text || '')}</span>
-                ${line.translation ? `<span class="lyric-trans">${escapeHtml(line.translation)}</span>` : ''}
-              </div>
-            </div>
-          `).join('');
-
-          // 绑定点击事件
-          if (!fullscreenLyricsInitialized) {
-            container.addEventListener('click', handleFullscreenLyricClick);
-            fullscreenLyricsInitialized = true;
-          }
-        }
-
-        // 更新当前行高亮
-        container.querySelectorAll('.player-fs-lyric-line').forEach((el, i) => {
-          el.classList.toggle('active', i === currentIndex);
-        });
-
-        // 自动滚动到当前行（居中）
-        const activeLine = container.querySelector('.player-fs-lyric-line.active');
-        if (activeLine) {
-          const wrap = document.getElementById('playerFsLyricsWrap');
-          if (wrap) {
-            const lineTop = activeLine.offsetTop;
-            const wrapHeight = wrap.clientHeight;
-            const targetScroll = lineTop - wrapHeight / 2 + activeLine.clientHeight / 2;
-            wrap.scrollTo({
-              top: Math.max(0, targetScroll),
-              behavior: 'smooth'
-            });
-          }
-        }
+        uiRenderer.getFullscreenPlayer().render(playbackState.current, audio);
       }
 
       function handleFullscreenLyricClick(event) {

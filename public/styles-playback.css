@@ -549,6 +549,23 @@
   letter-spacing: 0.3px;
 }
 
+/* 播放模式图标切换 */
+#playbackModeBtn .mode-icon {
+  display: none;
+}
+
+#playbackModeBtn[data-mode="sequence"] .mode-sequence {
+  display: block;
+}
+
+#playbackModeBtn[data-mode="shuffle"] .mode-shuffle {
+  display: block;
+}
+
+#playbackModeBtn[data-mode="repeat-one"] .mode-repeat-one {
+  display: block;
+}
+
 /* ===== 图标按钮通用 ===== */
 .playback-icon-btn {
   width: 36px;
@@ -975,69 +992,48 @@
 .lyric-window-surface {
   width: 100vw;
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto auto;
-  align-content: center;
-  gap: 6px;
-  padding: 18px 30px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px 60px;
   text-align: center;
   text-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.9),
-    0 0 2px rgba(0, 0, 0, 0.95);
+    0 3px 8px rgba(0, 0, 0, 0.85),
+    0 6px 20px rgba(0, 0, 0, 0.65);
 }
 
 .lyric-window-line {
-  align-self: end;
-  color: #fff7ed;
-  font-size: 36px;
-  line-height: 1.18;
+  color: #ffffff;
+  font-size: 48px;
+  line-height: 1.3;
   font-weight: 900;
   overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+  max-width: 90vw;
 }
 
 .lyric-window-line span {
-  color: rgba(255, 255, 255, 0.58);
-  transition: color 120ms linear, text-shadow 120ms linear;
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 180ms cubic-bezier(0.4, 0, 0.2, 1), text-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .lyric-window-line span.is-active {
-  color: #fff7ed;
-  text-shadow: 0 0 12px rgba(251, 191, 36, 0.65);
+  color: #ffffff;
+  text-shadow:
+    0 0 16px rgba(251, 191, 36, 0.75),
+    0 0 32px rgba(251, 191, 36, 0.45);
 }
 
 .lyric-window-translation {
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 22px;
-  line-height: 1.25;
-  font-weight: 760;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 28px;
+  line-height: 1.4;
+  font-weight: 700;
   overflow-wrap: anywhere;
-}
-
-.lyric-window-meta {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 13px;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lyric-window-progress {
-  width: min(620px, 72vw);
-  height: 3px;
-  justify-self: center;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.lyric-window-progress span {
-  display: block;
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #d92d20, #c79a3b);
-  transition: width 120ms linear;
+  max-width: 85vw;
+  letter-spacing: 0.01em;
 }
 
 .lyric-window-body.is-locked {
@@ -1755,7 +1751,7 @@ body.player-dock-expanded .playback-page.active {
   transition: transform 600ms cubic-bezier(0.4, 0.0, 0.2, 1);
   pointer-events: none;
   z-index: 5;
-  filter: drop-shadow(0 8px 24px rgba(22, 31, 43, 0.25));
+  filter: drop-shadow(0 10px 30px rgba(22, 31, 43, 0.35));
 }
 
 /* 暂停/停止状态：唱针抬起 */
@@ -1768,75 +1764,152 @@ body.player-dock-expanded .playback-page.active {
   transform: rotate(0deg);
 }
 
-/* 唱针臂 */
+/* 唱针臂 - 精致金属质感 */
 .player-fs-tonearm::before {
   content: '';
   position: absolute;
   top: 0;
   right: 10px;
-  width: 8px;
-  height: 180px;
-  background: linear-gradient(to bottom,
-    #e5e7eb 0%,
-    #d1d5db 50%,
-    #9ca3af 100%
+  width: 9px;
+  height: 185px;
+  background: linear-gradient(135deg,
+    #f8fafc 0%,
+    #e2e8f0 15%,
+    #cbd5e1 35%,
+    #94a3b8 50%,
+    #cbd5e1 65%,
+    #e2e8f0 85%,
+    #f8fafc 100%
   );
-  border-radius: 4px;
+  border-radius: 4.5px;
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.1),
-    2px 0 8px rgba(0, 0, 0, 0.15);
+    /* 内侧高光 */
+    -1px 0 2px rgba(255, 255, 255, 0.9) inset,
+    /* 外侧高光 */
+    1px 0 1px rgba(255, 255, 255, 0.6),
+    /* 主阴影 */
+    3px 0 12px rgba(0, 0, 0, 0.25),
+    /* 边缘定义 */
+    0 0 0 1px rgba(100, 116, 139, 0.2);
+  /* 金属拉丝效果 */
+  background-image:
+    linear-gradient(135deg,
+      #f8fafc 0%,
+      #e2e8f0 15%,
+      #cbd5e1 35%,
+      #94a3b8 50%,
+      #cbd5e1 65%,
+      #e2e8f0 85%,
+      #f8fafc 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 1px,
+      rgba(255, 255, 255, 0.1) 1px,
+      rgba(255, 255, 255, 0.1) 2px
+    );
 }
 
-/* 唱针头部（固定装置） */
+/* 唱针头部（固定装置）- 更立体的金属质感 */
 .player-fs-tonearm::after {
   content: '';
   position: absolute;
-  top: -8px;
-  right: 0;
-  width: 28px;
-  height: 28px;
-  background: radial-gradient(circle at 40% 40%,
-    #d1d5db,
-    #9ca3af
-  );
+  top: -10px;
+  right: -1px;
+  width: 32px;
+  height: 32px;
+  background:
+    radial-gradient(circle at 32% 28%,
+      #f1f5f9 0%,
+      #cbd5e1 20%,
+      #94a3b8 45%,
+      #64748b 70%,
+      #475569 100%
+    );
   border-radius: 50%;
   box-shadow:
-    0 0 0 2px rgba(0, 0, 0, 0.15),
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    0 1px 2px rgba(255, 255, 255, 0.5) inset;
+    /* 立体感外阴影 */
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    /* 顶部高光 */
+    0 -2px 6px rgba(255, 255, 255, 0.4) inset,
+    /* 整体高光环 */
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset,
+    /* 底部阴影 */
+    0 3px 8px rgba(0, 0, 0, 0.4) inset,
+    /* 外轮廓 */
+    0 0 0 1px rgba(71, 85, 105, 0.4);
 }
 
-/* 唱针末端（针头） */
+/* 唱针末端（针头）- 更精致的渐变和质感 */
 .player-fs-tonearm-stylus {
   position: absolute;
   bottom: 0;
-  right: 8px;
-  width: 12px;
-  height: 60px;
+  right: 7.5px;
+  width: 13px;
+  height: 65px;
   background: linear-gradient(to bottom,
-    rgba(156, 163, 175, 0.9) 0%,
-    rgba(107, 114, 128, 0.95) 40%,
-    rgba(75, 85, 99, 1) 70%,
-    rgba(55, 65, 81, 1) 100%
+    #cbd5e1 0%,
+    #94a3b8 8%,
+    #64748b 18%,
+    #475569 35%,
+    #334155 55%,
+    #1e293b 75%,
+    #0f172a 100%
   );
-  border-radius: 6px 6px 2px 2px;
+  border-radius: 6.5px 6.5px 3px 3px;
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.2),
-    2px 0 6px rgba(0, 0, 0, 0.2);
+    /* 内侧高光 */
+    -1px 0 3px rgba(255, 255, 255, 0.25) inset,
+    /* 外侧阴影 */
+    2px 0 8px rgba(0, 0, 0, 0.35),
+    1px 0 2px rgba(0, 0, 0, 0.3),
+    /* 轮廓 */
+    0 0 0 1px rgba(15, 23, 42, 0.5);
+  position: relative;
 }
 
-/* 针尖 */
+/* 针头上的装饰金属环 */
+.player-fs-tonearm-stylus::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 4px;
+  background: linear-gradient(to bottom,
+    #fbbf24 0%,
+    #f59e0b 50%,
+    #d97706 100%
+  );
+  border-radius: 2px;
+  box-shadow:
+    0 0 4px rgba(251, 191, 36, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.3) inset,
+    0 0 0 1px rgba(217, 119, 6, 0.3);
+}
+
+/* 针尖 - 更锋利和立体 */
 .player-fs-tonearm-stylus::after {
   content: '';
   position: absolute;
-  bottom: -4px;
+  bottom: -5px;
   left: 50%;
   transform: translateX(-50%);
-  width: 3px;
-  height: 8px;
-  background: linear-gradient(to bottom, #6b7280, #1f2937);
-  border-radius: 0 0 50% 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  width: 4px;
+  height: 10px;
+  background: linear-gradient(to bottom,
+    #475569 0%,
+    #1e293b 40%,
+    #0f172a 70%,
+    #020617 100%
+  );
+  clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 /* 右侧：歌曲信息 + 歌词 */

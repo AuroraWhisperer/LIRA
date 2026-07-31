@@ -103,13 +103,14 @@ body.desktop-shell #shutdownBtn {
 
 .desktop-update-hero p {
   display: -webkit-box;
-  max-height: 60px;
+  max-height: 80px;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   color: var(--text);
   font-size: 18px;
   font-weight: 850;
+  white-space: pre-line;
 }
 
 .desktop-update-hero p[data-status="checking"],

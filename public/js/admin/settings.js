@@ -32,6 +32,27 @@
       }
     });
 
+    // 监听礼物扣减开关变化，立即生效
+    document.getElementById('enableGiftSprint').addEventListener('change', async (event) => {
+      const enabled = event.target.value;
+      try {
+        await api('/api/settings', {
+          enableGiftSprint: enabled
+        });
+        toast(enabled === 'true' ? '礼物扣减已开启' : '礼物扣减已关闭');
+        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+          await window.AdminApp.state.reloadState();
+        }
+      } catch (error) {
+        toast('保存失败：' + (error.message || String(error)));
+        // 保存失败时恢复原值
+        const currentSettings = window.AdminApp.state.getAppState();
+        if (currentSettings && currentSettings.settings) {
+          event.target.value = currentSettings.settings.enableGiftSprint || 'false';
+        }
+      }
+    });
+
     document.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
       if (!confirm('确认重置本轮礼物冲刺已收金额？礼物流水会保留，只是不再计入本轮冲刺。')) return;
       await api('/api/gifts/sprint/reset', {});
@@ -64,6 +85,23 @@
       if (minBtn) minBtn.addEventListener('click', () => window.songAssistantDesktop.minimizeWindow());
       if (maxBtn) maxBtn.addEventListener('click', () => window.songAssistantDesktop.maximizeWindow());
       if (closeBtn) closeBtn.addEventListener('click', () => window.songAssistantDesktop.closeWindow());
+
+      // 监听窗口最大化状态变化，切换图标
+      if (maxBtn) {
+        window.songAssistantDesktop.onWindowMaximized((isMaximized) => {
+          const maximizeIcon = maxBtn.querySelector('.maximize-icon');
+          const restoreIcon = maxBtn.querySelector('.restore-icon');
+          if (maximizeIcon && restoreIcon) {
+            if (isMaximized) {
+              maximizeIcon.style.display = 'none';
+              restoreIcon.style.display = 'block';
+            } else {
+              maximizeIcon.style.display = 'block';
+              restoreIcon.style.display = 'none';
+            }
+          }
+        });
+      }
     }
   }
 

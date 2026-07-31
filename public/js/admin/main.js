@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.AdminApp.display.initDisplayForm();
     window.AdminApp.display.initOverlayUrls();
   }
+  if (window.AdminApp.desktopLyric) window.AdminApp.desktopLyric.initDesktopLyricForm();
   if (window.AdminApp.metrics) window.AdminApp.metrics.initPerformanceMonitor();
 
   // 网络和数据

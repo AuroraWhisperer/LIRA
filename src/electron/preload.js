@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld('songAssistantDesktop', {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('desktop:update-state', listener);
     return () => ipcRenderer.removeListener('desktop:update-state', listener);
+  },
+  onWindowMaximized: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+
+    const listener = (_event, isMaximized) => callback(isMaximized);
+    ipcRenderer.on('desktop:window-maximized', listener);
+    return () => ipcRenderer.removeListener('desktop:window-maximized', listener);
   }
 });
 

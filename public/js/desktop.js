@@ -158,7 +158,28 @@ function renderDesktopUpdateState(state) {
     : 0;
 
   if (statusNode) {
-    statusNode.textContent = desktopUpdateStatusText(state);
+    let statusText = desktopUpdateStatusText(state);
+
+    // 如果正在下载，添加下载速度和进度信息
+    if (state.status === 'downloading' && state.progress) {
+      const transferred = state.progress.transferred || 0;
+      const total = state.progress.total || 0;
+      const speed = state.progress.speed || 0;
+
+      const transferredMB = (transferred / (1024 * 1024)).toFixed(1);
+      const totalMB = (total / (1024 * 1024)).toFixed(1);
+      const speedText = formatDownloadSpeed(speed);
+
+      statusText = `正在下载更新：${percent.toFixed(1)}%`;
+      if (total > 0) {
+        statusText += `\n${transferredMB} MB / ${totalMB} MB`;
+      }
+      if (speed > 0) {
+        statusText += `  •  ${speedText}`;
+      }
+    }
+
+    statusNode.textContent = statusText;
     statusNode.dataset.status = state.status || 'idle';
   }
   if (hintNode) {
@@ -177,6 +198,16 @@ function renderDesktopUpdateState(state) {
   }
   if (installButton) {
     installButton.disabled = !state.canInstall;
+  }
+}
+
+function formatDownloadSpeed(bytesPerSecond) {
+  if (bytesPerSecond < 1024) {
+    return `${bytesPerSecond.toFixed(0)} B/s`;
+  } else if (bytesPerSecond < 1024 * 1024) {
+    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+  } else {
+    return `${(bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`;
   }
 }
 

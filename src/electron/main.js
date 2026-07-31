@@ -165,6 +165,18 @@ function createMainWindow(baseUrl) {
   mainWindow.on('closed', function () {
     mainWindow = null;
   });
+
+  mainWindow.on('maximize', function () {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('desktop:window-maximized', true);
+    }
+  });
+
+  mainWindow.on('unmaximize', function () {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('desktop:window-maximized', false);
+    }
+  });
 }
 
 // ---- IPC handlers ----

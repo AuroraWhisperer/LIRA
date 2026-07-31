@@ -15,6 +15,9 @@ let updateState = {
   updateVersion: ''
 };
 
+let lastProgressTime = 0;
+let lastTransferred = 0;
+
 function configureAutoUpdater({ onStateChange, writeLog }) {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -44,10 +47,24 @@ function configureAutoUpdater({ onStateChange, writeLog }) {
 
   autoUpdater.on('download-progress', (progress) => {
     const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+    const transferred = progress.transferred || 0;
+    const total = progress.total || 0;
+
+    // 计算下载速度
+    const now = Date.now();
+    let speed = 0;
+    if (lastProgressTime > 0 && now > lastProgressTime) {
+      const timeDiff = (now - lastProgressTime) / 1000; // 秒
+      const bytesDiff = transferred - lastTransferred;
+      speed = bytesDiff / timeDiff; // 字节/秒
+    }
+    lastProgressTime = now;
+    lastTransferred = transferred;
+
     setUpdateState({
       status: 'downloading', message: `正在下载更新：${percent.toFixed(1)}%`,
       canDownload: false, canInstall: false,
-      progress: { percent, transferred: progress.transferred || 0, total: progress.total || 0 }
+      progress: { percent, transferred, total, speed }
     }, onStateChange);
   });
 
@@ -95,6 +112,9 @@ async function checkForUpdates() {
 
 async function downloadUpdate() {
   if (!app.isPackaged) return checkForUpdates();
+  // 重置下载速度计算
+  lastProgressTime = 0;
+  lastTransferred = 0;
   setUpdateState({
     status: 'downloading', message: '正在准备下载 GitHub 最新安装包...',
     canDownload: false, canInstall: false

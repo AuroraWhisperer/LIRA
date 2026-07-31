@@ -103,6 +103,14 @@
       superChatToggle.title = collapsed ? '展开 SC 队列' : '折叠 SC 队列';
     });
 
+    const quickAddToggle = document.getElementById('quickAddToggle');
+    const quickAddPanel = quickAddToggle?.closest('.panel');
+    quickAddToggle?.addEventListener('click', () => {
+      const collapsed = quickAddPanel?.classList.toggle('is-collapsed') || false;
+      quickAddToggle.setAttribute('aria-expanded', String(!collapsed));
+      quickAddToggle.title = collapsed ? '展开快速入队' : '折叠快速入队';
+    });
+
     document.addEventListener('click', (event) => {
       document.querySelectorAll('.tab-overflow[open]').forEach((details) => {
         if (!details.contains(event.target)) details.open = false;
