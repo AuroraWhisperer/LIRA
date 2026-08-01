@@ -1008,19 +1008,20 @@
                     <span>马上就好…</span>
                   </div>
                 </div>
-                <div class="gift-blind-stats-table-wrap">
+                <div class="gift-blind-stats-table-wrap" style="max-height: 420px; overflow-y: auto;">
                   <table class="blind-stats-table" id="blindBoxStatsTable">
                     <thead>
                       <tr>
                         <th>观众</th>
-                        <th>盒子数</th>
+                        <th>盲盒</th>
                         <th>成本</th>
                         <th>开出</th>
                         <th>盈亏</th>
+                        <th>时间</th>
                       </tr>
                     </thead>
                     <tbody id="blindBoxStatsBody">
-                      <tr><td colspan="5" class="empty">暂无数据</td></tr>
+                      <tr><td colspan="6" class="empty">暂无数据</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1041,7 +1042,8 @@
               <div id="blindBoxAdvanced" hidden>
                 <textarea id="giftBlindBoxConfig" rows="6" placeholder='[
               { "name": "心动盲盒", "price": 15, "outputs": [{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}] },
-              { "name": "幸运盲盒", "price": 5, "outputs": [{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}] }
+              { "name": "幸运盲盒", "price": 5, "outputs": [{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}] },
+              { "name": "小熊虫盲盒", "price": 9, "outputs": [{"name":"虫事顺意","price":9},{"name":"虫满元气","price":9},{"name":"重虫出击","price":9},{"name":"顺虫自然","price":9},{"name":"虫容不迫","price":9},{"name":"虫装镇定","price":9},{"name":"一虫莫展","price":9},{"name":"心事虫虫","price":9}] }
             ]'></textarea>
                 <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
               </div>

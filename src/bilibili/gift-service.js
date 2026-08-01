@@ -578,6 +578,20 @@ function getBlindBoxStats(context) {
   const perUser = Array.from(userMap.values())
     .sort((a, b) => b.totalProfit - a.totalProfit);
 
+  // 每条盲盒开盒记录（最多 500 条），用于 admin 页面滚动展示
+  const MAX_RECORDS = 500;
+  const records = rows.slice(0, MAX_RECORDS).map(row => ({
+    id: row.id,
+    user_name: (row.user_name || '观众').trim(),
+    uid: (row.uid || '').trim(),
+    blind_box_name: row.blind_box_name || '',
+    cost: normalizeMoney(row.blind_box_price),
+    value: normalizeMoney(row.total_price),
+    profit: normalizeSignedMoney(row.blind_profit),
+    num: row.num || 1,
+    created_at: row.created_at
+  }));
+
   return {
     today: todayStart,
     summary: {
@@ -586,7 +600,8 @@ function getBlindBoxStats(context) {
       totalValue: normalizeMoney(totalValue),
       totalProfit: normalizeSignedMoney(totalProfit)
     },
-    perUser
+    perUser,
+    records
   };
 }
 

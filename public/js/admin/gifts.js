@@ -331,7 +331,7 @@
         `;
       }
       const body = document.getElementById('blindBoxStatsBody');
-      if (body) body.innerHTML = '<tr><td colspan="5" class="empty">加载失败</td></tr>';
+      if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
     } finally {
       blindBoxStatsLoading = false;
       if (blindBoxStatsPending) {
@@ -386,25 +386,27 @@
       }
     }
 
-    // 用户明细表
+    // 每条盲盒开盒记录明细（最多 500 条）
     const body = document.getElementById('blindBoxStatsBody');
     if (!body) return;
 
-    if (!perUser || perUser.length === 0) {
-      body.innerHTML = '<tr><td colspan="5" class="empty">暂无数据</td></tr>';
+    const records = stats.records;
+    if (!records || records.length === 0) {
+      body.innerHTML = '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
       return;
     }
 
-    body.innerHTML = perUser.map((user) => {
-      const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
-      const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
+    body.innerHTML = records.map((rec) => {
+      const profitSign = rec.profit > 0 ? '+' : rec.profit < 0 ? '-' : '';
+      const profitClass = rec.profit > 0 ? 'profit-up' : rec.profit < 0 ? 'profit-down' : '';
       return `
         <tr>
-          <td class="user-cell">${escapeHtml(user.userName)}</td>
-          <td>${user.boxCount}</td>
-          <td>${formatMoney(user.totalCost)}</td>
-          <td>${formatMoney(user.totalValue)}</td>
-          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</td>
+          <td class="user-cell">${escapeHtml(rec.user_name)}</td>
+          <td>${escapeHtml(rec.blind_box_name)}</td>
+          <td>${formatMoney(rec.cost)}</td>
+          <td>${formatMoney(rec.value)}</td>
+          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(rec.profit))}</td>
+          <td class="time-cell">${formatTime(rec.created_at)}</td>
         </tr>
       `;
     }).join('');
@@ -587,6 +589,7 @@
   function renderGiftHistoryRow(item) {
     const price = item.sprint_count_price ?? item.total_price;
     const guardBadge = getGuardBadge(item);
+    const blindBoxIcon = getBlindBoxIcon(item);
     const remarks = [];
     if (guardBadge) {
       remarks.push(`<span class="gift-remark-tag guard"><img class="gift-guard-icon" src="${escapeAttr(guardBadge.src)}" alt="${escapeAttr(guardBadge.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy"> ${escapeHtml(guardBadge.name)}</span>`);
@@ -595,7 +598,10 @@
       const blindProfit = item.blind_profit;
       const profitSign = blindProfit > 0 ? '+' : '';
       const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
-      remarks.push(`<span class="gift-remark-tag blind">🎁 盲盒 ${profitSign}${formatMoney(blindProfit || 0)}</span>`);
+      const iconHtml = blindBoxIcon
+        ? `<img class="gift-blind-box-icon" src="${escapeAttr(blindBoxIcon.src)}" alt="${escapeAttr(blindBoxIcon.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy">`
+        : '🎁';
+      remarks.push(`<span class="gift-remark-tag blind">${iconHtml} 盲盒 ${profitSign}${formatMoney(blindProfit || 0)}</span>`);
     }
     return `
       <tr>
