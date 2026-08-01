@@ -96,13 +96,13 @@ async function persistBilibiliCookieSnapshot(dataDir) {
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
   fs.writeFileSync(getBilibiliCookieSnapshotPath(dataDir), encrypted.toString('base64'), 'utf8');
 
-  // 同时导出一份明文 cookie 文件给 capture-gifts.js 等脚本使用
-  const cookieStr = cookies
-    .filter((c) => c.name && c.value)
-    .map((c) => `${c.name}=${c.value}`)
-    .join('; ');
-  if (cookieStr) {
-    fs.writeFileSync(getBilibiliCookieExportPath(dataDir), cookieStr, 'utf8');
+  const exportPath = getBilibiliCookieExportPath(dataDir);
+  if (fs.existsSync(exportPath) || process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT === '1') {
+    const cookieHeader = cookies
+      .filter((cookie) => cookie.name && cookie.value)
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .join('; ');
+    fs.writeFileSync(exportPath, cookieHeader, 'utf8');
   }
 
   return { savedAt: payload.savedAt, cookieCount: payload.cookies.length };
@@ -146,9 +146,7 @@ async function getBilibiliAuthState(dataDir) {
     } catch (_) { snapshotMeta.exists = true; }
   }
 
-  // 检查导出的 cookie 文件
-  const exportPath = getBilibiliCookieExportPath(dataDir);
-  const exportedCookieExists = fs.existsSync(exportPath);
+  const exportedCookieExists = fs.existsSync(getBilibiliCookieExportPath(dataDir));
 
   return {
     name: config.name,
@@ -183,6 +181,7 @@ async function logoutBilibiliAccount(dataDir) {
   await loginSession.clearStorageData({ storages: ['cookies', 'localstorage', 'indexdb', 'websql'] });
   const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
   if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
+  // 清理旧版明文导出文件
   const exportPath = getBilibiliCookieExportPath(dataDir);
   if (fs.existsSync(exportPath)) fs.unlinkSync(exportPath);
   return getBilibiliAuthState(dataDir);

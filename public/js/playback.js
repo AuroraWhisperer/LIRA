@@ -1356,6 +1356,9 @@ import { HomeService } from './playback/services/home-service.js';
             : [];
           if (!playbackState.current && Number.isInteger(saved.currentIndex) && saved.currentIndex >= 0) {
             playbackState.current = playbackState.normalQueue[saved.currentIndex] || null;
+            if (playbackState.current) {
+              playbackState.normalQueue.splice(saved.currentIndex, 1);
+            }
             playbackState.currentOrigin = playbackState.current ? 'normal' : '';
           }
           const savedQueueType = ['playlist', 'radio', 'queue'].includes(saved.queueType)
@@ -1625,7 +1628,9 @@ import { HomeService } from './playback/services/home-service.js';
         const body = JSON.stringify({ clientId: playbackClientId, payload });
         if (navigator.sendBeacon) {
           const blob = new Blob([body], { type: 'application/json' });
-          navigator.sendBeacon('/api/playback/queue-state', blob);
+          const token = window.__API_TOKEN__;
+          const beaconUrl = `/api/playback/queue-state${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+          navigator.sendBeacon(beaconUrl, blob);
         } else {
           fetch('/api/playback/queue-state', {
             method: 'POST',

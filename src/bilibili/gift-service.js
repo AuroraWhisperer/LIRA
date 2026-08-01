@@ -220,7 +220,7 @@ function addGiftEvent(context, input, skipComboBuffer) {
       const existingUid = cleanText(existing.uid);
       const existingUser = cleanText(existing.user_name);
       if ((existingUid && gift.uid && existingUid !== gift.uid) ||
-          (existingUser && gift.userName && existingUser !== gift.userName)) {
+          (existingUser && existingUser !== '观众' && gift.userName && gift.userName !== '观众' && existingUser !== gift.userName)) {
         // 不同用户，跳过 platformId 去重，走正常插入
       } else {
         return updateGiftEventIfProgressed(context, existing, gift);

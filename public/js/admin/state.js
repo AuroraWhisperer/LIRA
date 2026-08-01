@@ -17,7 +17,9 @@
 
   function connectSocket() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+    const token = window.__API_TOKEN__;
+    const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
+    const ws = new WebSocket(wsUrl);
     const status = document.getElementById('wsStatus');
 
     ws.addEventListener('open', () => {

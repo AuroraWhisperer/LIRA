@@ -1,8 +1,35 @@
 # 打包与更新说明
 
-当前版本：`1.6.6`
+当前版本：`1.7.0`
 
 ---
+
+## v1.7.0 变更
+
+- 🔐 **Session Token 安全机制**：服务端启动时自动生成随机 UUID session token，写入 `.session-token` 文件。所有 API 请求（`/api/health` 除外）和 WebSocket 连接均需携带 token（Header `Authorization: Bearer <token>` 或 query `?token=`），未授权请求返回 401。前端 HTML 页面自动注入内联脚本，自动为 `fetch`、`WebSocket`、`navigator.sendBeacon` 和同源 API 锚点链接附加 token，无需手动处理。旧版客户端（无 token）向后兼容。
+- 🛡️ **本地媒体安全加固**：新增 `src/electron/local-media-access.js` 白名单模块，本地音频文件访问限制在授权路径内，非白名单路径返回 403。`music:resolve-local-media-urls` IPC 新增 `senderFrame.url` 来源校验，拒绝跨站请求。
+- 🔌 **WebSocket 协议实现重写**：`src/server/ws.js` 从简易单帧解析升级为完整 RFC 6455 实现——支持分片帧（fragmented frames）重组、最大帧/消息大小限制（256KB）、Ping/Pong 心跳保活（30s 间隔）、90s 超时无响应自动断开、per-socket 缓冲区隔离。解决了旧实现在大消息或网络波动时可能出现的数据错乱和内存泄漏问题。
+- 🐛 **弹幕客户端健壮性增强**：`replaceBilibiliClient` 改为 Promise 链序列化执行，防止快速重连时的竞态条件。WebSocket 重连前清理旧事件处理器（`clearHandlers`），避免消息重复处理和心跳定时器泄漏。消息处理异常用 try/catch 包裹，不再导致客户端崩溃。连接成功后检查 `stopped` 状态防止无效操作。新增 `alwaysHistory` 选项支持始终使用历史轮询模式。
+- 🗄️ **数据库歌曲去重迁移**：新增 schema v3 迁移——清理 `songs` 表中重复的 `(name, artist)` 记录，自动解除 `queue` 和 `requests` 表的外键引用后删除重复行（保留最新），最后重建唯一索引 `idx_songs_name_artist`。解决了旧库可能因重复数据导致的启动崩溃和编辑冲突问题。
+- 🐛 **礼物去重逻辑修正**：同一 `platformId` 下，用户名为「观众」时不再触发用户不匹配的去重冲突，避免不同匿名用户的礼物被错误合并为同一条记录。
+- 🐛 **开放平台大航海上舰价格解析修正**：移除 `paid` 字段读取，避免 `paid` 为 0 时覆盖有效的 `price`/`amount` 价格，确保大航海礼物金额计算准确。
+- 🎵 **播放队列状态恢复修正**：从持久化快照恢复播放时，将当前歌曲从 `normalQueue` 中移除（`splice`），避免同一首歌在队列中重复出现。
+- 🎵 **上一曲逻辑修正**：点击上一曲时从历史记录弹出，不再将当前播放的歌曲错误推回队列，确保历史导航行为正确。
+- 🎵 **全屏歌词模式修正**：切歌时按 `track.id` 判断是否为新歌曲，正确重置歌词模式（翻译/罗马音），解决切换歌曲后仍显示上一首翻译的问题。
+- 🎵 **推荐内容分页去重**：电台/推荐等多轮拉取时检测页面签名（track source+id+title 指纹），相同页面不再重复请求，修复某些歌单可能无限循环拉取的问题。
+- 🎵 **歌单缓存写入防护**：空结果或失败响应不再写入磁盘缓存，防止覆盖已有的有效缓存数据。
+- 🔑 **QQ 音乐登录态检测增强**：`hasQQMusicAuthCookie` 新增 `p_skey`、`skey` 检测，更全面判断 QQ 音乐登录状态，减少误判。
+- 🖥️ **网易云「我喜欢」本地化回退**：英文等非中文环境下，网易云「我喜欢」歌单标题可能被本地化（如 "Favorites"），新增回退逻辑取第一个歌单作为「我喜欢」。
+- 🎵 **歌曲编辑错误处理增强**：编辑不存在的歌曲 ID 时返回明确错误提示；唯一约束冲突（同名同艺术家）时给出友好中文提示。
+- 🎵 **队列限制防御性校验**：`queueLimit` 为 0 或非有限数时不再拦截点歌，避免配置异常导致完全无法点歌。
+- 🔒 **明文 Cookie 导出改为显式 opt-in**：仅当旧版明文 cookie 文件已存在或设置了 `BILIBILI_PLAINTEXT_COOKIE_EXPORT=1` 环境变量时才导出明文 Cookie 文件，减少登录凭证意外泄露的风险。
+- 🔧 **更新管理器回调持久化**：`configureAutoUpdater` 保存 `onStateChange` 回调引用，后续 `setUpdateState` 调用即使未传入回调也能正确通知状态变更。
+- 🧪 **测试覆盖大幅增强**：新增播放队列状态恢复测试、session token API 鉴权测试、WebSocket token 校验、HTML 注入脚本验证、pagehide beacon token 编码、网易云本地化回退等测试用例。新增 `test/playback-store.test.js`、`test/server-lifecycle.test.js`、`test/websocket-transport.test.js`、`test/frontend-regressions.test.js`、`test/local-media-access.test.js`。
+- 🐛 **发布脚本健壮性**：`extractReleaseNotes` 处理 changelog 中缺失换行符的边界情况。
+- 🐛 **前端健壮性修复**：`utils.value()` 对不存在的 DOM 元素安全返回空字符串而非抛异常。`debug-gifts.html` 内联 `onclick` 改为事件委托 + `data-*` 属性，符合 CSP（内容安全策略）要求。
+- 🎨 **叠加层滚动优化**：队列叠加层移除 `queue:add` 事件的滚动动画捕获/恢复逻辑，简化渲染流程。
+- 🐛 **播放历史 upsert 字段保护**：`ON CONFLICT DO UPDATE` 时使用 `CASE WHEN excluded.field != ''` 保护已有非空字段不被空值覆盖。
+- 📝 **新增文档与规格**：`specs/regression-hardening_design.md` 回归加固设计文档、`doc/` 和 `docs/` 目录。
 
 ## v1.6.6 变更
 

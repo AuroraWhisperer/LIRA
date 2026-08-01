@@ -61,7 +61,9 @@ async function loadStats() {
 
 function connectSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+  const token = window.__API_TOKEN__;
+  const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
+  const socket = new WebSocket(wsUrl);
 
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);

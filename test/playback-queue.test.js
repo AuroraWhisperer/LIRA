@@ -140,13 +140,61 @@ test('playing a wanted track from radio switches to a looping history queue', as
   assert.equal(app.radioRefillRequests(), 0);
 });
 
-async function createPlaybackApp(initialState) {
+test('previous playback pops history once without pushing the current track back', async () => {
+  const app = await createPlaybackApp({
+    current: track('current', 'Current'),
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [],
+    radioQueue: [],
+    history: [track('older', 'Older'), track('previous', 'Previous')],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    volume: 0.75
+  });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPrev', 'click');
+  await flushAsyncWork();
+
+  const persisted = app.savedState();
+  assert.equal(persisted.current.id, 'previous');
+  assert.deepEqual(persisted.history.map((item) => item.id), ['older']);
+});
+
+test('pagehide beacon includes the injected API token', async () => {
+  const app = await createPlaybackApp({
+    current: track('current', 'Current'),
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [],
+    radioQueue: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    volume: 0.75
+  }, { apiToken: 'token with & symbols' });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emitWindow('pagehide');
+
+  assert.equal(
+    app.beaconUrls().at(-1),
+    '/api/playback/queue-state?token=token%20with%20%26%20symbols'
+  );
+});
+
+async function createPlaybackApp(initialState, options = {}) {
   const elements = new Map();
   const storage = new Map([
     ['songAssistantPlaybackState:v1', JSON.stringify(initialState)]
   ]);
   const fetchCalls = [];
   const errors = [];
+  const windowListeners = new Map();
 
   const document = {
     getElementById(id) {
@@ -173,6 +221,7 @@ async function createPlaybackApp(initialState) {
   };
 
   const window = {
+    __API_TOKEN__: options.apiToken,
     AdminApp: {
       utils: {
         escapeHtml: escapeText,
@@ -198,7 +247,10 @@ async function createPlaybackApp(initialState) {
         return { ok: true, message: 'ok' };
       }
     },
-    addEventListener() {}
+    addEventListener(eventName, listener) {
+      if (!windowListeners.has(eventName)) windowListeners.set(eventName, []);
+      windowListeners.get(eventName).push(listener);
+    }
   };
 
   async function fetch(url, options = {}) {
@@ -325,6 +377,16 @@ async function createPlaybackApp(initialState) {
     },
     async emit(id, eventName, event = {}) {
       return document.getElementById(id).emit(eventName, event);
+    },
+    async emitWindow(eventName, event = {}) {
+      for (const listener of windowListeners.get(eventName) || []) {
+        await listener(event);
+      }
+    },
+    beaconUrls() {
+      return fetchCalls
+        .filter(({ options: callOptions }) => callOptions.body instanceof sandbox.Blob)
+        .map(({ url }) => url);
     },
     savedState() {
       assert.deepEqual(errors, []);

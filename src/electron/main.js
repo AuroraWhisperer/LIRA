@@ -10,6 +10,7 @@ const authMgr = require('./auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
 const loginWin = require('./login-window');
 const lyricWin = require('./lyric-window');
+const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const updateMgr = require('./update-manager');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
@@ -23,6 +24,7 @@ let gracefulQuitStarted = false;
 let forceQuitTimer = null;
 let playbackFlushResolve = null;
 let musicMediaHeadersConfigured = false;
+let localMediaAccess = null;
 let dataDir = '';
 let logDir = '';
 let logFile = '';
@@ -142,6 +144,7 @@ function configureDesktopEnvironment() {
   logFile = path.join(logDir, 'desktop.log');
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(logDir, { recursive: true });
+  localMediaAccess = createLocalMediaAccess(dataDir);
   process.env.SONG_PLUGIN_DATA_DIR = dataDir;
   process.env.ELECTRON_DESKTOP = '1';
   if (!process.env.HOST) process.env.HOST = '127.0.0.1';
@@ -171,6 +174,10 @@ function configureMenu() {
   Menu.setApplicationMenu(null);
 }
 
+function isPathAllowedForLocalMedia(filePath) {
+  return Boolean(localMediaAccess && localMediaAccess.isAllowed(filePath));
+}
+
 function configureLocalMediaProtocol() {
   protocol.handle('local-media', function (request) {
     // Parse URL: local-media://media/<base64url-encoded-path>
@@ -185,6 +192,11 @@ function configureLocalMediaProtocol() {
     // Validate path exists within allowed directories
     if (!filePath || !fs.existsSync(filePath)) {
       return new Response('File not found', { status: 404 });
+    }
+
+    // Validate path is within the app data directory or an allowed media source
+    if (!isPathAllowedForLocalMedia(filePath)) {
+      return new Response('Forbidden', { status: 403 });
     }
 
     var stat = fs.statSync(filePath);
@@ -273,7 +285,9 @@ function createMainWindow(baseUrl) {
   });
 
   mainWindow.webContents.on('will-navigate', function (event, url) {
-    if (url.startsWith(baseUrl)) return;
+    var parsed; try { parsed = new URL(url); } catch (_) { parsed = null; }
+    var base = new URL(baseUrl);
+    if (parsed && parsed.protocol === base.protocol && parsed.hostname === base.hostname && parsed.port === base.port) return;
     event.preventDefault();
     shell.openExternal(url);
   });
@@ -362,21 +376,30 @@ function configureMusicIpc() {
       filters: [{ name: '音频文件', extensions: ['mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a', 'wma'] }]
     });
     if (result.canceled) return { ok: true, canceled: true, files: [] };
-    var pathModule = require('node:path');
-    var files = (result.filePaths || []).map(function (p) { return { path: p, name: pathModule.basename(p), ext: pathModule.extname(p) }; });
+    var selectedPaths = result.filePaths || [];
+    localMediaAccess.allowPaths(selectedPaths);
+    var files = selectedPaths.map(function (p) {
+      return { path: p, name: path.basename(p), ext: path.extname(p) };
+    });
     return { ok: true, canceled: false, files: files };
   });
   ipcMain.handle('music:resolve-local-media-urls', async function (_e, paths) {
+    // 校验请求来源
+    var senderUrl = (_e && _e.senderFrame) ? _e.senderFrame.url : '';
+    if (!hasExactOrigin(senderUrl, desktopBaseUrl)) {
+      return { results: {} };
+    }
     var results = {};
     var list = Array.isArray(paths) ? paths : [];
     for (var i = 0; i < list.length; i++) {
       var p = list[i];
       try {
-        if (fs.existsSync(p)) {
+        var resolved = path.resolve(p);
+        if (fs.existsSync(resolved) && isPathAllowedForLocalMedia(resolved)) {
           var encoded = Buffer.from(p, 'utf8').toString('base64url');
           results[p] = { ok: true, url: 'local-media://media/' + encoded };
         } else {
-          results[p] = { ok: false, reason: 'missing' };
+          results[p] = { ok: false, reason: fs.existsSync(resolved) ? 'not-allowed' : 'missing' };
         }
       } catch (_err) {
         results[p] = { ok: false, reason: 'error' };

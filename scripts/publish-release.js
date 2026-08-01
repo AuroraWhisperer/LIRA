@@ -122,7 +122,9 @@ function extractReleaseNotes(version) {
   const sectionStart = content.indexOf(`## v${version} `);
   if (sectionStart === -1) return `Release ${version}`;
 
-  const afterHeading = content.indexOf('\n', sectionStart) + 1;
+  const newlineIndex = content.indexOf('\n', sectionStart);
+  if (newlineIndex === -1) return `Release ${version}`;
+  const afterHeading = newlineIndex + 1;
   const nextSection = content.indexOf('\n## v', afterHeading);
   const sectionEnd = nextSection === -1 ? content.length : nextSection;
   return content.slice(afterHeading, sectionEnd).trim() || `Release ${version}`;

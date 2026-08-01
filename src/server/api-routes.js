@@ -2,7 +2,7 @@
 // HTTP API 前缀分发。业务状态留在 server.js，通过 context 注入，本模块保持无状态。
 'use strict';
 
-const { readJsonBody, sendJson } = require('./http-utils');
+const { readJsonBody, sendJson, verifyToken } = require('./http-utils');
 
 // 按前缀顺序匹配；每个模块只关心自己领域的路由表
 const ROUTE_MODULES = [
@@ -19,6 +19,9 @@ const ROUTE_MODULES = [
   require('./routes/data-routes'),
   require('./routes/bilibili-routes')
 ];
+
+// 无需 token 即可访问的 API（仅 /api/health）
+const PUBLIC_API_PATHS = new Set(['/api/health']);
 
 function findRoute(pathName, method) {
   let pathExists = false;
@@ -44,6 +47,13 @@ function createBodyReader(req, maxBodyBytes) {
 async function handleApi(context, req, res, requestUrl) {
   const method = req.method || 'GET';
   const pathName = requestUrl.pathname;
+
+  // Token 校验 — /api/health 豁免
+  if (!PUBLIC_API_PATHS.has(pathName) && !verifyToken(context, req, requestUrl)) {
+    sendJson(res, 401, { ok: false, error: '未授权访问。请在启动日志中查看 session token。' });
+    return;
+  }
+
   const { handler, pathExists } = findRoute(pathName, method);
 
   if (!handler) {

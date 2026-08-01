@@ -19,7 +19,8 @@
   }
 
   function value(id) {
-    return document.getElementById(id).value.trim();
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
   }
 
   function setValue(id, nextValue) {
@@ -128,9 +129,12 @@
 
   async function api(url, body) {
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = window.__API_TOKEN__;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body || {})
       });
       const payload = await readJsonResponse(response, '请求失败');

@@ -27,7 +27,8 @@ function addQueueItem(context, input) {
     SELECT COUNT(*) AS count FROM queue
     WHERE status IN ('current', 'waiting')
   `).get().count;
-  if (activeCount >= Number(settings.queueLimit || defaults.queueLimit)) {
+  const queueLimit = Number(settings.queueLimit || defaults.queueLimit);
+  if (Number.isFinite(queueLimit) && queueLimit > 0 && activeCount >= queueLimit) {
     throw new Error('点歌队列已达到上限。');
   }
 

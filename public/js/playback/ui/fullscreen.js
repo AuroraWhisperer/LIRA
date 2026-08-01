@@ -55,6 +55,7 @@ export class FullscreenPlayer {
     this.lyricsInitialized = false;
     this.lastActiveLyricIndex = -1;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
+    this._lastLyricTrackId = null;
   }
 
   /**
@@ -99,6 +100,12 @@ export class FullscreenPlayer {
 
     // 唱片和唱针动画
     this.updateVinylAnimation(isPlaying);
+
+    const lyricTrackId = track?.id ?? '';
+    if (this._lastLyricTrackId !== lyricTrackId) {
+      this.lyricMode = 'none';
+      this._lastLyricTrackId = lyricTrackId;
+    }
 
     // 渲染歌词
     this.renderLyrics(track, audio);
@@ -420,8 +427,6 @@ export class FullscreenPlayer {
       }
     }
 
-    // 重置模式（切歌时）
-    this.lyricMode = 'none';
     this._updateLyricToggleButtons();
   }
 

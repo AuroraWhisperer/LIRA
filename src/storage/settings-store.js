@@ -123,13 +123,13 @@ function createSettingsStore(db) {
     },
 
     getSettings() {
-      if (cache) return cache;
+      if (cache) return { ...cache };
       const rows = db.prepare('SELECT key, value FROM settings').all();
       cache = { ...DEFAULT_SETTINGS };
       for (const row of rows) {
         cache[row.key] = row.value;
       }
-      return cache;
+      return { ...cache };
     },
 
     setSetting(key, value) {

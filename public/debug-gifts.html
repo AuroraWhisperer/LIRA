@@ -197,7 +197,8 @@ const MAX_LOGS = 80;
 // ── WebSocket ──
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const url = proto + '//' + location.host + '/ws';
+  const token = window.__API_TOKEN__;
+  const url = proto + '//' + location.host + '/ws' + (token ? '?token=' + encodeURIComponent(token) : '');
   ws = new WebSocket(url);
 
   ws.onopen = () => {
@@ -313,7 +314,7 @@ function renderCmdBreakdown(byCmd) {
     const unrecPct = (counts.unrecognized / maxTotal * 100).toFixed(0);
     return `
       <div class="cmd-row">
-        <span class="cmd-name clickable" title="点击筛选此 CMD" onclick="setCmdFilter('${escHtml(cmd)}')">${escHtml(cmd)}</span>
+        <span class="cmd-name clickable" title="点击筛选此 CMD" data-cmd="${escAttr(cmd)}">${escHtml(cmd)}</span>
         <span class="bar-bg">
           <span class="bar-ok" style="width:${okPct}%"></span>
           <span class="bar-fail" style="width:${failPct}%"></span>
@@ -367,7 +368,7 @@ function renderTable(messages) {
         <td>${escHtml(parsedInfo)}</td>
         <td>
           ${m.detail ? '<div style="font-size:0.72rem;color:var(--text2);margin-bottom:2px">' + escHtml(m.detail) + '</div>' : ''}
-          ${m.rawData ? '<span class="clickable" onclick="toggleRaw(\'' + rawId + '\')">查看原始数据</span>' +
+          ${m.rawData ? '<span class="clickable" data-raw-id="' + escAttr(rawId) + '">查看原始数据</span>' +
             '<div class="raw-data-full" id="' + rawId + '">' + escHtml(m.rawData) + '</div>' : ''}
         </td>
       </tr>
@@ -399,6 +400,13 @@ function escHtml(s) {
   return div.innerHTML;
 }
 
+function escAttr(s) {
+  return escHtml(s)
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
+}
+
 // ── Startup ──
 connectWs();
 fetchDebugData();
@@ -406,6 +414,17 @@ fetchDebugData();
 setInterval(() => {
   if (!ws || ws.readyState !== WebSocket.OPEN) fetchDebugData();
 }, 1000);
+
+  // 事件委托：CMD 名称点击筛选（替代内联 onclick）
+  document.getElementById('cmdList').addEventListener('click', function(e) {
+    var target = e.target.closest('.cmd-name.clickable');
+    if (target) { var cmd = target.getAttribute('data-cmd'); if (cmd) setCmdFilter(cmd); }
+  });
+  // 事件委托：原始数据展开/收起（替代内联 onclick）
+  document.getElementById('tableBody').addEventListener('click', function(e) {
+    var target = e.target.closest('.clickable[data-raw-id]');
+    if (target) { var id = target.getAttribute('data-raw-id'); if (id) toggleRaw(id); }
+  });
 </script>
 </body>
 </html>

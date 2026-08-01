@@ -69,6 +69,39 @@ function runAllMigrations(databases, options = {}) {
     // v2：主题预设内置项 + 现有外观留档
     (db) => {
       seedThemePresets(db, defaultSettings);
+    },
+    // v3：清理重复 (name, artist) 后重建唯一索引
+    (db) => {
+      db.exec('DROP INDEX IF EXISTS idx_songs_name_artist');
+      // 解除外键引用
+      db.prepare(`
+        UPDATE queue SET song_id = NULL
+        WHERE song_id IN (
+          SELECT id FROM (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY name, artist ORDER BY updated_at DESC, id DESC) AS rn
+            FROM songs
+          ) WHERE rn > 1
+        )
+      `).run();
+      db.prepare(`
+        UPDATE requests SET song_id = NULL
+        WHERE song_id IN (
+          SELECT id FROM (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY name, artist ORDER BY updated_at DESC, id DESC) AS rn
+            FROM songs
+          ) WHERE rn > 1
+        )
+      `).run();
+      // 删除重复行，保留最新的
+      db.prepare(`
+        DELETE FROM songs WHERE id IN (
+          SELECT id FROM (
+            SELECT id, ROW_NUMBER() OVER (PARTITION BY name, artist ORDER BY updated_at DESC, id DESC) AS rn
+            FROM songs
+          ) WHERE rn > 1
+        )
+      `).run();
+      db.exec('CREATE UNIQUE INDEX idx_songs_name_artist ON songs(name, artist)');
     }
   ]));
 

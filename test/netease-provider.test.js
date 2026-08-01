@@ -94,3 +94,17 @@ test('created playlist content marks only playlists without the track as availab
   assert.equal(result.playlists[0].containsTrack, true);
   assert.equal(result.playlists[1].containsTrack, false);
 });
+
+test('Netease liked tracks fall back to the first playlist when its title is localized', async () => {
+  const provider = createProvider();
+  provider.getUserProfile = async () => ({ userId: '42' });
+  provider.getUserPlaylists = async () => [
+    { id: 'first', title: 'Favorites' },
+    { id: 'second', title: 'Daily Mix' }
+  ];
+  provider.getPlaylistTracks = async (playlistId) => [{ sourceTrackId: playlistId }];
+
+  const tracks = await provider.getLikedTracks({ limit: 20 });
+
+  assert.deepEqual(tracks, [{ sourceTrackId: 'first' }]);
+});

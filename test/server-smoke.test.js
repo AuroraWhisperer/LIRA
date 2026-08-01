@@ -5,14 +5,19 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
+
+let _testToken = '';
 
 async function requestJson(baseUrl, pathname, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  if (_testToken) headers['Authorization'] = `Bearer ${_testToken}`;
   const response = await fetch(`${baseUrl}${pathname}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    }
+    headers
   });
   const payload = await response.json();
   assert.equal(response.ok, true, payload.error || `${pathname} returned ${response.status}`);
@@ -29,7 +34,8 @@ function postJson(baseUrl, pathname, body) {
 
 function readInitialWebSocketSnapshot(baseUrl) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(`${baseUrl.replace(/^http/, 'ws')}/ws`);
+    const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/ws${_testToken ? '?token=' + encodeURIComponent(_testToken) : ''}`;
+    const socket = new WebSocket(wsUrl);
     const timeout = setTimeout(() => {
       socket.close();
       reject(new Error('Timed out waiting for WebSocket snapshot'));
@@ -45,6 +51,37 @@ function readInitialWebSocketSnapshot(baseUrl) {
       reject(new Error('WebSocket connection failed'));
     }, { once: true });
   });
+}
+
+function readInjectedApiAnchor(html, baseUrl, href) {
+  const match = html.match(/<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/);
+  assert.ok(match, 'the page should contain the injected session script');
+  const anchor = {
+    href,
+    getAttribute(name) {
+      return name === 'href' ? this.href : null;
+    },
+    setAttribute(name, value) {
+      if (name === 'href') this.href = value;
+    }
+  };
+  const NativeWebSocket = function NativeWebSocket() {};
+  NativeWebSocket.prototype = {};
+  Object.assign(NativeWebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+  const window = { fetch() {}, WebSocket: NativeWebSocket };
+  vm.runInNewContext(match[0].slice(8, -9), {
+    window,
+    document: {
+      readyState: 'complete',
+      querySelectorAll: () => [anchor],
+      addEventListener() {}
+    },
+    location: new URL(`${baseUrl}/admin`),
+    URL,
+    Headers,
+    encodeURIComponent
+  });
+  return anchor.href;
 }
 
 test('server keeps its core HTTP, state, song and queue behavior', async () => {
@@ -73,12 +110,42 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
       startPort: 38471
     });
 
+    _testToken = serverModule.getApiToken();
+    const tokenPath = path.join(dataDir, '.session-token');
+    assert.equal(fs.readFileSync(tokenPath, 'utf8').trim(), _testToken);
+
     const health = await requestJson(app.baseUrl, '/api/health');
     assert.equal(path.resolve(health.dataDir), path.resolve(dataDir));
 
     for (const pathname of ['/admin', '/queue', '/songlist']) {
       const response = await fetch(`${app.baseUrl}${pathname}`);
       assert.equal(response.status, 200, pathname);
+      if (pathname === '/admin') {
+        const html = await response.text();
+        assert.equal(
+          readInjectedApiAnchor(html, app.baseUrl, '/api/songs/export.xlsx'),
+          `/api/songs/export.xlsx?token=${encodeURIComponent(_testToken)}`
+        );
+        assert.equal(
+          readInjectedApiAnchor(html, app.baseUrl, `${app.baseUrl}/api/songs/template.xlsx`),
+          `${app.baseUrl}/api/songs/template.xlsx?token=${encodeURIComponent(_testToken)}`
+        );
+        assert.equal(
+          readInjectedApiAnchor(html, app.baseUrl, 'https://example.com/api/export'),
+          'https://example.com/api/export'
+        );
+      }
+    }
+
+    for (const pathname of ['/api/songs/template.xlsx', '/api/songs/export.xlsx']) {
+      const unauthorized = await fetch(`${app.baseUrl}${pathname}`);
+      assert.equal(unauthorized.status, 401, `${pathname} should reject a missing token`);
+
+      const authorized = await fetch(
+        `${app.baseUrl}${pathname}?token=${encodeURIComponent(_testToken)}`
+      );
+      assert.equal(authorized.status, 200, `${pathname} should accept its tokenized anchor URL`);
+      assert.ok((await authorized.arrayBuffer()).byteLength > 0, `${pathname} should return a workbook`);
     }
 
     const initialSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
@@ -163,6 +230,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
   } finally {
     if (shutdownApplication) {
       await shutdownApplication({ exitProcess: false });
+      assert.equal(fs.existsSync(path.join(dataDir, '.session-token')), false);
     }
     global.fetch = originalFetch;
     fs.rmSync(dataDir, { recursive: true, force: true });

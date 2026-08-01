@@ -147,7 +147,7 @@ function extractBilibiliOpenLiveGuardGiftMessage(packet, data) {
 
   const num = normalizePositiveInteger(readObjectValue(data, ['guard_num', 'guardNum', 'num'])) || 1;
   // 价格：协议字段优先，找不到则用硬编码回退
-  const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['price', 'total_price', 'totalPrice', 'paid', 'amount']));
+  const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['price', 'total_price', 'totalPrice', 'amount']));
   let totalPrice = normalizeBilibiliCoinRmb(totalCoin);
   if (!totalPrice && guardLevel) {
     totalPrice = normalizeMoney(getGuardPriceRmb(guardLevel) * num);

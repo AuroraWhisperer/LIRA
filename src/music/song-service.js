@@ -46,17 +46,28 @@ function saveSong(db, input) {
   const sourcePlatform = cleanText(input.sourcePlatform || input.source_platform);
 
   if (input.id) {
-    db.prepare(`
-      UPDATE songs
-      SET name = ?, name_pinyin = ?, name_initial = ?, artist = ?, category_id = ?,
-          is_enabled = ?, note = ?, tags = ?, language = ?, source_platform = ?,
-          updated_at = ?
-      WHERE id = ?
-    `).run(
-      name, initial, initial, artist, categoryId,
-      enabled, note, tags, language, sourcePlatform,
-      updatedAt, Number(input.id)
-    );
+    const existingRow = db.prepare('SELECT id FROM songs WHERE id = ?').get(Number(input.id));
+    if (!existingRow) {
+      throw new Error('歌曲不存在。');
+    }
+    try {
+      db.prepare(`
+        UPDATE songs
+        SET name = ?, name_pinyin = ?, name_initial = ?, artist = ?, category_id = ?,
+            is_enabled = ?, note = ?, tags = ?, language = ?, source_platform = ?,
+            updated_at = ?
+        WHERE id = ?
+      `).run(
+        name, initial, initial, artist, categoryId,
+        enabled, note, tags, language, sourcePlatform,
+        updatedAt, Number(input.id)
+      );
+    } catch (error) {
+      if (error.message && error.message.includes('UNIQUE constraint')) {
+        throw new Error('歌曲名称和艺术家与已有歌曲重复。');
+      }
+      throw error;
+    }
     return db.prepare('SELECT * FROM songs WHERE id = ?').get(Number(input.id));
   }
 

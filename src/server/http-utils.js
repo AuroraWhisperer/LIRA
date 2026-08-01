@@ -43,6 +43,16 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
+function verifyToken(context, req, requestUrl) {
+  const token = context.sessionToken;
+  if (!token) return true; // 未启用 token 时不拦截（向后兼容）
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ') && authHeader.slice(7) === token) return true;
+  const queryToken = requestUrl.searchParams.get('token');
+  if (queryToken === token) return true;
+  return false;
+}
+
 function sendCsv(res, filename, content) {
   res.writeHead(200, {
     'Content-Type': 'text/csv; charset=utf-8',
@@ -62,7 +72,7 @@ function sendBuffer(res, status, contentTypeValue, filename, content) {
   res.end(content);
 }
 
-function servePageOrAsset(publicDir, req, res, requestUrl) {
+function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '静态资源仅支持 GET 请求' });
     return;
@@ -91,6 +101,45 @@ function servePageOrAsset(publicDir, req, res, requestUrl) {
       sendJson(res, 404, { ok: false, error: 'Not found.' });
       return;
     }
+    let body = content;
+    if (injectToken && typeof injectToken === 'string' && injectToken.length > 0
+        && resolvedPath.endsWith('.html')) {
+      const tokenScript = Buffer.from(
+        `\n<script>(function(){` +
+        `var t=${JSON.stringify(injectToken)};window.__API_TOKEN__=t;` +
+        // Native anchor navigation cannot carry an Authorization header.
+        `var patchApiAnchors=function(){` +
+        `var links=document.querySelectorAll("a[href]");` +
+        `for(var i=0;i<links.length;i++){var a=links[i],h=a.getAttribute("href");` +
+        `if(typeof h!=="string")continue;var u;try{u=new URL(h,location.href);}catch(_){continue;}` +
+        `if(u.origin===location.origin&&u.pathname.startsWith("/api/")&&!u.searchParams.has("token")){` +
+        `u.searchParams.set("token",t);a.setAttribute("href",h.startsWith("/")?u.pathname+u.search+u.hash:u.href);}}};` +
+        `if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",patchApiAnchors,{once:true});` +
+        `else patchApiAnchors();` +
+        // Patch fetch to auto-add Authorization header
+        `var _fetch=window.fetch;` +
+        `window.fetch=function(u,o){o=o||{};o.headers=o.headers||{};` +
+        `if(typeof u==="string"&&u.startsWith("/api/")&&u!=="/api/health"&&!o.headers.Authorization&&!o.headers.authorization)` +
+        `{o.headers=new Headers(o.headers);o.headers.set("Authorization","Bearer "+t);}` +
+        `return _fetch.call(this,u,o);};` +
+        // Patch WebSocket to append ?token= for /ws connections
+        `var _WS=window.WebSocket;` +
+        `window.WebSocket=function(u,p){` +
+        `if(typeof u==="string"&&u.indexOf("/ws")!==-1&&u.indexOf("?token=")===-1)` +
+        `{u=u+(u.indexOf("?")===-1?"?":"&")+"token="+encodeURIComponent(t);}` +
+        `return p?new _WS(u,p):new _WS(u);};` +
+        `window.WebSocket.prototype=_WS.prototype;` +
+        `window.WebSocket.CONNECTING=_WS.CONNECTING;` +
+        `window.WebSocket.OPEN=_WS.OPEN;` +
+        `window.WebSocket.CLOSING=_WS.CLOSING;` +
+        `window.WebSocket.CLOSED=_WS.CLOSED;` +
+        `})();</script>\n`
+      );
+      const headEnd = body.indexOf(Buffer.from('</head>'));
+      if (headEnd !== -1) {
+        body = Buffer.concat([body.subarray(0, headEnd), tokenScript, body.subarray(headEnd)]);
+      }
+    }
     res.writeHead(200, {
       'Content-Type': contentType(resolvedPath),
       'Cache-Control': 'no-store'
@@ -98,7 +147,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl) {
     if (req.method === 'HEAD') {
       res.end();
     } else {
-      res.end(content);
+      res.end(body);
     }
   });
 }
@@ -121,4 +170,4 @@ function contentType(filePath) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-module.exports = { readJsonBody, sendJson, sendCsv, sendBuffer, servePageOrAsset, contentType };
+module.exports = { readJsonBody, sendJson, sendCsv, sendBuffer, servePageOrAsset, contentType, verifyToken };

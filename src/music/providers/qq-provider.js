@@ -1012,7 +1012,6 @@ function extractQQCoverUrl(song, albumMid) {
     || song.picurl
     || song.imgurl
     || song.albumcover
-    || song.strMediaMid
     || song.AlbumPic
     || song.AlbumPic150X150
     || song.AlbumPic300X300
@@ -1133,7 +1132,7 @@ function readQQModuleData(data, callKey, action) {
 }
 
 function hasQQMusicAuthCookie(cookieHeader) {
-  return ['qqmusic_key', 'qm_keyst'].some((name) => Boolean(extractCookieValue(cookieHeader, name)));
+  return ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey'].some((name) => Boolean(extractCookieValue(cookieHeader, name)));
 }
 
 function calcQQGtk(value) {

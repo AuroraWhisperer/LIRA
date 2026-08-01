@@ -226,6 +226,7 @@ export class ContentLoader {
     const BATCH_SIZE = 100;
     let offset = 0;
     let allTracks = [];
+    const seenPages = new Set();
 
     while (true) {
       const response = await fetch('/api/music/home', {
@@ -249,8 +250,18 @@ export class ContentLoader {
         ? payload.data.tracks
         : [];
 
+      const pageSignature = JSON.stringify(tracks.map((track) => [
+        track?.source ?? '',
+        track?.id ?? track?.sourceTrackId ?? '',
+        track?.title ?? ''
+      ]));
+      if (tracks.length > 0 && seenPages.has(pageSignature)) break;
+      if (tracks.length > 0) seenPages.add(pageSignature);
+
       allTracks = allTracks.concat(tracks);
-      offset += tracks.length;
+      const nextOffset = offset + tracks.length;
+      if (nextOffset === offset) break;
+      offset = nextOffset;
 
       if (tracks.length < BATCH_SIZE) break;
     }

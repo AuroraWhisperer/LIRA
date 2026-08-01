@@ -53,6 +53,11 @@ function createPlaybackStore(db) {
           duration_ms, origin, requester_name, play_count, played_at, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
         ON CONFLICT(client_id, track_key) DO UPDATE SET
+          title = CASE WHEN excluded.title != '' THEN excluded.title ELSE play_history.title END,
+          artists = CASE WHEN excluded.artists != '' THEN excluded.artists ELSE play_history.artists END,
+          album = CASE WHEN excluded.album != '' THEN excluded.album ELSE play_history.album END,
+          source = CASE WHEN excluded.source != '' THEN excluded.source ELSE play_history.source END,
+          track_id = CASE WHEN excluded.track_id != '' THEN excluded.track_id ELSE play_history.track_id END,
           play_count = play_history.play_count + 1,
           played_at = excluded.played_at,
           origin = excluded.origin,

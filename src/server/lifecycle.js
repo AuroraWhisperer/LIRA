@@ -2,8 +2,11 @@
 'use strict';
 
 const childProcess = require('node:child_process');
+const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+
+const SESSION_TOKEN_FILE_NAME = '.session-token';
 
 async function listenWithFallback(server, options) {
   const startPort = Number(options.startPort);
@@ -36,11 +39,12 @@ async function cleanupOwnPortOccupant(options) {
   const host = options.host;
   if (port !== 3000) return;
 
-  const health = await readLocalHealth(port, host);
+  const fetchImpl = options.fetch || globalThis.fetch;
+  const health = await readLocalHealth(port, host, fetchImpl);
   if (!health || !health.ok || !isOwnServiceHealth(health.data, options)) return;
 
   console.log(`Found previous song helper service on ${host}:${port}; asking it to shut down...`);
-  await requestLocalShutdown(port, host);
+  await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
   if (await waitForPortRelease(port, host, options)) return;
 
   const pid = Number(health.data && health.data.pid);
@@ -59,9 +63,9 @@ async function cleanupOwnPortOccupant(options) {
   await waitForPortRelease(port, host, options);
 }
 
-async function readLocalHealth(port, host) {
+async function readLocalHealth(port, host, fetchImpl = globalThis.fetch) {
   try {
-    const response = await fetch(`http://${toLocalHost(host)}:${port}/api/health`, {
+    const response = await fetchImpl(`http://${toLocalHost(host)}:${port}/api/health`, {
       signal: AbortSignal.timeout(500)
     });
     if (!response.ok) return null;
@@ -71,11 +75,13 @@ async function readLocalHealth(port, host) {
   }
 }
 
-async function requestLocalShutdown(port, host) {
+async function requestLocalShutdown(port, host, token = '', fetchImpl = globalThis.fetch) {
   try {
-    await fetch(`http://${toLocalHost(host)}:${port}/api/system/shutdown`, {
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    await fetchImpl(`http://${toLocalHost(host)}:${port}/api/system/shutdown`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ confirm: true }),
       signal: AbortSignal.timeout(500)
     });
@@ -88,11 +94,48 @@ async function waitForPortRelease(port, host, options) {
   const timeoutMs = Number(options.cleanupTimeoutMs);
   const pollMs = Number(options.cleanupPollMs);
   const deadline = Date.now() + timeoutMs;
+  const checkPort = options.canConnectToPort || canConnectToPort;
   while (Date.now() < deadline) {
-    if (!(await canConnectToPort(port, host))) return true;
+    if (!(await checkPort(port, host))) return true;
     await options.sleep(pollMs);
   }
   return false;
+}
+
+function getSessionTokenPath(dataDir) {
+  return path.join(path.resolve(String(dataDir || '')), SESSION_TOKEN_FILE_NAME);
+}
+
+function readSessionToken(dataDir) {
+  try {
+    return fs.readFileSync(getSessionTokenPath(dataDir), 'utf8').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function writeSessionToken(dataDir, token) {
+  const value = String(token || '').trim();
+  if (!value) throw new Error('Session token is required.');
+  const tokenPath = getSessionTokenPath(dataDir);
+  fs.writeFileSync(tokenPath, `${value}\n`, { encoding: 'utf8', mode: 0o600 });
+  try {
+    fs.chmodSync(tokenPath, 0o600);
+  } catch (_) {
+    // Windows and some filesystems do not support POSIX permission bits.
+  }
+  return tokenPath;
+}
+
+function removeSessionToken(dataDir, token) {
+  const value = String(token || '').trim();
+  if (!value || readSessionToken(dataDir) !== value) return false;
+  try {
+    fs.unlinkSync(getSessionTokenPath(dataDir));
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 function canConnectToPort(port, host) {
@@ -167,6 +210,10 @@ function normalizePathForCompare(value) {
 }
 
 module.exports = {
+  SESSION_TOKEN_FILE_NAME,
   cleanupOwnPortOccupant,
-  listenWithFallback
+  listenWithFallback,
+  readSessionToken,
+  writeSessionToken,
+  removeSessionToken
 };

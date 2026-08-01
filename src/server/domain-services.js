@@ -118,7 +118,12 @@ function createDomainServices({ db, settingsStore }) {
     clearAll() {
       const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb);
       state.cooldownByUser.clear();
+      state.giftBotPendingByName.clear();
+      state.giftBotLastReportByName.clear();
+      state.giftComboPending.clear();
+      state.blindBoxCache = null;
       songs.ensureCategory('默认');
+      queue.ensureUnified();
       return result;
     },
     getSchemaVersions: () => database.getSchemaVersions(db),

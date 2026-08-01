@@ -26,8 +26,10 @@ let updateState = {
 
 let lastProgressTime = 0;
 let lastTransferred = 0;
+let _onStateChange = null;
 
 function configureAutoUpdater({ onStateChange, writeLog }) {
+  _onStateChange = onStateChange || null;
   const autoUpdater = getAutoUpdater();
 
   autoUpdater.autoDownload = true;
@@ -100,7 +102,8 @@ function configureAutoUpdater({ onStateChange, writeLog }) {
 
 function setUpdateState(nextState, onStateChange) {
   updateState = { ...updateState, ...nextState, version: app.getVersion() };
-  if (onStateChange) onStateChange(updateState);
+  const notify = onStateChange || _onStateChange;
+  if (notify) notify(updateState);
   return updateState;
 }
 

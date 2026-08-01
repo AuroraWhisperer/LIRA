@@ -17,6 +17,7 @@ class BilibiliDanmakuClient {
   constructor(roomId, handlers, options = {}) {
     this.roomId = cleanText(roomId);
     this.handlers = handlers;
+    this.options = options;
     this.diagnostics = options.diagnostics || createEmptyDiagnostics();
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
     this.messageBuffer = options.messageBuffer || null;
@@ -66,7 +67,7 @@ class BilibiliDanmakuClient {
 
     this.connect().catch((error) => {
       console.warn(`[Bilibili] connect failed: ${error.message}`);
-      this.historyPoller.start(this.roomId);
+      this.historyPoller.start(this.resolvedRoomId || this.roomId);
       this.report({
         connected: true,
         enabled: true,
@@ -88,7 +89,7 @@ class BilibiliDanmakuClient {
       await this.connect({ waitForOpen: true });
     } catch (error) {
       console.warn(`[Bilibili] reconnect failed: ${error.message}`);
-      this.historyPoller.start(this.roomId);
+      this.historyPoller.start(this.resolvedRoomId || this.roomId);
       this.report({
         connected: true,
         enabled: true,
@@ -158,9 +159,16 @@ class BilibiliDanmakuClient {
       key: danmuInfo.token
     };
 
+    // 存储解析后的房间号供后续使用
+    this.resolvedRoomId = roomInfo.roomId;
+
+    // 清理旧的事件处理器，防止重连后消息重复处理
+    this.wsConnection.clearHandlers();
+
     // 设置 WebSocket 事件处理
     this.wsConnection.on('open', () => {
-      if (isLive) {
+      if (this.stopped) return;
+      if (isLive && !this.options.alwaysHistory) {
         this.historyPoller.stop();
       }
       this.report({
@@ -179,12 +187,16 @@ class BilibiliDanmakuClient {
     });
 
     this.wsConnection.on('message', async (data) => {
-      await this.messageHandlers.handlePackets(data);
+      try {
+        await this.messageHandlers.handlePackets(data);
+      } catch (error) {
+        console.warn('[Bilibili] message handler error:', error.message);
+      }
     });
 
     this.wsConnection.on('close', () => {
       if (!this.stopped) {
-        this.historyPoller.start(this.roomId);
+        this.historyPoller.start(this.resolvedRoomId || this.roomId);
         this.report({
           connected: Boolean(this.historyPoller.timer),
           enabled: true,

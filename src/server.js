@@ -5,6 +5,7 @@
 const http = require('node:http');
 const path = require('node:path');
 const childProcess = require('node:child_process');
+const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const apiRoutes = require('./server/api-routes');
 const httpUtils = require('./server/http-utils');
@@ -83,6 +84,7 @@ let isShuttingDown = false;
 let startedPort = null;
 let startPromise = null;
 let shutdownPromise = null;
+let sessionToken = '';
 let musicRegistry = createMusicProviderRegistry();
 const runtimeGiftCommandPrefixes = new Set();
 const bilibiliDiagnostics = {
@@ -137,6 +139,7 @@ function registerShutdownSignals() {
 function createApiContext() {
   return {
     maxBodyBytes: MAX_BODY_BYTES,
+    sessionToken,
     broadcastSnapshot,
     songs: {
       list: domainServices.songs.list,
@@ -251,8 +254,11 @@ function startServer(options = {}) {
     .then(() => lifecycle.listenWithFallback(server, { startPort, host }))
     .then((port) => {
     startedPort = port;
+    sessionToken = crypto.randomUUID();
+    lifecycle.writeSessionToken(DATA_DIR, sessionToken);
     const baseUrl = `http://${host}:${port}`;
     console.log(`Bilibili live song plugin is running at ${baseUrl}`);
+    console.log(`Session token: ${sessionToken}`);
     console.log(`Admin: ${baseUrl}/admin`);
     console.log(`Queue overlay: ${baseUrl}/queue`);
     console.log(`Songs overlay: ${baseUrl}/songlist`);
@@ -260,6 +266,10 @@ function startServer(options = {}) {
     openAdminPageIfNeeded(baseUrl);
     configureBilibiliListener();
       return { server, port, host, baseUrl };
+    })
+    .catch((error) => {
+      startPromise = null;
+      throw error;
     });
 
   return startPromise;
@@ -333,16 +343,22 @@ async function reconnectBilibiliListener() {
 
 // 共用：停止旧客户端、创建新客户端并启动
 // restart=true 时 await 握手完成（reconnect 场景），否则 start() 立即返回（configure 场景）
+let _replaceClientChain = Promise.resolve();
 async function replaceBilibiliClient(roomId, restart = false) {
-  if (bilibiliClient) bilibiliClient.stop();
-  // 重建前先刷新 Bilibili 登录态缓存
-  await refreshBilibiliAuthCache();
-  bilibiliClient = createBilibiliClient(roomId);
-  if (restart) {
-    await bilibiliClient.restart();
-  } else {
-    bilibiliClient.start();
-  }
+  const run = async () => {
+    if (bilibiliClient) bilibiliClient.stop();
+    // 重建前先刷新 Bilibili 登录态缓存
+    await refreshBilibiliAuthCache();
+    bilibiliClient = createBilibiliClient(roomId);
+    if (restart) {
+      await bilibiliClient.restart();
+    } else {
+      bilibiliClient.start();
+    }
+  };
+  const result = _replaceClientChain.then(run, run);
+  _replaceClientChain = result.catch(() => {});
+  return result;
 }
 
 async function refreshBilibiliAuthCache() {
@@ -470,6 +486,8 @@ function shutdownApplication(options = {}) {
       try { await preShutdownHook(); } catch (error) { console.warn('Pre-shutdown hook failed:', error); }
     }
 
+    lifecycle.removeSessionToken(DATA_DIR, sessionToken);
+
     if (bilibiliClient) {
       bilibiliClient.stop();
       bilibiliClient = null;
@@ -515,7 +533,8 @@ function shutdownApplication(options = {}) {
 function getWebSocketContext() {
   return {
     state: { sockets },
-    getState
+    getState,
+    sessionToken
   };
 }
 
@@ -532,7 +551,7 @@ function sendWebSocket(socket, payload) {
 }
 
 function servePageOrAsset(req, res, requestUrl) {
-  httpUtils.servePageOrAsset(PUBLIC_DIR, req, res, requestUrl);
+  httpUtils.servePageOrAsset(PUBLIC_DIR, req, res, requestUrl, sessionToken);
 }
 
 /** Pre-shutdown hook called before server/db close. Allows Electron main to flush renderer state. */
@@ -555,5 +574,6 @@ module.exports = {
   startServer,
   shutdownApplication,
   setPreShutdownHook,
-  persistPlaybackSnapshot
+  persistPlaybackSnapshot,
+  getApiToken: () => sessionToken
 };

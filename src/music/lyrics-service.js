@@ -62,7 +62,9 @@ async function getMusicHomeContent(registry, body) {
     const playlistId = cleanText(input.playlistId);
     if (!playlistId) throw new Error('缺少歌单 ID。');
     result = { source: platform, action, playlistId, tracks: await provider.getPlaylistTracks(playlistId, { limit }) };
-    writeMusicJsonCache(apiCacheDir, cacheKey, result);
+    if (cacheKey && result.tracks && result.tracks.length > 0) {
+      writeMusicJsonCache(apiCacheDir, cacheKey, result);
+    }
     return result;
   }
   if (action === 'daily') return { source: platform, action, tracks: await provider.getDailyTracks({ limit, page }) };

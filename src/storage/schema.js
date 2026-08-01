@@ -99,8 +99,7 @@ const SONG_SCHEMA = `
     FOREIGN KEY (category_id) REFERENCES song_categories(id)
   );
 
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_songs_name_artist
-    ON songs(name, artist);
+  -- idx_songs_name_artist 唯一索引由迁移 v3 创建，避免旧库重复行导致启动崩溃
   CREATE INDEX IF NOT EXISTS idx_songs_initial
     ON songs(name_initial);
   CREATE INDEX IF NOT EXISTS idx_songs_category

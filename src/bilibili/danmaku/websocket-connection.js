@@ -23,6 +23,7 @@ class WebSocketConnection {
 
     ws.addEventListener('open', () => {
       this.sendPacket(7, 1, authPayload);
+      clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = setInterval(() => this.sendPacket(2, 1, {}), 30000);
       this.emit('open');
     });
@@ -38,6 +39,7 @@ class WebSocketConnection {
     ws.addEventListener('close', () => {
       if (this.ws !== ws) return;
       clearInterval(this.heartbeatTimer);
+      this.ws = null;
       this.emit('close');
     });
 
@@ -83,6 +85,10 @@ class WebSocketConnection {
     }
   }
 
+  clearHandlers() {
+    this.eventHandlers = { open: [], message: [], close: [], error: [] };
+  }
+
   emit(event, data) {
     const handlers = this.eventHandlers[event] || [];
     for (const handler of handlers) {
@@ -94,6 +100,7 @@ class WebSocketConnection {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
+        try { ws.close(); } catch (_) {}
         reject(new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
       }, 8000);
 

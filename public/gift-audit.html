@@ -321,7 +321,8 @@ let serverGiftCache = []; // 累积的服务器礼物
 // ── WebSocket ──
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(proto + '//' + location.host + '/ws');
+  const token = window.__API_TOKEN__;
+  ws = new WebSocket(proto + '//' + location.host + '/ws' + (token ? '?token=' + encodeURIComponent(token) : ''));
   ws.onopen = () => {
     document.getElementById('connInfo').textContent = 'WebSocket 已连接';
     document.getElementById('connInfo').style.color = 'var(--green)';

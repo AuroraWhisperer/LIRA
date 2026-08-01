@@ -30,7 +30,9 @@ async function loadState() {
 
 function connectSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+  const token = window.__API_TOKEN__;
+  const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
+  const socket = new WebSocket(wsUrl);
 
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);
@@ -58,10 +60,8 @@ function connectSocket() {
         return;
       }
       lastRenderKey = newKey;
-      const scrollState = payload.reason === 'queue:add' ? captureScrollAnimation() : null;
       state = payload.state;
       render();
-      restoreScrollAnimation(scrollState);
     }
   });
 
