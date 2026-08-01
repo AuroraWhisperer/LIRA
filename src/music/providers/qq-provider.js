@@ -129,11 +129,15 @@ class QQMusicProvider {
   }
 
   async getLegacyLyrics(sourceTrackId) {
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader) || '0';
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
     const data = await this.requestJson(QQ_LYRIC_URL, {
       songmid: sourceTrackId,
       pcachetime: String(Date.now()),
-      g_tk: '5381',
-      loginUin: extractUin(await this.getSafeCookieHeader()) || '0',
+      g_tk: String(gtk),
+      loginUin: uin,
       hostUin: '0',
       format: 'json',
       inCharset: 'utf8',
@@ -393,23 +397,31 @@ class QQMusicProvider {
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const playlists = await this.getCreatedPlaylists({ limit: 50, includeLiked: true });
-    const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title))
-      || playlists[0];
-    if (!liked) return [];
+    const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title));
+    if (!liked) {
+      // 如果找不到”我喜欢”歌单，尝试直接从 profile 获取
+      const uin = await this.requireUin();
+      const profileLiked = await this.getLikedPlaylistFromProfile(uin);
+      if (profileLiked) return this.getPlaylistTracks(profileLiked.id, { limit, offset });
+      return [];
+    }
     return this.getPlaylistTracks(liked.id, { limit, offset });
   }
 
   async getCreatedPlaylists(options = {}) {
-    await this.requireLogin('QQ 音乐“我的歌单”需要先登录。');
+    await this.requireLogin('QQ 音乐”我的歌单”需要先登录。');
     const limit = clampInteger(options.limit, 1, 500, 200);
     const uin = await this.requireUin();
+    const cookieHeader = await this.getSafeCookieHeader();
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
     const data = await this.requestJson(QQ_CREATED_PLAYLIST_URL, {
       hostUin: '0',
       hostuin: uin,
       sin: '0',
       size: String(Math.max(limit, 50)),
-      g_tk: '5381',
-      loginUin: '0',
+      g_tk: String(gtk),
+      loginUin: uin,
       format: 'json',
       inCharset: 'utf8',
       outCharset: 'utf-8',
@@ -437,13 +449,23 @@ class QQMusicProvider {
     await this.requireLogin('QQ 音乐”收藏歌单”需要先登录。');
     const limit = clampInteger(options.limit, 1, 500, 200);
     const uin = await this.requireUin();
+    const cookieHeader = await this.getSafeCookieHeader();
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
     const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
       ct: '20',
       cid: '205360956',
       userid: uin,
       reqtype: '3',
       sin: '0',
-      ein: String(limit)
+      ein: String(limit),
+      g_tk: String(gtk),
+      loginUin: uin,
+      format: 'json',
+      inCharset: 'utf8',
+      outCharset: 'utf-8',
+      platform: 'yqq.json',
+      needNewCode: '0'
     });
     const playlists = data && data.data && Array.isArray(data.data.cdlist)
       ? data.data.cdlist
@@ -571,13 +593,23 @@ class QQMusicProvider {
     } catch (e) { muDebug = { error: e && e.message }; }
 
     // Legacy API fallback
+    const cookieHeader = await this.getSafeCookieHeader();
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
     const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
       ct: '20',
       cid: '205360956',
       userid: uin,
       reqtype: '4',
       sin: '0',
-      ein: String(limit)
+      ein: String(limit),
+      g_tk: String(gtk),
+      loginUin: uin,
+      format: 'json',
+      inCharset: 'utf8',
+      outCharset: 'utf-8',
+      platform: 'yqq.json',
+      needNewCode: '0'
     });
     const rawData = data && data.data;
     const songlist = rawData && (
@@ -600,6 +632,10 @@ class QQMusicProvider {
     if (!id) throw new Error('缺少 QQ 音乐歌单 ID。');
     const limit = clampInteger(options.limit, 1, 5000, 1000);
     const offset = clampInteger(options.offset, 0, 200000, 0);
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader) || '0';
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, {
       type: '1',
       json: '1',
@@ -607,8 +643,8 @@ class QQMusicProvider {
       onlysong: '0',
       disstid: id,
       format: 'json',
-      g_tk: '5381',
-      loginUin: extractUin(await this.getSafeCookieHeader()) || '0',
+      g_tk: String(gtk),
+      loginUin: uin,
       hostUin: '0',
       inCharset: 'utf8',
       outCharset: 'utf-8',
@@ -750,11 +786,15 @@ class QQMusicProvider {
   }
 
   async getLikedPlaylistFromProfile(uin) {
+    const cookieHeader = await this.getSafeCookieHeader();
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
     const data = await this.requestJson(QQ_PROFILE_URL, {
       cid: '205360838',
       userid: uin,
       reqfrom: '1',
-      g_tk: '5381',
+      g_tk: String(gtk),
+      loginUin: uin,
       format: 'json',
       inCharset: 'utf8',
       outCharset: 'utf-8',
@@ -1052,13 +1092,24 @@ function calcQQGtk(value) {
 function extractUin(cookieHeader) {
   const text = String(cookieHeader || '');
   // QQ 音乐/QQ 登录历史上用过的 Cookie 名五花八门：
-  //   uin, o_cookie, qqmusic_uin, qm_hideuin, wxuin, p_uin, pt2gguin, superuin ...
-  // 与其穷举，不如用泛化规则：所有以 _uin 或 uin 结尾的 Cookie 名都匹配。
+  //   uin, qqmusic_uin, o_cookie, wxuin, qm_hideuin, p_uin, pt2gguin, superuin ...
+  // 优先匹配 QQ 号专用的 Cookie 名，避免泛化模式错误匹配 p_uin/pt2gguin。
   // 值格式：o<QQ号> 或直接 <QQ号>
+
+  // 第一优先级：精确匹配 qqmusic_uin、uin、o_cookie（最可靠的 QQ 号来源）
+  // 使用单个正则按 cookie 字符串出现顺序匹配，避免 p_uin 等干扰项
+  const primaryMatch = text.match(/(?:^|;\s*)(qqmusic_uin|uin|o_cookie)=o?(\d{5,15})/i);
+  if (primaryMatch) return primaryMatch[2];
+
+  // 第二优先级：WeChat uin（如果通过微信登录）
+  const wxMatch = text.match(/(?:^|;\s*)wxuin=o?(\d{5,15})/i);
+  if (wxMatch) return wxMatch[1];
+
+  // 泛化回退：所有以 _uin 或 uin 结尾的 Cookie 名（qm_hideuin、p_uin 等）
   const match = text.match(/(?:^|;\s*)([\w-]*uin)=o?(\d{5,15})/i);
   if (match) return match[2];
 
-  // 兜底：如果 Cookie 值里找不到，尝试从 ptnick_<QQ号> 格式的 Cookie 名中提取
+  // 最后兜底：ptnick_<QQ号> 格式
   const nickMatch = text.match(/(?:^|;\s*)ptnick_(\d{5,15})=/);
   return nickMatch ? nickMatch[1] : '';
 }

@@ -1,8 +1,15 @@
 # 打包与更新说明
 
-当前版本：`1.6.4`
+当前版本：`1.6.5`
 
 ---
+
+## v1.6.5 变更
+
+- 🔐 **QQ 音乐 GTK 动态计算**：所有 QQ 音乐 API 请求的 `g_tk` 参数从硬编码 `5381` 改为从 Cookie 中提取 `skey`/`p_skey` 动态计算，提升请求签名准确性，解决部分接口因 g_tk 不匹配导致的鉴权失败问题。涉及 `getLegacyLyrics`、`getCreatedPlaylists`、`getCollectedPlaylists`、`getSavedAlbumTracks`、`getPlaylistTracks`、`getLikedPlaylistFromProfile` 等全部 API。
+- 🔍 **extractUin 优先级匹配**：QQ 号提取从单一泛化正则改为三层优先级匹配——优先精确匹配 `qqmusic_uin`/`uin`/`o_cookie`，其次匹配 `wxuin`（微信登录），最后泛化回退，避免 `p_uin`、`pt2gguin` 等非 QQ 号字段干扰。
+- 🎵 **我喜欢歌单回退逻辑**：`getLikedSongs` 在常规歌单列表中找不到「我喜欢」时，新增 `getLikedPlaylistFromProfile` 从用户 Profile 接口获取我喜欢歌单 ID 作为回退，提升边界情况下的鲁棒性。
+- 📡 **API 请求参数补全**：`getCollectedPlaylists`、`getSavedAlbumTracks` 等接口新增 `g_tk`、`loginUin`、`format`、`platform`、`needNewCode` 等参数，与 QQ 音乐客户端行为对齐，提升请求成功率。
 
 ## v1.6.4 变更
 
