@@ -87,6 +87,26 @@ async function getMusicTrackLyrics(registry, body) {
   return result;
 }
 
+async function writeMusicPlaylistTracks(registry, body, operation) {
+  const input = body && typeof body === 'object' ? body : {};
+  const platform = normalizeMusicPlatform(input.platform || input.source || 'qq');
+  if (platform !== 'qq') throw new Error('当前只支持修改 QQ 音乐歌单。');
+  const provider = registry.get(platform);
+  const playlistInput = input.playlist && typeof input.playlist === 'object' ? input.playlist : {};
+  const playlist = {
+    id: cleanText(playlistInput.id || playlistInput.tid),
+    tid: cleanText(playlistInput.tid || playlistInput.id),
+    dirId: cleanText(playlistInput.dirId),
+    title: cleanText(playlistInput.title || playlistInput.dirName).slice(0, 200)
+  };
+  const tracks = Array.isArray(input.tracks) ? input.tracks.slice(0, 100) : [];
+  if (tracks.length === 0) throw new Error('缺少要修改的 QQ 音乐歌曲。');
+  const method = operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
+  if (typeof provider[method] !== 'function') throw new Error('当前音乐 Provider 不支持修改歌单。');
+  const result = await provider[method](playlist, tracks);
+  return { source: platform, operation, playlist, result };
+}
+
 function parseLyricPayload(body) {
   const lyric = cleanTextPreserveLines(body.lyric).slice(0, 512 * 1024);
   const translation = cleanTextPreserveLines(body.translation).slice(0, 512 * 1024);
@@ -125,7 +145,9 @@ function normalizeMusicTrackForProvider(track) {
     album: cleanText(track.album),
     durationMs: Math.max(0, Number(track.durationMs) || 0),
     coverUrl: cleanText(track.coverUrl),
-    sourceTrackId, sourceAlbumId: cleanText(track.sourceAlbumId),
+    sourceTrackId,
+    sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
+    sourceAlbumId: cleanText(track.sourceAlbumId),
     playable: track.playable !== false, vip: track.vip === true
   };
 }
@@ -133,5 +155,5 @@ function normalizeMusicTrackForProvider(track) {
 module.exports = {
   initLyricsService, searchMusicTracks, getMusicHomeContent,
   getMusicTrackLyrics, parseLyricPayload, matchMusicTrackCandidates,
-  normalizeMusicTrackForProvider
+  normalizeMusicTrackForProvider, writeMusicPlaylistTracks
 };

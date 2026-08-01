@@ -210,12 +210,18 @@ body.player-dock-expanded .playback-page.active {
   flex: 1;
   font-size: 12px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.5;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  transition: all 300ms ease;
 }
 
 .playback-health-status.success {
-  color: #16a34a;
-  font-weight: 500;
+  color: #0d7d4a;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  font-weight: 600;
 }
 
 .playback-health-status.success::before {
@@ -224,8 +230,10 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-health-status.error {
-  color: #dc2626;
-  font-weight: 500;
+  color: #b91c1c;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  font-weight: 600;
 }
 
 .playback-health-status.error::before {
@@ -234,8 +242,10 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-health-status.warning {
-  color: #ea580c;
-  font-weight: 500;
+  color: #c2410c;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  font-weight: 600;
 }
 
 .playback-health-status.warning::before {
@@ -377,9 +387,9 @@ body.player-dock-expanded .playback-page.active {
 .playback-search-results {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 7px;
   min-height: 70px;
-  max-height: 340px;
+  max-height: 400px;
   padding: 8px 2px 2px;
   overflow: auto;
 }
@@ -387,7 +397,7 @@ body.player-dock-expanded .playback-page.active {
 .playback-search-row {
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--surface);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -398,27 +408,38 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-search-row .playback-row-main {
-  gap: 8px;
+  gap: 10px;
+}
+
+.playback-search-row .song {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.playback-search-row .meta {
+  font-size: 11.5px;
+  margin-top: 2px;
 }
 
 .playback-search-row .playback-artwork {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  font-size: 13px;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  font-size: 14px;
 }
 
 .playback-search-row .queue-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 5px;
 }
 
 .playback-search-row .queue-actions button {
-  font-size: 11px;
-  padding: 3px 8px;
-  min-height: 26px;
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 28px;
 }
 
 /* 宽屏上搜索结果显示 3 列 */
@@ -736,6 +757,17 @@ body.player-dock-expanded .playback-page.active {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text);
+  transition: color 300ms ease;
+}
+
+/* 空状态：未选择歌曲 */
+.playback-now strong.no-track {
+  color: var(--muted);
+  font-weight: 600;
+  background: linear-gradient(135deg, #d94b70, #9b59b6, #3498db);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .playback-now > span {
@@ -748,6 +780,12 @@ body.player-dock-expanded .playback-page.active {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 300ms ease;
+}
+
+.playback-now > span.no-track {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 /* ===== 进度条 ===== */
@@ -836,7 +874,7 @@ body.player-dock-expanded .playback-page.active {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
 }
 
 .playback-controls > * + * {
@@ -849,6 +887,8 @@ body.player-dock-expanded .playback-page.active {
   align-items: center;
   gap: 2px;
   position: relative;
+  padding-right: 5px;
+  border-right: 1px solid var(--border);
 }
 
 .playback-mode-label {
@@ -874,8 +914,8 @@ body.player-dock-expanded .playback-page.active {
 
 /* ===== 图标按钮通用 ===== */
 .playback-icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border: none;
@@ -910,8 +950,8 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-icon-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 /* 锁定按钮图标切换 */
@@ -955,12 +995,12 @@ body.player-dock-expanded .playback-page.active {
 .playback-control-buttons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .playback-play-btn {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border: none;
@@ -988,8 +1028,8 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-play-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 /* 播放/暂停图标切换 */
@@ -1001,8 +1041,8 @@ body.player-dock-expanded .playback-page.active {
 .playback-extra-actions {
   display: flex;
   align-items: center;
-  gap: 1px;
-  padding-left: 4px;
+  gap: 2px;
+  padding-left: 6px;
   border-left: 1px solid var(--border);
 }
 
@@ -1023,7 +1063,7 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-volume-slider {
-  width: 80px;
+  width: 64px;
   -webkit-appearance: none;
   appearance: none;
   height: 5px;
@@ -1443,6 +1483,43 @@ body.player-dock-expanded .playback-page.active {
   padding: 36px 0;
   color: var(--muted, #8898aa);
   font-size: 13px;
+}
+
+/* ===== 队列空状态 ===== */
+.queue-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  gap: 12px;
+}
+
+.queue-empty-icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(217, 75, 112, 0.12), rgba(147, 112, 219, 0.12));
+  border: 1px solid rgba(217, 75, 112, 0.18);
+  color: #d94b70;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.queue-empty-state p {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.queue-empty-state span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* ===== 全屏播放器 ===== */

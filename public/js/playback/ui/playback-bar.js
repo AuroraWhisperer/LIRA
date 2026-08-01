@@ -75,7 +75,9 @@ export class PlaybackBar {
 
     // 标题
     if (this.titleEl) {
-      this.titleEl.textContent = track ? track.title : '未选择歌曲';
+      const hasTrack = Boolean(track);
+      this.titleEl.textContent = hasTrack ? track.title : '♫  选择一首歌曲开始播放';
+      this.titleEl.classList.toggle('no-track', !hasTrack);
     }
 
     // 歌手
@@ -87,7 +89,8 @@ export class PlaybackBar {
 
       this.artistEl.textContent = track
         ? `${(track.artists || []).join(' / ') || '未知歌手'}${suffix}`
-        : '从本地测试音频开始';
+        : '搜索歌曲、打开歌单或电台，即可开始播放';
+      this.artistEl.classList.toggle('no-track', !track);
     }
   }
 

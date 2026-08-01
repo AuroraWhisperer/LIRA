@@ -693,6 +693,256 @@ tr:last-child td {
   outline-offset: 2px;
 }
 
+/* ===== 播放队列为空 Toast ===== */
+.playback-empty-queue-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 18px;
+  row-gap: 5px;
+  width: min(410px, calc(100vw - 48px));
+  min-height: 84px;
+  overflow: hidden;
+  border-color: rgba(217, 75, 112, 0.26);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(255, 140, 170, 0.2), transparent 55%),
+    radial-gradient(circle at 0 100%, rgba(147, 112, 219, 0.16), transparent 50%),
+    linear-gradient(145deg, #1f1628 0%, #18111e 100%);
+  padding: 20px 20px 20px 72px;
+  box-shadow:
+    0 20px 48px rgba(55, 10, 30, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.playback-empty-queue-toast::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 140, 170, 0.4);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), transparent 60%),
+    linear-gradient(145deg, #d94b70, #b8305a);
+  box-shadow:
+    0 8px 20px rgba(217, 75, 112, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%);
+}
+
+.playback-empty-queue-toast::after {
+  content: "去首页  →";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  border-radius: 999px;
+  background: rgba(217, 75, 112, 0.16);
+  padding: 7px 12px;
+  color: #f292aa;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.playback-empty-queue-toast strong,
+.playback-empty-queue-toast span {
+  display: block;
+  grid-column: 1;
+}
+
+.playback-empty-queue-toast strong {
+  align-self: end;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.playback-empty-queue-toast span {
+  align-self: start;
+  color: rgba(220, 200, 220, 0.68);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.playback-empty-queue-toast:hover {
+  border-color: rgba(255, 140, 170, 0.45);
+  box-shadow:
+    0 24px 56px rgba(55, 10, 30, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+/* ===== 音乐接口检查结果 Toast（通过） ===== */
+.playback-health-toast-good {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 18px;
+  row-gap: 5px;
+  width: min(400px, calc(100vw - 48px));
+  min-height: 80px;
+  overflow: hidden;
+  border-color: rgba(31, 190, 154, 0.3);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0 0, rgba(71, 221, 181, 0.22), transparent 48%),
+    linear-gradient(135deg, #142a24 0%, #101f1a 72%);
+  padding: 20px 20px 20px 72px;
+  box-shadow:
+    0 20px 48px rgba(8, 30, 22, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.playback-health-toast-good::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(111, 238, 202, 0.4);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 60%),
+    linear-gradient(145deg, #2ed6aa, #159578);
+  box-shadow:
+    0 8px 20px rgba(20, 164, 129, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%);
+}
+
+.playback-health-toast-good::after {
+  content: "✓";
+  position: absolute;
+  left: 30px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.playback-health-toast-good strong,
+.playback-health-toast-good span {
+  display: block;
+  grid-column: 1;
+}
+
+.playback-health-toast-good strong {
+  align-self: end;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.playback-health-toast-good span {
+  align-self: start;
+  color: rgba(180, 230, 215, 0.72);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.playback-health-toast-good:hover {
+  border-color: rgba(76, 226, 185, 0.48);
+  box-shadow:
+    0 24px 56px rgba(8, 30, 22, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+/* ===== 音乐接口检查结果 Toast（异常） ===== */
+.playback-health-toast-warn {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 18px;
+  row-gap: 5px;
+  width: min(400px, calc(100vw - 48px));
+  min-height: 80px;
+  overflow: hidden;
+  border-color: rgba(234, 88, 12, 0.3);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0 0, rgba(251, 146, 60, 0.2), transparent 48%),
+    linear-gradient(135deg, #281c12 0%, #1f1610 72%);
+  padding: 20px 20px 20px 72px;
+  box-shadow:
+    0 20px 48px rgba(40, 20, 8, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.playback-health-toast-warn::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 60%),
+    linear-gradient(145deg, #f59e0b, #d97706);
+  box-shadow:
+    0 8px 20px rgba(217, 119, 6, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%);
+}
+
+.playback-health-toast-warn::after {
+  content: "⚠";
+  position: absolute;
+  left: 30px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.playback-health-toast-warn strong,
+.playback-health-toast-warn span {
+  display: block;
+  grid-column: 1;
+}
+
+.playback-health-toast-warn strong {
+  align-self: end;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.playback-health-toast-warn span {
+  align-self: start;
+  color: rgba(235, 210, 180, 0.72);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.playback-health-toast-warn:hover {
+  border-color: rgba(251, 191, 36, 0.48);
+  box-shadow:
+    0 24px 56px rgba(40, 20, 8, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
 .desktop-update-toast {
   position: relative;
   display: grid;

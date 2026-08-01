@@ -1,8 +1,21 @@
 # 打包与更新说明
 
-当前版本：`1.5.6`
+当前版本：`1.5.7`
 
 ---
+
+## v1.5.7 变更
+
+- 🎵 **QQ 音乐歌单写入**：新增 QQ 音乐歌单添加/删除歌曲功能（`AddSonglist`/`DelSonglist`），通过 `musics.fcg` 端点 + `zzcSign` 签名实现。播放器搜索和首页结果新增"歌单"按钮，支持选择目标歌单后将歌曲直接加入 QQ 音乐歌单。
+- 🔔 **堆叠 Toast 通知**：新增 `showStackedToast` 方法，播放队列为空时显示带渐变背景和操作引导的卡片式 Toast；音乐接口健康检查结果也改用堆叠 Toast（通过/异常两种样式），替代普通 toast。
+- 🔒 **Electron 单实例锁修复**：`requestSingleInstanceLock()` 提前至 `--dump-cookies` 分支之前执行，避免 dump 模式绕过单实例检查导致多实例启动。
+- 🧹 **清理调试接口**：移除 `GET /api/debug/music-cookie` 调试端点、`server.js` 中 `musicAuthProvider` 引用及 `safeStorage` 依赖，代码更干净。
+- 🔧 **QQ 音乐分析器重构**：`run-probe.js` 从 spawn 子进程方式改为直接通过正式 API（`/api/music/playlists/tracks/add|remove`）验证歌单写入；`probe-addsonglist.js` 增加 `CONFIRM_WRITE` 环境变量支持非交互模式、自动恢复删除时检查是否确实新增了歌曲再做回滚，防止误删原有收藏。
+- 🎨 **播放器 UI 优化**：搜索默认条数从 12 改为 9；推荐歌单默认数从 12 改为 9；健康检查状态 pill 改为渐变背景 + 描边样式。
+- 🐛 **网易云封面回退**：`netease-provider.js` 搜索 API 不返回专辑封面时回退到艺术家头像。
+- 📝 **歌词服务增强**：新增 `writeMusicPlaylistTracks`、`normalizeMusicTrackForProvider` 支持 `sourceSongId` 字段。
+- 🎨 **CSS 样式扩展**：`styles-admin.css`（+250 行）新增播放队列为空 Toast、接口检查结果 Toast（通过/异常）三种完整卡片样式；`styles-playback.css`（+141/-78 行）健康状态 pill 样式优化。
+- 🧪 **新增测试**：`test/qq-provider.test.js` QQ 音乐 Provider 单元测试。
 
 ## v1.5.6 变更
 

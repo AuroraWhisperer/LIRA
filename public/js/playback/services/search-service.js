@@ -20,7 +20,7 @@ export class SearchService {
    * @param {number} limit - 结果数量限制
    * @returns {Promise<Array>} 搜索结果
    */
-  async search(keyword, limit = 12) {
+  async search(keyword, limit = 9) {
     if (!keyword || !keyword.trim()) {
       this.toast('请输入要搜索的歌名或歌手');
       return [];
@@ -37,7 +37,7 @@ export class SearchService {
         body: JSON.stringify({
           platform: this.state.selectedSource,
           keyword: keyword.trim(),
-          limit: Number(limit) || 12
+          limit: Number(limit) || 9
         })
       });
 

@@ -1,10 +1,12 @@
 'use strict';
 
+const { zzcSign } = require('@jixun/qmweb-sign');
 const { parseLyricResult } = require('../lyrics');
 
 const QQ_SEARCH_URL = 'https://c.y.qq.com/soso/fcgi-bin/client_search_cp';
 const QQ_LYRIC_URL = 'https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg';
 const QQ_MUSICU_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
+const QQ_MUSICS_URL = 'https://u6.y.qq.com/cgi-bin/musics.fcg';
 const QQ_PLAYLIST_DETAIL_URL = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg';
 const QQ_PROFILE_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg';
 const QQ_CREATED_PLAYLIST_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
@@ -156,7 +158,7 @@ class QQMusicProvider {
   }
 
   async getPersonalizedPlaylists(options = {}) {
-    const limit = clampInteger(options.limit, 1, 30, 12);
+    const limit = clampInteger(options.limit, 1, 30, 9);
     const page = clampInteger(options.page, 1, 50, 1);
     const vUniq = Array.isArray(options.vUniq) ? options.vUniq.slice(0, 200) : [];
     const cookieHeader = await this.getSafeCookieHeader();
@@ -401,6 +403,86 @@ class QQMusicProvider {
     return playlists.map(mapQQPlaylist).filter(Boolean).slice(0, limit);
   }
 
+  async addTracksToPlaylist(playlist, tracks) {
+    return this.writePlaylistTracks('AddSonglist', playlist, tracks);
+  }
+
+  async removeTracksFromPlaylist(playlist, tracks) {
+    return this.writePlaylistTracks('DelSonglist', playlist, tracks);
+  }
+
+  async writePlaylistTracks(method, playlist, tracks) {
+    await this.requireLogin('修改 QQ 音乐歌单需要先登录。');
+    const target = normalizeQQPlaylistWriteTarget(playlist);
+    const songInfo = normalizeQQPlaylistSongInfo(tracks);
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader);
+    if (!uin) throw new Error('没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。');
+    const gtkSource = extractQQGtkSource(cookieHeader);
+    if (!gtkSource) throw new Error('QQ 音乐登录 Cookie 不完整，请重新登录。');
+    const gtk = calcQQGtk(gtkSource);
+
+    const callKey = `music.musicasset.PlaylistDetailWrite.${method}`;
+    const body = JSON.stringify({
+      comm: {
+        format: 'json',
+        ct: 20,
+        cv: 2241,
+        platform: 'wk_v20',
+        uid: uin,
+        guid: extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid(),
+        uin,
+        g_tk_new_20200303: gtk,
+        g_tk: gtk,
+        inCharset: 'utf-8',
+        outCharset: 'utf-8',
+        notice: 0,
+        needNewCode: 1
+      },
+      [callKey]: {
+        module: 'music.musicasset.PlaylistDetailWrite',
+        method,
+        param: {
+          bFmtUtf8: true,
+          dirId: target.dirId,
+          dirName: target.dirName,
+          tid: target.tid,
+          v_songInfo: songInfo
+        }
+      }
+    });
+    const url = new URL(QQ_MUSICS_URL);
+    url.searchParams.set('_', String(Date.now()));
+    url.searchParams.set('sign', zzcSign(body));
+    const headers = await this.buildHeaders();
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    headers.Origin = 'https://i2.y.qq.com';
+    headers.Referer = 'https://i2.y.qq.com/';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      redirect: 'follow',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    let data;
+    try {
+      data = JSON.parse(stripJsonp(text));
+    } catch (error) {
+      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
+    }
+    const inner = data && data[callKey];
+    const retCode = inner && inner.data && inner.data.retCode;
+    if (Number(data && data.code) !== 0 || Number(inner && inner.code) !== 0 || Number(retCode) !== 0) {
+      const code = inner && inner.code != null ? inner.code : (data && data.code);
+      const message = inner && inner.data && (inner.data.msg || inner.data.message);
+      throw new Error(`QQ 音乐歌单写入失败（code=${code == null ? 'unknown' : code}${message ? `，${message}` : ''}）。`);
+    }
+    return inner.data.result || { dirId: target.dirId, tid: target.tid, songlist: [] };
+  }
+
   async getRecentTracks(options = {}) {
     await this.requireLogin('QQ 音乐”最近播放”需要先登录。');
     const limit = clampInteger(options.limit, 1, 100, 50);
@@ -623,7 +705,8 @@ class QQMusicProvider {
       trackCount: Math.max(0, Number(fav.num0 || fav.song_cnt || fav.songnum || 0)),
       playCount: 0,
       creatorUserId: uin,
-      dirId: '201'
+      dirId: '201',
+      tid: String(fav.id)
     };
   }
 }
@@ -641,10 +724,12 @@ function mapQQSong(song) {
   const albumMid = album && (album.mid || album.pmid)
     ? String(album.mid || album.pmid)
     : String(song.albummid || song.AlbumMid || '');
+  const numericSongId = Number(song.id || song.songid || song.songId || song.song_id || song.SongId || song.SongID || 0);
   return {
     id: `qq:${sourceTrackId}`,
     source: 'qq',
     sourceTrackId,
+    sourceSongId: Number.isSafeInteger(numericSongId) && numericSongId > 0 ? numericSongId : 0,
     sourceAlbumId: album && (album.mid || album.id) ? String(album.mid || album.id) : albumMid,
     title,
     artists: singers.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean)
@@ -671,7 +756,8 @@ function mapQQPlaylist(playlist) {
     trackCount: Math.max(0, Number(playlist.song_cnt || playlist.songnum || playlist.total_song_num || playlist.count || 0)),
     playCount: Math.max(0, Number(playlist.listen_num || playlist.listennum || playlist.playcnt || playlist.access_num || 0)),
     creatorUserId: playlist.uin || playlist.hostuin ? String(playlist.uin || playlist.hostuin) : '',
-    dirId: playlist.dirid ? String(playlist.dirid) : ''
+    dirId: playlist.dirid != null ? String(playlist.dirid) : (playlist.dirId != null ? String(playlist.dirId) : ''),
+    tid: String(playlist.tid || playlist.content_id || playlist.dissid || playlist.id || '')
   };
 }
 
@@ -807,9 +893,55 @@ function collectQQSongsFromObject(value, output = [], seen = new Set()) {
   return output;
 }
 
+function normalizeQQPlaylistWriteTarget(playlist) {
+  if (!playlist || typeof playlist !== 'object') throw new Error('缺少 QQ 音乐歌单信息。');
+  const dirId = Number(playlist.dirId);
+  const tid = Number(playlist.tid || playlist.id);
+  const dirName = String(playlist.title || playlist.dirName || '').trim();
+  if (!Number.isSafeInteger(dirId) || dirId <= 0) throw new Error('QQ 音乐歌单 dirId 无效。');
+  if (!Number.isSafeInteger(tid) || tid <= 0) throw new Error('QQ 音乐歌单 tid 无效。');
+  if (!dirName) throw new Error('QQ 音乐歌单名称不能为空。');
+  return { dirId, tid, dirName };
+}
+
+function normalizeQQPlaylistSongInfo(tracks) {
+  const input = Array.isArray(tracks) ? tracks : [];
+  const seen = new Set();
+  const songs = [];
+  for (const track of input.slice(0, 100)) {
+    const songId = Number(track && (track.sourceSongId || track.songId));
+    if (!Number.isSafeInteger(songId) || songId <= 0 || seen.has(songId)) continue;
+    seen.add(songId);
+    songs.push({ songId, songType: 0 });
+  }
+  if (songs.length === 0) throw new Error('缺少 QQ 音乐数值 songId，无法修改歌单。');
+  return songs;
+}
+
+function extractCookieValue(cookieHeader, name) {
+  const text = String(cookieHeader || '');
+  const match = text.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? match[1] : '';
+}
+
+function extractQQGtkSource(cookieHeader) {
+  for (const name of ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey']) {
+    const value = extractCookieValue(cookieHeader, name);
+    if (value) return value;
+  }
+  return '';
+}
+
+function calcQQGtk(value) {
+  let hash = 5381;
+  const text = String(value || '');
+  for (let i = 0; i < text.length; i++) hash += (hash << 5) + text.charCodeAt(i);
+  return hash & 0x7fffffff;
+}
+
 function extractUin(cookieHeader) {
   const text = String(cookieHeader || '');
-  const match = text.match(/(?:^|;\s*)(?:uin|o_cookie)=o?(\d+)/);
+  const match = text.match(/(?:^|;\s*)(?:qqmusic_uin|uin|o_cookie|qm_hideuin)=o?(\d+)/);
   return match ? match[1] : '';
 }
 

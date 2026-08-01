@@ -85,8 +85,8 @@ console.log();
 console.log('配置:');
 console.log('  Cookie:    ' + (COOKIE ? `已设置 (${COOKIE.length} 字符)` : '❌ 未设置'));
 console.log('  UIN:       ' + (UIN !== '0' ? UIN : '❌ 未能提取'));
-console.log('  g_tk src:  ' + (GTK_SOURCE ? `${GTK_SOURCE.substring(0, 8)}... → ${GTK}` : '❌ 未找到 qqmusic_key/qm_keyst'));
-console.log('  端点:      ' + ENDPOINT + (ENDPOINT === 'musicu' ? ' (Web, 无需 Sign)' : ' (桌面, 需要 Sign)'));
+console.log('  g_tk src:  ' + (GTK_SOURCE ? `已找到 → ${GTK}` : '❌ 未找到 qqmusic_key/qm_keyst'));
+console.log('  端点:      ' + ENDPOINT + (ENDPOINT === 'musicu' ? ' (待验证是否需要 Sign)' : ' (桌面, 需要 Sign)'));
 console.log('  歌曲 ID:   ' + SONG_ID);
 console.log('  dirId:     ' + DIR_ID);
 console.log('  dirName:   ' + DIR_NAME);
@@ -252,9 +252,15 @@ async function sendRequest(req, label) {
     const inner = result[writeKey];
     console.log(`${writeKey}:`);
     console.log(`  code: ${inner.code}`);
+    if (inner.message || inner.msg) {
+      console.log(`  message: ${inner.message || inner.msg}`);
+    }
 
     if (inner.data) {
       console.log(`  retCode: ${inner.data.retCode}`);
+      if (inner.data.message || inner.data.msg) {
+        console.log(`  data message: ${inner.data.message || inner.data.msg}`);
+      }
       if (inner.data.result) {
         const r = inner.data.result;
         console.log(`  dirId: ${r.dirId}`);
@@ -281,6 +287,12 @@ async function sendRequest(req, label) {
 
 function askConfirm(question) {
   return new Promise((resolve) => {
+    if (process.env.CONFIRM_WRITE === '1') {
+      console.log(`${question} [已通过 CONFIRM_WRITE=1 明确确认]`);
+      resolve(true);
+      return;
+    }
+
     // 非交互模式自动跳过 (如管道)
     if (!process.stdin.isTTY) {
       console.log(`${question} [非交互模式, 自动跳过]`);
@@ -349,6 +361,16 @@ function askConfirm(question) {
       }
     }
     process.exit(1);
+  }
+
+  const addedSong = addResult.inner && addResult.inner.data
+    && addResult.inner.data.result
+    && Array.isArray(addResult.inner.data.result.songlist)
+    ? addResult.inner.data.result.songlist[0]
+    : null;
+  if (!addedSong || Number(addedSong.existed) !== 0) {
+    console.log('\n⚠️  本次请求没有确认新增歌曲（可能原本已存在），为保护原有收藏，不执行自动删除。');
+    process.exit(2);
   }
 
   // 2. 删除

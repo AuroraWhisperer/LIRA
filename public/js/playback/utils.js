@@ -19,6 +19,7 @@ export function normalizeOnlineTrack(track) {
     durationMs: Math.max(0, Number(track.durationMs) || 0),
     coverUrl: track.coverUrl || '',
     sourceTrackId,
+    sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
     vip: track.vip === true
@@ -40,6 +41,7 @@ export function serializeTrackForProvider(track) {
     durationMs: track.durationMs || 0,
     coverUrl: track.coverUrl || '',
     sourceTrackId: track.sourceTrackId || track.id,
+    sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
     vip: track.vip === true

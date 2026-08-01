@@ -71,7 +71,7 @@ class NeteaseMusicProvider {
   }
 
   async getPersonalizedPlaylists(options = {}) {
-    const limit = clampInteger(options.limit, 1, 30, 12);
+    const limit = clampInteger(options.limit, 1, 30, 9);
     const data = await this.requestJson('/api/personalized/playlist', {
       limit: String(limit)
     });

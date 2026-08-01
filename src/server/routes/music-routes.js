@@ -10,7 +10,8 @@ const {
   getMusicTrackLyrics,
   matchMusicTrackCandidates,
   parseLyricPayload,
-  searchMusicTracks
+  searchMusicTracks,
+  writeMusicPlaylistTracks
 } = require('../../music/lyrics-service');
 
 const prefixes = ['/api/music/'];
@@ -51,6 +52,24 @@ const routes = {
   async 'POST /api/music/home'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '音乐首页 Provider 尚未接入。', () => getMusicHomeContent(context.music.registry, body));
+  },
+
+  async 'POST /api/music/playlists/tracks/add'(context, request, res) {
+    const body = await request.body();
+    await sendProviderResult(res, '添加到 QQ 音乐歌单失败。', () => writeMusicPlaylistTracks(
+      context.music.registry,
+      body,
+      'add'
+    ));
+  },
+
+  async 'POST /api/music/playlists/tracks/remove'(context, request, res) {
+    const body = await request.body();
+    await sendProviderResult(res, '从 QQ 音乐歌单删除失败。', () => writeMusicPlaylistTracks(
+      context.music.registry,
+      body,
+      'remove'
+    ));
   },
 
   async 'POST /api/music/lyrics'(context, request, res) {

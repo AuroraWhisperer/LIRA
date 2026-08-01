@@ -447,7 +447,20 @@ import { HomeService } from './playback/services/home-service.js';
             if (!payload.ok) throw new Error(payload.error || '检查音乐接口失败');
             playbackProviderHealth = payload.data;
           }
-          if (!options.silent) toast(playbackProviderHealth.message || '音乐接口检查完成');
+          if (!options.silent) {
+            const healthOk = playbackProviderHealth && playbackProviderHealth.ok;
+            if (typeof U.showStackedToast === 'function') {
+              U.showStackedToast({
+                key: `playback-health:${playbackState.selectedSource}`,
+                title: healthOk ? '接口检查通过' : '接口状态异常',
+                message: playbackProviderHealth.message || '音乐接口检查完成',
+                className: healthOk ? 'playback-health-toast-good' : 'playback-health-toast-warn',
+                duration: 3800
+              });
+            } else {
+              toast(playbackProviderHealth.message || '音乐接口检查完成');
+            }
+          }
         } catch (error) {
           playbackProviderHealth = {
             source: playbackState.selectedSource,
@@ -797,6 +810,11 @@ import { HomeService } from './playback/services/home-service.js';
         const track = homeService.getItemByIndex(index);
         if (!track) return;
 
+        if (action === 'add-to-playlist') {
+          void addTrackToQqPlaylist(track);
+          return;
+        }
+
         const homeState = homeService.getHomeState();
 
         if (action === 'play' && homeState.action !== 'recent') {
@@ -817,6 +835,56 @@ import { HomeService } from './playback/services/home-service.js';
         queuePlaybackTrack(PlaybackUtils.normalizeOnlineTrack(track), action, {
           requestedBy: '音乐首页'
         });
+      }
+
+      async function addTrackToQqPlaylist(track) {
+        if (!track || track.source !== 'qq' || Number(track.sourceSongId) <= 0) {
+          toast('这首歌曲缺少 QQ 音乐数值 ID，暂时无法添加到歌单');
+          return;
+        }
+        try {
+          const listResponse = await fetch('/api/music/home', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platform: 'qq', action: 'created-playlists', limit: 500, refresh: true })
+          });
+          const listPayload = await readJsonResponse(listResponse, '加载 QQ 音乐歌单失败');
+          if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || '加载 QQ 音乐歌单失败');
+          const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
+            ? listPayload.data.playlists.filter((item) => item && item.dirId && (item.tid || item.id))
+            : [];
+          if (playlists.length === 0) throw new Error('没有找到可写入的 QQ 音乐歌单');
+
+          const choices = playlists.map((item, index) => {
+            const liked = String(item.dirId) === '201' ? '（我喜欢）' : '';
+            return `${index + 1}. ${item.title || item.id}${liked}`;
+          }).join('\n');
+          const selected = window.prompt(`请选择要添加到的 QQ 音乐歌单：\n\n${choices}`, '1');
+          if (selected == null) return;
+          const selectedIndex = Number.parseInt(selected, 10) - 1;
+          const playlist = playlists[selectedIndex];
+          if (!playlist) {
+            toast('歌单序号无效');
+            return;
+          }
+
+          const writeResponse = await fetch('/api/music/playlists/tracks/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platform: 'qq', playlist, tracks: [track] })
+          });
+          const writePayload = await readJsonResponse(writeResponse, '添加到 QQ 音乐歌单失败');
+          if (!writeResponse.ok || !writePayload.ok) throw new Error(writePayload.error || '添加到 QQ 音乐歌单失败');
+          const song = writePayload.data && writePayload.data.result
+            && Array.isArray(writePayload.data.result.songlist)
+            ? writePayload.data.result.songlist[0]
+            : null;
+          toast(song && Number(song.existed) === 1
+            ? `歌曲已在「${playlist.title}」中`
+            : `已添加到「${playlist.title}」`);
+        } catch (error) {
+          showError(error);
+        }
       }
 
       function queuePlaybackTrack(track, action, options = {}) {
@@ -850,7 +918,7 @@ import { HomeService } from './playback/services/home-service.js';
 
         if (resultNode) resultNode.textContent = '正在搜索...';
         try {
-          const limit = Number(value('playbackSearchLimit') || 12);
+          const limit = Number(value('playbackSearchLimit') || 9);
           await searchService.search(keyword, limit);
           renderPlaybackSearchResults();
         } catch (error) {
@@ -890,6 +958,9 @@ import { HomeService } from './playback/services/home-service.js';
               <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}" title="添加到播放队列末尾">入队</button>
               <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>
               <button type="button" data-playback-search-action="play" data-playback-search-index="${index}" title="立即播放这首歌">播放</button>
+              ${track.source === 'qq' && Number(track.sourceSongId) > 0
+                ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到 QQ 音乐歌单">歌单</button>`
+                : ''}
             </div>
           </div>
         `).join('');
@@ -898,6 +969,10 @@ import { HomeService } from './playback/services/home-service.js';
       function handlePlaybackSearchAction(action, index) {
         const track = searchService.getResultByIndex(index);
         if (!track) return;
+        if (action === 'add-to-playlist') {
+          void addTrackToQqPlaylist(track);
+          return;
+        }
         const queuedTrack = PlaybackUtils.normalizeOnlineTrack(track);
 
         if (action === 'play') {
@@ -1483,7 +1558,18 @@ import { HomeService } from './playback/services/home-service.js';
           if (!playbackAuthState || !playbackAuthState.loggedIn) {
             showPlaybackLoginPrompt();
           } else {
-            toast('播放队列为空，请先选择歌曲');
+            if (typeof U.showStackedToast === 'function') {
+              const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
+              U.showStackedToast({
+                key: 'playback-queue-empty',
+                title: '播放队列为空',
+                message: `前往${sourceName}音乐首页或搜索歌曲，开始你的音乐之旅`,
+                className: 'playback-empty-queue-toast',
+                duration: 4200
+              });
+            } else {
+              toast('播放队列为空，请先选择歌曲');
+            }
           }
           return;
         }
