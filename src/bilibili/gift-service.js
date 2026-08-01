@@ -47,15 +47,6 @@ function mergeIntoComboBuffer(context, gift, comboKey) {
     pending.gift.rawJson = gift.rawJson;
     pending.createdAtMs = Date.now();
   } else {
-    // 检查是否已有 COMBO_SEND 先入库（网络乱序：COMBO_SEND 比 SEND_GIFT 先到）
-    const existingComboSend = findRecentComboSendForBuffer(context, comboKey, gift);
-    if (existingComboSend) {
-      // 直接在已有 COMBO_SEND 记录上合并 SEND_GIFT 的补充信息，不再缓冲
-      updateGiftEventIfProgressed(context, existingComboSend, gift);
-      // 标记已合并，避免后续 flushStaleComboBuffers 重复插入
-      context.state.giftComboPending.set(comboKey, { gift, createdAtMs: Date.now(), mergedIntoExisting: true });
-      return;
-    }
     context.state.giftComboPending.set(comboKey, { gift, createdAtMs: Date.now() });
   }
 }
@@ -65,8 +56,13 @@ function flushStaleComboBuffers(context) {
   for (const [key, pending] of context.state.giftComboPending.entries()) {
     if (pending && pending.createdAtMs < cutoff) {
       context.state.giftComboPending.delete(key);
-      // 已经合并到已有 COMBO_SEND 的条目不需要再单独插入
-      if (pending.mergedIntoExisting) continue;
+      // 检查是否已有 COMBO_SEND 先入库（网络乱序场景）
+      const existingComboSend = findRecentComboSendForBuffer(context, key, pending.gift);
+      if (existingComboSend) {
+        // 合并到已有的 COMBO_SEND 记录，避免重复插入
+        updateGiftEventIfProgressed(context, existingComboSend, pending.gift);
+        continue;
+      }
       // skipComboBuffer=true 避免再次缓冲
       addGiftEvent(context, pending.gift, true);
     }
@@ -80,7 +76,6 @@ function findRecentComboSendForBuffer(context, comboKey, gift) {
   const createdAtMs = Date.parse(gift.createdAt) || Date.now();
   const startIso = new Date(createdAtMs - GIFT_COMBO_PENDING_MAX_AGE_MS).toISOString();
   const endIso = new Date(createdAtMs + 2000).toISOString();
-  // 按 comboKey（platform_id 前缀）和 uid/gift_id 匹配最近的 COMBO_SEND
   const rows = context.db.giftDb.prepare(`
     SELECT * FROM gift_events
     WHERE status = 'active'

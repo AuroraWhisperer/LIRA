@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('songAssistantDesktop', {
   openDataDir: () => ipcRenderer.invoke('desktop:open-data-dir'),
   openLogDir: () => ipcRenderer.invoke('desktop:open-log-dir'),
   openGithub: () => ipcRenderer.invoke('desktop:open-github'),
+  setAutoUpdate: (enabled) => ipcRenderer.invoke('desktop:set-auto-update', enabled),
   onShowUpdatePage: (callback) => {
     if (typeof callback !== 'function') return () => {};
 

@@ -114,10 +114,9 @@
         <td>${escapeHtml(song.note || '')}</td>
         <td>
           <div class="actions">
-            <button type="button" data-edit-song="${song.id}">编辑</button>
-            <button type="button" data-add-song="${song.id}">入队</button>
-            <button type="button" data-toggle-song="${song.id}">${song.is_enabled ? '停用' : '启用'}</button>
-            <button class="danger" type="button" data-delete-song="${song.id}">删除</button>
+            <button type="button" data-edit-song="${song.id}" title="加载到编辑表单">编辑</button>
+            <button type="button" data-add-song="${song.id}" title="以主播身份加入点歌队列">入队</button>
+            <button class="danger" type="button" data-delete-song="${song.id}" title="从歌库中移除该歌曲">删除</button>
           </div>
         </td>
       </tr>
@@ -154,16 +153,6 @@
         toast('已从歌库入队');
         if (window.AdminApp.state && window.AdminApp.state.reloadState) {
           await window.AdminApp.state.reloadState();
-        }
-      });
-    });
-
-    document.querySelectorAll('[data-toggle-song]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        await api('/api/songs/toggle', { id: button.dataset.toggleSong });
-        toast('歌曲状态已更新');
-        if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
-          await window.AdminApp.state.reloadAll();
         }
       });
     });

@@ -8,6 +8,7 @@ const { now } = require('../shared/utils');
 const DEFAULT_SETTINGS = {
   roomId: '',
   enableBilibili: 'true',
+  enableAutoUpdate: 'false',
   enableGiftSprint: 'true',
   giftSprintTargetRmb: '0',
   enableGiftBotFallback: 'true',

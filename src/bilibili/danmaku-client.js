@@ -107,6 +107,9 @@ class BilibiliDanmakuClient {
     this.historyPoller.stop();
     this.onlineRankPoller.stop();
     this.liveStatusMonitor.stop();
+    if (this.messageHandlers && typeof this.messageHandlers.destroy === 'function') {
+      this.messageHandlers.destroy();
+    }
   }
 
   // 向后兼容：暴露 ws 属性供测试使用

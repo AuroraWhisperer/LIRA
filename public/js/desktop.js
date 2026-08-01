@@ -54,6 +54,34 @@ function initDesktopShell() {
     githubButton.addEventListener('click', () => runDesktopAction(() => desktop.openGithub(), false));
   }
 
+  // 自动更新 toggle
+  const autoUpdateToggle = document.getElementById('autoUpdateToggle');
+  const autoUpdateLabel = document.getElementById('autoUpdateLabel');
+  if (autoUpdateToggle) {
+    autoUpdateToggle.addEventListener('change', async () => {
+      const enabled = autoUpdateToggle.checked;
+      try {
+        await U.api('/api/settings', {
+          enableAutoUpdate: enabled ? 'true' : 'false'
+        });
+        if (autoUpdateLabel) {
+          autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
+        }
+        toast(enabled ? '自动更新已开启' : '自动更新已关闭');
+        // 通知主进程
+        if (desktop.setAutoUpdate) {
+          desktop.setAutoUpdate(enabled);
+        }
+      } catch (error) {
+        toast('保存失败：' + (error.message || String(error)));
+        autoUpdateToggle.checked = !enabled;
+        if (autoUpdateLabel) {
+          autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
+        }
+      }
+    });
+  }
+
   desktop.onShowUpdatePage(showDesktopUpdatePage);
   desktop.onUpdateState(handleDesktopUpdateState);
   desktop.getInfo()

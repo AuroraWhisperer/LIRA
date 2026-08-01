@@ -1,8 +1,21 @@
 # 打包与更新说明
 
-当前版本：`1.5.2`
+当前版本：`1.5.3`
 
 ---
+
+## v1.5.3 变更
+
+- 🎰 **盲盒盈亏面板优化**：管理后台盲盒盈亏区域新增折叠/展开功能，改善长页面浏览体验。
+- 🧹 **弹幕客户端资源清理**：新增 `MessageHandlers.destroy()` 方法，断开连接时正确清理身份缓存定时器和消息处理器，防止内存泄漏。
+- 🔄 **身份缓存定时清理**：`MessageHandlers` 每 5 分钟自动清理过期身份缓存条目，防止无界增长。
+- 🎁 **礼物服务精简**：移除已不再需要的 COMBO_SEND 网络乱序处理逻辑（`findRecentComboSendForBuffer`），简化 Combo 缓冲区合并流程。
+- ⚙️ **自动更新可控开关**：Electron 主进程新增 `readAutoUpdateSetting()`，从数据库读取 `enableAutoUpdate` 设置项决定是否执行自动更新检查；新增 `desktop:set-auto-update` IPC 通道。
+- 🖥️ **管理后台功能增强**：`gifts.js`、`queue.js`、`songs.js` 多项细节优化。
+- 🎨 **CSS 样式扩展**：`styles-admin.css`（+219 行）盲盒面板折叠、礼物统计等区域样式增强；`styles-playback.css` 细节调整。
+- 🖼️ **盲盒图标资源**：新增 `bilibili-blindbox-heart.png`（爱心盲盒）和 `bilibili-blindbox-lucky.png`（幸运盲盒）图标。
+- 📸 **盲盒截图脚本**：新增 `scripts/screenshot-blindbox.mjs`，用于自动截取盲盒面板预览图。
+- 💾 **存储层增强**：`settings-store.js` 新增自动更新相关配置项支持。
 
 ## v1.5.2 变更
 

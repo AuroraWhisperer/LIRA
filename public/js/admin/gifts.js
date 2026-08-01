@@ -112,10 +112,11 @@
       const sprintPrice = item.sprint_count_price ?? item.total_price;
       const blindProfit = item.blind_profit;
       const guardBadge = getGuardBadge(item);
+      const blindBoxIcon = getBlindBoxIcon(item);
       const typeIcon = guardBadge
         ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
-        : item.is_blind_box
-          ? '<span class="gift-type-icon gift-blind-box-icon" aria-label="盲盒" title="盲盒">🎁</span>'
+        : blindBoxIcon
+          ? `<img class="gift-type-icon gift-blind-box-icon" src="${blindBoxIcon.src}" alt="${blindBoxIcon.name}图标" title="${blindBoxIcon.name}">`
           : '';
       let cardClass = 'gift-card';
       let blindLine = '';
@@ -123,10 +124,11 @@
       if (typeIcon) cardClass += ' has-type-icon';
 
       if (item.is_blind_box && item.blind_box_name) {
-        const profitSign = blindProfit > 0 ? '+' : '';
+        const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
         const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
+        cardClass += ' blind-box-card';
         cardClass += blindProfit > 0 ? ' profit' : blindProfit < 0 ? ' loss' : '';
-        blindLine = `<span>🎁${escapeHtml(item.blind_box_name)} 成本 ${formatMoney(item.blind_box_price)} <span class="${profitClass}">${profitSign}${formatMoney(blindProfit)}</span></span>`;
+        blindLine = `<span>盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
       } else if (item.is_blind_box && item.blind_box_price !== null && item.blind_box_price !== undefined) {
         blindLine = `<span>开出 ${formatMoney(item.total_price)}</span>`;
       }
@@ -138,7 +140,7 @@
             <span>${escapeHtml(item.user_name || '观众')}</span>
             <span>计入 ${formatMoney(sprintPrice)}</span>
             ${blindLine}
-            <span>${formatTime(item.created_at)}</span>
+            ${item.is_blind_box ? '' : `<span>${formatTime(item.created_at)}</span>`}
           </div>
           ${typeIcon}
         </div>
@@ -158,6 +160,17 @@
     }
     if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
       return { name: '舰长', src: '/img/bilibili-guard-captain.png' };
+    }
+    return null;
+  }
+
+  function getBlindBoxIcon(item) {
+    const blindBoxName = String(item && (item.blind_box_name || item.name) || '').trim();
+    if (blindBoxName.includes('心动盲盒')) {
+      return { name: '心动盲盒', src: '/img/bilibili-blindbox-heart.png' };
+    }
+    if (blindBoxName.includes('幸运盲盒')) {
+      return { name: '幸运盲盒', src: '/img/bilibili-blindbox-lucky.png' };
     }
     return null;
   }
@@ -193,15 +206,28 @@
       const price = formatMoney(item.price);
       const outputs = Array.isArray(item.outputs) ? item.outputs.map(o => {
         if (typeof o === 'object' && o !== null) {
-          return `${escapeHtml(o.name)} ¥${formatMoney(o.price)}`;
+          return `<span class="bb-output">${escapeHtml(o.name)}<small>${formatMoney(o.price)}</small></span>`;
         }
         return escapeHtml(String(o));
-      }).join('、') : '—';
+      }).join('') : '—';
+
+      const icon = getBlindBoxIcon(item);
+      const iconHtml = icon
+        ? `<img class="bb-chip-icon" src="${escapeAttr(icon.src)}" alt="${escapeAttr(icon.name)}" onerror="this.style.display='none'">`
+        : `<span class="bb-chip-icon-fallback">🎁</span>`;
+
       return `
-        <span class="blind-box-chip">
-          🎁 ${name} · ¥${price} → ${outputs}
+        <div class="blind-box-chip">
+          ${iconHtml}
+          <div class="bb-chip-body">
+            <div class="bb-chip-head">
+              <span class="bb-chip-name">${name}</span>
+              <span class="bb-chip-price">${price}</span>
+            </div>
+            <div class="bb-chip-outputs">${outputs}</div>
+          </div>
           <button class="chip-delete" data-blind-index="${index}" title="删除">✕</button>
-        </span>
+        </div>
       `;
     }).join('');
   }
@@ -452,6 +478,30 @@
     `;
   }
 
+  // ── 盲盒盈亏折叠切换 ──
+  function initBlindBoxStatsToggle() {
+    const toggle = document.getElementById('blindBoxStatsToggle');
+    const section = toggle?.closest('.gift-blindbox-stats-section');
+    const heading = document.getElementById('blindBoxStatsHeading');
+
+    heading?.addEventListener('click', (e) => {
+      if (e.target.closest('button:not(#blindBoxStatsToggle)')) return;
+
+      const collapsed = section?.classList.toggle('is-collapsed') || false;
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.title = collapsed ? '展开盲盒盈亏' : '折叠盲盒盈亏';
+      }
+    });
+  }
+
+  // 在 DOM 就绪后初始化
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBlindBoxStatsToggle);
+  } else {
+    initBlindBoxStatsToggle();
+  }
+
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.gifts = {
     renderGiftPanel,
@@ -463,6 +513,7 @@
     initGiftHistoryDrawer,
     openGiftHistoryDrawer,
     closeGiftHistoryDrawer,
-    loadGiftHistory
+    loadGiftHistory,
+    initBlindBoxStatsToggle
   };
 })();

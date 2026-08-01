@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const {
   app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell
 } = require('electron');
@@ -233,7 +234,7 @@ function createMainWindow(baseUrl) {
     mainWindow.maximize();
     mainWindow.show();
     sendUpdateState();
-    if (app.isPackaged) {
+    if (app.isPackaged && readAutoUpdateSetting()) {
       setTimeout(function () {
         checkForUpdates().catch(function (e) { setUpdateError(e); });
       }, 1000);
@@ -284,6 +285,10 @@ function configureUpdateIpc() {
   ipcMain.handle('desktop:open-data-dir', function () { return dataDir ? shell.openPath(dataDir) : ''; });
   ipcMain.handle('desktop:open-log-dir', function () { return logDir ? shell.openPath(logDir) : ''; });
   ipcMain.handle('desktop:open-github', function () { return shell.openExternal(GITHUB_REPO_URL); });
+  ipcMain.handle('desktop:set-auto-update', function (_event, enabled) {
+    // 持久化由渲染进程通过 /api/settings 完成，此处仅记录日志
+    writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
+  });
   ipcMain.handle('desktop:restart', async function () {
     try {
       if (shutdownApplication) {
@@ -559,6 +564,19 @@ function setLyricWindowLocked(locked) {
 
 async function checkForUpdates() {
   return updateMgr.checkForUpdates();
+}
+
+function readAutoUpdateSetting() {
+  try {
+    const dbPath = path.join(dataDir, 'song-request-data.db');
+    if (!fs.existsSync(dbPath)) return false;
+    const db = new DatabaseSync(dbPath);
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'enableAutoUpdate'").get();
+    db.close();
+    return row ? row.value === 'true' : false;
+  } catch (_) {
+    return false;
+  }
 }
 
 async function downloadUpdate() {

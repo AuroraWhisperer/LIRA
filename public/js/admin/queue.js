@@ -62,6 +62,15 @@
     const giftToggle = document.getElementById('giftDetectToggle');
     if (giftToggle) giftToggle.checked = settings.enableGiftSprint === 'true';
 
+    const autoUpdateToggle = document.getElementById('autoUpdateToggle');
+    const autoUpdateLabel = document.getElementById('autoUpdateLabel');
+    if (autoUpdateToggle) {
+      autoUpdateToggle.checked = settings.enableAutoUpdate === 'true';
+      if (autoUpdateLabel) {
+        autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
+      }
+    }
+
     if (window.AdminApp.gifts && window.AdminApp.gifts.renderGiftPanel) {
       window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.bilibiliDiagnostics || {});
     }
@@ -136,7 +145,7 @@
             <span class="sc-admin-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
             ${index + 1}. ${escapeHtml(item.message || '醒目留言')}
           </div>
-          <div class="meta">${escapeHtml(item.user_name || '观众')} · ${formatTime(item.created_at)}${item.status === 'assisted' ? ' · 已处理' : ''}</div>
+          <div class="meta">${escapeHtml(item.user_name || '观众')} · ${formatTime(item.created_at)}${item.status === 'assisted' ? ' <span class="sc-badge-assisted">✓ 已处理</span>' : ''}</div>
         </div>
         <div class="queue-actions">
           <button class="icon" title="${item.status === 'assisted' ? '取消处理' : '标记已处理'}" type="button" data-sc-action="${item.status === 'assisted' ? 'unassist' : 'assist'}" data-id="${item.id}">${item.status === 'assisted' ? '↺' : '✓'}</button>

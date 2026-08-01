@@ -16,10 +16,24 @@ class MessageHandlers {
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
     this.startedAtMs = options.startedAtMs || Date.now();
     this.messageBuffer = options.messageBuffer || null;
+    // 每 5 分钟清理一次身份缓存，防止无界增长
+    this._identityCleanupTimer = setInterval(() => {
+      if (this.identityCache && typeof this.identityCache.cleanup === 'function') {
+        this.identityCache.cleanup();
+      }
+    }, 5 * 60 * 1000).unref();
   }
 
   updateStartTime(startedAtMs) {
     this.startedAtMs = startedAtMs;
+  }
+
+  // 销毁定时器，避免泄漏
+  destroy() {
+    if (this._identityCleanupTimer) {
+      clearInterval(this._identityCleanupTimer);
+      this._identityCleanupTimer = null;
+    }
   }
 
   async handlePackets(buffer) {
