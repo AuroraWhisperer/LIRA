@@ -213,6 +213,9 @@ function migrateBlindBoxConfig(db) {
     return;
   }
 
+  let changed = false;
+
+  // 旧格式升级
   let needsUpgrade = false;
   for (const box of config) {
     const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
@@ -225,29 +228,51 @@ function migrateBlindBoxConfig(db) {
     if (needsUpgrade) break;
   }
 
-  if (!needsUpgrade) return;
+  if (needsUpgrade) {
+    // 用已知默认价格映射升级
+    const knownPrices = {
+      '心动盲盒': { '电影票': 2, '棉花糖': 9, '爱心抱枕': 16, '绮彩权杖': 40, '时空之站': 100, '神驹宝玺': 200, '浪漫城堡': 2233 },
+      '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 },
+      '小熊虫盲盒': { '虫事顺意': 9, '虫满元气': 9, '重虫出击': 9, '顺虫自然': 9, '虫容不迫': 9, '虫装镇定': 9, '一虫莫展': 9, '心事虫虫': 9 }
+    };
 
-  // 用已知默认价格映射升级
-  const knownPrices = {
-    '心动盲盒': { '电影票': 2, '棉花糖': 9, '爱心抱枕': 16, '绮彩权杖': 40, '时空之站': 100, '神驹宝玺': 200, '浪漫城堡': 2233 },
-    '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 },
-    '小熊虫盲盒': { '虫事顺意': 9, '虫满元气': 9, '重虫出击': 9, '顺虫自然': 9, '虫容不迫': 9, '虫装镇定': 9, '一虫莫展': 9, '心事虫虫': 9 }
-  };
-
-  for (const box of config) {
-    const boxName = (box && box.name) || '';
-    const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
-    const priceMap = knownPrices[boxName] || {};
-    box.outputs = outputs.map(output => {
-      if (typeof output === 'object' && output !== null) return output; // 已经是对象格式
-      const name = String(output);
-      const giftPrice = priceMap[name];
-      if (giftPrice !== undefined && giftPrice > 0) {
-        return { name, price: giftPrice };
-      }
-      return output; // 未知价格，保留原字符串
-    });
+    for (const box of config) {
+      const boxName = (box && box.name) || '';
+      const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
+      const priceMap = knownPrices[boxName] || {};
+      box.outputs = outputs.map(output => {
+        if (typeof output === 'object' && output !== null) return output; // 已经是对象格式
+        const name = String(output);
+        const giftPrice = priceMap[name];
+        if (giftPrice !== undefined && giftPrice > 0) {
+          return { name, price: giftPrice };
+        }
+        return output; // 未知价格，保留原字符串
+      });
+    }
+    changed = true;
   }
+
+  // 合并默认配置中新增的盲盒条目（用户已有配置但不包含新增的默认盲盒）
+  if (defaultConfig) {
+    try {
+      const defaults = JSON.parse(defaultConfig);
+      if (Array.isArray(defaults)) {
+        const existingNames = new Set(config.map(b => (b && b.name) || ''));
+        for (const defaultBox of defaults) {
+          const boxName = (defaultBox && defaultBox.name) || '';
+          if (!existingNames.has(boxName)) {
+            config.push(defaultBox);
+            changed = true;
+          }
+        }
+      }
+    } catch (_) {
+      // 默认配置解析失败，跳过合并
+    }
+  }
+
+  if (!changed) return;
 
   const updatedAt = now();
   db.prepare(`
