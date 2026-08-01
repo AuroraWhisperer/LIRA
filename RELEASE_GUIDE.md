@@ -23,6 +23,9 @@
 - 从 `gh auth token` 自动取 `GH_TOKEN`，不用手动 export。
 - 发布前先用 `gh release create` 建好 release（避免 electron-builder 自己创建
   导致的竞态），标题/说明从 `UPDATE.md` 对应版本号的章节自动提取。
+- **使用 `node_modules/electron/dist` 中的本地 electron**，跳过网络下载，
+  通过设置 `ELECTRON_SKIP_BINARY_DOWNLOAD=1` 和
+  `--config.electronDist=node_modules/electron/dist` 参数实现。
 - 跑完 `electron-builder --publish always` 后用 `gh api` 校验三个预期文件
   （`*.exe` / `*.exe.blockmap` / `latest.yml`）是否都处于 `uploaded` 状态，
   没传全会自动重试，最多 3 次。
@@ -36,5 +39,5 @@
 2. `npm test` 跑一遍确认没有回归。
 3. 提交改动，`git tag -a v<version> -m v<version>`（如果脚本没自动打好）。
 4. `npm run release:win`，脚本会自动打 tag（如未打）、推送、建 release、打包、
-   上传、校验。
+   上传、校验。**脚本会使用本地已安装的 electron，不会重新下载。**
 5. 完成后用 `gh release view v<version>` 确认三个文件都在。

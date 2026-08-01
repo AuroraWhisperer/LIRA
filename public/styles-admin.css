@@ -2720,7 +2720,7 @@ tr:last-child td {
 /* ===== 点歌工作区布局 ===== */
 .song-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 4fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 3.4fr);
   gap: 16px;
   height: calc(100vh - 58px - 96px);
   padding: 16px;

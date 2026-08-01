@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`1.6.1`
+当前版本：`1.6.2`
 
 ---
+
+## v1.6.2 变更
+
+- 🎵 **播放器「添加到歌单」按钮**：播放控制栏新增「歌单」按钮，当前播放的 QQ 音乐歌曲可一键添加到自己的 QQ 音乐歌单（支持「我喜欢」等所有已创建歌单），按钮根据歌曲来源和 ID 可用性自动启用/禁用。
+- 🎨 **首页推荐卡片视觉重设计**：歌单卡片从左对齐改为居中布局，采用渐变背景（`linear-gradient(135deg, #fff 0%, #fafbfc 100%)`）、音符图标（`♫`）装饰、悬停时渐变色变化（`#fff6fa` → `#fff`）和图标缩放效果，视觉更精致。
+- ⚙️ **发布脚本本地 electron 优化**：`publish-release.js` 新增 `ELECTRON_SKIP_BINARY_DOWNLOAD=1` 环境变量和 `--config.electronDist=node_modules/electron/dist` 参数，使用本地已安装的 electron 进行构建，跳过网络下载，加速发布流程。
+- 🛠️ **新增便捷构建脚本**：`build-local.bat`（使用本地 electron 缓存构建，显示详细步骤和进度）和 `build-debug.bat`（启用 electron-builder 调试输出），简化本地开发调试。
+- 📝 **发布指南更新**：`RELEASE_GUIDE.md` 补充本地 electron 使用说明，明确脚本不会重新下载 electron。
 
 ## v1.6.1 变更
 

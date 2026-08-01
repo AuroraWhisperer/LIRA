@@ -32,7 +32,13 @@ function main() {
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
     log(`electron-builder publish attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
     try {
-      run('npx', ['electron-builder', '--win', 'nsis', '--x64', '--publish', 'always']);
+      // 使用本地 electron 构建，跳过下载
+      run('npx', [
+        'electron-builder',
+        '--win', 'nsis', '--x64',
+        '--publish', 'always',
+        '--config.electronDist=node_modules/electron/dist'
+      ]);
     } catch (error) {
       log(`electron-builder exited with an error: ${error.message}`);
     }
@@ -146,7 +152,8 @@ function findMissingAssets() {
 
 function run(command, args) {
   log(`$ ${command} ${args.join(' ')}`);
-  execFileSync(command, args, { cwd: ROOT_DIR, stdio: 'inherit', shell: process.platform === 'win32' });
+  const env = { ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' };
+  execFileSync(command, args, { cwd: ROOT_DIR, stdio: 'inherit', shell: process.platform === 'win32', env });
 }
 
 function runCapture(command, args) {
