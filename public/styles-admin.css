@@ -322,7 +322,6 @@ hr.section-divider {
   padding: 8px 12px;
   background: #ffffff;
   min-height: 62px;
-  max-height: 62px;
 }
 
 .queue-row .song {
@@ -333,7 +332,9 @@ hr.section-divider {
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .queue-row .meta {
@@ -345,6 +346,35 @@ hr.section-divider {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* SC 队列：允许多行显示 */
+.sc-row {
+  align-items: start;
+  min-height: 62px;
+  max-height: none;
+}
+
+.sc-row .song {
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  white-space: normal;
+  text-overflow: unset;
+}
+
+/* 点歌队列：字体自适应缩小，最多两行 */
+.queue-row:not(.sc-row) .song {
+  font-size: clamp(11px, 14px, 14px);
+}
+
+/* 长文本自动缩小 - 通过字符数量判断 */
+.queue-row:not(.sc-row) .song[data-length="long"] {
+  font-size: clamp(10px, 12px, 12px);
+}
+
+.queue-row:not(.sc-row) .song[data-length="very-long"] {
+  font-size: clamp(9px, 11px, 11px);
 }
 
 .sc-list {
@@ -1933,6 +1963,22 @@ tr:last-child td {
   object-fit: contain;
 }
 
+/* 小熊虫盲盒礼物卡片样式 */
+.gift-card:has(.gift-blind-box-icon[alt*="小熊虫"]) {
+  border-left-color: #fb7185;
+  background: linear-gradient(90deg, #fff1f2 0%, #ffffff 100%);
+}
+
+.gift-card:has(.gift-blind-box-icon[alt*="小熊虫"]).profit {
+  border-left-color: #21b6a8;
+  background: linear-gradient(90deg, #f4fbfa 0%, #ffffff 100%);
+}
+
+.gift-card:has(.gift-blind-box-icon[alt*="小熊虫"]).loss {
+  border-left-color: #fb7185;
+  background: linear-gradient(90deg, #ffe4e6 0%, #ffffff 100%);
+}
+
 .gift-card .gift-name {
   font-weight: 700;
   font-size: 14px;
@@ -2041,6 +2087,30 @@ tr:last-child td {
   background: linear-gradient(135deg, #f0e6ff 0%, #fce4ec 100%);
   padding: 4px;
   box-sizing: border-box;
+}
+
+/* 小熊虫盲盒专属样式 */
+.blind-box-chip:has(img[alt*="小熊虫"]) {
+  border-color: #fda4af;
+  background: linear-gradient(135deg, #fff5f7 0%, #ffe8ec 100%);
+}
+
+.blind-box-chip:has(img[alt*="小熊虫"]):hover {
+  border-color: #fb7185;
+  box-shadow: 0 4px 12px rgba(251, 113, 133, 0.15);
+}
+
+.blind-box-chip:has(img[alt*="小熊虫"]) .bb-chip-icon {
+  background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%);
+}
+
+.blind-box-chip:has(img[alt*="小熊虫"]) .bb-chip-name {
+  color: #be123c;
+}
+
+.blind-box-chip:has(img[alt*="小熊虫"]) .bb-chip-price {
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.08);
 }
 
 .bb-chip-icon-fallback {
@@ -2660,7 +2730,7 @@ tr:last-child td {
 .theme-section {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 8px 10px;
   background: var(--surface);
 }
 
@@ -2670,8 +2740,8 @@ tr:last-child td {
 
 .theme-section legend {
   font-weight: 800;
-  font-size: 14px;
-  padding: 0 6px;
+  font-size: 12px;
+  padding: 0 4px;
   color: var(--text);
 }
 

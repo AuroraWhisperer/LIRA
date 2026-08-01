@@ -118,6 +118,25 @@
       });
     }
     container.prepend(node);
+
+    // 限制礼物通知最多同时显示6个
+    const isGiftNotification = options.className && options.className.includes('gift-notify-toast');
+    if (isGiftNotification) {
+      const giftToasts = container.querySelectorAll('.gift-notify-toast');
+      if (giftToasts.length > 6) {
+        // 移除最旧的礼物通知（最后一个）
+        for (let i = 6; i < giftToasts.length; i++) {
+          const oldToast = giftToasts[i];
+          oldToast.classList.remove('show');
+          setTimeout(() => {
+            const oldKey = Array.from(activeToastKeys).find(k => k.startsWith('gift:'));
+            if (oldKey) activeToastKeys.delete(oldKey);
+            oldToast.remove();
+          }, 180);
+        }
+      }
+    }
+
     void node.offsetWidth;
     node.classList.add('show');
     const duration = Number.isFinite(Number(options.duration)) ? Number(options.duration) : 2600;

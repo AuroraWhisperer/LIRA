@@ -77,7 +77,8 @@ function createDomainServices({ db, settingsStore }) {
     add: (input) => giftService.addGiftEvent(giftContext, input),
     handleBotDanmaku: () => null, // 礼物机器人逻辑已禁用 — 仅依赖直接礼物捕捉 + 辅助补充
     resetSprint: () => giftService.resetGiftSprintProgress(giftContext),
-    search: (opts) => giftService.searchGifts(giftContext, opts || {})
+    search: (opts) => giftService.searchGifts(giftContext, opts || {}),
+    clearRecent: () => giftService.clearRecentGifts(giftContext)
   };
 
   const superChats = {

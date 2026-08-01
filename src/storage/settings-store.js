@@ -10,11 +10,12 @@ const DEFAULT_SETTINGS = {
   enableBilibili: 'true',
   enableAutoUpdate: 'false',
   enableGiftSprint: 'true',
+  enableGiftNotification: 'true',
   giftSprintTargetRmb: '0',
   enableGiftBotFallback: 'true',
   giftBotNames: '_薯条bb,薯条bb',
   giftBotAliasMap: '',
-  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":[{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}]},{"name":"幸运盲盒","price":5,"outputs":[{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}]}]',
+  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":[{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}]},{"name":"幸运盲盒","price":5,"outputs":[{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}]},{"name":"小熊虫盲盒","price":9,"outputs":[{"name":"虫事顺意","price":9},{"name":"虫满元气","price":9},{"name":"重虫出击","price":9},{"name":"顺虫自然","price":9},{"name":"虫容不迫","price":9},{"name":"虫装镇定","price":9},{"name":"一虫莫展","price":9},{"name":"心事虫虫","price":9}]}]',
   paused: 'false',
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
@@ -87,9 +88,9 @@ const DEFAULT_SETTINGS = {
   // 桌面歌词设置
   desktopLyricFontFamily: 'Microsoft YaHei',
   desktopLyricFontWeight: '800',
-  desktopLyricTextColor: '#1a1a1a',
+  desktopLyricTextColor: '#000000',
   desktopLyricStrokeColor: '#ffffff',
-  desktopLyricFontSize: '48',
+  desktopLyricFontSize: '56',
   desktopLyricStrokeWidth: '3',
   desktopLyricOpacity: '0.95',
   desktopLyricBgOpacity: '0.15',
@@ -229,7 +230,8 @@ function migrateBlindBoxConfig(db) {
   // 用已知默认价格映射升级
   const knownPrices = {
     '心动盲盒': { '电影票': 2, '棉花糖': 9, '爱心抱枕': 16, '绮彩权杖': 40, '时空之站': 100, '神驹宝玺': 200, '浪漫城堡': 2233 },
-    '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 }
+    '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 },
+    '小熊虫盲盒': { '虫事顺意': 9, '虫满元气': 9, '重虫出击': 9, '顺虫自然': 9, '虫容不迫': 9, '虫装镇定': 9, '一虫莫展': 9, '心事虫虫': 9 }
   };
 
   for (const box of config) {

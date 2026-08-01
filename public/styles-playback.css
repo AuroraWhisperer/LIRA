@@ -399,6 +399,191 @@ body.player-dock-expanded .playback-page.active {
   gap: 6px;
 }
 
+/* 轨道菜单（我喜欢/歌单详情） */
+.track-menu-wrapper {
+  position: relative;
+}
+
+.track-menu-btn {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.track-menu-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--primary);
+}
+
+.track-menu-btn:active {
+  transform: scale(0.96);
+}
+
+.track-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 120px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(22, 31, 43, 0.15);
+  z-index: 100;
+}
+
+.track-menu[hidden] {
+  display: none;
+}
+
+.track-menu button {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  text-align: left;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.track-menu button:hover {
+  background: var(--surface-2);
+}
+
+.track-menu button.danger {
+  color: var(--danger);
+}
+
+.track-menu button.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* 确认对话框 */
+.confirm-dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-dialog {
+  min-width: 320px;
+  max-width: 420px;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.confirm-dialog-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.confirm-dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.confirm-dialog-body {
+  padding: 20px 24px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.confirm-dialog-track {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-dialog-footer {
+  padding: 16px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+.confirm-dialog-footer button {
+  min-width: 80px;
+  min-height: 40px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirm-dialog-footer .confirm-cancel {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.confirm-dialog-footer .confirm-cancel:hover {
+  background: var(--surface-2);
+}
+
+.confirm-dialog-footer .confirm-delete {
+  border: none;
+  background: var(--danger);
+  color: white;
+}
+
+.confirm-dialog-footer .confirm-delete:hover {
+  background: #dc2626;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.confirm-dialog-footer .confirm-delete:active {
+  transform: scale(0.97);
+}
+
 .playback-home-result-title {
   display: flex;
   align-items: center;
@@ -2730,5 +2915,186 @@ body.player-dock-expanded .playback-page.active {
 
   .playlist-picker-footer span {
     display: none;
+  }
+}
+
+/* ===== 确认对话框 ===== */
+.playback-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  padding: 20px;
+}
+
+.playback-confirm-overlay.show {
+  opacity: 1;
+}
+
+.playback-confirm-dialog {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-width: 440px;
+  width: 100%;
+  transform: scale(0.9);
+  opacity: 0;
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.playback-confirm-dialog.show {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.playback-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0e7df;
+}
+
+.playback-confirm-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #312a26;
+  line-height: 1.3;
+}
+
+.playback-confirm-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #948378;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.playback-confirm-close:hover {
+  background: #f5ede5;
+  color: #312a26;
+}
+
+.playback-confirm-close:active {
+  background: #e8ddd0;
+}
+
+.playback-confirm-close svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.playback-confirm-body {
+  padding: 20px 24px;
+}
+
+.playback-confirm-message {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #524740;
+  word-wrap: break-word;
+}
+
+.playback-confirm-footer {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px 20px;
+}
+
+.playback-confirm-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 140ms ease;
+  user-select: none;
+}
+
+.playback-confirm-btn-cancel {
+  background: #f5ede5;
+  color: #524740;
+}
+
+.playback-confirm-btn-cancel:hover {
+  background: #e8ddd0;
+  transform: translateY(-1px);
+}
+
+.playback-confirm-btn-cancel:active {
+  transform: translateY(0);
+}
+
+.playback-confirm-btn-confirm {
+  background: #148c72;
+  color: #fff;
+}
+
+.playback-confirm-btn-confirm:hover {
+  background: #10755e;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(20, 140, 114, 0.3);
+}
+
+.playback-confirm-btn-confirm:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.playback-confirm-btn:focus-visible {
+  outline: 3px solid rgba(20, 140, 114, 0.3);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .playback-confirm-dialog {
+    max-width: calc(100vw - 32px);
+  }
+
+  .playback-confirm-header {
+    padding: 16px 20px 12px;
+  }
+
+  .playback-confirm-title {
+    font-size: 16px;
+  }
+
+  .playback-confirm-body {
+    padding: 16px 20px;
+  }
+
+  .playback-confirm-message {
+    font-size: 14px;
+  }
+
+  .playback-confirm-footer {
+    padding: 12px 20px 16px;
+    flex-direction: column-reverse;
+  }
+
+  .playback-confirm-btn {
+    min-height: 42px;
   }
 }

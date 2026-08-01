@@ -265,6 +265,13 @@ import { HomeService } from './playback/services/home-service.js';
             return;
           }
 
+          // 菜单按钮点击
+          const menuBtn = event.target.closest('[data-playback-home-track-menu-index]');
+          if (menuBtn) {
+            toggleTrackMenu(menuBtn.dataset.playbackHomeTrackMenuIndex);
+            return;
+          }
+
           const trackButton = event.target.closest('[data-playback-home-track-action][data-playback-home-track-index]');
           if (!trackButton) return;
           handlePlaybackHomeTrackAction(
@@ -843,9 +850,184 @@ import { HomeService } from './playback/services/home-service.js';
           : `播放全部${label}，共 ${tracks.length} 首`);
       }
 
+      // 切换轨道菜单显示/隐藏
+      function toggleTrackMenu(index) {
+        const menu = document.querySelector(`[data-playback-home-track-menu-for="${index}"]`);
+        if (!menu) return;
+
+        const isHidden = menu.hasAttribute('hidden');
+
+        // 关闭所有其他菜单
+        document.querySelectorAll('.track-menu').forEach((m) => {
+          if (m !== menu) m.setAttribute('hidden', '');
+        });
+
+        if (isHidden) {
+          menu.removeAttribute('hidden');
+          // 点击外部关闭菜单
+          setTimeout(() => {
+            const closeMenu = (event) => {
+              if (!event.target.closest('.track-menu-wrapper')) {
+                menu.setAttribute('hidden', '');
+                document.removeEventListener('click', closeMenu);
+              }
+            };
+            document.addEventListener('click', closeMenu);
+          }, 0);
+        } else {
+          menu.setAttribute('hidden', '');
+        }
+      }
+
+      // 自定义确认对话框
+      function showConfirmDialog(title, message, trackName, confirmText = '确认', cancelText = '取消') {
+        return new Promise((resolve) => {
+          const backdrop = document.createElement('div');
+          backdrop.className = 'confirm-dialog-backdrop';
+          backdrop.setAttribute('role', 'dialog');
+          backdrop.setAttribute('aria-modal', 'true');
+
+          backdrop.innerHTML = `
+            <div class="confirm-dialog">
+              <div class="confirm-dialog-header">
+                <h3>${escapeHtml(title)}</h3>
+              </div>
+              <div class="confirm-dialog-body">
+                ${escapeHtml(message)}
+                ${trackName ? `<div class="confirm-dialog-track">${escapeHtml(trackName)}</div>` : ''}
+              </div>
+              <div class="confirm-dialog-footer">
+                <button type="button" class="confirm-cancel">${escapeHtml(cancelText)}</button>
+                <button type="button" class="confirm-delete">${escapeHtml(confirmText)}</button>
+              </div>
+            </div>
+          `;
+
+          let settled = false;
+          const close = (confirmed = false) => {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', handleKeydown);
+            backdrop.remove();
+            resolve(confirmed);
+          };
+
+          const handleKeydown = (event) => {
+            if (event.key === 'Escape') close(false);
+            if (event.key === 'Enter') close(true);
+          };
+
+          backdrop.addEventListener('click', (event) => {
+            if (event.target === backdrop) {
+              close(false);
+              return;
+            }
+            if (event.target.closest('.confirm-cancel')) {
+              close(false);
+              return;
+            }
+            if (event.target.closest('.confirm-delete')) {
+              close(true);
+            }
+          });
+
+          document.addEventListener('keydown', handleKeydown);
+          document.body.appendChild(backdrop);
+          backdrop.querySelector('.confirm-delete')?.focus();
+        });
+      }
+
+      // 从歌单删除歌曲
+      async function removeTrackFromPlaylist(track, action) {
+        if (!track) return;
+
+        const homeState = homeService.getHomeState();
+        const platform = playbackState.selectedSource;
+        const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
+
+        // 我喜欢
+        if (action === 'liked') {
+          const confirmed = await showConfirmDialog(
+            '从我喜欢中删除',
+            '确认要删除这首歌曲吗？',
+            track.title || '当前歌曲',
+            '删除',
+            '取消'
+          );
+          if (!confirmed) return;
+
+          try {
+            toast('正在从我喜欢中删除…');
+            const response = await fetch('/api/music/playlists/tracks/remove', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                platform,
+                playlist: { id: 'liked' },
+                tracks: [track]
+              })
+            });
+            const payload = await readJsonResponse(response, `从我喜欢删除失败`);
+            if (!response.ok || !payload.ok) throw new Error(payload.error || `从我喜欢删除失败`);
+
+            toast('已从我喜欢中删除');
+            // 刷新列表
+            await homeService.refreshContent();
+            renderPlaybackHomeDrawer();
+          } catch (error) {
+            showError(error);
+          }
+          return;
+        }
+
+        // 歌单详情
+        if (action === 'playlist-tracks') {
+          const currentPlaylist = homeService.getCurrentPlaylist();
+          if (!currentPlaylist) return;
+
+          const confirmed = await showConfirmDialog(
+            `从歌单中删除`,
+            `确认从「${currentPlaylist.title || '歌单'}」中删除这首歌曲吗？`,
+            track.title || '当前歌曲',
+            '删除',
+            '取消'
+          );
+          if (!confirmed) return;
+
+          try {
+            toast('正在从歌单中删除…');
+            const response = await fetch('/api/music/playlists/tracks/remove', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                platform,
+                playlist: currentPlaylist,
+                tracks: [track]
+              })
+            });
+            const payload = await readJsonResponse(response, `从${platformLabel}歌单删除失败`);
+            if (!response.ok || !payload.ok) throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
+
+            toast(`已从「${currentPlaylist.title || '歌单'}」中删除`);
+            // 刷新列表
+            await homeService.refreshContent();
+            renderPlaybackHomeDrawer();
+          } catch (error) {
+            showError(error);
+          }
+        }
+      }
+
       function handlePlaybackHomeTrackAction(action, index) {
         const track = homeService.getItemByIndex(index);
         if (!track) return;
+
+        // 删除操作
+        if (action === 'remove') {
+          const homeState = homeService.getHomeState();
+          void removeTrackFromPlaylist(track, homeState.action);
+          return;
+        }
 
         if (action === 'add-to-playlist') {
           void addTrackToPlaylist(track);
@@ -907,7 +1089,13 @@ import { HomeService } from './playback/services/home-service.js';
           if (playlists.length === 0) throw new Error(`没有找到可写入的${platformLabel}歌单`);
           const playlist = await choosePlaylistForTrack(platformLabel, playlists, track);
           if (!playlist) return;
-          if (!window.confirm(`确认将「${track.title || '当前歌曲'}」添加到「${playlist.title || playlist.id}」？`)) return;
+          const confirmed = await PlaybackComponents.showConfirmDialog({
+            title: `添加到${platformLabel}歌单`,
+            message: `确认将「${track.title || '当前歌曲'}」添加到「${playlist.title || playlist.id}」？`,
+            confirmText: '确定',
+            cancelText: '取消'
+          });
+          if (!confirmed) return;
 
           const writeResponse = await fetch('/api/music/playlists/tracks/add', {
             method: 'POST',

@@ -252,12 +252,12 @@
           <div class="panel-body stack">
             <!-- Bilibili 账号登录 -->
             <fieldset class="theme-section" style="border-color: #fb7299;">
-              <legend>🔐 Bilibili 账号登录 <span style="font-weight:400;font-size:0.85em;color:#888;">（推荐登录，提升弹幕和礼物捕获稳定性）</span></legend>
-              <div class="bilibili-auth-row" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                <span id="bilibiliAuthStatus" class="pill warn">未登录</span>
-                <span id="bilibiliAuthUid" style="color:#888;font-size:0.9em;"></span>
-                <button id="bilibiliLoginBtn" class="primary" type="button" style="background:#fb7299;border-color:#fb7299;font-size:0.8em;padding:4px 10px;">📱 扫码登录 Bilibili</button>
-                <button id="bilibiliLogoutBtn" class="danger" type="button" style="display:none;">退出登录</button>
+              <legend>🔐 Bilibili 账号登录 <span style="font-weight:400;font-size:0.75em;color:#888;">（推荐登录，提升弹幕和礼物捕获稳定性）</span></legend>
+              <div class="bilibili-auth-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span id="bilibiliAuthStatus" class="pill warn" style="font-size:11px;padding:2px 7px;">未登录</span>
+                <span id="bilibiliAuthUid" style="color:#888;font-size:0.8em;"></span>
+                <button id="bilibiliLoginBtn" class="primary" type="button" style="background:#fb7299;border-color:#fb7299;font-size:0.75em;padding:3px 8px;min-height:26px;">📱 扫码登录 Bilibili</button>
+                <button id="bilibiliLogoutBtn" class="danger" type="button" style="display:none;font-size:0.75em;padding:3px 8px;min-height:26px;">退出登录</button>
               </div>
             </fieldset>
 
@@ -925,6 +925,13 @@
                 <span id="giftSprintStatus" class="pill warn">未开启</span>
               </div>
               <div id="giftStatusLine" class="hint">等待直播消息…</div>
+              <div class="gift-notification-toggle" style="margin-top: 12px;">
+                <label class="switch-control">
+                  <input id="enableGiftNotification" type="checkbox" checked>
+                  <span class="switch-track"></span>
+                  <span id="giftNotificationLabel">显示礼物提示</span>
+                </label>
+              </div>
             </fieldset>
 
             <!-- 2. 最近礼物 -->
@@ -1656,7 +1663,8 @@
               <strong>全部礼物流水</strong>
               <span id="giftHistoryTotal">共 0 条</span>
             </div>
-            <button id="giftHistoryClearBtn" class="danger sm" type="button" title="清空全部礼物记录">一键清除</button>
+            <button id="giftHistoryClearDisplayBtn" class="secondary sm" type="button" title="清理显示（最近30条）">清理显示</button>
+            <button id="giftHistoryClearDatabaseBtn" class="danger sm" type="button" title="清空数据库全部礼物记录">清理数据库</button>
             <button id="giftHistoryClose" class="playback-icon-btn" type="button" title="关闭" aria-label="关闭">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>

@@ -16,7 +16,9 @@ const routes = {
   'GET /api/gifts/history'(context, request, res) {
     const page = Number(request.query.get('page')) || 1;
     const limit = Number(request.query.get('limit')) || 50;
-    const data = context.gifts.getHistory({ page, limit });
+    const sortField = request.query.get('sortField') || 'created_at';
+    const sortDirection = request.query.get('sortDirection') || 'desc';
+    const data = context.gifts.getHistory({ page, limit, sortField, sortDirection });
     sendJson(res, 200, { ok: true, data });
   },
 
@@ -36,6 +38,17 @@ const routes = {
     const limit = Math.min(Number(getParam('limit')) || 100, 500);
     const rows = context.gifts.search({ from, to, limit });
     sendJson(res, 200, { ok: true, data: rows });
+  },
+
+  async 'POST /api/gifts/clear-recent'(context, request, res) {
+    const body = await request.body();
+    if (body.confirm !== true) {
+      sendJson(res, 400, { ok: false, error: '缺少清空确认。' });
+      return;
+    }
+    const result = context.gifts.clearRecent();
+    context.broadcastSnapshot('gift:clear-recent');
+    sendJson(res, 200, { ok: true, data: result });
   }
 };
 

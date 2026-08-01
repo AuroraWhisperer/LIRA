@@ -94,7 +94,7 @@
     }
 
     if (window.AdminApp.gifts && window.AdminApp.gifts.renderGiftPanel) {
-      window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.bilibiliDiagnostics || {});
+      window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.bilibiliDiagnostics || {}, settings);
     }
 
     // 盲盒盈亏统计（独立加载，不阻塞渲染）
@@ -133,10 +133,21 @@
           ? ''
           : `
                 <button class="icon" title="${item.is_pinned ? '取消置顶' : '置顶'}" type="button" data-action="${item.is_pinned ? 'unpin' : 'pin'}" data-id="${item.id}">${item.is_pinned ? '↧' : '↑'}</button>`;
+
+        // 根据歌曲名长度决定字体大小
+        const songText = `${item.is_pinned ? '📌 ' : ''}${index + 1}. ${escapeHtml(item.song_name)}`;
+        const textLength = (item.song_name || '').length;
+        let lengthAttr = '';
+        if (textLength > 35) {
+          lengthAttr = ' data-length="very-long"';
+        } else if (textLength > 20) {
+          lengthAttr = ' data-length="long"';
+        }
+
         return `
             <div class="queue-row">
               <div>
-                <div class="song">${item.is_pinned ? '📌 ' : ''}${index + 1}. ${escapeHtml(item.song_name)}</div>
+                <div class="song"${lengthAttr}>${songText}</div>
                 <div class="meta">${escapeHtml(requesterLabel(item))} · ${escapeHtml(sourceLabel(item))} · ${formatTime(item.created_at)}</div>
               </div>
               <div class="queue-actions">

@@ -141,6 +141,23 @@
       }
     });
 
+    // 礼物提示 toggle（checkbox 立即生效）
+    document.getElementById('enableGiftNotification').addEventListener('change', async (event) => {
+      const enabled = event.target.checked ? 'true' : 'false';
+      try {
+        await api('/api/settings', {
+          enableGiftNotification: enabled
+        });
+        toast(enabled === 'true' ? '礼物提示已开启' : '礼物提示已关闭');
+      } catch (error) {
+        toast('保存失败：' + (error.message || String(error)));
+        const currentSettings = window.AdminApp.state.getAppState();
+        if (currentSettings && currentSettings.settings) {
+          event.target.checked = currentSettings.settings.enableGiftNotification === 'true';
+        }
+      }
+    });
+
     document.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
       if (!confirm('确认重置本轮已收金额？礼物流水会保留。')) return;
       await api('/api/gifts/sprint/reset', {});

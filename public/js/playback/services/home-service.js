@@ -269,6 +269,25 @@ export class HomeService {
   }
 
   /**
+   * 获取当前歌单（playlist-tracks 时使用）
+   * @returns {Object|null}
+   */
+  getCurrentPlaylist() {
+    if (this.homeAction !== 'playlist-tracks') {
+      return null;
+    }
+    // 从历史记录中获取歌单信息
+    if (this.drawerHistory.length > 0) {
+      const lastHistory = this.drawerHistory[this.drawerHistory.length - 1];
+      if (lastHistory && lastHistory.items && lastHistory.items.length > 0) {
+        // 查找被点击的歌单（通过 _currentPlaylistId 匹配）
+        return lastHistory.items.find((item) => item.id === this._currentPlaylistId) || null;
+      }
+    }
+    return null;
+  }
+
+  /**
    * 清空首页状态
    */
   clearHomeState() {

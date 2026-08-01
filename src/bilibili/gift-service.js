@@ -404,21 +404,69 @@ function getGiftHistory(context, options = {}) {
   const limit = Math.min(100, Math.max(1, Math.floor(Number(options.limit) || 50)));
   const page = Math.max(1, Math.floor(Number(options.page) || 1));
 
+  // 支持全局排序
+  const sortField = String(options.sortField || 'created_at');
+  const sortDirection = String(options.sortDirection || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+  // 构建排序子句
+  let orderByClause = '';
+  switch (sortField) {
+    case 'gift_name':
+      orderByClause = `gift_name ${sortDirection}, id DESC`;
+      break;
+    case 'price':
+      orderByClause = `total_price ${sortDirection}, id DESC`;
+      break;
+    case 'remarks':
+      // 备注排序：大航海 > 盲盒盈亏 > 其他
+      // 使用CASE表达式计算排序权重
+      orderByClause = `
+        CASE
+          WHEN gift_name LIKE '%总督%' OR gift_id = 'guard-1' THEN 3000
+          WHEN gift_name LIKE '%提督%' OR gift_id = 'guard-2' THEN 2000
+          WHEN gift_name LIKE '%舰长%' OR gift_id = 'guard-3' THEN 1000
+          WHEN is_blind_box = 1 THEN COALESCE(blind_profit, 0)
+          ELSE -999999
+        END ${sortDirection}, id DESC`;
+      break;
+    case 'created_at':
+    default:
+      orderByClause = `datetime(created_at) ${sortDirection}, id DESC`;
+      break;
+  }
+
+  // 显示上限：只查询最近3000条记录用于显示
+  // 首先获取最近3000条记录的ID范围
+  const displayLimitIds = giftDb.prepare(`
+    SELECT id FROM gift_events
+    WHERE status = 'active' AND total_price > 0
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT 3000
+  `).all().map(row => row.id);
+
+  if (displayLimitIds.length === 0) {
+    return { items: [], total: 0, page: 1, limit, totalPages: 1 };
+  }
+
+  // 在显示范围内进行排序和分页
+  const minId = Math.min(...displayLimitIds);
+  const maxId = Math.max(...displayLimitIds);
+
   const totalRow = giftDb.prepare(`
     SELECT COUNT(*) AS count
     FROM gift_events
-    WHERE status = 'active' AND total_price > 0
-  `).get() || {};
+    WHERE status = 'active' AND total_price > 0 AND id >= ? AND id <= ?
+  `).get(minId, maxId) || {};
   const total = Number(totalRow.count || 0);
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const safePage = Math.min(page, totalPages);
 
   const items = giftDb.prepare(`
     SELECT * FROM gift_events
-    WHERE status = 'active' AND total_price > 0
-    ORDER BY datetime(created_at) DESC, id DESC
+    WHERE status = 'active' AND total_price > 0 AND id >= ? AND id <= ?
+    ORDER BY ${orderByClause}
     LIMIT ? OFFSET ?
-  `).all(limit, (safePage - 1) * limit).map(normalizeGiftRow);
+  `).all(minId, maxId, limit, (safePage - 1) * limit).map(normalizeGiftRow);
 
   return { items, total, page: safePage, limit, totalPages };
 }
@@ -840,6 +888,41 @@ function splitSettingList(value) {
   return String(value || '').split(/[\n,，;；]+/).map(cleanText).filter(Boolean);
 }
 
+// ── 清理函数 ──
+
+function clearRecentGifts(context) {
+  // 清理"显示"：只清理抽屉中显示的最近3000条记录
+  const giftDb = context.db.giftDb;
+
+  giftDb.exec('BEGIN');
+  try {
+    // 获取最近3000条记录的ID
+    const displayIds = giftDb.prepare(`
+      SELECT id FROM gift_events
+      WHERE status = 'active' AND total_price > 0
+      ORDER BY datetime(created_at) DESC, id DESC
+      LIMIT 3000
+    `).all().map(row => row.id);
+
+    if (displayIds.length === 0) {
+      giftDb.exec('COMMIT');
+      return { cleared: true, scope: 'display-gifts', deletedCount: 0 };
+    }
+
+    // 删除这些记录
+    const placeholders = displayIds.map(() => '?').join(',');
+    const result = giftDb.prepare(`
+      DELETE FROM gift_events WHERE id IN (${placeholders})
+    `).run(...displayIds);
+
+    giftDb.exec('COMMIT');
+    return { cleared: true, scope: 'display-gifts', deletedCount: Number(result.changes || 0) };
+  } catch (error) {
+    giftDb.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 module.exports = {
   CRYSTAL_BALL_VALUE_RMB,
   repairGiftV2Events,
@@ -852,5 +935,6 @@ module.exports = {
   getBlindBoxStats,
   searchGifts,
   normalizeGiftRow,
-  normalizeGiftInput
+  normalizeGiftInput,
+  clearRecentGifts
 };

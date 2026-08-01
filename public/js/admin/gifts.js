@@ -17,13 +17,19 @@
 
   let latestGiftNoticeKey = null;
 
-  function renderGiftPanel(gifts, sprint, live, diagnostics) {
+  function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {}) {
     // 礼物检测 toggle & 状态
     const toggle = document.getElementById('giftDetectToggle');
     const label = document.getElementById('giftDetectLabel');
     if (toggle && label) {
       toggle.checked = sprint.enabled === true;
       label.textContent = sprint.enabled ? '已开启' : '已关闭';
+    }
+
+    // 礼物提示 toggle
+    const notificationToggle = document.getElementById('enableGiftNotification');
+    if (notificationToggle) {
+      notificationToggle.checked = settings.enableGiftNotification !== 'false';
     }
 
     const status = document.getElementById('giftSprintStatus');
@@ -99,6 +105,12 @@
 
     if (newestKey === latestGiftNoticeKey) return;
     latestGiftNoticeKey = newestKey;
+
+    // 检查是否启用礼物提示
+    const enableGiftNotification = document.getElementById('enableGiftNotification');
+    if (enableGiftNotification && !enableGiftNotification.checked) {
+      return;
+    }
 
     const giftName = escapeHtml(newest.gift_name || '未知礼物');
     const userName = escapeHtml(newest.user_name || '观众');
@@ -224,6 +236,9 @@
     }
     if (blindBoxName.includes('幸运盲盒')) {
       return { name: '幸运盲盒', src: '/img/bilibili-blindbox-lucky.png' };
+    }
+    if (blindBoxName.includes('小熊虫盲盒')) {
+      return { name: '小熊虫盲盒', src: '/img/bilibili-blindbox-tardigrade.png' };
     }
     return null;
   }
@@ -415,11 +430,39 @@
     closeBtn && closeBtn.addEventListener('click', closeGiftHistoryDrawer);
     backdrop && backdrop.addEventListener('click', closeGiftHistoryDrawer);
 
-    const clearBtn = document.getElementById('giftHistoryClearBtn');
-    clearBtn && clearBtn.addEventListener('click', async () => {
+    const clearDisplayBtn = document.getElementById('giftHistoryClearDisplayBtn');
+    const clearDatabaseBtn = document.getElementById('giftHistoryClearDatabaseBtn');
+
+    clearDisplayBtn && clearDisplayBtn.addEventListener('click', async () => {
       const confirmed = await dangerConfirm({
-        title: '清空全部礼物记录',
-        message: '此操作将永久删除所有礼物流水，无法恢复。',
+        title: '清理显示',
+        message: '将清理抽屉中显示的最近3000条礼物记录。更早的记录仍保留在数据库中。此操作无法恢复。',
+        confirmLabel: '确认清理'
+      });
+      if (!confirmed) return;
+      try {
+        const response = await fetch('/api/gifts/clear-recent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: true })
+        });
+        const payload = await readJsonResponse(response, '清理显示失败');
+        if (!payload.ok) throw new Error(payload.error || '清理失败');
+        toast(`已清理 ${payload.data.deletedCount} 条显示记录`);
+        giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
+        renderGiftHistory();
+        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+          window.AdminApp.state.reloadState();
+        }
+      } catch (error) {
+        toast(error.message || '清理显示失败');
+      }
+    });
+
+    clearDatabaseBtn && clearDatabaseBtn.addEventListener('click', async () => {
+      const confirmed = await dangerConfirm({
+        title: '清空数据库礼物记录',
+        message: '此操作将永久删除数据库中的所有礼物流水（包括显示的和不显示的），无法恢复。',
         confirmLabel: '确认清空'
       });
       if (!confirmed) return;
@@ -455,15 +498,16 @@
     document.querySelectorAll('#giftHistoryDrawer th[data-sort]').forEach(th => {
       th.addEventListener('click', () => {
         const field = th.dataset.sort;
-        if (!field || !giftHistory.items.length) return;
+        if (!field) return;
         if (giftHistorySort.field === field) {
           giftHistorySort.direction = giftHistorySort.direction === 'asc' ? 'desc' : 'asc';
         } else {
           giftHistorySort.field = field;
           giftHistorySort.direction = 'asc';
         }
-        giftHistory.items = sortGiftHistoryItems(giftHistory.items, giftHistorySort.field, giftHistorySort.direction);
-        renderGiftHistory();
+        // 重新从第一页加载（后端排序）
+        giftHistory.page = 1;
+        loadGiftHistory(1);
       });
     });
 
@@ -492,15 +536,17 @@
     if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
 
     try {
-      const response = await fetch(`/api/gifts/history?page=${page}&limit=${GIFT_HISTORY_LIMIT}`);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(GIFT_HISTORY_LIMIT),
+        sortField: giftHistorySort.field,
+        sortDirection: giftHistorySort.direction
+      });
+      const response = await fetch(`/api/gifts/history?${params}`);
       const payload = await readJsonResponse(response, '礼物流水加载失败');
       if (!response.ok || !payload.ok) throw new Error(payload.error || `礼物流水加载失败（HTTP ${response.status}）`);
       if (seq !== giftHistorySeq) return;
       giftHistory = { ...giftHistory, ...payload.data };
-      // 非默认排序时对当前页数据重排
-      if (giftHistorySort.field !== 'created_at' || giftHistorySort.direction !== 'desc') {
-        giftHistory.items = sortGiftHistoryItems(giftHistory.items, giftHistorySort.field, giftHistorySort.direction);
-      }
       renderGiftHistory();
     } catch (error) {
       if (seq !== giftHistorySeq) return;
@@ -561,50 +607,6 @@
         <td>${remarks.length ? remarks.join(' ') : '<span class="hint">—</span>'}</td>
       </tr>
     `;
-  }
-
-  function sortGiftHistoryItems(items, field, direction) {
-    const sorted = [...items];
-    const dir = direction === 'asc' ? 1 : -1;
-
-    const getRemarkKey = (item) => {
-      const giftName = String(item.gift_name || '').toLowerCase();
-      const giftId = String(item.gift_id || '').toLowerCase();
-      if (giftName.includes('总督') || giftId === 'guard-1') return 3000;
-      if (giftName.includes('提督') || giftId === 'guard-2') return 2000;
-      if (giftName.includes('舰长') || giftId === 'guard-3') return 1000;
-      if (item.is_blind_box) return Number(item.blind_profit || 0);
-      return -Infinity;
-    };
-
-    sorted.sort((a, b) => {
-      let va, vb;
-      switch (field) {
-        case 'created_at':
-          va = a.created_at || '';
-          vb = b.created_at || '';
-          break;
-        case 'gift_name':
-          va = (a.gift_name || '').toLowerCase();
-          vb = (b.gift_name || '').toLowerCase();
-          break;
-        case 'price':
-          va = Number(a.sprint_count_price ?? a.total_price ?? 0);
-          vb = Number(b.sprint_count_price ?? b.total_price ?? 0);
-          break;
-        case 'remarks':
-          va = getRemarkKey(a);
-          vb = getRemarkKey(b);
-          break;
-        default:
-          return 0;
-      }
-      if (va < vb) return -1 * dir;
-      if (va > vb) return 1 * dir;
-      return 0;
-    });
-
-    return sorted;
   }
 
   // ── 最近礼物折叠切换 ──
