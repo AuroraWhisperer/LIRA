@@ -911,54 +911,6 @@ import { HomeService } from './playback/services/home-service.js';
         }
         await addTrackToQqPlaylist(track);
       }
-        if (!track || track.source !== 'qq' || Number(track.sourceSongId) <= 0) {
-          toast('这首歌曲缺少 QQ 音乐数值 ID，暂时无法添加到歌单');
-          return;
-        }
-        try {
-          const listResponse = await fetch('/api/music/home', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ platform: 'qq', action: 'created-playlists', limit: 500, refresh: true })
-          });
-          const listPayload = await readJsonResponse(listResponse, '加载 QQ 音乐歌单失败');
-          if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || '加载 QQ 音乐歌单失败');
-          const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
-            ? listPayload.data.playlists.filter((item) => item && item.dirId && (item.tid || item.id))
-            : [];
-          if (playlists.length === 0) throw new Error('没有找到可写入的 QQ 音乐歌单');
-
-          const choices = playlists.map((item, index) => {
-            const liked = String(item.dirId) === '201' ? '（我喜欢）' : '';
-            return `${index + 1}. ${item.title || item.id}${liked}`;
-          }).join('\n');
-          const selected = window.prompt(`请选择要添加到的 QQ 音乐歌单：\n\n${choices}`, '1');
-          if (selected == null) return;
-          const selectedIndex = Number.parseInt(selected, 10) - 1;
-          const playlist = playlists[selectedIndex];
-          if (!playlist) {
-            toast('歌单序号无效');
-            return;
-          }
-
-          const writeResponse = await fetch('/api/music/playlists/tracks/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ platform: 'qq', playlist, tracks: [track] })
-          });
-          const writePayload = await readJsonResponse(writeResponse, '添加到 QQ 音乐歌单失败');
-          if (!writeResponse.ok || !writePayload.ok) throw new Error(writePayload.error || '添加到 QQ 音乐歌单失败');
-          const song = writePayload.data && writePayload.data.result
-            && Array.isArray(writePayload.data.result.songlist)
-            ? writePayload.data.result.songlist[0]
-            : null;
-          toast(song && Number(song.existed) === 1
-            ? `歌曲已在「${playlist.title}」中`
-            : `已添加到「${playlist.title}」`);
-        } catch (error) {
-          showError(error);
-        }
-      }
 
       function queuePlaybackTrack(track, action, options = {}) {
         if (!track) return;
