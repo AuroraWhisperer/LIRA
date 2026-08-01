@@ -171,6 +171,7 @@ import { HomeService } from './playback/services/home-service.js';
 
     let playbackAuthState = null;
     let playbackProviderHealth = null;
+    let playbackProviderRefreshId = 0;
     let playbackRadioRefillRunning = false;
     let playbackInitialized = false;
 
@@ -206,7 +207,7 @@ import { HomeService } from './playback/services/home-service.js';
         document.getElementById('playbackPrev')?.addEventListener('click', playbackPrevious);
         document.getElementById('playbackNext')?.addEventListener('click', () => playbackNext(false));
         document.getElementById('playbackPlayPause')?.addEventListener('click', togglePlayback);
-        document.getElementById('playbackAddToPlaylistBtn')?.addEventListener('click', addCurrentTrackToQqPlaylist);
+        document.getElementById('playbackAddToPlaylistBtn')?.addEventListener('click', addCurrentTrackToPlaylist);
         document.getElementById('playbackLoginBtn')?.addEventListener('click', loginSelectedMusicProvider);
         document.getElementById('playbackLogoutBtn')?.addEventListener('click', logoutSelectedMusicProvider);
         document.getElementById('playbackHealthBtn')?.addEventListener('click', checkSelectedMusicProviderHealth);
@@ -276,18 +277,18 @@ import { HomeService } from './playback/services/home-service.js';
           button.addEventListener('click', () => {
             const newSource = button.dataset.source;
             console.log('[Playback] Tab clicked:', newSource, 'Current:', playbackState.selectedSource);
+            if (!newSource || newSource === playbackState.selectedSource) return;
 
-            // 直接使用 data-source 的值，不需要三元运算符
             playbackState.selectedSource = newSource;
-            playbackAuthState = null;
-            playbackProviderHealth = null;
+            playbackAuthState = providerManager.getAuthState(newSource);
+            playbackProviderHealth = providerManager.getProviderHealth(newSource);
             searchService.clearResults();
             homeService.clearHomeState();
             savePlaybackState();
             renderPlayback();
             renderPlaybackSearchResults();
             closePlaybackDrawer();
-            refreshSelectedMusicProviderState();
+            void refreshSelectedMusicProviderState();
 
             console.log('[Playback] After click, selectedSource:', playbackState.selectedSource);
           });
@@ -420,40 +421,59 @@ import { HomeService } from './playback/services/home-service.js';
         }
 
         renderPlayback();
-        refreshSelectedMusicProviderState();
+        void refreshSelectedMusicProviderState();
         refreshPlaybackMusicCacheStats();
       }
 
       async function refreshSelectedMusicProviderState() {
-        await Promise.all([
-          providerManager.refreshAuthState(),
-          providerManager.checkProviderHealth({ silent: true })
+        const platform = playbackState.selectedSource;
+        const refreshId = ++playbackProviderRefreshId;
+        const [authResult, healthResult] = await Promise.allSettled([
+          providerManager.refreshAuthState({ platform, notify: false }),
+          providerManager.checkProviderHealth({ platform, silent: true, notify: false })
         ]);
-        playbackAuthState = providerManager.getAuthState();
-        playbackProviderHealth = providerManager.getProviderHealth();
+
+        if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
+        playbackAuthState = authResult.status === 'fulfilled'
+          ? authResult.value
+          : providerManager.getAuthState(platform);
+        playbackProviderHealth = providerManager.getProviderHealth(platform);
+        if (!playbackProviderHealth && healthResult.status === 'rejected') {
+          playbackProviderHealth = {
+            source: platform,
+            ok: false,
+            status: 'error',
+            message: healthResult.reason?.message || String(healthResult.reason)
+          };
+        }
         renderPlayback();
       }
 
       async function refreshSelectedMusicAuthState() {
-        await providerManager.refreshAuthState();
-        return providerManager.getAuthState();
+        const platform = playbackState.selectedSource;
+        const authState = await providerManager.refreshAuthState({ platform, notify: false });
+        if (playbackState.selectedSource === platform) {
+          playbackAuthState = authState;
+          renderPlayback();
+        }
+        return authState;
       }
 
       async function checkSelectedMusicProviderHealth(options = {}) {
+        const platform = playbackState.selectedSource;
         try {
-          if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
-            playbackProviderHealth = await window.musicAPI.providerHealth(playbackState.selectedSource);
-          } else {
-            const response = await fetch(`/api/music/health?platform=${encodeURIComponent(playbackState.selectedSource)}`);
-            const payload = await readJsonResponse(response, '检查音乐接口失败');
-            if (!payload.ok) throw new Error(payload.error || '检查音乐接口失败');
-            playbackProviderHealth = payload.data;
-          }
+          const healthState = await providerManager.checkProviderHealth({
+            platform,
+            silent: true,
+            notify: false
+          });
+          if (playbackState.selectedSource !== platform) return healthState;
+          playbackProviderHealth = healthState;
           if (!options.silent) {
             const healthOk = playbackProviderHealth && playbackProviderHealth.ok;
             if (typeof U.showStackedToast === 'function') {
               U.showStackedToast({
-                key: `playback-health:${playbackState.selectedSource}`,
+                key: `playback-health:${platform}`,
                 title: healthOk ? '接口检查通过' : '接口状态异常',
                 message: playbackProviderHealth.message || '音乐接口检查完成',
                 className: healthOk ? 'playback-health-toast-good' : 'playback-health-toast-warn',
@@ -464,8 +484,9 @@ import { HomeService } from './playback/services/home-service.js';
             }
           }
         } catch (error) {
+          if (playbackState.selectedSource !== platform) return providerManager.getProviderHealth(platform);
           playbackProviderHealth = {
-            source: playbackState.selectedSource,
+            source: platform,
             ok: false,
             status: 'error',
             message: error.message || String(error)
@@ -827,7 +848,7 @@ import { HomeService } from './playback/services/home-service.js';
         if (!track) return;
 
         if (action === 'add-to-playlist') {
-          void addTrackToQqPlaylist(track);
+          void addTrackToPlaylist(track);
           return;
         }
 
@@ -853,44 +874,48 @@ import { HomeService } from './playback/services/home-service.js';
         });
       }
 
-      async function addTrackToQqPlaylist(track) {
-        if (!track || track.source !== 'qq' || Number(track.sourceSongId) <= 0) {
-          toast('这首歌曲缺少 QQ 音乐数值 ID，暂时无法添加到歌单');
+      function canAddTrackToPlaylist(track) {
+        if (!track) return false;
+        if (track.source === 'qq') return Number(track.sourceSongId) > 0;
+        if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
+        return false;
+      }
+
+      async function addTrackToPlaylist(track) {
+        if (!canAddTrackToPlaylist(track)) {
+          toast('这首歌曲缺少平台歌曲 ID，暂时无法添加到歌单');
           return;
         }
+        const platform = track.source;
+        const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
         try {
+          toast('正在检查歌单中的歌曲…');
           const listResponse = await fetch('/api/music/home', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ platform: 'qq', action: 'created-playlists', limit: 500, refresh: true })
+            body: JSON.stringify({ platform, action: 'created-playlists', limit: 500, refresh: true, track })
           });
-          const listPayload = await readJsonResponse(listResponse, '加载 QQ 音乐歌单失败');
-          if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || '加载 QQ 音乐歌单失败');
+          const listPayload = await readJsonResponse(listResponse, `加载${platformLabel}歌单失败`);
+          if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
           const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
-            ? listPayload.data.playlists.filter((item) => item && item.dirId && (item.tid || item.id))
+            ? listPayload.data.playlists.filter((item) => item && (
+              platform === 'qq'
+                ? item.dirId && (item.tid || item.id)
+                : item.id
+            ))
             : [];
-          if (playlists.length === 0) throw new Error('没有找到可写入的 QQ 音乐歌单');
-
-          const choices = playlists.map((item, index) => {
-            const liked = String(item.dirId) === '201' ? '（我喜欢）' : '';
-            return `${index + 1}. ${item.title || item.id}${liked}`;
-          }).join('\n');
-          const selected = window.prompt(`请选择要添加到的 QQ 音乐歌单：\n\n${choices}`, '1');
-          if (selected == null) return;
-          const selectedIndex = Number.parseInt(selected, 10) - 1;
-          const playlist = playlists[selectedIndex];
-          if (!playlist) {
-            toast('歌单序号无效');
-            return;
-          }
+          if (playlists.length === 0) throw new Error(`没有找到可写入的${platformLabel}歌单`);
+          const playlist = await choosePlaylistForTrack(platformLabel, playlists, track);
+          if (!playlist) return;
+          if (!window.confirm(`确认将「${track.title || '当前歌曲'}」添加到「${playlist.title || playlist.id}」？`)) return;
 
           const writeResponse = await fetch('/api/music/playlists/tracks/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ platform: 'qq', playlist, tracks: [track] })
+            body: JSON.stringify({ platform, playlist, tracks: [track] })
           });
-          const writePayload = await readJsonResponse(writeResponse, '添加到 QQ 音乐歌单失败');
-          if (!writeResponse.ok || !writePayload.ok) throw new Error(writePayload.error || '添加到 QQ 音乐歌单失败');
+          const writePayload = await readJsonResponse(writeResponse, `添加到${platformLabel}歌单失败`);
+          if (!writeResponse.ok || !writePayload.ok) throw new Error(writePayload.error || `添加到${platformLabel}歌单失败`);
           const song = writePayload.data && writePayload.data.result
             && Array.isArray(writePayload.data.result.songlist)
             ? writePayload.data.result.songlist[0]
@@ -903,13 +928,76 @@ import { HomeService } from './playback/services/home-service.js';
         }
       }
 
-      async function addCurrentTrackToQqPlaylist() {
+      function choosePlaylistForTrack(platformLabel, playlists, track) {
+        return new Promise((resolve) => {
+          const backdrop = document.createElement('div');
+          backdrop.className = 'playlist-picker-backdrop';
+          backdrop.setAttribute('role', 'dialog');
+          backdrop.setAttribute('aria-modal', 'true');
+          const availableCount = playlists.filter((item) => item.containsTrack === false).length;
+          backdrop.innerHTML = `
+            <div class="playlist-picker-dialog">
+              <div class="playlist-picker-header">
+                <div>
+                  <h3>添加到${escapeHtml(platformLabel)}歌单</h3>
+                  <p>${escapeHtml(track.title || '当前歌曲')} · ${availableCount} 个歌单可添加</p>
+                </div>
+                <button type="button" class="playlist-picker-close" aria-label="关闭">×</button>
+              </div>
+              <div class="playlist-picker-list">
+                ${playlists.map((item, index) => {
+                  const isAdded = item.containsTrack === true;
+                  const checkFailed = item.containsTrack == null;
+                  const status = isAdded ? '已添加' : (checkFailed ? '检查失败' : '可添加');
+                  return `
+                    <button type="button" class="playlist-picker-item${isAdded ? ' is-added' : ''}" data-playlist-picker-index="${index}" ${isAdded || checkFailed ? 'disabled' : ''}>
+                      ${PlaybackUtils.renderArtwork(item, { fallback: '单' })}
+                      <span class="playlist-picker-name">${escapeHtml(item.title || item.id)}</span>
+                      <span class="playlist-picker-status">${status}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+              <div class="playlist-picker-footer">
+                <span>已添加的歌单不可重复选择</span>
+                <button type="button" class="playlist-picker-cancel">取消</button>
+              </div>
+            </div>
+          `;
+
+          let settled = false;
+          const close = (playlist = null) => {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', handleKeydown);
+            backdrop.remove();
+            resolve(playlist);
+          };
+          const handleKeydown = (event) => {
+            if (event.key === 'Escape') close();
+          };
+          backdrop.addEventListener('click', (event) => {
+            if (event.target === backdrop || event.target.closest('.playlist-picker-close, .playlist-picker-cancel')) {
+              close();
+              return;
+            }
+            const button = event.target.closest('[data-playlist-picker-index]');
+            if (!button || button.disabled) return;
+            close(playlists[Number(button.dataset.playlistPickerIndex)] || null);
+          });
+          document.addEventListener('keydown', handleKeydown);
+          document.body.appendChild(backdrop);
+          backdrop.querySelector('.playlist-picker-item:not(:disabled), .playlist-picker-close')?.focus();
+        });
+      }
+
+      async function addCurrentTrackToPlaylist() {
         const track = playbackState.current;
         if (!track) {
           toast('当前没有播放歌曲');
           return;
         }
-        await addTrackToQqPlaylist(track);
+        await addTrackToPlaylist(track);
       }
 
       function queuePlaybackTrack(track, action, options = {}) {
@@ -983,8 +1071,8 @@ import { HomeService } from './playback/services/home-service.js';
               <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}" title="添加到播放队列末尾">入队</button>
               <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>
               <button type="button" data-playback-search-action="play" data-playback-search-index="${index}" title="立即播放这首歌">播放</button>
-              ${track.source === 'qq' && Number(track.sourceSongId) > 0
-                ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到 QQ 音乐歌单">歌单</button>`
+              ${canAddTrackToPlaylist(track)
+                ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到音乐歌单">歌单</button>`
                 : ''}
             </div>
           </div>
@@ -995,7 +1083,7 @@ import { HomeService } from './playback/services/home-service.js';
         const track = searchService.getResultByIndex(index);
         if (!track) return;
         if (action === 'add-to-playlist') {
-          void addTrackToQqPlaylist(track);
+          void addTrackToPlaylist(track);
           return;
         }
         const queuedTrack = PlaybackUtils.normalizeOnlineTrack(track);
@@ -1922,8 +2010,9 @@ import { HomeService } from './playback/services/home-service.js';
         const addToPlaylistBtn = document.getElementById('playbackAddToPlaylistBtn');
         if (addToPlaylistBtn) {
           const track = playbackState.current;
-          const canAdd = track && track.source === 'qq' && Number(track.sourceSongId) > 0;
+          const canAdd = canAddTrackToPlaylist(track);
           addToPlaylistBtn.disabled = !canAdd;
+          addToPlaylistBtn.title = canAdd ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单` : '当前歌曲无法添加到歌单';
         }
 
         // 渲染搜索结果和待确认弹窗

@@ -1,8 +1,19 @@
 # 打包与更新说明
 
-当前版本：`1.6.3`
+当前版本：`1.6.4`
 
 ---
+
+## v1.6.4 变更
+
+- 🎵 **网易云音乐歌单写入支持**：歌单添加功能从仅 QQ 音乐扩展为支持 QQ 音乐 + 网易云音乐双平台，`addTrackToQqPlaylist` 重构为 `addTrackToPlaylist`，新增 `canAddTrackToPlaylist()` 统一判断各平台可添加性。
+- 🎨 **歌单选择器 UI**：用自定义模态弹窗替代 `window.prompt`，展示歌单封面、歌曲已添加状态标记（已添加/可添加/检查失败），支持 ESC 关闭、遮罩点击关闭、移动端底部弹出适配；歌单写入前增加二次确认弹窗。
+- 🔍 **歌单预检查**：打开歌单选择器时并发检查每个歌单是否已包含当前歌曲，通过 `annotatePlaylistMembership` + `mapWithConcurrency` 并发控制（6 路），已添加的歌单自动禁用不可重复选择。网易云新增 `playlistContainsTrack` 方法。
+- 🔐 **网易云 weapi 加密**：实现网易云音乐 weapi 加密协议（AES-128-CBC + RSA），支持歌单写入操作的加密请求，新增 `requestWeapiJson`、`encryptNeteaseWeapiPayload` 等加密基础设施。
+- 🏗️ **ProviderManager 按平台状态隔离**：`authState` / `providerHealth` 从单值改为 `authStateBySource` / `providerHealthBySource` Map 按平台存储，`_authStateApiUnavailable` 改为按平台 Set，新增 `setProviderHealth` / `setAuthState` 辅助方法。`refreshAuthState` / `checkProviderHealth` 等均接受 `{ platform, notify }` 选项，解决切换平台时状态串扰问题。
+- 🛡️ **刷新竞态保护**：`refreshSelectedMusicProviderState` 新增 `playbackProviderRefreshId` 递增 ID，`Promise.all` 改为 `Promise.allSettled`，平台不匹配时丢弃过期结果，防止快速切换平台导致的状态错乱。
+- 🔧 **QQ Cookie 提取增强**：`extractUin` 改为泛化正则匹配任意 `*uin` 结尾的 Cookie 名，新增 `ptnick_<QQ号>` 格式兜底提取；`keyCookies` 新增 `p_uin`、`pt2gguin`、`superuin`，提升 QQ 登录状态持久化成功率。
+- 🎨 **播放器 UI 微调**：歌单按钮图标从音符改为加号圆圈图标，按钮 title 按平台动态显示；进度条列间距收紧；健康状态区域增加 flex 布局和最小高度防止布局抖动。
 
 ## v1.6.3 变更
 

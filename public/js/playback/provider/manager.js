@@ -13,10 +13,12 @@ export class ProviderManager {
 
     // 提供商健康状态
     this.providerHealth = null;
+    this.providerHealthBySource = new Map();
     // 认证状态
     this.authState = null;
+    this.authStateBySource = new Map();
     // 标记认证状态 API 是否不可用（避免重复请求404接口）
-    this._authStateApiUnavailable = false;
+    this._authStateApiUnavailable = new Set();
   }
 
   /**
@@ -31,113 +33,132 @@ export class ProviderManager {
 
   /**
    * 刷新提供商状态
-   * @returns {Promise<void>}
+   * @param {Object} options - 平台、静默和渲染选项
+   * @returns {Promise<Object|null>}
    */
-  async refreshProviderState() {
+  async refreshProviderState(options = {}) {
+    const source = options.platform ?? this.state?.selectedSource;
     try {
       // 桌面版优先使用 Electron IPC
       if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
-        this.providerHealth = await window.musicAPI.providerHealth(this.state.selectedSource);
-        this.onStateChange();
-        return;
+        const healthState = await window.musicAPI.providerHealth(source);
+        this.setProviderHealth(source, healthState, options);
+        return healthState;
       }
 
       // Web 版回退到 HTTP API（/api/music/health）
-      const platform = encodeURIComponent(this.state.selectedSource);
+      const platform = encodeURIComponent(source);
       const response = await fetch(`/api/music/health?platform=${platform}`);
 
       const readJson = this.readJsonResponse || ((r) => r.json());
       const data = await readJson(response, '获取提供商状态失败');
 
       if (data.ok && data.data) {
-        this.providerHealth = data.data;
-        this.onStateChange();
+        this.setProviderHealth(source, data.data, options);
+        return data.data;
       }
+      return null;
     } catch (error) {
       console.error('[ProviderManager] refreshProviderState failed:', error);
-      this.onError(error);
+      if (!options.silent) this.onError(error);
+      return null;
     }
   }
 
   /**
    * 刷新认证状态
-   * @returns {Promise<void>}
+   * @param {Object} options - 平台、强制刷新和渲染选项
+   * @returns {Promise<Object|null>}
    */
-  async refreshAuthState() {
-    // 每次显式刷新都重置标记（切 source / 手动刷新等场景应该重试）
-    this._authStateApiUnavailable = false;
+  async refreshAuthState(options = {}) {
+    const source = options.platform ?? this.state?.selectedSource;
+    if (options.force) this._authStateApiUnavailable.delete(source);
 
     try {
       // 桌面版优先使用 Electron IPC
       if (window.musicAPI && typeof window.musicAPI.getAuthState === 'function') {
-        this.authState = await window.musicAPI.getAuthState(this.state.selectedSource);
-        this.onStateChange();
-        return;
+        const authState = await window.musicAPI.getAuthState(source);
+        this.setAuthState(source, authState, options);
+        return authState;
       }
 
       // Web 版：如果之前已知接口不可用，直接跳过
-      if (this._authStateApiUnavailable) {
-        this.authState = null;
-        this.onStateChange();
-        return;
+      if (this._authStateApiUnavailable.has(source)) {
+        this.setAuthState(source, null, options);
+        return null;
       }
 
       // Web 版回退到 HTTP API（如果后端实现了该接口）
       const response = await fetch('/api/music/auth-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: this.state.selectedSource })
+        body: JSON.stringify({ platform: source })
       });
 
       // Web 版可能没有实现此接口，404/501 时使用空状态并标记接口不可用
       if (response.status === 404 || response.status === 501) {
-        this._authStateApiUnavailable = true;
-        this.authState = null;
-        this.onStateChange();
-        return;
+        this._authStateApiUnavailable.add(source);
+        this.setAuthState(source, null, options);
+        return null;
       }
 
       const readJson = this.readJsonResponse || ((r) => r.json());
       const data = await readJson(response, '获取认证状态失败');
 
       if (data.ok) {
-        this.authState = data.data || null;
-        this.onStateChange();
+        const authState = data.data || null;
+        this.setAuthState(source, authState, options);
+        return authState;
       }
+      return null;
     } catch (error) {
       // 网络错误或其他错误，标记接口不可用（避免后续重复请求）
       if (error.message && error.message.includes('Failed to fetch')) {
-        this._authStateApiUnavailable = true;
+        this._authStateApiUnavailable.add(source);
       }
       console.warn('[ProviderManager] refreshAuthState failed (this is normal for web version):', error.message);
-      this.authState = null;
-      this.onStateChange();
+      this.setAuthState(source, null, options);
       // Web 版没有认证接口是正常的，不需要显示错误
+      return null;
     }
   }
 
   /**
    * 检查提供商健康状态
    * @param {Object} options - 选项
-   * @returns {Promise<void>}
+   * @returns {Promise<Object>}
    */
   async checkProviderHealth(options = {}) {
+    const source = options.platform ?? this.state?.selectedSource;
     try {
-      const platform = encodeURIComponent(this.state.selectedSource);
+      if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
+        const healthState = await window.musicAPI.providerHealth(source);
+        this.setProviderHealth(source, healthState, options);
+        return healthState;
+      }
+
+      const platform = encodeURIComponent(source);
       const response = await fetch(`/api/music/health?platform=${platform}`);
 
       const readJson = this.readJsonResponse || ((r) => r.json());
       const data = await readJson(response, '健康检查失败');
 
       if (data.ok && data.data) {
-        this.providerHealth = data.data;
-        this.onStateChange();
+        this.setProviderHealth(source, data.data, options);
+        return data.data;
       } else {
         throw new Error(data.error || '健康检查失败');
       }
     } catch (error) {
       console.error('[ProviderManager] checkProviderHealth failed:', error);
-      this.onError(error);
+      const healthState = {
+        source,
+        ok: false,
+        status: 'error',
+        message: error.message || String(error)
+      };
+      this.setProviderHealth(source, healthState, options);
+      if (!options.silent) this.onError(error);
       throw error;
     }
   }
@@ -158,7 +179,7 @@ export class ProviderManager {
       const data = await readJson(response, '登录失败');
 
       if (data.ok) {
-        await this.refreshAuthState();
+        await this.refreshAuthState({ force: true });
         this.onStateChange();
       } else {
         throw new Error(data.error || '登录失败');
@@ -189,6 +210,7 @@ export class ProviderManager {
 
       if (data.ok) {
         this.authState = null;
+        this.authStateBySource.set(platform, null);
         this.onStateChange();
       } else {
         throw new Error(data.error || '登出失败');
@@ -204,16 +226,32 @@ export class ProviderManager {
    * 获取提供商健康状态
    * @returns {Object|null}
    */
-  getProviderHealth() {
-    return this.providerHealth;
+  getProviderHealth(platform = this.state?.selectedSource) {
+    return this.providerHealthBySource.get(platform) ?? null;
   }
 
   /**
    * 获取认证状态
    * @returns {Object|null}
    */
-  getAuthState() {
-    return this.authState;
+  getAuthState(platform = this.state?.selectedSource) {
+    return this.authStateBySource.get(platform) ?? null;
+  }
+
+  /** 保存指定平台的健康状态，并只通知当前平台。 */
+  setProviderHealth(platform, healthState, options = {}) {
+    this.providerHealthBySource.set(platform, healthState);
+    if (this.state?.selectedSource !== platform) return;
+    this.providerHealth = healthState;
+    if (options.notify !== false) this.onStateChange();
+  }
+
+  /** 保存指定平台的认证状态，并只通知当前平台。 */
+  setAuthState(platform, authState, options = {}) {
+    this.authStateBySource.set(platform, authState);
+    if (this.state?.selectedSource !== platform) return;
+    this.authState = authState;
+    if (options.notify !== false) this.onStateChange();
   }
 
   /**

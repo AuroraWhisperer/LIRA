@@ -1,10 +1,15 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const { parseLyricResult } = require('../lyrics');
 
 const NETEASE_BASE_URL = 'https://music.163.com';
 const REQUEST_TIMEOUT_MS = 10000;
 const STREAM_TTL_MS = 5 * 60 * 1000;
+const WEAPI_NONCE = '0CoJUm6Qyw8W8jud';
+const WEAPI_IV = '0102030405060708';
+const WEAPI_PUBLIC_KEY = '010001';
+const WEAPI_MODULUS = '00e0b509f6259df8642dbc35662901477df22677ec152b5f5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741ad8f16f4353b8b1cb4d20a7e1cdde46f';
 
 class NeteaseMusicProvider {
   constructor(options = {}) {
@@ -169,6 +174,25 @@ class NeteaseMusicProvider {
     return tracks.map(mapNeteaseSong).filter(Boolean);
   }
 
+  async playlistContainsTrack(playlistId, track) {
+    const id = String(playlistId || '').trim();
+    if (!/^\d+$/.test(id)) throw new Error('缺少网易云歌单 ID。');
+    const trackId = extractSourceTrackId(track);
+    const data = await this.requestJson('/api/v6/playlist/detail', {
+      id,
+      n: '0',
+      s: '0'
+    });
+    const trackIds = data && data.playlist && Array.isArray(data.playlist.trackIds)
+      ? data.playlist.trackIds
+      : null;
+    if (trackIds) {
+      return trackIds.some((item) => String(item && (item.id || item)) === trackId);
+    }
+    const tracks = await this.getPlaylistTracks(id, { limit: 5000 });
+    return tracks.some((item) => extractSourceTrackId(item) === trackId);
+  }
+
   async getUserPlaylists(userId, options = {}) {
     const uid = String(userId || '').trim();
     if (!uid) throw new Error('缺少网易云用户 ID。');
@@ -180,6 +204,43 @@ class NeteaseMusicProvider {
     });
     const playlists = data && Array.isArray(data.playlist) ? data.playlist : [];
     return playlists.map(mapNeteasePlaylist).filter(Boolean);
+  }
+
+  async addTracksToPlaylist(playlist, tracks) {
+    return this.writePlaylistTracks('add', playlist, tracks);
+  }
+
+  async removeTracksFromPlaylist(playlist, tracks) {
+    return this.writePlaylistTracks('del', playlist, tracks);
+  }
+
+  async writePlaylistTracks(operation, playlist, tracks) {
+    await this.requireLogin('修改网易云音乐歌单需要先登录。');
+    const playlistId = String(playlist && playlist.id || '').trim();
+    if (!/^\d+$/.test(playlistId)) throw new Error('缺少网易云歌单 ID。');
+    const trackIds = normalizeNeteasePlaylistTrackIds(tracks);
+    const data = await this.requestWeapiJson('/weapi/playlist/manipulate/tracks', {
+      op: operation,
+      pid: playlistId,
+      trackIds: JSON.stringify(trackIds),
+      imme: 'true',
+      tracks: JSON.stringify(trackIds.map((id) => ({ type: 3, id })))
+    });
+    const code = Number(data && data.code);
+    if (operation === 'add' && code === 502) {
+      return {
+        playlistId,
+        songlist: trackIds.map((songId) => ({ songId, existed: 1 }))
+      };
+    }
+    if (code !== 200) {
+      const message = data && (data.message || data.msg);
+      throw new Error(`网易云音乐歌单写入失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`);
+    }
+    return {
+      playlistId,
+      songlist: trackIds.map((songId) => ({ songId, existed: 0 }))
+    };
   }
 
   async getLyrics(track) {
@@ -239,6 +300,38 @@ class NeteaseMusicProvider {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch (error) {
+      throw new Error(`网易云音乐返回了非 JSON 响应：${error.message}`);
+    }
+  }
+
+  async requestWeapiJson(pathname, payload) {
+    const cookieHeader = await this.getSafeCookieHeader();
+    const csrfToken = extractCookieValue(cookieHeader, '__csrf');
+    const encrypted = encryptNeteaseWeapiPayload({
+      ...payload,
+      csrf_token: csrfToken
+    });
+    const url = new URL(pathname, NETEASE_BASE_URL);
+    url.searchParams.set('csrf_token', csrfToken);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json,text/plain,*/*',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Cookie: cookieHeader,
+        Origin: NETEASE_BASE_URL,
+        Referer: `${NETEASE_BASE_URL}/`,
+        'User-Agent': 'Mozilla/5.0 SongAssistant/1.0'
+      },
+      body: new URLSearchParams(encrypted).toString(),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     try {
       return text ? JSON.parse(text) : {};
     } catch (error) {
@@ -333,6 +426,53 @@ function extractSourceTrackId(track) {
     .trim();
   if (!sourceTrackId) throw new Error('缺少网易云歌曲 ID。');
   return sourceTrackId;
+}
+
+function normalizeNeteasePlaylistTrackIds(tracks) {
+  const trackIds = (Array.isArray(tracks) ? tracks : []).map((track) => extractSourceTrackId(track));
+  if (trackIds.length === 0) throw new Error('缺少网易云歌曲 ID。');
+  if (trackIds.some((id) => !/^\d+$/.test(id))) throw new Error('网易云歌曲 ID 必须是正整数。');
+  return trackIds;
+}
+
+function extractCookieValue(cookieHeader, name) {
+  const pair = String(cookieHeader || '')
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${name}=`));
+  return pair ? pair.slice(name.length + 1) : '';
+}
+
+function encryptNeteaseWeapiPayload(payload) {
+  const secretKey = crypto.randomBytes(16).toString('hex').slice(0, 16);
+  return {
+    params: aesEncrypt(aesEncrypt(JSON.stringify(payload), WEAPI_NONCE), secretKey),
+    encSecKey: rsaEncrypt(secretKey)
+  };
+}
+
+function aesEncrypt(text, key) {
+  const cipher = crypto.createCipheriv('aes-128-cbc', Buffer.from(key), Buffer.from(WEAPI_IV));
+  return Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]).toString('base64');
+}
+
+function rsaEncrypt(secretKey) {
+  const reversedHex = Buffer.from(secretKey).reverse().toString('hex');
+  return modularPower(BigInt(`0x${reversedHex}`), BigInt(`0x${WEAPI_PUBLIC_KEY}`), BigInt(`0x${WEAPI_MODULUS}`))
+    .toString(16)
+    .padStart(256, '0');
+}
+
+function modularPower(base, exponent, modulus) {
+  let result = 1n;
+  let factor = base % modulus;
+  let power = exponent;
+  while (power > 0n) {
+    if (power & 1n) result = (result * factor) % modulus;
+    factor = (factor * factor) % modulus;
+    power >>= 1n;
+  }
+  return result;
 }
 
 function clampInteger(value, min, max, fallback) {

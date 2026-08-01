@@ -1051,10 +1051,16 @@ function calcQQGtk(value) {
 
 function extractUin(cookieHeader) {
   const text = String(cookieHeader || '');
-  // 支持多种 Cookie 名称：qqmusic_uin, uin, wxuin, o_cookie, qm_hideuin
-  // 值格式：可以是 o123456 或直接 123456
-  const match = text.match(/(?:^|;\s*)(?:qqmusic_uin|wxuin|uin|o_cookie|qm_hideuin)=o?(\d+)/);
-  return match ? match[1] : '';
+  // QQ 音乐/QQ 登录历史上用过的 Cookie 名五花八门：
+  //   uin, o_cookie, qqmusic_uin, qm_hideuin, wxuin, p_uin, pt2gguin, superuin ...
+  // 与其穷举，不如用泛化规则：所有以 _uin 或 uin 结尾的 Cookie 名都匹配。
+  // 值格式：o<QQ号> 或直接 <QQ号>
+  const match = text.match(/(?:^|;\s*)([\w-]*uin)=o?(\d{5,15})/i);
+  if (match) return match[2];
+
+  // 兜底：如果 Cookie 值里找不到，尝试从 ptnick_<QQ号> 格式的 Cookie 名中提取
+  const nickMatch = text.match(/(?:^|;\s*)ptnick_(\d{5,15})=/);
+  return nickMatch ? nickMatch[1] : '';
 }
 
 function buildGuid() {

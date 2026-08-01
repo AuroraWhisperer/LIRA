@@ -252,7 +252,8 @@ export function renderHomeTrackRow(track, index, context, action = '') {
   const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
   const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
   const showRadioButton = action === 'radio';
-  const canAddToQqPlaylist = track.source === 'qq' && Number(track.sourceSongId) > 0;
+  const canAddToPlaylist = (track.source === 'qq' && Number(track.sourceSongId) > 0)
+    || (track.source === 'netease' && /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, '')));
 
   return `
     <div class="queue-row playback-home-row">
@@ -270,8 +271,8 @@ export function renderHomeTrackRow(track, index, context, action = '') {
           : `<button type="button" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}" title="插入到当前播放歌曲之后">插队</button>`
         }
         <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="立即播放这首歌">播放</button>
-        ${canAddToQqPlaylist
-          ? `<button type="button" data-${dataPrefix}-action="add-to-playlist" data-${dataPrefix}-index="${index}" title="添加到 QQ 音乐歌单">歌单</button>`
+        ${canAddToPlaylist
+          ? `<button type="button" data-${dataPrefix}-action="add-to-playlist" data-${dataPrefix}-index="${index}" title="添加到音乐歌单">歌单</button>`
           : ''}
       </div>
     </div>

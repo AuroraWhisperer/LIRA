@@ -56,7 +56,7 @@ const routes = {
 
   async 'POST /api/music/playlists/tracks/add'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '添加到 QQ 音乐歌单失败。', () => writeMusicPlaylistTracks(
+    await sendProviderResult(res, '添加到音乐歌单失败。', () => writeMusicPlaylistTracks(
       context.music.registry,
       body,
       'add'
@@ -65,7 +65,7 @@ const routes = {
 
   async 'POST /api/music/playlists/tracks/remove'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '从 QQ 音乐歌单删除失败。', () => writeMusicPlaylistTracks(
+    await sendProviderResult(res, '从音乐歌单删除失败。', () => writeMusicPlaylistTracks(
       context.music.registry,
       body,
       'remove'

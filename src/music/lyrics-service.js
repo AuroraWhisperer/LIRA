@@ -68,7 +68,16 @@ async function getMusicHomeContent(registry, body) {
   if (action === 'daily') return { source: platform, action, tracks: await provider.getDailyTracks({ limit, page }) };
   if (action === 'radio') return { source: platform, action, tracks: await provider.getRadioTracks({ limit, page }) };
   if (action === 'liked') return { source: platform, action, tracks: await provider.getLikedTracks({ limit, offset }) };
-  if (action === 'created-playlists') return { source: platform, action, playlists: await provider.getCreatedPlaylists({ limit }) };
+  if (action === 'created-playlists') {
+    const playlists = await provider.getCreatedPlaylists({ limit });
+    return {
+      source: platform,
+      action,
+      playlists: input.track
+        ? await annotatePlaylistMembership(provider, platform, playlists, input.track)
+        : playlists
+    };
+  }
   if (action === 'collected-playlists') return { source: platform, action, playlists: await provider.getCollectedPlaylists({ limit }) };
   if (action === 'recent') return { source: platform, action, tracks: await provider.getRecentTracks({ limit }) };
 
@@ -90,7 +99,6 @@ async function getMusicTrackLyrics(registry, body) {
 async function writeMusicPlaylistTracks(registry, body, operation) {
   const input = body && typeof body === 'object' ? body : {};
   const platform = normalizeMusicPlatform(input.platform || input.source || 'qq');
-  if (platform !== 'qq') throw new Error('当前只支持修改 QQ 音乐歌单。');
   const provider = registry.get(platform);
   const playlistInput = input.playlist && typeof input.playlist === 'object' ? input.playlist : {};
   const playlist = {
@@ -100,7 +108,7 @@ async function writeMusicPlaylistTracks(registry, body, operation) {
     title: cleanText(playlistInput.title || playlistInput.dirName).slice(0, 200)
   };
   const tracks = Array.isArray(input.tracks) ? input.tracks.slice(0, 100) : [];
-  if (tracks.length === 0) throw new Error('缺少要修改的 QQ 音乐歌曲。');
+  if (tracks.length === 0) throw new Error('缺少要修改的音乐歌曲。');
   const method = operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
   if (typeof provider[method] !== 'function') throw new Error('当前音乐 Provider 不支持修改歌单。');
   const result = await provider[method](playlist, tracks);
@@ -150,6 +158,49 @@ function normalizeMusicTrackForProvider(track) {
     sourceAlbumId: cleanText(track.sourceAlbumId),
     playable: track.playable !== false, vip: track.vip === true
   };
+}
+
+async function annotatePlaylistMembership(provider, platform, playlists, track) {
+  const trackId = getProviderTrackId(platform, track);
+  if (!trackId) throw new Error('缺少要检查的歌曲 ID。');
+  return mapWithConcurrency(Array.isArray(playlists) ? playlists : [], 6, async (playlist) => {
+    try {
+      const containsTrack = typeof provider.playlistContainsTrack === 'function'
+        ? await provider.playlistContainsTrack(playlist.id, track)
+        : (await provider.getPlaylistTracks(playlist.id, { limit: 5000 }))
+          .some((item) => getProviderTrackId(platform, item) === trackId);
+      return {
+        ...playlist,
+        containsTrack
+      };
+    } catch (_) {
+      return { ...playlist, containsTrack: null };
+    }
+  });
+}
+
+function getProviderTrackId(platform, track) {
+  if (!track || typeof track !== 'object') return '';
+  if (platform === 'qq') {
+    const sourceSongId = Number(track.sourceSongId);
+    if (Number.isSafeInteger(sourceSongId) && sourceSongId > 0) return String(sourceSongId);
+    return cleanText(track.sourceTrackId || track.id).replace(/^qq:/, '');
+  }
+  return cleanText(track.sourceTrackId || track.id).replace(/^netease:/, '');
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 module.exports = {
