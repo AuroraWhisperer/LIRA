@@ -1,3 +1,20 @@
+/* 在 html 上设桌面主题变量（内联脚本在 CSS 加载前写入），
+   避免页面先用粉色默认主题渲染再切金色的闪烁 */
+html.desktop-shell {
+  --page-bg: #f7f3ef;
+  --surface: #fffcf8;
+  --surface-2: #f5eee4;
+  --border: #e7d9c7;
+  --text: #241a16;
+  --muted: #75665b;
+  --primary: #d92d20;
+  --primary-strong: #b42318;
+  --accent: #c79a3b;
+  --danger: #b42318;
+  --warning: #946200;
+  --shadow: 0 12px 32px rgba(87, 58, 28, 0.10);
+}
+
 body.desktop-shell {
   --page-bg: #f7f3ef;
   --surface: #fffcf8;

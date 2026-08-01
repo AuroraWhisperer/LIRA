@@ -74,6 +74,7 @@ const liveStatus = {
   updatedAt: sharedUtils.now()
 };
 
+let musicAuthProvider = null;  // { getAuthState, getCookieHeader }
 let bilibiliAuthProvider = null; // { getAuthState, getCookieHeader, getUid }
 let bilibiliAuthCache = { cookieHeader: '', uid: 0 }; // 同步缓存，createBilibiliClient 同频读取
 
@@ -208,7 +209,12 @@ function createApiContext() {
     music: {
       registry: musicRegistry,
       getCacheStats: () => getMusicCacheStats(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
-      clearCache: () => clearMusicCache(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR)
+      clearCache: () => clearMusicCache(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
+      // 调试用：从 Electron 分区直接读取 Cookie（仅 localhost，供探针使用）
+      async getDebugCookie(platform) {
+        if (!musicAuthProvider || !musicAuthProvider.getCookieHeader) return '';
+        return String(await musicAuthProvider.getCookieHeader(platform) || '');
+      }
     }
   };
 }
@@ -244,6 +250,7 @@ function startServer(options = {}) {
   if (startPromise) return startPromise;
 
   musicRegistry = createMusicProviderRegistry(options.musicAuth || {});
+  musicAuthProvider = options.musicAuth || null;
   bilibiliAuthProvider = options.bilibiliAuth || null;
   const startPort = Number(options.startPort || START_PORT);
   const host = options.host || HOST;

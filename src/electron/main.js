@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const {
-  app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell
+  app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, safeStorage, session, shell
 } = require('electron');
 const authMgr = require('./auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
@@ -39,14 +39,95 @@ protocol.registerSchemesAsPrivileged([{
   privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true }
 }]);
 
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
-} else {
-  app.whenReady().then(startDesktopApp).catch(function (error) {
-    dialog.showErrorBox('启动失败', error.message || String(error));
+// 将 Electron userData 目录重定向到应用安装目录下的 data/，
+// 确保卸载时所有登录态（包括 Chromium 持久化分区）一并清理，
+// 不会残留在 %APPDATA% 中。
+const appDir = app.isPackaged
+  ? path.dirname(app.getPath('exe'))
+  : ROOT_DIR;
+app.setPath('userData', path.join(appDir, 'data'));
+
+// --dump-cookies=qq|netease : 从 Electron 持久化分区提取 Cookie 到 stdout, 然后退出。
+// 供 tools/qq-music-analyzer/probe-addsonglist.js 等探针使用。
+const dumpCookiesArg = process.argv.find(function (a) { return a.startsWith('--dump-cookies='); });
+if (dumpCookiesArg) {
+  const dumpPlatform = dumpCookiesArg.split('=')[1];
+  if (!MUSIC_LOGIN_CONFIG[dumpPlatform]) {
+    console.error('用法: --dump-cookies=qq 或 --dump-cookies=netease');
     app.quit();
-  });
+  } else {
+    app.whenReady().then(async function () {
+      const cookieFile = path.join(ROOT_DIR, 'tools', 'qq-music-analyzer', '.cookies-dump.txt');
+      try {
+        // 正常启动时会从加密快照恢复 Cookie。dump 模式跳过了启动流程,
+        // 所以这里需要手动恢复一次。
+        dataDir = app.getPath('userData');
+        const snapshotPath = path.join(dataDir, 'music-auth', dumpPlatform + '.cookies.enc');
+        process.stderr.write('[诊断] dataDir: ' + dataDir + '\n');
+        process.stderr.write('[诊断] 快照文件: ' + snapshotPath + ' (存在=' + fs.existsSync(snapshotPath) + ')\n');
+        process.stderr.write('[诊断] safeStorage 可用: ' + safeStorage.isEncryptionAvailable() + '\n');
+
+        // 手动恢复快照，每步记录错误
+        let snapshotRestored = 0;
+        try {
+          const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
+          const decrypted = safeStorage.decryptString(encrypted);
+          const payload = JSON.parse(decrypted);
+          if (Array.isArray(payload.cookies) && payload.cookies.length > 0) {
+            const loginSession = session.fromPartition('persist:music-' + dumpPlatform);
+            for (const c of payload.cookies) {
+              const domain = String(c.domain || '').replace(/^\./, '');
+              const details = {
+                url: (c.secure === false ? 'http' : 'https') + '://' + domain + (c.path || '/'),
+                name: c.name, value: c.value, domain: c.domain,
+                path: c.path || '/', secure: c.secure === true,
+                httpOnly: c.httpOnly === true
+              };
+              if (Number.isFinite(Number(c.expirationDate))) {
+                details.expirationDate = Number(c.expirationDate);
+              }
+              await loginSession.cookies.set(details);
+            }
+            snapshotRestored = payload.cookies.length;
+            process.stderr.write('[诊断] 手动恢复成功: ' + snapshotRestored + ' 个 Cookie\n');
+          } else {
+            process.stderr.write('[诊断] 快照中无 Cookie 数据\n');
+          }
+        } catch (e) {
+          process.stderr.write('[诊断] 快照恢复失败: ' + (e.message || String(e)) + '\n');
+        }
+
+        // 诊断: 列出所有 Cookie (名称 + domain)
+        const allCookies = await authMgr.getAllowedMusicCookies(dumpPlatform);
+        process.stderr.write('[诊断] 当前分区有 ' + allCookies.length + ' 个 Cookie:\n');
+        allCookies.forEach(function (c) {
+          process.stderr.write('  ' + c.name + ' @ ' + c.domain + '\n');
+        });
+
+        const header = await authMgr.getMusicCookieHeader(dumpPlatform);
+        if (header) {
+          fs.writeFileSync(cookieFile, header, 'utf8');
+          process.stdout.write(header + '\n');
+        } else {
+          process.stderr.write('(Cookie 为空, 可能未登录)\n');
+        }
+      } catch (e) {
+        process.stderr.write('Cookie 读取失败: ' + (e.message || String(e)) + '\n');
+      } finally {
+        app.quit();
+      }
+    });
+  }
+} else {
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    app.quit();
+  } else {
+    app.whenReady().then(startDesktopApp).catch(function (error) {
+      dialog.showErrorBox('启动失败', error.message || String(error));
+      app.quit();
+    });
+  }
 }
 
 app.setName('点歌助手');
@@ -82,6 +163,7 @@ app.on('before-quit', function (event) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  migrateUserDataFromAppData();
   configureMenu();
   configureLocalMediaProtocol();
   configureUpdateIpc();
@@ -128,17 +210,34 @@ async function startDesktopApp() {
 }
 
 function configureDesktopEnvironment() {
-  var appDir = app.isPackaged
-    ? path.dirname(app.getPath('exe'))
-    : ROOT_DIR;
-  dataDir = path.join(appDir, 'data');
-  logDir = path.join(appDir, 'logs');
+  dataDir = app.getPath('userData');
+  logDir = path.join(path.dirname(dataDir), 'logs');
   logFile = path.join(logDir, 'desktop.log');
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(logDir, { recursive: true });
   process.env.SONG_PLUGIN_DATA_DIR = dataDir;
   process.env.ELECTRON_DESKTOP = '1';
   if (!process.env.HOST) process.env.HOST = '127.0.0.1';
+}
+
+// 将旧版本残留在 %APPDATA% 下的 Chromium 分区数据迁移到新的 userData 目录，
+// 确保已安装用户在升级后不会丢失登录状态。
+function migrateUserDataFromAppData() {
+  const oldUserData = path.join(app.getPath('appData'), app.getName());
+  const newUserData = app.getPath('userData');
+  if (oldUserData === newUserData) return;
+
+  const oldPartitions = path.join(oldUserData, 'Partitions');
+  const newPartitions = path.join(newUserData, 'Partitions');
+
+  if (fs.existsSync(oldPartitions) && !fs.existsSync(newPartitions)) {
+    try {
+      fs.cpSync(oldPartitions, newPartitions, { recursive: true });
+      writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
+    } catch (e) {
+      writeLog('migration-error', e);
+    }
+  }
 }
 
 function configureMenu() {

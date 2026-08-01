@@ -213,6 +213,7 @@ import { HomeService } from './playback/services/home-service.js';
         document.getElementById('playbackLyricLockBtn')?.addEventListener('click', togglePlaybackLyricLock);
         document.getElementById('playbackMatchBtn')?.addEventListener('click', runPlaybackMatchTest);
         document.getElementById('playbackSearchBtn')?.addEventListener('click', runPlaybackSearch);
+        document.getElementById('playbackSearchClearBtn')?.addEventListener('click', clearPlaybackSearch);
         document.getElementById('playbackSearchKeyword')?.addEventListener('keydown', (event) => {
           if (event.key === 'Enter') runPlaybackSearch();
         });
@@ -479,6 +480,23 @@ import { HomeService } from './playback/services/home-service.js';
         }
       }
 
+      function showPlaybackLoginPrompt() {
+        const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
+        if (typeof U.showStackedToast !== 'function') {
+          toast(`请先登录${sourceName}`);
+          return;
+        }
+
+        U.showStackedToast({
+          key: `playback-login-required:${playbackState.selectedSource}`,
+          title: `请先登录${sourceName}`,
+          message: '登录后即可播放在线音乐',
+          className: 'playback-login-toast',
+          duration: 5200,
+          onClick: loginSelectedMusicProvider
+        });
+      }
+
       async function logoutSelectedMusicProvider() {
         if (!window.musicAPI || typeof window.musicAPI.logout !== 'function') {
           toast('退出音乐账号需要在桌面版里使用');
@@ -619,7 +637,7 @@ import { HomeService } from './playback/services/home-service.js';
         }
 
         const actionName = HomeService.getActionName(action);
-        openPlaybackDrawer(actionName, '正在加载...', true);
+        openPlaybackDrawer(actionName, '正在加载...', true, '首次加载会稍慢');
 
         // 高亮对应卡片
         document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
@@ -710,8 +728,8 @@ import { HomeService } from './playback/services/home-service.js';
         }
       }
 
-      function openPlaybackDrawer(title, subtitle, loading) {
-        uiRenderer.getDrawer().open(title, subtitle, loading);
+      function openPlaybackDrawer(title, subtitle, loading, loadingHint = '') {
+        uiRenderer.getDrawer().open(title, subtitle, loading, loadingHint);
       }
 
       function closePlaybackDrawer() {
@@ -838,6 +856,13 @@ import { HomeService } from './playback/services/home-service.js';
         } catch (error) {
           if (resultNode) resultNode.textContent = error.message || String(error);
         }
+      }
+
+      function clearPlaybackSearch() {
+        const keywordInput = document.getElementById('playbackSearchKeyword');
+        if (keywordInput) keywordInput.value = '';
+        searchService.clearResults();
+        renderPlaybackSearchResults();
       }
 
       function renderPlaybackSearchResults() {
@@ -1455,7 +1480,11 @@ import { HomeService } from './playback/services/home-service.js';
 
         const track = playbackState.current;
         if (!track) {
-          toast('请先添加本地音频');
+          if (!playbackAuthState || !playbackAuthState.loggedIn) {
+            showPlaybackLoginPrompt();
+          } else {
+            toast('播放队列为空，请先选择歌曲');
+          }
           return;
         }
 

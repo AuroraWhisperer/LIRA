@@ -41,7 +41,7 @@ export class PlayerController {
 
     const track = this.state.current;
     if (!track) {
-      this.onError('请先添加本地音频');
+      this.onError('播放队列为空，请先选择歌曲');
       return;
     }
 

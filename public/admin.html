@@ -6,8 +6,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>点歌助手</title>
+    <!-- 在 CSS 加载前立即设置桌面主题，避免粉色闪烁 -->
+    <script>
+      if (new URLSearchParams(location.search).get('desktop') === '1') {
+        document.documentElement.classList.add('desktop-shell');
+      }
+    </script>
     <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/styles-admin.css?v=20260801-01">
+    <link rel="stylesheet" href="/styles-admin.css?v=20260801-02">
     <link rel="stylesheet" href="/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/styles-desktop.css?v=20260729-01">
   </head>
@@ -926,14 +932,15 @@
             <section class="theme-section gift-recent-section" data-state="ready">
               <div class="gift-recent-heading" id="giftRecentHeading">
                 <span class="gift-recent-heading-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6m3-5 5-5 5 5M12 3v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+                  <img src="/img/gift-section-icon.png?v=20260801-01" alt="">
                 </span>
                 <h3>最近礼物</h3>
-                <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物流水">查看全部 →</button>
+                <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物流水">
+                  <span>查看全部</span>
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
                 <button id="giftRecentToggle" class="section-toggle" type="button" aria-expanded="true" title="折叠最近礼物">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 14 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 12 4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
               </div>
               <div id="giftRecentCollapsible" class="gift-recent-collapsible">
@@ -1358,6 +1365,7 @@
             <h2>在线搜索</h2>
             <div class="actions">
               <button id="playbackSearchBtn" type="button">搜索</button>
+              <button id="playbackSearchClearBtn" type="button">清除</button>
             </div>
           </div>
           <div class="panel-body stack">

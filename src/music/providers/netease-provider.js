@@ -65,6 +65,8 @@ class NeteaseMusicProvider {
     const songs = data && data.result && Array.isArray(data.result.songs)
       ? data.result.songs
       : [];
+    // 搜索 API 不返回 album.picUrl，封面回退到 artist.img1v1Url
+    // 无需额外网络请求，零后端负荷
     return songs.map(mapNeteaseSong).filter(Boolean);
   }
 
@@ -287,6 +289,15 @@ function mapNeteaseSong(song) {
     ? song.artists
     : (Array.isArray(song.ar) ? song.ar : []);
   const sourceTrackId = String(song.id);
+
+  // 封面来源优先级：
+  // 1. 专辑 picUrl（歌单/推荐等接口有，搜索接口没有）
+  // 2. 第一位艺术家的头像（搜索接口始终返回，零额外网络请求）
+  var coverUrl = String(album && (album.picUrl || album.pic_url) || '');
+  if (!coverUrl && artists.length > 0) {
+    coverUrl = String(artists[0].img1v1Url || '');
+  }
+
   return {
     id: `netease:${sourceTrackId}`,
     source: 'netease',
@@ -296,7 +307,7 @@ function mapNeteaseSong(song) {
     artists: artists.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean),
     album: String(album && album.name || '').trim(),
     durationMs: Math.max(0, Number(song.duration || song.dt || 0)),
-    coverUrl: String(album && (album.picUrl || album.pic_url) || ''),
+    coverUrl: coverUrl,
     playable: song.status !== -1,
     vip: Number(song.fee) === 1 || Number(song.fee) === 4
   };

@@ -1,8 +1,23 @@
 # 打包与更新说明
 
-当前版本：`1.5.5`
+当前版本：`1.5.6`
 
 ---
+
+## v1.5.6 变更
+
+- 🧹 **Electron userData 重定向**：Chromium 持久化分区从 `%APPDATA%` 迁移至安装目录下的 `data/`，卸载时所有登录态一并清理，不再残留；新增 `migrateUserDataFromAppData()` 自动迁移旧用户数据，升级不丢失登录状态。
+- 🔐 **Cookie 安全存储与诊断**：新增 `--dump-cookies=qq|netease` 命令行参数，从 Electron `safeStorage` 加密快照中提取 Cookie header 到 stdout，供探针脚本使用；包含完整的快照恢复和诊断日志。
+- 📦 **NSIS 安装器增强**：新增 `build/installer.nsh` 自定义安装脚本，处理残留注册表清理容错（旧卸载器缺失不阻断安装），卸载时清理 `%APPDATA%` 旧分区数据。
+- 🎨 **桌面版防闪烁**：CSS 加载前通过内联脚本设置 `desktop-shell` class，消除启动时的粉色闪烁。
+- 🎁 **最近礼物区域视觉优化**：图标从内联 SVG 改为专用 `gift-section-icon.png`；"查看全部"按钮采用箭头 SVG 图标，更精致。
+- 🔍 **搜索清除按钮**：在线搜索框新增"清除"按钮，一键清空关键词和搜索结果。
+- 🔑 **未登录引导提示**：播放空队列时若未登录，弹出可点击的堆叠 toast 引导登录，文案区分登录状态。
+- 🎵 **歌词封面回退**：网易云搜索 API 不返回专辑封面时，自动回退到艺术家头像 `img1v1Url`，零额外网络请求。
+- 🔧 **调试接口扩展**：新增 `GET /api/debug/music-cookie`，从 Electron 分区直接读取 Cookie，供探针使用。
+- 🎬 **播放器状态恢复优化**：`currentTime` 增加 `readyState` 检查，避免 NaN；`restoredTime` 在 play 后及时清除；播放队列空且未登录时引导登录。
+- 🗑️ **QQ 音乐分析器清理**：移除 20 个过时的探针/分析脚本，保留 `dump-playlists.js`、`probe-addsonglist.js`、`run-probe.js` 三个仍在使用的工具。
+- 🎨 **CSS 样式扩展**：`styles-admin.css`（+209 行）、`styles-playback.css`（+69 行）、`styles-desktop.css`（+17 行）全面增强。
 
 ## v1.5.5 变更
 

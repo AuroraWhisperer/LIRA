@@ -21,6 +21,19 @@ const routes = {
   'POST /api/debug/gift-messages/clear'(context, request, res) {
     if (context.debug) context.debug.clearGiftMessages();
     sendJson(res, 200, { ok: true, data: { cleared: true } });
+  },
+
+  // 从 Electron 分区直接读取 Cookie header，供 probe-addsonglist.js 等探针使用
+  'GET /api/debug/music-cookie': async (context, request, res) => {
+    const platform = request.query.get('platform') || 'qq';
+    try {
+      const cookie = context.music && context.music.getDebugCookie
+        ? await context.music.getDebugCookie(platform)
+        : '';
+      sendJson(res, 200, { ok: true, data: { platform, cookie } });
+    } catch (e) {
+      sendJson(res, 500, { ok: false, error: e.message || String(e) });
+    }
   }
 };
 

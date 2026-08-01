@@ -3,7 +3,8 @@ node_modules/
 release/
 tmp/
 .tmp*/
-build/
+build/*
+!build/installer.nsh
 scripts/capture-ui.js
 .claude/
 *.log

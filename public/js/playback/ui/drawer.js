@@ -43,7 +43,7 @@ export class Drawer {
    * @param {string} subtitle - 副标题
    * @param {boolean} loading - 是否显示加载状态
    */
-  open(title, subtitle, loading = false) {
+  open(title, subtitle, loading = false, loadingHint = '') {
     this.drawer?.classList.add('open');
     this.backdrop?.classList.add('open');
 
@@ -55,7 +55,7 @@ export class Drawer {
     }
 
     if (loading) {
-      this.setLoading('正在加载...');
+      this.setLoading('正在加载...', loadingHint);
     }
   }
 
@@ -112,11 +112,12 @@ export class Drawer {
    * 设置加载状态
    * @param {string} message - 加载消息
    */
-  setLoading(message) {
+  setLoading(message, hint = '') {
     if (!this.bodyEl) return;
 
     const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-    this.bodyEl.innerHTML = `<div class="playback-drawer-loading"><span>${escapeHtml(message)}</span></div>`;
+    const hintHtml = hint ? `<small>${escapeHtml(hint)}</small>` : '';
+    this.bodyEl.innerHTML = `<div class="playback-drawer-loading"><span>${escapeHtml(message)}</span>${hintHtml}</div>`;
     this.updateActions(false);
   }
 

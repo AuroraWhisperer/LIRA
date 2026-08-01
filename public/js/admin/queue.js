@@ -89,7 +89,7 @@
 
     let html = '';
     if (isLive && ownerName) {
-      html = `✓ <span class="owner-name">${escapeHtml(ownerName)}</span> ${escapeHtml(statusText)}`;
+      html = `<span class="owner-name">${escapeHtml(ownerName)}</span> ${escapeHtml(statusText)}`;
     } else if (ownerName) {
       html = `${escapeHtml(statusText)} <span class="owner-name">${escapeHtml(ownerName)}</span>`;
     } else {

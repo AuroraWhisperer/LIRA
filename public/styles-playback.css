@@ -11,7 +11,7 @@
     "search"
     "discovery"
     "match";
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(200px, 1fr) auto;
   gap: 12px;
   height: calc(100vh - 58px - 96px);
   padding: 16px;
@@ -37,7 +37,7 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-head-inner {
-  min-height: 54px;
+  min-height: 48px;
 }
 
 .playback-head h2 {
@@ -52,7 +52,7 @@ body.player-dock-expanded .playback-page.active {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   align-items: flex-end;
 }
 
@@ -202,8 +202,8 @@ body.player-dock-expanded .playback-page.active {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
-  min-height: 36px;
+  padding: 6px 0;
+  min-height: 30px;
 }
 
 .playback-health-status {
@@ -376,18 +376,63 @@ body.player-dock-expanded .playback-page.active {
 
 .playback-search-results {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
   min-height: 70px;
-  max-height: 180px;
+  max-height: 340px;
   padding: 8px 2px 2px;
   overflow: auto;
+}
+
+.playback-search-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.playback-search-row:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(22, 31, 43, 0.08);
+}
+
+.playback-search-row .playback-row-main {
+  gap: 8px;
+}
+
+.playback-search-row .playback-artwork {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  font-size: 13px;
 }
 
 .playback-search-row .queue-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.playback-search-row .queue-actions button {
+  font-size: 11px;
+  padding: 3px 8px;
+  min-height: 26px;
+}
+
+/* 宽屏上搜索结果显示 3 列 */
+@media (min-width: 1400px) {
+  .playback-search-results {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 窄屏回退到单列 */
+@media (max-width: 780px) {
+  .playback-search-results {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ===== 匹配面板 ===== */
@@ -1213,6 +1258,12 @@ body.player-dock-expanded .playback-page.active {
   padding: 48px 0;
   gap: 10px;
   color: var(--muted);
+}
+
+.playback-drawer-loading small {
+  font-size: 12px;
+  color: var(--text-muted, #8898aa);
+  font-weight: 400;
 }
 
 .playback-drawer-loading::before {
