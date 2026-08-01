@@ -7,6 +7,7 @@ let songs = [];
 let reloadTimer = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
+let lastRenderKey = null;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,6 +29,7 @@ async function loadAll() {
   } catch (error) {
     console.warn('[overlay-songs] loadAll failed:', error.message || error);
   }
+  lastRenderKey = null;
   render();
 }
 
@@ -38,6 +40,7 @@ function connectSocket() {
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);
     reconnectAttempts = 0;
+    lastRenderKey = null;
   });
 
   socket.addEventListener('message', (event) => {
@@ -53,6 +56,9 @@ function connectSocket() {
         reloadTimer = setTimeout(loadAll, 220);
         return;
       }
+      var newKey = computeSongsStateKey(state);
+      if (newKey === lastRenderKey) return;
+      lastRenderKey = newKey;
       render();
     }
   });
@@ -91,6 +97,30 @@ function render() {
   const shouldScroll = songs.length > 8;
   list.classList.toggle('paused', !shouldScroll);
   list.innerHTML = shouldScroll ? `${html}${html}` : html;
+}
+
+function computeSongsStateKey(currentState) {
+  var settings = currentState.settings || {};
+  return JSON.stringify([
+    songs.map(function (s) { return s.id; }),
+    settings.songBoardSortMode,
+    settings.songBoardSyncTheme,
+    settings.songBoardThemePrimary, settings.songBoardThemeAccent,
+    settings.songBoardThemeText, settings.songBoardThemeBackground,
+    settings.themePrimary, settings.themeAccent, settings.themeText, settings.themeBackground,
+    settings.themeOpacity, settings.themeRadius,
+    settings.backdropBlur, settings.glowIntensity,
+    settings.enableGradient, settings.gradientEnd,
+    settings.songBoardBackdropBlur, settings.songBoardGlowIntensity,
+    settings.songBoardEnableGradient, settings.songBoardGradientEnd,
+    settings.songBoardFontFamily, settings.songBoardFontWeight,
+    settings.songBoardSongColor, settings.songBoardSongFontSize, settings.songBoardTitleFontSize,
+    settings.overlayFontFamily, settings.overlayFontWeight,
+    settings.overlaySongColor, settings.overlayRequesterColor,
+    settings.overlayTitle, settings.songBoardTitle,
+    settings.overlayLowPowerMode, settings.themeFontScale,
+    settings.scrollSeconds
+  ]);
 }
 
 function groupSongs(items, sortMode) {

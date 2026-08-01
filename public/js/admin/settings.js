@@ -6,6 +6,7 @@
   const {
     value,
     toast,
+    showStackedToast,
     api,
     readJsonResponse,
     dangerConfirm
@@ -68,7 +69,15 @@
     });
 
     logoutBtn.addEventListener('click', async () => {
-      if (!confirm('确认退出 Bilibili 登录？退出后弹幕连接将回退到匿名模式。')) return;
+      const confirmed = await window.AdminApp.utils.logoutConfirm({
+        title: '退出登录',
+        platform: 'Bilibili',
+        message: '退出后弹幕连接将回退到匿名模式。建议点击"刷新直播"重连。',
+        icon: '→',
+        confirmLabel: '确认退出'
+      });
+      if (!confirmed) return;
+
       logoutBtn.disabled = true;
       logoutBtn.textContent = '退出中…';
       try {
@@ -514,7 +523,7 @@
         throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
       }
       if (payload.data && payload.data.liveStatus) {
-        toast('直播状态已刷新');
+        showStackedToast({ key: 'live-refresh-ok', message: '直播状态已刷新', className: 'admin-live-refresh-toast', duration: 2800 });
       } else {
         throw new Error('刷新直播失败：服务未返回直播状态。');
       }

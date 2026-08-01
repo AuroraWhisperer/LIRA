@@ -38,6 +38,28 @@
         await queueAction('clear');
       }
     });
+
+    // 自定义 SC 队列滚轮滚动距离（减小滚动步长）
+    const scList = document.getElementById('superChatList');
+    if (scList) {
+      scList.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        // 将默认滚动距离缩小到 30%（可以调整这个数值）
+        const scrollAmount = event.deltaY * 0.3;
+        scList.scrollTop += scrollAmount;
+      }, { passive: false });
+    }
+
+    // 同样应用到点歌队列
+    const queueList = document.getElementById('queueList');
+    if (queueList) {
+      queueList.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        // 将默认滚动距离缩小到 30%
+        const scrollAmount = event.deltaY * 0.3;
+        queueList.scrollTop += scrollAmount;
+      }, { passive: false });
+    }
   }
 
   function renderState(appState, songs) {

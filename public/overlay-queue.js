@@ -5,7 +5,8 @@
 let state = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
-let forceReloadTimer = null;
+let stateRefreshTimer = null;
+let lastRenderKey = null;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +19,7 @@ async function loadState() {
     const response = await fetch('/api/state');
     const payload = await response.json();
     if (payload.ok) {
+      lastRenderKey = null;
       state = payload.data;
       render();
     }
@@ -33,6 +35,7 @@ function connectSocket() {
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);
     reconnectAttempts = 0;
+    lastRenderKey = null;
   });
 
   socket.addEventListener('message', (event) => {
@@ -46,9 +49,15 @@ function connectSocket() {
         return;
       }
       if (isSongRequestSnapshotReason(payload.reason)) {
-        scheduleForceReload();
+        scheduleStateRefresh();
         return;
       }
+      var newKey = computeStateKey(payload.state);
+      if (newKey === lastRenderKey) {
+        state = payload.state;
+        return;
+      }
+      lastRenderKey = newKey;
       const scrollState = payload.reason === 'queue:add' ? captureScrollAnimation() : null;
       state = payload.state;
       render();
@@ -74,11 +83,41 @@ function isSongRequestSnapshotReason(reason) {
   ].includes(reason);
 }
 
-function scheduleForceReload() {
-  clearTimeout(forceReloadTimer);
-  forceReloadTimer = setTimeout(() => {
-    location.reload();
+function scheduleStateRefresh() {
+  clearTimeout(stateRefreshTimer);
+  stateRefreshTimer = setTimeout(function () {
+    lastRenderKey = null;
+    loadState();
   }, 80);
+}
+
+function computeStateKey(nextState) {
+  var queue = nextState.queue || {};
+  var settings = nextState.settings || {};
+  var current = queue.current;
+  var waiting = queue.waiting || [];
+  var superChats = nextState.superChats || [];
+  return JSON.stringify([
+    current ? current.song_name + '|' + (current.requester_name || '') + '|' + (current.is_pinned ? '1' : '0') : '',
+    waiting.map(function (item) { return item.song_name + '|' + (item.requester_name || '') + '|' + (item.is_pinned ? '1' : '0'); }),
+    superChats.map(function (item) { return (item.price || 0) + '|' + (item.message || ''); }),
+    settings.overlayQueueStyle,
+    settings.themePrimary, settings.themeAccent, settings.themeText, settings.themeBackground,
+    settings.themeOpacity, settings.themeRadius, settings.backdropBlur, settings.glowIntensity,
+    settings.enableGradient, settings.gradientEnd,
+    settings.overlayFontFamily, settings.overlayFontWeight,
+    settings.overlaySongColor, settings.overlayRequesterColor, settings.overlayIndexColor,
+    settings.queueSongFontSize, settings.queueTitleFontSize,
+    settings.queueScrollMode, settings.queueScrollSpeed,
+    settings.queueFixedSixRows, settings.overlayShowIndex, settings.overlayIndexThreshold,
+    settings.overlayTitle, settings.overlayLowPowerMode, settings.themeFontScale,
+    settings.overlayPin1, settings.overlayPin2, settings.overlayPin3,
+    settings.overlayRule1, settings.overlayRule2, settings.overlayRule3,
+    settings.overlayRule4, settings.overlayRule5, settings.overlayRule6,
+    settings.overlayRuleColor1, settings.overlayRuleColor2, settings.overlayRuleColor3,
+    settings.overlayRuleColor4, settings.overlayRuleColor5, settings.overlayRuleColor6,
+    settings.overlayRuleFontSize
+  ]);
 }
 
 function render() {

@@ -40,20 +40,43 @@ async function loginMusicAccount(mainWindow, platform, dataDir) {
   });
 
   let cookieSaveTimer = null;
+  let loginCheckTimer = null;
+
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
       persistMusicCookieSnapshot(platform, dataDir).catch((error) => writeLog('music-cookie-save', error));
     }, 800);
   };
-  loginSession.cookies.on('changed', scheduleCookieSave);
+
+  const checkLoginComplete = () => {
+    getMusicAuthState(platform, dataDir).then((state) => {
+      if (state.loggedIn && loginWindow && !loginWindow.isDestroyed()) {
+        writeLog('music-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);
+        loginWindow.close();
+      }
+    }).catch((_error) => {
+      // Silently retry on next tick
+    });
+  };
+
+  // React immediately when cookies change (most responsive path)
+  const onCookieChanged = () => {
+    scheduleCookieSave();
+    checkLoginComplete();
+  };
+  loginSession.cookies.on('changed', onCookieChanged);
 
   await loginWindow.loadURL(config.loginUrl);
+
+  // Also poll every 1.5s as a safety net
+  loginCheckTimer = setInterval(checkLoginComplete, 1500);
 
   return new Promise((resolve) => {
     loginWindow.on('closed', async () => {
       clearTimeout(cookieSaveTimer);
-      loginSession.cookies.removeListener('changed', scheduleCookieSave);
+      clearInterval(loginCheckTimer);
+      loginSession.cookies.removeListener('changed', onCookieChanged);
       let snapshot = null;
       try { snapshot = await persistMusicCookieSnapshot(platform, dataDir); }
       catch (error) { writeLog('music-cookie-save', error); }

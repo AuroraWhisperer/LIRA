@@ -588,16 +588,24 @@ tr:last-child td {
 .toast {
   width: max-content;
   max-width: 360px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: #101820;
+  border: 1px solid rgba(71, 221, 181, 0.35);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1a2f36 0%, #15242a 100%);
   color: #ffffff;
-  padding: 10px 12px;
-  box-shadow: var(--shadow);
+  padding: 12px 16px;
+  font-family: 'Microsoft YaHei', 'PingFang SC', -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  box-shadow:
+    0 12px 28px rgba(8, 18, 22, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 4px 12px rgba(46, 214, 170, 0.15);
   opacity: 0;
   transform: translateY(-8px);
   transition: opacity 150ms ease, transform 150ms ease;
   pointer-events: none;
+  backdrop-filter: blur(8px);
 }
 
 .toast.show {
@@ -697,8 +705,7 @@ tr:last-child td {
 .playback-empty-queue-toast {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
   row-gap: 5px;
   width: min(410px, calc(100vw - 48px));
   min-height: 84px;
@@ -709,12 +716,10 @@ tr:last-child td {
     radial-gradient(circle at 100% 0, rgba(255, 140, 170, 0.2), transparent 55%),
     radial-gradient(circle at 0 100%, rgba(147, 112, 219, 0.16), transparent 50%),
     linear-gradient(145deg, #1f1628 0%, #18111e 100%);
-  padding: 20px 20px 20px 72px;
+  padding: 20px 24px 20px 80px;
   box-shadow:
     0 20px 48px rgba(55, 10, 30, 0.32),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-  cursor: default;
-  pointer-events: auto;
 }
 
 .playback-empty-queue-toast::before {
@@ -722,33 +727,11 @@ tr:last-child td {
   position: absolute;
   left: 18px;
   top: 50%;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(255, 140, 170, 0.4);
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), transparent 60%),
-    linear-gradient(145deg, #d94b70, #b8305a);
-  box-shadow:
-    0 8px 20px rgba(217, 75, 112, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  width: 46px;
+  height: 46px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='21' fill='%23d94b70' fill-opacity='.12' stroke='%23f292aa' stroke-opacity='.45'/%3E%3Cg fill='none' stroke='%23f7b4c5' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.4'%3E%3Cpath d='M13 16h12M13 23h9M13 30h6'/%3E%3Cpath d='M29 17v14.5m0-11.8 7-2v11.8'/%3E%3Cellipse cx='26' cy='33' rx='3' ry='2.4'/%3E%3Cellipse cx='33' cy='31' rx='3' ry='2.4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 8px 14px rgba(217, 75, 112, 0.2));
   transform: translateY(-50%);
-}
-
-.playback-empty-queue-toast::after {
-  content: "去首页  →";
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  border-radius: 999px;
-  background: rgba(217, 75, 112, 0.16);
-  padding: 7px 12px;
-  color: #f292aa;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 .playback-empty-queue-toast strong,
@@ -770,13 +753,6 @@ tr:last-child td {
   color: rgba(220, 200, 220, 0.68);
   font-size: 12px;
   line-height: 1.5;
-}
-
-.playback-empty-queue-toast:hover {
-  border-color: rgba(255, 140, 170, 0.45);
-  box-shadow:
-    0 24px 56px rgba(55, 10, 30, 0.38),
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
 /* ===== 音乐接口检查结果 Toast（通过） ===== */
@@ -805,32 +781,35 @@ tr:last-child td {
 .playback-health-toast-good::before {
   content: "";
   position: absolute;
-  left: 18px;
+  left: 20px;
   top: 50%;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid rgba(111, 238, 202, 0.4);
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(161, 255, 226, 0.62);
+  border-radius: 50%;
   background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 60%),
-    linear-gradient(145deg, #2ed6aa, #159578);
+    radial-gradient(circle at 35% 26%, rgba(255, 255, 255, 0.38), transparent 24%),
+    linear-gradient(145deg, #3ce0b5 8%, #16ad88 55%, #08725e 100%);
   box-shadow:
-    0 8px 20px rgba(20, 164, 129, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 0 0 5px rgba(42, 211, 169, 0.1),
+    0 9px 24px rgba(10, 164, 128, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -5px 10px rgba(0, 83, 68, 0.18);
   transform: translateY(-50%);
 }
 
 .playback-health-toast-good::after {
-  content: "✓";
+  content: "";
   position: absolute;
-  left: 30px;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-size: 21px;
-  font-weight: 800;
+  left: 33px;
+  top: calc(50% - 2px);
+  width: 12px;
+  height: 7px;
+  border-left: 2.5px solid #fff;
+  border-bottom: 2.5px solid #fff;
+  border-radius: 1px;
+  filter: drop-shadow(0 1px 1px rgba(0, 73, 60, 0.28));
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .playback-health-toast-good strong,
@@ -943,6 +922,174 @@ tr:last-child td {
     0 0 0 1px rgba(255, 255, 255, 0.06) inset;
 }
 
+/* ===== QQ音乐登录窗口关闭，Cookie 已刷新 ===== */
+.music-cookie-refreshed-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 18px;
+  row-gap: 4px;
+  width: min(400px, calc(100vw - 48px));
+  min-height: 76px;
+  overflow: hidden;
+  border-color: rgba(31, 190, 154, 0.28);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0 0, rgba(71, 221, 181, 0.18), transparent 44%),
+    linear-gradient(135deg, #142a24 0%, #101f1a 72%);
+  padding: 16px 18px 16px 66px;
+  box-shadow:
+    0 18px 46px rgba(8, 18, 22, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.music-cookie-refreshed-toast::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(111, 238, 202, 0.35);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #2ed6aa, #159578);
+  box-shadow: 0 8px 18px rgba(20, 164, 129, 0.28);
+  transform: translateY(-50%);
+}
+
+.music-cookie-refreshed-toast::after {
+  content: "✓";
+  position: absolute;
+  left: 28px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.music-cookie-refreshed-toast strong,
+.music-cookie-refreshed-toast span {
+  display: block;
+  grid-column: 1;
+}
+
+.music-cookie-refreshed-toast strong {
+  align-self: end;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.music-cookie-refreshed-toast span {
+  align-self: start;
+  color: rgba(180, 230, 215, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.music-cookie-refreshed-toast:hover {
+  border-color: rgba(76, 226, 185, 0.5);
+  box-shadow:
+    0 20px 50px rgba(8, 18, 22, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+/* ===== 直播状态刷新 Toast ===== */
+.admin-live-refresh-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 18px;
+  row-gap: 4px;
+  width: min(370px, calc(100vw - 48px));
+  min-height: 72px;
+  overflow: hidden;
+  border-color: rgba(255, 105, 157, 0.32);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 107, 160, 0.22), transparent 48%),
+    radial-gradient(circle at 100% 100%, rgba(179, 90, 225, 0.14), transparent 45%),
+    linear-gradient(135deg, #1f1428 0%, #1a1220 100%);
+  padding: 16px 18px 16px 64px;
+  box-shadow:
+    0 18px 44px rgba(80, 15, 45, 0.30),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.admin-live-refresh-toast::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 130, 175, 0.38);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255,255, 0.18), transparent 55%),
+    linear-gradient(145deg, #ff5e9a, #e0407a);
+  box-shadow:
+    0 8px 20px rgba(255, 65, 130, 0.35),
+    0 0 0 6px rgba(255, 80, 140, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%);
+}
+
+.admin-live-refresh-toast::after {
+  content: "●";
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 16px;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+  animation: live-dot-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes live-dot-pulse {
+  0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.7); }
+}
+
+.admin-live-refresh-toast strong,
+.admin-live-refresh-toast span {
+  display: block;
+  grid-column: 1;
+}
+
+.admin-live-refresh-toast strong {
+  align-self: end;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.admin-live-refresh-toast span {
+  align-self: start;
+  color: rgba(245, 215, 230, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-live-refresh-toast:hover {
+  border-color: rgba(255, 135, 175, 0.48);
+  box-shadow:
+    0 22px 50px rgba(80, 15, 45, 0.36),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
 .desktop-update-toast {
   position: relative;
   display: grid;
@@ -1009,6 +1156,206 @@ tr:last-child td {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* ===== 礼物通知 Toast ===== */
+.gift-notify-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 4px;
+  width: min(360px, calc(100vw - 48px));
+  min-height: 72px;
+  overflow: hidden;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.14), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.08), transparent 48%),
+    linear-gradient(145deg, #1f1a10 0%, #181611 100%);
+  padding: 16px 22px 16px 66px;
+  box-shadow:
+    0 18px 44px rgba(40, 28, 8, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.gift-notify-toast::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 11px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(145deg, #f59e0b, #d97706);
+  box-shadow:
+    0 8px 20px rgba(217, 119, 6, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%);
+}
+
+.gift-notify-toast::after {
+  content: "🎁";
+  position: absolute;
+  left: 35px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.gift-notify-toast strong {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.gift-notify-toast span {
+  display: block;
+  color: rgba(235, 220, 195, 0.65);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.gift-notify-toast .gift-price-badge {
+  display: inline-block;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 2px 8px;
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* 大航海礼物变体 */
+.gift-notify-toast.gift-guard {
+  border-color: rgba(168, 85, 247, 0.28);
+  background:
+    radial-gradient(circle at 0 0, rgba(168, 85, 247, 0.16), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.1), transparent 48%),
+    linear-gradient(145deg, #1a1428 0%, #161120 100%);
+  box-shadow:
+    0 18px 44px rgba(30, 10, 55, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.gift-notify-toast.gift-guard::before {
+  border-color: rgba(168, 85, 247, 0.4);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(145deg, #8b5cf6, #7c3aed);
+  box-shadow:
+    0 8px 20px rgba(124, 58, 237, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gift-notify-toast.gift-guard::after {
+  content: "👑";
+}
+
+.gift-notify-toast.gift-guard .gift-price-badge {
+  background: rgba(168, 85, 247, 0.18);
+  color: #c4b5fd;
+}
+
+/* 免费/低价礼物变体 */
+.gift-notify-toast.gift-free {
+  border-color: rgba(148, 163, 184, 0.2);
+  background:
+    radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.1), transparent 52%),
+    linear-gradient(145deg, #181b1f 0%, #14161a 100%);
+  box-shadow:
+    0 18px 44px rgba(8, 10, 14, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+}
+
+.gift-notify-toast.gift-free::before {
+  border-color: rgba(148, 163, 184, 0.3);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent 60%),
+    linear-gradient(145deg, #64748b, #475569);
+  box-shadow:
+    0 6px 14px rgba(71, 85, 105, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.gift-notify-toast.gift-free::after {
+  content: "💝";
+}
+
+.gift-notify-toast.gift-free span {
+  color: rgba(200, 205, 215, 0.55);
+}
+
+/* 盲盒礼物变体 */
+.gift-notify-toast.gift-blind-box {
+  border-color: rgba(236, 72, 153, 0.24);
+  background:
+    radial-gradient(circle at 0 0, rgba(236, 72, 153, 0.12), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(244, 114, 182, 0.08), transparent 48%),
+    linear-gradient(145deg, #1f141c 0%, #1a1318 100%);
+  box-shadow:
+    0 18px 44px rgba(40, 8, 30, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.gift-notify-toast.gift-blind-box::before {
+  border-color: rgba(236, 72, 153, 0.35);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(145deg, #ec4899, #db2777);
+  box-shadow:
+    0 8px 20px rgba(219, 39, 119, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gift-notify-toast.gift-blind-box::after {
+  content: "📦";
+}
+
+.gift-notify-toast.gift-blind-box .gift-price-badge {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f9a8d4;
+}
+
+/* 高价值礼物变体（≥100元） */
+.gift-notify-toast.gift-premium {
+  border-color: rgba(251, 191, 36, 0.35);
+  background:
+    radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.2), transparent 48%),
+    radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.14), transparent 44%),
+    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.05), transparent 60%),
+    linear-gradient(145deg, #221c0c 0%, #1a1608 100%);
+  border-width: 1.5px;
+  box-shadow:
+    0 22px 52px rgba(50, 35, 8, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 32px rgba(251, 191, 36, 0.06);
+}
+
+.gift-notify-toast.gift-premium::before {
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow:
+    0 8px 24px rgba(245, 158, 11, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.gift-notify-toast.gift-premium .gift-price-badge {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fcd34d;
+  font-size: 12px;
+  padding: 3px 10px;
 }
 
 .copy-grid {
@@ -2852,6 +3199,160 @@ button.danger-filled:hover {
 }
 
 .danger-confirm-backdrop.is-leaving .danger-confirm-popup {
+  animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse forwards;
+}
+
+/* ===== 退出登录确认弹窗 ===== */
+.logout-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(3px);
+  animation: danger-popup-fade-in 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 20px 24px;
+}
+
+.logout-confirm-backdrop[hidden] {
+  display: none;
+}
+
+.logout-confirm-popup {
+  position: relative;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  margin-top: 58px;
+  background: #fffdf9;
+  border: 1.5px solid rgba(255, 159, 64, 0.28);
+  border-radius: 16px;
+  box-shadow:
+    0 16px 48px rgba(180, 100, 30, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  overflow: hidden;
+  animation: danger-popup-slide 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.logout-confirm-popup::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ff9f40 0%, #ff8c00 50%, #ff9f40 100%);
+}
+
+.logout-confirm-body {
+  padding: 24px 24px 18px;
+}
+
+.logout-confirm-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.logout-confirm-icon-wrap {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fff4e6 0%, #fff9f0 100%);
+  color: #ff8c00;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.logout-confirm-header-text {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 3px;
+}
+
+.logout-confirm-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 750;
+  color: #1a1a1a;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.logout-confirm-subtitle {
+  font-size: 12px;
+  color: #b8884d;
+  font-weight: 500;
+}
+
+.logout-confirm-message {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: #fff9f0;
+  border: 1px solid rgba(255, 159, 64, 0.18);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #5a4a3a;
+}
+
+.logout-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.logout-confirm-actions button {
+  flex: 1;
+  min-height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+
+.logout-confirm-cancel {
+  background: #f6f8fa;
+  border: 1px solid #d5dbe3;
+  color: #4a5568;
+}
+
+.logout-confirm-cancel:hover {
+  background: #eaedf1;
+  border-color: #bcc3cd;
+}
+
+.logout-confirm-execute {
+  background: linear-gradient(135deg, #ff9f40 0%, #ff8c00 100%);
+  border: 1px solid #ff8c00;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(255, 140, 0, 0.25);
+}
+
+.logout-confirm-execute:hover {
+  background: linear-gradient(135deg, #ff8c00 0%, #e67e00 100%);
+  border-color: #e67e00;
+  box-shadow: 0 5px 18px rgba(255, 140, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.logout-confirm-execute:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 140, 0, 0.2);
+}
+
+/* 关闭中的退出动画 */
+.logout-confirm-backdrop.is-leaving {
+  animation: danger-popup-fade-in 0.2s ease reverse forwards;
+}
+
+.logout-confirm-backdrop.is-leaving .logout-confirm-popup {
   animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse forwards;
 }
 

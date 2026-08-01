@@ -30,6 +30,10 @@
       bindRangePair('desktopLyricStrokeWidth', 'desktopLyricStrokeWidthNumber', 0, 5, 2);
       bindRangePair('desktopLyricOpacity', 'desktopLyricOpacityNumber', 0, 1, 1);
       bindRangePair('desktopLyricBgOpacity', 'desktopLyricBgOpacityNumber', 0, 1, 0);
+      bindRangePair('desktopLyricScale', 'desktopLyricScaleNumber', 0.5, 2, 1);
+      bindRangePair('desktopLyricLineHeight', 'desktopLyricLineHeightNumber', 1, 2, 1.3);
+      bindRangePair('desktopLyricShadowIntensity', 'desktopLyricShadowIntensityNumber', 0, 1, 0.5);
+      bindRangePair('desktopLyricTranslationScale', 'desktopLyricTranslationScaleNumber', 0.4, 1, 0.58);
     }
   }
 
@@ -42,7 +46,11 @@
       desktopLyricFontSize: value('desktopLyricFontSize'),
       desktopLyricStrokeWidth: value('desktopLyricStrokeWidth'),
       desktopLyricOpacity: value('desktopLyricOpacity'),
-      desktopLyricBgOpacity: value('desktopLyricBgOpacity')
+      desktopLyricBgOpacity: value('desktopLyricBgOpacity'),
+      desktopLyricScale: value('desktopLyricScale'),
+      desktopLyricLineHeight: value('desktopLyricLineHeight'),
+      desktopLyricShadowIntensity: value('desktopLyricShadowIntensity'),
+      desktopLyricTranslationScale: value('desktopLyricTranslationScale')
     };
   }
 
@@ -61,6 +69,14 @@
     setValue('desktopLyricOpacityNumber', settings.desktopLyricOpacity || '1');
     setValue('desktopLyricBgOpacity', settings.desktopLyricBgOpacity || '0');
     setValue('desktopLyricBgOpacityNumber', settings.desktopLyricBgOpacity || '0');
+    setValue('desktopLyricScale', settings.desktopLyricScale || '1');
+    setValue('desktopLyricScaleNumber', settings.desktopLyricScale || '1');
+    setValue('desktopLyricLineHeight', settings.desktopLyricLineHeight || '1.3');
+    setValue('desktopLyricLineHeightNumber', settings.desktopLyricLineHeight || '1.3');
+    setValue('desktopLyricShadowIntensity', settings.desktopLyricShadowIntensity || '0.5');
+    setValue('desktopLyricShadowIntensityNumber', settings.desktopLyricShadowIntensity || '0.5');
+    setValue('desktopLyricTranslationScale', settings.desktopLyricTranslationScale || '0.58');
+    setValue('desktopLyricTranslationScaleNumber', settings.desktopLyricTranslationScale || '0.58');
   }
 
   window.AdminApp = window.AdminApp || {};

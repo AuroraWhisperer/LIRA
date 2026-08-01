@@ -32,8 +32,6 @@ const TONEARM_SVG = `
       <g transform="translate(80 398) rotate(42)">
         <rect x="-23" y="-16" width="48" height="34" rx="13" fill="#f6f7f7"/>
         <circle cx="0" cy="1" r="8" fill="#d8dcde"/>
-        <path d="M19 11 L48 27" stroke="#81878c" stroke-width="4" stroke-linecap="round"/>
-        <path d="M47 27 L58 36" stroke="#373d42" stroke-width="2" stroke-linecap="round"/>
       </g>
     </g>
   </svg>`;

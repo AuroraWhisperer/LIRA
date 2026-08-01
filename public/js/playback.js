@@ -485,7 +485,13 @@ import { HomeService } from './playback/services/home-service.js';
         try {
           await window.musicAPI.login(playbackState.selectedSource);
           await refreshSelectedMusicProviderState();
-          toast('登录窗口已关闭，Cookie 状态已刷新');
+          U.showStackedToast({
+            key: 'music-cookie-refreshed',
+            title: 'Cookie 已刷新',
+            message: 'QQ音乐登录窗口已关闭',
+            className: 'music-cookie-refreshed-toast',
+            duration: 3600
+          });
         } catch (error) {
           showError(error);
         } finally {
@@ -516,7 +522,15 @@ import { HomeService } from './playback/services/home-service.js';
           return;
         }
         const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
-        if (!confirm(`确认退出${sourceName}登录？`)) return;
+
+        const confirmed = await window.AdminApp.utils.logoutConfirm({
+          title: '退出登录',
+          platform: sourceName,
+          message: '退出后将无法访问该平台的会员歌曲和个人歌单。',
+          icon: '→',
+          confirmLabel: '确认退出'
+        });
+        if (!confirmed) return;
 
         try {
           const platform = playbackState.selectedSource;
@@ -1563,7 +1577,7 @@ import { HomeService } from './playback/services/home-service.js';
               U.showStackedToast({
                 key: 'playback-queue-empty',
                 title: '播放队列为空',
-                message: `前往${sourceName}音乐首页或搜索歌曲，开始你的音乐之旅`,
+                message: `搜索${sourceName}歌曲并添加到播放队列`,
                 className: 'playback-empty-queue-toast',
                 duration: 4200
               });

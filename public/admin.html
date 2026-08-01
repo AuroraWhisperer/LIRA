@@ -1140,6 +1140,50 @@
                 </div>
               </fieldset>
 
+              <fieldset class="theme-section">
+                <legend>窗口缩放</legend>
+                <div class="grid-2">
+                  <label>
+                    整体缩放
+                    <span class="range-row">
+                      <input id="desktopLyricScale" type="range" min="0.5" max="2" step="0.1" value="1">
+                      <input id="desktopLyricScaleNumber" type="number" min="0.5" max="2" step="0.1" value="1">
+                    </span>
+                    <span class="hint">1 为正常大小，可通过 Ctrl+滚轮 调节</span>
+                  </label>
+                  <label>
+                    行间距
+                    <span class="range-row">
+                      <input id="desktopLyricLineHeight" type="range" min="1" max="2" step="0.1" value="1.3">
+                      <input id="desktopLyricLineHeightNumber" type="number" min="1" max="2" step="0.1" value="1.3">
+                    </span>
+                    <span class="hint">推荐 1.2-1.5</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="theme-section">
+                <legend>阴影与特效</legend>
+                <div class="grid-2">
+                  <label>
+                    文字阴影强度
+                    <span class="range-row">
+                      <input id="desktopLyricShadowIntensity" type="range" min="0" max="1" step="0.1" value="0.5">
+                      <input id="desktopLyricShadowIntensityNumber" type="number" min="0" max="1" step="0.1" value="0.5">
+                    </span>
+                    <span class="hint">0 为无阴影</span>
+                  </label>
+                  <label>
+                    翻译字号比例
+                    <span class="range-row">
+                      <input id="desktopLyricTranslationScale" type="range" min="0.4" max="1" step="0.05" value="0.58">
+                      <input id="desktopLyricTranslationScaleNumber" type="number" min="0.4" max="1" step="0.05" value="0.58">
+                    </span>
+                    <span class="hint">相对主歌词的大小</span>
+                  </label>
+                </div>
+              </fieldset>
+
               <button class="primary" type="submit">保存桌面歌词设置</button>
             </form>
           </div>

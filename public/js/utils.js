@@ -99,7 +99,9 @@
 
     const node = document.createElement('div');
     node.className = `toast${options.className ? ` ${options.className}` : ''}`;
-    if (options.title) {
+    if (options.html) {
+      node.innerHTML = options.html;
+    } else if (options.title) {
       node.innerHTML = `<strong>${escapeHtml(options.title)}</strong><span>${escapeHtml(options.message || '')}</span>`;
     } else {
       node.textContent = options.message || '';
@@ -170,6 +172,78 @@
     const safeValue = Number.isFinite(valueNumber) ? valueNumber : fallbackNumber;
     const clamped = Math.max(min, Math.min(max, safeValue));
     return String(Math.round(clamped * 100) / 100);
+  }
+
+  /**
+   * 退出登录确认弹窗 — 替代原生 confirm()
+   * @param {Object} opts
+   * @param {string} opts.title       - 弹窗标题（如"退出登录"）
+   * @param {string} opts.platform    - 平台名称（如"Bilibili"、"网易云音乐"）
+   * @param {string} opts.message     - 退出后的影响说明
+   * @param {string} [opts.icon]      - 图标字符，默认 "→"
+   * @param {string} [opts.confirmLabel] - 确认按钮文案，默认 "确认退出"
+   * @returns {Promise<boolean>}
+   */
+  function logoutConfirm(opts) {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'logout-confirm-backdrop';
+
+      const icon = opts.icon || '→';
+
+      backdrop.innerHTML = `
+        <div class="logout-confirm-popup" role="alertdialog" aria-labelledby="lc-title" aria-describedby="lc-msg">
+          <div class="logout-confirm-body">
+            <div class="logout-confirm-header">
+              <div class="logout-confirm-icon-wrap" aria-hidden="true">${escapeHtml(icon)}</div>
+              <div class="logout-confirm-header-text">
+                <h3 class="logout-confirm-title" id="lc-title">${escapeHtml(opts.title || '退出登录')}</h3>
+                <span class="logout-confirm-subtitle">${escapeHtml(opts.platform || '')}</span>
+              </div>
+            </div>
+            <div class="logout-confirm-message" id="lc-msg">
+              ${escapeHtml(opts.message || '')}
+            </div>
+            <div class="logout-confirm-actions">
+              <button class="logout-confirm-cancel" type="button">取消</button>
+              <button class="logout-confirm-execute" type="button">${escapeHtml(opts.confirmLabel || '确认退出')}</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(backdrop);
+
+      const cancelBtn = backdrop.querySelector('.logout-confirm-cancel');
+      const executeBtn = backdrop.querySelector('.logout-confirm-execute');
+
+      function close(result) {
+        backdrop.classList.add('is-leaving');
+        backdrop.addEventListener('animationend', () => {
+          backdrop.remove();
+          resolve(result);
+        }, { once: true });
+        // 兜底：animationend 不触发时也清理
+        setTimeout(() => { if (backdrop.parentNode) { backdrop.remove(); resolve(result); } }, 300);
+      }
+
+      cancelBtn.addEventListener('click', () => close(false));
+      executeBtn.addEventListener('click', () => close(true));
+
+      // 点击遮罩关闭
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close(false);
+      });
+
+      // ESC 关闭
+      function onKey(e) {
+        if (e.key === 'Escape') { close(false); }
+      }
+      document.addEventListener('keydown', onKey, { once: true });
+
+      // 自动聚焦取消按钮（退出操作更倾向保守）
+      requestAnimationFrame(() => cancelBtn.focus());
+    });
   }
 
   /**
@@ -258,6 +332,6 @@
     formatSuperChatPrice, formatMoney, formatCompactNumber,
     withMultilingualFallback, toast, showStackedToast,
     api, readJsonResponse, showError, debounce, normalizeRangeValue,
-    dangerConfirm
+    logoutConfirm, dangerConfirm
   };
 })();

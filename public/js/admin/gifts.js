@@ -10,6 +10,7 @@
     formatDateTime,
     formatMoney,
     toast,
+    showStackedToast,
     readJsonResponse,
     dangerConfirm
   } = window.AdminApp.utils;
@@ -84,10 +85,11 @@
     const newest = items[0];
     const newestId = newest ? Number(newest.id || 0) : 0;
     if (!newestId) return;
+    const sprintPrice = Number(newest.sprint_count_price ?? newest.total_price ?? 0);
     const newestKey = [
       newestId,
       Number(newest.num || 1),
-      Number(newest.sprint_count_price ?? newest.total_price ?? 0)
+      sprintPrice
     ].join(':');
 
     if (latestGiftNoticeKey === null) {
@@ -97,7 +99,58 @@
 
     if (newestKey === latestGiftNoticeKey) return;
     latestGiftNoticeKey = newestKey;
-    toast(`收到礼物：${newest.gift_name || '未知礼物'} x${Number(newest.num || 1)}，计入 ${formatMoney(newest.sprint_count_price ?? newest.total_price)}`);
+
+    const giftName = escapeHtml(newest.gift_name || '未知礼物');
+    const userName = escapeHtml(newest.user_name || '观众');
+    const num = Number(newest.num || 1);
+    const coinType = String(newest.coin_type || '').toLowerCase();
+    const giftId = String(newest.gift_id || '').toLowerCase();
+    const isBlindBox = !!(newest.is_blind_box);
+    const blindBoxName = newest.blind_box_name ? escapeHtml(newest.blind_box_name) : '';
+
+    // 判断礼物类型变体
+    let variantClass = '';
+    if (coinType === 'guard' || giftId.startsWith('guard-')) {
+      variantClass = ' gift-guard';
+    } else if (isBlindBox) {
+      variantClass = ' gift-blind-box';
+    } else if (sprintPrice >= 100) {
+      variantClass = ' gift-premium';
+    } else if (sprintPrice <= 0 || coinType === 'free' || coinType === 'silver') {
+      variantClass = ' gift-free';
+    }
+
+    // 价格徽章
+    let priceBadge = '';
+    if (sprintPrice > 0) {
+      priceBadge = `<span class="gift-price-badge">¥${formatMoney(sprintPrice)}</span>`;
+    }
+
+    // 构建内容
+    let displayName = giftName;
+    let subtitle;
+
+    if (coinType === 'guard' || giftId.startsWith('guard-')) {
+      // 大航海：突出显示
+      subtitle = `${userName} 开通${giftName}`;
+    } else if (isBlindBox) {
+      displayName = blindBoxName || giftName;
+      subtitle = `${userName} 送出盲盒`;
+      if (blindBoxName) {
+        subtitle += ` · 开出 ${blindBoxName}`;
+      }
+    } else {
+      subtitle = `${userName} 送出`;
+    }
+
+    const titleHtml = `${displayName} x${num}${priceBadge}`;
+
+    showStackedToast({
+      key: `gift:${newestId}:${num}:${sprintPrice}`,
+      className: `gift-notify-toast${variantClass}`,
+      html: `<strong>${titleHtml}</strong><span>${subtitle}</span>`,
+      duration: 3200
+    });
   }
 
   function renderGiftRecentList(items) {
