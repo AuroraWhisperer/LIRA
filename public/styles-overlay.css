@@ -260,7 +260,8 @@
 }
 
 .identity-sc-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 3px;
   margin-bottom: 3px;
 }
@@ -270,6 +271,7 @@
   align-items: center;
   gap: 5px;
   min-height: 24px;
+  height: auto;
   overflow: hidden;
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.22);
@@ -620,7 +622,8 @@
   color: var(--overlay-song-color, var(--overlay-text, #fff7fb));
   overflow-wrap: anywhere;
   font-size: calc(16px * var(--overlay-font-scale, 1));
-  word-break: break-all;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .song-card span {

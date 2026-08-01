@@ -206,13 +206,7 @@ function render(stats) {
     leaderboard.innerHTML = headerHtml + rows;
   }
 
-  // ── 底部 ──
-  const footer = document.getElementById('blindboxFooter');
-  if (footer) {
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    footer.textContent = `更新于 ${timeStr}${HIDE_LOSS ? ' · 仅显示盈利' : ''}${TOP_N > 0 ? ` · Top ${TOP_N}` : ''}`;
-  }
+  // ── 底部 ── 已移除更新时间和参数显示
 }
 
 function applyTheme(settings) {

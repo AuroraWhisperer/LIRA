@@ -43,13 +43,16 @@ function mapKanaToLines(lines, kanaReadings) {
 }
 
 function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
-  const lines = parseLrc(rawLyric);
-  const translations = parseLrc(rawTranslation);
-  const translationByStart = new Map(translations.map((line) => [line.startMs, line.text]));
   const wordLines = parseWordLyric(rawWordLyric);
+  const lrcLines = parseLrc(rawLyric);
+  const lines = lrcLines.length > 0
+    ? lrcLines
+    : wordLines.map((line) => ({ startMs: line.startMs, endMs: line.endMs, text: line.text }));
+  const translations = parseTimedText(rawTranslation);
+  const resolveTranslation = createTimedTextResolver(translations);
   const wordLineByStart = new Map(wordLines.map((line) => [line.startMs, line]));
-  const romaLines = parseLrc(rawRoma);
-  const romaByStart = new Map(romaLines.map((line) => [line.startMs, line.text]));
+  const romaLines = parseTimedText(rawRoma);
+  const resolveRoma = createTimedTextResolver(romaLines);
 
   // 提取 QQ 音乐 [kana:...] 标签中的假名注音
   const kanaReadings = extractKanaReadings(rawLyric);
@@ -59,16 +62,52 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   }
 
   return lines.map((line, index) => {
-    const romaFromApi = romaByStart.get(line.startMs) || '';
+    const romaFromApi = resolveRoma(line.startMs);
     const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
     return {
       ...line,
-      endMs: lines[index + 1] ? lines[index + 1].startMs : undefined,
-      translation: translationByStart.get(line.startMs) || '',
+      endMs: line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
+      translation: resolveTranslation(line.startMs),
       roma: romaFromApi || kanaFromTag,
       words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : []
     };
   });
+}
+
+function parseTimedText(rawText) {
+  const lrcLines = parseLrc(rawText);
+  return lrcLines.length > 0 ? lrcLines : parseWordLyric(rawText);
+}
+
+/**
+ * Resolve alternate lyric text whose timestamp differs slightly from the original.
+ * QQ Music commonly offsets translated and romanized lines by a few milliseconds.
+ */
+function createTimedTextResolver(lines, toleranceMs = 100) {
+  const sorted = Array.isArray(lines)
+    ? lines.filter((line) => Number.isFinite(line.startMs)).sort((a, b) => a.startMs - b.startMs)
+    : [];
+  const exact = new Map(sorted.map((line) => [line.startMs, line.text]));
+
+  return (startMs) => {
+    if (exact.has(startMs)) return exact.get(startMs) || '';
+
+    let low = 0;
+    let high = sorted.length - 1;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (sorted[mid].startMs < startMs) low = mid + 1;
+      else high = mid - 1;
+    }
+
+    const candidates = [sorted[low], sorted[low - 1]].filter(Boolean);
+    const nearest = candidates.sort(
+      (a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs)
+    )[0];
+    return nearest && Math.abs(nearest.startMs - startMs) <= toleranceMs
+      ? nearest.text || ''
+      : '';
+  };
 }
 
 function parseLrc(rawText) {
@@ -111,7 +150,8 @@ function parseWordLyric(rawText) {
   const result = [];
   const text = String(rawText || '');
   const linePattern = /\[(\d+),(\d+)\]([\s\S]*)/;
-  const wordPattern = /\((\d+),(\d+),\d*\)([^()]+)/g;
+  const prefixWordPattern = /\((\d+),(\d+),\d*\)([^()]+)/g;
+  const suffixWordPattern = /([^()]*)\((\d+),(\d+)\)/g;
 
   for (const row of text.split(/\r?\n/)) {
     const lineMatch = row.match(linePattern);
@@ -121,8 +161,8 @@ function parseWordLyric(rawText) {
     const body = lineMatch[3] || '';
     const words = [];
     let match;
-    wordPattern.lastIndex = 0;
-    while ((match = wordPattern.exec(body)) !== null) {
+    prefixWordPattern.lastIndex = 0;
+    while ((match = prefixWordPattern.exec(body)) !== null) {
       const startMs = Number(match[1]);
       const durationMs = Number(match[2]);
       const textValue = String(match[3] || '').trim();
@@ -133,11 +173,25 @@ function parseWordLyric(rawText) {
         text: textValue
       });
     }
+    if (!words.length) {
+      suffixWordPattern.lastIndex = 0;
+      while ((match = suffixWordPattern.exec(body)) !== null) {
+        const textValue = String(match[1] || '');
+        if (!textValue.trim()) continue;
+        const startMs = Number(match[2]);
+        const durationMs = Number(match[3]);
+        words.push({
+          startMs,
+          endMs: startMs + Math.max(0, durationMs),
+          text: textValue
+        });
+      }
+    }
     if (!words.length) continue;
     result.push({
       startMs: lineStartMs,
       endMs: lineStartMs + Math.max(0, lineDurationMs),
-      text: words.map((word) => word.text).join(''),
+      text: words.map((word) => word.text).join('').trim(),
       words
     });
   }

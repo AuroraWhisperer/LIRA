@@ -27,7 +27,7 @@ let dataDir = '';
 let logDir = '';
 let logFile = '';
 let updateState = {
-  status: 'idle', message: '尚未检查更新', version: app.getVersion(),
+  status: 'idle', message: '尚未检查更新', version: '',
   canDownload: false, canInstall: false, progress: null, updateVersion: ''
 };
 

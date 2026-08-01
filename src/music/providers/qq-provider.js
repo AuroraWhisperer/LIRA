@@ -1,6 +1,7 @@
 'use strict';
 
 const { zzcSign } = require('@jixun/qmweb-sign');
+const { decryptQrc } = require('qrc-decoder');
 const { parseLyricResult } = require('../lyrics');
 
 const QQ_SEARCH_URL = 'https://c.y.qq.com/soso/fcgi-bin/client_search_cp';
@@ -81,6 +82,53 @@ class QQMusicProvider {
 
   async getLyrics(track) {
     const sourceTrackId = extractSourceTrackId(track);
+    const sourceSongId = extractSourceSongId(track);
+    let richLyricError = null;
+
+    if (sourceSongId > 0) {
+      try {
+        const response = await this.requestMusicu({
+          req_0: {
+            module: 'music.musichallSong.PlayLyricInfo',
+            method: 'GetPlayLyricInfo',
+            param: {
+              songID: sourceSongId,
+              songMID: sourceTrackId,
+              songType: 0,
+              qrc: 1,
+              trans: 1,
+              roma: 1,
+              crypt: 1
+            }
+          }
+        });
+        const inner = response && response.req_0;
+        if (Number(response && response.code) !== 0 || Number(inner && inner.code) !== 0 || !inner || !inner.data) {
+          throw new Error('QQ 音乐未返回完整歌词数据。');
+        }
+
+        const data = inner.data;
+        const encrypted = Number(data.crypt) === 1;
+        const lyric = decodeQQPlayableLyric(data.lyric, encrypted);
+        const translation = decodeQQPlayableLyric(data.trans, encrypted);
+        const roma = decodeQQPlayableLyric(data.roma, encrypted);
+        const lines = parseLyricResult(lyric, translation, lyric, roma);
+        if (lines.length > 0) return { source: this.source, sourceTrackId, lines };
+        throw new Error('QQ 音乐返回的歌词无法解析。');
+      } catch (error) {
+        richLyricError = error;
+      }
+    }
+
+    try {
+      return await this.getLegacyLyrics(sourceTrackId);
+    } catch (error) {
+      if (!richLyricError) throw error;
+      throw new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`);
+    }
+  }
+
+  async getLegacyLyrics(sourceTrackId) {
     const data = await this.requestJson(QQ_LYRIC_URL, {
       songmid: sourceTrackId,
       pcachetime: String(Date.now()),
@@ -417,7 +465,17 @@ class QQMusicProvider {
     const songInfo = normalizeQQPlaylistSongInfo(tracks);
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader);
-    if (!uin) throw new Error('没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。');
+    if (!uin) {
+      const cookieNames = cookieHeader
+        .split(';')
+        .map(pair => pair.trim().split('=')[0])
+        .filter(name => name)
+        .join(', ');
+      const debugInfo = cookieNames
+        ? `找到的 Cookie: ${cookieNames}`
+        : '未找到任何 Cookie';
+      throw new Error(`没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。\n调试信息：${debugInfo}`);
+    }
     const gtkSource = extractQQGtkSource(cookieHeader);
     if (!gtkSource) throw new Error('QQ 音乐登录 Cookie 不完整，请重新登录。');
     const gtk = calcQQGtk(gtkSource);
@@ -676,7 +734,18 @@ class QQMusicProvider {
   async requireUin() {
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader);
-    if (!uin) throw new Error('没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。');
+    if (!uin) {
+      // 诊断信息：显示找到的 Cookie 名称（不包含值）
+      const cookieNames = cookieHeader
+        .split(';')
+        .map(pair => pair.trim().split('=')[0])
+        .filter(name => name)
+        .join(', ');
+      const debugInfo = cookieNames
+        ? `找到的 Cookie: ${cookieNames}`
+        : '未找到任何 Cookie';
+      throw new Error(`没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。\n调试信息：${debugInfo}`);
+    }
     return uin;
   }
 
@@ -782,6 +851,47 @@ function extractSourceTrackId(track) {
     .trim();
   if (!sourceTrackId) throw new Error('缺少 QQ 音乐歌曲 ID。');
   return sourceTrackId;
+}
+
+function extractSourceSongId(track) {
+  const sourceSongId = Number(track && (track.sourceSongId || track.songId));
+  return Number.isSafeInteger(sourceSongId) && sourceSongId > 0 ? sourceSongId : 0;
+}
+
+/**
+ * Decode the hexadecimal payload returned by QQ Music's playable lyric API.
+ * The legacy endpoint is handled separately because it returns plain Base64 text.
+ */
+function decodeQQPlayableLyric(value, encrypted) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (!encrypted) return decodeQQBase64(text);
+  if (text.length > 2 * 1024 * 1024 || text.length % 16 !== 0 || !/^[0-9a-f]+$/i.test(text)) {
+    throw new Error('QQ 音乐返回了无效的加密歌词。');
+  }
+  try {
+    return extractQrcLyricContent(decryptQrc(text));
+  } catch (error) {
+    throw new Error(`QQ 音乐歌词解密失败：${error && error.message ? error.message : String(error)}`);
+  }
+}
+
+/** Extract the timed lyric text from QQ's optional QRC XML envelope. */
+function extractQrcLyricContent(value) {
+  const text = String(value || '');
+  const match = text.match(/<Lyric_1\b[^>]*\bLyricContent="([\s\S]*?)"\s*\/>/i);
+  return decodeXmlEntities(match ? match[1] : text);
+}
+
+function decodeXmlEntities(value) {
+  return String(value || '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 }
 
 function decodeQQBase64(value) {
@@ -941,7 +1051,9 @@ function calcQQGtk(value) {
 
 function extractUin(cookieHeader) {
   const text = String(cookieHeader || '');
-  const match = text.match(/(?:^|;\s*)(?:qqmusic_uin|uin|o_cookie|qm_hideuin)=o?(\d+)/);
+  // 支持多种 Cookie 名称：qqmusic_uin, uin, wxuin, o_cookie, qm_hideuin
+  // 值格式：可以是 o123456 或直接 123456
+  const match = text.match(/(?:^|;\s*)(?:qqmusic_uin|wxuin|uin|o_cookie|qm_hideuin)=o?(\d+)/);
   return match ? match[1] : '';
 }
 

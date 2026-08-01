@@ -241,7 +241,9 @@ export class LyricService {
       artists: track.artists,
       album: track.album,
       sourceTrackId: track.sourceTrackId,
-      sourceAlbumId: track.sourceAlbumId
+      sourceSongId: track.sourceSongId,
+      sourceAlbumId: track.sourceAlbumId,
+      durationMs: track.durationMs
     };
   }
 }

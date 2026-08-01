@@ -317,7 +317,8 @@ export class ContentLoader {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         platform: this.state.selectedSource,
-        action: action
+        action: action,
+        limit: 5000
       })
     });
 

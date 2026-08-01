@@ -3,12 +3,21 @@
 'use strict';
 
 const { app } = require('electron');
-const { autoUpdater } = require('electron-updater');
+
+// 延迟加载 autoUpdater 避免在 app ready 之前初始化
+let autoUpdater = null;
+
+function getAutoUpdater() {
+  if (!autoUpdater) {
+    autoUpdater = require('electron-updater').autoUpdater;
+  }
+  return autoUpdater;
+}
 
 let updateState = {
   status: 'idle',
   message: '尚未检查更新',
-  version: app.getVersion(),
+  version: '',
   canDownload: false,
   canInstall: false,
   progress: null,
@@ -19,6 +28,8 @@ let lastProgressTime = 0;
 let lastTransferred = 0;
 
 function configureAutoUpdater({ onStateChange, writeLog }) {
+  const autoUpdater = getAutoUpdater();
+
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
@@ -101,7 +112,7 @@ async function checkForUpdates() {
     });
     return updateState;
   }
-  try { await autoUpdater.checkForUpdates(); } catch (error) {
+  try { await getAutoUpdater().checkForUpdates(); } catch (error) {
     setUpdateState({
       status: 'error', message: friendlyUpdateError(error).message,
       canDownload: false, canInstall: false
@@ -119,7 +130,7 @@ async function downloadUpdate() {
     status: 'downloading', message: '正在准备下载 GitHub 最新安装包...',
     canDownload: false, canInstall: false
   });
-  try { await autoUpdater.downloadUpdate(); } catch (error) {
+  try { await getAutoUpdater().downloadUpdate(); } catch (error) {
     setUpdateState({
       status: 'error', message: friendlyUpdateError(error).message,
       canDownload: false, canInstall: false
@@ -135,7 +146,7 @@ function installUpdate() {
     canDownload: false, canInstall: false
   });
   app.releaseSingleInstanceLock();
-  autoUpdater.quitAndInstall(true, true);
+  getAutoUpdater().quitAndInstall(true, true);
   return updateState;
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "bilibili-live-song-plugin",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": true,
   "license": "UNLICENSED",
   "description": "Local Bilibili live song request assistant MVP.",
@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@jixun/qmweb-sign": "2.0.3",
-    "electron-updater": "^6.8.4"
+    "electron-updater": "^6.8.4",
+    "qrc-decoder": "1.0.2"
   },
   "devDependencies": {
     "electron": "43.2.0",

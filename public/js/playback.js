@@ -955,7 +955,7 @@ import { HomeService } from './playback/services/home-service.js';
         if (!searchResults.length) {
           resultNode.innerHTML = playbackState.selectedSource === 'netease'
             ? '输入关键词后可搜索网易云音乐。'
-            : 'QQ 音乐 Provider 尚未接入，当前只保留登录验证。';
+            : '输入关键词后可搜索 QQ 音乐。';
           return;
         }
 

@@ -11,8 +11,8 @@
     "search"
     "discovery"
     "match";
-  grid-template-rows: auto auto minmax(200px, 1fr) auto;
-  gap: 12px;
+  grid-template-rows: auto auto minmax(240px, 1fr) auto;
+  gap: 16px;
   height: calc(100vh - 58px - 96px);
   padding: 16px;
   overflow: auto;
@@ -259,43 +259,71 @@ body.player-dock-expanded .playback-page.active {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fafbfc 0%, #ffffff 100%);
+  box-shadow: 0 2px 8px rgba(22, 31, 43, 0.08);
+}
+
+.playback-discovery-panel .panel-header {
+  flex-shrink: 0;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid rgba(217, 224, 232, 0.6);
+  background: linear-gradient(135deg, rgba(217, 75, 112, 0.04) 0%, rgba(147, 112, 219, 0.02) 100%);
+}
+
+.playback-discovery-panel .panel-header h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px 0;
+}
+
+.playback-discovery-panel .panel-subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .playback-discovery-panel > .panel-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  padding: 20px;
 }
 
 .playback-home-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .playback-home-card {
   position: relative;
-  min-height: 76px;
+  min-height: 88px;
   display: grid;
-  gap: 5px;
+  gap: 6px;
   align-content: center;
   justify-items: start;
   overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: var(--surface-2);
-  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 14px 15px;
   text-align: left;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  box-shadow: 0 1px 3px rgba(22, 31, 43, 0.06);
 }
 
 .playback-home-card strong {
   font-size: 16px;
+  line-height: 1.3;
 }
 
 .playback-home-card span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .playback-home-card strong,
@@ -316,20 +344,24 @@ body.player-dock-expanded .playback-page.active {
 }
 
 .playback-home-card:hover {
-  border-color: var(--border);
-  background: var(--surface);
-  transform: translateY(-1px);
+  border-color: var(--primary);
+  background: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(217, 75, 112, 0.12), 0 2px 4px rgba(22, 31, 43, 0.06);
 }
 
 .playback-home-card:hover::after {
-  opacity: 0.7;
-  transform: translate(2px, -50%);
+  opacity: 0.8;
+  transform: translate(3px, -50%);
 }
 
 .playback-home-card.active {
   border-color: var(--primary);
-  background: #fff6fa;
-  box-shadow: inset 0 0 0 2px rgba(255, 111, 145, 0.18);
+  background: linear-gradient(135deg, #fff6fa 0%, #fff 100%);
+  box-shadow:
+    0 0 0 2px rgba(217, 75, 112, 0.15),
+    0 4px 12px rgba(217, 75, 112, 0.18),
+    0 2px 4px rgba(22, 31, 43, 0.06);
 }
 
 .playback-home-card.active strong {
@@ -363,21 +395,38 @@ body.player-dock-expanded .playback-page.active {
 /* ===== 搜索面板 ===== */
 .playback-search-panel {
   grid-area: search;
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(22, 31, 43, 0.06);
+}
+
+.playback-search-panel .panel-header {
+  min-height: 56px;
+  flex-shrink: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(217, 224, 232, 0.5);
 }
 
 .playback-search-panel .panel-body {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px 18px;
 }
 
 .playback-search-panel .form-grid.three {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 140px 76px;
   gap: 10px;
-}
-
-.playback-search-panel .panel-header {
-  min-height: 56px;
+  flex-shrink: 0;
 }
 
 .playback-search-panel #playbackSearchBtn {
@@ -387,24 +436,48 @@ body.player-dock-expanded .playback-page.active {
 .playback-search-results {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: 10px;
   min-height: 70px;
-  max-height: 400px;
-  padding: 8px 2px 2px;
-  overflow: auto;
+  padding: 4px 2px 6px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+/* 美化搜索结果滚动条 */
+.playback-search-results::-webkit-scrollbar {
+  width: 8px;
+}
+
+.playback-search-results::-webkit-scrollbar-track {
+  background: rgba(22, 31, 43, 0.04);
+  border-radius: 4px;
+}
+
+.playback-search-results::-webkit-scrollbar-thumb {
+  background: rgba(217, 75, 112, 0.3);
+  border-radius: 4px;
+  transition: background 200ms ease;
+}
+
+.playback-search-results::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 75, 112, 0.5);
 }
 
 .playback-search-row {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: 10px;
+  padding: 12px 14px;
   background: var(--surface);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  box-shadow: 0 1px 3px rgba(22, 31, 43, 0.06);
 }
 
 .playback-search-row:hover {
   border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(22, 31, 43, 0.08);
+  box-shadow:
+    0 4px 12px rgba(217, 75, 112, 0.12),
+    0 2px 4px rgba(22, 31, 43, 0.06);
+  transform: translateY(-1px);
 }
 
 .playback-search-row .playback-row-main {
@@ -460,11 +533,16 @@ body.player-dock-expanded .playback-page.active {
 .playback-match-panel {
   grid-area: match;
   overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(22, 31, 43, 0.06);
 }
 
 .playback-match-panel > summary {
   cursor: pointer;
   list-style: none;
+  padding: 16px 18px;
 }
 
 .playback-match-panel > summary::-webkit-details-marker {
@@ -1599,8 +1677,8 @@ body.player-dock-expanded .playback-page.active {
   top: 20px;
   left: 20px;
   z-index: 2;
-  width: 36px;
-  height: 36px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
   border: none;
@@ -2367,8 +2445,8 @@ body.player-dock-expanded .playback-page.active {
   }
 
   .player-fs-close-btn {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     top: 16px;
     left: 16px;
   }

@@ -161,12 +161,12 @@ class NeteaseMusicProvider {
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
       n: String(limit),
-      s: '0'
+      s: String(offset)
     });
     const tracks = data && data.playlist && Array.isArray(data.playlist.tracks)
       ? data.playlist.tracks
       : [];
-    return tracks.slice(offset, offset + limit).map(mapNeteaseSong).filter(Boolean);
+    return tracks.map(mapNeteaseSong).filter(Boolean);
   }
 
   async getUserPlaylists(userId, options = {}) {

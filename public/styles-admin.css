@@ -2720,7 +2720,7 @@ tr:last-child td {
 /* ===== 点歌工作区布局 ===== */
 .song-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 4fr);
   gap: 16px;
   height: calc(100vh - 58px - 96px);
   padding: 16px;
@@ -3211,8 +3211,8 @@ button.danger-filled:hover {
   backdrop-filter: blur(3px);
   animation: danger-popup-fade-in 0.2s ease;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   padding: 20px 24px;
 }
 
@@ -3224,7 +3224,6 @@ button.danger-filled:hover {
   position: relative;
   width: 400px;
   max-width: calc(100vw - 48px);
-  margin-top: 58px;
   background: #fffdf9;
   border: 1.5px solid rgba(255, 159, 64, 0.28);
   border-radius: 16px;
