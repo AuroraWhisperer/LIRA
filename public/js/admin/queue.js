@@ -82,8 +82,24 @@
 
     const live = appState.liveStatus || {};
     const liveStatus = document.getElementById('liveStatus');
-    liveStatus.textContent = live.message || '弹幕监听未启用';
-    liveStatus.className = live.connected ? 'pill good' : 'pill warn';
+    const ownerName = live.ownerName || '';
+    const roomId = live.roomId || '';
+    const statusText = live.message || '弹幕监听未启用';
+    const isLive = live.connected;
+
+    let html = '';
+    if (isLive && ownerName) {
+      html = `✓ <span class="owner-name">${escapeHtml(ownerName)}</span> ${escapeHtml(statusText)}`;
+    } else if (ownerName) {
+      html = `${escapeHtml(statusText)} <span class="owner-name">${escapeHtml(ownerName)}</span>`;
+    } else {
+      html = escapeHtml(statusText);
+    }
+    if (!isLive && roomId) {
+      html += ` <span class="room-id-hint">· ${escapeHtml(roomId)}</span>`;
+    }
+    liveStatus.innerHTML = html;
+    liveStatus.className = isLive ? 'pill good' : (live.enabled ? 'pill warn' : 'pill');
 
     const list = document.getElementById('queueList');
     applyAdminQueueFontPreview(settings);

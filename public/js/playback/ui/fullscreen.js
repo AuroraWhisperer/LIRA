@@ -94,18 +94,15 @@ export class FullscreenPlayer {
    * @param {HTMLAudioElement} audio - 音频元素
    */
   render(track, audio) {
-    if (!this.fsEl || !this.fsEl.classList.contains('open')) return;
-
     const isPlaying = audio && !audio.paused;
 
-    // 更新标题和歌手
+    // 无论全屏是否打开，始终更新封面、歌曲信息和背景主题
+    // 这样退出重进后打开全屏时，唱片机上已经有缓存的信息展示
     this.renderTrackInfo(track);
-
-    // 更新封面和背景
     this.renderArtwork(track);
-
-    // 更新背景主题
     this.applyBackgroundTheme(track);
+
+    if (!this.fsEl || !this.fsEl.classList.contains('open')) return;
 
     // 唱片和唱针动画
     this.updateVinylAnimation(isPlaying);

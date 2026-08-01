@@ -189,20 +189,27 @@ function addGiftEvent(context, input, skipComboBuffer) {
     }
   }
 
-  // 盲盒匹配：协议未标记为盲盒的礼物，用预配置的映射表查找
-  if (!gift.isBlindBox) {
-    const matchedBox = matchBlindBox(context, gift.giftName);
-    if (matchedBox) {
+  // 盲盒匹配：协议可能已标记为盲盒（BLIND_GIFT），也可能未标记。
+  // 无论哪种情况，都要用预配置的映射表查找，因为协议发的 totalPrice 是盲盒成本价，
+  // 而映射表里配置了礼物的实际价值，需要覆盖。
+  // 匹配时优先用协议给的 blindBoxName（盲盒开出的具体礼物名），
+  // 其次用 giftName（可能是礼物名也可能是盲盒名）。
+  const matchedBox = matchBlindBox(context, gift.blindBoxName) || matchBlindBox(context, gift.giftName);
+  if (matchedBox) {
+    if (!gift.isBlindBox) {
       gift.isBlindBox = true;
-      gift.blindBoxName = matchedBox.blindBoxName;
-      gift.blindBoxPrice = normalizeMoney(matchedBox.boxPrice * gift.num);
-      // 如果配置了礼物的实际价值，用它覆盖协议的 totalPrice（协议发的是盲盒成本价）
-      if (matchedBox.giftPrice !== null && matchedBox.giftPrice !== undefined && matchedBox.giftPrice > 0) {
-        gift.totalPrice = normalizeMoney(matchedBox.giftPrice * gift.num);
-        gift.unitPrice = matchedBox.giftPrice;
-      }
-      gift.blindProfit = normalizeSignedMoney(gift.totalPrice - gift.blindBoxPrice);
     }
+    // 映射表的盲盒名（用户配置的盲盒类型）优先于协议字段
+    gift.blindBoxName = matchedBox.blindBoxName || gift.blindBoxName;
+    if (gift.blindBoxPrice === null || gift.blindBoxPrice === undefined) {
+      gift.blindBoxPrice = normalizeMoney(matchedBox.boxPrice * gift.num);
+    }
+    // 如果配置了礼物的实际价值，用它覆盖协议的 totalPrice（协议发的是盲盒成本价）
+    if (matchedBox.giftPrice !== null && matchedBox.giftPrice !== undefined && matchedBox.giftPrice > 0) {
+      gift.totalPrice = normalizeMoney(matchedBox.giftPrice * gift.num);
+      gift.unitPrice = matchedBox.giftPrice;
+    }
+    gift.blindProfit = normalizeSignedMoney(gift.totalPrice - gift.blindBoxPrice);
   }
 
   if (gift.platformId) {

@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>点歌助手</title>
     <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/styles-admin.css?v=20260731-04">
+    <link rel="stylesheet" href="/styles-admin.css?v=20260801-01">
     <link rel="stylesheet" href="/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/styles-desktop.css?v=20260729-01">
   </head>
@@ -922,7 +922,26 @@
               <div id="giftStatusLine" class="hint">等待直播消息…</div>
             </fieldset>
 
-            <!-- 2. 月底冲刺 -->
+            <!-- 2. 最近礼物 -->
+            <section class="theme-section gift-recent-section" data-state="ready">
+              <div class="gift-recent-heading" id="giftRecentHeading">
+                <span class="gift-recent-heading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6m3-5 5-5 5 5M12 3v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <h3>最近礼物</h3>
+                <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物流水">查看全部 →</button>
+                <button id="giftRecentToggle" class="section-toggle" type="button" aria-expanded="true" title="折叠最近礼物">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 14 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+              <div id="giftRecentCollapsible" class="gift-recent-collapsible">
+                <div id="giftRecentList" class="gift-cards"></div>
+              </div>
+            </section>
+
+            <!-- 3. 月底冲刺 -->
             <fieldset class="theme-section">
               <legend>🎯 月底冲刺</legend>
               <div class="gift-sprint-grid">
@@ -955,35 +974,7 @@
               </form>
             </fieldset>
 
-            <!-- 3. 最近礼物 -->
-            <fieldset class="theme-section gift-recent-section">
-              <legend>📦 最近礼物
-                <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物流水">查看全部 →</button>
-              </legend>
-              <div id="giftRecentList" class="gift-cards"></div>
-            </fieldset>
-
-            <!-- 4. 盲盒映射 -->
-            <fieldset class="theme-section gift-blindbox-section">
-              <legend>🎰 盲盒映射</legend>
-              <div class="blind-box-form-row">
-                <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒">
-                <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本(元)">
-                <input id="blindBoxOutputs" type="text" placeholder="礼物:价格，如 电影票:2, 棉花糖:9">
-                <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
-                <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
-              </div>
-              <div id="blindBoxList" class="blind-box-list"></div>
-              <div id="blindBoxAdvanced" hidden>
-                <textarea id="giftBlindBoxConfig" rows="6" placeholder='[
-  { "name": "心动盲盒", "price": 15, "outputs": [{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}] },
-  { "name": "幸运盲盒", "price": 5, "outputs": [{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}] }
-]'></textarea>
-                <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
-              </div>
-            </fieldset>
-
-            <!-- 5. 盲盒盈亏 -->
+            <!-- 4. 盲盒盈亏 -->
             <section class="theme-section gift-blindbox-stats-section" data-state="loading">
               <div class="blind-stats-heading" id="blindBoxStatsHeading">
                 <span class="blind-stats-heading-icon" aria-hidden="true">
@@ -1022,6 +1013,26 @@
                 </div>
               </div>
             </section>
+
+            <!-- 5. 盲盒映射 -->
+            <fieldset class="theme-section gift-blindbox-section">
+              <legend>🎰 盲盒映射</legend>
+              <div class="blind-box-form-row">
+                <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒">
+                <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本(元)">
+                <input id="blindBoxOutputs" type="text" placeholder="礼物:价格，如 电影票:2, 棉花糖:9">
+                <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
+                <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
+              </div>
+              <div id="blindBoxList" class="blind-box-list"></div>
+              <div id="blindBoxAdvanced" hidden>
+                <textarea id="giftBlindBoxConfig" rows="6" placeholder='[
+              { "name": "心动盲盒", "price": 15, "outputs": [{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}] },
+              { "name": "幸运盲盒", "price": 5, "outputs": [{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}] }
+            ]'></textarea>
+                <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
+              </div>
+            </fieldset>
 
           </div>
         </div>
@@ -1600,7 +1611,7 @@
           <div class="gift-drawer-body">
             <table class="gift-history-table">
               <thead>
-                <tr><th>时间</th><th>礼物</th><th>数量</th><th>金额</th><th>用户</th><th>备注</th></tr>
+                <tr><th data-sort="created_at">时间<span class="sort-arrow"></span></th><th data-sort="gift_name">礼物<span class="sort-arrow"></span></th><th>数量</th><th data-sort="price">金额<span class="sort-arrow"></span></th><th>用户</th><th data-sort="remarks">备注<span class="sort-arrow"></span></th></tr>
               </thead>
               <tbody id="giftHistoryBody">
                 <tr><td colspan="6" class="empty">加载中…</td></tr>
@@ -1664,7 +1675,7 @@
     <script src="/js/admin/theme.js?v=20260730-01"></script>
     <script src="/js/admin/display.js?v=20260730-01"></script>
     <script src="/js/admin/settings.js?v=20260730-01"></script>
-    <script src="/js/admin/gifts.js?v=20260731-04"></script>
+    <script src="/js/admin/gifts.js?v=20260801-01"></script>
     <script src="/js/admin/metrics.js?v=20260730-01"></script>
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <script src="/js/admin/main.js?v=20260731-03"></script>

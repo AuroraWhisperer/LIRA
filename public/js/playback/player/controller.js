@@ -92,7 +92,6 @@ export class PlayerController {
     // 更新状态
     this.state.current = track;
     this.state.currentOrigin = origin;
-    this.state.restoredTime = 0;
 
     // 添加到显示历史（去重）
     const existingIndex = this.state.displayHistory.findIndex((item) => item.id === track.id);

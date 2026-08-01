@@ -46,9 +46,16 @@ export function updateVolumeUI(volume) {
  * @param {HTMLAudioElement} audio - 音频元素
  * @param {number} restoredTime - 恢复的时间位置
  */
-export function renderProgress(audio, restoredTime = 0) {
-  const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : restoredTime;
-  const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
+export function renderProgress(audio, restoredTime = 0, durationMs = 0) {
+  // readyState === 0 (HAVE_NOTHING) 表示没有媒体加载，此时 audio.currentTime 为 0
+  // 应使用 restoredTime 来显示上次退出时保存的播放位置
+  const hasMedia = audio && audio.readyState >= 1;
+  const currentTime = hasMedia && Number.isFinite(audio.currentTime)
+    ? audio.currentTime
+    : restoredTime;
+  const duration = hasMedia && Number.isFinite(audio.duration) && audio.duration > 0
+    ? audio.duration
+    : (durationMs > 0 ? durationMs / 1000 : 0);
 
   const seek = document.getElementById('playbackSeek');
   if (seek) {

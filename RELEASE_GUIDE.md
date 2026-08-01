@@ -1,4 +1,4 @@
-# 发布流程打标签并发布1.4.6版本
+# 发布流程打标签并发布版本
 
 打包并发布 Windows 安装包到 GitHub Releases 时，**必须使用** `npm run release:win`
 （即 `scripts/publish-release.js`），禁止直接调用

@@ -23,6 +23,7 @@ class BilibiliDanmakuClient {
     this.stopped = true;
     this.reconnectTimer = null;
     this.startedAtMs = Date.now();
+    this.ownerName = '';
 
     // 初始化子模块
     const bilibiliAuth = options.bilibiliAuth || {};
@@ -74,28 +75,6 @@ class BilibiliDanmakuClient {
         message: '直播弹幕长连失败，历史消息监听中'
       });
       this.scheduleReconnect();
-    });
-  }
-
-  async restart() {
-    this.stopped = false;
-    this.startedAtMs = Date.now();
-    this.messageHandlers.updateStartTime(this.startedAtMs);
-    this.historyPoller.updateStartTime(this.startedAtMs);
-
-    try {
-      await this.connect({ waitForOpen: true });
-    } catch (error) {
-      console.warn(`[Bilibili] reconnect failed: ${error.message}`);
-      this.historyPoller.start(this.roomId);
-      this.report({
-        connected: true,
-        enabled: true,
-        roomId: this.roomId,
-        mode: 'bilibili',
-        message: '直播弹幕长连失败，历史消息监听中'
-      });
-      this.scheduleReconnect();
       throw error;
     }
   }
@@ -133,6 +112,7 @@ class BilibiliDanmakuClient {
 
     const roomInfo = await this.apiClient.resolveRoomInfo();
     const isLive = Number(roomInfo.liveStatus) === 1;
+    this.ownerName = roomInfo.ownerName || '';
 
     if (!isLive || options.alwaysHistory) {
       this.historyPoller.start(roomInfo.roomId);
@@ -166,9 +146,10 @@ class BilibiliDanmakuClient {
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
+        ownerName: this.ownerName,
         message: isLive
-          ? `已连接直播间 ${roomInfo.roomId}`
-          : `直播间 ${roomInfo.roomId} 未开播，历史消息监听中；每 10 分钟自动检测开播`
+          ? `已开播`
+          : `未开播，历史消息监听中`
       });
       if (!isLive) {
         console.warn(`[Bilibili] room ${roomInfo.roomId} is not live. live_status=${roomInfo.liveStatus}. History polling fallback is enabled.`);
@@ -187,6 +168,7 @@ class BilibiliDanmakuClient {
           enabled: true,
           roomId: this.roomId,
           mode: 'bilibili',
+          ownerName: this.ownerName,
           message: this.historyPoller.timer ? '弹幕长连已断开，历史消息监听中' : '弹幕连接已断开，等待重连'
         });
         this.scheduleReconnect();
@@ -229,11 +211,15 @@ class BilibiliDanmakuClient {
   }
 
   handleLiveStatusChange(status) {
+    if (status.ownerName) {
+      this.ownerName = status.ownerName;
+    }
     this.report({
       connected: Boolean(this.wsConnection.ws) || Boolean(this.historyPoller.timer),
       enabled: true,
       roomId: this.roomId,
       mode: 'bilibili',
+      ownerName: this.ownerName,
       message: status.message
     });
   }
@@ -252,7 +238,8 @@ class BilibiliDanmakuClient {
       enabled: true,
       roomId: this.roomId,
       mode: 'bilibili',
-      message: `检测到直播间 ${roomId} 已开播，正在重连礼物监听`
+      ownerName: this.ownerName,
+      message: `已开播，正在重连礼物监听`
     });
 
     try {
@@ -267,8 +254,9 @@ class BilibiliDanmakuClient {
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
+        ownerName: this.ownerName,
         message: this.historyPoller.timer
-          ? '检测到开播，但直播弹幕长连重连失败，历史消息监听中'
+          ? '已开播，但弹幕长连重连失败，历史消息监听中'
           : publicBilibiliErrorMessage(error, true)
       });
       this.scheduleReconnect();
@@ -289,6 +277,7 @@ class BilibiliDanmakuClient {
             enabled: true,
             roomId: this.roomId,
             mode: 'bilibili',
+            ownerName: this.ownerName,
             message: historyFallbackActive
               ? '直播弹幕长连重连失败，历史消息监听中'
               : publicBilibiliErrorMessage(error, true)

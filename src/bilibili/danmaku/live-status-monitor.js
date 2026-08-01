@@ -13,11 +13,16 @@ class LiveStatusMonitor {
     this.stopped = false;
     this.checkInFlight = false;
     this.reconnectInFlight = false;
+    this.ownerName = '';
   }
 
   start(roomInfo) {
     this.stop();
     this.stopped = false;
+
+    if (roomInfo && roomInfo.ownerName) {
+      this.ownerName = roomInfo.ownerName;
+    }
 
     if (!roomInfo || Number(roomInfo.liveStatus) === 1) return;
 
@@ -47,6 +52,9 @@ class LiveStatusMonitor {
     this.checkInFlight = true;
     try {
       const roomInfo = await this.apiClient.resolveRoomInfo();
+      if (roomInfo.ownerName) {
+        this.ownerName = roomInfo.ownerName;
+      }
       if (Number(roomInfo.liveStatus) === 1) {
         await this.triggerLiveStarted(roomInfo.roomId);
         return;
@@ -55,7 +63,8 @@ class LiveStatusMonitor {
       this.onStatusChange({
         roomId: roomInfo.roomId,
         isLive: false,
-        message: `直播间 ${roomInfo.roomId} 未开播，历史消息监听中；每 10 分钟自动检测开播`
+        ownerName: this.ownerName,
+        message: `未开播，历史消息监听中`
       });
     } finally {
       this.checkInFlight = false;
@@ -72,7 +81,8 @@ class LiveStatusMonitor {
     this.onStatusChange({
       roomId,
       isLive: true,
-      message: `检测到直播间 ${roomId} 已开播，正在重连礼物监听`
+      ownerName: this.ownerName,
+      message: `已开播，正在重连礼物监听`
     });
 
     try {

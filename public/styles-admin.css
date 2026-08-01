@@ -115,6 +115,17 @@
   box-shadow: 0 0 0 3px rgba(210, 146, 29, 0.12);
 }
 
+.owner-name {
+  color: #fb7299;
+  font-weight: 700;
+}
+
+.room-id-hint {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -242,7 +253,9 @@ hr.section-divider {
 .collapsible-panel-body {
   max-height: 230px;
   overflow: hidden;
-  transition: max-height 180ms ease, padding 180ms ease, opacity 140ms ease;
+  /* 只对 opacity 和 transform 做过渡，max-height/padding 瞬间切换，
+     避免每帧触发全局布局重计算（下方歌库有数百到数千行 DOM） */
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
 .panel.is-collapsed .collapsible-panel-body {
@@ -250,6 +263,7 @@ hr.section-divider {
   padding-top: 0;
   padding-bottom: 0;
   opacity: 0;
+  transform: translateY(-4px);
 }
 
 .grid-2 {
@@ -1057,10 +1071,83 @@ tr:last-child td {
 }
 
 /* ---- 最近礼物卡片 ---- */
-.gift-recent-section .gift-cards {
+.gift-recent-section {
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+  box-shadow: 0 8px 24px rgba(23, 32, 42, 0.06);
+}
+
+.gift-recent-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #edf0f4;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 150ms ease, border-bottom-color 200ms ease;
+}
+
+.gift-recent-heading:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.gift-recent-heading-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #e8f5f3, #d4f0ec);
+  color: #21b6a8;
+}
+
+.gift-recent-heading-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.gift-recent-heading h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.gift-recent-heading .gift-history-open-btn {
+  margin-right: 4px;
+}
+
+/* 最近礼物折叠 */
+.gift-recent-collapsible {
+  overflow: hidden;
+  max-height: 500px;
+  /* 只对 opacity/transform 做过渡，max-height 瞬间切换避免布局抖动 */
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.gift-recent-collapsible .gift-cards {
   max-height: 420px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 12px 20px 16px;
+}
+
+.gift-recent-section.is-collapsed .gift-recent-collapsible {
+  max-height: 0 !important;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.gift-recent-section.is-collapsed .gift-recent-heading {
+  border-bottom-color: transparent;
+}
+
+.gift-recent-section.is-collapsed .section-toggle svg {
+  transform: rotate(180deg);
 }
 
 .gift-cards {
@@ -1149,6 +1236,18 @@ tr:last-child td {
 .profit-down {
   color: #c0392b;
   font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .gift-recent-heading {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .gift-recent-collapsible .gift-cards {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
 }
 
 /* ---- 盲盒映射 ---- */
@@ -1554,12 +1653,14 @@ tr:last-child td {
 .blind-stats-collapsible {
   overflow: hidden;
   max-height: 800px;
-  transition: max-height 280ms ease, opacity 220ms ease;
+  /* 只对 opacity/transform 做过渡，max-height 瞬间切换避免布局抖动 */
+  transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .gift-blindbox-stats-section.is-collapsed .blind-stats-collapsible {
   max-height: 0 !important;
   opacity: 0;
+  transform: translateY(-4px);
 }
 
 .gift-blindbox-stats-section.is-collapsed .blind-stats-heading {
@@ -1951,6 +2052,12 @@ body.player-dock-expanded .song-workspace {
 
 .song-management-panel .tab-page > .panel-body {
   min-width: 0;
+}
+
+/* 歌库表格行：跳过屏幕外行的渲染，减少折叠面板展开时的布局重计算 */
+#songsTable tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 42px;
 }
 
 /* ───── 点歌确认悬浮通知 ───── */
@@ -2564,6 +2671,18 @@ button.danger-filled:hover {
   font-size: 12px;
   font-weight: 700;
   border-bottom: 1px solid var(--border);
+}
+.gift-history-table th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  transition: color 140ms ease;
+}
+.gift-history-table th[data-sort]:hover {
+  color: var(--accent);
+}
+.sort-arrow {
+  font-size: 0.75em;
+  opacity: 0.7;
 }
 .gift-history-table th,
 .gift-history-table td {

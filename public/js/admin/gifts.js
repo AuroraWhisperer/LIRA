@@ -347,6 +347,7 @@
   const GIFT_HISTORY_LIMIT = 50;
   let giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
   let giftHistorySeq = 0;
+  let giftHistorySort = { field: 'created_at', direction: 'desc' };
 
   function initGiftHistoryDrawer() {
     const openBtn = document.getElementById('giftHistoryOpenBtn');
@@ -397,6 +398,22 @@
       if (giftHistory.page < giftHistory.totalPages) loadGiftHistory(giftHistory.page + 1);
     });
 
+    // 可排序列点击
+    document.querySelectorAll('#giftHistoryDrawer th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const field = th.dataset.sort;
+        if (!field || !giftHistory.items.length) return;
+        if (giftHistorySort.field === field) {
+          giftHistorySort.direction = giftHistorySort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          giftHistorySort.field = field;
+          giftHistorySort.direction = 'asc';
+        }
+        giftHistory.items = sortGiftHistoryItems(giftHistory.items, giftHistorySort.field, giftHistorySort.direction);
+        renderGiftHistory();
+      });
+    });
+
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') closeGiftHistoryDrawer();
     });
@@ -427,6 +444,10 @@
       if (!response.ok || !payload.ok) throw new Error(payload.error || `礼物流水加载失败（HTTP ${response.status}）`);
       if (seq !== giftHistorySeq) return;
       giftHistory = { ...giftHistory, ...payload.data };
+      // 非默认排序时对当前页数据重排
+      if (giftHistorySort.field !== 'created_at' || giftHistorySort.direction !== 'desc') {
+        giftHistory.items = sortGiftHistoryItems(giftHistory.items, giftHistorySort.field, giftHistorySort.direction);
+      }
       renderGiftHistory();
     } catch (error) {
       if (seq !== giftHistorySeq) return;
@@ -444,6 +465,17 @@
     } else {
       if (body) body.innerHTML = giftHistory.items.map(renderGiftHistoryRow).join('');
     }
+
+    // 排序箭头
+    document.querySelectorAll('#giftHistoryDrawer th[data-sort]').forEach(th => {
+      const arrow = th.querySelector('.sort-arrow');
+      if (!arrow) return;
+      if (th.dataset.sort === giftHistorySort.field) {
+        arrow.textContent = giftHistorySort.direction === 'asc' ? ' ▲' : ' ▼';
+      } else {
+        arrow.textContent = '';
+      }
+    });
 
     const prev = document.getElementById('giftHistoryPrev');
     const next = document.getElementById('giftHistoryNext');
@@ -478,6 +510,67 @@
     `;
   }
 
+  function sortGiftHistoryItems(items, field, direction) {
+    const sorted = [...items];
+    const dir = direction === 'asc' ? 1 : -1;
+
+    const getRemarkKey = (item) => {
+      const giftName = String(item.gift_name || '').toLowerCase();
+      const giftId = String(item.gift_id || '').toLowerCase();
+      if (giftName.includes('总督') || giftId === 'guard-1') return 3000;
+      if (giftName.includes('提督') || giftId === 'guard-2') return 2000;
+      if (giftName.includes('舰长') || giftId === 'guard-3') return 1000;
+      if (item.is_blind_box) return Number(item.blind_profit || 0);
+      return -Infinity;
+    };
+
+    sorted.sort((a, b) => {
+      let va, vb;
+      switch (field) {
+        case 'created_at':
+          va = a.created_at || '';
+          vb = b.created_at || '';
+          break;
+        case 'gift_name':
+          va = (a.gift_name || '').toLowerCase();
+          vb = (b.gift_name || '').toLowerCase();
+          break;
+        case 'price':
+          va = Number(a.sprint_count_price ?? a.total_price ?? 0);
+          vb = Number(b.sprint_count_price ?? b.total_price ?? 0);
+          break;
+        case 'remarks':
+          va = getRemarkKey(a);
+          vb = getRemarkKey(b);
+          break;
+        default:
+          return 0;
+      }
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+
+    return sorted;
+  }
+
+  // ── 最近礼物折叠切换 ──
+  function initGiftRecentToggle() {
+    const toggle = document.getElementById('giftRecentToggle');
+    const section = toggle?.closest('.gift-recent-section');
+    const heading = document.getElementById('giftRecentHeading');
+
+    heading?.addEventListener('click', (e) => {
+      if (e.target.closest('button:not(#giftRecentToggle)')) return;
+
+      const collapsed = section?.classList.toggle('is-collapsed') || false;
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', String(!collapsed));
+        toggle.title = collapsed ? '展开最近礼物' : '折叠最近礼物';
+      }
+    });
+  }
+
   // ── 盲盒盈亏折叠切换 ──
   function initBlindBoxStatsToggle() {
     const toggle = document.getElementById('blindBoxStatsToggle');
@@ -497,8 +590,12 @@
 
   // 在 DOM 就绪后初始化
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initBlindBoxStatsToggle);
+    document.addEventListener('DOMContentLoaded', () => {
+      initGiftRecentToggle();
+      initBlindBoxStatsToggle();
+    });
   } else {
+    initGiftRecentToggle();
     initBlindBoxStatsToggle();
   }
 
@@ -514,6 +611,7 @@
     openGiftHistoryDrawer,
     closeGiftHistoryDrawer,
     loadGiftHistory,
+    initGiftRecentToggle,
     initBlindBoxStatsToggle
   };
 })();

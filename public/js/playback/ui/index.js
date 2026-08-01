@@ -46,8 +46,8 @@ export class UIRenderer {
    * @param {HTMLAudioElement} audio - 音频元素
    * @param {number} restoredTime - 恢复的时间
    */
-  renderProgress(audio, restoredTime = 0) {
-    UIComponents.renderProgress(audio, restoredTime);
+  renderProgress(audio, restoredTime = 0, durationMs = 0) {
+    UIComponents.renderProgress(audio, restoredTime, durationMs);
   }
 
   /**

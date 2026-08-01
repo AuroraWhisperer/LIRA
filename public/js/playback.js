@@ -1351,7 +1351,7 @@ import { HomeService } from './playback/services/home-service.js';
             ...item,
             track: serialize(item.track)
           })).filter((item) => item.track),
-          currentTime: audio && Number.isFinite(audio.currentTime) ? audio.currentTime : playbackState.restoredTime,
+          currentTime: audio && audio.readyState >= 1 && Number.isFinite(audio.currentTime) ? audio.currentTime : playbackState.restoredTime,
           volume: playbackState.volume,
           mode: playbackState.mode,
           selectedSource: playbackState.selectedSource,
@@ -1519,15 +1519,15 @@ import { HomeService } from './playback/services/home-service.js';
 
         playbackState.current = track;
         playbackState.currentOrigin = options.origin || playbackState.currentOrigin || 'normal';
-        playbackState.restoredTime = 0;
         audio.dataset.trackId = track.id;
         audio.src = streamUrl;
         audio.load();
 
         const startAt = Math.max(0, Number(options.startAt || 0));
         if (startAt > 0) {
+          // 第一层：loadedmetadata 时尝试跳转（适用于大部分本地/已缓存资源）
           audio.addEventListener('loadedmetadata', () => {
-            if (Number.isFinite(audio.duration)) {
+            if (Number.isFinite(audio.duration) && audio.duration > 0) {
               audio.currentTime = Math.min(startAt, Math.max(0, audio.duration - 1));
             }
           }, { once: true });
@@ -1535,9 +1535,21 @@ import { HomeService } from './playback/services/home-service.js';
 
         try {
           await audio.play();
+          // 第二层：play() 完成后再次跳转（音频管线已完全初始化，更可靠）
+          // 即使 loadedmetadata 已经 seek 过，重复设置 currentTime 也是安全的
+          if (startAt > 0) {
+            const dur = audio.duration;
+            if (Number.isFinite(dur) && dur > 0) {
+              audio.currentTime = Math.min(startAt, Math.max(0, dur - 1));
+            }
+          }
         } catch (error) {
           showError(error);
         }
+
+        // seek 确认后清除 restoredTime，避免下次误跳转
+        playbackState.restoredTime = 0;
+
         loadPlaybackLyrics(track);
         savePlaybackState();
         renderPlayback();
@@ -1769,6 +1781,9 @@ import { HomeService } from './playback/services/home-service.js';
         // 渲染搜索结果和待确认弹窗
         renderPlaybackSearchResults();
         renderPendingConfirmPopup();
+
+        // 同步进度条显示（含 restoredTime，方便退出重进后看到上次的播放位置）
+        renderPlaybackProgress();
       }
 
       function renderPendingConfirmPopup() {
@@ -1860,7 +1875,8 @@ import { HomeService } from './playback/services/home-service.js';
 
       function renderPlaybackProgress() {
         const audio = getPlaybackAudio();
-        uiRenderer.renderProgress(audio, playbackState.restoredTime);
+        const trackDurationMs = playbackState.current ? playbackState.current.durationMs : 0;
+        uiRenderer.renderProgress(audio, playbackState.restoredTime, trackDurationMs);
         uiRenderer.updateMediaSessionPosition(audio);
       }
 

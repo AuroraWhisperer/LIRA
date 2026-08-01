@@ -29,13 +29,34 @@ class BilibiliApiClient {
     if (payload.code !== 0 || !payload.data || !payload.data.room_id) {
       throw new Error(formatBilibiliApiError('room_init', response, payload, '请确认填写的是直播间地址里的房间号，不是主播 UID、昵称或个人主页 ID。也可以直接粘贴 https://live.bilibili.com/房间号。'));
     }
-    console.log(`[Bilibili] room resolved: input=${this.roomId} room_id=${payload.data.room_id} short_id=${payload.data.short_id || 0} uid=${payload.data.uid || ''} live_status=${payload.data.live_status}`);
+    const uid = payload.data.uid || '';
+    let ownerName = '';
+    if (uid) {
+      try {
+        ownerName = await this.fetchOwnerName(uid);
+      } catch (e) {
+        console.warn(`[Bilibili] failed to fetch owner name for uid=${uid}: ${e.message}`);
+      }
+    }
+    console.log(`[Bilibili] room resolved: input=${this.roomId} room_id=${payload.data.room_id} short_id=${payload.data.short_id || 0} uid=${uid} owner=${ownerName || '(unknown)'} live_status=${payload.data.live_status}`);
     return {
       roomId: payload.data.room_id,
       shortId: payload.data.short_id || 0,
-      uid: payload.data.uid || '',
+      uid,
+      ownerName,
       liveStatus: payload.data.live_status
     };
+  }
+
+  async fetchOwnerName(uid) {
+    const { payload } = await this.fetchJson(
+      'master_info',
+      `https://api.live.bilibili.com/live_user/v1/Master/info?uid=${encodeURIComponent(uid)}`
+    );
+    if (payload.code === 0 && payload.data && payload.data.info && payload.data.info.uname) {
+      return payload.data.info.uname;
+    }
+    return '';
   }
 
   async resolveDanmuInfo(roomId) {
