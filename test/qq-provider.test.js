@@ -7,7 +7,7 @@ const { encryptQrc } = require('qrc-decoder');
 const { QQMusicProvider } = require('../src/music/providers/qq-provider');
 const { writeMusicPlaylistTracks } = require('../src/music/lyrics-service');
 
-const COOKIE = 'qqmusic_uin=123456; qqmusic_key=test-key; pgv_pvid=987654321';
+const COOKIE = 'qqmusic_uin=123456; qqmusic_key=test-key; qm_keyst=test-client-key; qqmusic_guid=987654321; tmeLoginType=2';
 
 function createProvider() {
   return new QQMusicProvider({
@@ -159,7 +159,8 @@ test('QQ provider signs AddSonglist requests and preserves QQ numeric ids', asyn
 test('QQ provider maps sourceSongId and playlist tid/dirId', async () => {
   const originalFetch = global.fetch;
   let call = 0;
-  global.fetch = async () => {
+  let playlistRequest;
+  global.fetch = async (url, options) => {
     call += 1;
     if (call === 1) {
       return new Response(JSON.stringify({
@@ -171,10 +172,17 @@ test('QQ provider maps sourceSongId and playlist tid/dirId', async () => {
         }
       }), { status: 200 });
     }
+    playlistRequest = { url: String(url), options };
     return new Response(JSON.stringify({
       code: 0,
-      data: {
-        disslist: [{ tid: 7527135346, dirid: 21, dissname: '测试歌单' }]
+      'music.musicasset.PlaylistBaseRead.GetPlaylistByUin': {
+        code: 0,
+        data: {
+          v_playlist: [
+            { tid: 2924077536, dirId: 201, dirName: '我喜欢', songNum: 481 },
+            { tid: 7527135346, dirId: 21, dirName: '测试歌单', songNum: 31 }
+          ]
+        }
       }
     }), { status: 200 });
   };
@@ -186,6 +194,144 @@ test('QQ provider maps sourceSongId and playlist tid/dirId', async () => {
     assert.equal(tracks[0].sourceSongId, 563728446);
     assert.equal(playlists[0].tid, '7527135346');
     assert.equal(playlists[0].dirId, '21');
+    assert.equal(playlists[0].trackCount, 31);
+    const payload = JSON.parse(playlistRequest.options.body);
+    assert.equal(new URL(playlistRequest.url).origin, 'https://u6.y.qq.com');
+    assert.equal(payload.comm.authst, 'test-client-key');
+    assert.equal(payload.comm.ct, '19');
+    assert.equal(
+      payload['music.musicasset.PlaylistBaseRead.GetPlaylistByUin'].method,
+      'GetPlaylistByUin'
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('QQ provider reads collected playlists from the desktop client API', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => new Response(JSON.stringify({
+    code: 0,
+    'music.musicasset.PlaylistFavRead': {
+      code: 0,
+      data: {
+        v_list: [{ tid: 7453216549, dirId: 0, name: '收藏歌单', songnum: 112, logo: 'https://example.test/cover.jpg' }]
+      }
+    }
+  }), { status: 200 });
+
+  try {
+    const playlists = await createProvider().getCollectedPlaylists({ limit: 50 });
+    assert.equal(playlists.length, 1);
+    assert.equal(playlists[0].id, '7453216549');
+    assert.equal(playlists[0].title, '收藏歌单');
+    assert.equal(playlists[0].trackCount, 112);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('QQ created playlists fall back to the web API when client auth is unavailable', async () => {
+  const originalFetch = global.fetch;
+  let call = 0;
+  global.fetch = async () => {
+    call += 1;
+    if (call === 1) {
+      return new Response(JSON.stringify({
+        code: 2000,
+        'music.musicasset.PlaylistBaseRead.GetPlaylistByUin': { code: 2000 }
+      }), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      code: 0,
+      data: { disslist: [{ tid: 7527135346, dirid: 21, dissname: '网页回退歌单', songnum: 31 }] }
+    }), { status: 200 });
+  };
+
+  try {
+    const playlists = await createProvider().getCreatedPlaylists({ limit: 50, includeLiked: false });
+    assert.equal(call, 2);
+    assert.equal(playlists[0].title, '网页回退歌单');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('QQ liked tracks uses the client playlist and slices the requested page', async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url: String(url), body: JSON.parse(options.body) });
+    if (requests.length === 1) {
+      return new Response(JSON.stringify({
+        code: 0,
+        'music.musicasset.PlaylistBaseRead.GetPlaylistByUin': {
+          code: 0,
+          data: { v_playlist: [{ tid: 2924077536, dirId: 201, dirName: '我喜欢', songNum: 150 }] }
+        }
+      }), { status: 200 });
+    }
+    const songlist = Array.from({ length: 150 }, (_, index) => ({
+      id: index + 1,
+      mid: `song-${index + 1}`,
+      title: `歌曲 ${index + 1}`,
+      singer: []
+    }));
+    return new Response(JSON.stringify({
+      code: 0,
+      'music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo': {
+        code: 0,
+        data: { songlist, total_song_num: 150 }
+      }
+    }), { status: 200 });
+  };
+
+  try {
+    const tracks = await createProvider().getLikedTracks({ limit: 100, offset: 100 });
+    assert.equal(tracks.length, 50);
+    assert.equal(tracks[0].sourceTrackId, 'song-101');
+    assert.equal(
+      requests[1].body['music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo'].param.disstid,
+      2924077536
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('QQ liked tracks rejects an incomplete login instead of returning an empty list', async () => {
+  const provider = new QQMusicProvider({
+    getAuthState: () => ({ loggedIn: false }),
+    getCookieHeader: () => 'pt2gguin=o123456; superuin=o123456'
+  });
+
+  await assert.rejects(
+    provider.getLikedTracks({ limit: 100, offset: 0 }),
+    /登录/
+  );
+});
+
+test('QQ playlist detail sends server-side pagination parameters', async () => {
+  const originalFetch = global.fetch;
+  let capturedUrl = '';
+  global.fetch = async (url) => {
+    capturedUrl = String(url);
+    return new Response(JSON.stringify({
+      code: 0,
+      cdlist: [{ songlist: [{ id: 1, mid: 'page-two-song', title: '第二页', singer: [] }] }]
+    }), { status: 200 });
+  };
+
+  try {
+    const provider = new QQMusicProvider({
+      getAuthState: () => ({ loggedIn: false }),
+      getCookieHeader: () => ''
+    });
+    const tracks = await provider.getPlaylistTracks('2924077536', { limit: 100, offset: 100 });
+    const url = new URL(capturedUrl);
+    assert.equal(url.searchParams.get('song_begin'), '100');
+    assert.equal(url.searchParams.get('song_num'), '100');
+    assert.equal(tracks[0].sourceTrackId, 'page-two-song');
   } finally {
     global.fetch = originalFetch;
   }

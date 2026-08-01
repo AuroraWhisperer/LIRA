@@ -51,8 +51,7 @@ export class FullscreenPlayer {
     this.lyricsContainer = null;
     this.lyricsWrap = null;
     this.lyricTogglesEl = null;
-    this.lyricToggleTransBtn = null;
-    this.lyricToggleRomaBtn = null;
+    this.lyricToggleBtn = null;
     this.lyricsInitialized = false;
     this.lastActiveLyricIndex = -1;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
@@ -75,14 +74,10 @@ export class FullscreenPlayer {
     this.lyricsContainer = document.getElementById('playerFsLyrics');
     this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
     this.lyricTogglesEl = document.getElementById('playerFsLyricToggles');
-    this.lyricToggleTransBtn = document.getElementById('fsLyricToggleTrans');
-    this.lyricToggleRomaBtn = document.getElementById('fsLyricToggleRoma');
+    this.lyricToggleBtn = document.getElementById('fsLyricToggleBtn');
 
-    if (this.lyricToggleTransBtn) {
-      this.lyricToggleTransBtn.addEventListener('click', () => this._toggleLyricMode('trans'));
-    }
-    if (this.lyricToggleRomaBtn) {
-      this.lyricToggleRomaBtn.addEventListener('click', () => this._toggleLyricMode('roma'));
+    if (this.lyricToggleBtn) {
+      this.lyricToggleBtn.addEventListener('click', () => this._cycleLyricMode());
     }
   }
 
@@ -202,7 +197,7 @@ export class FullscreenPlayer {
       ? track.lyrics.lines
       : [];
 
-    // 保存歌词行引用，供 _toggleLyricMode 重渲染使用
+    // 保存歌词行引用，供 _cycleLyricMode 重渲染使用
     this._lastLyricLines = lines;
 
     if (!lines.length) {
@@ -369,19 +364,19 @@ export class FullscreenPlayer {
   }
 
   /**
-   * 切换歌词显示模式
-   * @param {string} mode - 'trans' | 'roma'
+   * 循环切换歌词显示模式：none → trans → roma → none
    */
-  _toggleLyricMode(mode) {
+  _cycleLyricMode() {
     // 禁用态不响应点击
-    const btn = mode === 'trans' ? this.lyricToggleTransBtn : this.lyricToggleRomaBtn;
-    if (btn && btn.classList.contains('disabled')) return;
+    if (this.lyricToggleBtn && this.lyricToggleBtn.classList.contains('disabled')) return;
 
-    if (this.lyricMode === mode) {
-      // 再次点击同一按钮 → 关闭
-      this.lyricMode = 'none';
+    // 循环切换
+    if (this.lyricMode === 'none') {
+      this.lyricMode = 'trans';
+    } else if (this.lyricMode === 'trans') {
+      this.lyricMode = 'roma';
     } else {
-      this.lyricMode = mode;
+      this.lyricMode = 'none';
     }
     this._updateLyricToggleButtons();
 
@@ -407,27 +402,21 @@ export class FullscreenPlayer {
 
     const hasTranslation = lines.some((line) => line.translation);
     const hasRoma = lines.some((line) => line.roma);
+    const hasAnyExtra = hasTranslation || hasRoma;
 
-    // 有歌词就显示按钮区域，无数据时按钮呈半禁用态
+    // 有额外歌词数据就显示按钮
     const hasLyrics = lines.length > 0;
-    this.lyricTogglesEl.style.display = hasLyrics ? 'flex' : 'none';
+    this.lyricTogglesEl.style.display = (hasLyrics && hasAnyExtra) ? 'flex' : 'none';
 
-    if (this.lyricToggleTransBtn) {
-      this.lyricToggleTransBtn.style.display = '';
-      this.lyricToggleTransBtn.classList.toggle('disabled', !hasTranslation);
-      if (!hasTranslation) {
-        this.lyricToggleTransBtn.title = '当前歌曲无翻译数据';
+    if (this.lyricToggleBtn) {
+      this.lyricToggleBtn.classList.toggle('disabled', !hasAnyExtra);
+      if (!hasAnyExtra) {
+        this.lyricToggleBtn.title = '当前歌曲无翻译或罗马音数据';
       } else {
-        this.lyricToggleTransBtn.title = '在原文基础上叠加中文翻译';
-      }
-    }
-    if (this.lyricToggleRomaBtn) {
-      this.lyricToggleRomaBtn.style.display = '';
-      this.lyricToggleRomaBtn.classList.toggle('disabled', !hasRoma);
-      if (!hasRoma) {
-        this.lyricToggleRomaBtn.title = '当前歌曲无罗马音数据';
-      } else {
-        this.lyricToggleRomaBtn.title = '在原文基础上叠加罗马音音译（日/韩等外文歌曲）';
+        const modes = [];
+        if (hasTranslation) modes.push('翻译');
+        if (hasRoma) modes.push('罗马音');
+        this.lyricToggleBtn.title = `切换歌词显示模式：${modes.join(' / ')}`;
       }
     }
 
@@ -440,11 +429,16 @@ export class FullscreenPlayer {
    * 同步按钮激活样式
    */
   _updateLyricToggleButtons() {
-    if (this.lyricToggleTransBtn) {
-      this.lyricToggleTransBtn.classList.toggle('active', this.lyricMode === 'trans');
-    }
-    if (this.lyricToggleRomaBtn) {
-      this.lyricToggleRomaBtn.classList.toggle('active', this.lyricMode === 'roma');
+    if (!this.lyricToggleBtn) return;
+    this.lyricToggleBtn.classList.remove('mode-trans', 'mode-roma');
+    if (this.lyricMode === 'trans') {
+      this.lyricToggleBtn.classList.add('mode-trans');
+      this.lyricToggleBtn.title = '当前：中文翻译 — 点击切换罗马音';
+    } else if (this.lyricMode === 'roma') {
+      this.lyricToggleBtn.classList.add('mode-roma');
+      this.lyricToggleBtn.title = '当前：罗马音 — 点击关闭';
+    } else {
+      this.lyricToggleBtn.title = '切换歌词显示模式 — 点击开启翻译';
     }
   }
 

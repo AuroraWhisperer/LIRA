@@ -2088,7 +2088,7 @@ body.player-dock-expanded .playback-page.active {
 .player-fs-lyrics {
   height: 100%;
   overflow-y: auto;
-  padding: 20px 10px 20px 0;
+  padding: 20px 52px 20px 0;
   scroll-behavior: smooth;
   scrollbar-width: none;
 }
@@ -2204,38 +2204,37 @@ body.player-dock-expanded .playback-page.active {
   color: var(--muted);
 }
 
-/* ===== 歌词模式切换按钮 — 浮于歌词区域右下角 ===== */
+/* ===== 歌词模式切换按钮 — 浮于歌词区域右侧 ===== */
 .player-fs-lyric-toggles {
   position: absolute;
-  right: 6px;
-  bottom: 10px;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
+  align-items: center;
 }
 
-.fs-lyric-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+/* 单一方形切换按钮 */
+.fs-lyric-toggle-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 1.5px solid rgba(22, 31, 43, 0.12);
-  border-radius: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.78);
   color: rgba(22, 31, 43, 0.45);
-  font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 200ms ease;
   backdrop-filter: blur(8px);
   font-family: inherit;
   min-height: auto;
-  white-space: nowrap;
 }
 
-.fs-lyric-toggle:hover {
+.fs-lyric-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.92);
   color: var(--text);
   border-color: rgba(217, 75, 112, 0.45);
@@ -2243,38 +2242,50 @@ body.player-dock-expanded .playback-page.active {
   box-shadow: 0 3px 10px rgba(22, 31, 43, 0.08);
 }
 
-.fs-lyric-toggle.active {
+/* 翻译模式激活 */
+.fs-lyric-toggle-btn.mode-trans {
   background: linear-gradient(135deg, var(--primary), #e8406e);
   border-color: var(--primary);
   color: #fff;
   box-shadow: 0 3px 12px rgba(217, 75, 112, 0.35);
 }
 
-.fs-lyric-toggle.active:hover {
+.fs-lyric-toggle-btn.mode-trans:hover {
   background: linear-gradient(135deg, var(--primary-strong), var(--primary));
   border-color: var(--primary-strong);
   color: #fff;
   box-shadow: 0 4px 16px rgba(217, 75, 112, 0.45);
 }
 
-.fs-lyric-toggle:active {
-  transform: scale(0.96);
+/* 罗马音模式激活 */
+.fs-lyric-toggle-btn.mode-roma {
+  background: linear-gradient(135deg, #6c5ce7, #a855f7);
+  border-color: #6c5ce7;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(108, 92, 231, 0.35);
 }
 
-.fs-lyric-toggle.active:active {
-  transform: scale(0.95);
+.fs-lyric-toggle-btn.mode-roma:hover {
+  background: linear-gradient(135deg, #5b4cdb, #9333ea);
+  border-color: #5b4cdb;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.45);
+}
+
+.fs-lyric-toggle-btn:active {
+  transform: scale(0.92);
 }
 
 /* 无数据时半禁用态 */
-.fs-lyric-toggle.disabled {
+.fs-lyric-toggle-btn.disabled {
   opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.fs-lyric-toggle svg {
-  width: 16px;
-  height: 16px;
+.fs-lyric-toggle-btn svg {
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 

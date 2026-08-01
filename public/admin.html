@@ -1605,19 +1605,14 @@
                   <div class="player-fs-lyrics-empty">暂无歌词</div>
                 </div>
                 <div class="player-fs-lyric-toggles" id="playerFsLyricToggles" style="display:none">
-                  <button class="fs-lyric-toggle" id="fsLyricToggleTrans" type="button"
-                    title="在原文基础上叠加中文翻译" aria-label="翻译歌词">
+                  <button class="fs-lyric-toggle-btn" id="fsLyricToggleBtn" type="button"
+                    title="切换歌词显示模式：翻译 / 罗马音 / 关闭" aria-label="切换歌词显示模式">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M5 8h14"/><path d="M12 3v14"/><path d="M3 18l3-3h12l3 3"/>
+                      <rect x="4" y="4" width="16" height="16" rx="3"/>
+                      <line x1="8" y1="9" x2="16" y2="9"/>
+                      <line x1="8" y1="13" x2="14" y2="13"/>
+                      <line x1="8" y1="17" x2="10" y2="17"/>
                     </svg>
-                    <span>翻译</span>
-                  </button>
-                  <button class="fs-lyric-toggle" id="fsLyricToggleRoma" type="button"
-                    title="在原文基础上叠加罗马音音译（日/韩等外文歌曲）" aria-label="罗马音歌词">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
-                    </svg>
-                    <span>罗马音</span>
                   </button>
                 </div>
               </div>

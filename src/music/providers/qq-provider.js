@@ -9,7 +9,6 @@ const QQ_LYRIC_URL = 'https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg'
 const QQ_MUSICU_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
 const QQ_MUSICS_URL = 'https://u6.y.qq.com/cgi-bin/musics.fcg';
 const QQ_PLAYLIST_DETAIL_URL = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg';
-const QQ_PROFILE_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg';
 const QQ_CREATED_PLAYLIST_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
 const QQ_COLLECTED_ASSET_URL = 'https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg';
 const REQUEST_TIMEOUT_MS = 10000;
@@ -399,11 +398,7 @@ class QQMusicProvider {
     const playlists = await this.getCreatedPlaylists({ limit: 50, includeLiked: true });
     const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title));
     if (!liked) {
-      // 如果找不到”我喜欢”歌单，尝试直接从 profile 获取
-      const uin = await this.requireUin();
-      const profileLiked = await this.getLikedPlaylistFromProfile(uin);
-      if (profileLiked) return this.getPlaylistTracks(profileLiked.id, { limit, offset });
-      return [];
+      throw new Error('没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。');
     }
     return this.getPlaylistTracks(liked.id, { limit, offset });
   }
@@ -412,35 +407,32 @@ class QQMusicProvider {
     await this.requireLogin('QQ 音乐”我的歌单”需要先登录。');
     const limit = clampInteger(options.limit, 1, 500, 200);
     const uin = await this.requireUin();
-    const cookieHeader = await this.getSafeCookieHeader();
-    const gtkSource = extractQQGtkSource(cookieHeader);
-    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
-    const data = await this.requestJson(QQ_CREATED_PLAYLIST_URL, {
-      hostUin: '0',
-      hostuin: uin,
-      sin: '0',
-      size: String(Math.max(limit, 50)),
-      g_tk: String(gtk),
-      loginUin: uin,
-      format: 'json',
-      inCharset: 'utf8',
-      outCharset: 'utf-8',
-      notice: '0',
-      platform: 'yqq.json',
-      needNewCode: '0'
-    });
-    if (Number(data && data.code) === 4000) return [];
-    const playlists = data && data.data && Array.isArray(data.data.disslist)
-      ? data.data.disslist
-      : [];
+    let playlists;
+    try {
+      const callKey = 'music.musicasset.PlaylistBaseRead.GetPlaylistByUin';
+      const data = await this.requestMusicsClient({
+        [callKey]: {
+          module: 'music.musicasset.PlaylistBaseRead',
+          method: 'GetPlaylistByUin',
+          param: { uin }
+        }
+      });
+      const moduleData = readQQModuleData(data, callKey, '读取我的歌单');
+      playlists = Array.isArray(moduleData.v_playlist) ? moduleData.v_playlist : [];
+    } catch (_) {
+      const cookieHeader = await this.getSafeCookieHeader();
+      const gtkSource = extractQQGtkSource(cookieHeader);
+      const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
+      const data = await this.requestJson(QQ_CREATED_PLAYLIST_URL, {
+        hostUin: '0', hostuin: uin, sin: '0', size: String(Math.max(limit, 50)),
+        g_tk: String(gtk), loginUin: uin, format: 'json', inCharset: 'utf8',
+        outCharset: 'utf-8', notice: '0', platform: 'yqq.json', needNewCode: '0'
+      });
+      playlists = data && data.data && Array.isArray(data.data.disslist) ? data.data.disslist : [];
+    }
     const mapped = playlists.map(mapQQPlaylist).filter(Boolean);
     if (options.includeLiked === false) {
       return mapped.filter((playlist) => playlist.dirId !== '201').slice(0, limit);
-    }
-
-    if (!mapped.some((playlist) => playlist.dirId === '201')) {
-      const liked = await this.getLikedPlaylistFromProfile(uin);
-      if (liked) mapped.unshift(liked);
     }
     return mapped.slice(0, limit);
   }
@@ -449,27 +441,29 @@ class QQMusicProvider {
     await this.requireLogin('QQ 音乐”收藏歌单”需要先登录。');
     const limit = clampInteger(options.limit, 1, 500, 200);
     const uin = await this.requireUin();
-    const cookieHeader = await this.getSafeCookieHeader();
-    const gtkSource = extractQQGtkSource(cookieHeader);
-    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
-    const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
-      ct: '20',
-      cid: '205360956',
-      userid: uin,
-      reqtype: '3',
-      sin: '0',
-      ein: String(limit),
-      g_tk: String(gtk),
-      loginUin: uin,
-      format: 'json',
-      inCharset: 'utf8',
-      outCharset: 'utf-8',
-      platform: 'yqq.json',
-      needNewCode: '0'
-    });
-    const playlists = data && data.data && Array.isArray(data.data.cdlist)
-      ? data.data.cdlist
-      : [];
+    let playlists;
+    try {
+      const callKey = 'music.musicasset.PlaylistFavRead';
+      const data = await this.requestMusicsClient({
+        [callKey]: {
+          module: 'music.musicasset.PlaylistFavRead',
+          method: 'GetPlaylistFavInfo',
+          param: { uin }
+        }
+      });
+      const moduleData = readQQModuleData(data, callKey, '读取收藏歌单');
+      playlists = Array.isArray(moduleData.v_list) ? moduleData.v_list : [];
+    } catch (_) {
+      const cookieHeader = await this.getSafeCookieHeader();
+      const gtkSource = extractQQGtkSource(cookieHeader);
+      const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
+      const data = await this.requestJson(QQ_COLLECTED_ASSET_URL, {
+        ct: '20', cid: '205360956', userid: uin, reqtype: '3', sin: '0', ein: String(limit),
+        g_tk: String(gtk), loginUin: uin, format: 'json', inCharset: 'utf8',
+        outCharset: 'utf-8', platform: 'yqq.json', needNewCode: '0'
+      });
+      playlists = data && data.data && Array.isArray(data.data.cdlist) ? data.data.cdlist : [];
+    }
     return playlists.map(mapQQPlaylist).filter(Boolean).slice(0, limit);
   }
 
@@ -634,9 +628,31 @@ class QQMusicProvider {
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
+    if (hasQQMusicAuthCookie(cookieHeader)) {
+      try {
+        const callKey = 'music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo';
+        const data = await this.requestMusicsClient({
+          [callKey]: {
+            module: 'music.srfDissInfo.DissInfoForPc',
+            method: 'uniform_get_Dissinfo',
+            param: {
+              disstid: Number(id),
+              host_uin: Number(uin),
+              login_uin: Number(uin)
+            }
+          }
+        });
+        const moduleData = readQQModuleData(data, callKey, '读取歌单详情');
+        const songlist = Array.isArray(moduleData.songlist) ? moduleData.songlist : [];
+        return songlist.slice(offset, offset + limit).map(mapQQSong).filter(Boolean);
+      } catch (_) {
+        // 网页登录态不一定具备桌面客户端权限，继续使用公开歌单详情接口。
+      }
+    }
+
     const gtkSource = extractQQGtkSource(cookieHeader);
     const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
-    const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, {
+    const params = {
       type: '1',
       json: '1',
       utf8: '1',
@@ -651,10 +667,15 @@ class QQMusicProvider {
       notice: '0',
       platform: 'yqq',
       needNewCode: '0'
-    });
+    };
+    if (limit <= 100 || offset > 0) {
+      params.song_begin = String(offset);
+      params.song_num = String(limit);
+    }
+    const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, params);
     const cdlist = data && Array.isArray(data.cdlist) ? data.cdlist : [];
     const songlist = cdlist[0] && Array.isArray(cdlist[0].songlist) ? cdlist[0].songlist : [];
-    return songlist.slice(offset, offset + limit).map(mapQQSong).filter(Boolean);
+    return songlist.slice(0, limit).map(mapQQSong).filter(Boolean);
   }
 
   async requestMusicu(modules = {}) {
@@ -681,6 +702,59 @@ class QQMusicProvider {
       method: 'POST',
       headers,
       body: JSON.stringify({ ...modules, comm }),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    try {
+      return JSON.parse(stripJsonp(text));
+    } catch (error) {
+      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
+    }
+  }
+
+  async requestMusicsClient(modules = {}) {
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader);
+    const authst = extractCookieValue(cookieHeader, 'qm_keyst')
+      || extractCookieValue(cookieHeader, 'qqmusic_key');
+    if (!uin || !authst) throw new Error('QQ 音乐登录 Cookie 不完整，请重新登录。');
+
+    const comm = {
+      _channelid: '20',
+      _os_version: '6.2.9200-2',
+      authst,
+      ct: '19',
+      cv: '2241',
+      guid: extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid(),
+      patch: '118',
+      tmeAppID: 'qqmusic',
+      tmeLoginType: Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
+      uin
+    };
+    for (const [field, cookieName] of [
+      ['psrf_access_token_expiresAt', 'psrf_access_token_expiresAt'],
+      ['psrf_qqaccess_token', 'psrf_qqaccess_token'],
+      ['psrf_qqopenid', 'psrf_qqopenid'],
+      ['psrf_qqunionid', 'psrf_qqunionid']
+    ]) {
+      const value = extractCookieValue(cookieHeader, cookieName);
+      if (value) comm[field] = value;
+    }
+    if (!comm.psrf_qqunionid) {
+      const wxUnionId = extractCookieValue(cookieHeader, 'wxunionid');
+      if (wxUnionId) comm.psrf_qqunionid = wxUnionId;
+    }
+
+    const url = new URL(QQ_MUSICS_URL);
+    url.searchParams.set('pcachetime', String(Math.floor(Date.now() / 1000)));
+    const headers = await this.buildHeaders();
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ comm, ...modules }),
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
@@ -761,7 +835,7 @@ class QQMusicProvider {
   async requireLogin(message) {
     const auth = await this.getSafeAuthState();
     const cookieHeader = await this.getSafeCookieHeader();
-    if ((!auth || !auth.loggedIn) && !cookieHeader) {
+    if ((!auth || !auth.loggedIn) && !hasQQMusicAuthCookie(cookieHeader)) {
       throw new Error(message || '需要先登录 QQ 音乐。');
     }
     return auth;
@@ -785,39 +859,6 @@ class QQMusicProvider {
     return uin;
   }
 
-  async getLikedPlaylistFromProfile(uin) {
-    const cookieHeader = await this.getSafeCookieHeader();
-    const gtkSource = extractQQGtkSource(cookieHeader);
-    const gtk = gtkSource ? calcQQGtk(gtkSource) : 5381;
-    const data = await this.requestJson(QQ_PROFILE_URL, {
-      cid: '205360838',
-      userid: uin,
-      reqfrom: '1',
-      g_tk: String(gtk),
-      loginUin: uin,
-      format: 'json',
-      inCharset: 'utf8',
-      outCharset: 'utf-8',
-      platform: 'yqq.json'
-    });
-    const mymusic = data && data.data && Array.isArray(data.data.mymusic)
-      ? data.data.mymusic
-      : [];
-    const fav = mymusic[0];
-    if (!fav || !fav.id) return null;
-    return {
-      id: String(fav.id),
-      source: this.source,
-      title: '我喜欢',
-      description: '',
-      coverUrl: 'https://y.gtimg.cn/mediastyle/global/img/cover_like.png',
-      trackCount: Math.max(0, Number(fav.num0 || fav.song_cnt || fav.songnum || 0)),
-      playCount: 0,
-      creatorUserId: uin,
-      dirId: '201',
-      tid: String(fav.id)
-    };
-  }
 }
 
 function mapQQSong(song) {
@@ -854,16 +895,16 @@ function mapQQSong(song) {
 function mapQQPlaylist(playlist) {
   if (!playlist) return null;
   const id = playlist.content_id || playlist.dissid || playlist.tid || playlist.id;
-  const title = playlist.title || playlist.dissname || playlist.diss_name || playlist.name;
+  const title = playlist.title || playlist.dissname || playlist.diss_name || playlist.name || playlist.dirName;
   if (!id || !title) return null;
   return {
     id: String(id),
     source: 'qq',
     title: String(title || '').trim(),
     description: String(playlist.desc || playlist.subtitle || playlist.rcmdcontent || '').trim(),
-    coverUrl: String(playlist.cover || playlist.picurl || playlist.imgurl || playlist.logo || playlist.diss_cover || ''),
-    trackCount: Math.max(0, Number(playlist.song_cnt || playlist.songnum || playlist.total_song_num || playlist.count || 0)),
-    playCount: Math.max(0, Number(playlist.listen_num || playlist.listennum || playlist.playcnt || playlist.access_num || 0)),
+    coverUrl: String(playlist.cover || playlist.picurl || playlist.imgurl || playlist.logo || playlist.diss_cover || playlist.picUrl || playlist.bigpicUrl || ''),
+    trackCount: Math.max(0, Number(playlist.song_cnt || playlist.songnum || playlist.songNum || playlist.total_song_num || playlist.count || 0)),
+    playCount: Math.max(0, Number(playlist.listen_num || playlist.listennum || playlist.playcnt || playlist.play_cnt || playlist.access_num || 0)),
     creatorUserId: playlist.uin || playlist.hostuin ? String(playlist.uin || playlist.hostuin) : '',
     dirId: playlist.dirid != null ? String(playlist.dirid) : (playlist.dirId != null ? String(playlist.dirId) : ''),
     tid: String(playlist.tid || playlist.content_id || playlist.dissid || playlist.id || '')
@@ -1080,6 +1121,19 @@ function extractQQGtkSource(cookieHeader) {
     if (value) return value;
   }
   return '';
+}
+
+function readQQModuleData(data, callKey, action) {
+  const inner = data && data[callKey];
+  if (Number(data && data.code) !== 0 || Number(inner && inner.code) !== 0) {
+    const code = inner && inner.code != null ? inner.code : (data && data.code);
+    throw new Error(`QQ 音乐${action}失败（code=${code == null ? 'unknown' : code}）。`);
+  }
+  return inner && inner.data && typeof inner.data === 'object' ? inner.data : {};
+}
+
+function hasQQMusicAuthCookie(cookieHeader) {
+  return ['qqmusic_key', 'qm_keyst'].some((name) => Boolean(extractCookieValue(cookieHeader, name)));
 }
 
 function calcQQGtk(value) {

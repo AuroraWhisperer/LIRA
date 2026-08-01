@@ -13,7 +13,8 @@ const MUSIC_LOGIN_CONFIG = {
     loginUrl: 'https://y.qq.com/',
     allowedHosts: ['y.qq.com', 'i.y.qq.com', 'graph.qq.com', 'ssl.ptlogin2.qq.com', 'xui.ptlogin2.qq.com', 'ui.ptlogin2.qq.com', 'ptlogin2.qq.com', 'qq.com'],
     cookieDomains: ['.qq.com', '.y.qq.com', 'y.qq.com'],
-    keyCookies: ['uin', 'qqmusic_uin', 'qqmusic_key', 'p_skey', 'skey', 'wxuin', 'p_uin', 'pt2gguin', 'superuin']
+    keyCookies: ['uin', 'qqmusic_uin', 'qqmusic_key', 'qm_keyst', 'p_skey', 'skey', 'wxuin', 'p_uin', 'pt2gguin', 'superuin'],
+    authCookies: ['qqmusic_key', 'qm_keyst']
   },
   netease: {
     name: '网易云音乐',
@@ -127,6 +128,8 @@ async function getMusicAuthState(platform, dataDir) {
   const cookies = await getAllowedMusicCookies(platform);
   const cookieNames = new Set(cookies.map((c) => c.name));
   const presentKeyCookies = config.keyCookies.filter((name) => cookieNames.has(name));
+  const authCookieNames = Array.isArray(config.authCookies) ? config.authCookies : config.keyCookies;
+  const loggedIn = authCookieNames.some((name) => cookieNames.has(name));
 
   let snapshotMeta = { exists: false, savedAt: '' };
   const snapshotPath = getMusicCookieSnapshotPath(dataDir, platform);
@@ -140,7 +143,7 @@ async function getMusicAuthState(platform, dataDir) {
 
   return {
     platform, name: config.name,
-    loggedIn: presentKeyCookies.length > 0,
+    loggedIn,
     cookieCount: cookies.length,
     keyCookieNames: presentKeyCookies,
     encryptedSnapshotExists: snapshotMeta.exists,
