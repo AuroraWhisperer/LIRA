@@ -1238,7 +1238,7 @@
             <div class="desktop-update-grid">
               <section class="desktop-update-card">
                 <h4>🔄 版本更新</h4>
-                <p>从 GitHub Releases 获取新版本，支持增量下载节省流量。</p>
+
                 <div class="actions">
                   <button id="desktopCheckUpdateBtn" class="primary" type="button">检查更新</button>
                   <button id="desktopDownloadUpdateBtn" type="button" disabled>下载更新</button>
@@ -1266,7 +1266,7 @@
                   <span id="autoUpdateLabel">已关闭</span>
                 </label>
               </div>
-              <p class="hint">开启后启动桌面版时自动从 GitHub Releases 检查新版本。关闭后仍需手动点击「检查更新」。</p>
+
             </fieldset>
 
             <div class="desktop-update-progress">
@@ -1629,13 +1629,18 @@
     <!-- 重启更新确认弹窗 -->
     <div id="restartConfirmModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" hidden>
       <div class="confirm-modal">
-        <div class="confirm-modal-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6m12-4a9 9 0 0 1-15 6.7L3 16"/>
-            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-          </svg>
+        <div class="confirm-modal-header">
+          <div class="confirm-modal-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18.7 8.3A7.5 7.5 0 0 0 5.4 7.1L4 9.5"/>
+              <path d="M4 5.5v4h4"/>
+              <path d="M5.3 15.7a7.5 7.5 0 0 0 13.3 1.2l1.4-2.4"/>
+              <path d="M20 18.5v-4h-4"/>
+              <path d="m12 7 .7 1.8L14.5 9.5l-1.8.7L12 12l-.7-1.8-1.8-.7 1.8-.7L12 7Z" fill="currentColor" stroke="none"/>
+            </svg>
+          </div>
+          <h3 class="confirm-modal-title">发现新版本</h3>
         </div>
-        <h3 class="confirm-modal-title">发现新版本</h3>
         <p class="confirm-modal-body">安装更新需要重启应用，建议在直播间歇时更新。</p>
         <div class="confirm-modal-actions">
           <button id="restartConfirmCancelBtn" type="button">取消</button>

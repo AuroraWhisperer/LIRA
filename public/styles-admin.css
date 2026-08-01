@@ -2188,21 +2188,33 @@ body.player-dock-expanded .song-workspace {
   animation: confirm-modal-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.confirm-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
 .confirm-modal-icon {
-  display: inline-flex;
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  font-size: 24px;
-  line-height: 1;
+  width: 42px;
+  height: 42px;
+  color: #fff;
+  background: linear-gradient(145deg, #ff7a59 0%, #e54444 100%);
+  border-radius: 13px;
+  box-shadow: 0 6px 14px rgba(229, 68, 68, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.confirm-modal-icon svg {
+  width: 25px;
+  height: 25px;
 }
 
 .confirm-modal-title {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: #1a1a1a;

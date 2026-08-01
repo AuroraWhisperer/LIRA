@@ -75,6 +75,28 @@ class BilibiliDanmakuClient {
         message: '直播弹幕长连失败，历史消息监听中'
       });
       this.scheduleReconnect();
+    });
+  }
+
+  async restart() {
+    this.stopped = false;
+    this.startedAtMs = Date.now();
+    this.messageHandlers.updateStartTime(this.startedAtMs);
+    this.historyPoller.updateStartTime(this.startedAtMs);
+
+    try {
+      await this.connect({ waitForOpen: true });
+    } catch (error) {
+      console.warn(`[Bilibili] reconnect failed: ${error.message}`);
+      this.historyPoller.start(this.roomId);
+      this.report({
+        connected: true,
+        enabled: true,
+        roomId: this.roomId,
+        mode: 'bilibili',
+        message: '直播弹幕长连失败，历史消息监听中'
+      });
+      this.scheduleReconnect();
       throw error;
     }
   }
