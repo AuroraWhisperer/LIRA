@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS = {
   scrollSeconds: '100',
   queueScrollMode: 'bounce',
   queueScrollSpeed: '80',
+  identityQueueScrollSpeed: '80',
   queueScrollSpeedRangeVersion: '3',
   themePrimary: '#ff6f91',
   themeAccent: '#21b6a8',
@@ -33,8 +34,9 @@ const DEFAULT_SETTINGS = {
   themeOpacity: '0.35',
   themeRadius: '8',
   themeFontScale: '1',
-  queueSongFontSize: '20',
-  queueTitleFontSize: '15',
+  queueSongFontSize: '40',
+  queueTitleFontSize: '30',
+  queueFontSizeRangeVersion: '2',
   overlayQueueStyle: 'classic',
   overlayLowPowerMode: 'false',
   backdropBlur: '0',
@@ -55,7 +57,7 @@ const DEFAULT_SETTINGS = {
   overlayPin3: '',
   overlayRule1: '弹幕输入 点歌 歌名',
   overlayRule2: '支持随机点歌',
-  overlayRule3: '',
+  overlayRule3: 'SC ≥ 2',
   overlayRule4: '',
   overlayRule5: '',
   overlayRule6: '',
@@ -187,6 +189,44 @@ function migrateQueueScrollSpeedSetting(db, savedVersion) {
   `).run(updatedAt);
 }
 
+function migrateQueueFontSizeSettings(db, savedVersion) {
+  if (String(savedVersion || '') === '2') return;
+
+  const updatedAt = now();
+
+  // 读取当前字号设置
+  const songRow = db.prepare(`SELECT value FROM settings WHERE key = 'queueSongFontSize'`).get();
+  const titleRow = db.prepare(`SELECT value FROM settings WHERE key = 'queueTitleFontSize'`).get();
+
+  // 如果设置存在且在旧范围内，则翻倍
+  if (songRow) {
+    const oldValue = Number(songRow.value);
+    if (Number.isFinite(oldValue) && oldValue >= 5 && oldValue <= 35) {
+      const newValue = Math.min(70, Math.max(10, oldValue * 2));
+      db.prepare(`
+        UPDATE settings SET value = ?, updated_at = ? WHERE key = 'queueSongFontSize'
+      `).run(String(newValue), updatedAt);
+    }
+  }
+
+  if (titleRow) {
+    const oldValue = Number(titleRow.value);
+    if (Number.isFinite(oldValue) && oldValue >= 5 && oldValue <= 20) {
+      const newValue = Math.min(40, Math.max(10, oldValue * 2));
+      db.prepare(`
+        UPDATE settings SET value = ?, updated_at = ? WHERE key = 'queueTitleFontSize'
+      `).run(String(newValue), updatedAt);
+    }
+  }
+
+  // 写入版本标记
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('queueFontSizeRangeVersion', '2', ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(updatedAt);
+}
+
 function migrateBlindBoxConfig(db) {
   const row = db.prepare(`
     SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'
@@ -285,5 +325,6 @@ module.exports = {
   createSettingsStore,
   clearLegacyIdentityRuleDefaults,
   migrateQueueScrollSpeedSetting,
+  migrateQueueFontSizeSettings,
   migrateBlindBoxConfig
 };

@@ -7,10 +7,19 @@ const http = require('node:http');
 const path = require('node:path');
 
 const SESSION_TOKEN_FILE_NAME = '.session-token';
+const RUNTIME_FILE_NAME = '.server-runtime.json';
 
 async function listenWithFallback(server, options) {
   const startPort = Number(options.startPort);
   const host = options.host;
+  if (startPort === 0) {
+    const ok = await tryListen(server, 0, host);
+    if (ok) {
+      const address = server.address();
+      return address && typeof address === 'object' ? address.port : 0;
+    }
+    throw new Error('Could not bind to an automatically assigned local port.');
+  }
   for (let port = startPort; port < startPort + 20; port += 1) {
     const ok = await tryListen(server, port, host);
     if (ok) return port;
@@ -35,23 +44,39 @@ function tryListen(server, port, host) {
 }
 
 async function cleanupOwnPortOccupant(options) {
-  const port = Number(options.port);
-  const host = options.host;
-  if (port !== 3000) return;
+  const runtime = readRuntimeInfo(options.dataDir);
+  const requestedPort = Number(options.port);
+  const port = runtime && Number(runtime.port) > 0
+    ? Number(runtime.port)
+    : (requestedPort === 0 ? 3000 : requestedPort);
+  const host = runtime && runtime.host ? runtime.host : options.host;
+  if (!Number.isInteger(port) || port <= 0) return;
+  if (runtime && Number(runtime.pid) === process.pid) return;
 
   const fetchImpl = options.fetch || globalThis.fetch;
   const health = await readLocalHealth(port, host, fetchImpl);
-  if (!health || !health.ok || !isOwnServiceHealth(health.data, options)) return;
+  const healthIsOwn = health && health.ok && isOwnServiceHealth(health.data, options);
+  const runtimePid = runtime && Number(runtime.pid);
+  const processInfo = Number.isInteger(runtimePid) && runtimePid > 0
+    ? getProcessInfo(runtimePid) : null;
+  const processIsOwn = isOwnProcessInfo(processInfo, options);
+  if (!healthIsOwn && !processIsOwn) {
+    if (runtime) removeRuntimeInfo(options.dataDir, runtime);
+    return;
+  }
 
   console.log(`Found previous song helper service on ${host}:${port}; asking it to shut down...`);
   await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
-  if (await waitForPortRelease(port, host, options)) return;
+  if (await waitForPortRelease(port, host, options)) {
+    if (runtime) removeRuntimeInfo(options.dataDir, runtime);
+    return;
+  }
 
-  const pid = Number(health.data && health.data.pid);
+  const pid = runtimePid || Number(health.data && health.data.pid);
   if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return;
 
-  const processInfo = getProcessInfo(pid);
-  if (!isOwnProcessInfo(processInfo, options)) return;
+  const currentProcessInfo = processInfo || getProcessInfo(pid);
+  if (!isOwnProcessInfo(currentProcessInfo, options)) return;
 
   console.log(`Previous service did not exit cleanly; stopping pid ${pid}.`);
   try {
@@ -61,6 +86,7 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
   await waitForPortRelease(port, host, options);
+  if (runtime) removeRuntimeInfo(options.dataDir, runtime);
 }
 
 async function readLocalHealth(port, host, fetchImpl = globalThis.fetch) {
@@ -132,6 +158,43 @@ function removeSessionToken(dataDir, token) {
   if (!value || readSessionToken(dataDir) !== value) return false;
   try {
     fs.unlinkSync(getSessionTokenPath(dataDir));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function getRuntimeInfoPath(dataDir) {
+  return path.join(path.resolve(String(dataDir || '')), RUNTIME_FILE_NAME);
+}
+
+function readRuntimeInfo(dataDir) {
+  try {
+    const value = JSON.parse(fs.readFileSync(getRuntimeInfoPath(dataDir), 'utf8'));
+    return value && typeof value === 'object' ? value : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeRuntimeInfo(dataDir, info) {
+  const value = {
+    pid: Number(info && info.pid),
+    port: Number(info && info.port),
+    host: String(info && info.host || '')
+  };
+  if (!Number.isInteger(value.pid) || value.pid <= 0 || !Number.isInteger(value.port) || value.port <= 0) {
+    throw new Error('Runtime info requires a valid pid and port.');
+  }
+  fs.writeFileSync(getRuntimeInfoPath(dataDir), `${JSON.stringify(value)}\n`, { encoding: 'utf8', mode: 0o600 });
+  return getRuntimeInfoPath(dataDir);
+}
+
+function removeRuntimeInfo(dataDir, expected) {
+  const current = readRuntimeInfo(dataDir);
+  if (expected && current && (Number(expected.pid) !== Number(current.pid) || Number(expected.port) !== Number(current.port))) return false;
+  try {
+    fs.unlinkSync(getRuntimeInfoPath(dataDir));
     return true;
   } catch (_) {
     return false;
@@ -215,5 +278,9 @@ module.exports = {
   listenWithFallback,
   readSessionToken,
   writeSessionToken,
-  removeSessionToken
+  removeSessionToken,
+  RUNTIME_FILE_NAME,
+  readRuntimeInfo,
+  writeRuntimeInfo,
+  removeRuntimeInfo
 };

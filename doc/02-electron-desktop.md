@@ -100,7 +100,7 @@ app.whenReady()
 
 ```
 属性：
-  - width: 1280, height: 800 (min: 1024×680)
+  - width: 1100, height: 720 (min: 1024×680)
   - frame: false（自绘标题栏）
   - backgroundColor: #f7f3ef（暖色背景，消除白屏闪烁）
   - preload: src/electron/preload.js

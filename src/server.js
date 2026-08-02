@@ -51,6 +51,11 @@ const queueScrollSpeedRangeVersion = songDb.prepare(`
   FROM settings
   WHERE key = 'queueScrollSpeedRangeVersion'
 `).get();
+const queueFontSizeRangeVersion = songDb.prepare(`
+  SELECT value
+  FROM settings
+  WHERE key = 'queueFontSizeRangeVersion'
+`).get();
 const settingsStore = settingsStoreModule.createSettingsStore(songDb);
 const domainServices = createDomainServices({ db, settingsStore });
 
@@ -59,6 +64,10 @@ giftService.repairGiftV2Events({ db });
 settingsStoreModule.migrateQueueScrollSpeedSetting(
   songDb,
   queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value
+);
+settingsStoreModule.migrateQueueFontSizeSettings(
+  songDb,
+  queueFontSizeRangeVersion && queueFontSizeRangeVersion.value
 );
 settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);
 settingsStoreModule.migrateBlindBoxConfig(songDb);
@@ -248,7 +257,7 @@ function startServer(options = {}) {
 
   musicRegistry = createMusicProviderRegistry(options.musicAuth || {});
   bilibiliAuthProvider = options.bilibiliAuth || null;
-  const startPort = Number(options.startPort || START_PORT);
+  const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
   const host = options.host || HOST;
   startPromise = lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host))
     .then(() => lifecycle.listenWithFallback(server, { startPort, host }))
@@ -256,6 +265,7 @@ function startServer(options = {}) {
     startedPort = port;
     sessionToken = crypto.randomUUID();
     lifecycle.writeSessionToken(DATA_DIR, sessionToken);
+    lifecycle.writeRuntimeInfo(DATA_DIR, { pid: process.pid, port, host });
     const baseUrl = `http://${host}:${port}`;
     console.log(`Bilibili live song plugin is running at ${baseUrl}`);
     console.log(`Session token: ${sessionToken}`);
@@ -428,7 +438,6 @@ function createBilibiliClient(roomId) {
       try {
         const item = domainServices.gifts.add(gift);
         if (item) {
-          console.log(`[Bilibili] gift recorded: cmd=${item.cmd || ''} blind=${item.is_blind_box ? 'yes' : 'no'} coin=${item.coin_type || ''} user=${item.user_name || ''} uid=${item.uid || ''} gift=${item.gift_name || ''} x${item.num || 1} totalRmb=${item.total_price || 0}`);
           broadcastSnapshot('bilibili:gift');
         }
       } catch (error) {
@@ -487,6 +496,7 @@ function shutdownApplication(options = {}) {
     }
 
     lifecycle.removeSessionToken(DATA_DIR, sessionToken);
+    lifecycle.removeRuntimeInfo(DATA_DIR, { pid: process.pid, port: startedPort });
 
     if (bilibiliClient) {
       bilibiliClient.stop();

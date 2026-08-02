@@ -6,12 +6,17 @@ let state = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 let stateRefreshTimer = null;
+let overlayResizeTimer = null;
 let lastRenderKey = null;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
   connectSocket();
+  window.addEventListener('resize', () => {
+    clearTimeout(overlayResizeTimer);
+    overlayResizeTimer = setTimeout(render, 100);
+  });
 });
 
 async function loadState() {
@@ -108,7 +113,7 @@ function computeStateKey(nextState) {
     settings.overlayFontFamily, settings.overlayFontWeight,
     settings.overlaySongColor, settings.overlayRequesterColor, settings.overlayIndexColor,
     settings.queueSongFontSize, settings.queueTitleFontSize,
-    settings.queueScrollMode, settings.queueScrollSpeed,
+    settings.queueScrollMode, settings.queueScrollSpeed, settings.identityQueueScrollSpeed,
     settings.queueFixedSixRows, settings.overlayShowIndex, settings.overlayIndexThreshold,
     settings.overlayTitle, settings.overlayLowPowerMode, settings.themeFontScale,
     settings.overlayPin1, settings.overlayPin2, settings.overlayPin3,
@@ -166,7 +171,13 @@ function restoreScrollAnimation(scrollState) {
 function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
   const visibleRows = 6;
-  const rowHeight = 35;
+  const baseFontSize = Math.max(10, normalizeFontSize(
+    (settings || {}).queueSongFontSize,
+    scaleToFontSize((settings || {}).themeFontScale, 40),
+    70,
+    10
+  ));
+  const rowHeight = Math.max(35, Math.round(baseFontSize * 0.65 * 1.8));
   const rowGap = 5;
   const rowStep = rowHeight + rowGap;
   const windowHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap);
@@ -214,17 +225,21 @@ function renderClassicQueue(settings, current, waiting, content) {
   }
 
   const hiddenRows = Math.max(1, items.length - visibleRows);
-  document.documentElement.style.setProperty('--classic-loop-distance', `${items.length * rowStep}px`);
-  document.documentElement.style.setProperty('--classic-bounce-distance', `${hiddenRows * rowStep}px`);
+  const loopDistance = items.length * rowStep;
+  const bounceDistance = hiddenRows * rowStep;
+  document.documentElement.style.setProperty('--classic-loop-distance', `${loopDistance}px`);
+  document.documentElement.style.setProperty('--classic-bounce-distance', `${bounceDistance}px`);
   const scrollClass = scrollMode === 'bounce' ? 'scrolling-bounce' : 'scrolling';
   const scrollRowsHtml = scrollMode === 'bounce' ? rowsHtml : `${rowsHtml}${rowsHtml}`;
-  const downSeconds = queueScrollSeconds(settings);
+  const scrollDistance = scrollMode === 'bounce' ? bounceDistance : loopDistance;
+  const travelSeconds = scrollTravelSeconds(queueScrollSeconds(settings), scrollDistance, windowHeight);
   if (scrollMode === 'bounce') {
-    const totalSeconds = downSeconds + 3;
-    setClassicBounceKeyframes((downSeconds / totalSeconds) * 100);
-    document.documentElement.style.setProperty('--scroll-seconds', `${totalSeconds}s`);
+    const upSeconds = scrollTravelSeconds(3, scrollDistance, windowHeight);
+    const timing = bounceScrollTiming(travelSeconds, upSeconds);
+    setClassicBounceKeyframes(timing.downPercent, timing.pauseEndPercent);
+    document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
   } else {
-    document.documentElement.style.setProperty('--scroll-seconds', `${downSeconds}s`);
+    document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
   }
 
   content.innerHTML = `
@@ -237,20 +252,22 @@ function renderClassicQueue(settings, current, waiting, content) {
 }
 
 function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
-  const items = [current].concat(waiting).filter(Boolean);
-  const visibleRows = 6;
-  const rowHeight = 24;
+  const songItems = [current].concat(waiting).filter(Boolean);
+  const scItems = (Array.isArray(superChats) ? superChats : []).filter((item) => Number(item.price || 0) >= 2);
+  const baseFontSize = Math.max(10, normalizeFontSize(
+    (settings || {}).queueSongFontSize,
+    scaleToFontSize((settings || {}).themeFontScale, 40),
+    70,
+    10
+  ));
+  const rowHeight = Math.max(24, Math.round(baseFontSize * 0.65 * 1.6));
   const rowGap = 4;
-  const rowStep = rowHeight + rowGap;
-  const windowHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap);
-  document.documentElement.style.setProperty('--identity-visible-rows', String(visibleRows));
   document.documentElement.style.setProperty('--identity-row-height', `${rowHeight}px`);
   document.documentElement.style.setProperty('--identity-row-gap', `${rowGap}px`);
-  document.documentElement.style.setProperty('--identity-window-height', `${windowHeight}px`);
 
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
-  const shouldShowIndex = showIndex && (threshold === 0 || items.length > threshold);
+  const shouldShowIndex = showIndex && (threshold === 0 || songItems.length > threshold);
   const pins = [
     settings.overlayPin1,
     settings.overlayPin2,
@@ -276,55 +293,91 @@ function renderIdentityQueue(settings, current, waiting, content, superChats = [
   ].map((item) => String(item || '').trim()).filter(Boolean);
   const ruleHtml = rules.length ? `
     <div class="identity-rules">
-      ${rules.map((rule, index) => `<span class="identity-rule-${(index % 6) + 1}">${escapeHtml(rule)}</span>`).join('')}
+      ${rules.map((rule, index) => `
+        <span class="identity-rule identity-rule-${(index % 6) + 1}">
+          <span class="identity-rule-text">${escapeHtml(rule)}</span>
+        </span>
+      `).join('')}
     </div>
   ` : '';
-  const superChatHtml = renderIdentitySuperChats(superChats);
-  const rows = items.length > 0
-    ? items.map((item, i) => renderIdentityRow(item, i, shouldShowIndex)).join('')
-    : '<div class="identity-empty">当前还没有点歌</div>';
-  const shouldScroll = items.length > visibleRows;
-  const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
-  const scrollSeconds = queueScrollSeconds(settings);
+
+  const scRowsHtml = scItems.map((item) => renderIdentitySuperChatRow(item)).join('');
+  const songRowsHtml = songItems.length > 0
+    ? songItems.map((item, i) => renderIdentityRow(item, i, shouldShowIndex)).join('')
+    : '';
+  const combinedRows = scRowsHtml + songRowsHtml;
+  const totalRows = scItems.length + songItems.length;
+
+  if (totalRows === 0) {
+    content.innerHTML = `
+      ${pinHtml}
+      <div class="identity-list-window">
+        <div class="identity-empty">当前还没有点歌</div>
+      </div>
+      ${ruleHtml ? `<div class="identity-footer">${ruleHtml}</div>` : ''}
+    `;
+    scheduleIdentityRuleScroll(content);
+    return;
+  }
+
   const noIndexClass = shouldShowIndex ? '' : ' no-index';
 
-  if (shouldScroll) {
-    const hiddenRows = Math.max(1, items.length - visibleRows);
-    document.documentElement.style.setProperty('--identity-bounce-distance', `${hiddenRows * rowStep}px`);
-    document.documentElement.style.setProperty('--identity-loop-distance', `${items.length * rowStep}px`);
-    const scrollClass = scrollMode === 'bounce' ? 'scrolling-bounce' : 'scrolling';
-    const scrollRowsHtml = scrollMode === 'bounce' ? rows : `${rows}${rows}`;
-    if (scrollMode === 'bounce') {
-      const totalSeconds = scrollSeconds + 3;
-      setIdentityBounceKeyframes((scrollSeconds / totalSeconds) * 100);
-      document.documentElement.style.setProperty('--scroll-seconds', `${totalSeconds}s`);
-    } else {
-      document.documentElement.style.setProperty('--scroll-seconds', `${scrollSeconds}s`);
-    }
+  content.innerHTML = `
+    ${pinHtml}
+    <div class="identity-list-window">
+      <div class="identity-list paused${noIndexClass}">
+        ${combinedRows}
+      </div>
+    </div>
+    ${ruleHtml ? `<div class="identity-footer">${ruleHtml}</div>` : ''}
+  `;
 
-    content.innerHTML = `
-      ${pinHtml}
-      ${superChatHtml}
-      <div class="identity-list-window">
-        <div class="identity-list ${scrollClass}${noIndexClass}">
-          ${scrollRowsHtml}
-        </div>
-      </div>
-      ${ruleHtml ? `<div class="identity-footer">${ruleHtml}</div>` : ''}
-    `;
+  scheduleIdentityVerticalScroll(content, settings, combinedRows, rowGap);
+  scheduleIdentitySuperChatScroll(content);
+  scheduleIdentityRuleScroll(content);
+}
+
+function scheduleIdentityVerticalScroll(content, settings, combinedRows, rowGap) {
+  const viewport = content.querySelector('.identity-list-window');
+  const list = viewport && viewport.querySelector('.identity-list');
+  if (!viewport || !list) return;
+
+  const setup = () => configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
   } else {
-    document.documentElement.style.setProperty('--scroll-seconds', `${scrollSeconds}s`);
-    content.innerHTML = `
-      ${pinHtml}
-      ${superChatHtml}
-      <div class="identity-list-window">
-        <div class="identity-list paused${noIndexClass}">
-          ${rows}
-        </div>
-      </div>
-      ${ruleHtml ? `<div class="identity-footer">${ruleHtml}</div>` : ''}
-    `;
+    setup();
   }
+}
+
+function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4) {
+  const overflowDistance = Math.max(0, Math.ceil(list.scrollHeight - viewport.clientHeight));
+  if (overflowDistance <= 1) return false;
+
+  const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
+  const secondsPerViewport = queueScrollSeconds(settings, 'identityQueueScrollSpeed');
+  const viewportHeight = Math.max(1, viewport.clientHeight);
+  let scrollClass = 'scrolling';
+
+  if (scrollMode === 'bounce') {
+    const downSeconds = scrollTravelSeconds(secondsPerViewport, overflowDistance, viewportHeight);
+    const upSeconds = scrollTravelSeconds(3, overflowDistance, viewportHeight);
+    const timing = bounceScrollTiming(downSeconds, upSeconds);
+    document.documentElement.style.setProperty('--identity-bounce-distance', `${overflowDistance}px`);
+    document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
+    setIdentityBounceKeyframes(timing.downPercent, timing.pauseEndPercent);
+    scrollClass = 'scrolling-bounce';
+  } else {
+    const loopDistance = Math.ceil(list.scrollHeight + rowGap);
+    const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewportHeight);
+    document.documentElement.style.setProperty('--identity-loop-distance', `${loopDistance}px`);
+    document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
+    list.insertAdjacentHTML('beforeend', combinedRows);
+  }
+
+  list.classList.remove('paused');
+  list.classList.add(scrollClass);
+  return true;
 }
 
 function renderIdentitySuperChats(superChats) {
@@ -350,6 +403,93 @@ function renderIdentitySuperChat(item) {
   `;
 }
 
+function renderIdentitySuperChatRow(item) {
+  const message = String(item.message || '').trim();
+  return `
+    <div class="identity-row identity-sc">
+      <span class="identity-sc-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
+      <span class="identity-sc-content">
+        <span class="identity-sc-text">${escapeHtml(message || '醒目留言')}</span>
+      </span>
+    </div>
+  `;
+}
+
+function scheduleIdentitySuperChatScroll(content) {
+  const setup = () => {
+    content.querySelectorAll('.identity-sc-content').forEach((container) => {
+      const text = container.querySelector('.identity-sc-text');
+      const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
+      if (!text || distance <= 1 || typeof text.animate !== 'function') return;
+
+      const travelSeconds = Math.max(3, distance / 30);
+      const pauseSeconds = 1.5;
+      const totalSeconds = (travelSeconds * 2) + pauseSeconds;
+      text.animate([
+        { transform: 'translateX(0)', offset: 0 },
+        { transform: `translateX(-${distance}px)`, offset: travelSeconds / totalSeconds },
+        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + pauseSeconds) / totalSeconds },
+        { transform: 'translateX(0)', offset: 1 }
+      ], {
+        duration: totalSeconds * 1000,
+        iterations: Infinity
+      });
+    });
+  };
+
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
+  } else {
+    setup();
+  }
+}
+
+function scheduleIdentityRuleScroll(content) {
+  const setup = () => {
+    if (prefersReducedMotion()) return;
+
+    content.querySelectorAll('.identity-rule').forEach((container) => {
+      const text = container.querySelector('.identity-rule-text');
+      if (!text || typeof text.animate !== 'function') return;
+
+      const containerOverflow = Number.isFinite(container.scrollWidth)
+        ? container.scrollWidth - container.clientWidth
+        : 0;
+      const textOverflow = Number.isFinite(text.scrollWidth)
+        ? text.scrollWidth - container.clientWidth
+        : 0;
+      const distance = Math.ceil(Math.max(containerOverflow, textOverflow));
+      if (distance <= 1) return;
+
+      const travelSeconds = Math.max(3, distance / 24);
+      const pauseSeconds = 1.5;
+      const totalSeconds = (travelSeconds * 2) + pauseSeconds;
+      container.classList.add('is-scrolling');
+      text.animate([
+        { transform: 'translateX(0)', offset: 0 },
+        { transform: `translateX(-${distance}px)`, offset: travelSeconds / totalSeconds },
+        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + pauseSeconds) / totalSeconds },
+        { transform: 'translateX(0)', offset: 1 }
+      ], {
+        duration: totalSeconds * 1000,
+        iterations: Infinity
+      });
+    });
+  };
+
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
+  } else {
+    setup();
+  }
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function renderIdentityRow(item, index, showIndex = true) {
   const guardLevel = normalizeGuardLevel(item.requester_guard_level);
   const medalLevel = Number(item.requester_medal_level || 0);
@@ -357,11 +497,16 @@ function renderIdentityRow(item, index, showIndex = true) {
   const identityText = requesterIdentityLabel(guardLevel, medalLevel, medalName);
   const identityClass = requesterIdentityClass(guardLevel, medalLevel);
   const medalClass = medalLevelClass(medalLevel);
+  const songName = escapeHtml(item.song_name);
+  const songPrefix = item.is_pinned ? '📌 ' : '';
+  const fullSongText = songPrefix + songName;
 
   return `
     <div class="identity-row guard-${guardLevel} medal-${medalClass}">
       ${showIndex ? `<span class="identity-rank">${index + 1}</span>` : ''}
-      <span class="identity-song">${item.is_pinned ? '📌 ' : ''}${escapeHtml(item.song_name)}</span>
+      <span class="identity-song-wrapper">
+        <span class="identity-song" data-text="${escapeHtml(fullSongText)}">${fullSongText}${fullSongText.length > 15 ? ' • ' + fullSongText : ''}</span>
+      </span>
       <span class="identity-requester">${escapeHtml(item.requester_name || '观众')}</span>
       ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
       ${medalLevel > 0 ? `<span class="identity-medal">${medalLevel}</span>` : ''}
@@ -435,17 +580,14 @@ function applyTheme(settings, style) {
     titleEl.textContent = customTitle || '点歌队列';
   }
 
-  const songFontSize = normalizeFontSize(
-    settings.queueSongFontSize,
-    scaleToFontSize(settings.themeFontScale, 20),
-    35
-  );
+  const songFontSize = queueSongFontSize(settings);
   root.style.setProperty('--overlay-song-font-size', `${songFontSize}px`);
-  root.style.setProperty('--overlay-waiting-font-size', `${Math.max(5, Math.round(songFontSize * 0.65))}px`);
+  root.style.setProperty('--overlay-waiting-font-size', `${Math.max(10, Math.round(songFontSize * 0.65))}px`);
   root.style.setProperty('--overlay-title-font-size', `${normalizeFontSize(
     settings.queueTitleFontSize,
-    scaleToFontSize(settings.themeFontScale, 15),
-    20
+    scaleToFontSize(settings.themeFontScale, 30),
+    40,
+    10
   )}px`);
   root.style.setProperty('--scroll-seconds', `${queueScrollSeconds(settings)}s`);
 
@@ -460,7 +602,7 @@ function setIdentityRuleThemeVars(root, settings) {
     const key = `overlayRuleColor${index + 1}`;
     root.style.setProperty(`--identity-rule-${index + 1}-bg`, settings[key] || defaultColors[index]);
   }
-  const ruleFontSize = Math.max(8, normalizeFontSize(settings.overlayRuleFontSize, 10, 18));
+  const ruleFontSize = Math.max(8, normalizeFontSize(settings.overlayRuleFontSize, 10, 18)) * 2;
   root.style.setProperty('--identity-rule-font-size', `${ruleFontSize}px`);
 }
 
@@ -477,9 +619,10 @@ function hexToRgb(hex) {
   };
 }
 
-function queueScrollSeconds(settings) {
+function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
-  const speed = Math.round(Number(urlSpeed || settings.queueScrollSpeed || 80));
+  const settingSpeed = settings?.[settingKey] || settings?.queueScrollSpeed || 80;
+  const speed = Math.round(Number(urlSpeed || settingSpeed));
   const displaySpeed = normalizeQueueScrollSpeed(speed);
   const actualSpeed = 50 + ((displaySpeed - 1) / 99) * 150;
   const seconds = Number((50 - ((actualSpeed - 50) / 150) * 49).toFixed(2));
@@ -501,8 +644,26 @@ function overlayLowPowerEnabled(settings) {
   return (settings.overlayLowPowerMode || 'false') === 'true';
 }
 
-function setClassicBounceKeyframes(downPercent) {
-  const safePercent = Math.max(1, Math.min(99, Number(downPercent) || 90)).toFixed(4);
+function scrollTravelSeconds(secondsPerViewport, distance, viewportDistance) {
+  const safeSeconds = Math.max(0.01, Number(secondsPerViewport) || 0.01);
+  const safeDistance = Math.max(0, Number(distance) || 0);
+  const safeViewportDistance = Math.max(1, Number(viewportDistance) || 1);
+  return Number(Math.max(0.05, (safeSeconds * safeDistance) / safeViewportDistance).toFixed(3));
+}
+
+function bounceScrollTiming(downSeconds, upSeconds = 3) {
+  const pauseSeconds = 1.5;
+  const totalSeconds = downSeconds + pauseSeconds + upSeconds;
+  return {
+    totalSeconds,
+    downPercent: (downSeconds / totalSeconds) * 100,
+    pauseEndPercent: ((downSeconds + pauseSeconds) / totalSeconds) * 100
+  };
+}
+
+function setClassicBounceKeyframes(downPercent, pauseEndPercent) {
+  const pauseStart = Math.max(1, Math.min(97, Number(downPercent) || 90)).toFixed(4);
+  const pauseEnd = Math.max(Number(pauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
   let style = document.getElementById('classicBounceKeyframes');
   if (!style) {
     style = document.createElement('style');
@@ -512,13 +673,15 @@ function setClassicBounceKeyframes(downPercent) {
   style.textContent = `
 @keyframes classic-scroll-bounce {
   0% { transform: translateY(0); }
-  ${safePercent}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
+  ${pauseStart}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
+  ${pauseEnd}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
   100% { transform: translateY(0); }
 }`;
 }
 
-function setIdentityBounceKeyframes(downPercent) {
-  const safePercent = Math.max(1, Math.min(99, Number(downPercent) || 90)).toFixed(4);
+function setIdentityBounceKeyframes(downPercent, pauseEndPercent) {
+  const pauseStart = Math.max(1, Math.min(97, Number(downPercent) || 90)).toFixed(4);
+  const pauseEnd = Math.max(Number(pauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
   let style = document.getElementById('identityBounceKeyframes');
   if (!style) {
     style = document.createElement('style');
@@ -528,7 +691,8 @@ function setIdentityBounceKeyframes(downPercent) {
   style.textContent = `
 @keyframes identity-scroll-bounce {
   0% { transform: translateY(0); }
-  ${safePercent}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
+  ${pauseStart}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
+  ${pauseEnd}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
   100% { transform: translateY(0); }
 }`;
 }
@@ -545,11 +709,20 @@ function normalizeGuardLevel(value) {
   return [1, 2, 3].includes(level) ? level : 0;
 }
 
-function normalizeFontSize(value, fallback, max = 20) {
+function normalizeFontSize(value, fallback, max = 20, min = 5) {
   const number = Number(value);
   const fallbackNumber = Number(fallback);
   const safeValue = Number.isFinite(number) ? number : fallbackNumber;
-  return Math.max(5, Math.min(max, Math.round(safeValue)));
+  return Math.max(min, Math.min(max, Math.round(safeValue)));
+}
+
+function queueSongFontSize(settings) {
+  return normalizeFontSize(
+    (settings || {}).queueSongFontSize,
+    scaleToFontSize((settings || {}).themeFontScale, 40),
+    70,
+    10
+  );
 }
 
 function scaleToFontSize(scale, baseSize) {

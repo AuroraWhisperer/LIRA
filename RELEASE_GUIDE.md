@@ -11,7 +11,7 @@
 
 # 2. 验证 + 提交
 npm test
-git add . && git commit -m "v1.7.3"
+git add . && git commit -m "vX.Y.Z"
 git push
 
 # 3. 一键发布

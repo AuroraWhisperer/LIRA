@@ -173,13 +173,15 @@
 
     const songFontSize = normalizeFontSize(
       values && values.queueSongFontSize,
-      scaleToFontSize(values && values.themeFontScale, 20),
-      35
+      scaleToFontSize(values && values.themeFontScale, 40),
+      70,
+      10
     );
     const titleFontSize = normalizeFontSize(
       values && values.queueTitleFontSize,
-      scaleToFontSize(values && values.themeFontScale, 15),
-      20
+      scaleToFontSize(values && values.themeFontScale, 30),
+      40,
+      10
     );
     setValue('queueSongFontSize', songFontSize);
     if (document.getElementById('queueSongFontSizeNumber')) {
@@ -214,6 +216,11 @@
       setValue('queueScrollSpeed', queueScrollSpeed);
       setValue('queueScrollSpeedRange', queueScrollSpeed);
     }
+    if (document.getElementById('identityQueueScrollSpeedRange')) {
+      const identityScrollSpeed = normalizeQueueScrollSpeedForDisplay(values && values.identityQueueScrollSpeed);
+      setValue('identityQueueScrollSpeed', identityScrollSpeed);
+      setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
+    }
   }
 
   function normalizeQueueScrollSpeedForDisplay(input) {
@@ -226,8 +233,8 @@
     return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
   }
 
-  function normalizeFontSize(input, fallback, max = 20) {
-    return normalizeRangeValue(input, 5, max, fallback);
+  function normalizeFontSize(input, fallback, max = 20, min = 5) {
+    return normalizeRangeValue(input, min, max, fallback);
   }
 
   function scaleToFontSize(scale, baseSize) {

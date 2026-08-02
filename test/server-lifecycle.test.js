@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const http = require('node:http');
 
 const lifecycle = require('../src/server/lifecycle');
 
@@ -113,6 +114,36 @@ test('session token cleanup never removes a token file owned by another instance
     assert.equal(fs.readFileSync(tokenPath, 'utf8').trim(), 'replacement-token');
     assert.equal(lifecycle.removeSessionToken(dataDir, 'replacement-token'), true);
     assert.equal(fs.existsSync(tokenPath), false);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('listenWithFallback asks the OS for a free port when startPort is zero', async () => {
+  const server = http.createServer((_req, res) => res.end('ok'));
+  try {
+    const port = await lifecycle.listenWithFallback(server, {
+      startPort: 0,
+      host: '127.0.0.1'
+    });
+    assert.ok(Number.isInteger(port));
+    assert.ok(port > 0);
+    assert.equal(server.address().port, port);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('runtime info records the previous pid and port and removes only its own record', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-'));
+  try {
+    lifecycle.writeRuntimeInfo(dataDir, { pid: 1234, port: 4567, host: '127.0.0.1' });
+    assert.deepEqual(lifecycle.readRuntimeInfo(dataDir), {
+      pid: 1234, port: 4567, host: '127.0.0.1'
+    });
+    assert.equal(lifecycle.removeRuntimeInfo(dataDir, { pid: 9999, port: 4567 }), false);
+    assert.equal(lifecycle.removeRuntimeInfo(dataDir, { pid: 1234, port: 4567 }), true);
+    assert.equal(lifecycle.readRuntimeInfo(dataDir), null);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

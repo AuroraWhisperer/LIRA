@@ -116,9 +116,10 @@
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
       bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.35);
-      bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 5, 35, 20);
-      bindRangePair('queueTitleFontSize', 'queueTitleFontSizeNumber', 5, 20, 15);
+      bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 40);
+      bindRangePair('queueTitleFontSize', 'queueTitleFontSizeNumber', 10, 40, 30);
       bindRangePair('overlayRuleFontSize', 'overlayRuleFontSizeNumber', 8, 18, 10);
+      bindRangePair('identityQueueScrollSpeedRange', 'identityQueueScrollSpeed', 1, 100, 80);
       bindRangePair('backdropBlur', 'backdropBlurNumber', 0, 30, 0);
       bindRangePair('glowIntensity', 'glowIntensityNumber', 0, 20, 0);
     }
@@ -175,7 +176,8 @@
       overlayIndexColor: value('overlayIndexColor'),
       queueFixedSixRows: value('queueFixedSixRows'),
       queueScrollMode: value('queueScrollMode'),
-      queueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed'))
+      queueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed')),
+      identityQueueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('identityQueueScrollSpeed'))
     };
   }
 
@@ -191,6 +193,11 @@
       const queueScrollSpeed = window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(v.queueScrollSpeed || value('queueScrollSpeed'));
       setValue('queueScrollSpeed', queueScrollSpeed);
       setValue('queueScrollSpeedRange', queueScrollSpeed);
+      const identityScrollSpeed = window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(
+        v.identityQueueScrollSpeed || value('identityQueueScrollSpeed')
+      );
+      setValue('identityQueueScrollSpeed', identityScrollSpeed);
+      setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
     setValue('scrollSecondsRange', v.scrollSeconds || value('scrollSeconds'));
   }

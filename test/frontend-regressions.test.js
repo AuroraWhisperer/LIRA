@@ -9,6 +9,24 @@ const { fileURLToPath, pathToFileURL } = require('node:url');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('admin overlay links do not retain the old fixed port placeholder', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'admin.html'), 'utf8');
+  const displaySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
+    'utf8'
+  );
+  const settingsSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings.js'),
+    'utf8'
+  );
+
+  assert.doesNotMatch(html, /localhost:3000\/blindbox/);
+  assert.doesNotMatch(displaySource, /localhost:3000/);
+  assert.doesNotMatch(settingsSource, /localhost:3000/);
+  assert.match(displaySource, /location\.origin/);
+  assert.match(settingsSource, /location\.host/);
+});
+
 test('debug gift data attributes escape quotes, apostrophes, and backticks', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'debug-gifts.html'), 'utf8');
   const escapeHtmlSource = source.match(/function escHtml\(s\) \{[\s\S]*?\n\}/)?.[0];
@@ -112,6 +130,263 @@ test('liked tracks stop when a provider repeats a full page', async () => {
 
   assert.equal(result.items.length, 100);
   assert.equal(requestCount, 2);
+});
+
+test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-queue.js'), 'utf8');
+  const styleValues = new Map();
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    requestAnimationFrame(callback) { callback(); },
+    document: {
+      addEventListener() {},
+      documentElement: {
+        style: { setProperty(name, value) { styleValues.set(name, value); } }
+      }
+    }
+  };
+  vm.runInNewContext(source, sandbox);
+
+  sandbox.setIdentityRuleThemeVars(sandbox.document.documentElement, { overlayRuleFontSize: 12 });
+  assert.equal(styleValues.get('--identity-rule-font-size'), '24px');
+
+  let longAnimation = null;
+  const longText = {
+    scrollWidth: 300,
+    animate(keyframes, options) { longAnimation = { keyframes, options }; }
+  };
+  const shortText = { scrollWidth: 90, animate() { assert.fail('short text must not animate'); } };
+  const containers = [
+    { clientWidth: 100, querySelector: () => longText },
+    { clientWidth: 100, querySelector: () => shortText }
+  ];
+
+  sandbox.scheduleIdentitySuperChatScroll({ querySelectorAll: () => containers });
+  assert.ok(longAnimation);
+  assert.equal(longAnimation.keyframes[1].transform, 'translateX(-200px)');
+  const pauseMilliseconds = (
+    longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset
+  ) * longAnimation.options.duration;
+  assert.ok(Math.abs(pauseMilliseconds - 1500) < 0.001);
+
+  const timing = sandbox.bounceScrollTiming(12);
+  const verticalPauseSeconds = (
+    (timing.pauseEndPercent - timing.downPercent) / 100
+  ) * timing.totalSeconds;
+  assert.ok(Math.abs(verticalPauseSeconds - 1.5) < 0.000001);
+});
+
+test('identity queue has an independent scroll speed setting', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'admin.html'), 'utf8');
+  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+
+  assert.match(html, /id="identityQueueScrollSpeedRange"/);
+  assert.match(html, /id="identityQueueScrollSpeed"/);
+  assert.match(formSource, /identityQueueScrollSpeed:/);
+  assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
+});
+
+test('identity rule text scrolls independently only when it overflows', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-queue.js'), 'utf8');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    requestAnimationFrame(callback) { callback(); },
+    document: { addEventListener() {} }
+  };
+  vm.runInNewContext(source, sandbox);
+
+  let longAnimation = null;
+  const longClasses = new Set();
+  const longText = {
+    scrollWidth: 220,
+    animate(keyframes, options) { longAnimation = { keyframes, options }; }
+  };
+  const shortText = {
+    scrollWidth: 90,
+    animate() { assert.fail('short rule text must not animate'); }
+  };
+  const longContainer = {
+    clientWidth: 100,
+    querySelector: () => longText,
+    classList: { add(name) { longClasses.add(name); } }
+  };
+  const shortContainer = {
+    clientWidth: 100,
+    querySelector: () => shortText,
+    classList: { add() {} }
+  };
+
+  sandbox.scheduleIdentityRuleScroll({
+    querySelectorAll: () => [longContainer, shortContainer]
+  });
+
+  assert.ok(longAnimation);
+  assert.equal(longAnimation.keyframes[1].transform, 'translateX(-120px)');
+  assert.ok(longClasses.has('is-scrolling'));
+  const pauseMilliseconds = (
+    longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset
+  ) * longAnimation.options.duration;
+  assert.ok(Math.abs(pauseMilliseconds - 1500) < 0.001);
+});
+
+test('identity queue scrolls from actual overflow instead of a fixed row count', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-queue.js'), 'utf8');
+  const styleValues = new Map();
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: {
+      addEventListener() {},
+      getElementById() { return { textContent: '' }; },
+      documentElement: {
+        style: { setProperty(name, value) { styleValues.set(name, value); } }
+      }
+    }
+  };
+  vm.runInNewContext(source, sandbox);
+
+  const classicContent = { innerHTML: '' };
+  const classicSettings = {
+    queueScrollMode: 'loop',
+    queueScrollSpeed: '42',
+    queueSongFontSize: '40'
+  };
+  sandbox.renderClassicQueue(
+    classicSettings,
+    { song_name: 'current' },
+    Array.from({ length: 6 }, (_, index) => ({ song_name: `waiting-${index}` })),
+    classicContent
+  );
+  assert.equal(styleValues.get('--classic-loop-distance'), '364px');
+  assert.equal(
+    styleValues.get('--scroll-seconds'),
+    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds(classicSettings), 364, 307)}s`
+  );
+
+  const classes = new Set(['identity-list', 'paused']);
+  let duplicatedHtml = '';
+  const list = {
+    scrollHeight: 500,
+    classList: {
+      add(name) { classes.add(name); },
+      remove(name) { classes.delete(name); }
+    },
+    insertAdjacentHTML(_position, html) { duplicatedHtml += html; }
+  };
+
+  assert.equal(
+    sandbox.configureIdentityVerticalScroll({ clientHeight: 300 }, list, {
+      queueScrollMode: 'loop',
+      queueScrollSpeed: '10',
+      identityQueueScrollSpeed: '42'
+    }, '<div>rows</div>', 4),
+    true
+  );
+  assert.equal(styleValues.get('--identity-loop-distance'), '504px');
+  assert.equal(
+    styleValues.get('--scroll-seconds'),
+    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds({ identityQueueScrollSpeed: '42' }, 'identityQueueScrollSpeed'), 504, 300)}s`
+  );
+  assert.equal(duplicatedHtml, '<div>rows</div>');
+  assert.equal(classes.has('paused'), false);
+  assert.equal(classes.has('scrolling'), true);
+
+  const bounceClasses = new Set(['identity-list', 'paused']);
+  const bounceList = {
+    scrollHeight: 500,
+    classList: {
+      add(name) { bounceClasses.add(name); },
+      remove(name) { bounceClasses.delete(name); }
+    },
+    insertAdjacentHTML() { assert.fail('bounce content must not be duplicated'); }
+  };
+  assert.equal(
+    sandbox.configureIdentityVerticalScroll({ clientHeight: 300 }, bounceList, {
+      queueScrollMode: 'bounce',
+      queueScrollSpeed: '10',
+      identityQueueScrollSpeed: '42'
+    }, '<div>rows</div>', 4),
+    true
+  );
+  assert.equal(styleValues.get('--identity-bounce-distance'), '200px');
+  const bounceTiming = sandbox.bounceScrollTiming(
+    sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds({ identityQueueScrollSpeed: '42' }, 'identityQueueScrollSpeed'), 200, 300),
+    sandbox.scrollTravelSeconds(3, 200, 300)
+  );
+  assert.equal(styleValues.get('--scroll-seconds'), `${bounceTiming.totalSeconds}s`);
+  assert.equal(bounceClasses.has('paused'), false);
+  assert.equal(bounceClasses.has('scrolling-bounce'), true);
+
+  const fittingList = {
+    scrollHeight: 280,
+    classList: { add() {}, remove() {} },
+    insertAdjacentHTML() { assert.fail('fitting content must not be duplicated'); }
+  };
+  assert.equal(
+    sandbox.configureIdentityVerticalScroll({ clientHeight: 300 }, fittingList, {}, '', 4),
+    false
+  );
+
+  const shortDistance = 200;
+  const longDistance = 800;
+  const shortSeconds = sandbox.scrollTravelSeconds(12, shortDistance, 300);
+  const longSeconds = sandbox.scrollTravelSeconds(12, longDistance, 300);
+  assert.ok(Math.abs((shortDistance / shortSeconds) - (longDistance / longSeconds)) < 0.001);
+});
+
+test('song board scroll speed stays constant as content grows', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-songs.js'), 'utf8');
+  const styleValues = new Map();
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: {
+      addEventListener() {},
+      documentElement: {
+        style: { setProperty(name, value) { styleValues.set(name, value); } }
+      }
+    }
+  };
+  vm.runInNewContext(source, sandbox);
+
+  const classes = new Set(['song-scroll-list', 'paused']);
+  let duplicatedHtml = '';
+  const list = {
+    scrollHeight: 600,
+    classList: {
+      add(name) { classes.add(name); },
+      remove(name) { classes.delete(name); }
+    },
+    insertAdjacentHTML(_position, html) { duplicatedHtml += html; }
+  };
+  const settings = { scrollSeconds: '80' };
+
+  assert.equal(sandbox.configureSongScroll({ clientHeight: 300 }, list, settings, '<div>songs</div>'), true);
+  const loopDistance = 608;
+  const travelSeconds = sandbox.scrollTravelSeconds(
+    sandbox.scrollSpeedToDuration(80),
+    loopDistance,
+    300
+  );
+  assert.equal(styleValues.get('--song-loop-distance'), `${loopDistance}px`);
+  assert.equal(styleValues.get('--scroll-seconds'), `${travelSeconds}s`);
+  assert.equal(duplicatedHtml, '<div>songs</div>');
+  assert.equal(classes.has('paused'), false);
+
+  const longerDistance = loopDistance * 2;
+  const longerSeconds = sandbox.scrollTravelSeconds(sandbox.scrollSpeedToDuration(80), longerDistance, 300);
+  assert.ok(Math.abs((loopDistance / travelSeconds) - (longerDistance / longerSeconds)) < 0.001);
 });
 
 async function loadModuleExports(entryPath, globals = {}) {

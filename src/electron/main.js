@@ -12,6 +12,7 @@ const loginWin = require('./login-window');
 const lyricWin = require('./lyric-window');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const updateMgr = require('./update-manager');
+const { installTerminalLog } = require('./terminal-log');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song';
@@ -28,6 +29,7 @@ let localMediaAccess = null;
 let dataDir = '';
 let logDir = '';
 let logFile = '';
+let terminalLogFile = '';
 let updateState = {
   status: 'idle', message: '尚未检查更新', version: '',
   canDownload: false, canInstall: false, progress: null, updateVersion: ''
@@ -112,7 +114,8 @@ async function startDesktopApp() {
 
   var serverInfo = await serverModule.startServer({
     host: process.env.HOST || '127.0.0.1',
-    startPort: Number(process.env.PORT || 3000),
+    // Prefer port 3000; lifecycle cleanup removes a previous desktop instance first.
+    startPort: process.env.PORT ? Number(process.env.PORT) : 3000,
     musicAuth: {
       getAuthState: getMusicAuthState,
       getCookieHeader: getMusicCookieHeader
@@ -142,8 +145,10 @@ function configureDesktopEnvironment() {
   dataDir = app.getPath('userData');
   logDir = path.join(path.dirname(dataDir), 'logs');
   logFile = path.join(logDir, 'desktop.log');
+  terminalLogFile = path.join(logDir, 'terminal.log');
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(logDir, { recursive: true });
+  installTerminalLog(terminalLogFile);
   localMediaAccess = createLocalMediaAccess(dataDir);
   process.env.SONG_PLUGIN_DATA_DIR = dataDir;
   process.env.ELECTRON_DESKTOP = '1';
@@ -254,7 +259,7 @@ function configureLocalMediaProtocol() {
 function createMainWindow(baseUrl) {
   desktopBaseUrl = baseUrl;
   var opts = {
-    width: 1280, height: 800, minWidth: 1024, minHeight: 680,
+    width: 1100, height: 720, minWidth: 1024, minHeight: 680,
     show: false, title: '点歌助手', backgroundColor: '#f7f3ef',
     frame: false,
     webPreferences: {
@@ -269,7 +274,6 @@ function createMainWindow(baseUrl) {
   mainWindow.loadURL(baseUrl + '/admin?desktop=1');
 
   mainWindow.once('ready-to-show', function () {
-    mainWindow.maximize();
     mainWindow.show();
     sendUpdateState();
     if (app.isPackaged && readAutoUpdateSetting()) {
@@ -316,6 +320,7 @@ function configureUpdateIpc() {
     return {
       version: app.getVersion(), isPackaged: app.isPackaged,
       platform: process.platform, dataDir: dataDir, logFile: logFile,
+      terminalLogFile: terminalLogFile,
       githubRepoUrl: GITHUB_REPO_URL, updateState: updateState
     };
   });

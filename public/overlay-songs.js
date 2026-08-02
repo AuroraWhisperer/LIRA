@@ -96,9 +96,35 @@ function render() {
   const html = sortMode === 'length'
     ? renderFlatSongs(sortSongsByLength(songs))
     : renderGroups(groupSongs(songs, sortMode));
-  const shouldScroll = songs.length > 8;
-  list.classList.toggle('paused', !shouldScroll);
-  list.innerHTML = shouldScroll ? `${html}${html}` : html;
+  list.classList.add('paused');
+  list.innerHTML = html;
+  scheduleSongScroll(list, settings, html);
+}
+
+function scheduleSongScroll(list, settings, html) {
+  const viewport = list.closest('.song-scroll-window');
+  if (!viewport) return;
+
+  const setup = () => configureSongScroll(viewport, list, settings, html);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
+  } else {
+    setup();
+  }
+}
+
+function configureSongScroll(viewport, list, settings, html, rowGap = 8) {
+  const overflowDistance = Math.max(0, Math.ceil(list.scrollHeight - viewport.clientHeight));
+  if (overflowDistance <= 1) return false;
+
+  const loopDistance = Math.ceil(list.scrollHeight + rowGap);
+  const secondsPerViewport = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
+  const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewport.clientHeight);
+  document.documentElement.style.setProperty('--song-loop-distance', `${loopDistance}px`);
+  document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
+  list.insertAdjacentHTML('beforeend', html);
+  list.classList.remove('paused');
+  return true;
 }
 
 function computeSongsStateKey(currentState) {
@@ -221,9 +247,7 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
   root.style.setProperty('--overlay-font-scale', resolve('themeFontScale', 'songBoardThemeFontScale', '1'));
 
-  const urlSpeed = new URLSearchParams(location.search).get('speed');
-  const scrollSpeed = Number(urlSpeed || settings.scrollSeconds || 20);
-  const scrollDuration = scrollSpeedToDuration(scrollSpeed);
+  const scrollDuration = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
   root.style.setProperty('--scroll-seconds', `${scrollDuration}s`);
 
   const primaryHex = resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91');
@@ -309,6 +333,18 @@ function scrollSpeedToDuration(value) {
   const minSeconds = 100;
   const maxSeconds = 3000;
   return (maxSeconds - ((speed - 1) / 199) * (maxSeconds - minSeconds)).toFixed(1);
+}
+
+function resolveSongScrollSpeed(settings) {
+  const urlSpeed = new URLSearchParams(location.search).get('speed');
+  return Number(urlSpeed || settings?.scrollSeconds || 20);
+}
+
+function scrollTravelSeconds(secondsPerViewport, distance, viewportDistance) {
+  const safeSeconds = Math.max(0.01, Number(secondsPerViewport) || 0.01);
+  const safeDistance = Math.max(0, Number(distance) || 0);
+  const safeViewportDistance = Math.max(1, Number(viewportDistance) || 1);
+  return Number(Math.max(0.05, (safeSeconds * safeDistance) / safeViewportDistance).toFixed(3));
 }
 
 function overlayLowPowerEnabled(settings) {

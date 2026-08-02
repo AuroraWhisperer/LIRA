@@ -163,8 +163,8 @@ class MessageHandlers {
       return;
     }
 
-    // 成功解析的礼物只打单行精简日志
-    console.log(`[Gift] ${gift.giftName} x${gift.num} ¥${gift.totalPrice} user="${gift.userName}" coin=${gift.coinType} blind=${gift.isBlindBox ? 'yes' : 'no'}`);
+    // Keep one readable line per parsed gift; persistence is reflected in the UI.
+    console.log(formatBilibiliGiftLog(gift));
     this.diagnostics.lastGiftAt = now();
     this.diagnostics.parsedGiftCount += 1;
     if (this.messageBuffer) {
@@ -193,6 +193,19 @@ function isBilibiliCommandText(message) {
   return text.startsWith('点歌') || text.startsWith('随机');
 }
 
+function formatBilibiliGiftLog(gift) {
+  const userName = JSON.stringify(cleanText(gift && gift.userName) || '观众');
+  const giftName = JSON.stringify(cleanText(gift && gift.giftName) || '未知礼物');
+  const quantity = Math.max(1, Number(gift && gift.num) || 1);
+  const totalPrice = Number(gift && gift.totalPrice);
+  const amount = Number.isFinite(totalPrice) ? totalPrice.toFixed(2) : '0.00';
+  const tags = [];
+  if (gift && gift.isBlindBox) tags.push('blind-box');
+  if (gift && gift.coinType && gift.coinType !== 'gold') tags.push(`coin=${gift.coinType}`);
+  const suffix = tags.length > 0 ? ` ${tags.join(' ')}` : '';
+  return `[Bilibili][Gift] user=${userName} gift=${giftName} x${quantity} amount=¥${amount}${suffix}`;
+}
+
 /**
  * 验证解析后的礼物结果是否有意义的数据。
  * 过滤掉非礼物消息（CMD 碰巧含 GIFT 关键字但没有实际礼物字段）。
@@ -210,4 +223,4 @@ function isValidGiftResult(gift) {
   return false;
 }
 
-module.exports = { MessageHandlers };
+module.exports = { MessageHandlers, formatBilibiliGiftLog };
