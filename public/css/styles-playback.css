@@ -3,34 +3,34 @@
    ======================================== */
 
 /* 播放页整体布局 */
-@import url('./css/playback/layout.css');
+@import url('./playback/layout.css');
 
 /* 头部区域和信源切换 */
-@import url('./css/playback/header.css');
+@import url('./playback/header.css');
 
 /* 各种面板（发现页、搜索、匹配、队列） */
-@import url('./css/playback/panels.css');
+@import url('./playback/panels.css');
 
 /* 歌曲行通用组件 */
-@import url('./css/playback/song-row.css');
+@import url('./playback/song-row.css');
 
 /* 播放器面板 */
-@import url('./css/playback/player.css');
+@import url('./playback/player.css');
 
 /* 右侧滑出抽屉 */
-@import url('./css/playback/drawer.css');
+@import url('./playback/drawer.css');
 
 /* 桌面歌词窗口 */
-@import url('./css/playback/desktop-lyric.css');
+@import url('./playback/desktop-lyric.css');
 
 /* 播放队列弹窗 */
-@import url('./css/playback/queue-modal.css');
+@import url('./playback/queue-modal.css');
 
 /* 全屏播放器 */
-@import url('./css/playback/fullscreen.css');
+@import url('./playback/fullscreen.css');
 
 /* 响应式样式 */
-@import url('./css/playback/responsive.css');
+@import url('./playback/responsive.css');
 
 /* 确认对话框 */
-@import url('./css/playback/dialogs.css');
+@import url('./playback/dialogs.css');

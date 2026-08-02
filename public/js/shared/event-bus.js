@@ -85,8 +85,8 @@ export class EventBus {
    * @param {*} data - 事件数据
    */
   emit(event, data) {
-    if (this.debug) {
-      console.log(`[EventBus] ${event}`, data);
+    if (this.debug && window.AdminApp?.logger) {
+      window.AdminApp.logger.debug(`EventBus: ${event}`, data);
     }
 
     const handlers = this.listeners.get(event);

@@ -240,6 +240,41 @@
   background: var(--surface-2);
 }
 
+/* gift-cards 内的空状态拥有独立样式，不继承通用 .empty */
+.gift-cards > .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+  border: 2px dashed rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.18);
+  border-radius: 12px;
+  background: linear-gradient(135deg,
+              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.03) 0%,
+              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.01) 100%);
+  color: var(--color-text-muted, var(--muted));
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 200ms ease;
+}
+
+.gift-cards > .empty::before {
+  content: '🎁';
+  font-size: 48px;
+  line-height: 1;
+  opacity: 0.4;
+  filter: grayscale(0.3);
+}
+
+.gift-cards > .empty:hover {
+  border-color: rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.28);
+  background: linear-gradient(135deg,
+              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.06) 0%,
+              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.02) 100%);
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--border);

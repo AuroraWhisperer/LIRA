@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260802-01">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260803-02">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -1307,7 +1307,7 @@
             </div>
           </section>
 
-          <section class="panel gift-blindbox-panel">
+          <section class="panel gift-blindbox-panel" data-state="loading">
             <div class="panel-header">
               <div class="blind-stats-heading" id="blindBoxStatsHeading">
                 <span class="blind-stats-heading-icon" aria-hidden="true">
@@ -1772,29 +1772,29 @@
       </div>
     </div>
     <div id="toast" class="toast-stack"></div>
-    <script src="/js/shared/utils.js?v=20260726-01"></script>
-    <script src="/js/shared/theme.js?v=20260726-01"></script>
-    <script src="/js/desktop.js?v=20260726-01"></script>
-    <!-- Admin 模块 - 拆分后的文件 -->
-    <script src="/js/admin/forms.js?v=20260730-01"></script>
-    <script src="/js/admin/import.js?v=20260730-01"></script>
-    <script src="/js/admin/state.js?v=20260730-01"></script>
-    <script src="/js/admin/queue.js?v=20260730-01"></script>
-    <script src="/js/admin/songs.js?v=20260730-01"></script>
-    <script src="/js/admin/theme.js?v=20260730-01"></script>
-    <script src="/js/admin/display.js?v=20260730-01"></script>
-    <script src="/js/admin/settings.js?v=20260730-01"></script>
+    <!-- utils/theme 使用 ES6 export，必须以 type="module" 加载才能执行兼容层 window.AdminApp.utils -->
+    <script type="module" src="/js/shared/utils.js?v=20260726-01"></script>
+    <script type="module" src="/js/shared/theme.js?v=20260726-01"></script>
+    <script type="module" src="/js/desktop.js?v=20260726-01"></script>
+    <!-- Admin 模块 - 拆分后的文件（同为 module 以保证在 utils 设好全局后执行） -->
+    <script type="module" src="/js/admin/import.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/queue.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/songs.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/theme.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/display.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/settings.js?v=20260730-01"></script>
     <!-- 礼物模块 - 拆分为多个子模块 -->
-    <script src="/js/admin/gifts/notification.js?v=20260802-01"></script>
-    <script src="/js/admin/gifts/detection.js?v=20260802-01"></script>
-    <script src="/js/admin/gifts/sprint.js?v=20260802-01"></script>
-    <script src="/js/admin/gifts/recent.js?v=20260802-01"></script>
-    <script src="/js/admin/gifts/blindbox.js?v=20260802-01"></script>
-    <script src="/js/admin/gifts/history.js?v=20260802-01"></script>
-    <script src="/js/admin/gifts/index.js?v=20260802-01"></script>
-    <script src="/js/admin/metrics.js?v=20260730-01"></script>
-    <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
-    <script src="/js/admin/main.js?v=20260731-03"></script>
+    <script type="module" src="/js/admin/gifts/notification.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/gifts/detection.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/gifts/sprint.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/gifts/recent.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/gifts/blindbox.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/gifts/history.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/gifts/index.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/metrics.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
+    <!-- app.js 是 ES6 模块入口，自动导入 state.js 和 forms.js，替代旧的 main.js -->
+    <script type="module" src="/js/admin/app.js?v=20260802-01"></script>
     <!-- Playback 模块必须在 main.js 之后加载 -->
     <!-- 强制清除模块缓存 -->
     <script>

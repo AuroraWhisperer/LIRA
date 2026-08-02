@@ -201,6 +201,14 @@ body.player-dock-expanded .song-workspace {
   overflow-y: auto;
 }
 
+/* 队列为空时，empty 占位块撑满面板（与 1.x 版本行为一致） */
+.queues-row .queue-panel .queue-list:has(> .empty) {
+  display: flex;
+}
+.queues-row .queue-panel .queue-list > .empty {
+  flex: 1;
+}
+
 /* ---- 管理面板（标签页区）fills remaining space ---- */
 .tools-section {
   display: flex;

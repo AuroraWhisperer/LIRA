@@ -4,6 +4,7 @@
 
 import { container } from '../shared/container.js';
 import { eventBus, Events } from '../shared/event-bus.js';
+import { logger } from '../shared/logger.js';
 import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 
@@ -15,7 +16,7 @@ import { FormsService, formsService } from './forms.js';
  * 应用初始化
  */
 async function initApp() {
-  console.log('[App] 正在初始化...');
+  logger.debug('正在初始化...');
 
   // 注册服务到容器
   container
@@ -75,7 +76,7 @@ async function initApp() {
     window.AdminApp.theme.renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
   }
 
-  console.log('[App] 初始化完成');
+  logger.debug('初始化完成');
 }
 
 /**

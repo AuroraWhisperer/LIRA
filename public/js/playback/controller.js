@@ -30,6 +30,11 @@ import { createStreamHandler } from './features/stream-handler.js';
 import { createPlaybackControls } from './features/playback-controls.js';
 import { createQueueOperations } from './features/queue-operations.js';
 
+// 导入操作模块
+import { createProviderOperations } from './operations/provider-operations.js';
+import { createStatePersistence } from './operations/state-persistence.js';
+import { createPlaylistOperations } from './operations/playlist-operations.js';
+
 // 导入共享工具（移除全局依赖）
 import * as Utils from '../shared/utils.js';
 
@@ -65,11 +70,19 @@ export function createPlaybackController(initialOptions = {}) {
   const storageManager = new StorageManager();
   const playbackState = stateManager.getState();
 
-  // 提供商管理器
+  // 创建状态持久化模块（需要先创建，因为其他模块依赖 savePlaybackState）
+  const statePersistence = createStatePersistence({
+    playbackState,
+    getPlaybackAudio: () => document.getElementById('music-player')
+  });
+
+  // 创建提供商管理器（需要 renderPlayback，但 renderPlayback 还未定义，所以先创建空壳）
+  let renderPlayback; // 前向声明
+
   const providerManager = new ProviderManager({
     state: playbackState,
     onStateChange: () => {
-      renderPlayback();
+      if (renderPlayback) renderPlayback();
     },
     onError: (error) => showError(error)
   });
@@ -107,16 +120,22 @@ export function createPlaybackController(initialOptions = {}) {
     radioRefillBatchSize: playbackRadioRefillBatchSize
   });
 
+  // 前向声明播放函数
+  let playPlaybackTrack;
+
   // 播放器控制器（稍后设置音频元素）
   const playerController = new PlayerController({
     state: playbackState,
     queueManager: queueManager,
     onTrackChange: (track, options) => {
-      playPlaybackTrack(track, options);
+      // 使用前向声明的函数
+      if (playPlaybackTrack) {
+        playPlaybackTrack(track, options);
+      }
     },
     onStateChange: () => {
-      renderPlayback();
-      savePlaybackState();
+      if (renderPlayback) renderPlayback();
+      statePersistence.savePlaybackState();
     },
     onError: (error) => {
       showError(error);
@@ -172,11 +191,10 @@ export function createPlaybackController(initialOptions = {}) {
     toast: (msg) => toast(msg)
   });
 
-  let playbackAuthState = null;
-  let playbackProviderHealth = null;
-  let playbackProviderRefreshId = 0;
   let playbackRadioRefillRunning = false;
   let playbackInitialized = false;
+  let playbackControls; // 前向声明
+  let ensurePlaybackRadioQueueFilled; // 前向声明
 
   // UI 渲染器
   const uiRenderer = new UIRenderer();
@@ -186,7 +204,7 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   // === 渲染函数 ===
-  function renderPlayback() {
+  renderPlayback = function() {
     console.log('[Playback] renderPlayback called, selectedSource:', playbackState.selectedSource);
     const audio = getPlaybackAudio();
 
@@ -201,8 +219,8 @@ export function createPlaybackController(initialOptions = {}) {
     // 渲染音乐源状态
     console.log('[Playback] Calling renderProviderState with:', playbackState.selectedSource);
     uiRenderer.renderProviderState(
-      playbackAuthState,
-      playbackProviderHealth,
+      providerOperations.getAuthState(),
+      providerOperations.getProviderHealth(),
       playbackState.selectedSource
     );
 
@@ -210,7 +228,7 @@ export function createPlaybackController(initialOptions = {}) {
     const addToPlaylistBtn = document.getElementById('playbackAddToPlaylistBtn');
     if (addToPlaylistBtn) {
       const track = playbackState.current;
-      const canAdd = canAddTrackToPlaylist(track);
+      const canAdd = playlistOperations.canAddTrackToPlaylist(track);
       addToPlaylistBtn.disabled = !canAdd;
       addToPlaylistBtn.title = canAdd ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单` : '当前歌曲无法添加到歌单';
     }
@@ -287,7 +305,7 @@ export function createPlaybackController(initialOptions = {}) {
           <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}" title="添加到播放队列末尾">入队</button>
           <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>
           <button type="button" data-playback-search-action="play" data-playback-search-index="${index}" title="立即播放这首歌">播放</button>
-          ${canAddTrackToPlaylist(track)
+          ${playlistOperations.canAddTrackToPlaylist(track)
             ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到音乐歌单">歌单</button>`
             : ''}
         </div>
@@ -322,284 +340,23 @@ export function createPlaybackController(initialOptions = {}) {
     if (changed) renderPlayback();
   }
 
-  // === 状态保存 ===
-  function savePlaybackState() {
-    const audio = getPlaybackAudio();
-    const serialize = (track) => {
-      if (!track) return null;
-      return {
-        id: track.id,
-        source: track.source,
-        title: track.title,
-        artists: track.artists,
-        album: track.album,
-        coverUrl: track.coverUrl || '',
-        durationMs: track.durationMs,
-        fileName: track.fileName,
-        filePath: track.filePath || '',
-        sourceTrackId: track.sourceTrackId,
-        sourceAlbumId: track.sourceAlbumId,
-        playable: track.playable,
-        vip: track.vip,
-        unavailable: (track.source === 'local' && !track.objectUrl) || false,
-        playedAt: track.playedAt || 0
-      };
-    };
-    const payload = {
-      current: serialize(playbackState.current),
-      currentOrigin: playbackState.currentOrigin,
-      requestedQueue: playbackState.requestedQueue.map(serialize).filter(Boolean),
-      normalQueue: playbackState.normalQueue.map(serialize).filter(Boolean),
-      normalQueueTracks: playbackState.normalQueueTracks.map(serialize).filter(Boolean),
-      radioQueue: playbackState.radioQueue.map(serialize).filter(Boolean),
-      queueType: playbackState.queueType,
-      queueTitle: playbackState.queueTitle,
-      playlistIndex: playbackState.playlistIndex,
-      pendingRequests: playbackState.pendingRequests.map((item) => ({
-        ...item,
-        track: serialize(item.track)
-      })).filter((item) => item.track),
-      currentTime: audio && audio.readyState >= 1 && Number.isFinite(audio.currentTime) ? audio.currentTime : playbackState.restoredTime,
-      volume: playbackState.volume,
-      mode: playbackState.mode,
-      selectedSource: playbackState.selectedSource,
-      shuffleOrder: playbackState.shuffleOrder,
-      shuffleCursor: playbackState.shuffleCursor,
-      history: playbackState.history.slice(-50).map(serialize).filter(Boolean),
-      displayHistory: playbackState.displayHistory.slice(0, 200).map(serialize).filter(Boolean)
-    };
-    schedulePlaybackStateSave(payload);
-  }
-
-  function schedulePlaybackStateSave(payload) {
-    playbackStateSavePending = payload;
-    if (playbackStateSaveTimer) clearTimeout(playbackStateSaveTimer);
-    playbackStateSaveTimer = setTimeout(flushPlaybackStateSave, playbackStateSaveDebounceMs);
-  }
-
-  function flushPlaybackStateSave() {
-    if (playbackStateSaveTimer) {
-      clearTimeout(playbackStateSaveTimer);
-      playbackStateSaveTimer = null;
-    }
-    if (!playbackStateSavePending) return;
-    const payload = playbackStateSavePending;
-    playbackStateSavePending = null;
-    fetch('/api/playback/queue-state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId: playbackClientId, payload })
-    }).catch(() => {});
-  }
-
-  function flushPlaybackStateOnUnload() {
-    if (!playbackStateSavePending && playbackState.current) {
-      savePlaybackState();
-    }
-    if (!playbackStateSavePending) return;
-    const payload = playbackStateSavePending;
-    playbackStateSavePending = null;
-    if (playbackStateSaveTimer) {
-      clearTimeout(playbackStateSaveTimer);
-      playbackStateSaveTimer = null;
-    }
-
-    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
-      try {
-        window.musicAPI.savePlaybackState(playbackClientId, payload);
-      } catch (_) {}
-    }
-
-    const body = JSON.stringify({ clientId: playbackClientId, payload });
-    if (navigator.sendBeacon) {
-      const blob = new Blob([body], { type: 'application/json' });
-      const token = window.__API_TOKEN__;
-      const beaconUrl = `/api/playback/queue-state${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-      navigator.sendBeacon(beaconUrl, blob);
-    } else {
-      fetch('/api/playback/queue-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        keepalive: true
-      }).catch(() => {});
-    }
-  }
-
   // === Provider 管理 ===
-  async function refreshSelectedMusicProviderState() {
-    const platform = playbackState.selectedSource;
-    const refreshId = ++playbackProviderRefreshId;
-    const [authResult, healthResult] = await Promise.allSettled([
-      providerManager.refreshAuthState({ platform, notify: false }),
-      providerManager.checkProviderHealth({ platform, silent: true, notify: false })
-    ]);
+  // 使用新的 provider-operations 模块
+  const providerOperations = createProviderOperations({
+    playbackState,
+    providerManager,
+    savePlaybackState: statePersistence.savePlaybackState,
+    renderPlayback: () => renderPlayback(),
+    getPlaybackAudio,
+    toast,
+    showError,
+    U
+  });
 
-    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
-    playbackAuthState = authResult.status === 'fulfilled'
-      ? authResult.value
-      : providerManager.getAuthState(platform);
-    playbackProviderHealth = providerManager.getProviderHealth(platform);
-    if (!playbackProviderHealth && healthResult.status === 'rejected') {
-      playbackProviderHealth = {
-        source: platform,
-        ok: false,
-        status: 'error',
-        message: healthResult.reason?.message || String(healthResult.reason)
-      };
-    }
-    renderPlayback();
-  }
-
-  async function refreshSelectedMusicAuthState() {
-    const platform = playbackState.selectedSource;
-    const authState = await providerManager.refreshAuthState({ platform, notify: false });
-    if (playbackState.selectedSource === platform) {
-      playbackAuthState = authState;
-      renderPlayback();
-    }
-    return authState;
-  }
-
-  async function checkSelectedMusicProviderHealth(options = {}) {
-    const platform = playbackState.selectedSource;
-    try {
-      const healthState = await providerManager.checkProviderHealth({
-        platform,
-        silent: true,
-        notify: false
-      });
-      if (playbackState.selectedSource !== platform) return healthState;
-      playbackProviderHealth = healthState;
-      if (!options.silent) {
-        const healthOk = playbackProviderHealth && playbackProviderHealth.ok;
-        if (typeof U.showStackedToast === 'function') {
-          U.showStackedToast({
-            key: `playback-health:${platform}`,
-            title: healthOk ? '接口检查通过' : '接口状态异常',
-            message: playbackProviderHealth.message || '音乐接口检查完成',
-            className: healthOk ? 'playback-health-toast-good' : 'playback-health-toast-warn',
-            duration: 3800
-          });
-        } else {
-          toast(playbackProviderHealth.message || '音乐接口检查完成');
-        }
-      }
-    } catch (error) {
-      if (playbackState.selectedSource !== platform) return providerManager.getProviderHealth(platform);
-      playbackProviderHealth = {
-        source: platform,
-        ok: false,
-        status: 'error',
-        message: error.message || String(error)
-      };
-      if (!options.silent) showError(error);
-    }
-    renderPlayback();
-    return playbackProviderHealth;
-  }
-
-  async function loginSelectedMusicProvider() {
-    if (!window.musicAPI || typeof window.musicAPI.login !== 'function') {
-      toast('扫码登录需要在桌面版里使用');
-      return;
-    }
-
-    const button = document.getElementById('playbackLoginBtn');
-    if (button) button.disabled = true;
-    try {
-      await window.musicAPI.login(playbackState.selectedSource);
-      await refreshSelectedMusicProviderState();
-      U.showStackedToast({
-        key: 'music-cookie-refreshed',
-        title: 'Cookie 已刷新',
-        message: 'QQ音乐登录窗口已关闭',
-        className: 'music-cookie-refreshed-toast',
-        duration: 3600
-      });
-    } catch (error) {
-      showError(error);
-    } finally {
-      if (button) button.disabled = false;
-    }
-  }
-
-  function showPlaybackLoginPrompt() {
-    const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
-    if (typeof U.showStackedToast !== 'function') {
-      toast(`请先登录${sourceName}`);
-      return;
-    }
-
-    U.showStackedToast({
-      key: `playback-login-required:${playbackState.selectedSource}`,
-      title: `请先登录${sourceName}`,
-      message: '登录后即可播放在线音乐',
-      className: 'playback-login-toast',
-      duration: 5200,
-      onClick: loginSelectedMusicProvider
-    });
-  }
-
-  async function logoutSelectedMusicProvider() {
-    if (!window.musicAPI || typeof window.musicAPI.logout !== 'function') {
-      toast('退出音乐账号需要在桌面版里使用');
-      return;
-    }
-    const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
-
-    const confirmed = await window.AdminApp.utils.logoutConfirm({
-      title: '退出登录',
-      platform: sourceName,
-      message: '退出后将无法访问该平台的会员歌曲和个人歌单。',
-      icon: '→',
-      confirmLabel: '确认退出'
-    });
-    if (!confirmed) return;
-
-    try {
-      const platform = playbackState.selectedSource;
-      await window.musicAPI.logout(playbackState.selectedSource);
-      playbackAuthState = null;
-      clearPlaybackPlatformAfterLogout(platform);
-      await refreshSelectedMusicProviderState();
-      toast(`${sourceName}已退出登录`);
-    } catch (error) {
-      showError(error);
-      await refreshSelectedMusicProviderState().catch(() => {});
-    }
-  }
-
-  function clearPlaybackPlatformAfterLogout(platform) {
-    const source = platform === 'netease' ? 'netease' : 'qq';
-    const clearTrack = (track) => {
-      if (!track || track.source !== source) return;
-      delete track.playUrl;
-      delete track.playUrlExpireAt;
-    };
-    [
-      playbackState.current,
-      ...playbackState.requestedQueue,
-      ...playbackState.normalQueue,
-      ...playbackState.normalQueueTracks,
-      ...playbackState.radioQueue,
-      ...playbackState.history
-    ].forEach(clearTrack);
-
-    if (playbackState.current && playbackState.current.source === source) {
-      const audio = getPlaybackAudio();
-      if (audio) {
-        audio.pause();
-        audio.removeAttribute('src');
-        audio.load();
-      }
-      playbackState.current = null;
-      playbackState.currentOrigin = '';
-      playbackState.restoredTime = 0;
-      toast('当前播放歌曲所属账号已退出，请重新选择音源');
-    }
-    savePlaybackState();
-  }
+  // === 状态保存 ===
+  // 已通过 statePersistence 模块处理，这里只需要导出引用
+  const savePlaybackState = statePersistence.savePlaybackState;
+  const flushPlaybackStateOnUnload = statePersistence.flushPlaybackStateOnUnload;
 
   // === 缓存管理 ===
   async function refreshPlaybackMusicCacheStats() {
@@ -833,6 +590,19 @@ export function createPlaybackController(initialOptions = {}) {
       : `播放全部${label}，共 ${tracks.length} 首`);
   }
 
+  // === 歌单操作 ===
+  // 使用新的 playlist-operations 模块
+  const playlistOperations = createPlaylistOperations({
+    playbackState,
+    homeService,
+    toast,
+    showError,
+    readJsonResponse,
+    renderPlayback,
+    escapeHtml,
+    renderPlaybackHomeResults // 传递渲染函数
+  });
+
   function toggleTrackMenu(index) {
     const menu = document.querySelector(`[data-playback-home-track-menu-for="${index}"]`);
     if (!menu) return;
@@ -859,151 +629,18 @@ export function createPlaybackController(initialOptions = {}) {
     }
   }
 
-  function showConfirmDialog(title, message, trackName, confirmText = '确认', cancelText = '取消') {
-    return new Promise((resolve) => {
-      const backdrop = document.createElement('div');
-      backdrop.className = 'confirm-dialog-backdrop';
-      backdrop.setAttribute('role', 'dialog');
-      backdrop.setAttribute('aria-modal', 'true');
-
-      backdrop.innerHTML = `
-        <div class="confirm-dialog">
-          <div class="confirm-dialog-header">
-            <h3>${escapeHtml(title)}</h3>
-          </div>
-          <div class="confirm-dialog-body">
-            ${escapeHtml(message)}
-            ${trackName ? `<div class="confirm-dialog-track">${escapeHtml(trackName)}</div>` : ''}
-          </div>
-          <div class="confirm-dialog-footer">
-            <button type="button" class="confirm-cancel">${escapeHtml(cancelText)}</button>
-            <button type="button" class="confirm-delete">${escapeHtml(confirmText)}</button>
-          </div>
-        </div>
-      `;
-
-      let settled = false;
-      const close = (confirmed = false) => {
-        if (settled) return;
-        settled = true;
-        document.removeEventListener('keydown', handleKeydown);
-        backdrop.remove();
-        resolve(confirmed);
-      };
-
-      const handleKeydown = (event) => {
-        if (event.key === 'Escape') close(false);
-        if (event.key === 'Enter') close(true);
-      };
-
-      backdrop.addEventListener('click', (event) => {
-        if (event.target === backdrop) {
-          close(false);
-          return;
-        }
-        if (event.target.closest('.confirm-cancel')) {
-          close(false);
-          return;
-        }
-        if (event.target.closest('.confirm-delete')) {
-          close(true);
-        }
-      });
-
-      document.addEventListener('keydown', handleKeydown);
-      document.body.appendChild(backdrop);
-      backdrop.querySelector('.confirm-delete')?.focus();
-    });
-  }
-
-  async function removeTrackFromPlaylist(track, action) {
-    if (!track) return;
-
-    const homeState = homeService.getHomeState();
-    const platform = playbackState.selectedSource;
-    const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
-
-    if (action === 'liked') {
-      const confirmed = await showConfirmDialog(
-        '从我喜欢中删除',
-        '确认要删除这首歌曲吗？',
-        track.title || '当前歌曲',
-        '删除',
-        '取消'
-      );
-      if (!confirmed) return;
-
-      try {
-        toast('正在从我喜欢中删除…');
-        const response = await fetch('/api/music/playlists/tracks/remove', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform,
-            playlist: { id: 'liked' },
-            tracks: [track]
-          })
-        });
-        const payload = await readJsonResponse(response, `从我喜欢删除失败`);
-        if (!response.ok || !payload.ok) throw new Error(payload.error || `从我喜欢删除失败`);
-
-        toast('已从我喜欢中删除');
-        await homeService.refreshContent();
-        renderPlaybackHomeResults(homeState.action);
-      } catch (error) {
-        showError(error);
-      }
-      return;
-    }
-
-    if (action === 'playlist-tracks') {
-      const currentPlaylist = homeService.getCurrentPlaylist();
-      if (!currentPlaylist) return;
-
-      const confirmed = await showConfirmDialog(
-        `从歌单中删除`,
-        `确认从「${currentPlaylist.title || '歌单'}」中删除这首歌曲吗？`,
-        track.title || '当前歌曲',
-        '删除',
-        '取消'
-      );
-      if (!confirmed) return;
-
-      try {
-        toast('正在从歌单中删除…');
-        const response = await fetch('/api/music/playlists/tracks/remove', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform,
-            playlist: currentPlaylist,
-            tracks: [track]
-          })
-        });
-        const payload = await readJsonResponse(response, `从${platformLabel}歌单删除失败`);
-        if (!response.ok || !payload.ok) throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
-
-        toast(`已从「${currentPlaylist.title || '歌单'}」中删除`);
-        await homeService.refreshContent();
-        renderPlaybackHomeResults(homeState.action);
-      } catch (error) {
-        showError(error);
-      }
-    }
-  }
-
   function handlePlaybackHomeTrackAction(action, index) {
     const track = homeService.getItemByIndex(index);
     if (!track) return;
 
     if (action === 'remove') {
       const homeState = homeService.getHomeState();
-      void removeTrackFromPlaylist(track, homeState.action);
+      void playlistOperations.removeTrackFromPlaylist(track, homeState.action);
       return;
     }
 
     if (action === 'add-to-playlist') {
-      void addTrackToPlaylist(track);
+      void playlistOperations.addTrackToPlaylist(track);
       return;
     }
 
@@ -1029,140 +666,10 @@ export function createPlaybackController(initialOptions = {}) {
     });
   }
 
-  function canAddTrackToPlaylist(track) {
-    if (!track) return false;
-    if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
-    return false;
-  }
-
-  async function addTrackToPlaylist(track) {
-    if (!canAddTrackToPlaylist(track)) {
-      toast('这首歌曲缺少平台歌曲 ID，暂时无法添加到歌单');
-      return;
-    }
-    const platform = track.source;
-    const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
-    try {
-      toast('正在检查歌单中的歌曲…');
-      const listResponse = await fetch('/api/music/home', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform, action: 'created-playlists', limit: 500, refresh: true, track })
-      });
-      const listPayload = await readJsonResponse(listResponse, `加载${platformLabel}歌单失败`);
-      if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
-      const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
-        ? listPayload.data.playlists.filter((item) => item && (
-          platform === 'qq'
-            ? item.dirId && (item.tid || item.id)
-            : item.id
-        ))
-        : [];
-      if (playlists.length === 0) throw new Error(`没有找到可写入的${platformLabel}歌单`);
-      const playlist = await choosePlaylistForTrack(platformLabel, playlists, track);
-      if (!playlist) return;
-      const confirmed = await PlaybackComponents.showConfirmDialog({
-        title: `添加到${platformLabel}歌单`,
-        message: `确认将「${track.title || '当前歌曲'}」添加到「${playlist.title || playlist.id}」？`,
-        confirmText: '确定',
-        cancelText: '取消'
-      });
-      if (!confirmed) return;
-
-      const writeResponse = await fetch('/api/music/playlists/tracks/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform, playlist, tracks: [track] })
-      });
-      const writePayload = await readJsonResponse(writeResponse, `添加到${platformLabel}歌单失败`);
-      if (!writeResponse.ok || !writePayload.ok) throw new Error(writePayload.error || `添加到${platformLabel}歌单失败`);
-      const song = writePayload.data && writePayload.data.result
-        && Array.isArray(writePayload.data.result.songlist)
-        ? writePayload.data.result.songlist[0]
-        : null;
-      toast(song && Number(song.existed) === 1
-        ? `歌曲已在「${playlist.title}」中`
-        : `已添加到「${playlist.title}」`);
-    } catch (error) {
-      showError(error);
-    }
-  }
-
-  function choosePlaylistForTrack(platformLabel, playlists, track) {
-    return new Promise((resolve) => {
-      const backdrop = document.createElement('div');
-      backdrop.className = 'playlist-picker-backdrop';
-      backdrop.setAttribute('role', 'dialog');
-      backdrop.setAttribute('aria-modal', 'true');
-      const availableCount = playlists.filter((item) => item.containsTrack === false).length;
-      backdrop.innerHTML = `
-        <div class="playlist-picker-dialog">
-          <div class="playlist-picker-header">
-            <div>
-              <h3>添加到${escapeHtml(platformLabel)}歌单</h3>
-              <p>${escapeHtml(track.title || '当前歌曲')} · ${availableCount} 个歌单可添加</p>
-            </div>
-            <button type="button" class="playlist-picker-close" aria-label="关闭">×</button>
-          </div>
-          <div class="playlist-picker-list">
-            ${playlists.map((item, index) => {
-              const isAdded = item.containsTrack === true;
-              const checkFailed = item.containsTrack == null;
-              const status = isAdded ? '已添加' : (checkFailed ? '检查失败' : '可添加');
-              return `
-                <button type="button" class="playlist-picker-item${isAdded ? ' is-added' : ''}" data-playlist-picker-index="${index}" ${isAdded || checkFailed ? 'disabled' : ''}>
-                  ${PlaybackUtils.renderArtwork(item, { fallback: '单' })}
-                  <span class="playlist-picker-name">${escapeHtml(item.title || item.id)}</span>
-                  <span class="playlist-picker-status">${status}</span>
-                </button>
-              `;
-            }).join('')}
-          </div>
-          <div class="playlist-picker-footer">
-            <span>已添加的歌单不可重复选择</span>
-            <button type="button" class="playlist-picker-cancel">取消</button>
-          </div>
-        </div>
-      `;
-
-      let settled = false;
-      const close = (playlist = null) => {
-        if (settled) return;
-        settled = true;
-        document.removeEventListener('keydown', handleKeydown);
-        backdrop.remove();
-        resolve(playlist);
-      };
-      const handleKeydown = (event) => {
-        if (event.key === 'Escape') close();
-      };
-      backdrop.addEventListener('click', (event) => {
-        if (event.target === backdrop || event.target.closest('.playlist-picker-close, .playlist-picker-cancel')) {
-          close();
-          return;
-        }
-        const button = event.target.closest('[data-playlist-picker-index]');
-        if (!button || button.disabled) return;
-        close(playlists[Number(button.dataset.playlistPickerIndex)] || null);
-      });
-      document.addEventListener('keydown', handleKeydown);
-      document.body.appendChild(backdrop);
-      backdrop.querySelector('.playlist-picker-item:not(:disabled), .playlist-picker-close')?.focus();
-    });
-  }
-
-  async function addCurrentTrackToPlaylist() {
-    const track = playbackState.current;
-    if (!track) {
-      toast('当前没有播放歌曲');
-      return;
-    }
-    await addTrackToPlaylist(track);
-  }
-
   // === 队列操作类 ===
+  // 注意：这些函数使用前向声明的 playPlaybackTrack 和 ensurePlaybackRadioQueueFilled
   function queuePlaybackTrack(track, action, options = {}) {
+    console.log('[Playback] queuePlaybackTrack called:', action, 'playPlaybackTrack available:', typeof playPlaybackTrack);
     if (!track) return;
     if (action === 'play') {
       insertAndPlayPlaybackTrack(track);
@@ -1188,6 +695,7 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '') {
+    console.log('[Playback] startPlaybackCollection called, playPlaybackTrack available:', typeof playPlaybackTrack);
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
     if (!items.length) return;
     const index = Math.max(0, Math.min(items.length - 1, Number(selectedIndex) || 0));
@@ -1222,8 +730,15 @@ export function createPlaybackController(initialOptions = {}) {
 
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
-    playPlaybackTrack(items[index], { origin: type === 'radio' ? 'radio' : 'normal' });
-    if (type === 'radio') ensurePlaybackRadioQueueFilled();
+    if (playPlaybackTrack) {
+      console.log('[Playback] Calling playPlaybackTrack with track:', items[index]?.title);
+      playPlaybackTrack(items[index], { origin: type === 'radio' ? 'radio' : 'normal' });
+    } else {
+      console.error('[Playback] playPlaybackTrack is not available!');
+    }
+    if (type === 'radio' && ensurePlaybackRadioQueueFilled) {
+      ensurePlaybackRadioQueueFilled();
+    }
   }
 
   function appendPlaybackTracks(tracks) {
@@ -1280,7 +795,9 @@ export function createPlaybackController(initialOptions = {}) {
     }
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
-    playPlaybackTrack(track, { origin });
+    if (playPlaybackTrack) {
+      playPlaybackTrack(track, { origin });
+    }
   }
 
   function activePlaybackQueue() {
@@ -1427,7 +944,7 @@ export function createPlaybackController(initialOptions = {}) {
     const track = searchService.getResultByIndex(index);
     if (!track) return;
     if (action === 'add-to-playlist') {
-      void addTrackToPlaylist(track);
+      void playlistOperations.addTrackToPlaylist(track);
       return;
     }
     const queuedTrack = PlaybackUtils.normalizeOnlineTrack(track);
@@ -1521,8 +1038,204 @@ export function createPlaybackController(initialOptions = {}) {
 
   // === PLACEHOLDER_FOR_MORE_FUNCTIONS_4 ===
 
+  // 创建共享依赖对象（使用 getter 处理可变变量）
+  const sharedDeps = {
+    playbackState,
+    getPlaybackAudio,
+    uiRenderer,
+    playerController,
+    storageManager,
+    cacheManager,
+    localFileManager,
+    queueManager,
+    providerManager,
+    homeService,
+    searchService,
+    matchService,
+    importService,
+    lyricService,
+    streamService,
+
+    // 使用新模块提供的状态访问器
+    get playbackAuthState() { return providerOperations.getAuthState(); },
+    get playbackProviderHealth() { return providerOperations.getProviderHealth(); },
+
+    // 已定义的内联函数
+    renderPlayback,
+    renderPlaybackProgress,
+    renderFullscreenPlayer,
+    renderPendingConfirmPopup,
+    renderPlaybackSearchResults,
+    renderPlaybackHomeResults,
+    savePlaybackState,
+    syncPlaybackLyricWindow,
+    updatePlaybackMediaSession,
+    refreshSelectedMusicProviderState: providerOperations.refreshSelectedMusicProviderState,
+    refreshPlaybackMusicCacheStats,
+    loadPlaybackHomeContent,
+    loadPlaybackPlaylistTracks,
+    refreshPlaybackHomeContent,
+    handlePlaybackHomeBulkAction,
+    handlePlaybackDrawerHeaderPlayAll,
+    handlePlaybackHomeTrackAction,
+    handlePlaybackSearchAction,
+    toggleTrackMenu,
+    openPlaybackDrawer,
+    closePlaybackDrawer,
+    playbackDrawerGoBack,
+    toggleQueuePopup,
+    closeQueuePopup,
+    clearPlaybackQueue,
+    importSongQueueToPlayback,
+    addCurrentTrackToPlaylist: playlistOperations.addCurrentTrackToPlaylist,
+    loginSelectedMusicProvider: providerOperations.loginSelectedMusicProvider,
+    logoutSelectedMusicProvider: providerOperations.logoutSelectedMusicProvider,
+    checkSelectedMusicProviderHealth: providerOperations.checkSelectedMusicProviderHealth,
+    clearPlaybackMusicCache,
+    runPlaybackMatchTest,
+    runPlaybackSearch,
+    clearPlaybackSearch,
+    takePlaybackQueueTrack,
+    jumpToPlaylistTrack,
+    rebuildPlaybackShuffleOrder,
+    startPlaybackCollection,
+    appendPlaybackTracks,
+    insertPlaybackTracksNext,
+
+    // 工具函数
+    escapeHtml,
+    escapeAttr,
+    value,
+    formatBytes,
+    formatCompactNumber,
+    toast,
+    showError,
+    readJsonResponse,
+    U
+  };
+
+  // 创建播放控制模块
+  playbackControls = createPlaybackControls(sharedDeps);
+  const {
+    togglePlayback,
+    playbackPrevious,
+    playbackNext,
+    loadPlaybackLyrics,
+    ensureLocalTrackPlayable
+  } = playbackControls;
+
+  // 赋值给前向声明的变量
+  playPlaybackTrack = playbackControls.playPlaybackTrack;
+  console.log('[Playback] playPlaybackTrack assigned:', typeof playPlaybackTrack);
+
+  // 创建流处理模块
+  const streamHandler = createStreamHandler(sharedDeps);
+  const { getPlaybackTrackUrl, handlePlaybackError } = streamHandler;
+
+  // 创建电台模式模块
+  const radioMode = createRadioMode(sharedDeps);
+  // 赋值给前向声明的变量
+  ensurePlaybackRadioQueueFilled = radioMode.ensurePlaybackRadioQueueFilled;
+  console.log('[Playback] ensurePlaybackRadioQueueFilled assigned:', typeof ensurePlaybackRadioQueueFilled);
+
+  // 定义 restorePlaybackState
+  async function restorePlaybackState() {
+    const restored = await storageManager.restoreState();
+    if (restored) {
+      Object.assign(playbackState, restored);
+      await playbackInitializer.restoreLocalFileUrls();
+    }
+  }
+
+  // 定义歌词窗口和锁定切换
+  function togglePlaybackLyricWindow() {
+    const btn = document.getElementById('playbackLyricBtn');
+    if (btn) btn.classList.toggle('active');
+    lyricService.toggleWindow();
+  }
+
+  function togglePlaybackLyricLock() {
+    const btn = document.getElementById('playbackLyricLockBtn');
+    if (btn) btn.classList.toggle('locked');
+    lyricService.toggleLock();
+  }
+
+  // 定义待确认操作处理
+  function handlePlaybackPendingAction(action, index) {
+    const pending = playbackState.pendingRequests[index];
+    if (!pending) return;
+
+    if (action === 'confirm') {
+      playbackState.pendingRequests.splice(index, 1);
+      const track = pending.track;
+      if (track) {
+        playPlaybackTrack(track, { origin: 'requested', requestedBy: pending.requesterName });
+      }
+    } else if (action === 'ignore') {
+      playbackState.pendingRequests.splice(index, 1);
+    }
+
+    savePlaybackState();
+    renderPlayback();
+  }
+
+  // 创建渲染器模块
+  const rendererModule = createRenderer({
+    ...sharedDeps
+  });
+  // renderPlaybackMatchResults 已在上方定义（第1501行），不需要从模块中解构
+
+  // 创建初始化器
+  const playbackInitializer = createInitializer({
+    ...sharedDeps,
+    playbackNext,
+    handlePlaybackError,
+    refreshSelectedMusicProviderState: providerOperations.refreshSelectedMusicProviderState
+  });
+
+  // 创建事件处理器
+  const eventHandlersModule = createEventHandlers({
+    ...sharedDeps,
+    playbackPrevious,
+    playbackNext,
+    togglePlayback,
+    playPlaybackTrack,
+    togglePlaybackLyricWindow,
+    togglePlaybackLyricLock,
+    handlePlaybackPendingAction,
+    renderPlaybackMatchResults
+  });
+
+  const { setupEventHandlers } = eventHandlersModule;
+
   return {
-    init: async () => {},
-    updateContext: () => {}
+    init: async (options) => {
+      // 更新上下文（如果提供了选项）
+      if (options) {
+        if (options.getSongs) getSongs = options.getSongs;
+        if (options.reloadSongs) reloadSongs = options.reloadSongs;
+        if (options.toast) toast = options.toast;
+        if (options.showError) showError = options.showError;
+        if (options.api) api = options.api;
+        if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
+      }
+
+      // 调用初始化器（这会设置所有事件监听器）
+      await playbackInitializer.init(
+        setupEventHandlers,
+        restorePlaybackState,
+        refreshPlaybackMusicCacheStats
+      );
+    },
+
+    updateContext: (options) => {
+      if (!options) return;
+      if (options.getSongs) getSongs = options.getSongs;
+      if (options.reloadSongs) reloadSongs = options.reloadSongs;
+      if (options.toast) toast = options.toast;
+      if (options.showError) showError = options.showError;
+      if (options.api) api = options.api;
+      if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
+    }
   };
 }

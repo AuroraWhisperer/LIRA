@@ -3,25 +3,25 @@
    ======================================== */
 
 /* 基础布局和面板 */
-@import url('./css/admin/layout.css');
+@import url('./admin/layout.css');
 
 /* 折叠组件 */
-@import url('./css/admin/collapsible.css');
+@import url('./admin/collapsible.css');
 
 /* 标签页系统 */
-@import url('./css/admin/tabs.css');
+@import url('./admin/tabs.css');
 
 /* Toast 通知 */
-@import url('./css/admin/toasts.css');
+@import url('./admin/toasts.css');
 
 /* 礼物相关样式 */
-@import url('./css/admin/gifts.css');
+@import url('./admin/gifts.css');
 
 /* 工作区布局 */
-@import url('./css/admin/workspace.css');
+@import url('./admin/workspace.css');
 
 /* 确认弹窗 */
-@import url('./css/admin/modals.css');
+@import url('./admin/modals.css');
 
 /* 响应式样式 */
-@import url('./css/admin/responsive.css');
+@import url('./admin/responsive.css');

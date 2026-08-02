@@ -84,6 +84,45 @@
   box-shadow: 0 8px 22px rgba(27, 55, 52, 0.055);
 }
 
+.gift-recent-panel > .panel-header {
+  cursor: pointer;
+  position: relative;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gift-recent-panel > .panel-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  background: linear-gradient(135deg,
+              rgba(var(--gift-recent-accent-rgb), 0.12) 0%,
+              rgba(var(--gift-recent-accent-rgb), 0.05) 50%,
+              transparent 100%);
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.gift-recent-panel > .panel-header:hover {
+  background: linear-gradient(to right,
+              rgba(var(--gift-recent-accent-rgb), 0.08),
+              rgba(var(--gift-recent-accent-rgb), 0.03));
+  box-shadow: 0 0 0 1px rgba(var(--gift-recent-accent-rgb), 0.2) inset,
+              0 6px 20px -2px rgba(var(--gift-recent-accent-rgb), 0.3),
+              0 3px 10px -2px rgba(var(--gift-recent-accent-rgb), 0.2);
+  transform: translateY(-2px);
+}
+
+.gift-recent-panel > .panel-header:hover::before {
+  opacity: 1;
+}
+
+.gift-recent-panel > .panel-header:active {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+
 .gift-recent-heading {
   display: flex;
   align-items: center;
@@ -92,9 +131,9 @@
   padding: 13px 18px;
   border-bottom: 1px solid #e8eeee;
   background: linear-gradient(90deg, rgba(var(--gift-recent-accent-rgb), 0.045), rgba(255, 255, 255, 0) 38%);
-  cursor: pointer;
   user-select: none;
   transition: background-color 150ms ease, border-bottom-color 200ms ease;
+  pointer-events: none;
 }
 
 .gift-recent-heading:hover {
@@ -172,17 +211,42 @@
 
 .gift-recent-collapsible .gift-cards:has(> .empty) {
   grid-template-columns: 1fr;
-  min-height: 94px;
-  padding-top: 0;
-  padding-bottom: 0;
+  min-height: 180px;
+  padding: 24px 18px 28px;
 }
 
 .gift-recent-collapsible .gift-cards > .empty {
-  min-height: 94px;
-  border: 0;
-  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+  border: 2px dashed rgba(var(--gift-recent-accent-rgb), 0.18);
+  border-radius: 12px;
+  background: linear-gradient(135deg,
+              rgba(var(--gift-recent-accent-rgb), 0.03) 0%,
+              rgba(var(--gift-recent-accent-rgb), 0.01) 100%);
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 200ms ease;
+}
+
+.gift-recent-collapsible .gift-cards > .empty::before {
+  content: '🎁';
+  font-size: 48px;
+  line-height: 1;
+  opacity: 0.4;
+  filter: grayscale(0.3);
+}
+
+.gift-recent-collapsible .gift-cards > .empty:hover {
+  border-color: rgba(var(--gift-recent-accent-rgb), 0.28);
+  background: linear-gradient(135deg,
+              rgba(var(--gift-recent-accent-rgb), 0.06) 0%,
+              rgba(var(--gift-recent-accent-rgb), 0.02) 100%);
 }
 
 .gift-recent-panel.is-collapsed .gift-recent-collapsible {
@@ -505,15 +569,54 @@
   box-shadow: 0 8px 24px rgba(23, 32, 42, 0.06);
 }
 
+.gift-blindbox-panel > .panel-header {
+  cursor: pointer;
+  position: relative;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gift-blindbox-panel > .panel-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  background: linear-gradient(135deg,
+              rgba(142, 68, 173, 0.1) 0%,
+              rgba(142, 68, 173, 0.04) 50%,
+              transparent 100%);
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.gift-blindbox-panel > .panel-header:hover {
+  background: linear-gradient(to right,
+              rgba(142, 68, 173, 0.06),
+              rgba(142, 68, 173, 0.02));
+  box-shadow: 0 0 0 1px rgba(142, 68, 173, 0.15) inset,
+              0 6px 20px -2px rgba(142, 68, 173, 0.25),
+              0 3px 10px -2px rgba(142, 68, 173, 0.15);
+  transform: translateY(-2px);
+}
+
+.gift-blindbox-panel > .panel-header:hover::before {
+  opacity: 1;
+}
+
+.gift-blindbox-panel > .panel-header:active {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+
 .blind-stats-heading {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 18px 20px 16px;
   border-bottom: 1px solid #edf0f4;
-  cursor: pointer;
   user-select: none;
   transition: background-color 150ms ease, border-bottom-color 200ms ease;
+  pointer-events: none;
 }
 
 .blind-stats-heading:hover {
@@ -734,6 +837,7 @@
   border-top: 1px solid #edf0f4;
 }
 
+/* 加载/空状态/错误状态时，只显示状态消息，隐藏表格 */
 .gift-blindbox-panel[data-state="loading"] .gift-blind-stats-table-wrap,
 .gift-blindbox-panel[data-state="empty"] .gift-blind-stats-table-wrap,
 .gift-blindbox-panel[data-state="error"] .gift-blind-stats-table-wrap {
