@@ -385,19 +385,22 @@ test('identity queue has an independent scroll speed setting', () => {
   assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
 });
 
-test('song list exposes a current-size font control from half to double', () => {
+test('song list exposes a display board font size control', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
-  const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
   const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+  const themePage = html.match(/<div id="themePage"[\s\S]*?<div id="displayPage"/)?.[0];
 
-  assert.match(html, /id="songBoardFontSize"[^>]*min="8"[^>]*max="80"[^>]*value="16"/);
-  assert.match(themeSource, /songBoardFontSize: value\('songBoardFontSize'\)/);
-  assert.match(overlaySource, /Number\(settings\.songBoardFontSize\) \|\| 16/);
+  assert.ok(themePage);
+  assert.doesNotMatch(themePage, /songBoardFontSize/);
+  assert.match(html, /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="24"[^>]*max="80"[^>]*value="50"/);
+  assert.match(displaySource, /songBoardFontSize: value\('songBoardFontSize'\)/);
+  assert.match(overlaySource, /Number\(settings\.songBoardFontSize\) \|\| 50/);
   assert.match(overlayStyles, /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/);
   assert.match(overlayStyles, /\.song-board \.overlay-title \{[\s\S]*var\(--overlay-title-font-size, 15px\) \* var\(--overlay-font-scale, 1\)/);
-  assert.match(defaultsSource, /songBoardFontSize: '16'/);
+  assert.match(defaultsSource, /songBoardFontSize: '50'/);
 });
 
 test('identity rule text scrolls independently only when it overflows', () => {

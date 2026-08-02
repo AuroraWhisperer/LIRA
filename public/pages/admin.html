@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260803-02">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260803-03">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -49,6 +49,17 @@
                 <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
               <span>礼物</span>
+            </button>
+            <!-- 其他页面 — 预留扩展功能入口，内容待定 -->
+            <button class="main-page-tab" data-main-page="otherAssistantPage" type="button">
+              <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+                <circle cx="12" cy="8" r="1.3" fill="currentColor"/>
+                <circle cx="12" cy="15" r="1.3" fill="currentColor"/>
+                <circle cx="8" cy="11.5" r="1.3" fill="currentColor"/>
+                <circle cx="16" cy="11.5" r="1.3" fill="currentColor"/>
+              </svg>
+              <span>其他</span>
             </button>
           </nav>
         </div>
@@ -331,18 +342,6 @@
                   <span>透明榜单身份样式</span>
                 </button>
               </div>
-
-              <fieldset class="theme-section">
-                <legend>歌单展示板文字</legend>
-                <label>
-                  字体大小
-                  <span class="range-row">
-                    <input id="songBoardFontSize" type="range" min="8" max="80" step="1" value="16">
-                    <input id="songBoardFontSizeNumber" type="number" min="8" max="80" step="1" value="16">
-                  </span>
-                  <span class="hint">控制 /songlist 中所有文字大小，当前字号为 16px</span>
-                </label>
-              </fieldset>
 
               <!-- ====== 点歌板风格 1 专属设置 ====== -->
               <div id="classicThemeArea" class="theme-area">
@@ -657,6 +656,14 @@
                     <option value="length">按歌曲名字长度</option>
                   </select>
                   <span class="hint">控制歌单展示板的歌曲分组排列方式</span>
+                </label>
+                <label>
+                  字体大小
+                  <span class="range-row">
+                    <input id="songBoardFontSize" type="range" min="24" max="80" step="1" value="50">
+                    <input id="songBoardFontSizeNumber" type="number" min="24" max="80" step="1" value="50">
+                  </span>
+                  <span class="hint">控制歌单展示板所有文字大小，默认 50px</span>
                 </label>
               </div>
 
@@ -1395,6 +1402,20 @@
         </div>
       </section>
 
+      <!-- 其他页面 — 预留扩展功能，内容待定 -->
+      <section id="otherAssistantPage" class="main-page other-page">
+        <div class="other-workspace">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>其他功能</h2>
+            </div>
+            <div class="panel-body stack">
+              <p class="hint" style="text-align:center;padding:40px 0;">内容待定，敬请期待…</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section id="playbackAssistantPage" class="main-page playback-page">
         <header class="playback-page-header">
           <div class="playback-head-inner">
@@ -1780,8 +1801,8 @@
     <script type="module" src="/js/admin/import.js?v=20260730-01"></script>
     <script type="module" src="/js/admin/queue.js?v=20260802-01"></script>
     <script type="module" src="/js/admin/songs.js?v=20260730-01"></script>
-    <script type="module" src="/js/admin/theme.js?v=20260802-04"></script>
-    <script type="module" src="/js/admin/display.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/theme.js?v=20260802-05"></script>
+    <script type="module" src="/js/admin/display.js?v=20260802-06"></script>
     <script type="module" src="/js/admin/settings.js?v=20260730-01"></script>
     <!-- 礼物模块 - 拆分为多个子模块 -->
     <script type="module" src="/js/admin/gifts/notification.js?v=20260802-01"></script>
@@ -1792,9 +1813,10 @@
     <script type="module" src="/js/admin/gifts/history.js?v=20260802-01"></script>
     <script type="module" src="/js/admin/gifts/index.js?v=20260802-01"></script>
     <script type="module" src="/js/admin/metrics.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/other.js?v=20260802-01"></script>
     <script type="module" src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <!-- app.js 是 ES6 模块入口，自动导入 state.js 和 forms.js，替代旧的 main.js -->
-    <script type="module" src="/js/admin/app.js?v=20260802-04"></script>
+    <script type="module" src="/js/admin/app.js?v=20260802-05"></script>
     <!-- Playback 模块必须在 main.js 之后加载 -->
     <!-- 强制清除模块缓存 -->
     <script>

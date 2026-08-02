@@ -657,3 +657,196 @@ button.danger-filled:hover {
 @keyframes danger-popup-slide {
   from { opacity: 0; transform: translateX(40px) translateY(-12px) scale(0.92); }
   to { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+
+@keyframes danger-popup-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.25); }
+  50% { box-shadow: 0 0 0 8px rgba(192, 57, 43, 0); }
+}
+
+.danger-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(3px);
+  animation: danger-popup-fade-in 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 20px 24px;
+}
+
+.danger-confirm-backdrop[hidden] {
+  display: none;
+}
+
+.danger-confirm-popup {
+  position: relative;
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  margin-top: 58px;
+  background: #fffbfb;
+  border: 1.5px solid rgba(192, 57, 43, 0.28);
+  border-radius: 16px;
+  box-shadow:
+    0 16px 48px rgba(120, 30, 20, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  overflow: hidden;
+  animation: danger-popup-slide 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.danger-confirm-popup::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-danger-medium) 0%, #c0392b 50%, var(--color-danger-medium) 100%);
+}
+
+.danger-confirm-body {
+  padding: 24px 24px 18px;
+}
+
+.danger-confirm-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.danger-confirm-icon-wrap {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fde8e8 0%, #fef0f0 100%);
+  color: #c0392b;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.danger-confirm-header-text {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 3px;
+}
+
+.danger-confirm-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 750;
+  color: #1a1a1a;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.danger-confirm-subtitle {
+  font-size: 12px;
+  color: #9e5d5d;
+  font-weight: 500;
+}
+
+.danger-confirm-message {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: #fff8f6;
+  border: 1px solid rgba(192, 57, 43, 0.12);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #5a3a3a;
+}
+
+.danger-confirm-message ul {
+  margin: 8px 0 0;
+  padding: 0 0 0 18px;
+  list-style: none;
+}
+
+.danger-confirm-message ul li {
+  position: relative;
+  padding: 2px 0;
+}
+
+.danger-confirm-message ul li::before {
+  content: "×";
+  position: absolute;
+  left: -16px;
+  color: #c0392b;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.danger-confirm-keep {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: #f4faf7;
+  border: 1px solid rgba(33, 182, 168, 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #2d6a5a;
+  line-height: 1.6;
+}
+
+.danger-confirm-keep strong {
+  color: #1a6b56;
+}
+
+.danger-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.danger-confirm-actions button {
+  flex: 1;
+  min-height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+
+.danger-confirm-cancel {
+  background: #f6f8fa;
+  border: 1px solid #d5dbe3;
+  color: #4a5568;
+}
+
+.danger-confirm-cancel:hover {
+  background: #eaedf1;
+  border-color: #bcc3cd;
+}
+
+.danger-confirm-execute {
+  background: linear-gradient(135deg, var(--color-danger-medium) 0%, #c0392b 100%);
+  border: 1px solid #c0392b;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(192, 57, 43, 0.25);
+}
+
+.danger-confirm-execute:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  border-color: #a93226;
+  box-shadow: 0 5px 18px rgba(192, 57, 43, 0.35);
+  transform: translateY(-1px);
+}
+
+.danger-confirm-execute:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(192, 57, 43, 0.2);
+}
+
+/* 关闭中的退出动画 */
+.danger-confirm-backdrop.is-leaving {
+  animation: danger-popup-fade-in 0.2s ease reverse forwards;
+}
+
+.danger-confirm-backdrop.is-leaving .danger-confirm-popup {
+  animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse forwards;
+}

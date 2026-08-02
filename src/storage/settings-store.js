@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS = {
   themeOpacity: '0.48',
   themeRadius: '8',
   themeFontScale: '1',
-  songBoardFontSize: '16',
+  songBoardFontSize: '50',
   queueSongFontSize: '40',
   queueTitleFontSize: '30',
   queueFontSizeRangeVersion: '2',
@@ -228,6 +228,16 @@ function migrateQueueFontSizeSettings(db, savedVersion) {
   `).run(updatedAt);
 }
 
+function migrateSongBoardFontSizeSetting(db) {
+  const row = db.prepare(`
+    SELECT value FROM settings WHERE key = 'songBoardFontSize'
+  `).get();
+  if (!row || String(row.value) !== '16') return;
+  db.prepare(`
+    UPDATE settings SET value = ?, updated_at = ? WHERE key = 'songBoardFontSize'
+  `).run(DEFAULT_SETTINGS.songBoardFontSize, now());
+}
+
 function migrateBlindBoxConfig(db) {
   const row = db.prepare(`
     SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'
@@ -327,5 +337,6 @@ module.exports = {
   clearLegacyIdentityRuleDefaults,
   migrateQueueScrollSpeedSetting,
   migrateQueueFontSizeSettings,
+  migrateSongBoardFontSizeSetting,
   migrateBlindBoxConfig
 };

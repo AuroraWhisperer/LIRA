@@ -69,6 +69,7 @@ settingsStoreModule.migrateQueueFontSizeSettings(
   songDb,
   queueFontSizeRangeVersion && queueFontSizeRangeVersion.value
 );
+settingsStoreModule.migrateSongBoardFontSizeSetting(songDb);
 settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);
 settingsStoreModule.migrateBlindBoxConfig(songDb);
 domainServices.songs.ensureCategory('默认');

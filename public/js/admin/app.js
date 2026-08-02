@@ -60,6 +60,10 @@ async function initApp() {
   }
   if (window.AdminApp.desktopLyric) window.AdminApp.desktopLyric.initDesktopLyricForm();
   if (window.AdminApp.metrics) window.AdminApp.metrics.initPerformanceMonitor();
+  // 初始化「其他」页面模块（预留扩展）
+  if (window.AdminApp.other && window.AdminApp.other.initOtherPage) {
+    window.AdminApp.other.initOtherPage();
+  }
   if (window.AdminApp.gifts && window.AdminApp.gifts.initGiftHistoryDrawer) {
     window.AdminApp.gifts.initGiftHistoryDrawer();
   }
@@ -122,13 +126,17 @@ function initMainPages() {
   const hash = location.hash;
   const initialPage = hash === '#playback' ? 'playbackAssistantPage'
                     : hash === '#gifts' ? 'giftAssistantPage'
+                    : hash === '#other' ? 'otherAssistantPage'
                     : 'songAssistantPage';
   setMainPage(initialPage);
 }
 
-const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage'];
-const MAIN_PAGE_HASH_MAP = { playbackAssistantPage: '#playback', giftAssistantPage: '#gifts' };
-const MAIN_PAGE_BODY_MAP = { playbackAssistantPage: 'playback', giftAssistantPage: 'gifts', songAssistantPage: 'songs' };
+// 有效的主页面 ID 列表 — 新增页面时在此注册即可
+const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage', 'otherAssistantPage'];
+// 主页面 → URL hash 映射（songAssistantPage 为默认页，无需 hash）
+const MAIN_PAGE_HASH_MAP = { playbackAssistantPage: '#playback', giftAssistantPage: '#gifts', otherAssistantPage: '#other' };
+// 主页面 → body dataset 标识
+const MAIN_PAGE_BODY_MAP = { playbackAssistantPage: 'playback', giftAssistantPage: 'gifts', songAssistantPage: 'songs', otherAssistantPage: 'other' };
 
 /**
  * 设置主页面
