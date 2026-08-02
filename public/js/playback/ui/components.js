@@ -29,15 +29,28 @@ export function renderCurrentCover(coverElement, track) {
  * @param {number} volume - 音量值 (0-1)
  */
 export function updateVolumeUI(volume) {
+  const numericVolume = Number(volume);
+  const normalizedVolume = Number.isFinite(numericVolume)
+    ? Math.max(0, Math.min(1, numericVolume))
+    : 0;
+  const volumePct = Math.round(normalizedVolume * 100) + '%';
   const volSlider = document.getElementById('playbackVolume');
+  const volValue = document.getElementById('playbackVolumeValue');
   const volWrap = document.querySelector('.playback-volume-wrap');
 
   if (volWrap) {
-    volWrap.classList.toggle('muted', volume === 0);
+    volWrap.classList.toggle('muted', normalizedVolume === 0);
   }
 
   if (volSlider) {
-    volSlider.style.setProperty('--vol-pos', Math.round(volume * 100) + '%');
+    volSlider.style.setProperty('--vol-pos', volumePct);
+    if (typeof volSlider.setAttribute === 'function') {
+      volSlider.setAttribute('aria-valuetext', volumePct);
+    }
+  }
+
+  if (volValue) {
+    volValue.textContent = volumePct;
   }
 }
 

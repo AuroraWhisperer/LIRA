@@ -378,7 +378,7 @@ hr.section-divider {
 }
 
 .sc-list {
-  max-height: 180px;
+  /* max-height removed — height is now governed by the .queues-row container */
 }
 
 .sc-row.assisted {
@@ -842,15 +842,13 @@ tr:last-child td {
 .playback-health-toast-good::after {
   content: "";
   position: absolute;
-  left: 33px;
-  top: calc(50% - 2px);
-  width: 12px;
-  height: 7px;
-  border-left: 2.5px solid #fff;
-  border-bottom: 2.5px solid #fff;
-  border-radius: 1px;
+  left: 20px;
+  top: 50%;
+  width: 38px;
+  height: 38px;
+  background: center / 23px 23px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 12.4l3.1 3.1L17.3 8.3' fill='none' stroke='%23fff' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   filter: drop-shadow(0 1px 1px rgba(0, 73, 60, 0.28));
-  transform: translate(-50%, -50%) rotate(-45deg);
+  transform: translateY(-50%);
 }
 
 .playback-health-toast-good strong,
@@ -1730,7 +1728,7 @@ tr:last-child td {
 }
 
 /* ---- 礼物检测 ---- */
-.gift-detect-section legend {
+.gift-detection-panel legend {
   margin-bottom: 8px;
 }
 
@@ -1744,6 +1742,12 @@ tr:last-child td {
 
 .gift-detect-head .pill {
   margin-left: auto;
+}
+
+.gift-setting-desc {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-left: 48px;
 }
 
 /* ---- 月底冲刺 ---- */
@@ -1769,6 +1773,7 @@ tr:last-child td {
 .gift-stat {
   display: grid;
   gap: 6px;
+  min-height: 84px;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
@@ -1797,7 +1802,7 @@ tr:last-child td {
 }
 
 /* ---- 最近礼物卡片 ---- */
-.gift-recent-section {
+.gift-recent-panel {
   --gift-recent-accent: #149f94;
   --gift-recent-accent-rgb: 20, 159, 148;
   overflow: hidden;
@@ -1882,15 +1887,15 @@ tr:last-child td {
 
 /* 最近礼物折叠 */
 .gift-recent-collapsible {
-  overflow: hidden;
-  max-height: 500px;
+  overflow: visible;
+  max-height: none;
   /* 只对 opacity/transform 做过渡，max-height 瞬间切换避免布局抖动 */
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
 .gift-recent-collapsible .gift-cards {
-  max-height: 420px;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   padding: 14px 18px 16px;
 }
 
@@ -1909,17 +1914,18 @@ tr:last-child td {
   font-size: 13px;
 }
 
-.gift-recent-section.is-collapsed .gift-recent-collapsible {
+.gift-recent-panel.is-collapsed .gift-recent-collapsible {
+  overflow: hidden;
   max-height: 0 !important;
   opacity: 0;
   transform: translateY(-4px);
 }
 
-.gift-recent-section.is-collapsed .gift-recent-heading {
+.gift-recent-panel.is-collapsed .gift-recent-heading {
   border-bottom-color: transparent;
 }
 
-.gift-recent-section.is-collapsed .section-toggle svg {
+.gift-recent-panel.is-collapsed .section-toggle svg {
   transform: rotate(180deg);
 }
 
@@ -2219,7 +2225,7 @@ tr:last-child td {
 }
 
 /* ---- 盲盒盈亏统计 ---- */
-.gift-blindbox-stats-section {
+.gift-blindbox-panel {
   overflow: hidden;
   padding: 0;
   border-color: #e5e9f0;
@@ -2270,13 +2276,13 @@ tr:last-child td {
   padding: 16px 20px;
 }
 
-.gift-blindbox-stats-section .stats-summary-row {
+.gift-blindbox-panel .stats-summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.gift-blindbox-stats-section .stat-chip {
+.gift-blindbox-panel .stat-chip {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2287,7 +2293,7 @@ tr:last-child td {
   background: #f8fafc;
 }
 
-.gift-blindbox-stats-section .stat-chip-icon {
+.gift-blindbox-panel .stat-chip-icon {
   display: grid;
   place-items: center;
   width: 30px;
@@ -2301,19 +2307,19 @@ tr:last-child td {
   box-shadow: 0 2px 8px rgba(23, 32, 42, 0.07);
 }
 
-.gift-blindbox-stats-section .stat-chip-copy {
+.gift-blindbox-panel .stat-chip-copy {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.gift-blindbox-stats-section .stat-chip small {
+.gift-blindbox-panel .stat-chip small {
   color: var(--muted);
   font-size: 11px;
   white-space: nowrap;
 }
 
-.gift-blindbox-stats-section .stat-chip strong {
+.gift-blindbox-panel .stat-chip strong {
   overflow: hidden;
   color: var(--text);
   font-size: 15px;
@@ -2322,23 +2328,23 @@ tr:last-child td {
   white-space: nowrap;
 }
 
-.gift-blindbox-stats-section .stat-chip.profit-up {
+.gift-blindbox-panel .stat-chip.profit-up {
   border-color: rgba(33, 182, 168, 0.22);
   background: #f0faf8;
 }
 
-.gift-blindbox-stats-section .stat-chip.profit-down {
+.gift-blindbox-panel .stat-chip.profit-down {
   border-color: rgba(192, 57, 43, 0.18);
   background: #fff6f5;
 }
 
-.gift-blindbox-stats-section .stat-chip.profit-up .stat-chip-icon,
-.gift-blindbox-stats-section .stat-chip.profit-up strong {
+.gift-blindbox-panel .stat-chip.profit-up .stat-chip-icon,
+.gift-blindbox-panel .stat-chip.profit-up strong {
   color: #148f82;
 }
 
-.gift-blindbox-stats-section .stat-chip.profit-down .stat-chip-icon,
-.gift-blindbox-stats-section .stat-chip.profit-down strong {
+.gift-blindbox-panel .stat-chip.profit-down .stat-chip-icon,
+.gift-blindbox-panel .stat-chip.profit-down strong {
   color: var(--danger);
 }
 
@@ -2450,42 +2456,44 @@ tr:last-child td {
   padding: 20px;
 }
 
+.gift-blind-stats-table-wrap,
 .gift-blindbox-stats-table-wrap {
-  max-height: 360px;
-  overflow: auto;
+  max-height: none !important;
+  overflow: visible !important;
   border-top: 1px solid #edf0f4;
 }
 
-.gift-blindbox-stats-section[data-state="loading"] .gift-blind-stats-table-wrap,
-.gift-blindbox-stats-section[data-state="empty"] .gift-blind-stats-table-wrap,
-.gift-blindbox-stats-section[data-state="error"] .gift-blind-stats-table-wrap {
+.gift-blindbox-panel[data-state="loading"] .gift-blind-stats-table-wrap,
+.gift-blindbox-panel[data-state="empty"] .gift-blind-stats-table-wrap,
+.gift-blindbox-panel[data-state="error"] .gift-blind-stats-table-wrap {
   display: none;
 }
 
 /* 盲盒盈亏折叠 */
 .blind-stats-collapsible {
-  overflow: hidden;
-  max-height: 800px;
+  overflow: visible;
+  max-height: none;
   /* 只对 opacity/transform 做过渡，max-height 瞬间切换避免布局抖动 */
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
-.gift-blindbox-stats-section.is-collapsed .blind-stats-collapsible {
+.gift-blindbox-panel.is-collapsed .blind-stats-collapsible {
+  overflow: hidden;
   max-height: 0 !important;
   opacity: 0;
   transform: translateY(-4px);
 }
 
-.gift-blindbox-stats-section.is-collapsed .blind-stats-heading {
+.gift-blindbox-panel.is-collapsed .blind-stats-heading {
   border-bottom-color: transparent;
 }
 
-.gift-blindbox-stats-section.is-collapsed .section-toggle svg {
+.gift-blindbox-panel.is-collapsed .section-toggle svg {
   transform: rotate(180deg);
 }
 
 @media (max-width: 980px) {
-  .gift-blindbox-stats-section .stats-summary-row {
+  .gift-blindbox-panel .stats-summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -2497,7 +2505,7 @@ tr:last-child td {
     padding-left: 14px;
   }
 
-  .gift-blindbox-stats-section .stats-summary-row {
+  .gift-blindbox-panel .stats-summary-row {
     grid-template-columns: 1fr;
   }
 }
@@ -2800,57 +2808,85 @@ tr:last-child td {
 
 /* ===== 点歌工作区布局 ===== */
 .song-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 3.4fr);
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-  height: calc(100vh - 58px - 96px);
+  min-height: calc(100vh - 58px - 96px);
   padding: 16px;
-  overflow: hidden;
 }
 
 body.player-dock-expanded .song-workspace {
-  height: calc(100vh - 58px - 218px);
+  min-height: calc(100vh - 58px - 218px);
 }
 
-.song-queue-column,
-.song-tools-column {
+/* ---- 并排双队列 ---- */
+.queues-row {
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 14px;
   min-width: 0;
   min-height: 0;
+  /* 容纳 5 个词条：5×(62[行高]+16[填充]+2[边框]) + 4×6[间隔] + 32[面板填充] */
+  height: 510px;
 }
 
-.song-queue-column {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.song-tools-column {
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.song-queue-column > .panel,
-.song-management-panel {
-  min-width: 0;
-  min-height: 0;
-}
-
-.song-queue-column > .panel:last-child,
-.song-management-panel {
+.queues-row .queue-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
-.song-queue-column > .panel:last-child > .panel-body {
-  display: flex;
+.queues-row .queue-panel .panel-body {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  max-height: none;
 }
 
-.song-queue-column #queueList {
+/* 队列面板内复用 collapsible 动画，但高度由 flex 决定 */
+.queues-row .queue-panel .collapsible-panel-body {
+  max-height: none;
+  flex: 1 1 auto;
+}
+
+.queues-row .queue-panel.is-collapsed .collapsible-panel-body {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  flex: 0 0 auto;
+}
+
+.queues-row .queue-panel .queue-list {
   flex: 1 1 auto;
   width: 100%;
   max-height: none;
+  overflow-y: auto;
+}
+
+/* ---- 管理面板（标签页区）fills remaining space ---- */
+.tools-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  /* flex: 1 会让它尽可能撑开但不强制 */
+  flex: 1 0 auto;
+}
+
+.song-workspace > .panel:not(.queue-panel),
+.song-management-panel {
+  min-width: 0;
+}
+
+.song-management-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 420px;
 }
 
 .song-management-panel > .tabs {
@@ -2865,6 +2901,158 @@ body.player-dock-expanded .song-workspace {
 
 .song-management-panel .tab-page > .panel-body {
   min-width: 0;
+}
+
+/* ===== 礼物工作区布局 ===== */
+.gift-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: repeat(5, max-content);
+  align-content: start;
+  gap: 14px;
+  height: calc(100vh - 58px - 96px);
+  padding: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body.player-dock-expanded .gift-workspace {
+  height: calc(100vh - 58px - 218px);
+}
+
+.gift-detection-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.gift-notification-panel {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.gift-recent-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.gift-sprint-panel {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+.gift-blindbox-panel {
+  grid-column: 1 / -1;
+  grid-row: 4;
+}
+
+.gift-blindbox-mapping-panel {
+  grid-column: 1 / -1;
+  grid-row: 5;
+}
+
+.gift-page .panel-body .gift-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.gift-workspace .panel,
+.gift-workspace .panel-body {
+  min-width: 0;
+  min-height: auto;
+}
+
+.gift-workspace .panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.gift-workspace .panel > .panel-body {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+/* 跨列面板用内容自然高度，不伸缩 */
+.gift-blindbox-panel > .panel-body,
+.gift-blindbox-mapping-panel > .panel-body {
+  flex: 0 0 auto;
+  overflow: visible;
+  min-height: auto;
+}
+
+/* Compact controls: keep the two switches visible without making them compete with the data panels. */
+.gift-detection-panel,
+.gift-notification-panel {
+  position: relative;
+  overflow: hidden;
+  min-height: 112px;
+  border-color: #d7e9e6;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f5fbfa 100%);
+  box-shadow: 0 8px 24px rgba(27, 72, 67, 0.07);
+}
+
+.gift-detection-panel::before,
+.gift-notification-panel::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: linear-gradient(180deg, #21b6a8, #87d8ce);
+  content: "";
+}
+
+.gift-notification-panel::before {
+  background: linear-gradient(180deg, #ef9b72, #f6c6ad);
+}
+
+.gift-detection-panel .panel-header,
+.gift-notification-panel .panel-header {
+  min-height: 0;
+  padding: 15px 18px 3px 21px;
+  border-bottom: 0;
+}
+
+.gift-detection-panel .panel-header h2,
+.gift-notification-panel .panel-header h2 {
+  color: #253a3a;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+
+.gift-detection-panel > .panel-body,
+.gift-notification-panel > .panel-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 18px 15px 21px;
+  overflow: visible;
+}
+
+.gift-detection-panel .switch-control,
+.gift-notification-panel .switch-control {
+  flex: 0 0 auto;
+  min-height: 34px;
+  gap: 10px;
+  color: #203332;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.gift-detection-panel #giftStatusLine,
+.gift-notification-panel .gift-setting-desc {
+  max-width: 52%;
+  margin: 0;
+  color: #718381;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.gift-notification-panel .gift-setting-desc {
+  max-width: 48%;
 }
 
 /* 歌库表格行：跳过屏幕外行的渲染，减少折叠面板展开时的布局重计算 */
@@ -3439,10 +3627,6 @@ button.danger-filled:hover {
 
 /* ===== 响应式 ===== */
 @media (max-width: 1180px) {
-  .song-workspace {
-    grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
-  }
-
   .status-strip #songCount {
     display: none;
   }
@@ -3521,6 +3705,7 @@ button.danger-filled:hover {
 
   .song-workspace,
   body.player-dock-expanded .song-workspace {
+    grid-template-rows: auto;
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
@@ -3528,24 +3713,55 @@ button.danger-filled:hover {
     padding: 12px 12px 116px;
   }
 
-  .song-queue-column,
-  .song-tools-column {
-    display: grid;
-    grid-template-rows: auto;
+  .queues-row {
+    grid-template-columns: 1fr;
+    height: auto;
   }
 
-  .song-queue-column #queueList {
+  .queues-row .queue-panel .queue-list {
     max-height: 420px;
   }
 
   .song-management-panel > .tab-page.active {
     overflow: visible;
   }
+
+  .gift-workspace,
+  body.player-dock-expanded .gift-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    padding: 12px 12px 116px;
+  }
+
+  .gift-detection-panel,
+  .gift-notification-panel,
+  .gift-recent-panel,
+  .gift-sprint-panel,
+  .gift-blindbox-panel,
+  .gift-blindbox-mapping-panel {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .gift-detection-panel > .panel-body,
+  .gift-notification-panel > .panel-body {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .gift-detection-panel #giftStatusLine,
+  .gift-notification-panel .gift-setting-desc {
+    max-width: none;
+    text-align: left;
+  }
 }
 
 /* ---- 全部礼物流水抽屉 ---- */
 
-.gift-recent-section legend {
+.gift-recent-panel legend {
   display: flex;
   align-items: center;
   gap: 10px;

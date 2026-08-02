@@ -27,6 +27,14 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.match(settingsSource, /location\.host/);
 });
 
+test('gift workspace rows keep their content height inside the scroll container', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'styles-admin.css'), 'utf8');
+  const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
+  assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(5, max-content\)/);
+});
+
 test('debug gift data attributes escape quotes, apostrophes, and backticks', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'debug-gifts.html'), 'utf8');
   const escapeHtmlSource = source.match(/function escHtml\(s\) \{[\s\S]*?\n\}/)?.[0];

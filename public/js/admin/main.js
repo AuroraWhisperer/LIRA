@@ -26,11 +26,15 @@ function initMainPages() {
     });
   });
 
-  setMainPage(location.hash === '#playback' ? 'playbackAssistantPage' : 'songAssistantPage');
+  setMainPage(location.hash === '#playback' ? 'playbackAssistantPage' : location.hash === '#gifts' ? 'giftAssistantPage' : 'songAssistantPage');
 }
 
+const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage'];
+const MAIN_PAGE_HASH_MAP = { playbackAssistantPage: '#playback', giftAssistantPage: '#gifts' };
+const MAIN_PAGE_BODY_MAP = { playbackAssistantPage: 'playback', giftAssistantPage: 'gifts', songAssistantPage: 'songs' };
+
 function setMainPage(pageId) {
-  const nextPageId = pageId === 'playbackAssistantPage' ? 'playbackAssistantPage' : 'songAssistantPage';
+  const nextPageId = VALID_MAIN_PAGES.includes(pageId) ? pageId : 'songAssistantPage';
   document.querySelectorAll('.main-page').forEach((page) => {
     page.classList.toggle('active', page.id === nextPageId);
   });
@@ -39,9 +43,10 @@ function setMainPage(pageId) {
     button.classList.toggle('active', isActive);
     button.setAttribute('aria-pressed', String(isActive));
   });
-  document.body.dataset.mainPage = nextPageId === 'playbackAssistantPage' ? 'playback' : 'songs';
-  if (location.hash !== (nextPageId === 'playbackAssistantPage' ? '#playback' : '')) {
-    history.replaceState(null, '', nextPageId === 'playbackAssistantPage' ? '#playback' : location.pathname + location.search);
+  document.body.dataset.mainPage = MAIN_PAGE_BODY_MAP[nextPageId] || 'songs';
+  const targetHash = MAIN_PAGE_HASH_MAP[nextPageId] || '';
+  if (location.hash !== targetHash) {
+    history.replaceState(null, '', targetHash || location.pathname + location.search);
   }
 }
 

@@ -319,7 +319,7 @@
       renderBlindBoxStats(payload.data);
     } catch (error) {
       const summary = document.getElementById('blindBoxStatsSummary');
-      const section = summary && summary.closest('.gift-blindbox-stats-section');
+      const section = summary && summary.closest('.gift-blindbox-panel');
       if (section) section.dataset.state = 'error';
       if (summary) {
         summary.innerHTML = `
@@ -348,7 +348,7 @@
 
     // 汇总行
     const summaryEl = document.getElementById('blindBoxStatsSummary');
-    const section = summaryEl && summaryEl.closest('.gift-blindbox-stats-section');
+    const section = summaryEl && summaryEl.closest('.gift-blindbox-panel');
     if (summaryEl) {
       if (!summary || summary.boxCount === 0) {
         if (section) section.dataset.state = 'empty';
@@ -618,7 +618,7 @@
   // ── 最近礼物折叠切换 ──
   function initGiftRecentToggle() {
     const toggle = document.getElementById('giftRecentToggle');
-    const section = toggle?.closest('.gift-recent-section');
+    const section = toggle?.closest('.gift-recent-panel');
     const heading = document.getElementById('giftRecentHeading');
 
     heading?.addEventListener('click', (e) => {
@@ -635,7 +635,7 @@
   // ── 盲盒盈亏折叠切换 ──
   function initBlindBoxStatsToggle() {
     const toggle = document.getElementById('blindBoxStatsToggle');
-    const section = toggle?.closest('.gift-blindbox-stats-section');
+    const section = toggle?.closest('.gift-blindbox-panel');
     const heading = document.getElementById('blindBoxStatsHeading');
 
     heading?.addEventListener('click', (e) => {

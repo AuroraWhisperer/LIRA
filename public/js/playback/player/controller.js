@@ -234,7 +234,7 @@ export class PlayerController {
         playing: false,
         currentTime: 0,
         duration: 0,
-        volume: 0.75
+        volume: 0.3
       };
     }
 
@@ -242,7 +242,7 @@ export class PlayerController {
       playing: !this.audio.paused,
       currentTime: this.audio.currentTime || 0,
       duration: this.audio.duration || 0,
-      volume: this.audio.volume || 0.75
+      volume: Number.isFinite(this.audio.volume) ? this.audio.volume : 0.3
     };
   }
 

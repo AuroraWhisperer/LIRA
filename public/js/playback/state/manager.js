@@ -21,7 +21,7 @@ export function createInitialState() {
     history: [],
     displayHistory: [],
     mode: 'sequence',
-    volume: 0.75,
+    volume: 0.3,
     selectedSource: 'qq',
     shuffleOrder: [],
     shuffleCursor: 0,
@@ -91,7 +91,7 @@ export function normalizeState(state) {
 
   // 确保音量在合法范围
   if (typeof normalized.volume !== 'number' || normalized.volume < 0 || normalized.volume > 1) {
-    normalized.volume = 0.75;
+    normalized.volume = 0.3;
   }
 
   // 确保播放模式合法

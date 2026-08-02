@@ -82,7 +82,7 @@
       window.AdminApp.forms.fillForm(settings);
     }
     const giftToggle = document.getElementById('giftDetectToggle');
-    if (giftToggle) giftToggle.checked = settings.enableGiftSprint === 'true';
+    if (giftToggle) giftToggle.checked = settings.enableGiftSprint !== 'false';
 
     const autoUpdateToggle = document.getElementById('autoUpdateToggle');
     const autoUpdateLabel = document.getElementById('autoUpdateLabel');

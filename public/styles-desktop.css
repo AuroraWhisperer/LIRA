@@ -349,9 +349,8 @@ body.desktop-shell .shutdown-icon {
 body.desktop-shell .titlebar-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  min-width: 140px;
+  padding: 0 14px 0 18px;
+  min-width: 50px;
   flex-shrink: 0;
   user-select: none;
   -webkit-app-region: drag;
@@ -446,7 +445,8 @@ body.desktop-shell .panel {
 }
 
 body.desktop-shell .song-workspace,
-body.desktop-shell .playback-page.active {
+body.desktop-shell .playback-page.active,
+body.desktop-shell .gift-workspace {
   scrollbar-color: rgba(117, 102, 91, 0.34) transparent;
 }
 

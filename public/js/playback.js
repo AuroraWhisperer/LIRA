@@ -349,6 +349,16 @@ import { HomeService } from './playback/services/home-service.js';
           renderPlayback();
         });
 
+        const volumeWrap = document.querySelector('.playback-volume-wrap');
+        const volumePanel = document.getElementById('playbackVolumePanel');
+        const volumeIcon = document.getElementById('playbackVolumeIcon');
+        const setVolumePanelOpen = (open) => {
+          if (!volumeWrap) return;
+          volumeWrap.classList.toggle('open', open);
+          volumePanel?.setAttribute('aria-hidden', String(!open));
+          volumeIcon?.setAttribute('aria-expanded', String(open));
+        };
+
         document.getElementById('playbackVolume')?.addEventListener('input', (event) => {
           playbackState.volume = Math.max(0, Math.min(1, Number(event.target.value)));
           audio.volume = playbackState.volume;
@@ -356,19 +366,32 @@ import { HomeService } from './playback/services/home-service.js';
           savePlaybackState();
         });
 
-        document.getElementById('playbackVolumeIcon')?.addEventListener('click', () => {
-          if (playbackState.volume > 0) {
-            playbackState._mutedVolume = playbackState.volume;
-            playbackState.volume = 0;
-          } else {
-            playbackState.volume = playbackState._mutedVolume > 0 ? playbackState._mutedVolume : 0.75;
+        volumeIcon?.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const shouldOpen = !volumeWrap?.classList.contains('open');
+          setVolumePanelOpen(shouldOpen);
+          if (shouldOpen) {
+            document.getElementById('playbackVolume')?.focus({ preventScroll: true });
           }
-          audio.volume = playbackState.volume;
-          const volSlider = document.getElementById('playbackVolume');
-          if (volSlider) volSlider.value = String(playbackState.volume);
-          PlaybackComponents.updateVolumeUI(playbackState.volume);
-          savePlaybackState();
         });
+
+        volumePanel?.addEventListener('click', (event) => {
+          event.stopPropagation();
+        });
+
+        if (typeof document.addEventListener === 'function') {
+          document.addEventListener('click', (event) => {
+            if (!event.target?.closest?.('.playback-volume-wrap')) {
+              setVolumePanelOpen(false);
+            }
+          });
+
+          document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+              setVolumePanelOpen(false);
+            }
+          });
+        }
 
         document.getElementById('playbackSeek')?.addEventListener('input', (event) => {
           if (!Number.isFinite(audio.duration)) return;
@@ -1612,7 +1635,7 @@ import { HomeService } from './playback/services/home-service.js';
           playbackState.history = Array.isArray(saved.history) ? saved.history.map(PlaybackUtils.normalizeSavedTrack) : [];
           playbackState.displayHistory = Array.isArray(saved.displayHistory) ? saved.displayHistory.map(PlaybackUtils.normalizeSavedTrack) : [];
           playbackState.mode = ['sequence', 'shuffle', 'repeat-one'].includes(saved.mode) ? saved.mode : 'sequence';
-          playbackState.volume = Math.max(0, Math.min(1, Number(saved.volume ?? 0.75)));
+          playbackState.volume = Math.max(0, Math.min(1, Number(saved.volume ?? 0.3)));
           // 直接使用保存的值，不要用三元运算符判断
           playbackState.selectedSource = (saved.selectedSource === 'qq' || saved.selectedSource === 'netease')
             ? saved.selectedSource
