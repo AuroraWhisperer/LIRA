@@ -150,6 +150,7 @@ function computeSongsStateKey(currentState) {
     settings.songBoardBackdropBlur, settings.songBoardGlowIntensity,
     settings.songBoardEnableGradient, settings.songBoardGradientEnd,
     settings.songBoardFontFamily, settings.songBoardFontWeight,
+    settings.songBoardFontSize,
     settings.songBoardSongColor, settings.songBoardSongFontSize, settings.songBoardTitleFontSize,
     settings.overlayFontFamily, settings.overlayFontWeight,
     settings.overlaySongColor, settings.overlayRequesterColor,
@@ -251,9 +252,10 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-primary', resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91'));
   root.style.setProperty('--overlay-accent', resolve('themeAccent', 'songBoardThemeAccent', '#21b6a8'));
   root.style.setProperty('--overlay-text', resolve('themeText', 'songBoardThemeText', '#fff7fb'));
-  root.style.setProperty('--overlay-opacity', resolve('themeOpacity', 'songBoardThemeOpacity', '0.76'));
+  root.style.setProperty('--overlay-opacity', resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
   root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
-  root.style.setProperty('--overlay-font-scale', resolve('themeFontScale', 'songBoardThemeFontScale', '1'));
+  const songBoardFontSize = Math.max(8, Math.min(80, Number(settings.songBoardFontSize) || 16));
+  root.style.setProperty('--overlay-font-scale', String(songBoardFontSize / 16));
 
   const scrollDuration = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
   root.style.setProperty('--scroll-seconds', `${scrollDuration}s`);
@@ -276,11 +278,11 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-bg-g', String(bgRgb.g));
   root.style.setProperty('--overlay-bg-b', String(bgRgb.b));
 
-  const blur = lowPower ? 0 : Number(resolve('backdropBlur', 'songBoardBackdropBlur', '0'));
+  const blur = lowPower ? 0 : Number(resolve('backdropBlur', 'songBoardBackdropBlur', '14'));
   root.style.setProperty('--overlay-blur', `${Number.isFinite(blur) ? Math.max(0, blur) : 0}px`);
   panel.classList.toggle('has-backdrop-blur', blur > 0);
 
-  const rawGlowIntensity = Number(resolve('glowIntensity', 'songBoardGlowIntensity', '0'));
+  const rawGlowIntensity = Number(resolve('glowIntensity', 'songBoardGlowIntensity', '2'));
   const glowIntensity = lowPower || !Number.isFinite(rawGlowIntensity) ? 0 : Math.max(0, rawGlowIntensity);
   root.style.setProperty('--overlay-glow-size', `${glowIntensity}px`);
   root.style.setProperty('--overlay-glow-color',
@@ -320,7 +322,7 @@ function applyTheme(settings) {
     root.style.removeProperty('--overlay-title-font-size');
   }
 
-  panel.style.backgroundColor = hexToRgba(bgHex, resolve('themeOpacity', 'songBoardThemeOpacity', '0.76'));
+  panel.style.backgroundColor = hexToRgba(bgHex, resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
 }
 
 function hexToRgb(hex) {

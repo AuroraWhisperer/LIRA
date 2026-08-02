@@ -33,10 +33,9 @@ export class UIRenderer {
    * 渲染所有 UI
    * @param {Object} state - 播放状态
    * @param {HTMLAudioElement} audio - 音频元素
-   * @param {Object} extraState - 额外状态
    */
-  renderAll(state, audio, extraState = {}) {
-    this.playbackBar.render(state, audio, extraState.lyric);
+  renderAll(state, audio) {
+    this.playbackBar.render(state, audio);
     this.queuePopup.render(state);
     this.fullscreenPlayer.render(state.current, audio);
   }

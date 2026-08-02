@@ -10,7 +10,6 @@ export function createRenderer(deps) {
     uiRenderer,
     playbackState,
     getPlaybackAudio,
-    lyricService,
     searchService,
     homeService,
     escapeHtml
@@ -20,13 +19,8 @@ export function createRenderer(deps) {
     console.log('[Playback] renderPlayback called, selectedSource:', playbackState.selectedSource);
     const audio = getPlaybackAudio();
 
-    // 获取歌词服务的窗口状态
-    const lyricWindowState = lyricService.getWindowState();
-
     // 使用 UI 渲染器渲染所有界面
-    uiRenderer.renderAll(playbackState, audio, {
-      lyric: lyricWindowState
-    });
+    uiRenderer.renderAll(playbackState, audio);
 
     // 渲染音乐源状态
     console.log('[Playback] Calling renderProviderState with:', playbackState.selectedSource);

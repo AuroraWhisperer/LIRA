@@ -28,7 +28,7 @@
   display: grid;
   grid-template-columns: 58px minmax(240px, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   width: min(100%, 1680px);
   height: 100%;
   margin: 0 auto;
@@ -323,34 +323,6 @@
   height: 18px;
 }
 
-/* 锁定按钮图标切换 */
-.playback-icon-btn .lock-closed { display: none; }
-.playback-icon-btn.locked .lock-open { display: none; }
-.playback-icon-btn.locked .lock-closed { display: inline; }
-
-/* 桌面歌词按钮图标切换 */
-.playback-icon-btn .lyric-on-icon { display: none; }
-.playback-icon-btn .lyric-off-icon { display: inline; }
-.playback-icon-btn.active .lyric-off-icon { display: none; }
-.playback-icon-btn.active .lyric-on-icon { display: inline; }
-
-/* 图标激活状态 */
-.playback-icon-btn.active {
-  color: var(--primary);
-  background: rgba(255, 111, 145, 0.15);
-  box-shadow: 0 0 0 2px rgba(255, 111, 145, 0.2);
-}
-
-.playback-icon-btn.active:hover {
-  background: rgba(255, 111, 145, 0.2);
-  box-shadow: 0 0 0 2px rgba(255, 111, 145, 0.3);
-}
-
-.playback-icon-btn.locked {
-  color: var(--accent);
-  background: rgba(33, 182, 168, 0.10);
-}
-
 /* 模式按钮图标样式 */
 .playback-mode-wrap .playback-icon-btn {
   color: var(--muted);
@@ -406,7 +378,7 @@
 .playback-play-btn.playing .play-icon { display: none; }
 .playback-play-btn.playing .pause-icon { display: inline; }
 
-/* ===== 额外操作（歌词、锁定、音量） ===== */
+/* ===== 额外操作（队列、音量） ===== */
 .playback-extra-actions {
   display: flex;
   align-items: center;

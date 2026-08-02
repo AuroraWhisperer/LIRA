@@ -38,7 +38,7 @@
 <script src="/js/shared/theme.js"></script>
 
 <!-- 页面特定脚本 -->
-<script src="/js/admin/main.js"></script>
+<script src="/js/admin/app.js"></script>
 ```
 
 ## ➕ 添加新的共享模块

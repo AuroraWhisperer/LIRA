@@ -157,10 +157,10 @@ export class FormsService {
           setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
           setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
           setValue('songBoardThemeBackground', (values && values.themeBackground) || '#181823');
-          setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.35');
+          setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.48');
           setValue('songBoardThemeRadius', (values && values.themeRadius) || '8');
-          setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '0');
-          setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '0');
+          setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '14');
+          setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '2');
           setValue('songBoardEnableGradient', (values && values.enableGradient) || 'false');
           setValue('songBoardGradientEnd', (values && values.gradientEnd) || '#181823');
           setValue('songBoardFontFamily', (values && values.overlayFontFamily) || 'Microsoft YaHei');
@@ -201,6 +201,9 @@ export class FormsService {
     }
     if (document.getElementById('themeOpacityNumber')) {
       setValue('themeOpacityNumber', value('themeOpacity'));
+    }
+    if (document.getElementById('songBoardFontSizeNumber')) {
+      setValue('songBoardFontSizeNumber', value('songBoardFontSize'));
     }
     if (document.getElementById('backdropBlurNumber')) {
       setValue('backdropBlurNumber', value('backdropBlur'));

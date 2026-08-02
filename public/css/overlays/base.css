@@ -631,6 +631,15 @@
 
 .song-board {
   width: min(413px, calc(100vw - 32px));
+  font-size: calc(16px * var(--overlay-font-scale, 1));
+}
+
+.song-board .overlay-title {
+  font-size: calc(var(--overlay-title-font-size, 15px) * var(--overlay-font-scale, 1));
+}
+
+.song-board .overlay-empty {
+  font-size: inherit;
 }
 
 .song-scroll-window {

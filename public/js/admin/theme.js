@@ -97,9 +97,10 @@
     document.getElementById('resetClassicTheme').addEventListener('click', async () => {
       const resetValues = {
         ...defaultThemeLook,
-        themeOpacity: '0.35',
+        themeOpacity: '0.48',
         themeRadius: '12',
-        backdropBlur: '0'
+        backdropBlur: '14',
+        glowIntensity: '2'
       };
       if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
         window.AdminApp.forms.fillForm(resetValues);
@@ -115,13 +116,14 @@
     // range ↔ number pairs
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
-      bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.35);
+      bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.48);
+      bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 8, 80, 16);
       bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 40);
       bindRangePair('queueTitleFontSize', 'queueTitleFontSizeNumber', 10, 40, 30);
       bindRangePair('overlayRuleFontSize', 'overlayRuleFontSizeNumber', 8, 18, 10);
       bindRangePair('identityQueueScrollSpeedRange', 'identityQueueScrollSpeed', 1, 100, 80);
-      bindRangePair('backdropBlur', 'backdropBlurNumber', 0, 30, 0);
-      bindRangePair('glowIntensity', 'glowIntensityNumber', 0, 20, 0);
+      bindRangePair('backdropBlur', 'backdropBlurNumber', 0, 30, 14);
+      bindRangePair('glowIntensity', 'glowIntensityNumber', 0, 20, 2);
     }
 
     document.getElementById('queueScrollSpeedRange').addEventListener('input', () => {
@@ -137,6 +139,7 @@
   function collectTheme() {
     return {
       overlayQueueStyle: value('overlayQueueStyle'),
+      songBoardFontSize: value('songBoardFontSize'),
       overlayPin1: value('overlayPin1'),
       overlayPin2: value('overlayPin2'),
       overlayPin3: value('overlayPin3'),
@@ -186,6 +189,7 @@
     setValue('backdropBlurNumber', v.backdropBlur || value('backdropBlur'));
     setValue('glowIntensityNumber', v.glowIntensity || value('glowIntensity'));
     setValue('themeOpacityNumber', v.themeOpacity || value('themeOpacity'));
+    setValue('songBoardFontSizeNumber', v.songBoardFontSize || value('songBoardFontSize'));
     setValue('queueSongFontSizeNumber', v.queueSongFontSize || value('queueSongFontSize'));
     setValue('queueTitleFontSizeNumber', v.queueTitleFontSize || value('queueTitleFontSize'));
     setValue('overlayRuleFontSizeNumber', v.overlayRuleFontSize || value('overlayRuleFontSize'));

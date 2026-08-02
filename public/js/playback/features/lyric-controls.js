@@ -26,27 +26,7 @@ export function createLyricControls(deps) {
     if (changed) renderPlayback();
   }
 
-  /**
-   * 切换歌词窗口显示
-   */
-  function togglePlaybackLyricWindow() {
-    const btn = document.getElementById('playbackLyricBtn');
-    if (btn) btn.classList.toggle('active');
-    lyricService.toggleWindow();
-  }
-
-  /**
-   * 切换歌词锁定状态
-   */
-  function togglePlaybackLyricLock() {
-    const btn = document.getElementById('playbackLyricLockBtn');
-    if (btn) btn.classList.toggle('locked');
-    lyricService.toggleLock();
-  }
-
   return {
-    syncPlaybackLyricWindow,
-    togglePlaybackLyricWindow,
-    togglePlaybackLyricLock
+    syncPlaybackLyricWindow
   };
 }

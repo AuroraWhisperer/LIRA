@@ -332,6 +332,18 @@
                 </button>
               </div>
 
+              <fieldset class="theme-section">
+                <legend>歌单展示板文字</legend>
+                <label>
+                  字体大小
+                  <span class="range-row">
+                    <input id="songBoardFontSize" type="range" min="8" max="80" step="1" value="16">
+                    <input id="songBoardFontSizeNumber" type="number" min="8" max="80" step="1" value="16">
+                  </span>
+                  <span class="hint">控制 /songlist 中所有文字大小，当前字号为 16px</span>
+                </label>
+              </fieldset>
+
               <!-- ====== 点歌板风格 1 专属设置 ====== -->
               <div id="classicThemeArea" class="theme-area">
 
@@ -844,6 +856,15 @@
                 </div>
                 <code id="songsUrl"></code>
                 <button type="button" data-copy-url="songsUrl">复制</button>
+              </section>
+
+              <section class="overlay-address-item">
+                <div>
+                  <strong>桌面歌词</strong>
+                  <span>实时显示当前播放歌词</span>
+                </div>
+                <code id="lyricsUrl"></code>
+                <button type="button" data-copy-url="lyricsUrl">复制</button>
               </section>
             </div>
 
@@ -1574,24 +1595,6 @@
                 <button id="playbackQueueBtn" class="playback-icon-btn" type="button" title="播放队列">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                 </button>
-                <button id="playbackLyricBtn" class="playback-icon-btn" type="button" title="桌面歌词">
-                  <svg class="lyric-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="5" width="18" height="14" rx="2" ry="2"/>
-                    <line x1="7" y1="10" x2="17" y2="10"/>
-                    <line x1="7" y1="14" x2="14" y2="14"/>
-                    <line x1="19" y1="19" x2="5" y2="5"/>
-                  </svg>
-                  <svg class="lyric-on-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="5" width="18" height="14" rx="2" ry="2"/>
-                    <line x1="7" y1="10" x2="17" y2="10"/>
-                    <line x1="7" y1="14" x2="14" y2="14"/>
-                    <circle cx="19" cy="6" r="3" fill="currentColor" stroke="none"/>
-                  </svg>
-                </button>
-                <button id="playbackLyricLockBtn" class="playback-icon-btn" type="button" disabled title="锁定歌词窗口">
-                  <svg class="lock-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                  <svg class="lock-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 019.9-1"/></svg>
-                </button>
                 <div class="playback-volume-wrap">
                   <div id="playbackVolumePanel" class="playback-volume-panel" aria-hidden="true">
                     <input id="playbackVolume" class="playback-volume-slider" type="range" min="0" max="1" step="0.01" value="0.3" title="音量" aria-label="音量" aria-orientation="vertical">
@@ -1777,7 +1780,7 @@
     <script type="module" src="/js/admin/import.js?v=20260730-01"></script>
     <script type="module" src="/js/admin/queue.js?v=20260802-01"></script>
     <script type="module" src="/js/admin/songs.js?v=20260730-01"></script>
-    <script type="module" src="/js/admin/theme.js?v=20260730-01"></script>
+    <script type="module" src="/js/admin/theme.js?v=20260802-04"></script>
     <script type="module" src="/js/admin/display.js?v=20260730-01"></script>
     <script type="module" src="/js/admin/settings.js?v=20260730-01"></script>
     <!-- 礼物模块 - 拆分为多个子模块 -->
@@ -1791,7 +1794,7 @@
     <script type="module" src="/js/admin/metrics.js?v=20260730-01"></script>
     <script type="module" src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <!-- app.js 是 ES6 模块入口，自动导入 state.js 和 forms.js，替代旧的 main.js -->
-    <script type="module" src="/js/admin/app.js?v=20260802-01"></script>
+    <script type="module" src="/js/admin/app.js?v=20260802-04"></script>
     <!-- Playback 模块必须在 main.js 之后加载 -->
     <!-- 强制清除模块缓存 -->
     <script>

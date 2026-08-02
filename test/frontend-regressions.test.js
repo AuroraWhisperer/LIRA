@@ -27,6 +27,32 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.match(settingsSource, /location\.host/);
 });
 
+test('desktop lyric address is available from the live screen tab', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const displaySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
+    'utf8'
+  );
+
+  assert.match(html, /id="lyricsUrl"/);
+  assert.doesNotMatch(html, /playbackLyricBtn|playbackLyricLockBtn/);
+  assert.match(displaySource, /lyricsUrl.*`\$\{origin\}\/lyrics`/);
+});
+
+test('song board defaults to a clear frosted glass theme', () => {
+  const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+
+  assert.match(defaultsSource, /themeOpacity: '0\.48'/);
+  assert.match(defaultsSource, /backdropBlur: '14'/);
+  assert.match(defaultsSource, /glowIntensity: '2'/);
+  assert.match(themeSource, /themeOpacity: '0\.48'/);
+  assert.match(themeSource, /backdropBlur: '14'/);
+  assert.match(themeSource, /glowIntensity: '2'/);
+  assert.match(themeSource, /bindRangePair\('backdropBlur', 'backdropBlurNumber', 0, 30, 14\)/);
+  assert.match(themeSource, /bindRangePair\('glowIntensity', 'glowIntensityNumber', 0, 20, 2\)/);
+});
+
 test('gift workspace rows keep their content height inside the scroll container', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
@@ -357,6 +383,21 @@ test('identity queue has an independent scroll speed setting', () => {
   assert.match(html, /id="identityQueueScrollSpeed"/);
   assert.match(formSource, /identityQueueScrollSpeed:/);
   assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
+});
+
+test('song list exposes a current-size font control from half to double', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
+  const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+
+  assert.match(html, /id="songBoardFontSize"[^>]*min="8"[^>]*max="80"[^>]*value="16"/);
+  assert.match(themeSource, /songBoardFontSize: value\('songBoardFontSize'\)/);
+  assert.match(overlaySource, /Number\(settings\.songBoardFontSize\) \|\| 16/);
+  assert.match(overlayStyles, /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/);
+  assert.match(overlayStyles, /\.song-board \.overlay-title \{[\s\S]*var\(--overlay-title-font-size, 15px\) \* var\(--overlay-font-scale, 1\)/);
+  assert.match(defaultsSource, /songBoardFontSize: '16'/);
 });
 
 test('identity rule text scrolls independently only when it overflows', () => {

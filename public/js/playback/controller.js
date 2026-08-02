@@ -419,14 +419,6 @@ export function createPlaybackController(initialOptions = {}) {
     });
   }
 
-  function togglePlaybackLyricWindow() {
-    return lyricControls.togglePlaybackLyricWindow();
-  }
-
-  function togglePlaybackLyricLock() {
-    return lyricControls.togglePlaybackLyricLock();
-  }
-
   // ══════════════════════════════════════════════════════════════
   // SECTION 11 — 构建 sharedDeps
   // ══════════════════════════════════════════════════════════════
@@ -532,7 +524,6 @@ export function createPlaybackController(initialOptions = {}) {
     ...sharedDeps,
     playbackPrevious, playbackNext,
     togglePlayback, playPlaybackTrack,
-    togglePlaybackLyricWindow, togglePlaybackLyricLock,
     handlePlaybackPendingAction,
     renderPlaybackMatchResults: (d) => renderPlaybackMatchResults(d)
   });

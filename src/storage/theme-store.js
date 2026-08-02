@@ -24,6 +24,7 @@ const OVERLAY_THEME_KEYS = [
 // 歌单板外观键
 const SONG_BOARD_THEME_KEYS = [
   'songBoardSyncTheme',
+  'songBoardFontSize',
   'songBoardThemePrimary', 'songBoardThemeAccent', 'songBoardThemeText',
   'songBoardThemeBackground', 'songBoardThemeOpacity', 'songBoardThemeRadius',
   'songBoardThemeFontScale', 'songBoardBackdropBlur', 'songBoardGlowIntensity',

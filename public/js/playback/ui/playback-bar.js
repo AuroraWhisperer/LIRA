@@ -18,8 +18,6 @@ export class PlaybackBar {
     this.modeLabelEl = null;
     this.volumeSlider = null;
     this.volumeIcon = null;
-    this.lyricBtn = null;
-    this.lyricLockBtn = null;
   }
 
   /**
@@ -34,17 +32,14 @@ export class PlaybackBar {
     this.modeLabelEl = document.getElementById('playbackModeLabel');
     this.volumeSlider = document.getElementById('playbackVolume');
     this.volumeIcon = document.getElementById('playbackVolumeIcon');
-    this.lyricBtn = document.getElementById('playbackLyricBtn');
-    this.lyricLockBtn = document.getElementById('playbackLyricLockBtn');
   }
 
   /**
    * 渲染播放条
    * @param {Object} state - 播放状态
    * @param {HTMLAudioElement} audio - 音频元素
-   * @param {Object} lyricState - 歌词窗口状态
    */
-  render(state, audio, lyricState = {}) {
+  render(state, audio) {
     const track = state.current;
 
     // 渲染轨道信息
@@ -58,9 +53,6 @@ export class PlaybackBar {
 
     // 渲染音量
     this.renderVolume(state.volume);
-
-    // 渲染歌词按钮
-    this.renderLyricButtons(lyricState);
   }
 
   /**
@@ -133,26 +125,6 @@ export class PlaybackBar {
     }
 
     UIComponents.updateVolumeUI(volume);
-  }
-
-  /**
-   * 渲染歌词按钮
-   * @param {Object} lyricState - 歌词状态
-   * @param {boolean} lyricState.open - 歌词窗口是否打开
-   * @param {boolean} lyricState.locked - 歌词窗口是否锁定
-   */
-  renderLyricButtons(lyricState = {}) {
-    // 歌词按钮
-    if (this.lyricBtn) {
-      this.lyricBtn.classList.toggle('active', lyricState.open);
-      this.lyricBtn.disabled = !(window.musicAPI && typeof window.musicAPI.openLyricWindow === 'function');
-    }
-
-    // 歌词锁定按钮
-    if (this.lyricLockBtn) {
-      this.lyricLockBtn.classList.toggle('locked', lyricState.locked);
-      this.lyricLockBtn.disabled = !lyricState.open;
-    }
   }
 
   /**

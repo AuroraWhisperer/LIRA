@@ -124,6 +124,7 @@
       const text = [
         document.getElementById('queueUrl').textContent,
         document.getElementById('songsUrl').textContent,
+        document.getElementById('lyricsUrl').textContent,
         document.getElementById('blindboxOverlayUrl').textContent
       ].join('\n');
       await navigator.clipboard.writeText(text);
@@ -143,6 +144,7 @@
     const origin = location.origin.replace('127.0.0.1', 'localhost');
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
+    document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
     // 盲盒盈亏的 URL 由 settings.js 的 buildBlindboxOverlayUrl 生成
     if (window.AdminApp.settings && window.AdminApp.settings.updateBlindboxOverlayUrl) {
       window.AdminApp.settings.updateBlindboxOverlayUrl();

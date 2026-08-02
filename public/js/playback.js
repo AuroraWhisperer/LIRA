@@ -20,7 +20,6 @@ import './playback/index.js';
 //   ├── stream-handler.js     - 流媒体处理
 //   ├── playback-controls.js  - 播放控制
 //   └── queue-operations.js   - 队列操作
-// playback/integration/       - 集成模块
-//   └── admin-app-bridge.js   - AdminApp 集成
+// playback/integration/       - 集成模块（桥接逻辑已内联至 index.js）
 
 console.log('[Playback] 模块化重构版本已加载');

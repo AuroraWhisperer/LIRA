@@ -31,8 +31,6 @@ export function createEventHandlers(deps) {
     logoutSelectedMusicProvider,
     checkSelectedMusicProviderHealth,
     clearPlaybackMusicCache,
-    togglePlaybackLyricWindow,
-    togglePlaybackLyricLock,
     runPlaybackMatchTest,
     runPlaybackSearch,
     clearPlaybackSearch,
@@ -87,8 +85,6 @@ export function createEventHandlers(deps) {
     document.getElementById('playbackLogoutBtn')?.addEventListener('click', logoutSelectedMusicProvider);
     document.getElementById('playbackHealthBtn')?.addEventListener('click', checkSelectedMusicProviderHealth);
     document.getElementById('playbackClearCacheBtn')?.addEventListener('click', clearPlaybackMusicCache);
-    document.getElementById('playbackLyricBtn')?.addEventListener('click', togglePlaybackLyricWindow);
-    document.getElementById('playbackLyricLockBtn')?.addEventListener('click', togglePlaybackLyricLock);
     document.getElementById('playbackMatchBtn')?.addEventListener('click', runPlaybackMatchTest);
   }
 
