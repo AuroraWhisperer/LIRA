@@ -64,6 +64,17 @@ async function initApp() {
     window.AdminApp.gifts.initGiftHistoryDrawer();
   }
 
+  eventBus.on(Events.STATE_LOADED, ({ state, songs }) => {
+    if (window.AdminApp.queue && window.AdminApp.queue.renderState) {
+      window.AdminApp.queue.renderState(state, songs);
+    }
+  });
+  eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
+    if (window.AdminApp.songs && window.AdminApp.songs.renderSongs) {
+      window.AdminApp.songs.renderSongs(songs, languages, artists, tags);
+    }
+  });
+
   // 连接WebSocket和加载数据
   stateService.connectSocket();
   await stateService.reloadAll();
@@ -143,11 +154,12 @@ function setMainPage(pageId) {
   }
 }
 
-// DOM就绪后初始化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
+// 模块脚本执行时文档通常已是 interactive，但同级模块可能仍未执行完；
+// 等到 DOMContentLoaded 再启动，确保所有 window.AdminApp 模块均已注册。
+if (document.readyState === 'complete') {
   initApp();
+} else {
+  document.addEventListener('DOMContentLoaded', initApp, { once: true });
 }
 
 // 【过渡期】暴露到全局，方便调试和兼容

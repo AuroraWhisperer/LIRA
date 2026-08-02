@@ -1,6 +1,6 @@
 {
   "name": "bilibili-live-song-plugin",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "private": true,
   "license": "UNLICENSED",
   "description": "Local Bilibili live song request assistant MVP.",
@@ -13,7 +13,7 @@
     "test": "node --experimental-vm-modules --test --test-concurrency=1",
     "make:icon": "node scripts/create-icon.js",
     "dist:win": "npm run make:icon && electron-builder --win nsis --x64",
-    "dist:win:local": "npm run make:icon && cross-env ELECTRON_SKIP_BINARY_DOWNLOAD=1 electron-builder --win nsis --x64 --config.electronDist=node_modules/electron/dist",
+    "dist:win:local": "npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --config.electronDist=node_modules/electron/dist",
     "release:win": "node scripts/publish-release.js"
   },
   "engines": {

@@ -106,5 +106,7 @@ export const theme = {
 // 阶段5时删除
 if (typeof window !== 'undefined') {
   window.AdminApp = window.AdminApp || {};
-  window.AdminApp.theme = theme;
+  const existingTheme = window.AdminApp.theme || {};
+  Object.defineProperties(existingTheme, Object.getOwnPropertyDescriptors(theme));
+  window.AdminApp.theme = existingTheme;
 }

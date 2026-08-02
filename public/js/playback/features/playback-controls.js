@@ -62,7 +62,6 @@ export function createPlaybackControls(deps) {
 
   async function playPlaybackTrack(track, options = {}) {
     const audio = getPlaybackAudio();
-    console.log('[PlaybackControls] playPlaybackTrack called:', track?.id, options, 'audio:', !!audio);
     if (!audio || !track) return;
 
     // For local tracks, ensure the file is accessible before trying to play
@@ -73,26 +72,21 @@ export function createPlaybackControls(deps) {
 
     let streamUrl = '';
     try {
-      console.log('[PlaybackControls] Getting track URL...');
       streamUrl = await streamService.getTrackUrl(track, {
         forceRefresh: options.forceRefresh === true
       });
-      console.log('[PlaybackControls] Got streamUrl:', streamUrl);
     } catch (error) {
-      console.log('[PlaybackControls] Error getting stream URL:', error);
       showError(error);
       renderPlayback();
       return;
     }
     if (!streamUrl) {
-      console.log('[PlaybackControls] No streamUrl, setting current and returning');
       playbackState.current = track;
       playbackState.currentOrigin = options.origin || playbackState.currentOrigin || 'normal';
       renderPlayback();
       return;
     }
 
-    console.log('[PlaybackControls] About to update state and play...');
     if (!options.isRetry) streamService.resetRetryCount();
     if (playbackState.current && playbackState.current.id !== track.id && !options.fromHistory) {
       playbackState.history.push(playbackState.current);
@@ -108,7 +102,6 @@ export function createPlaybackControls(deps) {
 
     playbackState.current = track;
     playbackState.currentOrigin = options.origin || playbackState.currentOrigin || 'normal';
-    console.log('[PlaybackControls] State updated, current:', playbackState.current?.id);
     audio.dataset.trackId = track.id;
     audio.src = streamUrl;
     audio.load();

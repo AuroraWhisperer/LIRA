@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`2.0.4`
+当前版本：`2.0.5`
 
 ---
+
+## v2.0.5 变更
+
+- 🐛 **歌曲管理区滚动修复**：歌曲 workspace 从 `min-height` + 隐式滚动改为固定 `height` + `overflow-y: auto`，确保歌曲列表在视口内正确滚动，不再被播放器停靠栏遮挡。
+- 🔧 **管理后台初始化时序修正**：`app.js` 在 `document.readyState === 'interactive'` 时等待 `DOMContentLoaded` 再初始化，确保所有同级模块脚本均已注册后再启动，消除模块加载竞态。
+- 🔧 **管理后台事件渲染补全**：新增 `STATE_LOADED` 和 `SONG_UPDATED` 事件监听，确保队列空状态和歌曲数据变更时 UI 正确刷新。
+- 🐛 **主题对象合并保护**：`theme.js` 挂载到 `window.AdminApp` 时使用 `Object.defineProperties` 合并而非直接替换，保护已有属性（如 `initThemeForm`）不丢失。
+- 🧹 **调试日志清理**：移除 `controller.js`、`playback-controls.js`、`search-handler.js` 中的冗余 debug `console.log`，保持控制台输出干净。
+- 🔧 **Windows 构建脚本修复**：`dist:win:local` 移除 `cross-env` 依赖，改用 Windows 原生 `set` 设置环境变量。
+- 🧪 **测试覆盖增强**：新增歌曲 workspace 滚动、admin 状态事件渲染、初始化时序、主题兼容性等回归测试；`playback-queue.test.js` 存储键名同步迁移至 `playbackState:v2`。
 
 ## v2.0.4 变更
 

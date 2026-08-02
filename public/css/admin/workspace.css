@@ -145,13 +145,15 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: calc(100vh - 58px - 96px);
-  padding: 16px 16px calc(16px + 96px);
+  height: calc(100vh - 58px - 96px);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 16px;
 }
 
 body.player-dock-expanded .song-workspace {
-  min-height: calc(100vh - 58px - 218px);
-  padding-bottom: calc(16px + 218px);
+  height: calc(100vh - 58px - 218px);
 }
 
 /* ---- 并排双队列 ---- */
@@ -654,4 +656,4 @@ button.danger-filled:hover {
 
 @keyframes danger-popup-slide {
   from { opacity: 0; transform: translateX(40px) translateY(-12px) scale(0.92); }
-  to { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  to { opacity: 1; transform: translateX(0) translateY(0) scale(1); }

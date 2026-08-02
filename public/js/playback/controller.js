@@ -303,20 +303,15 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   async function insertAndPlayPlaybackTrack(track) {
-    console.log('[Controller] insertAndPlayPlaybackTrack called with:', track?.id);
     const result = queueOps.insertAndPlayPlaybackTrack(track, rebuildPlaybackShuffleOrder);
-    console.log('[Controller] queueOps.insertAndPlayPlaybackTrack returned:', result);
     if (!result) return;
     if (result.shouldStartCollection) {
       await startPlaybackCollection(result.tracks, 0, result.queueType, result.title);
       return;
     }
     savePlaybackState();
-    console.log('[Controller] About to call playPlaybackTrack:', typeof playPlaybackTrack, playPlaybackTrack);
     if (playPlaybackTrack) {
-      console.log('[Controller] Calling playPlaybackTrack with:', result.track?.id, result.origin);
       await playPlaybackTrack(result.track, { origin: result.origin });
-      console.log('[Controller] playPlaybackTrack completed');
     }
   }
 

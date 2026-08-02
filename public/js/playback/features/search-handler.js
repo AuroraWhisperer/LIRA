@@ -25,15 +25,12 @@ export function createSearchHandler(deps) {
     const keyword = value('playbackSearchKeyword');
     const resultNode = document.getElementById('playbackSearchResults');
 
-    console.log('[SearchHandler] runPlaybackSearch called with keyword:', keyword);
     if (resultNode) resultNode.textContent = '正在搜索...';
     try {
       const limit = Number(value('playbackSearchLimit') || 9);
       await searchService.search(keyword, limit);
-      console.log('[SearchHandler] search completed, results:', searchService.getResults());
       renderPlaybackSearchResults();
     } catch (error) {
-      console.log('[SearchHandler] search error:', error);
       if (resultNode) resultNode.textContent = error.message || String(error);
     }
   }
@@ -56,7 +53,6 @@ export function createSearchHandler(deps) {
    */
   async function handlePlaybackSearchAction(action, index, callbacks) {
     const track = searchService.getResultByIndex(index);
-    console.log('[SearchHandler] handlePlaybackSearchAction called:', { action, index, track: track?.id });
     if (!track) return;
 
     if (action === 'add-to-playlist') {
@@ -67,9 +63,7 @@ export function createSearchHandler(deps) {
     const queuedTrack = PlaybackUtils.normalizeOnlineTrack(track);
 
     if (action === 'play') {
-      console.log('[SearchHandler] Calling insertAndPlayPlaybackTrack with:', queuedTrack.id);
       await callbacks.insertAndPlayPlaybackTrack(queuedTrack);
-      console.log('[SearchHandler] insertAndPlayPlaybackTrack completed');
       callbacks.renderPlayback();
       return;
     }

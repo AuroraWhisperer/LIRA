@@ -30,6 +30,7 @@ test('playlist playback keeps one queue and loops with directly played search tr
     selectedSource: 'qq',
     queueType: 'playlist',
     queueTitle: '歌单队列',
+    playlistIndex: 0,
     volume: 0.75
   };
   const app = await createPlaybackApp(savedState);
@@ -276,11 +277,12 @@ async function createPlaybackApp(initialState, options = {}) {
           : options.body;
         const parsed = JSON.parse(body);
         if (parsed.payload) {
-          storage.set('songAssistantPlaybackState:v1', JSON.stringify(parsed.payload));
+          // Save to v2 key (storage manager uses v2 after migration)
+          storage.set('playbackState:v2', JSON.stringify(parsed.payload));
         }
         return response({ ok: true, data: {} });
       }
-      const saved = storage.get('songAssistantPlaybackState:v1');
+      const saved = storage.get('playbackState:v2') || storage.get('songAssistantPlaybackState:v1');
       return response({
         ok: true,
         data: { payload: saved ? JSON.parse(saved) : null, updatedAt: '' }

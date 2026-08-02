@@ -35,6 +35,52 @@ test('gift workspace rows keep their content height inside the scroll container'
   assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(5, max-content\)/);
 });
 
+test('song workspace scrolls within the viewport above the player dock', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const songWorkspaceRule = source.match(/\.song-workspace\s*\{[\s\S]*?\n\}/)?.[0];
+  const expandedRule = source.match(/body\.player-dock-expanded \.song-workspace\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(songWorkspaceRule, 'song workspace styles should remain defined');
+  assert.ok(expandedRule, 'expanded player sizing should remain defined');
+  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - 96px\)/);
+  assert.match(songWorkspaceRule, /overflow-y:\s*auto/);
+  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - 218px\)/);
+});
+
+test('admin state events render queue empty states and song data', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+
+  assert.match(source, /eventBus\.on\(Events\.STATE_LOADED/);
+  assert.match(source, /window\.AdminApp\.queue\.renderState\(state, songs\)/);
+  assert.match(source, /eventBus\.on\(Events\.SONG_UPDATED/);
+  assert.match(source, /window\.AdminApp\.songs\.renderSongs\(songs, languages, artists, tags\)/);
+});
+
+test('admin initialization waits for sibling module scripts at interactive ready state', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+
+  assert.match(source, /document\.readyState === 'complete'/);
+  assert.match(source, /document\.addEventListener\('DOMContentLoaded', initApp, \{ once: true \}\)/);
+});
+
+test('shared theme compatibility keeps admin theme form methods', async () => {
+  const initThemeForm = () => {};
+  const browserWindow = { AdminApp: { theme: { initThemeForm } } };
+
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'theme.js'),
+    { window: browserWindow }
+  );
+
+  assert.equal(browserWindow.AdminApp.theme.initThemeForm, initThemeForm);
+  assert.equal(typeof browserWindow.AdminApp.theme.loadThemeConfig, 'function');
+  const defaultThemeDescriptor = Object.getOwnPropertyDescriptor(
+    browserWindow.AdminApp.theme,
+    'defaultThemeLook'
+  );
+  assert.equal(typeof defaultThemeDescriptor.get, 'function');
+});
+
 test('debug gift data attributes escape quotes, apostrophes, and backticks', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html'), 'utf8');
   const escapeHtmlSource = source.match(/function escHtml\(s\) \{[\s\S]*?\n\}/)?.[0];
