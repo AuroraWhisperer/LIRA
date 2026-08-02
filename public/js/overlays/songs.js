@@ -114,12 +114,20 @@ function scheduleSongScroll(list, settings, html) {
 }
 
 function configureSongScroll(viewport, list, settings, html, rowGap = 8) {
-  const overflowDistance = Math.max(0, Math.ceil(list.scrollHeight - viewport.clientHeight));
-  if (overflowDistance <= 1) return false;
+  // 确保 DOM 已经渲染完成，获取准确的高度
+  const listHeight = list.scrollHeight;
+  const viewportHeight = viewport.clientHeight;
+  const overflowDistance = Math.max(0, Math.ceil(listHeight - viewportHeight));
 
-  const loopDistance = Math.ceil(list.scrollHeight + rowGap);
+  // 如果内容不够多，不需要滚动
+  if (overflowDistance <= 1) {
+    list.classList.remove('paused');
+    return false;
+  }
+
+  const loopDistance = Math.ceil(listHeight + rowGap);
   const secondsPerViewport = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
-  const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewport.clientHeight);
+  const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewportHeight);
   document.documentElement.style.setProperty('--song-loop-distance', `${loopDistance}px`);
   document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
   list.insertAdjacentHTML('beforeend', html);

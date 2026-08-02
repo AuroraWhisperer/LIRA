@@ -79,14 +79,14 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
   }
 
   const pageMap = new Map([
-    ['/', 'admin.html'],
-    ['/admin', 'admin.html'],
-    ['/settings', 'admin.html'],
-    ['/songs', 'admin.html'],
-    ['/queue', 'overlay-queue.html'],
-    ['/songlist', 'overlay-songs.html'],
-    ['/blindbox', 'overlay-blindbox.html'],
-    ['/lyrics', 'lyric-window.html']
+    ['/', 'pages/admin.html'],
+    ['/admin', 'pages/admin.html'],
+    ['/settings', 'pages/admin.html'],
+    ['/songs', 'pages/admin.html'],
+    ['/queue', 'pages/overlays/queue.html'],
+    ['/songlist', 'pages/overlays/songs.html'],
+    ['/blindbox', 'pages/overlays/blindbox.html'],
+    ['/lyrics', 'pages/overlays/lyric-window.html']
   ]);
   const assetPath = pageMap.get(requestUrl.pathname)
     || requestUrl.pathname.replace(/^\/+/, '');

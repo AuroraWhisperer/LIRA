@@ -259,7 +259,7 @@ function configureLocalMediaProtocol() {
 function createMainWindow(baseUrl) {
   desktopBaseUrl = baseUrl;
   var opts = {
-    width: 1100, height: 720, minWidth: 1024, minHeight: 680,
+    width: 1280, height: 720, minWidth: 1024, minHeight: 680,
     show: false, title: '点歌助手', backgroundColor: '#f7f3ef',
     frame: false,
     webPreferences: {

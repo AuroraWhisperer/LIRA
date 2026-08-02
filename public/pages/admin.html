@@ -12,10 +12,10 @@
         document.documentElement.classList.add('desktop-shell');
       }
     </script>
-    <link rel="stylesheet" href="/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/styles-admin.css?v=20260802-01">
-    <link rel="stylesheet" href="/styles-playback.css?v=20260731-01">
-    <link rel="stylesheet" href="/styles-desktop.css?v=20260802-01">
+    <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260802-01">
+    <link rel="stylesheet" href="/css/styles-playback.css?v=20260731-01">
+    <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
   <body>
     <main class="app-shell">
@@ -1772,8 +1772,8 @@
       </div>
     </div>
     <div id="toast" class="toast-stack"></div>
-    <script src="/js/utils.js?v=20260726-01"></script>
-    <script src="/js/theme.js?v=20260726-01"></script>
+    <script src="/js/shared/utils.js?v=20260726-01"></script>
+    <script src="/js/shared/theme.js?v=20260726-01"></script>
     <script src="/js/desktop.js?v=20260726-01"></script>
     <!-- Admin 模块 - 拆分后的文件 -->
     <script src="/js/admin/forms.js?v=20260730-01"></script>
@@ -1784,7 +1784,14 @@
     <script src="/js/admin/theme.js?v=20260730-01"></script>
     <script src="/js/admin/display.js?v=20260730-01"></script>
     <script src="/js/admin/settings.js?v=20260730-01"></script>
-    <script src="/js/admin/gifts.js?v=20260801-01"></script>
+    <!-- 礼物模块 - 拆分为多个子模块 -->
+    <script src="/js/admin/gifts/notification.js?v=20260802-01"></script>
+    <script src="/js/admin/gifts/detection.js?v=20260802-01"></script>
+    <script src="/js/admin/gifts/sprint.js?v=20260802-01"></script>
+    <script src="/js/admin/gifts/recent.js?v=20260802-01"></script>
+    <script src="/js/admin/gifts/blindbox.js?v=20260802-01"></script>
+    <script src="/js/admin/gifts/history.js?v=20260802-01"></script>
+    <script src="/js/admin/gifts/index.js?v=20260802-01"></script>
     <script src="/js/admin/metrics.js?v=20260730-01"></script>
     <script src="/js/admin/desktop-lyric.js?v=20260731-01"></script>
     <script src="/js/admin/main.js?v=20260731-03"></script>

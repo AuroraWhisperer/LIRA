@@ -140,7 +140,7 @@ body.desktop-shell #shutdownBtn {
 }
 
 .desktop-update-hero p[data-status="not-available"] {
-  color: #08766c;
+  color: var(--color-success-dark);
 }
 
 .desktop-update-hero p[data-status="error"] {
@@ -153,7 +153,7 @@ body.desktop-shell #shutdownBtn {
   color: var(--text);
   font-size: 15px;
   font-weight: 800;
-  background: #ffffff;
+  background: var(--color-bg-primary);
 }
 
 .desktop-update-grid {
@@ -268,7 +268,7 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
   height: 22px;
   border-radius: 50%;
   background: rgba(33, 182, 168, 0.15);
-  color: #08766c;
+  color: var(--color-success-dark);
   font-size: 12px;
   font-weight: 900;
 }

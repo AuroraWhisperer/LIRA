@@ -2,7 +2,7 @@
   min-height: 100vh;
   overflow: hidden;
   background: transparent;
-  color: var(--overlay-text, #fff7fb);
+  color: var(--overlay-text, var(--color-text-light));
   font-family: var(--overlay-font-family, var(--font));
   font-weight: var(--overlay-font-weight, 800);
 }
@@ -13,7 +13,7 @@
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--overlay-radius, 8px);
   background: rgba(24, 24, 35, var(--overlay-opacity, 0.76));
-  color: var(--overlay-text, #fff7fb);
+  color: var(--overlay-text, var(--color-text-light));
   box-shadow:
     0 16px 36px rgba(9, 12, 24, 0.22),
     0 0 var(--overlay-glow-size, 0px) var(--overlay-glow-color, transparent);
@@ -58,7 +58,7 @@
   gap: 10px;
   padding: calc(10px * var(--overlay-font-scale, 1)) calc(14px * var(--overlay-font-scale, 1));
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), white 18%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), white 18%);
 }
 
 .overlay-title {
@@ -114,13 +114,13 @@
 }
 
 .overlay-song-name {
-  color: var(--overlay-song-color, var(--overlay-text, #fff7fb));
+  color: var(--overlay-song-color, var(--overlay-text, var(--color-text-light)));
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .overlay-requester {
-  color: var(--overlay-requester-color, color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 25%));
+  color: var(--overlay-requester-color, color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 25%));
   font-size: inherit;
   font-weight: inherit;
   min-width: 0;
@@ -225,7 +225,7 @@
   min-height: 96px;
   display: grid;
   place-items: center;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 22%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 22%);
   text-align: center;
 }
 
@@ -292,7 +292,7 @@
   align-items: center;
   border-radius: 3px;
   background: #4f8df7;
-  color: #ffffff;
+  color: var(--color-bg-primary);
   padding: 0 4px;
   font-size: calc(10px * var(--overlay-font-scale, 1));
   font-weight: 900;
@@ -347,7 +347,7 @@
   height: 16px;
   border-radius: 3px;
   background: #dc143c;
-  color: #ffffff;
+  color: var(--color-bg-primary);
   padding: 0 4px;
   font-size: calc(10px * var(--overlay-font-scale, 1));
   font-weight: 900;
@@ -379,9 +379,9 @@
 .identity-row {
   --identity-color: #aab5d8;
   --identity-bg: #7780bd;
-  --identity-text: #ffffff;
+  --identity-text: var(--color-bg-primary);
   --medal-bg: #7780bd;
-  --medal-text: #ffffff;
+  --medal-text: var(--color-bg-primary);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -413,7 +413,7 @@
   align-items: center;
   border-radius: 6px;
   background: #4f8df7;
-  color: #ffffff;
+  color: var(--color-bg-primary);
   padding: 0 8px;
   font-size: calc(20px * var(--overlay-font-scale, 1));
   font-weight: 900;
@@ -437,44 +437,44 @@
 .identity-row.guard-1 {
   --identity-color: #ff6b7d;
   --identity-bg: #f25f72;
-  --identity-text: #ffffff;
+  --identity-text: var(--color-bg-primary);
 }
 
 .identity-row.guard-2 {
   --identity-color: #b58aff;
   --identity-bg: #8d67e8;
-  --identity-text: #ffffff;
+  --identity-text: var(--color-bg-primary);
 }
 
 .identity-row.guard-3 {
   --identity-color: #5eb8ff;
   --identity-bg: #4b91e8;
-  --identity-text: #ffffff;
+  --identity-text: var(--color-bg-primary);
 }
 
 .identity-row.medal-blue-purple {
   --medal-bg: #7d83c5;
-  --medal-text: #ffffff;
+  --medal-text: var(--color-bg-primary);
 }
 
 .identity-row.medal-light-blue {
   --medal-bg: #65c3f7;
-  --medal-text: #ffffff;
+  --medal-text: var(--color-bg-primary);
 }
 
 .identity-row.medal-deep-blue {
   --medal-bg: #5e91f2;
-  --medal-text: #ffffff;
+  --medal-text: var(--color-bg-primary);
 }
 
 .identity-row.medal-purple {
   --medal-bg: #9d68df;
-  --medal-text: #ffffff;
+  --medal-text: var(--color-bg-primary);
 }
 
 .identity-row.medal-red {
   --medal-bg: #ef6f85;
-  --medal-text: #ffffff;
+  --medal-text: var(--color-bg-primary);
 }
 
 .identity-rank {
@@ -497,7 +497,7 @@
 
 .identity-song {
   display: inline-block;
-  color: #ffffff;
+  color: var(--color-bg-primary);
   font-size: inherit;
   font-weight: 900;
   white-space: nowrap;
@@ -548,7 +548,7 @@
 
 .identity-badge.identity-fan {
   background: #7f88c8;
-  color: #ffffff;
+  color: var(--color-bg-primary);
 }
 
 .identity-medal {
@@ -677,7 +677,7 @@
 }
 
 .song-card strong {
-  color: var(--overlay-song-color, var(--overlay-text, #fff7fb));
+  color: var(--overlay-song-color, var(--overlay-text, var(--color-text-light)));
   overflow-wrap: anywhere;
   font-size: calc(16px * var(--overlay-font-scale, 1));
   word-break: break-word;
@@ -685,7 +685,7 @@
 }
 
 .song-card span {
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 26%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 26%);
   font-size: calc(12px * var(--overlay-font-scale, 1));
 }
 

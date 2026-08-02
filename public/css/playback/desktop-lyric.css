@@ -2,7 +2,7 @@
   min-height: 100vh;
   overflow: hidden;
   background: transparent;
-  color: #ffffff;
+  color: var(--color-bg-primary);
   -webkit-app-region: drag;
 }
 
@@ -33,7 +33,7 @@
 }
 
 .lyric-window-line span.is-active {
-  color: #ffffff;
+  color: var(--color-bg-primary);
   text-shadow:
     0 0 16px rgba(251, 191, 36, 0.75),
     0 0 32px rgba(251, 191, 36, 0.45);

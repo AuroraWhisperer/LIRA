@@ -28,7 +28,7 @@
 .main-page-tab.active {
   border-color: transparent;
   background: var(--primary);
-  color: #ffffff;
+  color: var(--color-bg-primary);
   box-shadow:
     0 3px 10px rgba(217, 75, 112, 0.22);
   transform: none;
@@ -322,7 +322,7 @@ body.player-dock-expanded .gift-workspace {
   min-height: 112px;
   border-color: #d7e9e6;
   border-radius: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #f5fbfa 100%);
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, #f5fbfa 100%);
   box-shadow: 0 8px 24px rgba(27, 72, 67, 0.07);
 }
 

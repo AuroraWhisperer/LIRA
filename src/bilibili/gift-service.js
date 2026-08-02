@@ -695,7 +695,9 @@ function findRecentGiftCommandDuplicate(context, gift) {
   const createdAtMs = Date.parse(gift.createdAt) || Date.now();
   const startIso = new Date(createdAtMs - 5000).toISOString();
   const endIso = new Date(createdAtMs + 5000).toISOString();
-  const row = context.db.giftDb.prepare(`
+
+  // 先检查是否存在不同CMD的重复（SEND_GIFT vs COMBO_SEND 的去重）
+  const crossCmdRow = context.db.giftDb.prepare(`
     SELECT * FROM gift_events
     WHERE status = 'active'
       AND created_at BETWEEN ? AND ?
@@ -704,7 +706,19 @@ function findRecentGiftCommandDuplicate(context, gift) {
       AND ABS(total_price - ?) < 0.0001
     ORDER BY datetime(created_at) DESC, id DESC LIMIT 1
   `).get(startIso, endIso, cmd, cmd, gift.uid, gift.giftId, gift.giftName, gift.num, gift.totalPrice);
-  return row ? normalizeGiftRow(row) : null;
+  if (crossCmdRow) return normalizeGiftRow(crossCmdRow);
+
+  // 再检查是否存在相同CMD的重复（协议重传导致的完全重复）
+  const sameCmdRow = context.db.giftDb.prepare(`
+    SELECT * FROM gift_events
+    WHERE status = 'active'
+      AND created_at BETWEEN ? AND ?
+      AND cmd = ?
+      AND uid = ? AND gift_id = ? AND gift_name = ? AND num = ?
+      AND ABS(total_price - ?) < 0.0001
+    ORDER BY datetime(created_at) DESC, id DESC LIMIT 1
+  `).get(startIso, endIso, cmd, gift.uid, gift.giftId, gift.giftName, gift.num, gift.totalPrice);
+  return sameCmdRow ? normalizeGiftRow(sameCmdRow) : null;
 }
 
 function parseGiftBotDanmakuMessage(text, pending) {

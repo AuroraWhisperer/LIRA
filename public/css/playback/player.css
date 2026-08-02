@@ -173,7 +173,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--color-bg-primary);
   border: none;
   box-shadow:
     0 0 0 3px var(--primary),
@@ -193,7 +193,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--color-bg-primary);
   border: 3px solid var(--primary);
   box-shadow: 0 3px 10px rgba(217, 75, 112, 0.45);
   cursor: pointer;
@@ -227,7 +227,7 @@
 
 .playback-add-playlist-btn:not(:disabled):hover {
   border-color: var(--primary);
-  background: linear-gradient(135deg, #fff6fa 0%, #fff 100%);
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, #fff 100%);
   color: var(--primary);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(217, 75, 112, 0.15);
@@ -375,7 +375,7 @@
   border: none;
   border-radius: 50%;
   background: linear-gradient(145deg, var(--primary) 0%, #e8406e 100%);
-  color: #ffffff;
+  color: var(--color-bg-primary);
   cursor: pointer;
   transition: transform 200ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 200ms ease;
   padding: 0;

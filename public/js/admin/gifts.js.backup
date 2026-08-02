@@ -617,12 +617,13 @@
 
   // ── 最近礼物折叠切换 ──
   function initGiftRecentToggle() {
+    const section = document.querySelector('.gift-recent-panel');
     const toggle = document.getElementById('giftRecentToggle');
-    const section = toggle?.closest('.gift-recent-panel');
-    const heading = document.getElementById('giftRecentHeading');
+    const panelHeader = section?.querySelector('.panel-header');
 
-    heading?.addEventListener('click', (e) => {
-      if (e.target.closest('button:not(#giftRecentToggle)')) return;
+    panelHeader?.addEventListener('click', (e) => {
+      // 排除点击"查看全部"按钮的情况
+      if (e.target.closest('#giftHistoryOpenBtn')) return;
 
       const collapsed = section?.classList.toggle('is-collapsed') || false;
       if (toggle) {
@@ -634,13 +635,11 @@
 
   // ── 盲盒盈亏折叠切换 ──
   function initBlindBoxStatsToggle() {
+    const section = document.querySelector('.gift-blindbox-panel');
     const toggle = document.getElementById('blindBoxStatsToggle');
-    const section = toggle?.closest('.gift-blindbox-panel');
-    const heading = document.getElementById('blindBoxStatsHeading');
+    const panelHeader = section?.querySelector('.panel-header');
 
-    heading?.addEventListener('click', (e) => {
-      if (e.target.closest('button:not(#blindBoxStatsToggle)')) return;
-
+    panelHeader?.addEventListener('click', (e) => {
       const collapsed = section?.classList.toggle('is-collapsed') || false;
       if (toggle) {
         toggle.setAttribute('aria-expanded', String(!collapsed));

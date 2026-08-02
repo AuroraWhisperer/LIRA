@@ -48,12 +48,12 @@
   font-size: 18px;
   font-weight: 900;
   line-height: 1.15;
-  color: var(--overlay-text, #fff7fb);
+  color: var(--overlay-text, var(--color-text-light));
 }
 
 .blindbox-stat-card .stat-label {
   font-size: 11px;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 35%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 35%);
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -73,7 +73,7 @@
 }
 
 .blindbox-stat-card.profit-down .stat-value {
-  color: #e74c3c;
+  color: var(--color-danger-medium);
 }
 
 /* ── 空态 ── */
@@ -84,7 +84,7 @@
   gap: 8px;
   padding: 24px 16px;
   text-align: center;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 40%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 40%);
 }
 
 .blindbox-empty .empty-icon {
@@ -110,7 +110,7 @@
   padding: 0 4px 4px;
   font-size: 11px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 45%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 45%);
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
@@ -162,7 +162,7 @@
   border-radius: 50%;
   font-size: 13px;
   font-weight: 900;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 30%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 30%);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -199,7 +199,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--overlay-text, #fff7fb);
+  color: var(--overlay-text, var(--color-text-light));
 }
 
 .rank-1 .user-name {
@@ -230,7 +230,7 @@
 .box-count {
   font-size: 13px;
   font-weight: 700;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 15%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 15%);
   text-align: center;
   min-width: 28px;
 }
@@ -248,7 +248,7 @@
 }
 
 .profit-value.is-down {
-  color: #e74c3c;
+  color: var(--color-danger-medium);
 }
 
 /* ── 只显示欧皇模式（仅盈利者） ── */
@@ -310,7 +310,7 @@
 .blindbox-footer {
   text-align: center;
   font-size: 10px;
-  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 55%);
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 55%);
   padding-top: 2px;
 }
 

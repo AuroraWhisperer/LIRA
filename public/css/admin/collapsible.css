@@ -1,3 +1,41 @@
+/* 可折叠面板 */
+.section-toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.section-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 180ms ease;
+}
+
+.panel.is-collapsed .section-toggle svg {
+  transform: rotate(180deg);
+}
+
+.panel:has(.section-toggle) .panel-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 150ms ease;
+}
+
+.panel:has(.section-toggle) .panel-header:hover {
+  background-color: var(--hover-bg, rgba(255, 255, 255, 0.03));
+}
+
+.panel:has(.section-toggle) .panel-header:active {
+  background-color: var(--active-bg, rgba(255, 255, 255, 0.05));
+}
+
+.collapsible-panel-body {
   max-height: 230px;
   overflow: hidden;
   /* 只对 opacity 和 transform 做过渡，max-height/padding 瞬间切换，
@@ -36,7 +74,7 @@
   display: grid;
   gap: 8px;
   border-left: 4px solid var(--primary);
-  background: #fff8fb;
+  background: var(--color-primary-light);
   padding: 14px;
 }
 
@@ -67,7 +105,7 @@
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 8px 12px;
-  background: #ffffff;
+  background: var(--color-bg-primary);
   min-height: 62px;
 }
 
@@ -170,7 +208,7 @@
   align-items: center;
   border-radius: 5px;
   background: #4f8df7;
-  color: #ffffff;
+  color: var(--color-bg-primary);
   padding: 2px 6px;
   margin-right: 6px;
   font-size: 12px;

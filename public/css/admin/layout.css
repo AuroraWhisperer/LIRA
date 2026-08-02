@@ -73,7 +73,7 @@
 .status-strip button.secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: #f0faf8;
+  background: var(--color-accent-light);
 }
 
 .status-strip button.danger {
@@ -142,13 +142,13 @@
 
 .pill.good {
   border-color: rgba(33, 182, 168, 0.35);
-  background: #effbf9;
-  color: #08766c;
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
 }
 
 .pill.warn {
   border-color: rgba(165, 103, 22, 0.30);
-  background: #fef9f0;
+  background: var(--color-warning-light);
   color: var(--warning);
 }
 

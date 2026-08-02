@@ -1,3 +1,6 @@
+/* ===== 标签页 ===== */
+.tabs {
+  display: flex;
   position: relative;
   align-items: center;
   gap: 2px;
@@ -137,7 +140,7 @@
   border: 1px solid rgba(71, 221, 181, 0.35);
   border-radius: 12px;
   background: linear-gradient(135deg, #1a2f36 0%, #15242a 100%);
-  color: #ffffff;
+  color: var(--color-bg-primary);
   padding: 12px 16px;
   font-family: 'Microsoft YaHei', 'PingFang SC', -apple-system, sans-serif;
   font-size: 14px;
