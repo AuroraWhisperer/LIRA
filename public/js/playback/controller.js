@@ -30,9 +30,12 @@ import { createStreamHandler } from './features/stream-handler.js';
 import { createPlaybackControls } from './features/playback-controls.js';
 import { createQueueOperations } from './features/queue-operations.js';
 
+// 导入共享工具（移除全局依赖）
+import * as Utils from '../shared/utils.js';
+
 export function createPlaybackController(initialOptions = {}) {
-  // 在函数内部访问 AdminApp.utils，确保它已经加载
-  const U = window.AdminApp.utils;
+  // ✅ 使用导入的 Utils 而非 window.AdminApp.utils
+  const U = Utils;
   const escapeHtml = U.escapeHtml;
   const escapeAttr = U.escapeAttr;
   const value = U.value;

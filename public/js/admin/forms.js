@@ -2,13 +2,17 @@
 // 表单工具和通用组件
 'use strict';
 
-(function () {
-  const { value, setValue, normalizeRangeValue } = window.AdminApp.utils;
+import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
 
+/**
+ * 表单服务
+ * 负责表单相关的工具函数和UI控制
+ */
+export class FormsService {
   /**
-   * Bind a range input and its paired number input for two-way sync.
+   * 绑定range输入和number输入的双向同步
    */
-  function bindRangePair(rangeId, numberId, min, max, fallback) {
+  bindRangePair(rangeId, numberId, min, max, fallback) {
     document.getElementById(rangeId).addEventListener('input', () =>
       setValue(numberId, value(rangeId))
     );
@@ -17,7 +21,10 @@
     );
   }
 
-  function initTabs() {
+  /**
+   * 初始化选项卡
+   */
+  initTabs() {
     document.querySelectorAll('.tab').forEach((button) => {
       button.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
@@ -33,7 +40,10 @@
     });
   }
 
-  function initWorkspaceControls() {
+  /**
+   * 初始化工作区控制
+   */
+  initWorkspaceControls() {
     // 全屏播放器
     const playerPanel = document.querySelector('.playback-player-panel');
     const fsEl = document.getElementById('playerFullscreen');
@@ -42,24 +52,23 @@
     // 点击播放器面板（排除按钮和输入框）切换全屏
     playerPanel?.addEventListener('click', (e) => {
       if (e.target.closest('button, input, a, .playback-seek-wrap')) return;
-      // 如果全屏播放器已经打开，则关闭；否则打开
       if (fsEl?.classList.contains('open')) {
-        closeFullscreenPlayer();
+        this.closeFullscreenPlayer();
       } else {
-        openFullscreenPlayer();
+        this.openFullscreenPlayer();
       }
     });
 
     // 收起按钮 - 关闭全屏播放器
     fsCloseBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
-      closeFullscreenPlayer();
+      this.closeFullscreenPlayer();
     });
 
     // ESC键关闭全屏播放器，空格键播放/暂停
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && fsEl?.classList.contains('open')) {
-        closeFullscreenPlayer();
+        this.closeFullscreenPlayer();
       }
       // 空格键控制播放/暂停（在全屏播放器打开时）
       if (e.key === ' ' && fsEl?.classList.contains('open')) {
@@ -77,30 +86,12 @@
       }
     });
 
-    function openFullscreenPlayer() {
-      if (!fsEl) return;
-      fsEl.classList.add('open');
-      fsEl.removeAttribute('aria-hidden');
-      document.body.classList.add('player-fs-open');
-    }
-
-    function closeFullscreenPlayer() {
-      if (!fsEl) return;
-      fsEl.classList.remove('open');
-      fsEl.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('player-fs-open');
-    }
-
-    window.openFullscreenPlayer = openFullscreenPlayer;
-    window.closeFullscreenPlayer = closeFullscreenPlayer;
-
     const superChatToggle = document.getElementById('superChatToggle');
     const superChatPanel = superChatToggle?.closest('.panel');
     const superChatHeader = superChatPanel?.querySelector('.panel-header');
 
     // 点击整个 header 区域都可以展开/收起
     superChatHeader?.addEventListener('click', (e) => {
-      // 排除点击其他按钮（如 SC 队列可能有其他操作按钮）
       if (e.target.closest('button:not(#superChatToggle)')) return;
 
       const collapsed = superChatPanel?.classList.toggle('is-collapsed') || false;
@@ -116,7 +107,6 @@
 
     // 点击整个 header 区域都可以展开/收起
     quickAddHeader?.addEventListener('click', (e) => {
-      // 排除点击其他按钮
       if (e.target.closest('button:not(#quickAddToggle)')) return;
 
       const collapsed = quickAddPanel?.classList.toggle('is-collapsed') || false;
@@ -133,7 +123,32 @@
     });
   }
 
-  function fillForm(values) {
+  /**
+   * 打开全屏播放器
+   */
+  openFullscreenPlayer() {
+    const fsEl = document.getElementById('playerFullscreen');
+    if (!fsEl) return;
+    fsEl.classList.add('open');
+    fsEl.removeAttribute('aria-hidden');
+    document.body.classList.add('player-fs-open');
+  }
+
+  /**
+   * 关闭全屏播放器
+   */
+  closeFullscreenPlayer() {
+    const fsEl = document.getElementById('playerFullscreen');
+    if (!fsEl) return;
+    fsEl.classList.remove('open');
+    fsEl.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('player-fs-open');
+  }
+
+  /**
+   * 填充表单
+   */
+  fillForm(values) {
     for (const [key, inputValue] of Object.entries(values || {})) {
       const element = document.getElementById(key);
       if (element) element.value = inputValue;
@@ -152,7 +167,7 @@
         syncCheckbox.checked = synced;
         syncArea.hidden = synced;
         if (synced) {
-          // Copy main theme values into song board fields for seamless toggle-off
+          // Copy main theme values into song board fields
           setValue('songBoardThemePrimary', (values && values.themePrimary) || '#ff6f91');
           setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
           setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
@@ -171,15 +186,15 @@
       }
     }
 
-    const songFontSize = normalizeFontSize(
+    const songFontSize = this.normalizeFontSize(
       values && values.queueSongFontSize,
-      scaleToFontSize(values && values.themeFontScale, 40),
+      this.scaleToFontSize(values && values.themeFontScale, 40),
       70,
       10
     );
-    const titleFontSize = normalizeFontSize(
+    const titleFontSize = this.normalizeFontSize(
       values && values.queueTitleFontSize,
-      scaleToFontSize(values && values.themeFontScale, 30),
+      this.scaleToFontSize(values && values.themeFontScale, 30),
       40,
       10
     );
@@ -192,7 +207,7 @@
     if (document.getElementById('queueTitleFontSizeNumber')) {
       setValue('queueTitleFontSizeNumber', titleFontSize);
     }
-    const ruleFontSize = normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
+    const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
     if (document.getElementById('overlayRuleFontSize')) {
       setValue('overlayRuleFontSize', ruleFontSize);
     }
@@ -212,18 +227,21 @@
       setValue('scrollSecondsRange', value('scrollSeconds'));
     }
     if (document.getElementById('queueScrollSpeedRange')) {
-      const queueScrollSpeed = normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
+      const queueScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
       setValue('queueScrollSpeed', queueScrollSpeed);
       setValue('queueScrollSpeedRange', queueScrollSpeed);
     }
     if (document.getElementById('identityQueueScrollSpeedRange')) {
-      const identityScrollSpeed = normalizeQueueScrollSpeedForDisplay(values && values.identityQueueScrollSpeed);
+      const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.identityQueueScrollSpeed);
       setValue('identityQueueScrollSpeed', identityScrollSpeed);
       setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
   }
 
-  function normalizeQueueScrollSpeedForDisplay(input) {
+  /**
+   * 规范化队列滚动速度用于显示
+   */
+  normalizeQueueScrollSpeedForDisplay(input) {
     const valueNumber = Number(input);
     if (!Number.isFinite(valueNumber)) return '80';
     if (valueNumber > 100) {
@@ -233,16 +251,25 @@
     return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
   }
 
-  function normalizeFontSize(input, fallback, max = 20, min = 5) {
+  /**
+   * 规范化字体大小
+   */
+  normalizeFontSize(input, fallback, max = 20, min = 5) {
     return normalizeRangeValue(input, min, max, fallback);
   }
 
-  function scaleToFontSize(scale, baseSize) {
+  /**
+   * 缩放到字体大小
+   */
+  scaleToFontSize(scale, baseSize) {
     const normalizedScale = Number(normalizeRangeValue(scale, 0.25, 2, 1));
     return Math.round(normalizedScale * baseSize);
   }
 
-  function reconnectErrorMessage(error) {
+  /**
+   * 重连错误消息
+   */
+  reconnectErrorMessage(error) {
     const text = String((error && error.message) || error || '');
     if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
       return '刷新直播失败：本地服务未响应，请重启点歌助手后再试。';
@@ -252,16 +279,27 @@
     }
     return text || '刷新直播失败，请稍后重试。';
   }
+}
 
+// 创建单例实例
+export const formsService = new FormsService();
+
+// 【过渡期兼容层】- 保持window.AdminApp.forms可用
+// 阶段5时删除
+if (typeof window !== 'undefined') {
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.forms = {
-    bindRangePair,
-    initTabs,
-    initWorkspaceControls,
-    fillForm,
-    normalizeQueueScrollSpeedForDisplay,
-    normalizeFontSize,
-    scaleToFontSize,
-    reconnectErrorMessage
+    bindRangePair: (...args) => formsService.bindRangePair(...args),
+    initTabs: () => formsService.initTabs(),
+    initWorkspaceControls: () => formsService.initWorkspaceControls(),
+    fillForm: (values) => formsService.fillForm(values),
+    normalizeQueueScrollSpeedForDisplay: (input) => formsService.normalizeQueueScrollSpeedForDisplay(input),
+    normalizeFontSize: (...args) => formsService.normalizeFontSize(...args),
+    scaleToFontSize: (...args) => formsService.scaleToFontSize(...args),
+    reconnectErrorMessage: (error) => formsService.reconnectErrorMessage(error)
   };
-})();
+
+  // 全局函数（为了兼容现有代码）
+  window.openFullscreenPlayer = () => formsService.openFullscreenPlayer();
+  window.closeFullscreenPlayer = () => formsService.closeFullscreenPlayer();
+}
