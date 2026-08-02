@@ -47,6 +47,121 @@ test('song workspace scrolls within the viewport above the player dock', () => {
   assert.match(expandedRule, /height:\s*calc\(100vh - 58px - 218px\)/);
 });
 
+test('queue panels keep their full height without breaking the narrow layout', () => {
+  const workspaceSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
+  const queueRowRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
+  const responsiveQueueRule = responsiveSource.match(/\.queues-row\s*\{[\s\S]*?\n\s*\}/)?.[0];
+
+  assert.ok(queueRowRule, 'desktop queue row styles should remain defined');
+  assert.ok(responsiveQueueRule, 'responsive queue row styles should remain defined');
+  assert.match(queueRowRule, /flex:\s*0 0 450px/);
+  assert.match(queueRowRule, /height:\s*450px/);
+  assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
+  assert.match(responsiveQueueRule, /height:\s*auto/);
+});
+
+test('admin queue wheel scrolls overflowing lists and releases the page at their edges', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), 'utf8');
+  const makeTarget = () => ({
+    listeners: new Map(),
+    addEventListener(type, listener) {
+      this.listeners.set(type, listener);
+    }
+  });
+  const superChatPanel = makeTarget();
+  const queuePanel = makeTarget();
+  const superChatList = {
+    clientHeight: 100,
+    scrollHeight: 100,
+    scrollTop: 0,
+    closest: () => superChatPanel
+  };
+  const queueList = {
+    clientHeight: 100,
+    scrollHeight: 100,
+    scrollTop: 0,
+    closest: () => queuePanel
+  };
+  const elements = {
+    manualForm: makeTarget(),
+    nextBtn: makeTarget(),
+    clearBtn: makeTarget(),
+    superChatList,
+    queueList
+  };
+  const sandbox = {
+    console,
+    confirm: () => false,
+    document: { getElementById: (id) => elements[id] || null },
+    window: {
+      AdminApp: {
+        utils: {
+          escapeHtml: String,
+          escapeAttr: String,
+          value: () => '',
+          setValue() {},
+          formatTime: String,
+          formatSuperChatPrice: String,
+          withMultilingualFallback: String,
+          toast() {},
+          api: async () => ({})
+        }
+      }
+    }
+  };
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.queue.initQueueForm();
+  const wheel = superChatPanel.listeners.get('wheel');
+  const dispatchWheel = (deltaY) => {
+    let prevented = false;
+    wheel({ deltaY, deltaMode: 0, preventDefault() { prevented = true; } });
+    return prevented;
+  };
+
+  assert.equal(dispatchWheel(120), false, 'a non-overflowing queue should leave page scrolling alone');
+  superChatList.scrollHeight = 300;
+  assert.equal(dispatchWheel(120), true, 'an overflowing queue should consume downward wheel input');
+  assert.equal(superChatList.scrollTop, 36);
+  superChatList.scrollTop = 200;
+  assert.equal(dispatchWheel(120), false, 'the bottom edge should release downward input to the page');
+  assert.equal(dispatchWheel(-120), true, 'the list should still consume input away from the bottom edge');
+  superChatList.scrollTop = 0;
+  assert.equal(dispatchWheel(-120), false, 'the top edge should release upward input to the page');
+});
+
+test('desktop admin keeps scrolling on the workspace instead of nesting it in tabs', () => {
+  const workspaceSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
+  const activeTabRule = workspaceSource.match(/\.song-management-panel > \.tab-page\.active\s*\{[\s\S]*?\n\}/)?.[0];
+  const desktopBodyRule = responsiveSource.match(/@media \(min-width: 901px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/)?.[0];
+  const mobileBodyRule = responsiveSource.match(/@media \(max-width: 900px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/)?.[0];
+
+  assert.ok(activeTabRule, 'active management tab styles should remain defined');
+  assert.ok(desktopBodyRule, 'desktop body overflow rule should remain defined');
+  assert.ok(mobileBodyRule, 'mobile body overflow rule should remain defined');
+  assert.match(activeTabRule, /overflow:\s*visible/);
+  assert.match(desktopBodyRule, /overflow:\s*hidden/);
+  assert.match(mobileBodyRule, /overflow:\s*auto/);
+});
+
+test('hidden switches and the narrow player do not widen the page', () => {
+  const adminSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts.css'), 'utf8');
+  const playbackSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'responsive.css'), 'utf8');
+  const switchInputRule = adminSource.match(/\.switch-control input\s*\{[\s\S]*?\n\}/)?.[0];
+  const narrowPlayerRule = playbackSource.match(
+    /@media \(max-width: 900px\)[\s\S]*?\.playback-progress-row\s*\{[\s\S]*?\n\s*\}/
+  )?.[0];
+
+  assert.ok(switchInputRule, 'switch input styles should remain defined');
+  assert.ok(narrowPlayerRule, 'narrow player progress styles should remain defined');
+  assert.match(switchInputRule, /width:\s*1px/);
+  assert.match(switchInputRule, /height:\s*1px/);
+  assert.match(narrowPlayerRule, /width:\s*auto/);
+  assert.match(narrowPlayerRule, /padding-left:\s*0/);
+});
+
 test('admin state events render queue empty states and song data', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
 

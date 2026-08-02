@@ -250,8 +250,10 @@
     bottom: 3px;
     left: 10px;
     display: grid;
+    width: auto;
     grid-template-columns: 28px minmax(80px, 1fr) 28px;
     margin: 0;
+    padding-left: 0;
   }
 
   .playback-mode-wrap,

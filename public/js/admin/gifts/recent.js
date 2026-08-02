@@ -18,8 +18,18 @@
   function renderGiftRecentList(items) {
     const list = document.getElementById('giftRecentList');
     if (!list) return;
-    if (items.length === 0) {
-      list.innerHTML = '<div class="empty">暂无礼物记录</div>';
+    const isEmpty = items.length === 0;
+    list.classList.toggle('is-empty', isEmpty);
+    if (isEmpty) {
+      list.innerHTML = `
+        <div class="empty gift-recent-empty">
+          <span class="gift-recent-empty-icon" aria-hidden="true">
+            <img src="/img/gift-section-icon.png?v=20260801-01" alt="">
+          </span>
+          <strong>暂无礼物记录</strong>
+          <span>收到的礼物会显示在这里</span>
+        </div>
+      `;
       return;
     }
 
@@ -92,13 +102,13 @@
   function getBlindBoxIcon(item) {
     const blindBoxName = String(item && (item.blind_box_name || item.name) || '').trim();
     if (blindBoxName.includes('心动盲盒')) {
-      return { name: '心动盲盒', src: '/img/bilibili-blindbox-heart.png' };
+      return { name: '心动盲盒', src: '/img/bilibili-gifts/blind-box/32251.webp' };
     }
     if (blindBoxName.includes('幸运盲盒')) {
-      return { name: '幸运盲盒', src: '/img/bilibili-blindbox-lucky.png' };
+      return { name: '幸运盲盒', src: '/img/bilibili-gifts/blind-box/35206.webp' };
     }
     if (blindBoxName.includes('小熊虫盲盒')) {
-      return { name: '小熊虫盲盒', src: '/img/bilibili-blindbox-tardigrade.png' };
+      return { name: '小熊虫盲盒', src: '/img/bilibili-gifts/blind-box/35800.webp' };
     }
     return null;
   }

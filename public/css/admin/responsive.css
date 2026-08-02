@@ -1,4 +1,10 @@
 /* ===== 响应式 ===== */
+@media (min-width: 901px) {
+  body {
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 1180px) {
   .status-strip #songCount {
     display: none;
@@ -88,6 +94,7 @@
 
   .queues-row {
     grid-template-columns: 1fr;
+    flex: 0 0 auto;
     height: auto;
   }
 

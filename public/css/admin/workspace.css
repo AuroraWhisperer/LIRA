@@ -159,12 +159,12 @@ body.player-dock-expanded .song-workspace {
 /* ---- 并排双队列 ---- */
 .queues-row {
   display: grid;
+  flex: 0 0 450px;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   min-width: 0;
   min-height: 0;
-  /* 容纳 5 个词条：5×(62[行高]+16[填充]+2[边框]) + 4×6[间隔] + 32[面板填充] */
-  height: 510px;
+  height: 450px;
 }
 
 .queues-row .queue-panel {
@@ -277,7 +277,7 @@ body.player-dock-expanded .song-workspace {
 .song-management-panel > .tab-page.active {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .song-management-panel .tab-page > .panel-body {

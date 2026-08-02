@@ -209,44 +209,69 @@
   padding: 14px 18px 16px;
 }
 
-.gift-recent-collapsible .gift-cards:has(> .empty) {
+.gift-recent-panel .gift-recent-collapsible .gift-cards.is-empty {
   grid-template-columns: 1fr;
-  min-height: 180px;
-  padding: 24px 18px 28px;
+  min-height: 244px;
+  padding: 24px 18px 32px;
+  place-items: center;
 }
 
-.gift-recent-collapsible .gift-cards > .empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 180px;
-  border: 2px dashed rgba(var(--gift-recent-accent-rgb), 0.18);
-  border-radius: 12px;
-  background: linear-gradient(135deg,
-              rgba(var(--gift-recent-accent-rgb), 0.03) 0%,
-              rgba(var(--gift-recent-accent-rgb), 0.01) 100%);
-  color: var(--color-text-muted);
-  font-size: 14px;
+.gift-recent-collapsible .gift-cards > .gift-recent-empty {
+  width: min(100%, 360px);
+  min-height: 0;
+  gap: 7px;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #6c817f;
+  font-size: 13px;
   font-weight: 500;
   text-align: center;
-  transition: all 200ms ease;
 }
 
-.gift-recent-collapsible .gift-cards > .empty::before {
-  content: '🎁';
-  font-size: 48px;
-  line-height: 1;
-  opacity: 0.4;
-  filter: grayscale(0.3);
+.gift-recent-collapsible .gift-cards > .gift-recent-empty::before {
+  content: none;
 }
 
-.gift-recent-collapsible .gift-cards > .empty:hover {
-  border-color: rgba(var(--gift-recent-accent-rgb), 0.28);
-  background: linear-gradient(135deg,
-              rgba(var(--gift-recent-accent-rgb), 0.06) 0%,
-              rgba(var(--gift-recent-accent-rgb), 0.02) 100%);
+.gift-recent-empty-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 5px;
+  border: 1px solid rgba(var(--gift-recent-accent-rgb), 0.16);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f8fffe, #e3f6f3);
+  box-shadow: 0 10px 22px rgba(var(--gift-recent-accent-rgb), 0.12);
+}
+
+.gift-recent-empty-icon::after {
+  position: absolute;
+  inset: 5px;
+  border: 1px dashed rgba(var(--gift-recent-accent-rgb), 0.2);
+  border-radius: 50%;
+  content: '';
+}
+
+.gift-recent-empty-icon img {
+  position: relative;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.gift-recent-empty strong {
+  color: #334b49;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.gift-recent-empty > span:last-child {
+  color: #819391;
+  line-height: 1.5;
 }
 
 .gift-recent-panel.is-collapsed .gift-recent-collapsible {
@@ -1038,4 +1063,4 @@
   background: var(--surface-2);
   border: 1px solid var(--border);
   box-shadow: none;
-}
+}

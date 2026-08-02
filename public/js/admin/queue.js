@@ -12,7 +12,8 @@
     formatSuperChatPrice,
     withMultilingualFallback,
     toast,
-    api
+    api,
+    dangerConfirm
   } = window.AdminApp.utils;
 
   function initQueueForm() {
@@ -34,9 +35,13 @@
 
     document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
     document.getElementById('clearBtn').addEventListener('click', async () => {
-      if (confirm('确认清空当前点歌和全部等待队列？')) {
-        await queueAction('clear');
-      }
+      const confirmed = await dangerConfirm({
+        title: '清空全部队列',
+        message: '当前歌曲和所有等待中的歌曲都会被移除，此操作不可撤销。',
+        deletes: ['当前播放歌曲', '全部等待队列'],
+        confirmLabel: '确认清空队列'
+      });
+      if (confirmed) await queueAction('clear');
     });
 
     // 将 wheel 事件的 deltaY 归一化为像素值（Windows 普通鼠标报告行模式 deltaMode=1）
@@ -48,23 +53,25 @@
       }
     }
 
-    // 自定义 SC 队列滚轮滚动距离（减小滚动步长）
-    const scList = document.getElementById('superChatList');
-    if (scList) {
-      scList.addEventListener('wheel', (event) => {
+    // Keep wheel input inside an overflowing queue, then let the page scroll at its edges.
+    function bindQueueWheel(list) {
+      if (!list) return;
+      const panel = list.closest('.queue-panel') || list;
+      panel.addEventListener('wheel', (event) => {
+        const delta = normalizedWheelDelta(event, list);
+        const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
+        const canScroll = maxScrollTop > 0 && (
+          delta < 0 ? list.scrollTop > 0 : delta > 0 && list.scrollTop < maxScrollTop
+        );
+        if (!canScroll) return;
+
         event.preventDefault();
-        scList.scrollTop += normalizedWheelDelta(event, scList) * 0.3;
+        list.scrollTop += delta * 0.3;
       }, { passive: false });
     }
 
-    // 同样应用到点歌队列
-    const queueList = document.getElementById('queueList');
-    if (queueList) {
-      queueList.addEventListener('wheel', (event) => {
-        event.preventDefault();
-        queueList.scrollTop += normalizedWheelDelta(event, queueList) * 0.3;
-      }, { passive: false });
-    }
+    bindQueueWheel(document.getElementById('superChatList'));
+    bindQueueWheel(document.getElementById('queueList'));
   }
 
   function renderState(appState, songs) {

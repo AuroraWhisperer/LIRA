@@ -1,0 +1,525 @@
+{
+  "retrievedAt": "2026-08-02T13:32:50.000Z",
+  "gifts": [
+    {
+      "id": 35800,
+      "name": "小熊虫盲盒",
+      "price": "90电池",
+      "image": "bilibili-gifts/blind-box/35800.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/b6cdda6ba51940e1115f4086fd1ea5226f84a855.png@100w_100h.webp",
+      "battery": 90,
+      "rmb": 9,
+      "category": "blind-box"
+    },
+    {
+      "id": 33988,
+      "name": "人气票",
+      "price": "1电池",
+      "image": "bilibili-gifts/0000-under-0100/33988.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png@100w_100h.webp",
+      "battery": 1,
+      "rmb": 0.1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35545,
+      "name": "情书",
+      "price": "52电池",
+      "image": "bilibili-gifts/0000-under-0100/35545.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/e1ec3a783382b1d6b1e0ec6804f296ae85ac51b6.png@100w_100h.webp",
+      "battery": 52,
+      "rmb": 5.2,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 32251,
+      "name": "心动盲盒",
+      "price": "150电池",
+      "image": "bilibili-gifts/blind-box/32251.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/38f645d811537b50873718cecbfd84cd28af50ed.png@100w_100h.webp",
+      "battery": 150,
+      "rmb": 15,
+      "category": "blind-box"
+    },
+    {
+      "id": 31164,
+      "name": "粉丝团灯牌",
+      "price": "1电池",
+      "image": "bilibili-gifts/0000-under-0100/31164.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/e051dfd4557678f8edcac4993ed00a0935cbd9cc.png@100w_100h.webp",
+      "battery": 1,
+      "rmb": 0.1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35516,
+      "name": "灿烂烟花",
+      "price": "520电池",
+      "image": "bilibili-gifts/0000-under-0100/35516.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/533bf4cabf1a7a994d0128fb9aa731628533394a.png@100w_100h.webp",
+      "battery": 520,
+      "rmb": 52,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 31036,
+      "name": "小花花",
+      "price": "1电池",
+      "image": "bilibili-gifts/0000-under-0100/31036.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png@100w_100h.webp",
+      "battery": 1,
+      "rmb": 0.1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35534,
+      "name": "打call",
+      "price": "2电池",
+      "image": "bilibili-gifts/0000-under-0100/35534.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/461be640f60788c1d159ec8d6c5d5cf1ef3d1830.png@100w_100h.webp",
+      "battery": 2,
+      "rmb": 0.2,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 31039,
+      "name": "牛哇牛哇",
+      "price": "1电池",
+      "image": "bilibili-gifts/0000-under-0100/31039.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/91ac8e35dd93a7196325f1e2052356e71d135afb.png@100w_100h.webp",
+      "battery": 1,
+      "rmb": 0.1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 34500,
+      "name": "你真好看",
+      "price": "10电池",
+      "image": "bilibili-gifts/0000-under-0100/34500.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/24afbb083aa700d7576d60a1189d3505262d160d.png@100w_100h.webp",
+      "battery": 10,
+      "rmb": 1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 33012,
+      "name": "666",
+      "price": "10电池",
+      "image": "bilibili-gifts/0000-under-0100/33012.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/af3362607d35cde4e553bba570af2026f7520b30.png@100w_100h.webp",
+      "battery": 10,
+      "rmb": 1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35520,
+      "name": "比心",
+      "price": "10电池",
+      "image": "bilibili-gifts/0000-under-0100/35520.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/8c883690aa927c629da461f793bcf01c98143d0d.png@100w_100h.webp",
+      "battery": 10,
+      "rmb": 1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35525,
+      "name": "甜滋滋",
+      "price": "50电池",
+      "image": "bilibili-gifts/0000-under-0100/35525.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/a5dccb33fd09c2682553ec1ecf9d98bb894e8015.png@100w_100h.webp",
+      "battery": 50,
+      "rmb": 5,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35567,
+      "name": "梦幻邮轮",
+      "price": "3000电池",
+      "image": "bilibili-gifts/0300-0400/35567.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/6eee23cc4bcf14c0da359543e987a27965cdfbd7.png@100w_100h.webp",
+      "battery": 3000,
+      "rmb": 300,
+      "category": "0300-0400"
+    },
+    {
+      "id": 35566,
+      "name": "落日飞车",
+      "price": "2000电池",
+      "image": "bilibili-gifts/0200-0300/35566.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/93939d794de3e967b8564dc46487097124a192a0.png@100w_100h.webp",
+      "battery": 2000,
+      "rmb": 200,
+      "category": "0200-0300"
+    },
+    {
+      "id": 35502,
+      "name": "bilibili世界",
+      "price": "3万电池",
+      "image": "bilibili-gifts/2000-above/35502.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/f307cb4f29be9f13b6610a8ebbdd8acffa068ba9.png@100w_100h.webp",
+      "battery": 30000,
+      "rmb": 3000,
+      "category": "2000-above"
+    },
+    {
+      "id": 35521,
+      "name": "心动时刻",
+      "price": "50电池",
+      "image": "bilibili-gifts/0000-under-0100/35521.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/636eed2de2b309c5bd6b85d28233782d23968101.png@100w_100h.webp",
+      "battery": 50,
+      "rmb": 5,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35206,
+      "name": "幸运盲盒",
+      "price": "50电池",
+      "image": "bilibili-gifts/blind-box/35206.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/d9bf4b2234e854b0badbd509edf59b5bf0361b7f.png@100w_100h.webp",
+      "battery": 50,
+      "rmb": 5,
+      "category": "blind-box"
+    },
+    {
+      "id": 35542,
+      "name": "钻石戒指",
+      "price": "199电池",
+      "image": "bilibili-gifts/0000-under-0100/35542.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/20b9527b6bca5cb1bba9213a3dc38b7c84aa87d8.png@100w_100h.webp",
+      "battery": 199,
+      "rmb": 19.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35541,
+      "name": "bilibili星跃",
+      "price": "10000电池",
+      "image": "bilibili-gifts/1000-1100/35541.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/3e1065565f812f1a67e88258d3ae36c0d565ab35.png@100w_100h.webp",
+      "battery": 10000,
+      "rmb": 1000,
+      "category": "1000-1100"
+    },
+    {
+      "id": 31122,
+      "name": "星愿水晶球",
+      "price": "1000电池",
+      "image": "bilibili-gifts/0100-0200/31122.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/f26242d5dc86bbc695336383e2ac4ba50ec033eb.png@100w_100h.webp",
+      "battery": 1000,
+      "rmb": 100,
+      "category": "0100-0200"
+    },
+    {
+      "id": 35577,
+      "name": "冰晶吊坠",
+      "price": "299电池",
+      "image": "bilibili-gifts/0000-under-0100/35577.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/8fd0472e21e8b9911847486c04614a983532a2a7.png@100w_100h.webp",
+      "battery": 299,
+      "rmb": 29.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35638,
+      "name": "送花花",
+      "price": "10电池",
+      "image": "bilibili-gifts/0000-under-0100/35638.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/22aaec244e9c245b4c681a9c9c7d679d12fc988e.png@100w_100h.webp",
+      "battery": 10,
+      "rmb": 1,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35683,
+      "name": "任意门",
+      "price": "9999电池",
+      "image": "bilibili-gifts/0900-1000/35683.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/6c43a8e8baf8eda60e2f9115a22f34ec295b9af4.png@100w_100h.webp",
+      "battery": 9999,
+      "rmb": 999.9,
+      "category": "0900-1000"
+    },
+    {
+      "id": 35535,
+      "name": "私人飞机",
+      "price": "1000电池",
+      "image": "bilibili-gifts/0100-0200/35535.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/66680eccc90a834dc80e1ed530c06d89752adc56.png@100w_100h.webp",
+      "battery": 1000,
+      "rmb": 100,
+      "category": "0100-0200"
+    },
+    {
+      "id": 35533,
+      "name": "水晶鞋",
+      "price": "99电池",
+      "image": "bilibili-gifts/0000-under-0100/35533.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/a49674dee0cbdb02fa1ed22839b3d5d0383401e4.png@100w_100h.webp",
+      "battery": 99,
+      "rmb": 9.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 34636,
+      "name": "舰长一号",
+      "price": "1980电池",
+      "image": "bilibili-gifts/0100-0200/34636.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/a97726f370a5aa6d5e6100b042bee848efc560f6.png@100w_100h.webp",
+      "battery": 1980,
+      "rmb": 198,
+      "category": "0100-0200"
+    },
+    {
+      "id": 34315,
+      "name": "喜欢你",
+      "price": "99电池",
+      "image": "bilibili-gifts/0000-under-0100/34315.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/5d940270c22a17fa2ff17a0713b4383b6febd945.png@100w_100h.webp",
+      "battery": 99,
+      "rmb": 9.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35099,
+      "name": "狮子娃娃",
+      "price": "1990电池",
+      "image": "bilibili-gifts/0100-0200/35099.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/a043f702fda98aed2e8cead7ba8790d039dec2bd.png@100w_100h.webp",
+      "battery": 1990,
+      "rmb": 199,
+      "category": "0100-0200"
+    },
+    {
+      "id": 35626,
+      "name": "撒花",
+      "price": "99电池",
+      "image": "bilibili-gifts/0000-under-0100/35626.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/4b78b83db4804be61e038b2b1a0d4d7fdb8f529b.png@100w_100h.webp",
+      "battery": 99,
+      "rmb": 9.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35628,
+      "name": "旋转木马",
+      "price": "520电池",
+      "image": "bilibili-gifts/0000-under-0100/35628.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/f818537db912253ff0ec65a216c56f7add8cb541.png@100w_100h.webp",
+      "battery": 520,
+      "rmb": 52,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35625,
+      "name": "千纸鹤",
+      "price": "52电池",
+      "image": "bilibili-gifts/0000-under-0100/35625.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/06dd01814bb61063ccd2fb31dc1f386900b4023d.png@100w_100h.webp",
+      "battery": 52,
+      "rmb": 5.2,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 34296,
+      "name": "做我的小猫",
+      "price": "99电池",
+      "image": "bilibili-gifts/0000-under-0100/34296.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/19310044cae39364ce8b0082dc10420ee5c71d6a.png@100w_100h.webp",
+      "battery": 99,
+      "rmb": 9.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 30873,
+      "name": "花式夸夸",
+      "price": "299电池",
+      "image": "bilibili-gifts/0000-under-0100/30873.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/28186596880db45a7b843f17d6ebb70feeac06f9.png@100w_100h.webp",
+      "battery": 299,
+      "rmb": 29.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35627,
+      "name": "音乐盒",
+      "price": "99电池",
+      "image": "bilibili-gifts/0000-under-0100/35627.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/c841f3e640862a57497187890a2fdc8bbfc8695b.png@100w_100h.webp",
+      "battery": 99,
+      "rmb": 9.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 34381,
+      "name": "飞屋环游",
+      "price": "5000电池",
+      "image": "bilibili-gifts/0500-0600/34381.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/0b8f4c8c98a5fd9a6806fc6897224387fe0060d8.png@100w_100h.webp",
+      "battery": 5000,
+      "rmb": 500,
+      "category": "0500-0600"
+    },
+    {
+      "id": 34998,
+      "name": "小电视飞船",
+      "price": "2.999万电池",
+      "image": "bilibili-gifts/2000-above/34998.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/48884b1b1d3bf9df185f43ff6651748040faf5de.png@100w_100h.webp",
+      "battery": 29990,
+      "rmb": 2999,
+      "category": "2000-above"
+    },
+    {
+      "id": 31088,
+      "name": "月桂皇冠",
+      "price": "4000电池",
+      "image": "bilibili-gifts/0400-0500/31088.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/8be43b333053bd7e6fe8ad87e8bf013e4c1b3225.png@100w_100h.webp",
+      "battery": 4000,
+      "rmb": 400,
+      "category": "0400-0500"
+    },
+    {
+      "id": 31087,
+      "name": "次元之城",
+      "price": "1.245万电池",
+      "image": "bilibili-gifts/1200-1300/31087.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/cdae8136b1ee767609aeec688bca8124651d4d01.png@100w_100h.webp",
+      "battery": 12450,
+      "rmb": 1245,
+      "category": "1200-1300"
+    },
+    {
+      "id": 35432,
+      "name": "鼓鼓掌",
+      "price": "5电池",
+      "image": "bilibili-gifts/0000-under-0100/35432.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/d927e689c3f33642e5283fc44469794eef017d94.png@100w_100h.webp",
+      "battery": 5,
+      "rmb": 0.5,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 31053,
+      "name": "告白花束",
+      "price": "199电池",
+      "image": "bilibili-gifts/0000-under-0100/31053.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/a4aa89aaa24534cb77534680eaed1f5f2f9aa71f.png@100w_100h.webp",
+      "battery": 199,
+      "rmb": 19.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 31932,
+      "name": "梦游仙境",
+      "price": "3000电池",
+      "image": "bilibili-gifts/0300-0400/31932.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/88a338dbe644473c800e4cde1306d923be350e94.png@100w_100h.webp",
+      "battery": 3000,
+      "rmb": 300,
+      "category": "0300-0400"
+    },
+    {
+      "id": 31933,
+      "name": "为你摘星",
+      "price": "5200电池",
+      "image": "bilibili-gifts/0500-0600/31933.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/5bd584b6fdfb03d66de56102e775582fb29ceab7.png@100w_100h.webp",
+      "battery": 5200,
+      "rmb": 520,
+      "category": "0500-0600"
+    },
+    {
+      "id": 34999,
+      "name": "原地求婚",
+      "price": "5200电池",
+      "image": "bilibili-gifts/0500-0600/34999.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/244f1ed4c1e1e866a705022f3e010f6c7334a108.png@100w_100h.webp",
+      "battery": 5200,
+      "rmb": 520,
+      "category": "0500-0600"
+    },
+    {
+      "id": 32089,
+      "name": "极速超跑",
+      "price": "1000电池",
+      "image": "bilibili-gifts/0100-0200/32089.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/27b9734d1a5f77ea6fc94957e3fcbeb55505c6b9.png@100w_100h.webp",
+      "battery": 1000,
+      "rmb": 100,
+      "category": "0100-0200"
+    },
+    {
+      "id": 32228,
+      "name": "爱的乐章",
+      "price": "1990电池",
+      "image": "bilibili-gifts/0100-0200/32228.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/2006d523d3aec2abf2224d792c2b37f9dfc146c3.png@100w_100h.webp",
+      "battery": 1990,
+      "rmb": 199,
+      "category": "0100-0200"
+    },
+    {
+      "id": 32613,
+      "name": "告白气球",
+      "price": "2000电池",
+      "image": "bilibili-gifts/0200-0300/32613.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/d4df99e01fe6dc69636742a998bfd2962480522e.png@100w_100h.webp",
+      "battery": 2000,
+      "rmb": 200,
+      "category": "0200-0300"
+    },
+    {
+      "id": 34294,
+      "name": "捏捏小脸",
+      "price": "99电池",
+      "image": "bilibili-gifts/0000-under-0100/34294.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/4e1425649f69ed4175f66a7a0a5a782ecb3be024.png@100w_100h.webp",
+      "battery": 99,
+      "rmb": 9.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35261,
+      "name": "流星雨",
+      "price": "299电池",
+      "image": "bilibili-gifts/0000-under-0100/35261.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/d8c219912d3d4c6037d3644278b63ba4e6ad4907.png@100w_100h.webp",
+      "battery": 299,
+      "rmb": 29.9,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 31591,
+      "name": "星轨列车",
+      "price": "6666电池",
+      "image": "bilibili-gifts/0600-0700/31591.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/01a82ea9d5fdf62c4efed73d3d34d9c8f2e25ff2.png@100w_100h.webp",
+      "battery": 6666,
+      "rmb": 666.6,
+      "category": "0600-0700"
+    },
+    {
+      "id": 31028,
+      "name": "探索者启航",
+      "price": "2.233万电池",
+      "image": "bilibili-gifts/2000-above/31028.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/f95de770154c6b89e376a16cfae6f5a5bf751d05.png@100w_100h.webp",
+      "battery": 22330,
+      "rmb": 2233,
+      "category": "2000-above"
+    },
+    {
+      "id": 34383,
+      "name": "梦幻游乐园",
+      "price": "3万电池",
+      "image": "bilibili-gifts/2000-above/34383.webp",
+      "sourceUrl": "https://s1.hdslb.com/bfs/live/f1ed9d627f75b46fe621558951847e0e4e95d6a2.png@100w_100h.webp",
+      "battery": 30000,
+      "rmb": 3000,
+      "category": "2000-above"
+    }
+  ]
+}
