@@ -1,0 +1,26 @@
+/* ===== 播放页整体布局 ===== */
+.playback-page {
+  display: none;
+}
+
+.playback-page.active {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "head"
+    "search"
+    "discovery"
+    "match";
+  grid-template-rows: repeat(4, max-content);
+  align-content: start;
+  gap: 12px;
+  height: calc(100vh - 58px - 96px);
+  padding: 16px;
+  overflow: auto;
+}
+
+body.player-dock-expanded .playback-page.active {
+  height: calc(100vh - 58px - 218px);
+}
+
+/* ===== 头部区域 ===== */

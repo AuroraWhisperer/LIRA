@@ -1,0 +1,242 @@
+  max-height: 230px;
+  overflow: hidden;
+  /* 只对 opacity 和 transform 做过渡，max-height/padding 瞬间切换，
+     避免每帧触发全局布局重计算（下方歌库有数百到数千行 DOM） */
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.panel.is-collapsed .collapsible-panel-body {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.current-song {
+  display: grid;
+  gap: 8px;
+  border-left: 4px solid var(--primary);
+  background: #fff8fb;
+  padding: 14px;
+}
+
+.current-song .name {
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.current-song .meta {
+  color: var(--muted);
+}
+
+.queue-list {
+  display: grid;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.queue-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 12px;
+  background: #ffffff;
+  min-height: 62px;
+}
+
+.queue-row .song {
+  font-family: var(--admin-queue-font-family, var(--font));
+  font-weight: var(--admin-queue-font-weight, 700);
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.queue-row .meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-family: var(--admin-queue-font-family, var(--font));
+  font-size: 11px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* SC 队列：允许多行显示 */
+.sc-row {
+  align-items: start;
+  min-height: 62px;
+  max-height: none;
+}
+
+.sc-row .song {
+  display: block;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+  white-space: normal;
+  text-overflow: unset;
+}
+
+/* 点歌队列：字体自适应缩小，最多两行 */
+.queue-row:not(.sc-row) .song {
+  font-size: clamp(11px, 14px, 14px);
+}
+
+/* 长文本自动缩小 - 通过字符数量判断 */
+.queue-row:not(.sc-row) .song[data-length="long"] {
+  font-size: clamp(10px, 12px, 12px);
+}
+
+.queue-row:not(.sc-row) .song[data-length="very-long"] {
+  font-size: clamp(9px, 11px, 11px);
+}
+
+.sc-list {
+  /* max-height removed — height is now governed by the .queues-row container */
+}
+
+.sc-row.assisted {
+  background: #f0f5f2;
+  border-left: 4px solid #21b6a8;
+  border-color: #21b6a8;
+  opacity: 0.78;
+}
+
+.sc-row.assisted .song {
+  text-decoration: line-through;
+  text-decoration-color: rgba(0, 0, 0, 0.18);
+  text-decoration-thickness: 1px;
+  color: #6b7b75;
+}
+
+.sc-row.assisted .sc-admin-price {
+  background: #8ab3a2;
+}
+
+.sc-badge-assisted {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 999px;
+  background: #21b6a8;
+  color: #fff;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.queue-row .meta .sc-badge-assisted {
+  display: inline;
+  margin-left: 4px;
+}
+
+.sc-admin-price {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 5px;
+  background: #4f8df7;
+  color: #ffffff;
+  padding: 2px 6px;
+  margin-right: 6px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sc-row .queue-actions button[data-sc-action="assist"] {
+  color: #21b6a8;
+}
+
+.sc-row.assisted .queue-actions button[data-sc-action="unassist"] {
+  color: #d2921d;
+  background: rgba(210, 146, 29, 0.08);
+  border-radius: 5px;
+}
+
+.queue-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.empty {
+  min-height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+td {
+  font-size: 13px;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ===== 标签页 ===== */
+.tabs {
+  display: flex;

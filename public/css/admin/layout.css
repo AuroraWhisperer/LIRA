@@ -1,0 +1,253 @@
+.app-shell {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 58px;
+  margin: 0;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: 0 4px 18px rgba(22, 31, 43, 0.06);
+}
+
+.primary-nav-slot {
+  display: flex;
+  align-items: center;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.topbar p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.status-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  justify-content: flex-end;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  padding: 0;
+}
+
+.status-strip button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 180ms ease;
+}
+
+.status-strip button.secondary {
+  border-color: var(--border);
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.status-strip button.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #f0faf8;
+}
+
+.status-strip button.danger {
+  border-color: rgba(200, 95, 85, 0.22);
+  color: var(--danger);
+  background: var(--surface);
+}
+
+.status-strip button.danger:hover {
+  border-color: var(--danger);
+  background: rgba(200, 95, 85, 0.06);
+}
+
+.status-strip .pill {
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+
+.status-strip .pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px rgba(100, 113, 129, 0.12);
+}
+
+.status-strip .pill.good::before {
+  background: #15946e;
+  box-shadow: 0 0 0 3px rgba(21, 148, 110, 0.12);
+}
+
+.status-strip .pill.warn::before {
+  background: #d2921d;
+  box-shadow: 0 0 0 3px rgba(210, 146, 29, 0.12);
+}
+
+.owner-name {
+  color: #fb7299;
+  font-weight: 700;
+}
+
+.room-id-hint {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 3px 11px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pill.good {
+  border-color: rgba(33, 182, 168, 0.35);
+  background: #effbf9;
+  color: #08766c;
+}
+
+.pill.warn {
+  border-color: rgba(165, 103, 22, 0.30);
+  background: #fef9f0;
+  color: var(--warning);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+hr.section-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2px 0;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.page-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.panel-subtitle {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.panel-body {
+  padding: 16px;
+}
+
+/* 可折叠面板 */
+.section-toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.section-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 180ms ease;
+}
+
+.panel.is-collapsed .section-toggle svg {
+  transform: rotate(180deg);
+}
+
+.panel:has(.section-toggle) .panel-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 150ms ease;
+}
+
+.panel:has(.section-toggle) .panel-header:hover {
+  background-color: var(--hover-bg, rgba(255, 255, 255, 0.03));
+}
+
+.panel:has(.section-toggle) .panel-header:active {
+  background-color: var(--active-bg, rgba(255, 255, 255, 0.05));
+}
+
+.collapsible-panel-body {

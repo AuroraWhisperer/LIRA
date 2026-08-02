@@ -1,0 +1,53 @@
+.lyric-window-body {
+  min-height: 100vh;
+  overflow: hidden;
+  background: transparent;
+  color: #ffffff;
+  -webkit-app-region: drag;
+}
+
+.lyric-window-surface {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px 60px;
+  text-align: center;
+  transition: transform 0.15s ease-out, background 0.2s ease;
+  will-change: transform;
+}
+
+.lyric-window-line {
+  overflow-wrap: anywhere;
+  letter-spacing: 0.02em;
+  max-width: 90vw;
+  transition: font-size 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.lyric-window-line span {
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 180ms cubic-bezier(0.4, 0, 0.2, 1), text-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lyric-window-line span.is-active {
+  color: #ffffff;
+  text-shadow:
+    0 0 16px rgba(251, 191, 36, 0.75),
+    0 0 32px rgba(251, 191, 36, 0.45);
+}
+
+.lyric-window-translation {
+  overflow-wrap: anywhere;
+  max-width: 85vw;
+  letter-spacing: 0.01em;
+  transition: font-size 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.lyric-window-body.is-locked {
+  cursor: default;
+}
+
+/* ===== 播放队列弹窗 ===== */

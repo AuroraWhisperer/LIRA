@@ -1,0 +1,564 @@
+.playback-player-panel {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 35;
+  height: 96px;
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid rgba(217, 224, 232, 0.86);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 -10px 30px rgba(22, 31, 43, 0.1);
+  backdrop-filter: blur(18px);
+  transition: height 220ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.playback-player-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  opacity: 0.68;
+}
+
+/* ===== 播放器整体布局 ===== */
+.playback-player {
+  display: grid;
+  grid-template-columns: 58px minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 1680px);
+  height: 100%;
+  margin: 0 auto;
+  padding: 11px 22px 10px;
+}
+
+/* ===== 封面（合并所有层级） ===== */
+.playback-cover {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2d2d3f 0%, #1a1a2e 100%);
+  color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+  transition: transform 240ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 240ms ease;
+}
+
+.playback-cover:hover {
+  transform: none;
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.26),
+    0 4px 10px rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.playback-cover svg {
+  width: 25px;
+  height: 25px;
+}
+
+/* ===== 当前歌曲信息 ===== */
+.playback-now {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 3px;
+  align-items: center;
+  min-width: 0;
+}
+
+.playback-now strong {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: 340px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  transition: color 300ms ease;
+}
+
+/* 空状态：未选择歌曲 */
+.playback-now strong.no-track {
+  color: var(--muted);
+  font-weight: 600;
+  background: linear-gradient(135deg, #d94b70, #9b59b6, #3498db);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.playback-now > span {
+  grid-column: 1;
+  grid-row: 2;
+  max-width: 340px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 300ms ease;
+}
+
+.playback-now > span.no-track {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* ===== 进度条 ===== */
+.playback-progress-row {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-columns: 30px minmax(120px, 1fr) 30px auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 35px;
+}
+
+.playback-progress-row > span {
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
+
+.playback-seek-wrap {
+  position: relative;
+  height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+.playback-seek-wrap input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right,
+    var(--primary) var(--seek-pos, 0%),
+    rgba(22, 31, 43, 0.10) var(--seek-pos, 0%)
+  );
+  cursor: pointer;
+  outline: none;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  transition: height 150ms ease;
+}
+
+.playback-seek-wrap:hover input[type="range"] {
+  height: 8px;
+}
+
+.playback-seek-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow:
+    0 0 0 3px var(--primary),
+    0 3px 10px rgba(217, 75, 112, 0.45);
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 150ms ease;
+}
+
+.playback-seek-wrap input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  box-shadow:
+    0 0 0 3px var(--primary),
+    0 4px 14px rgba(217, 75, 112, 0.6);
+}
+
+.playback-seek-wrap input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid var(--primary);
+  box-shadow: 0 3px 10px rgba(217, 75, 112, 0.45);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* ===== 添加到歌单按钮 ===== */
+.playback-add-playlist-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.playback-add-playlist-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.playback-add-playlist-btn:not(:disabled):hover {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, #fff6fa 0%, #fff 100%);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(217, 75, 112, 0.15);
+}
+
+.playback-add-playlist-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== 控制区 ===== */
+.playback-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.playback-controls > * + * {
+  padding-left: 0;
+}
+
+/* ===== 播放模式按钮 ===== */
+.playback-mode-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+  padding-right: 5px;
+  border-right: 1px solid var(--border);
+}
+
+.playback-mode-label {
+  display: none;
+}
+
+/* 播放模式图标切换 */
+#playbackModeBtn .mode-icon {
+  display: none;
+}
+
+#playbackModeBtn[data-mode="sequence"] .mode-sequence {
+  display: block;
+}
+
+#playbackModeBtn[data-mode="shuffle"] .mode-shuffle {
+  display: block;
+}
+
+#playbackModeBtn[data-mode="repeat-one"] .mode-repeat-one {
+  display: block;
+}
+
+/* ===== 图标按钮通用 ===== */
+.playback-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, transform 140ms cubic-bezier(.34, 1.56, .64, 1);
+  padding: 0;
+  min-height: auto;
+}
+
+.playback-icon-btn:hover {
+  background: rgba(22, 31, 43, 0.07);
+  color: var(--text);
+  transform: scale(1.08);
+}
+
+.playback-icon-btn:active {
+  transform: scale(0.9);
+}
+
+.playback-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.playback-icon-btn:disabled:hover {
+  background: transparent;
+  color: var(--muted);
+  transform: none;
+}
+
+.playback-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* 锁定按钮图标切换 */
+.playback-icon-btn .lock-closed { display: none; }
+.playback-icon-btn.locked .lock-open { display: none; }
+.playback-icon-btn.locked .lock-closed { display: inline; }
+
+/* 桌面歌词按钮图标切换 */
+.playback-icon-btn .lyric-on-icon { display: none; }
+.playback-icon-btn .lyric-off-icon { display: inline; }
+.playback-icon-btn.active .lyric-off-icon { display: none; }
+.playback-icon-btn.active .lyric-on-icon { display: inline; }
+
+/* 图标激活状态 */
+.playback-icon-btn.active {
+  color: var(--primary);
+  background: rgba(255, 111, 145, 0.15);
+  box-shadow: 0 0 0 2px rgba(255, 111, 145, 0.2);
+}
+
+.playback-icon-btn.active:hover {
+  background: rgba(255, 111, 145, 0.2);
+  box-shadow: 0 0 0 2px rgba(255, 111, 145, 0.3);
+}
+
+.playback-icon-btn.locked {
+  color: var(--accent);
+  background: rgba(33, 182, 168, 0.10);
+}
+
+/* 模式按钮图标样式 */
+.playback-mode-wrap .playback-icon-btn {
+  color: var(--muted);
+}
+
+.playback-mode-wrap .playback-icon-btn:hover {
+  color: var(--accent);
+}
+
+/* ===== 播放/暂停主按钮 ===== */
+.playback-control-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.playback-play-btn {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(145deg, var(--primary) 0%, #e8406e 100%);
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 200ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 200ms ease;
+  padding: 0;
+  min-height: auto;
+  box-shadow:
+    0 5px 14px rgba(217, 75, 112, 0.38);
+}
+
+.playback-play-btn:hover {
+  transform: scale(1.10);
+  box-shadow:
+    0 10px 28px rgba(217, 75, 112, 0.60),
+    0 4px 10px rgba(217, 75, 112, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+}
+
+.playback-play-btn:active {
+  transform: scale(0.93);
+}
+
+.playback-play-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* 播放/暂停图标切换 */
+.playback-play-btn .pause-icon { display: none; }
+.playback-play-btn.playing .play-icon { display: none; }
+.playback-play-btn.playing .pause-icon { display: inline; }
+
+/* ===== 额外操作（歌词、锁定、音量） ===== */
+.playback-extra-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+/* 分隔线 */
+.playback-controls-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  opacity: 0.6;
+  border-radius: 1px;
+}
+
+/* ===== 音量控件 ===== */
+.playback-volume-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  --volume-panel-top: #e7b958;
+  --volume-panel-bottom: #a96612;
+  --volume-panel-edge: rgba(255, 236, 176, 0.34);
+  --volume-track-fill: #fff1b7;
+  --volume-track-rest: rgba(255, 248, 226, 0.34);
+  --volume-thumb: #fff5c8;
+}
+
+.playback-volume-panel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 70;
+  width: 48px;
+  height: 170px;
+  border: 1px solid var(--volume-panel-edge);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 231, 0.16), transparent 34%),
+    linear-gradient(180deg, var(--volume-panel-top), var(--volume-panel-bottom));
+  box-shadow:
+    0 14px 30px rgba(108, 68, 12, 0.24),
+    0 1px 0 rgba(255, 255, 255, 0.28) inset;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 8px) scale(0.96);
+  transform-origin: 50% 100%;
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(.2, .8, .2, 1);
+  visibility: hidden;
+}
+
+.playback-volume-panel::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: var(--volume-panel-bottom);
+  border-right: 1px solid var(--volume-panel-edge);
+  border-bottom: 1px solid var(--volume-panel-edge);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.playback-volume-wrap.open .playback-volume-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+  visibility: visible;
+}
+
+.playback-volume-slider {
+  position: absolute;
+  top: 66px;
+  left: 50%;
+  width: 102px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(to right,
+    var(--volume-track-fill) var(--vol-pos, 30%),
+    var(--volume-track-rest) var(--vol-pos, 30%)
+  );
+  cursor: pointer;
+  outline: none;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transition: filter 150ms ease;
+}
+
+.playback-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--volume-thumb);
+  border: none;
+  box-shadow:
+    0 0 0 3px rgba(255, 241, 183, 0.28),
+    0 3px 9px rgba(88, 49, 7, 0.34);
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.playback-volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.playback-volume-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--volume-thumb);
+  border: 3px solid rgba(255, 241, 183, 0.28);
+  box-shadow: 0 3px 9px rgba(88, 49, 7, 0.34);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.playback-volume-value {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 1;
+  min-width: 36px;
+  padding: 2px 0;
+  border-radius: 8px;
+  background: rgba(92, 52, 8, 0.20);
+  color: #fff8de;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(73, 38, 4, 0.26);
+  transform: translateX(-50%);
+}
+
+/* 音量图标切换 */
+.playback-volume-wrap .vol-off { display: none; }
+.playback-volume-wrap.muted .vol-on { display: none; }
+.playback-volume-wrap.muted .vol-off { display: inline; }
+
+/* 队列按钮激活态 */
+#playbackQueueBtn.active {
+  color: var(--primary, #2563eb);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+/* ===== 右侧滑出抽屉 ===== */
