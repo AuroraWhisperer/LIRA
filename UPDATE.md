@@ -1,8 +1,15 @@
 # 打包与更新说明
 
-当前版本：`2.0.3`
+当前版本：`2.0.4`
 
 ---
+
+## v2.0.4 变更
+
+- 🎨 **播放器功能模块化深度重构**：controller.js 进一步拆分，新增 home-handler（首页）、import-handler（导入）、lyric-controls（歌词控制）、match-handler（匹配）、pending-handler（待处理）、search-handler（搜索）等独立功能模块，代码净减少 533 行，组织更清晰、可维护性显著提升。
+- 🔧 **缓存操作独立化**：新增 playback/operations/cache-operations.js，将缓存相关操作从核心模块中分离，职责更单一。
+- 🎨 **管理后台样式优化**：collapsible 和 workspace 样式调整，界面交互更精致。
+- 🧪 **测试同步更新**：前端回归测试和播放队列测试同步适配重构后的模块结构，保障代码质量。
 
 ## v2.0.3 变更
 

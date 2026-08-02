@@ -28,6 +28,8 @@ test('playlist playback keeps one queue and loops with directly played search tr
     ],
     mode: 'sequence',
     selectedSource: 'qq',
+    queueType: 'playlist',
+    queueTitle: '歌单队列',
     volume: 0.75
   };
   const app = await createPlaybackApp(savedState);
@@ -43,7 +45,7 @@ test('playlist playback keeps one queue and loops with directly played search tr
 
   app.element('playbackSearchKeyword').value = '新点的歌';
   await app.emit('playbackSearchBtn', 'click');
-  app.emit('playbackSearchResults', 'click', {
+  await app.emit('playbackSearchResults', 'click', {
     target: closestTarget({
       playbackSearchAction: 'play',
       playbackSearchIndex: '0'
@@ -100,6 +102,8 @@ test('playing a wanted track from radio switches to a looping history queue', as
     displayHistory: [currentRadioTrack, olderTrack],
     mode: 'sequence',
     selectedSource: 'qq',
+    queueType: 'radio',
+    queueTitle: '电台队列',
     volume: 0.75
   });
 
@@ -108,7 +112,7 @@ test('playing a wanted track from radio switches to a looping history queue', as
 
   app.element('playbackSearchKeyword').value = '新想听的歌';
   await app.emit('playbackSearchBtn', 'click');
-  app.emit('playbackSearchResults', 'click', {
+  await app.emit('playbackSearchResults', 'click', {
     target: closestTarget({
       playbackSearchAction: 'play',
       playbackSearchIndex: '0'
@@ -151,6 +155,8 @@ test('previous playback pops history once without pushing the current track back
     history: [track('older', 'Older'), track('previous', 'Previous')],
     mode: 'sequence',
     selectedSource: 'qq',
+    queueType: 'queue',
+    queueTitle: '播放队列',
     volume: 0.75
   });
 
@@ -174,6 +180,8 @@ test('pagehide beacon includes the injected API token', async () => {
     radioQueue: [],
     mode: 'sequence',
     selectedSource: 'qq',
+    queueType: 'queue',
+    queueTitle: '播放队列',
     volume: 0.75
   }, { apiToken: 'token with & symbols' });
 
@@ -203,6 +211,9 @@ async function createPlaybackApp(initialState, options = {}) {
       }
       return elements.get(id);
     },
+    createElement(_tag) {
+      return new FakeElement();
+    },
     querySelectorAll() {
       return [];
     },
@@ -217,6 +228,9 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     setItem(key, value) {
       storage.set(key, String(value));
+    },
+    removeItem(key) {
+      storage.delete(key);
     }
   };
 
@@ -397,7 +411,7 @@ async function createPlaybackApp(initialState, options = {}) {
       }
       timers.clear();
 
-      const localState = storage.get('songAssistantPlaybackState:v1');
+      const localState = storage.get('playbackState:v2') || storage.get('songAssistantPlaybackState:v1');
       if (localState) {
         return JSON.parse(localState);
       }
@@ -440,6 +454,18 @@ class FakeElement {
     };
     this.textContent = '';
     this.value = '';
+  }
+
+  prepend(_child) {
+    // no-op for test
+  }
+
+  remove() {
+    // no-op for test (called by showStackedToast timeout)
+  }
+
+  getBoundingClientRect() {
+    return { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 };
   }
 
   addEventListener(eventName, listener) {
@@ -506,7 +532,13 @@ function track(id, title) {
 function response(payload) {
   return {
     ok: payload.ok !== false,
-    payload
+    payload,
+    async text() {
+      return JSON.stringify(payload);
+    },
+    async json() {
+      return payload;
+    }
   };
 }
 

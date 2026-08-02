@@ -10,7 +10,7 @@ const { fileURLToPath, pathToFileURL } = require('node:url');
 const ROOT_DIR = path.join(__dirname, '..');
 
 test('admin overlay links do not retain the old fixed port placeholder', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'admin.html'), 'utf8');
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const displaySource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
     'utf8'
@@ -28,7 +28,7 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
 });
 
 test('gift workspace rows keep their content height inside the scroll container', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'styles-admin.css'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
@@ -36,7 +36,7 @@ test('gift workspace rows keep their content height inside the scroll container'
 });
 
 test('debug gift data attributes escape quotes, apostrophes, and backticks', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'debug-gifts.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html'), 'utf8');
   const escapeHtmlSource = source.match(/function escHtml\(s\) \{[\s\S]*?\n\}/)?.[0];
   const escapeAttrSource = source.match(/function escAttr\(s\) \{[\s\S]*?\n\}/)?.[0];
 
@@ -141,7 +141,7 @@ test('liked tracks stop when a provider repeats a full page', async () => {
 });
 
 test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-queue.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const styleValues = new Map();
   const sandbox = {
     console,
@@ -188,7 +188,7 @@ test('queue overlay applies rule sizing and scrolls only overflowing super chats
 });
 
 test('identity queue has an independent scroll speed setting', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'admin.html'), 'utf8');
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
 
@@ -199,7 +199,7 @@ test('identity queue has an independent scroll speed setting', () => {
 });
 
 test('identity rule text scrolls independently only when it overflows', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-queue.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const sandbox = {
     console,
     URLSearchParams,
@@ -245,7 +245,7 @@ test('identity rule text scrolls independently only when it overflows', () => {
 });
 
 test('identity queue scrolls from actual overflow instead of a fixed row count', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-queue.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const styleValues = new Map();
   const sandbox = {
     console,
@@ -352,7 +352,7 @@ test('identity queue scrolls from actual overflow instead of a fixed row count',
 });
 
 test('song board scroll speed stays constant as content grows', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'overlay-songs.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const styleValues = new Map();
   const sandbox = {
     console,

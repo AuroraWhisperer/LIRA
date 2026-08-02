@@ -86,21 +86,6 @@ export class FormsService {
       }
     });
 
-    const superChatToggle = document.getElementById('superChatToggle');
-    const superChatPanel = superChatToggle?.closest('.panel');
-    const superChatHeader = superChatPanel?.querySelector('.panel-header');
-
-    // 点击整个 header 区域都可以展开/收起
-    superChatHeader?.addEventListener('click', (e) => {
-      if (e.target.closest('button:not(#superChatToggle)')) return;
-
-      const collapsed = superChatPanel?.classList.toggle('is-collapsed') || false;
-      if (superChatToggle) {
-        superChatToggle.setAttribute('aria-expanded', String(!collapsed));
-        superChatToggle.title = collapsed ? '展开 SC 队列' : '折叠 SC 队列';
-      }
-    });
-
     const quickAddToggle = document.getElementById('quickAddToggle');
     const quickAddPanel = quickAddToggle?.closest('.panel');
     const quickAddHeader = quickAddPanel?.querySelector('.panel-header');

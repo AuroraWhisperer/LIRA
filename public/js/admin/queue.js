@@ -39,14 +39,21 @@
       }
     });
 
+    // 将 wheel 事件的 deltaY 归一化为像素值（Windows 普通鼠标报告行模式 deltaMode=1）
+    function normalizedWheelDelta(event, el) {
+      switch (event.deltaMode) {
+        case 1: return event.deltaY * 40;          // 行模式：行高约 40px
+        case 2: return event.deltaY * el.clientHeight; // 页模式：按容器高度换算
+        default: return event.deltaY;              // 像素模式：直接使用
+      }
+    }
+
     // 自定义 SC 队列滚轮滚动距离（减小滚动步长）
     const scList = document.getElementById('superChatList');
     if (scList) {
       scList.addEventListener('wheel', (event) => {
         event.preventDefault();
-        // 将默认滚动距离缩小到 30%（可以调整这个数值）
-        const scrollAmount = event.deltaY * 0.3;
-        scList.scrollTop += scrollAmount;
+        scList.scrollTop += normalizedWheelDelta(event, scList) * 0.3;
       }, { passive: false });
     }
 
@@ -55,9 +62,7 @@
     if (queueList) {
       queueList.addEventListener('wheel', (event) => {
         event.preventDefault();
-        // 将默认滚动距离缩小到 30%
-        const scrollAmount = event.deltaY * 0.3;
-        queueList.scrollTop += scrollAmount;
+        queueList.scrollTop += normalizedWheelDelta(event, queueList) * 0.3;
       }, { passive: false });
     }
   }
@@ -126,7 +131,13 @@
     const list = document.getElementById('queueList');
     applyAdminQueueFontPreview(settings);
     if (queueItems.length === 0) {
-      list.innerHTML = '<div class="empty">队列为空</div>';
+      list.innerHTML = `
+        <div class="empty queue-empty">
+          <div class="empty-icon">🎵</div>
+          <div class="empty-text">暂无点歌</div>
+          <div class="empty-hint">观众点歌后会显示在这里</div>
+        </div>
+      `;
     } else {
       list.innerHTML = queueItems.map((item, index) => {
         const pinButton = index === 0 && !item.is_pinned
@@ -183,7 +194,13 @@
 
     size.textContent = `${items.length} 条`;
     if (items.length === 0) {
-      list.innerHTML = '<div class="empty">SC 队列为空</div>';
+      list.innerHTML = `
+        <div class="empty sc-empty">
+          <div class="empty-icon">💬</div>
+          <div class="empty-text">暂无醒目留言</div>
+          <div class="empty-hint">SC 消息会显示在这里</div>
+        </div>
+      `;
       return;
     }
 

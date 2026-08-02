@@ -22,6 +22,7 @@ export function createInitializer(deps) {
     updatePlaybackMediaSession,
     playbackNext,
     handlePlaybackError,
+    flushPlaybackStateOnUnload,
     refreshSelectedMusicProviderState
   } = deps;
 
@@ -119,47 +120,6 @@ export function createInitializer(deps) {
           await window.musicAPI.confirmShutdownFlush();
         } catch (_) {}
       });
-    }
-  }
-
-  function flushPlaybackStateOnUnload() {
-    const playbackStateSavePending = deps.playbackStateSavePending;
-    const playbackStateSaveTimer = deps.playbackStateSaveTimer;
-
-    // If nothing pending but we have current state, generate a fresh save
-    if (!playbackStateSavePending && playbackState.current) {
-      savePlaybackState();
-    }
-    if (!playbackStateSavePending) return;
-
-    const payload = playbackStateSavePending;
-    deps.playbackStateSavePending = null;
-    if (playbackStateSaveTimer) {
-      clearTimeout(playbackStateSaveTimer);
-      deps.playbackStateSaveTimer = null;
-    }
-
-    // Try IPC save first (Electron desktop)
-    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
-      try {
-        window.musicAPI.savePlaybackState(playbackClientId, payload);
-      } catch (_) {}
-    }
-
-    // Fallback: sendBeacon / keepalive fetch
-    const body = JSON.stringify({ clientId: playbackClientId, payload });
-    if (navigator.sendBeacon) {
-      const blob = new Blob([body], { type: 'application/json' });
-      const token = window.__API_TOKEN__;
-      const beaconUrl = `/api/playback/queue-state${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-      navigator.sendBeacon(beaconUrl, blob);
-    } else {
-      fetch('/api/playback/queue-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        keepalive: true
-      }).catch(() => {});
     }
   }
 

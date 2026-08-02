@@ -184,10 +184,10 @@ export function createEventHandlers(deps) {
       if (event.key === 'Enter') runPlaybackSearch();
     });
 
-    document.getElementById('playbackSearchResults')?.addEventListener('click', (event) => {
+    document.getElementById('playbackSearchResults')?.addEventListener('click', async (event) => {
       const button = event.target.closest('[data-playback-search-action][data-playback-search-index]');
       if (!button) return;
-      handlePlaybackSearchAction(
+      await handlePlaybackSearchAction(
         button.dataset.playbackSearchAction,
         Number(button.dataset.playbackSearchIndex)
       );

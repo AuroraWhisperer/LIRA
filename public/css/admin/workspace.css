@@ -146,18 +146,19 @@
   flex-direction: column;
   gap: 16px;
   min-height: calc(100vh - 58px - 96px);
-  padding: 16px;
+  padding: 16px 16px calc(16px + 96px);
 }
 
 body.player-dock-expanded .song-workspace {
   min-height: calc(100vh - 58px - 218px);
+  padding-bottom: calc(16px + 218px);
 }
 
 /* ---- 并排双队列 ---- */
 .queues-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 18px;
   min-width: 0;
   min-height: 0;
   /* 容纳 5 个词条：5×(62[行高]+16[填充]+2[边框]) + 4×6[间隔] + 32[面板填充] */
@@ -170,6 +171,41 @@ body.player-dock-expanded .song-workspace {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(22, 31, 43, 0.06), 0 0 0 1px rgba(217, 224, 232, 0.5);
+  transition: box-shadow 200ms ease;
+}
+
+.queues-row .queue-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--primary) 0%, #e8406e 100%);
+  border-radius: 12px 0 0 12px;
+  opacity: 0.85;
+}
+
+.queues-row .queue-panel:hover {
+  box-shadow: 0 4px 16px rgba(22, 31, 43, 0.10), 0 0 0 1px rgba(217, 224, 232, 0.7);
+}
+
+.queues-row .queue-panel .panel-header {
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid rgba(217, 224, 232, 0.5);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(249, 251, 253, 0.8) 100%);
+}
+
+.queues-row .queue-panel .panel-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .queues-row .queue-panel .panel-body {
@@ -178,6 +214,7 @@ body.player-dock-expanded .song-workspace {
   overflow: hidden;
   display: flex;
   max-height: none;
+  padding: 14px;
 }
 
 /* 队列面板内复用 collapsible 动画，但高度由 flex 决定 */

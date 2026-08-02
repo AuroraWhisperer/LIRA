@@ -152,7 +152,7 @@ export function createRenderer(deps) {
     );
   }
 
-  function renderPlaybackMatchResults(data, escapeHtml) {
+  function renderPlaybackMatchResults(data) {
     const resultNode = document.getElementById('playbackMatchResults');
     if (!resultNode) return;
     const results = data && Array.isArray(data.results) ? data.results.slice(0, 5) : [];
