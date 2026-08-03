@@ -727,4 +727,3 @@ normalizeRandomScopeText:
 | SC 置顶阈值 | ≥ 2 RMB | |
 | 大航海价格 | 198 / 1998 / 19998 RMB | |
 | 礼物连击缓冲 TTL | 10s | |
-| 礼物机器人缓冲 TTL | 15s | |

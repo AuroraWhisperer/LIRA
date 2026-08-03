@@ -54,6 +54,14 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.match(settingsSource, /location\.host/);
 });
 
+test('recent gift cards keep a wider responsive minimum width', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const giftCardsRule = source.match(/\.gift-page \.panel-body \.gift-cards\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(giftCardsRule, 'gift card layout styles should remain defined');
+  assert.match(giftCardsRule, /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/);
+});
+
 test('toolbox owns performance and desktop update as independent features', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
@@ -264,6 +272,19 @@ test('queue panels keep their full height without breaking the narrow layout', (
   assert.match(queueRowRule, /height:\s*450px/);
   assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
   assert.match(responsiveQueueRule, /height:\s*auto/);
+});
+
+test('admin queue entries keep a fixed height at the top of each list', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const queueListRule = source.match(/\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/)?.[0];
+  const queueItemRule = source.match(/\.queues-row \.queue-panel \.queue-row\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(queueListRule, 'queue list styles should remain defined');
+  assert.ok(queueItemRule, 'queue item styles should remain defined');
+  assert.match(queueListRule, /grid-auto-rows:\s*88px/);
+  assert.match(queueListRule, /align-content:\s*start/);
+  assert.match(queueItemRule, /min-height:\s*0/);
+  assert.match(queueItemRule, /overflow:\s*hidden/);
 });
 
 test('admin queue wheel scrolls overflowing lists and releases the page at their edges', () => {
@@ -912,11 +933,13 @@ test('song board keeps song names readable in narrow browser sources', () => {
     .find((rule) => /display:\s*flex/.test(rule));
   const nameRule = overlayStyles.match(/\.song-card strong\s*\{[^}]*\}/)?.[0];
   const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
+  const headerRule = overlayStyles.match(/\.song-board \.overlay-header\s*\{[^}]*\}/)?.[0];
   assert.ok(listRule);
   assert.ok(groupRule);
   assert.ok(cardRule);
   assert.ok(nameRule);
   assert.ok(artistRule);
+  assert.ok(headerRule);
   assert.match(listRule, /grid-auto-rows:\s*max-content/);
   assert.match(listRule, /align-content:\s*start/);
   assert.match(groupRule, /grid-auto-rows:\s*max-content/);
@@ -924,15 +947,26 @@ test('song board keeps song names readable in narrow browser sources', () => {
   assert.doesNotMatch(cardRule, /grid-template-columns/);
   assert.match(nameRule, /flex:\s*1 1 auto/);
   assert.match(nameRule, /min-width:\s*0/);
-  assert.match(artistRule, /max-width:\s*min\(36%, 10em\)/);
+  assert.match(headerRule, /clamp\(4px, calc\(6px \* var\(--overlay-font-scale, 1\)\), 8px\)/);
+  assert.match(artistRule, /max-width:\s*min\(32\.4%, 9em\)/);
+  assert.match(artistRule, /font-size:\s*calc\(10\.5px \* var\(--overlay-font-scale, 1\)\)/);
+  assert.match(artistRule, /letter-spacing:\s*-0\.1em/);
   assert.match(artistRule, /text-overflow:\s*ellipsis/);
   assert.match(artistRule, /white-space:\s*nowrap/);
   assert.match(overlayStyles, /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/);
   assert.match(overlayStyles, /@media \(max-width: 280px\)\s*\{[\s\S]*?\.song-card span\s*\{[\s\S]*?display:\s*none/);
 
-  const html = sandbox.renderFlatSongs([{ name: 'A "song"', artist: 'Artist & guests' }]);
+  const html = sandbox.renderFlatSongs([{ name: 'A "song"', artist: 'Artist & guests / Guest Two / Guest Three' }]);
   assert.match(html, /class="song-name" title="A &quot;song&quot;"/);
-  assert.match(html, /class="song-artist" title="Artist &amp; guests"/);
+  assert.match(html, /class="song-artist" title="Artist &amp; guests">Artist &amp; guests<\/span>/);
+  assert.doesNotMatch(html, /Guest Two|Guest Three/);
+
+  const artistGroups = sandbox.groupSongs([
+    { name: 'First', artist: 'Lead / Guest Two' },
+    { name: 'Second', artist: 'Lead / Guest Three' }
+  ], 'artist');
+  assert.equal(artistGroups.length, 1);
+  assert.equal(artistGroups[0][0], 'Lead');
 });
 
 test('overlay utility helpers preserve shared formatting behavior', () => {

@@ -237,7 +237,14 @@ body.player-dock-expanded .song-workspace {
   flex: 1 1 auto;
   width: 100%;
   max-height: none;
+  grid-auto-rows: 88px;
+  align-content: start;
   overflow-y: auto;
+}
+
+.queues-row .queue-panel .queue-row {
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 队列为空时，empty 占位块撑满面板（与 1.x 版本行为一致） */
@@ -333,7 +340,7 @@ body.player-dock-expanded .gift-workspace {
 
 .gift-page .panel-body .gift-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 10px;
 }
 

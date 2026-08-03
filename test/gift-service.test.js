@@ -13,8 +13,6 @@ test('final SEND_GIFT combos flush on timer expiry and service disposal', () => 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-service-'));
   const db = createDatabases({ dataDir });
   const state = {
-    giftBotPendingByName: new Map(),
-    giftBotLastReportByName: new Map(),
     giftComboPending: new Map(),
     blindBoxCache: null
   };
@@ -96,8 +94,6 @@ test('consecutive SEND_GIFT packets merge using Bilibili combo progress', () => 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-combo-'));
   const db = createDatabases({ dataDir });
   const state = {
-    giftBotPendingByName: new Map(),
-    giftBotLastReportByName: new Map(),
     giftComboPending: new Map(),
     blindBoxCache: null
   };
@@ -171,8 +167,6 @@ test('distinct SEND_GIFT message ids are not treated as retransmissions', () => 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-distinct-'));
   const db = createDatabases({ dataDir });
   const state = {
-    giftBotPendingByName: new Map(),
-    giftBotLastReportByName: new Map(),
     giftComboPending: new Map(),
     blindBoxCache: null
   };

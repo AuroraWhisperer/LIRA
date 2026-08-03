@@ -435,13 +435,6 @@ function createServerRuntime(runtimeOptions = {}) {
       onMessage: (danmaku) => {
         if (isShuttingDown) return;
         try {
-          // 礼物机器人逻辑已禁用 — 改用直接礼物捕捉 + 辅助补充，无需机器人解析弹幕
-          // const giftBotResult = domainServices.gifts.handleBotDanmaku(danmaku);
-          // if (giftBotResult && giftBotResult.item) {
-          //   console.log(`[Bilibili] gift bot recorded: bot=${danmaku.userName || ''} user=${giftBotResult.item.user_name || ''} gift=${giftBotResult.item.gift_name || ''} x${giftBotResult.item.num || 1} totalRmb=${giftBotResult.item.total_price || 0}`);
-          //   broadcastSnapshot('bilibili:gift-bot');
-          // }
-
           const result = domainServices.messages.handleDanmaku({
             message: danmaku.message,
             userName: danmaku.userName,

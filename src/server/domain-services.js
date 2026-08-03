@@ -20,8 +20,6 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
 
   const state = {
     cooldownByUser: new Map(),
-    giftBotPendingByName: new Map(),
-    giftBotLastReportByName: new Map(),
     giftComboPending: new Map(),
     blindBoxCache: null
   };
@@ -99,8 +97,6 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     clearPlayback: () => database.clearPlaybackData(db.musicDb),
     clearGifts() {
       const result = database.clearGiftData(db.giftDb);
-      state.giftBotPendingByName.clear();
-      state.giftBotLastReportByName.clear();
       state.giftComboPending.clear();
       state.blindBoxCache = null;
       return result;
@@ -108,8 +104,6 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     clearAll() {
       const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb);
       state.cooldownByUser.clear();
-      state.giftBotPendingByName.clear();
-      state.giftBotLastReportByName.clear();
       state.giftComboPending.clear();
       state.blindBoxCache = null;
       songs.ensureCategory('默认');

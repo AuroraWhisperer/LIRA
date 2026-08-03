@@ -138,7 +138,6 @@ HTTP Request
 - `'bilibili:danmaku'` — 弹幕点歌
 - `'bilibili:superchat'` — SC 点歌
 - `'bilibili:gift'` — 礼物记录
-- `'bilibili:gift-bot'` — 礼物机器人
 - `'live:status'` — 直播状态变化
 - `'connect'` — 新客户端连接
 

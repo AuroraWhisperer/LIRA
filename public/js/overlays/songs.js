@@ -171,7 +171,7 @@ function groupSongs(items, sortMode) {
         key = song.category_name || '默认';
         break;
       case 'artist':
-        key = song.artist || '未知歌手';
+        key = primarySongArtist(song) || '未知歌手';
         break;
       case 'language':
         key = song.language || '未知语言';
@@ -214,7 +214,7 @@ function renderFlatSongs(items) {
   return items.map((song) => `
     <div class="song-card">
       <strong class="song-name" title="${escapeHtml(song.name || '')}">${escapeHtml(song.name)}</strong>
-      <span class="song-artist" title="${escapeHtml(song.artist || song.category_name || '')}">${escapeHtml(song.artist || song.category_name || '')}</span>
+      <span class="song-artist" title="${escapeHtml(primarySongArtist(song))}">${escapeHtml(primarySongArtist(song))}</span>
     </div>
   `).join('');
 }
@@ -226,11 +226,15 @@ function renderGroups(groups) {
       ${groupSongs.map((song) => `
         <div class="song-card">
           <strong class="song-name" title="${escapeHtml(song.name || '')}">${escapeHtml(song.name)}</strong>
-          <span class="song-artist" title="${escapeHtml(song.artist || song.category_name || '')}">${escapeHtml(song.artist || song.category_name || '')}</span>
+          <span class="song-artist" title="${escapeHtml(primarySongArtist(song))}">${escapeHtml(primarySongArtist(song))}</span>
         </div>
       `).join('')}
     </div>
   `).join('');
+}
+
+function primarySongArtist(song) {
+  return String(song.artist || song.category_name || '').split('/', 1)[0].trim();
 }
 
 function applyTheme(settings) {

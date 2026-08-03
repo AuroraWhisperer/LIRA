@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.0.1`
+当前版本：`3.0.2`
 
 ---
+
+## v3.0.2 变更
+
+- 🧹 **礼物机器人功能移除**：`gift-service.js` 移除全部礼物机器人弹幕解析逻辑（~200 行），包括待处理用户别名缓存、礼物报告匹配合并、盈亏回填等链路。`settings-store.js` 移除 3 个礼物机器人默认配置项（`enableGiftBotFallback`、`giftBotNames`、`giftBotAliasMap`）。`domain-services.js` 和 `server.js` 同步清理相关状态 Map 和注释代码。架构文档移除 `bilibili:gift-bot` 事件引用。
+- 🐛 **大航海上舰去重修正**：`gift-parser.js` 新增 `buildBilibiliGuardPurchaseId` 生成结构化 `platformId`（`guard:uid:giftId:startTime`），替代旧版随机 ID，确保同一大航海购买事件被正确去重，不再重复记录。
+- 🎨 **歌单展示板歌手名简化**：`songs.js` 新增 `primarySongArtist()` 函数，按 `/` 分割取首个歌手名，避免多歌手并列导致视觉拥挤。按歌手分组时也使用首位歌手归类。
+- 🎨 **歌单展示板样式收紧**：歌手名字号从 12px 缩至 10.5px，最大宽度从 36%/10em 收紧至 32.4%/9em，新增 `letter-spacing: -0.1em` 压缩间距。面板 header padding 从 10px/18px 缩减至 6px/8px。缓存版本升级至 `20260803-03`。
+- 🎨 **管理后台队列行高修正**：`workspace.css` 队列列表新增 `grid-auto-rows: 88px` + `align-content: start` 统一行高靠上排列；队列行局部新增 `min-height: 0` + `overflow: hidden` 防止内容溢出。
+- 🎨 **礼物卡片网格调整**：礼物页面卡片最小宽度从 180px 恢复至 270px 保证可读性；近期礼物卡片改为固定 6 列布局（`repeat(6, minmax(0, 1fr))`）。
+- 🧪 **测试同步更新**：`frontend-regressions.test.js` 新增队列行高、礼物卡片宽度、歌手名简化、header padding 等回归断言；`gift-service.test.js` 清理礼物机器人状态引用。
 
 ## v3.0.1 变更
 
@@ -256,7 +266,6 @@
 - 📜 **队列滚轮滚动优化**：SC 队列和点歌队列自定义 `wheel` 事件，滚动距离缩小至 30%，滚动更平滑可控。
 - ⚡ **叠加层渲染去重**：`overlay-queue.js` 和 `overlay-songs.js` 新增 `computeStateKey()` 状态指纹比较，相同状态跳过 DOM 重渲染，减少不必要的重绘开销，降低 CPU 占用。
 - 🔌 **Bilibili 登录自动关闭**：Electron 主进程 Bilibili 登录窗口新增 Cookie 变化即时检测 + 1.5s 轮询双重保障，登录成功后自动关闭窗口；音乐平台登录窗口（QQ/网易云）同步支持。
-- 🧹 **禁用礼物机器人逻辑**：`server.js` 中 `handleBotDanmaku` 调用已注释禁用，改为直接礼物捕捉 + 辅助补充，减少弹幕解析噪音。
 - 💾 **存储层扩展**：`settings-store.js` 的 `DEFAULT_SETTINGS` 新增 12 个桌面歌词默认参数（字体/字重/颜色/描边/字号/透明度/背景透明度/缩放/行间距/阴影强度/翻译比例），确保数据库初始化时写入默认值。
 - 🎨 **CSS 大幅扩展**：`styles-admin.css`（+623/-xxx 行）新增礼物通知变体样式、退出登录弹窗完整样式体系；`styles-playback.css` 清理桌面歌词硬编码样式。
 

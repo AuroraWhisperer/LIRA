@@ -642,7 +642,7 @@
 }
 
 .song-board .overlay-header {
-  padding: clamp(6px, calc(10px * var(--overlay-font-scale, 1)), 18px)
+  padding: clamp(4px, calc(6px * var(--overlay-font-scale, 1)), 8px)
     clamp(8px, calc(14px * var(--overlay-font-scale, 1)), 24px);
 }
 
@@ -717,10 +717,11 @@
 .song-card span {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: min(36%, 10em);
+  max-width: min(32.4%, 9em);
   overflow: hidden;
   color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 26%);
-  font-size: calc(12px * var(--overlay-font-scale, 1));
+  font-size: calc(10.5px * var(--overlay-font-scale, 1));
+  letter-spacing: -0.1em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -8,7 +8,7 @@
 # 1. 改版本号
 编辑 package.json → version
 编辑 UPDATE.md   → 新增 ## vX.Y.Z 变更 小节
-对比总结上一版更新了什么，用于提交github时候说明
+对比总结上一版更新了什么，用于提交github和release的时候说明
 
 # 2. 验证 + 提交
 npm test

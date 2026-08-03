@@ -327,6 +327,13 @@ function extractBilibiliWebGuardGiftMessage(packet, data) {
 
   const giftName = rawGiftName || guardLevelName(guardLevel) || '大航海';
   const num = normalizePositiveInteger(readObjectValue(payInfo, ['num']) || readObjectValue(data, ['num', 'gift_num', 'giftNum'])) || 1;
+  const giftId = cleanText(readObjectValue(giftInfo, ['gift_id', 'giftId', 'giftid']) || readObjectValue(data, ['gift_id', 'giftId', 'giftid'])) || `guard-${guardLevel || 'unknown'}`;
+  const uid = cleanText(readObjectValue(senderInfo, ['uid', 'mid']) || readObjectValue(data, ['uid', 'mid']));
+  const guardPurchaseId = buildBilibiliGuardPurchaseId(
+    uid,
+    giftId,
+    readObjectValue(guardInfo, ['start_time', 'startTime']) || readObjectValue(data, ['start_time', 'startTime'])
+  );
 
   // 价格提取：多字段回退 + 硬编码回退
   const explicitTotalCoin = normalizeBilibiliGiftCoin(
@@ -346,7 +353,7 @@ function extractBilibiliWebGuardGiftMessage(packet, data) {
   const unitPrice = num > 0 ? normalizeMoney(totalPrice / num) : totalPrice;
 
   return {
-    platformId: cleanText(readObjectValue(data, [
+    platformId: guardPurchaseId || cleanText(readObjectValue(data, [
       'id',
       'tid',
       'gift_tid',
@@ -359,9 +366,9 @@ function extractBilibiliWebGuardGiftMessage(packet, data) {
       'msgId'
     ])) || buildBilibiliFallbackGiftId(packet, data),
     cmd,
-    giftId: cleanText(readObjectValue(giftInfo, ['gift_id', 'giftId', 'giftid']) || readObjectValue(data, ['gift_id', 'giftId', 'giftid'])) || `guard-${guardLevel || 'unknown'}`,
+    giftId,
     giftName,
-    uid: cleanText(readObjectValue(senderInfo, ['uid', 'mid']) || readObjectValue(data, ['uid', 'mid'])),
+    uid,
     userName: cleanText(
       readObjectValue(senderBase, ['name', 'uname', 'user_name', 'userName'])
       || readObjectValue(senderInfo, ['username', 'user_name', 'userName', 'uname', 'nickname'])
@@ -377,6 +384,14 @@ function extractBilibiliWebGuardGiftMessage(packet, data) {
     rawJson: safeJsonStringify(packet),
     messageTimestamp: normalizeTimestampMs(readObjectValue(data, ['timestamp', 'ts', 'time', 'start_time', 'startTime'])) || Date.now()
   };
+}
+
+function buildBilibiliGuardPurchaseId(uid, giftId, startTime) {
+  const normalizedUid = cleanText(uid);
+  const normalizedGiftId = cleanText(giftId);
+  const normalizedStartTime = cleanText(startTime);
+  if (!normalizedUid || !normalizedGiftId || !normalizedStartTime) return '';
+  return `guard:${normalizedUid}:${normalizedGiftId}:${normalizedStartTime}`;
 }
 
 function isBilibiliGiftCommand(cmd, runtimeGiftPrefixes) {
