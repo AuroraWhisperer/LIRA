@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260803-03">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260803-04">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260731-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -157,7 +157,6 @@
             <div class="tab-overflow-menu">
               <button class="tab" data-tab="importPage" type="button">导入导出</button>
               <button class="tab" data-tab="desktopLyricPage" type="button">桌面歌词设置</button>
-              <button class="tab" data-tab="performancePage" type="button">性能</button>
               <button id="desktopUpdateTab" class="tab desktop-only" data-tab="desktopUpdatePage" type="button" hidden>桌面更新</button>
             </div>
           </details>
@@ -639,10 +638,10 @@
               <label>
                 歌单滚动速率
                 <span class="range-row">
-                  <input id="scrollSecondsRange" type="range" min="1" max="200" step="1">
-                  <input id="scrollSeconds" type="number" min="1" max="200" step="1">
+                  <input id="scrollSecondsRange" type="range" min="1" max="100" step="1">
+                  <input id="scrollSeconds" type="number" min="1" max="100" step="1">
                 </span>
-                <span class="hint">数值越大滚动越快，1 最慢，200 最快</span>
+                <span class="hint">数值越大滚动越快，1 最慢，100 最快</span>
               </label>
 
               <div class="grid-2" style="margin-bottom:12px">
@@ -1098,93 +1097,6 @@
           </div>
         </div>
 
-        <div id="performancePage" class="tab-page">
-          <div class="panel-body stack">
-            <div class="monitor-hero">
-              <div>
-                <h3>性能检测</h3>
-                <p id="metricsStatus">未检测</p>
-              </div>
-              <div class="monitor-actions">
-                <label class="switch-control" title="检测最近 5 秒的资源使用率">
-                  <input id="metricsToggle" type="checkbox">
-                  <span class="switch-track"></span>
-                  <span id="metricsToggleText">开始检测</span>
-                </label>
-                <button id="metricsRefreshBtn" class="primary" type="button">检测 5 秒</button>
-              </div>
-            </div>
-
-            <div class="monitor-grid">
-              <section class="metric-card">
-                <div class="metric-head">
-                  <span>整机 CPU</span>
-                  <small>全部程序</small>
-                </div>
-                <div class="metric-value" id="metricSystemCpu">--</div>
-                <div class="metric-bar"><span id="metricSystemCpuBar"></span></div>
-                <div class="metric-detail" id="metricSystemCpuDetail">等待检测</div>
-              </section>
-
-              <section class="metric-card">
-                <div class="metric-head">
-                  <span>整机 GPU</span>
-                  <small>全部程序</small>
-                </div>
-                <div class="metric-value" id="metricSystemGpu">--</div>
-                <div class="metric-bar"><span id="metricSystemGpuBar"></span></div>
-                <div class="metric-detail" id="metricSystemGpuDetail">等待检测</div>
-              </section>
-
-              <section class="metric-card">
-                <div class="metric-head">
-                  <span>整机内存</span>
-                  <small>全部程序</small>
-                </div>
-                <div class="metric-value" id="metricSystemMemory">--</div>
-                <div class="metric-bar"><span id="metricSystemMemoryBar"></span></div>
-                <div class="metric-detail" id="metricSystemMemoryDetail">等待检测</div>
-              </section>
-
-              <section class="metric-card">
-                <div class="metric-head">
-                  <span>本软件 CPU</span>
-                  <small>点歌助手</small>
-                </div>
-                <div class="metric-value" id="metricAppCpu">--</div>
-                <div class="metric-bar"><span id="metricAppCpuBar"></span></div>
-                <div class="metric-detail" id="metricAppCpuDetail">等待检测</div>
-              </section>
-
-              <section class="metric-card">
-                <div class="metric-head">
-                  <span>本软件 GPU</span>
-                  <small>点歌助手</small>
-                </div>
-                <div class="metric-value" id="metricAppGpu">--</div>
-                <div class="metric-bar"><span id="metricAppGpuBar"></span></div>
-                <div class="metric-detail" id="metricAppGpuDetail">等待检测</div>
-              </section>
-
-              <section class="metric-card">
-                <div class="metric-head">
-                  <span>本软件内存</span>
-                  <small>点歌助手</small>
-                </div>
-                <div class="metric-value" id="metricAppMemory">--</div>
-                <div class="metric-bar"><span id="metricAppMemoryBar"></span></div>
-                <div class="metric-detail" id="metricAppMemoryDetail">等待检测</div>
-              </section>
-            </div>
-
-            <div class="monitor-footer">
-              <span id="metricsSampleWindow">采样窗口：--</span>
-              <span id="metricsSampleTime">检测时间：--</span>
-              <span id="metricsProcessPid">本次服务进程：--</span>
-            </div>
-          </div>
-        </div>
-
         <div id="desktopUpdatePage" class="tab-page desktop-only" hidden>
           <div class="panel-body stack">
             <div class="desktop-update-hero">
@@ -1402,17 +1314,144 @@
         </div>
       </section>
 
-      <!-- 其他页面 — 预留扩展功能，内容待定 -->
+      <!-- “其他”只提供功能壳层，各功能内容由独立模块维护。 -->
       <section id="otherAssistantPage" class="main-page other-page">
         <div class="other-workspace">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>其他功能</h2>
-            </div>
-            <div class="panel-body stack">
-              <p class="hint" style="text-align:center;padding:40px 0;">内容待定，敬请期待…</p>
-            </div>
-          </section>
+          <aside class="other-feature-sidebar" aria-labelledby="otherFeatureTitle">
+            <header class="other-feature-sidebar-header">
+              <span class="page-kicker">工具箱</span>
+              <h2 id="otherFeatureTitle">其他功能</h2>
+              <p>选择功能后，在右侧集中查看和操作。</p>
+            </header>
+            <nav class="other-feature-menu" role="tablist" aria-label="其他功能" aria-orientation="vertical">
+              <button
+                id="otherPerformanceFeatureTab"
+                class="other-feature-button active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="otherPerformanceFeature"
+                data-other-feature="otherPerformanceFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 18a8 8 0 1 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="m12 14 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <circle cx="12" cy="18" r="1.5" fill="currentColor"/>
+                  </svg>
+                </span>
+                <span class="other-feature-label">
+                  <strong>性能</strong>
+                  <small>查看系统资源占用</small>
+                </span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </nav>
+          </aside>
+
+          <div class="other-feature-content">
+            <section
+              id="otherPerformanceFeature"
+              class="other-feature-panel active"
+              role="tabpanel"
+              aria-labelledby="otherPerformanceFeatureTab"
+              data-other-feature-panel
+            >
+              <header class="other-feature-panel-header">
+                <div>
+                  <span class="page-kicker">系统状态</span>
+                  <h2>性能</h2>
+                  <p>采样整机和点歌助手的资源占用，便于直播前快速排查。</p>
+                </div>
+              </header>
+              <div class="other-feature-panel-body stack">
+                <div class="monitor-hero">
+                  <div>
+                    <h3>性能检测</h3>
+                    <p id="metricsStatus">未检测</p>
+                  </div>
+                  <div class="monitor-actions">
+                    <label class="switch-control" title="检测最近 5 秒的资源使用率">
+                      <input id="metricsToggle" type="checkbox">
+                      <span class="switch-track"></span>
+                      <span id="metricsToggleText">开始检测</span>
+                    </label>
+                    <button id="metricsRefreshBtn" class="primary" type="button">检测 5 秒</button>
+                  </div>
+                </div>
+
+                <div class="monitor-grid">
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>整机 CPU</span>
+                      <small>全部程序</small>
+                    </div>
+                    <div class="metric-value" id="metricSystemCpu">--</div>
+                    <div class="metric-bar"><span id="metricSystemCpuBar"></span></div>
+                    <div class="metric-detail" id="metricSystemCpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>整机 GPU</span>
+                      <small>全部程序</small>
+                    </div>
+                    <div class="metric-value" id="metricSystemGpu">--</div>
+                    <div class="metric-bar"><span id="metricSystemGpuBar"></span></div>
+                    <div class="metric-detail" id="metricSystemGpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>整机内存</span>
+                      <small>全部程序</small>
+                    </div>
+                    <div class="metric-value" id="metricSystemMemory">--</div>
+                    <div class="metric-bar"><span id="metricSystemMemoryBar"></span></div>
+                    <div class="metric-detail" id="metricSystemMemoryDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>本软件 CPU</span>
+                      <small>点歌助手</small>
+                    </div>
+                    <div class="metric-value" id="metricAppCpu">--</div>
+                    <div class="metric-bar"><span id="metricAppCpuBar"></span></div>
+                    <div class="metric-detail" id="metricAppCpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>本软件 GPU</span>
+                      <small>点歌助手</small>
+                    </div>
+                    <div class="metric-value" id="metricAppGpu">--</div>
+                    <div class="metric-bar"><span id="metricAppGpuBar"></span></div>
+                    <div class="metric-detail" id="metricAppGpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>本软件内存</span>
+                      <small>点歌助手</small>
+                    </div>
+                    <div class="metric-value" id="metricAppMemory">--</div>
+                    <div class="metric-bar"><span id="metricAppMemoryBar"></span></div>
+                    <div class="metric-detail" id="metricAppMemoryDetail">等待检测</div>
+                  </section>
+                </div>
+
+                <div class="monitor-footer">
+                  <span id="metricsSampleWindow">采样窗口：--</span>
+                  <span id="metricsSampleTime">检测时间：--</span>
+                  <span id="metricsProcessPid">本次服务进程：--</span>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
       </section>
 
@@ -1793,7 +1832,7 @@
       </div>
     </div>
     <div id="toast" class="toast-stack"></div>
-    <script type="module" src="/js/admin/index.js?v=20260803-01"></script>
+    <script type="module" src="/js/admin/index.js?v=20260803-02"></script>
     <script type="module" src="/js/playback.js?v=20260731-11"></script>
   </body>
 </html>

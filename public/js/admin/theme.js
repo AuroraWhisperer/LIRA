@@ -200,7 +200,13 @@
       setValue('identityQueueScrollSpeed', identityScrollSpeed);
       setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
-    setValue('scrollSecondsRange', v.scrollSeconds || value('scrollSeconds'));
+    if (window.AdminApp.forms && window.AdminApp.forms.normalizeSongScrollSpeedForDisplay) {
+      const songScrollSpeed = window.AdminApp.forms.normalizeSongScrollSpeedForDisplay(
+        v.scrollSeconds || value('scrollSeconds')
+      );
+      setValue('scrollSeconds', songScrollSpeed);
+      setValue('scrollSecondsRange', songScrollSpeed);
+    }
   }
 
   function setOverlayStyle(style) {

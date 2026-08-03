@@ -36,7 +36,7 @@
     });
     document.getElementById('scrollSeconds').addEventListener('input', () => {
       const { normalizeRangeValue } = window.AdminApp.utils;
-      setValue('scrollSecondsRange', String(Math.round(Number(normalizeRangeValue(value('scrollSeconds'), 1, 200, 20)))));
+      setValue('scrollSecondsRange', String(Math.round(Number(normalizeRangeValue(value('scrollSeconds'), 1, 100, 45)))));
       autosaveDisplay();
     });
 

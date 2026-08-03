@@ -22,7 +22,8 @@ const DEFAULT_SETTINGS = {
   allowDuplicate: 'true',
   queueLimit: '50',
   userCooldownSeconds: '0',
-  scrollSeconds: '100',
+  scrollSeconds: '45',
+  songScrollSpeedRangeVersion: '2',
   queueScrollMode: 'bounce',
   queueScrollSpeed: '80',
   identityQueueScrollSpeed: '80',
@@ -228,6 +229,34 @@ function migrateQueueFontSizeSettings(db, savedVersion) {
   `).run(updatedAt);
 }
 
+function migrateSongScrollSpeedSetting(db, savedVersion) {
+  if (String(savedVersion || '') === '2') return;
+
+  const row = db.prepare(`
+    SELECT value
+    FROM settings
+    WHERE key = 'scrollSeconds'
+  `).get();
+  const savedSpeed = Number(row && row.value);
+  const legacySpeed = Number.isFinite(savedSpeed)
+    ? Math.max(20, Math.min(200, savedSpeed))
+    : 20;
+  const normalizedSpeed = Number.isFinite(savedSpeed)
+    ? Math.max(1, Math.min(100, Math.round(1 + ((legacySpeed - 20) / 180) * 99)))
+    : 45;
+  const updatedAt = now();
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('scrollSeconds', ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(String(normalizedSpeed), updatedAt);
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('songScrollSpeedRangeVersion', '2', ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(updatedAt);
+}
+
 function migrateSongBoardFontSizeSetting(db) {
   const row = db.prepare(`
     SELECT value FROM settings WHERE key = 'songBoardFontSize'
@@ -336,6 +365,7 @@ module.exports = {
   createSettingsStore,
   clearLegacyIdentityRuleDefaults,
   migrateQueueScrollSpeedSetting,
+  migrateSongScrollSpeedSetting,
   migrateQueueFontSizeSettings,
   migrateSongBoardFontSizeSetting,
   migrateBlindBoxConfig

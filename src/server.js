@@ -60,6 +60,16 @@ function createServerRuntime(runtimeOptions = {}) {
     FROM settings
     WHERE key = 'queueFontSizeRangeVersion'
   `).get();
+  const songScrollSpeedRow = songDb.prepare(`
+    SELECT value
+    FROM settings
+    WHERE key = 'scrollSeconds'
+  `).get();
+  const songScrollSpeedRangeVersion = songDb.prepare(`
+    SELECT value
+    FROM settings
+    WHERE key = 'songScrollSpeedRangeVersion'
+  `).get();
   const settingsStore = settingsStoreModule.createSettingsStore(songDb);
   const domainServices = createDomainServices({
     db,
@@ -75,6 +85,12 @@ function createServerRuntime(runtimeOptions = {}) {
   settingsStoreModule.migrateQueueScrollSpeedSetting(
     songDb,
     queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value
+  );
+  settingsStoreModule.migrateSongScrollSpeedSetting(
+    songDb,
+    songScrollSpeedRangeVersion && songScrollSpeedRangeVersion.value
+      ? songScrollSpeedRangeVersion.value
+      : songScrollSpeedRow ? '' : '2'
   );
   settingsStoreModule.migrateQueueFontSizeSettings(
     songDb,

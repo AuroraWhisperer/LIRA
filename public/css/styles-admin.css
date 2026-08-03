@@ -20,6 +20,9 @@
 /* 工作区布局 */
 @import url('./admin/workspace.css');
 
+/* 其他功能侧栏 */
+@import url('./admin/other-features.css');
+
 /* 确认弹窗 */
 @import url('./admin/modals.css');
 

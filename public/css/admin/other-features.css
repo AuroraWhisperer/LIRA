@@ -1,0 +1,254 @@
+/* “其他”页面壳层：功能模块只需声明导航按钮和对应内容面板。 */
+.other-workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
+  gap: 16px;
+  height: calc(100vh - 58px - 96px);
+  min-height: 0;
+  padding: 16px;
+  overflow: hidden;
+}
+
+body.player-dock-expanded .other-workspace {
+  height: calc(100vh - 58px - 218px);
+}
+
+.other-feature-sidebar,
+.other-feature-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.other-feature-sidebar {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.other-feature-sidebar-header {
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.other-feature-sidebar-header h2,
+.other-feature-panel-header h2 {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.other-feature-sidebar-header h2 {
+  font-size: 20px;
+}
+
+.other-feature-sidebar-header p,
+.other-feature-panel-header p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.other-feature-menu {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.other-feature-button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 64px;
+  padding: 9px 10px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.other-feature-button::before {
+  position: absolute;
+  top: 11px;
+  bottom: 11px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--primary);
+  content: "";
+  opacity: 0;
+  transform: scaleY(0.45);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.other-feature-button:hover {
+  border-color: rgba(217, 224, 232, 0.8);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.other-feature-button.active {
+  border-color: rgba(217, 75, 112, 0.2);
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
+}
+
+.other-feature-button.active::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.other-feature-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.other-feature-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.other-feature-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.other-feature-button.active .other-feature-icon {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: 0 3px 10px rgba(217, 75, 112, 0.12);
+}
+
+.other-feature-label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.other-feature-label strong,
+.other-feature-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.other-feature-label strong {
+  color: inherit;
+  font-size: 14px;
+}
+
+.other-feature-label small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.other-feature-arrow {
+  width: 16px;
+  height: 16px;
+  opacity: 0.55;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.other-feature-button.active .other-feature-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.other-feature-content,
+.other-feature-panel {
+  min-height: 0;
+}
+
+.other-feature-panel {
+  display: none;
+  height: 100%;
+  overflow: hidden;
+}
+
+.other-feature-panel.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.other-feature-panel[hidden] {
+  display: none;
+}
+
+.other-feature-panel-header {
+  flex: 0 0 auto;
+  padding: 20px 22px 17px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(110deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+
+.other-feature-panel-header h2 {
+  font-size: 23px;
+}
+
+.other-feature-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.other-feature-panel .monitor-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .other-workspace,
+  body.player-dock-expanded .other-workspace {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    padding: 12px 12px 116px;
+    overflow: visible;
+  }
+
+  .other-feature-sidebar {
+    overflow: visible;
+  }
+
+  .other-feature-menu {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+
+  .other-feature-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .other-feature-panel-body {
+    overflow: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .other-feature-button,
+  .other-feature-button::before,
+  .other-feature-icon,
+  .other-feature-arrow {
+    transition: none;
+  }
+}

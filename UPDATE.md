@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`2.1.0`
+当前版本：`2.1.1`
 
 ---
+
+## v2.1.1 变更
+
+- 🧹 **「其他」页面导航重构**：`other.js` 重写为数据属性驱动的功能导航（`data-other-feature` / `data-other-feature-panel`），切换逻辑不依赖任何具体功能模块，扩展新功能只需声明 HTML 属性。
+- 🎚️ **歌单滚动速率范围调整**：`scrollSeconds` 范围从 1-200 收缩为 1-100，默认值从 100 改为 45；新增 `migrateSongScrollSpeedSetting` 迁移逻辑，旧版数值自动按比例映射到新范围。
+- 🗑️ **移除性能检测页面**：管理后台移除「性能」标签页及其全部 HTML/CSS（整机 CPU/GPU/内存等指标卡片），简化管理界面。
+- 🎨 **管理后台样式微调**：`styles-admin.css` 缓存版本更新为 `20260803-04`；`modals.css`、`display.js`、`forms.js`、`theme.js`、`songs.js` 小幅调整。
+- 🧪 **前端回归测试扩展**：`frontend-regressions.test.js` 新增「其他」页面导航、歌单滚动速率等回归断言。
 
 ## v2.1.0 变更
 

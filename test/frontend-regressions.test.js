@@ -54,6 +54,88 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.match(settingsSource, /location\.host/);
 });
 
+test('other page owns the single performance feature entry', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
+
+  assert.doesNotMatch(html, /data-tab="performancePage"/);
+  assert.doesNotMatch(html, /id="performancePage"/);
+  assert.match(html, /data-other-feature="otherPerformanceFeature"/);
+  assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
+  assert.equal(html.match(/id="metricsToggle"/g)?.length, 1);
+  assert.match(styles, /@import url\('\.\/admin\/other-features\.css'\);/);
+});
+
+test('other feature navigation selects panels without feature-specific dependencies', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8');
+  const createNode = ({ id = '', feature = '' } = {}) => {
+    const classes = new Set();
+    const attributes = new Map();
+    const listeners = new Map();
+    return {
+      id,
+      dataset: feature ? { otherFeature: feature } : {},
+      hidden: false,
+      tabIndex: -1,
+      focused: false,
+      classList: {
+        contains(name) { return classes.has(name); },
+        toggle(name, enabled) {
+          if (enabled) classes.add(name);
+          else classes.delete(name);
+        }
+      },
+      addEventListener(name, listener) { listeners.set(name, listener); },
+      dispatch(name, event) { listeners.get(name)?.(event); },
+      focus() { this.focused = true; },
+      setAttribute(name, value) { attributes.set(name, value); },
+      getAttribute(name) { return attributes.get(name); }
+    };
+  };
+  const buttons = [
+    createNode({ feature: 'performanceFeature' }),
+    createNode({ feature: 'diagnosticsFeature' })
+  ];
+  const panels = [
+    createNode({ id: 'performanceFeature' }),
+    createNode({ id: 'diagnosticsFeature' })
+  ];
+  const root = {
+    querySelectorAll(selector) {
+      return selector === '[data-other-feature]' ? buttons : panels;
+    }
+  };
+  const sandbox = {
+    console,
+    document: { getElementById: () => root },
+    window: { AdminApp: {} }
+  };
+
+  vm.runInNewContext(source, sandbox);
+  const selected = sandbox.window.AdminApp.other.selectFeature(root, 'diagnosticsFeature');
+
+  assert.equal(selected, true);
+  assert.equal(buttons[0].classList.contains('active'), false);
+  assert.equal(buttons[0].getAttribute('aria-selected'), 'false');
+  assert.equal(buttons[0].tabIndex, -1);
+  assert.equal(buttons[1].classList.contains('active'), true);
+  assert.equal(buttons[1].getAttribute('aria-selected'), 'true');
+  assert.equal(buttons[1].tabIndex, 0);
+  assert.equal(panels[0].hidden, true);
+  assert.equal(panels[1].hidden, false);
+
+  sandbox.window.AdminApp.other.initOtherPage();
+  let prevented = false;
+  buttons[1].dispatch('keydown', {
+    key: 'ArrowUp',
+    preventDefault() { prevented = true; }
+  });
+  assert.equal(prevented, true);
+  assert.equal(buttons[0].focused, true);
+  assert.equal(panels[0].hidden, false);
+  assert.equal(panels[1].hidden, true);
+});
+
 test('desktop lyric address is available from the live screen tab', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const displaySource = fs.readFileSync(
@@ -610,11 +692,14 @@ test('identity queue scrolls from actual overflow instead of a fixed row count',
 });
 
 test('song board scroll speed stays constant as content grows', () => {
+  const adminHtml = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const utilitySource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
     'utf8'
   );
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
+  assert.match(adminHtml, /id="scrollSecondsRange" type="range" min="1" max="100"/);
+  assert.match(adminHtml, /id="scrollSeconds" type="number" min="1" max="100"/);
   const styleValues = new Map();
   const sandbox = {
     console,
@@ -631,8 +716,15 @@ test('song board scroll speed stays constant as content grows', () => {
   };
   vm.runInNewContext(utilitySource + '\n' + source, sandbox);
 
-  assert.equal(sandbox.scrollSpeedToDuration(1), '1000.0');
-  assert.equal(sandbox.scrollSpeedToDuration(200), '2.0');
+  assert.equal(sandbox.scrollSpeedToDuration(1), '20.557851');
+  assert.equal(sandbox.scrollSpeedToDuration(100), '2.000000');
+  assert.equal(sandbox.scrollSpeedToDuration(200), '2.000000');
+
+  const rates = Array.from({ length: 100 }, (_, index) => index + 1).map((speed) => (
+    1 / Number(sandbox.scrollSpeedToDuration(speed))
+  ));
+  const rateSteps = rates.slice(1).map((rate, index) => rate - rates[index]);
+  assert.ok(rateSteps.every((step) => Math.abs(step - rateSteps[0]) < 0.000001));
 
   const classes = new Set(['song-scroll-list', 'paused']);
   let duplicatedHtml = '';
@@ -660,7 +752,9 @@ test('song board scroll speed stays constant as content grows', () => {
 
   const longerDistance = loopDistance * 2;
   const longerSeconds = sandbox.scrollTravelSeconds(sandbox.scrollSpeedToDuration(80), longerDistance, 300);
-  assert.ok(Math.abs((loopDistance / travelSeconds) - (longerDistance / longerSeconds)) < 0.001);
+  const shortRate = loopDistance / travelSeconds;
+  const longRate = longerDistance / longerSeconds;
+  assert.ok(Math.abs((shortRate - longRate) / shortRate) < 0.001);
 });
 
 test('only the latest playback search updates state and renders', async () => {

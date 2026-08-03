@@ -212,7 +212,11 @@ export class FormsService {
       setValue('glowIntensityNumber', value('glowIntensity'));
     }
     if (document.getElementById('scrollSecondsRange')) {
-      setValue('scrollSecondsRange', value('scrollSeconds'));
+      const songScrollSpeed = this.normalizeSongScrollSpeedForDisplay(
+        values && values.scrollSeconds !== undefined ? values.scrollSeconds : value('scrollSeconds')
+      );
+      setValue('scrollSeconds', songScrollSpeed);
+      setValue('scrollSecondsRange', songScrollSpeed);
     }
     if (document.getElementById('queueScrollSpeedRange')) {
       const queueScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
@@ -236,6 +240,12 @@ export class FormsService {
       const actualSpeed = Math.max(50, Math.min(200, valueNumber));
       return String(Math.round(1 + ((actualSpeed - 50) / 150) * 99));
     }
+    return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
+  }
+
+  normalizeSongScrollSpeedForDisplay(input) {
+    const valueNumber = Number(input);
+    if (!Number.isFinite(valueNumber)) return '45';
     return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
   }
 
@@ -282,6 +292,7 @@ if (typeof window !== 'undefined') {
     initWorkspaceControls: () => formsService.initWorkspaceControls(),
     fillForm: (values) => formsService.fillForm(values),
     normalizeQueueScrollSpeedForDisplay: (input) => formsService.normalizeQueueScrollSpeedForDisplay(input),
+    normalizeSongScrollSpeedForDisplay: (input) => formsService.normalizeSongScrollSpeedForDisplay(input),
     normalizeFontSize: (...args) => formsService.normalizeFontSize(...args),
     scaleToFontSize: (...args) => formsService.scaleToFontSize(...args),
     reconnectErrorMessage: (error) => formsService.reconnectErrorMessage(error)

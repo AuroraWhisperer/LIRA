@@ -1,77 +1,97 @@
 // 编写人：Aurora
-// 其他功能模块 — 预留扩展入口，当前内容待定
-// 设计原则：低耦合，仅通过 window.AdminApp 公共接口与主应用通信
+// “其他”页面仅负责功能导航，各功能模块继续独立初始化和维护。
 'use strict';
 
 (function () {
-  // ---- 模块私有引用 ----
-  // 从 AdminApp.utils 获取共享工具函数（不直接依赖任何其他 admin 子模块）
-  const utils = window.AdminApp && window.AdminApp.utils ? window.AdminApp.utils : {};
-  const { toast, api } = utils;
-
-  /**
-   * 模块状态 — 所有可变状态集中管理，方便后续扩展
-   * @type {{ initialized: boolean }}
-   */
   const moduleState = {
     initialized: false
   };
 
-  /**
-   * 初始化「其他」页面
-   * 职责：绑定 DOM 事件、加载页面数据
-   * 调用时机：app.js 的 initApp() 中按需调用
-   */
-  function initOtherPage() {
-    if (moduleState.initialized) {
-      // 防止重复初始化
-      return;
-    }
-    moduleState.initialized = true;
-
-    // ---- 绑定页面事件 ----
-    bindPageEvents();
-
-    // ---- 加载页面初始数据 ----
-    loadOtherData();
-
-    console.log('[other-page] 其他页面初始化完成');
-  }
-
-  /**
-   * 绑定「其他」页面内所有 DOM 事件
-   * 注意：此函数仅处理 otherAssistantPage 内部的元素，不影响其他页面
-   */
-  function bindPageEvents() {
-    // 预留：后续添加功能时在此处绑定事件
-    // 示例：
-    // const someBtn = document.getElementById('otherSomeButton');
-    // if (someBtn) {
-    //   someBtn.addEventListener('click', handleSomeAction);
-    // }
-  }
-
-  /**
-   * 加载「其他」页面数据
-   * 预留：后续添加功能时在此处发起 API 请求
-   */
-  async function loadOtherData() {
-    // 预留：后续添加数据加载逻辑
-    // 示例：
-    // try {
-    //   const response = await api('/api/other-data');
-    //   // 渲染数据…
-    // } catch (error) {
-    //   console.warn('[other-page] 数据加载失败:', error);
-    // }
-  }
-
-  // ---- 导出到全局命名空间 ----
-  // 遵循项目约定，挂载到 window.AdminApp.other
-  if (typeof window !== 'undefined') {
-    window.AdminApp = window.AdminApp || {};
-    window.AdminApp.other = {
-      initOtherPage
+  function getFeatureElements(root) {
+    return {
+      buttons: Array.from(root.querySelectorAll('[data-other-feature]')),
+      panels: Array.from(root.querySelectorAll('[data-other-feature-panel]'))
     };
   }
+
+  /**
+   * 根据按钮声明的面板 ID 切换内容，不依赖任何具体功能模块。
+   */
+  function selectFeature(root, featureId) {
+    if (!root) return false;
+
+    const { buttons, panels } = getFeatureElements(root);
+    const selectedButton = buttons.find((button) => (
+      button.dataset.otherFeature === featureId
+      && panels.some((panel) => panel.id === featureId)
+    )) || buttons.find((button) => (
+      panels.some((panel) => panel.id === button.dataset.otherFeature)
+    ));
+
+    if (!selectedButton) return false;
+
+    const selectedId = selectedButton.dataset.otherFeature;
+    buttons.forEach((button) => {
+      const isActive = button === selectedButton;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', String(isActive));
+      button.tabIndex = isActive ? 0 : -1;
+    });
+    panels.forEach((panel) => {
+      const isActive = panel.id === selectedId;
+      panel.classList.toggle('active', isActive);
+      panel.hidden = !isActive;
+    });
+
+    return true;
+  }
+
+  function handleFeatureKeydown(root, currentButton, event) {
+    const supportedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    if (!supportedKeys.includes(event.key)) return;
+
+    const { buttons, panels } = getFeatureElements(root);
+    const panelIds = new Set(panels.map((panel) => panel.id));
+    const availableButtons = buttons.filter((button) => panelIds.has(button.dataset.otherFeature));
+    const currentIndex = availableButtons.indexOf(currentButton);
+    if (currentIndex < 0 || !availableButtons.length) return;
+
+    let nextIndex;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = availableButtons.length - 1;
+    else {
+      const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
+      nextIndex = (currentIndex + step + availableButtons.length) % availableButtons.length;
+    }
+
+    event.preventDefault();
+    const nextButton = availableButtons[nextIndex];
+    selectFeature(root, nextButton.dataset.otherFeature);
+    nextButton.focus();
+  }
+
+  function initOtherPage() {
+    const root = document.getElementById('otherAssistantPage');
+    if (!root || moduleState.initialized) return;
+
+    const { buttons } = getFeatureElements(root);
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        selectFeature(root, button.dataset.otherFeature);
+      });
+      button.addEventListener('keydown', (event) => {
+        handleFeatureKeydown(root, button, event);
+      });
+    });
+
+    const initialButton = buttons.find((button) => button.getAttribute('aria-selected') === 'true');
+    selectFeature(root, initialButton?.dataset.otherFeature);
+    moduleState.initialized = true;
+  }
+
+  window.AdminApp = window.AdminApp || {};
+  window.AdminApp.other = {
+    initOtherPage,
+    selectFeature
+  };
 })();

@@ -121,7 +121,7 @@ button.danger-filled:hover {
 }
 
 @keyframes danger-popup-slide {
-  from { opacity: 0; transform: translateX(40px) translateY(-12px) scale(0.92); }
+  from { opacity: 0; transform: translateY(-12px) scale(0.92); }
   to { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
 }
 
@@ -138,8 +138,8 @@ button.danger-filled:hover {
   backdrop-filter: blur(3px);
   animation: danger-popup-fade-in 0.2s ease;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   padding: 20px 24px;
 }
 
@@ -151,7 +151,6 @@ button.danger-filled:hover {
   position: relative;
   width: 400px;
   max-width: calc(100vw - 48px);
-  margin-top: 58px;
   background: #fffbfb;
   border: 1.5px solid rgba(192, 57, 43, 0.28);
   border-radius: 16px;
@@ -480,4 +479,4 @@ button.danger-filled:hover {
 }
 
 @media (max-width: 980px) {
-  .layout {
+  .layout {

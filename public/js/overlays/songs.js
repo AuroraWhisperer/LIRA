@@ -330,15 +330,22 @@ function hexToRgb(hex) {
 }
 
 function scrollSpeedToDuration(value) {
-  const speed = Math.max(1, Math.min(200, Math.round(Number(value) || 20)));
+  const speed = Math.max(1, Math.min(100, Math.round(Number(value) || 20)));
   const minSeconds = 2;
   const maxSeconds = 1000;
-  return (maxSeconds - ((speed - 1) / 199) * (maxSeconds - minSeconds)).toFixed(1);
+  // Start at the old speed 20 rate and interpolate the viewport rate directly.
+  const oldMinRate = 1 / maxSeconds;
+  const maxRate = 1 / minSeconds;
+  const oldRange = 200 - 1;
+  const minRate = oldMinRate + ((20 - 1) / oldRange) * (maxRate - oldMinRate);
+  const ratio = (speed - 1) / (100 - 1);
+  const rate = minRate + ratio * (maxRate - minRate);
+  return (1 / rate).toFixed(6);
 }
 
 function resolveSongScrollSpeed(settings) {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
-  return Number(urlSpeed || settings?.scrollSeconds || 20);
+  return Number(urlSpeed || settings?.scrollSeconds || 45);
 }
 
 function scrollTravelSeconds(secondsPerViewport, distance, viewportDistance) {
