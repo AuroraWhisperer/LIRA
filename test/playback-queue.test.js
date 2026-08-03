@@ -145,6 +145,136 @@ test('playing a wanted track from radio switches to a looping history queue', as
   assert.equal(app.radioRefillRequests(), 0);
 });
 
+test('clicking a drawer track replaces the queue with its visible list and preserves button actions', async () => {
+  const visibleTracks = [
+    track('daily-1', '每日第一首'),
+    track('daily-2', '每日第二首'),
+    track('daily-3', '每日第三首')
+  ];
+  const app = await createPlaybackApp({
+    current: track('old-current', '原队列歌曲'),
+    currentOrigin: 'normal',
+    requestedQueue: [track('old-requested', '原插队歌曲')],
+    normalQueue: [track('old-next', '原下一首')],
+    normalQueueTracks: [track('old-current', '原队列歌曲'), track('old-next', '原下一首')],
+    radioQueue: [track('old-radio', '原电台歌曲')],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'playlist',
+    queueTitle: '原播放队列',
+    queueSourceKey: 'qq:liked',
+    playlistIndex: 0,
+    volume: 0.75
+  }, {
+    authState: { platform: 'qq', loggedIn: true },
+    homeAction: 'daily',
+    homeTracks: visibleTracks
+  });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+
+  assert.match(
+    app.element('playbackDrawerBody').innerHTML,
+    /data-playback-home-track-row-index="1"/
+  );
+
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackMenuIndex: '1' }, 'playback-home-track-menu-index')
+  });
+  assert.equal(app.savedState().current.id, 'old-current', 'the menu button must not play its row');
+
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '1' }, 'playback-home-track-row-index')
+  });
+  await flushAsyncWork();
+
+  const persisted = app.savedState();
+  assert.equal(persisted.current.id, 'daily-2');
+  assert.equal(persisted.queueType, 'playlist');
+  assert.equal(persisted.queueTitle, '每日推荐');
+  assert.equal(persisted.queueSourceKey, 'qq:daily');
+  assert.equal(persisted.playlistIndex, 1);
+  assert.deepEqual(persisted.normalQueueTracks.map((item) => item.id), [
+    'daily-1',
+    'daily-2',
+    'daily-3'
+  ]);
+  assert.deepEqual(persisted.normalQueue.map((item) => item.id), ['daily-3']);
+  assert.deepEqual(persisted.requestedQueue, []);
+  assert.deepEqual(persisted.radioQueue, []);
+});
+
+test('clicking a track in the active playlist jumps without duplicating or replacing that queue', async () => {
+  const likedTracks = [
+    track('liked-1', '霓虹派对'),
+    track('liked-2', '枪火'),
+    track('liked-3', '贩卖日落'),
+    track('liked-4', 'China-2')
+  ];
+  const searchedTrack = track('searched-between', '搜索插入歌曲');
+  const app = await createPlaybackApp({
+    current: likedTracks[3],
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [
+      likedTracks[0],
+      searchedTrack,
+      likedTracks[1],
+      likedTracks[2],
+      likedTracks[3]
+    ],
+    radioQueue: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'playlist',
+    queueTitle: '我喜欢',
+    queueSourceKey: 'qq:liked',
+    playlistIndex: 4,
+    volume: 0.75
+  }, {
+    authState: { platform: 'qq', loggedIn: true },
+    homeAction: 'liked',
+    homeTracks: likedTracks
+  });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+
+  const clickFirstLikedTrack = () => app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({
+      playbackHomeTrackAction: 'play',
+      playbackHomeTrackIndex: '0'
+    }, 'playback-home-track-action')
+  });
+  await Promise.all([clickFirstLikedTrack(), clickFirstLikedTrack()]);
+  await flushAsyncWork();
+
+  const persisted = app.savedState();
+  assert.equal(persisted.current.id, 'liked-1');
+  assert.equal(persisted.playlistIndex, 0);
+  assert.equal(persisted.queueSourceKey, 'qq:liked');
+  assert.deepEqual(persisted.normalQueueTracks.map((item) => item.id), [
+    'liked-1',
+    'searched-between',
+    'liked-2',
+    'liked-3',
+    'liked-4'
+  ]);
+  assert.deepEqual(persisted.normalQueue.map((item) => item.id), [
+    'searched-between',
+    'liked-2',
+    'liked-3',
+    'liked-4'
+  ]);
+  assert.equal(app.audioPlayCalls(), 1);
+});
+
 test('previous playback pops history once without pushing the current track back', async () => {
   const app = await createPlaybackApp({
     current: track('current', 'Current'),
@@ -231,6 +361,9 @@ async function createPlaybackApp(initialState, options = {}) {
   const fetchCalls = [];
   const errors = [];
   const windowListeners = new Map();
+  const homeTracks = options.homeTracks;
+  const homeActionButton = options.homeAction ? new FakeElement() : null;
+  if (homeActionButton) homeActionButton.dataset.playbackHomeAction = options.homeAction;
 
   const document = {
     getElementById(id) {
@@ -242,7 +375,10 @@ async function createPlaybackApp(initialState, options = {}) {
     createElement(_tag) {
       return new FakeElement();
     },
-    querySelectorAll() {
+    querySelectorAll(selector) {
+      if (selector === '[data-playback-home-action]' && homeActionButton) {
+        return [homeActionButton];
+      }
       return [];
     },
     querySelector() {
@@ -344,7 +480,7 @@ async function createPlaybackApp(initialState, options = {}) {
     if (url === '/api/music/home') {
       return response({
         ok: true,
-        data: { tracks: [track('radio-refill', '电台补充歌曲')] }
+        data: { tracks: homeTracks || [track('radio-refill', '电台补充歌曲')] }
       });
     }
     return response({ ok: true, data: {} });
@@ -426,6 +562,9 @@ async function createPlaybackApp(initialState, options = {}) {
         await listener(event);
       }
     },
+    emitHomeAction() {
+      return homeActionButton?.emit('click');
+    },
     beaconUrls() {
       return fetchCalls
         .filter(({ options: callOptions }) => callOptions.body instanceof sandbox.Blob)
@@ -460,6 +599,9 @@ async function createPlaybackApp(initialState, options = {}) {
         if (url !== '/api/music/home' || !options.body) return false;
         return JSON.parse(options.body).action === 'radio';
       }).length;
+    },
+    audioPlayCalls() {
+      return document.getElementById('music-player').playCalls;
     }
   };
 }
@@ -517,6 +659,7 @@ class FakeAudioElement extends FakeElement {
     this.currentTime = 0;
     this.duration = 180;
     this.paused = true;
+    this.playCalls = 0;
     this.src = '';
     this.volume = 0.75;
   }
@@ -528,6 +671,7 @@ class FakeAudioElement extends FakeElement {
   }
 
   async play() {
+    this.playCalls += 1;
     this.paused = false;
   }
 

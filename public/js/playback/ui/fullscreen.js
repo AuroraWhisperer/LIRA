@@ -51,7 +51,8 @@ export class FullscreenPlayer {
     this.lyricsContainer = null;
     this.lyricsWrap = null;
     this.lyricTogglesEl = null;
-    this.lyricToggleBtn = null;
+    this.romaToggleBtn = null;
+    this.translationToggleBtn = null;
     this.lyricsInitialized = false;
     this.lastActiveLyricIndex = -1;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
@@ -75,11 +76,11 @@ export class FullscreenPlayer {
     this.lyricsContainer = document.getElementById('playerFsLyrics');
     this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
     this.lyricTogglesEl = document.getElementById('playerFsLyricToggles');
-    this.lyricToggleBtn = document.getElementById('fsLyricToggleBtn');
+    this.romaToggleBtn = document.getElementById('fsRomaToggleBtn');
+    this.translationToggleBtn = document.getElementById('fsTranslationToggleBtn');
 
-    if (this.lyricToggleBtn) {
-      this.lyricToggleBtn.addEventListener('click', () => this._cycleLyricMode());
-    }
+    this.romaToggleBtn?.addEventListener('click', () => this._toggleLyricMode('roma'));
+    this.translationToggleBtn?.addEventListener('click', () => this._toggleLyricMode('trans'));
   }
 
   /**
@@ -204,7 +205,7 @@ export class FullscreenPlayer {
       ? track.lyrics.lines
       : [];
 
-    // 保存歌词行引用，供 _cycleLyricMode 重渲染使用
+    // 保存歌词行引用，供 _toggleLyricMode 重渲染使用
     this._lastLyricLines = lines;
 
     if (!lines.length) {
@@ -371,28 +372,17 @@ export class FullscreenPlayer {
   }
 
   /**
-   * 循环切换歌词显示模式：none → trans → roma → none
+   * 切换指定歌词显示模式；再次点击当前模式时关闭
+   * @param {'trans' | 'roma'} mode - 要切换的歌词模式
    */
-  _cycleLyricMode() {
-    // 禁用态不响应点击
-    if (this.lyricToggleBtn && this.lyricToggleBtn.classList.contains('disabled')) return;
-
-    // 循环切换
-    if (this.lyricMode === 'none') {
-      this.lyricMode = 'trans';
-    } else if (this.lyricMode === 'trans') {
-      this.lyricMode = 'roma';
-    } else {
-      this.lyricMode = 'none';
-    }
+  _toggleLyricMode(mode) {
+    this.lyricMode = this.lyricMode === mode ? 'none' : mode;
     this._updateLyricToggleButtons();
 
     // 重新渲染歌词以反映新模式
-    if (this.lyricsContainer) {
-      const lines = this._lastLyricLines;
-      if (lines && lines.length > 0) {
-        this.renderLyricLines(lines);
-      }
+    const lines = this._lastLyricLines;
+    if (lines?.length > 0) {
+      this.renderLyricLines(lines);
     }
   }
 
@@ -415,17 +405,8 @@ export class FullscreenPlayer {
     const hasLyrics = lines.length > 0;
     this.lyricTogglesEl.style.display = (hasLyrics && hasAnyExtra) ? 'flex' : 'none';
 
-    if (this.lyricToggleBtn) {
-      this.lyricToggleBtn.classList.toggle('disabled', !hasAnyExtra);
-      if (!hasAnyExtra) {
-        this.lyricToggleBtn.title = '当前歌曲无翻译或罗马音数据';
-      } else {
-        const modes = [];
-        if (hasTranslation) modes.push('翻译');
-        if (hasRoma) modes.push('罗马音');
-        this.lyricToggleBtn.title = `切换歌词显示模式：${modes.join(' / ')}`;
-      }
-    }
+    if (this.romaToggleBtn) this.romaToggleBtn.style.display = hasRoma ? 'grid' : 'none';
+    if (this.translationToggleBtn) this.translationToggleBtn.style.display = hasTranslation ? 'grid' : 'none';
 
     this._updateLyricToggleButtons();
   }
@@ -434,16 +415,21 @@ export class FullscreenPlayer {
    * 同步按钮激活样式
    */
   _updateLyricToggleButtons() {
-    if (!this.lyricToggleBtn) return;
-    this.lyricToggleBtn.classList.remove('mode-trans', 'mode-roma');
-    if (this.lyricMode === 'trans') {
-      this.lyricToggleBtn.classList.add('mode-trans');
-      this.lyricToggleBtn.title = '当前：中文翻译 — 点击切换罗马音';
-    } else if (this.lyricMode === 'roma') {
-      this.lyricToggleBtn.classList.add('mode-roma');
-      this.lyricToggleBtn.title = '当前：罗马音 — 点击关闭';
-    } else {
-      this.lyricToggleBtn.title = '切换歌词显示模式 — 点击开启翻译';
+    const romaActive = this.lyricMode === 'roma';
+    const translationActive = this.lyricMode === 'trans';
+
+    if (this.romaToggleBtn) {
+      this.romaToggleBtn.classList.remove('mode-roma');
+      if (romaActive) this.romaToggleBtn.classList.add('mode-roma');
+      this.romaToggleBtn.title = romaActive ? '当前显示罗马音，点击关闭' : '显示罗马音';
+      this.romaToggleBtn.setAttribute?.('aria-pressed', String(romaActive));
+    }
+
+    if (this.translationToggleBtn) {
+      this.translationToggleBtn.classList.remove('mode-trans');
+      if (translationActive) this.translationToggleBtn.classList.add('mode-trans');
+      this.translationToggleBtn.title = translationActive ? '当前显示中文翻译，点击关闭' : '显示中文翻译';
+      this.translationToggleBtn.setAttribute?.('aria-pressed', String(translationActive));
     }
   }
 

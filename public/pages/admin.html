@@ -831,14 +831,6 @@
 
         <div id="overlayPage" class="tab-page">
           <div class="panel-body stack">
-            <div class="overlay-address-head">
-              <div>
-                <h3>直播画面地址</h3>
-                <p>把下面网页源地址复制到直播姬或 OBS。</p>
-              </div>
-              <button id="copyOverlayUrls" class="primary" type="button">复制全部地址</button>
-            </div>
-
             <div class="overlay-address-grid">
               <section class="overlay-address-item">
                 <div>
@@ -1735,14 +1727,13 @@
                   <div class="player-fs-lyrics-empty">暂无歌词</div>
                 </div>
                 <div class="player-fs-lyric-toggles" id="playerFsLyricToggles" style="display:none">
-                  <button class="fs-lyric-toggle-btn" id="fsLyricToggleBtn" type="button"
-                    title="切换歌词显示模式：翻译 / 罗马音 / 关闭" aria-label="切换歌词显示模式">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="4" y="4" width="16" height="16" rx="3"/>
-                      <line x1="8" y1="9" x2="16" y2="9"/>
-                      <line x1="8" y1="13" x2="14" y2="13"/>
-                      <line x1="8" y1="17" x2="10" y2="17"/>
-                    </svg>
+                  <button class="fs-lyric-toggle-btn" id="fsRomaToggleBtn" type="button"
+                    title="显示罗马音" aria-label="显示罗马音" aria-pressed="false">
+                    <span aria-hidden="true">罗</span>
+                  </button>
+                  <button class="fs-lyric-toggle-btn" id="fsTranslationToggleBtn" type="button"
+                    title="显示中文翻译" aria-label="显示中文翻译" aria-pressed="false">
+                    <span aria-hidden="true">译</span>
                   </button>
                 </div>
               </div>

@@ -563,9 +563,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 8px;
 }
 
-/* 单一方形切换按钮 */
 .fs-lyric-toggle-btn {
   display: grid;
   place-items: center;
@@ -580,6 +580,9 @@
   transition: all 200ms ease;
   backdrop-filter: blur(8px);
   font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
   min-height: auto;
 }
 
@@ -623,19 +626,6 @@
 
 .fs-lyric-toggle-btn:active {
   transform: scale(0.92);
-}
-
-/* 无数据时半禁用态 */
-.fs-lyric-toggle-btn.disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.fs-lyric-toggle-btn svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
 }
 
 /* ===== 歌单模式队列行状态 ===== */

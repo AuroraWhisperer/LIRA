@@ -16,6 +16,7 @@ export function createInitialState() {
     radioQueue: [],
     queueType: 'queue',
     queueTitle: '播放队列',
+    queueSourceKey: '',
     playlistIndex: -1,
     pendingRequests: [],
     history: [],

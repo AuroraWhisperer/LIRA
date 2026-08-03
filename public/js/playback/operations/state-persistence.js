@@ -58,6 +58,7 @@ export function createStatePersistence(deps) {
       radioQueue: playbackState.radioQueue.map(serializeTrack).filter(Boolean),
       queueType: playbackState.queueType,
       queueTitle: playbackState.queueTitle,
+      queueSourceKey: playbackState.queueSourceKey,
       playlistIndex: playbackState.playlistIndex,
       pendingRequests: playbackState.pendingRequests.map((item) => ({
         ...item,

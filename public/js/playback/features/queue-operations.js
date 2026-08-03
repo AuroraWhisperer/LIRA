@@ -14,7 +14,7 @@ export function createQueueOperations(deps) {
     syncPlaybackLyricWindow
   } = deps;
 
-  function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '') {
+  function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
     if (!items.length) return;
 
@@ -35,6 +35,7 @@ export function createQueueOperations(deps) {
     playbackState.radioQueue = [];
     playbackState.queueType = type;
     playbackState.queueTitle = queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
+    playbackState.queueSourceKey = String(queueSourceKey || '');
     playbackState.playlistIndex = type === 'playlist' ? index : -1;
     playbackState.pendingRequests = [];
     playbackState.shuffleOrder = [];
@@ -64,6 +65,7 @@ export function createQueueOperations(deps) {
     if (playbackState.queueType !== 'playlist') {
       playbackState.queueType = 'queue';
       playbackState.queueTitle = '播放队列';
+      playbackState.queueSourceKey = '';
       playbackState.normalQueueTracks = [];
       playbackState.playlistIndex = -1;
     } else {
@@ -100,6 +102,7 @@ export function createQueueOperations(deps) {
     } else {
       playbackState.queueType = 'queue';
       playbackState.queueTitle = '播放队列';
+      playbackState.queueSourceKey = '';
       playbackState.normalQueueTracks = [];
       playbackState.radioQueue = [];
       playbackState.playlistIndex = -1;

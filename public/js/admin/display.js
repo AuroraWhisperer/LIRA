@@ -121,17 +121,6 @@
       toast('歌单展示板主题已恢复默认');
     });
 
-    document.getElementById('copyOverlayUrls').addEventListener('click', async () => {
-      const text = [
-        document.getElementById('queueUrl').textContent,
-        document.getElementById('songsUrl').textContent,
-        document.getElementById('lyricsUrl').textContent,
-        document.getElementById('blindboxOverlayUrl').textContent
-      ].join('\n');
-      await navigator.clipboard.writeText(text);
-      toast('全部 overlay 地址已复制');
-    });
-
     document.querySelectorAll('[data-copy-url]').forEach((button) => {
       button.addEventListener('click', async () => {
         const url = document.getElementById(button.dataset.copyUrl).textContent;

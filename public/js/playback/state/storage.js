@@ -69,6 +69,7 @@ export class StorageManager {
         radioQueue: state.radioQueue,
         queueType: state.queueType,
         queueTitle: state.queueTitle,
+        queueSourceKey: state.queueSourceKey,
         playlistIndex: state.playlistIndex,
         history: state.history.slice(-50), // 只保留最近 50 条
         displayHistory: state.displayHistory.slice(-20), // 只保留最近 20 条

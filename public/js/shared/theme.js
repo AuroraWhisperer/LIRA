@@ -3,6 +3,13 @@
 'use strict';
 
 let themeConfig = null;
+const cachedDefaultTheme = {};
+const cachedClassicPresets = {};
+const cachedSongBoardPresets = {};
+const cachedClassicLabels = {};
+const cachedClassicSwatches = {};
+const cachedSongBoardLabels = {};
+const cachedSongBoardSwatches = {};
 
 // 从 JSON 文件加载主题配置
 export async function loadThemeConfig() {
@@ -14,6 +21,13 @@ export async function loadThemeConfig() {
       throw new Error(`Failed to load theme config: ${response.status}`);
     }
     themeConfig = await response.json();
+    Object.assign(cachedDefaultTheme, themeConfig.default || {});
+    Object.assign(cachedClassicPresets, themeConfig.presets?.classic || {});
+    Object.assign(cachedSongBoardPresets, themeConfig.presets?.songBoard || {});
+    Object.assign(cachedClassicLabels, themeConfig.presets?.classicLabels || {});
+    Object.assign(cachedClassicSwatches, themeConfig.presets?.classicSwatches || {});
+    Object.assign(cachedSongBoardLabels, themeConfig.presets?.songBoardLabels || {});
+    Object.assign(cachedSongBoardSwatches, themeConfig.presets?.songBoardSwatches || {});
     return themeConfig;
   } catch (error) {
     console.error('Error loading theme configuration:', error);
@@ -23,7 +37,7 @@ export async function loadThemeConfig() {
 
 // 获取默认主题
 export function getDefaultTheme() {
-  return themeConfig?.default || {};
+  return cachedDefaultTheme;
 }
 
 // 获取经典主题预设
@@ -38,32 +52,32 @@ export function getSongBoardPreset(presetName) {
 
 // 获取所有经典主题预设
 export function getAllClassicPresets() {
-  return themeConfig?.presets?.classic || {};
+  return cachedClassicPresets;
 }
 
 // 获取所有歌单主题预设
 export function getAllSongBoardPresets() {
-  return themeConfig?.presets?.songBoard || {};
+  return cachedSongBoardPresets;
 }
 
 // 获取经典主题标签
 export function getClassicLabels() {
-  return themeConfig?.presets?.classicLabels || {};
+  return cachedClassicLabels;
 }
 
 // 获取经典主题色板
 export function getClassicSwatches() {
-  return themeConfig?.presets?.classicSwatches || {};
+  return cachedClassicSwatches;
 }
 
 // 获取歌单主题标签
 export function getSongBoardLabels() {
-  return themeConfig?.presets?.songBoardLabels || {};
+  return cachedSongBoardLabels;
 }
 
 // 获取歌单主题色板
 export function getSongBoardSwatches() {
-  return themeConfig?.presets?.songBoardSwatches || {};
+  return cachedSongBoardSwatches;
 }
 
 // 聚合导出

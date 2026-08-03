@@ -273,7 +273,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
 
   if (showMenuButton) {
     return `
-      <div class="queue-row playback-home-row">
+      <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
         <div class="playback-row-main">
           ${PlaybackUtils.renderArtwork(track)}
           <div>
@@ -303,7 +303,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
   }
 
   return `
-    <div class="queue-row playback-home-row">
+    <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
       <div class="playback-row-main">
         ${PlaybackUtils.renderArtwork(track)}
         <div>

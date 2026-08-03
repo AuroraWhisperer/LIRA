@@ -72,6 +72,7 @@ export class QueueManager {
       } else {
         this.state.queueType = 'queue';
         this.state.queueTitle = '播放队列';
+        this.state.queueSourceKey = '';
       }
     }
   }
@@ -87,6 +88,7 @@ export class QueueManager {
     this.state.radioQueue = [];
     this.state.queueType = 'queue';
     this.state.queueTitle = '播放队列';
+    this.state.queueSourceKey = '';
     this.state.playlistIndex = -1;
     this.state.shuffleOrder = [];
     this.state.shuffleCursor = 0;
@@ -293,9 +295,10 @@ export class QueueManager {
    * @param {number} startIndex - 起始索引
    * @param {string} queueType - 队列类型
    * @param {string} title - 队列标题
+   * @param {string} sourceKey - 队列来源标识
    * @returns {Object|null} 第一首曲目
    */
-  startCollection(tracks, startIndex = 0, queueType = 'queue', title = '播放队列') {
+  startCollection(tracks, startIndex = 0, queueType = 'queue', title = '播放队列', sourceKey = '') {
     if (!this.state) return null;
 
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
@@ -310,6 +313,7 @@ export class QueueManager {
     this.state.normalQueue = items.slice(index + 1);
     this.state.queueType = queueType;
     this.state.queueTitle = title || '播放队列';
+    this.state.queueSourceKey = String(sourceKey || '');
     this.state.playlistIndex = queueType === 'playlist' ? index : -1;
 
     this.rebuildShuffleOrder();

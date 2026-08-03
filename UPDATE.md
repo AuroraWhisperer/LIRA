@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`2.1.2`
+当前版本：`2.1.3`
 
 ---
+
+## v2.1.3 变更
+
+- 🎹 **全屏歌词双按钮**：单一切换按钮 `fsLyricToggleBtn` 拆分为独立的「罗」（罗马音）和「译」（中文翻译）两个按钮，各自独立开关，互斥显示；`_cycleLyricMode` 改为 `_toggleLyricMode(mode)`，再次点击当前模式即关闭。
+- ⚡ **播放竞态保护**：`playback-controls.js` 新增 `playRequestGeneration` 单调计数器，连续切歌时自动取消过期请求；`AbortError` / interrupted play 错误不再弹错误提示，避免切歌时误报。
+- 🎯 **歌单上下文跟踪**：`home-handler.js` 新增 `getHomeCollectionContext` 生成 `queueSourceKey`（如 `qq:playlist:xxx`）；点击当前歌单中已有曲目直接跳转（`jumpToPlaylistTrack`），不重建队列；点击其他歌单曲目则替换队列。点击曲目行空白区域触发 `play-context` 行为。
+- 📦 **主题预加载缓存**：`theme.js` 用内存缓存对象替代每次访问 `themeConfig?.presets?.xxx`，`app.js` 初始化前 `await Theme.loadThemeConfig()`，确保主题表单在 preset 数据就绪后才初始化。
+- 🧹 **移除「复制全部 overlay 地址」按钮**：`display.js` 删除 `copyOverlayUrls` 处理逻辑；`admin.html` 移除按钮及标题区块；CSS 清理 `.overlay-address-head` 相关样式。
+- 🎨 **样式与标记微调**：全屏歌词按钮改为文字图标（`<span>罗</span>`/`<span>译</span>`）；`panels.css` 曲目菜单行 z-index 修正；`base.css` 移除 `--classic-row-height` 残留变量。
+- 🧪 **测试大幅扩展**：`frontend-regressions.test.js` 新增主题预加载顺序、歌词双按钮行为、经典队列样式等回归断言；`playback-queue.test.js` 新增歌单上下文跳转、行点击替换队列等测试。
 
 ## v2.1.2 变更
 

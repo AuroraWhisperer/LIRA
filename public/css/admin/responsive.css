@@ -55,11 +55,6 @@
     justify-content: flex-start;
   }
 
-  .overlay-address-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .overlay-address-item {
     grid-template-columns: 1fr;
   }

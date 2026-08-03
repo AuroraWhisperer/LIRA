@@ -282,6 +282,9 @@ export class ProviderManager {
     state.radioQueue = clearQueue(state.radioQueue);
     state.history = clearQueue(state.history);
     state.displayHistory = clearQueue(state.displayHistory);
+    if (String(state.queueSourceKey || '').startsWith(`${platform}:`)) {
+      state.queueSourceKey = '';
+    }
 
     // 如果当前播放的是该平台曲目，清除
     if (state.current && state.current.source === platform) {

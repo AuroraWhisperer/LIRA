@@ -256,6 +256,10 @@
   gap: 6px;
 }
 
+.playback-home-row:has(.track-menu:not([hidden])) {
+  z-index: 1;
+}
+
 /* 轨道菜单（我喜欢/歌单详情） */
 .track-menu-wrapper {
   position: relative;

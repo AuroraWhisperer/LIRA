@@ -4,6 +4,11 @@
 
 import * as PlaybackUtils from '../utils.js';
 
+function isInterruptedMediaPlayError(error) {
+  return error?.name === 'AbortError'
+    || /play\(\) request was interrupted/i.test(String(error?.message || error || ''));
+}
+
 export function createPlaybackControls(deps) {
   const {
     playbackState,
@@ -19,6 +24,7 @@ export function createPlaybackControls(deps) {
     syncPlaybackLyricWindow,
     U
   } = deps;
+  let playRequestGeneration = 0;
 
   async function ensureLocalTrackPlayable(track) {
     if (!PlaybackUtils.isLocalTrack(track)) return true;
@@ -62,6 +68,7 @@ export function createPlaybackControls(deps) {
   async function playPlaybackTrack(track, options = {}) {
     const audio = getPlaybackAudio();
     if (!audio || !track) return;
+    const requestGeneration = ++playRequestGeneration;
 
     // For local tracks, ensure the file is accessible before trying to play
     if (PlaybackUtils.isLocalTrack(track)) {
@@ -69,16 +76,20 @@ export function createPlaybackControls(deps) {
       if (!ok) return;
     }
 
+    if (requestGeneration !== playRequestGeneration) return;
+
     let streamUrl = '';
     try {
       streamUrl = await streamService.getTrackUrl(track, {
         forceRefresh: options.forceRefresh === true
       });
     } catch (error) {
+      if (requestGeneration !== playRequestGeneration) return;
       showError(error);
       renderPlayback();
       return;
     }
+    if (requestGeneration !== playRequestGeneration) return;
     if (!streamUrl) {
       playbackState.current = track;
       playbackState.currentOrigin = options.origin || playbackState.currentOrigin || 'normal';
@@ -123,8 +134,12 @@ export function createPlaybackControls(deps) {
         }
       }
     } catch (error) {
-      showError(error);
+      if (requestGeneration === playRequestGeneration && !isInterruptedMediaPlayError(error)) {
+        showError(error);
+      }
     }
+
+    if (requestGeneration !== playRequestGeneration) return;
 
     playbackState.restoredTime = 0;
 
@@ -186,7 +201,7 @@ export function createPlaybackControls(deps) {
       try {
         await audio.play();
       } catch (error) {
-        showError(error);
+        if (!isInterruptedMediaPlayError(error)) showError(error);
       }
     } else {
       audio.pause();

@@ -128,7 +128,6 @@
 }
 
 .overlay-waiting {
-  --classic-row-height: 35px;
   --classic-row-gap: 5px;
   display: grid;
   gap: var(--classic-row-gap, 5px);
@@ -136,7 +135,6 @@
 }
 
 .classic-list-window {
-  --classic-row-height: 35px;
   --classic-row-gap: 5px;
   height: var(--classic-window-height, 235px);
   overflow: hidden;
@@ -189,6 +187,7 @@
 .overlay-waiting-row .index {
   color: var(--overlay-index-color, var(--overlay-accent, #21b6a8));
   font-weight: 900;
+  font-size: var(--overlay-waiting-font-size, 13px);
 }
 
 /* 隐藏序号时切换为单列布局 */

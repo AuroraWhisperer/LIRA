@@ -18,6 +18,8 @@ import { FormsService, formsService } from './forms.js';
 async function initApp() {
   logger.debug('正在初始化...');
 
+  await Theme.loadThemeConfig();
+
   // 注册服务到容器
   container
     .register('eventBus', () => eventBus)

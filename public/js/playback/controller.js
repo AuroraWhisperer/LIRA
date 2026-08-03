@@ -281,8 +281,14 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   // ── 队列操作包装器（注入 playPlaybackTrack / ensurePlaybackRadioQueueFilled）──
-  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '') {
-    const result = queueOps.startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle);
+  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
+    const result = queueOps.startPlaybackCollection(
+      tracks,
+      selectedIndex,
+      queueType,
+      queueTitle,
+      queueSourceKey
+    );
     if (!result) return;
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
@@ -364,7 +370,7 @@ export function createPlaybackController(initialOptions = {}) {
   const queueCallbacks = {
     startPlaybackCollection, appendPlaybackTracks, insertAndPlayPlaybackTrack,
     insertPlaybackTracksNext, queuePlaybackTrack, rebuildPlaybackShuffleOrder,
-    savePlaybackState, renderPlayback: () => renderPlayback()
+    jumpToPlaylistTrack, savePlaybackState, renderPlayback: () => renderPlayback()
   };
 
   const searchCallbacks = {

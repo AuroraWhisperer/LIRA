@@ -142,11 +142,19 @@ export function createEventHandlers(deps) {
       }
 
       const trackButton = event.target.closest('[data-playback-home-track-action][data-playback-home-track-index]');
-      if (!trackButton) return;
-      handlePlaybackHomeTrackAction(
-        trackButton.dataset.playbackHomeTrackAction,
-        Number(trackButton.dataset.playbackHomeTrackIndex)
-      );
+      if (trackButton) {
+        handlePlaybackHomeTrackAction(
+          trackButton.dataset.playbackHomeTrackAction,
+          Number(trackButton.dataset.playbackHomeTrackIndex)
+        );
+        return;
+      }
+
+      if (event.target.closest('button, a, input, select, textarea')) return;
+
+      const trackRow = event.target.closest('[data-playback-home-track-row-index]');
+      if (!trackRow) return;
+      handlePlaybackHomeTrackAction('play-context', Number(trackRow.dataset.playbackHomeTrackRowIndex));
     });
   }
 

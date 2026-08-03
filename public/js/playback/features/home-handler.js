@@ -99,7 +99,7 @@ export function createHomeHandler(deps) {
     }
 
     body.innerHTML = result.items.map((track, index) => `
-      <div class="queue-row playback-home-row">
+      <div class="queue-row playback-home-row" data-playback-home-track-row-index="${index}">
         <div class="playback-row-main">
           ${PlaybackUtils.renderArtwork(track)}
           <div>
@@ -184,6 +184,18 @@ export function createHomeHandler(deps) {
   }
 
   // === Home 交互 ===
+  function getHomeCollectionContext(homeState) {
+    const currentPlaylist = homeState.action === 'playlist-tracks'
+      ? homeService.getCurrentPlaylist()
+      : null;
+    const title = currentPlaylist?.title || HomeService.getActionName(homeState.action);
+    const source = playbackState.selectedSource || 'qq';
+    const sourceId = homeState.action === 'playlist-tracks'
+      ? `playlist:${currentPlaylist?.id || title}`
+      : homeState.action;
+    return { title, sourceKey: `${source}:${sourceId}` };
+  }
+
   /**
    * @param {string} action - 批量操作类型
    * @param {Object} queueCallbacks - 队列操作回调
@@ -200,7 +212,14 @@ export function createHomeHandler(deps) {
 
     if (action === 'play-all' || action === 'shuffle-all') {
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
-      queueCallbacks.startPlaybackCollection(tracks, 0, queueType);
+      const collection = getHomeCollectionContext(homeState);
+      queueCallbacks.startPlaybackCollection(
+        tracks,
+        0,
+        queueType,
+        collection.title,
+        collection.sourceKey
+      );
       toast(queueType === 'radio'
         ? `开始播放电台，共载入 ${tracks.length} 首`
         : `开始播放歌单，共 ${tracks.length} 首`);
@@ -220,12 +239,19 @@ export function createHomeHandler(deps) {
     const tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
     let startIndex = 0;
     const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
+    const collection = getHomeCollectionContext(homeState);
 
     if (playbackState.mode === 'shuffle') {
       startIndex = Math.floor(Math.random() * tracks.length);
     }
 
-    queueCallbacks.startPlaybackCollection(tracks, startIndex, queueType);
+    queueCallbacks.startPlaybackCollection(
+      tracks,
+      startIndex,
+      queueType,
+      collection.title,
+      collection.sourceKey
+    );
     const label = queueType === 'radio' ? '电台' : '歌单';
     toast(playbackState.mode === 'shuffle'
       ? `随机播放${label}，共 ${tracks.length} 首`
@@ -283,18 +309,28 @@ export function createHomeHandler(deps) {
 
     const homeState = homeService.getHomeState();
 
-    if (action === 'play' && homeState.action !== 'recent') {
-      const selectedTrack = PlaybackUtils.normalizeOnlineTrack(track);
-      if (
-        (playbackState.queueType === 'playlist' || playbackState.queueType === 'radio')
-        && playbackState.current
-      ) {
-        callbacks.insertAndPlayPlaybackTrack(selectedTrack);
-        return;
-      }
+    if (action === 'play-context' || action === 'play') {
       const tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
-      callbacks.startPlaybackCollection(tracks, index, queueType);
+      const collection = getHomeCollectionContext(homeState);
+      const selectedTrack = tracks[index];
+      const activeIndex = queueType === 'playlist'
+        && playbackState.queueType === 'playlist'
+        && playbackState.queueSourceKey === collection.sourceKey
+        ? playbackState.normalQueueTracks.findIndex((item) => item.id === selectedTrack.id)
+        : -1;
+
+      if (activeIndex >= 0) {
+        callbacks.jumpToPlaylistTrack(activeIndex);
+      } else {
+        callbacks.startPlaybackCollection(
+          tracks,
+          index,
+          queueType,
+          collection.title,
+          collection.sourceKey
+        );
+      }
       return;
     }
 

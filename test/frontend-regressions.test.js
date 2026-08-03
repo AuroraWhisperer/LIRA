@@ -375,6 +375,41 @@ test('admin initialization waits for sibling module scripts at interactive ready
   assert.match(source, /document\.addEventListener\('DOMContentLoaded', initApp, \{ once: true \}\)/);
 });
 
+test('admin loads theme presets before initializing theme forms', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const loadPosition = source.indexOf('await Theme.loadThemeConfig()');
+  const themeFormPosition = source.indexOf('window.AdminApp.theme.initThemeForm()');
+  const displayFormPosition = source.indexOf('window.AdminApp.display.initDisplayForm()');
+
+  assert.ok(loadPosition >= 0, 'theme configuration should be loaded');
+  assert.ok(loadPosition < themeFormPosition, 'theme presets should load before the theme form');
+  assert.ok(loadPosition < displayFormPosition, 'theme presets should load before the display form');
+});
+
+test('early theme preset references receive asynchronously loaded data', async () => {
+  const config = JSON.parse(fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'),
+    'utf8'
+  ));
+  const browserWindow = { AdminApp: {} };
+  const themeModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'theme.js'),
+    {
+      window: browserWindow,
+      fetch: async () => ({ ok: true, json: async () => config })
+    }
+  );
+  const earlyClassicPresets = themeModule.getAllClassicPresets();
+  const earlySongBoardPresets = themeModule.getAllSongBoardPresets();
+
+  assert.deepEqual(Object.keys(earlyClassicPresets), []);
+  await themeModule.loadThemeConfig();
+  assert.equal(themeModule.getAllClassicPresets(), earlyClassicPresets);
+  assert.equal(themeModule.getAllSongBoardPresets(), earlySongBoardPresets);
+  assert.equal(Object.keys(earlyClassicPresets).length, 14);
+  assert.equal(Object.keys(earlySongBoardPresets).length, 14);
+});
+
 test('shared theme compatibility keeps admin theme form methods', async () => {
   const initThemeForm = () => {};
   const browserWindow = { AdminApp: { theme: { initThemeForm } } };
@@ -447,6 +482,71 @@ test('fullscreen resets lyric mode before rendering a different track', async ()
   assert.equal(renderedMode, 'none');
   assert.equal(player.lyricMode, 'none');
   assert.equal(player._lastLyricTrackId, 'new-track');
+});
+
+test('fullscreen lyric buttons follow available track data in romanization-first order', async () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const romaButtonPosition = html.indexOf('id="fsRomaToggleBtn"');
+  const translationButtonPosition = html.indexOf('id="fsTranslationToggleBtn"');
+
+  assert.ok(romaButtonPosition >= 0, 'romanization button should exist');
+  assert.ok(translationButtonPosition >= 0, 'translation button should exist');
+  assert.ok(romaButtonPosition < translationButtonPosition, 'romanization button should be above translation');
+
+  const { FullscreenPlayer } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js')
+  );
+  const player = new FullscreenPlayer();
+  player.lyricTogglesEl = { style: {} };
+  player.romaToggleBtn = createLyricToggleButton();
+  player.translationToggleBtn = createLyricToggleButton();
+
+  player._updateLyricToggles({ lyrics: { lines: [{ roma: 'romaji' }] } });
+  assert.equal(player.lyricTogglesEl.style.display, 'flex');
+  assert.equal(player.romaToggleBtn.style.display, 'grid');
+  assert.equal(player.translationToggleBtn.style.display, 'none');
+
+  player._updateLyricToggles({ lyrics: { lines: [{ translation: '中文译' }] } });
+  assert.equal(player.romaToggleBtn.style.display, 'none');
+  assert.equal(player.translationToggleBtn.style.display, 'grid');
+
+  player._updateLyricToggles({ lyrics: { lines: [{ roma: 'romaji', translation: '中文译' }] } });
+  assert.equal(player.romaToggleBtn.style.display, 'grid');
+  assert.equal(player.translationToggleBtn.style.display, 'grid');
+
+  player._updateLyricToggles({ lyrics: { lines: [{ text: '原文' }] } });
+  assert.equal(player.lyricTogglesEl.style.display, 'none');
+  assert.equal(player.romaToggleBtn.style.display, 'none');
+  assert.equal(player.translationToggleBtn.style.display, 'none');
+});
+
+test('fullscreen lyric buttons switch mutually exclusively and close the active mode', async () => {
+  const { FullscreenPlayer } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js')
+  );
+  const player = new FullscreenPlayer();
+  let renderCount = 0;
+
+  player.romaToggleBtn = createLyricToggleButton();
+  player.translationToggleBtn = createLyricToggleButton();
+  player._lastLyricLines = [{ text: '原文' }];
+  player.renderLyricLines = () => { renderCount += 1; };
+
+  player._toggleLyricMode('roma');
+  assert.equal(player.lyricMode, 'roma');
+  assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), true);
+  assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), false);
+
+  player._toggleLyricMode('trans');
+  assert.equal(player.lyricMode, 'trans');
+  assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), false);
+  assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), true);
+
+  player._toggleLyricMode('trans');
+  assert.equal(player.lyricMode, 'none');
+  assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), false);
+  assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), false);
+  assert.equal(renderCount, 3);
 });
 
 test('liked tracks continue past fifty full pages', async () => {
@@ -644,6 +744,20 @@ test('identity rule text scrolls independently only when it overflows', () => {
     longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset
   ) * longAnimation.options.duration;
   assert.ok(Math.abs(pauseMilliseconds - 1500) < 0.001);
+});
+
+test('classic queue uses calculated row height and sizes indexes with song text', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const waitingRule = source.match(/\.overlay-waiting\s*\{[\s\S]*?\n\}/)?.[0];
+  const windowRule = source.match(/\.classic-list-window\s*\{[\s\S]*?\n\}/)?.[0];
+  const indexRule = source.match(/\.overlay-waiting-row \.index\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(waitingRule, 'classic queue list styles should remain defined');
+  assert.ok(windowRule, 'classic queue viewport styles should remain defined');
+  assert.ok(indexRule, 'classic queue index styles should remain defined');
+  assert.doesNotMatch(waitingRule, /--classic-row-height/);
+  assert.doesNotMatch(windowRule, /--classic-row-height/);
+  assert.match(indexRule, /font-size:\s*var\(--overlay-waiting-font-size,\s*13px\)/);
 });
 
 test('identity queue scrolls from actual overflow instead of a fixed row count', () => {
@@ -868,6 +982,25 @@ test('only the latest playback search updates state and renders', async () => {
   assert.equal(searchService.getResults()[0]?.id, 'new-result');
   assert.deepEqual(renderedIds, ['new-result']);
 });
+
+function createLyricToggleButton() {
+  const classes = new Set();
+  return {
+    style: {},
+    title: '',
+    classList: {
+      add(...names) {
+        names.forEach((name) => classes.add(name));
+      },
+      remove(...names) {
+        names.forEach((name) => classes.delete(name));
+      },
+      contains(name) {
+        return classes.has(name);
+      }
+    }
+  };
+}
 
 async function loadModuleExports(entryPath, globals = {}) {
   const context = vm.createContext({

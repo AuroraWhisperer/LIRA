@@ -791,29 +791,6 @@
   overflow-wrap: anywhere;
 }
 
-.overlay-address-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #f9fbfd;
-  padding: 14px 16px;
-}
-
-.overlay-address-head h3 {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.overlay-address-head p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .overlay-address-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
