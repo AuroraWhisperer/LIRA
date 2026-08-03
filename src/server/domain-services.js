@@ -13,7 +13,7 @@ const giftService = require('../bilibili/gift-service');
 const superChatService = require('../bilibili/superchat-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 
-function createDomainServices({ db, settingsStore }) {
+function createDomainServices({ db, settingsStore, onGiftFlushed }) {
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
@@ -68,18 +68,7 @@ function createDomainServices({ db, settingsStore }) {
     ensureUnified: () => queueService.ensureUnifiedQueue(queueContext)
   };
 
-  const giftContext = baseContext;
-  const gifts = {
-    getSnapshot: () => giftService.getGiftSnapshot(giftContext),
-    getHistory: (options) => giftService.getGiftHistory(giftContext, options),
-    getSprintSnapshot: () => giftService.getGiftSprintSnapshot(giftContext),
-    getBlindBoxStats: () => giftService.getBlindBoxStats(giftContext),
-    add: (input) => giftService.addGiftEvent(giftContext, input),
-    handleBotDanmaku: () => null, // 礼物机器人逻辑已禁用 — 仅依赖直接礼物捕捉 + 辅助补充
-    resetSprint: () => giftService.resetGiftSprintProgress(giftContext),
-    search: (opts) => giftService.searchGifts(giftContext, opts || {}),
-    clearRecent: () => giftService.clearRecentGifts(giftContext)
-  };
+  const gifts = giftService.createGiftService(baseContext, { onGiftFlushed });
 
   const superChats = {
     getSnapshot: () => superChatService.getSuperChatSnapshot(baseContext),

@@ -9,6 +9,33 @@ const { fileURLToPath, pathToFileURL } = require('node:url');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('admin page uses one ordered module entrypoint', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
+
+  assert.match(html, /<script type="module" src="\/js\/admin\/index\.js\?v=[^"]+"><\/script>/);
+  assert.doesNotMatch(html, /<script[^>]+src="\/js\/admin\/queue\.js/);
+
+  const giftModulePaths = [
+    './gifts/notification.js',
+    './gifts/detection.js',
+    './gifts/sprint.js',
+    './gifts/recent.js',
+    './gifts/blindbox.js',
+    './gifts/history.js'
+  ];
+  const giftIndexPosition = entrySource.indexOf("import './gifts/index.js';");
+  assert.ok(giftIndexPosition > -1, 'gift index import should remain present');
+  for (const modulePath of giftModulePaths) {
+    const modulePosition = entrySource.indexOf(`import '${modulePath}';`);
+    assert.ok(modulePosition > -1, `${modulePath} import should remain present`);
+    assert.ok(modulePosition < giftIndexPosition, `${modulePath} should load before the gift index`);
+  }
+
+  const importLines = entrySource.match(/^import .+;$/gm) ?? [];
+  assert.equal(importLines.at(-1), "import './app.js';");
+});
+
 test('admin overlay links do not retain the old fixed port placeholder', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const displaySource = fs.readFileSync(
@@ -404,6 +431,31 @@ test('song list exposes a display board font size control', () => {
   assert.match(defaultsSource, /songBoardFontSize: '50'/);
 });
 
+test('overlay utility helpers preserve shared formatting behavior', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
+    'utf8'
+  );
+  const sandbox = {
+    URLSearchParams,
+    location: { search: '?quality=low' },
+    window: {}
+  };
+
+  vm.runInNewContext(source, sandbox);
+  const utils = sandbox.window.OverlayUtils;
+
+  assert.equal(utils.escapeHtml('"quoted" & <tag>'), '&quot;quoted&quot; &amp; &lt;tag&gt;');
+  const rgb = utils.hexToRgb('#abc');
+  assert.equal(rgb.r, 170);
+  assert.equal(rgb.g, 187);
+  assert.equal(rgb.b, 204);
+  assert.equal(utils.hexToRgba('#123456', 2), 'rgba(18, 52, 86, 1)');
+  assert.equal(utils.withMultilingualFallback('Noto Sans'), 'Noto Sans, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif');
+  assert.equal(utils.scrollTravelSeconds(12, 800, 300), 32);
+  assert.equal(utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'false' }), true);
+});
+
 test('identity rule text scrolls independently only when it overflows', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const sandbox = {
@@ -558,12 +610,17 @@ test('identity queue scrolls from actual overflow instead of a fixed row count',
 });
 
 test('song board scroll speed stays constant as content grows', () => {
+  const utilitySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
+    'utf8'
+  );
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const styleValues = new Map();
   const sandbox = {
     console,
     URLSearchParams,
     location: { protocol: 'http:', host: 'localhost', search: '' },
+    window: {},
     WebSocket: function WebSocket() {},
     document: {
       addEventListener() {},
@@ -572,7 +629,7 @@ test('song board scroll speed stays constant as content grows', () => {
       }
     }
   };
-  vm.runInNewContext(source, sandbox);
+  vm.runInNewContext(utilitySource + '\n' + source, sandbox);
 
   assert.equal(sandbox.scrollSpeedToDuration(1), '1000.0');
   assert.equal(sandbox.scrollSpeedToDuration(200), '2.0');
@@ -604,6 +661,56 @@ test('song board scroll speed stays constant as content grows', () => {
   const longerDistance = loopDistance * 2;
   const longerSeconds = sandbox.scrollTravelSeconds(sandbox.scrollSpeedToDuration(80), longerDistance, 300);
   assert.ok(Math.abs((loopDistance / travelSeconds) - (longerDistance / longerSeconds)) < 0.001);
+});
+
+test('only the latest playback search updates state and renders', async () => {
+  const pending = new Map();
+  const renderedIds = [];
+  let keyword = 'old';
+  const document = {
+    getElementById() {
+      return { textContent: '' };
+    }
+  };
+  const { SearchService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'search-service.js'),
+    {
+      fetch(_url, options) {
+        const request = JSON.parse(options.body);
+        return new Promise((resolve) => pending.set(request.keyword, resolve));
+      }
+    }
+  );
+  const searchService = new SearchService({
+    state: { selectedSource: 'test' },
+    readJsonResponse: async (searchResponse) => searchResponse.payload
+  });
+  const { createSearchHandler } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'features', 'search-handler.js'),
+    { document }
+  );
+  const handler = createSearchHandler({
+    playbackState: {},
+    searchService,
+    value(id) {
+      return id === 'playbackSearchKeyword' ? keyword : '9';
+    },
+    toast() {},
+    renderPlaybackSearchResults() {
+      renderedIds.push(searchService.getResults()[0]?.id ?? '');
+    }
+  });
+
+  const oldSearch = handler.runPlaybackSearch();
+  keyword = 'new';
+  const newSearch = handler.runPlaybackSearch();
+  pending.get('new')(response({ ok: true, data: { tracks: [{ id: 'new-result' }] } }));
+  await newSearch;
+  pending.get('old')(response({ ok: true, data: { tracks: [{ id: 'old-result' }] } }));
+  await oldSearch;
+
+  assert.equal(searchService.getResults()[0]?.id, 'new-result');
+  assert.deepEqual(renderedIds, ['new-result']);
 });
 
 async function loadModuleExports(entryPath, globals = {}) {

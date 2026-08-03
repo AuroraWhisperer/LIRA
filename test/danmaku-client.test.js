@@ -146,3 +146,31 @@ test('extracted danmaku client keeps runtime dependencies and diagnostics', asyn
     global.WebSocket = originalWebSocket;
   }
 });
+
+test('stopped danmaku client does not resume startup after room lookup resolves', async () => {
+  let resolveRoomInfo;
+  const roomInfoPromise = new Promise((resolve) => {
+    resolveRoomInfo = resolve;
+  });
+  const starts = { history: 0, rank: 0, status: 0, websocket: 0 };
+  const client = new BilibiliDanmakuClient('123', {
+    onMessage() {},
+    onSuperChat() {},
+    onGift() {},
+    onStatus() {}
+  });
+
+  client.apiClient.resolveRoomInfo = () => roomInfoPromise;
+  client.historyPoller.start = () => { starts.history += 1; };
+  client.onlineRankPoller.start = () => { starts.rank += 1; };
+  client.liveStatusMonitor.start = () => { starts.status += 1; };
+  client.wsConnection.connect = async () => { starts.websocket += 1; };
+
+  client.start();
+  client.stop();
+  resolveRoomInfo({ roomId: 123, uid: 456, liveStatus: 0, ownerName: 'owner' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(client.stopped, true);
+  assert.deepEqual(starts, { history: 0, rank: 0, status: 0, websocket: 0 });
+});

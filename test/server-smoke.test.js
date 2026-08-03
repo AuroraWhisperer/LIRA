@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -29,6 +30,31 @@ function postJson(baseUrl, pathname, body) {
   return requestJson(baseUrl, pathname, {
     method: 'POST',
     body: JSON.stringify(body)
+  });
+}
+
+function findAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const probe = net.createServer();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => {
+      const address = probe.address();
+      const port = address && typeof address === 'object' ? address.port : 0;
+      probe.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+function canConnect(port) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: '127.0.0.1', port });
+    const finish = (connected) => {
+      socket.destroy();
+      resolve(connected);
+    };
+    socket.once('connect', () => finish(true));
+    socket.once('error', () => finish(false));
+    socket.setTimeout(1000, () => finish(false));
   });
 }
 
@@ -234,6 +260,90 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
       assert.equal(fs.existsSync(path.join(dataDir, '.session-token')), false);
     }
     global.fetch = originalFetch;
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server runtimes isolate sequential data directories', async () => {
+  const firstDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-first-'));
+  const secondDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-second-'));
+  const { createServerRuntime } = require('../src/server');
+  let firstRuntime;
+  let secondRuntime;
+
+  try {
+    firstRuntime = createServerRuntime({ dataDir: firstDataDir });
+    await firstRuntime.start({
+      host: '127.0.0.1',
+      startPort: await findAvailablePort()
+    });
+    assert.equal(firstRuntime.getSetting('queueLimit'), '50');
+    assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), true);
+    await firstRuntime.stop({ exitProcess: false });
+    assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), false);
+
+    secondRuntime = createServerRuntime({ dataDir: secondDataDir });
+    await secondRuntime.start({
+      host: '127.0.0.1',
+      startPort: await findAvailablePort()
+    });
+    assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), true);
+    await secondRuntime.stop({ exitProcess: false });
+    assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), false);
+  } finally {
+    if (firstRuntime) await firstRuntime.stop({ exitProcess: false });
+    if (secondRuntime) await secondRuntime.stop({ exitProcess: false });
+    fs.rmSync(firstDataDir, { recursive: true, force: true });
+    fs.rmSync(secondDataDir, { recursive: true, force: true });
+  }
+});
+
+test('server runtime closes cleanly when stop races with start', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-race-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  const port = await findAvailablePort();
+
+  try {
+    const startResult = runtime.start({ host: '127.0.0.1', startPort: port });
+    const stopResult = runtime.stop();
+    const [, stopped] = await Promise.allSettled([startResult, stopResult]);
+
+    assert.equal(stopped.status, 'fulfilled');
+    assert.equal(fs.existsSync(path.join(dataDir, '.session-token')), false);
+    assert.equal(await canConnect(port), false);
+  } finally {
+    await runtime.stop();
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server startup rolls back an ephemeral listener when runtime info fails', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-rollback-'));
+  const lifecycle = require('../src/server/lifecycle');
+  const originalWriteRuntimeInfo = lifecycle.writeRuntimeInfo;
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  let assignedPort = 0;
+
+  lifecycle.writeRuntimeInfo = (runtimeDataDir, info) => {
+    assignedPort = info.port;
+    originalWriteRuntimeInfo(runtimeDataDir, info);
+    throw new Error('forced runtime info failure');
+  };
+
+  try {
+    await assert.rejects(
+      runtime.start({ host: '127.0.0.1', startPort: 0 }),
+      /forced runtime info failure/
+    );
+    assert.ok(assignedPort > 0);
+    assert.equal(await canConnect(assignedPort), false);
+    assert.equal(fs.existsSync(path.join(dataDir, '.session-token')), false);
+    assert.equal(fs.existsSync(path.join(dataDir, '.server-runtime.json')), false);
+  } finally {
+    lifecycle.writeRuntimeInfo = originalWriteRuntimeInfo;
+    await runtime.stop();
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });

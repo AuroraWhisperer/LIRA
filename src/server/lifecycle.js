@@ -37,7 +37,8 @@ function listenExactly(server, options) {
     };
     const onListening = () => {
       server.off('error', onError);
-      resolve(port);
+      const address = server.address();
+      resolve(address && typeof address === 'object' ? address.port : port);
     };
     server.once('error', onError);
     server.once('listening', onListening);
@@ -64,7 +65,7 @@ function tryListen(server, port, host) {
 async function cleanupOwnPortOccupant(options) {
   const runtime = readRuntimeInfo(options.dataDir);
   const requestedPort = Number(options.port);
-  const port = requestedPort === 0 ? 3000 : requestedPort;
+  const port = requestedPort;
   const host = options.host;
   const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
   if (!Number.isInteger(port) || port <= 0) return;

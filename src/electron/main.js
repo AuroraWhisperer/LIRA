@@ -2,17 +2,18 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
 const {
   app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell
 } = require('electron');
 const authMgr = require('./auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
+const { openBilibiliLoginWindow } = require('./bilibili-login-window');
 const loginWin = require('./login-window');
 const lyricWin = require('./lyric-window');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const updateMgr = require('./update-manager');
 const { installTerminalLog } = require('./terminal-log');
+const serverRuntimeModule = require('../server');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song';
@@ -20,6 +21,7 @@ const MUSIC_LOGIN_CONFIG = authMgr.MUSIC_LOGIN_CONFIG;
 
 let mainWindow = null;
 let desktopBaseUrl = '';
+let desktopRuntime = null;
 let shutdownApplication = null;
 let gracefulQuitStarted = false;
 let forceQuitTimer = null;
@@ -106,13 +108,7 @@ async function startDesktopApp() {
   await restoreMusicCookieSnapshots();
   await restoreBilibiliCookieSnapshot();
 
-  var serverModule = require('../server');
-  shutdownApplication = serverModule.shutdownApplication;
-
-  // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
-  serverModule.setPreShutdownHook(requestPlaybackFlush);
-
-  var serverInfo = await serverModule.startServer({
+  var serverOptions = {
     host: process.env.HOST || '127.0.0.1',
     startPort: 3000,
     musicAuth: {
@@ -124,7 +120,14 @@ async function startDesktopApp() {
       getCookieHeader: getBilibiliCookieHeader,
       getUid: getBilibiliUid
     }
-  });
+  };
+  desktopRuntime = createDesktopRuntime(serverRuntimeModule, { dataDir });
+  shutdownApplication = desktopRuntime.stop.bind(desktopRuntime);
+
+  // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
+  desktopRuntime.setPreShutdownHook(requestPlaybackFlush);
+
+  var serverInfo = await desktopRuntime.start(serverOptions);
 
   createMainWindow(serverInfo.baseUrl);
 
@@ -138,6 +141,39 @@ async function startDesktopApp() {
     };
     sendUpdateState();
   }
+}
+
+function createDesktopRuntime(serverModule, options = {}) {
+  if (isServerRuntime(serverModule)) return serverModule;
+  if (serverModule && typeof serverModule.createServerRuntime === 'function') {
+    return serverModule.createServerRuntime(options);
+  }
+
+  if (!serverModule || typeof serverModule.startServer !== 'function' ||
+      typeof serverModule.shutdownApplication !== 'function') {
+    throw new Error('Server runtime is not available.');
+  }
+
+  return {
+    start: (startOptions) => serverModule.startServer(startOptions),
+    stop: (stopOptions) => serverModule.shutdownApplication(stopOptions),
+    setPreShutdownHook: typeof serverModule.setPreShutdownHook === 'function'
+      ? (hook) => serverModule.setPreShutdownHook(hook)
+      : () => {},
+    persistPlaybackSnapshot: typeof serverModule.persistPlaybackSnapshot === 'function'
+      ? (payload, clientId) => serverModule.persistPlaybackSnapshot(payload, clientId)
+      : null,
+    getSetting: typeof serverModule.getSetting === 'function'
+      ? (key) => serverModule.getSetting(key)
+      : () => undefined
+  };
+}
+
+function isServerRuntime(value) {
+  return Boolean(value &&
+    typeof value.start === 'function' &&
+    typeof value.stop === 'function' &&
+    typeof value.setPreShutdownHook === 'function');
 }
 
 function configureDesktopEnvironment() {
@@ -412,11 +448,10 @@ function configureMusicIpc() {
     return { results: results };
   });
   ipcMain.handle('playback:save-state', function (_e, data) {
-    var serverModule = require('../server');
-    if (typeof serverModule.persistPlaybackSnapshot !== 'function') {
+    if (!desktopRuntime || typeof desktopRuntime.persistPlaybackSnapshot !== 'function') {
       return { ok: false, error: 'Playback store not available' };
     }
-    return serverModule.persistPlaybackSnapshot(
+    return desktopRuntime.persistPlaybackSnapshot(
       (data && data.payload) || {},
       (data && data.clientId) || 'default'
     );
@@ -524,86 +559,13 @@ function restoreBilibiliCookieSnapshot() {
 }
 
 async function loginBilibiliAccount() {
-  // Bilibili login window — same pattern as music login
-  const config = bilibiliAuth.BILIBILI_LOGIN_CONFIG;
-  const { BrowserWindow } = require('electron');
-  const loginWindow = new BrowserWindow({
-    width: 1000, height: 720,
-    title: `登录${config.name}`,
-    parent: mainWindow || undefined,
-    modal: false, show: true,
-    webPreferences: {
-      partition: config.partition,
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true
-    }
-  });
-
-  const loginSession = loginWindow.webContents.session;
-  loginSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
-
-  loginWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (bilibiliAuth.isAllowedBilibiliLoginUrl(url)) {
-      loginWindow.loadURL(url).catch((error) => writeLog('bilibili-login-navigation', error));
-    } else {
-      require('electron').shell.openExternal(url).catch((error) => writeLog('bilibili-login-external', error));
-    }
-    return { action: 'deny' };
-  });
-
-  loginWindow.webContents.on('will-navigate', (event, url) => {
-    if (bilibiliAuth.isAllowedBilibiliLoginUrl(url)) return;
-    event.preventDefault();
-    require('electron').shell.openExternal(url);
-  });
-
-  let cookieSaveTimer = null;
-  let loginCheckTimer = null;
-
-  const scheduleCookieSave = () => {
-    clearTimeout(cookieSaveTimer);
-    cookieSaveTimer = setTimeout(() => {
-      bilibiliAuth.persistBilibiliCookieSnapshot(dataDir).catch((error) => writeLog('bilibili-cookie-save', error));
-    }, 800);
-  };
-
-  const checkLoginComplete = () => {
-    bilibiliAuth.getBilibiliAuthState(dataDir).then((state) => {
-      if (state.loggedIn && loginWindow && !loginWindow.isDestroyed()) {
-        writeLog('bilibili-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);
-        loginWindow.close();
-      }
-    }).catch((_error) => {
-      // Silently retry on next tick
-    });
-  };
-
-  // React immediately when cookies change (most responsive path)
-  const onCookieChanged = () => {
-    scheduleCookieSave();
-    checkLoginComplete();
-  };
-  loginSession.cookies.on('changed', onCookieChanged);
-
-  await loginWindow.loadURL(config.loginUrl);
-
-  // Also poll every 1.5s as a safety net
-  loginCheckTimer = setInterval(checkLoginComplete, 1500);
-
-  return new Promise((resolve) => {
-    loginWindow.on('closed', async () => {
-      clearTimeout(cookieSaveTimer);
-      clearInterval(loginCheckTimer);
-      loginSession.cookies.removeListener('changed', onCookieChanged);
-      let snapshot = null;
-      try { snapshot = await bilibiliAuth.persistBilibiliCookieSnapshot(dataDir); }
-      catch (error) { writeLog('bilibili-cookie-save', error); }
-      resolve({
-        snapshot,
-        state: await bilibiliAuth.getBilibiliAuthState(dataDir)
-      });
-    });
+  return openBilibiliLoginWindow({
+    BrowserWindow,
+    shell,
+    auth: bilibiliAuth,
+    mainWindow,
+    dataDir,
+    writeLog
   });
 }
 
@@ -644,12 +606,9 @@ async function checkForUpdates() {
 
 function readAutoUpdateSetting() {
   try {
-    const dbPath = path.join(dataDir, 'song-request-data.db');
-    if (!fs.existsSync(dbPath)) return false;
-    const db = new DatabaseSync(dbPath);
-    const row = db.prepare("SELECT value FROM settings WHERE key = 'enableAutoUpdate'").get();
-    db.close();
-    return row ? row.value === 'true' : false;
+    return Boolean(desktopRuntime &&
+      typeof desktopRuntime.getSetting === 'function' &&
+      desktopRuntime.getSetting('enableAutoUpdate') === 'true');
   } catch (_) {
     return false;
   }

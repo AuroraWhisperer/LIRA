@@ -22,6 +22,7 @@ class BilibiliDanmakuClient {
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
     this.messageBuffer = options.messageBuffer || null;
     this.stopped = true;
+    this.connectionGeneration = 0;
     this.reconnectTimer = null;
     this.startedAtMs = Date.now();
     this.ownerName = '';
@@ -61,11 +62,13 @@ class BilibiliDanmakuClient {
 
   start() {
     this.stopped = false;
+    const generation = ++this.connectionGeneration;
     this.startedAtMs = Date.now();
     this.messageHandlers.updateStartTime(this.startedAtMs);
     this.historyPoller.updateStartTime(this.startedAtMs);
 
-    this.connect().catch((error) => {
+    this.connect({}, generation).catch((error) => {
+      if (!this.isConnectionCurrent(generation)) return;
       console.warn(`[Bilibili] connect failed: ${error.message}`);
       this.historyPoller.start(this.resolvedRoomId || this.roomId);
       this.report({
@@ -75,19 +78,21 @@ class BilibiliDanmakuClient {
         mode: 'bilibili',
         message: '直播弹幕长连失败，历史消息监听中'
       });
-      this.scheduleReconnect();
+      this.scheduleReconnect(generation);
     });
   }
 
   async restart() {
     this.stopped = false;
+    const generation = ++this.connectionGeneration;
     this.startedAtMs = Date.now();
     this.messageHandlers.updateStartTime(this.startedAtMs);
     this.historyPoller.updateStartTime(this.startedAtMs);
 
     try {
-      await this.connect({ waitForOpen: true });
+      await this.connect({ waitForOpen: true }, generation);
     } catch (error) {
+      if (!this.isConnectionCurrent(generation)) return;
       console.warn(`[Bilibili] reconnect failed: ${error.message}`);
       this.historyPoller.start(this.resolvedRoomId || this.roomId);
       this.report({
@@ -97,13 +102,14 @@ class BilibiliDanmakuClient {
         mode: 'bilibili',
         message: '直播弹幕长连失败，历史消息监听中'
       });
-      this.scheduleReconnect();
+      this.scheduleReconnect(generation);
       throw error;
     }
   }
 
   stop() {
     this.stopped = true;
+    this.connectionGeneration += 1;
     clearTimeout(this.reconnectTimer);
     this.wsConnection.close();
     this.historyPoller.stop();
@@ -124,7 +130,8 @@ class BilibiliDanmakuClient {
     return this.deduplicator.remember(uid, message, timestampMs);
   }
 
-  async connect(options = {}) {
+  async connect(options = {}, generation = this.connectionGeneration) {
+    if (!this.isConnectionCurrent(generation)) return;
     this.report({
       connected: false,
       enabled: true,
@@ -134,6 +141,7 @@ class BilibiliDanmakuClient {
     });
 
     const roomInfo = await this.apiClient.resolveRoomInfo();
+    if (!this.isConnectionCurrent(generation)) return;
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.ownerName = roomInfo.ownerName || '';
 
@@ -144,6 +152,7 @@ class BilibiliDanmakuClient {
     this.liveStatusMonitor.start(roomInfo);
 
     const danmuInfo = await this.apiClient.resolveDanmuInfo(roomInfo.roomId);
+    if (!this.isConnectionCurrent(generation)) return;
     const host = (danmuInfo.host_list || [])[0];
     if (!host) {
       throw new Error('没有可用的弹幕服务器。');
@@ -167,7 +176,7 @@ class BilibiliDanmakuClient {
 
     // 设置 WebSocket 事件处理
     this.wsConnection.on('open', () => {
-      if (this.stopped) return;
+      if (!this.isConnectionCurrent(generation)) return;
       if (isLive && !this.options.alwaysHistory) {
         this.historyPoller.stop();
       }
@@ -187,6 +196,7 @@ class BilibiliDanmakuClient {
     });
 
     this.wsConnection.on('message', async (data) => {
+      if (!this.isConnectionCurrent(generation)) return;
       try {
         await this.messageHandlers.handlePackets(data);
       } catch (error) {
@@ -195,7 +205,7 @@ class BilibiliDanmakuClient {
     });
 
     this.wsConnection.on('close', () => {
-      if (!this.stopped) {
+      if (this.isConnectionCurrent(generation)) {
         this.historyPoller.start(this.resolvedRoomId || this.roomId);
         this.report({
           connected: Boolean(this.historyPoller.timer),
@@ -205,11 +215,12 @@ class BilibiliDanmakuClient {
           ownerName: this.ownerName,
           message: this.historyPoller.timer ? '弹幕长连已断开，历史消息监听中' : '弹幕连接已断开，等待重连'
         });
-        this.scheduleReconnect();
+        this.scheduleReconnect(generation);
       }
     });
 
     this.wsConnection.on('error', () => {
+      if (!this.isConnectionCurrent(generation)) return;
       this.report({
         connected: false,
         enabled: true,
@@ -223,6 +234,7 @@ class BilibiliDanmakuClient {
   }
 
   handleHistoryMessage(messageData) {
+    if (this.stopped) return;
     if (this.deduplicator.remember(messageData.uid, messageData.message, messageData.messageTimestamp)) {
       const requester = this.identityCache.resolve({
         uid: messageData.uid,
@@ -245,6 +257,7 @@ class BilibiliDanmakuClient {
   }
 
   handleLiveStatusChange(status) {
+    if (this.stopped) return;
     if (status.ownerName) {
       this.ownerName = status.ownerName;
     }
@@ -260,6 +273,7 @@ class BilibiliDanmakuClient {
 
   async reconnectAfterLiveStarted(roomId) {
     if (this.stopped) return;
+    const generation = this.connectionGeneration;
 
     this.liveStatusMonitor.setReconnectInFlight(true);
     clearTimeout(this.reconnectTimer);
@@ -280,8 +294,9 @@ class BilibiliDanmakuClient {
       this.startedAtMs = Date.now();
       this.messageHandlers.updateStartTime(this.startedAtMs);
       this.historyPoller.updateStartTime(this.startedAtMs);
-      await this.connect();
+      await this.connect({}, generation);
     } catch (error) {
+      if (!this.isConnectionCurrent(generation)) return;
       console.warn(`[Bilibili] reconnect after live start failed: ${error.message}`);
       this.report({
         connected: Boolean(this.historyPoller.timer),
@@ -293,17 +308,18 @@ class BilibiliDanmakuClient {
           ? '已开播，但弹幕长连重连失败，历史消息监听中'
           : publicBilibiliErrorMessage(error, true)
       });
-      this.scheduleReconnect();
+      this.scheduleReconnect(generation);
     } finally {
       this.liveStatusMonitor.setReconnectInFlight(false);
     }
   }
 
-  scheduleReconnect() {
+  scheduleReconnect(generation = this.connectionGeneration) {
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
-      if (!this.stopped) {
-        this.connect().catch((error) => {
+      if (this.isConnectionCurrent(generation)) {
+        this.connect({}, generation).catch((error) => {
+          if (!this.isConnectionCurrent(generation)) return;
           console.warn(`[Bilibili] reconnect failed: ${error.message}`);
           const historyFallbackActive = Boolean(this.historyPoller.timer);
           this.report({
@@ -316,10 +332,14 @@ class BilibiliDanmakuClient {
               ? '直播弹幕长连重连失败，历史消息监听中'
               : publicBilibiliErrorMessage(error, true)
           });
-          this.scheduleReconnect();
+          this.scheduleReconnect(generation);
         });
       }
     }, 5000);
+  }
+
+  isConnectionCurrent(generation) {
+    return !this.stopped && generation === this.connectionGeneration;
   }
 
   report(status) {

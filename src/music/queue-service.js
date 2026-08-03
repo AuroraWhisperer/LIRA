@@ -59,57 +59,65 @@ function addQueueItem(context, input) {
   const isPinned = input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true' ? 1 : 0;
   const pinnedAt = isPinned ? createdAt : '';
 
-  const result = songDb.prepare(`
-    INSERT INTO queue (
-      song_id, song_name, artist, category_name,
-      requester_uid, requester_name,
-      requester_guard_level, requester_medal_name, requester_medal_level,
-      source, status, is_pinned, pinned_at,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    matchedSong ? matchedSong.id : null,
-    matchedSong ? matchedSong.name : songName,
-    cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
-    cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
-    cleanText(input.requesterUid),
-    cleanText(input.requesterName) || '观众',
-    requesterGuardLevel,
-    requesterMedalName,
-    requesterMedalLevel,
-    cleanText(input.source) || 'admin',
-    status,
-    isPinned,
-    pinnedAt,
-    createdAt,
-    createdAt
-  );
+  songDb.exec('BEGIN');
+  try {
+    const result = songDb.prepare(`
+      INSERT INTO queue (
+        song_id, song_name, artist, category_name,
+        requester_uid, requester_name,
+        requester_guard_level, requester_medal_name, requester_medal_level,
+        source, status, is_pinned, pinned_at,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      matchedSong ? matchedSong.id : null,
+      matchedSong ? matchedSong.name : songName,
+      cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
+      cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
+      cleanText(input.requesterUid),
+      cleanText(input.requesterName) || '观众',
+      requesterGuardLevel,
+      requesterMedalName,
+      requesterMedalLevel,
+      cleanText(input.source) || 'admin',
+      status,
+      isPinned,
+      pinnedAt,
+      createdAt,
+      createdAt
+    );
 
-  const queueId = Number(result.lastInsertRowid);
-  songDb.prepare(`
-    INSERT INTO requests (
-      queue_id, song_id, song_name, artist, category_name,
-      requester_uid, requester_name,
-      requester_guard_level, requester_medal_name, requester_medal_level,
-      message, source, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    queueId,
-    matchedSong ? matchedSong.id : null,
-    matchedSong ? matchedSong.name : songName,
-    cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
-    cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
-    cleanText(input.requesterUid),
-    cleanText(input.requesterName) || '观众',
-    requesterGuardLevel,
-    requesterMedalName,
-    requesterMedalLevel,
-    cleanText(input.message),
-    cleanText(input.source) || 'admin',
-    createdAt
-  );
+    const queueId = Number(result.lastInsertRowid);
+    songDb.prepare(`
+      INSERT INTO requests (
+        queue_id, song_id, song_name, artist, category_name,
+        requester_uid, requester_name,
+        requester_guard_level, requester_medal_name, requester_medal_level,
+        message, source, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      queueId,
+      matchedSong ? matchedSong.id : null,
+      matchedSong ? matchedSong.name : songName,
+      cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
+      cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
+      cleanText(input.requesterUid),
+      cleanText(input.requesterName) || '观众',
+      requesterGuardLevel,
+      requesterMedalName,
+      requesterMedalLevel,
+      cleanText(input.message),
+      cleanText(input.source) || 'admin',
+      createdAt
+    );
 
-  return normalizeQueueRow(songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId));
+    const queueItem = normalizeQueueRow(songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId));
+    songDb.exec('COMMIT');
+    return queueItem;
+  } catch (error) {
+    songDb.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 // ── 队列操作（置顶、删除、切歌等） ──

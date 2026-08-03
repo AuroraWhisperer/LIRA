@@ -8,7 +8,7 @@ const {
   buildSongsWorkbook,
   parseSongsFromXlsx,
   templateSongs
-} = require('../../shared/utils');
+} = require('../../music/song-file-codec');
 
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const prefixes = ['/api/songs', '/api/categories'];

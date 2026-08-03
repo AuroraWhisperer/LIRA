@@ -24,6 +24,8 @@ pages/
 |--------------|----------------------------------|----------------|
 | `/`          | `pages/admin.html`               | 首页，重定向到管理后台 |
 | `/admin`     | `pages/admin.html`               | 管理后台        |
+| `/settings`  | `pages/admin.html`               | 管理后台设置页入口 |
+| `/songs`     | `pages/admin.html`               | 管理后台歌库页入口 |
 | `/queue`     | `pages/overlays/queue.html`      | 点歌队列 overlay |
 | `/songlist`  | `pages/overlays/songs.html`      | 歌单展示 overlay |
 | `/blindbox`  | `pages/overlays/blindbox.html`   | 盲盒盈亏 overlay |
@@ -38,5 +40,5 @@ pages/
 示例：
 ```html
 <link rel="stylesheet" href="/css/styles-base.css">
-<script src="/js/shared/utils.js"></script>
+<script type="module" src="/js/admin/index.js"></script>
 ```

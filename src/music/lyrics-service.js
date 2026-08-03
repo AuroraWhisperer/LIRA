@@ -7,16 +7,38 @@ const { musicCacheKey, readMusicJsonCache, writeMusicJsonCache } = require('./mu
 const { parseLyricResult } = require('./lyrics');
 const { rankTrackCandidates } = require('./song-matcher');
 const { normalizeMusicPlatform } = require('./provider-registry');
+const { normalizeMusicTrackForProvider } = require('./track-contract');
 
 const MUSIC_API_CACHE_TTL_MS = 5 * 60 * 1000;
 const MUSIC_LYRIC_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-let apiCacheDir = '';
-let lyricCacheDir = '';
+let compatibilityService = createLyricsService();
+
+function createLyricsService(options = {}) {
+  const apiCacheDir = String(options.apiCacheDir || '');
+  const lyricCacheDir = String(options.lyricCacheDir || '');
+
+  return {
+    searchMusicTracks,
+    getMusicHomeContent(registry, body) {
+      return getMusicHomeContentWithCache(registry, body, apiCacheDir);
+    },
+    getMusicTrackLyrics(registry, body) {
+      return getMusicTrackLyricsWithCache(registry, body, lyricCacheDir);
+    },
+    parseLyricPayload,
+    matchMusicTrackCandidates,
+    normalizeMusicTrackForProvider,
+    writeMusicPlaylistTracks
+  };
+}
 
 function initLyricsService(apiDir, lyricDir) {
-  apiCacheDir = apiDir;
-  lyricCacheDir = lyricDir;
+  compatibilityService = createLyricsService({
+    apiCacheDir: apiDir,
+    lyricCacheDir: lyricDir
+  });
+  return compatibilityService;
 }
 
 async function searchMusicTracks(registry, body) {
@@ -33,7 +55,11 @@ async function searchMusicTracks(registry, body) {
   };
 }
 
-async function getMusicHomeContent(registry, body) {
+function getMusicHomeContent(registry, body) {
+  return compatibilityService.getMusicHomeContent(registry, body);
+}
+
+async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   const input = body && typeof body === 'object' ? body : {};
   const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const action = cleanText(input.action || 'personalized');
@@ -86,7 +112,11 @@ async function getMusicHomeContent(registry, body) {
   throw new Error('未知音乐首页动作。');
 }
 
-async function getMusicTrackLyrics(registry, body) {
+function getMusicTrackLyrics(registry, body) {
+  return compatibilityService.getMusicTrackLyrics(registry, body);
+}
+
+async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
   const input = body && typeof body === 'object' ? body : {};
   const normalizedTrack = normalizeMusicTrackForProvider(input.track || input);
   const cacheKey = musicCacheKey('lyrics-v2', { source: normalizedTrack.source, sourceTrackId: normalizedTrack.sourceTrackId });
@@ -140,28 +170,6 @@ function matchMusicTrackCandidates(body) {
   return { request, threshold: 70, results: rankTrackCandidates(request, candidates) };
 }
 
-function normalizeMusicTrackForProvider(track) {
-  if (!track || typeof track !== 'object') throw new Error('缺少歌曲信息。');
-  const source = normalizeMusicPlatform(track.source);
-  const id = cleanText(track.id || track.sourceTrackId);
-  const sourceTrackId = cleanText(track.sourceTrackId || track.id);
-  const title = cleanText(track.title);
-  if (!id || !sourceTrackId || !title) throw new Error('歌曲信息不完整。');
-  const artists = Array.isArray(track.artists)
-    ? track.artists.map(cleanText).filter(Boolean).slice(0, 8) : [];
-
-  return {
-    id, source, title, artists,
-    album: cleanText(track.album),
-    durationMs: Math.max(0, Number(track.durationMs) || 0),
-    coverUrl: cleanText(track.coverUrl),
-    sourceTrackId,
-    sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-    sourceAlbumId: cleanText(track.sourceAlbumId),
-    playable: track.playable !== false, vip: track.vip === true
-  };
-}
-
 async function annotatePlaylistMembership(provider, platform, playlists, track) {
   const trackId = getProviderTrackId(platform, track);
   if (!trackId) throw new Error('缺少要检查的歌曲 ID。');
@@ -206,7 +214,7 @@ async function mapWithConcurrency(items, concurrency, mapper) {
 }
 
 module.exports = {
-  initLyricsService, searchMusicTracks, getMusicHomeContent,
+  createLyricsService, initLyricsService, searchMusicTracks, getMusicHomeContent,
   getMusicTrackLyrics, parseLyricPayload, matchMusicTrackCandidates,
   normalizeMusicTrackForProvider, writeMusicPlaylistTracks
 };

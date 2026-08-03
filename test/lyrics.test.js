@@ -1,8 +1,13 @@
 'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseLyricResult, parseWordLyric } = require('../src/music/lyrics');
+const { createLyricsService } = require('../src/music/lyrics-service');
+const { resolveMusicStream } = require('../src/music/stream-resolver');
 
 test('parseWordLyric supports QQ QRC suffix timing', () => {
   const lines = parseWordLyric(
@@ -32,4 +37,45 @@ test('parseLyricResult derives base lines from QRC and aligns alternates within 
     { startMs: 1000, text: '甲乙', translation: '翻译一', roma: 'jia yi' },
     { startMs: 4000, text: '丙', translation: '翻译二', roma: 'bing' }
   ]);
+});
+
+test('lyric and stream provider calls retain the QQ numeric sourceSongId', async (t) => {
+  const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-service-'));
+  t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));
+
+  let lyricTrack;
+  let streamTrack;
+  const provider = {
+    async getLyrics(track) {
+      lyricTrack = track;
+      return { source: 'qq', sourceTrackId: track.sourceTrackId, lines: [] };
+    },
+    async resolvePlayableUrl(track) {
+      streamTrack = track;
+      return { source: 'qq', sourceTrackId: track.sourceTrackId, url: 'https://example.test/song' };
+    }
+  };
+  const registry = {
+    get(source) {
+      assert.equal(source, 'qq');
+      return provider;
+    }
+  };
+  const track = {
+    id: 'qq:song-mid',
+    source: 'qq',
+    sourceTrackId: 'song-mid',
+    sourceSongId: 563728446,
+    title: 'Example Song'
+  };
+  const lyricsService = createLyricsService({
+    apiCacheDir: path.join(cacheRoot, 'api'),
+    lyricCacheDir: path.join(cacheRoot, 'lyrics')
+  });
+
+  await lyricsService.getMusicTrackLyrics(registry, { track });
+  await resolveMusicStream(registry, track);
+
+  assert.equal(lyricTrack.sourceSongId, 563728446);
+  assert.equal(streamTrack.sourceSongId, 563728446);
 });

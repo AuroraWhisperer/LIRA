@@ -17,11 +17,13 @@ export function createSearchHandler(deps) {
     toast,
     renderPlaybackSearchResults
   } = deps;
+  let searchGeneration = 0;
 
   /**
    * 执行搜索
    */
   async function runPlaybackSearch() {
+    const generation = ++searchGeneration;
     const keyword = value('playbackSearchKeyword');
     const resultNode = document.getElementById('playbackSearchResults');
 
@@ -29,8 +31,10 @@ export function createSearchHandler(deps) {
     try {
       const limit = Number(value('playbackSearchLimit') || 9);
       await searchService.search(keyword, limit);
+      if (generation !== searchGeneration) return;
       renderPlaybackSearchResults();
     } catch (error) {
+      if (generation !== searchGeneration) return;
       if (resultNode) resultNode.textContent = error.message || String(error);
     }
   }
@@ -39,6 +43,7 @@ export function createSearchHandler(deps) {
    * 清除搜索
    */
   function clearPlaybackSearch() {
+    searchGeneration += 1;
     const keywordInput = document.getElementById('playbackSearchKeyword');
     if (keywordInput) keywordInput.value = '';
     searchService.clearResults();

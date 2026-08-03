@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`2.0.9`
+当前版本：`2.1.0`
 
 ---
+
+## v2.1.0 变更
+
+- 🏗️ **服务运行时实例化重构**：`server.js` 从全局模块模式重构为 `createServerRuntime(options)` 工厂函数，每个数据目录对应一个独立的服务运行时实例，数据库、HTTP 服务器、WebSocket Hub、Bilibili 客户端均由运行时统一管理生命周期；Electron 主进程通过窄接口调用，保留原有 HTTP/WebSocket/IPC 合约不变。
+- 🔌 **WebSocket Hub 实例化**：`ws.js` 重构为 `createWebSocketHub()` 工厂函数，提供 `handleUpgrade` / `broadcastSnapshot` / `stop` 接口，生命周期绑定至运行时实例。
+- 🛑 **优雅关闭与资源释放**：新增 `stop()` 方法，关闭时释放所有定时器、监听器和连接资源；`electron/main.js` 适配新运行时接口，应用退出时执行预关闭钩子并停止运行时。
+- ⚡ **异步竞态与原子性修复**：Danmaku 客户端新增单调生成计数器，`stop()` 使所有待处理连接失效；歌词服务新增取消令牌机制，防止过期回调提交副作用；队列与点歌请求持久化改为显式 SQLite 事务保证原子写入；临时端口启动正确报告并释放实际监听端口。
+- 🎁 **礼物服务 V2 事件修复增强**：`gift-service.js` 礼物事件修复逻辑扩展，覆盖更多边界情况。
+- 🔑 **Bilibili 登录窗口**：新增 `src/electron/bilibili-login-window.js`，提供独立的 Bilibili 登录 BrowserWindow，支持 cookie/session 持久化。
+- 🎵 **歌曲文件编解码器**：新增 `src/music/song-file-codec.js`，支持歌曲数据的 CSV/XLSX 导入导出；新增 `src/music/song-import-schema.js` 导入校验，`src/music/track-contract.js` 跨平台曲目标识规范化。
+- 🎨 **叠加层工具模块抽取**：新增 `public/js/overlays/overlay-utils.js`（`window.OverlayUtils`），提取 `escapeHtml`、`hexToRgb`、`hexToRgba`、`withMultilingualFallback`、`scrollTravelSeconds`、`overlayLowPowerEnabled` 等共享工具函数；`songs.js` 改为通过 `window.OverlayUtils` 调用，减少重复代码。
+- 🧪 **测试覆盖大幅增强**：新增 `bilibili-login-window.test.js`、`gift-service.test.js`、`queue-service.test.js`、`song-file-codec.test.js` 4 个测试文件；`danmaku-client.test.js` 新增连接生成计数器测试；`lyrics.test.js` 新增取消令牌测试；`server-smoke.test.js` 新增运行时生命周期测试；`websocket-transport.test.js` 新增 WebSocket Hub 实例化测试；`server-lifecycle.test.js` 新增优雅关闭测试；`frontend-regressions.test.js` 新增叠加层工具函数回归测试。
 
 ## v2.0.9 变更
 

@@ -32,7 +32,7 @@ function extractComboRootKey(platformId) {
   return platformId.slice(0, lastColon);
 }
 
-function mergeIntoComboBuffer(context, gift, comboKey) {
+function mergeIntoComboBuffer(context, gift, comboKey, nowMs = Date.now()) {
   const pending = context.state.giftComboPending.get(comboKey);
   if (pending) {
     // 使用 Math.max 而非累加，避免 Bilibili 发送递增 combo_num 时数值膨胀
@@ -45,28 +45,97 @@ function mergeIntoComboBuffer(context, gift, comboKey) {
     pending.gift.platformId = gift.platformId;
     pending.gift.cmd = gift.cmd;
     pending.gift.rawJson = gift.rawJson;
-    pending.createdAtMs = Date.now();
+    pending.createdAtMs = nowMs;
   } else {
-    context.state.giftComboPending.set(comboKey, { gift, createdAtMs: Date.now() });
+    context.state.giftComboPending.set(comboKey, { gift, createdAtMs: nowMs });
   }
 }
 
-function flushStaleComboBuffers(context) {
-  const cutoff = Date.now() - GIFT_COMBO_PENDING_MAX_AGE_MS;
+function flushStaleComboBuffers(context, { force = false, onGiftFlushed, nowMs = Date.now() } = {}) {
+  const cutoff = nowMs - GIFT_COMBO_PENDING_MAX_AGE_MS;
   for (const [key, pending] of context.state.giftComboPending.entries()) {
-    if (pending && pending.createdAtMs < cutoff) {
+    if (pending && (force || pending.createdAtMs <= cutoff)) {
       context.state.giftComboPending.delete(key);
       // 检查是否已有 COMBO_SEND 先入库（网络乱序场景）
       const existingComboSend = findRecentComboSendForBuffer(context, key, pending.gift);
       if (existingComboSend) {
         // 合并到已有的 COMBO_SEND 记录，避免重复插入
-        updateGiftEventIfProgressed(context, existingComboSend, pending.gift);
+        const item = updateGiftEventIfProgressed(context, existingComboSend, pending.gift);
+        if (item && typeof onGiftFlushed === 'function') onGiftFlushed(item);
         continue;
       }
       // skipComboBuffer=true 避免再次缓冲
-      addGiftEvent(context, pending.gift, true);
+      const item = addGiftEvent(context, pending.gift, true);
+      if (item && typeof onGiftFlushed === 'function') onGiftFlushed(item);
     }
   }
+}
+
+function createGiftService(context, options = {}) {
+  const onGiftFlushed = typeof options.onGiftFlushed === 'function' ? options.onGiftFlushed : null;
+  const scheduleTimeout = options.setTimeout || setTimeout;
+  const cancelTimeout = options.clearTimeout || clearTimeout;
+  const nowMs = options.now || Date.now;
+  let comboTimer = null;
+  let disposed = false;
+
+  function scheduleComboFlush() {
+    if (comboTimer) {
+      cancelTimeout(comboTimer);
+      comboTimer = null;
+    }
+    if (disposed || context.state.giftComboPending.size === 0) return;
+
+    let earliest = Infinity;
+    for (const pending of context.state.giftComboPending.values()) {
+      if (pending && Number.isFinite(pending.createdAtMs)) earliest = Math.min(earliest, pending.createdAtMs);
+    }
+    if (!Number.isFinite(earliest)) return;
+
+    const delay = Math.max(0, earliest + GIFT_COMBO_PENDING_MAX_AGE_MS - nowMs());
+    comboTimer = scheduleTimeout(() => {
+      comboTimer = null;
+      flushPendingCombos();
+    }, delay);
+    if (comboTimer && typeof comboTimer.unref === 'function') comboTimer.unref();
+  }
+
+  function flushPendingCombos({ force = false } = {}) {
+    if (disposed && !force) return;
+    flushStaleComboBuffers(context, { force, onGiftFlushed, nowMs: nowMs() });
+    scheduleComboFlush();
+  }
+
+  function add(input) {
+    if (disposed) return null;
+    flushPendingCombos();
+    const item = addGiftEvent(context, input, false, nowMs());
+    scheduleComboFlush();
+    return item;
+  }
+
+  function dispose() {
+    if (disposed) return;
+    if (comboTimer) {
+      cancelTimeout(comboTimer);
+      comboTimer = null;
+    }
+    disposed = true;
+    flushStaleComboBuffers(context, { force: true, onGiftFlushed, nowMs: nowMs() });
+  }
+
+  return {
+    add,
+    dispose,
+    getSnapshot: () => getGiftSnapshot(context),
+    getHistory: (options) => getGiftHistory(context, options),
+    getSprintSnapshot: () => getGiftSprintSnapshot(context),
+    getBlindBoxStats: () => getBlindBoxStats(context),
+    handleBotDanmaku: (danmaku) => handleGiftBotDanmaku(context, danmaku),
+    resetSprint: () => resetGiftSprintProgress(context),
+    search: (options) => searchGifts(context, options || {}),
+    clearRecent: () => clearRecentGifts(context)
+  };
 }
 
 // 查找最近入库的 COMBO_SEND 记录，用于处理网络乱序
@@ -156,7 +225,7 @@ function matchBlindBox(context, giftName) {
 
 // ── 礼物事件入账 ──
 
-function addGiftEvent(context, input, skipComboBuffer) {
+function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
   const settings = context.settings();
   if (settings.enableGiftSprint !== 'true') return null;
 
@@ -183,8 +252,8 @@ function addGiftEvent(context, input, skipComboBuffer) {
       context.state.giftComboPending.delete(comboKey);
     } else if (comboKey) {
       // 连击中的单次 SEND_GIFT：缓冲并累积
-      flushStaleComboBuffers(context);
-      mergeIntoComboBuffer(context, gift, comboKey);
+      flushStaleComboBuffers(context, { nowMs });
+      mergeIntoComboBuffer(context, gift, comboKey, nowMs);
       return null;
     }
   }
@@ -954,6 +1023,7 @@ function clearRecentGifts(context) {
 
 module.exports = {
   CRYSTAL_BALL_VALUE_RMB,
+  createGiftService,
   repairGiftV2Events,
   addGiftEvent,
   handleGiftBotDanmaku,

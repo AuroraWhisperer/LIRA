@@ -1,0 +1,22 @@
+'use strict';
+
+import '../shared/utils.js';
+import '../shared/theme.js';
+import '../desktop.js';
+import './import.js';
+import './queue.js';
+import './songs.js';
+import './theme.js';
+import './display.js';
+import './settings.js';
+import './gifts/notification.js';
+import './gifts/detection.js';
+import './gifts/sprint.js';
+import './gifts/recent.js';
+import './gifts/blindbox.js';
+import './gifts/history.js';
+import './gifts/index.js';
+import './metrics.js';
+import './other.js';
+import './desktop-lyric.js';
+import './app.js';

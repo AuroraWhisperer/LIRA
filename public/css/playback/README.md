@@ -88,11 +88,11 @@ public/css/playback/
 
 ## 🔧 使用方式
 
-主文件 `public/styles-playback.css` 现在只包含 `@import` 语句，自动导入所有模块。
+主文件 `public/css/styles-playback.css` 现在只包含 `@import` 语句，自动导入所有模块。
 
 HTML 中无需修改引用：
 ```html
-<link rel="stylesheet" href="/styles-playback.css">
+<link rel="stylesheet" href="/css/styles-playback.css">
 ```
 
 ## ✅ 优点

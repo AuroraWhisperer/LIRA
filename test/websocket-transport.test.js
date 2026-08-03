@@ -3,7 +3,11 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
-const { handleWebSocketUpgrade } = require('../src/server/ws');
+const {
+  broadcastSnapshot,
+  createWebSocketHub,
+  handleWebSocketUpgrade
+} = require('../src/server/ws');
 
 class FakeSocket extends EventEmitter {
   constructor() {
@@ -77,4 +81,69 @@ test('fragmented WebSocket messages are capped across frames', () => {
   assert.equal(closeFrame.readUInt16BE(2), 1009);
   assert.equal(socket.ended, true);
   assert.equal(context.state.sockets.has(socket), false);
+});
+
+test('WebSocket hub starts heartbeat on upgrade and releases resources on stop', async () => {
+  const hub = createWebSocketHub({ heartbeatIntervalMs: 5 });
+  const socket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    getState: () => ({ ok: true })
+  };
+
+  hub.handleUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+    }
+  }, socket);
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const heartbeatCount = socket.writes.filter((write) => (
+    Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9
+  )).length;
+  assert.ok(heartbeatCount > 0, 'heartbeat should begin after a successful upgrade');
+
+  hub.stop();
+  assert.equal(socket.ended, true);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const stoppedHeartbeatCount = socket.writes.filter((write) => (
+    Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9
+  )).length;
+  assert.equal(stoppedHeartbeatCount, heartbeatCount);
+});
+
+test('compatibility broadcasts remain isolated to their context sockets', () => {
+  const firstSocket = new FakeSocket();
+  const secondSocket = new FakeSocket();
+  const firstContext = {
+    sessionToken: '',
+    state: { sockets: new Set() },
+    getState: () => ({ runtime: 'first' })
+  };
+  const secondContext = {
+    sessionToken: '',
+    state: { sockets: new Set() },
+    getState: () => ({ runtime: 'second' })
+  };
+  const request = {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+    }
+  };
+
+  handleWebSocketUpgrade(firstContext, request, firstSocket);
+  handleWebSocketUpgrade(secondContext, request, secondSocket);
+  firstSocket.writes = [];
+  secondSocket.writes = [];
+
+  broadcastSnapshot(firstContext, 'first:update');
+
+  assert.equal(firstSocket.writes.length, 1);
+  assert.equal(secondSocket.writes.length, 0);
+  firstSocket.emit('close');
+  secondSocket.emit('close');
 });

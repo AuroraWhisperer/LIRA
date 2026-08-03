@@ -10,6 +10,7 @@
 | `blindbox.js` | 盲盒盈亏展示逻辑 | `/blindbox` |
 | `queue.js` | 点歌队列展示逻辑 | `/queue` |
 | `songs.js` | 可点歌单展示逻辑 | `/songlist` |
+| `overlay-utils.js` | Overlay 页面共享的格式化与滚动工具 | 多个 Overlay 页面 |
 
 ## 🔌 功能说明
 
@@ -44,11 +45,13 @@
 
 ## 🔗 通用工具
 
-如需使用通用工具函数，可以在 HTML 中引入：
+非模块 Overlay 脚本如需使用共享工具函数，应先加载本目录的兼容层：
 ```html
-<script src="/js/shared/utils.js"></script>
+<script src="/js/overlays/overlay-utils.js"></script>
 <script src="/js/overlays/{name}.js"></script>
 ```
+
+`public/js/shared/utils.js` 是 ESM，不能通过普通 `<script>` 标签加载；模块页面应改用 `type="module"` 或在模块入口中 `import`。
 
 ## 🔗 相关目录
 

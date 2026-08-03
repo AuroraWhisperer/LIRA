@@ -12,6 +12,7 @@ export class SearchService {
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
     this.toast = options.toast || (() => {});
     this.searchResults = [];
+    this.searchGeneration = 0;
   }
 
   /**
@@ -21,6 +22,7 @@ export class SearchService {
    * @returns {Promise<Array>} 搜索结果
    */
   async search(keyword, limit = 9) {
+    const generation = ++this.searchGeneration;
     if (!keyword || !keyword.trim()) {
       this.toast('请输入要搜索的歌名或歌手');
       return [];
@@ -42,6 +44,7 @@ export class SearchService {
       });
 
       const payload = await this.readJsonResponse(response, '在线搜索失败');
+      if (generation !== this.searchGeneration) return [];
 
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || '在线搜索失败');
@@ -53,6 +56,7 @@ export class SearchService {
 
       return this.searchResults;
     } catch (error) {
+      if (generation !== this.searchGeneration) return [];
       this.searchResults = [];
       this.onError(error);
       throw error;
@@ -83,6 +87,7 @@ export class SearchService {
    * 清空搜索结果
    */
   clearResults() {
+    this.searchGeneration += 1;
     this.searchResults = [];
   }
 
