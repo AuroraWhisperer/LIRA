@@ -373,7 +373,7 @@ test('playback labels scroll independently without resizing the progress slot', 
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 340px\) minmax\(520px, 1fr\)/);
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 280px\) minmax\(520px, 1fr\)/);
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
