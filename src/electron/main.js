@@ -114,8 +114,7 @@ async function startDesktopApp() {
 
   var serverInfo = await serverModule.startServer({
     host: process.env.HOST || '127.0.0.1',
-    // Prefer port 3000; lifecycle cleanup removes a previous desktop instance first.
-    startPort: process.env.PORT ? Number(process.env.PORT) : 3000,
+    startPort: 3000,
     musicAuth: {
       getAuthState: getMusicAuthState,
       getCookieHeader: getMusicCookieHeader

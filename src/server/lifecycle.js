@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const SESSION_TOKEN_FILE_NAME = '.session-token';
 const RUNTIME_FILE_NAME = '.server-runtime.json';
+const SERVICE_ID = 'bilibili-live-song-plugin';
 
 async function listenWithFallback(server, options) {
   const startPort = Number(options.startPort);
@@ -25,6 +26,23 @@ async function listenWithFallback(server, options) {
     if (ok) return port;
   }
   throw new Error(`No available local port from ${startPort} to ${startPort + 19}.`);
+}
+
+function listenExactly(server, options) {
+  const port = Number(options.port);
+  return new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolve(port);
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, options.host);
+  });
 }
 
 function tryListen(server, port, host) {
@@ -46,37 +64,39 @@ function tryListen(server, port, host) {
 async function cleanupOwnPortOccupant(options) {
   const runtime = readRuntimeInfo(options.dataDir);
   const requestedPort = Number(options.port);
-  const port = runtime && Number(runtime.port) > 0
-    ? Number(runtime.port)
-    : (requestedPort === 0 ? 3000 : requestedPort);
-  const host = runtime && runtime.host ? runtime.host : options.host;
+  const port = requestedPort === 0 ? 3000 : requestedPort;
+  const host = options.host;
+  const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
   if (!Number.isInteger(port) || port <= 0) return;
-  if (runtime && Number(runtime.pid) === process.pid) return;
+  if (runtimeForPort && Number(runtimeForPort.pid) === process.pid) return;
 
   const fetchImpl = options.fetch || globalThis.fetch;
   const health = await readLocalHealth(port, host, fetchImpl);
-  const healthIsOwn = health && health.ok && isOwnServiceHealth(health.data, options);
-  const runtimePid = runtime && Number(runtime.pid);
+  const serviceIdIsOwn = health && health.ok && health.data && health.data.serviceId === SERVICE_ID;
+  const healthIsOwn = serviceIdIsOwn || (health && health.ok && isOwnServiceHealth(health.data, options));
+  const runtimePid = runtimeForPort && Number(runtimeForPort.pid);
   const processInfo = Number.isInteger(runtimePid) && runtimePid > 0
     ? getProcessInfo(runtimePid) : null;
   const processIsOwn = isOwnProcessInfo(processInfo, options);
   if (!healthIsOwn && !processIsOwn) {
-    if (runtime) removeRuntimeInfo(options.dataDir, runtime);
+    if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
     return;
   }
 
   console.log(`Found previous song helper service on ${host}:${port}; asking it to shut down...`);
   await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
   if (await waitForPortRelease(port, host, options)) {
-    if (runtime) removeRuntimeInfo(options.dataDir, runtime);
+    if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
     return;
   }
 
-  const pid = runtimePid || Number(health.data && health.data.pid);
+  const pid = healthIsOwn
+    ? Number(health.data && health.data.pid)
+    : runtimePid;
   if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return;
 
   const currentProcessInfo = processInfo || getProcessInfo(pid);
-  if (!isOwnProcessInfo(currentProcessInfo, options)) return;
+  if (!serviceIdIsOwn && !isOwnProcessInfo(currentProcessInfo, options)) return;
 
   console.log(`Previous service did not exit cleanly; stopping pid ${pid}.`);
   try {
@@ -86,7 +106,7 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
   await waitForPortRelease(port, host, options);
-  if (runtime) removeRuntimeInfo(options.dataDir, runtime);
+  if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
 }
 
 async function readLocalHealth(port, host, fetchImpl = globalThis.fetch) {
@@ -224,13 +244,10 @@ function canConnectToPort(port, host) {
 
 function isOwnServiceHealth(data, options) {
   if (!data || typeof data !== 'object') return false;
-  const healthRoot = normalizePathForCompare(data.rootDir);
   const healthData = normalizePathForCompare(data.dataDir);
-  const ownRoot = normalizePathForCompare(options.rootDir);
   const ownData = normalizePathForCompare(options.dataDir);
 
-  return (healthRoot && healthRoot === ownRoot)
-    || (healthData && healthData === ownData);
+  return Boolean(healthData && ownData && healthData === ownData);
 }
 
 function getProcessInfo(pid) {
@@ -274,7 +291,9 @@ function normalizePathForCompare(value) {
 
 module.exports = {
   SESSION_TOKEN_FILE_NAME,
+  SERVICE_ID,
   cleanupOwnPortOccupant,
+  listenExactly,
   listenWithFallback,
   readSessionToken,
   writeSessionToken,

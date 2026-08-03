@@ -80,7 +80,7 @@
       bindRangePair('songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35);
       bindRangePair('songBoardBackdropBlur', 'songBoardBackdropBlurNumber', 0, 30, 0);
       bindRangePair('songBoardGlowIntensity', 'songBoardGlowIntensityNumber', 0, 20, 0);
-      bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 24, 80, 50);
+      bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 50);
       bindRangePair('songBoardSongFontSize', 'songBoardSongFontSizeNumber', 10, 40, 16);
       bindRangePair('songBoardTitleFontSize', 'songBoardTitleFontSizeNumber', 10, 28, 15);
     }

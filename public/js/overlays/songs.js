@@ -254,7 +254,7 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-text', resolve('themeText', 'songBoardThemeText', '#fff7fb'));
   root.style.setProperty('--overlay-opacity', resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
   root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
-  const songBoardFontSize = Math.max(24, Math.min(80, Number(settings.songBoardFontSize) || 50));
+  const songBoardFontSize = Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 50));
   root.style.setProperty('--overlay-font-scale', String(songBoardFontSize / 16));
 
   const scrollDuration = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
@@ -340,8 +340,8 @@ function hexToRgb(hex) {
 
 function scrollSpeedToDuration(value) {
   const speed = Math.max(1, Math.min(200, Math.round(Number(value) || 20)));
-  const minSeconds = 100;
-  const maxSeconds = 3000;
+  const minSeconds = 2;
+  const maxSeconds = 1000;
   return (maxSeconds - ((speed - 1) / 199) * (maxSeconds - minSeconds)).toFixed(1);
 }
 

@@ -395,10 +395,11 @@ test('song list exposes a display board font size control', () => {
 
   assert.ok(themePage);
   assert.doesNotMatch(themePage, /songBoardFontSize/);
-  assert.match(html, /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="24"[^>]*max="80"[^>]*value="50"/);
+  assert.match(html, /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="10"[^>]*max="80"[^>]*value="50"/);
   assert.match(displaySource, /songBoardFontSize: value\('songBoardFontSize'\)/);
-  assert.match(overlaySource, /Number\(settings\.songBoardFontSize\) \|\| 50/);
+  assert.match(overlaySource, /Math\.max\(10, Math\.min\(80, Number\(settings\.songBoardFontSize\) \|\| 50\)\)/);
   assert.match(overlayStyles, /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/);
+  assert.match(overlayStyles, /\.song-board \.overlay-content \{[\s\S]*padding: calc\(8px \* var\(--overlay-font-scale, 1\)\)/);
   assert.match(overlayStyles, /\.song-board \.overlay-title \{[\s\S]*var\(--overlay-title-font-size, 15px\) \* var\(--overlay-font-scale, 1\)/);
   assert.match(defaultsSource, /songBoardFontSize: '50'/);
 });
@@ -572,6 +573,9 @@ test('song board scroll speed stays constant as content grows', () => {
     }
   };
   vm.runInNewContext(source, sandbox);
+
+  assert.equal(sandbox.scrollSpeedToDuration(1), '1000.0');
+  assert.equal(sandbox.scrollSpeedToDuration(200), '2.0');
 
   const classes = new Set(['song-scroll-list', 'paused']);
   let duplicatedHtml = '';

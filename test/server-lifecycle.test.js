@@ -99,6 +99,106 @@ test('cleanup remains compatible with a previous instance that has no token file
   }
 });
 
+test('cleanup checks the requested port when runtime info points to a fallback port', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const requests = [];
+  let released = false;
+
+  try {
+    lifecycle.writeRuntimeInfo(dataDir, { pid: 12345, port: 3001, host: 'localhost' });
+    const fetchImpl = async (url, options) => {
+      const response = await createPreviousServerFetch(dataDir, requests)(url, options);
+      if (String(url).endsWith('/api/system/shutdown')) released = true;
+      return response;
+    };
+
+    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
+      dataDir,
+      fetchImpl,
+      async () => !released
+    ));
+
+    assert.match(requests[0].url, /:3000\/api\/health$/);
+    assert.match(
+      requests.find((request) => request.url.endsWith('/api/system/shutdown')).url,
+      /:3000\/api\/system\/shutdown$/
+    );
+    assert.deepEqual(lifecycle.readRuntimeInfo(dataDir), {
+      pid: 12345,
+      port: 3001,
+      host: 'localhost'
+    });
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('cleanup matches the same application across different data directories', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const requests = [];
+  let released = false;
+
+  try {
+    const fetchImpl = async (url, options = {}) => {
+      requests.push({ url: String(url), options });
+      if (String(url).endsWith('/api/health')) {
+        return new Response(JSON.stringify({
+          ok: true,
+          data: {
+            serviceId: lifecycle.SERVICE_ID,
+            dataDir: path.join(dataDir, 'previous-instance'),
+            pid: 12345
+          }
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      released = true;
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    };
+
+    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
+      dataDir,
+      fetchImpl,
+      async () => !released
+    ));
+
+    assert.ok(requests.some((request) => request.url.endsWith('/api/system/shutdown')));
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('cleanup leaves an unrelated service on port 3000 untouched', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const requests = [];
+
+  try {
+    const fetchImpl = async (url, options = {}) => {
+      requests.push({ url: String(url), options });
+      return new Response(JSON.stringify({
+        ok: true,
+        data: {
+          serviceId: 'other-application',
+          dataDir: path.join(dataDir, 'other-application'),
+          pid: 12345
+        }
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+
+    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
+      dataDir,
+      fetchImpl,
+      async () => true
+    ));
+
+    assert.equal(requests.some((request) => request.url.endsWith('/api/system/shutdown')), false);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('session token cleanup never removes a token file owned by another instance', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
 
@@ -131,6 +231,23 @@ test('listenWithFallback asks the OS for a free port when startPort is zero', as
     assert.equal(server.address().port, port);
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('listenExactly rejects when the requested port is already in use', async () => {
+  const first = http.createServer((_req, res) => res.end('first'));
+  const second = http.createServer();
+  try {
+    await new Promise((resolve) => first.listen(0, '127.0.0.1', resolve));
+    const address = first.address();
+    const port = address && typeof address === 'object' ? address.port : 0;
+
+    await assert.rejects(
+      lifecycle.listenExactly(second, { port, host: '127.0.0.1' }),
+      { code: 'EADDRINUSE' }
+    );
+  } finally {
+    await new Promise((resolve) => first.close(resolve));
   }
 });
 

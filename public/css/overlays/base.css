@@ -634,6 +634,10 @@
   font-size: calc(16px * var(--overlay-font-scale, 1));
 }
 
+.song-board .overlay-content {
+  padding: calc(8px * var(--overlay-font-scale, 1));
+}
+
 .song-board .overlay-title {
   font-size: calc(var(--overlay-title-font-size, 15px) * var(--overlay-font-scale, 1));
 }

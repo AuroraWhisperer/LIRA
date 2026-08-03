@@ -115,6 +115,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(fs.readFileSync(tokenPath, 'utf8').trim(), _testToken);
 
     const health = await requestJson(app.baseUrl, '/api/health');
+    assert.equal(health.serviceId, 'bilibili-live-song-plugin');
     assert.equal(path.resolve(health.dataDir), path.resolve(dataDir));
 
     for (const pathname of ['/admin', '/queue', '/songlist']) {

@@ -35,7 +35,7 @@ const MUSIC_DB_PATH = path.join(DATA_DIR, 'music-data.db');
 const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
 const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
 const HOST = process.env.HOST || 'localhost';
-const START_PORT = Number(process.env.PORT || 3000);
+const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 1200;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
@@ -203,6 +203,7 @@ function createApiContext() {
     },
     system: {
       getHealth: () => ({
+        serviceId: lifecycle.SERVICE_ID,
         rootDir: ROOT_DIR,
         dataDir: DATA_DIR,
         songDb: SONG_DB_PATH,
@@ -261,7 +262,7 @@ function startServer(options = {}) {
   const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
   const host = options.host || HOST;
   startPromise = lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host))
-    .then(() => lifecycle.listenWithFallback(server, { startPort, host }))
+    .then(() => lifecycle.listenExactly(server, { port: startPort, host }))
     .then((port) => {
     startedPort = port;
     sessionToken = crypto.randomUUID();
