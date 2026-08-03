@@ -281,7 +281,7 @@ test('admin queue entries keep a fixed height at the top of each list', () => {
 
   assert.ok(queueListRule, 'queue list styles should remain defined');
   assert.ok(queueItemRule, 'queue item styles should remain defined');
-  assert.match(queueListRule, /grid-auto-rows:\s*88px/);
+  assert.match(queueListRule, /grid-auto-rows:\s*76px/);
   assert.match(queueListRule, /align-content:\s*start/);
   assert.match(queueItemRule, /min-height:\s*0/);
   assert.match(queueItemRule, /overflow:\s*hidden/);
@@ -394,7 +394,7 @@ test('playback labels scroll independently without resizing the progress slot', 
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 280px\) minmax\(520px, 1fr\)/);
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 240px\) minmax\(520px, 1fr\)/);
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
@@ -770,7 +770,7 @@ test('identity queue has an independent shared content font size setting', () =>
   const medalRule = medalRules.at(-1)?.[0];
   assert.ok(identityBlockRule);
   assert.ok(medalRule);
-  assert.match(identityBlockRule, /font-size:\s*inherit/);
+  assert.match(identityBlockRule, /font-size:\s*60%/);
   assert.match(identityBlockRule, /height:\s*max\(16px,\s*1\.15em\)/);
   assert.match(identityBlockRule, /padding:\s*0\s+0\.24em/);
   assert.match(identityBlockRule, /border-radius:\s*max\(3px,\s*0\.15em\)/);
@@ -779,7 +779,7 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.doesNotMatch(medalRule, /max-width/);
 });
 
-test('identity song names scroll only when their rendered width overflows', () => {
+test('identity content scrolls as one stream only when its rendered width overflows', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const sandbox = {
     console,
@@ -806,7 +806,7 @@ test('identity song names scroll only when their rendered width overflows', () =
     { clientWidth: 100, querySelector: () => shortText }
   ];
 
-  sandbox.scheduleIdentitySongScroll({ querySelectorAll: () => containers });
+  sandbox.scheduleIdentityContentScroll({ querySelectorAll: () => containers });
 
   assert.ok(longAnimation);
   assert.deepEqual(
@@ -824,7 +824,7 @@ test('identity song names scroll only when their rendered width overflows', () =
   assert.doesNotMatch(sandbox.renderIdentityRow({ song_name: '1' }, 0), / • /);
 });
 
-test('identity queue separates song and requester details into independent overflow regions', () => {
+test('identity queue keeps song and requester fields in one continuous stream', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   const sandbox = {
@@ -847,33 +847,36 @@ test('identity queue separates song and requester details into independent overf
   }, 0);
   assert.match(
     row,
-    /identity-song-wrapper[\s\S]*identity-details-wrapper[\s\S]*identity-details[\s\S]*identity-requester[\s\S]*identity-badge[\s\S]*identity-medal/
+    /identity-content-wrapper[\s\S]*identity-content[\s\S]*identity-song[\s\S]*identity-requester[\s\S]*identity-badge[\s\S]*identity-medal/
   );
-  const detailsWrapperRule = overlayStyles.match(/\.identity-details-wrapper\s*\{[^}]*\}/)?.[0];
-  const detailsRule = overlayStyles.match(/\.identity-details\s*\{[^}]*\}/)?.[0];
-  assert.ok(detailsWrapperRule);
-  assert.ok(detailsRule);
-  assert.match(detailsWrapperRule, /max-width:\s*52%/);
-  assert.match(detailsWrapperRule, /overflow:\s*hidden/);
-  assert.match(detailsRule, /display:\s*inline-flex/);
-  assert.match(detailsRule, /min-width:\s*max-content/);
+  assert.doesNotMatch(row, /identity-song-wrapper|identity-details-wrapper|identity-details/);
+  const contentWrapperRule = overlayStyles.match(/\.identity-content-wrapper\s*\{[^}]*\}/)?.[0];
+  const contentRule = overlayStyles.match(/\.identity-content\s*\{[^}]*\}/)?.[0];
+  assert.ok(contentWrapperRule);
+  assert.ok(contentRule);
+  assert.match(contentWrapperRule, /flex:\s*1 1 auto/);
+  assert.match(contentWrapperRule, /overflow:\s*hidden/);
+  assert.match(contentRule, /display:\s*inline-flex/);
+  assert.match(contentRule, /min-width:\s*max-content/);
+  assert.match(contentRule, /gap:\s*max\(4px,\s*0\.3em\)/);
+  assert.doesNotMatch(overlayStyles, /\.identity-song-wrapper|\.identity-details-wrapper|\.identity-details/);
   assert.doesNotMatch(overlayStyles, /transform:\s*translateX\(-52px\)/);
 
   let longAnimation = null;
-  const longDetails = {
+  const longContent = {
     scrollWidth: 300,
     animate(keyframes, options) { longAnimation = { keyframes, options }; }
   };
-  const shortDetails = {
+  const shortContent = {
     scrollWidth: 90,
-    animate() { assert.fail('fitting requester details must not animate'); }
+    animate() { assert.fail('fitting identity content must not animate'); }
   };
   const containers = [
-    { clientWidth: 100, querySelector: () => longDetails },
-    { clientWidth: 100, querySelector: () => shortDetails }
+    { clientWidth: 100, querySelector: () => longContent },
+    { clientWidth: 100, querySelector: () => shortContent }
   ];
 
-  sandbox.scheduleIdentityDetailsScroll({ querySelectorAll: () => containers });
+  sandbox.scheduleIdentityContentScroll({ querySelectorAll: () => containers });
 
   assert.ok(longAnimation);
   assert.deepEqual(

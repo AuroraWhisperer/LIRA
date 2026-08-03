@@ -328,8 +328,7 @@ function renderIdentityQueue(settings, current, waiting, content, superChats = [
   `;
 
   scheduleIdentityVerticalScroll(content, settings, combinedRows, rowGap);
-  scheduleIdentitySongScroll(content);
-  scheduleIdentityDetailsScroll(content);
+  scheduleIdentityContentScroll(content);
   scheduleIdentitySuperChatScroll(content);
   scheduleIdentityRuleScroll(content);
 }
@@ -441,12 +440,12 @@ function scheduleIdentitySuperChatScroll(content) {
   }
 }
 
-function scheduleIdentitySongScroll(content) {
+function scheduleIdentityContentScroll(content) {
   const setup = () => {
     if (prefersReducedMotion()) return;
 
-    content.querySelectorAll('.identity-song-wrapper').forEach((container) => {
-      const text = container.querySelector('.identity-song');
+    content.querySelectorAll('.identity-content-wrapper').forEach((container) => {
+      const text = container.querySelector('.identity-content');
       const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
       if (!text || distance <= 1 || typeof text.animate !== 'function') return;
 
@@ -454,38 +453,6 @@ function scheduleIdentitySongScroll(content) {
       const pauseSeconds = 1;
       const totalSeconds = (travelSeconds * 2) + (pauseSeconds * 2);
       text.animate([
-        { transform: 'translateX(0)', offset: 0 },
-        { transform: 'translateX(0)', offset: pauseSeconds / totalSeconds },
-        { transform: `translateX(-${distance}px)`, offset: (pauseSeconds + travelSeconds) / totalSeconds },
-        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + (pauseSeconds * 2)) / totalSeconds },
-        { transform: 'translateX(0)', offset: 1 }
-      ], {
-        duration: totalSeconds * 1000,
-        iterations: Infinity
-      });
-    });
-  };
-
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
-}
-
-function scheduleIdentityDetailsScroll(content) {
-  const setup = () => {
-    if (prefersReducedMotion()) return;
-
-    content.querySelectorAll('.identity-details-wrapper').forEach((container) => {
-      const details = container.querySelector('.identity-details');
-      const distance = details ? Math.ceil(details.scrollWidth - container.clientWidth) : 0;
-      if (!details || distance <= 1 || typeof details.animate !== 'function') return;
-
-      const travelSeconds = Math.max(3, distance / 30);
-      const pauseSeconds = 1;
-      const totalSeconds = (travelSeconds * 2) + (pauseSeconds * 2);
-      details.animate([
         { transform: 'translateX(0)', offset: 0 },
         { transform: 'translateX(0)', offset: pauseSeconds / totalSeconds },
         { transform: `translateX(-${distance}px)`, offset: (pauseSeconds + travelSeconds) / totalSeconds },
@@ -565,11 +532,9 @@ function renderIdentityRow(item, index, showIndex = true) {
   return `
     <div class="identity-row guard-${guardLevel} medal-${medalClass}">
       ${showIndex ? `<span class="identity-rank">${index + 1}</span>` : ''}
-      <span class="identity-song-wrapper">
-        <span class="identity-song">${fullSongText}</span>
-      </span>
-      <span class="identity-details-wrapper">
-        <span class="identity-details">
+      <span class="identity-content-wrapper">
+        <span class="identity-content">
+          <span class="identity-song">${fullSongText}</span>
           <span class="identity-requester">${escapeHtml(item.requester_name || '观众')}</span>
           ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
           ${medalLevel > 0 ? `<span class="identity-medal">${medalLevel}</span>` : ''}

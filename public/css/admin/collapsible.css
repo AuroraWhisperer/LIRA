@@ -189,6 +189,8 @@
   align-items: start;
   min-height: 62px;
   max-height: none;
+  padding-top: 9px;
+  padding-bottom: 9px;
 }
 
 .sc-row .song {
@@ -399,4 +401,4 @@ tr:last-child td {
 
 /* ===== 标签页 ===== */
 .tabs {
-  display: flex;
+  display: flex;

@@ -1,8 +1,17 @@
 # 打包与更新说明
 
-当前版本：`3.0.2`
+当前版本：`3.0.3`
 
 ---
+
+## v3.0.3 变更
+
+- 🎨 **风格 2 队列统一滚动**：歌名和点歌人/徽章/勋章合并为单一连续滚动流。`identity-song-wrapper` + `identity-details-wrapper` → 单个 `identity-content-wrapper > identity-content`，歌名、请求者、守卫徽章、粉丝勋章均在同一个 `inline-flex` 中自然排列、一起横向滚动。`scheduleIdentitySongScroll` + `scheduleIdentityDetailsScroll` 合并为 `scheduleIdentityContentScroll`，CSS 移除 52% 最大宽度和 `translateX(-52px)` 偏移 hack，滚动更简洁可靠。
+- 🎨 **风格 2 徽章字号缩小**：守卫/勋章徽章字号从 `inherit` 改为 `60%`，徽章在内容流中更低调、不喧宾夺主。
+- 🎨 **播放栏首列再收紧**：播放信息网格首列从 280px 进一步收窄至 240px，标题/歌手信息密度更高。
+- 🎨 **醒目留言行内边距**：`.sc-row` 新增 `padding-top: 9px; padding-bottom: 9px`，行内间距更舒适。
+- 🎨 **队列行高微调**：点歌队列 `grid-auto-rows` 从 88px → 76px；醒目留言列表单独设置 `grid-auto-rows: 72px`，更紧凑统一。
+- 🧪 **测试同步更新**：`frontend-regressions.test.js` 适配新 CSS 类名、统一滚动函数、徽章字号和播放栏列宽断言。
 
 ## v3.0.2 变更
 

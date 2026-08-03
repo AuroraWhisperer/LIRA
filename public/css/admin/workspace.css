@@ -237,9 +237,13 @@ body.player-dock-expanded .song-workspace {
   flex: 1 1 auto;
   width: 100%;
   max-height: none;
-  grid-auto-rows: 88px;
+  grid-auto-rows: 76px;
   align-content: start;
   overflow-y: auto;
+}
+
+.queues-row .queue-panel .sc-list {
+  grid-auto-rows: 72px;
 }
 
 .queues-row .queue-panel .queue-row {
