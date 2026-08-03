@@ -182,6 +182,13 @@ export class FormsService {
     if (document.getElementById('queueTitleFontSizeNumber')) {
       setValue('queueTitleFontSizeNumber', titleFontSize);
     }
+    const identityFontSize = this.normalizeFontSize(values && values.identityQueueFontSize, 26, 78, 9);
+    if (document.getElementById('identityQueueFontSize')) {
+      setValue('identityQueueFontSize', identityFontSize);
+    }
+    if (document.getElementById('identityQueueFontSizeNumber')) {
+      setValue('identityQueueFontSizeNumber', identityFontSize);
+    }
     const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
     if (document.getElementById('overlayRuleFontSize')) {
       setValue('overlayRuleFontSize', ruleFontSize);

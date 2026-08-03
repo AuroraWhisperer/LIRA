@@ -460,7 +460,7 @@
   grid-area: search;
   display: flex;
   flex-direction: column;
-  max-height: 280px;
+  max-height: 390px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 12px;

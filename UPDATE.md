@@ -1,8 +1,21 @@
 # 打包与更新说明
 
-当前版本：`2.1.3`
+当前版本：`2.2.0`
 
 ---
+
+## v2.2.0 变更
+
+- 🔄 **弹幕消息跨源去重**：`MessageDeduplicator` 新增跨源（弹幕/历史/醒目留言）消息匹配——同一用户 1.5s 内从不同来源（弹幕打码名 + 历史全名）发出的相同内容合并去重；支持打码用户名模糊匹配（`哈***` ↔ `哈极光dd_`），30 分钟以上的旧条目自动清理。`danmaku-client.js` 和 `message-handlers.js` 所有 `remember()` 调用点统一传入 `userName` 和 `source`。
+- 🔤 **点歌板风格 2 字号独立控制**：新增 `identityQueueFontSize` 设置项（9-78px，默认 26px），统一控制风格 2 的序号、歌名和点歌人字号；管理后台主题设置区新增「文字设置」区块，range + number 双向绑定。CSS 变量 `--identity-queue-font-size` 驱动，预设切换时同步更新。
+- 🎞️ **风格 2 歌名溢出原生滚动**：长歌名改用 Web Animations API 做原生横向滚动（`scheduleIdentitySongScroll`），根据溢出宽度自动计算滚动时长，匀速往返 + 暂停；移除旧版 CSS `@keyframes identity-text-scroll` 无限动画，不再复制歌名文本拼接。
+- 🎯 **风格 2 弹跳滚动修复**：`bounceScrollTiming` 在顶部新增暂停段（`topPauseEndPercent`），弹跳节奏改为「顶部暂停 → 向下滚 → 底部暂停 → 向上滚」，经典队列和风格 2 同步修正。`setClassicBounceKeyframes` 和 `setIdentityBounceKeyframes` 签名统一为三阶段百分比。
+- 🎨 **直播刷新 Toast 视觉增强**：图标新增 `drop-shadow` 发光和 `live-refresh-glow-pulse` 脉冲动画，hover 时卡片轻微上浮（`translateY(-1px)`），圆角/边框/阴影/字号全面微调，入场动画曲线更自然。
+- 🔀 **播放队列与抽屉互斥**：打开播放队列弹窗时自动关闭右侧抽屉，避免两个浮层同时覆盖屏幕。
+- 📐 **搜索面板高度扩展**：搜索结果最大高度从 280px 提升至 390px，展示更多搜索结果。
+- 🧩 **百宝箱面板布局修复**：`.other-feature-panel-body.stack` 新增 `grid-auto-rows: max-content`，避免内部网格行撑破容器。
+- 🧹 **桌面更新面板精简**：移除百宝箱中桌面更新功能的冗余面板标题 header，内容区更紧凑。
+- 🧪 **测试覆盖增强**：新增 `message-deduplicator.test.js`（跨源去重、打码名匹配、不同观众独立去重）；`frontend-regressions.test.js` 新增风格 2 字号控制、歌名溢出滚动、弹跳动画顶部暂停等回归断言。
 
 ## v2.1.3 变更
 

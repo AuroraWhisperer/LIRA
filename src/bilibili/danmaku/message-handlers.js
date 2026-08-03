@@ -63,7 +63,10 @@ class MessageHandlers {
     if (isBilibiliCommandText(text) && !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)) {
       return;
     }
-    if (isBilibiliCommandText(text) && !this.deduplicator.remember(userInfo[0], text, messageTimestamp)) {
+    if (isBilibiliCommandText(text) && !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
+      userName: userInfo[1],
+      source: 'danmaku'
+    })) {
       return;
     }
 
@@ -117,7 +120,10 @@ class MessageHandlers {
     if (!bilibiliHelpers.isCapturableBilibiliTimestamp(superChat.messageTimestamp, this.startedAtMs)) {
       return;
     }
-    if (!this.deduplicator.remember(superChat.uid || superChat.id, text, superChat.messageTimestamp)) {
+    if (!this.deduplicator.remember(superChat.uid || superChat.id, text, superChat.messageTimestamp, {
+      userName: superChat.userName,
+      source: 'superchat'
+    })) {
       return;
     }
 

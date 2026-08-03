@@ -58,6 +58,10 @@ test('toolbox owns performance and desktop update as independent features', () =
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
   const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
+  const featureStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
+    'utf8'
+  );
   const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)<\/div>/)?.[1];
   const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
   const performancePosition = html.indexOf('data-other-feature="otherPerformanceFeature"');
@@ -80,6 +84,10 @@ test('toolbox owns performance and desktop update as independent features', () =
   assert.equal(html.match(/id="metricsToggle"/g)?.length, 1);
   assert.equal(html.match(/id="desktopCheckUpdateBtn"/g)?.length, 1);
   assert.match(styles, /@import url\('\.\/admin\/other-features\.css'\);/);
+  assert.match(
+    featureStyles,
+    /\.other-feature-panel-body\.stack\s*\{[^}]*grid-auto-rows:\s*max-content;/
+  );
 });
 
 test('other feature navigation selects panels without feature-specific dependencies', () => {
@@ -639,9 +647,13 @@ test('queue overlay applies rule sizing and scrolls only overflowing super chats
   assert.ok(Math.abs(pauseMilliseconds - 1500) < 0.001);
 
   const timing = sandbox.bounceScrollTiming(12);
+  const verticalTopPauseSeconds = (
+    timing.topPauseEndPercent / 100
+  ) * timing.totalSeconds;
   const verticalPauseSeconds = (
     (timing.pauseEndPercent - timing.downPercent) / 100
   ) * timing.totalSeconds;
+  assert.ok(Math.abs(verticalTopPauseSeconds - 1.5) < 0.000001);
   assert.ok(Math.abs(verticalPauseSeconds - 1.5) < 0.000001);
 });
 
@@ -654,6 +666,59 @@ test('identity queue has an independent scroll speed setting', () => {
   assert.match(html, /id="identityQueueScrollSpeed"/);
   assert.match(formSource, /identityQueueScrollSpeed:/);
   assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
+});
+
+test('identity queue has an independent shared content font size setting', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+
+  assert.match(html, /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"[^>]*value="26"/);
+  assert.match(html, /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"[^>]*value="26"/);
+  assert.match(formSource, /identityQueueFontSize: value\('identityQueueFontSize'\)/);
+  assert.match(formsSource, /identityQueueFontSize, 26, 78, 9/);
+  assert.match(defaultsSource, /identityQueueFontSize: '26'/);
+  assert.match(overlaySource, /--identity-queue-font-size.*identityQueueFontSize\(settings\)/);
+  assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
+  assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
+  assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
+});
+
+test('identity song names scroll only when their rendered width overflows', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    requestAnimationFrame(callback) { callback(); },
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(source, sandbox);
+
+  let longAnimation = null;
+  const longText = {
+    scrollWidth: 300,
+    animate(keyframes, options) { longAnimation = { keyframes, options }; }
+  };
+  const shortText = {
+    scrollWidth: 90,
+    animate() { assert.fail('fitting song text must not animate'); }
+  };
+  const containers = [
+    { clientWidth: 100, querySelector: () => longText },
+    { clientWidth: 100, querySelector: () => shortText }
+  ];
+
+  sandbox.scheduleIdentitySongScroll({ querySelectorAll: () => containers });
+
+  assert.ok(longAnimation);
+  assert.equal(longAnimation.keyframes[1].transform, 'translateX(-200px)');
+  assert.doesNotMatch(sandbox.renderIdentityRow({ song_name: '1' }, 0), / • /);
 });
 
 test('song list exposes a display board font size control', () => {

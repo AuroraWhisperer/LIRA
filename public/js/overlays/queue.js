@@ -112,7 +112,7 @@ function computeStateKey(nextState) {
     settings.enableGradient, settings.gradientEnd,
     settings.overlayFontFamily, settings.overlayFontWeight,
     settings.overlaySongColor, settings.overlayRequesterColor, settings.overlayIndexColor,
-    settings.queueSongFontSize, settings.queueTitleFontSize,
+    settings.queueSongFontSize, settings.queueTitleFontSize, settings.identityQueueFontSize,
     settings.queueScrollMode, settings.queueScrollSpeed, settings.identityQueueScrollSpeed,
     settings.queueFixedSixRows, settings.overlayShowIndex, settings.overlayIndexThreshold,
     settings.overlayTitle, settings.overlayLowPowerMode, settings.themeFontScale,
@@ -236,7 +236,7 @@ function renderClassicQueue(settings, current, waiting, content) {
   if (scrollMode === 'bounce') {
     const upSeconds = scrollTravelSeconds(3, scrollDistance, windowHeight);
     const timing = bounceScrollTiming(travelSeconds, upSeconds);
-    setClassicBounceKeyframes(timing.downPercent, timing.pauseEndPercent);
+    setClassicBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
     document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
   } else {
     document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
@@ -254,13 +254,8 @@ function renderClassicQueue(settings, current, waiting, content) {
 function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
   const songItems = [current].concat(waiting).filter(Boolean);
   const scItems = (Array.isArray(superChats) ? superChats : []).filter((item) => Number(item.price || 0) >= 2);
-  const baseFontSize = Math.max(10, normalizeFontSize(
-    (settings || {}).queueSongFontSize,
-    scaleToFontSize((settings || {}).themeFontScale, 40),
-    70,
-    10
-  ));
-  const rowHeight = Math.max(24, Math.round(baseFontSize * 0.65 * 1.6));
+  const baseFontSize = identityQueueFontSize(settings);
+  const rowHeight = Math.max(24, Math.round(baseFontSize * 1.6));
   const rowGap = 4;
   document.documentElement.style.setProperty('--identity-row-height', `${rowHeight}px`);
   document.documentElement.style.setProperty('--identity-row-gap', `${rowGap}px`);
@@ -333,6 +328,7 @@ function renderIdentityQueue(settings, current, waiting, content, superChats = [
   `;
 
   scheduleIdentityVerticalScroll(content, settings, combinedRows, rowGap);
+  scheduleIdentitySongScroll(content);
   scheduleIdentitySuperChatScroll(content);
   scheduleIdentityRuleScroll(content);
 }
@@ -365,7 +361,7 @@ function configureIdentityVerticalScroll(viewport, list, settings, combinedRows,
     const timing = bounceScrollTiming(downSeconds, upSeconds);
     document.documentElement.style.setProperty('--identity-bounce-distance', `${overflowDistance}px`);
     document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
-    setIdentityBounceKeyframes(timing.downPercent, timing.pauseEndPercent);
+    setIdentityBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
     scrollClass = 'scrolling-bounce';
   } else {
     const loopDistance = Math.ceil(list.scrollHeight + rowGap);
@@ -419,6 +415,37 @@ function scheduleIdentitySuperChatScroll(content) {
   const setup = () => {
     content.querySelectorAll('.identity-sc-content').forEach((container) => {
       const text = container.querySelector('.identity-sc-text');
+      const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
+      if (!text || distance <= 1 || typeof text.animate !== 'function') return;
+
+      const travelSeconds = Math.max(3, distance / 30);
+      const pauseSeconds = 1.5;
+      const totalSeconds = (travelSeconds * 2) + pauseSeconds;
+      text.animate([
+        { transform: 'translateX(0)', offset: 0 },
+        { transform: `translateX(-${distance}px)`, offset: travelSeconds / totalSeconds },
+        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + pauseSeconds) / totalSeconds },
+        { transform: 'translateX(0)', offset: 1 }
+      ], {
+        duration: totalSeconds * 1000,
+        iterations: Infinity
+      });
+    });
+  };
+
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
+  } else {
+    setup();
+  }
+}
+
+function scheduleIdentitySongScroll(content) {
+  const setup = () => {
+    if (prefersReducedMotion()) return;
+
+    content.querySelectorAll('.identity-song-wrapper').forEach((container) => {
+      const text = container.querySelector('.identity-song');
       const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
       if (!text || distance <= 1 || typeof text.animate !== 'function') return;
 
@@ -505,7 +532,7 @@ function renderIdentityRow(item, index, showIndex = true) {
     <div class="identity-row guard-${guardLevel} medal-${medalClass}">
       ${showIndex ? `<span class="identity-rank">${index + 1}</span>` : ''}
       <span class="identity-song-wrapper">
-        <span class="identity-song" data-text="${escapeHtml(fullSongText)}">${fullSongText}${fullSongText.length > 15 ? ' • ' + fullSongText : ''}</span>
+        <span class="identity-song">${fullSongText}</span>
       </span>
       <span class="identity-requester">${escapeHtml(item.requester_name || '观众')}</span>
       ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
@@ -583,6 +610,7 @@ function applyTheme(settings, style) {
   const songFontSize = queueSongFontSize(settings);
   root.style.setProperty('--overlay-song-font-size', `${songFontSize}px`);
   root.style.setProperty('--overlay-waiting-font-size', `${Math.max(10, Math.round(songFontSize * 0.65))}px`);
+  root.style.setProperty('--identity-queue-font-size', `${identityQueueFontSize(settings)}px`);
   root.style.setProperty('--overlay-title-font-size', `${normalizeFontSize(
     settings.queueTitleFontSize,
     scaleToFontSize(settings.themeFontScale, 30),
@@ -653,17 +681,19 @@ function scrollTravelSeconds(secondsPerViewport, distance, viewportDistance) {
 
 function bounceScrollTiming(downSeconds, upSeconds = 3) {
   const pauseSeconds = 1.5;
-  const totalSeconds = downSeconds + pauseSeconds + upSeconds;
+  const totalSeconds = pauseSeconds + downSeconds + pauseSeconds + upSeconds;
   return {
     totalSeconds,
-    downPercent: (downSeconds / totalSeconds) * 100,
-    pauseEndPercent: ((downSeconds + pauseSeconds) / totalSeconds) * 100
+    topPauseEndPercent: (pauseSeconds / totalSeconds) * 100,
+    downPercent: ((pauseSeconds + downSeconds) / totalSeconds) * 100,
+    pauseEndPercent: ((pauseSeconds + downSeconds + pauseSeconds) / totalSeconds) * 100
   };
 }
 
-function setClassicBounceKeyframes(downPercent, pauseEndPercent) {
-  const pauseStart = Math.max(1, Math.min(97, Number(downPercent) || 90)).toFixed(4);
-  const pauseEnd = Math.max(Number(pauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
+function setClassicBounceKeyframes(topPauseEndPercent, downPercent, pauseEndPercent) {
+  const topPauseEnd = Math.max(1, Math.min(95, Number(topPauseEndPercent) || 5)).toFixed(4);
+  const bottomPauseStart = Math.max(Number(topPauseEnd), Math.min(97, Number(downPercent) || 90)).toFixed(4);
+  const bottomPauseEnd = Math.max(Number(bottomPauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
   let style = document.getElementById('classicBounceKeyframes');
   if (!style) {
     style = document.createElement('style');
@@ -673,15 +703,17 @@ function setClassicBounceKeyframes(downPercent, pauseEndPercent) {
   style.textContent = `
 @keyframes classic-scroll-bounce {
   0% { transform: translateY(0); }
-  ${pauseStart}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
-  ${pauseEnd}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
+  ${topPauseEnd}% { transform: translateY(0); }
+  ${bottomPauseStart}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
+  ${bottomPauseEnd}% { transform: translateY(calc(-1 * var(--classic-bounce-distance, 57px))); }
   100% { transform: translateY(0); }
 }`;
 }
 
-function setIdentityBounceKeyframes(downPercent, pauseEndPercent) {
-  const pauseStart = Math.max(1, Math.min(97, Number(downPercent) || 90)).toFixed(4);
-  const pauseEnd = Math.max(Number(pauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
+function setIdentityBounceKeyframes(topPauseEndPercent, downPercent, pauseEndPercent) {
+  const topPauseEnd = Math.max(1, Math.min(95, Number(topPauseEndPercent) || 5)).toFixed(4);
+  const bottomPauseStart = Math.max(Number(topPauseEnd), Math.min(97, Number(downPercent) || 90)).toFixed(4);
+  const bottomPauseEnd = Math.max(Number(bottomPauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
   let style = document.getElementById('identityBounceKeyframes');
   if (!style) {
     style = document.createElement('style');
@@ -691,8 +723,9 @@ function setIdentityBounceKeyframes(downPercent, pauseEndPercent) {
   style.textContent = `
 @keyframes identity-scroll-bounce {
   0% { transform: translateY(0); }
-  ${pauseStart}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
-  ${pauseEnd}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
+  ${topPauseEnd}% { transform: translateY(0); }
+  ${bottomPauseStart}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
+  ${bottomPauseEnd}% { transform: translateY(calc(-1 * var(--identity-bounce-distance, 64px))); }
   100% { transform: translateY(0); }
 }`;
 }
@@ -723,6 +756,10 @@ function queueSongFontSize(settings) {
     70,
     10
   );
+}
+
+function identityQueueFontSize(settings) {
+  return normalizeFontSize((settings || {}).identityQueueFontSize, 26, 78, 9);
 }
 
 function scaleToFontSize(scale, baseSize) {

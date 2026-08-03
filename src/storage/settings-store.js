@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS = {
   songBoardFontSize: '50',
   queueSongFontSize: '40',
   queueTitleFontSize: '30',
+  identityQueueFontSize: '26',
   queueFontSizeRangeVersion: '2',
   overlayQueueStyle: 'classic',
   overlayLowPowerMode: 'false',

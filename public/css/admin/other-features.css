@@ -197,6 +197,10 @@ body.player-dock-expanded .other-workspace {
   overflow-y: auto;
 }
 
+.other-feature-panel-body.stack {
+  grid-auto-rows: max-content;
+}
+
 .other-feature-panel .monitor-footer {
   display: flex;
   flex-wrap: wrap;

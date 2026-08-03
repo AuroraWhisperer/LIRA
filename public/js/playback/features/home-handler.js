@@ -71,11 +71,19 @@ export function createHomeHandler(deps) {
   }
 
   function toggleQueuePopup() {
-    uiRenderer.getQueuePopup().toggle();
-    if (uiRenderer.getQueuePopup().isOpen) {
-      uiRenderer.getQueuePopup().render(playbackState);
+    const queuePopup = uiRenderer.getQueuePopup();
+    const drawer = uiRenderer.getDrawer();
+
+    // 如果要打开播放队列，先关闭抽屉
+    if (!queuePopup.isOpen && drawer.drawer?.classList.contains('open')) {
+      closePlaybackDrawer();
+    }
+
+    queuePopup.toggle();
+    if (queuePopup.isOpen) {
+      queuePopup.render(playbackState);
       if (playbackState.queueType === 'playlist') {
-        uiRenderer.getQueuePopup().scrollToCurrent();
+        queuePopup.scrollToCurrent();
       }
     }
   }

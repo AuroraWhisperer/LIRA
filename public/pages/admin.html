@@ -546,6 +546,18 @@
               <!-- ====== 点歌板风格 2 专属设置 ====== -->
               <div id="identityThemeArea" class="theme-area" hidden>
                 <fieldset class="theme-section">
+                  <legend>文字设置</legend>
+                  <label>
+                    点歌内容字号
+                    <span class="range-row">
+                      <input id="identityQueueFontSize" type="range" min="9" max="78" step="1" value="26">
+                      <input id="identityQueueFontSizeNumber" type="number" min="9" max="78" step="1" value="26">
+                    </span>
+                    <span class="hint">同时控制序号、歌名和点歌人，默认 26px</span>
+                  </label>
+                </fieldset>
+
+                <fieldset class="theme-section">
                   <legend>队列滚动</legend>
                   <label>
                     上下滚动速率
@@ -1408,13 +1420,6 @@
               data-other-feature-panel
               hidden
             >
-              <header class="other-feature-panel-header">
-                <div>
-                  <span class="page-kicker">桌面应用</span>
-                  <h2>桌面更新</h2>
-                  <p>检查新版本、安装更新，并快速打开应用数据位置。</p>
-                </div>
-              </header>
               <div class="other-feature-panel-body stack">
                 <div class="desktop-update-hero">
                   <div>

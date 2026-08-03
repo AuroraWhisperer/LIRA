@@ -393,7 +393,7 @@
   padding: 4px 8px 4px 5px;
   overflow: hidden;
   color: #f7fbff;
-  font-size: var(--overlay-waiting-font-size, 13px);
+  font-size: var(--identity-queue-font-size, 26px);
   font-family: var(--overlay-font-family, var(--font));
   font-weight: var(--overlay-font-weight, 840);
   line-height: 1.2;
@@ -482,7 +482,7 @@
   color: var(--overlay-index-color, #fbbf24);
   text-align: center;
   font-weight: 900;
-  font-size: calc(12px * var(--overlay-font-scale, 1));
+  font-size: inherit;
 }
 
 .identity-song-wrapper {
@@ -500,12 +500,6 @@
   font-size: inherit;
   font-weight: 900;
   white-space: nowrap;
-  will-change: transform;
-  animation: identity-text-scroll 10s linear infinite;
-}
-
-.identity-row:hover .identity-song {
-  animation-play-state: paused;
 }
 
 .identity-requester,
@@ -521,7 +515,7 @@
   flex: 0 0 auto;
   max-width: 25%;
   color: #a8c8f0;
-  font-size: calc(12px * var(--overlay-font-scale, 1));
+  font-size: inherit;
   font-weight: 760;
 }
 
@@ -725,15 +719,6 @@
   }
   to {
     transform: translateX(-100%);
-  }
-}
-
-@keyframes identity-text-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
   }
 }
 

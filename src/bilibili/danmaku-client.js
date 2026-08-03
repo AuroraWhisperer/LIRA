@@ -235,7 +235,10 @@ class BilibiliDanmakuClient {
 
   handleHistoryMessage(messageData) {
     if (this.stopped) return;
-    if (this.deduplicator.remember(messageData.uid, messageData.message, messageData.messageTimestamp)) {
+    if (this.deduplicator.remember(messageData.uid, messageData.message, messageData.messageTimestamp, {
+      userName: messageData.userName,
+      source: messageData.source
+    })) {
       const requester = this.identityCache.resolve({
         uid: messageData.uid,
         userName: messageData.userName,

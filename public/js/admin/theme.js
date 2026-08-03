@@ -119,6 +119,7 @@
       bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.48);
       bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 40);
       bindRangePair('queueTitleFontSize', 'queueTitleFontSizeNumber', 10, 40, 30);
+      bindRangePair('identityQueueFontSize', 'identityQueueFontSizeNumber', 9, 78, 26);
       bindRangePair('overlayRuleFontSize', 'overlayRuleFontSizeNumber', 8, 18, 10);
       bindRangePair('identityQueueScrollSpeedRange', 'identityQueueScrollSpeed', 1, 100, 80);
       bindRangePair('backdropBlur', 'backdropBlurNumber', 0, 30, 14);
@@ -162,6 +163,7 @@
       themeRadius: value('themeRadius'),
       queueSongFontSize: value('queueSongFontSize'),
       queueTitleFontSize: value('queueTitleFontSize'),
+      identityQueueFontSize: value('identityQueueFontSize'),
       backdropBlur: value('backdropBlur'),
       glowIntensity: value('glowIntensity'),
       overlayLowPowerMode: value('overlayLowPowerMode'),
@@ -189,6 +191,7 @@
     setValue('themeOpacityNumber', v.themeOpacity || value('themeOpacity'));
     setValue('queueSongFontSizeNumber', v.queueSongFontSize || value('queueSongFontSize'));
     setValue('queueTitleFontSizeNumber', v.queueTitleFontSize || value('queueTitleFontSize'));
+    setValue('identityQueueFontSizeNumber', v.identityQueueFontSize || value('identityQueueFontSize'));
     setValue('overlayRuleFontSizeNumber', v.overlayRuleFontSize || value('overlayRuleFontSize'));
     if (window.AdminApp.forms && window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay) {
       const queueScrollSpeed = window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(v.queueScrollSpeed || value('queueScrollSpeed'));

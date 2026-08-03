@@ -9,7 +9,7 @@ const { now, cleanText, safeParseJson } = require('../shared/utils');
 const OVERLAY_THEME_KEYS = [
   'themePrimary', 'themeAccent', 'themeText', 'themeBackground',
   'themeOpacity', 'themeRadius', 'themeFontScale',
-  'queueSongFontSize', 'queueTitleFontSize',
+  'queueSongFontSize', 'queueTitleFontSize', 'identityQueueFontSize',
   'overlayQueueStyle', 'overlayLowPowerMode',
   'backdropBlur', 'glowIntensity', 'enableGradient', 'gradientEnd',
   'overlayFontFamily', 'overlayFontWeight',
