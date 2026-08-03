@@ -13,6 +13,7 @@ export function createProviderOperations(deps) {
   const {
     playbackState,
     providerManager,
+    cacheManager,
     savePlaybackState,
     renderPlayback,
     getPlaybackAudio,
@@ -118,7 +119,9 @@ export function createProviderOperations(deps) {
     const button = document.getElementById('playbackLoginBtn');
     if (button) button.disabled = true;
     try {
-      await window.musicAPI.login(playbackState.selectedSource);
+      const platform = playbackState.selectedSource;
+      await window.musicAPI.login(platform);
+      cacheManager?.clearByPrefix(`${platform}:`);
       await refreshSelectedMusicProviderState();
       U.showStackedToast({
         key: 'music-cookie-refreshed',
@@ -191,6 +194,7 @@ export function createProviderOperations(deps) {
    */
   function clearPlaybackPlatformAfterLogout(platform) {
     const source = platform === 'netease' ? 'netease' : 'qq';
+    cacheManager?.clearByPrefix(`${source}:`);
     const clearTrack = (track) => {
       if (!track || track.source !== source) return;
       delete track.playUrl;

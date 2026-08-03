@@ -91,18 +91,19 @@ export class StorageManager {
   }
 
   /**
-   * 从 localStorage 恢复状态
+   * 优先从服务端恢复状态，服务不可用时回退到旧版 localStorage
    * @returns {Promise<Object|null>} 恢复的状态，失败返回 null
    */
   async restoreState() {
+    const serverState = await this._restoreFromServer();
+    if (serverState) return serverState;
+
     try {
       // 尝试加载 v2 数据
       const v2Data = localStorage.getItem(STORAGE_KEY_V2);
       if (v2Data) {
-        const parsed = JSON.parse(v2Data);
-        if (validateState(parsed)) {
-          return normalizeState(parsed);
-        }
+        const restored = this._normalizeRestoredState(JSON.parse(v2Data));
+        if (restored) return restored;
       }
 
       // 尝试迁移 v1 数据
@@ -119,6 +120,36 @@ export class StorageManager {
   }
 
   /**
+   * 从 SQLite 队列快照接口恢复状态
+   * @returns {Promise<Object|null>}
+   */
+  async _restoreFromServer() {
+    try {
+      const response = await fetch(`/api/playback/queue-state?clientId=${encodeURIComponent(CLIENT_ID)}`);
+      if (!response.ok) return null;
+      const result = await response.json();
+      return this._normalizeRestoredState(result?.data?.payload);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * 兼容服务端 currentTime 与旧版 restoredTime 字段
+   * @param {Object} saved - 保存的播放状态
+   * @returns {Object|null}
+   */
+  _normalizeRestoredState(saved) {
+    if (!saved || typeof saved !== 'object') return null;
+    const restored = {
+      ...saved,
+      restoredTime: Math.max(0, Number(saved.currentTime ?? saved.restoredTime ?? 0))
+    };
+    if (!validateState(restored)) return null;
+    return normalizeState(restored);
+  }
+
+  /**
    * 从 v1 格式迁移数据
    * @returns {Promise<Object|null>}
    */
@@ -127,8 +158,8 @@ export class StorageManager {
       const v1Data = localStorage.getItem(STORAGE_KEY_V1);
       if (!v1Data) return null;
 
-      const parsed = JSON.parse(v1Data);
-      const migrated = normalizeState(parsed);
+      const migrated = this._normalizeRestoredState(JSON.parse(v1Data));
+      if (!migrated) return null;
 
       // 保存到 v2 格式
       await this._doSave(migrated);

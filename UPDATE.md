@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`2.2.0`
+当前版本：`2.2.1`
 
 ---
+
+## v2.2.1 变更
+
+- 🎞️ **播放栏歌名跑马灯滚动**：长歌名和艺术家文本改用 Web Animations API 跑马灯横向滚动（35px/s，两端暂停 1s），替代 CSS `text-overflow: ellipsis` 截断。播放栏网格从自适应改为固定两列（`340px + 520px`），响应式窄屏自动收窄。尊重 `prefers-reduced-motion`，动画元素通过 `ResizeObserver` 自动重算。
+- 💾 **播放状态服务端优先恢复**：`StorageManager.restoreState()` 优先 fetch `/api/playback/queue-state` 从 SQLite 队列快照恢复，服务不可用时自动回退 localStorage。`_normalizeRestoredState()` 统一处理 `currentTime` 和旧版 `restoredTime` 字段兼容。
+- ⚡ **播放状态持久化重构**：`flushPlaybackStateSave` 改为 async + `takePendingPayload()` 原子取走待保存数据，防止重复发送。新增 `flushPlaybackStateForShutdown()` — Electron 关闭服务前先 `await` IPC 写入 SQLite，失败时回退 `fetch` + `keepalive: true`。
+- 🗄️ **播放缓存策略调整**：`CacheManager` TTL 从 4 小时延长至 24 小时；移除 `pagehide` 清空缓存逻辑，改为登录/退出时按平台精确清理（`cacheManager.clearByPrefix(platform)`）。`provider-operations.js` 和 `initializer.js` 适配新策略。
+- 🎁 **礼物 Combo 累计字段增强**：`gift-parser.js` 解析层新增 `comboId`/`comboNum`/`comboTotalPrice` 及 `batchComboSend` 提取；`COMBO_SEND` 金额使用 `comboTotalCoin`。`gift-service.js` 合并逻辑增强——有递增 `comboNum` 时用 `Math.max` 防膨胀，否则累加；`extractComboRootKey` 优先使用 `comboId` 去重。
+- 🧹 **礼物去重精简**：`findRecentGiftCommandDuplicate` 移除同 CMD 完全重复检查（仅保留跨 CMD 匹配），减少不必要的数据库查询。
+- 🎨 **直播刷新 Toast 双行文本**：`showStackedToast` 新增 `title` 字段，Toast 布局改为 `align-content: center` + 标题/副标题双行，标题新增粉色发光 `text-shadow`，整体 padding/font 微调。
+- 🎨 **风格 2 叠加层样式微调**：请求者 `.identity-requester` 左移 52px 与歌名拉开间距；空状态和面板标题新增 `font-size: 2.5em` 放大展示。
+- 🧪 **测试大幅扩展**：`gift-service.test.js` 新增 Combo 累计/合并 6 个测试用例；`playback-queue.test.js` 新增播放状态服务端恢复和持久化测试；`playback-cache.test.js` 新增缓存管理器单元测试；`frontend-regressions.test.js` 新增跑马灯 DOM 结构、Toast 双行、缓存策略等回归断言。
 
 ## v2.2.0 变更
 

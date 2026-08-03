@@ -3,7 +3,6 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
-import { PlaybackConfig } from '../config.js';
 
 export function createInitializer(deps) {
   const {
@@ -12,7 +11,6 @@ export function createInitializer(deps) {
     uiRenderer,
     playerController,
     storageManager,
-    cacheManager,
     localFileManager,
     renderPlayback,
     renderPlaybackProgress,
@@ -23,11 +21,11 @@ export function createInitializer(deps) {
     playbackNext,
     handlePlaybackError,
     flushPlaybackStateOnUnload,
+    flushPlaybackStateForShutdown,
     refreshSelectedMusicProviderState
   } = deps;
 
   let playbackInitialized = false;
-  const playbackClientId = PlaybackConfig.CLIENT_ID;
 
   async function init(setupEventHandlers, restorePlaybackState, refreshPlaybackMusicCacheStats) {
     if (playbackInitialized) return;
@@ -100,25 +98,19 @@ export function createInitializer(deps) {
     audio.addEventListener('error', () => handlePlaybackError());
 
     window.addEventListener('pagehide', flushPlaybackStateOnUnload);
-    window.addEventListener('pagehide', () => {
-      cacheManager.clearAll();
-    });
 
     // Electron prepare-shutdown: flush playback state via IPC before server closes
     if (window.musicAPI && typeof window.musicAPI.onPrepareShutdown === 'function') {
       window.musicAPI.onPrepareShutdown(async () => {
-        if (!deps.playbackStateSavePending && playbackState.current) {
-          savePlaybackState();
-        }
-        if (deps.playbackStateSavePending && window.musicAPI.savePlaybackState) {
+        try {
+          await flushPlaybackStateForShutdown();
+        } catch (error) {
+          console.warn('[Playback] Shutdown state flush failed:', error.message || error);
+        } finally {
           try {
-            await window.musicAPI.savePlaybackState(playbackClientId, deps.playbackStateSavePending);
-            deps.playbackStateSavePending = null;
+            await window.musicAPI.confirmShutdownFlush();
           } catch (_) {}
         }
-        try {
-          await window.musicAPI.confirmShutdownFlush();
-        } catch (_) {}
       });
     }
   }

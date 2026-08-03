@@ -367,6 +367,64 @@ test('hidden switches and the narrow player do not widen the page', () => {
   assert.match(narrowPlayerRule, /padding-left:\s*0/);
 });
 
+test('playback labels scroll independently without resizing the progress slot', async () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'), 'utf8');
+  const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 340px\) minmax\(520px, 1fr\)/);
+  assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
+  assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
+
+  const { PlaybackBar } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'playback-bar.js')
+  );
+  const player = new PlaybackBar();
+  const classes = new Set();
+  let animationKeyframes = null;
+  let animationOptions = null;
+  let cancelled = false;
+  const animation = { cancel() { cancelled = true; } };
+  const textElement = {
+    scrollWidth: 260,
+    animate(keyframes, options) {
+      animationKeyframes = keyframes;
+      animationOptions = options;
+      return animation;
+    }
+  };
+  const element = {
+    clientWidth: 100,
+    querySelector() { return textElement; },
+    classList: {
+      add(name) { classes.add(name); },
+      remove(name) { classes.delete(name); }
+    }
+  };
+
+  player.updateMarquee(element);
+
+  assert.equal(classes.has('is-scrolling'), true);
+  assert.equal(animationKeyframes[0].transform, 'translateX(0)');
+  assert.equal(animationKeyframes[2].transform, 'translateX(-160px)');
+  assert.equal(animationKeyframes[3].transform, 'translateX(-160px)');
+  assert.equal(animationKeyframes[4].transform, 'translateX(0)');
+  assert.equal(
+    Math.round((animationKeyframes[1].offset - animationKeyframes[0].offset) * animationOptions.duration),
+    1000
+  );
+  assert.equal(
+    Math.round((animationKeyframes[3].offset - animationKeyframes[2].offset) * animationOptions.duration),
+    1000
+  );
+
+  element.clientWidth = 300;
+  player.updateMarquee(element);
+  assert.equal(cancelled, true);
+  assert.equal(classes.has('is-scrolling'), false);
+});
+
 test('admin state events render queue empty states and song data', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
 

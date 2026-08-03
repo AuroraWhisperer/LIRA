@@ -232,7 +232,7 @@ export function createPlaybackController(initialOptions = {}) {
   // SECTION 7 — 带循环依赖的模块（使用闭包延迟访问 renderPlayback）
   // ══════════════════════════════════════════════════════════════
   const providerOperations = createProviderOperations({
-    playbackState, providerManager,
+    playbackState, providerManager, cacheManager,
     savePlaybackState,
     renderPlayback: () => renderPlayback(),
     getPlaybackAudio, toast, showError, U
@@ -539,6 +539,7 @@ export function createPlaybackController(initialOptions = {}) {
     playbackNext,
     handlePlaybackError: streamHandler.handlePlaybackError,
     flushPlaybackStateOnUnload: statePersistence.flushPlaybackStateOnUnload,
+    flushPlaybackStateForShutdown: statePersistence.flushPlaybackStateForShutdown,
     refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState()
   });
 

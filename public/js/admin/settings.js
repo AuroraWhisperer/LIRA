@@ -540,7 +540,13 @@
         throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
       }
       if (payload.data && payload.data.liveStatus) {
-        showStackedToast({ key: 'live-refresh-ok', message: '直播状态已刷新', className: 'admin-live-refresh-toast', duration: 2800 });
+        showStackedToast({
+          key: 'live-refresh-ok',
+          title: '直播状态已刷新',
+          message: '弹幕连接已重新建立',
+          className: 'admin-live-refresh-toast',
+          duration: 2800
+        });
       } else {
         throw new Error('刷新直播失败：服务未返回直播状态。');
       }

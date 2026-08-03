@@ -82,25 +82,34 @@ export function createStatePersistence(deps) {
   function schedulePlaybackStateSave(payload) {
     playbackStateSavePending = payload;
     if (playbackStateSaveTimer) clearTimeout(playbackStateSaveTimer);
-    playbackStateSaveTimer = setTimeout(flushPlaybackStateSave, playbackStateSaveDebounceMs);
+    playbackStateSaveTimer = setTimeout(() => {
+      void flushPlaybackStateSave();
+    }, playbackStateSaveDebounceMs);
   }
 
   /**
    * 立即执行状态保存
    */
-  function flushPlaybackStateSave() {
+  async function flushPlaybackStateSave() {
+    const payload = takePendingPayload();
+    if (!payload) return;
+    try {
+      await fetch('/api/playback/queue-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: playbackClientId, payload })
+      });
+    } catch (_) {}
+  }
+
+  function takePendingPayload() {
     if (playbackStateSaveTimer) {
       clearTimeout(playbackStateSaveTimer);
       playbackStateSaveTimer = null;
     }
-    if (!playbackStateSavePending) return;
     const payload = playbackStateSavePending;
     playbackStateSavePending = null;
-    fetch('/api/playback/queue-state', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId: playbackClientId, payload })
-    }).catch(() => {});
+    return payload;
   }
 
   /**
@@ -110,18 +119,14 @@ export function createStatePersistence(deps) {
     if (!playbackStateSavePending && playbackState.current) {
       savePlaybackState();
     }
-    if (!playbackStateSavePending) return;
-    const payload = playbackStateSavePending;
-    playbackStateSavePending = null;
-    if (playbackStateSaveTimer) {
-      clearTimeout(playbackStateSaveTimer);
-      playbackStateSaveTimer = null;
-    }
+    const payload = takePendingPayload();
+    if (!payload) return;
 
     // 优先使用桌面端的同步保存 API
     if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
       try {
-        window.musicAPI.savePlaybackState(playbackClientId, payload);
+        const saveResult = window.musicAPI.savePlaybackState(playbackClientId, payload);
+        if (saveResult && typeof saveResult.catch === 'function') saveResult.catch(() => {});
       } catch (_) {}
     }
 
@@ -141,9 +146,35 @@ export function createStatePersistence(deps) {
     }
   }
 
+  /** Electron 关闭服务前等待最后一份状态写入 SQLite。 */
+  async function flushPlaybackStateForShutdown() {
+    if (!playbackStateSavePending && playbackState.current) {
+      savePlaybackState();
+    }
+    const payload = takePendingPayload();
+    if (!payload) return;
+
+    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
+      try {
+        const result = await window.musicAPI.savePlaybackState(playbackClientId, payload);
+        if (!result || result.ok !== false) return;
+      } catch (_) {}
+    }
+
+    try {
+      await fetch('/api/playback/queue-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: playbackClientId, payload }),
+        keepalive: true
+      });
+    } catch (_) {}
+  }
+
   return {
     savePlaybackState,
     flushPlaybackStateSave,
-    flushPlaybackStateOnUnload
+    flushPlaybackStateOnUnload,
+    flushPlaybackStateForShutdown
   };
 }

@@ -34,10 +34,26 @@ function extractComboRootKey(platformId) {
 
 function mergeIntoComboBuffer(context, gift, comboKey, nowMs = Date.now()) {
   const pending = context.state.giftComboPending.get(comboKey);
+  const comboNum = normalizePositiveInteger(gift.comboNum);
+  const comboTotalPrice = normalizeMoney(gift.comboTotalPrice);
   if (pending) {
-    // 使用 Math.max 而非累加，避免 Bilibili 发送递增 combo_num 时数值膨胀
-    pending.gift.num = Math.max(pending.gift.num, gift.num);
-    pending.gift.totalPrice = Math.max(pending.gift.totalPrice, gift.totalPrice);
+    // Combo fields are cumulative; without them, num and totalPrice describe this packet only.
+    if (comboNum > 0) {
+      pending.gift.num = Math.max(pending.gift.num, comboNum);
+    } else {
+      pending.gift.num += gift.num;
+    }
+    if (comboTotalPrice > 0) {
+      pending.gift.totalPrice = Math.max(pending.gift.totalPrice, comboTotalPrice);
+    } else if (comboNum > 0) {
+      pending.gift.totalPrice = Math.max(
+        pending.gift.totalPrice,
+        gift.totalPrice,
+        normalizeMoney(gift.unitPrice * comboNum)
+      );
+    } else {
+      pending.gift.totalPrice = normalizeMoney(pending.gift.totalPrice + gift.totalPrice);
+    }
     pending.gift.unitPrice = pending.gift.num > 0
       ? normalizeMoney(pending.gift.totalPrice / pending.gift.num)
       : gift.unitPrice;
@@ -47,6 +63,13 @@ function mergeIntoComboBuffer(context, gift, comboKey, nowMs = Date.now()) {
     pending.gift.rawJson = gift.rawJson;
     pending.createdAtMs = nowMs;
   } else {
+    if (comboNum > gift.num) gift.num = comboNum;
+    if (comboTotalPrice > gift.totalPrice) {
+      gift.totalPrice = comboTotalPrice;
+    } else if (comboNum > 0) {
+      gift.totalPrice = Math.max(gift.totalPrice, normalizeMoney(gift.unitPrice * comboNum));
+    }
+    if (gift.num > 0) gift.unitPrice = normalizeMoney(gift.totalPrice / gift.num);
     context.state.giftComboPending.set(comboKey, { gift, createdAtMs: nowMs });
   }
 }
@@ -238,7 +261,7 @@ function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
 
   // 连击缓冲：SEND_GIFT 暂存，等 COMBO_SEND 或超时再写入
   if (!skipComboBuffer) {
-    const comboKey = extractComboRootKey(gift.platformId);
+    const comboKey = extractComboRootKey(gift.comboId || gift.platformId);
     const cmd = cleanText(gift.cmd);
     if (comboKey && cmd.startsWith('COMBO_SEND')) {
       // 连击结束信号：将缓冲中的 SEND_GIFT 数据合并到 COMBO_SEND
@@ -696,18 +719,21 @@ function normalizeGiftRow(row) {
 
 function normalizeGiftInput(input) {
   const num = normalizePositiveInteger(input && input.num) || 1;
+  const comboNum = normalizePositiveInteger(input && input.comboNum);
   const unitPrice = normalizeMoney(input && input.unitPrice);
   const totalPrice = normalizeMoney((input && input.totalPrice) || (unitPrice * num));
+  const comboTotalPrice = normalizeMoney(input && input.comboTotalPrice);
   const blindBoxPrice = input && input.blindBoxPrice === null ? null : normalizeNullableMoney(input && input.blindBoxPrice);
   const blindProfit = blindBoxPrice === null ? null : normalizeSignedMoney(totalPrice - blindBoxPrice);
   return {
     platformId: cleanText(input && input.platformId),
+    comboId: cleanText(input && input.comboId),
     cmd: cleanText(input && input.cmd),
     giftId: cleanText(input && input.giftId),
     giftName: cleanText(input && input.giftName),
     uid: cleanText(input && input.uid),
     userName: cleanText(input && input.userName) || '观众',
-    num, unitPrice, totalPrice,
+    num, comboNum, unitPrice, totalPrice, comboTotalPrice,
     coinType: cleanText(input && input.coinType),
     isBlindBox: Boolean(input && input.isBlindBox),
     blindBoxName: cleanText(input && input.blindBoxName),
@@ -777,17 +803,7 @@ function findRecentGiftCommandDuplicate(context, gift) {
   `).get(startIso, endIso, cmd, cmd, gift.uid, gift.giftId, gift.giftName, gift.num, gift.totalPrice);
   if (crossCmdRow) return normalizeGiftRow(crossCmdRow);
 
-  // 再检查是否存在相同CMD的重复（协议重传导致的完全重复）
-  const sameCmdRow = context.db.giftDb.prepare(`
-    SELECT * FROM gift_events
-    WHERE status = 'active'
-      AND created_at BETWEEN ? AND ?
-      AND cmd = ?
-      AND uid = ? AND gift_id = ? AND gift_name = ? AND num = ?
-      AND ABS(total_price - ?) < 0.0001
-    ORDER BY datetime(created_at) DESC, id DESC LIMIT 1
-  `).get(startIso, endIso, cmd, gift.uid, gift.giftId, gift.giftName, gift.num, gift.totalPrice);
-  return sameCmdRow ? normalizeGiftRow(sameCmdRow) : null;
+  return null;
 }
 
 function parseGiftBotDanmakuMessage(text, pending) {

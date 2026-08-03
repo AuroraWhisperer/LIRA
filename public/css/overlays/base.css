@@ -226,6 +226,7 @@
   place-items: center;
   color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 22%);
   text-align: center;
+  font-size: 2.5em;
 }
 
 .queue-identity {
@@ -514,6 +515,7 @@
 .identity-requester {
   flex: 0 0 auto;
   max-width: 25%;
+  transform: translateX(-52px);
   color: #a8c8f0;
   font-size: inherit;
   font-weight: 760;
@@ -614,6 +616,7 @@
   font-weight: 850;
   text-align: center;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.46);
+  font-size: 2.5em;
 }
 
 .overlay-panel.low-power .identity-row,

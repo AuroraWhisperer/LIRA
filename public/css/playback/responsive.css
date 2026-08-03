@@ -43,6 +43,10 @@
     padding-inline: 14px;
   }
 
+  .playback-now {
+    grid-template-columns: minmax(0, 220px) minmax(320px, 1fr);
+  }
+
   .playback-account-compact {
     align-items: flex-end;
   }

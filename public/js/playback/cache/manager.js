@@ -1,18 +1,18 @@
 // 编写人：Aurora
-// 缓存管理器 - 对"我喜欢"和"歌单"类数据做会话级 localStorage 缓存
-// 策略：打开 exe 期间缓存有效，关闭 exe 时清空，保证下次启动拿到最新数据
+// 缓存管理器 - 对"我喜欢"和"歌单"类数据做跨启动 localStorage 缓存
+// 命中后由 ContentLoader 后台刷新，兼顾启动速度和数据新鲜度
 'use strict';
 
 const CACHE_PREFIX = 'playbackCache:';
 
-/** 缓存有效期（毫秒），作为安全网兜底；正常靠 pagehide 清缓存 */
-const DEFAULT_TTL_MS = 4 * 60 * 60 * 1000; // 4 小时
+/** 缓存有效期（毫秒） */
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * 缓存管理器
  * - 内存层：当前页面生命周期内最快访问
  * - localStorage 层：页面刷新不丢缓存
- * - pagehide 时清空所有 localStorage 缓存
+ * - 账号登录态变化时由调用方清理对应平台缓存
  */
 export class CacheManager {
   constructor() {
@@ -23,7 +23,7 @@ export class CacheManager {
   /**
    * 读取缓存（内存优先 → localStorage）
    * @param {string} key - 缓存键
-   * @param {number} [ttlMs] - 有效期，默认 4 小时
+   * @param {number} [ttlMs] - 有效期，默认 24 小时
    * @returns {any|null} 缓存数据，过期或不存在返回 null
    */
   get(key, ttlMs) {
@@ -114,7 +114,7 @@ export class CacheManager {
   }
 
   /**
-   * 清空所有播放缓存（pagehide 时调用）
+   * 清空所有播放缓存
    */
   clearAll() {
     this._mem.clear();

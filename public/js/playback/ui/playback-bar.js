@@ -5,6 +5,10 @@
 import * as PlaybackUtils from '../utils.js';
 import * as UIComponents from './components.js';
 
+const MARQUEE_PAUSE_MS = 1000;
+const MARQUEE_SPEED_PX_PER_SECOND = 35;
+const MARQUEE_MIN_TRAVEL_MS = 1500;
+
 /**
  * 播放条管理器
  */
@@ -18,6 +22,8 @@ export class PlaybackBar {
     this.modeLabelEl = null;
     this.volumeSlider = null;
     this.volumeIcon = null;
+    this.marqueeAnimations = new WeakMap();
+    this.marqueeResizeObserver = null;
   }
 
   /**
@@ -32,6 +38,15 @@ export class PlaybackBar {
     this.modeLabelEl = document.getElementById('playbackModeLabel');
     this.volumeSlider = document.getElementById('playbackVolume');
     this.volumeIcon = document.getElementById('playbackVolumeIcon');
+
+    const marqueeElements = [this.titleEl, this.artistEl].filter(Boolean);
+    if (typeof ResizeObserver === 'function') {
+      this.marqueeResizeObserver = new ResizeObserver((entries) => {
+        entries.forEach((entry) => this.updateMarquee(entry.target));
+      });
+      marqueeElements.forEach((element) => this.marqueeResizeObserver.observe(element));
+    }
+    marqueeElements.forEach((element) => this.updateMarquee(element));
   }
 
   /**
@@ -68,7 +83,7 @@ export class PlaybackBar {
     // 标题
     if (this.titleEl) {
       const hasTrack = Boolean(track);
-      this.titleEl.textContent = hasTrack ? track.title : '♫  选择一首歌曲开始播放';
+      this.setMarqueeText(this.titleEl, hasTrack ? track.title : '♫  选择一首歌曲开始播放');
       this.titleEl.classList.toggle('no-track', !hasTrack);
     }
 
@@ -79,11 +94,64 @@ export class PlaybackBar {
       const fileMissing = isLocal && track && track.fileMissing;
       const suffix = fileMissing ? ' · 文件已移动，请重新选择' : (needsFile ? ' · 需重新选择文件' : '');
 
-      this.artistEl.textContent = track
+      this.setMarqueeText(this.artistEl, track
         ? `${(track.artists || []).join(' / ') || '未知歌手'}${suffix}`
-        : '搜索歌曲、打开歌单或电台，即可开始播放';
+        : '搜索歌曲、打开歌单或电台，即可开始播放');
       this.artistEl.classList.toggle('no-track', !track);
     }
+  }
+
+  setMarqueeText(element, text) {
+    if (typeof element.querySelector !== 'function') {
+      element.textContent = text;
+      return;
+    }
+    const textElement = element.querySelector('.playback-marquee-text');
+    if (!textElement || textElement.textContent === text) return;
+    textElement.textContent = text;
+    this.updateMarquee(element);
+  }
+
+  updateMarquee(element) {
+    if (typeof element.querySelector !== 'function') return;
+    const textElement = element.querySelector('.playback-marquee-text');
+    if (!textElement) return;
+
+    const currentAnimation = this.marqueeAnimations.get(element);
+    if (currentAnimation) {
+      currentAnimation.cancel();
+      this.marqueeAnimations.delete(element);
+    }
+    element.classList.remove('is-scrolling');
+
+    const reduceMotion = typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const distance = Math.ceil(textElement.scrollWidth - element.clientWidth);
+    if (reduceMotion || element.clientWidth <= 0 || distance <= 1 || typeof textElement.animate !== 'function') {
+      return;
+    }
+
+    const travelDuration = Math.max(
+      MARQUEE_MIN_TRAVEL_MS,
+      distance / MARQUEE_SPEED_PX_PER_SECOND * 1000
+    );
+    const totalDuration = travelDuration * 2 + MARQUEE_PAUSE_MS * 2;
+    const rightTransform = `translateX(-${distance}px)`;
+    const animation = textElement.animate([
+      { transform: 'translateX(0)', offset: 0 },
+      { transform: 'translateX(0)', offset: MARQUEE_PAUSE_MS / totalDuration },
+      { transform: rightTransform, offset: (MARQUEE_PAUSE_MS + travelDuration) / totalDuration },
+      { transform: rightTransform, offset: (MARQUEE_PAUSE_MS * 2 + travelDuration) / totalDuration },
+      { transform: 'translateX(0)', offset: 1 }
+    ], {
+      duration: totalDuration,
+      iterations: Infinity,
+      easing: 'linear'
+    });
+
+    element.classList.add('is-scrolling');
+    this.marqueeAnimations.set(element, animation);
   }
 
   /**

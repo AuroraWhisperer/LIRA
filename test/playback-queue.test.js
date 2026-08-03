@@ -353,11 +353,106 @@ test('pagehide beacon includes the injected API token', async () => {
   );
 });
 
+test('cold start restores the server queue and playback progress without local storage', async () => {
+  const savedState = {
+    current: track('restored-current', '恢复的歌曲'),
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [track('restored-next', '恢复的下一首')],
+    normalQueueTracks: [
+      track('restored-current', '恢复的歌曲'),
+      track('restored-next', '恢复的下一首')
+    ],
+    radioQueue: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'playlist',
+    queueTitle: '恢复的歌单',
+    playlistIndex: 0,
+    currentTime: 42,
+    volume: 0.75
+  };
+  const app = await createPlaybackApp(savedState, { localState: null });
+
+  await app.init();
+  await flushAsyncWork();
+
+  assert.equal(app.element('queuePopupTitle').textContent, '恢复的歌单');
+  assert.equal(app.element('queuePopupSize').textContent, '2 首');
+  assert.equal(app.element('playbackCurrentTime').textContent, '00:42');
+  assert.match(app.element('playbackQueueList').innerHTML, /恢复的下一首/);
+});
+
+test('desktop shutdown awaits the pending playback state IPC save', async () => {
+  const savedState = {
+    current: track('shutdown-current', '退出前歌曲'),
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [track('shutdown-current', '退出前歌曲')],
+    radioQueue: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'playlist',
+    queueTitle: '退出前队列',
+    playlistIndex: 0,
+    currentTime: 37,
+    volume: 0.75
+  };
+  const app = await createPlaybackApp(savedState, { localState: null });
+
+  await app.init();
+  await flushAsyncWork();
+  assert.equal(app.hasPrepareShutdownListener(), true);
+  await app.emitPrepareShutdown();
+
+  assert.equal(app.ipcSavedState().currentTime, 37);
+  assert.equal(app.shutdownAcknowledged(), true);
+});
+
+test('pagehide preserves personal playlist caches for the next desktop start', async () => {
+  const sharedStorage = new Map();
+  const app = await createPlaybackApp({
+    current: null,
+    currentOrigin: '',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [],
+    radioQueue: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'queue',
+    queueTitle: '播放队列',
+    volume: 0.75
+  }, {
+    storage: sharedStorage,
+    authState: { platform: 'qq', loggedIn: true },
+    homeAction: 'liked',
+    homeTracks: [track('cached-liked', '缓存歌曲')]
+  });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  assert.equal(app.hasStorageKey('playbackCache:qq:liked'), true);
+
+  await app.emitWindow('pagehide');
+
+  assert.equal(app.hasStorageKey('playbackCache:qq:liked'), true);
+});
+
 async function createPlaybackApp(initialState, options = {}) {
   const elements = new Map();
-  const storage = new Map([
-    ['songAssistantPlaybackState:v1', JSON.stringify(initialState)]
-  ]);
+  const storage = options.storage || new Map();
+  const localState = Object.hasOwn(options, 'localState') ? options.localState : initialState;
+  if (localState) {
+    storage.set('songAssistantPlaybackState:v1', JSON.stringify(localState));
+  }
+  let serverState = JSON.parse(JSON.stringify(options.serverState ?? initialState));
+  let prepareShutdownListener = null;
+  let ipcSavedState = null;
+  let shutdownAcknowledged = false;
   const fetchCalls = [];
   const errors = [];
   const windowListeners = new Map();
@@ -387,6 +482,9 @@ async function createPlaybackApp(initialState, options = {}) {
   };
 
   const localStorage = {
+    get length() {
+      return storage.size;
+    },
     getItem(key) {
       return storage.has(key) ? storage.get(key) : null;
     },
@@ -395,6 +493,9 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     removeItem(key) {
       storage.delete(key);
+    },
+    key(index) {
+      return Array.from(storage.keys())[index] ?? null;
     }
   };
 
@@ -423,6 +524,19 @@ async function createPlaybackApp(initialState, options = {}) {
       },
       async providerHealth() {
         return { ok: true, message: 'ok' };
+      },
+      async savePlaybackState(_clientId, payload) {
+        ipcSavedState = JSON.parse(JSON.stringify(payload));
+        serverState = ipcSavedState;
+        return { saved: true };
+      },
+      onPrepareShutdown(callback) {
+        prepareShutdownListener = callback;
+        return () => { prepareShutdownListener = null; };
+      },
+      async confirmShutdownFlush() {
+        shutdownAcknowledged = true;
+        return { ok: true };
       }
     },
     addEventListener(eventName, listener) {
@@ -440,15 +554,16 @@ async function createPlaybackApp(initialState, options = {}) {
           : options.body;
         const parsed = JSON.parse(body);
         if (parsed.payload) {
-          // Save to v2 key (storage manager uses v2 after migration)
-          storage.set('playbackState:v2', JSON.stringify(parsed.payload));
+          serverState = JSON.parse(JSON.stringify(parsed.payload));
         }
         return response({ ok: true, data: {} });
       }
-      const saved = storage.get('playbackState:v2') || storage.get('songAssistantPlaybackState:v1');
       return response({
         ok: true,
-        data: { payload: saved ? JSON.parse(saved) : null, updatedAt: '' }
+        data: {
+          payload: serverState ? JSON.parse(JSON.stringify(serverState)) : null,
+          updatedAt: ''
+        }
       });
     }
     if (url === '/api/music/search') {
@@ -562,6 +677,12 @@ async function createPlaybackApp(initialState, options = {}) {
         await listener(event);
       }
     },
+    async emitPrepareShutdown() {
+      if (prepareShutdownListener) await prepareShutdownListener();
+    },
+    hasPrepareShutdownListener() {
+      return Boolean(prepareShutdownListener);
+    },
     emitHomeAction() {
       return homeActionButton?.emit('click');
     },
@@ -569,6 +690,15 @@ async function createPlaybackApp(initialState, options = {}) {
       return fetchCalls
         .filter(({ options: callOptions }) => callOptions.body instanceof sandbox.Blob)
         .map(({ url }) => url);
+    },
+    hasStorageKey(key) {
+      return storage.has(key);
+    },
+    ipcSavedState() {
+      return ipcSavedState;
+    },
+    shutdownAcknowledged() {
+      return shutdownAcknowledged;
     },
     savedState() {
       assert.deepEqual(errors, []);
@@ -579,10 +709,7 @@ async function createPlaybackApp(initialState, options = {}) {
       }
       timers.clear();
 
-      const localState = storage.get('playbackState:v2') || storage.get('songAssistantPlaybackState:v1');
-      if (localState) {
-        return JSON.parse(localState);
-      }
+      if (serverState) return JSON.parse(JSON.stringify(serverState));
       const serverSaveCall = fetchCalls.findLast(
         ({ url, options }) => url.startsWith('/api/playback/queue-state') && options.method === 'POST'
       );

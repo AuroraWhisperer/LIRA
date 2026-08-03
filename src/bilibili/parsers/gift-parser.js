@@ -175,7 +175,19 @@ function extractBilibiliOpenLiveGuardGiftMessage(packet, data) {
 function extractBilibiliWebGiftMessage(packet, data) {
   const cmd = cleanText(packet && packet.cmd);
   const blindInfo = readFirstObject(data, ['blind_gift', 'blindGift', 'blind_box', 'blindBox', 'origin_info', 'originInfo']);
-  const num = normalizePositiveInteger(readObjectValue(data, ['num', 'gift_num', 'giftNum', 'combo_num', 'comboNum'])) || 1;
+  const batchComboSend = readFirstObject(data, ['batch_combo_send', 'batchComboSend']);
+  const comboSend = readFirstObject(data, ['combo_send', 'comboSend']);
+  const eventNum = Math.max(
+    normalizePositiveInteger(readObjectValue(data, ['num'])),
+    normalizePositiveInteger(readObjectValue(data, ['gift_num', 'giftNum']))
+  );
+  const comboNum = Math.max(
+    normalizePositiveInteger(readObjectValue(data, ['batch_combo_num', 'batchComboNum'])),
+    normalizePositiveInteger(readObjectValue(data, ['combo_num', 'comboNum'])),
+    normalizePositiveInteger(readObjectValue(batchComboSend, ['batch_combo_num', 'batchComboNum'])),
+    normalizePositiveInteger(readObjectValue(comboSend, ['combo_num', 'comboNum']))
+  );
+  const num = eventNum || comboNum || 1;
   const coinType = cleanText(readObjectValue(data, ['coin_type', 'coinType', 'coin'])).toLowerCase();
   const paid = coinType === 'gold' || parseBooleanLike(readObjectValue(data, ['paid', 'is_paid', 'isPaid']));
   const unitCoin = normalizeBilibiliGiftCoin(readObjectValue(data, [
@@ -192,8 +204,24 @@ function extractBilibiliWebGiftMessage(packet, data) {
     'total_price',
     'totalPrice'
   ]));
+  const comboTotalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, [
+    'combo_total_coin',
+    'comboTotalCoin'
+  ]));
   const unitPrice = paid ? normalizeMoney(unitCoin / 1000) : 0;
-  const totalPrice = paid ? normalizeMoney((totalCoin > 0 ? totalCoin : unitCoin * num) / 1000) : 0;
+  const totalPriceCoin = totalCoin > 0
+    ? totalCoin
+    : cmd.startsWith('COMBO_SEND') && comboTotalCoin > 0
+      ? comboTotalCoin
+      : unitCoin * num;
+  const totalPrice = paid ? normalizeMoney(totalPriceCoin / 1000) : 0;
+  const comboTotalPrice = paid ? normalizeMoney(comboTotalCoin / 1000) : 0;
+  const comboId = cleanText(readObjectValue(data, [
+    'batch_combo_id',
+    'batchComboId',
+    'combo_id',
+    'comboId'
+  ]));
   const blindBoxCoin = normalizeBilibiliGiftCoin(
     readObjectValue(blindInfo, [
       'original_gift_price',
@@ -235,14 +263,17 @@ function extractBilibiliWebGiftMessage(packet, data) {
       'combo_id',
       'comboId'
     ])) || buildBilibiliFallbackGiftId(packet, data),
+    comboId,
     cmd,
     giftId: cleanText(readObjectValue(data, ['giftId', 'gift_id', 'giftid'])),
     giftName: cleanText(readObjectValue(data, ['giftName', 'gift_name'])) || '未知礼物',
     uid: cleanText(readObjectValue(data, ['uid', 'mid', 'sender_uid', 'senderUid'])),
     userName: cleanText(readObjectValue(data, ['uname', 'user_name', 'userName', 'nickname'])) || '观众',
     num,
+    comboNum,
     unitPrice,
     totalPrice,
+    comboTotalPrice,
     coinType,
     isBlindBox,
     blindBoxName: cleanText(
