@@ -36,7 +36,6 @@ public/css/admin/
 ### tabs.css
 标签页系统：
 - `.tabs`, `.tab` - 标签页容器和标签
-- `.tab-overflow` - 标签页溢出菜单
 - `.tab-page` - 标签页内容
 
 ### toasts.css

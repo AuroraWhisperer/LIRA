@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// “其他”页面仅负责功能导航，各功能模块继续独立初始化和维护。
+// “百宝箱”页面仅负责功能导航，各功能模块继续独立初始化和维护。
 'use strict';
 
 (function () {
@@ -14,6 +14,10 @@
     };
   }
 
+  function isFeatureAvailable(button, panels) {
+    return !button.hidden && panels.some((panel) => panel.id === button.dataset.otherFeature);
+  }
+
   /**
    * 根据按钮声明的面板 ID 切换内容，不依赖任何具体功能模块。
    */
@@ -23,10 +27,8 @@
     const { buttons, panels } = getFeatureElements(root);
     const selectedButton = buttons.find((button) => (
       button.dataset.otherFeature === featureId
-      && panels.some((panel) => panel.id === featureId)
-    )) || buttons.find((button) => (
-      panels.some((panel) => panel.id === button.dataset.otherFeature)
-    ));
+      && isFeatureAvailable(button, panels)
+    )) || buttons.find((button) => isFeatureAvailable(button, panels));
 
     if (!selectedButton) return false;
 
@@ -46,13 +48,19 @@
     return true;
   }
 
+  function selectFeatureById(featureId) {
+    return selectFeature(document.getElementById('otherAssistantPage'), featureId);
+  }
+
   function handleFeatureKeydown(root, currentButton, event) {
     const supportedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
     if (!supportedKeys.includes(event.key)) return;
 
     const { buttons, panels } = getFeatureElements(root);
     const panelIds = new Set(panels.map((panel) => panel.id));
-    const availableButtons = buttons.filter((button) => panelIds.has(button.dataset.otherFeature));
+    const availableButtons = buttons.filter((button) => (
+      !button.hidden && panelIds.has(button.dataset.otherFeature)
+    ));
     const currentIndex = availableButtons.indexOf(currentButton);
     if (currentIndex < 0 || !availableButtons.length) return;
 
@@ -92,6 +100,7 @@
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.other = {
     initOtherPage,
-    selectFeature
+    selectFeature,
+    selectFeatureById
   };
 })();

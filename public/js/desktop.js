@@ -94,14 +94,12 @@ function initDesktopShell() {
 }
 
 function showDesktopUpdatePage() {
-  const button = document.getElementById('desktopUpdateTab');
-  const page = document.getElementById('desktopUpdatePage');
-  if (!button || !page) return;
+  const navigation = window.AdminApp.navigation;
+  const otherPage = window.AdminApp.other;
+  if (!navigation || !otherPage) return;
 
-  document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
-  document.querySelectorAll('.tab-page').forEach((item) => item.classList.remove('active'));
-  button.classList.add('active');
-  page.classList.add('active');
+  navigation.setMainPage('otherAssistantPage');
+  otherPage.selectFeatureById('otherDesktopUpdateFeature');
 }
 
 function handleDesktopUpdateState(state) {

@@ -480,10 +480,6 @@ body.desktop-shell .playback-seek-wrap input[type="range"]::-webkit-slider-thumb
     0 3px 10px rgba(180, 35, 24, 0.34);
 }
 
-body.desktop-shell .tab-overflow-menu {
-  box-shadow: 0 14px 34px rgba(87, 58, 28, 0.17);
-}
-
 @media (max-width: 900px) {
   body.desktop-shell {
     overflow: auto;

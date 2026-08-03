@@ -11,7 +11,7 @@
 
 .tabs > .tab {
   flex: 1 1 0;
-  min-width: 58px;
+  min-width: 0;
   padding: 0 8px;
   white-space: nowrap;
 }
@@ -37,83 +37,6 @@
 
 .tab-page.active {
   display: block;
-}
-
-/* 标签页溢出菜单 */
-.tab-overflow {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.tab-overflow > summary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: 7px;
-  color: var(--muted);
-  font-size: 13px;
-  cursor: pointer;
-  list-style: none;
-}
-
-.tab-overflow > summary::-webkit-details-marker {
-  display: none;
-}
-
-.tab-overflow > summary::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  margin-left: 7px;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg) translateY(-2px);
-}
-
-.tab-overflow[open] > summary,
-.tab-overflow > summary:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.tab-overflow[data-has-active-tab="true"] > summary {
-  background: var(--surface-2);
-  color: var(--text);
-  font-weight: 700;
-}
-
-.tab-overflow-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 40;
-  display: grid;
-  min-width: 148px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  padding: 5px;
-  box-shadow: 0 14px 34px rgba(22, 31, 43, 0.16);
-}
-
-.tab-overflow-menu .tab {
-  justify-content: flex-start;
-  width: 100%;
-  min-height: 34px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
-  text-align: left;
-}
-
-.tab-overflow-menu .tab:hover,
-.tab-overflow-menu .tab.active {
-  border: 0;
-  background: var(--surface-2);
-  color: var(--text);
 }
 
 .hint {
@@ -252,4 +175,4 @@
 
 /* ===== 播放队列为空 Toast ===== */
 .playback-empty-queue-toast {
-  position: relative;
+  position: relative;

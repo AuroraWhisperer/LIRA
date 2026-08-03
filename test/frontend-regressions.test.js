@@ -54,28 +54,44 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.match(settingsSource, /location\.host/);
 });
 
-test('other page owns the single performance feature entry', () => {
+test('toolbox owns performance and desktop update as independent features', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
+  const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
+  const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)<\/div>/)?.[1];
+  const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
+  const performancePosition = html.indexOf('data-other-feature="otherPerformanceFeature"');
+  const updatePosition = html.indexOf('data-other-feature="otherDesktopUpdateFeature"');
 
   assert.doesNotMatch(html, /data-tab="performancePage"/);
   assert.doesNotMatch(html, /id="performancePage"/);
+  assert.match(html, /data-main-page="otherAssistantPage"[\s\S]*?<span>百宝箱<\/span>/);
+  assert.ok(managementTabs, 'song management tabs should remain present');
+  assert.equal(managementTabs.match(/data-tab=/g)?.length, 7);
+  assert.doesNotMatch(managementTabs, /<details|更多|desktopUpdate/);
+  assert.ok(directTabRule, 'direct tab sizing should remain defined');
+  assert.match(directTabRule, /flex:\s*1 1 0/);
+  assert.match(directTabRule, /min-width:\s*0/);
+  assert.doesNotMatch(tabStyles, /tab-overflow/);
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
   assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
+  assert.match(html, /id="otherDesktopUpdateFeature"[^>]+data-other-feature-panel/);
+  assert.ok(updatePosition > performancePosition, 'desktop update should follow performance in the toolbox');
   assert.equal(html.match(/id="metricsToggle"/g)?.length, 1);
+  assert.equal(html.match(/id="desktopCheckUpdateBtn"/g)?.length, 1);
   assert.match(styles, /@import url\('\.\/admin\/other-features\.css'\);/);
 });
 
 test('other feature navigation selects panels without feature-specific dependencies', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8');
-  const createNode = ({ id = '', feature = '' } = {}) => {
+  const createNode = ({ id = '', feature = '', hidden = false } = {}) => {
     const classes = new Set();
     const attributes = new Map();
     const listeners = new Map();
     return {
       id,
       dataset: feature ? { otherFeature: feature } : {},
-      hidden: false,
+      hidden,
       tabIndex: -1,
       focused: false,
       classList: {
@@ -94,11 +110,13 @@ test('other feature navigation selects panels without feature-specific dependenc
   };
   const buttons = [
     createNode({ feature: 'performanceFeature' }),
-    createNode({ feature: 'diagnosticsFeature' })
+    createNode({ feature: 'diagnosticsFeature' }),
+    createNode({ feature: 'desktopFeature', hidden: true })
   ];
   const panels = [
     createNode({ id: 'performanceFeature' }),
-    createNode({ id: 'diagnosticsFeature' })
+    createNode({ id: 'diagnosticsFeature' }),
+    createNode({ id: 'desktopFeature', hidden: true })
   ];
   const root = {
     querySelectorAll(selector) {
@@ -134,6 +152,50 @@ test('other feature navigation selects panels without feature-specific dependenc
   assert.equal(buttons[0].focused, true);
   assert.equal(panels[0].hidden, false);
   assert.equal(panels[1].hidden, true);
+
+  sandbox.window.AdminApp.other.selectFeature(root, 'desktopFeature');
+  assert.equal(buttons[0].classList.contains('active'), true);
+  assert.equal(buttons[2].classList.contains('active'), false);
+  assert.equal(panels[2].hidden, true);
+});
+
+test('desktop update opens its toolbox feature through module APIs', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'desktop.js'), 'utf8');
+  let showUpdatePage;
+  let selectedPage = '';
+  let selectedFeature = '';
+  const sandbox = {
+    console,
+    document: {
+      body: { classList: { add() {} } },
+      getElementById: () => null,
+      querySelectorAll: () => []
+    },
+    window: {
+      AdminApp: {
+        utils: {
+          toast() {},
+          showStackedToast() {},
+          showError() {},
+          api: async () => ({})
+        },
+        navigation: { setMainPage(pageId) { selectedPage = pageId; } },
+        other: { selectFeatureById(featureId) { selectedFeature = featureId; } }
+      },
+      songAssistantDesktop: {
+        onShowUpdatePage(callback) { showUpdatePage = callback; },
+        onUpdateState() {},
+        getInfo: () => new Promise(() => {})
+      }
+    }
+  };
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.desktop.initDesktopShell();
+  showUpdatePage();
+
+  assert.equal(selectedPage, 'otherAssistantPage');
+  assert.equal(selectedFeature, 'otherDesktopUpdateFeature');
 });
 
 test('desktop lyric address is available from the live screen tab', () => {

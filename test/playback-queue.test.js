@@ -171,6 +171,33 @@ test('previous playback pops history once without pushing the current track back
   assert.deepEqual(persisted.history.map((item) => item.id), ['older']);
 });
 
+test('empty playback uses the latest authenticated provider state', async () => {
+  const app = await createPlaybackApp({
+    current: null,
+    currentOrigin: '',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [],
+    radioQueue: [],
+    history: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'queue',
+    queueTitle: '播放队列',
+    volume: 0.75
+  }, {
+    authState: { platform: 'qq', loggedIn: true }
+  });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+
+  const prompt = app.element('toast').prepended.at(0);
+  assert.match(prompt.innerHTML, /播放队列为空/);
+  assert.match(prompt.innerHTML, /搜索QQ音乐歌曲并添加到播放队列/);
+});
+
 test('pagehide beacon includes the injected API token', async () => {
   const app = await createPlaybackApp({
     current: track('current', 'Current'),
@@ -256,7 +283,7 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     musicAPI: {
       async getAuthState(platform) {
-        return { platform, loggedIn: false };
+        return options.authState ?? { platform, loggedIn: false };
       },
       async providerHealth() {
         return { ok: true, message: 'ok' };
@@ -450,6 +477,7 @@ class FakeElement {
     this.hidden = false;
     this.innerHTML = '';
     this.listeners = new Map();
+    this.prepended = [];
     this.style = {
       display: '',
       setProperty() {}
@@ -458,8 +486,8 @@ class FakeElement {
     this.value = '';
   }
 
-  prepend(_child) {
-    // no-op for test
+  prepend(child) {
+    this.prepended.unshift(child);
   }
 
   remove() {

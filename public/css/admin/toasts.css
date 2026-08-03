@@ -445,7 +445,7 @@
     radial-gradient(circle at 0 0, rgba(255, 107, 160, 0.22), transparent 48%),
     radial-gradient(circle at 100% 100%, rgba(179, 90, 225, 0.14), transparent 45%),
     linear-gradient(135deg, #1f1428 0%, #1a1220 100%);
-  padding: 16px 18px 16px 64px;
+  padding: 16px 18px 16px 68px;
   box-shadow:
     0 18px 44px rgba(80, 15, 45, 0.30),
     0 0 0 1px rgba(255, 255, 255, 0.04) inset;
@@ -456,39 +456,28 @@
 .admin-live-refresh-toast::before {
   content: "";
   position: absolute;
-  left: 16px;
+  left: 12px;
   top: 50%;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(255, 130, 175, 0.38);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255,255, 0.18), transparent 55%),
-    linear-gradient(145deg, #ff5e9a, #e0407a);
-  box-shadow:
-    0 8px 20px rgba(255, 65, 130, 0.35),
-    0 0 0 6px rgba(255, 80, 140, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  background: url('../../img/live-refresh-icon.png') center / contain no-repeat;
+  animation: live-refresh-icon-in 420ms cubic-bezier(0.2, 0.85, 0.35, 1.15) both;
 }
 
 .admin-live-refresh-toast::after {
-  content: "●";
-  position: absolute;
-  left: 46px;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-size: 16px;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
-  animation: live-dot-pulse 1.8s ease-in-out infinite;
+  content: none;
 }
 
-@keyframes live-dot-pulse {
-  0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.7); }
+@keyframes live-refresh-icon-in {
+  from { opacity: 0; transform: translateY(-50%) scale(0.78) rotate(-18deg); }
+  to { opacity: 1; transform: translateY(-50%) scale(1) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-live-refresh-toast::before {
+    animation: none;
+    transform: translateY(-50%);
+  }
 }
 
 .admin-live-refresh-toast strong,

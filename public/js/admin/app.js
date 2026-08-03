@@ -60,7 +60,7 @@ async function initApp() {
   }
   if (window.AdminApp.desktopLyric) window.AdminApp.desktopLyric.initDesktopLyricForm();
   if (window.AdminApp.metrics) window.AdminApp.metrics.initPerformanceMonitor();
-  // 初始化「其他」页面模块（预留扩展）
+  // 初始化「百宝箱」页面的通用功能导航
   if (window.AdminApp.other && window.AdminApp.other.initOtherPage) {
     window.AdminApp.other.initOtherPage();
   }
@@ -161,6 +161,9 @@ function setMainPage(pageId) {
     history.replaceState(null, '', targetHash || location.pathname + location.search);
   }
 }
+
+window.AdminApp = window.AdminApp || {};
+window.AdminApp.navigation = { setMainPage };
 
 // 模块脚本执行时文档通常已是 interactive，但同级模块可能仍未执行完；
 // 等到 DOMContentLoaded 再启动，确保所有 window.AdminApp 模块均已注册。

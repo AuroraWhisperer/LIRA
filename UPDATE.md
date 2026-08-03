@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`2.1.1`
+当前版本：`2.1.2`
 
 ---
+
+## v2.1.2 变更
+
+- 🧰 **「其他」页面重构为「百宝箱」**：`other.js` 重命名注释和文案，新增 `selectFeatureById` / `isFeatureAvailable` API，按键导航过滤隐藏按钮，自动回退逻辑更稳健。
+- 🖥️ **桌面更新迁移至百宝箱**：`desktopUpdatePage` 从歌曲管理标签页的溢出菜单移入百宝箱侧边栏，作为独立功能入口（`otherDesktopUpdateFeature`）；`desktop.js` 通过 `AdminApp.navigation.setMainPage` + `selectFeatureById` 导航，移除旧版手动标签切换逻辑。
+- 🧹 **标签页溢出菜单移除**：`tabs.css` 删除 `.tab-overflow` 全部样式；"导入导出""桌面歌词设置"从溢出菜单移入主标签栏；移除性能页面独立标签样式。
+- 🎨 **直播刷新 Toast 图标化**：`.admin-live-refresh-toast` 用 `live-refresh-icon.png` 替代纯 CSS 渐变圆形，新增 `live-refresh-icon-in` 入场动画，适配 `prefers-reduced-motion`。
+- 🐛 **播放控制器 Auth 修复**：`playback-controls.js` 中 `playbackAuthState` 改为延迟解构，修复未登录状态下误判逻辑。
+- 🧪 **测试扩展**：`frontend-regressions.test.js` 新增百宝箱导航、桌面更新入口等回归断言；`playback-queue.test.js` 新增队列相关测试。
+- 🎨 **样式清理**：`styles-admin.css` 缓存版本更新为 `20260803-05`；多处 CSS 细微调整。
 
 ## v2.1.1 变更
 

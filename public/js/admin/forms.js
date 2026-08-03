@@ -31,11 +31,6 @@ export class FormsService {
         document.querySelectorAll('.tab-page').forEach((item) => item.classList.remove('active'));
         button.classList.add('active');
         document.getElementById(button.dataset.tab).classList.add('active');
-        const overflow = button.closest('.tab-overflow');
-        document.querySelectorAll('.tab-overflow').forEach((details) => {
-          details.dataset.hasActiveTab = String(details === overflow);
-          details.open = false;
-        });
       });
     });
   }
@@ -101,11 +96,6 @@ export class FormsService {
       }
     });
 
-    document.addEventListener('click', (event) => {
-      document.querySelectorAll('.tab-overflow[open]').forEach((details) => {
-        if (!details.contains(event.target)) details.open = false;
-      });
-    });
   }
 
   /**

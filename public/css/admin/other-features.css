@@ -1,4 +1,4 @@
-/* “其他”页面壳层：功能模块只需声明导航按钮和对应内容面板。 */
+/* “百宝箱”页面壳层：功能模块只需声明导航按钮和对应内容面板。 */
 .other-workspace {
   display: grid;
   grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
@@ -27,23 +27,12 @@ body.player-dock-expanded .other-workspace {
   overflow-y: auto;
 }
 
-.other-feature-sidebar-header {
-  padding: 22px 20px 18px;
-  border-bottom: 1px solid var(--border);
-}
-
-.other-feature-sidebar-header h2,
 .other-feature-panel-header h2 {
   margin: 0;
   color: var(--text);
   line-height: 1.2;
 }
 
-.other-feature-sidebar-header h2 {
-  font-size: 20px;
-}
-
-.other-feature-sidebar-header p,
 .other-feature-panel-header p {
   margin: 7px 0 0;
   color: var(--muted);

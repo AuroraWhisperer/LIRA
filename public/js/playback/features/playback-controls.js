@@ -17,7 +17,6 @@ export function createPlaybackControls(deps) {
     renderPlayback,
     updatePlaybackMediaSession,
     syncPlaybackLyricWindow,
-    playbackAuthState,
     U
   } = deps;
 
@@ -158,6 +157,7 @@ export function createPlaybackControls(deps) {
 
     const track = playbackState.current;
     if (!track) {
+      const playbackAuthState = deps.playbackAuthState;
       if (!playbackAuthState || !playbackAuthState.loggedIn) {
         showPlaybackLoginPrompt();
       } else {
