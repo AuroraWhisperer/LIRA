@@ -213,8 +213,8 @@ function sortSongsByLength(items) {
 function renderFlatSongs(items) {
   return items.map((song) => `
     <div class="song-card">
-      <strong>${escapeHtml(song.name)}</strong>
-      <span>${escapeHtml(song.artist || song.category_name || '')}</span>
+      <strong class="song-name" title="${escapeHtml(song.name || '')}">${escapeHtml(song.name)}</strong>
+      <span class="song-artist" title="${escapeHtml(song.artist || song.category_name || '')}">${escapeHtml(song.artist || song.category_name || '')}</span>
     </div>
   `).join('');
 }
@@ -225,8 +225,8 @@ function renderGroups(groups) {
       <div class="song-group-title">${escapeHtml(initial)}</div>
       ${groupSongs.map((song) => `
         <div class="song-card">
-          <strong>${escapeHtml(song.name)}</strong>
-          <span>${escapeHtml(song.artist || song.category_name || '')}</span>
+          <strong class="song-name" title="${escapeHtml(song.name || '')}">${escapeHtml(song.name)}</strong>
+          <span class="song-artist" title="${escapeHtml(song.artist || song.category_name || '')}">${escapeHtml(song.artist || song.category_name || '')}</span>
         </div>
       `).join('')}
     </div>

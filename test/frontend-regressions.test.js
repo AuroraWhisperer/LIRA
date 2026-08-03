@@ -743,6 +743,19 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
   assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
+  const identityBlockRules = [...overlayStyles.matchAll(/\.identity-badge,\s*\.identity-medal\s*\{[^}]*\}/g)];
+  const identityBlockRule = identityBlockRules.at(-1)?.[0];
+  const medalRules = [...overlayStyles.matchAll(/\.identity-medal\s*\{[^}]*\}/g)];
+  const medalRule = medalRules.at(-1)?.[0];
+  assert.ok(identityBlockRule);
+  assert.ok(medalRule);
+  assert.match(identityBlockRule, /font-size:\s*inherit/);
+  assert.match(identityBlockRule, /height:\s*max\(16px,\s*1\.15em\)/);
+  assert.match(identityBlockRule, /padding:\s*0\s+0\.24em/);
+  assert.match(identityBlockRule, /border-radius:\s*max\(3px,\s*0\.15em\)/);
+  assert.doesNotMatch(identityBlockRule, /overlay-font-scale/);
+  assert.match(medalRule, /min-width:\s*1\.45em/);
+  assert.doesNotMatch(medalRule, /max-width/);
 });
 
 test('identity song names scroll only when their rendered width overflows', () => {
@@ -775,8 +788,85 @@ test('identity song names scroll only when their rendered width overflows', () =
   sandbox.scheduleIdentitySongScroll({ querySelectorAll: () => containers });
 
   assert.ok(longAnimation);
-  assert.equal(longAnimation.keyframes[1].transform, 'translateX(-200px)');
+  assert.deepEqual(
+    Array.from(longAnimation.keyframes, (frame) => frame.transform),
+    ['translateX(0)', 'translateX(0)', 'translateX(-200px)', 'translateX(-200px)', 'translateX(0)']
+  );
+  assert.equal(
+    Math.round((longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) * longAnimation.options.duration),
+    1000
+  );
+  assert.equal(
+    Math.round((longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) * longAnimation.options.duration),
+    1000
+  );
   assert.doesNotMatch(sandbox.renderIdentityRow({ song_name: '1' }, 0), / • /);
+});
+
+test('identity queue separates song and requester details into independent overflow regions', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    requestAnimationFrame(callback) { callback(); },
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(source, sandbox);
+
+  const row = sandbox.renderIdentityRow({
+    song_name: '米粒bb万岁万万岁',
+    requester_name: '很长的点歌人',
+    requester_guard_level: 2,
+    requester_medal_name: '灯牌',
+    requester_medal_level: 26
+  }, 0);
+  assert.match(
+    row,
+    /identity-song-wrapper[\s\S]*identity-details-wrapper[\s\S]*identity-details[\s\S]*identity-requester[\s\S]*identity-badge[\s\S]*identity-medal/
+  );
+  const detailsWrapperRule = overlayStyles.match(/\.identity-details-wrapper\s*\{[^}]*\}/)?.[0];
+  const detailsRule = overlayStyles.match(/\.identity-details\s*\{[^}]*\}/)?.[0];
+  assert.ok(detailsWrapperRule);
+  assert.ok(detailsRule);
+  assert.match(detailsWrapperRule, /max-width:\s*52%/);
+  assert.match(detailsWrapperRule, /overflow:\s*hidden/);
+  assert.match(detailsRule, /display:\s*inline-flex/);
+  assert.match(detailsRule, /min-width:\s*max-content/);
+  assert.doesNotMatch(overlayStyles, /transform:\s*translateX\(-52px\)/);
+
+  let longAnimation = null;
+  const longDetails = {
+    scrollWidth: 300,
+    animate(keyframes, options) { longAnimation = { keyframes, options }; }
+  };
+  const shortDetails = {
+    scrollWidth: 90,
+    animate() { assert.fail('fitting requester details must not animate'); }
+  };
+  const containers = [
+    { clientWidth: 100, querySelector: () => longDetails },
+    { clientWidth: 100, querySelector: () => shortDetails }
+  ];
+
+  sandbox.scheduleIdentityDetailsScroll({ querySelectorAll: () => containers });
+
+  assert.ok(longAnimation);
+  assert.deepEqual(
+    Array.from(longAnimation.keyframes, (frame) => frame.transform),
+    ['translateX(0)', 'translateX(0)', 'translateX(-200px)', 'translateX(-200px)', 'translateX(0)']
+  );
+  assert.equal(
+    Math.round((longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) * longAnimation.options.duration),
+    1000
+  );
+  assert.equal(
+    Math.round((longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) * longAnimation.options.duration),
+    1000
+  );
 });
 
 test('song list exposes a display board font size control', () => {
@@ -793,9 +883,56 @@ test('song list exposes a display board font size control', () => {
   assert.match(displaySource, /songBoardFontSize: value\('songBoardFontSize'\)/);
   assert.match(overlaySource, /Math\.max\(10, Math\.min\(80, Number\(settings\.songBoardFontSize\) \|\| 50\)\)/);
   assert.match(overlayStyles, /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/);
-  assert.match(overlayStyles, /\.song-board \.overlay-content \{[\s\S]*padding: calc\(8px \* var\(--overlay-font-scale, 1\)\)/);
+  assert.match(overlayStyles, /\.song-board \.overlay-content \{[\s\S]*padding: clamp\(5px, calc\(8px \* var\(--overlay-font-scale, 1\)\), 18px\)/);
   assert.match(overlayStyles, /\.song-board \.overlay-title \{[\s\S]*var\(--overlay-title-font-size, 15px\) \* var\(--overlay-font-scale, 1\)/);
   assert.match(defaultsSource, /songBoardFontSize: '50'/);
+});
+
+test('song board keeps song names readable in narrow browser sources', () => {
+  const utilitySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
+    'utf8'
+  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
+  const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    window: {},
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} }
+  };
+  vm.runInNewContext(utilitySource + '\n' + source, sandbox);
+
+  const listRule = overlayStyles.match(/\.song-scroll-list\s*\{[^}]*\}/)?.[0];
+  const groupRule = overlayStyles.match(/\.song-group\s*\{[^}]*\}/)?.[0];
+  const cardRule = [...overlayStyles.matchAll(/\.song-card\s*\{[^}]*\}/g)]
+    .map((match) => match[0])
+    .find((rule) => /display:\s*flex/.test(rule));
+  const nameRule = overlayStyles.match(/\.song-card strong\s*\{[^}]*\}/)?.[0];
+  const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
+  assert.ok(listRule);
+  assert.ok(groupRule);
+  assert.ok(cardRule);
+  assert.ok(nameRule);
+  assert.ok(artistRule);
+  assert.match(listRule, /grid-auto-rows:\s*max-content/);
+  assert.match(listRule, /align-content:\s*start/);
+  assert.match(groupRule, /grid-auto-rows:\s*max-content/);
+  assert.match(cardRule, /display:\s*flex/);
+  assert.doesNotMatch(cardRule, /grid-template-columns/);
+  assert.match(nameRule, /flex:\s*1 1 auto/);
+  assert.match(nameRule, /min-width:\s*0/);
+  assert.match(artistRule, /max-width:\s*min\(36%, 10em\)/);
+  assert.match(artistRule, /text-overflow:\s*ellipsis/);
+  assert.match(artistRule, /white-space:\s*nowrap/);
+  assert.match(overlayStyles, /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/);
+  assert.match(overlayStyles, /@media \(max-width: 280px\)\s*\{[\s\S]*?\.song-card span\s*\{[\s\S]*?display:\s*none/);
+
+  const html = sandbox.renderFlatSongs([{ name: 'A "song"', artist: 'Artist & guests' }]);
+  assert.match(html, /class="song-name" title="A &quot;song&quot;"/);
+  assert.match(html, /class="song-artist" title="Artist &amp; guests"/);
 });
 
 test('overlay utility helpers preserve shared formatting behavior', () => {
