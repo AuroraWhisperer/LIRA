@@ -186,7 +186,7 @@
 
 /* SC 队列：允许多行显示 */
 .sc-row {
-  align-items: start;
+  align-items: center;
   min-height: 62px;
   max-height: none;
   padding-top: 9px;

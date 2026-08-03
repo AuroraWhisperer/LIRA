@@ -276,15 +276,22 @@ test('queue panels keep their full height without breaking the narrow layout', (
 
 test('admin queue entries keep a fixed height at the top of each list', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const collapsibleSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
   const queueListRule = source.match(/\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/)?.[0];
+  const scListRule = source.match(/\.queues-row \.queue-panel \.sc-list\s*\{[\s\S]*?\n\}/)?.[0];
   const queueItemRule = source.match(/\.queues-row \.queue-panel \.queue-row\s*\{[\s\S]*?\n\}/)?.[0];
+  const scRowRule = collapsibleSource.match(/\.sc-row\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(queueListRule, 'queue list styles should remain defined');
+  assert.ok(scListRule, 'SC queue list styles should remain defined');
   assert.ok(queueItemRule, 'queue item styles should remain defined');
-  assert.match(queueListRule, /grid-auto-rows:\s*76px/);
+  assert.ok(scRowRule, 'SC queue item styles should remain defined');
+  assert.match(queueListRule, /grid-auto-rows:\s*64px/);
+  assert.match(scListRule, /grid-auto-rows:\s*65px/);
   assert.match(queueListRule, /align-content:\s*start/);
   assert.match(queueItemRule, /min-height:\s*0/);
   assert.match(queueItemRule, /overflow:\s*hidden/);
+  assert.match(scRowRule, /align-items:\s*center/);
 });
 
 test('admin queue wheel scrolls overflowing lists and releases the page at their edges', () => {
@@ -394,7 +401,7 @@ test('playback labels scroll independently without resizing the progress slot', 
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 240px\) minmax\(520px, 1fr\)/);
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 220px\) minmax\(520px, 1fr\)/);
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
