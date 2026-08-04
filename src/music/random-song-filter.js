@@ -13,6 +13,16 @@ const LANGUAGE_ALIAS_GROUPS = [
   ['国语', '中文', '汉语', '普通话', '华语', '国语歌', '中文歌', 'mandarin', 'chinese']
 ];
 
+const CATEGORY_ALIAS_GROUPS = [
+  ['流行', '流行乐', 'pop'],
+  ['R&B', 'RNB', 'R＆B', 'R & B'],
+  ['说唱', '嘻哈', 'rap', 'hip-hop', 'hip hop'],
+  ['摇滚', 'rock'],
+  ['民谣', 'folk'],
+  ['舞曲', 'dance'],
+  ['影视原声', '影视']
+];
+
 /**
  * 把观众输入的组合条件拆成独立筛选词。
  * 加号表示 AND；空片段没有筛选意义，因此直接忽略。
@@ -49,16 +59,38 @@ function songMatchesTerm(song, term) {
   const normalizedTerm = normalizeComparable(term);
   if (!normalizedTerm) return true;
 
-  const artistMatches = normalizeComparable(song.artist) === normalizedTerm;
-  const languageMatches = randomLanguageAliases(term)
-    .includes(normalizeComparable(song.language));
-  // 分类沿用旧版单条件的包含匹配，保证“影视”仍可命中“影视原声”。
+  const artistMatches = normalizeComparable(song.artist) === normalizedTerm
+    || splitSongArtists(song.artist)
+      .some((artist) => normalizeComparable(artist) === normalizedTerm);
+  const languageAliases = randomLanguageAliases(term);
+  const languageMatches = splitSongLanguages(song.language)
+    .some((language) => languageAliases.includes(normalizeComparable(language)));
   const categoryMatches = song.category_is_enabled !== 0
-    && normalizeComparable(song.category_name).includes(normalizedTerm);
+    && splitSongCategories(song.category_name)
+      .some((category) => randomCategoryAliases(term).includes(normalizeComparable(category)));
   const tagMatches = splitSongTags(song.tags)
     .some((tag) => matchesLibraryTag(tag, term));
 
   return artistMatches || languageMatches || categoryMatches || tagMatches;
+}
+
+function splitSongArtists(value) {
+  return splitSongValues(value, /\s*(?:\/|&|＆)\s*/);
+}
+
+function splitSongLanguages(value) {
+  return splitSongValues(value, /\s*(?:\/|、|，|,)\s*/);
+}
+
+function splitSongCategories(value) {
+  return splitSongValues(value, /\s*\/\s*/);
+}
+
+function splitSongValues(value, separator) {
+  return String(value || '')
+    .split(separator)
+    .map((item) => cleanText(item))
+    .filter(Boolean);
 }
 
 /**
@@ -74,6 +106,14 @@ function splitSongTags(value) {
 function randomLanguageAliases(scopeText) {
   const scope = normalizeComparable(scopeText);
   const matchedGroup = LANGUAGE_ALIAS_GROUPS.find((group) =>
+    group.some((alias) => normalizeComparable(alias) === scope)
+  );
+  return (matchedGroup || [scopeText]).map((item) => normalizeComparable(item));
+}
+
+function randomCategoryAliases(scopeText) {
+  const scope = normalizeComparable(scopeText);
+  const matchedGroup = CATEGORY_ALIAS_GROUPS.find((group) =>
     group.some((alias) => normalizeComparable(alias) === scope)
   );
   return (matchedGroup || [scopeText]).map((item) => normalizeComparable(item));

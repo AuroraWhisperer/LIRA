@@ -66,8 +66,8 @@
   paint-order: stroke fill;
   -webkit-text-stroke: var(--lyric-stroke-width) var(--lyric-stroke);
   text-shadow:
-    0 3px 4px rgba(0, 0, 0, calc(var(--lyric-shadow-opacity) * 0.9)),
-    0 8px 22px rgba(0, 0, 0, calc(var(--lyric-shadow-opacity) * 0.7));
+    0 1px 2px rgba(0, 0, 0, calc(var(--lyric-shadow-opacity) * 0.72)),
+    0 3px 8px rgba(0, 0, 0, calc(var(--lyric-shadow-opacity) * 0.42));
 }
 
 .lyric-word {
@@ -90,7 +90,7 @@
   opacity: calc(var(--lyric-opacity) * 0.78);
   paint-order: stroke fill;
   -webkit-text-stroke: calc(var(--lyric-stroke-width) * 0.55) var(--lyric-stroke);
-  text-shadow: 0 3px 12px rgba(0, 0, 0, calc(var(--lyric-shadow-opacity) * 0.65));
+  text-shadow: 0 2px 5px rgba(0, 0, 0, calc(var(--lyric-shadow-opacity) * 0.5));
 }
 
 .lyric-window-progress {
@@ -104,12 +104,14 @@
 
 .lyric-window-progress span {
   display: block;
-  width: 0;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #ff6f91, #ffcf4a);
-  box-shadow: 0 0 12px rgba(255, 207, 74, 0.7);
-  transition: width 180ms linear;
+  box-shadow: 0 0 4px rgba(255, 207, 74, 0.45);
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
 }
 
 .lyric-window-body:not(.has-lyric) .lyric-window-line {
@@ -156,8 +158,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lyric-window-surface,
-  .lyric-window-progress span {
+  .lyric-window-surface {
     transition: none;
   }
 }

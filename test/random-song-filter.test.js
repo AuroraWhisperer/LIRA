@@ -82,6 +82,37 @@ test('matches language aliases and keeps legacy single-scope behavior', () => {
   );
 });
 
+test('matches individual artists and languages in combined library values', () => {
+  const songs = [{
+    name: '合唱双语歌',
+    artist: '周杰伦 / 阿信',
+    category_name: '流行 / R&B',
+    language: '国语/英语',
+    tags: '影视OST'
+  }];
+
+  assert.equal(filterRandomSongCandidates(songs, '周杰伦').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, '阿信').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, '英语').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, '华语').length, 1);
+});
+
+test('preserves artist names containing punctuation', () => {
+  const songs = [{ name: '歌手名含逗号', artist: '接个吻，开一枪 / 沈以诚' }];
+
+  assert.equal(filterRandomSongCandidates(songs, '接个吻，开一枪').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, '开一枪').length, 0);
+});
+
+test('matches category components and common category aliases', () => {
+  const songs = [{ name: '跨分类歌曲', category_name: '流行 / R&B / 说唱' }];
+
+  assert.equal(filterRandomSongCandidates(songs, 'Pop').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, 'RNB').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, 'Hip-Hop').length, 1);
+  assert.equal(filterRandomSongCandidates(songs, '行').length, 0);
+});
+
 test('matches complete tags instead of tag substrings', () => {
   assert.deepEqual(
     filterRandomSongCandidates(SONGS, '抒情').map((song) => song.name),

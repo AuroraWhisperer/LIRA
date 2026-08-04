@@ -31,7 +31,8 @@ test('category filter presents each slash-separated category on its own row', as
   const names = Array.from(splitCategoryNames([
       { name: '流行 / R&B / 说唱' },
       { name: 'R&B / 古风' },
-      { name: '舞曲／流行' }
+      { name: '舞曲／流行' },
+      { name: '默认' }
     ])).sort();
 
   assert.deepEqual(names, ['R&B', '古风', '流行', '舞曲', '说唱'].sort());

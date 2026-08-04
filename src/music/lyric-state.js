@@ -19,6 +19,7 @@ function normalizeLyricState(input) {
       ? state.words.slice(0, 120).map(normalizeWord).filter((word) => word.text)
       : [],
     currentMs: clampNumber(state.currentMs, 0, MAX_TIME_MS),
+    durationMs: clampNumber(state.durationMs, 0, MAX_TIME_MS),
     progress: clampNumber(state.progress, 0, 1),
     playing: state.playing === true,
     locked: state.locked === true,

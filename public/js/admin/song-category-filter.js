@@ -8,10 +8,18 @@ export function splitCategoryNames(categories) {
     const parts = String(category?.name ?? '').split(CATEGORY_SEPARATOR);
     for (const part of parts) {
       const name = part.trim();
-      if (name) names.add(name);
+      if (name && name !== '默认') names.add(name);
     }
   }
   return Array.from(names).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+}
+
+export function closeFilterMenusOnOutsideClick(event, filters) {
+  for (const filter of filters) {
+    if (filter.open && !filter.contains(event.target)) {
+      filter.open = false;
+    }
+  }
 }
 
 export function readSelectedCategories(root = document) {

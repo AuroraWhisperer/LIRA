@@ -3,6 +3,7 @@
 'use strict';
 
 import {
+  closeFilterMenusOnOutsideClick,
   readSelectedCategories,
   readSelectedTags,
   splitCategoryNames
@@ -93,6 +94,10 @@ import {
       if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
         window.AdminApp.state.reloadSongs();
       }
+    });
+    const filterMenus = document.querySelectorAll('details[name="songLibraryFilter"]');
+    document.addEventListener('click', (event) => {
+      closeFilterMenusOnOutsideClick(event, filterMenus);
     });
   }
 

@@ -18,6 +18,7 @@ test('lyric state normalization limits browser-source payloads', () => {
       { text: 'second', startMs: 500, endMs: 200 }
     ],
     currentMs: -1,
+    durationMs: 240000,
     progress: 4,
     playing: true,
     status: 'ready'
@@ -30,6 +31,7 @@ test('lyric state normalization limits browser-source payloads', () => {
   assert.deepEqual(state.words[0], { text: 'first ', startMs: 0, endMs: 100 });
   assert.deepEqual(state.words[1], { text: 'second', startMs: 500, endMs: 500 });
   assert.equal(state.currentMs, 0);
+  assert.equal(state.durationMs, 240000);
   assert.equal(state.progress, 1);
   assert.equal(state.playing, true);
 });
@@ -50,9 +52,14 @@ test('lyrics browser source shows only current lyrics and real translations', ()
   assert.match(source, /escapeHtml\(word\.text/);
   assert.match(source, /translation\.textContent = lyricState\.translation/);
   assert.match(source, /translation\.hidden = !lyricState\.translation/);
+  assert.match(source, /requestAnimationFrame\(renderPlaybackFrame\)/);
+  assert.match(source, /cancelAnimationFrame\(animationFrame\)/);
+  assert.match(source, /progress\.style\.transform = `scaleX/);
   assert.doesNotMatch(source, /lyricPlaybackState|lyricTrack|formatArtists|fallback\.detail/);
   assert.match(styles, /-webkit-text-stroke:\s*var\(--lyric-stroke-width\)/);
   assert.match(styles, /linear-gradient\(90deg, #ffcf4a var\(--word-progress\)/);
+  assert.doesNotMatch(styles, /transition:\s*width/);
+  assert.match(styles, /transform-origin:\s*left center/);
 });
 
 test('desktop lyric surface is compact and independently resizable', () => {
@@ -81,6 +88,7 @@ test('playback publishes lyrics through the authenticated local API', () => {
 
   assert.match(service, /fetch\('\/api\/playback\/lyric-state'/);
   assert.match(service, /status:\s*!track \? 'idle'/);
+  assert.match(service, /durationMs:\s*Math\.round\(duration \* 1000\)/);
   assert.match(routes, /'POST \/api\/playback\/lyric-state'/);
   assert.match(routes, /normalizeLyricState/);
 });

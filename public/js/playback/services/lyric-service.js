@@ -189,6 +189,7 @@ export class LyricService {
       translation: lyricLine?.translation || '',
       words: Array.isArray(lyricLine?.words) ? lyricLine.words : [],
       currentMs: Math.round(currentTime * 1000),
+      durationMs: Math.round(duration * 1000),
       progress,
       playing: audio ? !audio.paused : false,
       locked: this.windowLocked,

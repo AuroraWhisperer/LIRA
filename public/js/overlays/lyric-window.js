@@ -2,7 +2,7 @@
 
 const DEFAULT_STATE = {
   trackTitle: '', artists: [], lineText: '', translation: '', words: [],
-  currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
+  currentMs: 0, durationMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
 };
 
 let lyricState = { ...DEFAULT_STATE };
@@ -15,6 +15,11 @@ let lyricSettings = {
 let currentScale = 1;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
+let animationFrame = 0;
+let renderedWords = [];
+let wordElements = [];
+let contentSignature = '';
+let playbackAnchor = { currentMs: 0, durationMs: 0, progress: 0, updatedAt: performance.now() };
 
 document.addEventListener('DOMContentLoaded', () => {
   renderLyricState();
@@ -25,7 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function updateLyricState(state) {
+  const now = performance.now();
+  const estimated = playbackPosition(now);
+  const nextPlaying = hasOwn(state, 'playing') ? state.playing === true : lyricState.playing;
+  const incomingCurrentMs = hasOwn(state, 'currentMs') ? numberValue(state.currentMs, 0) : estimated.currentMs;
   lyricState = { ...lyricState, ...(state || {}) };
+  playbackAnchor = {
+    currentMs: smoothCurrentMs(incomingCurrentMs, estimated.currentMs, nextPlaying),
+    durationMs: hasOwn(state, 'durationMs') ? numberValue(state.durationMs, 0) : playbackAnchor.durationMs,
+    progress: hasOwn(state, 'progress') ? numberValue(state.progress, 0) : estimated.progress,
+    updatedAt: now
+  };
   renderLyricState();
 }
 
@@ -119,16 +134,29 @@ function renderLyricState() {
 
   const fallback = fallbackCopy();
   const hasLine = Boolean(lyricState.lineText || lyricState.words?.length);
-  if (hasLine && Array.isArray(lyricState.words) && lyricState.words.length > 0) {
-    line.innerHTML = lyricState.words.map(renderWord).join('');
-  } else {
-    line.textContent = hasLine ? lyricState.lineText : fallback;
+  const nextSignature = JSON.stringify([
+    hasLine ? lyricState.lineText : fallback,
+    lyricState.translation,
+    lyricState.words
+  ]);
+  if (nextSignature !== contentSignature) {
+    if (hasLine && Array.isArray(lyricState.words) && lyricState.words.length > 0) {
+      renderedWords = lyricState.words;
+      line.innerHTML = renderedWords.map(renderWord).join('');
+      wordElements = Array.from(line.querySelectorAll('.lyric-word'));
+    } else {
+      renderedWords = [];
+      wordElements = [];
+      line.textContent = hasLine ? lyricState.lineText : fallback;
+    }
+    translation.textContent = lyricState.translation;
+    translation.hidden = !lyricState.translation;
+    contentSignature = nextSignature;
   }
-  translation.textContent = lyricState.translation;
-  translation.hidden = !lyricState.translation;
-  progress.style.width = `${Math.max(0, Math.min(100, Number(lyricState.progress || 0) * 100))}%`;
   document.body.classList.toggle('has-lyric', hasLine);
   document.body.classList.toggle('is-locked', lyricState.locked === true);
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  renderPlaybackFrame(performance.now());
 }
 
 function fallbackCopy() {
@@ -148,13 +176,46 @@ function fallbackCopy() {
 }
 
 function renderWord(word) {
-  const currentMs = Number(lyricState.currentMs || 0);
-  const startMs = Number(word.startMs || 0);
-  const endMs = Math.max(startMs, Number(word.endMs || startMs));
-  const wordProgress = endMs > startMs
-    ? Math.max(0, Math.min(1, (currentMs - startMs) / (endMs - startMs)))
-    : currentMs >= endMs ? 1 : 0;
-  return `<span class="lyric-word" style="--word-progress:${wordProgress * 100}%">${escapeHtml(word.text || '')}</span>`;
+  return `<span class="lyric-word">${escapeHtml(word.text || '')}</span>`;
+}
+
+function renderPlaybackFrame(now) {
+  animationFrame = 0;
+  const position = playbackPosition(now);
+  const progress = document.getElementById('lyricProgress');
+  if (progress) progress.style.transform = `scaleX(${position.progress})`;
+
+  for (let index = 0; index < wordElements.length; index += 1) {
+    const word = renderedWords[index] || {};
+    const startMs = numberValue(word.startMs, 0);
+    const endMs = Math.max(startMs, numberValue(word.endMs, startMs));
+    const wordProgress = endMs > startMs
+      ? clamp((position.currentMs - startMs) / (endMs - startMs), 0, 1)
+      : position.currentMs >= endMs ? 1 : 0;
+    wordElements[index].style.setProperty('--word-progress', `${wordProgress * 100}%`);
+  }
+
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (lyricState.playing && !reducedMotion) {
+    animationFrame = requestAnimationFrame(renderPlaybackFrame);
+  }
+}
+
+function playbackPosition(now) {
+  const elapsed = lyricState.playing ? Math.max(0, now - playbackAnchor.updatedAt) : 0;
+  const durationMs = Math.max(0, playbackAnchor.durationMs);
+  const currentMs = durationMs > 0
+    ? Math.min(durationMs, playbackAnchor.currentMs + elapsed)
+    : Math.max(0, playbackAnchor.currentMs + elapsed);
+  const progress = durationMs > 0
+    ? currentMs / durationMs
+    : playbackAnchor.progress;
+  return { currentMs, progress: clamp(progress, 0, 1) };
+}
+
+function smoothCurrentMs(incoming, estimated, playing) {
+  if (!playing || Math.abs(incoming - estimated) > 600) return incoming;
+  return Math.max(incoming, estimated);
 }
 
 function setupWheelZoom() {
@@ -171,6 +232,19 @@ function setupWheelZoom() {
 function numberSetting(value, fallback) {
   const number = Number.parseFloat(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function numberValue(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function hasOwn(value, key) {
+  return Boolean(value) && Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function escapeHtml(value) {
