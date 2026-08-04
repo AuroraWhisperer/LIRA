@@ -43,7 +43,7 @@ function handleDanmakuMessage(context, {
     const song = context.pickRandomSong(command.scopeText);
     if (!song) {
       const reason = command.scopeText
-        ? `没有找到歌手、风格或语言「${command.scopeText}」里的可随机歌曲。`
+        ? `歌库里没有同时满足全部条件「${command.scopeText}」的可随机歌曲。`
         : '歌库里还没有可随机歌曲。';
       return { accepted: false, reason, command };
     }

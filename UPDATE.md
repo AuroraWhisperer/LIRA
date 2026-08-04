@@ -1,8 +1,21 @@
 # 打包与更新说明
 
-当前版本：`3.0.7`
+当前版本：`3.0.8`
 
 ---
+
+## v3.0.8 变更
+
+- 🎨 **桌面歌词窗口全面重设计**：CSS 完全重写为自定义属性驱动（`--lyric-*`），支持逐字渐变进度高亮（`lyric-word` + `--word-progress` CSS 渐变）。新增顶部元信息栏（播放状态标签 + 曲目名）、底部进度条（粉色→金色渐变填充 + 发光）。无歌词时显示状态感知的占位文案（断开连接/加载中/无歌词/前奏中/待机），替代旧版硬编码「暂无歌词」。
+- ⚡ **桌面歌词 WebSocket 实时同步**：`lyric-window.js` 新增 WebSocket 连接（含指数退避重连），通过服务器 `lyricState` 快照和增量推送接收歌词更新。`lyric-service.js` 新增 `publishBrowserState()` 将歌词状态 POST 至服务器（100ms 精度取整 + 180ms 节流去重），服务器端广播至 WebSocket 并在初始快照中包含 `lyricState`。
+- 🐛 **QQ 音乐歌词 sourceSongId 自动补齐**：`qq-provider.js` 新增 `resolveSourceSongId()`——当 track 无 `sourceSongId` 时，自动搜索标题+歌手名定位匹配曲目提取 songId。修复了部分歌单曲目因缺少 songId 无法获取翻译/罗马音歌词的问题。
+- 🐛 **歌词服务缓存键版本升级**：`lyrics-v2` → `lyrics-v3`，旧版（可能缺失翻译/罗马音的）不完整缓存条目自动失效，重新拉取完整歌词。
+- 🎨 **叠加层队列双宽度模式**：初始渲染使用固定最小宽度（经典 `min(405px, ...)`、风格2 `min(430px, ...)`）和固定高度（235px/364px min）。首次 resize 后触发 `.queue-viewport-resized` 类，自动切换为全宽自适应（`100vw`）和高度 auto，避免初始加载时 OBS 源尺寸未确定导致的布局跳动。
+- ⚡ **主题/展示板表单实时自动保存**：`theme.js` 和 `display.js` 表单新增 `input`+`change` 事件监听，任意参数变更 180ms 后自动保存。预设套用和重置按钮改为即时保存（去掉「保存后生效」提示），覆盖手动同步 `autosaveTheme()`/`autosaveDisplay()` 调用点。
+- 🎨 **CSS 细节微调**：播放栏首列 190→180px。全屏播放器 z-index 34→32，队列弹窗 z-index 22→33，与歌词窗口分层正确。歌单展示板歌手名移除 `letter-spacing: -0.1em`。
+- 🧹 **随机点歌过滤器模块化**：`listRandomSongCandidates` 简化（SQL 只拉全部启用歌曲），跨字段筛选逻辑和语言别名提取至独立 `random-song-filter.js` 纯模块。随机点歌错误提示文案优化。
+- 🎵 **播放状态持久化 sourceSongId**：`state-persistence.js` 播放快照新增 `sourceSongId` 字段，确保刷新后歌词窗口可正确关联歌曲。
+- 🧪 **测试大幅扩展**：新增主题/展示板自动保存测试（含预设保存断言和「保存后生效」移除断言）、QQ provider songId 补齐测试、歌词缓存键升级测试、播放持久化 sourceSongId 测试、桌面歌词 WebSocket 连接和 snapshot 测试、队列 viewport resize CSS 双模式断言、`/lyrics` 页面 smoke 检查。
 
 ## v3.0.7 变更
 

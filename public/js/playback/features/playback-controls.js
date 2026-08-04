@@ -152,8 +152,8 @@ export function createPlaybackControls(deps) {
   async function loadPlaybackLyrics(track) {
     if (!track) return;
     const lyrics = await lyricService.loadLyrics(track);
-    if (lyrics && playbackState.current && playbackState.current.id === track.id) {
-      playbackState.current.lyrics = lyrics;
+    if (playbackState.current && playbackState.current.id === track.id) {
+      playbackState.current.lyrics = lyrics || { lines: [] };
       syncPlaybackLyricWindow(true);
     }
   }

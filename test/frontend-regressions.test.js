@@ -426,7 +426,7 @@ test('playback labels scroll independently without resizing the progress slot', 
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 190px\) minmax\(520px, 1fr\)/);
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 180px\) minmax\(520px, 1fr\)/);
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
@@ -503,6 +503,30 @@ test('admin loads theme presets before initializing theme forms', () => {
   assert.ok(loadPosition >= 0, 'theme configuration should be loaded');
   assert.ok(loadPosition < themeFormPosition, 'theme presets should load before the theme form');
   assert.ok(loadPosition < displayFormPosition, 'theme presets should load before the display form');
+});
+
+test('song request and display board forms autosave every parameter change', () => {
+  const themeSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
+    'utf8'
+  );
+  const displaySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
+    'utf8'
+  );
+
+  assert.match(themeSource, /themeForm\.addEventListener\('input', autosaveTheme\)/);
+  assert.match(themeSource, /themeForm\.addEventListener\('change', autosaveTheme\)/);
+  assert.match(displaySource, /displayForm\.addEventListener\('input', autosaveDisplay\)/);
+  assert.match(displaySource, /displayForm\.addEventListener\('change', autosaveDisplay\)/);
+
+  assert.match(themeSource, /classicPresets[\s\S]*?await saveTheme\(\)/);
+  assert.match(themeSource, /quickBeautifyBtn[\s\S]*?await saveTheme\(\)/);
+  assert.match(themeSource, /resetClassicTheme[\s\S]*?await saveTheme\(\)/);
+  assert.match(displaySource, /songBoardPresets[\s\S]*?await saveDisplay\(\)/);
+  assert.match(displaySource, /songBoardResetTheme[\s\S]*?await saveDisplay\(\)/);
+  assert.doesNotMatch(themeSource, /保存后生效/);
+  assert.doesNotMatch(displaySource, /保存后生效/);
 });
 
 test('early theme preset references receive asynchronously loaded data', async () => {
@@ -985,7 +1009,7 @@ test('song board keeps song names readable in narrow browser sources', () => {
   assert.match(headerRule, /clamp\(4px, calc\(6px \* var\(--overlay-font-scale, 1\)\), 8px\)/);
   assert.match(artistRule, /max-width:\s*min\(32\.4%, 9em\)/);
   assert.match(artistRule, /font-size:\s*calc\(10\.5px \* var\(--overlay-font-scale, 1\)\)/);
-  assert.match(artistRule, /letter-spacing:\s*-0\.1em/);
+  assert.doesNotMatch(artistRule, /letter-spacing/);
   assert.match(artistRule, /text-overflow:\s*ellipsis/);
   assert.match(artistRule, /white-space:\s*nowrap/);
   assert.match(overlayStyles, /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/);
@@ -1092,6 +1116,10 @@ test('classic queue uses calculated row height and sizes indexes with song text'
   assert.doesNotMatch(overlaySource, /overlayResizeTimer = setTimeout\(render, 100\)/);
   assert.match(overlaySource, /data-loop-clone/);
   assert.match(styles, /--overlay-edge:\s*clamp\(0px,\s*2vmin,\s*16px\)/);
+  assert.match(styles, /\.queue-classic\s*\{[\s\S]*?width:\s*min\(405px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/);
+  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?width:\s*min\(430px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/);
+  assert.match(styles, /\.queue-viewport-resized \.queue-classic\s*\{[\s\S]*?width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/);
+  assert.match(styles, /\.queue-viewport-resized \.queue-identity\s*\{[\s\S]*?width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/);
 });
 
 test('queue resize helpers preserve real rows while rebuilding loop copies', () => {

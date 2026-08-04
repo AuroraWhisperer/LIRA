@@ -19,16 +19,30 @@
   } = window.AdminApp.theme;
 
   function initThemeForm() {
-    document.getElementById('themeForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
+    const themeForm = document.getElementById('themeForm');
+    const saveTheme = async () => {
       await api('/api/settings', collectTheme());
+    };
+    const autosaveTheme = debounce(async () => {
+      try {
+        await saveTheme();
+      } catch (_) {
+        // api() already shows the save error to the user.
+      }
+    }, 180);
+
+    themeForm.addEventListener('input', autosaveTheme);
+    themeForm.addEventListener('change', autosaveTheme);
+    themeForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await saveTheme();
       toast('点歌板主题已保存');
       if (window.AdminApp.state && window.AdminApp.state.reloadState) {
         await window.AdminApp.state.reloadState();
       }
     });
 
-    document.getElementById('classicPresets').addEventListener('click', (event) => {
+    document.getElementById('classicPresets').addEventListener('click', async (event) => {
       const card = event.target.closest('[data-theme]');
       if (!card) return;
       if (value('overlayQueueStyle') !== 'classic') return;
@@ -38,11 +52,12 @@
         window.AdminApp.forms.fillForm(preset);
       }
       syncAllRangeInputs(preset);
-      toast(`已套用「${classicPresetLabels[card.dataset.theme]}」主题预设，保存后生效`);
+      await saveTheme();
+      toast(`已套用「${classicPresetLabels[card.dataset.theme]}」主题预设`);
       renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
     });
 
-    document.getElementById('quickBeautifyBtn').addEventListener('click', () => {
+    document.getElementById('quickBeautifyBtn').addEventListener('click', async () => {
       const beautified = {
         backdropBlur: '20',
         glowIntensity: '4',
@@ -56,7 +71,8 @@
         window.AdminApp.forms.fillForm(beautified);
       }
       syncAllRangeInputs(beautified);
-      toast('✨ 一键美化已应用！保存后生效');
+      await saveTheme();
+      toast('✨ 一键美化已应用');
     });
 
     document.querySelectorAll('[data-overlay-style]').forEach((button) => {
@@ -78,20 +94,15 @@
       });
     });
 
-    const autosaveTheme = debounce(async () => {
-      await api('/api/settings', collectTheme());
-    }, 180);
     document.getElementById('overlayFontFamily').addEventListener('change', () => {
       if (window.AdminApp.queue && window.AdminApp.queue.applyAdminQueueFontPreview) {
         window.AdminApp.queue.applyAdminQueueFontPreview();
       }
-      autosaveTheme();
     });
     document.getElementById('overlayFontWeight').addEventListener('change', () => {
       if (window.AdminApp.queue && window.AdminApp.queue.applyAdminQueueFontPreview) {
         window.AdminApp.queue.applyAdminQueueFontPreview();
       }
-      autosaveTheme();
     });
 
     document.getElementById('resetClassicTheme').addEventListener('click', async () => {
@@ -106,7 +117,7 @@
         window.AdminApp.forms.fillForm(resetValues);
       }
       syncAllRangeInputs(resetValues);
-      await api('/api/settings', resetValues);
+      await saveTheme();
       toast('已恢复风格1默认设置');
       if (window.AdminApp.state && window.AdminApp.state.reloadState) {
         await window.AdminApp.state.reloadState();

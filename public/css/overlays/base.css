@@ -23,6 +23,10 @@
 }
 
 .queue-classic {
+  width: min(405px, calc(100vw - (2 * var(--overlay-edge))));
+}
+
+.overlay-body.queue-viewport-resized .queue-classic {
   width: calc(100vw - (2 * var(--overlay-edge)));
 }
 
@@ -137,9 +141,14 @@
 
 .classic-list-window {
   --classic-row-gap: 5px;
+  height: min(235px, calc(100vh - 32px));
   max-height: calc(100vh - 32px);
   overflow: hidden;
   margin-top: 8px;
+}
+
+.overlay-body.queue-viewport-resized .classic-list-window {
+  height: auto;
 }
 
 .classic-list {
@@ -235,11 +244,15 @@
 }
 
 .queue-identity {
-  width: calc(100vw - (2 * var(--overlay-edge)));
+  width: min(430px, calc(100vw - (2 * var(--overlay-edge))));
   border: 1px solid rgba(225, 235, 255, 0.08);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.04);
   box-shadow: none;
+}
+
+.overlay-body.queue-viewport-resized .queue-identity {
+  width: calc(100vw - (2 * var(--overlay-edge)));
 }
 
 .queue-identity.gradient-bg {
@@ -259,9 +272,14 @@
 }
 
 .identity-list-window {
+  height: min(364px, calc(100vh - (2 * var(--overlay-edge))));
   max-height: calc(100vh - (2 * var(--overlay-edge)));
   max-height: calc(100dvh - (2 * var(--overlay-edge)));
   overflow: hidden;
+}
+
+.overlay-body.queue-viewport-resized .identity-list-window {
+  height: auto;
 }
 
 .identity-sc-list {
@@ -717,7 +735,6 @@
   overflow: hidden;
   color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 26%);
   font-size: calc(10.5px * var(--overlay-font-scale, 1));
-  letter-spacing: -0.1em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

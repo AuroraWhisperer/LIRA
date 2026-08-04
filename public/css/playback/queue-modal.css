@@ -1,7 +1,7 @@
 .queue-popup-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 22;
+  z-index: 33;
   background: rgba(0, 0, 0, 0.2);
   opacity: 0;
   pointer-events: none;
@@ -20,7 +20,7 @@
   top: 84px;
   bottom: 108px;
   right: 24px;
-  z-index: 23;
+  z-index: 34;
   width: min(400px, calc(100vw - 48px));
   display: flex;
   flex-direction: column;

@@ -160,7 +160,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(health.serviceId, 'bilibili-live-song-plugin');
     assert.equal(path.resolve(health.dataDir), path.resolve(dataDir));
 
-    for (const pathname of ['/admin', '/queue', '/songlist']) {
+    for (const pathname of ['/admin', '/queue', '/songlist', '/lyrics']) {
       const response = await fetch(`${app.baseUrl}${pathname}`);
       assert.equal(response.status, 200, pathname);
       if (pathname === '/admin') {
@@ -194,6 +194,19 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     const initialSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
     assert.equal(initialSnapshot.type, 'snapshot');
     assert.equal(initialSnapshot.reason, 'connect');
+    assert.equal(initialSnapshot.state.lyricState.status, 'idle');
+
+    const publishedLyric = await postJson(app.baseUrl, '/api/playback/lyric-state', {
+      trackTitle: 'Smoke Song',
+      artists: ['Smoke Artist'],
+      lineText: 'Smoke lyric',
+      progress: 0.4,
+      playing: true,
+      status: 'ready'
+    });
+    assert.equal(publishedLyric.lineText, 'Smoke lyric');
+    const lyricSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
+    assert.equal(lyricSnapshot.state.lyricState.lineText, 'Smoke lyric');
 
     const settingsState = await postJson(app.baseUrl, '/api/settings', {
       enableBilibili: false,

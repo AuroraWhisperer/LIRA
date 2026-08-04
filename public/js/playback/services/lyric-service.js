@@ -12,6 +12,8 @@ export class LyricService {
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
     this.windowOpen = false;
     this.windowLocked = false;
+    this.lastPublishedState = '';
+    this.lastPublishedAt = 0;
   }
 
   /**
@@ -174,27 +176,32 @@ export class LyricService {
    * @returns {Promise<void>}
    */
   async syncWindow(track, audio, force = false) {
-    if (!this.windowOpen && !force) return;
-    if (!window.musicAPI || typeof window.musicAPI.updateLyricWindow !== 'function') return;
-
     const wasOpen = this.windowOpen;
     const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
     const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const progress = duration > 0 ? currentTime / duration : 0;
     const lyricLine = this.findLyricLine(track, currentTime * 1000);
+    const hasLyrics = Boolean(track?.lyrics && Array.isArray(track.lyrics.lines));
+    const state = {
+      trackTitle: track?.title || '',
+      artists: Array.isArray(track?.artists) ? track.artists : [],
+      lineText: lyricLine?.text || '',
+      translation: lyricLine?.translation || '',
+      words: Array.isArray(lyricLine?.words) ? lyricLine.words : [],
+      currentMs: Math.round(currentTime * 1000),
+      progress,
+      playing: audio ? !audio.paused : false,
+      locked: this.windowLocked,
+      status: !track ? 'idle' : !hasLyrics ? 'loading' : track.lyrics.lines.length > 0 ? 'ready' : 'empty'
+    };
+
+    await this.publishBrowserState(state, force);
+
+    if (!this.windowOpen && !force) return false;
+    if (!window.musicAPI || typeof window.musicAPI.updateLyricWindow !== 'function') return false;
 
     try {
-      const result = await window.musicAPI.updateLyricWindow({
-        trackTitle: track ? track.title : '',
-        artists: track && Array.isArray(track.artists) ? track.artists : [],
-        lineText: lyricLine ? lyricLine.text : '',
-        translation: lyricLine ? lyricLine.translation : '',
-        words: lyricLine && Array.isArray(lyricLine.words) ? lyricLine.words : [],
-        currentMs: Math.round(currentTime * 1000),
-        progress,
-        playing: audio ? !audio.paused : false,
-        locked: this.windowLocked
-      });
+      const result = await window.musicAPI.updateLyricWindow(state);
 
       this.windowOpen = Boolean(result && result.open);
     } catch (_) {
@@ -202,6 +209,31 @@ export class LyricService {
     }
 
     return wasOpen !== this.windowOpen;
+  }
+
+  async publishBrowserState(state, force) {
+    const now = Date.now();
+    const roundedState = {
+      ...state,
+      currentMs: Math.round(Number(state.currentMs || 0) / 100) * 100,
+      progress: Math.round(Number(state.progress || 0) * 1000) / 1000
+    };
+    const serialized = JSON.stringify(roundedState);
+    if (!force && serialized === this.lastPublishedState) return;
+    if (!force && now - this.lastPublishedAt < 180) return;
+    this.lastPublishedState = serialized;
+    this.lastPublishedAt = now;
+
+    try {
+      const response = await fetch('/api/playback/lyric-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: serialized
+      });
+      if (!response.ok) this.lastPublishedState = '';
+    } catch (_) {
+      this.lastPublishedState = '';
+    }
   }
 
   /**

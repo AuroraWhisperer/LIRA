@@ -119,7 +119,7 @@ function getMusicTrackLyrics(registry, body) {
 async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
   const input = body && typeof body === 'object' ? body : {};
   const normalizedTrack = normalizeMusicTrackForProvider(input.track || input);
-  const cacheKey = musicCacheKey('lyrics-v2', { source: normalizedTrack.source, sourceTrackId: normalizedTrack.sourceTrackId });
+  const cacheKey = musicCacheKey('lyrics-v3', { source: normalizedTrack.source, sourceTrackId: normalizedTrack.sourceTrackId });
   const cached = readMusicJsonCache(lyricCacheDir, cacheKey, MUSIC_LYRIC_CACHE_TTL_MS);
   if (cached) return { ...cached, cached: true };
   const provider = registry.get(normalizedTrack.source);

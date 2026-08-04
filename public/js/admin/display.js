@@ -19,26 +19,35 @@
   } = window.AdminApp.theme;
 
   function initDisplayForm() {
-    document.getElementById('displayForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
+    const displayForm = document.getElementById('displayForm');
+    const saveDisplay = async () => {
       await api('/api/settings', collectDisplay());
+    };
+    const autosaveDisplay = debounce(async () => {
+      try {
+        await saveDisplay();
+      } catch (_) {
+        // api() already shows the save error to the user.
+      }
+    }, 180);
+
+    displayForm.addEventListener('input', autosaveDisplay);
+    displayForm.addEventListener('change', autosaveDisplay);
+    displayForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await saveDisplay();
       toast('展示板已保存');
       if (window.AdminApp.state && window.AdminApp.state.reloadState) {
         await window.AdminApp.state.reloadState();
       }
     });
 
-    const autosaveDisplay = debounce(async () => {
-      await api('/api/settings', collectDisplay());
-    }, 180);
     document.getElementById('scrollSecondsRange').addEventListener('input', () => {
       setValue('scrollSeconds', value('scrollSecondsRange'));
-      autosaveDisplay();
     });
     document.getElementById('scrollSeconds').addEventListener('input', () => {
       const { normalizeRangeValue } = window.AdminApp.utils;
       setValue('scrollSecondsRange', String(Math.round(Number(normalizeRangeValue(value('scrollSeconds'), 1, 100, 45)))));
-      autosaveDisplay();
     });
 
     // Song board sync toggle
@@ -87,7 +96,7 @@
     }
 
     // Song board presets
-    document.getElementById('songBoardPresets').addEventListener('click', (event) => {
+    document.getElementById('songBoardPresets').addEventListener('click', async (event) => {
       const card = event.target.closest('[data-theme]');
       if (!card) return;
       if (songBoardSync.checked) return;
@@ -100,7 +109,8 @@
       if (window.AdminApp.theme && window.AdminApp.theme.renderPresetCards) {
         window.AdminApp.theme.renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
       }
-      toast(`已套用「${songBoardPresetLabels[card.dataset.theme]}」歌单展示板预设，保存后生效`);
+      await saveDisplay();
+      toast(`已套用「${songBoardPresetLabels[card.dataset.theme]}」歌单展示板预设`);
     });
 
     // Song board reset
@@ -119,6 +129,7 @@
         window.AdminApp.forms.fillForm(defaults);
       }
       songBoardSyncAllRangeInputs(defaults);
+      await saveDisplay();
       toast('歌单展示板主题已恢复默认');
     });
 

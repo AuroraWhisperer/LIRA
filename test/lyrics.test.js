@@ -7,6 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseLyricResult, parseWordLyric } = require('../src/music/lyrics');
 const { createLyricsService } = require('../src/music/lyrics-service');
+const { musicCacheKey, writeMusicJsonCache } = require('../src/music/music-cache');
 const { resolveMusicStream } = require('../src/music/stream-resolver');
 
 test('parseWordLyric supports QQ QRC suffix timing', () => {
@@ -78,4 +79,49 @@ test('lyric and stream provider calls retain the QQ numeric sourceSongId', async
 
   assert.equal(lyricTrack.sourceSongId, 563728446);
   assert.equal(streamTrack.sourceSongId, 563728446);
+});
+
+test('lyric service ignores incomplete v2 lyric cache entries', async (t) => {
+  const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-cache-version-'));
+  t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));
+
+  const lyricCacheDir = path.join(cacheRoot, 'lyrics');
+  const track = {
+    id: 'qq:000w1gfs48CBnw',
+    source: 'qq',
+    sourceTrackId: '000w1gfs48CBnw',
+    title: '해볼래 (试试看)'
+  };
+  const oldCacheKey = musicCacheKey('lyrics-v2', {
+    source: 'qq',
+    sourceTrackId: '000w1gfs48CBnw'
+  });
+  writeMusicJsonCache(lyricCacheDir, oldCacheKey, {
+    source: 'qq',
+    sourceTrackId: '000w1gfs48CBnw',
+    lines: [{ startMs: 1000, text: '원문', translation: '', roma: '' }]
+  });
+
+  let providerCalls = 0;
+  const registry = {
+    get() {
+      return {
+        async getLyrics() {
+          providerCalls += 1;
+          return {
+            source: 'qq',
+            sourceTrackId: '000w1gfs48CBnw',
+            lines: [{ startMs: 1000, text: '원문', translation: '中文译', roma: 'romanization' }]
+          };
+        }
+      };
+    }
+  };
+  const service = createLyricsService({ lyricCacheDir });
+
+  const result = await service.getMusicTrackLyrics(registry, { track });
+
+  assert.equal(providerCalls, 1);
+  assert.equal(result.lines[0].translation, '中文译');
+  assert.equal(result.lines[0].roma, 'romanization');
 });

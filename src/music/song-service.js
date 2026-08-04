@@ -9,6 +9,10 @@ const {
   SONG_IMPORT_ALIASES,
   normalizeImportedSongRow
 } = require('./song-import-schema');
+const {
+  filterRandomSongCandidates,
+  randomLanguageAliases
+} = require('./random-song-filter');
 
 // ── 歌曲 CRUD ──
 
@@ -299,40 +303,16 @@ function pickRandomSong(db, scopeText) {
 }
 
 function listRandomSongCandidates(db, scopeText) {
-  const scope = normalizeRandomScopeText(scopeText);
-  if (!scope) {
-    return db.prepare(`
-      SELECT songs.*, song_categories.name AS category_name
-      FROM songs
-      LEFT JOIN song_categories ON song_categories.id = songs.category_id
-      WHERE songs.is_enabled = 1
-    `).all();
-  }
-
-  const artistRows = db.prepare(`
-    SELECT songs.*, song_categories.name AS category_name
+  // SQL 只负责限定歌库和启用状态；跨字段的组合规则由纯模块处理，
+  // 避免歌曲服务把弹幕语法翻译成难以测试的动态 SQL。
+  const rows = db.prepare(`
+    SELECT songs.*, song_categories.name AS category_name,
+           COALESCE(song_categories.is_enabled, 1) AS category_is_enabled
     FROM songs
     LEFT JOIN song_categories ON song_categories.id = songs.category_id
-    WHERE songs.is_enabled = 1 AND songs.artist = ?
-  `).all(scope);
-  if (artistRows.length > 0) return artistRows;
-
-  const categoryRows = db.prepare(`
-    SELECT songs.*, song_categories.name AS category_name
-    FROM songs
-    JOIN song_categories ON song_categories.id = songs.category_id
-    WHERE songs.is_enabled = 1 AND song_categories.is_enabled = 1 AND song_categories.name LIKE ?
-  `).all(`%${scope}%`);
-  if (categoryRows.length > 0) return categoryRows;
-
-  const languageAliases = randomLanguageAliases(scope);
-  const placeholders = languageAliases.map(() => '?').join(', ');
-  return db.prepare(`
-    SELECT songs.*, song_categories.name AS category_name
-    FROM songs
-    LEFT JOIN song_categories ON song_categories.id = songs.category_id
-    WHERE songs.is_enabled = 1 AND LOWER(TRIM(songs.language)) IN (${placeholders})
-  `).all(...languageAliases);
+    WHERE songs.is_enabled = 1
+  `).all();
+  return filterRandomSongCandidates(rows, normalizeRandomScopeText(scopeText));
 }
 
 function normalizeRandomScopeText(value) {
@@ -346,23 +326,6 @@ function normalizeRandomScopeText(value) {
 function randomSourceValue(scopeText) {
   const scope = normalizeRandomScopeText(scopeText);
   return scope ? `random:${scope}` : 'random';
-}
-
-function randomLanguageAliases(scopeText) {
-  const scope = cleanText(scopeText);
-  const normalizedScope = scope.toLowerCase();
-  const aliasGroups = [
-    ['日语', '日文', '日本语', '日语歌', '日文歌', 'ja', 'jp', 'japanese'],
-    ['韩语', '韩文', '韩国语', '韩语歌', '韩文歌', 'ko', 'kr', 'korean'],
-    ['英语', '英文', '英语歌', '英文歌', 'en', 'english'],
-    ['粤语', '粤文', '粤语歌', '粤文歌', 'cantonese'],
-    ['国语', '中文', '汉语', '普通话', '华语', '国语歌', '中文歌', 'mandarin', 'chinese']
-  ];
-
-  const matchedGroup = aliasGroups.find((group) =>
-    group.some((alias) => alias.toLowerCase() === normalizedScope)
-  );
-  return (matchedGroup || [scope]).map((item) => item.toLowerCase());
 }
 
 module.exports = {

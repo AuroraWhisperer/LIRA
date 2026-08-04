@@ -217,6 +217,12 @@ function createWebSocketHub(options = {}) {
     }
   }
 
+  function broadcast(payload) {
+    for (const socket of Array.from(sockets)) {
+      sendWebSocket(socket, payload);
+    }
+  }
+
   function stop(options = {}) {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
@@ -233,7 +239,7 @@ function createWebSocketHub(options = {}) {
     }
   }
 
-  return { handleUpgrade: handleWebSocketUpgrade, broadcastSnapshot, stop };
+  return { handleUpgrade: handleWebSocketUpgrade, broadcastSnapshot, broadcast, stop };
 }
 
 function sendWebSocket(socket, payload) {

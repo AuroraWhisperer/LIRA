@@ -124,6 +124,10 @@ function createServerRuntime(runtimeOptions = {}) {
   let bilibiliAuthCache = { cookieHeader: '', uid: 0 }; // 同步缓存，createBilibiliClient 同频读取
 
   const webSocketHub = wsTransport.createWebSocketHub();
+  let lyricState = {
+    trackTitle: '', artists: [], lineText: '', translation: '', words: [],
+    currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
+  };
   let bilibiliClient = null;
   let isShuttingDown = false;
   let startedPort = null;
@@ -217,6 +221,12 @@ function createServerRuntime(runtimeOptions = {}) {
         runRetention: domainServices.data.runRetention
       },
       playback: domainServices.playback,
+      playbackLyrics: {
+        publish(state) {
+          lyricState = state;
+          webSocketHub.broadcast({ type: 'lyric-state', state });
+        }
+      },
       theme: domainServices.theme,
       bilibili: {
         liveStatus,
@@ -348,7 +358,8 @@ function createServerRuntime(runtimeOptions = {}) {
       categories: domainServices.songs.listCategories(),
       songCount: domainServices.songs.count(),
       liveStatus,
-      bilibiliDiagnostics
+      bilibiliDiagnostics,
+      lyricState
     };
   }
 

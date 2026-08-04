@@ -353,6 +353,35 @@ test('pagehide beacon includes the injected API token', async () => {
   );
 });
 
+test('playback persistence retains the numeric QQ song ID', async () => {
+  const current = {
+    ...track('000w1gfs48CBnw', '해볼래 (试试看)'),
+    sourceSongId: 107402287
+  };
+  const app = await createPlaybackApp({
+    current,
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [],
+    normalQueueTracks: [current],
+    radioQueue: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'playlist',
+    queueTitle: '我喜欢',
+    playlistIndex: 0,
+    volume: 0.75
+  });
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emitWindow('pagehide');
+
+  const persisted = app.ipcSavedState();
+  assert.equal(persisted.current.sourceSongId, 107402287);
+  assert.equal(persisted.normalQueueTracks[0].sourceSongId, 107402287);
+});
+
 test('cold start restores the server queue and playback progress without local storage', async () => {
   const savedState = {
     current: track('restored-current', '恢复的歌曲'),

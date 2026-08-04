@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>桌面歌词</title>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-playback.css?v=20260728-01">
+    <link rel="stylesheet" href="/css/styles-playback.css?v=20260804-01">
   </head>
   <body class="lyric-window-body">
     <main class="lyric-window-surface">
-      <div id="lyricLine" class="lyric-window-line">暂无歌词</div>
-      <div id="lyricTranslation" class="lyric-window-translation"></div>
+      <div id="lyricMeta" class="lyric-window-meta" hidden>
+        <span id="lyricPlaybackState" class="lyric-window-state">正在播放</span>
+        <span id="lyricTrack" class="lyric-window-track"></span>
+      </div>
+      <div id="lyricLine" class="lyric-window-line" aria-live="polite">等待播放</div>
+      <div id="lyricTranslation" class="lyric-window-translation" hidden></div>
+      <div class="lyric-window-progress" aria-hidden="true"><span id="lyricProgress"></span></div>
     </main>
-    <script src="/js/overlays/lyric-window.js?v=20260726-03"></script>
+    <script src="/js/overlays/lyric-window.js?v=20260804-01"></script>
   </body>
 </html>

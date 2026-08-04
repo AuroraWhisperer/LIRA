@@ -36,6 +36,7 @@ export function createStatePersistence(deps) {
       fileName: track.fileName,
       filePath: track.filePath || '',
       sourceTrackId: track.sourceTrackId,
+      sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
       sourceAlbumId: track.sourceAlbumId,
       playable: track.playable,
       vip: track.vip,

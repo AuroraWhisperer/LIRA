@@ -8,16 +8,29 @@ let reconnectAttempts = 0;
 let stateRefreshTimer = null;
 let overlayResizeTimer = null;
 let lastRenderKey = null;
+let initialQueueViewportWidth = 0;
+let initialQueueViewportHeight = 0;
+let queueViewportResized = false;
 const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 document.addEventListener('DOMContentLoaded', () => {
+  initialQueueViewportWidth = window.innerWidth;
+  initialQueueViewportHeight = window.innerHeight;
   loadState();
   connectSocket();
-  window.addEventListener('resize', () => {
-    clearTimeout(overlayResizeTimer);
-    overlayResizeTimer = setTimeout(relayoutQueue, 100);
-  });
+  window.addEventListener('resize', handleQueueViewportResize);
 });
+
+function handleQueueViewportResize() {
+  const widthChanged = window.innerWidth !== initialQueueViewportWidth;
+  const heightChanged = window.innerHeight !== initialQueueViewportHeight;
+  if (!queueViewportResized && !widthChanged && !heightChanged) return;
+
+  queueViewportResized = true;
+  document.body.classList.add('queue-viewport-resized');
+  clearTimeout(overlayResizeTimer);
+  overlayResizeTimer = setTimeout(relayoutQueue, 100);
+}
 
 async function loadState() {
   try {
@@ -297,7 +310,7 @@ function configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowG
   const edge = Math.min(16, Math.max(0, viewportHeight * 0.02));
   const availableHeight = Math.max(1, Math.floor(viewportHeight - viewportTop - edge));
   if (viewport.style) {
-    viewport.style.height = '';
+    viewport.style.height = queueViewportResized ? '' : `${Math.min(235, availableHeight)}px`;
     viewport.style.maxHeight = `${availableHeight}px`;
   }
 
@@ -449,7 +462,10 @@ function configureIdentityVerticalScroll(viewport, list, settings, combinedRows,
   resetQueueScrollClasses(list);
   const contentHeight = Math.max(1, Math.ceil(list.scrollHeight));
   if (viewport.style) {
-    viewport.style.height = `${Math.min(contentHeight, availableHeight)}px`;
+    const targetHeight = queueViewportResized
+      ? Math.min(contentHeight, availableHeight)
+      : Math.min(364, availableHeight);
+    viewport.style.height = `${targetHeight}px`;
     viewport.style.maxHeight = `${availableHeight}px`;
   }
   const viewportHeight = Math.max(1, viewport.clientHeight);

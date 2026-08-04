@@ -3,6 +3,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
+const { normalizeLyricState } = require('../../music/lyric-state');
 
 const prefixes = ['/api/playback/'];
 
@@ -22,6 +23,12 @@ function clientIdOf(request, body) {
 }
 
 const routes = {
+  'POST /api/playback/lyric-state': storeRoute(async (context, request) => {
+    const state = normalizeLyricState(await request.body());
+    context.playbackLyrics.publish(state);
+    return state;
+  }),
+
   // ── 播放历史 ──
 
   'GET /api/playback/history': storeRoute((context, request) => ({

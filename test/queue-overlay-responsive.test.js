@@ -8,7 +8,7 @@ const vm = require('node:vm');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('classic queue removes the six-row setting and follows the viewport', () => {
+test('classic queue starts at its fixed size and follows a resized browser source', () => {
   const adminHtml = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const queueSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
@@ -21,10 +21,14 @@ test('classic queue removes the six-row setting and follows the viewport', () =>
   assert.doesNotMatch(settingsSource, /queueFixedSixRows/);
   assert.doesNotMatch(themeStoreSource, /queueFixedSixRows/);
   assert.doesNotMatch(queueSource, /visibleRows\s*=\s*6|queueFixedSixRows|--classic-window-height/);
-  assert.match(overlayCss, /\.queue-classic\s*\{[^}]*width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/s);
-  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*max-height:\s*calc\(100vh - 32px\)/s);
+  assert.match(overlayCss, /\.queue-classic\s*\{[^}]*width:\s*min\(405px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/s);
+  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.queue-classic\s*\{[^}]*width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/s);
+  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*height:\s*min\(235px,\s*calc\(100vh - 32px\)\)/s);
+  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.classic-list-window\s*\{[^}]*height:\s*auto/s);
   assert.doesNotMatch(overlayCss, /--classic-window-height/);
   assert.doesNotMatch(queueSource, /Math\.min\(6,/);
+  assert.match(queueSource, /window\.addEventListener\('resize', handleQueueViewportResize\)/);
+  assert.match(queueSource, /document\.body\.classList\.add\('queue-viewport-resized'\)/);
 });
 
 test('classic queue animates only when its rendered rows overflow available height', () => {
@@ -100,7 +104,7 @@ test('classic queue animates only when its rendered rows overflow available heig
   assert.equal(longClasses.has('scrolling'), true);
 });
 
-test('identity queue uses natural content size and scrolls only when the viewport is shorter', () => {
+test('identity queue starts at its fixed size and follows a resized browser source', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const overlayCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   const styleValues = new Map();
@@ -121,10 +125,12 @@ test('identity queue uses natural content size and scrolls only when the viewpor
   sandbox.window = { innerHeight: 500 };
   vm.runInNewContext(source, sandbox);
 
-  assert.match(overlayCss, /\.queue-identity\s*\{[^}]*width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/s);
+  assert.match(overlayCss, /\.queue-identity\s*\{[^}]*width:\s*min\(430px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/s);
+  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.queue-identity\s*\{[^}]*width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/s);
   const identityWindowRule = overlayCss.match(/\.identity-list-window\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(identityWindowRule);
-  assert.doesNotMatch(identityWindowRule, /identity-window-height|height:\s*364px/);
+  assert.match(identityWindowRule, /height:\s*min\(364px,\s*calc\(100vh - \(2 \* var\(--overlay-edge\)\)\)\)/);
+  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.identity-list-window\s*\{[^}]*height:\s*auto/s);
 
   const classes = new Set(['identity-list', 'paused']);
   const viewport = {
@@ -159,6 +165,6 @@ test('identity queue uses natural content size and scrolls only when the viewpor
     sandbox.configureIdentityVerticalScroll(viewport, list, settings, '<div>rows</div>', 4),
     false
   );
-  assert.equal(viewport.style.height, '240px');
+  assert.equal(viewport.style.height, '364px');
   assert.equal(classes.has('scrolling-bounce'), false);
 });

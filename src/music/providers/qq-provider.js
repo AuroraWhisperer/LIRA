@@ -81,7 +81,7 @@ class QQMusicProvider {
 
   async getLyrics(track) {
     const sourceTrackId = extractSourceTrackId(track);
-    const sourceSongId = extractSourceSongId(track);
+    const sourceSongId = await this.resolveSourceSongId(track, sourceTrackId);
     let richLyricError = null;
 
     if (sourceSongId > 0) {
@@ -124,6 +124,23 @@ class QQMusicProvider {
     } catch (error) {
       if (!richLyricError) throw error;
       throw new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`);
+    }
+  }
+
+  async resolveSourceSongId(track, sourceTrackId) {
+    const existingId = extractSourceSongId(track);
+    if (existingId > 0) return existingId;
+
+    const artists = Array.isArray(track && track.artists) ? track.artists : [];
+    const query = [track && track.title, artists[0]].filter(Boolean).join(' ').trim();
+    if (!query) return 0;
+
+    try {
+      const candidates = await this.searchTracks(query, { limit: 20 });
+      const exactMatch = candidates.find((candidate) => candidate.sourceTrackId === sourceTrackId);
+      return extractSourceSongId(exactMatch);
+    } catch (_) {
+      return 0;
     }
   }
 

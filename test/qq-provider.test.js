@@ -110,6 +110,57 @@ test('QQ provider falls back to the legacy lyric endpoint', async () => {
   }
 });
 
+test('QQ provider recovers a missing numeric song ID before requesting rich lyrics', async () => {
+  const originalFetch = global.fetch;
+  const urls = [];
+  global.fetch = async (url) => {
+    urls.push(String(url));
+    if (urls.length === 1) {
+      return new Response(JSON.stringify({
+        code: 0,
+        data: {
+          song: {
+            list: [
+              { id: 107402287, mid: '000w1gfs48CBnw', title: '해볼래 (试试看)', singer: [] },
+              { id: 999, mid: 'different-mid', title: '해볼래 (试试看)', singer: [] }
+            ]
+          }
+        }
+      }), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      code: 0,
+      req_0: {
+        code: 0,
+        data: {
+          crypt: 0,
+          lyric: Buffer.from('[00:01.00]원문').toString('base64'),
+          trans: Buffer.from('[00:01.00]中文译').toString('base64'),
+          roma: Buffer.from('[00:01.00]romanization').toString('base64')
+        }
+      }
+    }), { status: 200 });
+  };
+
+  try {
+    const result = await createProvider().getLyrics({
+      sourceTrackId: '000w1gfs48CBnw',
+      title: '해볼래 (试试看)',
+      artists: ['SISTAR']
+    });
+
+    assert.equal(urls.length, 2);
+    assert.match(urls[0], /client_search_cp/);
+    const payload = JSON.parse(new URL(urls[1]).searchParams.get('data'));
+    assert.equal(payload.req_0.param.songMID, '000w1gfs48CBnw');
+    assert.equal(payload.req_0.param.songID, 107402287);
+    assert.equal(result.lines[0].translation, '中文译');
+    assert.equal(result.lines[0].roma, 'romanization');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('QQ provider signs AddSonglist requests and preserves QQ numeric ids', async () => {
   const originalFetch = global.fetch;
   let captured;
