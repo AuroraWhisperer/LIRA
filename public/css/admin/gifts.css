@@ -298,7 +298,7 @@
 .gift-card {
   position: relative;
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
@@ -307,14 +307,14 @@
 }
 
 .gift-card.has-type-icon {
-  padding-right: 64px;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  column-gap: 8px;
 }
 
 .gift-card .gift-type-icon {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
+  position: static;
+  align-self: center;
+  justify-self: center;
 }
 
 .gift-card .gift-guard-icon {
@@ -346,31 +346,56 @@
 }
 
 .gift-card .gift-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 700;
   font-size: 14px;
-  overflow-wrap: anywhere;
+}
+
+.gift-card-content {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
 }
 
 .gift-card .gift-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-areas:
+    "user time"
+    "amount result";
+  align-items: baseline;
+  gap: 3px 8px;
+  min-width: 0;
   color: var(--muted);
   font-size: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
 }
 
-.gift-card.blind-box-card .gift-name,
-.gift-card.blind-box-card .gift-meta {
+.gift-card .gift-user {
+  grid-area: user;
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.gift-card.blind-box-card .gift-name {
-  text-overflow: ellipsis;
+.gift-card .gift-time {
+  grid-area: time;
+  justify-self: end;
+  white-space: nowrap;
 }
 
-.gift-card.blind-box-card .gift-meta {
-  flex-wrap: nowrap;
+.gift-card .gift-amount {
+  grid-area: amount;
+  white-space: nowrap;
+}
+
+.gift-card .gift-result {
+  grid-area: result;
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .gift-card.profit {

@@ -55,7 +55,7 @@ const DEFAULT_SETTINGS = {
   overlayPin2: '',
   overlayPin3: '',
   overlayRule1: '弹幕输入 点歌 歌名',
-  overlayRule2: '支持随机点歌',
+  overlayRule2: '支持多tag随机点歌',
   overlayRule3: 'SC ≥ 2',
   overlayRule4: '',
   overlayRule5: '',

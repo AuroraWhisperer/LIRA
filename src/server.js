@@ -321,7 +321,16 @@ function createServerRuntime(runtimeOptions = {}) {
         console.log(`Songs overlay: ${baseUrl}/songlist`);
         console.log(`Blindbox overlay: ${baseUrl}/blindbox`);
         openAdminPageIfNeeded(baseUrl);
-        configureBilibiliListener();
+        reconnectBilibiliListener().catch((error) => {
+          console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
+          updateLiveStatus({
+            connected: false,
+            enabled: true,
+            roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
+            mode: 'bilibili',
+            message: sharedUtils.publicBilibiliErrorMessage(error, true)
+          });
+        });
         return { server, port, host, baseUrl };
       })
       .catch(async (error) => {

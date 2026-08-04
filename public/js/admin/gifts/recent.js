@@ -36,6 +36,8 @@
     list.innerHTML = items.map((item) => {
       const sprintPrice = item.sprint_count_price ?? item.total_price;
       const blindProfit = item.blind_profit;
+      const giftName = escapeHtml(item.gift_name || '未知礼物');
+      const userName = escapeHtml(item.user_name || '观众');
       const guardBadge = getGuardBadge(item);
       const blindBoxIcon = getBlindBoxIcon(item);
       const typeIcon = guardBadge
@@ -53,19 +55,21 @@
         const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
         cardClass += ' blind-box-card';
         cardClass += blindProfit > 0 ? ' profit' : blindProfit < 0 ? ' loss' : '';
-        blindLine = `<span>盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
+        blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
       } else if (item.is_blind_box && item.blind_box_price !== null && item.blind_box_price !== undefined) {
-        blindLine = `<span>开出 ${formatMoney(item.total_price)}</span>`;
+        blindLine = `<span class="gift-result">开出 ${formatMoney(item.total_price)}</span>`;
       }
 
       return `
         <div class="${cardClass}">
-          <div class="gift-name">${escapeHtml(item.gift_name || '未知礼物')} x${Number(item.num || 1)}</div>
-          <div class="gift-meta">
-            <span>${escapeHtml(item.user_name || '观众')}</span>
-            <span>计入 ${formatMoney(sprintPrice)}</span>
-            ${blindLine}
-            ${item.is_blind_box ? '' : `<span>${formatTime(item.created_at)}</span>`}
+          <div class="gift-card-content">
+            <div class="gift-name" title="${giftName}">${giftName} x${Number(item.num || 1)}</div>
+            <div class="gift-meta">
+              <span class="gift-user" title="${userName}">${userName}</span>
+              <span class="gift-time">${formatTime(item.created_at)}</span>
+              <span class="gift-amount">计入 ${formatMoney(sprintPrice)}</span>
+              ${blindLine}
+            </div>
           </div>
           ${typeIcon}
         </div>

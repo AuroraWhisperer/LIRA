@@ -71,6 +71,21 @@ test('recent gift cards keep a wider responsive minimum width', () => {
   assert.match(giftCardsRule, /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/);
 });
 
+test('recent gift cards reserve artwork space and keep metadata in named slots', () => {
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
+
+  assert.match(script, /class="gift-card-content"/);
+  assert.match(script, /class="gift-user"/);
+  assert.match(script, /class="gift-amount"/);
+  assert.match(script, /class="gift-result/);
+  assert.match(script, /class="gift-time"/);
+  assert.doesNotMatch(script, /item\.is_blind_box \? '' : `<span>\$\{formatTime/);
+  assert.match(styles, /\.gift-card\.has-type-icon\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 52px/);
+  assert.match(styles, /\.gift-card \.gift-meta\s*\{[\s\S]*?grid-template-areas:/);
+  assert.match(styles, /\.gift-card \.gift-type-icon\s*\{[\s\S]*?position:\s*static/);
+});
+
 test('queue headers share a fixed minimum height and song queue controls stay compact', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const headerRule = source.match(/\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/)?.[0];
