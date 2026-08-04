@@ -71,6 +71,17 @@ test('recent gift cards keep a wider responsive minimum width', () => {
   assert.match(giftCardsRule, /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/);
 });
 
+test('queue headers share a fixed minimum height and song queue controls stay compact', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const headerRule = source.match(/\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/)?.[0];
+  const buttonRule = source.match(/\.queues-row \.song-queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(headerRule, 'queue header sizing should remain defined');
+  assert.match(headerRule, /min-height:\s*60px/);
+  assert.ok(buttonRule, 'song queue header controls should remain compact');
+  assert.match(buttonRule, /min-height:\s*30px/);
+});
+
 test('toolbox owns independent overtime, daily todo, performance, usage guide, and update features', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
@@ -826,7 +837,7 @@ test('identity queue has an independent shared content font size setting', () =>
   const medalRule = medalRules.at(-1)?.[0];
   assert.ok(identityBlockRule);
   assert.ok(medalRule);
-  assert.match(identityBlockRule, /font-size:\s*60%/);
+  assert.match(identityBlockRule, /font-size:\s*75%/);
   assert.match(identityBlockRule, /height:\s*max\(16px,\s*1\.15em\)/);
   assert.match(identityBlockRule, /padding:\s*0\s+0\.24em/);
   assert.match(identityBlockRule, /border-radius:\s*max\(3px,\s*0\.15em\)/);

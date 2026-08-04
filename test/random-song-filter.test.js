@@ -57,6 +57,19 @@ test('requires every random song term to match the same song', () => {
   assert.deepEqual(filterRandomSongCandidates(SONGS, '国语+周杰伦+摇滚'), []);
 });
 
+test('accepts spaces between random song conditions while preserving complete spaced values', () => {
+  assert.deepEqual(
+    filterRandomSongCandidates(SONGS, '流行 抒情').map((song) => song.name),
+    ['晴天', '说好不哭']
+  );
+  assert.deepEqual(
+    filterRandomSongCandidates([
+      { name: '带空格歌手', artist: 'A1 TRIP', category_name: '说唱', tags: '苦情' }
+    ], 'A1 TRIP').map((song) => song.name),
+    ['带空格歌手']
+  );
+});
+
 test('matches language aliases and keeps legacy single-scope behavior', () => {
   assert.equal(filterRandomSongCandidates(SONGS, '中文').length, 4);
   assert.deepEqual(

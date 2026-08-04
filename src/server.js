@@ -356,6 +356,7 @@ function createServerRuntime(runtimeOptions = {}) {
       giftSprint: domainServices.gifts.getSprintSnapshot(),
       settings: settingsStore.getSettings(),
       categories: domainServices.songs.listCategories(),
+      tags: domainServices.songs.listTags(),
       songCount: domainServices.songs.count(),
       liveStatus,
       bilibiliDiagnostics,

@@ -23,10 +23,12 @@ const routes = {
       ok: true,
       data: context.songs.list({
         query: request.query.get('query') || '',
-        category: request.query.get('category') || '',
+        categories: request.query.getAll('category'),
         language: request.query.get('language') || '',
         artist: request.query.get('artist') || '',
-        tags: request.query.get('tags') || '',
+        tags: request.query.getAll('tag').length
+          ? request.query.getAll('tag')
+          : request.query.get('tags') || '',
         enabledOnly: request.query.get('enabledOnly') === 'true'
       })
     });

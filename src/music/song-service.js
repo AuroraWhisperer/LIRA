@@ -86,22 +86,28 @@ function saveSong(db, input) {
   return db.prepare('SELECT * FROM songs WHERE id = ?').get(Number(result.lastInsertRowid));
 }
 
-function listSongs(db, { query = '', category = '', language = '', artist = '', tags = '', enabledOnly = false } = {}) {
+function listSongs(db, {
+  query = '', category = '', categories = [], language = '', artist = '', tags = '', enabledOnly = false
+} = {}) {
   const conditions = [];
   const args = [];
   const cleanQuery = cleanText(query);
-  const cleanCat = cleanText(category);
+  const categoryValues = Array.isArray(categories) ? categories : [categories];
+  const categoryFilters = (categoryValues.length ? categoryValues : [category])
+    .map(cleanText)
+    .filter(Boolean);
   const cleanLang = cleanText(language);
   const cleanArt = cleanText(artist);
-  const cleanTags = cleanText(tags);
+  const tagValues = Array.isArray(tags) ? tags : [tags];
+  const tagFilters = tagValues.map(cleanText).filter(Boolean);
 
   if (cleanQuery) {
     conditions.push('(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ? OR song_categories.name LIKE ?)');
     args.push(`%${cleanQuery}%`, `%${cleanQuery}%`, `%${cleanQuery}%`, `%${cleanQuery}%`);
   }
-  if (cleanCat) {
+  for (const categoryFilter of categoryFilters) {
     conditions.push('song_categories.name LIKE ?');
-    args.push(`%${cleanCat}%`);
+    args.push(`%${categoryFilter}%`);
   }
   if (cleanLang) {
     conditions.push('songs.language = ?');
@@ -110,10 +116,6 @@ function listSongs(db, { query = '', category = '', language = '', artist = '', 
   if (cleanArt) {
     conditions.push('songs.artist = ?');
     args.push(cleanArt);
-  }
-  if (cleanTags) {
-    conditions.push('songs.tags LIKE ?');
-    args.push(`%${cleanTags}%`);
   }
   if (enabledOnly) {
     conditions.push('songs.is_enabled = 1');
@@ -128,7 +130,11 @@ function listSongs(db, { query = '', category = '', language = '', artist = '', 
     ORDER BY songs.name_initial ASC, songs.name COLLATE NOCASE ASC, songs.artist COLLATE NOCASE ASC
   `).all(...args);
 
-  return rows.sort((a, b) => {
+  return rows.filter((row) => {
+    if (tagFilters.length === 0) return true;
+    const songTags = new Set(splitSongTags(row.tags).map((tag) => tag.toLocaleLowerCase()));
+    return tagFilters.every((tag) => songTags.has(tag.toLocaleLowerCase()));
+  }).sort((a, b) => {
     const initialCompare = String(a.name_initial).localeCompare(String(b.name_initial), 'zh-Hans-CN');
     if (initialCompare !== 0) return initialCompare;
     return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN-u-co-pinyin');
@@ -315,6 +321,22 @@ function listRandomSongCandidates(db, scopeText) {
   return filterRandomSongCandidates(rows, normalizeRandomScopeText(scopeText));
 }
 
+function splitSongTags(value) {
+  return String(value || '')
+    .split(/[,，]/)
+    .map((tag) => cleanText(tag))
+    .filter(Boolean);
+}
+
+function listTags(db) {
+  const tags = new Set();
+  const rows = db.prepare("SELECT tags FROM songs WHERE tags != ''").all();
+  for (const row of rows) {
+    for (const tag of splitSongTags(row.tags)) tags.add(tag);
+  }
+  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+}
+
 function normalizeRandomScopeText(value) {
   let text = cleanText(value);
   while (text && '+＋:：-—'.includes(text[0])) {
@@ -338,6 +360,7 @@ module.exports = {
   toggleSong,
   countSongs,
   listCategories,
+  listTags,
   ensureCategory,
   importSongs,
   normalizeImportedSongRow,

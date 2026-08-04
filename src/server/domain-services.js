@@ -44,6 +44,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     list:           (options) => songService.listSongs(db.songDb, options),
     find:           (songName, artist) => songService.findSong(db.songDb, songName, artist),
     listCategories: () => songService.listCategories(db.songDb),
+    listTags:       () => songService.listTags(db.songDb),
     ensureCategory: (name) => songService.ensureCategory(db.songDb, name),
     import:         (rows) => songService.importSongs(db.songDb, rows),
     // 下面三个原来在 facade 层写了内联 SQL，现统一委托给 song-service

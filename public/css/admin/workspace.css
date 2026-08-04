@@ -196,9 +196,15 @@ body.player-dock-expanded .song-workspace {
 }
 
 .queues-row .queue-panel .panel-header {
+  min-height: 60px;
   padding: 16px 18px 14px;
   border-bottom: 1px solid rgba(217, 224, 232, 0.5);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(249, 251, 253, 0.8) 100%);
+}
+
+.queues-row .song-queue-panel .panel-header button {
+  min-height: 30px;
+  padding: 3px 10px;
 }
 
 .queues-row .queue-panel .panel-header h2 {

@@ -122,6 +122,7 @@ test('extracted danmaku client keeps runtime dependencies and diagnostics', asyn
     await client.restart();
     assert.equal(client.ws.url, 'wss://example.test:443/sub');
     assert.equal(statuses.some((status) => status.connected === true), true);
+    assert.equal(client.historyPoller.timer, null);
 
     await client.ws.emit('message', {
       data: messagePacket({ cmd: 'TEST_COMMAND', data: {} })
@@ -173,4 +174,72 @@ test('stopped danmaku client does not resume startup after room lookup resolves'
 
   assert.equal(client.stopped, true);
   assert.deepEqual(starts, { history: 0, rank: 0, status: 0, websocket: 0 });
+});
+
+test('socket errors use history only during immediate reconnect recovery', async () => {
+  const originalFetch = global.fetch;
+  const originalWebSocket = global.WebSocket;
+  const history = { starts: 0, stops: 0 };
+  let client;
+
+  global.WebSocket = FakeWebSocket;
+  global.fetch = (input) => {
+    const url = new URL(typeof input === 'string' ? input : input.url);
+    if (url.pathname.endsWith('/room_init')) {
+      return jsonResponse({ code: 0, data: { room_id: 123, uid: 456, live_status: 1 } });
+    }
+    if (url.pathname.endsWith('/nav')) {
+      return jsonResponse({
+        code: 0,
+        data: {
+          wbi_img: {
+            img_url: `https://i0.hdslb.com/bfs/wbi/${'a'.repeat(32)}.png`,
+            sub_url: `https://i0.hdslb.com/bfs/wbi/${'b'.repeat(32)}.png`
+          }
+        }
+      });
+    }
+    if (url.pathname.endsWith('/getDanmuInfo')) {
+      return jsonResponse({
+        code: 0,
+        data: { token: 'test-token', host_list: [{ host: 'example.test', wss_port: 443 }] }
+      });
+    }
+    if (url.pathname.endsWith('/getOnlineGoldRank')) {
+      return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
+    }
+    return Promise.reject(new Error(`Unexpected URL: ${url}`));
+  };
+
+  try {
+    client = new BilibiliDanmakuClient('123', {
+      onMessage() {},
+      onSuperChat() {},
+      onGift() {},
+      onStatus() {}
+    });
+    await client.restart();
+    client.historyPoller.start = () => {
+      history.starts += 1;
+      client.historyPoller.timer = {};
+    };
+    client.historyPoller.stop = () => {
+      history.stops += 1;
+      client.historyPoller.timer = null;
+    };
+
+    const failedSocket = client.ws;
+    await failedSocket.emit('error', { message: 'socket failed' });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    assert.equal(history.starts, 1);
+    assert.equal(history.stops, 1);
+    assert.equal(client.historyPoller.timer, null);
+    assert.notEqual(client.ws, failedSocket);
+    assert.equal(client.reconnecting, false);
+  } finally {
+    client?.stop();
+    global.fetch = originalFetch;
+    global.WebSocket = originalWebSocket;
+  }
 });

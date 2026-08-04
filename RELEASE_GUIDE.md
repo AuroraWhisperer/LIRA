@@ -11,6 +11,7 @@
 对比总结上一版更新了什么，用于提交github和release的时候说明并且写进去
 
 # 2. 验证 + 提交
+注意提交不要带claude
 npm test
 git add . && git commit -m "vX.Y.Z"
 git push

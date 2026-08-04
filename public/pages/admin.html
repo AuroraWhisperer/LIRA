@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260803-04">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260804-01">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260803-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -208,10 +208,19 @@
                 搜索
                 <input id="songSearch" placeholder="歌名、歌手、分类或标签">
               </label>
-              <label>
-                分类
-                <select id="categoryFilter"></select>
-              </label>
+              <div class="category-filter-field">
+                <span>分类</span>
+                <details id="categoryFilter" class="category-filter">
+                  <summary>
+                    <span id="categoryFilterSummary">全部分类</span>
+                    <span class="category-filter-hint">可多选</span>
+                  </summary>
+                  <div class="category-filter-menu">
+                    <div id="categoryFilterOptions" class="category-filter-options" role="group" aria-label="分类（可多选）"></div>
+                    <button id="clearCategoryFilter" class="category-filter-clear" type="button">清除选择</button>
+                  </div>
+                </details>
+              </div>
               <label>
                 语言
                 <select id="languageFilter"></select>
@@ -222,10 +231,19 @@
                 歌手
                 <select id="artistFilter"></select>
               </label>
-              <label>
-                标签
-                <select id="tagFilter"></select>
-              </label>
+              <div class="category-filter-field">
+                <span>标签</span>
+                <details id="tagFilter" class="category-filter">
+                  <summary>
+                    <span id="tagFilterSummary" class="category-filter-summary">全部标签</span>
+                    <span class="category-filter-hint">可多选</span>
+                  </summary>
+                  <div class="category-filter-menu">
+                    <div id="tagFilterOptions" class="category-filter-options" role="group" aria-label="标签（可多选）"></div>
+                    <button id="clearTagFilter" class="category-filter-clear" type="button">清除选择</button>
+                  </div>
+                </details>
+              </div>
               <label>
                 只看可点
                 <select id="enabledFilter">
@@ -244,6 +262,7 @@
                     <th>原唱/首发歌手</th>
                     <th>歌曲分类</th>
                     <th>歌曲标签</th>
+                    <th>语言</th>
                     <th>状态</th>
                     <th>核对备注</th>
                     <th>操作</th>
@@ -1930,7 +1949,7 @@
       </div>
     </div>
     <div id="toast" class="toast-stack"></div>
-    <script type="module" src="/js/admin/index.js?v=20260803-02"></script>
+    <script type="module" src="/js/admin/index.js?v=20260804-02"></script>
     <script type="module" src="/js/playback.js?v=20260731-11"></script>
   </body>
 </html>

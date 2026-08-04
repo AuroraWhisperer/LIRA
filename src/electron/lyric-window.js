@@ -12,10 +12,10 @@ function openLyricWindow(baseUrl, preloadPath) {
   }
 
   lyricWindow = new BrowserWindow({
-    width: 1000,
-    height: 160,
-    minWidth: 420,
-    minHeight: 96,
+    width: 840,
+    height: 128,
+    minWidth: 280,
+    minHeight: 64,
     frame: false,
     transparent: true,
     alwaysOnTop: true,

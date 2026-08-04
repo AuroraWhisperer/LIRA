@@ -2,10 +2,14 @@
 // WebSocket 连接管理器 — 负责 Bilibili 弹幕长连的连接、心跳和数据包收发。
 'use strict';
 
+const HEARTBEAT_INTERVAL_MS = 30000;
+
 class WebSocketConnection {
-  constructor() {
+  constructor(options = {}) {
     this.ws = null;
     this.heartbeatTimer = null;
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
+    this.awaitingHeartbeatReply = false;
     this.eventHandlers = {
       open: [],
       message: [],
@@ -24,7 +28,20 @@ class WebSocketConnection {
     ws.addEventListener('open', () => {
       this.sendPacket(7, 1, authPayload);
       clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = setInterval(() => this.sendPacket(2, 1, {}), 30000);
+      this.awaitingHeartbeatReply = false;
+      this.heartbeatTimer = setInterval(() => {
+        if (this.awaitingHeartbeatReply) {
+          this.failConnection(ws, {
+            code: 0,
+            reason: 'heartbeat timeout',
+            wasClean: false,
+            heartbeatTimeout: true
+          });
+          return;
+        }
+        this.awaitingHeartbeatReply = true;
+        this.sendPacket(2, 1, {});
+      }, this.heartbeatIntervalMs);
       this.emit('open');
     });
 
@@ -33,12 +50,17 @@ class WebSocketConnection {
       const data = event.data instanceof ArrayBuffer
         ? Buffer.from(event.data)
         : Buffer.from(await event.data.arrayBuffer());
+      if (containsOperation(data, 3)) {
+        this.awaitingHeartbeatReply = false;
+      }
       this.emit('message', data);
     });
 
     ws.addEventListener('close', (event) => {
       if (this.ws !== ws) return;
       clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      this.awaitingHeartbeatReply = false;
       this.ws = null;
       this.emit('close', event);
     });
@@ -46,6 +68,12 @@ class WebSocketConnection {
     ws.addEventListener('error', (event) => {
       if (this.ws !== ws) return;
       this.emit('error', event);
+      this.failConnection(ws, {
+        code: 0,
+        reason: event && event.message ? event.message : 'websocket error',
+        wasClean: false,
+        connectionError: true
+      });
     });
 
     if (options.waitForOpen) {
@@ -56,6 +84,7 @@ class WebSocketConnection {
   close() {
     clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = null;
+    this.awaitingHeartbeatReply = false;
     if (this.ws) {
       const ws = this.ws;
       this.ws = null;
@@ -65,6 +94,16 @@ class WebSocketConnection {
         // Ignore shutdown errors.
       }
     }
+  }
+
+  failConnection(ws, event) {
+    if (this.ws !== ws) return;
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+    this.awaitingHeartbeatReply = false;
+    this.ws = null;
+    try { ws.close(); } catch (_) {}
+    this.emit('close', event);
   }
 
   sendPacket(operation, version, body) {
@@ -128,6 +167,17 @@ class WebSocketConnection {
       ws.addEventListener('close', handleClose);
     });
   }
+}
+
+function containsOperation(buffer, expectedOperation) {
+  let offset = 0;
+  while (offset + 16 <= buffer.length) {
+    const packetLength = buffer.readUInt32BE(offset);
+    if (packetLength < 16 || offset + packetLength > buffer.length) return false;
+    if (buffer.readUInt32BE(offset + 8) === expectedOperation) return true;
+    offset += packetLength;
+  }
+  return false;
 }
 
 module.exports = { WebSocketConnection };

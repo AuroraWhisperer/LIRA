@@ -20,6 +20,9 @@
 /* 工作区布局 */
 @import url('./admin/workspace.css');
 
+/* 歌库筛选 */
+@import url('./admin/song-filters.css');
+
 /* 百宝箱功能侧栏 */
 @import url('./admin/other-features.css');
 

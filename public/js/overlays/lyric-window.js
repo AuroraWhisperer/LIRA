@@ -114,44 +114,37 @@ function applyStyles() {
 function renderLyricState() {
   const line = document.getElementById('lyricLine');
   const translation = document.getElementById('lyricTranslation');
-  const meta = document.getElementById('lyricMeta');
-  const playbackState = document.getElementById('lyricPlaybackState');
-  const track = document.getElementById('lyricTrack');
   const progress = document.getElementById('lyricProgress');
-  if (!line || !translation || !meta || !playbackState || !track || !progress) return;
+  if (!line || !translation || !progress) return;
 
   const fallback = fallbackCopy();
   const hasLine = Boolean(lyricState.lineText || lyricState.words?.length);
   if (hasLine && Array.isArray(lyricState.words) && lyricState.words.length > 0) {
     line.innerHTML = lyricState.words.map(renderWord).join('');
   } else {
-    line.textContent = hasLine ? lyricState.lineText : fallback.line;
+    line.textContent = hasLine ? lyricState.lineText : fallback;
   }
-  translation.textContent = lyricState.translation || fallback.detail;
-  translation.hidden = !translation.textContent;
-  track.textContent = [lyricState.trackTitle, formatArtists(lyricState.artists)].filter(Boolean).join(' · ');
-  playbackState.textContent = lyricState.playing ? '正在播放' : lyricState.trackTitle ? '已暂停' : fallback.label;
-  meta.hidden = !lyricState.trackTitle && !fallback.showMeta;
+  translation.textContent = lyricState.translation;
+  translation.hidden = !lyricState.translation;
   progress.style.width = `${Math.max(0, Math.min(100, Number(lyricState.progress || 0) * 100))}%`;
   document.body.classList.toggle('has-lyric', hasLine);
-  document.body.classList.toggle('is-playing', lyricState.playing === true);
   document.body.classList.toggle('is-locked', lyricState.locked === true);
 }
 
 function fallbackCopy() {
   if (document.body.classList.contains('is-disconnected')) {
-    return { line: '正在重新连接', detail: '请确认点歌助手仍在运行', label: '连接中', showMeta: true };
+    return '正在重新连接';
   }
   if (lyricState.status === 'loading') {
-    return { line: '正在载入歌词', detail: lyricState.trackTitle || '', label: '载入中', showMeta: true };
+    return '正在载入歌词';
   }
   if (lyricState.status === 'empty') {
-    return { line: '这首歌暂无歌词', detail: '播放正常，暂未获取到歌词文本', label: '无歌词', showMeta: true };
+    return '这首歌暂无歌词';
   }
-  if (lyricState.status === 'ready' && lyricState.trackTitle) {
-    return { line: '前奏中', detail: '歌词即将开始', label: '正在播放', showMeta: true };
+  if (lyricState.status === 'ready') {
+    return '前奏中';
   }
-  return { line: '等待播放', detail: '开始播放歌曲后，歌词会显示在这里', label: '待机', showMeta: true };
+  return '等待播放';
 }
 
 function renderWord(word) {
@@ -173,10 +166,6 @@ function setupWheelZoom() {
     currentScale = Math.max(0.5, Math.min(2, currentScale + (event.deltaY > 0 ? -0.1 : 0.1)));
     surface.style.transform = `scale(${currentScale})`;
   }, { passive: false });
-}
-
-function formatArtists(artists) {
-  return Array.isArray(artists) ? artists.filter(Boolean).join(' / ') : String(artists || '');
 }
 
 function numberSetting(value, fallback) {

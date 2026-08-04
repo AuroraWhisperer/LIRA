@@ -42,39 +42,15 @@
   content: "";
   position: absolute;
   z-index: -1;
-  inset: 8%;
+  top: 50%;
+  right: 8%;
+  left: 8%;
+  height: min(78vh, 220px);
   border-radius: 999px;
   background: rgba(6, 12, 24, var(--lyric-bg-opacity));
   filter: blur(26px);
   opacity: calc(var(--lyric-bg-opacity) * 4);
-}
-
-.lyric-window-meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  max-width: min(88vw, 1100px);
-  color: var(--lyric-color);
-  font: 700 clamp(12px, 1.8vw, 18px)/1.25 var(--lyric-font);
-  letter-spacing: 0.03em;
-  opacity: 0.78;
-  text-shadow: 0 1px 7px rgba(0, 0, 0, 0.55);
-}
-
-.lyric-window-state {
-  flex: none;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 0.72em;
-  letter-spacing: 0.12em;
-}
-
-.lyric-window-track {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  transform: translateY(-50%);
 }
 
 .lyric-window-line {
@@ -82,7 +58,7 @@
   overflow-wrap: anywhere;
   color: var(--lyric-color);
   font-family: var(--lyric-font);
-  font-size: clamp(30px, var(--lyric-size), 8.5vw);
+  font-size: min(var(--lyric-size), 8.5vw, 34vh);
   font-weight: var(--lyric-weight);
   line-height: var(--lyric-line-height);
   letter-spacing: 0.015em;
@@ -108,7 +84,7 @@
   overflow-wrap: anywhere;
   color: var(--lyric-color);
   font-family: var(--lyric-font);
-  font-size: clamp(16px, var(--lyric-translation-size), 4.5vw);
+  font-size: min(var(--lyric-translation-size), 4.5vw, 22vh);
   font-weight: 700;
   line-height: 1.35;
   opacity: calc(var(--lyric-opacity) * 0.78);
@@ -137,16 +113,12 @@
 }
 
 .lyric-window-body:not(.has-lyric) .lyric-window-line {
-  font-size: clamp(24px, calc(var(--lyric-size) * 0.68), 5.5vw);
+  font-size: min(calc(var(--lyric-size) * 0.68), 5.5vw, 30vh);
   opacity: 0.82;
 }
 
 .lyric-window-body:not(.has-lyric) .lyric-window-progress {
   opacity: 0.25;
-}
-
-.lyric-window-body:not(.is-playing) .lyric-window-state {
-  opacity: 0.72;
 }
 
 .lyric-window-body.is-locked {
@@ -155,15 +127,30 @@
 
 @media (max-height: 150px) {
   .lyric-window-surface {
-    gap: 4px;
-    padding-block: 10px;
+    gap: 2px;
+    padding-block: 6px;
   }
 
-  .lyric-window-meta {
-    font-size: 11px;
+  .lyric-window-line {
+    font-size: min(var(--lyric-size), 8.5vw, 28vh);
   }
 
   .lyric-window-translation {
+    font-size: min(var(--lyric-translation-size), 4.5vw, 18vh);
+  }
+}
+
+@media (max-height: 96px) {
+  .lyric-window-surface {
+    padding-block: 4px;
+  }
+
+  .lyric-window-line {
+    font-size: min(var(--lyric-size), 8.5vw, 52vh);
+  }
+
+  .lyric-window-translation,
+  .lyric-window-progress {
     display: none;
   }
 }

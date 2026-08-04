@@ -34,12 +34,13 @@ test('lyric state normalization limits browser-source payloads', () => {
   assert.equal(state.playing, true);
 });
 
-test('lyrics browser source consumes realtime state and exposes clear empty states', () => {
+test('lyrics browser source shows only current lyrics and real translations', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'lyric-window.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'desktop-lyric.css'), 'utf8');
 
-  assert.match(html, /id="lyricMeta"/);
+  assert.doesNotMatch(html, /id="lyricMeta"|id="lyricPlaybackState"|id="lyricTrack"/);
+  assert.match(html, /id="lyricTranslation"[^>]*hidden/);
   assert.match(html, /id="lyricProgress"/);
   assert.match(source, /new WebSocket\(`/);
   assert.match(source, /payload\.type === 'lyric-state'/);
@@ -47,8 +48,28 @@ test('lyrics browser source consumes realtime state and exposes clear empty stat
   assert.match(source, /这首歌暂无歌词/);
   assert.match(source, /正在重新连接/);
   assert.match(source, /escapeHtml\(word\.text/);
+  assert.match(source, /translation\.textContent = lyricState\.translation/);
+  assert.match(source, /translation\.hidden = !lyricState\.translation/);
+  assert.doesNotMatch(source, /lyricPlaybackState|lyricTrack|formatArtists|fallback\.detail/);
   assert.match(styles, /-webkit-text-stroke:\s*var\(--lyric-stroke-width\)/);
   assert.match(styles, /linear-gradient\(90deg, #ffcf4a var\(--word-progress\)/);
+});
+
+test('desktop lyric surface is compact and independently resizable', () => {
+  const windowSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'lyric-window.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'desktop-lyric.css'), 'utf8');
+
+  assert.match(windowSource, /width:\s*840/);
+  assert.match(windowSource, /height:\s*128/);
+  assert.match(windowSource, /minWidth:\s*280/);
+  assert.match(windowSource, /minHeight:\s*64/);
+  assert.match(windowSource, /resizable:\s*true/);
+  assert.doesNotMatch(windowSource, /setAspectRatio|aspectRatio/);
+  assert.match(styles, /height:\s*min\(78vh,\s*220px\)/);
+  assert.match(styles, /font-size:\s*min\(var\(--lyric-size\),\s*8\.5vw,\s*34vh\)/);
+  assert.match(styles, /@media \(max-height:\s*96px\)/);
+  assert.match(styles, /\.lyric-window-translation,\s*\.lyric-window-progress\s*\{\s*display:\s*none/);
+  assert.match(styles, /font-size:\s*min\(var\(--lyric-size\),\s*8\.5vw,\s*52vh\)/);
 });
 
 test('playback publishes lyrics through the authenticated local API', () => {

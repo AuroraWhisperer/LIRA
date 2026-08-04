@@ -4,6 +4,7 @@
 
 import { showError, value } from '../shared/utils.js';
 import { eventBus, Events } from '../shared/event-bus.js';
+import { readSelectedCategories, readSelectedTags } from './song-category-filter.js';
 
 /**
  * 状态管理服务
@@ -83,6 +84,7 @@ export class StateService {
 
     this.appState = payload.data;
     this.categories = this.appState.categories || [];
+    this.songTags = new Set(this.appState.tags || []);
 
     // 发布状态更新事件
     eventBus.emit(Events.STATE_LOADED, {
@@ -97,10 +99,14 @@ export class StateService {
   async reloadSongs() {
     const params = new URLSearchParams();
     if (value('songSearch')) params.set('query', value('songSearch'));
-    if (value('categoryFilter')) params.set('category', value('categoryFilter'));
+    for (const category of readSelectedCategories()) {
+      params.append('category', category);
+    }
     if (value('languageFilter')) params.set('language', value('languageFilter'));
     if (value('artistFilter')) params.set('artist', value('artistFilter'));
-    if (value('tagFilter')) params.set('tags', value('tagFilter'));
+    for (const tag of readSelectedTags()) {
+      params.append('tag', tag);
+    }
     if (value('enabledFilter') === 'true') params.set('enabledOnly', 'true');
 
     const response = await fetch(`/api/songs?${params}`);

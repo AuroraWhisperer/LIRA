@@ -2,6 +2,12 @@
 // 歌曲库管理
 'use strict';
 
+import {
+  readSelectedCategories,
+  readSelectedTags,
+  splitCategoryNames
+} from './song-category-filter.js';
+
 (function () {
   const {
     escapeHtml,
@@ -41,7 +47,18 @@
         window.AdminApp.state.reloadSongs();
       }
     }, 180));
-    document.getElementById('categoryFilter').addEventListener('change', () => {
+    document.getElementById('categoryFilterOptions').addEventListener('change', (event) => {
+      if (!event.target.matches('[data-category-filter]')) return;
+      updateCategoryFilterSummary();
+      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
+        window.AdminApp.state.reloadSongs();
+      }
+    });
+    document.getElementById('clearCategoryFilter').addEventListener('click', () => {
+      for (const input of document.querySelectorAll('[data-category-filter]:checked')) {
+        input.checked = false;
+      }
+      updateCategoryFilterSummary();
       if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
         window.AdminApp.state.reloadSongs();
       }
@@ -56,7 +73,18 @@
         window.AdminApp.state.reloadSongs();
       }
     });
-    document.getElementById('tagFilter').addEventListener('change', () => {
+    document.getElementById('tagFilterOptions').addEventListener('change', (event) => {
+      if (!event.target.matches('[data-tag-filter]')) return;
+      updateTagFilterSummary();
+      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
+        window.AdminApp.state.reloadSongs();
+      }
+    });
+    document.getElementById('clearTagFilter').addEventListener('click', () => {
+      for (const input of document.querySelectorAll('[data-tag-filter]:checked')) {
+        input.checked = false;
+      }
+      updateTagFilterSummary();
       if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
         window.AdminApp.state.reloadSongs();
       }
@@ -83,16 +111,9 @@
   function renderSongs(songs, songLanguages, songArtists, songTags) {
     songLanguages.clear();
     songArtists.clear();
-    songTags.clear();
     for (const song of songs) {
       if (song.language) songLanguages.add(song.language);
       if (song.artist) songArtists.add(song.artist);
-      if (song.tags) {
-        song.tags.split(',').forEach(function(tag) {
-          var trimmed = tag.trim();
-          if (trimmed) songTags.add(trimmed);
-        });
-      }
     }
     renderLanguageFilter(songLanguages);
     renderArtistFilter(songArtists);
@@ -100,7 +121,7 @@
 
     const table = document.getElementById('songsTable');
     if (songs.length === 0) {
-      table.innerHTML = '<tr><td colspan="8">暂无歌曲</td></tr>';
+      table.innerHTML = '<tr><td colspan="9">暂无歌曲</td></tr>';
       return;
     }
     table.innerHTML = songs.map((song) => `
@@ -110,6 +131,7 @@
         <td>${escapeHtml(song.artist || '')}</td>
         <td>${escapeHtml(song.category_name || '默认')}</td>
         <td>${escapeHtml(song.tags || '')}</td>
+        <td>${escapeHtml(song.language || '')}</td>
         <td>${song.is_enabled ? '可点' : '停用'}</td>
         <td>${escapeHtml(song.note || '')}</td>
         <td>
@@ -170,12 +192,26 @@
   }
 
   function renderCategoryFilter(categories) {
-    const select = document.getElementById('categoryFilter');
-    const selected = select.value;
-    select.innerHTML = '<option value="">全部分类</option>' + categories.map((category) => (
-      `<option value="${escapeAttr(category.name)}">${escapeHtml(category.name)}</option>`
-    )).join('');
-    select.value = selected;
+    const options = document.getElementById('categoryFilterOptions');
+    const selected = new Set(readSelectedCategories());
+    const names = splitCategoryNames(categories);
+    options.innerHTML = names.length === 0
+      ? '<span class="category-filter-empty">暂无分类</span>'
+      : names.map((name) => `
+        <label class="category-filter-option">
+          <input type="checkbox" value="${escapeAttr(name)}" data-category-filter${selected.has(name) ? ' checked' : ''}>
+          <span>${escapeHtml(name)}</span>
+        </label>
+      `).join('');
+    updateCategoryFilterSummary();
+  }
+
+  function updateCategoryFilterSummary() {
+    const selected = readSelectedCategories();
+    document.getElementById('categoryFilterSummary').textContent = selected.length
+      ? selected.join(' + ')
+      : '全部分类';
+    document.getElementById('clearCategoryFilter').disabled = selected.length === 0;
   }
 
   function renderLanguageFilter(songLanguages) {
@@ -199,13 +235,26 @@
   }
 
   function renderTagFilter(songTags) {
-    const select = document.getElementById('tagFilter');
-    const selected = select.value;
+    const options = document.getElementById('tagFilterOptions');
+    const selected = new Set(readSelectedTags());
     const sorted = Array.from(songTags).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
-    select.innerHTML = '<option value="">全部标签</option>' + sorted.map((tag) => (
-      `<option value="${escapeAttr(tag)}">${escapeHtml(tag)}</option>`
-    )).join('');
-    select.value = selected;
+    options.innerHTML = sorted.length === 0
+      ? '<span class="category-filter-empty">暂无标签</span>'
+      : sorted.map((tag) => `
+        <label class="category-filter-option">
+          <input type="checkbox" value="${escapeAttr(tag)}" data-tag-filter${selected.has(tag) ? ' checked' : ''}>
+          <span>${escapeHtml(tag)}</span>
+        </label>
+      `).join('');
+    updateTagFilterSummary();
+  }
+
+  function updateTagFilterSummary() {
+    const selected = readSelectedTags();
+    document.getElementById('tagFilterSummary').textContent = selected.length
+      ? selected.join(' + ')
+      : '全部标签';
+    document.getElementById('clearTagFilter').disabled = selected.length === 0;
   }
 
   window.AdminApp = window.AdminApp || {};
