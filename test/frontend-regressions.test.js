@@ -22,6 +22,7 @@ test('admin page uses one ordered module entrypoint', () => {
     './gifts/sprint.js',
     './gifts/recent.js',
     './gifts/blindbox.js',
+    './gifts/blindbox-analysis.js',
     './gifts/history.js'
   ];
   const giftIndexPosition = entrySource.indexOf("import './gifts/index.js';");
@@ -34,6 +35,56 @@ test('admin page uses one ordered module entrypoint', () => {
 
   const importLines = entrySource.match(/^import .+;$/gm) ?? [];
   assert.equal(importLines.at(-1), "import './app.js';");
+});
+
+test('admin blind box summary shows one row per viewer and opens analysis', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
+
+  assert.match(html, /id="blindBoxAnalysisOpenBtn"/);
+  assert.match(html, /title="查看完整盲盒分析"/);
+  assert.match(html, /<th>观众<\/th>\s*<th>盒数<\/th>\s*<th>盒型<\/th>/);
+  assert.match(html, /<th>总成本<\/th>\s*<th>开出价值<\/th>\s*<th>观众盈亏<\/th>/);
+  assert.doesNotMatch(html, /id="blindBoxStatsTable"[\s\S]*?<th>时间<\/th>/);
+  assert.match(source, /const users = Array\.isArray\(perUser\)/);
+  assert.match(source, /data-viewer=/);
+  assert.match(source, /analysis\?\.open/);
+  assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);
+});
+
+test('blind box analysis is a separate accessible workspace module', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const entry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
+  const stylesEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), 'utf8');
+
+  assert.match(entry, /import '\.\/gifts\/blindbox-analysis\.js';/);
+  assert.match(stylesEntry, /admin\/blindbox-analysis\.css/);
+  assert.match(html, /id="blindBoxAnalysisWorkspace"[^>]*role="region"[^>]*aria-labelledby="blindBoxAnalysisTitle"/);
+  assert.doesNotMatch(html, /id="blindBoxAnalysisWorkspace"[^>]*aria-modal/);
+  assert.match(html, /id="blindBoxAnalysisClose"[^>]*aria-label="关闭盲盒分析"/);
+  assert.match(html, /id="blindBoxAnalysisViewer"/);
+  assert.match(html, /id="blindBoxAnalysisBox"/);
+  assert.match(html, /data-blind-analysis-view="users"/);
+  assert.match(html, /data-blind-analysis-view="boxes"/);
+  assert.match(html, /data-blind-analysis-view="records"/);
+  assert.match(html, /id="blindBoxAnalysisBody"/);
+  assert.match(html, /id="blindBoxAnalysisPrev"/);
+  assert.match(html, /id="blindBoxAnalysisNext"/);
+  assert.match(source, /refreshIfOpen/);
+  assert.match(source, /AbortController/);
+  assert.match(source, /setTimeout/);
+});
+
+test('blind box analysis refreshes only for gift snapshot reasons', () => {
+  const stateSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
+  const analysisSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), 'utf8');
+
+  assert.match(stateSource, /isGiftSnapshotReason\(payload\.reason\)/);
+  assert.match(stateSource, /eventBus\.emit\(Events\.GIFT_RECEIVED/);
+  assert.match(analysisSource, /eventBus\.on\(Events\.GIFT_RECEIVED, refreshIfOpen\)/);
+  assert.match(analysisSource, /REFRESH_DELAY_MS = 500/);
+  assert.doesNotMatch(analysisSource, /Events\.STATE_LOADED/);
 });
 
 test('gift notifications detect delayed records that are not first in the list', () => {
@@ -126,6 +177,55 @@ test('blindbox broadcast controls live below gift profit stats', () => {
   assert.ok(mappingStart > broadcastStart);
   assert.ok(html.indexOf('id="blindboxOverlayTitle"') > broadcastStart);
   assert.equal(html.slice(0, overlayTabEnd).includes('id="blindboxOverlayTitle"'), false);
+});
+
+test('blindbox broadcast settings expose audience filters and one open action', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings.js'), 'utf8');
+
+  assert.match(html, /<span class="panel-kicker">观众画面<\/span>/);
+  assert.match(html, /<h2>盲盒盈亏榜<\/h2>/);
+  assert.match(html, /id="blindboxWinnersOnly"[^>]*checked/);
+  assert.match(html, /id="blindboxHeartBoxOnly"/);
+  assert.doesNotMatch(html, /blindboxCompact|blindboxNoScroll|blindboxLowPower|blindboxOpenUrlBtn/);
+  assert.equal((html.match(/>打开画面<\/a>/g) || []).length, 1);
+  assert.match(source, /liveLink\.href = url/);
+  assert.match(source, /add\('heartBox', '1'\)/);
+  assert.doesNotMatch(source, /add\('compact'|add\('noScroll'|add\('quality'/);
+});
+
+test('blindbox ranking count supports all, summary-only, and one-to-ten modes', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings.js'), 'utf8');
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'blindbox.js'), 'utf8');
+  const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'blindbox.css'), 'utf8');
+
+  assert.match(html, /id="blindboxOverlayTop"[^>]*min="-1"[^>]*max="10"[^>]*value="3"/);
+  assert.match(html, /-1 显示全部，0 仅显示汇总，1 至 10 显示对应人数/);
+  assert.match(settingsSource, /if \(top !== ''\) add\('top', top\)/);
+  assert.match(overlaySource, /param\('top', 't'\) \|\| '3'/);
+  assert.match(overlaySource, /Math\.min\(10, Math\.max\(-1, requestedTop\)\)/);
+  assert.match(overlaySource, /const SUMMARY_ONLY = TOP_N === 0/);
+  assert.match(overlaySource, /if \(TOP_N > 0\)[\s\S]*?users = users\.slice\(0, TOP_N\)/);
+  assert.match(overlaySource, /if \(SUMMARY_ONLY\)[\s\S]*?leaderboard\.innerHTML = ''/);
+  assert.match(overlaySource, /HEART_BOX_ONLY/);
+  assert.match(overlaySource, /boxName=.*心动盲盒/);
+  assert.match(overlayStyles, /\.blindbox-panel\.summary-only \.blindbox-header[\s\S]*?display:\s*none/);
+
+  const readMode = (search) => {
+    const sandbox = {
+      URLSearchParams,
+      location: { search },
+      document: { addEventListener() {} }
+    };
+    vm.runInNewContext(`${overlaySource}\nthis.result = { top: TOP_N, summaryOnly: SUMMARY_ONLY };`, sandbox);
+    return { top: sandbox.result.top, summaryOnly: sandbox.result.summaryOnly };
+  };
+
+  assert.deepEqual(readMode('?top=-1'), { top: -1, summaryOnly: false });
+  assert.deepEqual(readMode('?top=0'), { top: 0, summaryOnly: true });
+  assert.deepEqual(readMode(''), { top: 3, summaryOnly: false });
+  assert.deepEqual(readMode('?top=25'), { top: 10, summaryOnly: false });
 });
 
 test('blindbox overlay fills the capture width and reflows without hiding data', () => {
@@ -224,6 +324,22 @@ test('recent gift cards reserve artwork space and keep metadata in named slots',
   assert.match(styles, /\.gift-card\.has-type-icon\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 52px/);
   assert.match(styles, /\.gift-card \.gift-meta\s*\{[\s\S]*?grid-template-areas:/);
   assert.match(styles, /\.gift-card \.gift-type-icon\s*\{[\s\S]*?position:\s*static/);
+});
+
+test('blind box mapping cards keep distinct colors for known box types', () => {
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
+
+  for (const name of ['心动盲盒', '幸运盲盒', '小熊虫']) {
+    const selector = `.blind-box-chip:has(img[alt*="${name}"])`;
+    const ruleStart = styles.indexOf(`${selector} {`);
+    const ruleEnd = styles.indexOf('\n}', ruleStart);
+
+    assert.ok(ruleStart >= 0, `${name} mapping card should have a dedicated style`);
+    assert.match(styles.slice(ruleStart, ruleEnd), /border-color:\s*#[0-9a-f]{6}/i);
+    assert.match(styles.slice(ruleStart, ruleEnd), /background:\s*linear-gradient/);
+    assert.match(styles, new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\.bb-chip-name \\{`));
+    assert.match(styles, new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\.bb-chip-price \\{`));
+  }
 });
 
 test('queue headers share a fixed minimum height and song queue controls stay compact', () => {

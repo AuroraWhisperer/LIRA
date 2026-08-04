@@ -17,6 +17,9 @@
 /* 礼物相关样式 */
 @import url('./admin/gifts.css');
 
+/* 盲盒完整分析工作区 */
+@import url('./admin/blindbox-analysis.css');
+
 /* 工作区布局 */
 @import url('./admin/workspace.css');
 

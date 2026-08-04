@@ -13,9 +13,12 @@ let blindboxViewportResized = false;
 // URL 参数解析 — 支持短别名：t=top, w=winners, c=compact, tt=title
 const urlParams = new URLSearchParams(location.search);
 const param = (longKey, shortKey) => urlParams.get(longKey) || urlParams.get(shortKey);
-const TOP_N = Math.max(0, parseInt(param('top', 't') || '0', 10) || 0);
+const requestedTop = Number.parseInt(param('top', 't') || '3', 10);
+const TOP_N = Number.isFinite(requestedTop) ? Math.min(10, Math.max(-1, requestedTop)) : 3;
+const SUMMARY_ONLY = TOP_N === 0;
 const COMPACT = param('compact', 'c') === '1';
 const WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
+const HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
 const CUSTOM_TITLE = (param('title', 'tt') || '').trim();
 const HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
 const REFRESH_SEC = Math.max(10, parseInt(param('refresh', 'r') || '0', 10) || 0);
@@ -29,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (COMPACT) panel.classList.add('compact');
   if (WINNERS_ONLY) panel.classList.add('winners-only');
   if (NO_SCROLL) panel.classList.add('no-scroll');
+  if (SUMMARY_ONLY) panel.classList.add('summary-only');
 
   if (CUSTOM_TITLE) {
     document.getElementById('blindboxTitle').textContent = CUSTOM_TITLE;
@@ -64,7 +68,8 @@ async function loadStateThenStats() {
 
 async function loadStats() {
   try {
-    const response = await fetch('/api/gifts/blind-box-stats');
+    const boxFilter = HEART_BOX_ONLY ? '?boxName=' + encodeURIComponent('心动盲盒') : '';
+    const response = await fetch('/api/gifts/blind-box-stats' + boxFilter);
     const payload = await response.json();
     if (payload.ok) {
       render(payload.data);
@@ -137,23 +142,24 @@ function render(stats) {
 
   // ── 汇总 ──
   const summaryEl = document.getElementById('blindboxSummary');
-  if (summary && summary.boxCount > 0) {
-    const profitClass = summary.totalProfit >= 0 ? 'profit-up' : 'profit-down';
-    const profitSign = summary.totalProfit >= 0 ? '+' : '';
+  const summaryValues = summary || { boxCount: 0, totalCost: 0, totalProfit: 0 };
+  if (SUMMARY_ONLY || summaryValues.boxCount > 0) {
+    const profitClass = summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
+    const profitSign = summaryValues.totalProfit >= 0 ? '+' : '';
     summaryEl.innerHTML = `
       <div class="blindbox-stat-card">
         <span class="stat-icon">📦</span>
-        <span class="stat-value">${summary.boxCount}</span>
+        <span class="stat-value">${summaryValues.boxCount}</span>
         <span class="stat-label">盒子数</span>
       </div>
       <div class="blindbox-stat-card">
         <span class="stat-icon">💰</span>
-        <span class="stat-value">¥${formatMoney(summary.totalCost)}</span>
+        <span class="stat-value">¥${formatMoney(summaryValues.totalCost)}</span>
         <span class="stat-label">总成本</span>
       </div>
       <div class="blindbox-stat-card ${profitClass}">
-        <span class="stat-icon">${summary.totalProfit >= 0 ? '📈' : '📉'}</span>
-        <span class="stat-value">${profitSign}¥${formatMoney(Math.abs(summary.totalProfit))}</span>
+        <span class="stat-icon">${summaryValues.totalProfit >= 0 ? '📈' : '📉'}</span>
+        <span class="stat-value">${profitSign}¥${formatMoney(Math.abs(summaryValues.totalProfit))}</span>
         <span class="stat-label">总盈亏</span>
       </div>
     `;
@@ -169,6 +175,11 @@ function render(stats) {
 
   // ── 排行榜 ──
   const leaderboard = document.getElementById('blindboxLeaderboard');
+  if (SUMMARY_ONLY) {
+    leaderboard.innerHTML = '';
+    return;
+  }
+
   if (users.length === 0) {
     leaderboard.innerHTML = `
       <div class="blindbox-empty">

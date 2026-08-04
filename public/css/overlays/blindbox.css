@@ -305,6 +305,22 @@ body.blindbox-overlay-body {
   display: none;
 }
 
+.blindbox-panel.summary-only .blindbox-header,
+.blindbox-panel.summary-only .blindbox-leaderboard,
+.blindbox-panel.summary-only .blindbox-footer {
+  display: none;
+}
+
+.blindbox-panel.summary-only .blindbox-content {
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: clamp(6px, 2cqw, 12px);
+}
+
+.blindbox-panel.summary-only .blindbox-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .blindbox-panel.compact .blindbox-content {
   gap: clamp(5px, 1.5cqw, 9px);
   padding: clamp(6px, 2cqw, 11px);

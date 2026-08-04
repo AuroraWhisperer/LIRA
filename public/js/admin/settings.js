@@ -284,8 +284,7 @@
     // 盲盒投屏：所有控件变更时实时更新 URL
     const blindboxControls = [
       'blindboxOverlayTitle', 'blindboxOverlayTop',
-      'blindboxWinnersOnly', 'blindboxCompact',
-      'blindboxNoScroll', 'blindboxLowPower'
+      'blindboxWinnersOnly', 'blindboxHeartBoxOnly'
     ];
     for (const id of blindboxControls) {
       const el = document.getElementById(id);
@@ -309,11 +308,6 @@
       } catch (e) {
         prompt('复制以下地址：', url);
       }
-    });
-
-    // 盲盒投屏：预览
-    document.getElementById('blindboxOpenUrlBtn').addEventListener('click', () => {
-      window.open(buildBlindboxOverlayUrl(), '_blank');
     });
 
     // 初始化 URL 显示
@@ -363,15 +357,13 @@
     const add = (key, value) => { if (value) params.push(`${key}=${encodeURIComponent(value)}`); };
 
     const top = val('blindboxOverlayTop');
-    if (top && top !== '0') add('top', top);
+    if (top !== '') add('top', top);
 
     const title = val('blindboxOverlayTitle').trim();
     if (title) add('title', title);
 
     if (checked('blindboxWinnersOnly')) add('winners', '1');
-    if (checked('blindboxCompact')) add('compact', '1');
-    if (checked('blindboxNoScroll')) add('noScroll', '1');
-    if (checked('blindboxLowPower')) add('quality', 'low');
+    if (checked('blindboxHeartBoxOnly')) add('heartBox', '1');
 
     return params.length ? `${base}?${params.join('&')}` : base;
   }
@@ -380,8 +372,11 @@
   function checked(id) { const el = document.getElementById(id); return el ? el.checked : false; }
 
   function updateBlindboxOverlayUrl() {
+    const url = buildBlindboxOverlayUrl();
     const code = document.getElementById('blindboxOverlayUrl');
-    if (code) code.textContent = buildBlindboxOverlayUrl();
+    const liveLink = document.getElementById('blindboxLiveLink');
+    if (code) code.textContent = url;
+    if (liveLink) liveLink.href = url;
   }
 
   function collectSettings() {

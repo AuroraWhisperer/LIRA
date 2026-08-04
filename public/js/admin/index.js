@@ -14,6 +14,7 @@ import './gifts/detection.js';
 import './gifts/sprint.js';
 import './gifts/recent.js';
 import './gifts/blindbox.js';
+import './gifts/blindbox-analysis.js';
 import './gifts/history.js';
 import './gifts/index.js';
 import './metrics.js';

@@ -162,34 +162,34 @@
             </div>
             <div class="stat-chip ${profitClass}">
               <span class="stat-chip-icon">${summary.totalProfit >= 0 ? '↗' : '↘'}</span>
-              <span class="stat-chip-copy"><small>今日盈亏</small><strong>${profitSign}${formatMoney(Math.abs(summary.totalProfit))}</strong></span>
+              <span class="stat-chip-copy"><small>观众盈亏</small><strong>${profitSign}${formatMoney(Math.abs(summary.totalProfit))}</strong></span>
             </div>
           </div>
         `;
       }
     }
 
-    // 每条盲盒开盒记录明细（最多 500 条）
+    // 首页只展示按观众汇总；完整记录放在独立分析工作区。
     const body = document.getElementById('blindBoxStatsBody');
     if (!body) return;
 
-    const records = stats.records;
-    if (!records || records.length === 0) {
+    const users = Array.isArray(perUser) ? perUser : [];
+    if (users.length === 0) {
       body.innerHTML = '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
       return;
     }
 
-    body.innerHTML = records.map((rec) => {
-      const profitSign = rec.profit > 0 ? '+' : rec.profit < 0 ? '-' : '';
-      const profitClass = rec.profit > 0 ? 'profit-up' : rec.profit < 0 ? 'profit-down' : '';
+    body.innerHTML = users.slice(0, 10).map((user) => {
+      const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
+      const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
       return `
-        <tr>
-          <td class="user-cell">${escapeHtml(rec.user_name)}</td>
-          <td>${escapeHtml(rec.blind_box_name)}</td>
-          <td>${formatMoney(rec.cost)}</td>
-          <td>${formatMoney(rec.value)}</td>
-          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(rec.profit))}</td>
-          <td class="time-cell">${formatTime(rec.created_at)}</td>
+        <tr class="blind-stats-user-row" tabindex="0" data-viewer="${escapeAttr(user.viewer || '')}" title="查看${escapeAttr(user.userName || '观众')}的开盒记录">
+          <td class="user-cell">${escapeHtml(user.userName || '观众')}</td>
+          <td>${Number(user.boxCount || 0)}</td>
+          <td>${Number(user.boxTypeCount || 0)} 种</td>
+          <td>${formatMoney(user.totalCost)}</td>
+          <td>${formatMoney(user.totalValue)}</td>
+          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</td>
         </tr>
       `;
     }).join('');
@@ -204,11 +204,29 @@
     const panelHeader = section?.querySelector('.panel-header');
 
     panelHeader?.addEventListener('click', (e) => {
+      if (e.target.closest('#blindBoxAnalysisOpenBtn')) return;
       const collapsed = section?.classList.toggle('is-collapsed') || false;
       if (toggle) {
         toggle.setAttribute('aria-expanded', String(!collapsed));
         toggle.title = collapsed ? '展开盲盒盈亏' : '折叠盲盒盈亏';
       }
+    });
+
+    document.getElementById('blindBoxAnalysisOpenBtn')?.addEventListener('click', () => {
+      window.AdminApp.gifts.analysis?.open({ view: 'users' });
+    });
+
+    document.getElementById('blindBoxStatsBody')?.addEventListener('click', (event) => {
+      const row = event.target.closest('[data-viewer]');
+      if (row) window.AdminApp.gifts.analysis?.open({ viewer: row.dataset.viewer, view: 'records' });
+    });
+
+    document.getElementById('blindBoxStatsBody')?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const row = event.target.closest('[data-viewer]');
+      if (!row) return;
+      event.preventDefault();
+      window.AdminApp.gifts.analysis?.open({ viewer: row.dataset.viewer, view: 'records' });
     });
   }
 

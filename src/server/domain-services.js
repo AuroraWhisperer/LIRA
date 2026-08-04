@@ -9,7 +9,7 @@ const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
 const songService = require('../music/song-service');
 const queueService = require('../music/queue-service');
-const giftService = require('../bilibili/gift-service');
+const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 

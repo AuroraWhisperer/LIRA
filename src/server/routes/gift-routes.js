@@ -23,8 +23,23 @@ const routes = {
   },
 
   'GET /api/gifts/blind-box-stats'(context, request, res) {
-    const stats = context.gifts.getBlindBoxStats();
+    const boxName = request.query.get('boxName') || '';
+    const stats = context.gifts.getBlindBoxStats({ boxName });
     sendJson(res, 200, { ok: true, data: stats });
+  },
+
+  'GET /api/gifts/blind-box-analysis'(context, request, res) {
+    const query = request.query;
+    const data = context.gifts.getBlindBoxAnalysis({
+      viewer: query.get('viewer') || '',
+      box: query.get('box') || '',
+      view: query.get('view') || 'users',
+      page: query.get('page') || '1',
+      limit: query.get('limit') || '25',
+      sort: query.get('sort') || '',
+      direction: query.get('direction') || 'desc'
+    });
+    sendJson(res, 200, { ok: true, data });
   },
 
   'GET /api/gifts/search'(context, request, res) {

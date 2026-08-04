@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260804-01">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260804-02">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260803-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -1161,9 +1161,15 @@
                 </span>
                 <h2>今日盲盒盈亏</h2>
               </div>
-              <button id="blindBoxStatsToggle" class="section-toggle" type="button" aria-expanded="true" title="折叠盲盒盈亏">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 14 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
+              <div class="actions">
+                <button type="button" id="blindBoxAnalysisOpenBtn" class="gift-history-open-btn" title="查看完整盲盒分析">
+                  <span>查看全部</span>
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button id="blindBoxStatsToggle" class="section-toggle" type="button" aria-expanded="true" title="折叠盲盒盈亏">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 14 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
             </div>
             <div id="blindBoxStatsCollapsible" class="blind-stats-collapsible">
               <div class="panel-body">
@@ -1179,11 +1185,11 @@
                     <thead>
                       <tr>
                         <th>观众</th>
-                        <th>盲盒</th>
-                        <th>成本</th>
-                        <th>开出</th>
-                        <th>盈亏</th>
-                        <th>时间</th>
+                        <th>盒数</th>
+                        <th>盒型</th>
+                        <th>总成本</th>
+                        <th>开出价值</th>
+                        <th>观众盈亏</th>
                       </tr>
                     </thead>
                     <tbody id="blindBoxStatsBody">
@@ -1198,10 +1204,10 @@
           <section class="panel gift-blindbox-broadcast-panel">
             <div class="panel-header">
               <div>
-                <span class="panel-kicker">直播画面</span>
-                <h2>盲盒盈亏版</h2>
+                <span class="panel-kicker">观众画面</span>
+                <h2>盲盒盈亏榜</h2>
               </div>
-              <a class="blindbox-live-link" href="/blindbox" target="_blank" rel="noopener">打开画面</a>
+              <a id="blindboxLiveLink" class="blindbox-live-link" href="/blindbox" target="_blank" rel="noopener">打开画面</a>
             </div>
             <div class="panel-body blindbox-builder">
               <div class="blindbox-builder-intro">
@@ -1216,32 +1222,22 @@
                   <span class="hint">留空显示默认标题</span>
                 </label>
                 <label>
-                  <span class="blindbox-builder-label">显示人数</span>
-                  <input id="blindboxOverlayTop" type="number" min="0" max="50" value="5" placeholder="5">
-                  <span class="hint">填 0 显示全部，建议 5 至 10 人</span>
+                  <span class="blindbox-builder-label">排行人数</span>
+                  <input id="blindboxOverlayTop" type="number" min="-1" max="10" value="3" placeholder="3">
+                  <span class="hint">-1 显示全部，0 仅显示汇总，1 至 10 显示对应人数</span>
                 </label>
               </div>
 
               <div class="blindbox-builder-switches">
                 <label class="blindbox-switch">
                   <input id="blindboxWinnersOnly" type="checkbox" checked>
-                  <span>仅显示盈利者</span>
+                  <span>仅显示盈利</span>
                   <span class="hint">隐藏亏损观众</span>
                 </label>
                 <label class="blindbox-switch">
-                  <input id="blindboxCompact" type="checkbox">
-                  <span>紧凑模式</span>
-                  <span class="hint">减少行距，适合小窗口</span>
-                </label>
-                <label class="blindbox-switch">
-                  <input id="blindboxNoScroll" type="checkbox">
-                  <span>禁止滚动</span>
-                  <span class="hint">保持排行榜内容固定</span>
-                </label>
-                <label class="blindbox-switch">
-                  <input id="blindboxLowPower" type="checkbox">
-                  <span>低功耗</span>
-                  <span class="hint">关闭特效，降低捕捉占用</span>
+                  <input id="blindboxHeartBoxOnly" type="checkbox">
+                  <span>仅显示心动盲盒</span>
+                  <span class="hint">汇总和排行只统计心动盲盒</span>
                 </label>
               </div>
 
@@ -1252,7 +1248,6 @@
                 </div>
                 <div class="blindbox-url-actions">
                   <button id="blindboxCopyUrlBtn" class="primary" type="button">复制链接</button>
-                  <button id="blindboxOpenUrlBtn" class="secondary" type="button">预览</button>
                 </div>
               </div>
             </div>
@@ -1886,6 +1881,85 @@
           </div>
         </aside>
 
+        <!-- 盲盒分析二级工作区：保留软件顶栏，接管其余可用区域。 -->
+        <section
+          class="blind-analysis-workspace"
+          id="blindBoxAnalysisWorkspace"
+          role="region"
+          aria-labelledby="blindBoxAnalysisTitle"
+          hidden
+        >
+          <header class="blind-analysis-header">
+            <div class="blind-analysis-title-block">
+              <span class="blind-analysis-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <div>
+                <h2 id="blindBoxAnalysisTitle" tabindex="-1">今日盲盒分析</h2>
+                <p id="blindBoxAnalysisSubtitle">今天的全部盲盒</p>
+              </div>
+            </div>
+            <button id="blindBoxAnalysisClose" class="blind-analysis-close" type="button" title="关闭" aria-label="关闭盲盒分析">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </header>
+
+          <div class="blind-analysis-content">
+            <section class="blind-analysis-summary" aria-label="当前统计">
+              <div><span>盒数</span><strong id="blindBoxAnalysisCount">0</strong></div>
+              <div><span>总成本</span><strong id="blindBoxAnalysisCost">¥0.00</strong></div>
+              <div><span>开出价值</span><strong id="blindBoxAnalysisValue">¥0.00</strong></div>
+              <div id="blindBoxAnalysisProfitItem"><span>观众盈亏</span><strong id="blindBoxAnalysisProfit">¥0.00</strong></div>
+            </section>
+
+            <div class="blind-analysis-toolbar">
+              <div class="blind-analysis-filters" aria-label="筛选范围">
+                <label>
+                  <span>看哪位观众</span>
+                  <select id="blindBoxAnalysisViewer">
+                    <option value="">全部观众</option>
+                  </select>
+                </label>
+                <label>
+                  <span>看哪种盲盒</span>
+                  <select id="blindBoxAnalysisBox">
+                    <option value="">全部盲盒</option>
+                  </select>
+                </label>
+                <button id="blindBoxAnalysisClear" class="blind-analysis-clear" type="button">清除选择</button>
+              </div>
+              <div class="blind-analysis-view-tabs" role="group" aria-label="查看方式">
+                <button class="active" type="button" data-blind-analysis-view="users" aria-pressed="true">按观众看</button>
+                <button type="button" data-blind-analysis-view="boxes" aria-pressed="false">按盲盒看</button>
+                <button type="button" data-blind-analysis-view="records" aria-pressed="false">开盒记录</button>
+              </div>
+            </div>
+
+            <section class="blind-analysis-results" aria-live="polite" aria-busy="false">
+              <div class="blind-analysis-results-head">
+                <div>
+                  <h3 id="blindBoxAnalysisViewTitle">观众排行</h3>
+                  <span id="blindBoxAnalysisResultCount">共 0 人</span>
+                </div>
+                <span class="blind-analysis-updated" id="blindBoxAnalysisUpdated"></span>
+              </div>
+              <div class="blind-analysis-table-wrap">
+                <table class="blind-analysis-table">
+                  <thead id="blindBoxAnalysisHead"></thead>
+                  <tbody id="blindBoxAnalysisBody">
+                    <tr><td class="blind-analysis-empty">正在读取今天的数据…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <footer class="blind-analysis-pagination" id="blindBoxAnalysisPagination" hidden>
+                <button id="blindBoxAnalysisPrev" type="button">上一页</button>
+                <span id="blindBoxAnalysisPageInfo">第 1 页，共 1 页</span>
+                <button id="blindBoxAnalysisNext" type="button">下一页</button>
+              </footer>
+            </section>
+          </div>
+        </section>
+
         <!-- 全部礼物流水抽屉 -->
         <div class="gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
         <aside class="gift-drawer" id="giftHistoryDrawer">
@@ -1960,7 +2034,7 @@
       </div>
     </div>
     <div id="toast" class="toast-stack"></div>
-    <script type="module" src="/js/admin/index.js?v=20260804-02"></script>
+    <script type="module" src="/js/admin/index.js?v=20260804-03"></script>
     <script type="module" src="/js/playback.js?v=20260731-11"></script>
   </body>
 </html>

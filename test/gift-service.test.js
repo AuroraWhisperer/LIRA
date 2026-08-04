@@ -8,9 +8,10 @@ const test = require('node:test');
 const packetParser = require('../src/bilibili/packet-parser');
 const {
   createGiftService,
+  getBlindBoxAnalysis,
   getBlindBoxStats,
   repairGiftV2Events
-} = require('../src/bilibili/gift-service');
+} = require('../src/bilibili/gift');
 const { closeDatabases, createDatabases, getSchemaVersions } = require('../src/storage/database');
 
 test('final SEND_GIFT combos flush on timer expiry and service disposal', () => {
@@ -482,6 +483,195 @@ test('blind box statistics count gift quantity and include record ids', () => {
     assert.equal(stats.perUser[0].boxCount, 5);
     assert.equal(stats.records[0].id, inserted.id);
     assert.equal(stats.records[0].num, 5);
+  } finally {
+    service.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('blind box statistics can filter one blind box type without changing the default total', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-blind-filter-'));
+  const db = createDatabases({ dataDir });
+  const context = {
+    db,
+    state: { giftComboPending: new Map(), blindBoxCache: null },
+    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' })
+  };
+  const service = createGiftService(context);
+
+  try {
+    service.add({
+      platformId: 'heart-box-filter',
+      cmd: 'BLIND_GIFT',
+      giftId: 'heart-output',
+      giftName: 'Heart Output',
+      uid: '42',
+      userName: 'Alice',
+      num: 2,
+      unitPrice: 10,
+      totalPrice: 20,
+      isBlindBox: true,
+      blindBoxName: '心动盲盒',
+      blindBoxPrice: 15,
+      messageTimestamp: Date.now()
+    });
+    service.add({
+      platformId: 'lucky-box-filter',
+      cmd: 'BLIND_GIFT',
+      giftId: 'lucky-output',
+      giftName: 'Lucky Output',
+      uid: '43',
+      userName: 'Bob',
+      num: 3,
+      unitPrice: 10,
+      totalPrice: 30,
+      isBlindBox: true,
+      blindBoxName: '幸运盲盒',
+      blindBoxPrice: 8,
+      messageTimestamp: Date.now()
+    });
+
+    const allStats = getBlindBoxStats(context);
+    const heartStats = getBlindBoxStats(context, { boxName: '心动盲盒' });
+
+    assert.equal(allStats.summary.boxCount, 5);
+    assert.equal(allStats.perUser.length, 2);
+    assert.equal(heartStats.summary.boxCount, 2);
+    assert.equal(heartStats.perUser.length, 1);
+    assert.equal(heartStats.perUser[0].userName, 'Alice');
+    assert.equal(heartStats.records.length, 1);
+    assert.equal(heartStats.records[0].blind_box_name, '心动盲盒');
+  } finally {
+    service.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('blind box analysis shares filters across viewer, box, and record views', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-blind-analysis-'));
+  const db = createDatabases({ dataDir });
+  const context = {
+    db,
+    state: { giftComboPending: new Map(), blindBoxCache: null },
+    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' })
+  };
+  const service = createGiftService(context);
+
+  try {
+    const gifts = [
+      { platformId: 'analysis-1', giftId: 'heart-a', giftName: 'Heart A', uid: '42', userName: 'Alice', num: 2, totalPrice: 20, blindBoxName: '心动盲盒', blindBoxPrice: 10 },
+      { platformId: 'analysis-2', giftId: 'lucky-a', giftName: 'Lucky A', uid: '42', userName: 'Alice', num: 1, totalPrice: 4, blindBoxName: '幸运盲盒', blindBoxPrice: 8 },
+      { platformId: 'analysis-3', giftId: 'heart-b', giftName: 'Heart B', uid: '84', userName: 'Bob', num: 3, totalPrice: 30, blindBoxName: '心动盲盒', blindBoxPrice: 18 }
+    ];
+    gifts.forEach((gift, index) => service.add({
+      ...gift,
+      cmd: 'BLIND_GIFT',
+      unitPrice: gift.totalPrice / gift.num,
+      isBlindBox: true,
+      messageTimestamp: Date.now() + index
+    }));
+    const tomorrow = new Date();
+    tomorrow.setHours(24, 0, 1, 0);
+    service.add({
+      platformId: 'analysis-future',
+      cmd: 'BLIND_GIFT',
+      giftId: 'future-output',
+      giftName: 'Future Output',
+      uid: 'future',
+      userName: 'Future Viewer',
+      num: 10,
+      unitPrice: 10,
+      totalPrice: 100,
+      isBlindBox: true,
+      blindBoxName: '未来盲盒',
+      blindBoxPrice: 50,
+      messageTimestamp: tomorrow.getTime()
+    });
+
+    const users = getBlindBoxAnalysis(context, { view: 'users' });
+    assert.equal(users.summary.boxCount, 6);
+    assert.equal(users.summary.totalCost, 36);
+    assert.equal(users.summary.totalValue, 54);
+    assert.equal(users.summary.totalProfit, 18);
+    assert.equal(users.items.length, 2);
+    assert.deepEqual(users.items.map(item => item.userName), ['Bob', 'Alice']);
+    assert.deepEqual(users.filters.viewers.map(item => item.label), ['Alice', 'Bob']);
+    assert.deepEqual(users.filters.boxes, ['心动盲盒', '幸运盲盒']);
+
+    const aliceKey = users.filters.viewers.find(item => item.label === 'Alice').value;
+    const aliceBoxes = getBlindBoxAnalysis(context, {
+      viewer: aliceKey,
+      view: 'boxes',
+      sort: 'boxCount',
+      direction: 'desc'
+    });
+    assert.equal(aliceBoxes.summary.boxCount, 3);
+    assert.equal(aliceBoxes.summary.totalProfit, 6);
+    assert.deepEqual(aliceBoxes.items.map(item => item.boxName), ['心动盲盒', '幸运盲盒']);
+
+    const aliceHeartRecords = getBlindBoxAnalysis(context, {
+      viewer: aliceKey,
+      box: '心动盲盒',
+      view: 'records',
+      page: 1,
+      limit: 1
+    });
+    assert.equal(aliceHeartRecords.summary.boxCount, 2);
+    assert.equal(aliceHeartRecords.pagination.total, 1);
+    assert.equal(aliceHeartRecords.pagination.totalPages, 1);
+    assert.equal(aliceHeartRecords.items[0].giftName, 'Heart A');
+    assert.equal(aliceHeartRecords.items[0].num, 2);
+  } finally {
+    service.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('blind box analysis bounds pagination and ignores unsupported sort fields', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-blind-pagination-'));
+  const db = createDatabases({ dataDir });
+  const context = {
+    db,
+    state: { giftComboPending: new Map(), blindBoxCache: null },
+    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' })
+  };
+  const service = createGiftService(context);
+
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      service.add({
+        platformId: `page-${index}`,
+        cmd: 'BLIND_GIFT',
+        giftId: `gift-${index}`,
+        giftName: `Gift ${index}`,
+        uid: '42',
+        userName: 'Alice',
+        num: 1,
+        unitPrice: index + 1,
+        totalPrice: index + 1,
+        isBlindBox: true,
+        blindBoxName: '心动盲盒',
+        blindBoxPrice: 1,
+        messageTimestamp: Date.now() + index
+      });
+    }
+
+    const result = getBlindBoxAnalysis(context, {
+      view: 'records',
+      page: 2,
+      limit: 2,
+      sort: 'DROP TABLE gift_events',
+      direction: 'sideways'
+    });
+    assert.equal(result.pagination.page, 2);
+    assert.equal(result.pagination.limit, 2);
+    assert.equal(result.pagination.total, 3);
+    assert.equal(result.pagination.totalPages, 2);
+    assert.equal(result.items.length, 1);
+    assert.equal(db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 3);
   } finally {
     service.dispose();
     closeDatabases(db);

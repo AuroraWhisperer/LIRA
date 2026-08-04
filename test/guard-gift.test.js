@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const packetParser = require('../src/bilibili/packet-parser');
-const { createGiftService } = require('../src/bilibili/gift-service');
+const { createGiftService } = require('../src/bilibili/gift');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 
 function withGiftService(run) {

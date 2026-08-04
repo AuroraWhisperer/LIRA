@@ -160,6 +160,14 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(health.serviceId, 'bilibili-live-song-plugin');
     assert.equal(path.resolve(health.dataDir), path.resolve(dataDir));
 
+    const blindBoxAnalysis = await requestJson(
+      app.baseUrl,
+      '/api/gifts/blind-box-analysis?view=records&page=1&limit=25'
+    );
+    assert.equal(blindBoxAnalysis.summary.boxCount, 0);
+    assert.deepEqual(blindBoxAnalysis.items, []);
+    assert.equal(blindBoxAnalysis.pagination.total, 0);
+
     for (const pathname of ['/admin', '/queue', '/songlist', '/lyrics']) {
       const response = await fetch(`${app.baseUrl}${pathname}`);
       assert.equal(response.status, 200, pathname);

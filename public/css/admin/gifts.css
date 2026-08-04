@@ -480,6 +480,54 @@
   box-sizing: border-box;
 }
 
+/* 心动盲盒专属样式 — 珊瑚红配色取自盲盒图标 */
+.blind-box-chip:has(img[alt*="心动盲盒"]) {
+  border-color: #f3a2aa;
+  background: linear-gradient(135deg, #fff6f7 0%, #fde9ec 100%);
+}
+
+.blind-box-chip:has(img[alt*="心动盲盒"]):hover {
+  border-color: #d85e6d;
+  box-shadow: 0 4px 12px rgba(216, 94, 109, 0.18);
+}
+
+.blind-box-chip:has(img[alt*="心动盲盒"]) .bb-chip-icon {
+  background: linear-gradient(135deg, #fff0f2 0%, #fbd8dd 100%);
+}
+
+.blind-box-chip:has(img[alt*="心动盲盒"]) .bb-chip-name {
+  color: #b54555;
+}
+
+.blind-box-chip:has(img[alt*="心动盲盒"]) .bb-chip-price {
+  color: #c94f60;
+  background: rgba(201, 79, 96, 0.09);
+}
+
+/* 幸运盲盒专属样式 — 嫩叶绿配色取自盲盒图标 */
+.blind-box-chip:has(img[alt*="幸运盲盒"]) {
+  border-color: #b8d983;
+  background: linear-gradient(135deg, #fbfff4 0%, #edf7dc 100%);
+}
+
+.blind-box-chip:has(img[alt*="幸运盲盒"]):hover {
+  border-color: #78a83f;
+  box-shadow: 0 4px 12px rgba(120, 168, 63, 0.18);
+}
+
+.blind-box-chip:has(img[alt*="幸运盲盒"]) .bb-chip-icon {
+  background: linear-gradient(135deg, #f6fce9 0%, #e3f1c9 100%);
+}
+
+.blind-box-chip:has(img[alt*="幸运盲盒"]) .bb-chip-name {
+  color: #56852d;
+}
+
+.blind-box-chip:has(img[alt*="幸运盲盒"]) .bb-chip-price {
+  color: #669735;
+  background: rgba(102, 151, 53, 0.1);
+}
+
 /* 小熊虫盲盒专属样式 — 配色取自盲盒图标（蜜桃粉 #f5a6cb / 暖金 #fede82 / 深玫瑰 #d1568e）*/
 .blind-box-chip:has(img[alt*="小熊虫"]) {
   border-color: #f5a6cb;
@@ -862,6 +910,19 @@
   background: #fafbfd;
 }
 
+.blind-stats-table .blind-stats-user-row {
+  cursor: pointer;
+}
+
+.blind-stats-table .blind-stats-user-row:hover {
+  background: #f3faf8;
+}
+
+.blind-stats-table .blind-stats-user-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .blind-stats-table .user-cell {
   max-width: 320px;
   overflow: hidden;
@@ -1017,8 +1078,9 @@
 
 .blindbox-builder-switches {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
   gap: 8px;
+  max-width: 888px;
 }
 
 .blindbox-switch {
@@ -1129,12 +1191,6 @@
 
   .blindbox-url-actions button {
     flex: 1;
-  }
-}
-
-@media (max-width: 920px) {
-  .blindbox-builder-switches {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

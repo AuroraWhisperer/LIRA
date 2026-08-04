@@ -48,6 +48,9 @@ export class StateService {
           state: this.appState,
           songs: this.songs
         });
+        if (isGiftSnapshotReason(payload.reason)) {
+          eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
+        }
         this.scheduleSongReload();
       }
     });
@@ -176,6 +179,13 @@ export class StateService {
   setShuttingDown(value) {
     this.shuttingDown = value;
   }
+}
+
+function isGiftSnapshotReason(reason) {
+  return reason === 'bilibili:gift'
+    || reason === 'gift:clear-recent'
+    || reason === 'database:clear-gifts'
+    || reason === 'database:clear-all';
 }
 
 // 创建单例实例

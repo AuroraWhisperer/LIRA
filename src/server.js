@@ -20,7 +20,7 @@ const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { createLyricsService } = require('./music/lyrics-service');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
-const giftService = require('./bilibili/gift-service');
+const giftService = require('./bilibili/gift');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -203,6 +203,7 @@ function createServerRuntime(runtimeOptions = {}) {
         resetSprint: domainServices.gifts.resetSprint,
         getHistory: (options) => domainServices.gifts.getHistory(options),
         getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
+        getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
         search: domainServices.gifts.search
       },
       debug: {
