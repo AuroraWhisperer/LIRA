@@ -343,7 +343,7 @@ test('recent gift cards reserve artwork space and keep metadata in named slots',
   assert.match(styles, /\.gift-card \.gift-type-icon\s*\{[\s\S]*?position:\s*static/);
 });
 
-test('recent guard gift cards use the matching guard level colors', () => {
+test('recent guard gift cards use subtle matching guard level colors', () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
 
@@ -351,9 +351,10 @@ test('recent guard gift cards use the matching guard level colors', () => {
   assert.match(script, /name: '总督', level: 1/);
   assert.match(script, /name: '提督', level: 2/);
   assert.match(script, /name: '舰长', level: 3/);
-  assert.match(styles, /\.gift-card\.guard-card\.guard-1\s*\{[^}]*background:\s*#f25f72/);
-  assert.match(styles, /\.gift-card\.guard-card\.guard-2\s*\{[^}]*background:\s*#8d67e8/);
-  assert.match(styles, /\.gift-card\.guard-card\.guard-3\s*\{[^}]*background:\s*#4b91e8/);
+  assert.match(styles, /\.gift-card\.guard-card\.guard-1\s*\{[^}]*border-left-color:\s*#f25f72[^}]*background:\s*linear-gradient/);
+  assert.match(styles, /\.gift-card\.guard-card\.guard-2\s*\{[^}]*border-left-color:\s*#8d67e8[^}]*background:\s*linear-gradient/);
+  assert.match(styles, /\.gift-card\.guard-card\.guard-3\s*\{[^}]*border-left-color:\s*#4b91e8[^}]*background:\s*linear-gradient/);
+  assert.doesNotMatch(styles, /\.gift-card\.guard-card\s*\{[^}]*color:\s*var\(--color-bg-primary\)/);
 });
 
 test('recent blind box cards keep box colors while profit text uses stock-style colors', () => {
