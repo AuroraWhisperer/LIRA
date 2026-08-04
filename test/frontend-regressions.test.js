@@ -52,6 +52,14 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
   assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);
 });
 
+test('gift history preserves negative blind box profit', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'history.js'), 'utf8');
+
+  assert.match(source, /blindProfit < 0 \? '-' : ''/);
+  assert.match(source, /gift-remark-tag blind \$\{profitClass\}/);
+  assert.match(source, /formatMoney\(Math\.abs\(Number\(blindProfit\) \|\| 0\)\)/);
+});
+
 test('blind box analysis is a separate accessible workspace module', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const entry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
@@ -65,6 +73,9 @@ test('blind box analysis is a separate accessible workspace module', () => {
   assert.match(html, /id="blindBoxAnalysisClose"[^>]*aria-label="关闭盲盒分析"/);
   assert.match(html, /id="blindBoxAnalysisViewer"/);
   assert.match(html, /id="blindBoxAnalysisBox"/);
+  assert.match(html, /id="blindBoxAnalysisViewer"[^>]*aria-haspopup="listbox"/);
+  assert.match(html, /id="blindBoxAnalysisViewerMenu"[^>]*role="listbox"/);
+  assert.match(html, /id="blindBoxAnalysisBoxMenu"[^>]*role="listbox"/);
   assert.match(html, /data-blind-analysis-view="users"/);
   assert.match(html, /data-blind-analysis-view="boxes"/);
   assert.match(html, /data-blind-analysis-view="records"/);

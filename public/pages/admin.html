@@ -1914,18 +1914,22 @@
 
             <div class="blind-analysis-toolbar">
               <div class="blind-analysis-filters" aria-label="筛选范围">
-                <label>
+                <div class="blind-analysis-filter">
                   <span>看哪位观众</span>
-                  <select id="blindBoxAnalysisViewer">
-                    <option value="">全部观众</option>
-                  </select>
-                </label>
-                <label>
+                  <button class="blind-analysis-select" id="blindBoxAnalysisViewer" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="blindBoxAnalysisViewerMenu">
+                    <span>全部观众</span>
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="blind-analysis-select-menu" id="blindBoxAnalysisViewerMenu" role="listbox" aria-label="看哪位观众" hidden></div>
+                </div>
+                <div class="blind-analysis-filter">
                   <span>看哪种盲盒</span>
-                  <select id="blindBoxAnalysisBox">
-                    <option value="">全部盲盒</option>
-                  </select>
-                </label>
+                  <button class="blind-analysis-select" id="blindBoxAnalysisBox" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="blindBoxAnalysisBoxMenu">
+                    <span>全部盲盒</span>
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <div class="blind-analysis-select-menu" id="blindBoxAnalysisBoxMenu" role="listbox" aria-label="看哪种盲盒" hidden></div>
+                </div>
                 <button id="blindBoxAnalysisClear" class="blind-analysis-clear" type="button">清除选择</button>
               </div>
               <div class="blind-analysis-view-tabs" role="group" aria-label="查看方式">

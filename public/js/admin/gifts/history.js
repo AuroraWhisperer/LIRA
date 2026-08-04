@@ -221,12 +221,12 @@
     }
     if (item.is_blind_box) {
       const blindProfit = item.blind_profit;
-      const profitSign = blindProfit > 0 ? '+' : '';
+      const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
       const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
       const iconHtml = blindBoxIcon
         ? `<img class="gift-blind-box-icon" src="${escapeAttr(blindBoxIcon.src)}" alt="${escapeAttr(blindBoxIcon.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy">`
         : '🎁';
-      remarks.push(`<span class="gift-remark-tag blind">${iconHtml} 盲盒 ${profitSign}${formatMoney(blindProfit || 0)}</span>`);
+      remarks.push(`<span class="gift-remark-tag blind ${profitClass}">${iconHtml} 盲盒 ${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span>`);
     }
     return `
       <tr>

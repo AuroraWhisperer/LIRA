@@ -32,6 +32,7 @@ body.blind-analysis-open .playback-player-panel {
   align-items: center;
   gap: 16px;
   min-height: 72px;
+  flex: 0 0 auto;
   padding: 10px 20px 10px 24px;
   border-bottom: 1px solid #dce3e8;
   background: #fff;
@@ -96,7 +97,7 @@ body.blind-analysis-open .playback-player-panel {
 
 .blind-analysis-close:focus-visible,
 .blind-analysis-toolbar button:focus-visible,
-.blind-analysis-toolbar select:focus-visible,
+.blind-analysis-select:focus-visible,
 .blind-analysis-pagination button:focus-visible {
   outline: 2px solid var(--analysis-green);
   outline-offset: 2px;
@@ -113,6 +114,7 @@ body.blind-analysis-open .playback-player-panel {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  overflow: hidden;
   padding: 14px 16px 16px;
 }
 
@@ -123,6 +125,7 @@ body.blind-analysis-open .playback-player-panel {
   border: 1px solid #dce3e8;
   border-radius: 8px;
   background: #fff;
+  flex: 0 0 auto;
 }
 
 .blind-analysis-summary > div {
@@ -175,6 +178,7 @@ body.blind-analysis-open .playback-player-panel {
   border: 1px solid #dce3e8;
   border-radius: 8px;
   background: #fff;
+  flex: 0 0 auto;
 }
 
 .blind-analysis-filters {
@@ -184,7 +188,8 @@ body.blind-analysis-open .playback-player-panel {
   min-width: 0;
 }
 
-.blind-analysis-filters label {
+.blind-analysis-filter {
+  position: relative;
   display: grid;
   gap: 5px;
   min-width: 190px;
@@ -193,13 +198,116 @@ body.blind-analysis-open .playback-player-panel {
   font-weight: 700;
 }
 
-.blind-analysis-filters select {
+.blind-analysis-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   min-height: 38px;
+  padding: 0 11px 0 13px;
+  border: 1px solid #d8e0e5;
   border-radius: 7px;
   background: #fff;
   color: #18242d;
   font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.blind-analysis-select:hover {
+  border-color: #aab8c1;
+  background: #fbfcfd;
+}
+
+.blind-analysis-select[aria-expanded="true"] {
+  border-color: var(--analysis-green);
+  box-shadow: 0 0 0 3px rgba(21, 155, 143, 0.12);
+}
+
+.blind-analysis-select > span {
+  overflow: hidden;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blind-analysis-select svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #667681;
+  transition: transform 160ms ease;
+}
+
+.blind-analysis-select[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.blind-analysis-select-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 10;
+  width: max(100%, 240px);
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: min(320px, calc(100vh - 250px));
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid #d8e0e5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(31, 49, 61, 0.16), 0 2px 8px rgba(31, 49, 61, 0.08);
+  scrollbar-color: #b7c2c9 transparent;
+  scrollbar-width: thin;
+}
+
+.blind-analysis-select-menu[hidden] {
+  display: none;
+}
+
+.blind-analysis-select-menu::-webkit-scrollbar {
+  width: 8px;
+}
+
+.blind-analysis-select-menu::-webkit-scrollbar-thumb {
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background: #b7c2c9;
+}
+
+.blind-analysis-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  color: #2d3c47;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.blind-analysis-option::before {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  content: '';
+}
+
+.blind-analysis-option:hover,
+.blind-analysis-option.focused {
+  background: #f0f6f5;
+}
+
+.blind-analysis-option[aria-selected="true"] {
+  color: #087f75;
+  font-weight: 700;
+}
+
+.blind-analysis-option[aria-selected="true"]::before {
+  background: no-repeat center / 16px 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 10 3 3 7-7' stroke='%23159b8f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 .blind-analysis-clear {
@@ -420,8 +528,12 @@ body.blind-analysis-open .playback-player-panel {
     grid-template-columns: 1fr 1fr;
   }
 
-  .blind-analysis-filters label {
+  .blind-analysis-filter {
     min-width: 0;
+  }
+
+  .blind-analysis-select-menu {
+    width: 100%;
   }
 
   .blind-analysis-clear {

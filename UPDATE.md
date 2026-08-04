@@ -1,8 +1,15 @@
 # 打包与更新说明
 
-当前版本：`3.1.0`
+当前版本：`3.1.1`
 
 ---
+
+## v3.1.1 变更
+
+- 🎨 **盲盒分析筛选器升级为自定义下拉菜单**：`<select>` 替换为 `<button>` + `role="listbox"` 自定义下拉面板（`.blind-analysis-select` + `.blind-analysis-select-menu`），支持键盘导航（↑↓ Home End Enter Space Tab）、选中项勾选图标、悬停高亮。ESC 先关闭菜单再关闭工作区，点击菜单外部自动关闭。CSS 新增下拉面板完整样式体系（圆角/阴影/滚动条/响应式）。
+- 🎨 **盲盒分析工作区布局加固**：header/summary/toolbar 新增 `flex: 0 0 auto` 防止收缩，content 区新增 `overflow: hidden` 确保滚动容器正确接管溢出。
+- 🐛 **礼物流水盲盒盈亏负数显示修复**：`history.js` 中盲盒备注的盈亏格式化修复——负盈亏现在正确显示 `-` 号（之前空白），金额取 `Math.abs()` 后格式化，备注标签新增盈亏颜色 class（`profit-up`/`profit-down`）。
+- 🧪 **测试同步更新**：新增礼物流水盲盒负盈亏格式化断言、盲盒分析筛选器 listbox 无障碍角色断言。
 
 ## v3.1.0 变更
 

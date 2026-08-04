@@ -30,16 +30,8 @@ import { eventBus, Events } from '../../shared/event-bus.js';
     workspace.dataset.initialized = 'true';
 
     get('blindBoxAnalysisClose')?.addEventListener('click', close);
-    get('blindBoxAnalysisViewer')?.addEventListener('change', event => {
-      state.viewer = event.target.value;
-      state.page = 1;
-      load();
-    });
-    get('blindBoxAnalysisBox')?.addEventListener('change', event => {
-      state.box = event.target.value;
-      state.page = 1;
-      load();
-    });
+    initSelect('blindBoxAnalysisViewer', 'viewer');
+    initSelect('blindBoxAnalysisBox', 'box');
     get('blindBoxAnalysisClear')?.addEventListener('click', () => {
       state.viewer = '';
       state.box = '';
@@ -63,7 +55,13 @@ import { eventBus, Events } from '../../shared/event-bus.js';
       load();
     });
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && state.open) close();
+      if (event.key !== 'Escape' || !state.open) return;
+      const openButton = document.querySelector('.blind-analysis-select[aria-expanded="true"]');
+      if (closeSelects()) openButton?.focus();
+      else close();
+    });
+    document.addEventListener('click', event => {
+      if (state.open && !event.target.closest('.blind-analysis-filter')) closeSelects();
     });
     eventBus.on(Events.GIFT_RECEIVED, refreshIfOpen);
   }
@@ -145,22 +143,105 @@ import { eventBus, Events } from '../../shared/event-bus.js';
   }
 
   function renderFilters(filters) {
-    const viewerSelect = get('blindBoxAnalysisViewer');
-    const boxSelect = get('blindBoxAnalysisBox');
-    if (viewerSelect) {
-      viewerSelect.innerHTML = '<option value="">全部观众</option>' + (filters.viewers || []).map(item =>
-        `<option value="${escapeAttr(item.value)}">${escapeHtml(item.label)}</option>`
-      ).join('');
-      viewerSelect.value = state.viewer;
-    }
-    if (boxSelect) {
-      boxSelect.innerHTML = '<option value="">全部盲盒</option>' + (filters.boxes || []).map(name =>
-        `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`
-      ).join('');
-      boxSelect.value = state.box;
-    }
+    renderSelect('blindBoxAnalysisViewer', [
+      { value: '', label: '全部观众' },
+      ...(filters.viewers || [])
+    ], state.viewer);
+    renderSelect('blindBoxAnalysisBox', [
+      { value: '', label: '全部盲盒' },
+      ...(filters.boxes || []).map(name => ({ value: name, label: name }))
+    ], state.box);
     const clearButton = get('blindBoxAnalysisClear');
     if (clearButton) clearButton.disabled = !state.viewer && !state.box;
+  }
+
+  function initSelect(id, stateKey) {
+    const button = get(id);
+    const menu = get(`${id}Menu`);
+    if (!button || !menu) return;
+    button.addEventListener('click', () => {
+      const willOpen = menu.hidden;
+      closeSelects();
+      if (willOpen) openSelect(button, menu);
+    });
+    button.addEventListener('keydown', event => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      if (menu.hidden) openSelect(button, menu);
+      moveOptionFocus(menu, event.key);
+    });
+    menu.addEventListener('click', event => {
+      const option = event.target.closest('[role="option"]');
+      if (option) selectOption(id, stateKey, option.dataset.value || '');
+    });
+    menu.addEventListener('keydown', event => {
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        moveOptionFocus(menu, event.key);
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        const option = menu.querySelector('.focused') || menu.querySelector('[aria-selected="true"]');
+        if (option) selectOption(id, stateKey, option.dataset.value || '');
+      } else if (event.key === 'Tab') {
+        closeSelects();
+      }
+    });
+  }
+
+  function renderSelect(id, options, selectedValue) {
+    const button = get(id);
+    const menu = get(`${id}Menu`);
+    if (!button || !menu) return;
+    const selected = options.find(option => option.value === selectedValue) || options[0];
+    button.querySelector('span').textContent = selected.label;
+    menu.innerHTML = options.map(option =>
+      `<div class="blind-analysis-option" role="option" tabindex="-1" data-value="${escapeAttr(option.value)}" aria-selected="${option.value === selected.value}">${escapeHtml(option.label)}</div>`
+    ).join('');
+  }
+
+  function openSelect(button, menu) {
+    menu.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    const selected = menu.querySelector('[aria-selected="true"]') || menu.firstElementChild;
+    focusOption(menu, selected);
+  }
+
+  function closeSelects() {
+    let closed = false;
+    document.querySelectorAll('.blind-analysis-select[aria-expanded="true"]').forEach(button => {
+      button.setAttribute('aria-expanded', 'false');
+      const menu = get(button.getAttribute('aria-controls'));
+      if (menu) menu.hidden = true;
+      closed = true;
+    });
+    return closed;
+  }
+
+  function moveOptionFocus(menu, key) {
+    const options = [...menu.querySelectorAll('[role="option"]')];
+    if (!options.length) return;
+    const focusedIndex = options.findIndex(option => option.classList.contains('focused'));
+    const nextIndex = key === 'Home' ? 0
+      : key === 'End' ? options.length - 1
+        : key === 'ArrowUp' ? Math.max(0, focusedIndex - 1)
+          : Math.min(options.length - 1, focusedIndex + 1);
+    focusOption(menu, options[nextIndex]);
+  }
+
+  function focusOption(menu, option) {
+    if (!option) return;
+    menu.querySelector('.focused')?.classList.remove('focused');
+    option.classList.add('focused');
+    option.focus({ preventScroll: true });
+    option.scrollIntoView({ block: 'nearest' });
+  }
+
+  function selectOption(id, stateKey, value) {
+    state[stateKey] = value;
+    state.page = 1;
+    closeSelects();
+    get(id)?.focus();
+    load();
   }
 
   function renderSummary(summary) {
