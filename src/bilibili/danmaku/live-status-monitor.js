@@ -77,7 +77,7 @@ class LiveStatusMonitor {
     this.reconnectInFlight = true;
     this.stop();
 
-    console.log(`[Bilibili] room ${roomId} is live; reconnecting danmaku listener.`);
+    console.log(`[Bilibili][Live] action=started roomId=${roomId}`);
     this.onStatusChange({
       roomId,
       isLive: true,

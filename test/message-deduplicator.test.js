@@ -47,3 +47,59 @@ test('matches repeated cross-source commands one to one', () => {
   assert.equal(deduplicator.remember(12345, '点歌1', timestamp, history), false);
   assert.equal(deduplicator.remember(12345, '点歌1', timestamp + 1000, history), false);
 });
+
+test('logs the first same-source rejection with its deduplication evidence', () => {
+  const deduplicator = new MessageDeduplicator();
+  const timestamp = Date.now();
+  const logs = captureConsoleLogs(() => {
+    assert.equal(deduplicator.remember(12345, '点歌 日落', timestamp, {
+      userName: 'Alice',
+      source: 'danmaku'
+    }), true);
+    assert.equal(deduplicator.remember(12345, '点歌 日落', timestamp, {
+      userName: 'Alice',
+      source: 'danmaku'
+    }), false);
+  });
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /^\[Bilibili\]\[Command\] status=deduplicated reason=seen-key /);
+  assert.match(logs[0], /uid="12345" user="Alice" message="点歌 日落"/);
+  assert.match(logs[0], new RegExp(`timestampMs=${timestamp}`));
+  assert.match(logs[0], /sources=\["danmaku"\]$/);
+});
+
+test('logs one cross-source rejection without repeating on every history poll', () => {
+  const deduplicator = new MessageDeduplicator();
+  const timestamp = Date.now();
+  const logs = captureConsoleLogs(() => {
+    assert.equal(deduplicator.remember(0, '点歌 日落', timestamp, {
+      userName: 'A**e',
+      source: 'danmaku'
+    }), true);
+    assert.equal(deduplicator.remember(12345, '点歌 日落', timestamp + 500, {
+      userName: 'Alice',
+      source: 'history'
+    }), false);
+    assert.equal(deduplicator.remember(12345, '点歌 日落', timestamp + 500, {
+      userName: 'Alice',
+      source: 'history'
+    }), false);
+  });
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /^\[Bilibili\]\[Command\] status=deduplicated reason=cross-source /);
+  assert.match(logs[0], /sources=\["danmaku","history"\]$/);
+});
+
+function captureConsoleLogs(callback) {
+  const originalLog = console.log;
+  const logs = [];
+  console.log = (...args) => logs.push(args.join(' '));
+  try {
+    callback();
+  } finally {
+    console.log = originalLog;
+  }
+  return logs;
+}

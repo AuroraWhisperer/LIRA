@@ -139,12 +139,28 @@ function randomSourceValue(scopeText) {
 function logDanmakuCommand(danmaku, result) {
   const message = cleanText(danmaku.message);
   if (!message.startsWith('点歌') && !message.startsWith('随机')) return;
+  console.log(formatBilibiliCommandLog(danmaku, result));
+}
 
-  if (result.accepted) {
-    console.log(`[Bilibili] command accepted: time=${formatLogTimestamp(danmaku.messageTimestamp)} source=${danmaku.source || 'danmaku'} user=${danmaku.userName || ''} uid=${danmaku.uid || ''} message=${JSON.stringify(message)} song=${result.queueItem ? result.queueItem.song_name : ''}`);
-  } else {
-    console.log(`[Bilibili] command ignored: time=${formatLogTimestamp(danmaku.messageTimestamp)} source=${danmaku.source || 'danmaku'} user=${danmaku.userName || ''} uid=${danmaku.uid || ''} message=${JSON.stringify(message)} reason=${result.reason || ''}`);
-  }
+function formatBilibiliCommandLog(danmaku, result) {
+  const message = cleanText(danmaku && danmaku.message);
+  const status = result && result.accepted ? 'accepted' : 'ignored';
+  const outcome = result && result.accepted
+    ? ` song=${JSON.stringify(cleanText(result.queueItem && result.queueItem.song_name))}`
+    : ` reason=${JSON.stringify(cleanText(result && result.reason))}`;
+  const trace = {
+    connectionGeneration: Number(danmaku && danmaku.connectionGeneration) || 0,
+    connectionAttempt: Number(danmaku && danmaku.connectionAttempt) || 0,
+    cmd: cleanText(danmaku && danmaku.cmd)
+  };
+  return `[Bilibili][Command] status=${status}`
+    + ` time=${formatLogTimestamp(danmaku && danmaku.messageTimestamp)}`
+    + ` source=${cleanText(danmaku && danmaku.source) || 'danmaku'}`
+    + ` user=${JSON.stringify(cleanText(danmaku && danmaku.userName))}`
+    + ` uid=${JSON.stringify(cleanText(danmaku && danmaku.uid))}`
+    + ` message=${JSON.stringify(message)}`
+    + outcome
+    + ` trace=${JSON.stringify(trace)}`;
 }
 
 module.exports = {
@@ -152,5 +168,6 @@ module.exports = {
   parseDanmakuCommand,
   normalizeRandomScopeText,
   randomSourceValue,
-  logDanmakuCommand
+  logDanmakuCommand,
+  formatBilibiliCommandLog
 };

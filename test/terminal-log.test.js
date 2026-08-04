@@ -14,19 +14,37 @@ test('resets the terminal log and mirrors ordinary console output', () => {
   const originalInfo = console.info;
   const originalDebug = console.debug;
   const originalWarn = console.warn;
+  const originalError = console.error;
   let restore;
 
   try {
     fs.writeFileSync(filePath, 'old session\n', 'utf8');
-    restore = installTerminalLog(filePath);
+    restore = installTerminalLog(filePath, {
+      runId: 'run-test',
+      pid: 1234,
+      processType: 'browser',
+      now: () => '2026-08-03T15:07:34.288Z',
+      nextSequence: (() => {
+        let sequence = 0;
+        return () => {
+          sequence += 1;
+          return sequence;
+        };
+      })()
+    });
     console.log('hello %s', 'world');
     console.info({ ready: true });
     console.debug('debug line');
     console.warn('warning line');
+    console.error('error line');
 
     assert.equal(
       fs.readFileSync(filePath, 'utf8'),
-      'hello world\n{ ready: true }\ndebug line\n'
+      '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:log] hello world\n'
+      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:info] { ready: true }\n'
+      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=3 pid=1234 type=browser] [terminal:debug] debug line\n'
+      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=4 pid=1234 type=browser] [terminal:warn] warning line\n'
+      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=5 pid=1234 type=browser] [terminal:error] error line\n'
     );
   } finally {
     restore?.();
@@ -34,6 +52,7 @@ test('resets the terminal log and mirrors ordinary console output', () => {
     console.info = originalInfo;
     console.debug = originalDebug;
     console.warn = originalWarn;
+    console.error = originalError;
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });

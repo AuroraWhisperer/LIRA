@@ -5,7 +5,7 @@
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
-const { cleanText, now } = require('../../shared/utils');
+const { cleanText, now, timestampToIso } = require('../../shared/utils');
 
 class MessageHandlers {
   constructor(handlers, identityCache, deduplicator, diagnostics, options = {}) {
@@ -15,6 +15,8 @@ class MessageHandlers {
     this.diagnostics = diagnostics;
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
     this.startedAtMs = options.startedAtMs || Date.now();
+    this.connectionGeneration = Number(options.connectionGeneration) || 0;
+    this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.messageBuffer = options.messageBuffer || null;
     // 每 5 分钟清理一次身份缓存，防止无界增长
     this._identityCleanupTimer = setInterval(() => {
@@ -26,6 +28,14 @@ class MessageHandlers {
 
   updateStartTime(startedAtMs) {
     this.startedAtMs = startedAtMs;
+  }
+
+  updateConnectionGeneration(connectionGeneration) {
+    this.connectionGeneration = Number(connectionGeneration) || 0;
+  }
+
+  updateConnectionAttempt(connectionAttempt) {
+    this.connectionAttempt = Number(connectionAttempt) || 0;
   }
 
   // 销毁定时器，避免泄漏
@@ -86,7 +96,10 @@ class MessageHandlers {
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
       source: 'danmaku',
-      messageTimestamp
+      messageTimestamp,
+      connectionGeneration: this.connectionGeneration,
+      connectionAttempt: this.connectionAttempt,
+      cmd: normalizeBilibiliCommandName(message.cmd)
     });
   }
 
@@ -100,6 +113,17 @@ class MessageHandlers {
       requesterMedalName: superChat.medalName,
       requesterMedalLevel: superChat.medalLevel
     });
+    const trace = {
+      connectionGeneration: this.connectionGeneration,
+      connectionAttempt: this.connectionAttempt,
+      cmd: normalizeBilibiliCommandName(message.cmd)
+    };
+
+    console.log(formatBilibiliSuperChatLog({
+      ...superChat,
+      uid: requester.uid,
+      userName: requester.userName
+    }, trace));
 
     this.handlers.onSuperChat({
       id: superChat.id,
@@ -111,7 +135,8 @@ class MessageHandlers {
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
       source: 'superchat',
-      messageTimestamp: superChat.messageTimestamp
+      messageTimestamp: superChat.messageTimestamp,
+      ...trace
     });
 
     if (!isBilibiliCommandText(text)) {
@@ -136,7 +161,8 @@ class MessageHandlers {
       requesterMedalLevel: requester.medalLevel,
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,
-      isPinned: superChat.price >= SUPER_CHAT_PIN_THRESHOLD
+      isPinned: superChat.price >= SUPER_CHAT_PIN_THRESHOLD,
+      ...trace
     });
   }
 
@@ -145,10 +171,15 @@ class MessageHandlers {
     const gift = packetParser.extractBilibiliGiftMessage(message);
 
     if (!gift || !isValidGiftResult(gift)) {
-      // 只对被拒绝的消息打日志，减少正常礼物的同步 I/O
       const dataKeys = message.data && typeof message.data === 'object'
         ? Object.keys(message.data).slice(0, 15).join(',') : 'N/A';
-      console.log(`[GiftDebug] REJECTED CMD=${message.cmd || '(none)'} knownCmd=${isKnownCmd} reason=${!gift ? 'null-result' : 'validation-failed(giftId="' + (gift.giftId || '') + '" giftName="' + (gift.giftName || '') + '" totalPrice=' + (gift.totalPrice || 0) + '")'} dataKeys=[${dataKeys}]`);
+      const failureKind = !gift ? 'null-result' : 'validation-failed';
+      const diagnosticReason = isKnownCmd ? 'known-gift-command' : 'gift-like-command';
+      bilibiliHelpers.logUnparsedGiftLikeCommand(message, `${diagnosticReason}:${failureKind}`, {
+        status: isKnownCmd ? 'rejected' : 'unrecognized',
+        connectionGeneration: this.connectionGeneration,
+        connectionAttempt: this.connectionAttempt
+      });
       if (this.messageBuffer) {
         this.messageBuffer.record({
           cmd: message.cmd,
@@ -160,17 +191,18 @@ class MessageHandlers {
         });
       }
       if (isKnownCmd) {
-        bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'known-gift-command');
         bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'known-gift-command');
       } else {
-        bilibiliHelpers.logUnparsedGiftLikeCommand(message, 'gift-like-command');
         bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'gift-like-command');
       }
       return;
     }
 
     // Keep one readable line per parsed gift; persistence is reflected in the UI.
-    console.log(formatBilibiliGiftLog(gift));
+    console.log(formatBilibiliGiftLog(gift, {
+      connectionGeneration: this.connectionGeneration,
+      connectionAttempt: this.connectionAttempt
+    }));
     this.diagnostics.lastGiftAt = now();
     this.diagnostics.parsedGiftCount += 1;
     if (this.messageBuffer) {
@@ -199,7 +231,14 @@ function isBilibiliCommandText(message) {
   return text.startsWith('点歌') || text.startsWith('随机');
 }
 
-function formatBilibiliGiftLog(gift) {
+function normalizeBilibiliCommandName(value) {
+  const cmd = cleanText(value);
+  if (cmd.startsWith('DANMU_MSG')) return 'DANMU_MSG';
+  if (cmd.startsWith('SUPER_CHAT_MESSAGE')) return 'SUPER_CHAT_MESSAGE';
+  return cmd;
+}
+
+function formatBilibiliGiftLog(gift, trace = null) {
   const userName = JSON.stringify(cleanText(gift && gift.userName) || '观众');
   const giftName = JSON.stringify(cleanText(gift && gift.giftName) || '未知礼物');
   const quantity = Math.max(1, Number(gift && gift.num) || 1);
@@ -209,7 +248,29 @@ function formatBilibiliGiftLog(gift) {
   if (gift && gift.isBlindBox) tags.push('blind-box');
   if (gift && gift.coinType && gift.coinType !== 'gold') tags.push(`coin=${gift.coinType}`);
   const suffix = tags.length > 0 ? ` ${tags.join(' ')}` : '';
-  return `[Bilibili][Gift] user=${userName} gift=${giftName} x${quantity} amount=¥${amount}${suffix}`;
+  const traceSuffix = trace ? ` trace=${JSON.stringify({
+    connectionGeneration: Number(trace.connectionGeneration) || 0,
+    connectionAttempt: Number(trace.connectionAttempt) || 0,
+    cmd: cleanText(gift && gift.cmd),
+    platformId: cleanText(gift && gift.platformId),
+    comboId: cleanText(gift && gift.comboId),
+    messageTimestamp: timestampToIso(gift && gift.messageTimestamp)
+  })}` : '';
+  return `[Bilibili][Gift] status=parsed user=${userName} gift=${giftName} x${quantity} amount=¥${amount}${suffix}${traceSuffix}`;
+}
+
+function formatBilibiliSuperChatLog(superChat, trace = {}) {
+  return `[Bilibili][SuperChat] status=received`
+    + ` user=${JSON.stringify(cleanText(superChat && superChat.userName) || '观众')}`
+    + ` uid=${JSON.stringify(cleanText(superChat && superChat.uid))}`
+    + ` price=${Number(superChat && superChat.price) || 0}`
+    + ` message=${JSON.stringify(cleanText(superChat && superChat.message))}`
+    + ` trace=${JSON.stringify({
+      connectionGeneration: Number(trace.connectionGeneration) || 0,
+      connectionAttempt: Number(trace.connectionAttempt) || 0,
+      cmd: cleanText(trace.cmd),
+      messageTimestamp: timestampToIso(superChat && superChat.messageTimestamp)
+    })}`;
 }
 
 /**
@@ -229,4 +290,4 @@ function isValidGiftResult(gift) {
   return false;
 }
 
-module.exports = { MessageHandlers, formatBilibiliGiftLog };
+module.exports = { MessageHandlers, formatBilibiliGiftLog, formatBilibiliSuperChatLog };

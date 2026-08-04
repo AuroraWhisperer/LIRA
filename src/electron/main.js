@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const {
   app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell
 } = require('electron');
@@ -12,7 +13,8 @@ const loginWin = require('./login-window');
 const lyricWin = require('./lyric-window');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const updateMgr = require('./update-manager');
-const { installTerminalLog } = require('./terminal-log');
+const playbackFlush = require('./playback-flush');
+const { installTerminalLog, formatLogLine } = require('./terminal-log');
 const serverRuntimeModule = require('../server');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
@@ -25,13 +27,14 @@ let desktopRuntime = null;
 let shutdownApplication = null;
 let gracefulQuitStarted = false;
 let forceQuitTimer = null;
-let playbackFlushResolve = null;
 let musicMediaHeadersConfigured = false;
 let localMediaAccess = null;
 let dataDir = '';
 let logDir = '';
 let logFile = '';
 let terminalLogFile = '';
+let logRunId = '';
+let logSequence = 0;
 let updateState = {
   status: 'idle', message: '尚未检查更新', version: '',
   canDownload: false, canInstall: false, progress: null, updateVersion: ''
@@ -79,14 +82,20 @@ app.on('before-quit', function (event) {
   if (gracefulQuitStarted || !shutdownApplication) return;
   event.preventDefault();
   gracefulQuitStarted = true;
+  writeLog('lifecycle', { event: 'QUIT_BEGIN' });
   forceQuitTimer = setTimeout(function () {
+    writeLog('lifecycle', { event: 'QUIT_TIMEOUT' });
     app.releaseSingleInstanceLock();
     app.exit(0);
   }, 5000);
   shutdownApplication({ exitProcess: false })
-    .catch(function (error) { console.warn('Shutdown failed:', error.message); })
+    .catch(function (error) {
+      writeLog('shutdown-error', error);
+      console.warn('Shutdown failed:', error.message);
+    })
     .finally(function () {
       if (forceQuitTimer) { clearTimeout(forceQuitTimer); forceQuitTimer = null; }
+      writeLog('lifecycle', { event: 'QUIT_DONE' });
       app.releaseSingleInstanceLock();
       app.exit(0);
     });
@@ -130,6 +139,7 @@ async function startDesktopApp() {
   var serverInfo = await desktopRuntime.start(serverOptions);
 
   createMainWindow(serverInfo.baseUrl);
+  writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
   if (!app.isPackaged) {
     updateState = {
@@ -183,7 +193,20 @@ function configureDesktopEnvironment() {
   terminalLogFile = path.join(logDir, 'terminal.log');
   fs.mkdirSync(dataDir, { recursive: true });
   fs.mkdirSync(logDir, { recursive: true });
-  installTerminalLog(terminalLogFile);
+  logRunId = crypto.randomUUID();
+  logSequence = 0;
+  installTerminalLog(terminalLogFile, {
+    runId: logRunId,
+    pid: process.pid,
+    processType: process.type || 'browser',
+    nextSequence: nextLogSequence
+  });
+  writeLog('lifecycle', {
+    event: 'START',
+    dataDir,
+    logDir,
+    isPackaged: app.isPackaged
+  });
   localMediaAccess = createLocalMediaAccess(dataDir);
   process.env.SONG_PLUGIN_DATA_DIR = dataDir;
   process.env.ELECTRON_DESKTOP = '1';
@@ -306,9 +329,11 @@ function createMainWindow(baseUrl) {
   if (fs.existsSync(iconPath)) opts.icon = iconPath;
 
   mainWindow = new BrowserWindow(opts);
+  writeLog('window', { event: 'create', window: 'main' });
   mainWindow.loadURL(baseUrl + '/admin?desktop=1');
 
   mainWindow.once('ready-to-show', function () {
+    writeLog('window', { event: 'ready', window: 'main' });
     mainWindow.show();
     sendUpdateState();
     if (app.isPackaged && readAutoUpdateSetting()) {
@@ -332,6 +357,7 @@ function createMainWindow(baseUrl) {
   });
 
   mainWindow.on('closed', function () {
+    writeLog('window', { event: 'closed', window: 'main' });
     mainWindow = null;
   });
 
@@ -359,9 +385,18 @@ function configureUpdateIpc() {
       githubRepoUrl: GITHUB_REPO_URL, updateState: updateState
     };
   });
-  ipcMain.handle('desktop:check-for-updates', function () { return checkForUpdates(); });
-  ipcMain.handle('desktop:download-update', function () { return downloadUpdate(); });
-  ipcMain.handle('desktop:install-update', function () { return installUpdate(); });
+  ipcMain.handle('desktop:check-for-updates', function () {
+    writeLog('ipc', { action: 'check-for-updates' });
+    return checkForUpdates();
+  });
+  ipcMain.handle('desktop:download-update', function () {
+    writeLog('ipc', { action: 'download-update' });
+    return downloadUpdate();
+  });
+  ipcMain.handle('desktop:install-update', function () {
+    writeLog('ipc', { action: 'install-update' });
+    return installUpdate();
+  });
   ipcMain.handle('desktop:open-data-dir', function () { return dataDir ? shell.openPath(dataDir) : ''; });
   ipcMain.handle('desktop:open-log-dir', function () { return logDir ? shell.openPath(logDir) : ''; });
   ipcMain.handle('desktop:open-github', function () { return shell.openExternal(GITHUB_REPO_URL); });
@@ -370,6 +405,7 @@ function configureUpdateIpc() {
     writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
   });
   ipcMain.handle('desktop:restart', async function () {
+    writeLog('ipc', { action: 'restart' });
     try {
       if (shutdownApplication) {
         await shutdownApplication({ exitProcess: false });
@@ -381,6 +417,7 @@ function configureUpdateIpc() {
     app.exit(0);
   });
   ipcMain.handle('desktop:close-window', function () {
+    writeLog('ipc', { action: 'close-window' });
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
   });
   ipcMain.handle('desktop:minimize-window', function () {
@@ -457,11 +494,7 @@ function configureMusicIpc() {
     );
   });
   ipcMain.handle('playback:flush-ack', function () {
-    if (playbackFlushResolve) {
-      var resolve = playbackFlushResolve;
-      playbackFlushResolve = null;
-      resolve();
-    }
+    playbackFlush.acknowledgePlaybackFlush();
     return { ok: true };
   });
 }
@@ -559,14 +592,19 @@ function restoreBilibiliCookieSnapshot() {
 }
 
 async function loginBilibiliAccount() {
-  return openBilibiliLoginWindow({
-    BrowserWindow,
-    shell,
-    auth: bilibiliAuth,
-    mainWindow,
-    dataDir,
-    writeLog
-  });
+  writeLog('window', { event: 'create', window: 'bilibili-login' });
+  try {
+    return await openBilibiliLoginWindow({
+      BrowserWindow,
+      shell,
+      auth: bilibiliAuth,
+      mainWindow,
+      dataDir,
+      writeLog
+    });
+  } finally {
+    writeLog('window', { event: 'closed', window: 'bilibili-login' });
+  }
 }
 
 async function logoutBilibiliAccount() {
@@ -581,15 +619,24 @@ async function restoreMusicCookieSnapshots() {
 }
 
 async function loginMusicAccount(platform) {
-  return loginWin.loginMusicAccount(mainWindow, platform, dataDir);
+  writeLog('window', { event: 'create', window: 'music-login', platform });
+  try {
+    return await loginWin.loginMusicAccount(mainWindow, platform, dataDir);
+  } finally {
+    writeLog('window', { event: 'closed', window: 'music-login', platform });
+  }
 }
 
 function openLyricWindow() {
-  return lyricWin.openLyricWindow(desktopBaseUrl, path.join(__dirname, 'preload.js'));
+  var result = lyricWin.openLyricWindow(desktopBaseUrl, path.join(__dirname, 'preload.js'));
+  writeLog('window', { event: 'open', window: 'lyrics' });
+  return result;
 }
 
 function closeLyricWindow() {
-  return lyricWin.closeLyricWindow();
+  var result = lyricWin.closeLyricWindow();
+  writeLog('window', { event: 'close', window: 'lyrics' });
+  return result;
 }
 
 function updateLyricWindow(state) {
@@ -651,28 +698,28 @@ function setUpdateError(error) {
 }
 
 async function requestPlaybackFlush() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  try {
-    await new Promise(function (resolve) {
-      playbackFlushResolve = resolve;
-      mainWindow.webContents.send('app:prepare-shutdown');
-      // Guard: resolve after 2s even if renderer doesn't ack
-      setTimeout(function () {
-        if (playbackFlushResolve) {
-          playbackFlushResolve = null;
-          resolve();
-        }
-      }, 2000);
-    });
-  } catch (_) {
-    // Renderer may already be gone; proceed with shutdown
-  }
+  var result = await playbackFlush.requestPlaybackFlush(mainWindow);
+  writeLog('playback-flush', result);
+  return result;
 }
 
 function writeLog(scope, value) {
   var msg = value instanceof Error
     ? (value.stack || value.message)
     : (typeof value === 'string' ? value : JSON.stringify(value));
-  var line = '[' + new Date().toISOString() + '] [' + scope + '] ' + msg + '\n';
+  var line = formatLogLine({
+    timestamp: new Date().toISOString(),
+    runId: logRunId,
+    sequence: nextLogSequence(),
+    pid: process.pid,
+    processType: process.type || 'browser',
+    source: 'desktop:' + scope,
+    message: msg
+  });
   try { fs.appendFileSync(logFile, line, 'utf8'); } catch (_) {}
+}
+
+function nextLogSequence() {
+  logSequence += 1;
+  return logSequence;
 }

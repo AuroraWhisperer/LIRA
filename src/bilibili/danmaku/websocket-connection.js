@@ -36,16 +36,16 @@ class WebSocketConnection {
       this.emit('message', data);
     });
 
-    ws.addEventListener('close', () => {
+    ws.addEventListener('close', (event) => {
       if (this.ws !== ws) return;
       clearInterval(this.heartbeatTimer);
       this.ws = null;
-      this.emit('close');
+      this.emit('close', event);
     });
 
-    ws.addEventListener('error', () => {
+    ws.addEventListener('error', (event) => {
       if (this.ws !== ws) return;
-      this.emit('error');
+      this.emit('error', event);
     });
 
     if (options.waitForOpen) {

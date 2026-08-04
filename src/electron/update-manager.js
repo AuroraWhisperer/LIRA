@@ -28,37 +28,41 @@ let lastProgressTime = 0;
 let lastTransferred = 0;
 let _onStateChange = null;
 
-function configureAutoUpdater({ onStateChange, writeLog }) {
+function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   _onStateChange = onStateChange || null;
-  const autoUpdater = getAutoUpdater();
+  const configuredUpdater = updater || getAutoUpdater();
+  const log = typeof writeLog === 'function' ? writeLog : () => {};
 
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.allowPrerelease = false;
-  autoUpdater.disableDifferentialDownload = true;
+  configuredUpdater.autoDownload = true;
+  configuredUpdater.autoInstallOnAppQuit = true;
+  configuredUpdater.allowPrerelease = false;
+  configuredUpdater.disableDifferentialDownload = true;
 
-  autoUpdater.on('checking-for-update', () => {
+  configuredUpdater.on('checking-for-update', () => {
+    log('update', { event: 'checking' });
     setUpdateState({
       status: 'checking', message: '正在连接 GitHub 检查新版本...',
       canDownload: false, canInstall: false, progress: null
     }, onStateChange);
   });
 
-  autoUpdater.on('update-available', (info) => {
+  configuredUpdater.on('update-available', (info) => {
+    log('update', { event: 'available', version: info.version || '' });
     setUpdateState({
       status: 'available', message: `发现新版本 ${info.version}，可以下载更新。`,
       canDownload: true, canInstall: false, progress: null, updateVersion: info.version || ''
     }, onStateChange);
   });
 
-  autoUpdater.on('update-not-available', () => {
+  configuredUpdater.on('update-not-available', () => {
+    log('update', { event: 'not-available' });
     setUpdateState({
       status: 'not-available', message: '当前已经是最新版本。',
       canDownload: false, canInstall: false, progress: null, updateVersion: ''
     }, onStateChange);
   });
 
-  autoUpdater.on('download-progress', (progress) => {
+  configuredUpdater.on('download-progress', (progress) => {
     const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
     const transferred = progress.transferred || 0;
     const total = progress.total || 0;
@@ -81,7 +85,8 @@ function configureAutoUpdater({ onStateChange, writeLog }) {
     }, onStateChange);
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
+  configuredUpdater.on('update-downloaded', (info) => {
+    log('update', { event: 'downloaded', version: info.version || updateState.updateVersion || '' });
     setUpdateState({
       status: 'downloaded',
       message: `更新 ${info.version || updateState.updateVersion} 已下载，重启后完成安装。`,
@@ -90,8 +95,8 @@ function configureAutoUpdater({ onStateChange, writeLog }) {
     }, onStateChange);
   });
 
-  autoUpdater.on('error', (error) => {
-    writeLog('update-error', error);
+  configuredUpdater.on('error', (error) => {
+    log('update-error', error);
     const friendly = friendlyUpdateError(error);
     setUpdateState({
       status: friendly.status, message: friendly.message,

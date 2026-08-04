@@ -1,8 +1,21 @@
 # 打包与更新说明
 
-当前版本：`3.0.4`
+当前版本：`3.0.5`
 
 ---
+
+## v3.0.5 变更
+
+- ⚡ **结构化日志体系全面升级**：所有 Bilibili 日志统一为 `[Bilibili][模块]` 前缀 + `key=value` 结构化格式。弹幕命令日志新增 `connectionGeneration`/`connectionAttempt`/`cmd` trace 字段；礼物日志新增 `status=parsed` 和 `platformId`/`comboId`/`messageTimestamp` trace 字段。醒目留言新增 `formatBilibiliSuperChatLog` 统一日志格式。去重器新增结构化去重日志（`[Bilibili][Command] status=deduplicated` + sources 数组）。未解析的礼物类命令日志移至 `helpers.js` 统一管理。
+- ⚡ **连接追踪增强**：`danmaku-client.js` 新增 `connectionAttempt` 单调计数器（每次 `connect()` 递增），与 `connectionGeneration` 一起注入到所有消息处理 trace 中。WebSocket 连接/断开/错误事件记录 `code`/`reason`/`wasClean`/`readyState` 等诊断字段。
+- ⚡ **终端日志结构化**：`terminal-log.js` 重构为结构化格式——每行新增 `[run=<uuid> seq=<n> pid=<n> type=<processType>]` 元数据前缀，覆盖 `warn`/`error` 级别。导出 `formatLogLine` 供 desktop 日志共用。
+- ⚡ **Electron 主进程日志增强**：应用生命周期事件（START/READY/QUIT_BEGIN/QUIT_TIMEOUT/QUIT_DONE）、窗口创建/关闭、IPC 操作、更新检测事件、播放 flush 结果均写入结构化桌面日志。`writeLog` 使用全局 `logRunId` + 单调 `logSequence`。
+- 🧹 **播放 flush 独立模块**：`electron/main.js` 播放 flush Promise 管理分离至独立的 `playback-flush.js` 模块，`requestPlaybackFlush` 内部 await 与超时逻辑封装。
+- 🧹 **更新管理器可测试化**：`configureAutoUpdater` 新增 `updater` 参数注入，允许测试时替换 `autoUpdater` 实例。
+- 🐛 **登录窗口竞态修复**：`bilibili-login-window.js` 中 `checkLoginComplete` 新增 `loginCheckInFlight` 和 `loginCloseRequested` 防重入旗标，多个 cookie change 事件密集到达时只关闭一次登录窗口。
+- 🐛 **WebSocket 事件对象传递**：`WebSocketConnection` 的 `close`/`error` 事件现在转发原生 event 对象（`code`/`reason`/`wasClean`/`message`），不再丢失诊断信息。
+- 🔄 **gift-normalizers 职责精简**：`logUnparsedGiftLikeCommand` 移回 `helpers.js`（唯一调用方），`gift-normalizers.js` 只保留纯数据标准化函数。`gift-parser.js` 导入路径同步更新。
+- 🧪 **测试大幅扩展**：新增 7 个测试用例——礼物日志 trace 字段、SuperChat 日志格式、未解析礼物日志格式、去重器日志输出（同源+跨源）、登录窗口 cookie 批量到达、终端日志结构化格式含 warn/error。
 
 ## v3.0.4 变更
 

@@ -51,6 +51,8 @@ async function openBilibiliLoginWindow(options = {}) {
 
   let cookieSaveTimer = null;
   let loginCheckTimer = null;
+  let loginCheckInFlight = false;
+  let loginCloseRequested = false;
 
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
@@ -60,15 +62,21 @@ async function openBilibiliLoginWindow(options = {}) {
     }, 800);
   };
 
-  const checkLoginComplete = () => {
-    auth.getBilibiliAuthState(dataDir).then((state) => {
+  const checkLoginComplete = async () => {
+    if (loginCheckInFlight || loginCloseRequested || loginWindow.isDestroyed()) return;
+    loginCheckInFlight = true;
+    try {
+      const state = await auth.getBilibiliAuthState(dataDir);
       if (state.loggedIn && !loginWindow.isDestroyed()) {
+        loginCloseRequested = true;
         writeLog('bilibili-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);
         loginWindow.close();
       }
-    }).catch(() => {
+    } catch (_) {
       // The next cookie change or polling tick retries the auth check.
-    });
+    } finally {
+      loginCheckInFlight = false;
+    }
   };
 
   const onCookieChanged = () => {

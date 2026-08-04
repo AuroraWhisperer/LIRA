@@ -3,8 +3,7 @@
 const crypto = require('node:crypto');
 const {
   cleanText,
-  readObjectValue,
-  safeJsonStringify
+  readObjectValue
 } = require('../../shared/utils');
 
 // ---------------------------------------------------------------------------
@@ -73,20 +72,11 @@ function buildBilibiliFallbackGiftId(packet, data) {
     .digest('hex');
 }
 
-function logUnparsedGiftLikeCommand(message, reason) {
-  const cmd = cleanText(message && message.cmd);
-  const data = message && message.data && typeof message.data === 'object' ? message.data : {};
-  const keys = Object.keys(data).slice(0, 30).join(',');
-  const preview = safeJsonStringify(data).slice(0, 260);
-  console.warn(`[Bilibili] unparsed gift-like command: reason=${reason} cmd=${cmd} dataKeys=${keys} data=${preview}`);
-}
-
 module.exports = {
   normalizeBilibiliGiftCoin,
   normalizeBilibiliCoinRmb,
   guardLevelName,
   getGuardPriceRmb,
   detectGuardLevelFromName,
-  buildBilibiliFallbackGiftId,
-  logUnparsedGiftLikeCommand
+  buildBilibiliFallbackGiftId
 };

@@ -23,6 +23,7 @@ class BilibiliDanmakuClient {
     this.messageBuffer = options.messageBuffer || null;
     this.stopped = true;
     this.connectionGeneration = 0;
+    this.connectionAttempt = 0;
     this.reconnectTimer = null;
     this.startedAtMs = Date.now();
     this.ownerName = '';
@@ -65,6 +66,7 @@ class BilibiliDanmakuClient {
     const generation = ++this.connectionGeneration;
     this.startedAtMs = Date.now();
     this.messageHandlers.updateStartTime(this.startedAtMs);
+    this.messageHandlers.updateConnectionGeneration(generation);
     this.historyPoller.updateStartTime(this.startedAtMs);
 
     this.connect({}, generation).catch((error) => {
@@ -87,6 +89,7 @@ class BilibiliDanmakuClient {
     const generation = ++this.connectionGeneration;
     this.startedAtMs = Date.now();
     this.messageHandlers.updateStartTime(this.startedAtMs);
+    this.messageHandlers.updateConnectionGeneration(generation);
     this.historyPoller.updateStartTime(this.startedAtMs);
 
     try {
@@ -132,6 +135,8 @@ class BilibiliDanmakuClient {
 
   async connect(options = {}, generation = this.connectionGeneration) {
     if (!this.isConnectionCurrent(generation)) return;
+    const connectionAttempt = ++this.connectionAttempt;
+    this.messageHandlers.updateConnectionAttempt(connectionAttempt);
     this.report({
       connected: false,
       enabled: true,
@@ -170,6 +175,13 @@ class BilibiliDanmakuClient {
 
     // 存储解析后的房间号供后续使用
     this.resolvedRoomId = roomInfo.roomId;
+    console.log(`[Bilibili][Connection] action=connecting trace=${JSON.stringify({
+      connectionGeneration: generation,
+      connectionAttempt,
+      roomInput: this.roomId,
+      roomId: roomInfo.roomId,
+      endpoint: `${host.host}:${host.wss_port || 443}`
+    })}`);
 
     // 清理旧的事件处理器，防止重连后消息重复处理
     this.wsConnection.clearHandlers();
@@ -177,6 +189,11 @@ class BilibiliDanmakuClient {
     // 设置 WebSocket 事件处理
     this.wsConnection.on('open', () => {
       if (!this.isConnectionCurrent(generation)) return;
+      console.log(`[Bilibili][Connection] action=open trace=${JSON.stringify({
+        connectionGeneration: generation,
+        connectionAttempt,
+        roomId: roomInfo.roomId
+      })}`);
       if (isLive && !this.options.alwaysHistory) {
         this.historyPoller.stop();
       }
@@ -204,8 +221,16 @@ class BilibiliDanmakuClient {
       }
     });
 
-    this.wsConnection.on('close', () => {
+    this.wsConnection.on('close', (event) => {
       if (this.isConnectionCurrent(generation)) {
+        console.log(`[Bilibili][Connection] action=close trace=${JSON.stringify({
+          connectionGeneration: generation,
+          connectionAttempt,
+          roomId: this.resolvedRoomId || this.roomId,
+          code: Number(event && event.code) || 0,
+          reason: cleanText(event && event.reason),
+          wasClean: Boolean(event && event.wasClean)
+        })}`);
         this.historyPoller.start(this.resolvedRoomId || this.roomId);
         this.report({
           connected: Boolean(this.historyPoller.timer),
@@ -219,8 +244,16 @@ class BilibiliDanmakuClient {
       }
     });
 
-    this.wsConnection.on('error', () => {
+    this.wsConnection.on('error', (event) => {
       if (!this.isConnectionCurrent(generation)) return;
+      console.warn(`[Bilibili][Connection] action=error trace=${JSON.stringify({
+        connectionGeneration: generation,
+        connectionAttempt,
+        roomId: this.resolvedRoomId || this.roomId,
+        endpoint: `${host.host}:${host.wss_port || 443}`,
+        readyState: this.wsConnection.ws ? this.wsConnection.ws.readyState : null,
+        message: cleanText(event && (event.message || (event.error && event.error.message)))
+      })}`);
       this.report({
         connected: false,
         enabled: true,
@@ -254,7 +287,10 @@ class BilibiliDanmakuClient {
         requesterMedalName: requester.medalName,
         requesterMedalLevel: requester.medalLevel,
         source: messageData.source,
-        messageTimestamp: messageData.messageTimestamp
+        messageTimestamp: messageData.messageTimestamp,
+        connectionGeneration: this.connectionGeneration,
+        connectionAttempt: this.connectionAttempt,
+        cmd: 'HISTORY'
       });
     }
   }
@@ -283,7 +319,6 @@ class BilibiliDanmakuClient {
     this.reconnectTimer = null;
     this.historyPoller.stop();
 
-    console.log(`[Bilibili] room ${roomId} is live; reconnecting danmaku listener.`);
     this.report({
       connected: false,
       enabled: true,

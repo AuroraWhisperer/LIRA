@@ -20,9 +20,9 @@ const {
   guardLevelName,
   getGuardPriceRmb,
   detectGuardLevelFromName,
-  buildBilibiliFallbackGiftId,
-  logUnparsedGiftLikeCommand
+  buildBilibiliFallbackGiftId
 } = require('../utils/gift-normalizers');
+const { logUnparsedGiftLikeCommand } = require('../helpers');
 const { readFirstObject } = require('../utils/user-meta-extractor');
 
 // ---------------------------------------------------------------------------

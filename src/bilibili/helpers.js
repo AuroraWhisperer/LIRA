@@ -69,12 +69,23 @@ function buildBilibiliFallbackGiftId(packet, data) {
     .digest('hex');
 }
 
-function logUnparsedGiftLikeCommand(message, reason) {
+function formatUnparsedGiftLikeCommandLog(message, reason, options = {}) {
   const cmd = cleanText(message && message.cmd);
   const data = message && message.data && typeof message.data === 'object' ? message.data : {};
   const keys = Object.keys(data).slice(0, 30).join(',');
   const preview = safeJsonStringify(data).slice(0, 260);
-  console.warn('[Bilibili] unparsed gift-like command: reason=' + reason + ' cmd=' + cmd + ' dataKeys=' + keys + ' data=' + preview);
+  const status = cleanText(options.status) || 'unrecognized';
+  const trace = options.connectionGeneration || options.connectionAttempt
+    ? ` trace=${JSON.stringify({
+      connectionGeneration: Number(options.connectionGeneration) || 0,
+      connectionAttempt: Number(options.connectionAttempt) || 0
+    })}`
+    : '';
+  return `[Bilibili][Gift] status=${status} reason=${cleanText(reason)} cmd=${cmd} dataKeys=${keys} data=${preview}${trace}`;
+}
+
+function logUnparsedGiftLikeCommand(message, reason, options = {}) {
+  console.warn(formatUnparsedGiftLikeCommandLog(message, reason, options));
 }
 
 // ── 身份/勋章解析 ──
@@ -120,7 +131,7 @@ module.exports = {
   normalizeBilibiliCoinRmb, parseBooleanLike,
   recordBilibiliCommandDiagnostic, recordBilibiliGiftDiagnostic,
   isCapturableBilibiliTimestamp, buildBilibiliCommandKey,
-  buildBilibiliFallbackGiftId, logUnparsedGiftLikeCommand,
+  buildBilibiliFallbackGiftId, logUnparsedGiftLikeCommand, formatUnparsedGiftLikeCommandLog,
   normalizeRequesterIdentity, guardLevelName,
   readMedalName, readMedalLevel, readBilibiliOnlineRankItems
 };

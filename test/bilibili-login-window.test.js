@@ -93,3 +93,22 @@ test('login window resolves with a logged-out state when final auth lookup fails
   assert.equal(logs.some((entry) => entry.scope === 'bilibili-auth-state'), true);
   assert.equal(FakeBrowserWindow.latest.webContents.session.cookies.listenerCount('changed'), 0);
 });
+
+test('login completion is logged and closed once when several cookie changes arrive together', async () => {
+  const logs = [];
+  const resultPromise = open(createAuth({
+    getBilibiliAuthState: async () => ({ loggedIn: true })
+  }), (scope, message) => logs.push({ scope, message }));
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const cookies = FakeBrowserWindow.latest.webContents.session.cookies;
+  cookies.emit('changed');
+  cookies.emit('changed');
+  cookies.emit('changed');
+  await resultPromise;
+
+  assert.deepEqual(logs, [{
+    scope: 'bilibili-login-auto-close',
+    message: 'Bilibili 登录成功，自动关闭登录窗口'
+  }]);
+});
