@@ -1,8 +1,22 @@
 # 打包与更新说明
 
-当前版本：`3.0.12`
+当前版本：`3.0.13`
 
 ---
+
+## v3.0.13 变更
+
+- 🐛 **礼物通知批量检测修复**：通知系统从仅跟踪最新一条礼物改为跟踪全部礼物（`id → key` Map），修复了延迟到达的非首条礼物遗漏通知的问题。
+- 🐛 **Combo 缓冲键精确化**：`extractComboRootKey` 不再剥离时间戳后缀，改为使用完整 `platformId` 作为缓冲键，确保不同 combo 批次独立缓冲，避免跨批次错误合并。
+- 🐛 **`COMBO_SEND` 精确匹配**：`findRecentComboSendForBuffer` 从 `LIKE` 模糊匹配改为 `=` 精确匹配 `platform_id`，防止不同 combo 批次重复匹配。
+- 🐛 **平台事件去重复合身份**：新增 `findGiftByPlatformIdentity()` 函数，按 `(platform_id, uid)` 或 `(platform_id, uid='' + user_name)` 精确识别同一礼物事件。同一 `platformId` 不同 `uid` 的礼物不再被错误去重，正确保留为两条独立记录。
+- 🐛 **COMBO_END 防重复**：`COMBO_END` 命令在解析层和检测层全部跳过，不再被误判为有效礼物事件并插入到数据库中，解决了某些 Bilibili 协议场景下 COMBO_END 导致重复记录的问题。
+- 🐛 **COMBO_SEND 无 coin_type 付费推断**：`COMBO_SEND` 未带 `coin_type` 字段时，若有有效累计金额（`comboTotalCoin` / `totalCoin` / `unitCoin`），自动推断为付费礼物，不再误判为免费/银瓜子礼物。
+- 🐛 **盲盒统计按数量计数**：`getBlindBoxStats` 盲盒盈亏统计从按条数（1 条 = 1 个）改为按 `num` 字段累加计算，`summary.boxCount` 和 `perUser.boxCount` 均反映实际开盒数量。盲盒明细记录新增 `id` 和 `num` 字段。
+- 🐛 **礼物 createdAt 回退**：`normalizeGiftInput` 在 `messageTimestamp` 缺失时新增 `input.createdAt` 回退，确保礼物记录时间戳不丢失。
+- 🐛 **V2 修复合并已有身份**：`repairGiftV2Events` 修复前先检查是否存在相同 `(platform_id, uid)` 的已有记录，若存在则直接合并至已有记录并删除 V2 行，避免产生重复身份。
+- 🗄️ **数据库 v3 迁移**：新增 schema v3 迁移——清理 `gift_events` 表中重复的 `(platform_id, uid)` 对（保留首条、合并最新数据），并创建唯一索引 `idx_gift_events_platform_uid`，从数据库层面杜绝同一用户同一平台事件的重复插入。
+- 🧪 **测试大幅扩展**：新增 11 个测试用例——礼物通知延迟记录检测、COMBO_SEND 无 coin_type 付费推断、COMBO_END 防重复、UID 复合去重、Combo 批次独立缓冲、银瓜子/免费礼物付费反推排除、盲盒统计数量与 ID、数据库 v3 迁移去重与唯一约束、V2 修复合并已有身份。
 
 ## v3.0.12 变更
 

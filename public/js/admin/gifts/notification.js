@@ -9,30 +9,48 @@
     showStackedToast
   } = window.AdminApp.utils;
 
-  let latestGiftNoticeKey = null;
+  let giftNoticeKeys = null;
 
   /**
    * 检测并显示新礼物通知
    * @param {Array} items - 礼物列表（最新的在前）
    */
   function notifyNewGift(items) {
-    const newest = items[0];
-    const newestId = newest ? Number(newest.id || 0) : 0;
-    if (!newestId) return;
-    const sprintPrice = Number(newest.sprint_count_price ?? newest.total_price ?? 0);
-    const newestKey = [
-      newestId,
-      Number(newest.num || 1),
-      sprintPrice
-    ].join(':');
+    const currentKeys = new Map();
+    for (const item of items) {
+      const id = Number(item && item.id || 0);
+      if (!id) continue;
+      currentKeys.set(id, giftNoticeKey(item));
+    }
 
-    if (latestGiftNoticeKey === null) {
-      latestGiftNoticeKey = newestKey;
+    if (giftNoticeKeys === null) {
+      giftNoticeKeys = currentKeys;
       return;
     }
 
-    if (newestKey === latestGiftNoticeKey) return;
-    latestGiftNoticeKey = newestKey;
+    const changed = items
+      .filter(item => {
+        const id = Number(item && item.id || 0);
+        return id && giftNoticeKeys.get(id) !== currentKeys.get(id);
+      })
+      .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+
+    for (const [id, key] of currentKeys) giftNoticeKeys.set(id, key);
+
+    for (const item of changed) showGiftNotice(item);
+  }
+
+  function giftNoticeKey(item) {
+    return [
+      Number(item.id || 0),
+      Number(item.num || 1),
+      Number(item.sprint_count_price ?? item.total_price ?? 0)
+    ].join(':');
+  }
+
+  function showGiftNotice(newest) {
+    const newestId = Number(newest.id || 0);
+    const sprintPrice = Number(newest.sprint_count_price ?? newest.total_price ?? 0);
 
     // 检查是否启用礼物提示
     const enableGiftNotification = document.getElementById('enableGiftNotification');
@@ -111,7 +129,7 @@
    * 重置通知状态（用于手动清理后）
    */
   function resetNotificationState() {
-    latestGiftNoticeKey = null;
+    giftNoticeKeys = null;
   }
 
   // 导出

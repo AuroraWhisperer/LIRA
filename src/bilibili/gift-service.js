@@ -15,18 +15,11 @@ const GIFT_COMBO_PENDING_MAX_AGE_MS = 10 * 1000;
 
 // ── 连击缓冲 ──
 
-// 从 combo_id / batch_combo_id 中提取不含时间戳的根 key，
-// 同一连击的所有 SEND_GIFT 事件共享同一个根 key，用于缓冲去重。
 function extractComboRootKey(platformId) {
   if (!platformId) return null;
   const lower = platformId.toLowerCase();
   if (!lower.includes('combo') && !lower.includes('batch')) return null;
-  const lastColon = platformId.lastIndexOf(':');
-  if (lastColon <= 0) return null;
-  const lastSegment = platformId.slice(lastColon + 1);
-  // 最后一段应该是时间戳（10+ 位 Unix 时间，可能带小数）
-  if (!/^\d{10,}(\.\d+)?$/.test(lastSegment)) return null;
-  return platformId.slice(0, lastColon);
+  return platformId;
 }
 
 function mergeIntoComboBuffer(context, gift, comboKey, nowMs = Date.now()) {
@@ -169,10 +162,10 @@ function findRecentComboSendForBuffer(context, comboKey, gift) {
     WHERE status = 'active'
       AND created_at BETWEEN ? AND ?
       AND cmd LIKE 'COMBO_SEND%'
-      AND platform_id LIKE ?
+      AND platform_id = ?
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 5
-  `).all(startIso, endIso, comboKey + '%');
+  `).all(startIso, endIso, comboKey);
   if (rows.length === 0) return null;
   // 优先匹配相同 uid 和 gift_id
   const exact = rows.find(r =>
@@ -311,24 +304,16 @@ function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
   }
 
   if (gift.platformId) {
-    const existing = giftDb.prepare('SELECT * FROM gift_events WHERE platform_id = ? LIMIT 1').get(gift.platformId);
+    const existing = findGiftByPlatformIdentity(giftDb, gift);
     if (existing) {
       if (existing.status === 'deleted') {
         logGiftServiceDecision('ignored', gift, existing, 'deleted-platform-id');
         return null;
       }
-      // 同一 platformId（如 batch_combo_id）但不同用户 → 不同人的礼物，不应去重
-      const existingUid = cleanText(existing.uid);
-      const existingUser = cleanText(existing.user_name);
-      if ((existingUid && gift.uid && existingUid !== gift.uid) ||
-          (existingUser && existingUser !== '观众' && gift.userName && gift.userName !== '观众' && existingUser !== gift.userName)) {
-        // 不同用户，跳过 platformId 去重，走正常插入
-      } else {
-        const progressed = hasGiftProgressed(existing, gift);
-        const item = updateGiftEventIfProgressed(context, existing, gift);
-        logGiftServiceDecision(progressed ? 'updated' : 'deduplicated', gift, item, 'platform-id');
-        return item;
-      }
+      const progressed = hasGiftProgressed(existing, gift);
+      const item = updateGiftEventIfProgressed(context, existing, gift);
+      logGiftServiceDecision(progressed ? 'updated' : 'deduplicated', gift, item, 'platform-id');
+      return item;
     }
   }
   const recentDuplicate = findRecentGiftCommandDuplicate(context, gift);
@@ -396,6 +381,14 @@ function repairGiftV2Events(context) {
       const parsed = packetParser.extractBilibiliGiftMessage(packet);
       const gift = parsed ? normalizeGiftInput(parsed) : null;
       if (!gift || gift.totalPrice <= 0) continue;
+
+      const existing = gift.platformId ? findGiftByPlatformIdentity(giftDb, gift) : null;
+      if (existing && Number(existing.id) !== Number(row.id)) {
+        updateGiftEventIfProgressed(context, existing, gift);
+        giftDb.prepare('DELETE FROM gift_events WHERE id = ?').run(Number(row.id));
+        repaired += 1;
+        continue;
+      }
 
       statement.run(
         gift.platformId || cleanText(row.platform_id),
@@ -586,7 +579,7 @@ function getBlindBoxStats(context) {
 
   // 今天所有盲盒礼物（is_blind_box=1 且有 blind_profit）
   const rows = giftDb.prepare(`
-    SELECT user_name, uid, blind_box_name, blind_box_price, total_price, blind_profit, num, created_at
+    SELECT id, user_name, uid, blind_box_name, blind_box_price, total_price, blind_profit, num, created_at
     FROM gift_events
     WHERE status = 'active'
       AND is_blind_box = 1
@@ -616,13 +609,14 @@ function getBlindBoxStats(context) {
     const cost = normalizeMoney(row.blind_box_price);
     const value = normalizeMoney(row.total_price);
     const profit = normalizeSignedMoney(row.blind_profit);
+    const boxCount = normalizePositiveInteger(row.num) || 1;
 
     totalCost += cost;
     totalValue += value;
     totalProfit += profit;
 
     const entry = userMap.get(key) || { userName, uid, boxCount: 0, totalCost: 0, totalValue: 0, totalProfit: 0 };
-    entry.boxCount += 1;
+    entry.boxCount += boxCount;
     entry.totalCost = normalizeMoney(entry.totalCost + cost);
     entry.totalValue = normalizeMoney(entry.totalValue + value);
     entry.totalProfit = normalizeSignedMoney(entry.totalProfit + profit);
@@ -649,7 +643,7 @@ function getBlindBoxStats(context) {
   return {
     today: todayStart,
     summary: {
-      boxCount: rows.length,
+      boxCount: rows.reduce((sum, row) => sum + (normalizePositiveInteger(row.num) || 1), 0),
       totalCost: normalizeMoney(totalCost),
       totalValue: normalizeMoney(totalValue),
       totalProfit: normalizeSignedMoney(totalProfit)
@@ -701,7 +695,9 @@ function normalizeGiftInput(input) {
     blindBoxName: cleanText(input && input.blindBoxName),
     blindBoxPrice, blindProfit,
     rawJson: cleanText(input && input.rawJson),
-    createdAt: timestampToIso(input && input.messageTimestamp) || now()
+    createdAt: timestampToIso(input && input.messageTimestamp)
+      || cleanText(input && input.createdAt)
+      || now()
   };
 }
 
@@ -749,6 +745,22 @@ function hasGiftProgressed(row, gift) {
   const existingTotal = normalizeMoney(row && row.total_price);
   const nextTotal = normalizeMoney(gift && gift.totalPrice);
   return nextNum > existingNum || nextTotal > existingTotal;
+}
+
+function findGiftByPlatformIdentity(giftDb, gift) {
+  if (gift.uid) {
+    return giftDb.prepare(`
+      SELECT * FROM gift_events
+      WHERE platform_id = ? AND uid = ?
+      ORDER BY id ASC LIMIT 1
+    `).get(gift.platformId, gift.uid);
+  }
+
+  return giftDb.prepare(`
+    SELECT * FROM gift_events
+    WHERE platform_id = ? AND uid = '' AND user_name = ?
+    ORDER BY id ASC LIMIT 1
+  `).get(gift.platformId, gift.userName);
 }
 
 function logGiftServiceDecision(action, gift, item = null, reason = '', extraTrace = null) {

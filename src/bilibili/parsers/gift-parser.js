@@ -34,6 +34,8 @@ function extractBilibiliGiftMessage(packet) {
   if (!data || Object.keys(data).length === 0) return null;
 
   const cmd = cleanText(packet && packet.cmd);
+  if (cmd.startsWith('COMBO_END')) return null;
+
   if (cmd.startsWith('LIVE_OPEN_PLATFORM_SEND_GIFT')) {
     return extractBilibiliOpenLiveGiftMessage(packet, data);
   }
@@ -189,7 +191,6 @@ function extractBilibiliWebGiftMessage(packet, data) {
   );
   const num = eventNum || comboNum || 1;
   const coinType = cleanText(readObjectValue(data, ['coin_type', 'coinType', 'coin'])).toLowerCase();
-  const paid = coinType === 'gold' || parseBooleanLike(readObjectValue(data, ['paid', 'is_paid', 'isPaid']));
   const unitCoin = normalizeBilibiliGiftCoin(readObjectValue(data, [
     'price',
     'gift_price',
@@ -208,6 +209,14 @@ function extractBilibiliWebGiftMessage(packet, data) {
     'combo_total_coin',
     'comboTotalCoin'
   ]));
+  // Some COMBO_SEND packets omit coin_type but still carry cumulative paid amount.
+  const hasComboAmount = cmd.startsWith('COMBO_SEND')
+    && (comboTotalCoin > 0 || totalCoin > 0 || unitCoin > 0);
+  const paid = coinType === 'gold'
+    || (!coinType && (
+      parseBooleanLike(readObjectValue(data, ['paid', 'is_paid', 'isPaid']))
+      || hasComboAmount
+    ));
   const unitPrice = paid ? normalizeMoney(unitCoin / 1000) : 0;
   const totalPriceCoin = totalCoin > 0
     ? totalCoin
@@ -411,6 +420,7 @@ function isBilibiliGiftCommand(cmd, runtimeGiftPrefixes) {
 
 function isBilibiliGiftLikeCommand(cmd, runtimeGiftPrefixes) {
   const text = String(cmd || '');
+  if (text.startsWith('COMBO_END')) return false;
   return isBilibiliGiftCommand(text, runtimeGiftPrefixes)
     || text.includes('GIFT')
     || text.includes('COMBO')

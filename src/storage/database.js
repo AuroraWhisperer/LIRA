@@ -115,6 +115,15 @@ function runAllMigrations(databases, options = {}) {
     (db) => {
       // v2: 补齐 platform_id 索引，避免全表扫描导致礼物漏记
       db.exec('CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id ON gift_events(platform_id)');
+    },
+    (db) => {
+      // v3: 同一平台事件允许属于不同 UID，但同一 UID 只能保留一条。
+      collapseDuplicateGiftIdentities(db);
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_gift_events_platform_uid
+        ON gift_events(platform_id, uid)
+        WHERE platform_id != '' AND uid != ''
+      `);
     }
   ]));
 
@@ -216,6 +225,47 @@ function ensureGiftColumns(db) {
     if (!columns.has(name)) {
       db.exec(`ALTER TABLE gift_events ADD COLUMN ${name} ${definition}`);
     }
+  }
+}
+
+function collapseDuplicateGiftIdentities(db) {
+  const groups = db.prepare(`
+    SELECT platform_id, uid
+    FROM gift_events
+    WHERE platform_id != '' AND uid != ''
+    GROUP BY platform_id, uid
+    HAVING COUNT(*) > 1
+  `).all();
+
+  for (const group of groups) {
+    const rows = db.prepare(`
+      SELECT * FROM gift_events
+      WHERE platform_id = ? AND uid = ?
+      ORDER BY id ASC
+    `).all(group.platform_id, group.uid);
+    const canonical = rows[0];
+    const latest = rows.at(-1);
+    const mergedNum = Math.max(...rows.map(row => normalizePositiveInteger(row.num) || 1));
+    const mergedTotal = Math.max(...rows.map(row => Number(row.total_price) || 0));
+
+    db.prepare(`
+      UPDATE gift_events
+      SET user_name = ?, num = ?, unit_price = ?, total_price = ?,
+          counted_in_sprint = ?, updated_at = ?
+      WHERE id = ?
+    `).run(
+      cleanText(latest.user_name) || cleanText(canonical.user_name),
+      mergedNum,
+      mergedNum > 0 ? mergedTotal / mergedNum : 0,
+      mergedTotal,
+      rows.some(row => Number(row.counted_in_sprint) === 1) ? 1 : 0,
+      cleanText(latest.updated_at) || cleanText(canonical.updated_at),
+      Number(canonical.id)
+    );
+    db.prepare(`
+      DELETE FROM gift_events
+      WHERE platform_id = ? AND uid = ? AND id != ?
+    `).run(group.platform_id, group.uid, Number(canonical.id));
   }
 }
 
