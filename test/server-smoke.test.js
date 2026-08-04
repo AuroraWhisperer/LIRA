@@ -110,6 +110,22 @@ function readInjectedApiAnchor(html, baseUrl, href) {
   return anchor.href;
 }
 
+test('server normalizes localhost to the IPv4 loopback address', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-loopback-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  const port = await findAvailablePort();
+
+  try {
+    const app = await runtime.start({ host: 'localhost', startPort: port });
+    assert.equal(app.host, '127.0.0.1');
+    assert.equal(app.baseUrl, `http://127.0.0.1:${port}`);
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('server keeps its core HTTP, state, song and queue behavior', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-smoke-'));
   const originalFetch = global.fetch;
@@ -119,7 +135,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
   process.env.AUTO_OPEN_ADMIN = '0';
   global.fetch = (input, options) => {
     const url = new URL(typeof input === 'string' ? input : input.url);
-    if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') {
+    if (url.hostname === '127.0.0.1') {
       return originalFetch(input, options);
     }
     if (url.hostname === 'raw.githubusercontent.com') {

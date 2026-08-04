@@ -87,7 +87,7 @@
       <div id="songAssistantPage" class="main-page active">
       <section class="song-workspace">
         <div class="queues-row">
-          <section class="panel queue-panel">
+          <section class="panel queue-panel sc-queue-panel">
             <div class="panel-header">
               <h2>SC 队列</h2>
               <div class="actions">
@@ -99,7 +99,7 @@
             </div>
           </section>
 
-          <section class="panel queue-panel">
+          <section class="panel queue-panel song-queue-panel">
             <div class="panel-header">
               <h2>点歌队列</h2>
               <div class="actions">
@@ -1268,6 +1268,50 @@
           <aside class="other-feature-sidebar">
             <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
               <button
+                id="otherOvertimeMachineFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherOvertimeMachineFeature"
+                data-other-feature="otherOvertimeMachineFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="7.5" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="M12 8v4.5l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="other-feature-label">
+                  <strong>加班机</strong>
+                </span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button
+                id="otherDailyTodoFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherDailyTodoFeature"
+                data-other-feature="otherDailyTodoFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="m8 10 1.7 1.7L12 9.2M14 11h3M8 15l1.7 1.7L12 14.2M14 16h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="other-feature-label">
+                  <strong>每日待做</strong>
+                </span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button
                 id="otherPerformanceFeatureTab"
                 class="other-feature-button active"
                 type="button"
@@ -1286,6 +1330,28 @@
                 <span class="other-feature-label">
                   <strong>性能</strong>
                   <small>查看系统资源占用</small>
+                </span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button
+                id="otherUsageGuideFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherUsageGuideFeature"
+                data-other-feature="otherUsageGuideFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M6.5 4.5h8.2L18 7.8v11.7H6.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M14.5 4.5v3.3H18M9 12h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="other-feature-label">
+                  <strong>使用文档</strong>
                 </span>
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1319,6 +1385,22 @@
           </aside>
 
           <div class="other-feature-content">
+            <section
+              id="otherOvertimeMachineFeature"
+              class="other-feature-panel"
+              role="tabpanel"
+              aria-labelledby="otherOvertimeMachineFeatureTab"
+              data-other-feature-panel
+              hidden
+            ></section>
+            <section
+              id="otherDailyTodoFeature"
+              class="other-feature-panel"
+              role="tabpanel"
+              aria-labelledby="otherDailyTodoFeatureTab"
+              data-other-feature-panel
+              hidden
+            ></section>
             <section
               id="otherPerformanceFeature"
               class="other-feature-panel active"
@@ -1411,6 +1493,14 @@
                 </div>
               </div>
             </section>
+            <section
+              id="otherUsageGuideFeature"
+              class="other-feature-panel"
+              role="tabpanel"
+              aria-labelledby="otherUsageGuideFeatureTab"
+              data-other-feature-panel
+              hidden
+            ></section>
 
             <section
               id="otherDesktopUpdateFeature"

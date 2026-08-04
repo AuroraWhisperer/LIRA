@@ -255,7 +255,7 @@ npm run dist:win:local
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `HOST` | `localhost`（Web）/ `127.0.0.1`（Desktop） | HTTP 绑定地址 |
+| `HOST` | `127.0.0.1` | HTTP 绑定地址；旧值 `localhost` 启动时会自动规范为 IPv4 回环地址 |
 | `PORT` | `3000` | HTTP 起始端口 |
 | `SONG_PLUGIN_DATA_DIR` | `{ROOT}/data/` | 数据目录（桌面模式指向 userData） |
 | `ELECTRON_DESKTOP` | `undefined` | 桌面模式标识（影响行为） |

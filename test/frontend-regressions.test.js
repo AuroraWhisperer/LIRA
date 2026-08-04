@@ -50,6 +50,7 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.doesNotMatch(html, /localhost:3000\/blindbox/);
   assert.doesNotMatch(displaySource, /localhost:3000/);
   assert.doesNotMatch(settingsSource, /localhost:3000/);
+  assert.doesNotMatch(displaySource, /replace\(['"]127\.0\.0\.1['"],\s*['"]localhost['"]\)/);
   assert.match(displaySource, /location\.origin/);
   assert.match(settingsSource, /location\.host/);
 });
@@ -62,7 +63,7 @@ test('recent gift cards keep a wider responsive minimum width', () => {
   assert.match(giftCardsRule, /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/);
 });
 
-test('toolbox owns performance and desktop update as independent features', () => {
+test('toolbox owns independent overtime, daily todo, performance, usage guide, and update features', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
   const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
@@ -72,7 +73,10 @@ test('toolbox owns performance and desktop update as independent features', () =
   );
   const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)<\/div>/)?.[1];
   const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
+  const overtimePosition = html.indexOf('data-other-feature="otherOvertimeMachineFeature"');
+  const dailyTodoPosition = html.indexOf('data-other-feature="otherDailyTodoFeature"');
   const performancePosition = html.indexOf('data-other-feature="otherPerformanceFeature"');
+  const usageGuidePosition = html.indexOf('data-other-feature="otherUsageGuideFeature"');
   const updatePosition = html.indexOf('data-other-feature="otherDesktopUpdateFeature"');
 
   assert.doesNotMatch(html, /data-tab="performancePage"/);
@@ -85,9 +89,19 @@ test('toolbox owns performance and desktop update as independent features', () =
   assert.match(directTabRule, /flex:\s*1 1 0/);
   assert.match(directTabRule, /min-width:\s*0/);
   assert.doesNotMatch(tabStyles, /tab-overflow/);
+  assert.match(html, /data-other-feature="otherOvertimeMachineFeature"/);
+  assert.match(html, /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
+  assert.match(html, /data-other-feature="otherDailyTodoFeature"/);
+  assert.match(html, /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
   assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
+  assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
+  assert.match(html, /id="otherUsageGuideFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
   assert.match(html, /id="otherDesktopUpdateFeature"[^>]+data-other-feature-panel/);
+  assert.ok(overtimePosition < performancePosition, 'overtime machine should be first in the toolbox');
+  assert.ok(dailyTodoPosition > overtimePosition, 'daily todo should follow overtime machine in the toolbox');
+  assert.ok(dailyTodoPosition < performancePosition, 'daily todo should precede performance in the toolbox');
+  assert.ok(usageGuidePosition > performancePosition, 'usage guide should follow performance in the toolbox');
   assert.ok(updatePosition > performancePosition, 'desktop update should follow performance in the toolbox');
   assert.equal(html.match(/id="metricsToggle"/g)?.length, 1);
   assert.equal(html.match(/id="desktopCheckUpdateBtn"/g)?.length, 1);
@@ -260,18 +274,27 @@ test('song workspace scrolls within the viewport above the player dock', () => {
   assert.match(expandedRule, /height:\s*calc\(100vh - 58px - 218px\)/);
 });
 
-test('queue panels keep their full height without breaking the narrow layout', () => {
+test('queue panels prioritize SC height while preserving room for song requests', () => {
   const workspaceSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
   const queueRowRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
   const responsiveQueueRule = responsiveSource.match(/\.queues-row\s*\{[\s\S]*?\n\s*\}/)?.[0];
+  const scQueueRule = workspaceSource.match(/\.queues-row \.sc-queue-panel\s*\{[\s\S]*?\n\}/)?.[0];
+  const songQueueRule = workspaceSource.match(/\.queues-row \.song-queue-panel\s*\{[\s\S]*?\n\}/)?.[0];
+  const responsivePanelRule = responsiveSource.match(/\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/)?.[0];
 
   assert.ok(queueRowRule, 'desktop queue row styles should remain defined');
   assert.ok(responsiveQueueRule, 'responsive queue row styles should remain defined');
-  assert.match(queueRowRule, /flex:\s*0 0 450px/);
-  assert.match(queueRowRule, /height:\s*450px/);
+  assert.ok(scQueueRule, 'SC queue sizing should remain defined');
+  assert.ok(songQueueRule, 'song queue sizing should remain defined');
+  assert.ok(responsivePanelRule, 'narrow-layout queue panel sizing should remain defined');
+  assert.match(queueRowRule, /flex:\s*0 0 auto/);
+  assert.match(queueRowRule, /align-items:\s*start/);
+  assert.match(scQueueRule, /height:\s*clamp\(420px,\s*60vh,\s*560px\)/);
+  assert.match(songQueueRule, /height:\s*clamp\(340px,\s*48vh,\s*460px\)/);
   assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
   assert.match(responsiveQueueRule, /height:\s*auto/);
+  assert.match(responsivePanelRule, /height:\s*auto/);
 });
 
 test('admin queue entries keep a fixed height at the top of each list', () => {

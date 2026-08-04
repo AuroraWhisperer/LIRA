@@ -26,7 +26,7 @@ function createWebSocketHub(options = {}) {
     // Token 校验：检查 URL query param 中的 token
     const token = context.sessionToken;
     if (token) {
-      const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
       const queryToken = requestUrl.searchParams.get('token');
       if (queryToken !== token) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');

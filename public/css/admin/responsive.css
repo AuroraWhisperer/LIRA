@@ -93,6 +93,12 @@
     height: auto;
   }
 
+  .queues-row .sc-queue-panel,
+  .queues-row .song-queue-panel {
+    height: auto;
+    min-height: 0;
+  }
+
   .queues-row .queue-panel .queue-list {
     max-height: 420px;
   }

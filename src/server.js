@@ -31,6 +31,11 @@ const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const DEFAULT_SETTINGS = settingsStoreModule.DEFAULT_SETTINGS;
 
+function normalizeServerHost(host) {
+  const value = String(host || '').trim();
+  return !value || value.toLowerCase() === 'localhost' ? '127.0.0.1' : value;
+}
+
 function createServerRuntime(runtimeOptions = {}) {
   const DATA_DIR = runtimeOptions.dataDir
     ? path.resolve(runtimeOptions.dataDir)
@@ -43,7 +48,7 @@ function createServerRuntime(runtimeOptions = {}) {
   const MUSIC_DB_PATH = path.join(DATA_DIR, 'music-data.db');
   const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
   const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
-  const HOST = runtimeOptions.host || process.env.HOST || 'localhost';
+  const HOST = normalizeServerHost(runtimeOptions.host || process.env.HOST);
 
   const db = createDatabases({ dataDir: DATA_DIR, defaultSettings: DEFAULT_SETTINGS });
   const songDb = db.songDb;
@@ -283,7 +288,7 @@ function createServerRuntime(runtimeOptions = {}) {
     musicRegistry = createMusicProviderRegistry(options.musicAuth || {});
     bilibiliAuthProvider = options.bilibiliAuth || null;
     const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
-    const host = options.host || HOST;
+    const host = normalizeServerHost(options.host || HOST);
     startPromise = lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host))
       .then(() => {
         if (isShuttingDown) throw new Error('Server runtime is shutting down.');

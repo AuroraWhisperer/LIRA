@@ -131,7 +131,7 @@
   }
 
   function initOverlayUrls() {
-    const origin = location.origin.replace('127.0.0.1', 'localhost');
+    const origin = location.origin;
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
