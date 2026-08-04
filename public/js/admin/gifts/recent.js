@@ -4,6 +4,21 @@
 
 (function () {
   const MAX_RECENT_GIFT_ROWS = 6;
+  const HIGH_VALUE_GIFT_MIN_RMB = 1000;
+  const HIGH_VALUE_GIFT_ARTWORK = Object.freeze({
+    '35541': '1000-1100/35541.webp',
+    '31115': '1000-1100/31115.webp',
+    '31087': '1200-1300/31087.webp',
+    '30847': '1200-1300/30847.webp',
+    '35724': '1300-1400/35724.webp',
+    '34638': '1900-2000/34638.webp',
+    '31028': '2000-above/31028.webp',
+    '32313': '2000-above/32313.webp',
+    '34383': '2000-above/34383.webp',
+    '34639': '2000-above/34639.webp',
+    '34998': '2000-above/34998.webp',
+    '35502': '2000-above/35502.webp'
+  });
   let recentGiftResizeObserver = null;
 
   const {
@@ -60,21 +75,28 @@
       const userName = escapeHtml(item.user_name || '观众');
       const guardBadge = getGuardBadge(item);
       const blindBoxIcon = getBlindBoxIcon(item);
+      const isHighValueTotal = Number(item.total_price) >= HIGH_VALUE_GIFT_MIN_RMB;
+      const highValueGiftArtwork = getHighValueGiftArtwork(item);
       const typeIcon = guardBadge
         ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
         : blindBoxIcon
           ? `<img class="gift-type-icon gift-blind-box-icon" src="${blindBoxIcon.src}" alt="${blindBoxIcon.name}图标" title="${blindBoxIcon.name}">`
+          : highValueGiftArtwork
+            ? `<img class="gift-type-icon gift-high-value-icon" src="${highValueGiftArtwork.src}" alt="${giftName}照片" title="${giftName}">`
           : '';
       let cardClass = 'gift-card';
       let blindLine = '';
 
       if (typeIcon) cardClass += ' has-type-icon';
+      if (guardBadge) cardClass += ` guard-card guard-${guardBadge.level}`;
+      if (isHighValueTotal && !guardBadge && !blindBoxIcon) cardClass += ' high-value-gift-card';
 
       if (item.is_blind_box && item.blind_box_name) {
         const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
-        const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
+        const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : 'profit-neutral';
+        const blindBoxClass = blindBoxIcon && blindBoxIcon.className ? ` ${blindBoxIcon.className}` : '';
         cardClass += ' blind-box-card';
-        cardClass += blindProfit > 0 ? ' profit' : blindProfit < 0 ? ' loss' : '';
+        cardClass += blindBoxClass;
         blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
       } else if (item.is_blind_box && item.blind_box_price !== null && item.blind_box_price !== undefined) {
         blindLine = `<span class="gift-result">开出 ${formatMoney(item.total_price)}</span>`;
@@ -109,13 +131,13 @@
     const giftId = String(item && item.gift_id || '').trim().toLowerCase();
 
     if (giftName.includes('总督') || giftName.includes('governor') || giftId === 'guard-1') {
-      return { name: '总督', src: '/img/bilibili-guard-governor.png' };
+      return { name: '总督', level: 1, src: '/img/bilibili-guard-governor.png' };
     }
     if (giftName.includes('提督') || giftName.includes('prefect') || giftName.includes('admiral') || giftId === 'guard-2') {
-      return { name: '提督', src: '/img/bilibili-guard-prefect.png' };
+      return { name: '提督', level: 2, src: '/img/bilibili-guard-prefect.png' };
     }
     if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
-      return { name: '舰长', src: '/img/bilibili-guard-captain.png' };
+      return { name: '舰长', level: 3, src: '/img/bilibili-guard-captain.png' };
     }
     return null;
   }
@@ -128,15 +150,23 @@
   function getBlindBoxIcon(item) {
     const blindBoxName = String(item && (item.blind_box_name || item.name) || '').trim();
     if (blindBoxName.includes('心动盲盒')) {
-      return { name: '心动盲盒', src: '/img/bilibili-gifts/blind-box/32251.webp' };
+      return { name: '心动盲盒', className: 'blind-box-heart', src: '/img/bilibili-gifts/blind-box/32251.webp' };
     }
     if (blindBoxName.includes('幸运盲盒')) {
-      return { name: '幸运盲盒', src: '/img/bilibili-gifts/blind-box/35206.webp' };
+      return { name: '幸运盲盒', className: 'blind-box-lucky', src: '/img/bilibili-gifts/blind-box/35206.webp' };
     }
     if (blindBoxName.includes('小熊虫盲盒')) {
-      return { name: '小熊虫盲盒', src: '/img/bilibili-gifts/blind-box/35800.webp' };
+      return { name: '小熊虫盲盒', className: 'blind-box-bear', src: '/img/bilibili-gifts/blind-box/35800.webp' };
     }
     return null;
+  }
+
+  function getHighValueGiftArtwork(item) {
+    const unitPrice = Number(item && item.unit_price);
+    const giftId = String(item && item.gift_id || '').trim();
+    const artworkPath = HIGH_VALUE_GIFT_ARTWORK[giftId];
+    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB || !artworkPath) return null;
+    return { src: `/img/bilibili-gifts/${artworkPath}` };
   }
 
   // 导出
@@ -145,6 +175,7 @@
   window.AdminApp.gifts.recent = {
     renderGiftRecentList,
     getGuardBadge,
-    getBlindBoxIcon
+    getBlindBoxIcon,
+    getHighValueGiftArtwork
   };
 })();

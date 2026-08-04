@@ -323,26 +323,81 @@
   object-fit: contain;
 }
 
+.gift-card.guard-card {
+  border-color: transparent;
+  color: var(--color-bg-primary);
+}
+
+.gift-card.guard-card.guard-1 {
+  background: #f25f72;
+}
+
+.gift-card.guard-card.guard-2 {
+  background: #8d67e8;
+}
+
+.gift-card.guard-card.guard-3 {
+  background: #4b91e8;
+}
+
+.gift-card.guard-card .gift-meta {
+  color: rgba(255, 255, 255, 0.86);
+}
+
 .gift-card .gift-blind-box-icon {
   width: 48px;
   height: 48px;
   object-fit: contain;
 }
 
+.gift-card.high-value-gift-card {
+  border-color: #d6b45f;
+  border-left-color: #9f7425;
+  background: linear-gradient(90deg, #c99a3d 0%, #e8c972 34%, #fff4cf 72%, #fffaf0 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 3px 10px rgba(128, 89, 20, 0.12);
+}
+
+.gift-card.high-value-gift-card .gift-name {
+  color: #49320d;
+}
+
+.gift-card.high-value-gift-card .gift-meta {
+  color: #72551d;
+}
+
+.gift-card .gift-high-value-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 3px rgba(92, 58, 8, 0.2));
+}
+
 /* 小熊虫盲盒礼物卡片样式 — 配色取自盲盒图标（蜜桃粉 #f5a6cb / 暖金 #fede82 / 深玫瑰 #d1568e）*/
-.gift-card:has(.gift-blind-box-icon[alt*="小熊虫"]) {
+.gift-card.blind-box-card.blind-box-heart {
+  border-left-color: #f3a2aa;
+  background: linear-gradient(90deg, #fff6f7 0%, var(--color-bg-primary) 100%);
+}
+
+.gift-card.blind-box-card.blind-box-lucky {
+  border-left-color: #b8d983;
+  background: linear-gradient(90deg, #fbfff4 0%, var(--color-bg-primary) 100%);
+}
+
+.gift-card.blind-box-card.blind-box-bear {
   border-left-color: #f5a6cb;
   background: linear-gradient(90deg, #fff5f9 0%, var(--color-bg-primary) 100%);
 }
 
-.gift-card:has(.gift-blind-box-icon[alt*="小熊虫"]).profit {
-  border-left-color: #21b6a8;
-  background: linear-gradient(90deg, var(--color-accent-light) 0%, var(--color-bg-primary) 100%);
+.gift-card.blind-box-card .profit-up {
+  color: #c0392b;
 }
 
-.gift-card:has(.gift-blind-box-icon[alt*="小熊虫"]).loss {
-  border-left-color: #d1568e;
-  background: linear-gradient(90deg, #fdf0f4 0%, var(--color-bg-primary) 100%);
+.gift-card.blind-box-card .profit-down {
+  color: #21b6a8;
+}
+
+.gift-card.blind-box-card .profit-neutral {
+  color: #647181;
 }
 
 .gift-card .gift-name {

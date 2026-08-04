@@ -215,7 +215,7 @@ function render(stats) {
             <span class="user-name">${escapeHtml(user.userName)}</span>
             ${titleHtml}
           </div>
-          <span class="box-count">${user.boxCount}盒</span>
+          <span class="box-count">${user.boxCount}个</span>
           <span class="profit-value ${profitIsUp ? 'is-up' : 'is-down'}">${profitSign}¥${formatMoney(Math.abs(user.totalProfit))}</span>
         </div>
       `;

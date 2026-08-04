@@ -37,6 +37,12 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.equal(importLines.at(-1), "import './app.js';");
 });
 
+test('admin form refresh does not overwrite the field currently being edited', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
+
+  assert.match(source, /if \(element && element !== document\.activeElement\) element\.value = inputValue;/);
+});
+
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
@@ -335,6 +341,70 @@ test('recent gift cards reserve artwork space and keep metadata in named slots',
   assert.match(styles, /\.gift-card\.has-type-icon\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 52px/);
   assert.match(styles, /\.gift-card \.gift-meta\s*\{[\s\S]*?grid-template-areas:/);
   assert.match(styles, /\.gift-card \.gift-type-icon\s*\{[\s\S]*?position:\s*static/);
+});
+
+test('recent guard gift cards use the matching guard level colors', () => {
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
+
+  assert.match(script, /guard-card guard-\$\{guardBadge\.level\}/);
+  assert.match(script, /name: '总督', level: 1/);
+  assert.match(script, /name: '提督', level: 2/);
+  assert.match(script, /name: '舰长', level: 3/);
+  assert.match(styles, /\.gift-card\.guard-card\.guard-1\s*\{[^}]*background:\s*#f25f72/);
+  assert.match(styles, /\.gift-card\.guard-card\.guard-2\s*\{[^}]*background:\s*#8d67e8/);
+  assert.match(styles, /\.gift-card\.guard-card\.guard-3\s*\{[^}]*background:\s*#4b91e8/);
+});
+
+test('recent blind box cards keep box colors while profit text uses stock-style colors', () => {
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
+
+  assert.match(script, /profitClass = blindProfit > 0 \? 'profit-up' : blindProfit < 0 \? 'profit-down' : 'profit-neutral'/);
+  assert.match(script, /className: 'blind-box-heart'/);
+  assert.match(script, /className: 'blind-box-lucky'/);
+  assert.match(script, /className: 'blind-box-bear'/);
+  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-heart\s*\{[^}]*border-left-color:\s*#f3a2aa/);
+  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-lucky\s*\{[^}]*border-left-color:\s*#b8d983/);
+  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-bear\s*\{[^}]*border-left-color:\s*#f5a6cb/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*#c0392b/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*#21b6a8/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-neutral\s*\{[^}]*color:\s*#647181/);
+});
+
+test('recent gift totals worth at least 1000 RMB use gold while artwork requires that unit value', () => {
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
+  const list = {
+    classList: { toggle() {} },
+    querySelectorAll: () => [],
+    innerHTML: ''
+  };
+  const sandbox = {
+    window: {
+      AdminApp: {
+        utils: {
+          escapeHtml: value => String(value),
+          formatTime: value => String(value),
+          formatMoney: value => String(value)
+        }
+      },
+      getComputedStyle: () => ({ gridTemplateColumns: '270px' })
+    },
+    document: { getElementById: () => list }
+  };
+
+  vm.runInNewContext(script, sandbox);
+  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+    { gift_id: '35541', gift_name: 'bilibili星跃', user_name: 'Alice', num: 1, unit_price: 1000, total_price: 1000 },
+    { gift_id: '35541', gift_name: 'bilibili星跃', user_name: 'Bob', num: 2, unit_price: 500, total_price: 1000 }
+  ]);
+
+  assert.equal((list.innerHTML.match(/high-value-gift-card/g) || []).length, 2);
+  assert.equal((list.innerHTML.match(/gift-high-value-icon/g) || []).length, 1);
+  assert.equal((list.innerHTML.match(/\/img\/bilibili-gifts\/1000-1100\/35541\.webp/g) || []).length, 1);
+  assert.match(styles, /\.gift-card\.high-value-gift-card\s*\{[\s\S]*?background:\s*linear-gradient\(90deg/);
+  assert.match(styles, /\.gift-card \.gift-high-value-icon\s*\{[\s\S]*?object-fit:\s*contain/);
 });
 
 test('blind box mapping cards keep distinct colors for known box types', () => {

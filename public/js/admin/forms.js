@@ -126,7 +126,8 @@ export class FormsService {
   fillForm(values) {
     for (const [key, inputValue] of Object.entries(values || {})) {
       const element = document.getElementById(key);
-      if (element) element.value = inputValue;
+      // Keep an in-progress edit intact while a live state snapshot arrives.
+      if (element && element !== document.activeElement) element.value = inputValue;
     }
     const overlayStyle = value('overlayQueueStyle') || 'classic';
     if (window.AdminApp.theme && window.AdminApp.theme.setOverlayStyle) {
