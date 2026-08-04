@@ -329,17 +329,17 @@
 
 .gift-card.guard-card.guard-1 {
   border-left-color: #f25f72;
-  background: linear-gradient(90deg, #fff5f6 0%, var(--color-bg-primary) 100%);
+  background: linear-gradient(90deg, #ffe9ed 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.guard-card.guard-2 {
   border-left-color: #8d67e8;
-  background: linear-gradient(90deg, #faf7ff 0%, var(--color-bg-primary) 100%);
+  background: linear-gradient(90deg, #f1eaff 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.guard-card.guard-3 {
   border-left-color: #4b91e8;
-  background: linear-gradient(90deg, #f5f9ff 0%, var(--color-bg-primary) 100%);
+  background: linear-gradient(90deg, #e8f2ff 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card .gift-blind-box-icon {
@@ -373,17 +373,17 @@
 /* 小熊虫盲盒礼物卡片样式 — 配色取自盲盒图标（蜜桃粉 #f5a6cb / 暖金 #fede82 / 深玫瑰 #d1568e）*/
 .gift-card.blind-box-card.blind-box-heart {
   border-left-color: #f3a2aa;
-  background: linear-gradient(90deg, #fff6f7 0%, var(--color-bg-primary) 100%);
+  background: linear-gradient(90deg, #ffecef 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.blind-box-card.blind-box-lucky {
   border-left-color: #b8d983;
-  background: linear-gradient(90deg, #fbfff4 0%, var(--color-bg-primary) 100%);
+  background: linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.blind-box-card.blind-box-bear {
   border-left-color: #f5a6cb;
-  background: linear-gradient(90deg, #fff5f9 0%, var(--color-bg-primary) 100%);
+  background: linear-gradient(90deg, #ffeaf4 0%, var(--color-bg-primary) 100%);
 }
 
 .gift-card.blind-box-card .profit-up {
