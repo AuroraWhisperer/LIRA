@@ -31,14 +31,6 @@ function guardLevelName(level) {
   return '';
 }
 
-// 硬编码的 Bilibili 大航海价格 (RMB)，用于 API 未返回价格时的回退值
-const HARDCODED_GUARD_PRICE_RMB = { 1: 19998, 2: 1998, 3: 198 };
-
-function getGuardPriceRmb(guardLevel) {
-  const level = Number(guardLevel);
-  return HARDCODED_GUARD_PRICE_RMB[level] || 0;
-}
-
 // 从礼物名称 / 角色名称中反向检测大航海等级
 // 能处理 "舰长"、"提督"、"总督"、"Captain" 等变体
 function detectGuardLevelFromName(name) {
@@ -76,7 +68,6 @@ module.exports = {
   normalizeBilibiliGiftCoin,
   normalizeBilibiliCoinRmb,
   guardLevelName,
-  getGuardPriceRmb,
   detectGuardLevelFromName,
   buildBilibiliFallbackGiftId
 };

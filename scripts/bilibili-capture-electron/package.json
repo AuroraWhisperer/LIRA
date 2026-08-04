@@ -1,0 +1,5 @@
+{
+  "name": "bilibili-capture-electron",
+  "private": true,
+  "main": "index.js"
+}

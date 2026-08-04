@@ -19,6 +19,7 @@ ManifestDPIAware true
 !macroend
 
 !macro customUnInstall
+  RMDir /r "$APPDATA\bilibili-live-song-plugin"
   ; 清理旧版本残留在 %APPDATA% 下的 Electron Chromium 持久化分区数据
   ; （新版本已将 userData 重定向到安装目录，此目录仅用于旧版本升级时的清理）
   RMDir /r "$APPDATA\点歌助手"

@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`3.0.13`
+当前版本：`3.0.14`
 
 ---
+
+## v3.0.14 变更
+
+- 🐛 **护卫礼物价格修正**：`GUARD_BUY` 消息不再被解析为礼物事件（仅携带标价而非实付金额），改为等待 `USER_TOAST_MSG` 获取实际支付总价。移除硬编码护卫价格回退表 `getGuardPriceRmb`，所有护卫价格以 Bilibili API 返回的 `pay_info.price` 为准，不再使用兜底估算。
+- 🐛 **护卫订单去重键精确化**：`USER_TOAST_MSG` 护卫礼物优先使用 `payflow_id` 构建 `guard-order:<payflowId>` 格式的 `platformId`，确保同一秒内不同折扣的护卫订单被正确识别为独立记录。
+- 🐛 **多月护卫价格展示修正**：多月护卫（如 3 月 / 6 月舰长）的 `num` 记录购买月数，`unitPrice` 不再虚构平均月价（`totalPrice / num`），改为直接等于 `totalPrice`（整单总价）。
+- 🎨 **盲盒盈亏投屏面板重构**：盲盒 URL 生成器从礼物统计页的 `<fieldset>` 迁移至独立的 `gift-blindbox-broadcast-panel` section，新增 panel header（含「直播画面」kicker 和「打开画面」直达链接）。Gift workspace grid 从 5 行扩展为 6 行以容纳新面板。
+- 🎨 **盲盒投屏画面自适应布局**：盲盒 overlay 全面重写为容器查询（`container-type: inline-size`）驱动。面板固定 420px 初始宽度，首次 viewport resize 后切换为全宽自适应（`calc(100vw - 2 * var(--overlay-edge))`），自动匹配直播姬 / OBS 捕捉窗口尺寸。统计卡片改用 Grid 双列布局（图标 + 数值/标签），盈亏颜色和边框在容器查询断点下自适应调整。header 新增 `BLIND BOX LIVE` eyebrow 标签和渐变色背景。
+- 🎨 **最近礼物列表行数限制**：最近礼物面板最多显示 6 行，行数根据 CSS Grid 列数动态计算。新增 `ResizeObserver` 监听面板宽度变化，窗口缩放时自动更新可见卡片数量，超出部分用 `hidden` 属性隐藏。
+- ⚡ **Bilibili 桌面认证采集**：`capture-bilibili-events.js` 新增 `--bilibili-user-data` 参数，支持从 Electron 桌面版的 Bilibili 登录态读取 cookie 和 uid 进行认证弹幕采集。新增 `scripts/bilibili-capture-electron/` Electron 入口脚本。元数据记录新增 `authenticated` 和 `uid` 字段。
+- 🗑️ **卸载清理增强**：NSIS 卸载脚本新增清理 `%APPDATA%\bilibili-live-song-plugin` 目录，确保卸载时同时移除桌面版用户数据残留。
+- 🧪 **测试同步更新**：新增护卫礼物 GUARD_BUY 过滤、多月护卫价格、不同 payflow_id 独立记录、提督/总督等级识别、盲盒投屏面板位置、盲盒 overlay 自适应布局、最近礼物行数限制等回归测试。礼物测试辅助重构为 `withGiftService` 模式减少重复代码。
 
 ## v3.0.13 变更
 

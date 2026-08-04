@@ -3,11 +3,31 @@
 'use strict';
 
 (function () {
+  const MAX_RECENT_GIFT_ROWS = 6;
+  let recentGiftResizeObserver = null;
+
   const {
     escapeHtml,
     formatTime,
     formatMoney
   } = window.AdminApp.utils;
+
+  function limitRecentGiftRows(list) {
+    const columns = window.getComputedStyle(list).gridTemplateColumns
+      .split(/\s+/)
+      .filter(Boolean).length || 1;
+    const visibleCardCount = columns * MAX_RECENT_GIFT_ROWS;
+
+    list.querySelectorAll('.gift-card').forEach((card, index) => {
+      card.hidden = index >= visibleCardCount;
+    });
+  }
+
+  function observeRecentGiftGrid(list) {
+    if (recentGiftResizeObserver || !window.ResizeObserver) return;
+    recentGiftResizeObserver = new window.ResizeObserver(() => limitRecentGiftRows(list));
+    recentGiftResizeObserver.observe(list);
+  }
 
   // ── 最近礼物列表 ──
 
@@ -75,6 +95,8 @@
         </div>
       `;
     }).join('');
+    limitRecentGiftRows(list);
+    observeRecentGiftGrid(list);
   }
 
   /**

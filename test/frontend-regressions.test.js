@@ -112,12 +112,103 @@ test('admin overlay links always use the IPv4 loopback host and current port', (
   assert.doesNotMatch(settingsSource, /location\.host/);
 });
 
+test('blindbox broadcast controls live below gift profit stats', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const giftPageStart = html.indexOf('<section id="giftAssistantPage"');
+  const statsStart = html.indexOf('class="panel gift-blindbox-panel"');
+  const broadcastStart = html.indexOf('class="panel gift-blindbox-broadcast-panel"');
+  const mappingStart = html.indexOf('class="panel gift-blindbox-mapping-panel"');
+  const overlayTabEnd = html.indexOf('<div id="importPage"');
+
+  assert.ok(giftPageStart > -1);
+  assert.ok(statsStart > giftPageStart);
+  assert.ok(broadcastStart > statsStart);
+  assert.ok(mappingStart > broadcastStart);
+  assert.ok(html.indexOf('id="blindboxOverlayTitle"') > broadcastStart);
+  assert.equal(html.slice(0, overlayTabEnd).includes('id="blindboxOverlayTitle"'), false);
+});
+
+test('blindbox overlay fills the capture width and reflows without hiding data', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'blindbox.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'blindbox.css'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'blindbox.js'), 'utf8');
+  const panelRule = styles.match(/\.blindbox-panel\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(panelRule, 'blindbox panel styles should remain defined');
+  assert.doesNotMatch(html, /blindbox-live-status|>实时</);
+  assert.doesNotMatch(styles, /blindbox-live-status/);
+  assert.match(panelRule, /width:\s*420px/);
+  assert.match(panelRule, /margin:\s*var\(--overlay-edge\)/);
+  assert.match(styles, /\.overlay-body\.blindbox-viewport-resized \.blindbox-panel\s*\{[\s\S]*?width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/);
+  assert.match(panelRule, /container-type:\s*inline-size/);
+  assert.match(styles, /@container \(min-width: 680px\)[\s\S]*?grid-template-columns:\s*minmax\(240px, 0\.8fr\) minmax\(360px, 1\.35fr\)/);
+  assert.match(styles, /@container \(max-width: 259px\)[\s\S]*?grid-template-areas:\s*"rank user user" "rank count profit"/);
+  assert.doesNotMatch(styles, /\.box-count\s*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(styles, /\.profit-value\s*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(source, /panel\.style\.overflow\s*=\s*['"]hidden['"]/);
+  assert.match(source, /initialBlindboxViewportWidth\s*=\s*window\.innerWidth/);
+  assert.match(source, /blindbox-viewport-resized/);
+});
+
 test('recent gift cards keep a wider responsive minimum width', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const giftCardsRule = source.match(/\.gift-page \.panel-body \.gift-cards\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(giftCardsRule, 'gift card layout styles should remain defined');
   assert.match(giftCardsRule, /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/);
+});
+
+test('recent gift cards stay within six rows as the grid width changes', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
+  const cards = [];
+  let gridTemplateColumns = '270px 270px 270px';
+  let resizeCallback;
+  const list = {
+    classList: { toggle() {} },
+    querySelectorAll: () => cards,
+    set innerHTML(value) {
+      cards.length = (value.match(/class="gift-card/g) ?? []).length;
+      for (let index = 0; index < cards.length; index += 1) cards[index] = { hidden: false };
+    }
+  };
+  const sandbox = {
+    window: {
+      AdminApp: {
+        utils: {
+          escapeHtml: value => String(value),
+          formatTime: value => String(value),
+          formatMoney: value => String(value)
+        }
+      },
+      getComputedStyle: () => ({ gridTemplateColumns }),
+      ResizeObserver: class {
+        constructor(callback) {
+          resizeCallback = callback;
+        }
+        observe() {}
+      }
+    },
+    document: { getElementById: () => list }
+  };
+  const items = Array.from({ length: 30 }, (_, index) => ({
+    gift_name: `Gift ${index + 1}`,
+    user_name: 'Viewer',
+    total_price: 1,
+    created_at: index
+  }));
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList(items);
+
+  assert.equal(cards.filter(card => !card.hidden).length, 18);
+
+  gridTemplateColumns = '270px 270px';
+  resizeCallback();
+  assert.equal(cards.filter(card => !card.hidden).length, 12);
+
+  gridTemplateColumns = '270px 270px 270px 270px 270px';
+  resizeCallback();
+  assert.equal(cards.filter(card => !card.hidden).length, 30);
 });
 
 test('recent gift cards reserve artwork space and keep metadata in named slots', () => {
@@ -342,7 +433,7 @@ test('gift workspace rows keep their content height inside the scroll container'
   const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
-  assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(5, max-content\)/);
+  assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(6, max-content\)/);
 });
 
 test('song workspace scrolls within the viewport above the player dock', () => {

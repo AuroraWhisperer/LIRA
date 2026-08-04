@@ -122,6 +122,7 @@
   .gift-recent-panel,
   .gift-sprint-panel,
   .gift-blindbox-panel,
+  .gift-blindbox-broadcast-panel,
   .gift-blindbox-mapping-panel {
     grid-column: 1;
     grid-row: auto;

@@ -167,6 +167,9 @@ class MessageHandlers {
   }
 
   handleGift(message) {
+    // GUARD_BUY only carries the list price. Wait for USER_TOAST_MSG with the paid total.
+    if (cleanText(message && message.cmd).startsWith('GUARD_BUY')) return;
+
     const isKnownCmd = packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes);
     const gift = packetParser.extractBilibiliGiftMessage(message);
 

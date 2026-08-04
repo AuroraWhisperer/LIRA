@@ -13,7 +13,7 @@ const DEFAULT_DURATION_SECONDS = 300;
 function parseArguments(argv, cwd = process.cwd()) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
 
-  const allowedOptions = new Set(['--room', '--duration', '--output', '--gift-only']);
+  const allowedOptions = new Set(['--room', '--duration', '--output', '--gift-only', '--bilibili-user-data']);
   for (const argument of argv) {
     if (argument.startsWith('--') && !allowedOptions.has(argument)) {
       throw new Error(`Unknown option: ${argument}`);
@@ -27,12 +27,14 @@ function parseArguments(argv, cwd = process.cwd()) {
   }
 
   const outputOption = readOption(argv, '--output');
+  const bilibiliUserDataOption = readOption(argv, '--bilibili-user-data');
   return {
     help: false,
     roomId,
     durationMs: durationSeconds * 1000,
     outputPath: path.resolve(cwd, outputOption || defaultOutputName()),
-    giftOnly: argv.includes('--gift-only')
+    giftOnly: argv.includes('--gift-only'),
+    bilibiliUserDataPath: bilibiliUserDataOption ? path.resolve(cwd, bilibiliUserDataOption) : ''
   };
 }
 
@@ -71,8 +73,8 @@ function shouldCaptureMessage(message, giftOnly) {
 
 async function captureEvents(options) {
   const apiClient = new BilibiliApiClient(options.roomId, {
-    cookieHeader: process.env.BILIBILI_COOKIE || '',
-    uid: Number(process.env.BILIBILI_UID || 0)
+    cookieHeader: options.cookieHeader || process.env.BILIBILI_COOKIE || '',
+    uid: Number(options.uid || process.env.BILIBILI_UID || 0)
   });
   const roomInfo = await apiClient.resolveRoomInfo();
   const danmuInfo = await apiClient.resolveDanmuInfo(roomInfo.roomId);
@@ -154,7 +156,9 @@ async function captureEvents(options) {
       type: 'meta',
       startedAt: new Date().toISOString(),
       roomId: String(roomInfo.roomId),
-      giftOnly: options.giftOnly
+      giftOnly: options.giftOnly,
+      authenticated: Boolean(apiClient.cookieHeader && apiClient.uid),
+      uid: apiClient.uid || 0
     });
     process.once('SIGINT', onSignal);
     timer = setTimeout(() => {
@@ -170,8 +174,32 @@ async function captureEvents(options) {
   return summary;
 }
 
+async function loadBilibiliDesktopAuth(userDataPath) {
+  if (!userDataPath) return null;
+  if (!process.versions.electron) {
+    throw new Error('--bilibili-user-data requires running this script with Electron');
+  }
+
+  const { app } = require('electron');
+  app.setPath('userData', userDataPath);
+  await app.whenReady();
+
+  const auth = require('../src/electron/bilibili-auth');
+  const state = await auth.getBilibiliAuthState(userDataPath);
+  if (!state.loggedIn) {
+    throw new Error(`No complete Bilibili login was found in ${userDataPath}`);
+  }
+
+  return {
+    cookieHeader: await auth.getBilibiliCookieHeader(),
+    uid: await auth.getBilibiliUid(),
+    close: () => app.quit()
+  };
+}
+
 function printUsage() {
   console.log('Usage: node scripts/capture-bilibili-events.js --room <roomId> [--duration <seconds>] [--output <path>] [--gift-only]');
+  console.log('Logged-in desktop capture: electron scripts/bilibili-capture-electron ... --bilibili-user-data <Electron userData path>');
   console.log('Set BILIBILI_COOKIE when the room requires a logged-in danmaku connection.');
 }
 
@@ -182,9 +210,19 @@ async function main() {
     return;
   }
 
-  console.log(`[Capture] room=${options.roomId} duration=${options.durationMs / 1000}s output=${options.outputPath} giftOnly=${options.giftOnly}`);
-  const summary = await captureEvents(options);
-  console.log(`[Capture] finished reason=${summary.reason} events=${summary.eventCount} output=${options.outputPath}`);
+  let desktopAuth = null;
+  try {
+    desktopAuth = await loadBilibiliDesktopAuth(options.bilibiliUserDataPath);
+    if (desktopAuth) {
+      options.cookieHeader = desktopAuth.cookieHeader;
+      options.uid = desktopAuth.uid;
+    }
+    console.log(`[Capture] room=${options.roomId} duration=${options.durationMs / 1000}s output=${options.outputPath} giftOnly=${options.giftOnly} authenticated=${Boolean(options.cookieHeader || process.env.BILIBILI_COOKIE)}`);
+    const summary = await captureEvents(options);
+    console.log(`[Capture] finished reason=${summary.reason} events=${summary.eventCount} output=${options.outputPath}`);
+  } finally {
+    if (desktopAuth) desktopAuth.close();
+  }
 }
 
 if (require.main === module) {
@@ -197,5 +235,7 @@ if (require.main === module) {
 module.exports = {
   parseArguments,
   buildCaptureRecord,
-  shouldCaptureMessage
+  shouldCaptureMessage,
+  loadBilibiliDesktopAuth,
+  main
 };

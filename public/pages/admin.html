@@ -883,58 +883,6 @@
               </section>
             </div>
 
-            <!-- 盲盒盈亏 — 单独的 URL 生成器 -->
-            <fieldset class="theme-section" style="margin-top:16px">
-              <legend>🎰 盲盒盈亏</legend>
-              <p class="hint" style="margin-bottom:12px">今日盲盒盈亏、欧皇排行榜。调好参数复制链接到 OBS 浏览器源。</p>
-
-              <div class="blindbox-builder">
-                <div class="blindbox-builder-row">
-                  <label>
-                    <span class="blindbox-builder-label">📝 投屏标题</span>
-                    <input id="blindboxOverlayTitle" type="text" placeholder="默认：🎁 今日盲盒盈亏">
-                    <span class="hint">留空则显示默认标题</span>
-                  </label>
-                  <label>
-                    <span class="blindbox-builder-label">👥 显示人数</span>
-                    <input id="blindboxOverlayTop" type="number" min="0" max="50" value="5" placeholder="5">
-                    <span class="hint">填 0 显示全部，建议 5~10</span>
-                  </label>
-                </div>
-
-                <div class="blindbox-builder-switches">
-                  <label class="blindbox-switch">
-                    <input id="blindboxWinnersOnly" type="checkbox" checked>
-                    <span>🏆 仅显示盈利者</span>
-                    <span class="hint">隐藏亏了的观众，只晒欧皇</span>
-                  </label>
-                  <label class="blindbox-switch">
-                    <input id="blindboxCompact" type="checkbox">
-                    <span>📐 紧凑模式</span>
-                    <span class="hint">缩小间距，适合小窗口</span>
-                  </label>
-                  <label class="blindbox-switch">
-                    <input id="blindboxNoScroll" type="checkbox">
-                    <span>⏸️ 禁止滚动</span>
-                    <span class="hint">内容固定不滚动</span>
-                  </label>
-                  <label class="blindbox-switch">
-                    <input id="blindboxLowPower" type="checkbox">
-                    <span>⚡ 低功耗</span>
-                    <span class="hint">关闭特效，减少 OBS 占用</span>
-                  </label>
-                </div>
-
-                <div class="blindbox-url-bar">
-                  <span class="blindbox-url-label">🔗 投屏链接</span>
-                  <code id="blindboxOverlayUrl"></code>
-                  <div class="blindbox-url-actions">
-                    <button id="blindboxCopyUrlBtn" class="primary" type="button">📋 复制</button>
-                    <button id="blindboxOpenUrlBtn" class="secondary" type="button">🔗 预览</button>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
           </div>
         </div>
 
@@ -1242,6 +1190,69 @@
                       <tr><td colspan="6" class="empty">暂无数据</td></tr>
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel gift-blindbox-broadcast-panel">
+            <div class="panel-header">
+              <div>
+                <span class="panel-kicker">直播画面</span>
+                <h2>盲盒盈亏版</h2>
+              </div>
+              <a class="blindbox-live-link" href="/blindbox" target="_blank" rel="noopener">打开画面</a>
+            </div>
+            <div class="panel-body blindbox-builder">
+              <div class="blindbox-builder-intro">
+                <strong>直播姬与 OBS 通用</strong>
+                <span>设置显示内容后复制链接；画面会跟随捕捉窗口自动调整布局。</span>
+              </div>
+
+              <div class="blindbox-builder-row">
+                <label>
+                  <span class="blindbox-builder-label">投屏标题</span>
+                  <input id="blindboxOverlayTitle" type="text" placeholder="默认：今日盲盒盈亏">
+                  <span class="hint">留空显示默认标题</span>
+                </label>
+                <label>
+                  <span class="blindbox-builder-label">显示人数</span>
+                  <input id="blindboxOverlayTop" type="number" min="0" max="50" value="5" placeholder="5">
+                  <span class="hint">填 0 显示全部，建议 5 至 10 人</span>
+                </label>
+              </div>
+
+              <div class="blindbox-builder-switches">
+                <label class="blindbox-switch">
+                  <input id="blindboxWinnersOnly" type="checkbox" checked>
+                  <span>仅显示盈利者</span>
+                  <span class="hint">隐藏亏损观众</span>
+                </label>
+                <label class="blindbox-switch">
+                  <input id="blindboxCompact" type="checkbox">
+                  <span>紧凑模式</span>
+                  <span class="hint">减少行距，适合小窗口</span>
+                </label>
+                <label class="blindbox-switch">
+                  <input id="blindboxNoScroll" type="checkbox">
+                  <span>禁止滚动</span>
+                  <span class="hint">保持排行榜内容固定</span>
+                </label>
+                <label class="blindbox-switch">
+                  <input id="blindboxLowPower" type="checkbox">
+                  <span>低功耗</span>
+                  <span class="hint">关闭特效，降低捕捉占用</span>
+                </label>
+              </div>
+
+              <div class="blindbox-url-bar">
+                <div class="blindbox-url-copy">
+                  <span class="blindbox-url-label">捕捉链接</span>
+                  <code id="blindboxOverlayUrl"></code>
+                </div>
+                <div class="blindbox-url-actions">
+                  <button id="blindboxCopyUrlBtn" class="primary" type="button">复制链接</button>
+                  <button id="blindboxOpenUrlBtn" class="secondary" type="button">预览</button>
                 </div>
               </div>
             </div>

@@ -305,7 +305,7 @@ body.player-dock-expanded .song-workspace {
 .gift-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: repeat(5, max-content);
+  grid-template-rows: repeat(6, max-content);
   align-content: start;
   gap: 14px;
   height: calc(100vh - 58px - 96px);
@@ -344,6 +344,11 @@ body.player-dock-expanded .gift-workspace {
 }
 
 .gift-blindbox-mapping-panel {
+  grid-column: 1 / -1;
+  grid-row: 6;
+}
+
+.gift-blindbox-broadcast-panel {
   grid-column: 1 / -1;
   grid-row: 5;
 }

@@ -6,6 +6,9 @@ let state = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 let refreshTimer = null;
+let initialBlindboxViewportWidth = 0;
+let initialBlindboxViewportHeight = 0;
+let blindboxViewportResized = false;
 
 // URL 参数解析 — 支持短别名：t=top, w=winners, c=compact, tt=title
 const urlParams = new URLSearchParams(location.search);
@@ -20,9 +23,12 @@ const NO_SCROLL = param('noScroll', 'ns') === '1';
 
 document.addEventListener('DOMContentLoaded', () => {
   const panel = document.querySelector('.blindbox-panel');
+  initialBlindboxViewportWidth = window.innerWidth;
+  initialBlindboxViewportHeight = window.innerHeight;
+  window.addEventListener('resize', handleBlindboxViewportResize);
   if (COMPACT) panel.classList.add('compact');
   if (WINNERS_ONLY) panel.classList.add('winners-only');
-  if (NO_SCROLL) panel.style.overflow = 'hidden';
+  if (NO_SCROLL) panel.classList.add('no-scroll');
 
   if (CUSTOM_TITLE) {
     document.getElementById('blindboxTitle').textContent = CUSTOM_TITLE;
@@ -35,6 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshTimer = setInterval(loadStats, REFRESH_SEC * 1000);
   }
 });
+
+function handleBlindboxViewportResize() {
+  const widthChanged = window.innerWidth !== initialBlindboxViewportWidth;
+  const heightChanged = window.innerHeight !== initialBlindboxViewportHeight;
+  if (blindboxViewportResized || (!widthChanged && !heightChanged)) return;
+
+  blindboxViewportResized = true;
+  document.body.classList.add('blindbox-viewport-resized');
+}
 
 async function loadStateThenStats() {
   try {

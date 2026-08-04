@@ -1,327 +1,402 @@
-/* 编写人：AuroraWhisperer */
-/* 盲盒盈亏 overlay 样式 */
+/* 盲盒盈亏直播画面：随直播姬和 OBS 捕捉窗口自适应。 */
 
-/* ── Panel ── */
+body.blindbox-overlay-body {
+  --overlay-edge: clamp(4px, 2vmin, 16px);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+html,
+body.blindbox-overlay-body {
+  min-height: 100%;
+}
+
 .blindbox-panel {
-  width: min(420px, calc(100vw - 32px));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: visible;
+  width: 420px;
+  max-width: calc(100vw - (2 * var(--overlay-edge)));
+  margin: var(--overlay-edge);
+  max-height: calc(100vh - (2 * var(--overlay-edge)));
+  max-height: calc(100dvh - (2 * var(--overlay-edge)));
+  box-sizing: border-box;
+  border-color: rgba(255, 255, 255, 0.12);
+  overflow-x: hidden;
+  overflow-y: auto;
+  container-type: inline-size;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.overlay-body.blindbox-viewport-resized .blindbox-panel {
+  width: calc(100vw - (2 * var(--overlay-edge)));
+  max-width: none;
+}
+
+.blindbox-panel.no-scroll {
+  scrollbar-width: none;
+}
+
+.blindbox-panel.no-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .blindbox-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px 16px;
+  min-height: 46px;
+  box-sizing: border-box;
+  padding: clamp(8px, 2.6cqw, 14px) clamp(10px, 3.4cqw, 20px);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(90deg, rgba(var(--overlay-primary-r, 255), var(--overlay-primary-g, 111), var(--overlay-primary-b, 149), 0.14), transparent 52%);
+}
+
+.blindbox-title-group {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.blindbox-eyebrow {
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 42%);
+  font-size: clamp(7px, 1.8cqw, 10px);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.blindbox-title-group .overlay-title {
+  overflow-wrap: anywhere;
+  font-size: clamp(14px, 4cqw, 22px);
+  line-height: 1.18;
 }
 
 .blindbox-content {
-  padding: 12px 14px 16px;
   display: grid;
-  gap: 14px;
+  gap: clamp(8px, 2.5cqw, 14px);
+  padding: clamp(8px, 3cqw, 18px);
 }
 
-/* ── 汇总卡片 ── */
 .blindbox-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: clamp(4px, 1.8cqw, 9px);
 }
 
 .blindbox-stat-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon value" "icon label";
   align-items: center;
-  gap: 3px;
-  padding: 10px 6px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  text-align: center;
-  transition: background 200ms ease;
+  column-gap: clamp(5px, 1.8cqw, 10px);
+  min-width: 0;
+  padding: clamp(7px, 2.3cqw, 12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: min(var(--overlay-radius, 8px), 8px);
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .blindbox-stat-card .stat-icon {
-  font-size: 18px;
+  grid-area: icon;
+  font-size: clamp(13px, 3.4cqw, 20px);
   line-height: 1;
 }
 
 .blindbox-stat-card .stat-value {
-  font-size: 18px;
+  grid-area: value;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--overlay-text, #fff7fb);
+  font-size: clamp(13px, 3.7cqw, 21px);
   font-weight: 900;
-  line-height: 1.15;
-  color: var(--overlay-text, var(--color-text-light));
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .blindbox-stat-card .stat-label {
-  font-size: 11px;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 35%);
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  grid-area: label;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 38%);
+  font-size: clamp(8px, 2cqw, 11px);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .blindbox-stat-card.profit-up {
+  border-color: rgba(33, 182, 168, 0.28);
   background: rgba(33, 182, 168, 0.12);
-  border-color: rgba(33, 182, 168, 0.25);
 }
 
 .blindbox-stat-card.profit-up .stat-value {
-  color: #21b6a8;
+  color: #50dfcf;
 }
 
 .blindbox-stat-card.profit-down {
-  background: rgba(220, 20, 60, 0.10);
-  border-color: rgba(220, 20, 60, 0.20);
+  border-color: rgba(240, 103, 125, 0.26);
+  background: rgba(220, 20, 60, 0.1);
 }
 
 .blindbox-stat-card.profit-down .stat-value {
-  color: var(--color-danger-medium);
+  color: #ff8fa3;
 }
 
-/* ── 空态 ── */
-.blindbox-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 24px 16px;
-  text-align: center;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 40%);
-}
-
-.blindbox-empty .empty-icon {
-  font-size: 32px;
-  opacity: 0.5;
-}
-
-.blindbox-empty .empty-text {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* ── 排行榜 ── */
 .blindbox-leaderboard {
   display: grid;
-  gap: 5px;
+  gap: clamp(4px, 1.2cqw, 7px);
+  min-width: 0;
 }
 
 .leaderboard-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 4px 4px;
-  font-size: 11px;
+  display: grid;
+  grid-template-columns: clamp(24px, 7cqw, 38px) minmax(0, 1fr) auto auto;
+  gap: clamp(5px, 1.8cqw, 10px);
+  padding: 0 clamp(7px, 2.4cqw, 13px) 2px;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 48%);
+  font-size: clamp(8px, 1.9cqw, 11px);
   font-weight: 700;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 45%);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto auto;
-  gap: 8px;
+  grid-template-columns: clamp(24px, 7cqw, 38px) minmax(0, 1fr) auto auto;
+  gap: clamp(5px, 1.8cqw, 10px);
   align-items: center;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  transition: background 180ms ease, border-color 180ms ease;
+  min-width: 0;
+  padding: clamp(6px, 1.8cqw, 10px) clamp(7px, 2.4cqw, 13px);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: min(var(--overlay-radius, 8px), 7px);
+  background: rgba(255, 255, 255, 0.045);
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
-.leaderboard-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* 🥇🥈🥉 前三名高亮 */
 .leaderboard-row.rank-1 {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.14), rgba(245, 158, 11, 0.08));
-  border-color: rgba(251, 191, 36, 0.30);
+  border-color: rgba(251, 191, 36, 0.32);
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0.035));
 }
 
 .leaderboard-row.rank-2 {
-  background: linear-gradient(135deg, rgba(192, 200, 212, 0.12), rgba(156, 163, 175, 0.06));
-  border-color: rgba(192, 200, 212, 0.22);
+  border-color: rgba(192, 200, 212, 0.2);
+  background: rgba(192, 200, 212, 0.08);
 }
 
 .leaderboard-row.rank-3 {
-  background: linear-gradient(135deg, rgba(217, 149, 118, 0.12), rgba(180, 120, 80, 0.06));
-  border-color: rgba(217, 149, 118, 0.22);
+  border-color: rgba(217, 149, 118, 0.2);
+  background: rgba(217, 149, 118, 0.08);
 }
 
-/* 亏损用户暗色 */
 .leaderboard-row.is-loss {
   opacity: 0.72;
 }
 
-/* ── 排名徽章 ── */
 .rank-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
+  display: grid;
+  place-items: center;
+  width: clamp(22px, 6cqw, 30px);
+  aspect-ratio: 1;
   border-radius: 50%;
-  font-size: 13px;
-  font-weight: 900;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 30%);
   background: rgba(255, 255, 255, 0.08);
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 25%);
+  font-size: clamp(10px, 2.6cqw, 14px);
+  font-weight: 900;
 }
 
 .rank-1 .rank-badge {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #1a1200;
-  font-size: 16px;
-  width: 30px;
-  height: 30px;
+  background: #f4bd3f;
+  color: #241800;
 }
 
 .rank-2 .rank-badge {
-  background: linear-gradient(135deg, #c0c8d4, #9ca3af);
-  color: #1a1a1a;
+  background: #bdc5d0;
+  color: #20242a;
 }
 
 .rank-3 .rank-badge {
-  background: linear-gradient(135deg, #d99576, #b47850);
-  color: #1a0e06;
+  background: #d49373;
+  color: #26140c;
 }
 
-/* ── 用户信息 ── */
 .user-info {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  overflow: hidden;
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 700;
+  min-width: 0;
   overflow: hidden;
+  color: var(--overlay-text, #fff7fb);
+  font-size: clamp(11px, 3cqw, 15px);
+  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--overlay-text, var(--color-text-light));
 }
 
 .rank-1 .user-name {
-  color: #fde68a;
-  font-size: 15px;
+  color: #ffe28a;
 }
 
 .user-title {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-size: clamp(7px, 1.8cqw, 10px);
+  font-weight: 900;
   white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .user-title.lucky-king {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #1a1200;
+  background: #f4bd3f;
+  color: #241800;
 }
 
 .user-title.lucky {
-  background: rgba(33, 182, 168, 0.25);
-  color: #21b6a8;
+  background: rgba(33, 182, 168, 0.24);
+  color: #5de4d5;
 }
 
-/* ── 数据列 ── */
+.box-count,
+.profit-value {
+  font-size: clamp(10px, 2.7cqw, 14px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .box-count {
-  font-size: 13px;
-  font-weight: 700;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 15%);
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 18%);
   text-align: center;
-  min-width: 28px;
 }
 
 .profit-value {
-  font-size: 14px;
-  font-weight: 800;
   text-align: right;
-  min-width: 56px;
-  font-variant-numeric: tabular-nums;
 }
 
 .profit-value.is-up {
-  color: #21b6a8;
+  color: #50dfcf;
 }
 
 .profit-value.is-down {
-  color: var(--color-danger-medium);
+  color: #ff8fa3;
 }
 
-/* ── 只显示欧皇模式（仅盈利者） ── */
+.blindbox-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: clamp(18px, 7cqw, 34px) 12px;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 42%);
+  text-align: center;
+}
+
+.blindbox-empty .empty-icon {
+  font-size: clamp(22px, 7cqw, 36px);
+  opacity: 0.65;
+}
+
+.blindbox-empty .empty-text {
+  font-size: clamp(10px, 2.8cqw, 14px);
+  font-weight: 700;
+}
+
+.blindbox-footer {
+  min-height: 0;
+  color: color-mix(in srgb, var(--overlay-text, #fff7fb), transparent 55%);
+  font-size: clamp(8px, 1.8cqw, 10px);
+  text-align: center;
+}
+
 .blindbox-panel.winners-only .leaderboard-row.is-loss {
   display: none;
 }
 
-/* ── 紧凑模式 ── */
 .blindbox-panel.compact .blindbox-content {
-  gap: 8px;
-  padding: 8px 10px 12px;
+  gap: clamp(5px, 1.5cqw, 9px);
+  padding: clamp(6px, 2cqw, 11px);
 }
 
-.blindbox-panel.compact .blindbox-summary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.blindbox-panel.compact .blindbox-stat-card {
-  padding: 6px 4px;
-  border-radius: 7px;
-}
-
-.blindbox-panel.compact .blindbox-stat-card .stat-value {
-  font-size: 15px;
-}
-
-.blindbox-panel.compact .blindbox-stat-card .stat-icon {
-  font-size: 14px;
-}
-
+.blindbox-panel.compact .blindbox-stat-card,
 .blindbox-panel.compact .leaderboard-row {
-  padding: 5px 8px;
-  gap: 6px;
-  border-radius: 6px;
+  padding-top: clamp(4px, 1.2cqw, 7px);
+  padding-bottom: clamp(4px, 1.2cqw, 7px);
 }
 
-.blindbox-panel.compact .user-name {
-  font-size: 12px;
-}
-
-.blindbox-panel.compact .profit-value {
-  font-size: 12px;
-}
-
-.blindbox-panel.compact .rank-badge {
-  width: 22px;
-  height: 22px;
-  font-size: 11px;
-}
-
-.blindbox-panel.compact .rank-1 .rank-badge {
-  width: 26px;
-  height: 26px;
-  font-size: 14px;
-}
-
-/* ── 底部 ── */
-.blindbox-footer {
-  text-align: center;
-  font-size: 10px;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 55%);
-  padding-top: 2px;
-}
-
-/* ── 低功耗模式 ── */
-.blindbox-panel.low-power .leaderboard-row,
-.blindbox-panel.low-power .leaderboard-row:hover {
+.blindbox-panel.low-power .leaderboard-row {
   transition: none;
 }
 
 .blindbox-panel.low-power .rank-1,
 .blindbox-panel.low-power .rank-2,
 .blindbox-panel.low-power .rank-3 {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+@container (min-width: 680px) {
+  .blindbox-content {
+    grid-template-columns: minmax(240px, 0.8fr) minmax(360px, 1.35fr);
+    align-items: start;
+  }
+
+  .blindbox-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .blindbox-stat-card {
+    min-height: 48px;
+  }
+
+  .blindbox-footer {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 359px) {
+  .blindbox-stat-card {
+    grid-template-columns: 1fr;
+    grid-template-areas: "value" "label";
+    justify-items: center;
+    text-align: center;
+  }
+
+  .blindbox-stat-card .stat-icon {
+    display: none;
+  }
+}
+
+@container (max-width: 259px) {
+  .blindbox-eyebrow {
+    display: none;
+  }
+
+  .leaderboard-header {
+    display: none;
+  }
+
+  .leaderboard-row {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas: "rank user user" "rank count profit";
+    row-gap: 2px;
+  }
+
+  .rank-badge {
+    grid-area: rank;
+  }
+
+  .user-info {
+    grid-area: user;
+  }
+
+  .box-count {
+    grid-area: count;
+    justify-self: start;
+  }
+
+  .profit-value {
+    grid-area: profit;
+  }
+
+  .user-title {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-row {
+    transition: none;
+  }
 }
