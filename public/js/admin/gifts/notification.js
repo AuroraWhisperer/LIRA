@@ -85,12 +85,26 @@
 
     const titleHtml = `${displayName} x${num}${priceBadge}`;
 
+    const toastKey = `gift:${newestId}:${num}:${sprintPrice}`;
     showStackedToast({
-      key: `gift:${newestId}:${num}:${sprintPrice}`,
+      key: toastKey,
       className: `gift-notify-toast${variantClass}`,
       html: `<strong>${titleHtml}</strong><span>${subtitle}</span>`,
       duration: 3200
     });
+    const desktop = window.songAssistantDesktop;
+    if (desktop && typeof desktop.reportGiftDisplay === 'function') {
+      desktop.reportGiftDisplay({
+        eventId: newestId,
+        giftId: String(newest.gift_id || ''),
+        giftName: String(newest.gift_name || ''),
+        uid: String(newest.uid || ''),
+        userName: String(newest.user_name || ''),
+        num,
+        totalPrice: sprintPrice,
+        toastKey
+      }).catch(() => {});
+    }
   }
 
   /**

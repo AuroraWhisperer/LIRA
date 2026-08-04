@@ -1,4 +1,5 @@
 .overlay-body {
+  --overlay-edge: clamp(0px, 2vmin, 16px);
   min-height: 100vh;
   overflow: hidden;
   background: transparent;
@@ -8,8 +9,8 @@
 }
 
 .overlay-panel {
-  width: min(540px, calc(100vw - 32px));
-  margin: 16px;
+  width: min(540px, calc(100vw - (2 * var(--overlay-edge))));
+  margin: var(--overlay-edge);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: var(--overlay-radius, 8px);
   background: rgba(24, 24, 35, var(--overlay-opacity, 0.76));
@@ -22,7 +23,7 @@
 }
 
 .queue-classic {
-  width: min(405px, calc(100vw - 32px));
+  width: calc(100vw - (2 * var(--overlay-edge)));
 }
 
 .overlay-panel.has-backdrop-blur {
@@ -136,7 +137,7 @@
 
 .classic-list-window {
   --classic-row-gap: 5px;
-  height: var(--classic-window-height, 235px);
+  max-height: calc(100vh - 32px);
   overflow: hidden;
   margin-top: 8px;
 }
@@ -152,6 +153,10 @@
 
 .classic-list.scrolling-bounce {
   animation: classic-scroll-bounce var(--scroll-seconds, 42s) ease-in-out infinite;
+}
+
+.classic-list.paused {
+  animation: none;
 }
 
 @keyframes classic-scroll {
@@ -230,7 +235,7 @@
 }
 
 .queue-identity {
-  width: min(430px, calc(100vw - 32px));
+  width: calc(100vw - (2 * var(--overlay-edge)));
   border: 1px solid rgba(225, 235, 255, 0.08);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.04);
@@ -254,9 +259,8 @@
 }
 
 .identity-list-window {
-  height: var(--identity-window-height, 364px);
-  max-height: calc(100vh - 120px);
-  max-height: calc(100dvh - 120px);
+  max-height: calc(100vh - (2 * var(--overlay-edge)));
+  max-height: calc(100dvh - (2 * var(--overlay-edge)));
   overflow: hidden;
 }
 

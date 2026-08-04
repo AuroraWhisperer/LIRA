@@ -79,7 +79,10 @@ function createServerRuntime(runtimeOptions = {}) {
   const domainServices = createDomainServices({
     db,
     settingsStore,
-    onGiftFlushed: () => broadcastSnapshot('bilibili:gift')
+    onGiftFlushed: (item) => {
+      logGiftDelivery('combo-flush', item);
+      broadcastSnapshot('bilibili:gift');
+    }
   });
 
   const lyricsService = createLyricsService({
@@ -485,6 +488,7 @@ function createServerRuntime(runtimeOptions = {}) {
         try {
           const item = domainServices.gifts.add(gift);
           if (item) {
+            logGiftDelivery('immediate', item);
             broadcastSnapshot('bilibili:gift');
           }
         } catch (error) {
@@ -598,6 +602,20 @@ function createServerRuntime(runtimeOptions = {}) {
 
   function broadcastSnapshot(reason) {
     webSocketHub.broadcastSnapshot(getWebSocketContext(), reason);
+  }
+
+  function logGiftDelivery(trigger, item) {
+    console.log(`[Bilibili][GiftDelivery] action=broadcast trigger=${trigger} trace=${JSON.stringify({
+      eventId: Number(item && item.id) || 0,
+      platformId: sharedUtils.cleanText(item && item.platform_id),
+      cmd: sharedUtils.cleanText(item && item.cmd),
+      uid: sharedUtils.cleanText(item && item.uid),
+      userName: sharedUtils.cleanText(item && item.user_name),
+      giftId: sharedUtils.cleanText(item && item.gift_id),
+      giftName: sharedUtils.cleanText(item && item.gift_name),
+      num: Number(item && item.num) || 1,
+      totalPrice: Number(item && item.total_price) || 0
+    })}`);
   }
 
   function servePageOrAsset(req, res, requestUrl) {

@@ -246,12 +246,21 @@ function matchBlindBox(context, giftName) {
 
 function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
   const settings = context.settings();
-  if (settings.enableGiftSprint !== 'true') return null;
+  if (settings.enableGiftSprint !== 'true') {
+    logGiftServiceDecision('ignored', input, null, 'disabled');
+    return null;
+  }
 
   const gift = normalizeGiftInput(input);
-  if (!gift.giftName && !gift.giftId) return null;
+  if (!gift.giftName && !gift.giftId) {
+    logGiftServiceDecision('ignored', gift, null, 'invalid-gift');
+    return null;
+  }
   // 免费礼物（价格为零）不存储
-  if (gift.totalPrice <= 0) return null;
+  if (gift.totalPrice <= 0) {
+    logGiftServiceDecision('ignored', gift, null, 'non-positive-price');
+    return null;
+  }
 
   const giftDb = context.db.giftDb;
 
@@ -273,6 +282,7 @@ function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
       // 连击中的单次 SEND_GIFT：缓冲并累积
       flushStaleComboBuffers(context, { nowMs });
       mergeIntoComboBuffer(context, gift, comboKey, nowMs);
+      logGiftServiceDecision('buffered', gift, null, 'combo-pending', { comboKey });
       return null;
     }
   }
@@ -303,7 +313,10 @@ function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
   if (gift.platformId) {
     const existing = giftDb.prepare('SELECT * FROM gift_events WHERE platform_id = ? LIMIT 1').get(gift.platformId);
     if (existing) {
-      if (existing.status === 'deleted') return null;
+      if (existing.status === 'deleted') {
+        logGiftServiceDecision('ignored', gift, existing, 'deleted-platform-id');
+        return null;
+      }
       // 同一 platformId（如 batch_combo_id）但不同用户 → 不同人的礼物，不应去重
       const existingUid = cleanText(existing.uid);
       const existingUser = cleanText(existing.user_name);
@@ -311,12 +324,18 @@ function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
           (existingUser && existingUser !== '观众' && gift.userName && gift.userName !== '观众' && existingUser !== gift.userName)) {
         // 不同用户，跳过 platformId 去重，走正常插入
       } else {
-        return updateGiftEventIfProgressed(context, existing, gift);
+        const progressed = hasGiftProgressed(existing, gift);
+        const item = updateGiftEventIfProgressed(context, existing, gift);
+        logGiftServiceDecision(progressed ? 'updated' : 'deduplicated', gift, item, 'platform-id');
+        return item;
       }
     }
   }
   const recentDuplicate = findRecentGiftCommandDuplicate(context, gift);
-  if (recentDuplicate) return recentDuplicate;
+  if (recentDuplicate) {
+    logGiftServiceDecision('deduplicated', gift, recentDuplicate, 'cross-command');
+    return recentDuplicate;
+  }
 
   const countedInSprint = gift.totalPrice > 0 ? 1 : 0;
   const result = giftDb.prepare(`
@@ -333,7 +352,9 @@ function addGiftEvent(context, input, skipComboBuffer, nowMs = Date.now()) {
     countedInSprint, gift.rawJson, gift.createdAt, gift.createdAt
   );
 
-  return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(result.lastInsertRowid)));
+  const item = normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(result.lastInsertRowid)));
+  logGiftServiceDecision('inserted', gift, item);
+  return item;
 }
 
 function repairGiftV2Events(context) {
@@ -720,6 +741,33 @@ function updateGiftEventIfProgressed(context, row, gift) {
     gift.rawJson || cleanText(row.raw_json), updatedAt, Number(row.id)
   );
   return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(row.id)));
+}
+
+function hasGiftProgressed(row, gift) {
+  const existingNum = normalizePositiveInteger(row && row.num) || 1;
+  const nextNum = normalizePositiveInteger(gift && gift.num) || 1;
+  const existingTotal = normalizeMoney(row && row.total_price);
+  const nextTotal = normalizeMoney(gift && gift.totalPrice);
+  return nextNum > existingNum || nextTotal > existingTotal;
+}
+
+function logGiftServiceDecision(action, gift, item = null, reason = '', extraTrace = null) {
+  const trace = {
+    eventId: Number(item && item.id) || 0,
+    platformId: cleanText(gift && (gift.platformId || gift.platform_id)),
+    comboId: cleanText(gift && gift.comboId),
+    cmd: cleanText(gift && gift.cmd),
+    uid: cleanText(gift && gift.uid),
+    userName: cleanText(gift && (gift.userName || gift.user_name)),
+    giftId: cleanText(gift && (gift.giftId || gift.gift_id)),
+    giftName: cleanText(gift && (gift.giftName || gift.gift_name)),
+    num: normalizePositiveInteger(gift && gift.num) || 1,
+    totalPrice: normalizeMoney(gift && (gift.totalPrice ?? gift.total_price)),
+    messageTimestamp: timestampToIso(gift && gift.messageTimestamp) || cleanText(gift && gift.createdAt)
+  };
+  if (extraTrace && typeof extraTrace === 'object') Object.assign(trace, extraTrace);
+  const reasonText = reason ? ` reason=${reason}` : '';
+  console.log(`[Bilibili][GiftService] action=${action}${reasonText} trace=${JSON.stringify(trace)}`);
 }
 
 function findRecentGiftCommandDuplicate(context, gift) {

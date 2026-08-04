@@ -6,6 +6,7 @@
   const {
     value,
     setValue,
+    localOverlayOrigin,
     toast,
     api,
     debounce
@@ -131,7 +132,7 @@
   }
 
   function initOverlayUrls() {
-    const origin = location.origin;
+    const origin = localOverlayOrigin(location);
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;

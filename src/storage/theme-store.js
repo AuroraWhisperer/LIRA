@@ -15,7 +15,6 @@ const OVERLAY_THEME_KEYS = [
   'overlayFontFamily', 'overlayFontWeight',
   'overlaySongColor', 'overlayRequesterColor',
   'overlayShowIndex', 'overlayIndexThreshold', 'overlayIndexColor',
-  'queueFixedSixRows',
   'overlayRuleColor1', 'overlayRuleColor2', 'overlayRuleColor3',
   'overlayRuleColor4', 'overlayRuleColor5', 'overlayRuleColor6',
   'overlayRuleFontSize'

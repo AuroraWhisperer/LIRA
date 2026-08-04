@@ -26,6 +26,12 @@ export function setValue(id, nextValue) {
   if (el) el.value = nextValue ?? '';
 }
 
+export function localOverlayOrigin(locationLike = location) {
+  const protocol = locationLike.protocol || 'http:';
+  const port = locationLike.port ? `:${locationLike.port}` : '';
+  return `${protocol}//127.0.0.1${port}`;
+}
+
 export function formatTime(v) {
   if (!v) return '';
   return new Date(v).toLocaleTimeString('zh-CN', { hour12: false });
@@ -352,6 +358,7 @@ export const utils = {
   escapeAttr,
   value,
   setValue,
+  localOverlayOrigin,
   formatTime,
   formatDateTime,
   formatBytes,

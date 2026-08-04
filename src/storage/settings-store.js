@@ -51,7 +51,6 @@ const DEFAULT_SETTINGS = {
   overlayShowIndex: 'true',
   overlayIndexThreshold: '0',
   overlayIndexColor: '#fbbf24',
-  queueFixedSixRows: 'true',
   overlayPin1: '',
   overlayPin2: '',
   overlayPin3: '',

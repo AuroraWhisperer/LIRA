@@ -199,3 +199,50 @@ test('distinct SEND_GIFT message ids are not treated as retransmissions', () => 
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+test('logs whether a repeated platform gift was inserted or deduplicated', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-diagnostics-'));
+  const db = createDatabases({ dataDir });
+  const state = {
+    giftComboPending: new Map(),
+    blindBoxCache: null
+  };
+  const service = createGiftService({
+    db,
+    state,
+    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' })
+  });
+  const originalLog = console.log;
+  const logs = [];
+
+  try {
+    console.log = (line) => logs.push(String(line));
+    const gift = {
+      platformId: 'gift-repeat-1',
+      cmd: 'SEND_GIFT',
+      giftId: '1',
+      giftName: 'Rose',
+      uid: '42',
+      userName: 'Alice',
+      num: 1,
+      unitPrice: 1,
+      totalPrice: 1,
+      messageTimestamp: 1_800_000_000_000
+    };
+
+    const inserted = service.add(gift);
+    const duplicate = service.add(gift);
+
+    assert.equal(inserted.id, duplicate.id);
+    assert.match(logs[0], /^\[Bilibili\]\[GiftService\] action=inserted /);
+    assert.match(logs[0], /"eventId":1/);
+    assert.match(logs[0], /"platformId":"gift-repeat-1"/);
+    assert.match(logs[1], /^\[Bilibili\]\[GiftService\] action=deduplicated reason=platform-id /);
+    assert.match(logs[1], /"eventId":1/);
+  } finally {
+    console.log = originalLog;
+    service.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});

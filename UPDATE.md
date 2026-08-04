@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`3.0.6`
+当前版本：`3.0.7`
 
 ---
+
+## v3.0.7 变更
+
+- 🎨 **叠加层队列自适应视口布局**：经典队列和风格 2 队列彻底重写为视口感知的自动布局。`render` 不再触发全量 DOM 重建——resize 事件改用轻量的 `relayoutQueue()`，仅重算滚动参数不重渲 HTML。队列高度完全基于 `innerHeight`/`getBoundingClientRect`/`--overlay-edge` 动态计算，自动填满可用视口空间。滚动动画在 render 前后捕获并恢复播放位置，消除闪烁。
+- 🎨 **叠加层边距 CSS 变量化**：新增 `--overlay-edge: clamp(0px, 2vmin, 16px)` 统一控制面板外边距，经典/风格 2 面板宽度改为 `calc(100vw - (2 * var(--overlay-edge)))`，小窗口下自动收缩边距避免内容溢出。
+- 🧹 **「固定 6 行」选项移除**：`queueFixedSixRows` 设置项从数据库默认值、主题持久化、管理后台 UI、叠加层状态键中全部移除。经典队列始终自适应内容高度显示，不再支持固定行数模式。
+- 🎨 **队列面板恢复固定 450px 高度**：管理后台双队列行从 v3.0.6 的自适应高度回退至 `flex: 0 0 450px; height: 450px`，SC/点歌独立高度规则一并移除。队列行高微调（84px/88px），卡片高度充足。
+- 🎨 **播放栏首列进一步收窄**：播放信息网格首列从 220px 缩至 190px。
+- 🐛 **投屏链接统一使用 IPv4 回环地址**：新增 `localOverlayOrigin()` 工具函数始终返回 `http://127.0.0.1:<port>`。`display.js` 和 `settings.js` 的投屏链接、盲盒 URL 全部改用此函数，即使用户通过 `localhost` 访问管理后台，投屏地址也保持 `127.0.0.1`。
+- ⚡ **礼物服务全链路诊断日志**：`gift-service.js` 新增 `logGiftServiceDecision()` 为每个礼物事件记录 `[Bilibili][GiftService]` 结构化日志（action + reason + trace），覆盖插入/更新/去重/缓冲/忽略全部决策点。`server.js` 新增 `logGiftDelivery()` 记录礼物广播投递（immediate / combo-flush）。
+- ⚡ **礼物通知前端→主进程回传**：新增 `desktop:gift-display` IPC 通道，`notification.js` 显示礼物 Toast 后回传事件信息至 Electron 主进程，写入 `[Bilibili][GiftDisplay] action=toast-requested` 结构化日志。
+- 🧪 **测试同步更新**：前端回归测试适配新叠加层布局函数、`localOverlayOrigin` 工具、恢复固定 450px 队列行。新增 `removeQueueLoopClones` 单元测试、`render` vs `relayoutQueue` resize 行为断言、礼物服务诊断日志测试。移除旧的固定行数测试。
 
 ## v3.0.6 变更
 

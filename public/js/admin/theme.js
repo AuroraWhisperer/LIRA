@@ -177,7 +177,6 @@
       overlayShowIndex: value('overlayShowIndex'),
       overlayIndexThreshold: value('overlayIndexThreshold'),
       overlayIndexColor: value('overlayIndexColor'),
-      queueFixedSixRows: value('queueFixedSixRows'),
       queueScrollMode: value('queueScrollMode'),
       queueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed')),
       identityQueueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('identityQueueScrollSpeed'))

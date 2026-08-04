@@ -404,6 +404,13 @@ function configureUpdateIpc() {
     // 持久化由渲染进程通过 /api/settings 完成，此处仅记录日志
     writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
   });
+  ipcMain.handle('desktop:gift-display', function (_event, gift) {
+    var trace = normalizeGiftDisplayTrace(gift);
+    var line = `[Bilibili][GiftDisplay] action=toast-requested trace=${JSON.stringify(trace)}`;
+    console.log(line);
+    writeLog('gift-display', trace);
+    return { ok: true };
+  });
   ipcMain.handle('desktop:restart', async function () {
     writeLog('ipc', { action: 'restart' });
     try {
@@ -717,6 +724,20 @@ function writeLog(scope, value) {
     message: msg
   });
   try { fs.appendFileSync(logFile, line, 'utf8'); } catch (_) {}
+}
+
+function normalizeGiftDisplayTrace(gift) {
+  var value = gift && typeof gift === 'object' ? gift : {};
+  return {
+    eventId: Number(value.eventId) || 0,
+    giftId: String(value.giftId || ''),
+    giftName: String(value.giftName || '').slice(0, 200),
+    uid: String(value.uid || ''),
+    userName: String(value.userName || '').slice(0, 200),
+    num: Math.max(1, Number(value.num) || 1),
+    totalPrice: Number(value.totalPrice) || 0,
+    toastKey: String(value.toastKey || '').slice(0, 200)
+  };
 }
 
 function nextLogSequence() {

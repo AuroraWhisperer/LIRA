@@ -9,7 +9,8 @@
     showStackedToast,
     api,
     readJsonResponse,
-    dangerConfirm
+    dangerConfirm,
+    localOverlayOrigin
   } = window.AdminApp.utils;
 
   function initBilibiliAuth() {
@@ -357,7 +358,7 @@
   }
 
   function buildBlindboxOverlayUrl() {
-    const base = `${location.protocol}//${location.host}/blindbox`;
+    const base = `${localOverlayOrigin(location)}/blindbox`;
     const params = [];
     const add = (key, value) => { if (value) params.push(`${key}=${encodeURIComponent(value)}`); };
 

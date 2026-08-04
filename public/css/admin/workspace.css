@@ -159,13 +159,12 @@ body.player-dock-expanded .song-workspace {
 /* ---- 并排双队列 ---- */
 .queues-row {
   display: grid;
-  flex: 0 0 auto;
+  flex: 0 0 450px;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
-  align-items: start;
   min-width: 0;
   min-height: 0;
-  height: auto;
+  height: 450px;
 }
 
 .queues-row .queue-panel {
@@ -178,15 +177,6 @@ body.player-dock-expanded .song-workspace {
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(22, 31, 43, 0.06), 0 0 0 1px rgba(217, 224, 232, 0.5);
   transition: box-shadow 200ms ease;
-}
-
-/* SC needs more room for detailed messages; song requests remain easy to scan. */
-.queues-row .sc-queue-panel {
-  height: clamp(420px, 60vh, 560px);
-}
-
-.queues-row .song-queue-panel {
-  height: clamp(340px, 48vh, 460px);
 }
 
 .queues-row .queue-panel::before {
@@ -247,13 +237,13 @@ body.player-dock-expanded .song-workspace {
   flex: 1 1 auto;
   width: 100%;
   max-height: none;
-  grid-auto-rows: 64px;
+  grid-auto-rows: 84px;
   align-content: start;
   overflow-y: auto;
 }
 
 .queues-row .queue-panel .sc-list {
-  grid-auto-rows: 65px;
+  grid-auto-rows: 88px;
 }
 
 .queues-row .queue-panel .queue-row {

@@ -36,8 +36,12 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.equal(importLines.at(-1), "import './app.js';");
 });
 
-test('admin overlay links do not retain the old fixed port placeholder', () => {
+test('admin overlay links always use the IPv4 loopback host and current port', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const utilitySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'),
+    'utf8'
+  );
   const displaySource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
     'utf8'
@@ -51,8 +55,12 @@ test('admin overlay links do not retain the old fixed port placeholder', () => {
   assert.doesNotMatch(displaySource, /localhost:3000/);
   assert.doesNotMatch(settingsSource, /localhost:3000/);
   assert.doesNotMatch(displaySource, /replace\(['"]127\.0\.0\.1['"],\s*['"]localhost['"]\)/);
-  assert.match(displaySource, /location\.origin/);
-  assert.match(settingsSource, /location\.host/);
+  assert.match(utilitySource, /function localOverlayOrigin\(locationLike = location\)/);
+  assert.match(utilitySource, /127\.0\.0\.1/);
+  assert.match(displaySource, /localOverlayOrigin\(location\)/);
+  assert.match(settingsSource, /localOverlayOrigin\(location\)/);
+  assert.doesNotMatch(displaySource, /location\.origin/);
+  assert.doesNotMatch(settingsSource, /location\.host/);
 });
 
 test('recent gift cards keep a wider responsive minimum width', () => {
@@ -274,30 +282,24 @@ test('song workspace scrolls within the viewport above the player dock', () => {
   assert.match(expandedRule, /height:\s*calc\(100vh - 58px - 218px\)/);
 });
 
-test('queue panels prioritize SC height while preserving room for song requests', () => {
+test('queue panels remain the same height on desktop', () => {
   const workspaceSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
   const queueRowRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
   const responsiveQueueRule = responsiveSource.match(/\.queues-row\s*\{[\s\S]*?\n\s*\}/)?.[0];
-  const scQueueRule = workspaceSource.match(/\.queues-row \.sc-queue-panel\s*\{[\s\S]*?\n\}/)?.[0];
-  const songQueueRule = workspaceSource.match(/\.queues-row \.song-queue-panel\s*\{[\s\S]*?\n\}/)?.[0];
   const responsivePanelRule = responsiveSource.match(/\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/)?.[0];
 
   assert.ok(queueRowRule, 'desktop queue row styles should remain defined');
   assert.ok(responsiveQueueRule, 'responsive queue row styles should remain defined');
-  assert.ok(scQueueRule, 'SC queue sizing should remain defined');
-  assert.ok(songQueueRule, 'song queue sizing should remain defined');
   assert.ok(responsivePanelRule, 'narrow-layout queue panel sizing should remain defined');
-  assert.match(queueRowRule, /flex:\s*0 0 auto/);
-  assert.match(queueRowRule, /align-items:\s*start/);
-  assert.match(scQueueRule, /height:\s*clamp\(420px,\s*60vh,\s*560px\)/);
-  assert.match(songQueueRule, /height:\s*clamp\(340px,\s*48vh,\s*460px\)/);
+  assert.match(queueRowRule, /flex:\s*0 0 450px/);
+  assert.match(queueRowRule, /height:\s*450px/);
   assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
   assert.match(responsiveQueueRule, /height:\s*auto/);
   assert.match(responsivePanelRule, /height:\s*auto/);
 });
 
-test('admin queue entries keep a fixed height at the top of each list', () => {
+test('admin queue cards have enough height for their text and metadata', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
   const collapsibleSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
   const queueListRule = source.match(/\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/)?.[0];
@@ -309,8 +311,8 @@ test('admin queue entries keep a fixed height at the top of each list', () => {
   assert.ok(scListRule, 'SC queue list styles should remain defined');
   assert.ok(queueItemRule, 'queue item styles should remain defined');
   assert.ok(scRowRule, 'SC queue item styles should remain defined');
-  assert.match(queueListRule, /grid-auto-rows:\s*64px/);
-  assert.match(scListRule, /grid-auto-rows:\s*65px/);
+  assert.match(queueListRule, /grid-auto-rows:\s*84px/);
+  assert.match(scListRule, /grid-auto-rows:\s*88px/);
   assert.match(queueListRule, /align-content:\s*start/);
   assert.match(queueItemRule, /min-height:\s*0/);
   assert.match(queueItemRule, /overflow:\s*hidden/);
@@ -424,7 +426,7 @@ test('playback labels scroll independently without resizing the progress slot', 
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 220px\) minmax\(520px, 1fr\)/);
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 190px\) minmax\(520px, 1fr\)/);
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
@@ -1074,10 +1076,11 @@ test('identity rule text scrolls independently only when it overflows', () => {
 });
 
 test('classic queue uses calculated row height and sizes indexes with song text', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
-  const waitingRule = source.match(/\.overlay-waiting\s*\{[\s\S]*?\n\}/)?.[0];
-  const windowRule = source.match(/\.classic-list-window\s*\{[\s\S]*?\n\}/)?.[0];
-  const indexRule = source.match(/\.overlay-waiting-row \.index\s*\{[\s\S]*?\n\}/)?.[0];
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const waitingRule = styles.match(/\.overlay-waiting\s*\{[\s\S]*?\n\}/)?.[0];
+  const windowRule = styles.match(/\.classic-list-window\s*\{[\s\S]*?\n\}/)?.[0];
+  const indexRule = styles.match(/\.overlay-waiting-row \.index\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(waitingRule, 'classic queue list styles should remain defined');
   assert.ok(windowRule, 'classic queue viewport styles should remain defined');
@@ -1085,9 +1088,43 @@ test('classic queue uses calculated row height and sizes indexes with song text'
   assert.doesNotMatch(waitingRule, /--classic-row-height/);
   assert.doesNotMatch(windowRule, /--classic-row-height/);
   assert.match(indexRule, /font-size:\s*var\(--overlay-waiting-font-size,\s*13px\)/);
+  assert.match(overlaySource, /setTimeout\(relayoutQueue, 100\)/);
+  assert.doesNotMatch(overlaySource, /overlayResizeTimer = setTimeout\(render, 100\)/);
+  assert.match(overlaySource, /data-loop-clone/);
+  assert.match(styles, /--overlay-edge:\s*clamp\(0px,\s*2vmin,\s*16px\)/);
 });
 
-test('identity queue scrolls from actual overflow instead of a fixed row count', () => {
+test('queue resize helpers preserve real rows while rebuilding loop copies', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(source, sandbox);
+
+  const removed = [];
+  const realRow = { remove() { assert.fail('real queue rows must remain mounted'); } };
+  const cloneRows = [
+    { remove() { removed.push('first'); } },
+    { remove() { removed.push('second'); } }
+  ];
+  const list = {
+    querySelectorAll(selector) {
+      assert.equal(selector, '[data-loop-clone="true"]');
+      return cloneRows;
+    },
+    children: [realRow, ...cloneRows]
+  };
+
+  sandbox.removeQueueLoopClones(list);
+  assert.deepEqual(removed, ['first', 'second']);
+});
+
+test('identity queue scrolls from actual overflow', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
   const styleValues = new Map();
   const sandbox = {
@@ -1104,24 +1141,6 @@ test('identity queue scrolls from actual overflow instead of a fixed row count',
     }
   };
   vm.runInNewContext(source, sandbox);
-
-  const classicContent = { innerHTML: '' };
-  const classicSettings = {
-    queueScrollMode: 'loop',
-    queueScrollSpeed: '42',
-    queueSongFontSize: '40'
-  };
-  sandbox.renderClassicQueue(
-    classicSettings,
-    { song_name: 'current' },
-    Array.from({ length: 6 }, (_, index) => ({ song_name: `waiting-${index}` })),
-    classicContent
-  );
-  assert.equal(styleValues.get('--classic-loop-distance'), '364px');
-  assert.equal(
-    styleValues.get('--scroll-seconds'),
-    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds(classicSettings), 364, 307)}s`
-  );
 
   const classes = new Set(['identity-list', 'paused']);
   let duplicatedHtml = '';

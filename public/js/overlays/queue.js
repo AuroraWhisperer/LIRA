@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   connectSocket();
   window.addEventListener('resize', () => {
     clearTimeout(overlayResizeTimer);
-    overlayResizeTimer = setTimeout(render, 100);
+    overlayResizeTimer = setTimeout(relayoutQueue, 100);
   });
 });
 
@@ -114,7 +114,7 @@ function computeStateKey(nextState) {
     settings.overlaySongColor, settings.overlayRequesterColor, settings.overlayIndexColor,
     settings.queueSongFontSize, settings.queueTitleFontSize, settings.identityQueueFontSize,
     settings.queueScrollMode, settings.queueScrollSpeed, settings.identityQueueScrollSpeed,
-    settings.queueFixedSixRows, settings.overlayShowIndex, settings.overlayIndexThreshold,
+    settings.overlayShowIndex, settings.overlayIndexThreshold,
     settings.overlayTitle, settings.overlayLowPowerMode, settings.themeFontScale,
     settings.overlayPin1, settings.overlayPin2, settings.overlayPin3,
     settings.overlayRule1, settings.overlayRule2, settings.overlayRule3,
@@ -127,6 +127,7 @@ function computeStateKey(nextState) {
 
 function render() {
   if (!state) return;
+  const scrollState = captureScrollAnimation();
   const settings = state.settings || {};
   const style = (settings.overlayQueueStyle === 'identity' || settings.overlayQueueStyle === 'festival') ? 'identity' : 'classic';
   applyTheme(settings, style);
@@ -138,10 +139,35 @@ function render() {
 
   if (style === 'identity') {
     renderIdentityQueue(settings, current, waiting, content, state.superChats || []);
+    scheduleScrollAnimationRestore(scrollState);
     return;
   }
 
   renderClassicQueue(settings, current, waiting, content);
+  scheduleScrollAnimationRestore(scrollState);
+}
+
+function relayoutQueue() {
+  if (!state) return;
+  const settings = state.settings || {};
+  const style = (settings.overlayQueueStyle === 'identity' || settings.overlayQueueStyle === 'festival') ? 'identity' : 'classic';
+  const content = document.getElementById('queueContent');
+  const scrollState = captureScrollAnimation();
+
+  if (style === 'identity') {
+    const viewport = content.querySelector('.identity-list-window');
+    const list = viewport && viewport.querySelector('.identity-list');
+    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 4);
+  } else {
+    const viewport = content.querySelector('.classic-list-window');
+    const list = viewport && viewport.querySelector('.classic-list');
+    if (viewport && list) configureClassicVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 5);
+  }
+
+  scheduleIdentityContentScroll(content);
+  scheduleIdentitySuperChatScroll(content);
+  scheduleIdentityRuleScroll(content);
+  scheduleScrollAnimationRestore(scrollState);
 }
 
 function captureScrollAnimation() {
@@ -168,9 +194,44 @@ function restoreScrollAnimation(scrollState) {
     : scrollState.currentTime;
 }
 
+function scheduleScrollAnimationRestore(scrollState) {
+  if (!scrollState) return;
+  const restore = () => restoreScrollAnimation(scrollState);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(restore);
+  } else {
+    restore();
+  }
+}
+
+function removeQueueLoopClones(list) {
+  if (!list || typeof list.querySelectorAll !== 'function') return;
+  list.querySelectorAll('[data-loop-clone="true"]').forEach((node) => node.remove());
+}
+
+function resetQueueScrollClasses(list) {
+  ['scrolling', 'scrolling-bounce'].forEach((name) => list.classList.remove(name));
+  list.classList.add('paused');
+}
+
+function originalQueueRowsHtml(list) {
+  removeQueueLoopClones(list);
+  if (!list || !list.children) return '';
+  return Array.from(list.children, (node) => node.outerHTML || '').join('');
+}
+
+function appendLoopCloneHtml(list, html) {
+  const startIndex = list.children ? list.children.length : 0;
+  list.insertAdjacentHTML('beforeend', html);
+  if (!list.children) return;
+  Array.from(list.children).slice(startIndex).forEach((node) => {
+    if (node.dataset) node.dataset.loopClone = 'true';
+    else if (typeof node.setAttribute === 'function') node.setAttribute('data-loop-clone', 'true');
+  });
+}
+
 function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
-  const visibleRows = 6;
   const baseFontSize = Math.max(10, normalizeFontSize(
     (settings || {}).queueSongFontSize,
     scaleToFontSize((settings || {}).themeFontScale, 40),
@@ -179,17 +240,11 @@ function renderClassicQueue(settings, current, waiting, content) {
   ));
   const rowHeight = Math.max(35, Math.round(baseFontSize * 0.65 * 1.8));
   const rowGap = 5;
-  const rowStep = rowHeight + rowGap;
-  const windowHeight = (visibleRows * rowHeight) + ((visibleRows - 1) * rowGap);
-  const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
-  const fixedSixRows = settings.queueFixedSixRows !== 'false';
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
   const shouldShowIndex = showIndex && (threshold === 0 || items.length > threshold);
-  document.documentElement.style.setProperty('--classic-visible-rows', String(visibleRows));
   document.documentElement.style.setProperty('--classic-row-height', `${rowHeight}px`);
   document.documentElement.style.setProperty('--classic-row-gap', `${rowGap}px`);
-  document.documentElement.style.setProperty('--classic-window-height', `${windowHeight}px`);
 
   if (items.length === 0) {
     content.innerHTML = '<div class="overlay-empty">当前还没有点歌</div>';
@@ -208,47 +263,77 @@ function renderClassicQueue(settings, current, waiting, content) {
     </div>
   `).join('');
 
-  const shouldScroll = items.length > visibleRows;
   const noIndexClass = shouldShowIndex ? '' : ' no-index';
-
-  if (!shouldScroll) {
-    content.innerHTML = fixedSixRows
-      ? `
-        <div class="classic-list-window">
-          <div class="classic-list${noIndexClass}">
-            ${rowsHtml}
-          </div>
-        </div>
-      `
-      : `<div class="overlay-waiting${noIndexClass}">${rowsHtml}</div>`;
-    return;
-  }
-
-  const hiddenRows = Math.max(1, items.length - visibleRows);
-  const loopDistance = items.length * rowStep;
-  const bounceDistance = hiddenRows * rowStep;
-  document.documentElement.style.setProperty('--classic-loop-distance', `${loopDistance}px`);
-  document.documentElement.style.setProperty('--classic-bounce-distance', `${bounceDistance}px`);
-  const scrollClass = scrollMode === 'bounce' ? 'scrolling-bounce' : 'scrolling';
-  const scrollRowsHtml = scrollMode === 'bounce' ? rowsHtml : `${rowsHtml}${rowsHtml}`;
-  const scrollDistance = scrollMode === 'bounce' ? bounceDistance : loopDistance;
-  const travelSeconds = scrollTravelSeconds(queueScrollSeconds(settings), scrollDistance, windowHeight);
-  if (scrollMode === 'bounce') {
-    const upSeconds = scrollTravelSeconds(3, scrollDistance, windowHeight);
-    const timing = bounceScrollTiming(travelSeconds, upSeconds);
-    setClassicBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
-    document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
-  } else {
-    document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
-  }
 
   content.innerHTML = `
     <div class="classic-list-window">
-      <div class="classic-list ${scrollClass}${noIndexClass}">
-        ${scrollRowsHtml}
+      <div class="classic-list paused${noIndexClass}">
+        ${rowsHtml}
       </div>
     </div>
   `;
+
+  scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGap);
+}
+
+function scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGap) {
+  const viewport = content.querySelector('.classic-list-window');
+  const list = viewport && viewport.querySelector('.classic-list');
+  if (!viewport || !list) return;
+
+  const setup = () => configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
+  } else {
+    setup();
+  }
+}
+
+function configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap = 5) {
+  const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const documentHeight = document.documentElement ? document.documentElement.clientHeight : 0;
+  const viewportHeight = Number(windowHeight || documentHeight) || Math.max(1, viewport.clientHeight);
+  const viewportTop = Math.max(0, viewport.getBoundingClientRect().top);
+  const edge = Math.min(16, Math.max(0, viewportHeight * 0.02));
+  const availableHeight = Math.max(1, Math.floor(viewportHeight - viewportTop - edge));
+  if (viewport.style) {
+    viewport.style.height = '';
+    viewport.style.maxHeight = `${availableHeight}px`;
+  }
+
+  removeQueueLoopClones(list);
+  if (typeof list.getAnimations === 'function') {
+    list.getAnimations().forEach((animation) => animation.cancel());
+  }
+  resetQueueScrollClasses(list);
+
+  const visibleHeight = Math.max(1, viewport.clientHeight);
+  const overflowDistance = Math.max(0, Math.ceil(list.scrollHeight - visibleHeight));
+  if (overflowDistance <= 1) return false;
+
+  const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
+  const secondsPerViewport = queueScrollSeconds(settings);
+  let scrollClass = 'scrolling';
+
+  if (scrollMode === 'bounce') {
+    const downSeconds = scrollTravelSeconds(secondsPerViewport, overflowDistance, visibleHeight);
+    const upSeconds = scrollTravelSeconds(3, overflowDistance, visibleHeight);
+    const timing = bounceScrollTiming(downSeconds, upSeconds);
+    document.documentElement.style.setProperty('--classic-bounce-distance', `${overflowDistance}px`);
+    document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
+    setClassicBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
+    scrollClass = 'scrolling-bounce';
+  } else {
+    const loopDistance = Math.ceil(list.scrollHeight + rowGap);
+    const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, visibleHeight);
+    document.documentElement.style.setProperty('--classic-loop-distance', `${loopDistance}px`);
+    document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
+    appendLoopCloneHtml(list, rowsHtml);
+  }
+
+  list.classList.remove('paused');
+  list.classList.add(scrollClass);
+  return true;
 }
 
 function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
@@ -347,12 +432,32 @@ function scheduleIdentityVerticalScroll(content, settings, combinedRows, rowGap)
 }
 
 function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4) {
-  const overflowDistance = Math.max(0, Math.ceil(list.scrollHeight - viewport.clientHeight));
+  const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const documentHeight = document.documentElement ? document.documentElement.clientHeight : 0;
+  const sourceHeight = Number(windowHeight || documentHeight) || Math.max(1, viewport.clientHeight);
+  const viewportTop = typeof viewport.getBoundingClientRect === 'function'
+    ? Math.max(0, viewport.getBoundingClientRect().top)
+    : 0;
+  const footer = viewport.parentElement && viewport.parentElement.querySelector('.identity-footer');
+  const footerHeight = footer ? footer.getBoundingClientRect().height + 4 : 0;
+  const edge = Math.min(16, Math.max(0, sourceHeight * 0.02));
+  const availableHeight = Math.max(1, Math.floor(sourceHeight - viewportTop - footerHeight - edge));
+  removeQueueLoopClones(list);
+  if (typeof list.getAnimations === 'function') {
+    list.getAnimations().forEach((animation) => animation.cancel());
+  }
+  resetQueueScrollClasses(list);
+  const contentHeight = Math.max(1, Math.ceil(list.scrollHeight));
+  if (viewport.style) {
+    viewport.style.height = `${Math.min(contentHeight, availableHeight)}px`;
+    viewport.style.maxHeight = `${availableHeight}px`;
+  }
+  const viewportHeight = Math.max(1, viewport.clientHeight);
+  const overflowDistance = Math.max(0, Math.ceil(contentHeight - viewportHeight));
   if (overflowDistance <= 1) return false;
 
   const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
   const secondsPerViewport = queueScrollSeconds(settings, 'identityQueueScrollSpeed');
-  const viewportHeight = Math.max(1, viewport.clientHeight);
   let scrollClass = 'scrolling';
 
   if (scrollMode === 'bounce') {
@@ -364,11 +469,11 @@ function configureIdentityVerticalScroll(viewport, list, settings, combinedRows,
     setIdentityBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
     scrollClass = 'scrolling-bounce';
   } else {
-    const loopDistance = Math.ceil(list.scrollHeight + rowGap);
+    const loopDistance = Math.ceil(contentHeight + rowGap);
     const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewportHeight);
     document.documentElement.style.setProperty('--identity-loop-distance', `${loopDistance}px`);
     document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
-    list.insertAdjacentHTML('beforeend', combinedRows);
+    appendLoopCloneHtml(list, combinedRows);
   }
 
   list.classList.remove('paused');
@@ -415,6 +520,7 @@ function scheduleIdentitySuperChatScroll(content) {
   const setup = () => {
     content.querySelectorAll('.identity-sc-content').forEach((container) => {
       const text = container.querySelector('.identity-sc-text');
+      cancelElementAnimations(text);
       const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
       if (!text || distance <= 1 || typeof text.animate !== 'function') return;
 
@@ -446,6 +552,7 @@ function scheduleIdentityContentScroll(content) {
 
     content.querySelectorAll('.identity-content-wrapper').forEach((container) => {
       const text = container.querySelector('.identity-content');
+      cancelElementAnimations(text);
       const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
       if (!text || distance <= 1 || typeof text.animate !== 'function') return;
 
@@ -478,6 +585,7 @@ function scheduleIdentityRuleScroll(content) {
 
     content.querySelectorAll('.identity-rule').forEach((container) => {
       const text = container.querySelector('.identity-rule-text');
+      cancelElementAnimations(text);
       if (!text || typeof text.animate !== 'function') return;
 
       const containerOverflow = Number.isFinite(container.scrollWidth)
@@ -510,6 +618,11 @@ function scheduleIdentityRuleScroll(content) {
   } else {
     setup();
   }
+}
+
+function cancelElementAnimations(element) {
+  if (!element || typeof element.getAnimations !== 'function') return;
+  element.getAnimations().forEach((animation) => animation.cancel());
 }
 
 function prefersReducedMotion() {
