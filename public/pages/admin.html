@@ -1300,8 +1300,8 @@
               </button>
             </div>
             <div class="other-sidebar-page-links" aria-label="直播工具">
-              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherDanmakuFeature" aria-selected="false" title="弹幕姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="other-feature-label"><strong>弹幕姬</strong></span></button>
-              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherGiftFeature" aria-selected="false" title="礼物姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span class="other-feature-label"><strong>礼物姬</strong></span></button>
+              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherDanmakuFeature" aria-selected="false" title="弹幕姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="other-feature-label"><strong>弹幕姬</strong></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherGiftFeature" aria-selected="false" title="礼物姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span class="other-feature-label"><strong>礼物姬</strong></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
             <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
               <button
@@ -1430,20 +1430,38 @@
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
-                <div class="danmaku-status-grid">
-                  <div><span>发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
-                  <div><span>直播间</span><strong id="danmakuRoomState">检查中</strong></div>
-                  <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
-                </div>
-                <div class="danmaku-reply-target">
-                  <div><strong>最近随机点歌人</strong><p id="danmakuReplyTarget">正在读取点歌记录</p></div>
-                  <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" checked><span class="switch-track"></span><span>自动 @</span></label>
-                </div>
-                <form id="danmakuSendForm" class="stack">
-                  <label>弹幕内容<textarea id="danmakuMessage" rows="4" maxlength="1000" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                  <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 / 1000</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
-                </form>
-                <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
+                <section class="danmaku-feature-section danmaku-connection-section" aria-labelledby="danmakuConnectionTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuConnectionTitle">连接状态</h3>
+                      <p>查看当前账号连接到了哪个直播间，以及是否可以发送。</p>
+                    </div>
+                  </div>
+                  <div class="danmaku-status-grid">
+                    <div><span>发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
+                    <div><span>直播间</span><strong id="danmakuRoomState">检查中</strong></div>
+                    <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
+                  </div>
+                </section>
+                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle">
+                  <div class="danmaku-reply-target">
+                    <div><strong id="danmakuReplyTitle">最近随机点歌人</strong><p id="danmakuReplyTarget">正在读取点歌记录</p></div>
+                    <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" checked><span class="switch-track"></span><span>自动 @</span></label>
+                  </div>
+                </section>
+                <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuComposeTitle">发送弹幕</h3>
+                      <p>发送内容和发送结果会保留在同一个操作区。</p>
+                    </div>
+                  </div>
+                  <form id="danmakuSendForm" class="stack">
+                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" maxlength="1000" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
+                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 / 1000</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
+                  </form>
+                  <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
+                </section>
               </div>
             </section>
             <section id="otherGiftFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>

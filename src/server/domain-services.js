@@ -45,6 +45,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     save:           (input) => songService.saveSong(db.songDb, input),
     list:           (options) => songService.listSongs(db.songDb, options),
     find:           (songName, artist) => songService.findSong(db.songDb, songName, artist),
+    findUniqueNameMatch: (songName) => songService.findUniqueSongNameMatch(db.songDb, songName),
     listCategories: () => songService.listCategories(db.songDb),
     listTags:       () => songService.listTags(db.songDb),
     ensureCategory: (name) => songService.ensureCategory(db.songDb, name),
@@ -82,6 +83,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
       return bilibiliMessageHandler.handleDanmakuMessage({
         ...baseContext,
         addQueueItem: queue.add,
+        resolveSongRequest: songs.findUniqueNameMatch,
         // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
         pickRandomSong: songs.pickRandom
       }, danmaku);

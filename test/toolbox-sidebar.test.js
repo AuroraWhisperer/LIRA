@@ -16,17 +16,29 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   );
 
   assert.match(html, /data-other-sidebar-toggle/);
-  assert.match(html, /data-other-feature="otherDanmakuFeature"[\s\S]*弹幕姬/);
-  assert.match(html, /data-other-feature="otherGiftFeature"[\s\S]*礼物姬/);
+  assert.match(html, /data-other-feature="otherDanmakuFeature"[^>]*>[\s\S]*?弹幕姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/);
+  assert.match(html, /data-other-feature="otherGiftFeature"[^>]*>[\s\S]*?礼物姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/);
   assert.match(html, /aria-expanded="true"/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label/);
   assert.match(styles, /\.other-sidebar-toolbar\s*\{[^}]*justify-content:\s*flex-start/);
-  assert.match(styles, /\.other-feature-button\s*\{[^}]*min-height:\s*56px/);
+  assert.match(styles, /\.other-feature-button\s*\{[^}]*height:\s*56px[^}]*min-height:\s*56px[^}]*padding:\s*8px 10px/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-button\s*\{[^}]*min-height:\s*56px/);
-  assert.match(styles, /\.other-feature-button\s*\{[^}]*min-height:\s*68px/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-sidebar-toolbar\s*\{[^}]*display:\s*none/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-page\.sidebar-collapsed \.other-feature-label\s*\{[^}]*display:\s*grid/);
+});
+
+test('danmaku detail panel fills the workspace and keeps actions grouped', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
+    'utf8'
+  );
+
+  assert.match(html, /class="danmaku-feature-section danmaku-connection-section"[\s\S]*?id="danmakuAccountState"[\s\S]*?id="danmakuRoomState"[\s\S]*?id="danmakuToolStatus"/);
+  assert.match(html, /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/);
+  assert.match(styles, /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/);
+  assert.match(styles, /\.danmaku-feature-section\s*\{[^}]*border:\s*1px solid var\(--border\)/);
 });
 
 test('toolbox sidebar toggle updates accessibility state and stores the preference', () => {

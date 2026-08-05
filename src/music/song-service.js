@@ -170,6 +170,29 @@ function findSong(db, songName, artist) {
   `).get(cleanName) || null;
 }
 
+function findUniqueSongNameMatch(db, songName) {
+  const cleanName = cleanText(songName);
+  if (!cleanName) return null;
+
+  const exact = findSong(db, cleanName);
+  if (exact) return exact;
+
+  const pattern = `%${escapeLikePattern(cleanName)}%`;
+  const matches = db.prepare(`
+    SELECT songs.*, song_categories.name AS category_name
+    FROM songs
+    LEFT JOIN song_categories ON song_categories.id = songs.category_id
+    WHERE songs.name LIKE ? ESCAPE '\\' AND songs.is_enabled = 1
+    LIMIT 2
+  `).all(pattern);
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function escapeLikePattern(value) {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
 // ── 单曲写操作（供 domain-services 调用，避免在 facade 层散写 SQL）──
 
 /** 按 id 删除歌曲；调用方不需要了解表结构 */
@@ -356,6 +379,7 @@ module.exports = {
   saveSong,
   listSongs,
   findSong,
+  findUniqueSongNameMatch,
   deleteSong,
   toggleSong,
   countSongs,

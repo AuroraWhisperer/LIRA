@@ -62,8 +62,11 @@ function handleDanmakuMessage(context, {
       isPinned
     });
   } else {
+    const matchedSong = context.resolveSongRequest
+      ? context.resolveSongRequest(command.songName)
+      : null;
     queueItem = context.addQueueItem({
-      songName: command.songName,
+      songName: matchedSong ? matchedSong.name : command.songName,
       requesterName: userName,
       requesterUid: uid,
       requesterGuardLevel,

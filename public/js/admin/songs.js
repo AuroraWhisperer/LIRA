@@ -18,7 +18,8 @@ import {
     toast,
     showError,
     api,
-    debounce
+    debounce,
+    dangerConfirm
   } = window.AdminApp.utils;
 
   function initSongForm() {
@@ -186,7 +187,13 @@ import {
 
     document.querySelectorAll('[data-delete-song]').forEach((button) => {
       button.addEventListener('click', async () => {
-        if (!confirm('确认删除这首歌？')) return;
+        const confirmed = await dangerConfirm({
+          title: '删除歌曲',
+          message: '确认从歌库中删除这首歌？',
+          deletes: ['歌曲及其歌库信息'],
+          confirmLabel: '确认删除'
+        });
+        if (!confirmed) return;
         await api('/api/songs/delete', { id: button.dataset.deleteSong });
         toast('歌曲已删除');
         if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
