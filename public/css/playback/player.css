@@ -1,8 +1,23 @@
+:root {
+  --player-dock-height: 96px;
+  --player-dock-expanded-height: 218px;
+  --player-dock-collapsed-height: 0px;
+}
+
+body.player-dock-expanded {
+  --player-dock-height: var(--player-dock-expanded-height);
+}
+
+body.player-dock-collapsed {
+  --player-dock-height: var(--player-dock-collapsed-height);
+  --player-dock-expanded-height: var(--player-dock-collapsed-height);
+}
+
 .playback-player-panel {
   position: fixed;
   inset: auto 0 0;
   z-index: 35;
-  height: 96px;
+  height: var(--player-dock-height);
   overflow: visible;
   border: 0;
   border-top: 1px solid rgba(217, 224, 232, 0.86);
@@ -11,6 +26,13 @@
   box-shadow: 0 -10px 30px rgba(22, 31, 43, 0.1);
   backdrop-filter: blur(18px);
   transition: height 220ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.playback-player-panel.is-collapsed {
+  border-top-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .playback-player-panel::before {
@@ -23,6 +45,65 @@
   opacity: 0.68;
 }
 
+.playback-player-panel.is-collapsed::before {
+  opacity: 0;
+}
+
+.player-dock-toggle {
+  position: absolute;
+  left: clamp(58px, 6vw, 118px);
+  bottom: 100%;
+  z-index: 4;
+  width: 58px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  min-height: auto;
+  border: 1px solid rgba(217, 224, 232, 0.92);
+  border-bottom: 0;
+  border-radius: 31px 31px 0 0;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--muted);
+  box-shadow: 0 -8px 22px rgba(22, 31, 43, 0.10);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.player-dock-toggle:hover {
+  color: var(--text);
+  background: #fff;
+  box-shadow: 0 -10px 26px rgba(22, 31, 43, 0.14);
+  transform: translateY(-1px);
+}
+
+.player-dock-toggle:active {
+  transform: translateY(0);
+}
+
+.player-dock-toggle:focus-visible {
+  outline: 3px solid rgba(217, 75, 112, 0.28);
+  outline-offset: 2px;
+}
+
+.player-dock-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.4;
+}
+
+.player-dock-toggle .dock-chevron-up {
+  display: none;
+}
+
+.playback-player-panel.is-collapsed .player-dock-toggle .dock-chevron-down {
+  display: none;
+}
+
+.playback-player-panel.is-collapsed .player-dock-toggle .dock-chevron-up {
+  display: block;
+}
+
 /* ===== 播放器整体布局 ===== */
 .playback-player {
   display: grid;
@@ -33,6 +114,13 @@
   height: 100%;
   margin: 0 auto;
   padding: 11px 22px 10px;
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.playback-player-panel.is-collapsed .playback-player {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
 }
 
 /* ===== 封面（合并所有层级） ===== */

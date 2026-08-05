@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   gap: 16px;
-  height: calc(100vh - 58px - 96px);
+  height: calc(100vh - 58px - var(--player-dock-height, 96px));
   min-height: 0;
   padding: 16px;
   overflow: hidden;
@@ -15,7 +15,7 @@
 }
 
 body.player-dock-expanded .other-workspace {
-  height: calc(100vh - 58px - 218px);
+  height: calc(100vh - 58px - var(--player-dock-height, 218px));
 }
 
 .other-feature-sidebar,
@@ -328,6 +328,16 @@ body.player-dock-expanded .other-workspace {
   border-radius: 10px;
   background: var(--surface);
 }
+.danmaku-bot-switch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.danmaku-bot-switch-card {
+  min-width: 0;
+}
+.danmaku-bot-switch-card + .danmaku-bot-switch-card {
+  border-left: 1px solid var(--border);
+}
 .danmaku-section-heading {
   display: flex;
   align-items: flex-start;
@@ -553,6 +563,11 @@ body.player-dock-expanded .other-workspace {
 @media (max-width: 600px) {
   .other-feature-panel-header-inline,
   .danmaku-reply-target { align-items: flex-start; flex-direction: column; }
+  .danmaku-bot-switch-grid { grid-template-columns: 1fr; }
+  .danmaku-bot-switch-card + .danmaku-bot-switch-card {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
   .danmaku-feature-section { padding: 14px; }
   .danmaku-status-grid { grid-template-columns: 1fr; }
   .danmaku-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
@@ -568,7 +583,7 @@ body.player-dock-expanded .other-workspace {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
-    padding: 12px 12px 116px;
+    padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
     overflow: visible;
   }
 

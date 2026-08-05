@@ -465,6 +465,18 @@ body.desktop-shell .playback-player-panel {
   box-shadow: 0 -10px 30px rgba(87, 58, 28, 0.11);
 }
 
+body.desktop-shell .playback-player-panel.is-collapsed {
+  border-top-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.desktop-shell .player-dock-toggle {
+  border-color: rgba(199, 154, 59, 0.28);
+  background: rgba(255, 252, 248, 0.98);
+  color: #756b61;
+}
+
 body.desktop-shell .playback-player-panel::before {
   background: linear-gradient(90deg, var(--primary), var(--accent));
 }

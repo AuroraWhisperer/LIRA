@@ -337,11 +337,29 @@ const MUSIC_SCHEMA = `
     ON playlist_tracks(playlist_id, sort_order, id);
 `;
 
+// ── 签到 DDL ──
+
+const CHECKIN_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS checkin_users (
+    uid TEXT PRIMARY KEY,
+    user_name TEXT NOT NULL DEFAULT '',
+    total_days INTEGER NOT NULL DEFAULT 0,
+    first_checkin_at TEXT NOT NULL,
+    last_checkin_at TEXT NOT NULL,
+    last_checkin_date TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_checkin_users_last_date
+    ON checkin_users(last_checkin_date);
+`;
+
 module.exports = {
   runMigrations,
   getSchemaVersion,
   SONG_SCHEMA,
   SUPER_CHAT_SCHEMA,
   GIFT_SCHEMA,
-  MUSIC_SCHEMA
+  MUSIC_SCHEMA,
+  CHECKIN_SCHEMA
 };

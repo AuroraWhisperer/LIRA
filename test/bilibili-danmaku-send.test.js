@@ -27,11 +27,11 @@ test('sends danmaku with visible mention and Bilibili reply metadata', async () 
     const form = new URLSearchParams(request.options.body);
 
     assert.equal(request.url, 'https://api.live.bilibili.com/msg/send');
-    assert.equal(form.get('msg'), '@Alice 随机到这首歌');
+    assert.equal(form.get('msg'), '随机到这首歌');
     assert.equal(form.get('reply_mid'), '456');
     assert.equal(form.get('reply_uname'), 'Alice');
     assert.equal(form.get('csrf'), 'csrf-token');
-    assert.equal(result.message, '@Alice 随机到这首歌');
+    assert.equal(result.message, '随机到这首歌');
   } finally {
     global.fetch = originalFetch;
   }

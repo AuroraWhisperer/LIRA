@@ -11,12 +11,13 @@
     const sendButton = document.getElementById('danmakuSendBtn');
     const target = document.getElementById('danmakuReplyTarget');
     const toggle = document.getElementById('danmakuReplyToggle');
+    const checkinToggle = document.getElementById('danmakuCheckinToggle');
     const status = document.getElementById('danmakuToolStatus');
     const accountState = document.getElementById('danmakuAccountState');
     const roomState = document.getElementById('danmakuRoomState');
     const refreshButton = document.getElementById('danmakuRefreshBtn');
     const resultState = document.getElementById('danmakuSendResult');
-    if (initialized || !form || !message || typeof form.addEventListener !== 'function') return;
+    if (initialized || !form || !message || !toggle || !checkinToggle || typeof form.addEventListener !== 'function') return;
     initialized = true;
 
     const toast = window.AdminApp?.utils?.toast || (() => {});
@@ -40,10 +41,12 @@
         roomState.title = state.roomId ? `房间 ${state.roomId}` : '';
         target.textContent = requester.name
           ? `${requester.name}${requester.uid ? `（UID ${requester.uid}）` : ''}`
-          : '暂无最近的随机点歌人';
+          : '暂无可回复的点歌记录';
         toggle.disabled = !requester.name;
         toggle.checked = state.autoReplyEnabled === true;
         toggle.disabled = !state.canSend;
+        checkinToggle.checked = state.checkinBotEnabled === true;
+        checkinToggle.disabled = !state.canSend;
         status.textContent = state.canSend ? (state.connected ? '可发送，监听已连接' : '可发送，监听未连接') : state.unavailableReason;
         status.className = state.canSend ? 'good' : 'warn';
         sendButton.disabled = !state.canSend;
@@ -63,22 +66,34 @@
       if (event.key === 'Enter' && event.ctrlKey) form.requestSubmit();
     });
     refreshButton.addEventListener('click', refreshState);
-    toggle.addEventListener('change', async () => {
-      const enabled = toggle.checked ? 'true' : 'false';
-      try {
-        const response = await fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enableRandomTagReply: enabled })
-        });
-        const payload = await response.json();
-        if (!response.ok || !payload.ok) throw new Error(payload.error || '保存设置失败');
-        toast(enabled === 'true' ? '随机点歌自动回复已开启' : '随机点歌自动回复已关闭');
-      } catch (error) {
-        toggle.checked = !toggle.checked;
-        toast(error.message || '保存设置失败');
-      }
+    bindSettingToggle(toggle, {
+      key: 'enableRandomTagReply',
+      onText: '随机点歌自动回复已开启',
+      offText: '随机点歌自动回复已关闭'
     });
+    bindSettingToggle(checkinToggle, {
+      key: 'enableCheckinBot',
+      onText: '签到机器人已开启',
+      offText: '签到机器人已关闭'
+    });
+    function bindSettingToggle(element, options) {
+      element.addEventListener('change', async () => {
+        const enabled = element.checked ? 'true' : 'false';
+        try {
+          const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [options.key]: enabled })
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) throw new Error(payload.error || '保存设置失败');
+          toast(enabled === 'true' ? options.onText : options.offText);
+        } catch (error) {
+          element.checked = !element.checked;
+          toast(error.message || '保存设置失败');
+        }
+      });
+    }
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const text = message.value.trim();

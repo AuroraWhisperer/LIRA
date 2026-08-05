@@ -48,6 +48,7 @@ function createServerRuntime(runtimeOptions = {}) {
   const SUPER_CHAT_DB_PATH = path.join(DATA_DIR, 'super-chat-data.db');
   const GIFT_DB_PATH = path.join(DATA_DIR, 'gift-data.db');
   const MUSIC_DB_PATH = path.join(DATA_DIR, 'music-data.db');
+  const CHECKIN_DB_PATH = path.join(DATA_DIR, 'checkin-data.db');
   const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
   const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
   const HOST = normalizeServerHost(runtimeOptions.host || process.env.HOST);
@@ -167,6 +168,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getLiveStatus: () => liveStatus,
     getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
     getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
+    getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
     createClient(roomId, auth) {
       if (bilibiliClient && bilibiliClient.roomId === roomId) {
         bilibiliClient.apiClient.updateAuth(auth.cookieHeader, auth.uid);
@@ -280,6 +282,7 @@ function createServerRuntime(runtimeOptions = {}) {
           superChatDb: SUPER_CHAT_DB_PATH,
           giftDb: GIFT_DB_PATH,
           musicDb: MUSIC_DB_PATH,
+          checkinDb: CHECKIN_DB_PATH,
           schemaVersions: domainServices.data.getSchemaVersions(),
           desktop: process.env.ELECTRON_DESKTOP === '1',
           pid: process.pid,
@@ -513,6 +516,14 @@ function createServerRuntime(runtimeOptions = {}) {
               mentionTarget: result.autoReply.target
             }).catch((error) => {
               console.warn(`[Bilibili] random scope auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
+            });
+          }
+          if (result.checkinReply) {
+            void danmakuSender.send({
+              message: result.checkinReply.message,
+              mentionTarget: result.checkinReply.target
+            }).catch((error) => {
+              console.warn(`[Bilibili] check-in auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
             });
           }
           if (result.accepted) {

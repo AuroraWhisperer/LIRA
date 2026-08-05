@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   onlyFromLibrary: 'false',
   allowDuplicate: 'true',
   enableRandomTagReply: 'false',
+  enableCheckinBot: 'false',
   queueLimit: '50',
   userCooldownSeconds: '0',
   scrollSeconds: '45',

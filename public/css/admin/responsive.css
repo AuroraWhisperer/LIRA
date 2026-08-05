@@ -84,7 +84,7 @@
     height: auto;
     min-height: 0;
     overflow: visible;
-    padding: 12px 12px 116px;
+    padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
   }
 
   .queues-row {
@@ -114,7 +114,7 @@
     height: auto;
     min-height: 0;
     overflow: visible;
-    padding: 12px 12px 116px;
+    padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
   }
 
   .gift-detection-panel,

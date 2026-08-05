@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`3.2.3`
+当前版本：`3.2.4`
 
 ---
+
+## v3.2.4 变更
+
+- 🎮 **播放器停靠栏折叠按钮**：播放器面板新增折叠/展开切换按钮（`playerDockToggle`）——点击收起播放器，面板内容淡出（opacity 0 + translateY）、背景变透明；再次点击展开恢复。折叠时自动关闭依赖播放器的浮层（全屏播放器、队列弹窗、音量面板），避免孤立 UI 残留。桌面端 dock 折叠态额外去除面板边框/阴影/毛玻璃效果，toggle 按钮使用香槟金边框适配桌面风格。
+- 🎮 **播放器高度 CSS 变量统一**：新增 `--player-dock-height` / `--player-dock-expanded-height` / `--player-dock-collapsed-height` 三个 CSS 变量（`:root` 声明），全部 workspace 高度计算（歌曲管理/礼物/百宝箱/播放页/全屏播放器/队列弹窗/响应式断点）从硬编码 px 值迁移为 `var(--player-dock-height, 96px)`，折叠/展开/响应式三种状态通过 body class（`.player-dock-collapsed` / `.player-dock-expanded`）自动切换变量值，一处修改全局生效。
+- 📝 **签到机器人（弹幕姬签到）**：新增签到机器人功能——观众在直播间发送「签到」弹幕后，机器人自动 @ 回复累计签到天数 + 随机祝福语（10 条祝福语池）。同一用户同一天多次签到只更新累计天数不重复计数，回复提示「今天已经签到过啦」。百宝箱弹幕姬面板新增「签到机器人」开关卡片（与「随机点歌回复」并排双列布局），开关值持久化至 `enableCheckinBot` 设置项。新增 `checkin-data.db` 独立数据库（`checkin_users` 表，按 uid 主键记录 total_days / last_checkin_date 等字段）。
+- 🔧 **弹幕命令识别统一模块**：`isBilibiliCommandText` 提取至独立共享模块 `command-text.js`——WebSocket 消息处理（`message-handlers.js`）和历史轮询（`history-poller.js`）共用同一入口函数，避免两处各自维护命令名单。签到命令识别集成至 `command-text.js` 中，历史轮询也能正确触发签到回复。
+- 💬 **弹幕 @ 提及逻辑简化**：`api-client.js` 发送弹幕时不再将 `@用户名` 拼接进消息文本（移除 `buildMentionedMessage` 调用），改为仅通过 Bilibili 原生 `reply_mid` / `reply_uname` 参数实现回复引用——弹幕内容保持用户输入原文，@ 关系由平台侧渲染显示。`sender-service.js` 移除 `canAttachReplyTarget` 前缀检查，拆分链简化：只有第一条携带 reply 元数据，后续拆分片段不带 @ 目标。
+- 🎨 **弹幕姬开关区域双列卡片布局**：弹幕姬「自动回复」区域从单列 toggle 重构为双列 Grid 卡片——「随机点歌回复」（条件不匹配时自动回复点歌人）和「签到机器人」（收到签到弹幕后回复累计天数）各占一列，各自配有标题、说明文案和独立开关控件。移动端（≤600px）自动切换为单列堆叠布局，卡片间改为上边框分隔。
+- 📐 **响应式底部 padding CSS 变量化**：移动端各 workspace 底部内边距从硬编码 `116px` / `118px` 迁移为 `calc(var(--player-dock-height, 102px) + 14px/16px)`，播放器高度变化时移动端布局自动适配。
+- 🗄️ **数据库清理扩展**：`clearAllData` 新增 `checkinDb` 支持——清空全部数据时一并清除签到记录。Schema 版本信息新增 `checkinDb` 字段。
+- 🧪 **测试覆盖增强**：前端回归测试新增播放器 dock 折叠按钮 DOM 结构、CSS 变量声明、折叠态 body class 切换、`aria-expanded`/`aria-hidden` 无障碍属性断言；弹幕姬双开关卡片 HTML 结构和签到机器人 UI 文案回归断言。弹幕发送测试适配新 @ 提及逻辑（消息文本不含 `@用户名` 前缀，仅检查 `reply_mid`/`reply_uname` 参数）。SenderService 测试适配简化拆分链（无需 @ 前缀后拆分片段数减少）。
 
 ## v3.2.3 变更
 

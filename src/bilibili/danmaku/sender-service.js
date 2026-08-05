@@ -1,7 +1,6 @@
 'use strict';
 
 const { cleanText } = require('../../shared/utils');
-const { buildMentionedMessage } = require('./mention-policy');
 
 const DANMAKU_MESSAGE_LIMIT = 40;
 const DISPLAY_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -13,6 +12,7 @@ function createDanmakuSenderService(dependencies) {
     getLiveStatus,
     getMentionTarget,
     getAutoReplyEnabled = () => false,
+    getCheckinBotEnabled = () => false,
     createClient,
     minIntervalMs = 1500,
     now = Date.now,
@@ -38,6 +38,7 @@ function createDanmakuSenderService(dependencies) {
       connected: Boolean(live && live.connected),
       liveMessage: String(live && live.message || ''),
       autoReplyEnabled: Boolean(getAutoReplyEnabled()),
+      checkinBotEnabled: Boolean(getCheckinBotEnabled()),
       canSend: Boolean(loggedIn && roomId),
       unavailableReason: !loggedIn ? '请先登录 Bilibili 账号。' : (!roomId ? '请先设置直播间号。' : ''),
       requester: target || emptyTarget()
@@ -100,15 +101,12 @@ function createDanmakuSenderService(dependencies) {
     if (!room || !room.roomId) throw new Error('请先设置 Bilibili 直播间号。');
 
     const target = mentionTarget || (mentionRequester ? await getMentionTarget() : null);
-    const mentioned = buildMentionedMessage(message, target || emptyTarget());
-    const messages = splitDanmakuMessage(mentioned.message);
+    const messages = splitDanmakuMessage(message);
     const client = createClient(room.roomId, auth);
     const roomInfo = await client.resolveRoomInfo();
     const results = [];
     for (let index = 0; index < messages.length; index += 1) {
-      const replyTarget = index === 0 && canAttachReplyTarget(messages[index], mentioned.target)
-        ? mentioned.target
-        : emptyTarget();
+      const replyTarget = index === 0 ? normalizeReplyTarget(target) : emptyTarget();
       results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
     }
     const result = {
@@ -139,9 +137,14 @@ function splitDanmakuMessage(message, limit = DANMAKU_MESSAGE_LIMIT) {
   return chunks;
 }
 
-function canAttachReplyTarget(message, target) {
-  if (!target || !target.uid || !target.name) return false;
-  return String(message || '').startsWith(`@${target.name}`);
+function normalizeReplyTarget(target) {
+  if (!target) return emptyTarget();
+  return {
+    uid: cleanText(target.uid),
+    name: cleanText(target.name),
+    source: cleanText(target.source),
+    createdAt: cleanText(target.createdAt)
+  };
 }
 
 function getCachedDisplayName(entry, key) {

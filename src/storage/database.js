@@ -21,7 +21,8 @@ const DB_FILE_NAMES = {
   songDb: 'song-request-data.db',
   superChatDb: 'super-chat-data.db',
   giftDb: 'gift-data.db',
-  musicDb: 'music-data.db'
+  musicDb: 'music-data.db',
+  checkinDb: 'checkin-data.db'
 };
 
 // ── 工厂函数：创建并初始化所有数据库 ──
@@ -36,14 +37,16 @@ function createDatabases(options = {}) {
   const superChatDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.superChatDb));
   const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
   const musicDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.musicDb), { foreignKeys: true });
+  const checkinDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.checkinDb));
 
   // 建表是幂等的，每次启动都跑；一次性的数据搬迁走下面的迁移步骤
   songDb.exec(schema.SONG_SCHEMA);
   superChatDb.exec(schema.SUPER_CHAT_SCHEMA);
   giftDb.exec(schema.GIFT_SCHEMA);
   musicDb.exec(schema.MUSIC_SCHEMA);
+  checkinDb.exec(schema.CHECKIN_SCHEMA);
 
-  const databases = { songDb, superChatDb, giftDb, musicDb };
+  const databases = { songDb, superChatDb, giftDb, musicDb, checkinDb };
   runAllMigrations(databases, options);
   migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb);
 
@@ -54,7 +57,7 @@ function createDatabases(options = {}) {
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
 
 function runAllMigrations(databases, options = {}) {
-  const { songDb, superChatDb, giftDb, musicDb } = databases;
+  const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
   const defaultSettings = options.defaultSettings || {};
   const results = [];
 
@@ -131,6 +134,10 @@ function runAllMigrations(databases, options = {}) {
     () => { /* 基线：建表已在 MUSIC_SCHEMA 完成 */ }
   ]));
 
+  results.push(schema.runMigrations(checkinDb, 'checkin_db', [
+    () => { /* 基线：建表已在 CHECKIN_SCHEMA 完成 */ }
+  ]));
+
   for (const result of results) {
     if (result.applied > 0) {
       console.log(`[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`);
@@ -144,7 +151,8 @@ function getSchemaVersions(databases) {
     songDb: schema.getSchemaVersion(databases.songDb, 'song_db'),
     superChatDb: schema.getSchemaVersion(databases.superChatDb, 'super_chat_db'),
     giftDb: schema.getSchemaVersion(databases.giftDb, 'gift_db'),
-    musicDb: schema.getSchemaVersion(databases.musicDb, 'music_db')
+    musicDb: schema.getSchemaVersion(databases.musicDb, 'music_db'),
+    checkinDb: schema.getSchemaVersion(databases.checkinDb, 'checkin_db')
   };
 }
 
@@ -436,10 +444,10 @@ function clearGiftData(giftDb) {
   return { gifts: count };
 }
 
-function clearAllData(songDb, superChatDb, giftDb, musicDb) {
+function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
   const counts = {
     songs: 0, categories: 0, queue: 0, requests: 0,
-    sc: 0, gifts: 0, playHistory: 0
+    sc: 0, gifts: 0, playHistory: 0, checkins: 0
   };
 
   // 点歌库：settings 和 theme_presets 保留，其余业务数据清空
@@ -490,6 +498,18 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb) {
 
   if (musicDb) {
     counts.playHistory = clearPlaybackData(musicDb).deletedCount;
+  }
+
+  if (checkinDb) {
+    checkinDb.exec('BEGIN');
+    try {
+      counts.checkins = countRows(checkinDb, 'checkin_users');
+      checkinDb.prepare('DELETE FROM checkin_users').run();
+      checkinDb.exec('COMMIT');
+    } catch (error) {
+      checkinDb.exec('ROLLBACK');
+      throw error;
+    }
   }
 
   return {

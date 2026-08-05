@@ -4,7 +4,7 @@
 
 const wbiSigner = require('../wbi-signer');
 const { cleanText } = require('../../shared/utils');
-const { buildMentionedMessage } = require('./mention-policy');
+const { normalizeMentionTarget } = require('./mention-policy');
 
 class BilibiliApiClient {
   constructor(roomId, options = {}) {
@@ -108,11 +108,10 @@ class BilibiliApiClient {
     if (!csrf) throw new Error('登录态缺少 bili_jct，无法发送弹幕。');
     if (!rawText || rawText.length > 1000) throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
 
-    const mentioned = buildMentionedMessage(rawText, reply);
-    const replyMid = mentioned.target.uid;
-    const replyName = mentioned.target.name;
-    const text = mentioned.message;
-    if (text.length > 1000) throw new Error('包含 @ 点歌人后的弹幕不能超过 1000 个字符。');
+    const mentionTarget = normalizeMentionTarget(reply);
+    const replyMid = mentionTarget.uid;
+    const replyName = mentionTarget.name;
+    const text = rawText;
 
     const form = new URLSearchParams({
       bubble: '0',

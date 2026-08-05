@@ -4,6 +4,7 @@
 
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
+const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, normalizeTimestampMs } = require('../../shared/utils');
 
 class HistoryPoller {
@@ -72,11 +73,6 @@ class HistoryPoller {
 
 function parseBilibiliTimeline(value) {
   return normalizeTimestampMs(value);
-}
-
-function isBilibiliCommandText(message) {
-  const text = cleanText(message);
-  return text.startsWith('点歌') || text.startsWith('随机');
 }
 
 module.exports = { HistoryPoller };

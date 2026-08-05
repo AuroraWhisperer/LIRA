@@ -18,7 +18,7 @@
 .queue-popup {
   position: fixed;
   top: 84px;
-  bottom: 108px;
+  bottom: calc(var(--player-dock-height, 96px) + 12px);
   right: 24px;
   z-index: 34;
   width: min(400px, calc(100vw - 48px));

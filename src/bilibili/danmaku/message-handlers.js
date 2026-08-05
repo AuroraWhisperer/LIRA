@@ -5,6 +5,7 @@
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
+const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 
 class MessageHandlers {
@@ -227,11 +228,6 @@ class MessageHandlers {
       userName: requester.userName
     });
   }
-}
-
-function isBilibiliCommandText(message) {
-  const text = cleanText(message);
-  return text.startsWith('点歌') || text.startsWith('随机');
 }
 
 function normalizeBilibiliCommandName(value) {

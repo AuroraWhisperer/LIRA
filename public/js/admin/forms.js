@@ -43,6 +43,7 @@ export class FormsService {
     const playerPanel = document.querySelector('.playback-player-panel');
     const fsEl = document.getElementById('playerFullscreen');
     const fsCloseBtn = document.getElementById('playerFsClose');
+    const playerDockToggle = document.getElementById('playerDockToggle');
 
     // 点击播放器面板（排除按钮和输入框）切换全屏
     playerPanel?.addEventListener('click', (e) => {
@@ -61,6 +62,14 @@ export class FormsService {
     });
 
     // ESC键关闭全屏播放器，空格键播放/暂停
+    playerDockToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const collapsed = !document.body.classList.contains('player-dock-collapsed');
+      this.setPlayerDockCollapsed(collapsed);
+    });
+
+    this.setPlayerDockCollapsed(false);
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && fsEl?.classList.contains('open')) {
         this.closeFullscreenPlayer();
@@ -118,6 +127,44 @@ export class FormsService {
     fsEl.classList.remove('open');
     fsEl.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('player-fs-open');
+  }
+
+  setPlayerDockCollapsed(collapsed) {
+    const playerPanel = document.querySelector('.playback-player-panel');
+    const playerBody = document.getElementById('playbackPlayerBody');
+    const playerDockToggle = document.getElementById('playerDockToggle');
+    const label = collapsed ? '展开播放器' : '收起播放器';
+
+    document.body.classList.toggle('player-dock-collapsed', collapsed);
+    playerPanel?.classList.toggle('is-collapsed', collapsed);
+    playerBody?.setAttribute('aria-hidden', String(collapsed));
+
+    if (playerDockToggle) {
+      playerDockToggle.title = label;
+      playerDockToggle.setAttribute('aria-label', label);
+      playerDockToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
+
+    if (collapsed) this.closeDockDependentPlaybackUi();
+  }
+
+  closeDockDependentPlaybackUi() {
+    this.closeFullscreenPlayer();
+
+    const closeQueuePopup = window.AdminApp?.playback?.closeQueuePopup;
+    if (typeof closeQueuePopup === 'function') {
+      closeQueuePopup();
+    } else {
+      document.getElementById('queuePopup')?.classList.remove('open');
+      document.getElementById('queuePopupBackdrop')?.classList.remove('open');
+      document.getElementById('playbackQueueBtn')?.classList.remove('active');
+    }
+
+    const volumePanel = document.getElementById('playbackVolumePanel');
+    const volumeButton = document.getElementById('playbackVolumeIcon');
+    volumeButton?.closest('.playback-volume-wrap')?.classList.remove('open');
+    volumeButton?.setAttribute('aria-expanded', 'false');
+    volumePanel?.setAttribute('aria-hidden', 'true');
   }
 
   /**

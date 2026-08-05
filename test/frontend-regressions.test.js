@@ -51,9 +51,14 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(html, /id="danmakuCounter"[^>]*>0 字</);
   assert.match(source, /Array\.from\(message\.value\)\.length/);
   assert.match(source, /enableRandomTagReply/);
+  assert.match(source, /enableCheckinBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
-  assert.match(html, /随机点歌条件提醒/);
-  assert.match(html, /自动回复/);
+  assert.match(html, /随机点歌回复/);
+  assert.match(html, /条件不匹配时，自动回复点歌人/);
+  assert.match(html, /启用回复/);
+  assert.match(html, /签到机器人/);
+  assert.match(html, /收到“签到”弹幕后回复累计天数/);
+  assert.match(html, /启用签到/);
 });
 
 test('admin danmaku status prefers account and room display names', () => {
@@ -664,9 +669,127 @@ test('song workspace scrolls within the viewport above the player dock', () => {
 
   assert.ok(songWorkspaceRule, 'song workspace styles should remain defined');
   assert.ok(expandedRule, 'expanded player sizing should remain defined');
-  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - 96px\)/);
+  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
   assert.match(songWorkspaceRule, /overflow-y:\s*auto/);
-  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - 218px\)/);
+  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 218px\)\)/);
+});
+
+test('player dock exposes a collapse handle and shares its height with route workspaces', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const playerStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'), 'utf8');
+  const playbackLayout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'layout.css'), 'utf8');
+  const adminWorkspace = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace.css'), 'utf8');
+  const otherWorkspace = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'), 'utf8');
+
+  assert.match(html, /id="playerDockToggle"[^>]*aria-expanded="true"[^>]*aria-controls="playbackPlayerBody"/);
+  assert.match(html, /id="playbackPlayerBody" class="panel-body playback-player"/);
+  assert.match(playerStyles, /--player-dock-collapsed-height:\s*0px/);
+  assert.match(playerStyles, /body\.player-dock-collapsed\s*\{/);
+  assert.match(playerStyles, /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/);
+  assert.match(playbackLayout, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(adminWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(otherWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+});
+
+test('player dock toggle collapses the dock without opening fullscreen', async () => {
+  const makeClassList = () => {
+    const names = new Set();
+    return {
+      add(...values) {
+        values.forEach((value) => names.add(value));
+      },
+      remove(...values) {
+        values.forEach((value) => names.delete(value));
+      },
+      toggle(value, force) {
+        const next = force === undefined ? !names.has(value) : force;
+        if (next) names.add(value);
+        else names.delete(value);
+        return next;
+      },
+      contains(value) {
+        return names.has(value);
+      }
+    };
+  };
+  const makeElement = () => {
+    const listeners = new Map();
+    const attributes = new Map();
+    return {
+      classList: makeClassList(),
+      listeners,
+      attributes,
+      title: '',
+      addEventListener(type, listener) {
+        listeners.set(type, listener);
+      },
+      setAttribute(name, value) {
+        attributes.set(name, String(value));
+      },
+      getAttribute(name) {
+        return attributes.get(name);
+      },
+      closest() {
+        return null;
+      }
+    };
+  };
+
+  const playerPanel = makeElement();
+  const fullscreen = makeElement();
+  const dockToggle = makeElement();
+  const playerBody = makeElement();
+  const elements = {
+    playerFullscreen: fullscreen,
+    playerDockToggle: dockToggle,
+    playbackPlayerBody: playerBody,
+    playbackVolumePanel: makeElement(),
+    playbackVolumeIcon: makeElement(),
+    queuePopup: makeElement(),
+    queuePopupBackdrop: makeElement(),
+    playbackQueueBtn: makeElement()
+  };
+  const body = { classList: makeClassList() };
+  const document = {
+    body,
+    addEventListener() {},
+    querySelector(selector) {
+      return selector === '.playback-player-panel' ? playerPanel : null;
+    },
+    getElementById(id) {
+      return elements[id] || null;
+    }
+  };
+  const window = { AdminApp: {} };
+
+  const { FormsService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'),
+    { document, window }
+  );
+  const service = new FormsService();
+  let fullscreenOpened = false;
+  service.openFullscreenPlayer = () => {
+    fullscreenOpened = true;
+  };
+
+  service.initWorkspaceControls();
+  const panelClick = playerPanel.listeners.get('click');
+  panelClick({
+    target: {
+      closest(selector) {
+        return selector.includes('button') ? dockToggle : null;
+      }
+    }
+  });
+  assert.equal(fullscreenOpened, false);
+
+  const dockClick = dockToggle.listeners.get('click');
+  dockClick({ stopPropagation() {} });
+  assert.equal(body.classList.contains('player-dock-collapsed'), true);
+  assert.equal(playerPanel.classList.contains('is-collapsed'), true);
+  assert.equal(playerBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(dockToggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(dockToggle.getAttribute('aria-label'), '展开播放器');
 });
 
 test('queue panels remain the same height on desktop', () => {

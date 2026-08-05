@@ -65,13 +65,12 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
 
   const result = await service.send({ message: '1234567890'.repeat(8), mentionRequester: true });
 
-  assert.equal(result.count, 3);
-  assert.equal(result.messages.length, 3);
+  assert.equal(result.count, 2);
+  assert.equal(result.messages.length, 2);
   assert.ok(calls.every((call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT));
   assert.equal(calls[0].target.uid, '42');
   assert.deepEqual(calls[1].target, { uid: '', name: '', source: '', createdAt: '' });
-  assert.deepEqual(calls[2].target, { uid: '', name: '', source: '', createdAt: '' });
-  assert.equal(result.message, '@Alice ' + '1234567890'.repeat(8));
+  assert.equal(result.message, '1234567890'.repeat(8));
 });
 
 test('sender service accepts the current requester as an explicit mention target', async () => {
@@ -99,10 +98,12 @@ test('sender service accepts the current requester as an explicit mention target
     mentionTarget: { uid: '789', name: '当前点歌人' }
   });
 
-  assert.equal(calls[0].message, '@当前点歌人 请调整组合条件后再试。');
+  assert.equal(calls[0].message, '请调整组合条件后再试。');
   assert.deepEqual(calls[0].target, {
     uid: '789',
-    name: '当前点歌人'
+    name: '当前点歌人',
+    source: '',
+    createdAt: ''
   });
 });
 

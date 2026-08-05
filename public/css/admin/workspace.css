@@ -145,7 +145,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  height: calc(100vh - 58px - 96px);
+  height: calc(100vh - 58px - var(--player-dock-height, 96px));
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -153,7 +153,7 @@
 }
 
 body.player-dock-expanded .song-workspace {
-  height: calc(100vh - 58px - 218px);
+  height: calc(100vh - 58px - var(--player-dock-height, 218px));
 }
 
 /* ---- 并排双队列 ---- */
@@ -308,14 +308,14 @@ body.player-dock-expanded .song-workspace {
   grid-template-rows: repeat(6, max-content);
   align-content: start;
   gap: 14px;
-  height: calc(100vh - 58px - 96px);
+  height: calc(100vh - 58px - var(--player-dock-height, 96px));
   padding: 16px;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 body.player-dock-expanded .gift-workspace {
-  height: calc(100vh - 58px - 218px);
+  height: calc(100vh - 58px - var(--player-dock-height, 218px));
 }
 
 .gift-detection-panel {

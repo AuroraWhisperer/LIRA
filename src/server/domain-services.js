@@ -7,11 +7,13 @@ const retention = require('../storage/retention');
 const { createPlaybackStore } = require('../storage/playback-store');
 const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
+const { createCheckinStore } = require('../storage/checkin-store');
 const { createRequesterTargetStore } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
+const { createCheckinService } = require('../bilibili/checkin-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 
 function createDomainServices({ db, settingsStore, onGiftFlushed }) {
@@ -19,6 +21,11 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
   const requesterTargets = createRequesterTargetStore(db.songDb);
+  const checkinStore = createCheckinStore(db.checkinDb);
+  const checkins = createCheckinService({
+    store: checkinStore,
+    settings: () => settingsStore.getSettings()
+  });
 
   const state = {
     cooldownByUser: new Map(),
@@ -81,7 +88,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
 
   const messages = {
     handleDanmaku(danmaku) {
-      return bilibiliMessageHandler.handleDanmakuMessage({
+      const result = bilibiliMessageHandler.handleDanmakuMessage({
         ...baseContext,
         addQueueItem: queue.add,
         resolveSongRequest: songs.findUniqueNameMatch,
@@ -89,6 +96,13 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
         pickRandomSong: songs.pickRandom,
         describeRandomSongScope: songs.describeRandomScope
       }, danmaku);
+      const checkin = checkins.handleDanmaku(danmaku);
+      if (!checkin.command) return result;
+      return {
+        ...result,
+        checkin,
+        checkinReply: checkin.autoReply || null
+      };
     },
     logDanmaku: bilibiliMessageHandler.logDanmakuCommand
   };
@@ -109,7 +123,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
       return result;
     },
     clearAll() {
-      const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb);
+      const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb);
       state.cooldownByUser.clear();
       state.giftComboPending.clear();
       state.blindBoxCache = null;
@@ -133,6 +147,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     superChats,
     messages,
     requesterTargets,
+    checkins,
     data,
     playback: playbackStore,
     theme: themeStore,
