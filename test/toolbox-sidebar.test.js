@@ -43,6 +43,7 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   assert.match(html, /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/);
   assert.match(styles, /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/);
   assert.match(styles, /\.danmaku-feature-section\s*\{[^}]*border:\s*1px solid var\(--border\)/);
+  assert.match(styles, /\.danmaku-bot-switch-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
 });
 
 test('toolbox sidebar toggle updates accessibility state and stores the preference', () => {

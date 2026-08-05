@@ -14,6 +14,7 @@
     const target = document.getElementById('danmakuReplyTarget');
     const toggle = document.getElementById('danmakuReplyToggle');
     const checkinToggle = document.getElementById('danmakuCheckinToggle');
+    const fortuneToggle = document.getElementById('danmakuFortuneToggle');
     const status = document.getElementById('danmakuToolStatus');
     const accountState = document.getElementById('danmakuAccountState');
     const roomState = document.getElementById('danmakuRoomState');
@@ -26,7 +27,7 @@
     const blessingSaveButton = document.getElementById('danmakuBlessingSaveBtn');
     const blessingStatus = document.getElementById('danmakuBlessingStatus');
     if (
-      initialized || !form || !message || !toggle || !checkinToggle || !blessingList
+      initialized || !form || !message || !toggle || !checkinToggle || !fortuneToggle || !blessingList
       || !blessingInput || !blessingAddButton || !blessingSaveButton
       || typeof form.addEventListener !== 'function'
     ) return;
@@ -140,6 +141,8 @@
         toggle.disabled = !state.canSend;
         checkinToggle.checked = state.checkinBotEnabled === true;
         checkinToggle.disabled = !state.canSend;
+        fortuneToggle.checked = state.fortuneBotEnabled === true;
+        fortuneToggle.disabled = !state.canSend;
         loadBlessings(state.checkinBlessings);
         status.textContent = state.canSend ? (state.connected ? '可发送，监听已连接' : '可发送，监听未连接') : state.unavailableReason;
         status.className = state.canSend ? 'good' : 'warn';
@@ -204,6 +207,11 @@
       key: 'enableCheckinBot',
       onText: '签到机器人已开启',
       offText: '签到机器人已关闭'
+    });
+    bindSettingToggle(fortuneToggle, {
+      key: 'enableFortuneBot',
+      onText: '抽签机器人已开启',
+      offText: '抽签机器人已关闭'
     });
     function bindSettingToggle(element, options) {
       element.addEventListener('change', async () => {

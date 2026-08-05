@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
   allowDuplicate: 'true',
   enableRandomTagReply: 'true',
   enableCheckinBot: 'true',
+  enableFortuneBot: 'true',
   checkinBlessings: JSON.stringify(CHECKIN_BLESSINGS),
   queueLimit: '50',
   userCooldownSeconds: '0',

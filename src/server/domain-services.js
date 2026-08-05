@@ -14,6 +14,7 @@ const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
 const { createCheckinService } = require('../bilibili/checkin-service');
+const { createFortuneService } = require('../bilibili/fortune-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 
 function createDomainServices({ db, settingsStore, onGiftFlushed }) {
@@ -24,6 +25,9 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
   const checkinStore = createCheckinStore(db.checkinDb);
   const checkins = createCheckinService({
     store: checkinStore,
+    settings: () => settingsStore.getSettings()
+  });
+  const fortunes = createFortuneService({
     settings: () => settingsStore.getSettings()
   });
 
@@ -97,11 +101,19 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
         describeRandomSongScope: songs.describeRandomScope
       }, danmaku);
       const checkin = checkins.handleDanmaku(danmaku);
-      if (!checkin.command) return result;
+      if (checkin.command) {
+        return {
+          ...result,
+          checkin,
+          checkinReply: checkin.autoReply || null
+        };
+      }
+      const fortune = fortunes.handleDanmaku(danmaku);
+      if (!fortune.command) return result;
       return {
         ...result,
-        checkin,
-        checkinReply: checkin.autoReply || null
+        fortune,
+        fortuneReply: fortune.autoReply || null
       };
     },
     logDanmaku: bilibiliMessageHandler.logDanmakuCommand
@@ -148,6 +160,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     messages,
     requesterTargets,
     checkins,
+    fortunes,
     data,
     playback: playbackStore,
     theme: themeStore,

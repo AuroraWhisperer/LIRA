@@ -52,6 +52,7 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(source, /Array\.from\(message\.value\)\.length/);
   assert.match(source, /enableRandomTagReply/);
   assert.match(source, /enableCheckinBot/);
+  assert.match(source, /enableFortuneBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
   assert.match(html, /随机点歌回复/);
   assert.match(html, /条件不匹配时，自动回复点歌人/);
@@ -59,6 +60,9 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(html, /签到机器人/);
   assert.match(html, /收到“签到”弹幕后回复累计天数/);
   assert.match(html, /启用签到/);
+  assert.match(html, /抽签机器人/);
+  assert.match(html, /收到“抽签”弹幕后回复每日一签/);
+  assert.match(html, /启用抽签/);
   assert.match(html, /<details id="danmakuBlessingsPanel" class="danmaku-blessings-section">/);
   assert.match(html, /id="danmakuBlessingList"/);
   assert.match(html, /id="danmakuBlessingAddBtn"/);

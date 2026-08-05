@@ -339,7 +339,7 @@ body.player-dock-expanded .other-workspace {
 }
 .danmaku-bot-switch-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .danmaku-bot-switch-card {
   min-width: 0;
@@ -643,6 +643,15 @@ body.player-dock-expanded .other-workspace {
 
 .usage-guide-feature li + li {
   margin-top: 6px;
+}
+
+.usage-guide-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 .usage-guide-faq-grid {

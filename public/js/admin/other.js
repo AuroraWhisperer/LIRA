@@ -4,6 +4,7 @@
 
 (function () {
   const SIDEBAR_COLLAPSED_KEY = 'admin.toolboxSidebarCollapsed';
+  const SELECTED_FEATURE_KEY = 'admin.toolboxSelectedFeature';
   const moduleState = {
     initialized: false
   };
@@ -55,6 +56,22 @@
     return !button.hidden && panels.some((panel) => panel.id === button.dataset.otherFeature);
   }
 
+  function readSelectedFeature() {
+    try {
+      return window.localStorage?.getItem(SELECTED_FEATURE_KEY) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function storeSelectedFeature(featureId) {
+    try {
+      window.localStorage?.setItem(SELECTED_FEATURE_KEY, featureId);
+    } catch {
+      // The navigation still works when storage is disabled.
+    }
+  }
+
   /**
    * 根据按钮声明的面板 ID 切换内容，不依赖任何具体功能模块。
    */
@@ -81,6 +98,7 @@
       panel.classList.toggle('active', isActive);
       panel.hidden = !isActive;
     });
+    storeSelectedFeature(selectedId);
 
     if (selectedId === 'otherDanmakuFeature') {
       window.AdminApp.danmakuTool?.refresh();
@@ -123,7 +141,7 @@
     const root = document.getElementById('otherAssistantPage');
     if (!root || moduleState.initialized) return;
 
-    const { buttons } = getFeatureElements(root);
+    const { buttons, panels } = getFeatureElements(root);
     const sidebarToggle = root.querySelector?.('[data-other-sidebar-toggle]');
     const navigationLinks = Array.from(root.querySelectorAll?.('[data-main-page-link]') || []);
     setSidebarCollapsed(root, readSidebarCollapsed(), false);
@@ -150,7 +168,16 @@
 
     window.AdminApp.danmakuTool?.init();
 
-    const initialButton = buttons.find((button) => button.getAttribute('aria-selected') === 'true');
+    const storedFeature = readSelectedFeature();
+    const storedButton = buttons.find((button) => (
+      button.dataset.otherFeature === storedFeature
+      && isFeatureAvailable(button, panels)
+    ));
+    const initialButton = storedButton
+      || buttons.find((button) => (
+        button.getAttribute('aria-selected') === 'true'
+        && isFeatureAvailable(button, panels)
+      ));
     selectFeature(root, initialButton?.dataset.otherFeature);
     moduleState.initialized = true;
   }

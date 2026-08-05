@@ -1300,7 +1300,7 @@
               </button>
             </div>
             <div class="other-sidebar-page-links" aria-label="直播工具">
-              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherDanmakuFeature" aria-selected="false" title="弹幕姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="other-feature-label"><strong>弹幕姬</strong></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherDanmakuFeature" aria-selected="false" title="弹幕姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="other-feature-label"><strong>弹幕姬</strong><small>发送弹幕并管理互动回复</small></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherGiftFeature" aria-selected="false" title="礼物姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span class="other-feature-label"><strong>礼物姬</strong></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
             <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
@@ -1389,6 +1389,7 @@
                 </span>
                 <span class="other-feature-label">
                   <strong>使用文档</strong>
+                  <small>查看功能说明与常见问题</small>
                 </span>
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1443,7 +1444,7 @@
                     <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
                   </div>
                 </section>
-                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle danmakuCheckinTitle">
+                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle">
                   <div class="danmaku-bot-switch-grid">
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
                       <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p id="danmakuReplyTarget">条件不匹配时，自动回复点歌人</p></div>
@@ -1452,6 +1453,10 @@
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
                       <div><strong id="danmakuCheckinTitle">签到机器人</strong><p id="danmakuCheckinTarget">收到“签到”弹幕后回复累计天数</p></div>
                       <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox"><span class="switch-track"></span><span>启用签到</span></label>
+                    </div>
+                    <div class="danmaku-reply-target danmaku-bot-switch-card">
+                      <div><strong id="danmakuFortuneTitle">抽签机器人</strong><p>收到“抽签”弹幕后回复每日一签</p></div>
+                      <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox"><span class="switch-track"></span><span>启用抽签</span></label>
                     </div>
                   </div>
                 </section>
@@ -1636,6 +1641,24 @@
                     <article class="usage-guide-card">
                       <strong>卡住了回到这一页</strong>
                       <p>不确定哪里出问题时，回到使用文档看对应章节的说明，或者翻到最下面的「常见问题」。通常比到处乱点试错更高效。</p>
+                    </article>
+                  </div>
+                </section>
+
+                <!-- ============ 已安装旧版本 ============ -->
+                <section class="usage-guide-section">
+                  <h3>电脑上已经安装过点歌助手</h3>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>1. 直接点击“下一步”</strong><span class="usage-guide-chip">无需卸载</span></div>
+                      <p>如果安装程序提示当前用户已经安装过点歌助手，保持“仅为我安装”选中，直接点击“下一步”。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/install-existing-user.png" alt="安装程序提示当前用户已经安装过点歌助手，下一步按钮位于窗口底部">
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>2. 保持原位置并点击“安装”</strong><span class="usage-guide-chip">保持默认</span></div>
+                      <p>安装位置不用修改，直接点击“安装”即可重新安装或升级。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/install-existing-location.png" alt="安装位置保持不变，安装按钮位于窗口底部">
+                      <p><strong>小提示：</strong>“下一步”和“安装”按钮在窗口底部的同一位置，保持默认选项连续点击即可。</p>
                     </article>
                   </div>
                 </section>

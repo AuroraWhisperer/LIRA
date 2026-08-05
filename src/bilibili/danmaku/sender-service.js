@@ -13,6 +13,7 @@ function createDanmakuSenderService(dependencies) {
     getMentionTarget,
     getAutoReplyEnabled = () => false,
     getCheckinBotEnabled = () => false,
+    getFortuneBotEnabled = () => false,
     createClient,
     minIntervalMs = 1500,
     now = Date.now,
@@ -39,6 +40,7 @@ function createDanmakuSenderService(dependencies) {
       liveMessage: String(live && live.message || ''),
       autoReplyEnabled: Boolean(getAutoReplyEnabled()),
       checkinBotEnabled: Boolean(getCheckinBotEnabled()),
+      fortuneBotEnabled: Boolean(getFortuneBotEnabled()),
       canSend: Boolean(loggedIn && roomId),
       unavailableReason: !loggedIn ? '请先登录 Bilibili 账号。' : (!roomId ? '请先设置直播间号。' : ''),
       requester: target || emptyTarget()
@@ -100,13 +102,15 @@ function createDanmakuSenderService(dependencies) {
     if (!auth || !auth.loggedIn || !auth.cookieHeader) throw new Error('请先登录 Bilibili 账号。');
     if (!room || !room.roomId) throw new Error('请先设置 Bilibili 直播间号。');
 
-    const target = mentionTarget || (mentionRequester ? await getMentionTarget() : null);
-    const messages = splitDanmakuMessage(message);
+    const target = normalizeReplyTarget(
+      mentionTarget || (mentionRequester ? await getMentionTarget() : null)
+    );
+    const messages = splitDanmakuReplyMessage(message, target);
     const client = createClient(room.roomId, auth);
     const roomInfo = await client.resolveRoomInfo();
     const results = [];
     for (let index = 0; index < messages.length; index += 1) {
-      const replyTarget = index === 0 ? normalizeReplyTarget(target) : emptyTarget();
+      const replyTarget = index === 0 ? target : emptyTarget();
       results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
     }
     const result = {
@@ -137,6 +141,20 @@ function splitDanmakuMessage(message, limit = DANMAKU_MESSAGE_LIMIT) {
   return chunks;
 }
 
+function splitDanmakuReplyMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT) {
+  const name = cleanText(target && target.name);
+  if (!name) return splitDanmakuMessage(message, limit);
+
+  const chars = Array.from(String(message || ''));
+  const mentionLength = Array.from(`@${name} `).length;
+  const firstLimit = Math.max(1, limit - mentionLength);
+  const chunks = [chars.slice(0, firstLimit).join('')];
+  for (let index = firstLimit; index < chars.length; index += limit) {
+    chunks.push(chars.slice(index, index + limit).join(''));
+  }
+  return chunks.filter(Boolean);
+}
+
 function normalizeReplyTarget(target) {
   if (!target) return emptyTarget();
   return {
@@ -164,5 +182,6 @@ module.exports = {
   createDanmakuSenderService,
   emptyTarget,
   splitDanmakuMessage,
+  splitDanmakuReplyMessage,
   DANMAKU_MESSAGE_LIMIT
 };

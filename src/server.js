@@ -169,6 +169,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
     getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
     getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
+    getFortuneBotEnabled: () => settingsStore.getSettings().enableFortuneBot === 'true',
     createClient(roomId, auth) {
       if (bilibiliClient && bilibiliClient.roomId === roomId) {
         bilibiliClient.apiClient.updateAuth(auth.cookieHeader, auth.uid);
@@ -524,6 +525,14 @@ function createServerRuntime(runtimeOptions = {}) {
               mentionTarget: result.checkinReply.target
             }).catch((error) => {
               console.warn(`[Bilibili] check-in auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
+            });
+          }
+          if (result.fortuneReply) {
+            void danmakuSender.send({
+              message: result.fortuneReply.message,
+              mentionTarget: result.fortuneReply.target
+            }).catch((error) => {
+              console.warn(`[Bilibili] fortune auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
             });
           }
           if (result.accepted) {
