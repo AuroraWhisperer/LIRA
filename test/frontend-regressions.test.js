@@ -59,6 +59,12 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(html, /签到机器人/);
   assert.match(html, /收到“签到”弹幕后回复累计天数/);
   assert.match(html, /启用签到/);
+  assert.match(html, /<details id="danmakuBlessingsPanel" class="danmaku-blessings-section">/);
+  assert.match(html, /id="danmakuBlessingList"/);
+  assert.match(html, /id="danmakuBlessingAddBtn"/);
+  assert.match(html, /id="danmakuBlessingSaveBtn"/);
+  assert.match(source, /checkinBlessings: JSON\.stringify\(cleaned\)/);
+  assert.match(source, /blessings\.splice\(index, 1\)/);
 });
 
 test('admin danmaku status prefers account and room display names', () => {
@@ -691,7 +697,7 @@ test('player dock exposes a collapse handle and shares its height with route wor
   assert.match(otherWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
 });
 
-test('player dock toggle collapses the dock without opening fullscreen', async () => {
+test('player dock starts collapsed and toggles open without opening fullscreen', async () => {
   const makeClassList = () => {
     const names = new Set();
     return {
@@ -773,6 +779,12 @@ test('player dock toggle collapses the dock without opening fullscreen', async (
   };
 
   service.initWorkspaceControls();
+  assert.equal(body.classList.contains('player-dock-collapsed'), true);
+  assert.equal(playerPanel.classList.contains('is-collapsed'), true);
+  assert.equal(playerBody.getAttribute('aria-hidden'), 'true');
+  assert.equal(dockToggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(dockToggle.getAttribute('aria-label'), '展开播放器');
+
   const panelClick = playerPanel.listeners.get('click');
   panelClick({
     target: {
@@ -785,11 +797,11 @@ test('player dock toggle collapses the dock without opening fullscreen', async (
 
   const dockClick = dockToggle.listeners.get('click');
   dockClick({ stopPropagation() {} });
-  assert.equal(body.classList.contains('player-dock-collapsed'), true);
-  assert.equal(playerPanel.classList.contains('is-collapsed'), true);
-  assert.equal(playerBody.getAttribute('aria-hidden'), 'true');
-  assert.equal(dockToggle.getAttribute('aria-expanded'), 'false');
-  assert.equal(dockToggle.getAttribute('aria-label'), '展开播放器');
+  assert.equal(body.classList.contains('player-dock-collapsed'), false);
+  assert.equal(playerPanel.classList.contains('is-collapsed'), false);
+  assert.equal(playerBody.getAttribute('aria-hidden'), 'false');
+  assert.equal(dockToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(dockToggle.getAttribute('aria-label'), '收起播放器');
 });
 
 test('queue panels remain the same height on desktop', () => {

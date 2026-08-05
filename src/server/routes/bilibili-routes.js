@@ -42,7 +42,14 @@ const routes = {
   async 'GET /api/bilibili/danmaku/state'(context, _request, res) {
     try {
       const sender = await context.bilibili.getDanmakuSenderState();
-      sendJson(res, 200, { ok: true, data: sender });
+      const settings = context.settings.get();
+      sendJson(res, 200, {
+        ok: true,
+        data: {
+          ...sender,
+          checkinBlessings: settings.checkinBlessings
+        }
+      });
     } catch (error) {
       sendJson(res, 500, { ok: false, error: error.message || '获取弹幕发送状态失败。' });
     }

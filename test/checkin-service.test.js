@@ -6,7 +6,11 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createCheckinService, chinaDateKey } = require('../src/bilibili/checkin-service');
-const { CHECKIN_BLESSINGS } = require('../src/bilibili/checkin-blessings');
+const {
+  CHECKIN_BLESSINGS,
+  parseCheckinBlessings,
+  pickCheckinBlessing
+} = require('../src/bilibili/checkin-blessings');
 const { isBilibiliCommandText } = require('../src/bilibili/danmaku/command-text');
 const { createDomainServices } = require('../src/server/domain-services');
 const { closeDatabases, createDatabases, getSchemaVersions } = require('../src/storage/database');
@@ -86,9 +90,17 @@ test('check-in command participates in danmaku command filtering', () => {
   assert.equal(isBilibiliCommandText('路过'), false);
 });
 
-test('check-in blessings are stored as ten reusable phrases', () => {
-  assert.equal(CHECKIN_BLESSINGS.length, 10);
+test('check-in blessings provide thirty reusable Chinese phrases', () => {
+  assert.equal(CHECKIN_BLESSINGS.length, 30);
   assert.ok(CHECKIN_BLESSINGS.every((item) => typeof item === 'string' && item.length > 0));
+  assert.equal(new Set(CHECKIN_BLESSINGS).size, 30);
+});
+
+test('check-in blessings use saved phrases and recover from invalid settings', () => {
+  assert.deepEqual(parseCheckinBlessings('[" 祝你天天开心。 ",""]'), ['祝你天天开心。']);
+  assert.equal(pickCheckinBlessing('["祝你万事顺遂。"]'), '祝你万事顺遂。');
+  assert.deepEqual(parseCheckinBlessings('not-json'), CHECKIN_BLESSINGS);
+  assert.deepEqual(parseCheckinBlessings('[]'), CHECKIN_BLESSINGS);
 });
 
 test('domain services attach a check-in reply without accepting it as a song request', () => {
@@ -96,6 +108,7 @@ test('domain services attach a check-in reply without accepting it as a song req
   const databases = createDatabases({ dataDir });
   const settingsStore = createSettingsStore(databases.songDb);
   settingsStore.setSetting('enableCheckinBot', 'true');
+  settingsStore.setSetting('checkinBlessings', JSON.stringify(['祝你万事顺遂。']));
   const services = createDomainServices({
     db: databases,
     settingsStore,
@@ -110,7 +123,7 @@ test('domain services attach a check-in reply without accepting it as a song req
     });
     assert.equal(result.accepted, false);
     assert.equal(result.checkin.accepted, true);
-    assert.match(result.checkinReply.message, /^已签到 1 天。/);
+    assert.equal(result.checkinReply.message, '已签到 1 天。祝你万事顺遂。');
     assert.deepEqual(result.checkinReply.target, { uid: '456', name: 'Bob' });
   } finally {
     closeDatabases(databases);

@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260804-02">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260805-01">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260803-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -1455,6 +1455,28 @@
                     </div>
                   </div>
                 </section>
+                <details id="danmakuBlessingsPanel" class="danmaku-blessings-section">
+                  <summary>
+                    <div>
+                      <h3>签到祝福语</h3>
+                      <p>签到时随机发送 <span id="danmakuBlessingCount">0 条</span></p>
+                    </div>
+                    <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </summary>
+                  <div class="danmaku-blessings-body">
+                    <div id="danmakuBlessingList" class="danmaku-blessing-list" aria-live="polite"></div>
+                    <div class="danmaku-blessing-add-row">
+                      <input id="danmakuBlessingInput" type="text" maxlength="60" placeholder="输入一条祝福语" aria-label="新增签到祝福语">
+                      <button id="danmakuBlessingAddBtn" class="icon" type="button" title="添加祝福语" aria-label="添加祝福语">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                      </button>
+                    </div>
+                    <div class="danmaku-blessing-actions">
+                      <span id="danmakuBlessingStatus" class="hint" role="status" aria-live="polite">正在读取祝福语</span>
+                      <button id="danmakuBlessingSaveBtn" class="primary" type="button">保存祝福语</button>
+                    </div>
+                  </div>
+                </details>
                 <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
                   <div class="danmaku-section-heading">
                     <div>
@@ -1595,99 +1617,273 @@
                 <div class="usage-guide-hero">
                   <div>
                     <h2>使用文档</h2>
-                    <p>这页是给日常操作看的。先看主流程，再看各功能区做什么，最后看常见 bug 怎么处理。</p>
+                    <p>欢迎使用点歌助手！这份文档覆盖了从入门到日常使用的全部内容。建议先通读「快速上手」和「主流程」，再根据自己的需要跳到对应章节。</p>
                   </div>
-                  <span class="pill">人话版</span>
                 </div>
 
+                <!-- ============ 快速上手 ============ -->
                 <section class="usage-guide-section">
-                  <h3>先记住这三件事</h3>
+                  <h3>快速上手</h3>
                   <div class="usage-guide-grid">
                     <article class="usage-guide-card">
-                      <strong>先看状态</strong>
-                      <p>右上角如果还在连线、刷新或未连接，先别急着点功能，先把连接状态弄稳。</p>
+                      <strong>先确认连接状态</strong>
+                      <p>页面右上角有连接状态指示灯。前端未连接或弹幕监听未启用时，先点「刷新直播」等状态稳定再操作，否则弹幕和礼物数据不会更新。</p>
                     </article>
                     <article class="usage-guide-card">
-                      <strong>先走主流程</strong>
-                      <p>日常最常用的是点歌、播放和礼物这三块，百宝箱是辅助工具，不影响主线。</p>
+                      <strong>四个主页面各司其职</strong>
+                      <p>点歌、播放、礼物、百宝箱——日常最常用的是点歌和播放，礼物页盯礼物流水，百宝箱里放辅助工具。不用一次全学会，用到哪个看哪个。</p>
                     </article>
                     <article class="usage-guide-card">
-                      <strong>卡住先回到这一页</strong>
-                      <p>不知道问题出在哪，就先看对应功能区的状态文字，通常比到处乱点更快。</p>
+                      <strong>卡住了回到这一页</strong>
+                      <p>不确定哪里出问题时，回到使用文档看对应章节的说明，或者翻到最下面的「常见问题」。通常比到处乱点试错更高效。</p>
                     </article>
                   </div>
                 </section>
 
+                <!-- ============ 主流程 ============ -->
                 <section class="usage-guide-section">
-                  <h3>主流程</h3>
+                  <h3>主流程：一次完整的开播操作</h3>
                   <ol class="usage-guide-steps">
-                    <li><strong>先登录账号，再确认直播间已连接。</strong> 账号没登录、房间没连上，后面的弹幕和礼物信息大概率都不准。</li>
-                    <li><strong>需要管理歌曲，就去点歌页。</strong> 这里负责歌曲库、手动入队、切歌和清空队列。</li>
-                    <li><strong>需要看播放状态，就去播放页。</strong> 这里能看当前播放、队列、歌词和播放器控制。</li>
-                    <li><strong>要盯弹幕、礼物和诊断，就去礼物页和百宝箱。</strong> 礼物页看礼物流，百宝箱放弹幕姬、礼物姬、性能和桌面更新。</li>
+                    <li><strong>登录 Bilibili 账号，确认直播间已连接。</strong> 账号没登录或房间号不对，弹幕和礼物数据都无法正常获取。桌面版支持扫码登录，登录后建议点一下「刷新直播」让连接用上新账号。</li>
+                    <li><strong>在「点歌」页管理歌曲库和队列。</strong> 导入你的歌曲库后，观众通过弹幕发的点歌会自动排队。你也可以手动加歌、调整顺序、切歌或清空队列。标签页里还有主题美化、展示板设置和 OBS 直播画面地址。</li>
+                    <li><strong>在「播放」页控制音乐播放。</strong> 查看当前播放的歌曲、队列列表和歌词。播放器面板可以切歌、暂停、调整进度，还有全屏歌词和桌面歌词窗口。</li>
+                    <li><strong>在「礼物」页和「百宝箱」监控互动。</strong> 礼物页看送礼流水、盲盒盈亏和月底冲刺进度；百宝箱的弹幕姬用来手动发弹幕和管理自动回复（签到机器人、点歌提醒），性能检测帮你看电脑资源占用。</li>
                   </ol>
                 </section>
 
+                <!-- ============ 点歌页详解 ============ -->
                 <section class="usage-guide-section">
-                  <h3>功能区域怎么用</h3>
+                  <h3>点歌页详解</h3>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>点歌</strong><span class="usage-guide-chip">主流程</span></div>
-                      <p>这块是日常最常碰的地方。观众点歌进队列，你也可以自己手动加歌、切歌、清空队列。</p>
+                      <div class="usage-guide-feature-head"><strong>SC 队列 + 点歌队列</strong><span class="usage-guide-chip">核心</span></div>
+                      <p>页面顶部并排显示醒目留言（SC）和点歌队列。SC 队列显示观众付费发送的醒目留言，点歌队列显示排队中的歌曲。每条歌曲可以置顶（提到下一首）、移除或查看详情。队列人数和歌曲数量在面板标题右侧实时显示。</p>
                       <ul>
-                        <li>先填歌名，必要时补歌手。</li>
-                        <li>队列里能看到当前播放和等待中的歌。</li>
-                        <li>觉得某首歌重要，可以先置顶。</li>
+                        <li>点歌队列右侧有「切歌」按钮——当前歌曲放完后跳到下一首。</li>
+                        <li>「清空全部队列」会弹出确认窗口，列出受影响的条目数，防止误操作。</li>
+                        <li>观众弹幕发「点歌 歌名」即可自动入队，支持模糊匹配自动补全歌名。</li>
                       </ul>
                     </article>
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>播放</strong><span class="usage-guide-chip">播放器</span></div>
-                      <p>这块是实际放歌的地方。你主要看播放器是不是在跑，队列有没有接上，歌词和播放控制正不正常。</p>
+                      <div class="usage-guide-feature-head"><strong>快速入队</strong><span class="usage-guide-chip">手动</span></div>
+                      <p>在 SC 队列下方，折叠面板「快速入队」可以手动添加歌曲到队列。填上歌曲名和歌手（歌手可选），点歌人默认填「主播」，点击发送即可。适合主播自己临时想放某首歌的场景。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>歌库管理</strong><span class="usage-guide-chip">数据库</span></div>
+                      <p>歌库是所有可点歌曲的数据库。你可以添加、编辑、删除歌曲，设置歌曲的分类、标签和是否可点。支持按分类和标签多选筛选，快速定位目标歌曲。表格新增「语言」列方便核对。</p>
                       <ul>
-                        <li>想找歌就搜，搜到后直接加到播放队列。</li>
-                        <li>播放器面板可以切歌、播放或暂停，也能打开队列弹窗。</li>
-                        <li>桌面歌词在这里单独配，适合第二屏或投屏场景。</li>
+                        <li>删除歌曲使用确认弹窗而非浏览器原生弹窗，避免误删。</li>
+                        <li>不可点的歌曲（isEnabled = false）不会出现在随机点歌的候选池中。</li>
                       </ul>
                     </article>
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>礼物</strong><span class="usage-guide-chip">礼物流</span></div>
-                      <p>这块盯的是礼物有没有收到、收到什么、有没有被正确记下来。平时看最近礼物和历史流水就够用了。</p>
+                      <div class="usage-guide-feature-head"><strong>随机点歌</strong><span class="usage-guide-chip">弹幕互动</span></div>
+                      <p>观众在直播间发送「随机点歌」或「随机点歌 关键词」即可从歌库中随机抽取一首。支持多种筛选方式，用 + 号组合多个条件（AND 逻辑）：</p>
                       <ul>
-                        <li>礼物检测开着，最近礼物和提示才会正常刷新。</li>
-                        <li>礼物流水抽屉里能查更早的记录。</li>
-                        <li>盲盒相关内容会按配置和统计单独展示。</li>
+                        <li><strong>按语言</strong>：日语、韩语、英语、粤语、国语</li>
+                        <li><strong>按分类</strong>：流行、R&B、说唱、摇滚、民谣、舞曲、影视原声</li>
+                        <li><strong>按歌手</strong>：直接输入歌手名</li>
+                        <li><strong>按标签</strong>：国风、小甜歌、影视OST、K-Pop 等</li>
+                        <li><strong>组合示例</strong>：「随机点歌 日语+流行」「随机点歌 说唱 苦情」</li>
                       </ul>
                     </article>
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>百宝箱</strong><span class="usage-guide-chip">辅助工具</span></div>
-                      <p>这里放的是平时用来补刀的工具。弹幕姬负责发弹幕，礼物姬留给礼物相关工具，性能页看资源占用，桌面更新只给桌面版用。</p>
+                      <div class="usage-guide-feature-head"><strong>子标签页</strong><span class="usage-guide-chip">配置</span></div>
+                      <p>歌库表格下方有一排子标签页，用于配置各项参数：</p>
                       <ul>
-                        <li>弹幕姬能查看连接状态，并手动发送弹幕。</li>
-                        <li>性能页适合排查卡顿、掉帧和内存涨太快。</li>
-                        <li>桌面更新页用于检查、下载和安装更新。</li>
+                        <li><strong>设置</strong>：队列上限、冷却时间、是否允许重复点歌、礼物检测开关等基础参数。</li>
+                        <li><strong>点歌板</strong>：OBS 投屏队列的视觉主题——颜色、字号、毛玻璃效果、滚动速度等。</li>
+                        <li><strong>展示板</strong>：歌单展示板的滚动速度和独立主题配色。</li>
+                        <li><strong>直播画面</strong>：复制各投屏链接（队列、歌单、歌词、盲盒盈亏榜）。</li>
+                        <li><strong>导入导出</strong>：CSV/XLSX 格式的歌曲批量导入导出。</li>
+                        <li><strong>桌面歌词设置</strong>：桌面歌词窗口的专属配置。</li>
                       </ul>
                     </article>
                   </div>
                 </section>
 
+                <!-- ============ 播放页详解 ============ -->
                 <section class="usage-guide-section">
-                  <h3>常见 bug 和处理办法</h3>
+                  <h3>播放页详解</h3>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>播放器控制栏</strong><span class="usage-guide-chip">停靠栏</span></div>
+                      <p>播放器固定在页面底部，左侧显示当前歌曲信息（歌名跑马灯滚动）、右侧为播放控制按钮。支持切歌、播放/暂停、打开队列弹窗。播放器可以折叠——点击折叠按钮后面板收起，再次点击恢复。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>搜索与队列</strong><span class="usage-guide-chip">播放</span></div>
+                      <p>搜索框支持从已连接的平台（QQ 音乐 / 网易云音乐）搜索歌曲，找到后一键加入播放队列。队列弹窗显示当前播放列表，支持拖拽排序和移除。播放进度条可以拖拽跳转。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>全屏歌词</strong><span class="usage-guide-chip">歌词</span></div>
+                      <p>播放页面内有全屏歌词视图。歌词支持逐字高亮进度显示，还有独立的「罗」（罗马音）和「译」（中文翻译）按钮各自开关。切歌时歌词模式自动重置。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>桌面歌词窗口</strong><span class="usage-guide-chip">桌面版</span></div>
+                      <p>桌面版支持打开独立的歌词窗口，可以自由拖拽调整大小和位置。窗口背景为毛玻璃半透明效果，歌词支持逐字渐变进度高亮和底部进度条。适合放在第二屏或用 OBS 窗口捕获投屏。</p>
+                      <ul>
+                        <li>窗口尺寸可独立缩放（宽高分别拖拽），极矮时自动隐藏翻译行和进度条。</li>
+                        <li>无歌词时显示状态提示（加载中/前奏中/待机），不会空白一片。</li>
+                      </ul>
+                    </article>
+                  </div>
+                </section>
+
+                <!-- ============ 礼物页详解 ============ -->
+                <section class="usage-guide-section">
+                  <h3>礼物页详解</h3>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>礼物检测</strong><span class="usage-guide-chip">开关</span></div>
+                      <p>页面顶部有礼物检测总开关。开启后系统开始接收和记录直播间的礼物事件，关闭后礼物数据停止更新。开关状态实时保存，无需额外确认。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>礼物提示</strong><span class="usage-guide-chip">通知</span></div>
+                      <p>独立于礼物检测的通知开关。开启后，每当收到礼物时右下角弹出桌面通知（Toast），显示送礼人、礼物名和金额。可以单独关闭通知而不影响礼物数据的记录。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>最近礼物</strong><span class="usage-guide-chip">展示</span></div>
+                      <p>以卡片网格展示最近收到的礼物，最多显示 6 行，窗口缩放时行数自动调整。卡片包含送礼人头像/名字、礼物图标/名称、金额和赠送时间。盲盒卡片有独立的配色标识。点击「查看全部」打开礼物流水抽屉，可翻看更早的历史记录。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>月底冲刺</strong><span class="usage-guide-chip">目标</span></div>
+                      <p>设定月度礼物收入目标（金额），页面实时显示已收金额、还差多少、折合多少个水晶球（2333 元/个）。可随时重置本轮计数，礼物流水不受影响。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>今日盲盒盈亏</strong><span class="usage-guide-chip">统计</span></div>
+                      <p>按观众汇总展示今日盲盒开盒情况——每位观众的开盒数、盒型种类、总成本和开出价值，净盈亏一目了然。支持三种盲盒类型的独立配色。点击某位观众可查看其完整开盒记录，点击「查看全部」进入完整的盲盒分析工作区。</p>
+                      <ul>
+                        <li>盲盒分析工作区支持按观众/按盲盒类型/按开盒记录三种视图切换。</li>
+                        <li>支持筛选、排序和分页，收到新礼物时自动刷新（500ms 防抖）。</li>
+                      </ul>
+                    </article>
+                  </div>
+                </section>
+
+                <!-- ============ 百宝箱详解 ============ -->
+                <section class="usage-guide-section">
+                  <h3>百宝箱详解</h3>
+                  <p style="margin-bottom:14px;">百宝箱是辅助工具的集合地。左侧侧边栏可以折叠（点击顶部的折叠按钮），折叠后只显示图标节省空间。上方有弹幕姬和礼物姬的快捷入口，下方标签页切换不同工具。</p>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>弹幕姬</strong><span class="usage-guide-chip">弹幕</span></div>
+                      <p>使用已登录的 Bilibili 账号向直播间发送弹幕。面板分为三个区域：</p>
+                      <ul>
+                        <li><strong>连接状态</strong>：显示当前发送账号（含昵称）、目标直播间（含房间名）和发送状态（是否可发送）。</li>
+                        <li><strong>自动回复</strong>：两个独立开关——「随机点歌回复」在观众点歌条件无匹配时自动 @ 提醒；「签到机器人」在观众发送「签到」弹幕时自动回复累计签到天数和随机祝福语。签到祝福语可以自定义编辑（添加/删除/修改），点击「签到祝福语」折叠面板即可管理。</li>
+                        <li><strong>发送弹幕</strong>：输入框 + 发送按钮，Ctrl+Enter 快捷发送。字符计数实时显示，超长弹幕自动拆分为多条连续发送。发送结果在底部状态栏实时反馈。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>礼物姬</strong><span class="usage-guide-chip">礼物</span></div>
+                      <p>礼物相关工具的集中展示入口，功能陆续上线中。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>性能检测</strong><span class="usage-guide-chip">诊断</span></div>
+                      <p>查看电脑的资源占用情况，帮助判断直播软件是否带得动：</p>
+                      <ul>
+                        <li><strong>整机监控</strong>：CPU、GPU、内存的总体使用率（所有程序合计）。</li>
+                        <li><strong>本软件监控</strong>：点歌助手自身占用的 CPU、GPU、内存。</li>
+                        <li>支持单次检测（5 秒采样）和持续检测两种模式。底部显示采样窗口、检测时间和当前服务进程 PID。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>桌面更新</strong><span class="usage-guide-chip">桌面版</span></div>
+                      <p>仅桌面版可见。检查是否有新版本，支持下载和安装更新。更新卡住时关闭面板重新打开再试通常就能恢复。</p>
+                    </article>
+                  </div>
+                </section>
+
+                <!-- ============ 投屏设置 ============ -->
+                <section class="usage-guide-section">
+                  <h3>OBS 投屏设置</h3>
+                  <p style="margin-bottom:10px;">点歌助手提供了多个直播画面链接，添加到 OBS 的「浏览器源」中即可在直播画面上显示：</p>
+                  <div class="usage-guide-grid">
+                    <article class="usage-guide-card">
+                      <strong>点歌队列画面</strong>
+                      <p>显示排队中的歌曲列表。支持两种视觉风格——经典毛玻璃卡片风和带粉丝勋章的点歌板风。在「点歌板」标签页配置颜色、字号、毛玻璃效果和滚动速度。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>歌单展示板</strong>
+                      <p>循环滚动展示歌库中的所有歌曲，适合在直播间隔或休息时播放。滚动速度和主题配色在「展示板」标签页独立设置。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>歌词画面</strong>
+                      <p>显示当前播放歌曲的歌词，支持逐字高亮。适合放在直播画面角落，或作为独立的歌词面板使用。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>盲盒盈亏榜</strong>
+                      <p>实时展示观众的盲盒开盒盈亏排名。支持按盲盒类型筛选（如仅显示心动盲盒），排行人数可调。在礼物页的盲盒投屏面板中配置。</p>
+                    </article>
+                  </div>
+                </section>
+
+                <!-- ============ 常用设置速查 ============ -->
+                <section class="usage-guide-section">
+                  <h3>常用设置速查</h3>
+                  <div class="usage-guide-grid">
+                    <article class="usage-guide-card">
+                      <strong>点歌规则</strong>
+                      <p>队列上限（默认 50 首）、用户冷却时间、是否允许重复点歌、是否只允许歌库内歌曲、是否允许精简格式点歌——这些都在点歌页的「设置」标签页调整。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>主题美化</strong>
+                      <p>点歌板的颜色主题、背景透明度、毛玻璃模糊程度、发光强度、渐变色——在「点歌板」标签页。支持一键预设和「一键美化」按钮快速出效果。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>投屏文字</strong>
+                      <p>队列的字号（歌名、标题、点歌人独立调节）、字体、字重、滚动模式（弹跳/连续）和滚动速度——都在「点歌板」标签页。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>礼物与盲盒</strong>
+                      <p>礼物检测开关、通知开关、冲刺目标在礼物页直接操作。盲盒配置（成本、可开出的礼物及价格）在「设置」标签页管理。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>签到与回复</strong>
+                      <p>签到机器人和随机点歌回复的开关在百宝箱 → 弹幕姬面板。祝福语列表也在同一面板的折叠区域编辑。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>歌单展示板</strong>
+                      <p>滚动速度（1-100 秒/屏）、排序方式、字号以及是否同步点歌板主题——在「展示板」标签页配置。</p>
+                    </article>
+                  </div>
+                </section>
+
+                <!-- ============ 常见问题 ============ -->
+                <section class="usage-guide-section">
+                  <h3>常见问题</h3>
                   <div class="usage-guide-faq-grid">
                     <article class="usage-guide-faq">
-                      <strong>页面是空的，或者点了没反应</strong>
-                      <p>先看是不是还停在别的功能页，再看浏览器和桌面版有没有把当前页加载完整。最省事的办法通常是刷新一次，重新点进对应功能区。</p>
+                      <strong>页面空白或点了按钮没反应</strong>
+                      <p>先确认没有停在别的功能页，检查页面是否加载完整。最简单的办法是刷新浏览器后重新进入对应功能区。如果持续出现，检查浏览器控制台是否有红色报错。</p>
                     </article>
                     <article class="usage-guide-faq">
                       <strong>弹幕发不出去</strong>
-                      <p>先确认账号已经登录，直播间已经连上，再确认当前状态不是断线或暂停。还是不行的话，重连一次直播间，通常就能恢复。</p>
+                      <p>确认三件事：① Bilibili 账号已登录（设置页可查看）；② 直播间已连接（右上角状态指示灯）；③ 弹幕姬面板的发送状态不是断线或暂停。都正常的话，重连一次直播间通常能恢复。</p>
                     </article>
                     <article class="usage-guide-faq">
-                      <strong>礼物不更新</strong>
-                      <p>先看礼物检测是不是开着，再看直播连接是否正常。如果最近礼物和礼物流水都没变化，先刷新状态，不要直接往下排查业务逻辑。</p>
+                      <strong>签到机器人没有自动回复</strong>
+                      <p>去百宝箱 → 弹幕姬面板，检查「签到机器人」开关是否打开。开关关闭时观众发「签到」弹幕不会触发回复。也确认一下祝福语列表是否为空。</p>
                     </article>
                     <article class="usage-guide-faq">
-                      <strong>桌面更新卡住了</strong>
-                      <p>这一般只发生在桌面版。先确认当前机器能连外网，再重新点检查更新。下载中断的话，关掉再重新进一次，通常比硬等更快。</p>
+                      <strong>随机点歌条件没反应或匹配不到歌</strong>
+                      <p>确认歌库中有符合条件的歌曲。如果开了「随机点歌回复」，条件不匹配时弹幕姬会自动发弹幕提醒点歌人。检查百宝箱 → 弹幕姬的「随机点歌回复」开关状态。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>礼物列表不更新</strong>
+                      <p>确认礼物页的「礼物检测」开关已开启、直播连接正常。如果最近礼物和礼物流水都没有变化，点一下右上角的「刷新直播」即可。不需要手动重启程序。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>OBS 投屏画面不显示或尺寸不对</strong>
+                      <p>先确认投屏地址是从「点歌页 → 直播画面」标签页复制的正确链接（以 127.0.0.1 开头）。OBS 浏览器源的宽度建议至少 400px。窗口第一次缩放后画面会自动适配全宽，所以刚添加时可能偏窄，拖动 OBS 源边框即可触发自适应。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>桌面版更新卡住</strong>
+                      <p>仅影响桌面版。确认电脑能正常上网后，重新点击「检查更新」。如果下载中断，关闭百宝箱的更新面板再重新打开即可，通常比一直等着更快。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>歌曲导入失败（XLSX 格式）</strong>
+                      <p>部分 Excel 版本导出的 XLSX 文件格式可能不兼容。尝试用 Excel 重新保存为标准的 .xlsx 格式，或者改用 CSV 格式导入。确保文件包含「歌曲名字」列。</p>
                     </article>
                   </div>
                 </section>
@@ -2217,7 +2413,7 @@
       </div>
     </div>
     <div id="toast" class="toast-stack"></div>
-    <script type="module" src="/js/admin/index.js?v=20260804-03"></script>
+    <script type="module" src="/js/admin/index.js?v=20260805-01"></script>
     <script type="module" src="/js/playback.js?v=20260731-11"></script>
   </body>
 </html>

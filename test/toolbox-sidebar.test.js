@@ -22,8 +22,12 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label/);
   assert.match(styles, /\.other-sidebar-toolbar\s*\{[^}]*justify-content:\s*flex-start/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-sidebar-toolbar\s*\{[^}]*justify-content:\s*flex-start/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-sidebar-toggle\s*\{[^}]*transform:\s*translateX\(8px\)/);
   assert.match(styles, /\.other-feature-button\s*\{[^}]*height:\s*56px[^}]*min-height:\s*56px[^}]*padding:\s*8px 10px/);
-  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-button\s*\{[^}]*min-height:\s*56px/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-button\s*\{[^}]*grid-template-columns:\s*38px minmax\(0, 1fr\) 16px[^}]*justify-content:\s*initial[^}]*min-height:\s*56px/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label\s*\{[^}]*visibility 0s linear 260ms/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-arrow\s*\{[^}]*visibility 0s linear 180ms/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-sidebar-toolbar\s*\{[^}]*display:\s*none/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-page\.sidebar-collapsed \.other-feature-label\s*\{[^}]*display:\s*grid/);
 });

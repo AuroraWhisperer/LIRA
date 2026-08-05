@@ -49,7 +49,7 @@ body.player-dock-expanded .other-workspace {
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .other-sidebar-toggle:hover {
@@ -75,7 +75,11 @@ body.player-dock-expanded .other-workspace {
 }
 
 .other-page.sidebar-collapsed .other-sidebar-toolbar {
-  justify-content: center;
+  justify-content: flex-start;
+}
+
+.other-page.sidebar-collapsed .other-sidebar-toggle {
+  transform: translateX(8px);
 }
 
 .other-page.sidebar-collapsed .other-sidebar-toggle svg {
@@ -223,8 +227,8 @@ body.player-dock-expanded .other-workspace {
 }
 
 .other-page.sidebar-collapsed .other-feature-button {
-  grid-template-columns: 38px;
-  justify-content: center;
+  grid-template-columns: 38px minmax(0, 1fr) 16px;
+  justify-content: initial;
   min-height: 56px;
   padding: 8px 10px;
 }
@@ -242,6 +246,11 @@ body.player-dock-expanded .other-workspace {
 
 .other-page.sidebar-collapsed .other-feature-label {
   transform: translateX(-8px);
+  transition: opacity 160ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 260ms;
+}
+
+.other-page.sidebar-collapsed .other-feature-arrow {
+  transition: transform 180ms ease, opacity 160ms ease, visibility 0s linear 180ms;
 }
 
 .other-feature-content,
@@ -395,6 +404,102 @@ body.player-dock-expanded .other-workspace {
 }
 .danmaku-send-result.good { border-left-color: #278b5b; color: #278b5b; }
 .danmaku-send-result.warn { border-left-color: var(--warning); color: var(--warning); }
+
+.danmaku-blessings-section {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.danmaku-blessings-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 68px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.danmaku-blessings-section > summary::-webkit-details-marker { display: none; }
+.danmaku-blessings-section > summary:hover { background: var(--surface-2); }
+.danmaku-blessings-section > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.danmaku-blessings-section h3 { margin: 0; color: var(--text); font-size: 16px; }
+.danmaku-blessings-section summary p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+#danmakuBlessingCount { color: var(--text); font-weight: 700; }
+.danmaku-details-chevron {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+.danmaku-blessings-section[open] .danmaku-details-chevron { transform: rotate(180deg); }
+.danmaku-blessings-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.danmaku-blessing-list {
+  display: grid;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--color-bg-primary);
+}
+.danmaku-blessing-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 36px;
+  align-items: center;
+  min-height: 48px;
+}
+.danmaku-blessing-row + .danmaku-blessing-row { border-top: 1px solid var(--border); }
+.danmaku-blessing-index {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.danmaku-blessing-row input {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.danmaku-blessing-row input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.danmaku-blessing-delete {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.danmaku-blessing-delete:hover { border-color: #e8bbb6; color: var(--danger); }
+.danmaku-blessing-delete svg,
+.danmaku-blessing-add-row .icon svg { width: 18px; height: 18px; }
+.danmaku-blessing-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 8px;
+}
+.danmaku-blessing-add-row .icon { display: grid; place-items: center; }
+.danmaku-blessing-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.danmaku-blessing-actions .hint.good { color: #278b5b; }
+.danmaku-blessing-actions .hint.warn { color: var(--warning); }
+.danmaku-blessing-empty { padding: 24px 14px; color: var(--muted); font-size: 12px; text-align: center; }
 
 .usage-guide-panel {
   width: 100%;
@@ -571,10 +676,18 @@ body.player-dock-expanded .other-workspace {
   .danmaku-feature-section { padding: 14px; }
   .danmaku-status-grid { grid-template-columns: 1fr; }
   .danmaku-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
+  .danmaku-blessings-section > summary { padding: 13px 14px; }
+  .danmaku-blessings-body { padding: 12px 14px 14px; }
+  .danmaku-blessing-actions { align-items: stretch; flex-direction: column; }
+  .danmaku-blessing-actions button { width: 100%; }
   .usage-guide-hero {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .danmaku-details-chevron { transition: none; }
 }
 
 @media (max-width: 900px) {
@@ -653,12 +766,14 @@ body.player-dock-expanded .other-workspace {
   .other-feature-button::before,
   .other-feature-icon,
   .other-feature-arrow,
+  .other-page.sidebar-collapsed .other-feature-arrow,
   .other-sidebar-toggle,
   .other-sidebar-toggle svg,
   .other-workspace {
     transition: none;
   }
-  .other-feature-label {
+  .other-feature-label,
+  .other-page.sidebar-collapsed .other-feature-label {
     transition: none;
   }
 }

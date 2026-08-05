@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.2.4`
+当前版本：`3.2.5`
 
 ---
+
+## v3.2.5 变更
+
+- 🎛️ **签到祝福语自定义管理**：弹幕姬面板新增「签到祝福语」折叠区域（`<details>`），支持添加、编辑、删除祝福语条目，每条上限 60 字。祝福语列表通过 `/api/settings` 持久化至 `checkinBlessings` 设置项，脏数据标记（`blessingsDirty`）防止刷新覆盖未保存编辑。内置祝福语从 10 条扩充至 30 条更丰富的中文祝福，`parseCheckinBlessings()` 解析 JSON 设置并在无效/空数组时回退默认列表。
+- 🤖 **签到机器人默认开启**：`enableCheckinBot` 和 `enableRandomTagReply` 默认值从 `'false'` 改为 `'true'`，新用户开箱即可使用签到机器人和随机点歌条件提醒功能。
+- 📖 **使用文档全面重写**：从 4 条简略指南扩展为 8 个章节的完整用户手册——快速上手（三张入门卡）、主流程（四步开播操作）、点歌页详解（SC 队列/快速入队/歌库管理/随机点歌/子标签页）、播放页详解（播放器/搜索队列/全屏歌词/桌面歌词）、礼物页详解（检测/提示/最近礼物/月底冲刺/盲盒盈亏）、百宝箱详解（弹幕姬含签到机器人/礼物姬/性能检测/桌面更新）、OBS 投屏设置（四种画面链接）、常用设置速查（六组常见配置）、常见问题（8 条 FAQ 含签到/随机点歌/投屏/导入）。
+- 🎨 **播放器默认收起 + 按钮缩小化**：播放器停靠栏默认折叠（`setPlayerDockCollapsed(true)`），减少对主工作区的遮挡。折叠/展开切换按钮尺寸缩小（58×31 → 44×24），SVG 图标 18→15px、描边加粗 2.4→2.8，位置左移更靠边，圆角和阴影同步收敛。
+- 🎨 **侧边栏折叠动效补全**：侧边栏折叠按钮新增 `transform: translateX(8px)` 微动效及 260ms 缓出过渡；折叠态下的功能按钮恢复完整 grid 列（图标+文字+箭头），标签和箭头增加延迟 visibility 切换（260ms/180ms）防止折叠时内容闪烁。
+- 🧹 **代码清理**：`checkin-service.js` 的 `pickBlessing` 改为接收 `(record, currentSettings)` 双参数版本，从设置中读取用户自定义祝福语列表。`GET /api/bilibili/danmaku/state` 响应新增 `checkinBlessings` 字段。缓存版本号递增（`styles-admin.css`、`index.js`）。
+- 🧪 **测试覆盖增强**：`test/checkin-service.test.js` 新增内置祝福语 30 条校验（含去重断言）、`parseCheckinBlessings` 解析/回退/清洗测试、自定义祝福语签到回复精确断言。`test/frontend-regressions.test.js` 新增祝福语面板 DOM 结构回归断言、播放器默认收起状态断言、停靠栏切换方向反转断言。`test/toolbox-sidebar.test.js` 新增折叠态 grid 列、toggle translateX、label/arrow 延迟 visibility 过渡断言。
 
 ## v3.2.4 变更
 

@@ -68,7 +68,8 @@ export class FormsService {
       this.setPlayerDockCollapsed(collapsed);
     });
 
-    this.setPlayerDockCollapsed(false);
+    // 播放器默认收起，避免遮挡主工作区；用户仍可通过手柄展开。
+    this.setPlayerDockCollapsed(true);
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && fsEl?.classList.contains('open')) {

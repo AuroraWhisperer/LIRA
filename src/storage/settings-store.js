@@ -4,6 +4,7 @@
 'use strict';
 
 const { now } = require('../shared/utils');
+const { CHECKIN_BLESSINGS } = require('../bilibili/checkin-blessings');
 
 const DEFAULT_SETTINGS = {
   roomId: '',
@@ -17,8 +18,9 @@ const DEFAULT_SETTINGS = {
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
   allowDuplicate: 'true',
-  enableRandomTagReply: 'false',
-  enableCheckinBot: 'false',
+  enableRandomTagReply: 'true',
+  enableCheckinBot: 'true',
+  checkinBlessings: JSON.stringify(CHECKIN_BLESSINGS),
   queueLimit: '50',
   userCooldownSeconds: '0',
   scrollSeconds: '45',

@@ -13,7 +13,7 @@ function createCheckinService(dependencies = {}) {
     store,
     settings,
     nowMs = Date.now,
-    pickBlessing = pickCheckinBlessing
+    pickBlessing = (_record, currentSettings) => pickCheckinBlessing(currentSettings.checkinBlessings)
   } = dependencies;
   if (!store || typeof store.checkIn !== 'function') {
     throw new Error('checkin store is required.');
@@ -44,7 +44,7 @@ function createCheckinService(dependencies = {}) {
         dateKey: chinaDateKey(currentMs),
         atIso: new Date(currentMs).toISOString()
       });
-      const blessing = cleanText(pickBlessing(record)) || '';
+      const blessing = cleanText(pickBlessing(record, currentSettings)) || '';
       return {
         accepted: true,
         command: { type: 'checkin' },

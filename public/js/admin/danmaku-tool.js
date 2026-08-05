@@ -3,6 +3,8 @@
 (function () {
   let initialized = false;
   let refreshState = null;
+  let blessings = [];
+  let blessingsDirty = false;
 
   function init() {
     const form = document.getElementById('danmakuSendForm');
@@ -17,7 +19,17 @@
     const roomState = document.getElementById('danmakuRoomState');
     const refreshButton = document.getElementById('danmakuRefreshBtn');
     const resultState = document.getElementById('danmakuSendResult');
-    if (initialized || !form || !message || !toggle || !checkinToggle || typeof form.addEventListener !== 'function') return;
+    const blessingList = document.getElementById('danmakuBlessingList');
+    const blessingCount = document.getElementById('danmakuBlessingCount');
+    const blessingInput = document.getElementById('danmakuBlessingInput');
+    const blessingAddButton = document.getElementById('danmakuBlessingAddBtn');
+    const blessingSaveButton = document.getElementById('danmakuBlessingSaveBtn');
+    const blessingStatus = document.getElementById('danmakuBlessingStatus');
+    if (
+      initialized || !form || !message || !toggle || !checkinToggle || !blessingList
+      || !blessingInput || !blessingAddButton || !blessingSaveButton
+      || typeof form.addEventListener !== 'function'
+    ) return;
     initialized = true;
 
     const toast = window.AdminApp?.utils?.toast || (() => {});
@@ -25,6 +37,87 @@
     const setResult = (text, kind = '') => {
       resultState.textContent = text;
       resultState.className = `danmaku-send-result${kind ? ` ${kind}` : ''}`;
+    };
+    const setBlessingStatus = (text, kind = '') => {
+      blessingStatus.textContent = text;
+      blessingStatus.className = `hint${kind ? ` ${kind}` : ''}`;
+    };
+    const markBlessingsDirty = () => {
+      blessingsDirty = true;
+      blessingSaveButton.disabled = false;
+      setBlessingStatus('有尚未保存的更改', 'warn');
+    };
+    const renderBlessings = () => {
+      blessingList.replaceChildren();
+      blessingCount.textContent = `${blessings.length} 条`;
+      if (blessings.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'danmaku-blessing-empty';
+        empty.textContent = '还没有祝福语';
+        blessingList.appendChild(empty);
+        return;
+      }
+
+      blessings.forEach((text, index) => {
+        const row = document.createElement('div');
+        row.className = 'danmaku-blessing-row';
+
+        const number = document.createElement('span');
+        number.className = 'danmaku-blessing-index';
+        number.textContent = String(index + 1).padStart(2, '0');
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 60;
+        input.value = text;
+        input.setAttribute('aria-label', `第 ${index + 1} 条祝福语`);
+        input.addEventListener('input', () => {
+          blessings[index] = input.value;
+          markBlessingsDirty();
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'danmaku-blessing-delete';
+        deleteButton.type = 'button';
+        deleteButton.title = '删除祝福语';
+        deleteButton.setAttribute('aria-label', `删除第 ${index + 1} 条祝福语`);
+        deleteButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        deleteButton.addEventListener('click', () => {
+          blessings.splice(index, 1);
+          renderBlessings();
+          markBlessingsDirty();
+        });
+
+        row.append(number, input, deleteButton);
+        blessingList.appendChild(row);
+      });
+    };
+    const loadBlessings = (rawValue) => {
+      if (blessingsDirty) return;
+      try {
+        const parsed = JSON.parse(String(rawValue || '[]'));
+        blessings = Array.isArray(parsed)
+          ? parsed.map((item) => String(item || '').trim()).filter(Boolean)
+          : [];
+      } catch (_) {
+        blessings = [];
+      }
+      renderBlessings();
+      blessingSaveButton.disabled = true;
+      setBlessingStatus(`已读取 ${blessings.length} 条`, 'good');
+    };
+    const addBlessing = () => {
+      const text = blessingInput.value.trim();
+      if (!text) {
+        toast('请输入祝福语');
+        blessingInput.focus();
+        return;
+      }
+      blessings.push(text);
+      blessingInput.value = '';
+      renderBlessings();
+      markBlessingsDirty();
+      blessingList.lastElementChild?.querySelector('input')?.focus();
     };
 
     refreshState = async () => {
@@ -47,6 +140,7 @@
         toggle.disabled = !state.canSend;
         checkinToggle.checked = state.checkinBotEnabled === true;
         checkinToggle.disabled = !state.canSend;
+        loadBlessings(state.checkinBlessings);
         status.textContent = state.canSend ? (state.connected ? '可发送，监听已连接' : '可发送，监听未连接') : state.unavailableReason;
         status.className = state.canSend ? 'good' : 'warn';
         sendButton.disabled = !state.canSend;
@@ -66,6 +160,41 @@
       if (event.key === 'Enter' && event.ctrlKey) form.requestSubmit();
     });
     refreshButton.addEventListener('click', refreshState);
+    blessingAddButton.addEventListener('click', addBlessing);
+    blessingInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      addBlessing();
+    });
+    blessingSaveButton.addEventListener('click', async () => {
+      const cleaned = blessings.map((item) => item.trim()).filter(Boolean);
+      if (cleaned.length === 0) {
+        toast('请至少保留一条祝福语');
+        setBlessingStatus('至少需要一条祝福语', 'warn');
+        return;
+      }
+
+      blessingSaveButton.disabled = true;
+      setBlessingStatus('正在保存');
+      try {
+        const response = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ checkinBlessings: JSON.stringify(cleaned) })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || '保存祝福语失败');
+        blessings = cleaned;
+        blessingsDirty = false;
+        renderBlessings();
+        setBlessingStatus(`已保存 ${blessings.length} 条`, 'good');
+        toast('签到祝福语已保存');
+      } catch (error) {
+        blessingSaveButton.disabled = false;
+        setBlessingStatus('保存失败', 'warn');
+        toast(error.message || '保存祝福语失败');
+      }
+    });
     bindSettingToggle(toggle, {
       key: 'enableRandomTagReply',
       onText: '随机点歌自动回复已开启',
