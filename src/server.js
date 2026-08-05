@@ -166,6 +166,7 @@ function createServerRuntime(runtimeOptions = {}) {
     },
     getLiveStatus: () => liveStatus,
     getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
+    getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
     createClient(roomId, auth) {
       if (bilibiliClient && bilibiliClient.roomId === roomId) {
         bilibiliClient.apiClient.updateAuth(auth.cookieHeader, auth.uid);
@@ -506,6 +507,14 @@ function createServerRuntime(runtimeOptions = {}) {
             isPinned: danmaku.isPinned
           });
           domainServices.messages.logDanmaku(danmaku, result);
+          if (result.autoReply) {
+            void danmakuSender.send({
+              message: result.autoReply.message,
+              mentionTarget: result.autoReply.target
+            }).catch((error) => {
+              console.warn(`[Bilibili] random scope auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
+            });
+          }
           if (result.accepted) {
             broadcastSnapshot(danmaku.source === 'superchat' ? 'bilibili:superchat' : 'bilibili:danmaku');
           }

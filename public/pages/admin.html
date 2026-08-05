@@ -1445,8 +1445,8 @@
                 </section>
                 <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle">
                   <div class="danmaku-reply-target">
-                    <div><strong id="danmakuReplyTitle">最近随机点歌人</strong><p id="danmakuReplyTarget">正在读取点歌记录</p></div>
-                    <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" checked><span class="switch-track"></span><span>自动 @</span></label>
+                    <div><strong id="danmakuReplyTitle">随机点歌条件提醒</strong><p id="danmakuReplyTarget">随机点歌条件不匹配时，自动 @ 发起点歌的人</p></div>
+                    <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>自动回复</span></label>
                   </div>
                 </section>
                 <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
@@ -1457,8 +1457,8 @@
                     </div>
                   </div>
                   <form id="danmakuSendForm" class="stack">
-                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" maxlength="1000" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 / 1000</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
+                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
+                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
                   </form>
                   <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
                 </section>
@@ -1584,7 +1584,109 @@
               aria-labelledby="otherUsageGuideFeatureTab"
               data-other-feature-panel
               hidden
-            ></section>
+            >
+              <div class="other-feature-panel-body stack usage-guide-panel">
+                <div class="usage-guide-hero">
+                  <div>
+                    <h2>使用文档</h2>
+                    <p>这页是给日常操作看的。先看主流程，再看各功能区做什么，最后看常见 bug 怎么处理。</p>
+                  </div>
+                  <span class="pill">人话版</span>
+                </div>
+
+                <section class="usage-guide-section">
+                  <h3>先记住这三件事</h3>
+                  <div class="usage-guide-grid">
+                    <article class="usage-guide-card">
+                      <strong>先看状态</strong>
+                      <p>右上角如果还在连线、刷新或未连接，先别急着点功能，先把连接状态弄稳。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>先走主流程</strong>
+                      <p>日常最常用的是点歌、播放和礼物这三块，百宝箱是辅助工具，不影响主线。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>卡住先回到这一页</strong>
+                      <p>不知道问题出在哪，就先看对应功能区的状态文字，通常比到处乱点更快。</p>
+                    </article>
+                  </div>
+                </section>
+
+                <section class="usage-guide-section">
+                  <h3>主流程</h3>
+                  <ol class="usage-guide-steps">
+                    <li><strong>先登录账号，再确认直播间已连接。</strong> 账号没登录、房间没连上，后面的弹幕和礼物信息大概率都不准。</li>
+                    <li><strong>需要管理歌曲，就去点歌页。</strong> 这里负责歌曲库、手动入队、切歌和清空队列。</li>
+                    <li><strong>需要看播放状态，就去播放页。</strong> 这里能看当前播放、队列、歌词和播放器控制。</li>
+                    <li><strong>要盯弹幕、礼物和诊断，就去礼物页和百宝箱。</strong> 礼物页看礼物流，百宝箱放弹幕姬、礼物姬、性能和桌面更新。</li>
+                  </ol>
+                </section>
+
+                <section class="usage-guide-section">
+                  <h3>功能区域怎么用</h3>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>点歌</strong><span class="usage-guide-chip">主流程</span></div>
+                      <p>这块是日常最常碰的地方。观众点歌进队列，你也可以自己手动加歌、切歌、清空队列。</p>
+                      <ul>
+                        <li>先填歌名，必要时补歌手。</li>
+                        <li>队列里能看到当前播放和等待中的歌。</li>
+                        <li>觉得某首歌重要，可以先置顶。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>播放</strong><span class="usage-guide-chip">播放器</span></div>
+                      <p>这块是实际放歌的地方。你主要看播放器是不是在跑，队列有没有接上，歌词和播放控制正不正常。</p>
+                      <ul>
+                        <li>想找歌就搜，搜到后直接加到播放队列。</li>
+                        <li>播放器面板可以切歌、播放或暂停，也能打开队列弹窗。</li>
+                        <li>桌面歌词在这里单独配，适合第二屏或投屏场景。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>礼物</strong><span class="usage-guide-chip">礼物流</span></div>
+                      <p>这块盯的是礼物有没有收到、收到什么、有没有被正确记下来。平时看最近礼物和历史流水就够用了。</p>
+                      <ul>
+                        <li>礼物检测开着，最近礼物和提示才会正常刷新。</li>
+                        <li>礼物流水抽屉里能查更早的记录。</li>
+                        <li>盲盒相关内容会按配置和统计单独展示。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>百宝箱</strong><span class="usage-guide-chip">辅助工具</span></div>
+                      <p>这里放的是平时用来补刀的工具。弹幕姬负责发弹幕，礼物姬留给礼物相关工具，性能页看资源占用，桌面更新只给桌面版用。</p>
+                      <ul>
+                        <li>弹幕姬能查看连接状态，并手动发送弹幕。</li>
+                        <li>性能页适合排查卡顿、掉帧和内存涨太快。</li>
+                        <li>桌面更新页用于检查、下载和安装更新。</li>
+                      </ul>
+                    </article>
+                  </div>
+                </section>
+
+                <section class="usage-guide-section">
+                  <h3>常见 bug 和处理办法</h3>
+                  <div class="usage-guide-faq-grid">
+                    <article class="usage-guide-faq">
+                      <strong>页面是空的，或者点了没反应</strong>
+                      <p>先看是不是还停在别的功能页，再看浏览器和桌面版有没有把当前页加载完整。最省事的办法通常是刷新一次，重新点进对应功能区。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>弹幕发不出去</strong>
+                      <p>先确认账号已经登录，直播间已经连上，再确认当前状态不是断线或暂停。还是不行的话，重连一次直播间，通常就能恢复。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>礼物不更新</strong>
+                      <p>先看礼物检测是不是开着，再看直播连接是否正常。如果最近礼物和礼物流水都没变化，先刷新状态，不要直接往下排查业务逻辑。</p>
+                    </article>
+                    <article class="usage-guide-faq">
+                      <strong>桌面更新卡住了</strong>
+                      <p>这一般只发生在桌面版。先确认当前机器能连外网，再重新点检查更新。下载中断的话，关掉再重新进一次，通常比硬等更快。</p>
+                    </article>
+                  </div>
+                </section>
+              </div>
+            </section>
 
             <section
               id="otherDesktopUpdateFeature"

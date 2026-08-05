@@ -386,12 +386,180 @@ body.player-dock-expanded .other-workspace {
 .danmaku-send-result.good { border-left-color: #278b5b; color: #278b5b; }
 .danmaku-send-result.warn { border-left-color: var(--warning); color: var(--warning); }
 
+.usage-guide-panel {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.usage-guide-hero,
+.usage-guide-section {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.usage-guide-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(110deg, var(--surface) 0%, var(--surface-2) 100%);
+}
+
+.usage-guide-hero h2,
+.usage-guide-section h3 {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.usage-guide-hero h2 {
+  font-size: 23px;
+}
+
+.usage-guide-hero p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.usage-guide-section {
+  display: grid;
+  gap: 14px;
+}
+
+.usage-guide-section h3 {
+  font-size: 16px;
+}
+
+.usage-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.usage-guide-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.usage-guide-card strong,
+.usage-guide-feature-head strong,
+.usage-guide-faq strong {
+  color: var(--text);
+}
+
+.usage-guide-card strong,
+.usage-guide-feature-head strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.usage-guide-card p,
+.usage-guide-feature p,
+.usage-guide-feature li,
+.usage-guide-faq p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.usage-guide-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.usage-guide-steps li {
+  color: var(--muted);
+}
+
+.usage-guide-steps strong {
+  color: var(--text);
+}
+
+.usage-guide-feature-list {
+  display: grid;
+  gap: 12px;
+}
+
+.usage-guide-feature {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.usage-guide-feature-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.usage-guide-chip {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.usage-guide-feature p {
+  margin-top: 8px;
+}
+
+.usage-guide-feature ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+.usage-guide-feature li + li {
+  margin-top: 6px;
+}
+
+.usage-guide-faq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.usage-guide-faq {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.usage-guide-faq strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 @media (max-width: 600px) {
   .other-feature-panel-header-inline,
   .danmaku-reply-target { align-items: flex-start; flex-direction: column; }
   .danmaku-feature-section { padding: 14px; }
   .danmaku-status-grid { grid-template-columns: 1fr; }
   .danmaku-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
+  .usage-guide-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 900px) {
@@ -457,6 +625,11 @@ body.player-dock-expanded .other-workspace {
 
   .other-feature-panel-body {
     overflow: visible;
+  }
+
+  .usage-guide-grid,
+  .usage-guide-faq-grid {
+    grid-template-columns: 1fr;
   }
 }
 

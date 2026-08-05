@@ -44,6 +44,16 @@ function filterRandomSongCandidates(songs, scopeText) {
   return songs.filter((song) => terms.every((term) => songMatchesScopeTerm(song, term)));
 }
 
+function describeRandomSongScope(songs, scopeText) {
+  const terms = parseRandomSongTerms(scopeText);
+  const unmatchedTerms = terms.filter((term) => !songs.some((song) => songMatchesScopeTerm(song, term)));
+  return {
+    terms,
+    unmatchedTerms,
+    hasCandidates: filterRandomSongCandidates(songs, scopeText).length > 0
+  };
+}
+
 /**
  * 空格输入先按完整条件匹配，未命中时再按 AND 条件拆分。
  * 这样“说唱 苦情”可以直接使用，同时保留“A1 TRIP”这类带空格的完整歌手名。
@@ -125,6 +135,7 @@ function normalizeComparable(value) {
 
 module.exports = {
   filterRandomSongCandidates,
+  describeRandomSongScope,
   parseRandomSongTerms,
   randomLanguageAliases,
   splitSongTags

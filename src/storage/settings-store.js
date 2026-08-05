@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
   allowDuplicate: 'true',
+  enableRandomTagReply: 'false',
   queueLimit: '50',
   userCooldownSeconds: '0',
   scrollSeconds: '45',

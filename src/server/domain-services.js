@@ -55,7 +55,8 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     delete: (id) => songService.deleteSong(db.songDb, id),
     toggle: (id) => songService.toggleSong(db.songDb, id),
     // 随机选歌：供 bilibili-message-handler 通过 context 调用，屏蔽 DB 句柄
-    pickRandom: (scopeText) => songService.pickRandomSong(db.songDb, scopeText)
+    pickRandom: (scopeText) => songService.pickRandomSong(db.songDb, scopeText),
+    describeRandomScope: (scopeText) => songService.describeRandomSongScope(db.songDb, scopeText)
   };
 
   const queueContext = {
@@ -85,7 +86,8 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
         addQueueItem: queue.add,
         resolveSongRequest: songs.findUniqueNameMatch,
         // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
-        pickRandomSong: songs.pickRandom
+        pickRandomSong: songs.pickRandom,
+        describeRandomSongScope: songs.describeRandomScope
       }, danmaku);
     },
     logDanmaku: bilibiliMessageHandler.logDanmakuCommand

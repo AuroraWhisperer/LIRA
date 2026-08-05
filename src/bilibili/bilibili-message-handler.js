@@ -4,6 +4,7 @@
 'use strict';
 
 const { cleanText, formatLogTimestamp } = require('../shared/utils');
+const { parseRandomSongTerms } = require('../music/random-song-filter');
 
 // ── 弹幕指令入口 ──
 
@@ -45,7 +46,14 @@ function handleDanmakuMessage(context, {
       const reason = command.scopeText
         ? `歌库里没有同时满足全部条件「${command.scopeText}」的可随机歌曲。`
         : '歌库里还没有可随机歌曲。';
-      return { accepted: false, reason, command };
+      const autoReply = settings.enableRandomTagReply === 'true'
+        ? buildRandomScopeAutoReply(command.scopeText, {
+          ...(context.describeRandomSongScope
+            ? context.describeRandomSongScope(command.scopeText)
+            : {})
+        }, { uid, name: userName })
+        : null;
+      return { accepted: false, reason, command, autoReply };
     }
     queueItem = context.addQueueItem({
       songName: song.name,
@@ -145,6 +153,25 @@ function logDanmakuCommand(danmaku, result) {
   console.log(formatBilibiliCommandLog(danmaku, result));
 }
 
+function buildRandomScopeAutoReply(scopeText, details = {}, target = {}) {
+  const terms = Array.isArray(details.terms) && details.terms.length > 0
+    ? details.terms
+    : parseRandomSongTerms(scopeText);
+  if (terms.length === 0 || !cleanText(target.name)) return null;
+
+  const scope = cleanText(scopeText);
+  const message = terms.length === 1
+    ? `歌库里暂时没有「${terms[0]}」这一类歌曲，请换个条件试试。`
+    : `你输入的组合条件「${scope}」暂时没有匹配歌曲，请调整组合条件后再试。`;
+  return {
+    message,
+    target: {
+      uid: cleanText(target.uid),
+      name: cleanText(target.name)
+    }
+  };
+}
+
 function formatBilibiliCommandLog(danmaku, result) {
   const message = cleanText(danmaku && danmaku.message);
   const status = result && result.accepted ? 'accepted' : 'ignored';
@@ -171,6 +198,7 @@ module.exports = {
   parseDanmakuCommand,
   normalizeRandomScopeText,
   randomSourceValue,
+  buildRandomScopeAutoReply,
   logDanmakuCommand,
   formatBilibiliCommandLog
 };

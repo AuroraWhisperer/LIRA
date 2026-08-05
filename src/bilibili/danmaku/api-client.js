@@ -60,6 +60,15 @@ class BilibiliApiClient {
     return '';
   }
 
+  async fetchCurrentUserName() {
+    if (!this.cookieHeader) return '';
+    const { payload } = await this.fetchJson(
+      'nav',
+      'https://api.bilibili.com/x/web-interface/nav'
+    );
+    return cleanText(payload && payload.data && (payload.data.uname || payload.data.name));
+  }
+
   async resolveDanmuInfo(roomId) {
     const query = await wbiSigner.signBilibiliWbiParams({ id: roomId, type: 0 }, this.requestHeaders());
     const { payload, response } = await this.fetchJson(

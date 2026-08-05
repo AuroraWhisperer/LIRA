@@ -43,6 +43,28 @@ test('admin form refresh does not overwrite the field currently being edited', (
   assert.match(source, /if \(element && element !== document\.activeElement\) element\.value = inputValue;/);
 });
 
+test('admin danmaku input has no fixed character limit', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
+
+  assert.doesNotMatch(html, /id="danmakuMessage"[^>]*maxlength=/);
+  assert.match(html, /id="danmakuCounter"[^>]*>0 字</);
+  assert.match(source, /Array\.from\(message\.value\)\.length/);
+  assert.match(source, /enableRandomTagReply/);
+  assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
+  assert.match(html, /随机点歌条件提醒/);
+  assert.match(html, /自动回复/);
+});
+
+test('admin danmaku status prefers account and room display names', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
+
+  assert.match(source, /state\.accountName \|\| `UID \$\{state\.accountUid \|\| '-'\}`/);
+  assert.match(source, /state\.roomName \|\| `房间 \$\{state\.roomId\}`/);
+  assert.match(source, /accountState\.title = state\.loggedIn && state\.accountUid \? `UID \$\{state\.accountUid\}` : '';/);
+  assert.match(source, /roomState\.title = state\.roomId \? `房间 \$\{state\.roomId\}` : '';/);
+});
+
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
@@ -468,7 +490,8 @@ test('toolbox owns independent overtime, daily todo, performance, usage guide, a
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
   assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
-  assert.match(html, /id="otherUsageGuideFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
+  assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-panel/);
+  assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-faq-grid/);
   assert.match(html, /id="otherDesktopUpdateFeature"[^>]+data-other-feature-panel/);
   assert.ok(overtimePosition < performancePosition, 'overtime machine should be first in the toolbox');
   assert.ok(dailyTodoPosition > overtimePosition, 'daily todo should follow overtime machine in the toolbox');

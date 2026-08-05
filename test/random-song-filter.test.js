@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const {
   filterRandomSongCandidates,
+  describeRandomSongScope,
   parseRandomSongTerms
 } = require('../src/music/random-song-filter');
 const songService = require('../src/music/song-service');
@@ -135,6 +136,13 @@ test('maps viewer aliases to real library tags while preserving AND filtering', 
   );
 });
 
+test('describes direct and alias terms against the song library', () => {
+  const description = describeRandomSongScope(SONGS, '情歌+摇滚');
+  assert.deepEqual(description.terms, ['情歌', '摇滚']);
+  assert.deepEqual(description.unmatchedTerms, ['摇滚']);
+  assert.equal(description.hasCandidates, false);
+});
+
 test('does not reverse a library alias into the standard tag', () => {
   const songs = [
     { name: '非标准标签', artist: '周杰伦', tags: '情歌' }
@@ -224,6 +232,59 @@ test('ignores a random danmaku when no library song satisfies every term', () =>
   assert.equal(added, false);
   assert.equal(persistedCooldown, false);
   assert.equal(state.cooldownByUser.size, 0);
+});
+
+test('builds a direct mention auto-reply for a single unmatched random condition', () => {
+  const result = handleDanmakuMessage({
+    settings: () => ({ paused: 'false', userCooldownSeconds: '0', enableRandomTagReply: 'true' }),
+    settingsStore: { getDefaultSettings: () => ({ userCooldownSeconds: '0' }) },
+    state: { cooldownByUser: new Map() },
+    pickRandomSong: () => null,
+    describeRandomSongScope: () => ({ terms: ['摇滚'], unmatchedTerms: ['摇滚'], hasCandidates: false }),
+    addQueueItem() {
+      assert.fail('an unmatched random condition must not create a request');
+    }
+  }, {
+    message: '随机点歌 摇滚',
+    userName: 'Alice',
+    uid: '123'
+  });
+
+  assert.equal(result.accepted, false);
+  assert.deepEqual(result.autoReply, {
+    message: '歌库里暂时没有「摇滚」这一类歌曲，请换个条件试试。',
+    target: { uid: '123', name: 'Alice' }
+  });
+});
+
+test('builds a combination mention auto-reply and keeps it disabled by the switch', () => {
+  const context = {
+    settings: () => ({ paused: 'false', userCooldownSeconds: '0', enableRandomTagReply: 'false' }),
+    settingsStore: { getDefaultSettings: () => ({ userCooldownSeconds: '0' }) },
+    state: { cooldownByUser: new Map() },
+    pickRandomSong: () => null,
+    describeRandomSongScope: () => ({ terms: ['国语', '摇滚'], unmatchedTerms: ['摇滚'], hasCandidates: false }),
+    addQueueItem() {
+      assert.fail('an unmatched random condition must not create a request');
+    }
+  };
+  const disabledResult = handleDanmakuMessage(context, {
+    message: '随机点歌 国语+摇滚',
+    userName: 'Alice',
+    uid: '123'
+  });
+  assert.equal(disabledResult.autoReply, null);
+
+  context.settings = () => ({ paused: 'false', userCooldownSeconds: '0', enableRandomTagReply: 'true' });
+  const enabledResult = handleDanmakuMessage(context, {
+    message: '随机点歌 国语+摇滚',
+    userName: 'Alice',
+    uid: '123'
+  });
+  assert.deepEqual(enabledResult.autoReply, {
+    message: '你输入的组合条件「国语+摇滚」暂时没有匹配歌曲，请调整组合条件后再试。',
+    target: { uid: '123', name: 'Alice' }
+  });
 });
 
 test('failed random filters do not replace the latest mention target', () => {

@@ -11,6 +11,7 @@ const {
 } = require('./song-import-schema');
 const {
   filterRandomSongCandidates,
+  describeRandomSongScope,
   randomLanguageAliases
 } = require('./random-song-filter');
 
@@ -344,6 +345,17 @@ function listRandomSongCandidates(db, scopeText) {
   return filterRandomSongCandidates(rows, normalizeRandomScopeText(scopeText));
 }
 
+function describeRandomSongScopeInLibrary(db, scopeText) {
+  const rows = db.prepare(`
+    SELECT songs.*, song_categories.name AS category_name,
+           COALESCE(song_categories.is_enabled, 1) AS category_is_enabled
+    FROM songs
+    LEFT JOIN song_categories ON song_categories.id = songs.category_id
+    WHERE songs.is_enabled = 1
+  `).all();
+  return describeRandomSongScope(rows, normalizeRandomScopeText(scopeText));
+}
+
 function splitSongTags(value) {
   return String(value || '')
     .split(/[,，]/)
@@ -390,6 +402,7 @@ module.exports = {
   normalizeImportedSongRow,
   pickRandomSong,
   listRandomSongCandidates,
+  describeRandomSongScope: describeRandomSongScopeInLibrary,
   randomLanguageAliases,
   normalizeRandomScopeText,
   randomSourceValue

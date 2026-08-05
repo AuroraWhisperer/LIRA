@@ -1,8 +1,20 @@
 # 打包与更新说明
 
-当前版本：`3.2.2`
+当前版本：`3.2.3`
 
 ---
+
+## v3.2.3 变更
+
+- 💬 **弹幕超长自动拆分**：发送超过 Bilibili 单条长度限制的弹幕时，自动按 40 字符（`DANMAKU_MESSAGE_LIMIT`）拆分为多条连续发送，只有第一条携带 @ 回复元数据。前端字符计数改为 `N 字` 显示（移除 `/ 1000` 上限），发送结果提示拆分条数。API 端点移除 1000 字符硬限制，仅校验内容非空。
+- 🤖 **随机点歌条件不匹配自动回复**：新增 `enableRandomTagReply` 设置开关（默认关闭），开启后当观众随机点歌条件在歌库中无匹配歌曲时，自动 @ 发起点歌人发送提示弹幕——单条件提示「歌库里暂时没有xx这一类歌曲」、组合条件提示「组合条件xx暂时没有匹配歌曲」。`sender-service.js` 新增 `mentionTarget` 显式参数，自动回复不干扰手动发送的 @ 目标逻辑。
+- 👤 **弹幕姬账号/直播间显示名称**：弹幕姬状态面板的发送账号和直播间从纯 UID/房间号改为显示昵称——账号名通过 Bilibili `/x/web-interface/nav` 接口获取、房间名优先使用主播名（`ownerName`），均缓存 10 分钟。前端在名称后以 `title` tooltip 显示 UID/房间号作为补充。
+- 🎛️ **弹幕姬「自动 @」→「自动回复」**：弹幕姬回复区从「最近随机点歌人 + 自动 @」改为「随机点歌条件提醒 + 自动回复」——开关值持久化至 `enableRandomTagReply` 设置项（通过 `/api/settings` 写回），前端 toggle 状态由服务端数据驱动（`autoReplyEnabled`），不再依赖本地 requester 有无。
+- 📖 **使用文档面板实现**：百宝箱「使用文档」面板从空占位实现为完整内容——hero 标题区、三张快速入门卡（先看状态/先走主流程/卡住回这页）、四步主流程（登录→歌曲→播放→礼物+百宝箱）、四大功能区详解（点歌/播放/礼物/百宝箱）、四条常见 bug 及处理办法（页面空白/弹幕发不出/礼物不更新/桌面更新卡住）。
+- 💬 **弹幕发送错误信息智能化**：`POST /api/bilibili/danmaku/send` 的错误响应新增 `publicDanmakuSendErrorMessage()` 映射——将 Bilibili 原始错误码转换为可读中文提示（未登录、房间号错误、风控拦截、网络不通、JSON 异常等 8 种场景），同时保留 `detail` 字段供日志排查。
+- 🎨 **侧边栏快捷入口箭头图标**：百宝箱侧边栏「弹幕姬」「礼物姬」快捷链接新增右箭头 SVG 图标，与下方功能按钮风格一致。
+- 🧹 **代码清理与安全**：`sender-service.js` 移除硬编码的 `require('./mention-policy')` 依赖改为传入；`bilibili-routes.js` 发送验证从 1000 字符硬限制改为仅空值检查（拆分逻辑在 sender 内部处理）；新增 `splitDanmakuMessage()`、`canAttachReplyTarget()`、`createDisplayCacheEntry()` 等纯函数便于测试。
+- 🧪 **测试覆盖增强**：`test/danmaku-sender-service.test.js` 新增超长消息拆分、显式 mentionTarget 参数、账号/房间显示名称 4 个测试。`test/random-song-filter.test.js` 新增 `describeRandomSongScope` 术语分析、自动回复文案构建、开关关闭时不生成回复 3 个测试。`test/frontend-regressions.test.js` 新增弹幕输入无 maxlength、字符计数字、显示名称优先 3 个回归断言，使用文档面板 section 结构回归断言。
 
 ## v3.2.2 变更
 
