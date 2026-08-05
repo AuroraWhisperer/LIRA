@@ -4,6 +4,7 @@
 
 const wbiSigner = require('../wbi-signer');
 const { cleanText } = require('../../shared/utils');
+const { buildMentionedMessage } = require('./mention-policy');
 
 class BilibiliApiClient {
   constructor(roomId, options = {}) {
@@ -91,6 +92,52 @@ class BilibiliApiClient {
     return payload.data;
   }
 
+  async sendDanmaku(roomId, message, reply = {}) {
+    const rawText = String(message || '').trim();
+    if (!this.cookieHeader) throw new Error('请先登录 Bilibili 账号。');
+    const csrf = extractCookie(this.cookieHeader, 'bili_jct');
+    if (!csrf) throw new Error('登录态缺少 bili_jct，无法发送弹幕。');
+    if (!rawText || rawText.length > 1000) throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
+
+    const mentioned = buildMentionedMessage(rawText, reply);
+    const replyMid = mentioned.target.uid;
+    const replyName = mentioned.target.name;
+    const text = mentioned.message;
+    if (text.length > 1000) throw new Error('包含 @ 点歌人后的弹幕不能超过 1000 个字符。');
+
+    const form = new URLSearchParams({
+      bubble: '0',
+      csrf,
+      csrf_token: csrf,
+      fontsize: '25',
+      mode: '1',
+      msg: text,
+      color: '16777215',
+      rnd: String(Math.floor(Date.now() / 1000)),
+      roomid: String(Number(roomId) || Number(this.roomId) || 0),
+      room_type: '0'
+    });
+    if (replyMid) {
+      form.set('reply_mid', replyMid);
+      form.set('reply_attr', '0');
+      if (replyName) form.set('reply_uname', replyName);
+    }
+
+    const response = await fetch('https://api.live.bilibili.com/msg/send', {
+      method: 'POST',
+      headers: {
+        ...this.requestHeaders(),
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+      },
+      body: form.toString()
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || Number(payload.code) !== 0) {
+      throw new Error(formatBilibiliApiError('send_danmaku', response, payload, '请确认账号已登录且具备在该直播间发言权限。'));
+    }
+    return { message: text, replyMid: replyMid || '', replyUname: replyName || '' };
+  }
+
   async fetchJson(endpointName, url) {
     const quiet = endpointName === 'gethistory' || endpointName === 'online_gold_rank';
     if (!quiet) {
@@ -128,6 +175,11 @@ class BilibiliApiClient {
     }
     return headers;
   }
+}
+
+function extractCookie(cookieHeader, name) {
+  const match = String(cookieHeader || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
 }
 
 function formatBilibiliApiError(endpointName, response, payload, extraHint) {

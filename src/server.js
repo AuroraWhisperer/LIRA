@@ -20,6 +20,8 @@ const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { createLyricsService } = require('./music/lyrics-service');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
+const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
+const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
 const giftService = require('./bilibili/gift');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
@@ -147,6 +149,31 @@ function createServerRuntime(runtimeOptions = {}) {
     recentGiftLikeCommands: []
   };
   const messageBuffer = createMessageBuffer(500);
+  const danmakuSender = createDanmakuSenderService({
+    async getAuth() {
+      await refreshBilibiliAuthCache();
+      const state = bilibiliAuthProvider
+        ? await bilibiliAuthProvider.getAuthState().catch(() => ({ loggedIn: false, uid: 0 }))
+        : { loggedIn: false, uid: 0 };
+      return {
+        loggedIn: Boolean(state.loggedIn),
+        uid: Number(state.uid || bilibiliAuthCache.uid) || 0,
+        cookieHeader: bilibiliAuthCache.cookieHeader
+      };
+    },
+    async getRoom() {
+      return { roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId) };
+    },
+    getLiveStatus: () => liveStatus,
+    getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
+    createClient(roomId, auth) {
+      if (bilibiliClient && bilibiliClient.roomId === roomId) {
+        bilibiliClient.apiClient.updateAuth(auth.cookieHeader, auth.uid);
+        return bilibiliClient.apiClient;
+      }
+      return new BilibiliApiClient(roomId, auth);
+    }
+  });
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -234,7 +261,9 @@ function createServerRuntime(runtimeOptions = {}) {
         configure: configureBilibiliListener,
         reconnect: reconnectBilibiliListener,
         updateStatus: updateLiveStatus,
-        auth: bilibiliAuthProvider
+        auth: bilibiliAuthProvider,
+        getDanmakuSenderState: () => danmakuSender.getState(),
+        sendDanmaku: (input) => danmakuSender.send(input)
       },
       settings: {
         defaults: DEFAULT_SETTINGS,

@@ -7,6 +7,7 @@ const retention = require('../storage/retention');
 const { createPlaybackStore } = require('../storage/playback-store');
 const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
+const { createRequesterTargetStore } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
@@ -17,6 +18,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
+  const requesterTargets = createRequesterTargetStore(db.songDb);
 
   const state = {
     cooldownByUser: new Map(),
@@ -126,6 +128,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     gifts,
     superChats,
     messages,
+    requesterTargets,
     data,
     playback: playbackStore,
     theme: themeStore,

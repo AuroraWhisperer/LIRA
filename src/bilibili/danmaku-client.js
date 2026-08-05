@@ -139,6 +139,10 @@ class BilibiliDanmakuClient {
     return this.deduplicator.remember(uid, message, timestampMs);
   }
 
+  async sendDanmaku(message, reply = {}) {
+    return this.apiClient.sendDanmaku(this.resolvedRoomId || this.roomId, message, reply);
+  }
+
   async connect(options = {}, generation = this.connectionGeneration) {
     if (!this.isConnectionCurrent(generation)) return;
     const connectionAttempt = ++this.connectionAttempt;

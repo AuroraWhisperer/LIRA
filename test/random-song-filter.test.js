@@ -14,6 +14,7 @@ const {
   handleDanmakuMessage,
   parseDanmakuCommand
 } = require('../src/bilibili/bilibili-message-handler');
+const { createRequesterTargetStore } = require('../src/music/requester-target-store');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 
 const SONGS = [
@@ -223,4 +224,41 @@ test('ignores a random danmaku when no library song satisfies every term', () =>
   assert.equal(added, false);
   assert.equal(persistedCooldown, false);
   assert.equal(state.cooldownByUser.size, 0);
+});
+
+test('failed random filters do not replace the latest mention target', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-requester-target-'));
+  const databases = createDatabases({ dataDir });
+
+  try {
+    databases.songDb.prepare(`
+      INSERT INTO requests (
+        song_name, requester_uid, requester_name, source, created_at
+      ) VALUES (?, ?, ?, ?, ?)
+    `).run('Matched Song', '456', 'Alice', 'random:pop', '2026-08-05T10:00:00.000Z');
+    const requesterTargets = createRequesterTargetStore(databases.songDb);
+    const before = requesterTargets.getLatestRandomRequester();
+    const result = handleDanmakuMessage({
+      settings: () => ({ paused: 'false', userCooldownSeconds: '0' }),
+      settingsStore: { getDefaultSettings: () => ({ userCooldownSeconds: '0' }) },
+      state: { cooldownByUser: new Map() },
+      pickRandomSong: () => null,
+      addQueueItem() {
+        assert.fail('a failed random filter must not create a request');
+      }
+    }, {
+      message: '\u968f\u673a\u70b9\u6b4c unknown-tag',
+      userName: 'Bob',
+      uid: '789'
+    });
+
+    assert.equal(result.accepted, false);
+    assert.equal(databases.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count, 1);
+    assert.deepEqual(requesterTargets.getLatestRandomRequester(), before);
+    assert.equal(before.uid, '456');
+    assert.equal(before.name, 'Alice');
+  } finally {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });

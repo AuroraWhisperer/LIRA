@@ -16,8 +16,8 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   );
 
   assert.match(html, /data-other-sidebar-toggle/);
-  assert.match(html, /data-main-page-link="playbackAssistantPage"[\s\S]*弹幕姬/);
-  assert.match(html, /data-main-page-link="giftAssistantPage"[\s\S]*礼物姬/);
+  assert.match(html, /data-other-feature="otherDanmakuFeature"[\s\S]*弹幕姬/);
+  assert.match(html, /data-other-feature="otherGiftFeature"[\s\S]*礼物姬/);
   assert.match(html, /aria-expanded="true"/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label/);

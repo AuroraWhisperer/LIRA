@@ -18,6 +18,7 @@ import './gifts/blindbox-analysis.js';
 import './gifts/history.js';
 import './gifts/index.js';
 import './metrics.js';
+import './danmaku-tool.js';
 import './other.js';
 import './desktop-lyric.js';
 import './app.js';

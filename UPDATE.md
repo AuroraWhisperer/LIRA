@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.2.0`
+当前版本：`3.2.1`
 
 ---
+
+## v3.2.1 变更
+
+- 💬 **百宝箱弹幕发送（弹幕姬）**：百宝箱新增「弹幕姬」面板，支持使用已登录的 Bilibili 账号向直播间发送弹幕。面板显示发送账号、直播间、监听连接三重状态网格，支持自动 @最近随机点歌人（可开关）、Ctrl+Enter 快捷发送、字符计数（上限 1000 字）、发送结果实时反馈。后端新增 `DanmakuSenderService`（`sender-service.js`）统一管理发送认证/房间校验/频率控制（1500ms 最小间隔），`mention-policy.js` 处理 @ 提及文本拼接与 UID 校验。
+- 💬 **弹幕发送 API**：新增 `GET /api/bilibili/danmaku/state`（获取发送状态与最近随机点歌人）和 `POST /api/bilibili/danmaku/send`（发送弹幕并可选 @ 点歌人）两个端点。`BilibiliApiClient` 新增 `sendDanmaku()` 方法调用 Bilibili 直播 `msg/send` 接口，支持 `reply_mid`/`reply_uname` 参数。
+- 🔗 **弹幕姬/礼物姬改为百宝箱内面板**：侧边栏「弹幕姬」「礼物姬」快捷入口从页面跳转（`data-main-page-link`）改为百宝箱内面板切换（`data-other-feature`），点击后直接在当前百宝箱工作区打开对应面板，不再跳离百宝箱。礼物姬新增占位面板（「礼物相关工具将在这里集中展示」）。
+- 🎨 **侧边栏折叠动画升级**：折叠/展开过渡从 180ms ease 升级为 260ms cubic-bezier(0.22, 1, 0.36, 1) 缓出曲线，功能标签新增 opacity + translateX(-8px) 淡出滑入动画（替代 `display: none` 硬切），侧边链接 grid-template-columns 同步动画。移动端（≤900px）自动恢复标签可见性。
+- 🧠 **最近随机点歌人追踪**：新增 `RequesterTargetStore`（`requester-target-store.js`），查询最近一次 `source = 'random'` 或 `source LIKE 'random:%'` 的点歌记录，弹幕姬 @ 目标自动填充。失败的点歌筛选不再覆盖已记录的最近点歌人。
+- 🧹 **代码清理**：移除 `bilibili-routes.js` 顶部作者注释；`BilibiliApiClient` 新增 `extractCookie()` 本地工具函数（零外部依赖）；路由参数统一为 `_request`/`_unused` 命名（未使用的参数显式标记），错误变量名 `err` → `error`，200 响应序列化为 `data: xxx`（统一 SnapshotService 格式），非 Electron 环境登录提示文案更准确。侧边栏按钮 CSS 显式声明 `height: 56px` + `min-height: 56px` 防止内容撑高。
+- 🧪 **测试覆盖增强**：新增 `test/bilibili-danmaku-send.test.js`（弹幕发送 API 端点测试）和 `test/danmaku-sender-service.test.js`（SenderService 单元测试）。`test/random-song-filter.test.js` 新增失败筛选不覆盖 requester target 的回归断言。`test/toolbox-sidebar.test.js` 适配弹幕姬/礼物姬新 data 属性。
 
 ## v3.2.0 变更
 

@@ -82,6 +82,10 @@
       panel.hidden = !isActive;
     });
 
+    if (selectedId === 'otherDanmakuFeature') {
+      window.AdminApp.danmakuTool?.refresh();
+    }
+
     return true;
   }
 
@@ -126,7 +130,14 @@
     sidebarToggle?.addEventListener('click', () => {
       setSidebarCollapsed(root, !root.classList.contains('sidebar-collapsed'));
     });
-    navigationLinks.forEach((link) => link.addEventListener('click', () => window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink)));
+    navigationLinks.forEach((link) => link.addEventListener('click', () => {
+      window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink);
+      const targetFeature = link.dataset.otherFeatureTarget;
+      if (targetFeature) {
+        // The main page switch is synchronous; select the requested toolbox panel after it becomes visible.
+        selectFeatureById(targetFeature);
+      }
+    }));
 
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
@@ -136,6 +147,8 @@
         handleFeatureKeydown(root, button, event);
       });
     });
+
+    window.AdminApp.danmakuTool?.init();
 
     const initialButton = buttons.find((button) => button.getAttribute('aria-selected') === 'true');
     selectFeature(root, initialButton?.dataset.otherFeature);
