@@ -3,9 +3,46 @@
 'use strict';
 
 (function () {
+  const SIDEBAR_COLLAPSED_KEY = 'admin.toolboxSidebarCollapsed';
   const moduleState = {
     initialized: false
   };
+
+  function readSidebarCollapsed() {
+    try {
+      return window.localStorage?.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  function setSidebarCollapsed(root, collapsed, persist = true) {
+    if (!root) return;
+
+    const isCollapsed = Boolean(collapsed);
+    root.classList?.toggle('sidebar-collapsed', isCollapsed);
+
+    const toggle = root.querySelector?.('[data-other-sidebar-toggle]');
+    if (toggle) {
+      const actionLabel = isCollapsed ? '展开功能导航' : '收起功能导航';
+      toggle.setAttribute('aria-label', actionLabel);
+      toggle.setAttribute('aria-expanded', String(!isCollapsed));
+      toggle.title = actionLabel;
+    }
+
+    getFeatureElements(root).buttons.forEach((button) => {
+      const label = button.querySelector?.('.other-feature-label strong')?.textContent?.trim();
+      if (isCollapsed && label) button.title = label;
+      else button.removeAttribute?.('title');
+    });
+
+    if (!persist) return;
+    try {
+      window.localStorage?.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+    } catch {
+      // The navigation still works when storage is disabled.
+    }
+  }
 
   function getFeatureElements(root) {
     return {
@@ -83,6 +120,14 @@
     if (!root || moduleState.initialized) return;
 
     const { buttons } = getFeatureElements(root);
+    const sidebarToggle = root.querySelector?.('[data-other-sidebar-toggle]');
+    const navigationLinks = Array.from(root.querySelectorAll?.('[data-main-page-link]') || []);
+    setSidebarCollapsed(root, readSidebarCollapsed(), false);
+    sidebarToggle?.addEventListener('click', () => {
+      setSidebarCollapsed(root, !root.classList.contains('sidebar-collapsed'));
+    });
+    navigationLinks.forEach((link) => link.addEventListener('click', () => window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink)));
+
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
         selectFeature(root, button.dataset.otherFeature);
@@ -101,6 +146,7 @@
   window.AdminApp.other = {
     initOtherPage,
     selectFeature,
-    selectFeatureById
+    selectFeatureById,
+    setSidebarCollapsed
   };
 })();

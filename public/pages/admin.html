@@ -1283,6 +1283,26 @@
       <section id="otherAssistantPage" class="main-page other-page">
         <div class="other-workspace">
           <aside class="other-feature-sidebar">
+            <div class="other-sidebar-toolbar">
+              <button
+                id="otherSidebarToggle"
+                class="other-sidebar-toggle"
+                type="button"
+                data-other-sidebar-toggle
+                aria-label="收起功能导航"
+                aria-expanded="true"
+                title="收起功能导航"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M9 4v16M15.5 9 12.5 12l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div class="other-sidebar-page-links" aria-label="直播工具">
+              <button class="other-feature-button other-sidebar-page-link" type="button" data-main-page-link="playbackAssistantPage" title="弹幕姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="other-feature-label"><strong>弹幕姬</strong></span></button>
+              <button class="other-feature-button other-sidebar-page-link" type="button" data-main-page-link="giftAssistantPage" title="礼物姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span class="other-feature-label"><strong>礼物姬</strong></span></button>
+            </div>
             <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
               <button
                 id="otherOvertimeMachineFeatureTab"

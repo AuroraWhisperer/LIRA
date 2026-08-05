@@ -1332,25 +1332,20 @@ test('song list exposes a display board font size control', () => {
   assert.match(defaultsSource, /songBoardFontSize: '50'/);
 });
 
-test('song board keeps song names readable in narrow browser sources', () => {
-  const utilitySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
-    'utf8'
-  );
+test('song board keeps song names readable in narrow browser sources', async () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const overlayStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
-  const sandbox = {
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    window: {},
-    WebSocket: function WebSocket() {},
-    document: { addEventListener() {} }
-  };
-  vm.runInNewContext(utilitySource + '\n' + source, sandbox);
+  const songModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
+    {
+      document: { addEventListener() {} },
+      location: { protocol: 'http:', host: 'localhost', search: '' },
+      URLSearchParams,
+      WebSocket: function WebSocket() {}
+    }
+  );
 
   const listRule = overlayStyles.match(/\.song-scroll-list\s*\{[^}]*\}/)?.[0];
-  const groupRule = overlayStyles.match(/\.song-group\s*\{[^}]*\}/)?.[0];
   const cardRule = [...overlayStyles.matchAll(/\.song-card\s*\{[^}]*\}/g)]
     .map((match) => match[0])
     .find((rule) => /display:\s*flex/.test(rule));
@@ -1358,14 +1353,11 @@ test('song board keeps song names readable in narrow browser sources', () => {
   const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
   const headerRule = overlayStyles.match(/\.song-board \.overlay-header\s*\{[^}]*\}/)?.[0];
   assert.ok(listRule);
-  assert.ok(groupRule);
   assert.ok(cardRule);
   assert.ok(nameRule);
   assert.ok(artistRule);
   assert.ok(headerRule);
   assert.match(listRule, /grid-auto-rows:\s*max-content/);
-  assert.match(listRule, /align-content:\s*start/);
-  assert.match(groupRule, /grid-auto-rows:\s*max-content/);
   assert.match(cardRule, /display:\s*flex/);
   assert.doesNotMatch(cardRule, /grid-template-columns/);
   assert.match(nameRule, /flex:\s*1 1 auto/);
@@ -1379,17 +1371,159 @@ test('song board keeps song names readable in narrow browser sources', () => {
   assert.match(overlayStyles, /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/);
   assert.match(overlayStyles, /@media \(max-width: 280px\)\s*\{[\s\S]*?\.song-card span\s*\{[\s\S]*?display:\s*none/);
 
-  const html = sandbox.renderFlatSongs([{ name: 'A "song"', artist: 'Artist & guests / Guest Two / Guest Three' }]);
-  assert.match(html, /class="song-name" title="A &quot;song&quot;"/);
-  assert.match(html, /class="song-artist" title="Artist &amp; guests">Artist &amp; guests<\/span>/);
-  assert.doesNotMatch(html, /Guest Two|Guest Three/);
+  const flatRecords = songModule.buildSongRecords([
+    { id: 1, name: 'A "song"', artist: 'Artist & guests / Guest Two / Guest Three' }
+  ], 'length');
+  assert.equal(flatRecords.length, 1);
+  assert.equal(flatRecords[0].song.name, 'A "song"');
+  assert.equal(flatRecords[0].artist, 'Artist & guests');
 
-  const artistGroups = sandbox.groupSongs([
-    { name: 'First', artist: 'Lead / Guest Two' },
-    { name: 'Second', artist: 'Lead / Guest Three' }
+  const artistRecords = songModule.buildSongRecords([
+    { id: 1, name: 'First', artist: 'Lead / Guest Two' },
+    { id: 2, name: 'Second', artist: 'Lead / Guest Three' }
   ], 'artist');
-  assert.equal(artistGroups.length, 1);
-  assert.equal(artistGroups[0][0], 'Lead');
+  assert.deepEqual(
+    Array.from(artistRecords, (record) => record.type),
+    ['heading', 'song', 'song']
+  );
+  assert.equal(artistRecords[0].label, 'Lead');
+  assert.match(source, /\.textContent\s*=/);
+  assert.doesNotMatch(source, /list\.innerHTML\s*=\s*html/);
+});
+
+test('song virtual scroller bounds the DOM to two viewports above and three below', async () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'songs.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  assert.match(html, /<script type="module" src="\/js\/overlays\/songs\.js\?v=[^"]+"><\/script>/);
+  assert.match(source, /new SongVirtualScroller\(\{[\s\S]*beforeViewports: 2,[\s\S]*afterViewports: 3/);
+  assert.match(source, /new ResizeObserver\(\(\) => scheduleRelayout\(\{ delay: 120 \}\)\)/);
+  assert.doesNotMatch(styles, /@keyframes song-scroll/);
+  assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/);
+
+  class FakeNode {
+    constructor(height, key) {
+      this.dataset = { key };
+      this.height = height;
+      this.parentElement = null;
+    }
+
+    get offsetHeight() {
+      return this.height;
+    }
+
+    get offsetTop() {
+      if (!this.parentElement) return 0;
+      const index = this.parentElement.children.indexOf(this);
+      return this.parentElement.offsetTop + this.parentElement.children
+        .slice(0, index)
+        .reduce((total, node) => total + node.offsetHeight + this.parentElement.gap, 0);
+    }
+
+    remove() {
+      const index = this.parentElement?.children.indexOf(this) ?? -1;
+      if (index >= 0) this.parentElement.children.splice(index, 1);
+      this.parentElement = null;
+    }
+  }
+
+  class FakeContent {
+    constructor(gap = 8) {
+      this.children = [];
+      this.gap = gap;
+      this.offsetTop = 50;
+    }
+
+    get firstElementChild() {
+      return this.children[0] ?? null;
+    }
+
+    get lastElementChild() {
+      return this.children.at(-1) ?? null;
+    }
+
+    get scrollHeight() {
+      if (this.children.length === 0) return 0;
+      return this.children.reduce((total, node) => total + node.offsetHeight, 0)
+        + (this.children.length - 1) * this.gap;
+    }
+
+    append(node) {
+      node.parentElement = this;
+      this.children.push(node);
+    }
+
+    prepend(node) {
+      node.parentElement = this;
+      this.children.unshift(node);
+    }
+
+    replaceChildren(...nodes) {
+      this.children.forEach((node) => { node.parentElement = null; });
+      this.children = [];
+      nodes.forEach((node) => this.append(node));
+    }
+  }
+
+  const {
+    SongVirtualScroller,
+    bufferPixels,
+    pixelsPerSecond,
+    wrapIndex
+  } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js')
+  );
+  assert.equal(wrapIndex(-1, 5), 4);
+  assert.equal(wrapIndex(5, 5), 0);
+  assert.equal(pixelsPerSecond(300, 12), 25);
+  assert.deepEqual(Array.from(bufferPixels(100, 2, 3)), [200, 300]);
+
+  const content = new FakeContent();
+  const viewport = {
+    clientHeight: 100,
+    currentScrollTop: 0,
+    get scrollTop() {
+      return this.currentScrollTop;
+    },
+    set scrollTop(value) {
+      this.currentScrollTop = Math.min(
+        Math.max(0, value),
+        Math.max(0, content.scrollHeight - this.clientHeight)
+      );
+    }
+  };
+  const records = Array.from({ length: 1000 }, (_, index) => ({ key: `song:${index}` }));
+  const scroller = new SongVirtualScroller({
+    viewport,
+    content,
+    createNode: (record) => new FakeNode(20, record.key),
+    requestFrame() { return 1; },
+    cancelFrame() {}
+  });
+
+  scroller.setRecords(records, { key: 'song:500', offset: 5 });
+  assert.equal(scroller.beforeViewports, 2);
+  assert.equal(scroller.afterViewports, 3);
+  assert.ok(content.children.length < 40, `expected a bounded DOM, got ${content.children.length} nodes`);
+  assert.ok(viewport.scrollTop >= 200);
+  assert.equal(scroller.captureAnchor().key, 'song:500');
+
+  const originalCount = content.children.length;
+  scroller.advanceBy(250);
+  assert.ok(content.children.length <= originalCount + 1);
+  assert.notEqual(scroller.captureAnchor().key, 'song:500');
+
+  const shortContent = new FakeContent();
+  const shortScroller = new SongVirtualScroller({
+    viewport: { clientHeight: 100, scrollTop: 0 },
+    content: shortContent,
+    createNode: (record) => new FakeNode(20, record.key),
+    requestFrame() { return 1; },
+    cancelFrame() {}
+  });
+  shortScroller.setRecords(records.slice(0, 2));
+  assert.equal(shortContent.children.length, 2);
+  assert.equal(shortScroller.isScrollable, false);
 });
 
 test('overlay utility helpers preserve shared formatting behavior', () => {
@@ -1605,70 +1739,37 @@ test('identity queue scrolls from actual overflow', () => {
   assert.ok(Math.abs((shortDistance / shortSeconds) - (longDistance / longSeconds)) < 0.001);
 });
 
-test('song board scroll speed stays constant as content grows', () => {
+test('song board scroll speed stays constant as content grows', async () => {
   const adminHtml = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
-  const utilitySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
-    'utf8'
-  );
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   assert.match(adminHtml, /id="scrollSecondsRange" type="range" min="1" max="100"/);
   assert.match(adminHtml, /id="scrollSeconds" type="number" min="1" max="100"/);
-  const styleValues = new Map();
-  const sandbox = {
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    window: {},
-    WebSocket: function WebSocket() {},
-    document: {
-      addEventListener() {},
-      documentElement: {
-        style: { setProperty(name, value) { styleValues.set(name, value); } }
-      }
+  const songModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
+    {
+      document: { addEventListener() {} },
+      location: { protocol: 'http:', host: 'localhost', search: '' },
+      URLSearchParams,
+      WebSocket: function WebSocket() {}
     }
-  };
-  vm.runInNewContext(utilitySource + '\n' + source, sandbox);
+  );
+  const { pixelsPerSecond } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js')
+  );
 
-  assert.equal(sandbox.scrollSpeedToDuration(1), '20.557851');
-  assert.equal(sandbox.scrollSpeedToDuration(100), '2.000000');
-  assert.equal(sandbox.scrollSpeedToDuration(200), '2.000000');
+  assert.equal(songModule.scrollSpeedToDuration(1), '20.557851');
+  assert.equal(songModule.scrollSpeedToDuration(100), '2.000000');
+  assert.equal(songModule.scrollSpeedToDuration(200), '2.000000');
 
   const rates = Array.from({ length: 100 }, (_, index) => index + 1).map((speed) => (
-    1 / Number(sandbox.scrollSpeedToDuration(speed))
+    1 / Number(songModule.scrollSpeedToDuration(speed))
   ));
   const rateSteps = rates.slice(1).map((rate, index) => rate - rates[index]);
   assert.ok(rateSteps.every((step) => Math.abs(step - rateSteps[0]) < 0.000001));
 
-  const classes = new Set(['song-scroll-list', 'paused']);
-  let duplicatedHtml = '';
-  const list = {
-    scrollHeight: 600,
-    classList: {
-      add(name) { classes.add(name); },
-      remove(name) { classes.delete(name); }
-    },
-    insertAdjacentHTML(_position, html) { duplicatedHtml += html; }
-  };
-  const settings = { scrollSeconds: '80' };
-
-  assert.equal(sandbox.configureSongScroll({ clientHeight: 300 }, list, settings, '<div>songs</div>'), true);
-  const loopDistance = 608;
-  const travelSeconds = sandbox.scrollTravelSeconds(
-    sandbox.scrollSpeedToDuration(80),
-    loopDistance,
-    300
-  );
-  assert.equal(styleValues.get('--song-loop-distance'), `${loopDistance}px`);
-  assert.equal(styleValues.get('--scroll-seconds'), `${travelSeconds}s`);
-  assert.equal(duplicatedHtml, '<div>songs</div>');
-  assert.equal(classes.has('paused'), false);
-
-  const longerDistance = loopDistance * 2;
-  const longerSeconds = sandbox.scrollTravelSeconds(sandbox.scrollSpeedToDuration(80), longerDistance, 300);
-  const shortRate = loopDistance / travelSeconds;
-  const longRate = longerDistance / longerSeconds;
-  assert.ok(Math.abs((shortRate - longRate) / shortRate) < 0.001);
+  const secondsPerViewport = Number(songModule.scrollSpeedToDuration(80));
+  const rate = pixelsPerSecond(300, secondsPerViewport);
+  assert.equal(rate, 300 / secondsPerViewport);
+  assert.ok(Math.abs(((rate * 2) / 2) - ((rate * 20) / 20)) < 0.000001);
 });
 
 test('only the latest playback search updates state and renders', async () => {

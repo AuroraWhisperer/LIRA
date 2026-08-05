@@ -675,6 +675,7 @@
 .song-scroll-window {
   height: min(52vh, 450px);
   overflow: hidden;
+  overflow-anchor: none;
 }
 
 .song-scroll-list {
@@ -682,18 +683,15 @@
   grid-auto-rows: max-content;
   align-content: start;
   gap: 8px;
-  animation: song-scroll var(--scroll-seconds, 42s) linear infinite;
+  overflow-anchor: none;
 }
 
-.song-scroll-list.paused {
-  animation: none;
-}
-
-.song-group {
-  display: grid;
-  grid-auto-rows: max-content;
-  align-content: start;
+.song-scroll-list.grouped {
   gap: 6px;
+}
+
+.song-scroll-list.grouped .song-group-title {
+  margin-top: 2px;
 }
 
 .song-group-title {
@@ -760,15 +758,6 @@
 @media (max-width: 280px) {
   .song-card span {
     display: none;
-  }
-}
-
-@keyframes song-scroll {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(calc(-1 * var(--song-loop-distance, 280px)));
   }
 }
 

@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.1.4`
+当前版本：`3.2.0`
 
 ---
+
+## v3.2.0 变更
+
+- 🚀 **歌单展示板虚拟滚动**：新增 `SongVirtualScroller` 类（`song-virtual-scroller.js`），替换旧的 CSS animation 全量 DOM 渲染方案为循环 DOM 窗口——保持 2 倍视口高度上方 + 3 倍视口高度下方的可见节点，其余节点自动回收重用。动画改为 `requestAnimationFrame` 驱动的 `scrollTop` 增量滚动，速度恒定（秒/视口），不受列表总长度影响。
+- ⚡ **歌单渲染性能优化**：`songs.js` 拆分为数据适配层（构建分组/排序/主题），DOM 节点工厂通过构造函数注入。更新键拆分为 order / layout / motion 三层——仅数据顺序变化时重建节点、字体/主题变化时重排布局、速度变化时仅更新运动参数。`textContent` 替代 `innerHTML` 消除 XSS 风险。
+- 🎨 **歌单 CSS 清理**：移除 `@keyframes song-scroll` 动画和分组 wrapper 依赖，新增 `.song-scroll-window` 视口裁剪容器（`overflow: hidden`），滚动由 JS 程序化控制。分组模式保持 6px 间距，非分组保持 8px 间距。
+- 📐 **歌单自适应重排**：`ResizeObserver` 监听窗口尺寸变化，120ms 防抖后重排；`document.fonts.ready` 等待字体加载完成后自动重排；页面可见性变化时自动暂停/恢复滚动。
+- 🎨 **百宝箱侧边栏折叠**：新增侧边栏折叠/展开切换按钮（SVG 面板图标，180° 旋转动画），折叠后仅显示功能图标（56px 按钮），展开恢复完整标签+箭头。折叠状态自动持久化至 `localStorage`（`admin.toolboxSidebarCollapsed`）。侧边栏宽度过渡动画 180ms ease。移动端（≤900px）折叠按钮隐藏，功能标签强制显示。
+- 🎨 **百宝箱快捷页面入口**：侧边栏新增「弹幕姬」「礼物姬」快捷页面按钮，支持一键跳转至弹幕助手/礼物助手页面，hover 时图标轻微右移。
+- 🧪 **完整测试覆盖**：新增 song virtual scroller 测试套件（虚拟窗口边界、锚点捕获/恢复、回收逻辑、bufferPixels/wrapIndex/pixelsPerSecond 计算、FakeDOM 模拟滚动）；新增 toolbox sidebar 折叠切换、无障碍状态更新、localStorage 持久化、桌面端功能按钮显示测试。
 
 ## v3.1.4 变更
 

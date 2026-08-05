@@ -1,12 +1,17 @@
 /* “百宝箱”页面壳层：功能模块只需声明导航按钮和对应内容面板。 */
 .other-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 250px) minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
   gap: 16px;
   height: calc(100vh - 58px - 96px);
   min-height: 0;
   padding: 16px;
   overflow: hidden;
+  transition: grid-template-columns 180ms ease;
+}
+
+.other-page.sidebar-collapsed .other-workspace {
+  grid-template-columns: 76px minmax(0, 1fr);
 }
 
 body.player-dock-expanded .other-workspace {
@@ -27,6 +32,53 @@ body.player-dock-expanded .other-workspace {
   overflow-y: auto;
 }
 
+.other-sidebar-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  padding: 10px 10px 2px;
+}
+
+.other-sidebar-toggle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.other-sidebar-toggle:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.other-sidebar-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.other-sidebar-toggle svg {
+  width: 21px;
+  height: 21px;
+  transition: transform 180ms ease;
+}
+.other-sidebar-page-links { display: grid; gap: 4px; padding: 4px 8px 8px; border-bottom: 1px solid var(--border); }
+.other-sidebar-page-link { min-height: 56px; }
+
+.other-page.sidebar-collapsed .other-sidebar-toolbar {
+  justify-content: center;
+}
+
+.other-page.sidebar-collapsed .other-sidebar-toggle svg {
+  transform: rotate(180deg);
+}
+
 .other-feature-panel-header h2 {
   margin: 0;
   color: var(--text);
@@ -42,8 +94,8 @@ body.player-dock-expanded .other-workspace {
 
 .other-feature-menu {
   display: grid;
-  gap: 6px;
-  padding: 10px;
+  gap: 4px;
+  padding: 8px;
 }
 
 .other-feature-button {
@@ -53,8 +105,8 @@ body.player-dock-expanded .other-workspace {
   align-items: center;
   gap: 11px;
   width: 100%;
-  min-height: 64px;
-  padding: 9px 10px;
+  min-height: 68px;
+  padding: 11px 10px;
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -159,6 +211,22 @@ body.player-dock-expanded .other-workspace {
   transform: translateX(2px);
 }
 
+.other-page.sidebar-collapsed .other-feature-menu {
+  padding-inline: 8px;
+}
+
+.other-page.sidebar-collapsed .other-feature-button {
+  grid-template-columns: 38px;
+  justify-content: center;
+  min-height: 56px;
+  padding: 8px 10px;
+}
+
+.other-page.sidebar-collapsed .other-feature-label,
+.other-page.sidebar-collapsed .other-feature-arrow {
+  display: none;
+}
+
 .other-feature-content,
 .other-feature-panel {
   min-height: 0;
@@ -219,6 +287,34 @@ body.player-dock-expanded .other-workspace {
     overflow: visible;
   }
 
+  .other-page.sidebar-collapsed .other-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .other-sidebar-toolbar {
+    display: none;
+  }
+  .other-sidebar-page-links { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 0; }
+
+  .other-page.sidebar-collapsed .other-feature-menu {
+    padding: 8px;
+  }
+
+  .other-page.sidebar-collapsed .other-feature-button {
+    grid-template-columns: 38px minmax(0, 1fr) 16px;
+    justify-content: initial;
+    min-height: 56px;
+    padding: 9px 10px;
+  }
+
+  .other-page.sidebar-collapsed .other-feature-label {
+    display: grid;
+  }
+
+  .other-page.sidebar-collapsed .other-feature-arrow {
+    display: block;
+  }
+
   .other-feature-sidebar {
     overflow: visible;
   }
@@ -241,7 +337,10 @@ body.player-dock-expanded .other-workspace {
   .other-feature-button,
   .other-feature-button::before,
   .other-feature-icon,
-  .other-feature-arrow {
+  .other-feature-arrow,
+  .other-sidebar-toggle,
+  .other-sidebar-toggle svg,
+  .other-workspace {
     transition: none;
   }
 }

@@ -1,21 +1,82 @@
-// 编写人：Aurora
-// 当前项目版本：1.4.6
+import { SongVirtualScroller } from './song-virtual-scroller.js';
+
 'use strict';
 
 let state = null;
 let songs = [];
+let songsRevision = 0;
 let reloadTimer = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
-let lastRenderKey = null;
+let resizeTimer = null;
+let resizeObserver = null;
+let relayoutRevision = 0;
+let scroller = null;
+let songListElement = null;
+let lastOrderKey = null;
+let lastLayoutKey = null;
+let lastMotionKey = null;
 const overlayUtils = window.OverlayUtils;
 
 document.addEventListener('DOMContentLoaded', () => {
+  initializeScroller();
   loadAll();
   connectSocket();
 });
 
+function initializeScroller() {
+  const list = document.getElementById('songScrollList');
+  const viewport = list?.closest('.song-scroll-window');
+  if (!list || !viewport) return;
+  songListElement = list;
+
+  scroller = new SongVirtualScroller({
+    viewport,
+    content: list,
+    createNode: createSongRecordNode,
+    beforeViewports: 2,
+    afterViewports: 3
+  });
+
+  if (typeof ResizeObserver === 'function') {
+    resizeObserver = new ResizeObserver(() => scheduleRelayout({ delay: 120 }));
+    resizeObserver.observe(viewport);
+  } else {
+    window.addEventListener('resize', handleViewportResize);
+  }
+
+  document.fonts?.addEventListener?.('loadingdone', handleFontsLoaded);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('beforeunload', destroyScroller, { once: true });
+}
+
+function destroyScroller() {
+  clearTimeout(resizeTimer);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  window.removeEventListener('resize', handleViewportResize);
+  document.fonts?.removeEventListener?.('loadingdone', handleFontsLoaded);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  scroller?.destroy();
+  scroller = null;
+  songListElement = null;
+}
+
+function handleViewportResize() {
+  scheduleRelayout({ delay: 120 });
+}
+
+function handleFontsLoaded() {
+  scheduleRelayout({ delay: 0 });
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) scroller?.pause();
+  else scroller?.start();
+}
+
 async function loadAll() {
+  const anchor = scroller?.captureAnchor() ?? null;
   try {
     const category = new URLSearchParams(location.search).get('category') || '';
     const [stateResponse, songsResponse] = await Promise.all([
@@ -25,44 +86,42 @@ async function loadAll() {
     const statePayload = await stateResponse.json();
     const songsPayload = await songsResponse.json();
     if (statePayload.ok) state = statePayload.data;
-    if (songsPayload.ok) songs = songsPayload.data;
+    if (songsPayload.ok) {
+      songs = songsPayload.data;
+      songsRevision += 1;
+    }
   } catch (error) {
     console.warn('[overlay-songs] loadAll failed:', error.message || error);
   }
-  lastRenderKey = null;
-  render();
+  render({ forceData: true, anchor });
 }
 
 function connectSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
-  const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
+  const wsUrl = `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   const socket = new WebSocket(wsUrl);
 
   socket.addEventListener('open', () => {
     clearTimeout(reconnectTimer);
     reconnectAttempts = 0;
-    lastRenderKey = null;
   });
 
   socket.addEventListener('message', (event) => {
     const payload = JSON.parse(event.data);
-    if (payload.type === 'snapshot') {
-      if (payload.reason === 'live:status' && state) {
-        state.liveStatus = payload.state.liveStatus;
-        return;
-      }
-      state = payload.state;
-      if (payload.reason && (payload.reason.startsWith('songs:') || payload.reason === 'database:clear')) {
-        clearTimeout(reloadTimer);
-        reloadTimer = setTimeout(loadAll, 220);
-        return;
-      }
-      var newKey = computeSongsStateKey(state);
-      if (newKey === lastRenderKey) return;
-      lastRenderKey = newKey;
-      render();
+    if (payload.type !== 'snapshot') return;
+    if (payload.reason === 'live:status' && state) {
+      state.liveStatus = payload.state.liveStatus;
+      return;
     }
+
+    state = payload.state;
+    if (payload.reason && (payload.reason.startsWith('songs:') || payload.reason === 'database:clear')) {
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(loadAll, 220);
+      return;
+    }
+    render();
   });
 
   socket.addEventListener('close', () => {
@@ -75,89 +134,133 @@ function connectSocket() {
   });
 }
 
-function render() {
-  if (!state) return;
+function render({ forceData = false, anchor = scroller?.captureAnchor() ?? null } = {}) {
+  if (!state || !scroller) return;
   const settings = state.settings || {};
   const category = new URLSearchParams(location.search).get('category') || '';
+  const sortMode = settings.songBoardSortMode || 'initial';
+  const orderKey = `${songsRevision}:${sortMode}`;
+  const layoutKey = computeLayoutKey(settings);
+  const motionKey = String(resolveSongScrollSpeed(settings));
+  const orderChanged = forceData || orderKey !== lastOrderKey;
+  const layoutChanged = layoutKey !== lastLayoutKey;
+
+  if (layoutChanged) scroller.pause();
   applyTheme(settings);
-  // Respect custom title from settings, fall back to category-based title
   if (!settings.overlayTitle && !settings.songBoardTitle) {
     document.getElementById('songBoardTitle').textContent = category ? `可点歌单 · ${category}` : '可点歌单';
   }
 
-  const list = document.getElementById('songScrollList');
-  if (songs.length === 0) {
-    list.classList.add('paused');
-    list.innerHTML = '<div class="overlay-empty">歌库还没有可展示歌曲</div>';
-    return;
+  if (motionKey !== lastMotionKey) {
+    scroller.setSecondsPerViewport(Number(scrollSpeedToDuration(Number(motionKey))));
   }
 
-  const sortMode = settings.songBoardSortMode || 'initial';
-  const html = sortMode === 'length'
-    ? renderFlatSongs(sortSongsByLength(songs))
-    : renderGroups(groupSongs(songs, sortMode));
-  list.classList.add('paused');
-  list.innerHTML = html;
-  scheduleSongScroll(list, settings, html);
-}
+  if (orderChanged) {
+    if (songs.length === 0) {
+      scroller.setRecords([]);
+      renderEmptyState();
+    } else {
+      const records = buildSongRecords(songs, sortMode);
+      songListElement.classList.toggle('grouped', sortMode !== 'length');
+      scroller.setRecords(records, anchor);
+    }
+  }
 
-function scheduleSongScroll(list, settings, html) {
-  const viewport = list.closest('.song-scroll-window');
-  if (!viewport) return;
+  lastOrderKey = orderKey;
+  lastLayoutKey = layoutKey;
+  lastMotionKey = motionKey;
 
-  const setup = () => configureSongScroll(viewport, list, settings, html);
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
+  if (layoutChanged && songs.length > 0) {
+    scheduleRelayout({ anchor: scroller.captureAnchor(), delay: 0, waitForFonts: true });
+  } else if (!document.hidden && songs.length > 0) {
+    scroller.start();
   }
 }
 
-function configureSongScroll(viewport, list, settings, html, rowGap = 8) {
-  // 确保 DOM 已经渲染完成，获取准确的高度
-  const listHeight = list.scrollHeight;
-  const viewportHeight = viewport.clientHeight;
-  const overflowDistance = Math.max(0, Math.ceil(listHeight - viewportHeight));
-
-  // 如果内容不够多，不需要滚动
-  if (overflowDistance <= 1) {
-    list.classList.remove('paused');
-    return false;
-  }
-
-  const loopDistance = Math.ceil(listHeight + rowGap);
-  const secondsPerViewport = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
-  const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewportHeight);
-  document.documentElement.style.setProperty('--song-loop-distance', `${loopDistance}px`);
-  document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
-  list.insertAdjacentHTML('beforeend', html);
-  list.classList.remove('paused');
-  return true;
+function renderEmptyState() {
+  const empty = document.createElement('div');
+  empty.className = 'overlay-empty';
+  empty.textContent = '歌库还没有可展示歌曲';
+  songListElement.replaceChildren(empty);
 }
 
-function computeSongsStateKey(currentState) {
-  var settings = currentState.settings || {};
+function scheduleRelayout({ anchor = scroller?.captureAnchor() ?? null, delay = 120, waitForFonts = false } = {}) {
+  if (!scroller || scroller.records.length === 0) return;
+  const revision = ++relayoutRevision;
+  scroller.pause();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(async () => {
+    if (waitForFonts && document.fonts?.ready) {
+      try {
+        await document.fonts.ready;
+      } catch (error) {
+        console.warn('[overlay-songs] font loading failed:', error.message || error);
+      }
+    }
+    if (revision !== relayoutRevision || !scroller) return;
+    scroller.relayout(anchor);
+    if (!document.hidden) scroller.start();
+  }, delay);
+}
+
+function computeLayoutKey(settings) {
   return JSON.stringify([
-    songs.map(function (s) { return s.id; }),
-    settings.songBoardSortMode,
     settings.songBoardSyncTheme,
-    settings.songBoardThemePrimary, settings.songBoardThemeAccent,
-    settings.songBoardThemeText, settings.songBoardThemeBackground,
-    settings.themePrimary, settings.themeAccent, settings.themeText, settings.themeBackground,
-    settings.themeOpacity, settings.themeRadius,
-    settings.backdropBlur, settings.glowIntensity,
-    settings.enableGradient, settings.gradientEnd,
-    settings.songBoardBackdropBlur, settings.songBoardGlowIntensity,
-    settings.songBoardEnableGradient, settings.songBoardGradientEnd,
-    settings.songBoardFontFamily, settings.songBoardFontWeight,
+    settings.songBoardFontFamily,
+    settings.songBoardFontWeight,
     settings.songBoardFontSize,
-    settings.songBoardSongColor, settings.songBoardSongFontSize, settings.songBoardTitleFontSize,
-    settings.overlayFontFamily, settings.overlayFontWeight,
-    settings.overlaySongColor, settings.overlayRequesterColor,
-    settings.overlayTitle, settings.songBoardTitle,
-    settings.overlayLowPowerMode, settings.themeFontScale,
-    settings.scrollSeconds
+    settings.songBoardSongFontSize,
+    settings.overlayFontFamily,
+    settings.overlayFontWeight
   ]);
+}
+
+export function buildSongRecords(items, sortMode = 'initial') {
+  if (sortMode === 'length') {
+    return sortSongsByLength(items).map(createSongRecord);
+  }
+
+  const records = [];
+  for (const [label, groupedSongs] of groupSongs(items, sortMode)) {
+    records.push({
+      type: 'heading',
+      key: `heading:${sortMode}:${label}`,
+      label
+    });
+    records.push(...groupedSongs.map(createSongRecord));
+  }
+  return records;
+}
+
+function createSongRecord(song) {
+  return {
+    type: 'song',
+    key: `song:${song.id}`,
+    song,
+    artist: primarySongArtist(song)
+  };
+}
+
+function createSongRecordNode(record) {
+  if (record.type === 'heading') {
+    const heading = document.createElement('div');
+    heading.className = 'song-group-title';
+    heading.textContent = record.label;
+    return heading;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'song-card';
+  const name = document.createElement('strong');
+  name.className = 'song-name';
+  name.title = String(record.song.name || '');
+  name.textContent = record.song.name || '';
+  const artist = document.createElement('span');
+  artist.className = 'song-artist';
+  artist.title = record.artist;
+  artist.textContent = record.artist;
+  card.append(name, artist);
+  return card;
 }
 
 function groupSongs(items, sortMode) {
@@ -176,11 +279,6 @@ function groupSongs(items, sortMode) {
       case 'language':
         key = song.language || '未知语言';
         break;
-      case 'length': {
-        const len = String(song.name || '').length;
-        key = len > 0 ? `${len} 字` : '未知';
-        break;
-      }
       default:
         key = song.name_initial || '#';
         break;
@@ -189,17 +287,7 @@ function groupSongs(items, sortMode) {
     groups.get(key).push(song);
   }
 
-  const entries = Array.from(groups.entries());
-  if (mode === 'length') {
-    entries.sort((a, b) => {
-      const numA = parseInt(a[0], 10) || 0;
-      const numB = parseInt(b[0], 10) || 0;
-      return numA - numB;
-    });
-  } else {
-    entries.sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'));
-  }
-  return entries;
+  return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'));
 }
 
 function sortSongsByLength(items) {
@@ -208,29 +296,6 @@ function sortSongsByLength(items) {
     if (lengthDiff !== 0) return lengthDiff;
     return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN');
   });
-}
-
-function renderFlatSongs(items) {
-  return items.map((song) => `
-    <div class="song-card">
-      <strong class="song-name" title="${escapeHtml(song.name || '')}">${escapeHtml(song.name)}</strong>
-      <span class="song-artist" title="${escapeHtml(primarySongArtist(song))}">${escapeHtml(primarySongArtist(song))}</span>
-    </div>
-  `).join('');
-}
-
-function renderGroups(groups) {
-  return groups.map(([initial, groupSongs]) => `
-    <div class="song-group">
-      <div class="song-group-title">${escapeHtml(initial)}</div>
-      ${groupSongs.map((song) => `
-        <div class="song-card">
-          <strong class="song-name" title="${escapeHtml(song.name || '')}">${escapeHtml(song.name)}</strong>
-          <span class="song-artist" title="${escapeHtml(primarySongArtist(song))}">${escapeHtml(primarySongArtist(song))}</span>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
 }
 
 function primarySongArtist(song) {
@@ -260,9 +325,6 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
   const songBoardFontSize = Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 50));
   root.style.setProperty('--overlay-font-scale', String(songBoardFontSize / 16));
-
-  const scrollDuration = scrollSpeedToDuration(resolveSongScrollSpeed(settings));
-  root.style.setProperty('--scroll-seconds', `${scrollDuration}s`);
 
   const primaryHex = resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91');
   const primaryRgb = hexToRgb(primaryHex);
@@ -333,11 +395,10 @@ function hexToRgb(hex) {
   return overlayUtils.hexToRgb(hex);
 }
 
-function scrollSpeedToDuration(value) {
+export function scrollSpeedToDuration(value) {
   const speed = Math.max(1, Math.min(100, Math.round(Number(value) || 20)));
   const minSeconds = 2;
   const maxSeconds = 1000;
-  // Start at the old speed 20 rate and interpolate the viewport rate directly.
   const oldMinRate = 1 / maxSeconds;
   const maxRate = 1 / minSeconds;
   const oldRange = 200 - 1;
@@ -352,20 +413,12 @@ function resolveSongScrollSpeed(settings) {
   return Number(urlSpeed || settings?.scrollSeconds || 45);
 }
 
-function scrollTravelSeconds(secondsPerViewport, distance, viewportDistance) {
-  return overlayUtils.scrollTravelSeconds(secondsPerViewport, distance, viewportDistance);
-}
-
 function overlayLowPowerEnabled(settings) {
   return overlayUtils.overlayLowPowerEnabled(settings);
 }
 
 function hexToRgba(hex, opacity) {
   return overlayUtils.hexToRgba(hex, opacity);
-}
-
-function escapeHtml(value) {
-  return overlayUtils.escapeHtml(value);
 }
 
 function withMultilingualFallback(fontFamily) {
