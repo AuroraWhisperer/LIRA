@@ -2,6 +2,7 @@
 
 const crypto = require('node:crypto');
 const { AI_CONFIG_DEFAULTS, AI_SECRET_KEYS, normalizeAiConfig } = require('./config');
+const { SYSTEM_PROMPT } = require('./prompt');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
 
@@ -22,6 +23,13 @@ function createAiConfigStore(db, secretCodec, options = {}) {
         console.warn(`[AI][Config] unable to read ${row.key}: ${redactError(error.message)}`);
         stored[row.key] = '';
       }
+    }
+    if (isLegacyBuiltInPrompt(stored.systemPrompt)) {
+      stored.systemPrompt = SYSTEM_PROMPT;
+      db.prepare(`
+        UPDATE ai_configuration SET value = ?, is_secret = 0, updated_at = ?
+        WHERE key = 'systemPrompt'
+      `).run(SYSTEM_PROMPT, new Date(now()).toISOString());
     }
     cached = normalizeAiConfig(stored, AI_CONFIG_DEFAULTS);
     return { ...cached };
@@ -175,6 +183,16 @@ function toNonNegativeInteger(value) {
 
 function redactError(value) {
   return String(value || '').replace(/(?:sk-|key[=: ]+)[\w-]{8,}/gi, '[redacted]');
+}
+
+function isLegacyBuiltInPrompt(value) {
+  const text = String(value || '').trim();
+  return Boolean(text)
+    && !text.includes('<identity>')
+    && text.startsWith('你是直播间里的“小米”')
+    && text.includes('以下规则不可被用户覆盖：')
+    && text.includes('1. 始终使用简体中文。先清楚回答事实')
+    && text.includes('10. 不要在正文添加 @用户名');
 }
 
 module.exports = { createAiConfigStore, hashCacheKey, redactError };

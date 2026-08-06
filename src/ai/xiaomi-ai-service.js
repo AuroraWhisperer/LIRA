@@ -327,7 +327,7 @@ function buildReplyInstructions(
   systemPrompt, replyMaxChars, excludedToolNames = new Set(), webSearchEnabled = true, mentionName = ''
 ) {
   const budget = getReplyLengthBudget(mentionName, replyMaxChars);
-  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；正文之外可以自然添加标点和一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”，但不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
+  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；默认尽量在正文后添加一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”。如果会超出上限、属于必要的简短拒答，或事实信息已经较多，可以省略；不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
   if (excludedToolNames.size) {
     instructions += webSearchEnabled
       ? '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用。涉及这些函数的查询必须改用 web_search，不要凭记忆回答。'
@@ -374,9 +374,9 @@ function publicError(error) {
 }
 
 function failureReply(error) {
-  if (error?.code === 'UPSTREAM_TIMEOUT') return '查询超时了，这次没有查到，稍后再问我喵～';
-  if (String(error?.code || '').includes('NOT_CONFIGURED')) return '对应查询工具还没配置好，暂时查不到喵～';
-  return '这次查询失败了，没有查到可靠结果喵～';
+  if (error?.code === 'UPSTREAM_TIMEOUT') return '超时没查到，稍后再来问我吧～';
+  if (String(error?.code || '').includes('NOT_CONFIGURED')) return '这个工具还没配好，本猫暂时帮不上喵';
+  return '这次没查到可靠的，先这样了～';
 }
 
 module.exports = {
