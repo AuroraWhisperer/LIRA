@@ -2,6 +2,8 @@
 
 const { fetchJson, createPublicError } = require('./http-client');
 
+const DEEPSEEK_MODELS_URL = 'https://api.deepseek.com/models';
+
 function createDeepSeekClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
 
@@ -33,7 +35,23 @@ function createDeepSeekClient(options = {}) {
     return normalizeResponse(payload);
   }
 
-  return { createResponse };
+  async function listModels(request = {}) {
+    const apiKey = String(request.apiKey || '').trim();
+    if (!apiKey) throw createPublicError('AI_NOT_CONFIGURED', '请先填写 DeepSeek API Key。');
+    const payload = await fetchJson(DEEPSEEK_MODELS_URL, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      timeoutMs: request.requestTimeoutMs,
+      fetchImpl
+    });
+    const models = Array.from(new Set(
+      (Array.isArray(payload?.data) ? payload.data : [])
+        .map((item) => item?.id)
+        .filter((id) => typeof id === 'string' && id.length >= 1 && id.length <= 80)
+    )).sort((left, right) => left.localeCompare(right));
+    return { models };
+  }
+
+  return { createResponse, listModels };
 }
 
 function normalizeResponse(payload) {

@@ -20,7 +20,7 @@ function createStore(options = {}) {
 test('AI config defaults are redacted and secrets are stored encrypted', () => {
   const { db, store } = createStore();
   const defaults = store.getPublicConfig();
-  assert.equal(defaults.model, 'ds-v4-flash');
+  assert.equal(defaults.model, 'deepseek-v4-flash');
   assert.equal(defaults.deepseekResponsesUrl, '');
   assert.equal(defaults.hasDeepSeekApiKey, false);
   assert.equal('deepseekApiKey' in defaults, false);
@@ -31,6 +31,13 @@ test('AI config defaults are redacted and secrets are stored encrypted', () => {
   assert.doesNotMatch(row.value, /sk-secret-value/);
   assert.equal(store.getConfig().deepseekApiKey, 'sk-secret-value');
   assert.equal(store.getPublicConfig().hasDeepSeekApiKey, true);
+});
+
+test('AI config normalizes the legacy DeepSeek model to its official name', () => {
+  const { store } = createStore();
+  assert.equal(store.updateConfig({ model: 'ds-v4-flash' }).model, 'deepseek-v4-flash');
+  assert.equal(store.getConfig().model, 'deepseek-v4-flash');
+  assert.equal(store.updateConfig({ model: 'custom-model' }).model, 'custom-model');
 });
 
 test('AI config validates URLs and numeric stability limits', () => {

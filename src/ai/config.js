@@ -13,7 +13,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
   trigger: '小米',
   deepseekResponsesUrl: '',
   deepseekApiKey: '',
-  model: 'ds-v4-flash',
+  model: 'deepseek-v4-flash',
   webSearchEnabled: true,
   reasoningEnabled: false,
   qweatherApiHost: '',
@@ -76,6 +76,7 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
       continue;
     }
     let value = String(rawValue ?? '').trim();
+    if (key === 'model' && value === 'ds-v4-flash') value = 'deepseek-v4-flash';
     if (key === 'qweatherApiHost' && value && !value.includes('://')) value = `https://${value}`;
     if (URL_KEYS.has(key) && value) validateHttpUrl(key, value);
     if (key === 'trigger' && (!value || Array.from(value).length > 12)) {

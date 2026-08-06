@@ -302,6 +302,7 @@ function createServerRuntime(runtimeOptions = {}) {
         getConfig: () => aiConfigStore.getPublicConfig(),
         updateConfig: (input) => aiConfigStore.updateConfig(input),
         getStatus: () => xiaomiAi.getStatus(),
+        listModels: (input) => xiaomiAi.listModels(input),
         test: () => xiaomiAi.testConfiguration()
       },
       settings: {

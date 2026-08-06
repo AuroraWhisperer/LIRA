@@ -34,6 +34,16 @@ const routes = {
   'GET /api/ai/status'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.ai.getStatus() });
   },
+  async 'POST /api/ai/models'(context, request, res) {
+    try {
+      const body = await request.body();
+      const apiKey = body?.apiKey ?? '';
+      if (typeof apiKey !== 'string' || apiKey.length > 512) throw new Error('DeepSeek API Key 格式无效。');
+      sendJson(res, 200, { ok: true, data: await context.ai.listModels({ apiKey: apiKey.trim() }) });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || '无法获取 DeepSeek 模型列表。' });
+    }
+  },
   async 'POST /api/ai/test'(context, request, res) {
     try {
       sendJson(res, 200, { ok: true, data: await context.ai.test() });

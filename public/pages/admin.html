@@ -1488,7 +1488,7 @@
                   <div class="xiaomi-ai-status-grid" aria-label="小米 AI 状态">
                     <div><span>配置状态</span><strong id="xiaomiAiConfigState">正在读取</strong></div>
                     <div><span>等待队列</span><strong id="xiaomiAiQueueState">0</strong></div>
-                    <div><span>运行模型</span><strong id="xiaomiAiModelState">ds-v4-flash</strong></div>
+                    <div><span>运行模型</span><strong id="xiaomiAiModelState">deepseek-v4-flash</strong></div>
                   </div>
                   <form id="xiaomiAiForm" class="xiaomi-ai-form">
                     <fieldset class="xiaomi-ai-primary-config">
@@ -1496,7 +1496,17 @@
                       <div class="xiaomi-ai-field-grid">
                         <label class="wide">Responses API 地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="留空，填写你的 Responses API 地址"></label>
                         <label>API Key<input id="xiaomiAiDeepSeekKey" type="password" autocomplete="new-password" placeholder="留空，填写 DeepSeek API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
-                        <label>模型<input id="xiaomiAiModel" type="text" maxlength="80" value="ds-v4-flash"></label>
+                        <label>模型
+                          <span class="xiaomi-ai-model-picker">
+                            <span class="xiaomi-ai-model-input-wrap">
+                              <input id="xiaomiAiModel" type="text" maxlength="80" list="xiaomiAiModelOptions" value="deepseek-v4-flash" autocomplete="off" aria-controls="xiaomiAiModelMenu" aria-expanded="false">
+                              <span id="xiaomiAiModelMenu" class="xiaomi-ai-model-menu" role="listbox" aria-label="DeepSeek 官方模型" hidden></span>
+                            </span>
+                            <button id="xiaomiAiFetchModelsBtn" class="secondary" type="button" aria-controls="xiaomiAiModelMenu" aria-expanded="false">获取模型</button>
+                          </span>
+                          <datalist id="xiaomiAiModelOptions"></datalist>
+                          <small id="xiaomiAiModelFetchState">可直接输入，或从 DeepSeek 官方获取模型。</small>
+                        </label>
                         <label>触发关键词<input id="xiaomiAiTrigger" type="text" maxlength="12" value="小米"></label>
                         <label>回复最大长度<input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"><small>只是硬上限；简单回复正文约 20 字，可另加标点或一个短颜文字</small></label>
                       </div>

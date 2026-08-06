@@ -179,6 +179,23 @@ test('AI delivery gives up after three missing room echoes', async () => {
   assert.equal(answerCount, 3);
 });
 
+test('model listing uses the saved key and prefers a newly entered key', async () => {
+  const requests = [];
+  const service = createTestService({
+    deepseek: {
+      async listModels(request) {
+        requests.push(request);
+        return { models: ['deepseek-v4-flash'] };
+      }
+    }
+  });
+
+  assert.deepEqual(await service.listModels(), { models: ['deepseek-v4-flash'] });
+  assert.deepEqual(await service.listModels({ apiKey: 'new-secret' }), { models: ['deepseek-v4-flash'] });
+  assert.equal(requests[0].apiKey, 'secret');
+  assert.equal(requests[1].apiKey, 'new-secret');
+});
+
 function createTestService(overrides = {}) {
   const config = {
     ...AI_CONFIG_DEFAULTS,

@@ -29,6 +29,11 @@ function init() {
   const enabledInput = document.getElementById('xiaomiAiEnabled');
   const saveState = document.getElementById('xiaomiAiSaveState');
   const testButton = document.getElementById('xiaomiAiTestBtn');
+  const fetchModelsButton = document.getElementById('xiaomiAiFetchModelsBtn');
+  const modelInput = document.getElementById('xiaomiAiModel');
+  const modelOptions = document.getElementById('xiaomiAiModelOptions');
+  const modelMenu = document.getElementById('xiaomiAiModelMenu');
+  const modelFetchState = document.getElementById('xiaomiAiModelFetchState');
   let autosaveTimer = null;
   let saving = false;
   let pendingSave = false;
@@ -67,7 +72,6 @@ function init() {
     setState(saveState, '正在自动保存…');
     try {
       const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
-      clearSubmittedSecrets(submittedConfig);
       renderConfigSummary(config);
       editedFieldIds.clear();
       setState(saveState, '已自动保存，后续新弹幕立即生效。', 'good');
@@ -133,6 +137,57 @@ function init() {
     }
   });
 
+  fetchModelsButton.addEventListener('click', async () => {
+    fetchModelsButton.disabled = true;
+    fetchModelsButton.textContent = '获取中…';
+    setState(modelFetchState, '正在从 DeepSeek 官方获取模型…');
+    try {
+      const apiKey = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
+      const result = await readApi('/api/ai/models', { method: 'POST', body: JSON.stringify({ apiKey }) });
+      const models = Array.isArray(result.models) ? result.models : [];
+      const options = models.map((model) => {
+        const option = document.createElement('option');
+        option.value = model;
+        return option;
+      });
+      const menuItems = models.map((model) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'xiaomi-ai-model-option';
+        item.setAttribute('role', 'option');
+        item.textContent = model;
+        item.addEventListener('click', () => {
+          modelInput.value = model;
+          editedFieldIds.add(modelInput.id);
+          closeModelMenu();
+          scheduleSave();
+        });
+        return item;
+      });
+      modelOptions.replaceChildren(...options);
+      modelMenu.replaceChildren(...menuItems);
+      setState(modelFetchState, `已获取 ${options.length} 个官方模型；可选择或直接输入。`, options.length ? 'good' : 'warn');
+      modelMenu.hidden = menuItems.length === 0;
+      modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
+      fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
+    } catch (error) {
+      setState(modelFetchState, error.message || '无法获取 DeepSeek 模型列表。', 'warn');
+    } finally {
+      fetchModelsButton.disabled = false;
+      fetchModelsButton.textContent = '获取模型';
+    }
+  });
+
+  modelInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeModelMenu();
+  });
+
+  function closeModelMenu() {
+    modelMenu.hidden = true;
+    modelInput.setAttribute('aria-expanded', 'false');
+    fetchModelsButton.setAttribute('aria-expanded', 'false');
+  }
+
   void refreshConfig();
 }
 
@@ -173,7 +228,7 @@ function renderConfigSummary(config) {
   renderSecretHint('xiaomiAiQWeatherKeyHint', config.hasQWeatherApiKey);
   renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
   document.getElementById('xiaomiAiConfigState').textContent = config.hasDeepSeekApiKey && config.deepseekResponsesUrl ? '可运行' : '等待配置';
-  document.getElementById('xiaomiAiModelState').textContent = config.model || 'ds-v4-flash';
+  document.getElementById('xiaomiAiModelState').textContent = config.model || 'deepseek-v4-flash';
 }
 
 function renderStatus(status) {
@@ -184,18 +239,6 @@ function renderStatus(status) {
 function renderSecretHint(id, saved) {
   const element = document.getElementById(id);
   element.textContent = saved ? '已加密保存；留空表示保留' : '尚未保存';
-}
-
-function clearSubmittedSecrets(config) {
-  const secrets = [
-    ['xiaomiAiDeepSeekKey', 'deepseekApiKey'],
-    ['xiaomiAiQWeatherKey', 'qweatherApiKey'],
-    ['xiaomiAiAmapKey', 'amapApiKey']
-  ];
-  for (const [id, key] of secrets) {
-    const element = document.getElementById(id);
-    if (config[key] && element.value.trim() === config[key]) element.value = '';
-  }
 }
 
 function setState(element, text, kind = '') {

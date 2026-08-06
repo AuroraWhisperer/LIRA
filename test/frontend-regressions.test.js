@@ -127,7 +127,9 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
 
   assert.ok(html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
-  assert.match(html, /id="xiaomiAiModel"[^>]*value="ds-v4-flash"/);
+  assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*value="deepseek-v4-flash"/);
+  assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
+  assert.match(html, /id="xiaomiAiModelOptions"/);
   assert.match(html, /id="xiaomiAiWebSearch"[^>]*checked/);
   assert.match(html, /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
@@ -161,7 +163,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     xiaomiAiEnabled: false,
     xiaomiAiTrigger: '小米',
     xiaomiAiDeepSeekUrl: '',
-    xiaomiAiModel: 'ds-v4-flash',
+    xiaomiAiModel: 'deepseek-v4-flash',
     xiaomiAiWebSearch: true,
     xiaomiAiReasoning: false,
     xiaomiAiQWeatherHost: '',
@@ -183,15 +185,30 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     textContent: '',
     className: '',
     disabled: false,
+    attributes: {},
+    setAttribute(name, attributeValue) { this.attributes[name] = attributeValue; },
     addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
   }]));
   for (const id of [
-    'xiaomiAiSaveState', 'xiaomiAiTestBtn', 'xiaomiAiDeepSeekKeyHint',
+    'xiaomiAiSaveState', 'xiaomiAiTestBtn', 'xiaomiAiFetchModelsBtn', 'xiaomiAiDeepSeekKeyHint',
     'xiaomiAiQWeatherKeyHint', 'xiaomiAiAmapKeyHint', 'xiaomiAiConfigState',
-    'xiaomiAiModelState', 'xiaomiAiQueueState'
+    'xiaomiAiModelState', 'xiaomiAiQueueState', 'xiaomiAiModelFetchState'
   ]) {
-    if (!elements.has(id)) elements.set(id, { id, value: '', checked: false, textContent: '', className: '', disabled: false, addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); } });
+    if (!elements.has(id)) elements.set(id, {
+      id, value: '', checked: false, textContent: '', className: '', disabled: false, attributes: {},
+      setAttribute(name, value) { this.attributes[name] = value; },
+      addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
+    });
   }
+  elements.set('xiaomiAiModelOptions', {
+    children: [],
+    replaceChildren(...children) { this.children = children; }
+  });
+  elements.set('xiaomiAiModelMenu', {
+    hidden: true,
+    children: [],
+    replaceChildren(...children) { this.children = children; }
+  });
   const form = {
     checkValidity: () => true,
     reportValidity: () => true,
@@ -203,7 +220,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     enabled: false,
     trigger: '小米',
     deepseekResponsesUrl: 'https://api.example.com/responses',
-    model: 'ds-v4-flash',
+    model: 'deepseek-v4-flash',
     webSearchEnabled: true,
     reasoningEnabled: false,
     qweatherApiHost: '',
@@ -222,10 +239,25 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   const initialConfigResponse = new Promise((resolve) => { resolveInitialConfig = resolve; });
   const sandbox = {
     console,
-    document: { getElementById: id => elements.get(id) },
+    document: {
+      getElementById: id => elements.get(id),
+      createElement: tagName => ({
+        tagName,
+        value: '',
+        textContent: '',
+        className: '',
+        attributes: {},
+        listeners: {},
+        setAttribute(name, value) { this.attributes[name] = value; },
+        addEventListener(type, handler) { this.listeners[type] = handler; }
+      })
+    },
     fetch: async (url, options = {}) => {
       fetchCalls.push({ url, options });
       if (url === '/api/ai/config' && !options.method) return initialConfigResponse;
+      if (url === '/api/ai/models') {
+        return { ok: true, json: async () => ({ ok: true, data: { models: ['deepseek-v4-flash', 'deepseek-v4-pro'] } }) };
+      }
       const data = url === '/api/ai/status' ? { queued: 0 } : publicConfig;
       return { ok: true, json: async () => ({ ok: true, data }) };
     },
@@ -266,6 +298,9 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   assert.equal(firstSavedConfig.amapApiHost, 'https://restapi.amap.com');
   assert.equal(firstSavedConfig.amapApiKey, 'amap-secret');
   assert.equal(firstSavedConfig.systemPrompt, publicConfig.systemPrompt);
+  assert.equal(elements.get('xiaomiAiDeepSeekKey').value, 'deepseek-secret');
+  assert.equal(elements.get('xiaomiAiQWeatherKey').value, 'qweather-secret');
+  assert.equal(elements.get('xiaomiAiAmapKey').value, 'amap-secret');
 
   elements.get('xiaomiAiEnabled').checked = true;
   listeners.get('xiaomiAiEnabled:change')();
@@ -274,14 +309,38 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   assert.equal(saves.length, 2);
   assert.equal(JSON.parse(saves[1].options.body).enabled, true);
 
-  elements.get('xiaomiAiModel').value = 'new-model';
-  listeners.get('form:input')({ target: { matches: () => false } });
-  assert.equal(fetchCalls.filter(call => call.options.method === 'PUT').length, 2);
+  listeners.get('xiaomiAiFetchModelsBtn:click')();
+  await new Promise(resolve => setImmediate(resolve));
+  const modelRequest = fetchCalls.find(call => call.url === '/api/ai/models');
+  assert.equal(JSON.parse(modelRequest.options.body).apiKey, 'deepseek-secret');
+  assert.deepEqual(
+    elements.get('xiaomiAiModelOptions').children.map(option => option.value),
+    ['deepseek-v4-flash', 'deepseek-v4-pro']
+  );
+  assert.equal(elements.get('xiaomiAiModelMenu').hidden, false);
+  assert.deepEqual(
+    elements.get('xiaomiAiModelMenu').children.map(option => option.textContent),
+    ['deepseek-v4-flash', 'deepseek-v4-pro']
+  );
+  assert.equal(elements.get('xiaomiAiModelFetchState').textContent, '已获取 2 个官方模型；可选择或直接输入。');
+
+  elements.get('xiaomiAiModelMenu').children[1].listeners.click();
+  assert.equal(elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');
+  assert.equal(elements.get('xiaomiAiModelMenu').hidden, true);
   timers.at(-1)();
   await new Promise(resolve => setImmediate(resolve));
   saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
   assert.equal(saves.length, 3);
-  assert.equal(JSON.parse(saves[2].options.body).model, 'new-model');
+  assert.equal(JSON.parse(saves[2].options.body).model, 'deepseek-v4-pro');
+
+  elements.get('xiaomiAiModel').value = 'new-model';
+  listeners.get('form:input')({ target: { id: 'xiaomiAiModel', matches: () => false } });
+  assert.equal(fetchCalls.filter(call => call.options.method === 'PUT').length, 3);
+  timers.at(-1)();
+  await new Promise(resolve => setImmediate(resolve));
+  saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
+  assert.equal(saves.length, 4);
+  assert.equal(JSON.parse(saves[3].options.body).model, 'new-model');
 });
 
 test('admin blind box summary shows one row per viewer and opens analysis', () => {

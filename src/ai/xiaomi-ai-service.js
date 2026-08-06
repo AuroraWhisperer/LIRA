@@ -233,6 +233,12 @@ function createXiaomiAiService(dependencies) {
     return { ok: Boolean(response.text), model: config.model };
   }
 
+  async function listModels(input = {}) {
+    const config = store.getConfig();
+    const apiKey = String(input.apiKey || '').trim() || config.deepseekApiKey;
+    return deepseek.listModels({ apiKey, requestTimeoutMs: config.requestTimeoutMs });
+  }
+
   function getStatus() {
     const config = store.getConfig();
     return {
@@ -251,7 +257,7 @@ function createXiaomiAiService(dependencies) {
     coordinator.stop();
   }
 
-  return { handleDanmaku, testConfiguration, getStatus, shutdown };
+  return { handleDanmaku, testConfiguration, listModels, getStatus, shutdown };
 }
 
 function buildAvailableTools(config, excludedToolNames) {

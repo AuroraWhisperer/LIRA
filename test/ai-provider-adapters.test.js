@@ -45,6 +45,32 @@ test('DeepSeek client parses function calls from Responses output', async () => 
   assert.deepEqual(result.functionCalls[0].arguments, { location: '苏州', date: 'today', dataType: 'weather' });
 });
 
+test('DeepSeek client lists sanitized official model ids', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), options };
+      return jsonResponse({
+        data: [
+          { id: 'deepseek-v4-pro' },
+          { id: 'deepseek-v4-flash' },
+          { id: 'deepseek-v4-pro' },
+          { id: '' },
+          { id: 'x'.repeat(81) },
+          { id: 42 }
+        ]
+      });
+    }
+  });
+
+  const result = await client.listModels({ apiKey: 'temporary-secret', requestTimeoutMs: 3000 });
+
+  assert.equal(captured.url, 'https://api.deepseek.com/models');
+  assert.equal(captured.options.headers.Authorization, 'Bearer temporary-secret');
+  assert.doesNotMatch(captured.url, /temporary-secret/);
+  assert.deepEqual(result.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
+});
+
 test('current time tool uses IANA timezone without an external API', () => {
   const result = getCurrentTime({ timeZone: 'Asia/Shanghai' }, { now: '2026-08-06T04:00:00.000Z' });
   assert.equal(result.timeZone, 'Asia/Shanghai');

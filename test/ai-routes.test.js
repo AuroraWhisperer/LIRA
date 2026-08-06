@@ -38,3 +38,37 @@ test('AI config route returns a validation error without exposing request intern
   assert.equal(res.statusCode, 400);
   assert.equal(JSON.parse(res.body).error, '发送间隔无效。');
 });
+
+test('AI models route passes an optional temporary key without exposing it', async () => {
+  let received;
+  const context = {
+    ai: {
+      async listModels(input) {
+        received = input;
+        return { models: ['deepseek-v4-flash', 'deepseek-v4-pro'] };
+      }
+    }
+  };
+  const res = createResponseRecorder();
+  await routes['POST /api/ai/models'](context, {
+    body: async () => ({ apiKey: 'temporary-key' })
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(received, { apiKey: 'temporary-key' });
+  assert.deepEqual(JSON.parse(res.body).data.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
+  assert.doesNotMatch(res.body, /temporary-key/);
+});
+
+test('AI models route rejects an invalid temporary key before calling the service', async () => {
+  let called = false;
+  const context = { ai: { async listModels() { called = true; } } };
+  const res = createResponseRecorder();
+  await routes['POST /api/ai/models'](context, {
+    body: async () => ({ apiKey: 'x'.repeat(513) })
+  }, res);
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(called, false);
+  assert.doesNotMatch(res.body, /xxxxxxxx/);
+});

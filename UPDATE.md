@@ -1,8 +1,17 @@
 # 打包与更新说明
 
-当前版本：`3.2.11`
+当前版本：`3.2.12`
 
 ---
+
+## v3.2.12 变更
+
+- 🤖 **DeepSeek 官方模型获取与选择**：小米 AI 面板模型输入框右侧新增「获取模型」按钮——点击后通过本机 `POST /api/ai/models` 端点代理请求 DeepSeek 官方 `GET https://api.deepseek.com/models`，返回的模型 ID 以自定义下拉菜单（`role="listbox"`）展示，点击选项自动填入模型输入框并触发自动保存。密码框中有临时 API Key 时优先使用该值，密码框为空时使用已加密保存的 Key。菜单支持 ESC 关闭、`aria-expanded` 无障碍状态，获取期间按钮禁用显示「获取中…」。520px 以下按钮撑满全宽。
+- 🔧 **旧模型名规范化为官方名称**：`ds-v4-flash` → `deepseek-v4-flash`——`config.js` 默认值、`normalizeAiConfig` 显式映射（输入旧名自动转为官方名）、`admin.html` 初始值和状态面板、前端测试 fixtures 全部更新。自定义模型名不受影响，仅精确匹配 `ds-v4-flash` 时转换。
+- 🔒 **API Key 保存后保留在输入框**：移除 `clearSubmittedSecrets()` 函数及其调用——DeepSeek、和风天气、高德三个密钥输入框在自动保存成功后不再清空，用户可继续查看和编辑已填写的密钥。服务端加密存储和公网响应脱敏保持不变，密钥永远不会通过 API 回传。
+- 🛡️ **模型获取安全边界**：`POST /api/ai/models` 路由验证临时 Key 为字符串且 ≤512 字符，超长 Key 在到达服务层前被拒绝。API Key 不进入模型列表响应、错误消息或日志。模型 ID 经过去重、排序和 1-80 字符长度过滤，通过 `option.value` 写入 DOM 而非 `innerHTML`。
+- 🎨 **模型选择器 UI 样式**：模型输入框与按钮使用双列 Grid 布局（`minmax(0, 1fr) auto`）、7px 间距。下拉菜单绝对定位在输入框下方，最大高度 220px 可滚动，圆角 8px + 深阴影。选项 hover/focus 时高亮（`--surface-2`）。响应式 520px 断点下按钮撑满宽度。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增 DeepSeek 模型列表适配器测试（去重/过滤空 ID/过滤超长 ID/排序/Key 不进 URL）。`test/ai-routes.test.js` 新增模型路由测试（临时 Key 透传、超长 Key 拒绝、响应不含 Key）。`test/ai-config-store.test.js` 新增旧模型名规范化测试（`ds-v4-flash` → `deepseek-v4-flash` + 自定义模型保留）。`test/xiaomi-ai-service.test.js` 新增模型获取 Key 优先级测试（新输入优先于已保存）。`test/frontend-regressions.test.js` 扩展自动保存测试——模型获取按钮点击、datalist 填充断言、下拉菜单选项点击选择、`aria-expanded` 状态、密钥保存后值保留断言、手动输入模型名仍触发自动保存。
 
 ## v3.2.11 变更
 
