@@ -339,7 +339,7 @@ body.player-dock-expanded .other-workspace {
 }
 .danmaku-bot-switch-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .danmaku-bot-switch-card {
   min-width: 0;
@@ -430,7 +430,9 @@ body.player-dock-expanded .other-workspace {
 }
 .danmaku-blessings-section h3 { margin: 0; color: var(--text); font-size: 16px; }
 .danmaku-blessings-section summary p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
-#danmakuBlessingCount { color: var(--text); font-weight: 700; }
+#danmakuBlessingCount,
+#danmakuFortuneCount,
+#danmakuCustomReplyCount { color: var(--text); font-weight: 700; }
 .danmaku-details-chevron {
   flex: 0 0 auto;
   width: 20px;
@@ -500,6 +502,68 @@ body.player-dock-expanded .other-workspace {
 .danmaku-blessing-actions .hint.good { color: #278b5b; }
 .danmaku-blessing-actions .hint.warn { color: var(--warning); }
 .danmaku-blessing-empty { padding: 24px 14px; color: var(--muted); font-size: 12px; text-align: center; }
+.danmaku-fortune-list {
+  display: grid;
+  max-height: 480px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--color-bg-primary);
+}
+.danmaku-fortune-row { display: grid; gap: 8px; padding: 10px 12px 12px; }
+.danmaku-fortune-row + .danmaku-fortune-row { border-top: 1px solid var(--border); }
+.danmaku-fortune-row-heading { display: flex; align-items: center; justify-content: space-between; }
+.danmaku-fortune-fields,
+.danmaku-fortune-add-grid {
+  display: grid;
+  grid-template-columns: 110px 150px minmax(180px, 1fr) minmax(180px, 1fr);
+  gap: 8px;
+}
+.danmaku-fortune-fields label,
+.danmaku-fortune-add-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.danmaku-fortune-fields input,
+.danmaku-fortune-add-grid input { min-width: 0; }
+.danmaku-fortune-add-grid .secondary { grid-column: 4; justify-self: end; }
+.danmaku-custom-reply-list {
+  display: grid;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--color-bg-primary);
+}
+.danmaku-custom-reply-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 36px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 0;
+}
+.danmaku-custom-reply-row + .danmaku-custom-reply-row { border-top: 1px solid var(--border); }
+.danmaku-custom-reply-fields,
+.danmaku-custom-reply-add-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.45fr) minmax(180px, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+.danmaku-custom-reply-fields label,
+.danmaku-custom-reply-add-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.danmaku-custom-reply-fields input,
+.danmaku-custom-reply-add-grid input { min-width: 0; }
+.danmaku-custom-reply-add-grid .secondary { grid-column: 2; justify-self: end; }
 
 .usage-guide-panel {
   width: 100%;
@@ -674,6 +738,16 @@ body.player-dock-expanded .other-workspace {
   line-height: 1.4;
 }
 
+@media (max-width: 900px) {
+  .danmaku-bot-switch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .danmaku-fortune-fields,
+  .danmaku-fortune-add-grid,
+  .danmaku-custom-reply-fields,
+  .danmaku-custom-reply-add-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .danmaku-fortune-add-grid .secondary { grid-column: 2; }
+  .danmaku-custom-reply-add-grid .secondary { grid-column: 2; }
+}
+
 @media (max-width: 600px) {
   .other-feature-panel-header-inline,
   .danmaku-reply-target { align-items: flex-start; flex-direction: column; }
@@ -689,6 +763,12 @@ body.player-dock-expanded .other-workspace {
   .danmaku-blessings-body { padding: 12px 14px 14px; }
   .danmaku-blessing-actions { align-items: stretch; flex-direction: column; }
   .danmaku-blessing-actions button { width: 100%; }
+  .danmaku-fortune-fields,
+  .danmaku-fortune-add-grid,
+  .danmaku-custom-reply-fields,
+  .danmaku-custom-reply-add-grid { grid-template-columns: 1fr; }
+  .danmaku-fortune-add-grid .secondary { grid-column: 1; justify-self: stretch; }
+  .danmaku-custom-reply-add-grid .secondary { grid-column: 1; justify-self: stretch; }
   .usage-guide-hero {
     align-items: flex-start;
     flex-direction: column;

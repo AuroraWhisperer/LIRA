@@ -19,6 +19,9 @@ class MessageHandlers {
     this.connectionGeneration = Number(options.connectionGeneration) || 0;
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.messageBuffer = options.messageBuffer || null;
+    this.isCommandText = typeof options.isCommandText === 'function'
+      ? options.isCommandText
+      : isBilibiliCommandText;
     // 每 5 分钟清理一次身份缓存，防止无界增长
     this._identityCleanupTimer = setInterval(() => {
       if (this.identityCache && typeof this.identityCache.cleanup === 'function') {
@@ -71,10 +74,10 @@ class MessageHandlers {
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
 
-    if (isBilibiliCommandText(text) && !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)) {
+    if (this.isCommandText(text) && !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)) {
       return;
     }
-    if (isBilibiliCommandText(text) && !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
+    if (this.isCommandText(text) && !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
       userName: userInfo[1],
       source: 'danmaku'
     })) {
@@ -140,7 +143,7 @@ class MessageHandlers {
       ...trace
     });
 
-    if (!isBilibiliCommandText(text)) {
+    if (!this.isCommandText(text)) {
       return;
     }
     if (!bilibiliHelpers.isCapturableBilibiliTimestamp(superChat.messageTimestamp, this.startedAtMs)) {

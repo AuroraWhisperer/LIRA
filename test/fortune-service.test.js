@@ -9,6 +9,7 @@ const {
   FORTUNES,
   buildFortuneReply,
   createFortuneService,
+  parseFortunePool,
   pickDailyFortune
 } = require('../src/bilibili/fortune-service');
 const { isBilibiliCommandText } = require('../src/bilibili/danmaku/command-text');
@@ -71,6 +72,29 @@ test('fortune pool has weighted Chinese sign levels and complete guidance', () =
     return reply.includes('宜') && reply.includes('忌');
   }));
   assert.ok(FORTUNES.some((fortune) => Array.from(buildFortuneReply(fortune)).length > 40));
+});
+
+test('fortune bot uses a saved pool and falls back from invalid settings', () => {
+  const saved = [{
+    level: '自定义签',
+    name: '心想事成',
+    text: '今天会有好消息',
+    advice: '宜保持期待，忌过度焦虑'
+  }];
+
+  assert.deepEqual(parseFortunePool(JSON.stringify(saved)), saved);
+  assert.deepEqual(parseFortunePool('not-json'), FORTUNES);
+  assert.deepEqual(parseFortunePool('[]'), FORTUNES);
+  assert.deepEqual(parseFortunePool('[{"level":"上签"}]'), FORTUNES);
+  assert.deepEqual(pickDailyFortune('123', '2026-08-06', JSON.stringify(saved)), saved[0]);
+
+  const service = createFortuneService({
+    settings: () => ({ enableFortuneBot: 'true', fortunePool: JSON.stringify(saved) })
+  });
+  assert.deepEqual(
+    service.handleDanmaku({ message: '抽签', uid: '123' }).fortune,
+    saved[0]
+  );
 });
 
 test('fortune command participates in danmaku filtering and domain replies', () => {

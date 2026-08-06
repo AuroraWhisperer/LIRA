@@ -1,6 +1,6 @@
 'use strict';
 
-const { cleanText } = require('../../shared/utils');
+const { cleanText, splitTextIntoCharacters } = require('../../shared/utils');
 
 const DANMAKU_MESSAGE_LIMIT = 40;
 const DISPLAY_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -14,6 +14,7 @@ function createDanmakuSenderService(dependencies) {
     getAutoReplyEnabled = () => false,
     getCheckinBotEnabled = () => false,
     getFortuneBotEnabled = () => false,
+    getCustomReplyBotEnabled = () => false,
     createClient,
     minIntervalMs = 1500,
     now = Date.now,
@@ -41,6 +42,7 @@ function createDanmakuSenderService(dependencies) {
       autoReplyEnabled: Boolean(getAutoReplyEnabled()),
       checkinBotEnabled: Boolean(getCheckinBotEnabled()),
       fortuneBotEnabled: Boolean(getFortuneBotEnabled()),
+      customReplyBotEnabled: Boolean(getCustomReplyBotEnabled()),
       canSend: Boolean(loggedIn && roomId),
       unavailableReason: !loggedIn ? '请先登录 Bilibili 账号。' : (!roomId ? '请先设置直播间号。' : ''),
       requester: target || emptyTarget()
@@ -133,7 +135,7 @@ function emptyTarget() {
 }
 
 function splitDanmakuMessage(message, limit = DANMAKU_MESSAGE_LIMIT) {
-  const chars = Array.from(String(message || ''));
+  const chars = splitTextIntoCharacters(message);
   const chunks = [];
   for (let index = 0; index < chars.length; index += limit) {
     chunks.push(chars.slice(index, index + limit).join(''));
@@ -145,8 +147,8 @@ function splitDanmakuReplyMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT
   const name = cleanText(target && target.name);
   if (!name) return splitDanmakuMessage(message, limit);
 
-  const chars = Array.from(String(message || ''));
-  const mentionLength = Array.from(`@${name} `).length;
+  const chars = splitTextIntoCharacters(message);
+  const mentionLength = splitTextIntoCharacters(`@${name} `).length;
   const firstLimit = Math.max(1, limit - mentionLength);
   const chunks = [chars.slice(0, firstLimit).join('')];
   for (let index = firstLimit; index < chars.length; index += limit) {

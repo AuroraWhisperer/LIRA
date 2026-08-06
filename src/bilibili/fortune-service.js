@@ -54,7 +54,7 @@ function createFortuneService(dependencies = {}) {
       }
 
       const dateKey = chinaDateKey(Number(nowMs()) || Date.now());
-      const fortune = pickFortune(uid, dateKey);
+      const fortune = pickFortune(uid, dateKey, currentSettings.fortunePool);
       const userName = cleanText(danmaku.userName) || '观众';
       return {
         accepted: true,
@@ -70,9 +70,30 @@ function createFortuneService(dependencies = {}) {
   };
 }
 
-function pickDailyFortune(uid, dateKey) {
-  const index = stableHash(`${cleanText(dateKey)}:${cleanText(uid)}`) % FORTUNES.length;
-  return FORTUNES[index];
+function parseFortunePool(value) {
+  let parsed = value;
+  if (!Array.isArray(parsed)) {
+    try {
+      parsed = JSON.parse(String(value || ''));
+    } catch (_) {
+      parsed = null;
+    }
+  }
+  if (!Array.isArray(parsed)) return [...FORTUNES];
+
+  const fortunes = parsed.map((item) => ({
+    level: cleanText(item && item.level),
+    name: cleanText(item && item.name),
+    text: cleanText(item && item.text),
+    advice: cleanText(item && item.advice)
+  })).filter((item) => item.level && item.name && item.text && item.advice);
+  return fortunes.length > 0 ? fortunes : [...FORTUNES];
+}
+
+function pickDailyFortune(uid, dateKey, value) {
+  const fortunes = parseFortunePool(value);
+  const index = stableHash(`${cleanText(dateKey)}:${cleanText(uid)}`) % fortunes.length;
+  return fortunes[index];
 }
 
 function stableHash(value) {
@@ -96,6 +117,7 @@ module.exports = {
   FORTUNE_COMMAND,
   FORTUNES,
   createFortuneService,
+  parseFortunePool,
   pickDailyFortune,
   buildFortuneReply,
   isFortuneCommand

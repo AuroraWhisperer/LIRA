@@ -47,7 +47,9 @@ const routes = {
         ok: true,
         data: {
           ...sender,
-          checkinBlessings: settings.checkinBlessings
+          checkinBlessings: settings.checkinBlessings,
+          fortunePool: settings.fortunePool,
+          customReplyRules: settings.customReplyRules
         }
       });
     } catch (error) {

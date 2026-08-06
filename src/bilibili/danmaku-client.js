@@ -46,13 +46,17 @@ class BilibiliDanmakuClient {
       {
         runtimeGiftCommandPrefixes: this.runtimeGiftCommandPrefixes,
         startedAtMs: this.startedAtMs,
-        messageBuffer: this.messageBuffer
+        messageBuffer: this.messageBuffer,
+        isCommandText: options.isCommandText
       }
     );
     this.historyPoller = new HistoryPoller(
       this.apiClient,
       (messageData) => this.handleHistoryMessage(messageData),
-      { startedAtMs: this.startedAtMs }
+      {
+        startedAtMs: this.startedAtMs,
+        isCommandText: options.isCommandText
+      }
     );
     this.onlineRankPoller = new OnlineRankPoller(this.apiClient, this.identityCache);
     this.liveStatusMonitor = new LiveStatusMonitor(

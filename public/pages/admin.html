@@ -1444,7 +1444,7 @@
                     <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
                   </div>
                 </section>
-                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle">
+                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
                   <div class="danmaku-bot-switch-grid">
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
                       <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p id="danmakuReplyTarget">条件不匹配时，自动回复点歌人</p></div>
@@ -1458,8 +1458,46 @@
                       <div><strong id="danmakuFortuneTitle">抽签机器人</strong><p>收到“抽签”弹幕后回复每日一签</p></div>
                       <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox"><span class="switch-track"></span><span>启用抽签</span></label>
                     </div>
+                    <div class="danmaku-reply-target danmaku-bot-switch-card">
+                      <div><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><p>收到自定义关键词后回复固定文案</p></div>
+                      <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用 DIY</span></label>
+                    </div>
                   </div>
                 </section>
+                <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuComposeTitle">发送弹幕</h3>
+                      <p>发送内容和发送结果会保留在同一个操作区。</p>
+                    </div>
+                  </div>
+                  <form id="danmakuSendForm" class="stack">
+                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
+                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
+                  </form>
+                  <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
+                </section>
+                <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
+                  <summary>
+                    <div>
+                      <h3>DIY 关键词回复</h3>
+                      <p>弹幕包含关键词时自动回复 <span id="danmakuCustomReplyCount">0 条</span></p>
+                    </div>
+                    <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </summary>
+                  <div class="danmaku-blessings-body">
+                    <div id="danmakuCustomReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
+                    <div class="danmaku-custom-reply-add-grid">
+                      <label>关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：菜单"></label>
+                      <label>回复内容<input id="danmakuCustomReplyInput" type="text" maxlength="120" placeholder="例如：点歌格式是 点歌 歌名"></label>
+                      <button id="danmakuCustomReplyAddBtn" class="secondary" type="button">添加回复</button>
+                    </div>
+                    <div class="danmaku-blessing-actions">
+                      <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取 DIY 回复</span>
+                      <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存 DIY 回复</button>
+                    </div>
+                  </div>
+                </details>
                 <details id="danmakuBlessingsPanel" class="danmaku-blessings-section">
                   <summary>
                     <div>
@@ -1482,19 +1520,29 @@
                     </div>
                   </div>
                 </details>
-                <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
-                  <div class="danmaku-section-heading">
+                <details id="danmakuFortunesPanel" class="danmaku-blessings-section">
+                  <summary>
                     <div>
-                      <h3 id="danmakuComposeTitle">发送弹幕</h3>
-                      <p>发送内容和发送结果会保留在同一个操作区。</p>
+                      <h3>抽签机器人词库</h3>
+                      <p>按观众和日期固定抽取 <span id="danmakuFortuneCount">0 条</span></p>
+                    </div>
+                    <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </summary>
+                  <div class="danmaku-blessings-body">
+                    <div id="danmakuFortuneList" class="danmaku-fortune-list" aria-live="polite"></div>
+                    <div class="danmaku-fortune-add-grid">
+                      <label>签级<input id="danmakuFortuneLevelInput" type="text" maxlength="16" placeholder="例如：上上签"></label>
+                      <label>签名<input id="danmakuFortuneNameInput" type="text" maxlength="24" placeholder="例如：云开见日"></label>
+                      <label>签文<input id="danmakuFortuneTextInput" type="text" maxlength="80" placeholder="输入签文"></label>
+                      <label>建议<input id="danmakuFortuneAdviceInput" type="text" maxlength="80" placeholder="例如：宜……，忌……"></label>
+                      <button id="danmakuFortuneAddBtn" class="secondary" type="button">添加一签</button>
+                    </div>
+                    <div class="danmaku-blessing-actions">
+                      <span id="danmakuFortuneStatus" class="hint" role="status" aria-live="polite">正在读取抽签词库</span>
+                      <button id="danmakuFortuneSaveBtn" class="primary" type="button">保存抽签词库</button>
                     </div>
                   </div>
-                  <form id="danmakuSendForm" class="stack">
-                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
-                  </form>
-                  <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
-                </section>
+                </details>
               </div>
             </section>
             <section id="otherGiftFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>
@@ -1793,7 +1841,7 @@
                       <p>使用已登录的 Bilibili 账号向直播间发送弹幕。面板分为三个区域：</p>
                       <ul>
                         <li><strong>连接状态</strong>：显示当前发送账号（含昵称）、目标直播间（含房间名）和发送状态（是否可发送）。</li>
-                        <li><strong>自动回复</strong>：两个独立开关——「随机点歌回复」在观众点歌条件无匹配时自动 @ 提醒；「签到机器人」在观众发送「签到」弹幕时自动回复累计签到天数和随机祝福语。签到祝福语可以自定义编辑（添加/删除/修改），点击「签到祝福语」折叠面板即可管理。</li>
+                        <li><strong>自动回复</strong>：四个独立开关——「随机点歌回复」在观众点歌条件无匹配时自动 @ 提醒；「签到机器人」回复累计签到天数和随机祝福语；「抽签机器人」按观众和日期回复每日一签；「DIY 关键词回复」按自定义关键词回复固定文案。DIY 规则、签到祝福语和抽签词库都可以在下方折叠面板中添加、删除、修改。</li>
                         <li><strong>发送弹幕</strong>：输入框 + 发送按钮，Ctrl+Enter 快捷发送。字符计数实时显示，超长弹幕自动拆分为多条连续发送。发送结果在底部状态栏实时反馈。</li>
                       </ul>
                     </article>
@@ -1863,7 +1911,7 @@
                     </article>
                     <article class="usage-guide-card">
                       <strong>签到与回复</strong>
-                      <p>签到机器人和随机点歌回复的开关在百宝箱 → 弹幕姬面板。祝福语列表也在同一面板的折叠区域编辑。</p>
+                      <p>签到机器人、抽签机器人、随机点歌回复和 DIY 关键词回复的开关都在百宝箱 → 弹幕姬面板。DIY 规则、签到祝福语和抽签词库也在同一面板的折叠区域编辑。</p>
                     </article>
                     <article class="usage-guide-card">
                       <strong>歌单展示板</strong>

@@ -22,6 +22,7 @@ const { createLyricsService } = require('./music/lyrics-service');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
+const { isBilibiliCommandText } = require('./bilibili/danmaku/command-text');
 const giftService = require('./bilibili/gift');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
@@ -170,6 +171,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
     getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
     getFortuneBotEnabled: () => settingsStore.getSettings().enableFortuneBot === 'true',
+    getCustomReplyBotEnabled: () => settingsStore.getSettings().enableCustomReplyBot === 'true',
     createClient(roomId, auth) {
       if (bilibiliClient && bilibiliClient.roomId === roomId) {
         bilibiliClient.apiClient.updateAuth(auth.cookieHeader, auth.uid);
@@ -535,6 +537,14 @@ function createServerRuntime(runtimeOptions = {}) {
               console.warn(`[Bilibili] fortune auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
             });
           }
+          if (result.customReplyReply) {
+            void danmakuSender.send({
+              message: result.customReplyReply.message,
+              mentionTarget: result.customReplyReply.target
+            }).catch((error) => {
+              console.warn(`[Bilibili] custom auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
+            });
+          }
           if (result.accepted) {
             broadcastSnapshot(danmaku.source === 'superchat' ? 'bilibili:superchat' : 'bilibili:danmaku');
           }
@@ -583,7 +593,8 @@ function createServerRuntime(runtimeOptions = {}) {
       bilibiliAuth: {
         cookieHeader: bilibiliAuthCache.cookieHeader,
         uid: bilibiliAuthCache.uid
-      }
+      },
+      isCommandText: (message) => isBilibiliCommandText(message, domainServices.customReplies.isCommandText)
     });
   }
 

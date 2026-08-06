@@ -12,6 +12,9 @@ class HistoryPoller {
     this.apiClient = apiClient;
     this.onMessage = onMessage;
     this.startedAtMs = options.startedAtMs || Date.now();
+    this.isCommandText = typeof options.isCommandText === 'function'
+      ? options.isCommandText
+      : isBilibiliCommandText;
     this.timer = null;
   }
 
@@ -48,7 +51,7 @@ class HistoryPoller {
       const text = cleanText(item.text);
       if (!text) continue;
       const timelineMs = parseBilibiliTimeline(item.timeline);
-      if (!isBilibiliCommandText(text)) continue;
+      if (!this.isCommandText(text)) continue;
       if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) continue;
 
       processed += 1;

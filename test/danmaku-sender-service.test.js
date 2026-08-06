@@ -74,6 +74,37 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
   assert.equal(result.message, '1234567890'.repeat(8));
 });
 
+test('sender service keeps emoji and symbols intact while splitting a DIY reply after the mention', async () => {
+  const calls = [];
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
+    getRoom: async () => ({ roomId: '123' }),
+    getLiveStatus: () => ({ connected: true, message: 'ok' }),
+    getMentionTarget: async () => null,
+    createClient: () => ({
+      resolveRoomInfo: async () => ({ roomId: 123 }),
+      sendDanmaku: async (roomId, message, target) => {
+        calls.push({ roomId, message, target });
+        return { message, replyMid: target.uid, replyUname: target.name };
+      }
+    }),
+    minIntervalMs: 0,
+    log() {}
+  });
+  const message = `${'\u{1F680}!@#$%^&*()'.repeat(6)} DIY`;
+  const target = { uid: '789', name: '主播名字很长😀' };
+
+  const result = await service.send({ message, mentionTarget: target });
+
+  assert.equal(result.message, message);
+  assert.ok(calls.length > 1);
+  assert.ok(calls.every((call) => !call.message.includes('\uFFFD')));
+  assert.ok(calls.every((call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT));
+  assert.ok(Array.from(`@${target.name} ${calls[0].message}`).length <= DANMAKU_MESSAGE_LIMIT);
+  assert.equal(calls[0].target.uid, target.uid);
+  assert.ok(calls.slice(1).every((call) => call.target.uid === ''));
+});
+
 test('sender service splits long fortune and check-in replies after reserving the mention length', async () => {
   const calls = [];
   const longName = '名字很长也不能挤掉签文的观众';
@@ -154,6 +185,7 @@ test('sender state exposes only the stable UI contract', async () => {
     getLiveStatus: () => ({ connected: false, message: 'reconnecting' }),
     getMentionTarget: async () => null,
     getFortuneBotEnabled: () => true,
+    getCustomReplyBotEnabled: () => true,
     createClient: () => ({
       fetchCurrentUserName: async () => '',
       resolveRoomInfo: async () => ({ roomId: 123, ownerName: '' })
@@ -164,6 +196,7 @@ test('sender state exposes only the stable UI contract', async () => {
   assert.equal(state.canSend, true);
   assert.equal(state.connected, false);
   assert.equal(state.fortuneBotEnabled, true);
+  assert.equal(state.customReplyBotEnabled, true);
   assert.equal('cookieHeader' in state, false);
   assert.deepEqual(state.requester, { uid: '', name: '', source: '', createdAt: '' });
 });

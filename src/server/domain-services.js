@@ -15,6 +15,7 @@ const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
 const { createCheckinService } = require('../bilibili/checkin-service');
 const { createFortuneService } = require('../bilibili/fortune-service');
+const { createCustomReplyService } = require('../bilibili/custom-reply-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 
 function createDomainServices({ db, settingsStore, onGiftFlushed }) {
@@ -28,6 +29,9 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     settings: () => settingsStore.getSettings()
   });
   const fortunes = createFortuneService({
+    settings: () => settingsStore.getSettings()
+  });
+  const customReplies = createCustomReplyService({
     settings: () => settingsStore.getSettings()
   });
 
@@ -109,11 +113,20 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
         };
       }
       const fortune = fortunes.handleDanmaku(danmaku);
-      if (!fortune.command) return result;
+      if (fortune.command) {
+        return {
+          ...result,
+          fortune,
+          fortuneReply: fortune.autoReply || null
+        };
+      }
+      if (result.command) return result;
+      const customReply = customReplies.handleDanmaku(danmaku);
+      if (!customReply.command) return result;
       return {
         ...result,
-        fortune,
-        fortuneReply: fortune.autoReply || null
+        customReply,
+        customReplyReply: customReply.autoReply || null
       };
     },
     logDanmaku: bilibiliMessageHandler.logDanmakuCommand
@@ -161,6 +174,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     requesterTargets,
     checkins,
     fortunes,
+    customReplies,
     data,
     playback: playbackStore,
     theme: themeStore,

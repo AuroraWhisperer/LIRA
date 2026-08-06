@@ -1,8 +1,19 @@
 # 打包与更新说明
 
-当前版本：`3.2.6`
+当前版本：`3.2.7`
 
 ---
+
+## v3.2.7 变更
+
+- 💬 **DIY 关键词回复**：新增自定义关键词回复功能——弹幕包含用户配置的关键词时，机器人自动 @ 回复固定文案。内置命令（点歌 / 随机 / 签到 / 抽签）保持优先，不会被 DIY 规则覆盖。规则持久化至 `customReplyRules` 设置项（JSON 数组），服务端自动规范化（上限 30 条、关键词 ≤30 字、回复 ≤120 字），不完整条目自动丢弃。回复超长时按 40 字符自动拆分，第一条保留 `@用户名 ` 前缀，使用 `Intl.Segmenter` 按字位（grapheme）拆分避免 emoji/特殊符号截断。
+- 🔮 **抽签机器人词库可编辑**：弹幕姬面板新增「抽签机器人词库」折叠编辑器——支持添加、编辑、删除签文条目（签级 / 签名 / 签文 / 建议四字段），四列网格布局宽屏自适应。签池持久化至 `fortunePool` 设置项，`fortune-service.js` 从持久化池读取并在无效/空/不完整时回退内置 20 支默认签文。`GET /api/bilibili/danmaku/state` 响应新增 `fortunePool` 字段。
+- 🎨 **弹幕姬面板布局重组**：发送弹幕区上移至自动回复开关卡片之后、折叠编辑器之前，使用更顺畅（先看状态 → 发弹幕 → 管词库）。自动回复开关网格从 3 列扩展为 4 列——随机点歌回复 / 签到机器人 / 抽签机器人 / DIY 关键词回复，`enableCustomReplyBot` 默认关闭。三个折叠编辑器依次排列：DIY 关键词回复 → 签到祝福语 → 抽签机器人词库。
+- 🔧 **弹幕命令过滤扩展**：`isBilibiliCommandText` 新增 `customMatcher` 参数——消息处理器（WebSocket / 历史轮询 / 醒目留言）统一通过 `MessageHandlers.isCommandText` 注入 DIY 回复匹配，历史轮询也能正确触发关键词回复。`splitDanmakuMessage` 和 `splitDanmakuReplyMessage` 改用 `splitTextIntoCharacters()` 统一字位拆分。
+- 🧹 **前端编辑器模块抽取**：`danmaku-libraries.js` 提取为共享编辑器模块——`createBlessingEditor` / `createFortuneEditor` / `createCustomReplyEditor` 三个工厂函数，复用 `parseJsonArray` / `truncateUnicodeText` / `normalizeCustomReply` 等工具函数和删除按钮/空状态/索引标记 (`createIndex` / `createDeleteButton` / `appendEmptyState`) 等共享 UI 组件。`danmaku-tool.js` 改为通过 editor 模块管理全部编辑器生命周期。
+- 🔒 **设置写入服务端规范化**：`POST /api/settings` 新增 `normalizeSettingValue`——`customReplyRules` 写入前通过 `parseCustomReplyRules` 规范化（去空白、去不完整条目、截断超长文本），防止前端绕过客户端校验提交异常数据。其他设置值保持 `String()` 转换不变。
+- 📖 **使用文档更新**：弹幕姬帮助文档更新为四个自动回复开关说明，签到与回复 FAQ 同步提及 DIY 关键词回复和抽签词库编辑。
+- 🧪 **测试覆盖增强**：新增 `test/custom-reply-service.test.js`（规则解析/关键词匹配/启用开关/内置命令优先级/domain 集成回复链路）。`test/fortune-service.test.js` 新增持久化签池解析/回退/空条目过滤测试。`test/danmaku-sender-service.test.js` 新增 `customReplyBotEnabled` 状态字段断言和字位拆分测试。`test/frontend-regressions.test.js` 新增 DIY 回复面板 DOM 结构、抽签词库编辑器、发送区上移顺序、4 列开关网格回归断言。
 
 ## v3.2.6 变更
 

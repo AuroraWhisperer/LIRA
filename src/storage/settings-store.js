@@ -5,6 +5,7 @@
 
 const { now } = require('../shared/utils');
 const { CHECKIN_BLESSINGS } = require('../bilibili/checkin-blessings');
+const { FORTUNES } = require('../bilibili/fortune-service');
 
 const DEFAULT_SETTINGS = {
   roomId: '',
@@ -21,7 +22,10 @@ const DEFAULT_SETTINGS = {
   enableRandomTagReply: 'true',
   enableCheckinBot: 'true',
   enableFortuneBot: 'true',
+  enableCustomReplyBot: 'false',
   checkinBlessings: JSON.stringify(CHECKIN_BLESSINGS),
+  fortunePool: JSON.stringify(FORTUNES),
+  customReplyRules: '[]',
   queueLimit: '50',
   userCooldownSeconds: '0',
   scrollSeconds: '45',
