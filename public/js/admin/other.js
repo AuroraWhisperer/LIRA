@@ -101,7 +101,8 @@
     storeSelectedFeature(selectedId);
 
     if (selectedId === 'otherDanmakuFeature') {
-      window.AdminApp.danmakuTool?.refresh();
+      window.AdminApp.danmakuTool?.refresh({ reconnectIfDisconnected: true });
+      window.AdminApp.xiaomiAiSettings?.refresh();
     }
 
     return true;
@@ -167,6 +168,7 @@
     });
 
     window.AdminApp.danmakuTool?.init();
+    window.AdminApp.xiaomiAiSettings?.init();
 
     const storedFeature = readSelectedFeature();
     const storedButton = buttons.find((button) => (

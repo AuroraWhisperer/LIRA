@@ -18,3 +18,9 @@ test('server startup uses the same forced Bilibili reconnect as refresh live', (
   assert.doesNotMatch(startupBlock[0], /configureBilibiliListener\(\)/);
   assert.match(startupBlock[0], /startup reconnect failed/);
 });
+
+test('desktop injects Electron safeStorage into the server AI secret boundary', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
+  assert.match(source, /protocol, safeStorage, session/);
+  assert.match(source, /createDesktopRuntime\(serverRuntimeModule, \{ dataDir, safeStorage \}\)/);
+});

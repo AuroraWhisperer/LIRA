@@ -72,6 +72,49 @@ const SONG_SCHEMA = `
     updated_at TEXT NOT NULL
   );
 
+  -- AI 配置与凭证独立于普通 settings，避免通用设置接口意外回传密钥。
+  CREATE TABLE IF NOT EXISTS ai_configuration (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    is_secret INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_request_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid TEXT NOT NULL DEFAULT '',
+    user_name TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT '',
+    latency_ms INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    tool_calls INTEGER NOT NULL DEFAULT 0,
+    error_code TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_request_logs_created_at
+    ON ai_request_logs(created_at);
+
+  CREATE TABLE IF NOT EXISTS ai_viewer_context (
+    uid TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_query_cache (
+    cache_key TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_blacklist (
+    uid TEXT PRIMARY KEY,
+    user_name TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS song_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,

@@ -384,7 +384,34 @@ body.player-dock-expanded .other-workspace {
 .danmaku-status-grid > div + div { border-left: 1px solid var(--border); }
 .danmaku-status-grid span { color: var(--muted); font-size: 11px; font-weight: 600; }
 .danmaku-status-grid strong { overflow-wrap: anywhere; color: var(--text); font-size: 14px; line-height: 1.35; }
-.danmaku-status-grid strong.good { color: #278b5b; }
+.danmaku-status-grid strong.connection-good,
+.danmaku-status-grid strong.connection-bad {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 5px 9px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.danmaku-status-grid strong.connection-good {
+  border-color: color-mix(in srgb, var(--color-success) 38%, transparent);
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
+}
+.danmaku-status-grid strong.connection-bad {
+  border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+  background: var(--color-danger-light);
+  color: var(--danger);
+}
+.danmaku-status-grid strong.connection-good::before,
+.danmaku-status-grid strong.connection-bad::before {
+  margin-right: 6px;
+  font-size: 10px;
+  line-height: 1;
+}
+.danmaku-status-grid strong.connection-good::before { content: '\25CF'; }
+.danmaku-status-grid strong.connection-bad::before { content: '\25B2'; }
 .danmaku-status-grid strong.warn { color: var(--warning); }
 .other-feature-panel-header-inline h2 { margin: 0; font-size: 22px; }
 .other-feature-panel-header-inline p,
@@ -461,6 +488,112 @@ body.player-dock-expanded .other-workspace {
 }
 .danmaku-send-result.good { border-left-color: #278b5b; color: #278b5b; }
 .danmaku-send-result.warn { border-left-color: var(--warning); color: var(--warning); }
+
+.xiaomi-ai-section {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+  background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 5%, var(--surface)) 0%, var(--surface) 38%);
+}
+.xiaomi-ai-section::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+.xiaomi-ai-heading,
+.xiaomi-ai-title-wrap,
+.xiaomi-ai-actions,
+.xiaomi-ai-actions > div {
+  display: flex;
+  align-items: center;
+}
+.xiaomi-ai-heading,
+.xiaomi-ai-actions { justify-content: space-between; gap: 16px; }
+.xiaomi-ai-title-wrap { gap: 12px; min-width: 0; }
+.xiaomi-ai-title-wrap h3 { margin: 0; color: var(--text); font-size: 17px; }
+.xiaomi-ai-title-wrap p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.xiaomi-ai-cat {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 32px;
+  border: 2px solid color-mix(in srgb, var(--primary) 62%, var(--text));
+  border-radius: 12px 12px 14px 14px;
+  background: var(--color-primary-light);
+}
+.xiaomi-ai-cat::before,
+.xiaomi-ai-cat::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--primary) 62%, var(--text));
+  background: var(--color-primary-light);
+  transform: rotate(45deg);
+}
+.xiaomi-ai-cat::before { left: 2px; border-right: 0; border-bottom: 0; }
+.xiaomi-ai-cat::after { right: 2px; border-left: 0; border-top: 0; }
+.xiaomi-ai-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.xiaomi-ai-status-grid > div { display: grid; gap: 4px; padding: 11px 13px; }
+.xiaomi-ai-status-grid > div + div { border-left: 1px solid var(--border); }
+.xiaomi-ai-status-grid span { color: var(--muted); font-size: 11px; }
+.xiaomi-ai-status-grid strong { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.xiaomi-ai-form { display: grid; gap: 12px; }
+.xiaomi-ai-form fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.xiaomi-ai-form legend { padding: 0 6px; color: var(--text); font-size: 13px; font-weight: 700; }
+.xiaomi-ai-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.xiaomi-ai-field-grid label { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 600; }
+.xiaomi-ai-field-grid label.wide { grid-column: 1 / -1; }
+.xiaomi-ai-field-grid input,
+.xiaomi-ai-field-grid textarea { margin-top: 5px; }
+.xiaomi-ai-field-grid small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
+.xiaomi-ai-toggle-row { display: flex; flex-wrap: wrap; gap: 10px 20px; color: var(--muted); font-size: 12px; }
+.xiaomi-ai-toggle-row input { accent-color: var(--accent); }
+.xiaomi-ai-advanced {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.xiaomi-ai-advanced summary { padding: 12px 13px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 700; }
+.xiaomi-ai-advanced[open] summary { border-bottom: 1px solid var(--border); }
+.xiaomi-ai-advanced .xiaomi-ai-field-grid { padding: 13px; }
+.xiaomi-ai-actions > .hint { max-width: 58%; line-height: 1.5; }
+.xiaomi-ai-actions > div { gap: 8px; }
+.xiaomi-ai-actions .hint.good { color: var(--color-success-dark); }
+.xiaomi-ai-actions .hint.warn { color: var(--warning); }
+
+@media (max-width: 760px) {
+  .xiaomi-ai-heading,
+  .xiaomi-ai-actions { align-items: stretch; flex-direction: column; }
+  .xiaomi-ai-actions > .hint { max-width: none; }
+  .xiaomi-ai-actions > div { justify-content: flex-end; }
+  .xiaomi-ai-field-grid { grid-template-columns: 1fr; }
+  .xiaomi-ai-field-grid label.wide { grid-column: auto; }
+}
+
+@media (max-width: 520px) {
+  .xiaomi-ai-status-grid { grid-template-columns: 1fr; }
+  .xiaomi-ai-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
+}
 
 .danmaku-blessings-section {
   overflow: hidden;

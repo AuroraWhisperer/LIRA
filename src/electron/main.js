@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {
-  app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell
+  app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, safeStorage, session, shell
 } = require('electron');
 const authMgr = require('./auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
@@ -130,7 +130,7 @@ async function startDesktopApp() {
       getUid: getBilibiliUid
     }
   };
-  desktopRuntime = createDesktopRuntime(serverRuntimeModule, { dataDir });
+  desktopRuntime = createDesktopRuntime(serverRuntimeModule, { dataDir, safeStorage });
   shutdownApplication = desktopRuntime.stop.bind(desktopRuntime);
 
   // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB

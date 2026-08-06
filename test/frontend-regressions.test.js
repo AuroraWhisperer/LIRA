@@ -102,6 +102,46 @@ test('admin danmaku status prefers account and room display names', () => {
   assert.match(source, /roomState\.title = state\.roomId \? `房间 \$\{state\.roomId\}` : '';/);
 });
 
+test('opening disconnected danmaku tool refreshes live once and distinguishes connection states', () => {
+  const toolSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
+  const navigationSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8');
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
+    'utf8'
+  );
+
+  assert.match(navigationSource, /refresh\(\{ reconnectIfDisconnected: true \}\)/);
+  assert.match(toolSource, /if \(reconnectIfDisconnected && !state\.connected\) \{[\s\S]*?reconnectBilibili/);
+  assert.match(toolSource, /state\.connected \? 'connection-good' : 'connection-bad'/);
+  assert.match(styles, /strong\.connection-good\s*\{/);
+  assert.match(styles, /strong\.connection-bad\s*\{/);
+  assert.match(styles, /strong\.connection-good::before/);
+  assert.match(styles, /strong\.connection-bad::before/);
+});
+
+test('danmaku tool places modular Xiaomi AI settings after the manual sender with safe defaults', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'xiaomi-ai-settings.js'), 'utf8');
+  const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'), 'utf8');
+
+  assert.ok(html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'));
+  assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
+  assert.match(html, /id="xiaomiAiModel"[^>]*value="ds-v4-flash"/);
+  assert.match(html, /id="xiaomiAiWebSearch"[^>]*checked/);
+  assert.match(html, /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/);
+  assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
+  assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
+  assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="留空/);
+  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
+  assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
+  assert.match(indexSource, /import '\.\/xiaomi-ai-settings\.js';/);
+  assert.match(source, /element\.textContent = text/);
+  assert.doesNotMatch(source, /innerHTML\s*=/);
+  assert.match(styles, /\.xiaomi-ai-section\s*\{/);
+  assert.match(styles, /@media \(max-width: 520px\)/);
+});
+
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');

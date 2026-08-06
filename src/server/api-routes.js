@@ -17,6 +17,7 @@ const ROUTE_MODULES = [
   require('./routes/gift-routes'),
   require('./routes/debug-routes'),
   require('./routes/data-routes'),
+  require('./routes/ai-routes'),
   require('./routes/bilibili-routes')
 ];
 

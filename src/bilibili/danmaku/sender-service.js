@@ -18,6 +18,7 @@ function createDanmakuSenderService(dependencies) {
     createClient,
     minIntervalMs = 1500,
     now = Date.now,
+    delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     log = console.log
   } = dependencies;
   let lastSentAt = 0;
@@ -97,9 +98,18 @@ function createDanmakuSenderService(dependencies) {
     }
   }
 
-  async function send({ message, mentionRequester = false, mentionTarget = null }) {
+  async function send({
+    message,
+    mentionRequester = false,
+    mentionTarget = null,
+    mentionEveryChunk = false,
+    intervalMs = 0,
+    waitForRateLimit = false
+  }) {
     const nowMs = now();
-    if (lastSentAt && nowMs - lastSentAt < minIntervalMs) throw new Error('发送过于频繁，请稍后再试。');
+    const remainingWait = lastSentAt ? minIntervalMs - (nowMs - lastSentAt) : 0;
+    if (remainingWait > 0 && waitForRateLimit) await delay(remainingWait);
+    else if (remainingWait > 0) throw new Error('发送过于频繁，请稍后再试。');
     const [auth, room] = await Promise.all([getAuth(), getRoom()]);
     if (!auth || !auth.loggedIn || !auth.cookieHeader) throw new Error('请先登录 Bilibili 账号。');
     if (!room || !room.roomId) throw new Error('请先设置 Bilibili 直播间号。');
@@ -107,12 +117,15 @@ function createDanmakuSenderService(dependencies) {
     const target = normalizeReplyTarget(
       mentionTarget || (mentionRequester ? await getMentionTarget() : null)
     );
-    const messages = splitDanmakuReplyMessage(message, target);
+    const messages = mentionEveryChunk
+      ? splitDanmakuEveryMentionMessage(message, target)
+      : splitDanmakuReplyMessage(message, target);
     const client = createClient(room.roomId, auth);
     const roomInfo = await client.resolveRoomInfo();
     const results = [];
     for (let index = 0; index < messages.length; index += 1) {
-      const replyTarget = index === 0 ? target : emptyTarget();
+      if (index > 0 && intervalMs > 0) await delay(intervalMs);
+      const replyTarget = mentionEveryChunk || index === 0 ? target : emptyTarget();
       results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
     }
     const result = {
@@ -157,6 +170,15 @@ function splitDanmakuReplyMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT
   return chunks.filter(Boolean);
 }
 
+/** Split every chunk after reserving space for the visible `@name ` prefix. */
+function splitDanmakuEveryMentionMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT) {
+  const name = cleanText(target && target.name);
+  if (!name) return splitDanmakuMessage(message, limit);
+  const mentionLength = splitTextIntoCharacters(`@${name} `).length;
+  const contentLimit = Math.max(1, limit - mentionLength);
+  return splitDanmakuMessage(message, contentLimit);
+}
+
 function normalizeReplyTarget(target) {
   if (!target) return emptyTarget();
   return {
@@ -185,5 +207,6 @@ module.exports = {
   emptyTarget,
   splitDanmakuMessage,
   splitDanmakuReplyMessage,
+  splitDanmakuEveryMentionMessage,
   DANMAKU_MESSAGE_LIMIT
 };

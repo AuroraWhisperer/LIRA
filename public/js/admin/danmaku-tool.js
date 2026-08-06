@@ -34,13 +34,23 @@ function init() {
     elements.resultState.className = `danmaku-send-result${kind ? ` ${kind}` : ''}`;
   };
 
-  refreshState = async () => {
+  refreshState = async ({ reconnectIfDisconnected = false } = {}) => {
     elements.refreshButton.disabled = true;
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
-      renderState(elements, payload.data || {}, { blessingEditor, fortuneEditor, customReplyEditor });
+      let state = payload.data || {};
+      if (reconnectIfDisconnected && !state.connected) {
+        await window.AdminApp.settings?.reconnectBilibili?.();
+        const refreshedResponse = await fetch('/api/bilibili/danmaku/state');
+        const refreshedPayload = await refreshedResponse.json();
+        if (!refreshedResponse.ok || !refreshedPayload.ok) {
+          throw new Error(refreshedPayload.error || '获取刷新后的发送状态失败');
+        }
+        state = refreshedPayload.data || {};
+      }
+      renderState(elements, state, { blessingEditor, fortuneEditor, customReplyEditor });
     } catch (error) {
       elements.accountState.textContent = '状态未知';
       elements.roomState.textContent = '状态未知';
@@ -111,7 +121,6 @@ function init() {
       await refreshState();
     }
   });
-  refreshState();
 }
 
 function getElements() {
@@ -157,7 +166,9 @@ function renderState(elements, state, editors) {
   elements.status.textContent = state.canSend
     ? (state.connected ? '可发送，监听已连接' : '可发送，监听未连接')
     : state.unavailableReason;
-  elements.status.className = state.canSend ? 'good' : 'warn';
+  elements.status.className = state.canSend
+    ? (state.connected ? 'connection-good' : 'connection-bad')
+    : 'warn';
   elements.sendButton.disabled = !state.canSend;
 }
 
@@ -174,8 +185,8 @@ function bindSettingToggle(element, options) {
   });
 }
 
-function refresh() {
-  return refreshState ? refreshState() : Promise.resolve();
+function refresh(options) {
+  return refreshState ? refreshState(options) : Promise.resolve();
 }
 
 window.AdminApp = window.AdminApp || {};

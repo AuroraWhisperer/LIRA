@@ -74,6 +74,32 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
   assert.equal(result.message, '1234567890'.repeat(8));
 });
 
+test('sender service repeats an AI mention on every 40-character chunk', async () => {
+  const calls = [];
+  const target = { uid: '42', name: 'Alice', source: 'xiaomi-ai' };
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
+    getRoom: async () => ({ roomId: '123' }),
+    getLiveStatus: () => ({ connected: true, message: 'ok' }),
+    getMentionTarget: async () => null,
+    createClient: () => ({
+      resolveRoomInfo: async () => ({ roomId: 123 }),
+      sendDanmaku: async (roomId, message, replyTarget) => {
+        calls.push({ roomId, message, target: replyTarget });
+        return { message, replyMid: replyTarget.uid, replyUname: replyTarget.name };
+      }
+    }),
+    minIntervalMs: 0,
+    delay: async () => {},
+    log: () => {}
+  });
+  await service.send({ message: '猫'.repeat(70), mentionTarget: target, mentionEveryChunk: true, intervalMs: 3000 });
+  assert.equal(calls.length, 3);
+  assert.ok(calls.every((call) => call.target.uid === '42'));
+  assert.ok(calls.every((call) => Array.from(`@Alice ${call.message}`).length <= DANMAKU_MESSAGE_LIMIT));
+  assert.equal(calls.map((call) => call.message).join(''), '猫'.repeat(70));
+});
+
 test('sender service keeps emoji and symbols intact while splitting a DIY reply after the mention', async () => {
   const calls = [];
   const service = createDanmakuSenderService({

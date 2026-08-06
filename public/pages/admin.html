@@ -1477,6 +1477,64 @@
                   </form>
                   <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
                 </section>
+                <section id="xiaomiAiSection" class="danmaku-feature-section xiaomi-ai-section" aria-labelledby="xiaomiAiTitle">
+                  <div class="xiaomi-ai-heading">
+                    <div class="xiaomi-ai-title-wrap">
+                      <span class="xiaomi-ai-cat" aria-hidden="true"></span>
+                      <div><h3 id="xiaomiAiTitle">小米 AI</h3><p>观众弹幕包含“小米”时自动回答；并行查询，按收到顺序依次发送。</p></div>
+                    </div>
+                    <label class="switch-control"><input id="xiaomiAiEnabled" type="checkbox"><span class="switch-track"></span><span>启用 AI</span></label>
+                  </div>
+                  <div class="xiaomi-ai-status-grid" aria-label="小米 AI 状态">
+                    <div><span>配置状态</span><strong id="xiaomiAiConfigState">正在读取</strong></div>
+                    <div><span>等待队列</span><strong id="xiaomiAiQueueState">0</strong></div>
+                    <div><span>运行模型</span><strong id="xiaomiAiModelState">ds-v4-flash</strong></div>
+                  </div>
+                  <form id="xiaomiAiForm" class="xiaomi-ai-form">
+                    <fieldset>
+                      <legend>DeepSeek</legend>
+                      <div class="xiaomi-ai-field-grid">
+                        <label class="wide">Responses API 地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="留空，填写你的 Responses API 地址"></label>
+                        <label>API Key<input id="xiaomiAiDeepSeekKey" type="password" autocomplete="new-password" placeholder="留空，填写 DeepSeek API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
+                        <label>模型<input id="xiaomiAiModel" type="text" maxlength="80" value="ds-v4-flash"></label>
+                        <label>触发关键词<input id="xiaomiAiTrigger" type="text" maxlength="12" value="小米"></label>
+                        <label>回复最大长度<input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"><small>只是硬上限；简单回复正文约 20 字，可另加标点或一个短颜文字</small></label>
+                      </div>
+                      <div class="xiaomi-ai-toggle-row">
+                        <label><input id="xiaomiAiWebSearch" type="checkbox" checked> 启用 Web Search</label>
+                        <label><input id="xiaomiAiReasoning" type="checkbox"> 启用思考</label>
+                      </div>
+                    </fieldset>
+                    <fieldset>
+                      <legend>和风天气</legend>
+                      <div class="xiaomi-ai-field-grid">
+                        <label class="wide">专属 API Host<input id="xiaomiAiQWeatherHost" type="url" autocomplete="off" placeholder="留空，填写你的和风天气专属 Host"></label>
+                        <label>API Key<input id="xiaomiAiQWeatherKey" type="password" autocomplete="new-password" placeholder="留空，填写和风天气凭证"><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label>
+                      </div>
+                    </fieldset>
+                    <fieldset>
+                      <legend>高德地图</legend>
+                      <div class="xiaomi-ai-field-grid">
+                        <label class="wide">Web 服务 API Host<input id="xiaomiAiAmapHost" type="url" autocomplete="off" placeholder="留空，填写你的高德 API Host"></label>
+                        <label>Web 服务 Key<input id="xiaomiAiAmapKey" type="password" autocomplete="new-password" placeholder="留空，填写高德 Web 服务 Key"><small id="xiaomiAiAmapKeyHint">尚未保存</small></label>
+                      </div>
+                    </fieldset>
+                    <details class="xiaomi-ai-advanced">
+                      <summary>稳定性与人格预设</summary>
+                      <div class="xiaomi-ai-field-grid">
+                        <label>并行查询数<input id="xiaomiAiConcurrency" type="number" min="1" max="5" value="3"></label>
+                        <label>发送间隔（毫秒）<input id="xiaomiAiSendInterval" type="number" min="1500" max="30000" value="3000"></label>
+                        <label>单用户冷却（秒）<input id="xiaomiAiUserCooldown" type="number" min="5" max="3600" value="30"></label>
+                        <label>全房间每分钟上限<input id="xiaomiAiRoomLimit" type="number" min="1" max="120" value="20"></label>
+                        <label class="wide">小猫人格预设<textarea id="xiaomiAiSystemPrompt" rows="10" minlength="20" maxlength="8000"></textarea></label>
+                      </div>
+                    </details>
+                    <div class="xiaomi-ai-actions">
+                      <span id="xiaomiAiSaveState" class="hint" role="status" aria-live="polite">API 和网址默认留空，密钥不会显示在页面中。</span>
+                      <div><button id="xiaomiAiTestBtn" class="secondary" type="button">测试 DeepSeek</button><button id="xiaomiAiSaveBtn" class="primary" type="submit">保存 AI 配置</button></div>
+                    </div>
+                  </form>
+                </section>
                 <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
                   <summary>
                     <div>

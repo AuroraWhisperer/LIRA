@@ -1,8 +1,19 @@
 # 打包与更新说明
 
-当前版本：`3.2.8`
+当前版本：`3.2.9`
 
 ---
+
+## v3.2.9 变更
+
+- 🤖 **小米 AI 聊天机器人**：新增 `XiaomiAiService`（`src/ai/` 模块目录），观众弹幕包含"小米"关键词时自动调用 DeepSeek API 生成回复并发送。支持并行查询（可配 1-5 并发）、按收到顺序依次发送、单用户冷却（5-3600s）和全房间每分钟上限（1-120）。内置「小猫」人格预设，支持 `xiaomiAiSystemPrompt` 自定义系统提示词。百宝箱弹幕姬面板新增「小米 AI」配置区（弹幕发送区与 DIY 回复面板之间），含猫耳图标装饰和渐变顶部色条。
+- 🔧 **AI 配置持久化与加密**：新增 `ai_configuration` 独立数据表（`schema.js`），与普通 settings 分离避免通用设置接口意外回传密钥。API Key 等敏感字段标记 `is_secret`，桌面端通过 Electron `safeStorage` 加密存储。`ai-routes.js` 新增 AI 配置读写端点。
+- 🌤️ **和风天气 + 高德地图工具集成**：AI 可调用和风天气 API 获取实时天气、高德地图 Web 服务 API 查询地理位置，支持专属 API Host 配置。`current-time-tool` 提供当前时间上下文。
+- 📊 **AI 请求日志与缓存体系**：新增 `ai_request_logs`（按 uid/类别/状态/延迟/token 记录每次调用）、`ai_viewer_context`（观众上下文缓存）、`ai_query_cache`（查询结果缓存）、`ai_blacklist`（用户黑名单）四张辅助表，支撑完整的 AI 对话生命周期管理。
+- 💬 **弹幕发送器多段 @ 提及增强**：`sender-service.js` 新增 `mentionEveryChunk` 选项——拆分多段发送时每段均携带 `@用户名` 前缀（而非仅首段），新增 `splitDanmakuEveryMentionMessage()` 为每段预留 @名字 空间。新增 `waitForRateLimit`（等待频率限制而非抛错）和 `intervalMs`（段间延迟）选项，适配 AI 自动回复的异步发送场景。
+- 🎨 **弹幕姬连接状态胶囊徽章**：发送状态从纯色文字升级为圆角胶囊徽章（`connection-good` / `connection-bad`）——绿色/红色边框 + 浅色背景，前置 ● / ▲ 图标，视觉更醒目。状态网格内间距从 5px 增至 6px。
+- 🔄 **弹幕姬断连自动重连**：打开弹幕姬面板时若监听未连接（`!state.connected`），自动触发 Bilibili 重连（`reconnectIfDisconnected`）并刷新状态，无需手动点击刷新按钮。
+- 🧪 **测试覆盖增强**：`test/frontend-regressions.test.js` 新增小米 AI 面板 DOM 结构/默认值/密码字段/安全断言（无硬编码密钥）、连接状态胶囊 CSS 断言、断连自动重连回归。`test/danmaku-sender-service.test.js` 新增 `mentionEveryChunk` 多段 @ 提及测试。`test/bilibili-startup-wiring.test.js` 新增 Electron `safeStorage` 注入 AI 密钥边界测试。
 
 ## v3.2.8 变更
 

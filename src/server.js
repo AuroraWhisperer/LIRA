@@ -22,6 +22,13 @@ const { createLyricsService } = require('./music/lyrics-service');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
+const { createAiConfigStore } = require('./ai/config-store');
+const { createElectronSecretCodec } = require('./ai/secret-codec');
+const { createDeepSeekClient } = require('./ai/deepseek-client');
+const { createQWeatherTool } = require('./ai/tools/qweather-tool');
+const { createAmapTool } = require('./ai/tools/amap-tool');
+const { getCurrentTime } = require('./ai/tools/current-time-tool');
+const { createXiaomiAiService } = require('./ai/xiaomi-ai-service');
 const { isBilibiliCommandText } = require('./bilibili/danmaku/command-text');
 const giftService = require('./bilibili/gift');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
@@ -180,6 +187,20 @@ function createServerRuntime(runtimeOptions = {}) {
       return new BilibiliApiClient(roomId, auth);
     }
   });
+  const aiConfigStore = createAiConfigStore(
+    songDb,
+    runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage)
+  );
+  const xiaomiAi = createXiaomiAiService({
+    store: aiConfigStore,
+    deepseek: createDeepSeekClient({ fetchImpl: runtimeOptions.fetchImpl }),
+    tools: {
+      qweather: createQWeatherTool({ fetchImpl: runtimeOptions.fetchImpl }),
+      amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl }),
+      getCurrentTime
+    },
+    sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true })
+  });
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -270,6 +291,12 @@ function createServerRuntime(runtimeOptions = {}) {
         auth: bilibiliAuthProvider,
         getDanmakuSenderState: () => danmakuSender.getState(),
         sendDanmaku: (input) => danmakuSender.send(input)
+      },
+      ai: {
+        getConfig: () => aiConfigStore.getPublicConfig(),
+        updateConfig: (input) => aiConfigStore.updateConfig(input),
+        getStatus: () => xiaomiAi.getStatus(),
+        test: () => xiaomiAi.testConfiguration()
       },
       settings: {
         defaults: DEFAULT_SETTINGS,
@@ -513,6 +540,11 @@ function createServerRuntime(runtimeOptions = {}) {
             isPinned: danmaku.isPinned
           });
           domainServices.messages.logDanmaku(danmaku, result);
+          xiaomiAi.handleDanmaku({
+            message: danmaku.message,
+            userName: danmaku.userName,
+            uid: String(danmaku.uid || '')
+          });
           if (result.autoReply) {
             void danmakuSender.send({
               message: result.autoReply.message,
@@ -630,6 +662,7 @@ function createServerRuntime(runtimeOptions = {}) {
     if (shutdownPromise) return shutdownPromise;
     if (isShuttingDown) return Promise.resolve();
     isShuttingDown = true;
+    xiaomiAi.shutdown();
     console.log('Shutting down local song request service...');
 
     shutdownPromise = (async () => {
