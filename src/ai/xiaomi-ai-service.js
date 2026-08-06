@@ -94,7 +94,9 @@ function createXiaomiAiService(dependencies) {
     const usage = { inputTokens: 0, outputTokens: 0 };
     let toolCallCount = 0;
     try {
-      const inputReview = await runSafetyReview(config, buildInputReviewPrompt(item.question), usage);
+      const inputReview = await runSafetyReview(
+        config, buildInputReviewPrompt(item.question), usage, 'input_review'
+      );
       if (!inputReview.allowed) {
         return { text: inputReview.safeText || SAFE_REFUSAL, category: 'safety', usage, toolCalls: 0 };
       }
@@ -110,7 +112,8 @@ function createXiaomiAiService(dependencies) {
         instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled),
         input,
         tools: buildAvailableTools(config, excludedToolNames),
-        maxOutputTokens: 256
+        maxOutputTokens: 256,
+        purpose: 'generation'
       });
       addUsage(usage, response.usage);
 
@@ -130,13 +133,16 @@ function createXiaomiAiService(dependencies) {
           input: outputs,
           tools: buildAvailableTools(config, excludedToolNames),
           previousResponseId: response.id,
-          maxOutputTokens: 256
+          maxOutputTokens: 256,
+          purpose: 'tool_followup'
         });
         addUsage(usage, response.usage);
       }
 
       const rawText = cleanModelText(response.text);
-      const outputReview = await runSafetyReview(config, buildOutputReviewPrompt(rawText), usage);
+      const outputReview = await runSafetyReview(
+        config, buildOutputReviewPrompt(rawText), usage, 'output_review'
+      );
       const approved = outputReview.allowed ? (outputReview.safeText || rawText) : (outputReview.safeText || SAFE_REFUSAL);
       const text = truncateReply(approved, config.replyMaxChars);
       const result = { text, category: toolCallCount ? 'tool' : 'chat', usage, toolCalls: toolCallCount };
@@ -160,9 +166,10 @@ function createXiaomiAiService(dependencies) {
     }
   }
 
-  async function runSafetyReview(config, prompt, usage) {
+  async function runSafetyReview(config, prompt, usage, purpose) {
     const response = await deepseek.createResponse({
-      config, instructions: '执行直播内容审核，只输出指定 JSON。', input: prompt, tools: [], maxOutputTokens: 120
+      config, instructions: '执行直播内容审核，只输出指定 JSON。', input: prompt,
+      tools: [], maxOutputTokens: 120, purpose
     });
     addUsage(usage, response.usage);
     return parseSafetyReview(response.text);

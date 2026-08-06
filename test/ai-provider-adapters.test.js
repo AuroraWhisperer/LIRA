@@ -45,15 +45,25 @@ test('DeepSeek client parses function calls from Responses output', async () => 
   assert.deepEqual(result.functionCalls[0].arguments, { location: '苏州', date: 'today', dataType: 'weather' });
 });
 
-test('DeepSeek connection test expands only the official base URL without changing normal requests', async () => {
+test('DeepSeek official base uses Chat Completions for connection tests and normal requests', async () => {
   const requests = [];
   const client = createDeepSeekClient({
     fetchImpl: async (url, options) => {
       requests.push({ url: String(url), body: JSON.parse(options.body) });
-      if (String(url).endsWith('/chat/completions')) {
+      if (requests.length === 1) {
         return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
       }
-      return jsonResponse({ id: 'resp_1', output_text: 'ok' });
+      return jsonResponse({
+        id: 'chat_1',
+        choices: [{ message: {
+          content: '苏州今天晴',
+          tool_calls: [{
+            id: 'call_1', type: 'function',
+            function: { name: 'get_weather', arguments: '{"location":"苏州"}' }
+          }]
+        } }],
+        usage: { prompt_tokens: 12, completion_tokens: 8 }
+      });
     }
   });
   const config = {
@@ -64,7 +74,15 @@ test('DeepSeek connection test expands only the official base URL without changi
   };
 
   const testResult = await client.testConnection(config);
-  await client.createResponse({ config, input: 'hello' });
+  const response = await client.createResponse({
+    config,
+    instructions: 'system',
+    input: 'hello',
+    tools: [{
+      type: 'function', name: 'get_weather', description: 'weather',
+      parameters: { type: 'object', properties: {} }, strict: true
+    }]
+  });
 
   assert.deepEqual(testResult, {
     provider: 'deepseek',
@@ -75,7 +93,94 @@ test('DeepSeek connection test expands only the official base URL without changi
   assert.equal(requests[0].url, 'https://api.deepseek.com/chat/completions');
   assert.deepEqual(requests[0].body.messages[0], { role: 'user', content: '你好' });
   assert.equal(requests[0].body.max_tokens, 128);
-  assert.equal(requests[1].url, 'https://api.deepseek.com');
+  assert.equal(requests[1].url, 'https://api.deepseek.com/chat/completions');
+  assert.deepEqual(requests[1].body.messages, [
+    { role: 'system', content: 'system' },
+    { role: 'user', content: 'hello' }
+  ]);
+  assert.deepEqual(requests[1].body.tools[0], {
+    type: 'function',
+    function: {
+      name: 'get_weather', description: 'weather',
+      parameters: { type: 'object', properties: {} }, strict: true
+    }
+  });
+  assert.equal(response.text, '苏州今天晴');
+  assert.deepEqual(response.functionCalls, [{
+    callId: 'call_1', name: 'get_weather', arguments: { location: '苏州' }
+  }]);
+  assert.deepEqual(response.usage, { inputTokens: 12, outputTokens: 8 });
+});
+
+test('DeepSeek official Chat Completions URL remains usable and carries tool results forward', async () => {
+  const requests = [];
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      requests.push({ url: String(url), body: JSON.parse(options.body) });
+      if (requests.length === 1) {
+        return jsonResponse({
+          id: 'chat_tool',
+          choices: [{ message: {
+            content: null,
+            tool_calls: [{
+              id: 'call_1', type: 'function',
+              function: { name: 'get_weather', arguments: '{"location":"苏州"}' }
+            }]
+          } }]
+        });
+      }
+      return jsonResponse({ id: 'chat_answer', choices: [{ message: { content: '苏州今天晴' } }] });
+    }
+  });
+  const config = {
+    deepseekResponsesUrl: 'https://api.deepseek.com/v1/chat/completions',
+    deepseekApiKey: 'secret', model: 'deepseek-chat', requestTimeoutMs: 3000
+  };
+
+  const first = await client.createResponse({ config, instructions: 'system', input: '苏州天气', tools: [] });
+  const second = await client.createResponse({
+    config,
+    previousResponseId: first.id,
+    input: [{ type: 'function_call_output', call_id: 'call_1', output: '{"temp":"25"}' }],
+    tools: []
+  });
+
+  assert.ok(requests.every(({ url }) => url === 'https://api.deepseek.com/v1/chat/completions'));
+  assert.deepEqual(requests[1].body.messages.slice(-2), [
+    {
+      role: 'assistant', content: null,
+      tool_calls: [{
+        id: 'call_1', type: 'function',
+        function: { name: 'get_weather', arguments: '{"location":"苏州"}' }
+      }]
+    },
+    { role: 'tool', tool_call_id: 'call_1', content: '{"temp":"25"}' }
+  ]);
+  assert.equal(second.text, '苏州今天晴');
+});
+
+test('DeepSeek client traces request, raw response, normalized response, and errors', async () => {
+  const events = [];
+  const client = createDeepSeekClient({
+    fetchImpl: async () => jsonResponse({ id: 'resp_1', output_text: 'ok' }),
+    logEvent: async (event, options) => events.push({ event, options })
+  });
+  const config = {
+    deepseekResponsesUrl: 'https://gateway.example.test/responses',
+    deepseekApiKey: 'secret-key', model: 'custom-model', requestTimeoutMs: 3000
+  };
+
+  await client.createResponse({ config, purpose: 'generation', input: 'hello' });
+
+  assert.deepEqual(events.map(({ event }) => event.type), [
+    'request', 'response', 'normalized_response'
+  ]);
+  assert.equal(events[0].event.purpose, 'generation');
+  assert.equal(events[0].event.requestId, events[1].event.requestId);
+  assert.equal(events[1].event.status, 200);
+  assert.equal(events[1].event.payload.output_text, 'ok');
+  assert.equal(events[2].event.result.text, 'ok');
+  assert.deepEqual(events[0].options.secrets, ['secret-key']);
 });
 
 test('DeepSeek connection test keeps a complete Responses API URL unchanged', async () => {

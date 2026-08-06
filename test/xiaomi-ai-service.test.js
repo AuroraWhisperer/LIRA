@@ -241,6 +241,31 @@ test('provider connection tests dispatch with the saved private configuration', 
   assert.deepEqual(received, [['deepseek', 'secret'], ['qweather', 'secret'], ['amap', 'secret']]);
 });
 
+test('model requests identify review, generation, and output review stages', async () => {
+  const purposes = [];
+  const deliveries = [];
+  const service = createTestService({
+    deepseek: {
+      async createResponse(request) {
+        purposes.push(request.purpose);
+        if (request.purpose === 'input_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":""}', functionCalls: [], usage: {} };
+        }
+        if (request.purpose === 'output_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":"回答"}', functionCalls: [], usage: {} };
+        }
+        return { text: '回答', functionCalls: [], usage: {} };
+      }
+    },
+    sendReply: async (value) => deliveries.push(value)
+  });
+
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: '小米 问题' });
+  await waitUntil(() => deliveries.length === 1);
+
+  assert.deepEqual(purposes, ['input_review', 'generation', 'output_review']);
+});
+
 function createTestService(overrides = {}) {
   const config = {
     ...AI_CONFIG_DEFAULTS,

@@ -1,8 +1,17 @@
 # 打包与更新说明
 
-当前版本：`3.2.16`
+当前版本：`3.2.17`
 
 ---
+
+## v3.2.17 变更
+
+- 🔌 **官方 DeepSeek 全量 Chat Completions 路由**：官方 DeepSeek 域名（`api.deepseek.com`）的所有请求现在统一走 `/chat/completions` 端点，不再区分连接测试与正常请求。`createResponse()` 自动检测官方域名并构建 Chat Completions 格式的消息体（system/user/assistant/tool 角色），包括工具定义转换和 function call 解析。自定义网关地址不受影响，继续使用 Responses API。检测函数重命名为 `resolveOfficialChatEndpoint`，扩展识别 `/chat/completions`、`/v1/chat/completions` 等已指向 Chat 端点的路径。
+- 💬 **Chat Completions 多轮对话支持**：`deepseek-client.js` 内置对话历史 Map（LRU 上限 100 条），当请求携带 `previousResponseId` 时自动拼接前序 assistant 消息和 tool 回复，保障工具调用后的多轮追问在 Chat Completions 模式下正确衔接。`buildInitialChatMessages`、`toChatInputMessages`、`toChatTools`、`toAssistantHistoryMessage` 等纯函数独立可测。
+- 📋 **AI 请求诊断日志**：新增 `src/ai/request-logger.js`——JSON-lines 追加写入 `logs/ai.log`，记录每个 DeepSeek API 请求的四阶段生命周期：`request`（请求体）、`response`（原始 HTTP 状态和 payload）、`normalized_response`（解析后的结构化结果）、`error`（异常详情）。API Key 通过敏感键名模式匹配和秘密值字符串递归替换双重脱敏，Authorization header 和请求体中的 Key 均被替换为 `[redacted]`。`http-client.js` 新增 `onResponse` 回调管道，在响应到达但尚未 parse 时回调。
+- 🏷️ **请求目的标记**：`xiaomi-ai-service.js` 的所有 `createResponse` 调用（输入审查、生成回复、工具追问、输出审查）均携带 `purpose` 字段（`input_review` / `generation` / `tool_followup` / `output_review`），写入诊断日志便于定位各阶段请求。
+- 🔗 **服务端集成**：`server.js` 初始化 `aiRequestLogger`（日志路径 `logs/ai.log`），通过 `logEvent` 回调注入 `deepseek-client`，与现有桌面日志、终端日志并列。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增 Chat Completions 路由测试（官方域名走 `/chat/completions` + 工具转换 + usage 解析）、多轮工具追问消息拼接测试（assistant tool_calls → tool role 消息链）、请求生命周期追踪测试（request/response/normalized_response 三阶段 + secrets 脱敏）。`test/xiaomi-ai-service.test.js` 新增请求目的阶段测试（input_review → generation → output_review）。`test/ai-request-logger.test.js` 新增 JSON-lines 追加写入与递归脱敏测试。
 
 ## v3.2.16 变更
 

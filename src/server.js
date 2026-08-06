@@ -26,6 +26,7 @@ const { createAiConfigStore } = require('./ai/config-store');
 const { createAiApiQuotaStore } = require('./ai/api-quota-store');
 const { createElectronSecretCodec } = require('./ai/secret-codec');
 const { createDeepSeekClient } = require('./ai/deepseek-client');
+const { createAiRequestLogger } = require('./ai/request-logger');
 const { createQWeatherTool } = require('./ai/tools/qweather-tool');
 const { createAmapTool } = require('./ai/tools/amap-tool');
 const { getCurrentTime } = require('./ai/tools/current-time-tool');
@@ -61,6 +62,7 @@ function createServerRuntime(runtimeOptions = {}) {
   const CHECKIN_DB_PATH = path.join(DATA_DIR, 'checkin-data.db');
   const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
   const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
+  const AI_LOG_PATH = path.join(path.dirname(DATA_DIR), 'logs', 'ai.log');
   const HOST = normalizeServerHost(runtimeOptions.host || process.env.HOST);
 
   const db = createDatabases({ dataDir: DATA_DIR, defaultSettings: DEFAULT_SETTINGS });
@@ -195,10 +197,14 @@ function createServerRuntime(runtimeOptions = {}) {
   );
   const aiApiQuotaStore = createAiApiQuotaStore(songDb);
   const aiDanmakuDeliveryVerifier = createDanmakuDeliveryVerifier();
+  const aiRequestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ filePath: AI_LOG_PATH });
   const xiaomiAi = createXiaomiAiService({
     store: aiConfigStore,
     quotaStore: aiApiQuotaStore,
-    deepseek: createDeepSeekClient({ fetchImpl: runtimeOptions.fetchImpl }),
+    deepseek: createDeepSeekClient({
+      fetchImpl: runtimeOptions.fetchImpl,
+      logEvent: (event, options) => aiRequestLogger.log(event, options)
+    }),
     tools: {
       qweather: createQWeatherTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
       amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
