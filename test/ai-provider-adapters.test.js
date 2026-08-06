@@ -159,6 +159,75 @@ test('DeepSeek official Chat Completions URL remains usable and carries tool res
   assert.equal(second.text, '苏州今天晴');
 });
 
+test('DeepSeek reports a length-truncated empty Chat Completions response precisely', async () => {
+  const client = createDeepSeekClient({
+    fetchImpl: async () => jsonResponse({
+      choices: [{ message: { content: '', reasoning_content: 'still thinking' }, finish_reason: 'length' }]
+    })
+  });
+
+  await assert.rejects(
+    client.createResponse({
+      config: {
+        deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+      },
+      input: '南阳怎么去加州最快', tools: []
+    }),
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+  );
+});
+
+test('DeepSeek reports length-truncated tool arguments instead of generic invalid JSON', async () => {
+  const client = createDeepSeekClient({
+    fetchImpl: async () => jsonResponse({
+      choices: [{
+        message: {
+          content: '',
+          tool_calls: [{
+            id: 'call_1', type: 'function',
+            function: { name: 'search_places', arguments: '{"keywords":"酒店","district":"宛城区"' }
+          }]
+        },
+        finish_reason: 'length'
+      }]
+    })
+  });
+
+  await assert.rejects(
+    client.createResponse({
+      config: {
+        deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+      },
+      input: '白河湿地公园附近酒店', tools: []
+    }),
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+  );
+});
+
+test('DeepSeek chat adapter tells the model when hosted web search is unavailable', async () => {
+  let body;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      body = JSON.parse(options.body);
+      return jsonResponse({ choices: [{ message: { content: '当前接口无法联网查询航班。' }, finish_reason: 'stop' }] });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
+      model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+    },
+    instructions: '航班必须使用 web_search。', input: '南阳怎么去加州最快',
+    tools: [{ type: 'web_search' }]
+  });
+
+  assert.match(body.messages[0].content, /当前接口不支持 web_search/);
+  assert.doesNotMatch(JSON.stringify(body.tools || []), /web_search/);
+});
+
 test('DeepSeek client traces request, raw response, normalized response, and errors', async () => {
   const events = [];
   const client = createDeepSeekClient({

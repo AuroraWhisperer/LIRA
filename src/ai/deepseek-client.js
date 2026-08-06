@@ -42,9 +42,10 @@ function createDeepSeekClient(options = {}) {
   async function createChatResponse(request, config, url) {
     const previousId = String(request.previousResponseId || '');
     const previousMessages = previousId ? chatHistory.get(previousId) : null;
+    const instructions = appendChatCapabilityNotice(request.instructions, request.tools);
     const messages = previousMessages
       ? [...previousMessages, ...toChatInputMessages(request.input)]
-      : buildInitialChatMessages(request.instructions, request.input);
+      : buildInitialChatMessages(instructions, request.input);
     const body = {
       model: config.model,
       messages,
@@ -94,6 +95,9 @@ function createDeepSeekClient(options = {}) {
       });
       const result = normalize(payload);
       if (!result.text && !result.functionCalls.length) {
+        if (result.finishReason === 'length') {
+          throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', 'DeepSeek 输出达到长度上限，未生成完整回复。');
+        }
         throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
       }
       await safeLog({
@@ -197,13 +201,15 @@ function resolveOfficialChatEndpoint(value) {
 }
 
 function normalizeChatResponse(payload) {
-  const message = payload?.choices?.[0]?.message || {};
+  const choice = payload?.choices?.[0] || {};
+  const message = choice.message || {};
+  const finishReason = String(choice.finish_reason || '');
   const functionCalls = (Array.isArray(message.tool_calls) ? message.tool_calls : [])
     .filter((call) => call?.type === 'function' && call.function)
     .map((call) => ({
       callId: String(call.id || ''),
       name: String(call.function.name || ''),
-      arguments: parseArguments(call.function.arguments)
+      arguments: parseArguments(call.function.arguments, finishReason)
     }));
   const text = typeof message.content === 'string'
     ? message.content
@@ -214,12 +220,20 @@ function normalizeChatResponse(payload) {
     id: String(payload?.id || ''),
     text,
     functionCalls,
+    finishReason,
     usage: {
       inputTokens: Number(payload?.usage?.prompt_tokens) || 0,
       outputTokens: Number(payload?.usage?.completion_tokens) || 0
     },
     rawMessage: message
   };
+}
+
+function appendChatCapabilityNotice(instructions, tools) {
+  const text = String(instructions || '').trim();
+  const hasHostedSearch = (Array.isArray(tools) ? tools : []).some((tool) => tool?.type === 'web_search');
+  if (!hasHostedSearch) return text;
+  return `${text}\n\n当前接口不支持 web_search。遇到必须联网核实的问题时，不要声称正在搜索，也不要凭记忆编造；请直接简短说明当前无法联网查询。`.trim();
 }
 
 function buildInitialChatMessages(instructions, input) {
@@ -297,9 +311,12 @@ function normalizeResponse(payload) {
   };
 }
 
-function parseArguments(value) {
+function parseArguments(value, finishReason = '') {
   if (value && typeof value === 'object') return value;
   try { return JSON.parse(String(value || '{}')); } catch {
+    if (finishReason === 'length') {
+      throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', 'DeepSeek 输出达到长度上限，工具参数不完整。');
+    }
     throw createPublicError('INVALID_TOOL_ARGUMENTS', '模型给出了无效的工具参数。');
   }
 }

@@ -136,7 +136,9 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
   assert.match(html, /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
-  assert.match(html, /随机 500–2000 毫秒（仅消息之间）/);
+  assert.match(html, /回复长度偏好/);
+  assert.match(html, /优先一条，信息较多时两条，确有必要才三条/);
+  assert.match(html, /不同回复随机 500–2000 毫秒；同一回复分段随机 500–1000 毫秒/);
   assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
   assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);

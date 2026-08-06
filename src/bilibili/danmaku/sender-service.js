@@ -180,7 +180,42 @@ function splitDanmakuEveryMentionMessage(message, target, limit = DANMAKU_MESSAG
   if (!name) return splitDanmakuMessage(message, limit);
   const mentionLength = splitTextIntoCharacters(`@${name} `).length;
   const contentLimit = Math.max(1, limit - mentionLength);
-  return splitDanmakuMessage(message, contentLimit);
+  return splitDanmakuNaturally(message, contentLimit);
+}
+
+function splitDanmakuNaturally(message, limit) {
+  const remaining = splitTextIntoCharacters(message);
+  const chunks = [];
+  while (remaining.length > limit) {
+    const breakAt = findNaturalBreak(remaining, limit);
+    chunks.push(remaining.splice(0, breakAt).join(''));
+  }
+  if (remaining.length) chunks.push(remaining.join(''));
+  return chunks;
+}
+
+function findNaturalBreak(chars, limit) {
+  const minimumChunkCount = Math.ceil(chars.length / limit);
+  const capacitySafeMinimum = chars.length - ((minimumChunkCount - 1) * limit);
+  const emoticonStart = findSplitEmoticonStart(chars, limit);
+  if (emoticonStart >= Math.max(1, capacitySafeMinimum)) return emoticonStart;
+
+  const minimum = Math.max(1, limit - 8, capacitySafeMinimum);
+  for (let index = limit - 1; index >= minimum; index -= 1) {
+    if (/[。！？!?；;，,、～~]/u.test(chars[index])) return index + 1;
+  }
+  return limit;
+}
+
+function findSplitEmoticonStart(chars, limit) {
+  const sample = chars.slice(0, limit + 16).join('');
+  const pattern = /(?:\([^()\r\n]{1,16}\)|（[^（）\r\n]{1,16}）)/gu;
+  for (const match of sample.matchAll(pattern)) {
+    const start = splitTextIntoCharacters(sample.slice(0, match.index)).length;
+    const end = start + splitTextIntoCharacters(match[0]).length;
+    if (start < limit && end > limit && end - start <= limit) return start;
+  }
+  return -1;
 }
 
 function normalizeReplyTarget(target) {

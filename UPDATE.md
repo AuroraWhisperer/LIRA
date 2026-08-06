@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.2.17`
+当前版本：`3.2.18`
 
 ---
+
+## v3.2.18 变更
+
+- 💬 **AI 回复智能分条与自然断句**：`sender-service.js` 新增 `splitDanmakuNaturally`——弹幕拆分不再硬切 40 字符，而是在 `[limit-8, limit]` 窗口内优先在中文标点（。！？；，、～）处断句，同时避免割裂 `(｡･ω･｡)` / `（笑）` 等括号颜文字（正则检测跨边界括号，整段移到下一条）。拆分结果不会超过 3 条弹幕，确保多条 chunk 总容量可容纳完整回复。
+- 📏 **回复长度偏好替代硬上限**：新增 `getReplyLengthBudget(mentionName, preferredChars)`——根据 @用户名 的实际字符长度动态计算每条弹幕可用空间：单条 = `40 - @mention长度`，两条/三条分别为 2 倍和 3 倍。系统提示词从「50 个字符绝对上限」改为「优先只用 1 条；信息较多时可用 2 条；确有必要完整说明时才使用第 3 条」，模型被引导按需使用多条而非被迫截断。
+- 🔧 **回复生成参数调优**：生成和工具追问的 `maxOutputTokens` 从 256 提升至 1024（`MODEL_OUTPUT_TOKENS`），安全审查从 120 提升至 384（`REVIEW_OUTPUT_TOKENS`），为推理过程和工具调用 JSON 提供充足输出空间。长回复自动拆分为多段弹幕时，段间随机等待 500–1000ms（`MIN_CHUNK_INTERVAL_MS` / `MAX_CHUNK_INTERVAL_MS`），替代旧版紧接连发（`intervalMs: 0`），不同回复之间仍使用 500–2000ms 随机间隔。
+- 🛡️ **Chat Completions 模式下的 web_search 能力说明**：`deepseek-client.js` 新增 `appendChatCapabilityNotice()`——当工具列表包含 `web_search` 但当前走的是 Chat Completions 端点（不支持 hosted search）时，在系统指令末尾追加提示，告知模型不要声称正在搜索或凭记忆编造，应直接说明当前无法联网查询。
+- ⚠️ **输出截断精确报错**：`normalizeChatResponse` 提取 `finish_reason` 字段，若返回空文本且 `finish_reason === 'length'` 则抛出 `DEEPSEEK_OUTPUT_TRUNCATED`。`parseArguments` 在 JSON 解析失败且 `finishReason === 'length'` 时同样抛出截断错误而非通用的 `INVALID_TOOL_ARGUMENTS`，便于上层区分并重试。
+- 🎨 **管理后台文案更新**：小米 AI 面板「回复最大长度」改为「回复长度偏好」，说明改为「不是硬截断：优先一条，信息较多时两条，确有必要才三条」。发送间隔说明更新为区分回复间和分段间两种间隔。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增 Chat Completions 长度截断空响应报错测试、截断工具参数报错测试、web_search 能力提示注入测试。`test/danmaku-sender-service.test.js` 新增自然断句测试（括号颜文字保护、标点优先 + ≤3 条约束）、分段间隔断言。`test/xiaomi-ai-service.test.js` 新增预算计算测试（含 mention 长度的单/双/三条容量）、分段间隔 500–1000ms 断言、零冷却默认接受连续请求测试、各阶段 maxOutputTokens 断言（1024/384）。`test/frontend-regressions.test.js` 更新文字断言匹配新标签和说明。
 
 ## v3.2.17 变更
 

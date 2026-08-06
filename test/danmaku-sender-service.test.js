@@ -4,7 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   createDanmakuSenderService,
-  DANMAKU_MESSAGE_LIMIT
+  DANMAKU_MESSAGE_LIMIT,
+  splitDanmakuEveryMentionMessage
 } = require('../src/bilibili/danmaku/sender-service');
 const { buildMentionedMessage } = require('../src/bilibili/danmaku/mention-policy');
 
@@ -105,6 +106,7 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
 
 test('sender service repeats an AI mention on every 40-character chunk', async () => {
   const calls = [];
+  const waits = [];
   const target = { uid: '42', name: 'Alice', source: 'xiaomi-ai' };
   const service = createDanmakuSenderService({
     getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
@@ -119,7 +121,7 @@ test('sender service repeats an AI mention on every 40-character chunk', async (
       }
     }),
     minIntervalMs: 0,
-    delay: async () => {},
+    delay: async (ms) => waits.push(ms),
     log: () => {}
   });
   await service.send({ message: '猫'.repeat(70), mentionTarget: target, mentionEveryChunk: true, intervalMs: 3000 });
@@ -127,6 +129,29 @@ test('sender service repeats an AI mention on every 40-character chunk', async (
   assert.ok(calls.every((call) => call.target.uid === '42'));
   assert.ok(calls.every((call) => Array.from(`@Alice ${call.message}`).length <= DANMAKU_MESSAGE_LIMIT));
   assert.equal(calls.map((call) => call.message).join(''), '猫'.repeat(70));
+  assert.deepEqual(waits, [3000, 3000]);
+});
+
+test('AI chunking moves a short trailing emoticon instead of cutting through it', () => {
+  const message = `喵平时都在自己直播间蹲着，最爱看的就是你们这些观众啦～(｡･ω･｡)`;
+  const chunks = splitDanmakuEveryMentionMessage(message, { name: '哈极光dd_' });
+
+  assert.deepEqual(chunks, [
+    '喵平时都在自己直播间蹲着，最爱看的就是你们这些观众啦～',
+    '(｡･ω･｡)'
+  ]);
+  assert.equal(chunks.join(''), message);
+  assert.ok(chunks.every((chunk) => Array.from(`@哈极光dd_ ${chunk}`).length <= DANMAKU_MESSAGE_LIMIT));
+});
+
+test('AI chunking prefers nearby punctuation without creating more than three messages', () => {
+  const message = `${'甲'.repeat(28)}。${'乙'.repeat(28)}，${'丙'.repeat(28)}`;
+  const chunks = splitDanmakuEveryMentionMessage(message, { name: '哈极光dd_', source: 'xiaomi-ai' });
+
+  assert.equal(chunks[0], `${'甲'.repeat(28)}。`);
+  assert.equal(chunks.join(''), message);
+  assert.ok(chunks.length <= 3);
+  assert.ok(chunks.every((chunk) => Array.from(`@哈极光dd_ ${chunk}`).length <= DANMAKU_MESSAGE_LIMIT));
 });
 
 test('sender service keeps emoji and symbols intact while splitting a DIY reply after the mention', async () => {

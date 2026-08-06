@@ -17,6 +17,12 @@ const MAX_DELIVERY_ATTEMPTS = 3;
 const DELIVERY_CONFIRM_TIMEOUT_MS = 10000;
 const MIN_REPLY_INTERVAL_MS = 500;
 const MAX_REPLY_INTERVAL_MS = 2000;
+const MIN_CHUNK_INTERVAL_MS = 500;
+const MAX_CHUNK_INTERVAL_MS = 1000;
+const MODEL_OUTPUT_TOKENS = 1024;
+const REVIEW_OUTPUT_TOKENS = 384;
+const DANMAKU_MESSAGE_LIMIT = 40;
+const MAX_REPLY_MESSAGES = 3;
 
 function createXiaomiAiService(dependencies) {
   const {
@@ -107,12 +113,15 @@ function createXiaomiAiService(dependencies) {
       const context = item.conversationContext;
       const input = buildConversationInput(item.question, context);
       const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
+      const replyBudget = getReplyLengthBudget(item.userName, config.replyMaxChars);
       let response = await deepseek.createResponse({
         config,
-        instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled),
+        instructions: buildReplyInstructions(
+          config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled, item.userName
+        ),
         input,
         tools: buildAvailableTools(config, excludedToolNames),
-        maxOutputTokens: 256,
+        maxOutputTokens: MODEL_OUTPUT_TOKENS,
         purpose: 'generation'
       });
       addUsage(usage, response.usage);
@@ -129,11 +138,13 @@ function createXiaomiAiService(dependencies) {
         }
         response = await deepseek.createResponse({
           config,
-          instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled),
+          instructions: buildReplyInstructions(
+            config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled, item.userName
+          ),
           input: outputs,
           tools: buildAvailableTools(config, excludedToolNames),
           previousResponseId: response.id,
-          maxOutputTokens: 256,
+          maxOutputTokens: MODEL_OUTPUT_TOKENS,
           purpose: 'tool_followup'
         });
         addUsage(usage, response.usage);
@@ -144,7 +155,7 @@ function createXiaomiAiService(dependencies) {
         config, buildOutputReviewPrompt(rawText), usage, 'output_review'
       );
       const approved = outputReview.allowed ? (outputReview.safeText || rawText) : (outputReview.safeText || SAFE_REFUSAL);
-      const text = truncateReply(approved, config.replyMaxChars);
+      const text = truncateReply(approved, replyBudget.threeMessages);
       const result = { text, category: toolCallCount ? 'tool' : 'chat', usage, toolCalls: toolCallCount };
       store.setContext(item.uid, { question: item.question, answer: text }, config.contextTtlSeconds);
       store.setCache(cacheKey, result, config.cacheTtlSeconds);
@@ -169,7 +180,7 @@ function createXiaomiAiService(dependencies) {
   async function runSafetyReview(config, prompt, usage, purpose) {
     const response = await deepseek.createResponse({
       config, instructions: '执行直播内容审核，只输出指定 JSON。', input: prompt,
-      tools: [], maxOutputTokens: 120, purpose
+      tools: [], maxOutputTokens: REVIEW_OUTPUT_TOKENS, purpose
     });
     addUsage(usage, response.usage);
     return parseSafetyReview(response.text);
@@ -204,6 +215,7 @@ function createXiaomiAiService(dependencies) {
   async function deliverReply(item, result) {
     let currentResult = result;
     for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt += 1) {
+      const chunkIntervalMs = randomIntervalMs(random, MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS);
       const waitMs = lastDeliveryAt
         ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt))
         : 0;
@@ -217,7 +229,7 @@ function createXiaomiAiService(dependencies) {
         message: currentResult.text,
         mentionTarget,
         mentionEveryChunk: true,
-        intervalMs: 0,
+        intervalMs: chunkIntervalMs,
         rateLimitIntervalMs: 0
       });
       lastDeliveryAt = now();
@@ -277,8 +289,11 @@ function createXiaomiAiService(dependencies) {
 }
 
 function randomReplyIntervalMs(random) {
-  return MIN_REPLY_INTERVAL_MS
-    + Math.floor(random() * (MAX_REPLY_INTERVAL_MS - MIN_REPLY_INTERVAL_MS + 1));
+  return randomIntervalMs(random, MIN_REPLY_INTERVAL_MS, MAX_REPLY_INTERVAL_MS);
+}
+
+function randomIntervalMs(random, minimum, maximum) {
+  return minimum + Math.floor(random() * (maximum - minimum + 1));
 }
 
 function buildAvailableTools(config, excludedToolNames) {
@@ -308,15 +323,29 @@ function buildConversationInput(question, context) {
  * Append a runtime length contract so old/custom persona text cannot turn the
  * configured maximum into a target that every answer tries to fill.
  */
-function buildReplyInstructions(systemPrompt, replyMaxChars, excludedToolNames = new Set(), webSearchEnabled = true) {
-  const maximum = Math.max(10, Math.min(50, Number(replyMaxChars) || 50));
-  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则：绝对上限是 ${maximum} 个字符，这只是上限，不是目标。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；正文之外可以自然添加标点和一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”，但不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量增长，确有必要才接近上限。不要为了接近上限补充废话或复述问题。`;
+function buildReplyInstructions(
+  systemPrompt, replyMaxChars, excludedToolNames = new Set(), webSearchEnabled = true, mentionName = ''
+) {
+  const budget = getReplyLengthBudget(mentionName, replyMaxChars);
+  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；正文之外可以自然添加标点和一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”，但不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
   if (excludedToolNames.size) {
     instructions += webSearchEnabled
       ? '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用。涉及这些函数的查询必须改用 web_search，不要凭记忆回答。'
       : '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用且 web_search 未启用。请明确说明暂时无法查询。';
   }
   return instructions;
+}
+
+function getReplyLengthBudget(mentionName, preferredChars) {
+  const name = cleanText(mentionName);
+  const mentionLength = name ? splitTextIntoCharacters(`@${name} `).length : 0;
+  const oneMessage = Math.max(1, DANMAKU_MESSAGE_LIMIT - mentionLength);
+  return {
+    oneMessage,
+    twoMessages: oneMessage * 2,
+    threeMessages: oneMessage * MAX_REPLY_MESSAGES,
+    preferred: Math.max(10, Math.min(50, Number(preferredChars) || 50))
+  };
 }
 
 function cleanModelText(value) {
@@ -355,5 +384,6 @@ module.exports = {
   extractTriggeredQuestion,
   truncateReply,
   buildConversationInput,
-  buildReplyInstructions
+  buildReplyInstructions,
+  getReplyLengthBudget
 };

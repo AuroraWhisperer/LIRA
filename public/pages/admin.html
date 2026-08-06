@@ -1508,7 +1508,7 @@
                           <small id="xiaomiAiModelFetchState">可直接输入，或从 DeepSeek 官方获取模型。</small>
                         </label>
                         <label>触发关键词<input id="xiaomiAiTrigger" type="text" maxlength="12" value="小米"></label>
-                        <label>回复最大长度<input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"><small>只是硬上限；简单回复正文约 20 字，可另加标点或一个短颜文字</small></label>
+                        <label>回复长度偏好<input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"><small>不是硬截断：优先一条，信息较多时两条，确有必要才三条</small></label>
                       </div>
                       <div class="xiaomi-ai-toggle-row">
                         <label><input id="xiaomiAiWebSearch" type="checkbox" checked> 启用 Web Search</label>
@@ -1544,7 +1544,7 @@
                       </summary>
                       <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
                         <label>并行查询数<input id="xiaomiAiConcurrency" type="number" min="1" max="5" value="3"></label>
-                        <label>发送间隔（毫秒）<input type="text" value="随机 500–2000 毫秒（仅消息之间）" readonly></label>
+                        <label>发送间隔（毫秒）<input type="text" value="不同回复随机 500–2000 毫秒；同一回复分段随机 500–1000 毫秒" readonly></label>
                         <label>单用户冷却（秒）<input id="xiaomiAiUserCooldown" type="number" min="0" max="3600" value="0"></label>
                         <label>全房间每分钟上限<input id="xiaomiAiRoomLimit" type="number" min="1" max="120" value="20"></label>
                         <label class="wide">小猫人格预设<textarea id="xiaomiAiSystemPrompt" rows="10" minlength="20" maxlength="8000"></textarea></label>
