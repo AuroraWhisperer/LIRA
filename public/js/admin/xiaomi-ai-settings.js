@@ -167,7 +167,9 @@ function init() {
       if (!await flushPendingSave()) throw codedClientError('SAVE_FAILED', '配置保存失败，未运行连接测试。');
       setState(saveState, `正在测试 ${label} 连接…`);
       const result = await readApi(`/api/ai/test/${provider}`, { method: 'POST', body: '{}' });
-      const detail = provider === 'deepseek' && result.model ? `模型 ${result.model}` : '地址与密钥均可用';
+      const detail = result.endpointAdapted
+        ? `官方 Host 与密钥可用（测试时临时使用 /chat/completions，配置未修改）`
+        : provider === 'deepseek' && result.model ? `模型 ${result.model}` : '地址与密钥均可用';
       setState(saveState, `${label} 连接正常。`, 'good');
       showProviderToast({ provider, good: true, title: `${label} 测试通过`, message: detail });
     } catch (error) {

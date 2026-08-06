@@ -45,6 +45,57 @@ test('DeepSeek client parses function calls from Responses output', async () => 
   assert.deepEqual(result.functionCalls[0].arguments, { location: '苏州', date: 'today', dataType: 'weather' });
 });
 
+test('DeepSeek connection test expands only the official base URL without changing normal requests', async () => {
+  const requests = [];
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      requests.push({ url: String(url), body: JSON.parse(options.body) });
+      if (String(url).endsWith('/chat/completions')) {
+        return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+      }
+      return jsonResponse({ id: 'resp_1', output_text: 'ok' });
+    }
+  });
+  const config = {
+    deepseekResponsesUrl: 'https://api.deepseek.com',
+    deepseekApiKey: 'secret',
+    model: 'deepseek-chat',
+    requestTimeoutMs: 3000
+  };
+
+  const testResult = await client.testConnection(config);
+  await client.createResponse({ config, input: 'hello' });
+
+  assert.deepEqual(testResult, {
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    endpointAdapted: true
+  });
+  assert.equal(requests[0].url, 'https://api.deepseek.com/chat/completions');
+  assert.equal(requests[0].body.messages[0].role, 'user');
+  assert.equal(requests[1].url, 'https://api.deepseek.com');
+});
+
+test('DeepSeek connection test keeps a complete Responses API URL unchanged', async () => {
+  let capturedUrl;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url) => {
+      capturedUrl = String(url);
+      return jsonResponse({ id: 'resp_1', output_text: 'ok' });
+    }
+  });
+
+  const result = await client.testConnection({
+    deepseekResponsesUrl: 'https://gateway.example.test/responses',
+    deepseekApiKey: 'secret',
+    model: 'custom-model',
+    requestTimeoutMs: 3000
+  });
+
+  assert.equal(capturedUrl, 'https://gateway.example.test/responses');
+  assert.deepEqual(result, { provider: 'deepseek', model: 'custom-model', endpointAdapted: false });
+});
+
 test('DeepSeek client lists sanitized official model ids', async () => {
   let captured;
   const client = createDeepSeekClient({

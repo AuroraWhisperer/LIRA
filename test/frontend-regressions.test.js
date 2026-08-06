@@ -265,6 +265,12 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
       if (url === '/api/ai/models') {
         return { ok: true, json: async () => ({ ok: true, data: { models: ['deepseek-v4-flash', 'deepseek-v4-pro'] } }) };
       }
+      if (url === '/api/ai/test/deepseek') {
+        return { ok: true, json: async () => ({
+          ok: true,
+          data: { provider: 'deepseek', model: 'deepseek-chat', endpointAdapted: true }
+        }) };
+      }
       const data = url === '/api/ai/status' ? { queued: 0 } : publicConfig;
       return { ok: true, json: async () => ({ ok: true, data }) };
     },
@@ -348,6 +354,23 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
   assert.equal(saves.length, 4);
   assert.equal(JSON.parse(saves[3].options.body).model, 'new-model');
+
+  elements.get('xiaomiAiDeepSeekUrl').value = 'https://api.deepseek.com';
+  listeners.get('form:input')({ target: { id: 'xiaomiAiDeepSeekUrl', matches: () => false } });
+  listeners.get('xiaomiAiTestBtn:click')();
+  await new Promise(resolve => setImmediate(resolve));
+  const callsAfterDeepSeekTest = fetchCalls.filter(call => call.url);
+  const deepSeekSaveIndex = callsAfterDeepSeekTest.findIndex(call => (
+    call.url === '/api/ai/config' && call.options.method === 'PUT'
+    && JSON.parse(call.options.body).deepseekResponsesUrl === 'https://api.deepseek.com'
+  ));
+  const deepSeekTestIndex = callsAfterDeepSeekTest.findIndex(call => call.url === '/api/ai/test/deepseek');
+  assert.ok(deepSeekSaveIndex >= 0 && deepSeekTestIndex > deepSeekSaveIndex);
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').value, 'https://api.deepseek.com');
+  assert.match(
+    fetchCalls.find(call => call.toast?.message?.includes('/chat/completions'))?.toast.message,
+    /配置未修改/
+  );
 
   elements.get('xiaomiAiQWeatherHost').value = 'new-weather.test';
   listeners.get('form:input')({ target: { id: 'xiaomiAiQWeatherHost', matches: () => false } });

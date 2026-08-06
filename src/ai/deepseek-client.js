@@ -58,28 +58,60 @@ function createDeepSeekClient(options = {}) {
     if (!config.deepseekApiKey) {
       throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写 DeepSeek API Key。');
     }
-    let response;
+    let responseText;
+    const testEndpoint = resolveTestEndpoint(config.deepseekResponsesUrl);
     try {
-      response = await createResponse({
-        config,
-        instructions: '只回复“连接正常”。',
-        input: '连接测试',
-        tools: [],
-        maxOutputTokens: 32
-      });
+      if (testEndpoint.adapted) {
+        const payload = await fetchJson(testEndpoint.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${config.deepseekApiKey}`
+          },
+          body: JSON.stringify({
+            model: config.model,
+            messages: [{ role: 'user', content: '连接测试' }],
+            max_tokens: 8,
+            stream: false
+          }),
+          timeoutMs: config.requestTimeoutMs,
+          fetchImpl
+        });
+        responseText = payload?.choices?.[0]?.message?.content;
+      } else {
+        const response = await createResponse({
+          config,
+          instructions: '只回复“连接正常”。',
+          input: '连接测试',
+          tools: [],
+          maxOutputTokens: 32
+        });
+        responseText = response.text;
+      }
     } catch (error) {
       if (isAuthenticationError(error)) {
         throw createPublicError('DEEPSEEK_AUTH_FAILED', 'DeepSeek 拒绝了该 API Key。');
       }
       throw error;
     }
-    if (!response.text) {
+    if (!responseText) {
       throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
     }
-    return { provider: 'deepseek', model: config.model };
+    return { provider: 'deepseek', model: config.model, endpointAdapted: testEndpoint.adapted };
   }
 
   return { createResponse, listModels, testConnection };
+}
+
+function resolveTestEndpoint(value) {
+  const url = new URL(value);
+  const officialHost = url.protocol === 'https:' && url.hostname === 'api.deepseek.com' && !url.port;
+  const path = url.pathname.replace(/\/+$/, '');
+  if (!officialHost || !['', '/v1'].includes(path) || url.search || url.hash) {
+    return { url: value, adapted: false };
+  }
+  const prefix = path === '/v1' ? '/v1' : '';
+  return { url: `${url.origin}${prefix}/chat/completions`, adapted: true };
 }
 
 function normalizeResponse(payload) {

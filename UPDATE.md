@@ -1,8 +1,13 @@
 # 打包与更新说明
 
-当前版本：`3.2.13`
+当前版本：`3.2.14`
 
 ---
+
+## v3.2.14 变更
+
+- 🔧 **DeepSeek 连接测试适配官方域名**：当 `deepseekResponsesUrl` 填写的是 DeepSeek 官方基础地址（`https://api.deepseek.com` 或 `https://api.deepseek.com/v1`，无端口、无查询参数、无 hash）时，`testConnection()` 临时使用 `/chat/completions` 端点发送极短测试消息（`max_tokens: 8`），因为官方 Responses API 不支持极短文本请求。`endpointAdapted: true` 标记通过响应回传前端，显示「官方 Host 与密钥可用（测试时临时使用 /chat/completions，配置未修改）」。自定义网关地址（如 `https://gateway.example.test/responses`）不受影响，直接使用原地址通过 Responses API 测试。`resolveTestEndpoint()` 纯函数独立可测。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增两个测试——官方基础地址展开为 `/chat/completions` 且 `createResponse` 仍使用原地址、自定义网关地址保持不变。`test/frontend-regressions.test.js` 新增官方域名测试按钮保存先于测试时序断言、`endpointAdapted` Toast 消息断言。
 
 ## v3.2.12 变更
 
