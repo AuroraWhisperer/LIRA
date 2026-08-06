@@ -33,19 +33,29 @@ function init() {
   let saving = false;
   let pendingSave = false;
   let dirty = false;
+  let configLoaded = false;
+  const editedFieldIds = new Set();
 
   refreshConfig = async () => {
     try {
       const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
-      if (!dirty && !saving) renderConfig(config);
+      renderConfig(config, editedFieldIds);
       renderStatus(status);
+      if (!configLoaded) {
+        configLoaded = true;
+        if (dirty && form.checkValidity()) {
+          clearTimeout(autosaveTimer);
+          setState(saveState, '等待自动保存…');
+          autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
+        }
+      }
     } catch (error) {
       setState(saveState, error.message || '无法读取 AI 配置', 'warn');
     }
   };
 
   const saveConfig = async () => {
-    if (!dirty || !form.checkValidity()) return;
+    if (!dirty || !configLoaded || !form.checkValidity()) return;
     if (saving) {
       pendingSave = true;
       return;
@@ -59,6 +69,7 @@ function init() {
       const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
       clearSubmittedSecrets(submittedConfig);
       renderConfigSummary(config);
+      editedFieldIds.clear();
       setState(saveState, '已自动保存，后续新弹幕立即生效。', 'good');
       saved = true;
     } catch (error) {
@@ -87,14 +98,21 @@ function init() {
 
   form.addEventListener('input', (event) => {
     if (event.target.matches('input[type="checkbox"]')) return;
+    if (event.target.id) editedFieldIds.add(event.target.id);
     scheduleSave();
   });
 
   form.addEventListener('change', (event) => {
-    if (event.target.matches('input[type="checkbox"], input[type="number"]')) scheduleSave(true);
+    if (event.target.matches('input[type="checkbox"], input[type="number"]')) {
+      if (event.target.id) editedFieldIds.add(event.target.id);
+      scheduleSave(true);
+    }
   });
 
-  enabledInput.addEventListener('change', () => scheduleSave(true));
+  enabledInput.addEventListener('change', () => {
+    editedFieldIds.add(enabledInput.id);
+    scheduleSave(true);
+  });
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -140,10 +158,10 @@ function collectConfig() {
   return config;
 }
 
-function renderConfig(config) {
+function renderConfig(config, preservedFieldIds = new Set()) {
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
-    if (!element || config[key] === undefined) continue;
+    if (!element || config[key] === undefined || preservedFieldIds.has(id)) continue;
     if (kind === 'checked') element.checked = config[key] === true;
     else element.value = String(config[key]);
   }
