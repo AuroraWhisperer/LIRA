@@ -70,8 +70,8 @@ function createDeepSeekClient(options = {}) {
           },
           body: JSON.stringify({
             model: config.model,
-            messages: [{ role: 'user', content: '连接测试' }],
-            max_tokens: 8,
+            messages: [{ role: 'user', content: '你好' }],
+            max_tokens: 128,
             stream: false
           }),
           timeoutMs: config.requestTimeoutMs,
@@ -81,10 +81,10 @@ function createDeepSeekClient(options = {}) {
       } else {
         const response = await createResponse({
           config,
-          instructions: '只回复“连接正常”。',
-          input: '连接测试',
+          instructions: '请简短回复用户。',
+          input: '你好',
           tools: [],
-          maxOutputTokens: 32
+          maxOutputTokens: 128
         });
         responseText = response.text;
       }
@@ -94,10 +94,16 @@ function createDeepSeekClient(options = {}) {
       }
       throw error;
     }
+    responseText = String(responseText || '').trim();
     if (!responseText) {
       throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
     }
-    return { provider: 'deepseek', model: config.model, endpointAdapted: testEndpoint.adapted };
+    return {
+      provider: 'deepseek',
+      model: config.model,
+      reply: responseText.slice(0, 200),
+      endpointAdapted: testEndpoint.adapted
+    };
   }
 
   return { createResponse, listModels, testConnection };

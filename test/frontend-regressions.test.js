@@ -268,7 +268,9 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
       if (url === '/api/ai/test/deepseek') {
         return { ok: true, json: async () => ({
           ok: true,
-          data: { provider: 'deepseek', model: 'deepseek-chat', endpointAdapted: true }
+          data: {
+            provider: 'deepseek', model: 'deepseek-chat', reply: '你好！有什么可以帮你？', endpointAdapted: true
+          }
         }) };
       }
       const data = url === '/api/ai/status' ? { queued: 0 } : publicConfig;
@@ -367,9 +369,9 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   const deepSeekTestIndex = callsAfterDeepSeekTest.findIndex(call => call.url === '/api/ai/test/deepseek');
   assert.ok(deepSeekSaveIndex >= 0 && deepSeekTestIndex > deepSeekSaveIndex);
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').value, 'https://api.deepseek.com');
-  assert.match(
-    fetchCalls.find(call => call.toast?.message?.includes('/chat/completions'))?.toast.message,
-    /配置未修改/
+  assert.equal(
+    fetchCalls.find(call => call.toast?.message?.includes('你好！'))?.toast.message,
+    '模型 deepseek-chat 回复：你好！有什么可以帮你？'
   );
 
   elements.get('xiaomiAiQWeatherHost').value = 'new-weather.test';

@@ -1,8 +1,13 @@
 # 打包与更新说明
 
-当前版本：`3.2.15`
+当前版本：`3.2.16`
 
 ---
+
+## v3.2.16 变更
+
+- 🔌 **DeepSeek 连接测试回复预览**：连接测试现在让模型回复实际内容（`max_tokens` 128，测试消息改为「你好」），响应的前 200 个字符通过 `reply` 字段回传前端，Toast 中显示「模型 deepseek-chat 回复：…」，让用户能直接确认模型是否正常应答。官方域名的 `/chat/completions` 适配路径和非官方自定义网关均通过新的 `instructions`「请简短回复用户。」+ `maxOutputTokens: 128` 获取真实回复。测试结果不再使用固定的 `endpointAdapted` 提示语。
+- 🧪 **测试覆盖更新**：`test/ai-provider-adapters.test.js` 新增 `reply` 字段断言、测试消息「你好」断言、`max_tokens` 128 断言。`test/frontend-regressions.test.js` 中 DeepSeek 测试按钮 Toast 断言改为真实回复内容匹配。
 
 ## v3.2.15 变更
 

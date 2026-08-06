@@ -69,10 +69,12 @@ test('DeepSeek connection test expands only the official base URL without changi
   assert.deepEqual(testResult, {
     provider: 'deepseek',
     model: 'deepseek-chat',
+    reply: 'ok',
     endpointAdapted: true
   });
   assert.equal(requests[0].url, 'https://api.deepseek.com/chat/completions');
-  assert.equal(requests[0].body.messages[0].role, 'user');
+  assert.deepEqual(requests[0].body.messages[0], { role: 'user', content: '你好' });
+  assert.equal(requests[0].body.max_tokens, 128);
   assert.equal(requests[1].url, 'https://api.deepseek.com');
 });
 
@@ -93,7 +95,9 @@ test('DeepSeek connection test keeps a complete Responses API URL unchanged', as
   });
 
   assert.equal(capturedUrl, 'https://gateway.example.test/responses');
-  assert.deepEqual(result, { provider: 'deepseek', model: 'custom-model', endpointAdapted: false });
+  assert.deepEqual(result, {
+    provider: 'deepseek', model: 'custom-model', reply: 'ok', endpointAdapted: false
+  });
 });
 
 test('DeepSeek client lists sanitized official model ids', async () => {
