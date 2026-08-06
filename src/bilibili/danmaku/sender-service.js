@@ -123,6 +123,7 @@ function createDanmakuSenderService(dependencies) {
     const client = createClient(room.roomId, auth);
     const roomInfo = await client.resolveRoomInfo();
     const results = [];
+    const sentAfter = now();
     for (let index = 0; index < messages.length; index += 1) {
       if (index > 0 && intervalMs > 0) await delay(intervalMs);
       const replyTarget = mentionEveryChunk || index === 0 ? target : emptyTarget();
@@ -132,6 +133,8 @@ function createDanmakuSenderService(dependencies) {
       message: results.map((item) => item.message).join(''),
       messages: results.map((item) => item.message),
       count: results.length,
+      accountUid: String(Number(auth.uid) || ''),
+      sentAfter,
       replyMid: results[0] && results[0].replyMid || '',
       replyUname: results[0] && results[0].replyUname || ''
     };

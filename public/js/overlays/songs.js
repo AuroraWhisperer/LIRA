@@ -34,8 +34,8 @@ function initializeScroller() {
     viewport,
     content: list,
     createNode: createSongRecordNode,
-    beforeViewports: 2,
-    afterViewports: 3
+    beforeViewports: 1,
+    afterViewports: 1.5
   });
 
   if (typeof ResizeObserver === 'function') {

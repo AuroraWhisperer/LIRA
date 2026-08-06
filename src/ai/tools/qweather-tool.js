@@ -1,9 +1,11 @@
 'use strict';
 
 const { fetchJson, joinApiUrl, createPublicError } = require('../http-client');
+const { requireApiQuota } = require('../api-quota-store');
 
 function createQWeatherTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const quotaStore = options.quotaStore;
 
   async function resolveLocation(config, location) {
     requireConfig(config);
@@ -11,6 +13,7 @@ function createQWeatherTool(options = {}) {
     url.searchParams.set('location', String(location || ''));
     url.searchParams.set('number', '5');
     url.searchParams.set('key', config.qweatherApiKey);
+    requireApiQuota(quotaStore, 'qweather');
     const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
     const candidates = Array.isArray(payload?.location) ? payload.location : [];
     if (!candidates.length) throw createPublicError('WEATHER_LOCATION_NOT_FOUND', '没有查到这个天气地点。');
@@ -31,6 +34,7 @@ function createQWeatherTool(options = {}) {
     const url = joinApiUrl(config.qweatherApiHost, pathName);
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
+    requireApiQuota(quotaStore, 'qweather');
     const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
     return {
       location,
@@ -44,6 +48,7 @@ function createQWeatherTool(options = {}) {
     const url = joinApiUrl(config.qweatherApiHost, '/v7/air/now');
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
+    requireApiQuota(quotaStore, 'qweather');
     const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
     return { location, observedAt: payload.updateTime || '', air: payload.now || null };
   }
@@ -52,6 +57,7 @@ function createQWeatherTool(options = {}) {
     const url = joinApiUrl(config.qweatherApiHost, '/v7/warning/now');
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
+    requireApiQuota(quotaStore, 'qweather');
     const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
     return { location, observedAt: payload.updateTime || '', warnings: payload.warning || [] };
   }

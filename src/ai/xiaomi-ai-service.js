@@ -11,10 +11,14 @@ const {
 } = require('./safety');
 const { isAiReady } = require('./config');
 const { createOrderedAsyncCoordinator } = require('./async-coordinator');
+const { getQuotaToolNames } = require('./api-quota-store');
+
+const MAX_DELIVERY_ATTEMPTS = 3;
+const DELIVERY_CONFIRM_TIMEOUT_MS = 10000;
 
 function createXiaomiAiService(dependencies) {
   const {
-    store, deepseek, tools, sendReply,
+    store, deepseek, tools, sendReply, waitForDelivery, quotaStore,
     now = Date.now,
     delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     log = console
@@ -75,14 +79,14 @@ function createXiaomiAiService(dependencies) {
     return '';
   }
 
-  async function generateReply(item) {
+  async function generateReply(item, options = {}) {
     const startedAt = now();
     const config = store.getConfig();
     if (item.localRefusal) {
       return { text: item.localRefusal, category: 'safety', usage: {}, toolCalls: 0 };
     }
     const cacheKey = `${config.model}\n${item.question}`;
-    const cached = store.getCache(cacheKey);
+    const cached = options.bypassCache ? null : store.getCache(cacheKey);
     if (cached?.text) return { ...cached, category: 'cache' };
     const usage = { inputTokens: 0, outputTokens: 0 };
     let toolCallCount = 0;
@@ -92,13 +96,17 @@ function createXiaomiAiService(dependencies) {
         return { text: inputReview.safeText || SAFE_REFUSAL, category: 'safety', usage, toolCalls: 0 };
       }
 
-      const context = store.getContext(item.uid);
+      if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
+        item.conversationContext = store.getContext(item.uid);
+      }
+      const context = item.conversationContext;
       const input = buildConversationInput(item.question, context);
+      const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
       let response = await deepseek.createResponse({
         config,
-        instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars),
+        instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled),
         input,
-        tools: buildTools(config),
+        tools: buildAvailableTools(config, excludedToolNames),
         maxOutputTokens: 256
       });
       addUsage(usage, response.usage);
@@ -109,15 +117,15 @@ function createXiaomiAiService(dependencies) {
         }
         const outputs = [];
         for (const call of response.functionCalls) {
-          const result = await executeTool(call, config);
+          const result = await executeToolWithQuotaFallback(call, config, excludedToolNames);
           outputs.push({ type: 'function_call_output', call_id: call.callId, output: JSON.stringify(result) });
           toolCallCount += 1;
         }
         response = await deepseek.createResponse({
           config,
-          instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars),
+          instructions: buildReplyInstructions(config.systemPrompt, config.replyMaxChars, excludedToolNames, config.webSearchEnabled),
           input: outputs,
-          tools: buildTools(config),
+          tools: buildAvailableTools(config, excludedToolNames),
           previousResponseId: response.id,
           maxOutputTokens: 256
         });
@@ -166,17 +174,54 @@ function createXiaomiAiService(dependencies) {
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
 
+  async function executeToolWithQuotaFallback(call, config, excludedToolNames) {
+    try {
+      return await executeTool(call, config);
+    } catch (error) {
+      const quotaToolNames = getQuotaToolNames(error);
+      if (!quotaToolNames.length) throw error;
+      for (const name of quotaToolNames) excludedToolNames.add(name);
+      return {
+        unavailable: true,
+        reason: 'monthly_api_quota_reached',
+        instruction: config.webSearchEnabled
+          ? '该第三方 API 已达到本月安全用量上限。不要再次调用这个函数，请改用 web_search 回答。'
+          : '该第三方 API 已达到本月安全用量上限，且 web_search 未启用。请直接说明暂时无法查询。'
+      };
+    }
+  }
+
   async function deliverReply(item, result) {
-    const config = store.getConfig();
-    const waitMs = Math.max(0, config.sendIntervalMs - (now() - lastDeliveryAt));
-    if (waitMs) await delay(waitMs);
-    await sendReply({
-      message: result.text,
-      mentionTarget: { uid: item.uid.startsWith('name:') ? '' : item.uid, name: item.userName, source: 'xiaomi-ai' },
-      mentionEveryChunk: true,
-      intervalMs: config.sendIntervalMs
-    });
-    lastDeliveryAt = now();
+    let currentResult = result;
+    for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt += 1) {
+      const config = store.getConfig();
+      const waitMs = Math.max(0, config.sendIntervalMs - (now() - lastDeliveryAt));
+      if (waitMs) await delay(waitMs);
+      const mentionTarget = {
+        uid: item.uid.startsWith('name:') ? '' : item.uid,
+        name: item.userName,
+        source: 'xiaomi-ai'
+      };
+      const delivery = await sendReply({
+        message: currentResult.text,
+        mentionTarget,
+        mentionEveryChunk: true,
+        intervalMs: config.sendIntervalMs
+      });
+      lastDeliveryAt = now();
+      if (typeof waitForDelivery !== 'function') return;
+      const delivered = await waitForDelivery({
+        ...delivery,
+        mentionName: mentionTarget.name,
+        timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS
+      });
+      if (delivered) return;
+      log.warn?.(`[AI] reply missing from room feed uid=${JSON.stringify(item.uid)} attempt=${attempt}/${MAX_DELIVERY_ATTEMPTS}`);
+      if (attempt < MAX_DELIVERY_ATTEMPTS) {
+        currentResult = await generateReply(item, { bypassCache: true });
+      }
+    }
+    throw codedError('DANMAKU_SWALLOWED', 'AI 回复连续三次未完整出现在直播间弹幕中。');
   }
 
   async function testConfiguration() {
@@ -197,6 +242,7 @@ function createXiaomiAiService(dependencies) {
       model: config.model,
       handledCount,
       lastError,
+      apiUsage: quotaStore?.getAllUsage?.() || [],
       ...coordinator.getStatus()
     };
   }
@@ -206,6 +252,10 @@ function createXiaomiAiService(dependencies) {
   }
 
   return { handleDanmaku, testConfiguration, getStatus, shutdown };
+}
+
+function buildAvailableTools(config, excludedToolNames) {
+  return buildTools(config).filter((tool) => !tool.name || !excludedToolNames.has(tool.name));
 }
 
 function extractTriggeredQuestion(message, trigger) {
@@ -231,9 +281,15 @@ function buildConversationInput(question, context) {
  * Append a runtime length contract so old/custom persona text cannot turn the
  * configured maximum into a target that every answer tries to fill.
  */
-function buildReplyInstructions(systemPrompt, replyMaxChars) {
+function buildReplyInstructions(systemPrompt, replyMaxChars, excludedToolNames = new Set(), webSearchEnabled = true) {
   const maximum = Math.max(10, Math.min(50, Number(replyMaxChars) || 50));
-  return `${String(systemPrompt || '').trim()}\n\n本次回复长度规则：绝对上限是 ${maximum} 个字符，这只是上限，不是目标。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；正文之外可以自然添加标点和一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”，但不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量增长，确有必要才接近上限。不要为了接近上限补充废话或复述问题。`;
+  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则：绝对上限是 ${maximum} 个字符，这只是上限，不是目标。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；正文之外可以自然添加标点和一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”，但不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量增长，确有必要才接近上限。不要为了接近上限补充废话或复述问题。`;
+  if (excludedToolNames.size) {
+    instructions += webSearchEnabled
+      ? '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用。涉及这些函数的查询必须改用 web_search，不要凭记忆回答。'
+      : '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用且 web_search 未启用。请明确说明暂时无法查询。';
+  }
+  return instructions;
 }
 
 function cleanModelText(value) {

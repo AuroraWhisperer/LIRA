@@ -2,6 +2,7 @@
 
 let initialized = false;
 let refreshConfig = null;
+const AUTOSAVE_DELAY_MS = 700;
 
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
@@ -25,37 +26,80 @@ function init() {
   const form = document.getElementById('xiaomiAiForm');
   if (!form) return;
   initialized = true;
-  const toast = window.AdminApp?.utils?.toast || (() => {});
+  const enabledInput = document.getElementById('xiaomiAiEnabled');
   const saveState = document.getElementById('xiaomiAiSaveState');
-  const saveButton = document.getElementById('xiaomiAiSaveBtn');
   const testButton = document.getElementById('xiaomiAiTestBtn');
+  let autosaveTimer = null;
+  let saving = false;
+  let pendingSave = false;
+  let dirty = false;
 
   refreshConfig = async () => {
     try {
       const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
-      renderConfig(config);
+      if (!dirty && !saving) renderConfig(config);
       renderStatus(status);
     } catch (error) {
       setState(saveState, error.message || '无法读取 AI 配置', 'warn');
     }
   };
 
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!form.reportValidity()) return;
-    saveButton.disabled = true;
-    setState(saveState, '正在保存…');
+  const saveConfig = async () => {
+    if (!dirty || !form.checkValidity()) return;
+    if (saving) {
+      pendingSave = true;
+      return;
+    }
+    saving = true;
+    dirty = false;
+    const submittedConfig = collectConfig();
+    let saved = false;
+    setState(saveState, '正在自动保存…');
     try {
-      const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(collectConfig()) });
-      clearSecretInputs();
-      renderConfig(config);
-      setState(saveState, 'AI 配置已保存，后续新弹幕立即生效。', 'good');
-      toast('小米 AI 配置已保存');
+      const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
+      clearSubmittedSecrets(submittedConfig);
+      renderConfigSummary(config);
+      setState(saveState, '已自动保存，后续新弹幕立即生效。', 'good');
+      saved = true;
     } catch (error) {
+      dirty = true;
       setState(saveState, error.message || '保存 AI 配置失败', 'warn');
     } finally {
-      saveButton.disabled = false;
+      saving = false;
+      if (saved && (pendingSave || dirty)) {
+        pendingSave = false;
+        if (form.checkValidity()) void saveConfig();
+      }
     }
+  };
+
+  const scheduleSave = (immediate = false) => {
+    dirty = true;
+    clearTimeout(autosaveTimer);
+    if (!form.checkValidity()) {
+      setState(saveState, '请先完成或修正当前输入，随后会自动保存。', 'warn');
+      return;
+    }
+    setState(saveState, immediate ? '正在自动保存…' : '等待自动保存…');
+    if (immediate) void saveConfig();
+    else autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
+  };
+
+  form.addEventListener('input', (event) => {
+    if (event.target.matches('input[type="checkbox"]')) return;
+    scheduleSave();
+  });
+
+  form.addEventListener('change', (event) => {
+    if (event.target.matches('input[type="checkbox"], input[type="number"]')) scheduleSave(true);
+  });
+
+  enabledInput.addEventListener('change', () => scheduleSave(true));
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    scheduleSave(true);
   });
 
   testButton.addEventListener('click', async () => {
@@ -103,6 +147,10 @@ function renderConfig(config) {
     if (kind === 'checked') element.checked = config[key] === true;
     else element.value = String(config[key]);
   }
+  renderConfigSummary(config);
+}
+
+function renderConfigSummary(config) {
   renderSecretHint('xiaomiAiDeepSeekKeyHint', config.hasDeepSeekApiKey);
   renderSecretHint('xiaomiAiQWeatherKeyHint', config.hasQWeatherApiKey);
   renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
@@ -120,9 +168,15 @@ function renderSecretHint(id, saved) {
   element.textContent = saved ? '已加密保存；留空表示保留' : '尚未保存';
 }
 
-function clearSecretInputs() {
-  for (const id of ['xiaomiAiDeepSeekKey', 'xiaomiAiQWeatherKey', 'xiaomiAiAmapKey']) {
-    document.getElementById(id).value = '';
+function clearSubmittedSecrets(config) {
+  const secrets = [
+    ['xiaomiAiDeepSeekKey', 'deepseekApiKey'],
+    ['xiaomiAiQWeatherKey', 'qweatherApiKey'],
+    ['xiaomiAiAmapKey', 'amapApiKey']
+  ];
+  for (const [id, key] of secrets) {
+    const element = document.getElementById(id);
+    if (config[key] && element.value.trim() === config[key]) element.value = '';
   }
 }
 

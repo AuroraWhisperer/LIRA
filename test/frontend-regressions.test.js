@@ -134,12 +134,121 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
   assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="留空/);
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
+  assert.match(html, /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/);
+  assert.match(html, /<details class="xiaomi-ai-collapsible">[\s\S]*?扩展能力/);
+  assert.match(html, /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/);
+  assert.doesNotMatch(html, /id="xiaomiAiSaveBtn"/);
   assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
   assert.match(indexSource, /import '\.\/xiaomi-ai-settings\.js';/);
   assert.match(source, /element\.textContent = text/);
+  assert.match(source, /const AUTOSAVE_DELAY_MS = 700/);
+  assert.match(source, /form\.addEventListener\('input'/);
+  assert.match(source, /form\.addEventListener\('change'/);
+  assert.match(source, /enabledInput\.addEventListener\('change'/);
+  assert.match(source, /if \(saving\) \{[\s\S]*?pendingSave = true/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.match(styles, /\.xiaomi-ai-section\s*\{/);
+  assert.match(styles, /\.xiaomi-ai-integration-grid\s*\{/);
   assert.match(styles, /@media \(max-width: 520px\)/);
+});
+
+test('Xiaomi AI autosaves toggles immediately and text after a debounce', async () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'xiaomi-ai-settings.js'), 'utf8');
+  const listeners = new Map();
+  const fetchCalls = [];
+  const timers = [];
+  const values = {
+    xiaomiAiEnabled: false,
+    xiaomiAiTrigger: '小米',
+    xiaomiAiDeepSeekUrl: 'https://api.example.com/responses',
+    xiaomiAiModel: 'ds-v4-flash',
+    xiaomiAiWebSearch: true,
+    xiaomiAiReasoning: false,
+    xiaomiAiQWeatherHost: '',
+    xiaomiAiAmapHost: '',
+    xiaomiAiReplyMaxChars: '50',
+    xiaomiAiConcurrency: '3',
+    xiaomiAiSendInterval: '3000',
+    xiaomiAiUserCooldown: '30',
+    xiaomiAiRoomLimit: '20',
+    xiaomiAiSystemPrompt: '这是一个长度足够的测试人格预设。',
+    xiaomiAiDeepSeekKey: '',
+    xiaomiAiQWeatherKey: '',
+    xiaomiAiAmapKey: ''
+  };
+  const elements = new Map(Object.entries(values).map(([id, value]) => [id, {
+    id,
+    value: typeof value === 'boolean' ? '' : value,
+    checked: value === true,
+    textContent: '',
+    className: '',
+    disabled: false,
+    addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
+  }]));
+  for (const id of [
+    'xiaomiAiSaveState', 'xiaomiAiTestBtn', 'xiaomiAiDeepSeekKeyHint',
+    'xiaomiAiQWeatherKeyHint', 'xiaomiAiAmapKeyHint', 'xiaomiAiConfigState',
+    'xiaomiAiModelState', 'xiaomiAiQueueState'
+  ]) {
+    if (!elements.has(id)) elements.set(id, { id, value: '', checked: false, textContent: '', className: '', disabled: false, addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); } });
+  }
+  const form = {
+    checkValidity: () => true,
+    reportValidity: () => true,
+    addEventListener(type, handler) { listeners.set(`form:${type}`, handler); }
+  };
+  elements.set('xiaomiAiForm', form);
+
+  const publicConfig = {
+    enabled: false,
+    trigger: '小米',
+    deepseekResponsesUrl: 'https://api.example.com/responses',
+    model: 'ds-v4-flash',
+    webSearchEnabled: true,
+    reasoningEnabled: false,
+    qweatherApiHost: '',
+    amapApiHost: '',
+    replyMaxChars: 50,
+    generationConcurrency: 3,
+    sendIntervalMs: 3000,
+    userCooldownSeconds: 30,
+    roomLimitPerMinute: 20,
+    systemPrompt: '这是一个长度足够的测试人格预设。',
+    hasDeepSeekApiKey: true,
+    hasQWeatherApiKey: false,
+    hasAmapApiKey: false
+  };
+  const sandbox = {
+    console,
+    document: { getElementById: id => elements.get(id) },
+    fetch: async (url, options = {}) => {
+      fetchCalls.push({ url, options });
+      const data = url === '/api/ai/status' ? { queued: 0 } : publicConfig;
+      return { ok: true, json: async () => ({ ok: true, data }) };
+    },
+    setTimeout: handler => { timers.push(handler); return timers.length; },
+    clearTimeout() {},
+    window: { AdminApp: {} }
+  };
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.xiaomiAiSettings.init();
+  await new Promise(resolve => setImmediate(resolve));
+
+  elements.get('xiaomiAiEnabled').checked = true;
+  listeners.get('xiaomiAiEnabled:change')();
+  await new Promise(resolve => setImmediate(resolve));
+  let saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
+  assert.equal(saves.length, 1);
+  assert.equal(JSON.parse(saves[0].options.body).enabled, true);
+
+  elements.get('xiaomiAiModel').value = 'new-model';
+  listeners.get('form:input')({ target: { matches: () => false } });
+  assert.equal(fetchCalls.filter(call => call.options.method === 'PUT').length, 1);
+  timers.at(-1)();
+  await new Promise(resolve => setImmediate(resolve));
+  saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
+  assert.equal(saves.length, 2);
+  assert.equal(JSON.parse(saves[1].options.body).model, 'new-model');
 });
 
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
@@ -1615,12 +1724,12 @@ test('song board keeps song names readable in narrow browser sources', async () 
   assert.doesNotMatch(source, /list\.innerHTML\s*=\s*html/);
 });
 
-test('song virtual scroller bounds the DOM to two viewports above and three below', async () => {
+test('song display board keeps one viewport above and one and a half below', async () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'songs.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   assert.match(html, /<script type="module" src="\/js\/overlays\/songs\.js\?v=[^"]+"><\/script>/);
-  assert.match(source, /new SongVirtualScroller\(\{[\s\S]*beforeViewports: 2,[\s\S]*afterViewports: 3/);
+  assert.match(source, /new SongVirtualScroller\(\{[\s\S]*beforeViewports: 1,[\s\S]*afterViewports: 1\.5/);
   assert.match(source, /new ResizeObserver\(\(\) => scheduleRelayout\(\{ delay: 120 \}\)\)/);
   assert.doesNotMatch(styles, /@keyframes song-scroll/);
   assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/);
@@ -1700,7 +1809,7 @@ test('song virtual scroller bounds the DOM to two viewports above and three belo
   assert.equal(wrapIndex(-1, 5), 4);
   assert.equal(wrapIndex(5, 5), 0);
   assert.equal(pixelsPerSecond(300, 12), 25);
-  assert.deepEqual(Array.from(bufferPixels(100, 2, 3)), [200, 300]);
+  assert.deepEqual(Array.from(bufferPixels(100, 1, 1.5)), [100, 150]);
 
   const content = new FakeContent();
   const viewport = {
@@ -1726,10 +1835,10 @@ test('song virtual scroller bounds the DOM to two viewports above and three belo
   });
 
   scroller.setRecords(records, { key: 'song:500', offset: 5 });
-  assert.equal(scroller.beforeViewports, 2);
-  assert.equal(scroller.afterViewports, 3);
+  assert.equal(scroller.beforeViewports, 1);
+  assert.equal(scroller.afterViewports, 1.5);
   assert.ok(content.children.length < 40, `expected a bounded DOM, got ${content.children.length} nodes`);
-  assert.ok(viewport.scrollTop >= 200);
+  assert.ok(viewport.scrollTop >= 100);
   assert.equal(scroller.captureAnchor().key, 'song:500');
 
   const originalCount = content.children.length;

@@ -1,9 +1,11 @@
 'use strict';
 
 const { fetchJson, joinApiUrl, createPublicError } = require('../http-client');
+const { requireApiQuota } = require('../api-quota-store');
 
 function createAmapTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const quotaStore = options.quotaStore;
 
   async function request(config, pathName, params) {
     if (!config.amapApiHost || !config.amapApiKey) {
@@ -14,6 +16,7 @@ function createAmapTool(options = {}) {
     for (const [key, value] of Object.entries(params || {})) {
       if (value !== '' && value !== null && value !== undefined) url.searchParams.set(key, String(value));
     }
+    requireApiQuota(quotaStore, pathName === '/v3/place/text' ? 'amap_search' : 'amap_lbs');
     const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
     if (String(payload.status || '1') !== '1') {
       throw createPublicError(String(payload.infocode || 'AMAP_ERROR'), '高德地图查询失败。');

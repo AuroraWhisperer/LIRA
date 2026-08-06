@@ -41,6 +41,15 @@ test('AI config validates URLs and numeric stability limits', () => {
   assert.throws(() => store.updateConfig({ replyMaxChars: 51 }), /10 到 50/);
 });
 
+test('AI config accepts a QWeather host without an HTTPS scheme', () => {
+  const { store } = createStore();
+  store.updateConfig({ qweatherApiHost: 'nn7mdbwku9.re.qweatherapi.com' });
+  assert.equal(store.getConfig().qweatherApiHost, 'https://nn7mdbwku9.re.qweatherapi.com');
+  store.updateConfig({ qweatherApiHost: 'https://example.re.qweatherapi.com' });
+  assert.equal(store.getConfig().qweatherApiHost, 'https://example.re.qweatherapi.com');
+  assert.throws(() => store.updateConfig({ qweatherApiHost: 'javascript://alert' }), /HTTP/);
+});
+
 test('AI context, cache and blacklist use TTL and bound keys', () => {
   let now = 1000;
   const { store } = createStore({ now: () => now });

@@ -23,6 +23,7 @@ test('reply instructions use about 20 text characters plus a short emoticon for 
   assert.match(instructions, /正文写约 18–22 个汉字/);
   assert.match(instructions, /一个简短的标点组合或颜文字/);
   assert.match(instructions, /不要为了接近上限/);
+  assert.match(buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true), /必须改用 web_search/);
 });
 
 test('local unsafe input is rejected without calling DeepSeek', async () => {
@@ -65,6 +66,119 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
   assert.ok(deliveries.every((item) => item.mentionEveryChunk === true));
 });
 
+test('a monthly API quota result makes the next tool round rely on web search', async () => {
+  const deliveries = [];
+  let mainCalls = 0;
+  const service = createTestService({
+    config: { trigger: 'AI' },
+    deepseek: {
+      async createResponse(request) {
+        if (!request.tools.length) {
+          const isOutputReview = String(request.input).includes('web result');
+          return {
+            text: isOutputReview
+              ? '{"allowed":true,"riskType":"","safeText":"web result"}'
+              : '{"allowed":true,"riskType":"","safeText":""}',
+            functionCalls: [], usage: {}
+          };
+        }
+        mainCalls += 1;
+        if (mainCalls === 1) {
+          return {
+            id: 'tool-round', text: '', usage: {},
+            functionCalls: [{ callId: 'weather-1', name: 'get_weather', arguments: {} }]
+          };
+        }
+        assert.ok(request.tools.some((tool) => tool.type === 'web_search'));
+        assert.ok(!request.tools.some((tool) => tool.name === 'get_weather'));
+        assert.ok(request.tools.some((tool) => tool.name === 'search_places'));
+        assert.match(String(request.input[0].output), /web_search/);
+        return { id: 'web-round', text: 'web result', functionCalls: [], usage: {} };
+      }
+    },
+    tools: {
+      qweather: {
+        async getWeather() {
+          const error = new Error('monthly limit reached');
+          error.code = 'QWEATHER_MONTHLY_LIMIT';
+          error.quotaCategory = 'qweather';
+          throw error;
+        }
+      },
+      amap: {},
+      getCurrentTime: () => ({})
+    },
+    sendReply: async (value) => deliveries.push(value)
+  });
+
+  service.handleDanmaku({ uid: 'quota-user', userName: 'Alice', message: 'AI weather' });
+  await waitUntil(() => deliveries.length === 1);
+  assert.equal(deliveries[0].message, 'web result');
+});
+
+test('an incomplete room echo regenerates the same request until delivery succeeds', async () => {
+  const deliveries = [];
+  const confirmations = [false, false, true];
+  let answerCount = 0;
+  const service = createTestService({
+    config: { trigger: 'AI' },
+    deepseek: createAnsweringDeepseek(() => `answer-${++answerCount}`),
+    sendReply: async (value) => {
+      deliveries.push(value.message);
+      return { accountUid: '9', messages: [value.message], sentAfter: Date.now() };
+    },
+    waitForDelivery: async () => confirmations.shift()
+  });
+
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: 'AI same question' });
+  await waitUntil(() => deliveries.length === 3);
+
+  assert.deepEqual(deliveries, ['answer-1', 'answer-2', 'answer-3']);
+  assert.equal(answerCount, 3);
+});
+
+test('a complete room echo finishes AI delivery without regenerating', async () => {
+  const deliveries = [];
+  let answerCount = 0;
+  const service = createTestService({
+    config: { trigger: 'AI' },
+    deepseek: createAnsweringDeepseek(() => `answer-${++answerCount}`),
+    sendReply: async (value) => {
+      deliveries.push(value.message);
+      return { accountUid: '9', messages: [value.message], sentAfter: Date.now() };
+    },
+    waitForDelivery: async () => true
+  });
+
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: 'AI delivered' });
+  await waitUntil(() => deliveries.length === 1);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.deepEqual(deliveries, ['answer-1']);
+  assert.equal(answerCount, 1);
+});
+
+test('AI delivery gives up after three missing room echoes', async () => {
+  const deliveries = [];
+  let answerCount = 0;
+  const service = createTestService({
+    config: { trigger: 'AI' },
+    deepseek: createAnsweringDeepseek(() => `lost-${++answerCount}`),
+    sendReply: async (value) => {
+      deliveries.push(value.message);
+      return { accountUid: '9', messages: [value.message], sentAfter: Date.now() };
+    },
+    waitForDelivery: async () => false
+  });
+
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: 'AI swallowed' });
+  await waitUntil(() => deliveries.length === 3);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.deepEqual(deliveries, ['lost-1', 'lost-2', 'lost-3']);
+  assert.equal(answerCount, 3);
+});
+
 function createTestService(overrides = {}) {
   const config = {
     ...AI_CONFIG_DEFAULTS,
@@ -83,11 +197,28 @@ function createTestService(overrides = {}) {
   return createXiaomiAiService({
     store,
     deepseek: overrides.deepseek || { createResponse: async () => ({ text: 'ok', functionCalls: [], usage: {} }) },
-    tools: { qweather: {}, amap: {}, getCurrentTime: () => ({}) },
+    tools: overrides.tools || { qweather: {}, amap: {}, getCurrentTime: () => ({}) },
     sendReply: overrides.sendReply || (async () => {}),
+    waitForDelivery: overrides.waitForDelivery,
     delay: async () => {},
     log: { warn: () => {} }
   });
+}
+
+function createAnsweringDeepseek(nextAnswer) {
+  return {
+    async createResponse(request) {
+      if (request.tools.length) {
+        return { text: nextAnswer(), functionCalls: [], usage: {} };
+      }
+      const answer = String(request.input).match(/(?:answer|lost)-\d+/)?.[0] || '';
+      return {
+        text: JSON.stringify({ allowed: true, riskType: '', safeText: answer }),
+        functionCalls: [],
+        usage: {}
+      };
+    }
+  };
 }
 
 async function waitUntil(predicate, timeoutMs = 1000) {

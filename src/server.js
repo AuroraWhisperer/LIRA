@@ -23,12 +23,14 @@ const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
 const { createAiConfigStore } = require('./ai/config-store');
+const { createAiApiQuotaStore } = require('./ai/api-quota-store');
 const { createElectronSecretCodec } = require('./ai/secret-codec');
 const { createDeepSeekClient } = require('./ai/deepseek-client');
 const { createQWeatherTool } = require('./ai/tools/qweather-tool');
 const { createAmapTool } = require('./ai/tools/amap-tool');
 const { getCurrentTime } = require('./ai/tools/current-time-tool');
 const { createXiaomiAiService } = require('./ai/xiaomi-ai-service');
+const { createDanmakuDeliveryVerifier } = require('./ai/danmaku-delivery-verifier');
 const { isBilibiliCommandText } = require('./bilibili/danmaku/command-text');
 const giftService = require('./bilibili/gift');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
@@ -191,15 +193,19 @@ function createServerRuntime(runtimeOptions = {}) {
     songDb,
     runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage)
   );
+  const aiApiQuotaStore = createAiApiQuotaStore(songDb);
+  const aiDanmakuDeliveryVerifier = createDanmakuDeliveryVerifier();
   const xiaomiAi = createXiaomiAiService({
     store: aiConfigStore,
+    quotaStore: aiApiQuotaStore,
     deepseek: createDeepSeekClient({ fetchImpl: runtimeOptions.fetchImpl }),
     tools: {
-      qweather: createQWeatherTool({ fetchImpl: runtimeOptions.fetchImpl }),
-      amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl }),
+      qweather: createQWeatherTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
+      amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
       getCurrentTime
     },
-    sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true })
+    sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),
+    waitForDelivery: (delivery) => aiDanmakuDeliveryVerifier.waitForDelivery(delivery)
   });
 
   const server = http.createServer(async (req, res) => {
@@ -528,6 +534,7 @@ function createServerRuntime(runtimeOptions = {}) {
       onMessage: (danmaku) => {
         if (isShuttingDown) return;
         try {
+          aiDanmakuDeliveryVerifier.observe(danmaku);
           const result = domainServices.messages.handleDanmaku({
             message: danmaku.message,
             userName: danmaku.userName,

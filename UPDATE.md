@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.2.9`
+当前版本：`3.2.10`
 
 ---
+
+## v3.2.10 变更
+
+- 💾 **AI 配置自动保存**：小米 AI 面板移除「保存 AI 配置」按钮，改为全自动保存——文本字段输入后 700ms 防抖自动写入、开关/复选框/数字字段变更即时保存。新增 `dirty` 标记防止状态刷新覆盖正在编辑的内容，`pendingSave` 队列处理并发保存请求。`clearSubmittedSecrets` 精确比对已保存值后再清空密码框（而非无条件清空），避免自动保存后密钥输入框意外变空。
+- 📊 **第三方 API 月度配额管控**：新增 `api-quota-store.js` + `ai_api_usage` 数据表——按工具类别（`qweather` / `amap_search` / `amap_lbs`）+ 月份键（`YYYY-MM`）独立计数。和风天气和高德地图每次 API 调用前先通过 `requireApiQuota()` 检查用量，超额时返回 `unavailable` 结果（含回退指令）而非直接报错。AI 在下一轮工具调用中自动移除已超额函数，改用 `web_search` 或明确告知用户暂时无法查询。`GET /api/ai/status` 响应新增 `apiUsage` 字段。
+- ✅ **AI 回复直播间送达验证**：新增 `danmaku-delivery-verifier.js`——AI 发送回复后监听直播间弹幕流，验证回复内容是否确实出现在房间中。未送达时自动重新生成（跳过缓存）并重发，最多 3 次尝试，全部失败后抛出 `DANMAKU_SWALLOWED` 错误。`sender-service.js` 返回值新增 `accountUid` 和 `sentAfter` 时间戳用于精确匹配。
+- 🎨 **小米 AI 面板 UI 重组**：DeepSeek 配置区更名为「核心配置」，新增主阴影（`xiaomi-ai-primary-config`）突出视觉权重。和风天气与高德地图合并为「扩展能力」折叠区（双列卡片网格，天气/地点·路线独立 section，各带胶囊标签），高级设置折叠区更名为「高级设置」。折叠组件（`.xiaomi-ai-collapsible`）统一新增 chevron 图标旋转动效、hover 高亮、focus-visible 轮廓，`prefers-reduced-motion` 下禁用过渡。猫耳图标新增眼睛和嘴巴（`<i>` 伪元素）。
+- 🔧 **和风天气 Host 自动补全**：`normalizeAiConfig` 中 `qweatherApiHost` 若无 `://` 则自动补全 `https://` 前缀。前端输入框从 `type="url"` 改为 `type="text"`（浏览器对裸域名的 URL 校验过严），placeholder 显示裸域名示例（`nn7mdbwku9.re.qweatherapi.com`）。
+- ⚡ **歌单展示板 DOM 节点削减**：`SongVirtualScroller` 的视口缓冲区从上方 2 倍 + 下方 3 倍缩减为上方 1 倍 + 下方 1.5 倍，默认创建时和 `songs.js` 调用点同步更新。DOM 节点数显著减少，内存占用降低。
+- 🧪 **测试覆盖增强**：`test/xiaomi-ai-service.test.js` 新增加权配额耗尽回退 web_search、送达验证成功/重试 3 次/放弃 4 个场景。`test/ai-provider-adapters.test.js` 新增和风天气/高德月度配额拒绝调用测试。`test/ai-config-store.test.js` 新增 QWeather Host 无协议补全测试。`test/frontend-regressions.test.js` 新增自动保存行为端到端沙箱测试（开关即时保存 + 文本防抖保存）、面板重组断言（扩展能力/高级设置折叠区、移除保存按钮）、歌单视口缓冲区缩减断言。`test/danmaku-sender-service.test.js` 新增 `accountUid`/`sentAfter` 字段断言。
 
 ## v3.2.9 变更
 

@@ -31,8 +31,8 @@ export class SongVirtualScroller {
     content,
     createNode,
     keyOf = (record) => record.key,
-    beforeViewports = 2,
-    afterViewports = 3,
+    beforeViewports = 1,
+    afterViewports = 1.5,
     requestFrame = (callback) => globalThis.requestAnimationFrame(callback),
     cancelFrame = (frameId) => globalThis.cancelAnimationFrame(frameId)
   }) {

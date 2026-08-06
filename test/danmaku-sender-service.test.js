@@ -66,6 +66,8 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
   const result = await service.send({ message: '1234567890'.repeat(8), mentionRequester: true });
 
   assert.equal(result.count, 3);
+  assert.equal(result.accountUid, '9');
+  assert.equal(typeof result.sentAfter, 'number');
   assert.equal(result.messages.length, 3);
   assert.ok(calls.every((call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT));
   assert.ok(Array.from(`@Alice ${calls[0].message}`).length <= DANMAKU_MESSAGE_LIMIT);

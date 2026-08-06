@@ -96,6 +96,14 @@ const SONG_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_ai_request_logs_created_at
     ON ai_request_logs(created_at);
 
+  CREATE TABLE IF NOT EXISTS ai_api_usage (
+    category TEXT NOT NULL,
+    month_key TEXT NOT NULL,
+    request_count INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (category, month_key)
+  );
+
   CREATE TABLE IF NOT EXISTS ai_viewer_context (
     uid TEXT PRIMARY KEY,
     payload TEXT NOT NULL,

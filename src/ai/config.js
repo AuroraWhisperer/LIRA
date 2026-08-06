@@ -75,7 +75,8 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
       result[key] = Math.round(value);
       continue;
     }
-    const value = String(rawValue ?? '').trim();
+    let value = String(rawValue ?? '').trim();
+    if (key === 'qweatherApiHost' && value && !value.includes('://')) value = `https://${value}`;
     if (URL_KEYS.has(key) && value) validateHttpUrl(key, value);
     if (key === 'trigger' && (!value || Array.from(value).length > 12)) {
       throw new Error('触发关键词长度必须为 1 到 12 个字符。');
