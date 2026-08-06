@@ -74,7 +74,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
   assert.ok(deliveries.every((item) => item.mentionEveryChunk === true));
 });
 
-test('separate replies wait 500-2000 ms while chunks use their own 500-1000 ms interval', async () => {
+test('separate replies wait 500-2000 ms while chunks use their own 200-600 ms interval', async () => {
   let currentTime = 10000;
   const randomValues = [0, 0.5, 0, 0.999999, 0.999999];
   const waits = [];
@@ -95,7 +95,7 @@ test('separate replies wait 500-2000 ms while chunks use their own 500-1000 ms i
   await waitUntil(() => deliveries.length === 3);
 
   assert.deepEqual(waits, [500, 2000]);
-  assert.deepEqual(deliveries.map((item) => item.intervalMs), [500, 750, 1000]);
+  assert.deepEqual(deliveries.map((item) => item.intervalMs), [200, 400, 600]);
   assert.ok(deliveries.every((item) => item.rateLimitIntervalMs === 0));
 });
 

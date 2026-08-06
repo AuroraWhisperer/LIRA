@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`3.2.18`
+当前版本：`3.2.19`
 
 ---
+
+## v3.2.19 变更
+
+- 🐱 **小米系统提示词结构化重构**：从平铺的 10 条编号规则改为 XML 标签分节结构——`<identity>`（角色定位）、`<priority>`（冲突优先级：安全 > 准确性 > 格式 > 语气）、`<conversation_style>`（对话风格：拒绝客服腔/模板句/强行科普/连续卖萌，强调接住话、有分寸、不擅自替观众脑补）、`<reply_format>`（50 字符绝对上限规则）、`<tool_policy>`、`<safety>`、`<final_check>`（发送前自检清单）。新提示词显著扩展了对话语气指导，让模型更自然、更像直播间即时接话而非 AI 客服。
+- 📋 **AI 日志格式与截断保护**：`request-logger.js` 每次启动覆盖写入会话头（`===== AI 日志会话 <ISO时间> =====`），每条事件前追加人类可读摘要行（`[时间] 类型 requestId=xxx`），JSON 改为缩进美化输出。新增 `limitValue()` — 字符串字段超过 4000 字符时截断并追加 `...[truncated]` 标记，防止超长响应撑爆日志文件。
+- 🗺️ **高德地址解析自动取首选**：`amap-tool.js` 的 `resolveLocation` 不再返回 `ambiguous` 标记，始终使用第一个匹配结果并在 `.alternatives` 中附带其余候选的 `formattedAddress` 列表。`normalizeRoute` 移除 `ambiguous` 分支，路线查询自动使用首选坐标直接执行，无需上层处理歧义逻辑。
+- ⚡ **弹幕分段间隔收紧**：同一回复的分段之间随机等待从 500–1000ms 缩短为 200–600ms（`MIN_CHUNK_INTERVAL_MS` / `MAX_CHUNK_INTERVAL_MS`），让多段回复更快送达，减少观众等待感。
+- 🧪 **测试覆盖增强**：`test/ai-request-logger.test.js` 重写——验证会话头覆盖旧内容、摘要行格式、字段截断和美化 JSON 多块解析。`test/ai-provider-adapters.test.js` 新增高德自动首选 + 路线查询完整流程测试（含 `alternatives` 断言）。`test/danmaku-sender-service.test.js` 新增顺序分段发送测试——前一段发送完毕后才开始下一段的等待间隔。`test/xiaomi-ai-service.test.js` 分段间隔断言更新为 200–600ms。
 
 ## v3.2.18 变更
 

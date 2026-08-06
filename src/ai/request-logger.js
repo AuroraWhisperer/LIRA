@@ -4,18 +4,26 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const SENSITIVE_KEY_PATTERN = /(?:authorization|proxy-authorization|api[-_]?key|access[-_]?token|secret)/i;
+const MAX_LOG_STRING_LENGTH = 4000;
 
 function createAiRequestLogger(options = {}) {
   const filePath = path.resolve(options.filePath || path.join(process.cwd(), 'logs', 'ai.log'));
   const now = options.now || (() => new Date());
-  let pending = Promise.resolve();
+  const sessionStartedAt = now().toISOString();
+  let pending = fs.mkdir(path.dirname(filePath), { recursive: true })
+    .then(() => fs.writeFile(
+      filePath,
+      `===== AI 日志会话 ${sessionStartedAt} =====\n\n`,
+      'utf8'
+    ));
 
   function log(event = {}, logOptions = {}) {
-    const entry = redactValue({
+    const entry = limitValue(redactValue({
       timestamp: now().toISOString(),
       ...event
-    }, normalizeSecrets(logOptions.secrets));
-    const line = `${JSON.stringify(entry)}\n`;
+    }, normalizeSecrets(logOptions.secrets)));
+    const summary = formatSummary(entry);
+    const line = `${summary}\n${JSON.stringify(entry, null, 2)}\n\n`;
     pending = pending
       .catch(() => {})
       .then(async () => {
@@ -26,6 +34,22 @@ function createAiRequestLogger(options = {}) {
   }
 
   return { filePath, log };
+}
+
+function formatSummary(entry) {
+  const timestamp = String(entry.timestamp || '');
+  const type = String(entry.type || 'event');
+  const requestId = entry.requestId ? ` requestId=${String(entry.requestId)}` : '';
+  return `[${timestamp}] ${type}${requestId}`;
+}
+
+function limitValue(value) {
+  if (Array.isArray(value)) return value.map(limitValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, childValue]) => [key, limitValue(childValue)]));
+  }
+  if (typeof value !== 'string' || value.length <= MAX_LOG_STRING_LENGTH) return value;
+  return `${value.slice(0, MAX_LOG_STRING_LENGTH)}...[truncated]`;
 }
 
 function redactValue(value, secrets, key = '') {

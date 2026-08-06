@@ -387,3 +387,44 @@ test('AMap separates search and LBS quota categories before sending requests', a
   assert.deepEqual(categories, ['amap_search']);
   assert.equal(fetchCalls, 0);
 });
+
+test('AMap automatically uses the first matching endpoint and completes the route query', async () => {
+  const requestedPaths = [];
+  const tool = createAmapTool({
+    fetchImpl: async (url) => {
+      const parsedUrl = new URL(url);
+      requestedPaths.push(parsedUrl.pathname);
+      if (parsedUrl.pathname.includes('/direction/')) {
+        assert.equal(parsedUrl.searchParams.get('origin'), '112.6,37.7');
+        assert.equal(parsedUrl.searchParams.get('destination'), '112.6,37.7');
+        return jsonResponse({
+          status: '1',
+          route: { transits: [{ distance: '16000', duration: '2400' }] }
+        });
+      }
+      return jsonResponse({
+        status: '1',
+        geocodes: [
+          { formatted_address: '太原南站候车厅', location: '112.6,37.7' },
+          { formatted_address: '太原南站东广场', location: '112.61,37.71' }
+        ]
+      });
+    },
+    quotaStore: { consume: () => ({ allowed: true }) }
+  });
+
+  const result = await tool.getRoute(
+    { amapApiHost: 'https://amap.test', amapApiKey: 'key', requestTimeoutMs: 3000 },
+    { origin: '太原南站', destination: '太原武宿机场', city: '太原', mode: 'transit' }
+  );
+
+  assert.equal(result.distanceMeters, 16000);
+  assert.equal(result.durationSeconds, 2400);
+  assert.deepEqual(result.origin.alternatives, ['太原南站东广场']);
+  assert.deepEqual(result.destination.alternatives, ['太原南站东广场']);
+  assert.deepEqual(requestedPaths, [
+    '/v3/geocode/geo',
+    '/v3/geocode/geo',
+    '/v3/direction/transit/integrated'
+  ]);
+});

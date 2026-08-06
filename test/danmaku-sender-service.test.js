@@ -132,6 +132,50 @@ test('sender service repeats an AI mention on every 40-character chunk', async (
   assert.deepEqual(waits, [3000, 3000]);
 });
 
+test('sender service waits only after each AI chunk finishes before sending the next one', async () => {
+  const events = [];
+  let finishSend;
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
+    getRoom: async () => ({ roomId: '123' }),
+    getLiveStatus: () => ({ connected: true, message: 'ok' }),
+    getMentionTarget: async () => null,
+    createClient: () => ({
+      resolveRoomInfo: async () => ({ roomId: 123 }),
+      sendDanmaku: async (roomId, message, target) => {
+        events.push(`send:${message}`);
+        if (!finishSend) {
+          await new Promise((resolve) => { finishSend = resolve; });
+        }
+        events.push(`sent:${message}`);
+        return { message, replyMid: target.uid, replyUname: target.name };
+      }
+    }),
+    minIntervalMs: 0,
+    delay: async (ms) => events.push(`wait:${ms}`),
+    log: () => {}
+  });
+
+  const sending = service.send({
+    message: '猫'.repeat(50),
+    mentionTarget: { uid: '42', name: 'Alice', source: 'xiaomi-ai' },
+    mentionEveryChunk: true,
+    intervalMs: 200
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, [`send:${'猫'.repeat(33)}`]);
+
+  finishSend();
+  await sending;
+  assert.deepEqual(events, [
+    `send:${'猫'.repeat(33)}`,
+    `sent:${'猫'.repeat(33)}`,
+    'wait:200',
+    `send:${'猫'.repeat(17)}`,
+    `sent:${'猫'.repeat(17)}`
+  ]);
+});
+
 test('AI chunking moves a short trailing emoticon instead of cutting through it', () => {
   const message = `喵平时都在自己直播间蹲着，最爱看的就是你们这些观众啦～(｡･ω･｡)`;
   const chunks = splitDanmakuEveryMentionMessage(message, { name: '哈极光dd_' });
