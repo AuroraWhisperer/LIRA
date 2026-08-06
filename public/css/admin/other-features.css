@@ -320,10 +320,20 @@ body.player-dock-expanded .other-workspace {
   background: var(--surface-2);
 }
 .danmaku-tool-heading {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding-left: 20px;
+}
+.danmaku-tool-heading::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--primary);
 }
 .danmaku-tool-heading h2 { margin: 0; font-size: 23px; }
 .danmaku-tool-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
@@ -339,13 +349,11 @@ body.player-dock-expanded .other-workspace {
 }
 .danmaku-bot-switch-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 .danmaku-bot-switch-card {
   min-width: 0;
-}
-.danmaku-bot-switch-card + .danmaku-bot-switch-card {
-  border-left: 1px solid var(--border);
 }
 .danmaku-section-heading {
   display: flex;
@@ -370,25 +378,74 @@ body.player-dock-expanded .other-workspace {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--surface-2);
 }
-.danmaku-status-grid > div { display: grid; gap: 5px; min-width: 0; padding: 13px 15px; }
+.danmaku-status-grid > div { display: grid; gap: 6px; min-width: 0; padding: 13px 15px; }
 .danmaku-status-grid > div + div { border-left: 1px solid var(--border); }
-.danmaku-status-grid span { color: var(--muted); font-size: 11px; }
-.danmaku-status-grid strong { overflow-wrap: anywhere; color: var(--text); font-size: 13px; }
+.danmaku-status-grid span { color: var(--muted); font-size: 11px; font-weight: 600; }
+.danmaku-status-grid strong { overflow-wrap: anywhere; color: var(--text); font-size: 14px; line-height: 1.35; }
 .danmaku-status-grid strong.good { color: #278b5b; }
 .danmaku-status-grid strong.warn { color: var(--warning); }
 .other-feature-panel-header-inline h2 { margin: 0; font-size: 22px; }
 .other-feature-panel-header-inline p,
 .danmaku-reply-target p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
-.danmaku-reply-section { padding: 0; }
-.danmaku-reply-target {
-  min-height: 78px;
+.danmaku-reply-section {
+  padding: 0;
   border: 0;
   background: transparent;
 }
-.danmaku-reply-target strong { color: var(--text); }
-#danmakuMessage { min-height: 100px; resize: vertical; }
+.danmaku-reply-target {
+  min-height: 96px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.danmaku-reply-target:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+.danmaku-reply-target:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.danmaku-reply-target > div { min-width: 0; }
+.danmaku-reply-target strong {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.35;
+}
+.danmaku-reply-target p { line-height: 1.5; }
+.danmaku-reply-target .switch-control {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 6px 0 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.danmaku-reply-target .switch-control:has(input:checked) {
+  color: var(--text);
+}
+.danmaku-reply-target .switch-control:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+.danmaku-reply-target .switch-control input:focus-visible + .switch-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+#danmakuMessage {
+  min-height: 112px;
+  resize: vertical;
+  line-height: 1.6;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+#danmakuMessage:focus {
+  border-color: var(--accent);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
 #danmakuSendForm .form-actions-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .danmaku-send-result {
   min-height: 38px;
@@ -739,7 +796,6 @@ body.player-dock-expanded .other-workspace {
 }
 
 @media (max-width: 900px) {
-  .danmaku-bot-switch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .danmaku-fortune-fields,
   .danmaku-fortune-add-grid,
   .danmaku-custom-reply-fields,
@@ -750,12 +806,9 @@ body.player-dock-expanded .other-workspace {
 
 @media (max-width: 600px) {
   .other-feature-panel-header-inline,
-  .danmaku-reply-target { align-items: flex-start; flex-direction: column; }
+  .danmaku-reply-target { align-items: stretch; flex-direction: column; }
   .danmaku-bot-switch-grid { grid-template-columns: 1fr; }
-  .danmaku-bot-switch-card + .danmaku-bot-switch-card {
-    border-top: 1px solid var(--border);
-    border-left: 0;
-  }
+  .danmaku-reply-target .switch-control { align-self: flex-start; }
   .danmaku-feature-section { padding: 14px; }
   .danmaku-status-grid { grid-template-columns: 1fr; }
   .danmaku-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
@@ -776,7 +829,9 @@ body.player-dock-expanded .other-workspace {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .danmaku-details-chevron { transition: none; }
+  .danmaku-details-chevron,
+  .danmaku-reply-target,
+  #danmakuMessage { transition: none; }
 }
 
 @media (max-width: 900px) {

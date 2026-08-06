@@ -1,8 +1,19 @@
 # 打包与更新说明
 
-当前版本：`3.2.7`
+当前版本：`3.2.8`
 
 ---
+
+## v3.2.8 变更
+
+- ⚡ **测试并发加速**：`npm test` 的 `--test-concurrency` 从 `1` 提升至 `4`，多核并行执行测试，本地验证耗时显著缩短。
+- 🎨 **弹幕姬自动回复开关双列网格**：自动回复开关网格从 4 列收窄为 2 列（`repeat(2, minmax(0, 1fr))`），卡片间距改用 `gap: 12px`，移除卡片间 `border-left` 分隔线，视觉更通透。移动端 600px 以下自动退为单列布局。
+- 🎨 **弹幕姬标题区域主题色竖条**：`.danmaku-tool-heading` 左侧新增 4px 主题色（`--primary`）竖条装饰（`::before` 伪元素），标题区视觉层次更清晰。
+- 🎨 **连接状态网格视觉增强**：状态网格背景改为 `--surface-2`，标签加粗（`font-weight: 600`）、数值字号增大至 14px、行高 1.35，信息密度与可读性双提升。
+- 🎨 **自动回复卡片交互态重设计**：开关卡片（`.danmaku-reply-target`）新增三层交互反馈——悬停时边框高亮（`color-mix` 混合）、开关开启时主题色左边框 + 4% 浅色背景 + 内阴影、开关禁用时半透明 + `not-allowed` 光标。开关 `focus-visible` 时新增 2px 外发光。卡片字标增大至 16px。
+- 🎨 **弹幕输入框聚焦态与尺寸升级**：输入框最小高度从 100px 增至 112px，新增 `line-height: 1.6` 提升编辑体验。聚焦时边框变色 + 3px 外发光（`box-shadow`），过渡动画 160ms。
+- 🎨 **CSS 细节收尾**：`prefers-reduced-motion` 下禁用 `.danmaku-reply-target` 和 `#danmakuMessage` 过渡动画。移动端 600px 下开关控件 `align-self: flex-start` 自然对齐，移除旧的 `border-top`/`border-left` 分隔回退。`styles-admin.css` 缓存版本号更新至 `v=20260806-01`。
+- 🧪 **测试同步更新**：`test/toolbox-sidebar.test.js` 适配新的 2 列网格 CSS 断言和 600px 响应式断点回归。
 
 ## v3.2.7 变更
 
