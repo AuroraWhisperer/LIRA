@@ -13,6 +13,20 @@ const ALLOWED_KEYS = new Set([
   'cacheTtlSeconds', 'contextTtlSeconds', 'systemPrompt'
 ]);
 
+function createProviderTestRoute(provider) {
+  return async (context, request, res) => {
+    try {
+      sendJson(res, 200, { ok: true, data: await context.ai.testProvider(provider) });
+    } catch (error) {
+      sendJson(res, 502, {
+        ok: false,
+        code: String(error?.code || 'UPSTREAM_ERROR').slice(0, 80),
+        error: error.message || '连接测试失败。'
+      });
+    }
+  };
+}
+
 const routes = {
   'GET /api/ai/config'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.ai.getConfig() });
@@ -50,7 +64,10 @@ const routes = {
     } catch (error) {
       sendJson(res, 502, { ok: false, error: error.message || 'DeepSeek 连接测试失败。' });
     }
-  }
+  },
+  'POST /api/ai/test/deepseek': createProviderTestRoute('deepseek'),
+  'POST /api/ai/test/qweather': createProviderTestRoute('qweather'),
+  'POST /api/ai/test/amap': createProviderTestRoute('amap')
 };
 
 module.exports = { prefixes, routes, ALLOWED_KEYS };

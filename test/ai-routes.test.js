@@ -72,3 +72,30 @@ test('AI models route rejects an invalid temporary key before calling the servic
   assert.equal(called, false);
   assert.doesNotMatch(res.body, /xxxxxxxx/);
 });
+
+test('AI provider test routes dispatch fixed providers and expose safe error codes', async () => {
+  const providers = [];
+  const context = {
+    ai: {
+      async testProvider(provider) {
+        providers.push(provider);
+        if (provider === 'qweather') {
+          const error = new Error('请先填写和风天气 API Key。');
+          error.code = 'QWEATHER_KEY_MISSING';
+          throw error;
+        }
+        return { provider };
+      }
+    }
+  };
+  const deepseekResponse = createResponseRecorder();
+  await routes['POST /api/ai/test/deepseek'](context, {}, deepseekResponse);
+  assert.equal(deepseekResponse.statusCode, 200);
+  assert.equal(JSON.parse(deepseekResponse.body).data.provider, 'deepseek');
+
+  const qweatherResponse = createResponseRecorder();
+  await routes['POST /api/ai/test/qweather'](context, {}, qweatherResponse);
+  assert.equal(qweatherResponse.statusCode, 502);
+  assert.equal(JSON.parse(qweatherResponse.body).code, 'QWEATHER_KEY_MISSING');
+  assert.deepEqual(providers, ['deepseek', 'qweather']);
+});

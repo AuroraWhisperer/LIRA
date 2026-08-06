@@ -45,6 +45,33 @@ test('sender service gets the mention target only when requested', async () => {
   assert.equal(calls[1].target.uid, '42');
 });
 
+test('sender service accepts a caller-specific rate limit interval', async () => {
+  let currentTime = 10000;
+  const waits = [];
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
+    getRoom: async () => ({ roomId: '123' }),
+    getLiveStatus: () => ({ connected: true, message: 'ok' }),
+    getMentionTarget: async () => null,
+    createClient: () => ({
+      resolveRoomInfo: async () => ({ roomId: 123 }),
+      sendDanmaku: async (roomId, message) => ({ message })
+    }),
+    now: () => currentTime,
+    delay: async (ms) => {
+      waits.push(ms);
+      currentTime += ms;
+    },
+    log() {}
+  });
+
+  await service.send({ message: 'first' });
+  currentTime += 500;
+  await service.send({ message: 'second', rateLimitIntervalMs: 0, waitForRateLimit: true });
+
+  assert.deepEqual(waits, []);
+});
+
 test('sender service splits long admin messages into Bilibili-sized chunks', async () => {
   const calls = [];
   const service = createDanmakuSenderService({

@@ -129,11 +129,17 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
   assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*value="deepseek-v4-flash"/);
   assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
+  assert.match(html, /id="xiaomiAiQWeatherTestBtn"[^>]*type="button"/);
+  assert.match(html, /id="xiaomiAiAmapTestBtn"[^>]*type="button"/);
   assert.match(html, /id="xiaomiAiModelOptions"/);
   assert.match(html, /id="xiaomiAiWebSearch"[^>]*checked/);
   assert.match(html, /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
+  assert.match(html, /随机 500–2000 毫秒（仅消息之间）/);
+  assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
+  assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
+  assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);
   assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="留空/);
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
   assert.match(html, /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/);
@@ -151,6 +157,7 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.match(styles, /\.xiaomi-ai-section\s*\{/);
   assert.match(styles, /\.xiaomi-ai-integration-grid\s*\{/);
+  assert.match(styles, /\.xiaomi-ai-test-actions\s*\{/);
   assert.match(styles, /@media \(max-width: 520px\)/);
 });
 
@@ -170,8 +177,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     xiaomiAiAmapHost: '',
     xiaomiAiReplyMaxChars: '50',
     xiaomiAiConcurrency: '3',
-    xiaomiAiSendInterval: '3000',
-    xiaomiAiUserCooldown: '30',
+    xiaomiAiUserCooldown: '0',
     xiaomiAiRoomLimit: '20',
     xiaomiAiSystemPrompt: '',
     xiaomiAiDeepSeekKey: '',
@@ -190,7 +196,8 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
   }]));
   for (const id of [
-    'xiaomiAiSaveState', 'xiaomiAiTestBtn', 'xiaomiAiFetchModelsBtn', 'xiaomiAiDeepSeekKeyHint',
+    'xiaomiAiSaveState', 'xiaomiAiTestBtn', 'xiaomiAiQWeatherTestBtn', 'xiaomiAiAmapTestBtn',
+    'xiaomiAiFetchModelsBtn', 'xiaomiAiDeepSeekKeyHint',
     'xiaomiAiQWeatherKeyHint', 'xiaomiAiAmapKeyHint', 'xiaomiAiConfigState',
     'xiaomiAiModelState', 'xiaomiAiQueueState', 'xiaomiAiModelFetchState'
   ]) {
@@ -228,7 +235,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     replyMaxChars: 50,
     generationConcurrency: 3,
     sendIntervalMs: 3000,
-    userCooldownSeconds: 30,
+    userCooldownSeconds: 0,
     roomLimitPerMinute: 20,
     systemPrompt: '这是一个长度足够的测试人格预设。',
     hasDeepSeekApiKey: true,
@@ -263,7 +270,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     },
     setTimeout: handler => { timers.push(handler); return timers.length; },
     clearTimeout() {},
-    window: { AdminApp: {} }
+    window: { AdminApp: { utils: { showStackedToast(options) { fetchCalls.push({ toast: options }); } } } }
   };
   vm.runInNewContext(source, sandbox);
   sandbox.window.AdminApp.xiaomiAiSettings.init();
@@ -341,6 +348,19 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
   assert.equal(saves.length, 4);
   assert.equal(JSON.parse(saves[3].options.body).model, 'new-model');
+
+  elements.get('xiaomiAiQWeatherHost').value = 'new-weather.test';
+  listeners.get('form:input')({ target: { id: 'xiaomiAiQWeatherHost', matches: () => false } });
+  listeners.get('xiaomiAiQWeatherTestBtn:click')();
+  await new Promise(resolve => setImmediate(resolve));
+  const callsAfterWeatherTest = fetchCalls.filter(call => call.url);
+  const weatherSaveIndex = callsAfterWeatherTest.findIndex(call => (
+    call.url === '/api/ai/config' && call.options.method === 'PUT'
+    && JSON.parse(call.options.body).qweatherApiHost === 'new-weather.test'
+  ));
+  const weatherTestIndex = callsAfterWeatherTest.findIndex(call => call.url === '/api/ai/test/qweather');
+  assert.ok(weatherSaveIndex >= 0 && weatherTestIndex > weatherSaveIndex);
+  assert.match(fetchCalls.find(call => call.toast)?.toast.className, /xiaomi-ai-test-toast-good/);
 });
 
 test('admin blind box summary shows one row per viewer and opens analysis', () => {

@@ -674,12 +674,15 @@ body.player-dock-expanded .other-workspace {
 .xiaomi-ai-actions > .hint { max-width: 58%; line-height: 1.5; }
 .xiaomi-ai-actions .hint.good { color: var(--color-success-dark); }
 .xiaomi-ai-actions .hint.warn { color: var(--warning); }
+.xiaomi-ai-test-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.xiaomi-ai-test-actions button { min-height: 36px; white-space: nowrap; }
+.xiaomi-ai-test-actions button:disabled { cursor: wait; opacity: 0.62; }
 
 @media (max-width: 760px) {
   .xiaomi-ai-heading,
   .xiaomi-ai-actions { align-items: stretch; flex-direction: column; }
   .xiaomi-ai-actions > .hint { max-width: none; }
-  .xiaomi-ai-actions > button { align-self: flex-end; }
+  .xiaomi-ai-test-actions { justify-content: flex-start; }
   .xiaomi-ai-field-grid { grid-template-columns: 1fr; }
   .xiaomi-ai-field-grid label.wide { grid-column: auto; }
   .xiaomi-ai-integration-grid { grid-template-columns: 1fr; }
@@ -694,6 +697,8 @@ body.player-dock-expanded .other-workspace {
   .xiaomi-ai-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
   .xiaomi-ai-model-picker { grid-template-columns: 1fr; }
   .xiaomi-ai-model-picker button { width: 100%; }
+  .xiaomi-ai-test-actions { display: grid; grid-template-columns: 1fr; }
+  .xiaomi-ai-test-actions button { width: 100%; }
 }
 
 .danmaku-blessings-section {

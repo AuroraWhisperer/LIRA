@@ -15,12 +15,15 @@ const { getQuotaToolNames } = require('./api-quota-store');
 
 const MAX_DELIVERY_ATTEMPTS = 3;
 const DELIVERY_CONFIRM_TIMEOUT_MS = 10000;
+const MIN_REPLY_INTERVAL_MS = 500;
+const MAX_REPLY_INTERVAL_MS = 2000;
 
 function createXiaomiAiService(dependencies) {
   const {
     store, deepseek, tools, sendReply, waitForDelivery, quotaStore,
     now = Date.now,
     delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    random = Math.random,
     log = console
   } = dependencies;
   const userLastRequest = new Map();
@@ -194,8 +197,9 @@ function createXiaomiAiService(dependencies) {
   async function deliverReply(item, result) {
     let currentResult = result;
     for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt += 1) {
-      const config = store.getConfig();
-      const waitMs = Math.max(0, config.sendIntervalMs - (now() - lastDeliveryAt));
+      const waitMs = lastDeliveryAt
+        ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt))
+        : 0;
       if (waitMs) await delay(waitMs);
       const mentionTarget = {
         uid: item.uid.startsWith('name:') ? '' : item.uid,
@@ -206,7 +210,8 @@ function createXiaomiAiService(dependencies) {
         message: currentResult.text,
         mentionTarget,
         mentionEveryChunk: true,
-        intervalMs: config.sendIntervalMs
+        intervalMs: 0,
+        rateLimitIntervalMs: 0
       });
       lastDeliveryAt = now();
       if (typeof waitForDelivery !== 'function') return;
@@ -226,11 +231,15 @@ function createXiaomiAiService(dependencies) {
 
   async function testConfiguration() {
     const config = store.getConfig();
-    if (!isAiReady({ ...config, enabled: true })) throw codedError('AI_NOT_CONFIGURED', '请先填写 DeepSeek 地址和 API Key。');
-    const response = await deepseek.createResponse({
-      config, instructions: '只回复“连接正常”。', input: '连接测试', tools: [], maxOutputTokens: 32
-    });
-    return { ok: Boolean(response.text), model: config.model };
+    return deepseek.testConnection(config);
+  }
+
+  async function testProvider(provider) {
+    const config = store.getConfig();
+    if (provider === 'deepseek') return deepseek.testConnection(config);
+    if (provider === 'qweather') return tools.qweather.testConnection(config);
+    if (provider === 'amap') return tools.amap.testConnection(config);
+    throw codedError('AI_PROVIDER_UNKNOWN', '不支持该连接测试。');
   }
 
   async function listModels(input = {}) {
@@ -257,7 +266,12 @@ function createXiaomiAiService(dependencies) {
     coordinator.stop();
   }
 
-  return { handleDanmaku, testConfiguration, listModels, getStatus, shutdown };
+  return { handleDanmaku, testConfiguration, testProvider, listModels, getStatus, shutdown };
+}
+
+function randomReplyIntervalMs(random) {
+  return MIN_REPLY_INTERVAL_MS
+    + Math.floor(random() * (MAX_REPLY_INTERVAL_MS - MIN_REPLY_INTERVAL_MS + 1));
 }
 
 function buildAvailableTools(config, excludedToolNames) {

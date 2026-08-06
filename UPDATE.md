@@ -1,6 +1,6 @@
 # 打包与更新说明
 
-当前版本：`3.2.12`
+当前版本：`3.2.13`
 
 ---
 
@@ -12,6 +12,13 @@
 - 🛡️ **模型获取安全边界**：`POST /api/ai/models` 路由验证临时 Key 为字符串且 ≤512 字符，超长 Key 在到达服务层前被拒绝。API Key 不进入模型列表响应、错误消息或日志。模型 ID 经过去重、排序和 1-80 字符长度过滤，通过 `option.value` 写入 DOM 而非 `innerHTML`。
 - 🎨 **模型选择器 UI 样式**：模型输入框与按钮使用双列 Grid 布局（`minmax(0, 1fr) auto`）、7px 间距。下拉菜单绝对定位在输入框下方，最大高度 220px 可滚动，圆角 8px + 深阴影。选项 hover/focus 时高亮（`--surface-2`）。响应式 520px 断点下按钮撑满宽度。
 - 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增 DeepSeek 模型列表适配器测试（去重/过滤空 ID/过滤超长 ID/排序/Key 不进 URL）。`test/ai-routes.test.js` 新增模型路由测试（临时 Key 透传、超长 Key 拒绝、响应不含 Key）。`test/ai-config-store.test.js` 新增旧模型名规范化测试（`ds-v4-flash` → `deepseek-v4-flash` + 自定义模型保留）。`test/xiaomi-ai-service.test.js` 新增模型获取 Key 优先级测试（新输入优先于已保存）。`test/frontend-regressions.test.js` 扩展自动保存测试——模型获取按钮点击、datalist 填充断言、下拉菜单选项点击选择、`aria-expanded` 状态、密钥保存后值保留断言、手动输入模型名仍触发自动保存。
+
+## v3.2.13 变更
+
+- 🔌 **DeepSeek / 和风天气 / 高德地图 API 连接测试**：小米 AI 面板新增三个独立「测试」按钮——测试 DeepSeek、测试和风天气、测试高德地图。点击后先等待初始配置加载完成、刷新表单校验、flush 所有待保存的脏数据（`flushPendingSave`），然后通过 `/api/ai/test/:provider` 端点进行连接测试。`deepseek-client.js` 新增 `testConnection()`——发一条极短文本请求验证地址与 Key 有效，区分鉴权失败和其他错误。`qweather-tool.js` 和 `amap-tool.js` 各新增 `testConnection()`——发送一条最小查询验证 Host 与 Key 可用，区分 Host 缺失、Key 缺失、鉴权拒绝和业务错误。测试结果通过专用 Toast（绿色 ✓ 通过 / 橙色 ! 失败，深色径向渐变背景）展示，自动消失。
+- 🎲 **AI 回复随机间隔 500–2000 毫秒**：多条独立 AI 回复之间现在随机等待 500–2000ms（均匀分布），替代旧的固定 `sendIntervalMs` 配置。同一条回复的多段拆分之间不再插入延迟（`intervalMs: 0`、`rateLimitIntervalMs: 0`），确保单条回复的多段连续发出。`sender-service.js` 新增 `rateLimitIntervalMs` 参数——调用方可显式传入 `0` 绕过内置的 1500ms 全局频率限制，适配 AI 已自行控制间隔的场景。管理后台发送间隔输入框改为只读文本说明（「随机 500–2000 毫秒（仅消息之间）」），旧配置键保留兼容已存储数据。
+- ⚙️ **单用户冷却默认归零**：`userCooldownSeconds` 默认值从 30 秒改为 0 秒，有效范围从 `[5, 3600]` 调整为 `[0, 3600]`。默认不再对同一用户施加冷却限制，观众可连续与 AI 对话。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增和风天气/高德连接测试（成功响应 + 缺字段/鉴权拒绝错误码区分）。`test/ai-routes.test.js` 新增 `POST /api/ai/test/:provider` 路由分发与安全错误码测试。`test/xiaomi-ai-service.test.js` 新增随机 500–2000ms 间隔测试（确定性随机源验证最小/最大等待 + `intervalMs`/`rateLimitIntervalMs` 归零断言）、provider 测试调度与未知 provider 拒绝测试。`test/danmaku-sender-service.test.js` 新增 `rateLimitIntervalMs` 调用方覆盖测试。`test/frontend-regressions.test.js` 新增三个测试按钮 DOM 断言、`sendIntervalMs` 移除断言、随机间隔只读文本断言、cooldown 默认 0 断言、测试按钮点击后保存先于测试的时序断言、Toast className 断言。`test/ai-config-store.test.js` 新增 `userCooldownSeconds` 零值保存与负值拒绝测试。
 
 ## v3.2.11 变更
 

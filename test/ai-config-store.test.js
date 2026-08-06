@@ -22,6 +22,7 @@ test('AI config defaults are redacted and secrets are stored encrypted', () => {
   const defaults = store.getPublicConfig();
   assert.equal(defaults.model, 'deepseek-v4-flash');
   assert.equal(defaults.deepseekResponsesUrl, '');
+  assert.equal(defaults.userCooldownSeconds, 0);
   assert.equal(defaults.hasDeepSeekApiKey, false);
   assert.equal('deepseekApiKey' in defaults, false);
 
@@ -45,6 +46,8 @@ test('AI config validates URLs and numeric stability limits', () => {
   assert.throws(() => store.updateConfig({ deepseekResponsesUrl: 'javascript:alert(1)' }), /HTTP/);
   assert.throws(() => store.updateConfig({ generationConcurrency: 9 }), /1 到 5/);
   assert.throws(() => store.updateConfig({ sendIntervalMs: 10 }), /1500/);
+  assert.equal(store.updateConfig({ userCooldownSeconds: 0 }).userCooldownSeconds, 0);
+  assert.throws(() => store.updateConfig({ userCooldownSeconds: -1 }), /0/);
   assert.throws(() => store.updateConfig({ replyMaxChars: 51 }), /10 到 50/);
 });
 

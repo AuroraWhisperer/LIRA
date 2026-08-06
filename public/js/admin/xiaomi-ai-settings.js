@@ -15,7 +15,6 @@ const FIELD_MAP = Object.freeze({
   amapApiHost: ['xiaomiAiAmapHost', 'value'],
   replyMaxChars: ['xiaomiAiReplyMaxChars', 'number'],
   generationConcurrency: ['xiaomiAiConcurrency', 'number'],
-  sendIntervalMs: ['xiaomiAiSendInterval', 'number'],
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
   roomLimitPerMinute: ['xiaomiAiRoomLimit', 'number'],
   systemPrompt: ['xiaomiAiSystemPrompt', 'value']
@@ -28,7 +27,11 @@ function init() {
   initialized = true;
   const enabledInput = document.getElementById('xiaomiAiEnabled');
   const saveState = document.getElementById('xiaomiAiSaveState');
-  const testButton = document.getElementById('xiaomiAiTestBtn');
+  const providerTestButtons = [
+    ['deepseek', document.getElementById('xiaomiAiTestBtn')],
+    ['qweather', document.getElementById('xiaomiAiQWeatherTestBtn')],
+    ['amap', document.getElementById('xiaomiAiAmapTestBtn')]
+  ];
   const fetchModelsButton = document.getElementById('xiaomiAiFetchModelsBtn');
   const modelInput = document.getElementById('xiaomiAiModel');
   const modelOptions = document.getElementById('xiaomiAiModelOptions');
@@ -39,6 +42,8 @@ function init() {
   let pendingSave = false;
   let dirty = false;
   let configLoaded = false;
+  let savingPromise = null;
+  let initialLoadPromise = null;
   const editedFieldIds = new Set();
 
   refreshConfig = async () => {
@@ -60,32 +65,38 @@ function init() {
   };
 
   const saveConfig = async () => {
-    if (!dirty || !configLoaded || !form.checkValidity()) return;
+    if (!dirty || !configLoaded || !form.checkValidity()) return !dirty;
     if (saving) {
       pendingSave = true;
-      return;
+      await savingPromise;
+      return saveConfig();
     }
     saving = true;
     dirty = false;
     const submittedConfig = collectConfig();
-    let saved = false;
     setState(saveState, '正在自动保存…');
-    try {
-      const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
-      renderConfigSummary(config);
-      editedFieldIds.clear();
-      setState(saveState, '已自动保存，后续新弹幕立即生效。', 'good');
-      saved = true;
-    } catch (error) {
-      dirty = true;
-      setState(saveState, error.message || '保存 AI 配置失败', 'warn');
-    } finally {
-      saving = false;
-      if (saved && (pendingSave || dirty)) {
-        pendingSave = false;
-        if (form.checkValidity()) void saveConfig();
+    savingPromise = (async () => {
+      try {
+        const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
+        renderConfigSummary(config);
+        editedFieldIds.clear();
+        setState(saveState, '已自动保存，后续新弹幕立即生效。', 'good');
+        return true;
+      } catch (error) {
+        dirty = true;
+        setState(saveState, error.message || '保存 AI 配置失败', 'warn');
+        return false;
+      } finally {
+        saving = false;
       }
+    })();
+    const saved = await savingPromise;
+    savingPromise = null;
+    if (saved && (pendingSave || dirty)) {
+      pendingSave = false;
+      return saveConfig();
     }
+    return saved;
   };
 
   const scheduleSave = (immediate = false) => {
@@ -98,6 +109,24 @@ function init() {
     setState(saveState, immediate ? '正在自动保存…' : '等待自动保存…');
     if (immediate) void saveConfig();
     else autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
+  };
+
+  const flushPendingSave = async () => {
+    clearTimeout(autosaveTimer);
+    while (savingPromise || saving || dirty || pendingSave) {
+      if (savingPromise) {
+        if (!await savingPromise) return false;
+        await Promise.resolve();
+        continue;
+      }
+      if (dirty || pendingSave) {
+        pendingSave = false;
+        if (!await saveConfig()) return false;
+        continue;
+      }
+      await Promise.resolve();
+    }
+    return true;
   };
 
   form.addEventListener('input', (event) => {
@@ -124,18 +153,31 @@ function init() {
     scheduleSave(true);
   });
 
-  testButton.addEventListener('click', async () => {
-    testButton.disabled = true;
-    setState(saveState, '正在测试 DeepSeek 连接…');
+  for (const [provider, button] of providerTestButtons) {
+    button.addEventListener('click', () => void runProviderTest(provider, button));
+  }
+
+  async function runProviderTest(provider, button) {
+    const label = providerLabel(provider);
+    button.disabled = true;
+    setState(saveState, `正在准备 ${label} 连接测试…`);
     try {
-      const result = await readApi('/api/ai/test', { method: 'POST', body: '{}' });
-      setState(saveState, `连接正常：${result.model || '已配置模型'}`, 'good');
+      await initialLoadPromise;
+      if (!form.reportValidity()) throw codedClientError('FORM_INVALID', '请先修正表单中的网址或数值。');
+      if (!await flushPendingSave()) throw codedClientError('SAVE_FAILED', '配置保存失败，未运行连接测试。');
+      setState(saveState, `正在测试 ${label} 连接…`);
+      const result = await readApi(`/api/ai/test/${provider}`, { method: 'POST', body: '{}' });
+      const detail = provider === 'deepseek' && result.model ? `模型 ${result.model}` : '地址与密钥均可用';
+      setState(saveState, `${label} 连接正常。`, 'good');
+      showProviderToast({ provider, good: true, title: `${label} 测试通过`, message: detail });
     } catch (error) {
-      setState(saveState, error.message || 'DeepSeek 连接测试失败', 'warn');
+      const message = providerErrorMessage(provider, error);
+      setState(saveState, message, 'warn');
+      showProviderToast({ provider, good: false, title: `${label} 测试未通过`, message });
     } finally {
-      testButton.disabled = false;
+      button.disabled = false;
     }
-  });
+  }
 
   fetchModelsButton.addEventListener('click', async () => {
     fetchModelsButton.disabled = true;
@@ -188,7 +230,7 @@ function init() {
     fetchModelsButton.setAttribute('aria-expanded', 'false');
   }
 
-  void refreshConfig();
+  initialLoadPromise = refreshConfig();
 }
 
 async function readApi(url, options = {}) {
@@ -197,7 +239,11 @@ async function readApi(url, options = {}) {
     headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers
   });
   const payload = await response.json();
-  if (!response.ok || !payload.ok) throw new Error(payload.error || '请求失败');
+  if (!response.ok || !payload.ok) {
+    const error = new Error(payload.error || '请求失败');
+    error.code = payload.code || `HTTP_${response.status}`;
+    throw error;
+  }
   return payload.data || {};
 }
 
@@ -205,6 +251,7 @@ function collectConfig() {
   const config = {};
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
+    if (!element) continue;
     config[key] = kind === 'checked' ? element.checked : (kind === 'number' ? Number(element.value) : element.value.trim());
   }
   config.deepseekApiKey = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
@@ -244,6 +291,57 @@ function renderSecretHint(id, saved) {
 function setState(element, text, kind = '') {
   element.textContent = text;
   element.className = `hint${kind ? ` ${kind}` : ''}`;
+}
+
+function providerLabel(provider) {
+  return { deepseek: 'DeepSeek', qweather: '和风天气', amap: '高德地图' }[provider] || 'API';
+}
+
+function providerErrorMessage(provider, error) {
+  const messages = {
+    DEEPSEEK_URL_MISSING: '请先填写完整的 Responses API 地址。',
+    DEEPSEEK_KEY_MISSING: '请先填写 DeepSeek API Key。',
+    DEEPSEEK_AUTH_FAILED: 'DeepSeek 拒绝了该 Key，请检查 Key 是否有效及账户权限。',
+    DEEPSEEK_INVALID_RESPONSE: 'DeepSeek 已响应，但没有返回可识别的文本。',
+    QWEATHER_HOST_MISSING: '请先填写和风天气专属 API Host。',
+    QWEATHER_KEY_MISSING: '请先填写和风天气 API Key。',
+    QWEATHER_AUTH_FAILED: '和风天气拒绝了该 Key，请检查 Key 与专属 Host 是否属于同一项目。',
+    QWEATHER_INVALID_RESPONSE: '和风天气已响应，但返回格式不正确。',
+    QWEATHER_REJECTED: '和风天气返回业务错误，请到控制台检查服务状态。',
+    AMAP_HOST_MISSING: '请先填写高德 Web 服务 API Host。',
+    AMAP_KEY_MISSING: '请先填写高德 Web 服务 Key。',
+    AMAP_AUTH_FAILED: '高德拒绝了该 Key，请确认它是 Web 服务类型并已启用。',
+    AMAP_INVALID_RESPONSE: '高德已响应，但没有返回有效的地点数据。',
+    AMAP_REJECTED: '高德返回业务错误，请到控制台检查配额和服务状态。',
+    UPSTREAM_TIMEOUT: `${providerLabel(provider)}连接超时，请稍后重试。`,
+    UPSTREAM_UNAVAILABLE: `无法连接${providerLabel(provider)}，请检查网络或 Host。`,
+    UPSTREAM_INVALID_RESPONSE: `${providerLabel(provider)}返回了无法识别的数据。`,
+    SAVE_FAILED: '配置保存失败，未运行连接测试。',
+    FORM_INVALID: '请先修正表单中的网址或数值。'
+  };
+  if (['HTTP_404', 'HTTP_405'].includes(error?.code)) {
+    return `${providerLabel(provider)}接口地址不正确，请检查 Host 或完整接口路径。`;
+  }
+  if (['HTTP_401', 'HTTP_403'].includes(error?.code)) {
+    return `${providerLabel(provider)}拒绝了该密钥，请检查密钥类型与权限。`;
+  }
+  return messages[error?.code] || error?.message || `${providerLabel(provider)}连接测试失败。`;
+}
+
+function showProviderToast({ provider, good, title, message }) {
+  window.AdminApp?.utils?.showStackedToast?.({
+    key: `xiaomi-ai-test:${provider}:${good ? 'good' : 'warn'}:${message}`,
+    title,
+    message,
+    className: `xiaomi-ai-test-toast xiaomi-ai-test-toast-${good ? 'good' : 'warn'}`,
+    duration: good ? 3600 : 5200
+  });
+}
+
+function codedClientError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function refresh() {

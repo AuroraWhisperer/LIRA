@@ -104,10 +104,11 @@ function createDanmakuSenderService(dependencies) {
     mentionTarget = null,
     mentionEveryChunk = false,
     intervalMs = 0,
+    rateLimitIntervalMs = minIntervalMs,
     waitForRateLimit = false
   }) {
     const nowMs = now();
-    const remainingWait = lastSentAt ? minIntervalMs - (nowMs - lastSentAt) : 0;
+    const remainingWait = lastSentAt ? rateLimitIntervalMs - (nowMs - lastSentAt) : 0;
     if (remainingWait > 0 && waitForRateLimit) await delay(remainingWait);
     else if (remainingWait > 0) throw new Error('发送过于频繁，请稍后再试。');
     const [auth, room] = await Promise.all([getAuth(), getRoom()]);

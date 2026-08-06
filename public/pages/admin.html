@@ -13,7 +13,7 @@
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-admin.css?v=20260806-01">
+    <link rel="stylesheet" href="/css/styles-admin.css?v=20260806-02">
     <link rel="stylesheet" href="/css/styles-playback.css?v=20260803-01">
     <link rel="stylesheet" href="/css/overlays/desktop.css?v=20260802-01">
   </head>
@@ -1544,15 +1544,19 @@
                       </summary>
                       <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
                         <label>并行查询数<input id="xiaomiAiConcurrency" type="number" min="1" max="5" value="3"></label>
-                        <label>发送间隔（毫秒）<input id="xiaomiAiSendInterval" type="number" min="1500" max="30000" value="3000"></label>
-                        <label>单用户冷却（秒）<input id="xiaomiAiUserCooldown" type="number" min="5" max="3600" value="30"></label>
+                        <label>发送间隔（毫秒）<input type="text" value="随机 500–2000 毫秒（仅消息之间）" readonly></label>
+                        <label>单用户冷却（秒）<input id="xiaomiAiUserCooldown" type="number" min="0" max="3600" value="0"></label>
                         <label>全房间每分钟上限<input id="xiaomiAiRoomLimit" type="number" min="1" max="120" value="20"></label>
                         <label class="wide">小猫人格预设<textarea id="xiaomiAiSystemPrompt" rows="10" minlength="20" maxlength="8000"></textarea></label>
                       </div>
                     </details>
                     <div class="xiaomi-ai-actions">
                       <span id="xiaomiAiSaveState" class="hint" role="status" aria-live="polite">修改后自动保存；密钥会加密存储且不会显示。</span>
-                      <button id="xiaomiAiTestBtn" class="secondary" type="button">测试 DeepSeek</button>
+                      <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
+                        <button id="xiaomiAiTestBtn" class="secondary" type="button">测试 DeepSeek</button>
+                        <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">测试和风天气</button>
+                        <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">测试高德地图</button>
+                      </div>
                     </div>
                   </form>
                 </section>

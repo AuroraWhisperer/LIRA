@@ -69,7 +69,30 @@ function createAmapTool(options = {}) {
     return { ...resolved.matches[0], name: text };
   }
 
-  return { resolveLocation, searchPlaces, getRoute };
+  async function testConnection(config = {}) {
+    if (!config.amapApiHost) {
+      throw createPublicError('AMAP_HOST_MISSING', '请先填写高德 Web 服务 API Host。');
+    }
+    if (!config.amapApiKey) {
+      throw createPublicError('AMAP_KEY_MISSING', '请先填写高德 Web 服务 Key。');
+    }
+    let payload;
+    try {
+      payload = await request(config, '/v3/geocode/geo', { address: '天安门', city: '北京' });
+    } catch (error) {
+      if (['10001', '10002', '10003', '10007', '10008', '10009', '10010'].includes(String(error?.code || ''))) {
+        throw createPublicError('AMAP_AUTH_FAILED', '高德地图拒绝了该 Web 服务 Key。');
+      }
+      if (String(error?.code || '').startsWith('AMAP_')) throw error;
+      throw createPublicError('AMAP_REJECTED', '高德地图返回了业务错误。');
+    }
+    if (!Array.isArray(payload?.geocodes) || !payload.geocodes[0]?.location) {
+      throw createPublicError('AMAP_INVALID_RESPONSE', '高德地图返回格式不正确。');
+    }
+    return { provider: 'amap' };
+  }
+
+  return { resolveLocation, searchPlaces, getRoute, testConnection };
 }
 
 function normalizeRoute(route, mode, origin, destination) {

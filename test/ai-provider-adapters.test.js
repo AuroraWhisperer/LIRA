@@ -71,6 +71,54 @@ test('DeepSeek client lists sanitized official model ids', async () => {
   assert.deepEqual(result.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
 });
 
+test('provider connection tests validate successful responses', async () => {
+  const qweather = createQWeatherTool({
+    fetchImpl: async () => jsonResponse({ code: '200', location: [{ id: '101010100', name: '北京' }] }),
+    quotaStore: { consume: () => ({ allowed: true }) }
+  });
+  assert.deepEqual(await qweather.testConnection({
+    qweatherApiHost: 'https://weather.test', qweatherApiKey: 'weather-secret', requestTimeoutMs: 3000
+  }), { provider: 'qweather' });
+
+  const amap = createAmapTool({
+    fetchImpl: async () => jsonResponse({ status: '1', geocodes: [{ location: '116.397,39.908' }] }),
+    quotaStore: { consume: () => ({ allowed: true }) }
+  });
+  assert.deepEqual(await amap.testConnection({
+    amapApiHost: 'https://amap.test', amapApiKey: 'amap-secret', requestTimeoutMs: 3000
+  }), { provider: 'amap' });
+});
+
+test('provider connection tests distinguish missing fields and rejected keys', async () => {
+  const qweather = createQWeatherTool({
+    fetchImpl: async () => jsonResponse({ code: '401' }),
+    quotaStore: { consume: () => ({ allowed: true }) }
+  });
+  await assert.rejects(qweather.testConnection({}), (error) => error.code === 'QWEATHER_HOST_MISSING');
+  await assert.rejects(
+    qweather.testConnection({ qweatherApiHost: 'https://weather.test' }),
+    (error) => error.code === 'QWEATHER_KEY_MISSING'
+  );
+  await assert.rejects(
+    qweather.testConnection({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'bad' }),
+    (error) => error.code === 'QWEATHER_AUTH_FAILED'
+  );
+
+  const amap = createAmapTool({
+    fetchImpl: async () => jsonResponse({ status: '0', infocode: '10001' }),
+    quotaStore: { consume: () => ({ allowed: true }) }
+  });
+  await assert.rejects(amap.testConnection({}), (error) => error.code === 'AMAP_HOST_MISSING');
+  await assert.rejects(
+    amap.testConnection({ amapApiHost: 'https://amap.test' }),
+    (error) => error.code === 'AMAP_KEY_MISSING'
+  );
+  await assert.rejects(
+    amap.testConnection({ amapApiHost: 'https://amap.test', amapApiKey: 'bad' }),
+    (error) => error.code === 'AMAP_AUTH_FAILED'
+  );
+});
+
 test('current time tool uses IANA timezone without an external API', () => {
   const result = getCurrentTime({ timeZone: 'Asia/Shanghai' }, { now: '2026-08-06T04:00:00.000Z' });
   assert.equal(result.timeZone, 'Asia/Shanghai');

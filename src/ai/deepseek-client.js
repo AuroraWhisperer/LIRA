@@ -51,7 +51,35 @@ function createDeepSeekClient(options = {}) {
     return { models };
   }
 
-  return { createResponse, listModels };
+  async function testConnection(config = {}) {
+    if (!config.deepseekResponsesUrl) {
+      throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 Responses API 地址。');
+    }
+    if (!config.deepseekApiKey) {
+      throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写 DeepSeek API Key。');
+    }
+    let response;
+    try {
+      response = await createResponse({
+        config,
+        instructions: '只回复“连接正常”。',
+        input: '连接测试',
+        tools: [],
+        maxOutputTokens: 32
+      });
+    } catch (error) {
+      if (isAuthenticationError(error)) {
+        throw createPublicError('DEEPSEEK_AUTH_FAILED', 'DeepSeek 拒绝了该 API Key。');
+      }
+      throw error;
+    }
+    if (!response.text) {
+      throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
+    }
+    return { provider: 'deepseek', model: config.model };
+  }
+
+  return { createResponse, listModels, testConnection };
 }
 
 function normalizeResponse(payload) {
@@ -87,6 +115,11 @@ function parseArguments(value) {
   try { return JSON.parse(String(value || '{}')); } catch {
     throw createPublicError('INVALID_TOOL_ARGUMENTS', '模型给出了无效的工具参数。');
   }
+}
+
+function isAuthenticationError(error) {
+  return /(?:^|_)(?:401|403|AUTH|AUTHENTICATION|UNAUTHORIZED|INVALID_API_KEY)(?:$|_)/i
+    .test(String(error?.code || ''));
 }
 
 module.exports = { createDeepSeekClient, normalizeResponse };

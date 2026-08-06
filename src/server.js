@@ -303,7 +303,8 @@ function createServerRuntime(runtimeOptions = {}) {
         updateConfig: (input) => aiConfigStore.updateConfig(input),
         getStatus: () => xiaomiAi.getStatus(),
         listModels: (input) => xiaomiAi.listModels(input),
-        test: () => xiaomiAi.testConfiguration()
+        test: () => xiaomiAi.testConfiguration(),
+        testProvider: (provider) => xiaomiAi.testProvider(provider)
       },
       settings: {
         defaults: DEFAULT_SETTINGS,

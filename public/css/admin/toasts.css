@@ -44,6 +44,47 @@
   transform: translateY(0);
 }
 
+.xiaomi-ai-test-toast {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  width: min(390px, calc(100vw - 48px));
+  min-height: 76px;
+  overflow: hidden;
+  padding: 18px 20px 18px 66px;
+  border-radius: 14px;
+  pointer-events: auto;
+}
+.xiaomi-ai-test-toast::before {
+  content: "";
+  position: absolute;
+  left: 19px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  transform: translateY(-50%);
+}
+.xiaomi-ai-test-toast strong { color: #fff; font-size: 15px; line-height: 1.35; }
+.xiaomi-ai-test-toast span { color: rgba(255, 255, 255, 0.72); font-size: 12px; line-height: 1.5; }
+.xiaomi-ai-test-toast-good {
+  border-color: rgba(51, 211, 153, 0.32);
+  background: radial-gradient(circle at 0 0, rgba(52, 211, 153, 0.2), transparent 48%), #10251f;
+  box-shadow: 0 18px 42px rgba(7, 44, 32, 0.32);
+}
+.xiaomi-ai-test-toast-good::before { content: "✓"; background: linear-gradient(145deg, #36d399, #148467); }
+.xiaomi-ai-test-toast-warn {
+  border-color: rgba(245, 158, 11, 0.34);
+  background: radial-gradient(circle at 0 0, rgba(245, 158, 11, 0.2), transparent 48%), #2a1d10;
+  box-shadow: 0 18px 42px rgba(56, 31, 7, 0.34);
+}
+.xiaomi-ai-test-toast-warn::before { content: "!"; border-radius: 11px; background: linear-gradient(145deg, #f6b731, #c66a0a); }
+
 .playback-login-toast {
   position: relative;
   display: grid;

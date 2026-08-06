@@ -62,7 +62,41 @@ function createQWeatherTool(options = {}) {
     return { location, observedAt: payload.updateTime || '', warnings: payload.warning || [] };
   }
 
-  return { resolveLocation, getWeather };
+  async function testConnection(config = {}) {
+    if (!config.qweatherApiHost) {
+      throw createPublicError('QWEATHER_HOST_MISSING', '请先填写和风天气专属 API Host。');
+    }
+    if (!config.qweatherApiKey) {
+      throw createPublicError('QWEATHER_KEY_MISSING', '请先填写和风天气 API Key。');
+    }
+    const url = joinApiUrl(config.qweatherApiHost, '/geo/v2/city/lookup');
+    url.searchParams.set('location', '北京');
+    url.searchParams.set('number', '1');
+    url.searchParams.set('key', config.qweatherApiKey);
+    requireApiQuota(quotaStore, 'qweather');
+    let payload;
+    try {
+      payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
+    } catch (error) {
+      if (/^(?:401|403|HTTP_401|HTTP_403)$/i.test(String(error?.code || ''))) {
+        throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');
+      }
+      throw error;
+    }
+    const code = String(payload?.code || '');
+    if (code === '401' || code === '403') {
+      throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');
+    }
+    if (code && code !== '200') {
+      throw createPublicError('QWEATHER_REJECTED', '和风天气返回了业务错误。');
+    }
+    if (!Array.isArray(payload?.location) || !payload.location[0]?.id) {
+      throw createPublicError('QWEATHER_INVALID_RESPONSE', '和风天气返回格式不正确。');
+    }
+    return { provider: 'qweather' };
+  }
+
+  return { resolveLocation, getWeather, testConnection };
 }
 
 function requireConfig(config) {
