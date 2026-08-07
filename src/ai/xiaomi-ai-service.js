@@ -192,6 +192,7 @@ function createXiaomiAiService(dependencies) {
     if (call.name === 'search_places') return tools.amap.searchPlaces(config, call.arguments);
     if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments);
     if (call.name === 'get_route') return tools.amap.getRoute(config, call.arguments);
+    if (call.name === 'web_search') return tools.webSearch.search(config, call.arguments);
     if (call.name === 'get_current_time') return tools.getCurrentTime(call.arguments);
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
@@ -379,9 +380,15 @@ function publicError(error) {
 }
 
 function failureReply(error) {
-  if (error?.code === 'UPSTREAM_TIMEOUT') return '路线查询超时，我再试一次～';
-  if (String(error?.code || '').includes('NOT_CONFIGURED')) return '路线服务还没配置好，请先接入地图服务。';
-  return '路线数据没返回完整，换个地点或方式再问我～';
+  const code = String(error?.code || '');
+  if (code === 'UPSTREAM_TIMEOUT') return '查询超时了，稍后再试一次～';
+  if (code.startsWith('WEB_SEARCH_')) return '联网搜索暂时失败，换个关键词或稍后再问我～';
+  if (code === 'AMAP_NOT_CONFIGURED') return '路线服务还没配置好，请先接入地图服务。';
+  if (code === 'QWEATHER_NOT_CONFIGURED') return '天气服务还没配置好，请先接入天气服务。';
+  if (code === 'AI_NOT_CONFIGURED') return 'AI 服务还没配置好，请先检查接口地址和 Key。';
+  if (code.startsWith('QWEATHER_')) return '天气服务暂时没返回结果，换个城市再问我～';
+  if (code.startsWith('AMAP_')) return '路线数据没返回完整，换个地点或方式再问我～';
+  return '这次查询没完成，换个问法或稍后再试～';
 }
 
 module.exports = {
@@ -390,5 +397,6 @@ module.exports = {
   truncateReply,
   buildConversationInput,
   buildReplyInstructions,
-  getReplyLengthBudget
+  getReplyLengthBudget,
+  failureReply
 };

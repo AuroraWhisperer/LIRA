@@ -29,6 +29,7 @@ const { createDeepSeekClient } = require('./ai/deepseek-client');
 const { createAiRequestLogger } = require('./ai/request-logger');
 const { createQWeatherTool } = require('./ai/tools/qweather-tool');
 const { createAmapTool } = require('./ai/tools/amap-tool');
+const { createWebSearchTool } = require('./ai/tools/web-search-tool');
 const { getCurrentTime } = require('./ai/tools/current-time-tool');
 const { createXiaomiAiService } = require('./ai/xiaomi-ai-service');
 const { createDanmakuDeliveryVerifier } = require('./ai/danmaku-delivery-verifier');
@@ -208,6 +209,7 @@ function createServerRuntime(runtimeOptions = {}) {
     tools: {
       qweather: createQWeatherTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
       amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
+      webSearch: createWebSearchTool({ fetchImpl: runtimeOptions.fetchImpl }),
       getCurrentTime
     },
     sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),

@@ -233,9 +233,7 @@ function normalizeChatResponse(payload) {
 
 function appendChatCapabilityNotice(instructions, tools) {
   const text = String(instructions || '').trim();
-  const hasHostedSearch = (Array.isArray(tools) ? tools : []).some((tool) => tool?.type === 'web_search');
-  if (!hasHostedSearch) return text;
-  return `${text}\n\n当前接口不支持 web_search。遇到必须联网核实的问题时，不要声称正在搜索，也不要凭记忆编造；请直接简短说明当前无法联网查询。`.trim();
+  return text;
 }
 
 function buildInitialChatMessages(instructions, input) {
@@ -264,16 +262,34 @@ function toChatInputMessages(input) {
 
 function toChatTools(tools) {
   return (Array.isArray(tools) ? tools : [])
-    .filter((tool) => tool?.type === 'function' && tool.name)
-    .map((tool) => ({
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-        strict: tool.strict
+    .filter((tool) => (tool?.type === 'function' && tool.name) || tool?.type === 'web_search')
+    .map((tool) => {
+      if (tool.type === 'web_search') {
+        return {
+          type: 'function',
+          function: {
+            name: 'web_search',
+            description: '联网搜索最新网页信息，必须用于美食小吃饮料推荐、特产、菜单价格、新闻、演唱会、车次、航班等时效性问题。',
+            parameters: {
+              type: 'object',
+              properties: { query: { type: 'string' } },
+              required: ['query'],
+              additionalProperties: false
+            },
+            strict: true
+          }
+        };
       }
-    }));
+      return {
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+          strict: tool.strict
+        }
+      };
+    });
 }
 
 function toAssistantHistoryMessage(message) {

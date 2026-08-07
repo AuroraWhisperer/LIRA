@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`3.2.22`
+当前版本：`3.2.23`
 
 ---
+
+## v3.2.23 变更
+
+- 🌐 **Chat Completions 模式 web_search 本地化**：官方 DeepSeek Chat Completions 端点现在将 `web_search` 转换为本地 function tool——模型调用 `web_search(name: query)` 时，服务端通过 `WebSearchTool` 实际执行搜索并将结果作为 tool 消息回传，彻底解决 Chat Completions 不支持 hosted search 的限制。`appendChatCapabilityNotice()` 移除旧的「当前接口不支持 web_search」注入提示，模型无需感知端点差异。搜索工具描述明确列出适用场景——美食小吃饮料推荐、特产、菜单价格、新闻、演唱会、车次、航班等时效性问题。
+- 🍜 **工具调用策略精细化——美食与路线**：系统提示词 `<tool_policy>` 重写——`search_places` 明确适用于「具体餐厅、小吃店、饮品店、奶茶店、咖啡店、附近美食」；`web_search` 覆盖「当地特色美食/小吃/饮料、特产、餐厅推荐、菜单价格、营业状态、食品活动」。新增路线约束——`get_route` 仅用于同城驾车/公交/步行，涉及火车/高铁/车次/航班/演唱会/新闻等实时信息必须走 `web_search`。新增强制规则——涉及「有什么好吃的/小吃/饮料/奶茶/咖啡/特产」时必须至少调用 `search_places` 或 `web_search`，不得凭记忆列店名或价格。
+- 🔌 **WebSearch 工具服务端集成**：`server.js` 初始化 `WebSearchTool`（复用 `fetchImpl`），注入 `xiaomi-ai-service` 的 `tools.webSearch`。工具调度新增 `web_search` case，调用 `tools.webSearch.search()` 执行实际 HTTP 搜索并将结果返回模型。
+- 💬 **失败兜底多服务区分**：`failureReply()` 从三条路线专属文案扩展为按错误码前缀分发——`WEB_SEARCH_` → 联网搜索失败提示、`AMAP_NOT_CONFIGURED` / `QWEATHER_NOT_CONFIGURED` / `AI_NOT_CONFIGURED` → 各自服务未配置提示、`QWEATHER_` → 天气服务异常提示、`AMAP_` → 路线数据异常提示、`UPSTREAM_TIMEOUT` → 通用超时提示、其余 → 通用兜底。`failureReply` 导出供测试直接调用。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 中 web_search 通知测试改为本地 function tool 断言（验证工具名/描述/参数 schema/不注入不支持提示）。`test/xiaomi-ai-service.test.js` 新增 `failureReply` 按错误码分发测试（搜索/路线/天气/AI 四类）、美食饮料问题强制工具调用断言（SYSTEM_PROMPT 含 `search_places 或 web_search`）、web_search 工具端到端执行测试（模型请求搜索 → 执行 → 结果回传 → 最终回复验证）。默认测试工具集补充 `webSearch`。
 
 ## v3.2.22 变更
 

@@ -7,15 +7,29 @@ const {
   extractTriggeredQuestion,
   truncateReply,
   buildReplyInstructions,
-  getReplyLengthBudget
+  getReplyLengthBudget,
+  failureReply
 } = require('../src/ai/xiaomi-ai-service');
 const { AI_CONFIG_DEFAULTS } = require('../src/ai/config');
+const { SYSTEM_PROMPT } = require('../src/ai/prompt');
 
 test('trigger extraction removes 小米 and preserves the question', () => {
   assert.equal(extractTriggeredQuestion('小米 苏州天气怎么样？', '小米'), '苏州天气怎么样？');
   assert.equal(extractTriggeredQuestion('你好', '小米'), null);
   assert.equal(extractTriggeredQuestion('小米', '小米'), '和大家打个招呼');
   assert.equal(Array.from(truncateReply('猫'.repeat(70), 50)).length, 50);
+});
+
+test('failure replies identify search failures separately from route failures', () => {
+  assert.match(failureReply({ code: 'WEB_SEARCH_UNAVAILABLE' }), /联网搜索/);
+  assert.match(failureReply({ code: 'AMAP_ROUTE_NOT_FOUND' }), /路线数据/);
+  assert.match(failureReply({ code: 'QWEATHER_NOT_CONFIGURED' }), /天气服务还没配置/);
+  assert.match(failureReply({ code: 'AI_NOT_CONFIGURED' }), /AI 服务/);
+});
+
+test('food and drink questions are required to use a search tool', () => {
+  assert.match(SYSTEM_PROMPT, /美食\/小吃\/饮料/);
+  assert.match(SYSTEM_PROMPT, /至少调用 search_places 或 web_search/);
 });
 
 test('reply instructions prefer one message and allow up to three based on the mention length', () => {
@@ -401,6 +415,41 @@ test('model requests identify review, generation, and output review stages', asy
   assert.deepEqual(purposes, ['input_review', 'generation', 'output_review']);
 });
 
+test('official-chat web search calls are executed and returned to the model', async () => {
+  const deliveries = [];
+  let generationCalls = 0;
+  const service = createTestService({
+    config: { trigger: 'AI' },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose === 'input_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":""}', functionCalls: [], usage: {} };
+        }
+        if (request.purpose === 'output_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":"已核实"}', functionCalls: [], usage: {} };
+        }
+        generationCalls += 1;
+        if (generationCalls === 1) {
+          return { id: 'search-1', text: '', functionCalls: [{
+            callId: 'search-call', name: 'web_search', arguments: { query: '郑州演唱会' }
+          }], usage: {} };
+        }
+        assert.match(String(request.input[0].output), /郑州演唱会/);
+        return { id: 'answer-1', text: '查到最新演唱会信息。', functionCalls: [], usage: {} };
+      }
+    },
+    tools: {
+      qweather: {}, amap: {},
+      webSearch: { async search(_config, input) { return { query: input.query, results: [{ title: '郑州演唱会' }] }; } },
+      getCurrentTime: () => ({})
+    },
+    sendReply: async (value) => deliveries.push(value)
+  });
+  service.handleDanmaku({ uid: 'search-user', userName: 'Alice', message: 'AI 查一下郑州演唱会' });
+  await waitUntil(() => deliveries.length === 1);
+  assert.equal(deliveries[0].message, '已核实');
+});
+
 function createTestService(overrides = {}) {
   const config = {
     ...AI_CONFIG_DEFAULTS,
@@ -419,7 +468,7 @@ function createTestService(overrides = {}) {
   return createXiaomiAiService({
     store,
     deepseek: overrides.deepseek || { createResponse: async () => ({ text: 'ok', functionCalls: [], usage: {} }) },
-    tools: overrides.tools || { qweather: {}, amap: {}, getCurrentTime: () => ({}) },
+    tools: overrides.tools || { qweather: {}, amap: {}, webSearch: {}, getCurrentTime: () => ({}) },
     sendReply: overrides.sendReply || (async () => {}),
     waitForDelivery: overrides.waitForDelivery,
     now: overrides.now,

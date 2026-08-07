@@ -263,7 +263,7 @@ test('DeepSeek reports length-truncated tool arguments instead of generic invali
   );
 });
 
-test('DeepSeek chat adapter tells the model when hosted web search is unavailable', async () => {
+test('DeepSeek chat adapter exposes web search as a local function tool', async () => {
   let body;
   const client = createDeepSeekClient({
     fetchImpl: async (url, options) => {
@@ -281,8 +281,21 @@ test('DeepSeek chat adapter tells the model when hosted web search is unavailabl
     tools: [{ type: 'web_search' }]
   });
 
-  assert.match(body.messages[0].content, /当前接口不支持 web_search/);
-  assert.doesNotMatch(JSON.stringify(body.tools || []), /web_search/);
+  assert.doesNotMatch(body.messages[0].content, /当前接口不支持 web_search/);
+  assert.deepEqual(body.tools[0], {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description: '联网搜索最新网页信息，必须用于美食小吃饮料推荐、特产、菜单价格、新闻、演唱会、车次、航班等时效性问题。',
+      parameters: {
+        type: 'object',
+        properties: { query: { type: 'string' } },
+        required: ['query'],
+        additionalProperties: false
+      },
+      strict: true
+    }
+  });
 });
 
 test('DeepSeek client traces request, raw response, normalized response, and errors', async () => {
