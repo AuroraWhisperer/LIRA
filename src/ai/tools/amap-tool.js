@@ -65,10 +65,13 @@ function createAmapTool(options = {}) {
     const text = String(value || '').trim();
     if (/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(text)) return { location: text, name: text };
     const resolved = await resolveLocation(config, { address: text, city });
+    const selected = selectGeocodeMatch(resolved.matches, text);
     return {
-      ...resolved.matches[0],
+      ...selected,
       name: text,
-      alternatives: resolved.matches.slice(1).map((match) => match.formattedAddress).filter(Boolean)
+      alternatives: selected === resolved.matches[0]
+        ? resolved.matches.slice(1).map((match) => match.formattedAddress).filter(Boolean)
+        : []
     };
   }
 
@@ -107,6 +110,20 @@ function normalizeRoute(route, mode, origin, destination) {
     durationSeconds: Number(candidate.duration) || 0,
     taxiCost: route?.taxi_cost || ''
   };
+}
+
+function selectGeocodeMatch(matches, query) {
+  const normalizedQuery = normalizeLocationText(query);
+  if (!normalizedQuery) return matches[0];
+  return matches.find((match) => normalizeLocationText(match.formattedAddress).includes(normalizedQuery))
+    || matches[0];
+}
+
+function normalizeLocationText(value) {
+  return String(value || '')
+    .replace(/[\(\uff08][^\)\uff09]*[\)\uff09]/g, '')
+    .replace(/\s+/g, '')
+    .trim();
 }
 
 module.exports = { createAmapTool, normalizeRoute };

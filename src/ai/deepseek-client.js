@@ -52,6 +52,7 @@ function createDeepSeekClient(options = {}) {
       max_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
       stream: false
     };
+    if (!config.reasoningEnabled) body.thinking = { type: 'disabled' };
     const tools = toChatTools(request.tools);
     if (tools.length) body.tools = tools;
 

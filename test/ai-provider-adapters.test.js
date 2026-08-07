@@ -98,6 +98,7 @@ test('DeepSeek official base uses Chat Completions for connection tests and norm
     { role: 'system', content: 'system' },
     { role: 'user', content: 'hello' }
   ]);
+  assert.deepEqual(requests[1].body.thinking, { type: 'disabled' });
   assert.deepEqual(requests[1].body.tools[0], {
     type: 'function',
     function: {
@@ -483,4 +484,38 @@ test('AMap automatically uses the first matching endpoint and completes the rout
     '/v3/geocode/geo',
     '/v3/direction/transit/integrated'
   ]);
+});
+
+test('AMap prefers a complete place-name match over an earlier unrelated result', async () => {
+  const routeDestinations = [];
+  const tool = createAmapTool({
+    fetchImpl: async (url) => {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.pathname.includes('/direction/')) {
+        routeDestinations.push(parsedUrl.searchParams.get('destination'));
+        return jsonResponse({
+          status: '1',
+          route: { paths: [{ distance: '12000', duration: '1800' }] }
+        });
+      }
+      return jsonResponse({
+        status: '1',
+        geocodes: parsedUrl.searchParams.get('address') === '苏州园区站'
+          ? [
+            { formatted_address: '江苏省苏州市常熟市园区站(公交站)', location: '120.886491,31.685435' },
+            { formatted_address: '江苏省苏州市吴中区苏州园区站(进站口)', location: '120.710567,31.341312' }
+          ]
+          : [{ formatted_address: '江苏省苏州市吴中区金鸡湖', location: '120.665152,31.316274' }]
+      });
+    },
+    quotaStore: { consume: () => ({ allowed: true }) }
+  });
+
+  const result = await tool.getRoute(
+    { amapApiHost: 'https://amap.test', amapApiKey: 'key', requestTimeoutMs: 3000 },
+    { origin: '金鸡湖', destination: '苏州园区站', city: '苏州', mode: 'driving' }
+  );
+
+  assert.equal(result.destination.location, '120.710567,31.341312');
+  assert.deepEqual(routeDestinations, ['120.710567,31.341312']);
 });

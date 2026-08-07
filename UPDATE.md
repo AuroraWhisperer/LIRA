@@ -1,8 +1,15 @@
 # 打包与更新说明
 
-当前版本：`3.2.21`
+当前版本：`3.2.22`
 
 ---
+
+## v3.2.22 变更
+
+- 🗺️ **高德地理编码智能匹配**：`amap-tool.js` 新增 `selectGeocodeMatch()`——地理编码返回多个候选时，不再盲取第一条，而是将查询地点名与每条结果的 `formattedAddress` 做匹配比较（去除括号内容和空白后），优先选用地名包含查询词的候选。例如查「苏州园区站」时，会跳过常熟市公交站结果，选中吴中区苏州园区站（进站口）。这修正了此前苏州多候选项场景下路线起点/终点可能选到无关地点的问题。`alternatives` 备选列表仅在选中第一条时才附带其余候选。
+- ⚡ **非推理模式显式禁用 thinking**：Chat Completions 模式下，若未启用推理（`!config.reasoningEnabled`），请求体中追加 `thinking: { type: 'disabled' }`，阻止模型在不需要推理时消耗输出 token 做内部思考，确保 3072 token 预算全部分配给回复内容和工具调用 JSON。
+- 🔧 **工具调用上限提升**：`maxToolCalls` 默认值从 4 提升至 6——路线查询等复杂场景（地理编码 + 路线规划 + 可能的天气查询）可能在单轮中需要更多工具调用，6 次上限为多步工具链留足空间。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增 Chat Completions 请求中 `thinking: { type: 'disabled' }` 断言、高德地理编码智能匹配测试（苏州园区站多候选项选中正确结果 + 路线目的地坐标断言）。`test/ai-config-store.test.js` 新增 `maxToolCalls` 默认值为 6 的断言。
 
 ## v3.2.21 变更
 

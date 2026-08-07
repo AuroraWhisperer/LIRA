@@ -21,6 +21,7 @@ test('AI config defaults are redacted and secrets are stored encrypted', () => {
   const { db, store } = createStore();
   const defaults = store.getPublicConfig();
   assert.equal(defaults.model, 'deepseek-v4-flash');
+  assert.equal(defaults.maxToolCalls, 6);
   assert.equal(defaults.deepseekResponsesUrl, '');
   assert.equal(defaults.userCooldownSeconds, 0);
   assert.equal(defaults.hasDeepSeekApiKey, false);
