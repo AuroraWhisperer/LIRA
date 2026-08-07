@@ -178,6 +178,62 @@ test('DeepSeek reports a length-truncated empty Chat Completions response precis
   );
 });
 
+test('DeepSeek reports an incomplete Responses API output precisely', async () => {
+  const client = createDeepSeekClient({
+    fetchImpl: async () => jsonResponse({
+      id: 'resp_incomplete', status: 'incomplete',
+      incomplete_details: { reason: 'max_output_tokens' }, output: []
+    })
+  });
+
+  await assert.rejects(
+    client.createResponse({
+      config: {
+        deepseekResponsesUrl: 'https://gateway.example.test/responses', deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+      },
+      instructions: 'very long system prompt', input: 'route question', tools: []
+    }),
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+  );
+});
+
+test('DeepSeek reports truncated Responses tool arguments precisely', async () => {
+  const client = createDeepSeekClient({
+    fetchImpl: async () => jsonResponse({
+      status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' },
+      output: [{ type: 'function_call', call_id: 'call_1', name: 'get_route', arguments: '{"origin":"太原' }]
+    })
+  });
+  await assert.rejects(
+    client.createResponse({
+      config: {
+        deepseekResponsesUrl: 'https://gateway.example.test/responses', deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+      },
+      input: 'route question', tools: []
+    }),
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+  );
+});
+
+test('DeepSeek request logs omit the system preset while retaining request metadata', async () => {
+  const events = [];
+  const client = createDeepSeekClient({
+    logEvent: async (event) => events.push(event),
+    fetchImpl: async () => jsonResponse({ choices: [{ message: { content: 'ok' } }] })
+  });
+  await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
+      model: 'deepseek-chat', requestTimeoutMs: 3000
+    },
+    instructions: 'PRIVATE PRESET SHOULD NOT BE LOGGED', input: 'hello', tools: []
+  });
+  assert.equal(events[0].body.instructions, undefined);
+  assert.equal(events[0].body.messages[0].content, '[system prompt omitted]');
+});
+
 test('DeepSeek reports length-truncated tool arguments instead of generic invalid JSON', async () => {
   const client = createDeepSeekClient({
     fetchImpl: async () => jsonResponse({

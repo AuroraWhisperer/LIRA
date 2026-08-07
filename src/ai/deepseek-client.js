@@ -75,7 +75,8 @@ function createDeepSeekClient(options = {}) {
     const secrets = [config.deepseekApiKey];
     await safeLog({
       type: 'request', requestId, purpose: purpose || 'model_request',
-      provider: 'deepseek', protocol, method: 'POST', url, model: config.model, body
+      provider: 'deepseek', protocol, method: 'POST', url, model: config.model,
+      body: sanitizeRequestBodyForLog(body, protocol)
     }, secrets);
     try {
       const payload = await fetchJson(url, {
@@ -95,7 +96,7 @@ function createDeepSeekClient(options = {}) {
       });
       const result = normalize(payload);
       if (!result.text && !result.functionCalls.length) {
-        if (result.finishReason === 'length') {
+        if (result.finishReason === 'length' || result.finishReason === 'max_output_tokens') {
           throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', 'DeepSeek 输出达到长度上限，未生成完整回复。');
         }
         throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
@@ -287,12 +288,14 @@ function normalizeResponse(payload) {
   const outputs = Array.isArray(payload?.output) ? payload.output : [];
   const functionCalls = [];
   const textParts = [];
+  const finishReason = payload?.status === 'incomplete' && payload?.incomplete_details?.reason === 'max_output_tokens'
+    ? 'max_output_tokens' : '';
   for (const item of outputs) {
     if (item?.type === 'function_call') {
       functionCalls.push({
         callId: String(item.call_id || item.id || ''),
         name: String(item.name || ''),
-        arguments: parseArguments(item.arguments)
+        arguments: parseArguments(item.arguments, finishReason)
       });
     }
     for (const content of Array.isArray(item?.content) ? item.content : []) {
@@ -304,6 +307,7 @@ function normalizeResponse(payload) {
     id: String(payload?.id || ''),
     text: directText || textParts.join(''),
     functionCalls,
+    finishReason,
     usage: {
       inputTokens: Number(payload?.usage?.input_tokens) || 0,
       outputTokens: Number(payload?.usage?.output_tokens) || 0
@@ -311,10 +315,22 @@ function normalizeResponse(payload) {
   };
 }
 
+function sanitizeRequestBodyForLog(body, protocol) {
+  const result = JSON.parse(JSON.stringify(body || {}));
+  delete result.instructions;
+  if (protocol === 'chat_completions' && Array.isArray(result.messages)) {
+    result.messages = result.messages.map((message) => {
+      if (message?.role !== 'system') return message;
+      return { ...message, content: '[system prompt omitted]' };
+    });
+  }
+  return result;
+}
+
 function parseArguments(value, finishReason = '') {
   if (value && typeof value === 'object') return value;
   try { return JSON.parse(String(value || '{}')); } catch {
-    if (finishReason === 'length') {
+    if (finishReason === 'length' || finishReason === 'max_output_tokens') {
       throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', 'DeepSeek 输出达到长度上限，工具参数不完整。');
     }
     throw createPublicError('INVALID_TOOL_ARGUMENTS', '模型给出了无效的工具参数。');

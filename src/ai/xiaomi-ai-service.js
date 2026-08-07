@@ -19,7 +19,8 @@ const MIN_REPLY_INTERVAL_MS = 500;
 const MAX_REPLY_INTERVAL_MS = 2000;
 const MIN_CHUNK_INTERVAL_MS = 200;
 const MAX_CHUNK_INTERVAL_MS = 600;
-const MODEL_OUTPUT_TOKENS = 1024;
+const MODEL_OUTPUT_TOKENS = 3072;
+const REASONING_OUTPUT_TOKENS = 4096;
 const REVIEW_OUTPUT_TOKENS = 384;
 const DANMAKU_MESSAGE_LIMIT = 40;
 const MAX_REPLY_MESSAGES = 3;
@@ -121,7 +122,7 @@ function createXiaomiAiService(dependencies) {
         ),
         input,
         tools: buildAvailableTools(config, excludedToolNames),
-        maxOutputTokens: MODEL_OUTPUT_TOKENS,
+        maxOutputTokens: getModelOutputTokens(config),
         purpose: 'generation'
       });
       addUsage(usage, response.usage);
@@ -144,7 +145,7 @@ function createXiaomiAiService(dependencies) {
           input: outputs,
           tools: buildAvailableTools(config, excludedToolNames),
           previousResponseId: response.id,
-          maxOutputTokens: MODEL_OUTPUT_TOKENS,
+          maxOutputTokens: getModelOutputTokens(config),
           purpose: 'tool_followup'
         });
         addUsage(usage, response.usage);
@@ -207,7 +208,7 @@ function createXiaomiAiService(dependencies) {
         reason: 'monthly_api_quota_reached',
         instruction: config.webSearchEnabled
           ? '该第三方 API 已达到本月安全用量上限。不要再次调用这个函数，请改用 web_search 回答。'
-          : '该第三方 API 已达到本月安全用量上限，且 web_search 未启用。请直接说明暂时无法查询。'
+          : '该第三方 API 已达到本月安全用量上限，且 web_search 未启用。请简短说明路线服务没有返回结果，不要编造路线。'
       };
     }
   }
@@ -327,11 +328,11 @@ function buildReplyInstructions(
   systemPrompt, replyMaxChars, excludedToolNames = new Set(), webSearchEnabled = true, mentionName = ''
 ) {
   const budget = getReplyLengthBudget(mentionName, replyMaxChars);
-  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；默认尽量在正文后添加一个简短的标点组合或颜文字，例如“～”“ฅ^•ﻌ•^ฅ”或“(｡･ω･｡)”。如果会超出上限、属于必要的简短拒答，或事实信息已经较多，可以省略；不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
+  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；默认尽量在正文后添加一个简短的标点组合或颜文字。颜文字按语气自然轮换：开心/亲切可用“ฅ^•ﻌ•^ฅ”“(｡･ω･｡)”“(๑•̀ㅂ•́)و✧”；惊讶/好奇可用“Σ(ﾟдﾟ)”“(⊙o⊙)”“(°ロ°) !”；害羞/感谢可用“(*´∀｀*)”“(⁄ ⁄•⁄ω⁄•⁄ ⁄)”“ヾ(≧▽≦*)o”；无奈/犯困可用“(´-ω-｀)”“( ˘ω˘ )”“ヽ(￣д￣;)ノ”；鼓励/得意可用“٩(ˊᗜˋ*)و”“( •̀∀•́ )✧”“٩(๑•̀ω•́๑)۶”。根据上下文选择，不要每次都用同一个，也不要连续回复重复同一个颜文字；不适合时只用“～”或省略。如果会超出上限、属于必要的简短拒答，或事实信息已经较多，可以省略；不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
   if (excludedToolNames.size) {
     instructions += webSearchEnabled
       ? '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用。涉及这些函数的查询必须改用 web_search，不要凭记忆回答。'
-      : '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用且 web_search 未启用。请明确说明暂时无法查询。';
+      : '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用且 web_search 未启用。请简短说明路线服务没有返回结果，不要编造路线。';
   }
   return instructions;
 }
@@ -363,6 +364,10 @@ function addUsage(target, usage = {}) {
   target.outputTokens += Number(usage.outputTokens) || 0;
 }
 
+function getModelOutputTokens(config = {}) {
+  return config.reasoningEnabled ? REASONING_OUTPUT_TOKENS : MODEL_OUTPUT_TOKENS;
+}
+
 function codedError(code, message) {
   const error = new Error(message);
   error.code = code;
@@ -374,9 +379,9 @@ function publicError(error) {
 }
 
 function failureReply(error) {
-  if (error?.code === 'UPSTREAM_TIMEOUT') return '超时没查到，稍后再来问我吧～';
-  if (String(error?.code || '').includes('NOT_CONFIGURED')) return '这个工具还没配好，本猫暂时帮不上喵';
-  return '这次没查到可靠的，先这样了～';
+  if (error?.code === 'UPSTREAM_TIMEOUT') return '路线查询超时，我再试一次～';
+  if (String(error?.code || '').includes('NOT_CONFIGURED')) return '路线服务还没配置好，请先接入地图服务。';
+  return '路线数据没返回完整，换个地点或方式再问我～';
 }
 
 module.exports = {

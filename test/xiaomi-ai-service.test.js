@@ -30,6 +30,9 @@ test('reply instructions prefer one message and allow up to three based on the m
   assert.match(instructions, /50 个字符只是长度偏好/);
   assert.match(instructions, /正文写约 18–22 个汉字/);
   assert.match(instructions, /一个简短的标点组合或颜文字/);
+  assert.match(instructions, /Σ\(ﾟдﾟ\)/);
+  assert.match(instructions, /按语气自然轮换/);
+  assert.match(instructions, /不要连续回复重复同一个颜文字/);
   assert.match(instructions, /不要为了接近长度偏好/);
   assert.match(buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true), /必须改用 web_search/);
 });
@@ -112,7 +115,7 @@ test('the default zero-second user cooldown accepts consecutive requests from th
   await waitUntil(() => deliveries.length === 2);
 });
 
-test('generation and tool follow-up requests have enough output room for reasoning and tool JSON', async () => {
+test('generation and tool follow-up requests have enough output room for route reasoning and tool JSON', async () => {
   const requests = [];
   const deliveries = [];
   let mainCalls = 0;
@@ -149,9 +152,78 @@ test('generation and tool follow-up requests have enough output room for reasoni
   await waitUntil(() => deliveries.length === 1);
 
   assert.ok(requests.filter((request) => ['generation', 'tool_followup'].includes(request.purpose))
-    .every((request) => request.maxOutputTokens === 1024));
+    .every((request) => request.maxOutputTokens === 3072));
   assert.ok(requests.filter((request) => ['input_review', 'output_review'].includes(request.purpose))
     .every((request) => request.maxOutputTokens === 384));
+});
+
+test('reasoning-enabled generation gets extra room for thinking and route tool calls', async () => {
+  const requests = [];
+  const service = createTestService({
+    config: { trigger: 'AI', reasoningEnabled: true },
+    deepseek: {
+      async createResponse(request) {
+        requests.push(request);
+        if (request.purpose === 'input_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":""}', functionCalls: [], usage: {} };
+        }
+        if (request.purpose === 'output_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":"ok"}', functionCalls: [], usage: {} };
+        }
+        return { text: 'ok', functionCalls: [], usage: {} };
+      }
+    },
+    tools: { qweather: {}, amap: {}, getCurrentTime: () => ({}) },
+    sendReply: async () => {}
+  });
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: 'AI 太原火车站到机场怎么规划' });
+  await waitUntil(() => requests.some((request) => request.purpose === 'output_review'));
+  assert.equal(requests.find((request) => request.purpose === 'generation').maxOutputTokens, 4096);
+});
+
+test('Suzhou route planning keeps a concise useful reply after the route tool round', async () => {
+  const deliveries = [];
+  let generationCalls = 0;
+  const service = createTestService({
+    config: { trigger: '\u5c0f\u7c73', reasoningEnabled: true },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose === 'input_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":""}', functionCalls: [], usage: {} };
+        }
+        if (request.purpose === 'output_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":"建议乘地铁，约 30 分钟。"}', functionCalls: [], usage: {} };
+        }
+        generationCalls += 1;
+        if (generationCalls === 1) {
+          return {
+            id: 'suzhou-route', text: '', functionCalls: [{
+              callId: 'route-1', name: 'get_route',
+              arguments: {
+                origin: '\u82cf\u5dde\u91d1\u9e21\u6e56', destination: '\u82cf\u5dde\u56ed\u533a\u7ad9',
+                city: '\u82cf\u5dde', mode: 'transit'
+              }
+            }], usage: {}
+          };
+        }
+        return { id: 'suzhou-answer', text: '\u5efa\u8bae\u4e58\u5730\u94c1\uff0c\u7ea6 30 \u5206\u949f\u3002', functionCalls: [], usage: {} };
+      }
+    },
+    tools: {
+      qweather: {},
+      amap: { async getRoute() { return { mode: 'transit', distanceMeters: 12000, durationSeconds: 1800 }; } },
+      getCurrentTime: () => ({})
+    },
+    sendReply: async (value) => deliveries.push(value)
+  });
+  service.handleDanmaku({
+    uid: 'route-viewer', userName: 'Alice',
+    message: '\u5c0f\u7c73\u5e2e\u6211\u89c4\u5212\u4e00\u4e0b\u82cf\u5dde\u91d1\u9e21\u6e56\u5230\u82cf\u5dde\u56ed\u533a\u7ad9\u7684\u8def\u7ebf'
+  });
+  await waitUntil(() => deliveries.length === 1);
+  assert.equal(deliveries[0].message, '\u5efa\u8bae\u4e58\u5730\u94c1\uff0c\u7ea6 30 \u5206\u949f\u3002');
+  assert.ok(Array.from(deliveries[0].message).length < 40);
+  assert.doesNotMatch(deliveries[0].message, /\u6682\u65f6|\u65e0\u6cd5/);
 });
 
 test('a monthly API quota result makes the next tool round rely on web search', async () => {

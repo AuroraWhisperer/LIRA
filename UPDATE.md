@@ -1,8 +1,18 @@
 # 打包与更新说明
 
-当前版本：`3.2.20`
+当前版本：`3.2.21`
 
 ---
+
+## v3.2.21 变更
+
+- 😺 **颜文字语气轮换体系**：系统提示词 `<reply_format>` 中颜文字指导从两个固定示例扩展为按语气分类的轮换词库——开心/亲切（`ฅ^•ﻌ•^ฅ` / `(｡･ω･｡)` / `(๑•̀ㅂ•́)و✧`）、惊讶/好奇（`Σ(ﾟдﾟ)` / `(⊙o⊙)` / `(°ロ°) !`）、害羞/感谢（`(*´∀｀*)` / `(⁄ ⁄•⁄ω⁄•⁄ ⁄)` / `ヾ(≧▽≦*)o`）、无奈/犯困（`(´-ω-｀)` / `( ˘ω˘ )` / `ヽ(￣д￣;)ノ`）、鼓励/得意（`٩(ˊᗜˋ*)و` / `( •̀∀•́ )✧` / `٩(๑•̀ω•́๑)۶`）。新增规则——根据上下文选择、不要每次都用同一个、不要连续回复重复同一个颜文字、不适合时只用 `～` 或省略。动态回复指令同步包含完整轮换词库。
+- ⚡ **模型输出 Token 预算大幅提升**：`MODEL_OUTPUT_TOKENS` 从 1024 提升至 3072，为路线查询等多工具调用场景提供充足输出空间。新增 `REASONING_OUTPUT_TOKENS` = 4096——启用推理模式时生成与工具追问阶段使用更大预算（`getModelOutputTokens()`），适应推理模型在思考链 + 工具调用 JSON 上的更高消耗。
+- 📋 **AI 请求日志隐私保护**：`deepseek-client.js` 新增 `sanitizeRequestBodyForLog()`——记录请求日志前剥离 `instructions` 字段（完整系统提示词）和 Chat Completions 模式下 system 消息的 `content`，替换为 `[system prompt omitted]`，防止数百字的系统预设原文写入 `logs/ai.log`。请求元数据（URL/模型/工具列表等）完整保留。
+- 🛡️ **Responses API 截断精确检测**：`normalizeResponse()` 新增 Responses API 的 `status === 'incomplete'` + `incomplete_details.reason === 'max_output_tokens'` 检测路径——空响应时抛出 `DEEPSEEK_OUTPUT_TRUNCATED`，工具参数截断时同样精确报错（而非通用 `INVALID_TOOL_ARGUMENTS`），与 Chat Completions 的 `finish_reason === 'length'` 检测平行覆盖。
+- 💬 **失败兜底文案路线场景化**：三条 `failureReply` 从通用失败改为路线专属——超时「超时没查到，稍后再来问我吧～」→「路线查询超时，我再试一次～」、工具未配置「这个工具还没配好，本猫暂时帮不上喵」→「路线服务还没配置好，请先接入地图服务。」、通用失败「这次没查到可靠的，先这样了～」→「路线数据没返回完整，换个地点或方式再问我～」。配额耗尽回退指令收紧——无 web_search 时从「请明确说明暂时无法查询」改为「请简短说明路线服务没有返回结果，不要编造路线」。
+- 📝 **动态回复指令颜文字词库同步**：`buildReplyInstructions()` 中追加的颜文字偏好从固定两个示例扩展为完整五组语气轮换词库 + 不重复规则，确保每条请求的运行时指令与系统提示词一致。
+- 🧪 **测试覆盖增强**：`test/ai-provider-adapters.test.js` 新增 Responses API 截断空响应检测、截断工具参数检测、请求日志脱敏（instructions 剥离 + system content 替换）3 个测试。`test/xiaomi-ai-service.test.js` 新增推理模式 4096 token 预算测试、苏州金鸡湖→园区站路线规划完整工具轮测试（断言回复简洁可用/不超 40 字符/不含"暂"或"无法"）、Token 预算断言更新（1024→3072）、颜文字轮换关键词断言。
 
 ## v3.2.20 变更
 
