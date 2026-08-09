@@ -381,6 +381,7 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
+  font-size: var(--identity-queue-font-size, 26px);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -447,7 +448,7 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
-  font-size: var(--overlay-waiting-font-size, 13px);
+  font-size: var(--identity-queue-font-size, 26px);
 }
 
 .identity-row.identity-sc .identity-sc-text {

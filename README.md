@@ -4,7 +4,7 @@ Bilibili 直播弹幕点歌工具。运行在主播电脑本地，观众弹幕�
 
 数据只保存在本机。
 
-.\node_modules\.bin\electron.cmd scripts\bilibili-capture-electron --room 3947892 --duration 600 --output tmp\bilibili-guard-events-auth.ndjson --bilibili-user-data "C:\Users\Tom\AppData\Roaming\bilibili-live-song-plugin"
+.\node_modules\.bin\electron.cmd scripts\bilibili-capture-electron --room 1700301235 --duration 1200 --output tmp\bilibili-guard-events-auth.ndjson --bilibili-user-data "D:\Work\live-exe\bilibili-live-song-plugin\data"
 
 使用声明
 

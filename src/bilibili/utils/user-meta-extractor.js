@@ -37,11 +37,18 @@ function readFirstObject(value, keys) {
 
 function extractBilibiliDanmakuUserMeta(info) {
   const medalInfo = Array.isArray(info) ? info[3] : null;
-  const extraInfo = Array.isArray(info) ? info[9] : null;
+  const danmakuOptions = Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
+  const userInfo = readFirstObject(danmakuOptions, ['user']);
+  const userMedalInfo = readFirstObject(userInfo, ['medal']);
+  const userGuardInfo = readFirstObject(userInfo, ['guard']);
+  const arrayGuardLevel = Array.isArray(medalInfo) && medalInfo.length > 10
+    ? medalInfo[10]
+    : (Array.isArray(info) ? info[7] : 0);
   return {
     guardLevel: normalizeGuardLevel(
-      readObjectValue(extraInfo, ['guard_level', 'guardLevel'])
-      || (Array.isArray(info) ? info[7] : 0)
+      readObjectValue(userMedalInfo, ['guard_level', 'guardLevel'])
+      || readObjectValue(userGuardInfo, ['level', 'guard_level', 'guardLevel'])
+      || arrayGuardLevel
     ),
     medalName: readMedalName(medalInfo),
     medalLevel: readMedalLevel(medalInfo)

@@ -1,8 +1,15 @@
 # 打包与更新说明
 
-当前版本：`3.2.23`
+当前版本：`3.2.24`
 
 ---
+
+## v3.2.24 变更
+
+- 🐛 **弹幕用户元数据守卫等级提取修复**：`user-meta-extractor.js` 重写守卫等级提取逻辑——从旧的 `info[9]`（extraInfo）路径改为从嵌套弹幕选项对象 `info[0][15].user` 中读取 `medal.guard_level` 和 `guard.level`，优先使用奖章中的守卫等级、其次独立守卫对象、最后回退到数组索引位（`info[7]` 和奖章数组第 10 位）。修复了仅有奖章（无大航海守卫）的观众可能被错误归类为舰长/提督/总督的问题。
+- 🐛 **身份队列点歌人标签修正**：`requesterIdentityLabel()` 移除 `medalLevel` 参数——无守卫等级的观众现在直接显示其房间奖章名称（如「imilly」「其他灯牌」），不再要求 `medalLevel > 0` 才展示。此前无守卫且奖章等级为 0 的观众会显示空白，现已修正为始终显示实际奖章名。
+- 🎨 **身份队列字号覆盖范围扩展**：`--identity-queue-font-size` CSS 变量现在同时控制置顶内容（`.identity-pin-content`）和 SC 内容（`.identity-sc .identity-sc-content`）的字号，与序号、歌名、点歌人保持统一。管理后台提示文案同步更新——「同时控制序号、歌名、点歌人、SC 和置顶文字」。
+- 🧪 **测试覆盖增强**：新增 `test/bilibili-user-meta.test.js`——验证奖章用户不被误判为守卫等级、旧版数组索引位回退兼容。`test/frontend-regressions.test.js` 新增身份队列字号 CSS 覆盖（pin-content / sc-content）断言、无守卫观众奖章名展示测试。
 
 ## v3.2.23 变更
 

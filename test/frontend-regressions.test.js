@@ -1654,6 +1654,8 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.match(defaultsSource, /identityQueueFontSize: '26'/);
   assert.match(overlaySource, /--identity-queue-font-size.*identityQueueFontSize\(settings\)/);
   assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
+  assert.match(overlayStyles, /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
+  assert.match(overlayStyles, /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
   assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
   const identityBlockRules = [...overlayStyles.matchAll(/\.identity-badge,\s*\.identity-medal\s*\{[^}]*\}/g)];
@@ -1783,6 +1785,39 @@ test('identity queue keeps song and requester fields in one continuous stream', 
     Math.round((longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) * longAnimation.options.duration),
     1000
   );
+});
+
+test('identity queue shows the actual room medal name for a requester without guard status', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(source, sandbox);
+
+  const imillyRow = sandbox.renderIdentityRow({
+    song_name: '测试歌曲',
+    requester_name: '点歌人',
+    requester_guard_level: 0,
+    requester_medal_name: 'imilly',
+    requester_medal_level: 26
+  }, 0);
+  const otherRoomRow = sandbox.renderIdentityRow({
+    song_name: '测试歌曲',
+    requester_name: '点歌人',
+    requester_guard_level: 0,
+    requester_medal_name: '其他灯牌',
+    requester_medal_level: 12
+  }, 0);
+
+  assert.match(imillyRow, /identity-badge identity-fan">imilly</);
+  assert.doesNotMatch(imillyRow, /舰长/);
+  assert.match(otherRoomRow, /identity-badge identity-fan">其他灯牌</);
+  assert.doesNotMatch(otherRoomRow, /imilly/);
 });
 
 test('song list exposes a display board font size control', () => {

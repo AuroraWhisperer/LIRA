@@ -651,7 +651,7 @@ function renderIdentityRow(item, index, showIndex = true) {
   const guardLevel = normalizeGuardLevel(item.requester_guard_level);
   const medalLevel = Number(item.requester_medal_level || 0);
   const medalName = String(item.requester_medal_name || '').trim();
-  const identityText = requesterIdentityLabel(guardLevel, medalLevel, medalName);
+  const identityText = requesterIdentityLabel(guardLevel, medalName);
   const identityClass = requesterIdentityClass(guardLevel, medalLevel);
   const medalClass = medalLevelClass(medalLevel);
   const songName = escapeHtml(item.song_name);
@@ -908,10 +908,10 @@ function guardLabel(level) {
   }[level] || '观众';
 }
 
-function requesterIdentityLabel(guardLevel, medalLevel, medalName) {
+function requesterIdentityLabel(guardLevel, medalName) {
   const guard = guardLabel(guardLevel);
   if (guard !== '观众') return guard;
-  return Number(medalLevel || 0) > 0 ? (String(medalName || '').trim() || 'imilly') : '';
+  return String(medalName || '').trim();
 }
 
 function requesterIdentityClass(guardLevel, medalLevel) {
