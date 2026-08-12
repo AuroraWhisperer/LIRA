@@ -1,7 +1,7 @@
 'use strict';
 
 const { cleanText, splitTextIntoCharacters } = require('../shared/utils');
-const { buildTools } = require('./prompt');
+const { ANSWER_QUALITY_POLICY, buildTools } = require('./prompt');
 const {
   SAFE_REFUSAL,
   checkLocalInput,
@@ -153,7 +153,7 @@ function createXiaomiAiService(dependencies) {
 
       const rawText = cleanModelText(response.text);
       const outputReview = await runSafetyReview(
-        config, buildOutputReviewPrompt(rawText), usage, 'output_review'
+        config, buildOutputReviewPrompt(item.question, rawText), usage, 'output_review'
       );
       const approved = outputReview.allowed ? (outputReview.safeText || rawText) : (outputReview.safeText || SAFE_REFUSAL);
       const text = truncateReply(approved, replyBudget.threeMessages);
@@ -179,8 +179,11 @@ function createXiaomiAiService(dependencies) {
   }
 
   async function runSafetyReview(config, prompt, usage, purpose) {
+    const instructions = purpose === 'output_review'
+      ? '执行直播输出安全与质量校验，只输出指定 JSON。'
+      : '执行直播输入安全审核，只输出指定 JSON。';
     const response = await deepseek.createResponse({
-      config, instructions: '执行直播内容审核，只输出指定 JSON。', input: prompt,
+      config, instructions, input: prompt,
       tools: [], maxOutputTokens: REVIEW_OUTPUT_TOKENS, purpose
     });
     addUsage(usage, response.usage);
@@ -329,7 +332,7 @@ function buildReplyInstructions(
   systemPrompt, replyMaxChars, excludedToolNames = new Set(), webSearchEnabled = true, mentionName = ''
 ) {
   const budget = getReplyLengthBudget(mentionName, replyMaxChars);
-  let instructions = `${String(systemPrompt || '').trim()}\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；默认尽量在正文后添加一个简短的标点组合或颜文字。颜文字按语气自然轮换：开心/亲切可用“ฅ^•ﻌ•^ฅ”“(｡･ω･｡)”“(๑•̀ㅂ•́)و✧”；惊讶/好奇可用“Σ(ﾟдﾟ)”“(⊙o⊙)”“(°ロ°) !”；害羞/感谢可用“(*´∀｀*)”“(⁄ ⁄•⁄ω⁄•⁄ ⁄)”“ヾ(≧▽≦*)o”；无奈/犯困可用“(´-ω-｀)”“( ˘ω˘ )”“ヽ(￣д￣;)ノ”；鼓励/得意可用“٩(ˊᗜˋ*)و”“( •̀∀•́ )✧”“٩(๑•̀ω•́๑)۶”。根据上下文选择，不要每次都用同一个，也不要连续回复重复同一个颜文字；不适合时只用“～”或省略。如果会超出上限、属于必要的简短拒答，或事实信息已经较多，可以省略；不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
+  let instructions = `${String(systemPrompt || '').trim()}\n\n<runtime_task_policy>\n${ANSWER_QUALITY_POLICY}\n</runtime_task_policy>\n\n本次回复长度规则以此处为准：加上 @用户名后，1 条弹幕可放 ${budget.oneMessage} 个字符，2 条共 ${budget.twoMessages} 个字符，3 条共 ${budget.threeMessages} 个字符。优先只用 1 条；信息较多时可用 2 条；只有确有必要完整说明时才使用第 3 条，禁止超过 3 条。${budget.preferred} 个字符只是长度偏好，不是必须达到或严格截断的位置。问候、招呼、简单聊天和简单事实回答，正文写约 18–22 个汉字；默认尽量在正文后添加一个简短的标点组合或颜文字。颜文字按语气自然轮换：开心/亲切可用“ฅ^•ﻌ•^ฅ”“(｡･ω･｡)”“(๑•̀ㅂ•́)و✧”；惊讶/好奇可用“Σ(ﾟдﾟ)”“(⊙o⊙)”“(°ロ°) !”；害羞/感谢可用“(*´∀｀*)”“(⁄ ⁄•⁄ω⁄•⁄ ⁄)”“ヾ(≧▽≦*)o”；无奈/犯困可用“(´-ω-｀)”“( ˘ω˘ )”“ヽ(￣д￣;)ノ”；鼓励/得意可用“٩(ˊᗜˋ*)و”“( •̀∀•́ )✧”“٩(๑•̀ω•́๑)۶”。根据上下文选择，不要每次都用同一个，也不要连续回复重复同一个颜文字；不适合时只用“～”或省略。如果会超出上限、属于必要的简短拒答，或事实信息已经较多，可以省略；不要堆叠多个颜文字。天气、路线等需要多项事实时按信息量自然增长。不要为了接近长度偏好补充废话或复述问题。`;
   if (excludedToolNames.size) {
     instructions += webSearchEnabled
       ? '\n本月部分第三方 API 已达到安全用量上限，相关函数已停用。涉及这些函数的查询必须改用 web_search，不要凭记忆回答。'

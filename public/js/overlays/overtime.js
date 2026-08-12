@@ -94,14 +94,16 @@ function renderStatus() {
   const labels = {
     disabled: '未启用',
     paused: '已暂停',
-    running: '直播加班中',
+    running: '',
     finished: '已结束'
   };
-  setConnectionStatus(labels[currentState?.status] || '连接中');
+  setConnectionStatus(labels[currentState?.status] ?? '连接中');
 }
 
 function setConnectionStatus(label) {
-  byId('overtimeStatus').textContent = label;
+  const statusText = byId('overtimeStatusText');
+  statusText.textContent = label;
+  statusText.hidden = !label;
 }
 
 function renderBackground() {
@@ -117,13 +119,24 @@ function renderBackground() {
 }
 
 function renderTickets() {
+  const guide = byId('overtimeGiftGuide');
   const root = byId('overtimeTickets');
   const rules = Array.isArray(currentState?.rules) ? currentState.rules.filter(rule => rule.enabled) : [];
-  root.style.setProperty('--ticket-count', String(Math.max(1, rules.length)));
+  const ticketCount = Math.max(1, rules.length);
+  const wideColumns = Math.min(3, ticketCount);
+  const narrowColumns = Math.min(2, ticketCount);
+  guide.hidden = rules.length === 0;
+  guide.style.setProperty('--ticket-count', String(ticketCount));
+  guide.style.setProperty('--ticket-wide-columns', String(wideColumns));
+  guide.style.setProperty('--ticket-narrow-columns', String(narrowColumns));
+  root.style.setProperty('--ticket-count', String(ticketCount));
+  root.style.setProperty('--ticket-wide-columns', String(wideColumns));
+  root.style.setProperty('--ticket-narrow-columns', String(narrowColumns));
   root.replaceChildren();
   for (const rule of rules) {
+    const presentation = describeRuleEffect(rule);
     const ticket = document.createElement('article');
-    ticket.className = `overtime-ticket${rule.mode === 'random' ? ' is-random' : ''}${Number(rule.fixedSeconds) < 0 ? ' is-negative' : ''}`;
+    ticket.className = `overtime-ticket ${presentation.modifier}`;
     ticket.dataset.giftId = String(rule.giftId);
 
     const image = document.createElement('img');
@@ -134,10 +147,19 @@ function renderTickets() {
     const name = document.createElement('span');
     name.className = 'overtime-ticket-name';
     name.textContent = rule.giftName || `礼物 ${rule.giftId}`;
+    const effect = document.createElement('div');
+    effect.className = 'overtime-ticket-effect';
+    if (presentation.verb) {
+      const verb = document.createElement('span');
+      verb.textContent = presentation.verb;
+      effect.append(verb);
+    }
     const time = document.createElement('strong');
     time.className = 'overtime-ticket-time';
-    time.textContent = rule.mode === 'random' ? '随机' : formatSignedSeconds(rule.fixedSeconds);
-    ticket.append(image, name, time);
+    time.textContent = presentation.value;
+    effect.append(time);
+    ticket.title = `${name.textContent}：${presentation.verb}${presentation.value}`;
+    ticket.append(image, name, effect);
     root.append(ticket);
   }
 }
@@ -209,6 +231,32 @@ function flashClock(delta) {
 
 function formatClock(milliseconds) {
   return formatClockSeconds(Math.ceil((Number(milliseconds) || 0) / 1000));
+}
+
+function describeRuleEffect(rule) {
+  if (rule?.mode === 'random') {
+    return { modifier: 'is-random', verb: '', value: '盲盒' };
+  }
+  const seconds = Number(rule?.fixedSeconds) || 0;
+  if (seconds > 0) {
+    return { modifier: 'is-positive', verb: '加时', value: formatDurationLabel(seconds) };
+  }
+  if (seconds < 0) {
+    return { modifier: 'is-negative', verb: '减时', value: formatDurationLabel(Math.abs(seconds)) };
+  }
+  return { modifier: 'is-neutral', verb: '时间', value: '不变' };
+}
+
+function formatDurationLabel(seconds) {
+  const whole = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const rest = whole % 60;
+  const parts = [];
+  if (hours) parts.push(`${hours}小时`);
+  if (minutes) parts.push(`${minutes}分`);
+  if (rest) parts.push(`${rest}秒`);
+  return parts.join('') || '0秒';
 }
 
 function formatSignedSeconds(seconds) {

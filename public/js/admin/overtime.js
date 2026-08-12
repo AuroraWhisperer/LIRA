@@ -5,6 +5,11 @@ import { api, localOverlayOrigin, readJsonResponse, showError, toast } from '../
 
 const MAX_ENABLED_RULES = 8;
 const MAX_RANDOM_WEIGHT = 100000;
+const MAX_OUTCOME_WEIGHT = 10000;
+const MAX_RANDOM_OUTCOMES = 10;
+const MIN_RANDOM_OUTCOMES = 2;
+const MAX_RULE_SECONDS = 24 * 60 * 60;
+const MAX_INITIAL_HOURS = 999;
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const GUARD_GIFTS = [
   { id: 'guard-1', name: '总督', rmb: 19998, image: 'bilibili-guard-governor.png' },
@@ -20,6 +25,7 @@ let settlements = [];
 let anchorRemainingMs = 0;
 let localAnchorMs = 0;
 let rulesDirty = false;
+let ruleControlSequence = 0;
 
 function init() {
   if (initialized || !document.getElementById('overtimePanel')) return;
@@ -48,11 +54,15 @@ async function refresh() {
 }
 
 function bindControls() {
+  populateInitialDurationSelectors();
   byId('overtimeEnableBtn').addEventListener('click', () => runAction(overtimeState?.enabled ? 'disable' : 'enable'));
   byId('overtimeStartBtn').addEventListener('click', () => runAction('start'));
   byId('overtimePauseBtn').addEventListener('click', () => runAction('pause'));
   byId('overtimeResetBtn').addEventListener('click', () => runAction('reset'));
   byId('overtimeApplyTimeBtn').addEventListener('click', applyTime);
+  byId('overtimeInitialTime').addEventListener('input', syncDurationSelectorsFromInput);
+  byId('overtimeInitialHours').addEventListener('change', syncDurationInputFromSelectors);
+  byId('overtimeInitialMinutes').addEventListener('change', syncDurationInputFromSelectors);
   byId('overtimeAddGiftBtn').addEventListener('click', openGiftPicker);
   byId('overtimeGiftSearch').addEventListener('input', renderGiftPicker);
   byId('overtimeRules').addEventListener('input', () => { rulesDirty = true; });
@@ -73,11 +83,10 @@ async function runAction(action) {
 
 async function applyTime() {
   try {
-    const initialSeconds = parseClock(byId('overtimeInitialTime').value, false);
-    const remainingSeconds = parseClock(byId('overtimeRemainingTime').value, false);
-    const result = await api('/api/overtime/time', { initialSeconds, remainingSeconds });
+    const initialSeconds = parseInitialDuration(byId('overtimeInitialTime').value);
+    const result = await api('/api/overtime/time', { initialSeconds, remainingSeconds: initialSeconds });
     renderState(result.data);
-    toast('时间已应用并暂停');
+    toast('初始时间已设置，倒计时已重置并暂停');
   } catch (error) {
     showError(error);
   }
@@ -110,7 +119,8 @@ async function saveRules() {
 function readRules() {
   const rows = Array.from(byId('overtimeRules').querySelectorAll('[data-overtime-rule]'));
   const rules = rows.map((row, index) => {
-    const mode = row.querySelector('[data-rule-mode]').value;
+    const mode = row.querySelector('[data-rule-mode]:checked')?.value;
+    if (!mode) throw new Error(`第 ${index + 1} 条礼物规则还没有选择生效方式。`);
     const enabled = row.querySelector('[data-rule-enabled]').checked;
     const base = {
       giftId: row.dataset.giftId,
@@ -121,16 +131,18 @@ function readRules() {
       sortOrder: index
     };
     if (mode === 'fixed') {
-      return { ...base, fixedSeconds: parseClock(row.querySelector('[data-rule-fixed]').value, true) };
+      return { ...base, fixedSeconds: readSignedDuration(row.querySelector('[data-effect-mode="fixed"]')) };
     }
-    const lines = row.querySelector('[data-rule-random]').value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    if (lines.length < 2 || lines.length > 10) throw new Error('时间盲盒需要 2–10 个结果。');
-    const outcomes = lines.map((line, outcomeIndex) => {
-      const parts = line.split('|').map(part => part.trim());
-      if (parts.length !== 2) throw new Error(`盲盒结果 ${outcomeIndex + 1} 应写成“+00:05:00 | 40”。`);
-      const weight = Number(parts[1]);
-      if (!Number.isSafeInteger(weight) || weight <= 0) throw new Error(`盲盒结果 ${outcomeIndex + 1} 权重无效。`);
-      return { seconds: parseClock(parts[0], true), weight };
+    const outcomeCards = Array.from(row.querySelectorAll('[data-random-outcome]'));
+    if (outcomeCards.length < MIN_RANDOM_OUTCOMES || outcomeCards.length > MAX_RANDOM_OUTCOMES) {
+      throw new Error(`时间盲盒需要 ${MIN_RANDOM_OUTCOMES}–${MAX_RANDOM_OUTCOMES} 个可能结果。`);
+    }
+    const outcomes = outcomeCards.map((card, outcomeIndex) => {
+      const weight = Number(card.querySelector('[data-outcome-weight]').value);
+      if (!Number.isSafeInteger(weight) || weight < 1 || weight > MAX_OUTCOME_WEIGHT) {
+        throw new Error(`盲盒结果 ${outcomeIndex + 1} 的抽中机会应填写 1–${MAX_OUTCOME_WEIGHT} 的整数。`);
+      }
+      return { seconds: readSignedDuration(card), weight };
     });
     if (outcomes.reduce((sum, outcome) => sum + outcome.weight, 0) > MAX_RANDOM_WEIGHT) {
       throw new Error(`盲盒总权重不能超过 ${MAX_RANDOM_WEIGHT}。`);
@@ -155,8 +167,7 @@ function renderState(nextState) {
   byId('overtimeStartBtn').disabled = !enabled || overtimeState.status === 'running' || anchorRemainingMs <= 0;
   byId('overtimePauseBtn').disabled = !enabled || overtimeState.status !== 'running';
   byId('overtimeResetBtn').disabled = !enabled;
-  setValueUnlessFocused('overtimeInitialTime', formatClock((Number(overtimeState.initialSeconds) || 0) * 1000));
-  setValueUnlessFocused('overtimeRemainingTime', formatClock(anchorRemainingMs));
+  renderInitialDuration(Number(overtimeState.initialSeconds) || 0);
   setValueUnlessFocused('overtimeBackgroundPath', overtimeState.background?.path || '');
   setValueUnlessFocused('overtimeBackgroundFit', overtimeState.background?.fit || 'cover');
   byId('overtimePendingCount').textContent = `待结算 ${Number(overtimeState.pendingCount) || 0}`;
@@ -205,72 +216,359 @@ function createRuleRow(rule, index, count) {
   row.dataset.giftName = String(rule.giftName || rule.giftId);
   row.dataset.imagePath = String(rule.imagePath || '');
 
+  const header = document.createElement('header');
+  header.className = 'overtime-rule-header';
+  const gift = document.createElement('div');
+  gift.className = 'overtime-rule-gift';
   const image = document.createElement('img');
   image.src = rule.imagePath || PLACEHOLDER;
   image.alt = '';
   image.addEventListener('error', () => { image.src = PLACEHOLDER; }, { once: true });
-  row.append(image);
+  gift.append(image);
 
   const identity = document.createElement('div');
   identity.className = 'overtime-rule-identity';
   const name = document.createElement('strong');
   name.textContent = rule.giftName || `礼物 ${rule.giftId}`;
   const id = document.createElement('small');
-  id.textContent = `ID ${rule.giftId}`;
+  id.textContent = `礼物 ID ${rule.giftId}`;
   identity.append(name, id);
-  row.append(identity);
-
-  const mode = document.createElement('select');
-  mode.dataset.ruleMode = 'true';
-  appendOption(mode, 'fixed', '固定时间');
-  appendOption(mode, 'random', '时间盲盒');
-  mode.value = rule.mode;
-  row.append(mode);
-
-  const effect = document.createElement('div');
-  effect.className = 'overtime-rule-effect';
-  renderEffectEditor(effect, rule);
-  mode.addEventListener('change', () => renderEffectEditor(effect, { ...rule, mode: mode.value }));
-  row.append(effect);
+  gift.append(identity);
+  header.append(gift);
 
   const controls = document.createElement('div');
   controls.className = 'overtime-rule-buttons';
   const enabledLabel = document.createElement('label');
+  enabledLabel.className = 'overtime-rule-enabled';
   const enabled = document.createElement('input');
   enabled.type = 'checkbox';
   enabled.checked = rule.enabled !== false;
   enabled.dataset.ruleEnabled = 'true';
-  enabledLabel.append(enabled, document.createTextNode('启用'));
+  enabledLabel.append(enabled, document.createElement('span'), document.createTextNode('启用这条规则'));
   controls.append(enabledLabel);
-  controls.append(ruleButton('↑', '上移', index === 0, () => moveRule(row, -1)));
-  controls.append(ruleButton('↓', '下移', index === count - 1, () => moveRule(row, 1)));
+  controls.append(ruleButton('上移', '将这条规则上移', index === 0, () => moveRule(row, -1)));
+  controls.append(ruleButton('下移', '将这条规则下移', index === count - 1, () => moveRule(row, 1)));
   controls.append(ruleButton('删除', '删除规则', false, () => {
     rulesDirty = true;
     row.remove();
   }));
-  row.append(controls);
+  header.append(controls);
+  row.append(header);
+
+  const modeSection = document.createElement('section');
+  modeSection.className = 'overtime-rule-mode';
+  modeSection.append(createEffectStep('1', '这个礼物如何改变时间？', '二选一，点击最符合你需求的方式。'));
+  const modeOptions = document.createElement('fieldset');
+  modeOptions.className = 'overtime-rule-mode-options';
+  const modeLegend = document.createElement('legend');
+  modeLegend.textContent = '选择礼物生效方式';
+  modeOptions.append(modeLegend);
+  const modeName = `overtime-rule-mode-${++ruleControlSequence}`;
+  modeOptions.append(
+    createModeOption(modeName, 'fixed', '直接改时间', '每次都增加或减少同样的时长', rule.mode !== 'random'),
+    createModeOption(modeName, 'random', '随机抽结果', '像开盲盒一样，从多个结果中抽一个', rule.mode === 'random')
+  );
+  modeSection.append(modeOptions);
+  row.append(modeSection);
+
+  const effect = document.createElement('div');
+  effect.className = 'overtime-rule-effect';
+  renderEffectEditor(effect, rule);
+  modeOptions.addEventListener('change', event => {
+    if (event.target.matches('[data-rule-mode]:checked')) setEffectMode(effect, event.target.value);
+  });
+  row.append(effect);
   return row;
 }
 
 function renderEffectEditor(root, rule) {
   root.replaceChildren();
-  if (rule.mode === 'random') {
-    const input = document.createElement('textarea');
-    input.className = 'overtime-random-outcomes';
-    input.dataset.ruleRandom = 'true';
-    const outcomes = Array.isArray(rule.outcomes) && rule.outcomes.length >= 2
-      ? rule.outcomes
-      : [{ seconds: 300, weight: 50 }, { seconds: -180, weight: 50 }];
-    input.value = outcomes.map(outcome => `${formatSignedClock(outcome.seconds)} | ${outcome.weight}`).join('\n');
-    input.setAttribute('aria-label', '盲盒结果，每行时间与权重');
-    root.append(input);
-    return;
-  }
+  const fixedPanel = document.createElement('section');
+  fixedPanel.className = 'overtime-fixed-editor';
+  fixedPanel.dataset.effectMode = 'fixed';
+  fixedPanel.append(createEffectStep('2', '设置增加或减少多少时间', '不需要输入加减号，也不需要记时间格式。'));
+  const sentence = document.createElement('div');
+  sentence.className = 'overtime-effect-sentence';
+  const sentenceStart = document.createElement('span');
+  sentenceStart.textContent = '收到这个礼物后';
+  sentence.append(
+    sentenceStart,
+    createDirectionControl(Number(rule.fixedSeconds) || 0),
+    createDurationControl(Number(rule.fixedSeconds) || 0)
+  );
+  fixedPanel.append(sentence);
+
+  const randomPanel = document.createElement('section');
+  randomPanel.className = 'overtime-random-editor';
+  randomPanel.dataset.effectMode = 'random';
+  randomPanel.append(createEffectStep('2', '设置盲盒里可能抽到的结果', '每次收到这个礼物，只会随机抽中下面一个结果。'));
+  const randomHint = document.createElement('p');
+  randomHint.className = 'overtime-random-hint';
+  randomHint.textContent = '“抽中机会”的数字越大越容易抽中。不用凑到 100，系统会自动换算成百分比。';
+  randomPanel.append(randomHint);
+
+  const outcomeList = document.createElement('div');
+  outcomeList.className = 'overtime-outcome-list';
+  outcomeList.dataset.outcomeList = 'true';
+  const outcomes = Array.isArray(rule.outcomes) && rule.outcomes.length >= MIN_RANDOM_OUTCOMES
+    ? rule.outcomes
+    : [{ seconds: 300, weight: 50 }, { seconds: -180, weight: 50 }];
+  outcomes.forEach((outcome, outcomeIndex) => outcomeList.append(createOutcomeCard(outcome, outcomeIndex)));
+  randomPanel.append(outcomeList);
+
+  const randomFooter = document.createElement('div');
+  randomFooter.className = 'overtime-random-footer';
+  const outcomeCount = document.createElement('span');
+  outcomeCount.dataset.outcomeCount = 'true';
+  const addOutcome = document.createElement('button');
+  addOutcome.type = 'button';
+  addOutcome.className = 'secondary overtime-add-outcome';
+  addOutcome.dataset.addOutcome = 'true';
+  addOutcome.textContent = '＋ 添加一个可能结果';
+  addOutcome.addEventListener('click', () => {
+    if (outcomeList.children.length >= MAX_RANDOM_OUTCOMES) return;
+    outcomeList.append(createOutcomeCard({ seconds: 60, weight: 10 }, outcomeList.children.length));
+    refreshOutcomeCards(randomPanel);
+    outcomeList.lastElementChild.querySelector('input')?.focus();
+  });
+  randomFooter.append(outcomeCount, addOutcome);
+  randomPanel.append(randomFooter);
+  randomPanel.addEventListener('input', event => {
+    if (event.target.matches('[data-outcome-weight]')) updateOutcomeProbabilities(randomPanel);
+  });
+
+  root.append(fixedPanel, randomPanel);
+  refreshOutcomeCards(randomPanel);
+  setEffectMode(root, rule.mode === 'random' ? 'random' : 'fixed');
+}
+
+function createModeOption(name, value, title, description, checked) {
+  const label = document.createElement('label');
+  label.className = `overtime-mode-option is-${value}`;
   const input = document.createElement('input');
-  input.dataset.ruleFixed = 'true';
-  input.value = formatSignedClock(Number(rule.fixedSeconds) || 0);
-  input.setAttribute('aria-label', '固定时间变化');
-  root.append(input);
+  input.type = 'radio';
+  input.name = name;
+  input.value = value;
+  input.checked = checked;
+  input.dataset.ruleMode = 'true';
+  const copy = document.createElement('span');
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const small = document.createElement('small');
+  small.textContent = description;
+  copy.append(strong, small);
+  label.append(input, copy);
+  return label;
+}
+
+function createEffectStep(number, title, hint) {
+  const step = document.createElement('div');
+  step.className = 'overtime-rule-step';
+  const marker = document.createElement('span');
+  marker.textContent = number;
+  const copy = document.createElement('div');
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const small = document.createElement('small');
+  small.textContent = hint;
+  copy.append(strong, small);
+  step.append(marker, copy);
+  return step;
+}
+
+function createDirectionControl(seconds, allowEmpty = false) {
+  const fieldset = document.createElement('fieldset');
+  fieldset.className = 'overtime-direction-control';
+  const legend = document.createElement('legend');
+  legend.textContent = '选择增加或减少时间';
+  fieldset.append(legend);
+  const name = `overtime-rule-direction-${++ruleControlSequence}`;
+  const selected = Number(seconds) < 0 ? 'subtract' : allowEmpty && Number(seconds) === 0 ? 'empty' : 'add';
+  fieldset.append(
+    createDirectionOption(name, 'add', '增加时间', '＋', selected === 'add'),
+    createDirectionOption(name, 'subtract', '减少时间', '－', selected === 'subtract')
+  );
+  if (allowEmpty) fieldset.append(createDirectionOption(name, 'empty', '不变（空奖）', '○', selected === 'empty'));
+  return fieldset;
+}
+
+function createDirectionOption(name, value, labelText, symbol, checked) {
+  const label = document.createElement('label');
+  label.className = `overtime-direction-option is-${value}`;
+  const input = document.createElement('input');
+  input.type = 'radio';
+  input.name = name;
+  input.value = value;
+  input.checked = checked;
+  input.dataset.ruleDirection = 'true';
+  const symbolNode = document.createElement('span');
+  symbolNode.textContent = symbol;
+  const text = document.createElement('strong');
+  text.textContent = labelText;
+  label.append(input, symbolNode, text);
+  return label;
+}
+
+function createDurationControl(seconds) {
+  const absoluteSeconds = Math.min(MAX_RULE_SECONDS, Math.abs(Math.trunc(Number(seconds) || 0)));
+  const values = {
+    hours: Math.floor(absoluteSeconds / 3600),
+    minutes: Math.floor((absoluteSeconds % 3600) / 60),
+    seconds: absoluteSeconds % 60
+  };
+  const fieldset = document.createElement('fieldset');
+  fieldset.className = 'overtime-duration-control';
+  const legend = document.createElement('legend');
+  legend.textContent = '填写时长';
+  fieldset.append(legend);
+  fieldset.append(
+    createDurationPart('hours', '小时', values.hours, 24),
+    createDurationPart('minutes', '分钟', values.minutes, 59),
+    createDurationPart('seconds', '秒', values.seconds, 59)
+  );
+  return fieldset;
+}
+
+function createDurationPart(part, labelText, value, maximum) {
+  const label = document.createElement('label');
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.max = String(maximum);
+  input.step = '1';
+  input.value = String(value);
+  input.inputMode = 'numeric';
+  input.dataset[`duration${part[0].toUpperCase()}${part.slice(1)}`] = 'true';
+  input.setAttribute('aria-label', `时长的${labelText}`);
+  const unit = document.createElement('span');
+  unit.textContent = labelText;
+  label.append(input, unit);
+  return label;
+}
+
+function createOutcomeCard(outcome, index) {
+  const card = document.createElement('article');
+  card.className = 'overtime-outcome-card';
+  card.dataset.randomOutcome = 'true';
+  const heading = document.createElement('header');
+  const title = document.createElement('strong');
+  title.dataset.outcomeTitle = 'true';
+  title.textContent = `可能结果 ${index + 1}`;
+  const probability = document.createElement('span');
+  probability.className = 'overtime-outcome-probability';
+  probability.dataset.outcomeProbability = 'true';
+  probability.textContent = '—';
+  heading.append(title, probability);
+
+  const result = document.createElement('div');
+  result.className = 'overtime-outcome-result';
+  result.append(
+    createDirectionControl(Number(outcome.seconds) || 0, true),
+    createDurationControl(Number(outcome.seconds) || 0)
+  );
+  const syncEmptyResult = () => {
+    const empty = result.querySelector('[data-rule-direction]:checked')?.value === 'empty';
+    result.classList.toggle('is-empty', empty);
+    result.querySelectorAll('[data-duration-hours], [data-duration-minutes], [data-duration-seconds]')
+      .forEach(input => { input.disabled = empty; });
+  };
+  result.addEventListener('change', event => {
+    if (event.target.matches('[data-rule-direction]')) syncEmptyResult();
+  });
+  syncEmptyResult();
+
+  const chance = document.createElement('label');
+  chance.className = 'overtime-outcome-weight';
+  const chanceText = document.createElement('span');
+  chanceText.textContent = '抽中机会';
+  const weight = document.createElement('input');
+  weight.type = 'number';
+  weight.min = '1';
+  weight.max = String(MAX_OUTCOME_WEIGHT);
+  weight.step = '1';
+  weight.value = String(Number(outcome.weight) || 1);
+  weight.inputMode = 'numeric';
+  weight.dataset.outcomeWeight = 'true';
+  weight.setAttribute('aria-label', `可能结果 ${index + 1} 的抽中机会`);
+  const chanceUnit = document.createElement('span');
+  chanceUnit.textContent = '份';
+  chance.append(chanceText, weight, chanceUnit);
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'secondary overtime-remove-outcome';
+  remove.dataset.removeOutcome = 'true';
+  remove.textContent = '删除这个结果';
+  remove.addEventListener('click', () => {
+    const editor = card.closest('.overtime-random-editor');
+    if (!editor || editor.querySelectorAll('[data-random-outcome]').length <= MIN_RANDOM_OUTCOMES) return;
+    card.remove();
+    refreshOutcomeCards(editor);
+  });
+  card.append(heading, result, chance, remove);
+  return card;
+}
+
+function refreshOutcomeCards(root) {
+  const cards = Array.from(root.querySelectorAll('[data-random-outcome]'));
+  cards.forEach((card, index) => {
+    card.querySelector('[data-outcome-title]').textContent = `可能结果 ${index + 1}`;
+    card.querySelector('[data-outcome-weight]').setAttribute('aria-label', `可能结果 ${index + 1} 的抽中机会`);
+    const remove = card.querySelector('[data-remove-outcome]');
+    remove.disabled = cards.length <= MIN_RANDOM_OUTCOMES;
+    remove.textContent = remove.disabled ? '盲盒至少保留 2 个结果' : '删除这个结果';
+  });
+  const count = root.querySelector('[data-outcome-count]');
+  if (count) count.textContent = `已有 ${cards.length} 个可能结果（最多 ${MAX_RANDOM_OUTCOMES} 个）`;
+  const add = root.querySelector('[data-add-outcome]');
+  if (add) add.disabled = cards.length >= MAX_RANDOM_OUTCOMES;
+  updateOutcomeProbabilities(root);
+}
+
+function updateOutcomeProbabilities(root) {
+  const cards = Array.from(root.querySelectorAll('[data-random-outcome]'));
+  const weights = cards.map(card => Number(card.querySelector('[data-outcome-weight]').value));
+  const valid = weights.every(weight => Number.isSafeInteger(weight) && weight > 0 && weight <= MAX_OUTCOME_WEIGHT);
+  const total = valid ? weights.reduce((sum, weight) => sum + weight, 0) : 0;
+  cards.forEach((card, index) => {
+    const badge = card.querySelector('[data-outcome-probability]');
+    if (!total) {
+      badge.textContent = '—';
+      badge.title = '填写有效的抽中机会后自动计算';
+      return;
+    }
+    const percentage = weights[index] / total * 100;
+    const formatted = Number.isInteger(percentage) ? percentage.toFixed(0) : percentage.toFixed(1);
+    badge.textContent = `约 ${formatted}%`;
+    badge.title = `${weights[index]} ÷ ${total}，自动换算`;
+  });
+}
+
+function setEffectMode(root, mode) {
+  root.querySelectorAll('[data-effect-mode]').forEach(panel => {
+    panel.hidden = panel.dataset.effectMode !== mode;
+  });
+  root.classList.toggle('is-random', mode === 'random');
+}
+
+function readSignedDuration(root) {
+  const direction = root.querySelector('[data-rule-direction]:checked')?.value;
+  if (!direction) throw new Error('请选择增加时间、减少时间或空奖。');
+  if (direction === 'empty') return 0;
+  const hours = readDurationPart(root, 'hours', '小时', 24);
+  const minutes = readDurationPart(root, 'minutes', '分钟', 59);
+  const seconds = readDurationPart(root, 'seconds', '秒', 59);
+  const absoluteSeconds = hours * 3600 + minutes * 60 + seconds;
+  if (absoluteSeconds > MAX_RULE_SECONDS) throw new Error('单次增加或减少的时间不能超过 24 小时。');
+  return direction === 'subtract' ? -absoluteSeconds : absoluteSeconds;
+}
+
+function readDurationPart(root, part, label, maximum) {
+  const value = Number(root.querySelector(`[data-duration-${part}]`)?.value);
+  if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
+    throw new Error(`${label}应填写 0–${maximum} 的整数。`);
+  }
+  return value;
 }
 
 function ruleButton(label, title, disabled, handler) {
@@ -300,7 +598,7 @@ async function loadCatalog() {
     name: String(gift.name || gift.id),
     rmb: Number(gift.rmb) || 0,
     imagePath: `/img/${String(gift.image || '').replace(/^\/+/, '')}`
-  }));
+  })).sort((left, right) => left.rmb - right.rmb);
 }
 
 function openGiftPicker() {
@@ -328,9 +626,12 @@ function renderGiftPicker() {
     const text = document.createElement('span');
     const name = document.createElement('strong');
     name.textContent = gift.name;
-    const meta = document.createElement('small');
-    meta.textContent = `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`;
-    text.append(name, meta);
+    text.append(name);
+    if (!gift.id.startsWith('guard-')) {
+      const meta = document.createElement('small');
+      meta.textContent = `¥${gift.rmb.toFixed(2)}`;
+      text.append(meta);
+    }
     button.append(image, text);
     button.addEventListener('click', () => addGiftRule(gift));
     root.append(button);
@@ -380,14 +681,59 @@ function renderSettlements() {
   }
 }
 
-function parseClock(value, signed) {
+function populateInitialDurationSelectors() {
+  const hours = byId('overtimeInitialHours');
+  const minutes = byId('overtimeInitialMinutes');
+  for (let value = 0; value <= MAX_INITIAL_HOURS; value += 1) {
+    appendOption(hours, String(value), `${value} 小时`);
+  }
+  for (let value = 0; value < 60; value += 1) {
+    appendOption(minutes, String(value), `${value} 分钟`);
+  }
+}
+
+function syncDurationSelectorsFromInput() {
+  try {
+    renderDurationSelectors(parseInitialDuration(byId('overtimeInitialTime').value));
+  } catch (_) {}
+}
+
+function syncDurationInputFromSelectors() {
+  const hours = Number(byId('overtimeInitialHours').value) || 0;
+  const minutes = Number(byId('overtimeInitialMinutes').value) || 0;
+  byId('overtimeInitialTime').value = formatInitialDuration((hours * 60 + minutes) * 60);
+}
+
+function renderInitialDuration(seconds) {
+  const normalizedSeconds = Math.min(
+    MAX_INITIAL_HOURS * 3600 + 59 * 60,
+    Math.max(0, Math.floor((Number(seconds) || 0) / 60) * 60)
+  );
+  setValueUnlessFocused('overtimeInitialTime', formatInitialDuration(normalizedSeconds));
+  renderDurationSelectors(normalizedSeconds);
+}
+
+function renderDurationSelectors(seconds) {
+  const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
+  setValueUnlessFocused('overtimeInitialHours', String(Math.floor(totalMinutes / 60)));
+  setValueUnlessFocused('overtimeInitialMinutes', String(totalMinutes % 60));
+}
+
+function parseInitialDuration(value) {
   const text = String(value || '').trim();
-  const match = text.match(/^([+-])?(\d{1,3}):(\d{2}):(\d{2})$/);
-  if (!match) throw new Error('时间格式应为 HHH:MM:SS。');
-  if (Number(match[3]) > 59 || Number(match[4]) > 59) throw new Error('分和秒必须小于 60。');
-  const sign = match[1] === '-' ? -1 : 1;
-  if (!signed && sign < 0) throw new Error('本场时间不能为负数。');
-  return sign * (Number(match[2]) * 3600 + Number(match[3]) * 60 + Number(match[4]));
+  const match = text.match(/^(\d{1,3}):(\d{2})$/);
+  if (!match) throw new Error('初始时长格式应为 HHH:MM。');
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > MAX_INITIAL_HOURS || minutes > 59) throw new Error('小时不能超过 999，分钟必须小于 60。');
+  return (hours * 60 + minutes) * 60;
+}
+
+function formatInitialDuration(seconds) {
+  const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
 function formatClock(milliseconds) {

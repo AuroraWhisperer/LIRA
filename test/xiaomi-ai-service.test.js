@@ -51,6 +51,17 @@ test('reply instructions prefer one message and allow up to three based on the m
   assert.match(buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true), /必须改用 web_search/);
 });
 
+test('runtime policy keeps persona separate from intent and avoids unnecessary interrogation', () => {
+  const instructions = buildReplyInstructions('只影响语气的人格', 50);
+
+  assert.match(instructions, /人格预设只影响语气、措辞和角色表现/);
+  assert.match(instructions, /不得改变用户问题的含义/);
+  assert.match(instructions, /信息足够时直接回答/);
+  assert.match(instructions, /一次最多只问一个问题/);
+  assert.match(instructions, /明确条件.*视为硬约束/);
+  assert.match(instructions, /不展示分析过程/);
+});
+
 test('local unsafe input is rejected without calling DeepSeek', async () => {
   const deliveries = [];
   let deepseekCalls = 0;
@@ -413,6 +424,43 @@ test('model requests identify review, generation, and output review stages', asy
   await waitUntil(() => deliveries.length === 1);
 
   assert.deepEqual(purposes, ['input_review', 'generation', 'output_review']);
+});
+
+test('output review receives the original question and can replace an off-target interrogation', async () => {
+  const deliveries = [];
+  let outputReviewInput = '';
+  let outputReviewInstructions = '';
+  const service = createTestService({
+    config: { trigger: 'AI' },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose === 'input_review') {
+          return { text: '{"allowed":true,"riskType":"","safeText":""}', functionCalls: [], usage: {} };
+        }
+        if (request.purpose === 'output_review') {
+          outputReviewInput = String(request.input);
+          outputReviewInstructions = String(request.instructions);
+          return {
+            text: '{"allowed":true,"riskType":"","safeText":"给你三首低缓情歌，每首都走轻柔路线。"}',
+            functionCalls: [], usage: {}
+          };
+        }
+        return {
+          text: '你喜欢男声还是女声？想听哪个年代？还有偏好的歌手吗？',
+          functionCalls: [], usage: {}
+        };
+      }
+    },
+    sendReply: async (value) => deliveries.push(value)
+  });
+
+  service.handleDanmaku({ uid: 'recommend-user', userName: 'Alice', message: 'AI 推荐几首舒缓低缓的情歌' });
+  await waitUntil(() => deliveries.length === 1);
+
+  assert.match(outputReviewInput, /推荐几首舒缓低缓的情歌/);
+  assert.match(outputReviewInput, /男声还是女声/);
+  assert.match(outputReviewInstructions, /安全与质量校验/);
+  assert.equal(deliveries[0].message, '给你三首低缓情歌，每首都走轻柔路线。');
 });
 
 test('official-chat web search calls are executed and returned to the model', async () => {

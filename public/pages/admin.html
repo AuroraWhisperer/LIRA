@@ -1321,6 +1321,7 @@
                 </span>
                 <span class="other-feature-label">
                   <strong>加班机</strong>
+                  <small>用礼物延长直播倒计时</small>
                 </span>
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1672,16 +1673,23 @@
 
                 <section class="overtime-admin-section overtime-time-editor">
                   <div class="overtime-section-heading">
-                    <div><h3>本场时间</h3><p>格式为 HHH:MM:SS；应用当前时间后会暂停。</p></div>
+                    <div><h3>初始时长</h3><p>手动输入或选择小时、分钟。设置后倒计时会回到该时长并暂停。</p></div>
                   </div>
-                  <label>本场初始时间<input id="overtimeInitialTime" value="00:00:00" inputmode="numeric" autocomplete="off"></label>
-                  <label>当前剩余时间<input id="overtimeRemainingTime" value="00:00:00" inputmode="numeric" autocomplete="off"></label>
-                  <button id="overtimeApplyTimeBtn" type="button">应用时间</button>
+                  <label class="overtime-manual-duration">
+                    <span>手动输入 <small>HHH:MM</small></span>
+                    <input id="overtimeInitialTime" value="00:00" inputmode="numeric" maxlength="6" placeholder="例如 02:30" autocomplete="off">
+                  </label>
+                  <fieldset class="overtime-duration-selectors">
+                    <legend>选择时长</legend>
+                    <label>小时<select id="overtimeInitialHours" aria-label="初始时长的小时数"></select></label>
+                    <label>分钟<select id="overtimeInitialMinutes" aria-label="初始时长的分钟数"></select></label>
+                  </fieldset>
+                  <button id="overtimeApplyTimeBtn" type="button">设置初始时间</button>
                 </section>
 
                 <section class="overtime-admin-section">
                   <div class="overtime-section-heading">
-                    <div><h3>礼物时间规则</h3><p>每个礼物组只应用一次；最多启用 8 条。</p></div>
+                    <div><h3>礼物时间规则</h3><p>添加礼物后，选择“直接改时间”或“随机抽结果”，填好选项后保存。每组礼物只生效一次。</p></div>
                     <div class="overtime-heading-actions">
                       <span id="overtimePendingCount" class="pill">待结算 0</span>
                       <button id="overtimeAddGiftBtn" class="secondary" type="button">＋ 添加礼物</button>

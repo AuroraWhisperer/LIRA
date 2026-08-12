@@ -18,6 +18,7 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   assert.match(html, /data-other-sidebar-toggle/);
   assert.match(html, /data-other-feature="otherDanmakuFeature"[^>]*>[\s\S]*?弹幕姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/);
   assert.match(html, /data-other-feature="otherGiftFeature"[^>]*>[\s\S]*?礼物姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/);
+  assert.match(html, /data-other-feature="otherOvertimeMachineFeature"[^>]*>[\s\S]*?<strong>加班机<\/strong>\s*<small>用礼物延长直播倒计时<\/small>/);
   assert.match(html, /aria-expanded="true"/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label/);

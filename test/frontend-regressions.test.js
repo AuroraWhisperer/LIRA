@@ -1657,7 +1657,7 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.match(overlayStyles, /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(overlayStyles, /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(overlayStyles, /\.identity-pin-row\s*\{[\s\S]*?height:\s*var\(--identity-row-height,\s*42px\)/);
-  assert.match(overlayStyles, /\.identity-pin-label\s*\{[\s\S]*?height:\s*32px[\s\S]*?padding:\s*0\s+8px[\s\S]*?font-size:\s*calc\(20px\s*\*\s*var\(--overlay-font-scale,\s*1\)\)/);
+  assert.match(overlayStyles, /\.identity-pin-label\s*\{[\s\S]*?height:\s*1\.6em[\s\S]*?border-radius:\s*0\.3em[\s\S]*?padding:\s*0\s+0\.4em[\s\S]*?font-size:\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\)/);
   assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
   assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
   const identityBlockRules = [...overlayStyles.matchAll(/\.identity-badge,\s*\.identity-medal\s*\{[^}]*\}/g)];
@@ -1804,9 +1804,103 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(styles, /@import url\('\.\/admin\/overtime\.css'\);/);
   assert.match(source, /\.textContent\s*=/);
   assert.match(source, /fetch\('\/img\/bilibili-gifts\.json'/);
+  assert.match(source, /\.sort\(\(left, right\) => left\.rmb - right\.rmb\)/);
+  assert.match(source, /if \(!gift\.id\.startsWith\('guard-'\)\) \{[\s\S]*meta\.textContent = `¥\$\{gift\.rmb\.toFixed\(2\)\}`/);
+  assert.doesNotMatch(source, /`ID \$\{gift\.id\}[^`]*`/);
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(source, /MAX_ENABLED_RULES\s*=\s*8/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
+});
+
+test('overtime initial duration is minute-based, selectable, and readable', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
+  const overtimeStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'overtime.css'), 'utf8');
+
+  assert.match(html, /id="overtimeInitialTime"[^>]+value="00:00"/);
+  assert.match(html, /id="overtimeInitialHours"/);
+  assert.match(html, /id="overtimeInitialMinutes"/);
+  assert.doesNotMatch(html, /id="overtimeRemainingTime"/);
+  assert.match(source, /remainingSeconds:\s*initialSeconds/);
+  assert.match(source, /function parseInitialDuration/);
+  assert.match(overtimeStyles, /\.overtime-actions button:disabled[\s\S]*?opacity:\s*1/);
+
+  const helperStart = source.indexOf('function parseInitialDuration');
+  const helperEnd = source.indexOf('\nfunction formatClock', helperStart);
+  const sandbox = {};
+  vm.runInNewContext(
+    `const MAX_INITIAL_HOURS = 999;\n${source.slice(helperStart, helperEnd)}\n` +
+      'this.helpers = { parseInitialDuration, formatInitialDuration };',
+    sandbox
+  );
+  assert.equal(sandbox.helpers.parseInitialDuration('2:05'), 7500);
+  assert.equal(sandbox.helpers.formatInitialDuration(7500), '02:05');
+  assert.throws(() => sandbox.helpers.parseInitialDuration('02:05:30'), /HHH:MM/);
+  assert.throws(() => sandbox.helpers.parseInitialDuration('02:60'), /分钟必须小于 60/);
+});
+
+test('overtime gift rules use novice-friendly structured controls', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
+  const overtimeStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'overtime.css'), 'utf8');
+
+  assert.match(html, /添加礼物后，选择[“"]直接改时间[”"]或[“"]随机抽结果[”"]/);
+  assert.match(source, /dataset\.ruleDirection/);
+  assert.match(source, /dataset\[`duration\$\{part\[0\]\.toUpperCase\(\)\}\$\{part\.slice\(1\)\}`\]/);
+  assert.match(source, /data-duration-\$\{part\}/);
+  assert.match(source, /dataset\.randomOutcome/);
+  assert.match(source, /dataset\.addOutcome/);
+  assert.match(source, /不用凑到 100/);
+  assert.match(source, /function updateOutcomeProbabilities/);
+  assert.doesNotMatch(source, /createElement\('textarea'\)/);
+  assert.doesNotMatch(source, /应写成“\+00:05:00 \| 40”/);
+  assert.match(overtimeStyles, /\.overtime-rule-mode-options/);
+  assert.match(overtimeStyles, /\.overtime-outcome-card/);
+  assert.match(overtimeStyles, /\.overtime-direction-option\.is-add/);
+  assert.match(overtimeStyles, /\.overtime-direction-option\.is-subtract/);
+
+  const durationStart = source.indexOf('function readSignedDuration');
+  const durationEnd = source.indexOf('\nfunction ruleButton', durationStart);
+  const durationSandbox = {};
+  vm.runInNewContext(
+    `const MAX_RULE_SECONDS = 24 * 60 * 60;\n${source.slice(durationStart, durationEnd)}\n` +
+      'this.readSignedDuration = readSignedDuration;',
+    durationSandbox
+  );
+  const durationRoot = (direction, hours, minutes, seconds) => ({
+    querySelector(selector) {
+      if (selector === '[data-rule-direction]:checked') return { value: direction };
+      if (selector === '[data-duration-hours]') return { value: hours };
+      if (selector === '[data-duration-minutes]') return { value: minutes };
+      if (selector === '[data-duration-seconds]') return { value: seconds };
+      return null;
+    }
+  });
+  assert.equal(durationSandbox.readSignedDuration(durationRoot('add', '1', '2', '3')), 3723);
+  assert.equal(durationSandbox.readSignedDuration(durationRoot('subtract', '0', '5', '0')), -300);
+  assert.equal(durationSandbox.readSignedDuration(durationRoot('empty', '', '', '')), 0);
+  assert.throws(
+    () => durationSandbox.readSignedDuration(durationRoot('add', '24', '1', '0')),
+    /不能超过 24 小时/
+  );
+
+  const probabilityStart = source.indexOf('function updateOutcomeProbabilities');
+  const probabilityEnd = source.indexOf('\nfunction setEffectMode', probabilityStart);
+  const probabilitySandbox = {};
+  vm.runInNewContext(
+    `const MAX_OUTCOME_WEIGHT = 10000;\n${source.slice(probabilityStart, probabilityEnd)}\n` +
+      'this.updateOutcomeProbabilities = updateOutcomeProbabilities;',
+    probabilitySandbox
+  );
+  const badges = [{}, {}];
+  const cards = ['40', '60'].map((weight, index) => ({
+    querySelector(selector) {
+      return selector === '[data-outcome-weight]' ? { value: weight } : badges[index];
+    }
+  }));
+  probabilitySandbox.updateOutcomeProbabilities({ querySelectorAll: () => cards });
+  assert.equal(badges[0].textContent, '约 40%');
+  assert.equal(badges[1].textContent, '约 60%');
 });
 
 test('identity queue shows the actual room medal name for a requester without guard status', () => {

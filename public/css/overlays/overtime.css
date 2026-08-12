@@ -20,6 +20,7 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   overflow: hidden;
   container-type: size;
   color: var(--ot-text);
+  font-size: 2cqmin;
   isolation: isolate;
 }
 
@@ -39,92 +40,198 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 .overtime-machine.has-background .overtime-background-shade { display: block; }
 
 .overtime-foreground {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: center;
+  justify-items: center;
   width: 100%;
   height: 100%;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: clamp(8px, 2.4cqmin, 28px);
-  align-items: center;
-  padding: clamp(10px, 4cqmin, 56px);
+  gap: 1.2em;
+  padding: 1.2em;
 }
 
 .overtime-clock-panel {
+  position: relative;
   display: grid;
   justify-items: center;
   align-content: center;
+  width: fit-content;
+  min-width: min(78cqw, 62em);
+  max-width: 100%;
   min-height: 0;
+  overflow: hidden;
+  padding: 1.2em 2.4em 1.4em;
+  border: 0.12em solid rgba(255, 247, 251, 0.42);
+  border-radius: 1.67em;
+  background: linear-gradient(128deg, rgba(24, 24, 35, 0.9), rgba(42, 38, 52, 0.78));
+  box-shadow: 0 1.6em 4em rgba(6, 6, 14, 0.24), inset 0 0.12em 0 rgba(255, 255, 255, 0.12);
   text-align: center;
-  filter: drop-shadow(0 2px 14px rgba(8, 8, 18, 0.34));
+  backdrop-filter: blur(1.2em);
+}
+.overtime-clock-panel::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.48em;
+  background: linear-gradient(180deg, var(--ot-pink), var(--ot-teal));
+  content: "";
 }
 .overtime-status {
-  margin-bottom: 0.5cqmin;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5em;
+  margin-bottom: 0.36em;
   color: var(--ot-teal);
-  font-size: clamp(11px, 3cqmin, 34px);
   font-weight: 800;
   letter-spacing: 0.16em;
 }
-.overtime-status::before { content: "LIVE · "; color: var(--ot-pink); }
+.overtime-live-label {
+  color: var(--ot-pink);
+  font: 800 1.43em/1 Bahnschrift, sans-serif;
+}
+.overtime-status span { font-size: 1.15em; }
+.overtime-status span:not([hidden])::before { margin-right: 0.5em; color: var(--ot-pink); content: "·"; }
 .overtime-clock {
-  font: 700 clamp(32px, 20cqmin, 220px)/0.92 Bahnschrift SemiCondensed, Bahnschrift, "Arial Narrow", sans-serif;
+  font: 700 8.5em/0.9 Bahnschrift SemiCondensed, Bahnschrift, "Arial Narrow", sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.045em;
   white-space: nowrap;
-  text-shadow: 0 0 1.8cqmin rgba(255, 111, 145, 0.18);
+  text-shadow: 0 0 1.8em rgba(255, 111, 145, 0.2);
 }
 .overtime-clock.is-positive { animation: overtime-clock-positive 820ms ease-out; }
 .overtime-clock.is-negative { animation: overtime-clock-negative 820ms ease-out; }
 
+.overtime-gift-guide {
+  display: grid;
+  width: min(
+    100%,
+    calc((var(--ticket-wide-columns, 1) * 25em) + ((var(--ticket-wide-columns, 1) - 1) * 0.72em))
+  );
+  gap: 0.6em;
+  padding: 0.72em;
+  border: 0.12em solid rgba(255, 247, 251, 0.3);
+  border-radius: 1.55em;
+  background: linear-gradient(120deg, rgba(24, 24, 35, 0.82), rgba(34, 32, 43, 0.72));
+  box-shadow: 0 1.2em 3em rgba(6, 6, 14, 0.2), inset 0 0.12em 0 rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(1.08em);
+}
+.overtime-gift-guide[hidden] { display: none; }
+.overtime-guide-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.2em;
+  padding-inline: 0.48em;
+}
+.overtime-guide-heading > div { display: grid; gap: 0.12em; }
+.overtime-guide-heading span {
+  color: var(--ot-pink);
+  font: 800 0.85em/1.1 Bahnschrift, sans-serif;
+  letter-spacing: 0.12em;
+}
+.overtime-guide-heading strong {
+  color: var(--ot-text);
+  font-size: 1.31em;
+  line-height: 1.2;
+}
+.overtime-guide-heading small {
+  color: rgba(255, 247, 251, 0.78);
+  font-size: 0.95em;
+  line-height: 1.25;
+  text-align: right;
+}
 .overtime-ticket-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(max(10%, 80px), 1fr));
-  gap: clamp(4px, 1.3cqmin, 16px);
+  grid-template-columns: repeat(var(--ticket-wide-columns, 1), minmax(0, 1fr));
+  gap: 0.72em;
   width: 100%;
 }
 .overtime-ticket {
+  --ticket-accent: var(--ot-teal);
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas: "icon name" "icon time";
+  grid-template-areas: "icon name" "icon effect";
   align-items: center;
-  gap: 0 1.2cqmin;
+  gap: 0 0.83em;
   min-width: 0;
-  min-height: clamp(42px, 12cqmin, 128px);
-  padding: clamp(6px, 1.5cqmin, 18px);
-  border: max(1px, 0.18cqmin) solid rgba(255, 247, 251, 0.48);
-  border-radius: clamp(7px, 1.4cqmin, 18px);
-  background: rgba(24, 24, 35, 0.76);
-  box-shadow: 0 1cqmin 2.6cqmin rgba(6, 6, 14, 0.2);
+  min-height: 6.67em;
+  padding: 0.83em;
+  overflow: hidden;
+  border: 0.12em solid color-mix(in srgb, var(--ticket-accent) 58%, rgba(255, 255, 255, 0.58));
+  border-radius: 1.2em;
+  background: linear-gradient(135deg, rgba(24, 24, 35, 0.94), color-mix(in srgb, var(--ticket-accent) 14%, rgba(35, 34, 45, 0.88)));
+  box-shadow: 0 0.9em 2.4em rgba(6, 6, 14, 0.2), inset 0 0.12em 0 rgba(255, 255, 255, 0.1);
+  isolation: isolate;
+  backdrop-filter: blur(0.95em);
+}
+.overtime-ticket::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.36em;
+  background: var(--ticket-accent);
+  content: "";
   overflow: hidden;
 }
 .overtime-ticket::after {
-  content: "";
   position: absolute;
-  inset: 0.55cqmin;
-  border: max(1px, 0.12cqmin) dashed rgba(255, 247, 251, 0.28);
-  border-radius: inherit;
+  inset: 0.42em;
+  z-index: -1;
+  border: 0.1em dashed color-mix(in srgb, var(--ticket-accent) 36%, rgba(255, 255, 255, 0.18));
+  border-radius: 0.84em;
+  content: "";
   pointer-events: none;
 }
-.overtime-ticket.is-random { border-color: color-mix(in srgb, var(--ot-gold) 74%, white); }
+.overtime-ticket.is-positive { --ticket-accent: var(--ot-teal); }
+.overtime-ticket.is-negative { --ticket-accent: var(--ot-coral); }
+.overtime-ticket.is-random { --ticket-accent: var(--ot-gold); }
+.overtime-ticket.is-neutral { --ticket-accent: #a8a5b3; }
 .overtime-ticket.is-hit { animation: overtime-ticket-hit 900ms ease-out; }
 .overtime-ticket-image {
   grid-area: icon;
   z-index: 1;
-  width: clamp(18px, 7cqmin, 82px);
-  height: clamp(18px, 7cqmin, 82px);
+  width: 3.57em;
+  height: 3.57em;
+  padding: 0.24em;
+  border: 0.12em solid color-mix(in srgb, var(--ticket-accent) 42%, rgba(255, 255, 255, 0.28));
+  border-radius: 0.95em;
+  background: rgba(255, 255, 255, 0.08);
   object-fit: contain;
 }
 .overtime-ticket-name,
-.overtime-ticket-time { z-index: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.overtime-ticket-name { grid-area: name; align-self: end; font-size: clamp(9px, 2.2cqmin, 23px); font-weight: 700; }
+.overtime-ticket-time { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overtime-ticket-name {
+  grid-area: name;
+  z-index: 1;
+  align-self: end;
+  color: var(--ot-text);
+  font-size: 1.55em;
+  font-weight: 700;
+}
+.overtime-ticket-effect {
+  grid-area: effect;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.48em;
+  min-width: 0;
+  margin-top: 0.36em;
+  padding-top: 0.48em;
+  overflow: hidden;
+  border-top: 0.1em dashed color-mix(in srgb, var(--ticket-accent) 54%, transparent);
+  color: var(--ticket-accent);
+}
+.overtime-ticket-effect > span {
+  flex: 0 0 auto;
+  font-size: 1.43em;
+  font-weight: 800;
+}
 .overtime-ticket-time {
-  grid-area: time;
-  align-self: start;
-  color: var(--ot-teal);
-  font: 700 clamp(12px, 3.2cqmin, 36px)/1 Bahnschrift, sans-serif;
+  min-width: 0;
+  color: currentColor;
+  font: 800 1.9em/1 Bahnschrift, "Microsoft YaHei", sans-serif;
   font-variant-numeric: tabular-nums;
 }
-.overtime-ticket.is-negative .overtime-ticket-time { color: var(--ot-coral); }
-.overtime-ticket.is-random .overtime-ticket-time { color: var(--ot-gold); }
 
 .overtime-adjustment-stage {
   position: absolute;
@@ -134,13 +241,13 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   pointer-events: none;
 }
 .overtime-adjustment-card {
-  min-width: min(68vw, 560px);
-  padding: clamp(10px, 2.5cqmin, 28px);
-  border: max(2px, 0.35cqmin) solid currentColor;
-  border-radius: clamp(10px, 2cqmin, 24px);
+  min-width: min(68vw, 66.67em);
+  padding: 1.5em;
+  border: 0.24em solid currentColor;
+  border-radius: 1.2em;
   background: rgba(24, 24, 35, 0.94);
   color: var(--ot-teal);
-  box-shadow: 0 2cqmin 6cqmin rgba(0, 0, 0, 0.32);
+  box-shadow: 0 2em 6em rgba(0, 0, 0, 0.32);
   text-align: center;
   animation: overtime-stamp 900ms cubic-bezier(.2, .8, .2, 1) both;
 }
@@ -148,32 +255,29 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 .overtime-adjustment-card.is-random { color: var(--ot-gold); }
 .overtime-adjustment-card strong,
 .overtime-adjustment-card span { display: block; }
-.overtime-adjustment-card strong { font-size: clamp(15px, 4cqmin, 46px); }
-.overtime-adjustment-card span { margin-top: 0.7cqmin; font: 700 clamp(13px, 3.3cqmin, 38px)/1 Bahnschrift, sans-serif; }
+.overtime-adjustment-card strong { font-size: 2em; }
+.overtime-adjustment-card span { margin-top: 0.7em; font: 700 1.65em/1 Bahnschrift, sans-serif; }
 
-@container (max-width: 1199px) and (min-height: 240px) {
-  .overtime-ticket-grid { grid-template-columns: repeat(auto-fit, minmax(max(22%, 110px), 1fr)); }
+@container (max-width: 719px) {
+  .overtime-gift-guide {
+    width: min(
+      100%,
+      calc((var(--ticket-narrow-columns, 1) * 25em) + ((var(--ticket-narrow-columns, 1) - 1) * 0.72em))
+    );
+  }
+  .overtime-ticket-grid { grid-template-columns: repeat(var(--ticket-narrow-columns, 1), minmax(0, 1fr)); }
 }
-@container (max-width: 719px) and (min-height: 240px) {
-  .overtime-ticket-grid { grid-template-columns: repeat(auto-fit, minmax(max(46%, 90px), 1fr)); }
-}
-@container (max-width: 419px) and (min-height: 240px) {
-  .overtime-ticket-name { display: none; }
-  .overtime-ticket { grid-template-areas: "icon time"; }
+@container (max-width: 419px) {
+  .overtime-clock-panel { min-width: min(78cqw, 62em); }
+  .overtime-guide-heading small { max-width: 54%; }
 }
 @container (max-aspect-ratio: 1.45) {
-  .overtime-foreground { grid-template-rows: auto minmax(0, 1fr); }
-  .overtime-ticket-grid { align-self: center; }
+  .overtime-foreground { gap: 1em; }
 }
 @container (max-height: 239px) {
-  .overtime-foreground { grid-template-rows: minmax(0, 1fr) auto; gap: 4px; padding: 6px; }
-  .overtime-status,
-  .overtime-ticket-name { display: none; }
-  .overtime-clock { font-size: clamp(28px, 30cqh, 76px); }
-  .overtime-ticket-grid { grid-template-columns: repeat(var(--ticket-count, 1), minmax(0, 1fr)); gap: 3px; }
-  .overtime-ticket { grid-template-columns: 1fr; grid-template-areas: "icon" "time"; justify-items: center; min-height: 0; padding: 3px; }
-  .overtime-ticket-image { width: clamp(14px, 16cqh, 28px); height: clamp(14px, 16cqh, 28px); }
-  .overtime-ticket-time { font-size: clamp(8px, 9cqh, 18px); }
+  .overtime-foreground { gap: 0.8em; padding: 0.8em; }
+  .overtime-guide-heading { display: none; }
+  .overtime-gift-guide { gap: 0; }
 }
 
 @keyframes overtime-ticket-hit {
@@ -182,18 +286,16 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   100% { transform: scale(1); }
 }
 @keyframes overtime-stamp {
-  0% { opacity: 0; transform: translateY(2cqmin) scale(1.35) rotate(-4deg); filter: blur(0.8cqmin); }
+  0% { opacity: 0; transform: translateY(2em) scale(1.35) rotate(-4deg); filter: blur(0.8em); }
   28% { opacity: 1; transform: translateY(0) scale(0.96) rotate(1deg); filter: blur(0); }
   76% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: translateY(-1cqmin) scale(0.98); }
+  100% { opacity: 0; transform: translateY(-1em) scale(0.98); }
 }
-@keyframes overtime-clock-positive { 35% { color: var(--ot-teal); text-shadow: 0 0 3cqmin var(--ot-teal); } }
-@keyframes overtime-clock-negative { 35% { color: var(--ot-coral); text-shadow: 0 0 3cqmin var(--ot-coral); } }
+@keyframes overtime-clock-positive { 35% { color: var(--ot-teal); text-shadow: 0 0 3em var(--ot-teal); } }
+@keyframes overtime-clock-negative { 35% { color: var(--ot-coral); text-shadow: 0 0 3em var(--ot-coral); } }
 
 @supports not (font-size: 1cqmin) {
-  .overtime-foreground { padding: clamp(10px, 4vmin, 56px); }
-  .overtime-clock { font-size: clamp(32px, 20vmin, 220px); }
-  .overtime-ticket-image { width: clamp(18px, 7vmin, 82px); height: clamp(18px, 7vmin, 82px); }
+  .overtime-machine { font-size: 2vmin; }
 }
 
 @media (prefers-reduced-motion: reduce) {

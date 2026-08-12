@@ -368,12 +368,12 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  height: 32px;
-  border-radius: 6px;
+  height: 1.6em;
+  border-radius: 0.3em;
   background: #dc143c;
   color: var(--color-bg-primary);
-  padding: 0 8px;
-  font-size: calc(20px * var(--overlay-font-scale, 1));
+  padding: 0 0.4em;
+  font-size: calc(var(--identity-queue-font-size, 26px) * 0.77);
   font-weight: 900;
   text-shadow: none;
   white-space: nowrap;
