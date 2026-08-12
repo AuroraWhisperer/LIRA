@@ -54,8 +54,8 @@ test('final SEND_GIFT combos flush on timer expiry and service disposal', () => 
       messageTimestamp: clockMs
     });
 
-    assert.equal(result, null);
-    assert.equal(db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 0);
+    assert.equal(result.detection_status, 'progress');
+    assert.equal(db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
     assert.ok(activeTimer);
 
     const timer = activeTimer;
@@ -84,7 +84,7 @@ test('final SEND_GIFT combos flush on timer expiry and service disposal', () => 
       totalPrice: 2,
       messageTimestamp: clockMs
     });
-    assert.equal(db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
+    assert.equal(db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 2);
 
     service.dispose();
 
@@ -257,7 +257,7 @@ test('COMBO_END does not create a second gift event', () => {
       }
     };
 
-    assert.equal(service.add(gift), null);
+    assert.equal(service.add(gift).detection_status, 'progress');
     assert.equal(packetParser.isBilibiliGiftLikeCommand(comboEnd.cmd, new Set()), false);
     assert.equal(packetParser.extractBilibiliGiftMessage(comboEnd), null);
 
@@ -349,7 +349,7 @@ test('logs whether a repeated platform gift was inserted or deduplicated', () =>
     assert.match(logs[0], /^\[Bilibili\]\[GiftService\] action=inserted /);
     assert.match(logs[0], /"eventId":1/);
     assert.match(logs[0], /"platformId":"gift-repeat-1"/);
-    assert.match(logs[1], /^\[Bilibili\]\[GiftService\] action=deduplicated reason=platform-id /);
+    assert.match(logs[1], /^\[Bilibili\]\[GiftService\] action=deduplicated reason=final-event /);
     assert.match(logs[1], /"eventId":1/);
   } finally {
     console.log = originalLog;
@@ -419,9 +419,16 @@ test('separate combo batches keep their timestamp in the buffer key', () => {
       });
     }
 
-    assert.equal(state.giftComboPending.size, 2);
+    assert.equal(
+      db.giftDb.prepare("SELECT COUNT(*) AS count FROM gift_events WHERE detection_status = 'progress'").get().count,
+      2
+    );
     service.dispose();
     assert.equal(db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 2);
+    assert.equal(
+      db.giftDb.prepare("SELECT COUNT(*) AS count FROM gift_events WHERE detection_status = 'final'").get().count,
+      2
+    );
   } finally {
     service.dispose();
     closeDatabases(db);
@@ -679,7 +686,7 @@ test('blind box analysis bounds pagination and ignores unsupported sort fields',
   }
 });
 
-test('gift database v3 migration collapses duplicate identities and adds a unique constraint', () => {
+test('gift database v3 identity migration remains intact after later migrations', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-'));
   let db = createDatabases({ dataDir });
 
@@ -700,7 +707,7 @@ test('gift database v3 migration collapses duplicate identities and adds a uniqu
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 3);
+    assert.equal(getSchemaVersions(db).giftDb, 5);
     const rows = db.giftDb.prepare(`
       SELECT * FROM gift_events WHERE platform_id = ? ORDER BY uid
     `).all('duplicate-platform');

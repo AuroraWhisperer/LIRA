@@ -809,7 +809,7 @@ test('toolbox owns independent overtime, daily todo, performance, usage guide, a
   assert.match(directTabRule, /min-width:\s*0/);
   assert.doesNotMatch(tabStyles, /tab-overflow/);
   assert.match(html, /data-other-feature="otherOvertimeMachineFeature"/);
-  assert.match(html, /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
+  assert.match(html, /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherDailyTodoFeature"/);
   assert.match(html, /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
@@ -1656,6 +1656,8 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(overlayStyles, /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(overlayStyles, /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
+  assert.match(overlayStyles, /\.identity-pin-row\s*\{[\s\S]*?height:\s*var\(--identity-row-height,\s*42px\)/);
+  assert.match(overlayStyles, /\.identity-pin-label\s*\{[\s\S]*?height:\s*32px[\s\S]*?padding:\s*0\s+8px[\s\S]*?font-size:\s*calc\(20px\s*\*\s*var\(--overlay-font-scale,\s*1\)\)/);
   assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
   assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
   const identityBlockRules = [...overlayStyles.matchAll(/\.identity-badge,\s*\.identity-medal\s*\{[^}]*\}/g)];
@@ -1785,6 +1787,26 @@ test('identity queue keeps song and requester fields in one continuous stream', 
     Math.round((longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) * longAnimation.options.duration),
     1000
   );
+});
+
+test('overtime toolbox panel loads its isolated controller and renders untrusted labels safely', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
+
+  assert.match(html, /id="overtimePanel"/);
+  assert.match(html, /id="overtimeClockValue"/);
+  assert.match(html, /id="overtimeRules"/);
+  assert.match(html, /id="overtimeGiftPicker"/);
+  assert.match(html, /id="overtimePreview"/);
+  assert.match(entrySource, /import '\.\/overtime\.js';/);
+  assert.match(styles, /@import url\('\.\/admin\/overtime\.css'\);/);
+  assert.match(source, /\.textContent\s*=/);
+  assert.match(source, /fetch\('\/img\/bilibili-gifts\.json'/);
+  assert.match(source, /\/api\/overtime\/rules/);
+  assert.match(source, /MAX_ENABLED_RULES\s*=\s*8/);
+  assert.doesNotMatch(source, /innerHTML\s*=/);
 });
 
 test('identity queue shows the actual room medal name for a requester without guard status', () => {

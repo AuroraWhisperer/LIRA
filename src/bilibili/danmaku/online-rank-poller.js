@@ -45,8 +45,8 @@ class OnlineRankPoller {
       if (items.length === 0) break;
 
       for (const item of items) {
-        const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item);
-        if (this.identityCache.remember(userMeta)) {
+        const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, ruid);
+        if (this.identityCache.remember(userMeta, { currentRoom: true })) {
           cachedCount += 1;
         }
       }

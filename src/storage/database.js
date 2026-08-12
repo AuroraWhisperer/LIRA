@@ -127,6 +127,44 @@ function runAllMigrations(databases, options = {}) {
         ON gift_events(platform_id, uid)
         WHERE platform_id != '' AND uid != ''
       `);
+    },
+    (db) => {
+      // v4: gift_events 升级为共享检测账本；历史记录只属于礼物统计，禁止回放给加班机。
+      ensureGiftDetectionColumns(db);
+      db.prepare(`
+        UPDATE gift_events
+        SET detection_status = 'final',
+            first_detected_at_ms = CASE
+              WHEN strftime('%s', created_at) IS NULL THEN 0
+              ELSE CAST(strftime('%s', created_at) AS INTEGER) * 1000
+            END,
+            last_platform_at_ms = CASE
+              WHEN strftime('%s', updated_at) IS NULL THEN 0
+              ELSE CAST(strftime('%s', updated_at) AS INTEGER) * 1000
+            END,
+            finalized_at_ms = CASE
+              WHEN strftime('%s', updated_at) IS NULL THEN 0
+              ELSE CAST(strftime('%s', updated_at) AS INTEGER) * 1000
+            END,
+            gift_stats_eligible = 1,
+            gift_stats_delivered = 1,
+            overtime_epoch = 0
+      `).run();
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_gift_events_detection_pending
+          ON gift_events(detection_status, last_platform_at_ms);
+        CREATE INDEX IF NOT EXISTS idx_gift_events_gift_stats_delivery
+          ON gift_events(detection_status, gift_stats_eligible, gift_stats_delivered, id);
+      `);
+    },
+    (db) => {
+      // v5: 加班机状态、规则与结算流水均位于 gift-data.db，以支持单事务结算。
+      db.prepare(`
+        INSERT OR IGNORE INTO overtime_machine_state (
+          id, enabled, enable_epoch, initial_seconds, remaining_ms,
+          anchor_at_ms, status, background_path, background_fit, revision, updated_at
+        ) VALUES (1, 0, 0, 0, 0, 0, 'paused', '', 'cover', 0, ?)
+      `).run(now());
     }
   ]));
 
@@ -233,6 +271,23 @@ function ensureGiftColumns(db) {
     if (!columns.has(name)) {
       db.exec(`ALTER TABLE gift_events ADD COLUMN ${name} ${definition}`);
     }
+  }
+}
+
+function ensureGiftDetectionColumns(db) {
+  const columns = new Set(db.prepare('PRAGMA table_info(gift_events)').all().map(column => column.name));
+  const wanted = [
+    ['detection_status', "TEXT NOT NULL DEFAULT 'progress'"],
+    ['first_detected_at_ms', 'INTEGER NOT NULL DEFAULT 0'],
+    ['last_platform_at_ms', 'INTEGER NOT NULL DEFAULT 0'],
+    ['finalized_at_ms', 'INTEGER NOT NULL DEFAULT 0'],
+    ['gift_stats_eligible', 'INTEGER NOT NULL DEFAULT 0'],
+    ['gift_stats_delivered', 'INTEGER NOT NULL DEFAULT 0'],
+    ['overtime_epoch', 'INTEGER NOT NULL DEFAULT 0']
+  ];
+
+  for (const [name, definition] of wanted) {
+    if (!columns.has(name)) db.exec(`ALTER TABLE gift_events ADD COLUMN ${name} ${definition}`);
   }
 }
 
@@ -431,11 +486,14 @@ function clearPlaybackData(musicDb) {
 
 function clearGiftData(giftDb) {
   let count = 0;
-  giftDb.exec('BEGIN');
+  giftDb.exec('BEGIN IMMEDIATE');
   try {
     count = countRows(giftDb, 'gift_events');
+    giftDb.prepare('DELETE FROM overtime_settlements').run();
     giftDb.prepare('DELETE FROM gift_events').run();
-    giftDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'").run();
+    giftDb.prepare(`
+      DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
+    `).run();
     giftDb.exec('COMMIT');
   } catch (error) {
     giftDb.exec('ROLLBACK');
@@ -485,11 +543,14 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
     throw error;
   }
 
-  giftDb.exec('BEGIN');
+  giftDb.exec('BEGIN IMMEDIATE');
   try {
     counts.gifts = countRows(giftDb, 'gift_events');
+    giftDb.prepare('DELETE FROM overtime_settlements').run();
     giftDb.prepare('DELETE FROM gift_events').run();
-    giftDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'").run();
+    giftDb.prepare(`
+      DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
+    `).run();
     giftDb.exec('COMMIT');
   } catch (error) {
     giftDb.exec('ROLLBACK');
@@ -570,6 +631,7 @@ module.exports = {
   ensureQueueColumns,
   ensureRequesterMetaColumns,
   ensureGiftColumns,
+  ensureGiftDetectionColumns,
   migrateLegacySuperChatsToDedicatedDatabase,
   clearSongLibraryData,
   clearSuperChatData,

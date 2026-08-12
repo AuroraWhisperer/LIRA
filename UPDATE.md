@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`3.2.24`
+当前版本：`3.2.25`
 
 ---
+
+## v3.2.25 变更
+
+- ⏰ **加班机（Overtime Machine）**：全新功能模块——礼物驱动的时间倒计时叠加层。观众送礼可延长倒计时，管理后台支持启用/暂停/重置、配置礼物规则（固定秒数 / 随机范围）、设置本场初始时间和剩余时间。新增 `overtime_machine_state`、`overtime_gift_rules`、`overtime_settlements` 三张数据库表，配合 `gift_events` 表新增 `detection_status`、`overtime_epoch` 等字段实现礼物整组封账后单次结算。前端包含独立 overlay 页面（`overtime.html`）和完整管理面板，支持自定义背景图和实时时钟展示。
+- 🔧 **礼物系统重构——检测-消费管线**：`event-service.js` 剥离组合礼物缓冲合并逻辑（精简 232 行），拆分为三个独立模块——`detection-service.js` 负责礼物检测与封账判定、`consumer-registry.js` 实现可插拔消费者注册模式、`statistics-consumer.js` 处理礼物统计入库。`gift/index.js` 对外接口从 `addGiftEvent` 改为 `detectionService.detect`，消费者通过注册表注入，支持扩展自定义消费者。
+- 🏷️ **身份缓存跨房守卫等级过滤**：`identity-cache.js` 新增 `currentRoom` 字段追踪——合并身份时优先保留本房间信息，跨房奖章不影响当前房间的守卫等级判定。`user-meta-extractor.js` 新增 `roomOwnerUid` 参数和 `isCurrentRoomMedal` 判断——仅当奖章属于当前直播间时才计入守卫等级和奖章信息，避免跨房奖章误判为舰长/提督/总督。
+- 🎨 **管理后台与 Overlay 样式增强**：`admin.html` 新增加班机管理面板（状态控制台、时间编辑器、礼物规则列表、结算记录表格）。`base.css` 新增加班机相关 CSS 变量和 overlay 全局样式。`styles-admin.css` 新增加班机管理面板样式。`event-bus.js` 新增加班机事件通道。
+- 🧪 **测试覆盖增强**：新增 `test/overtime-service.test.js`、`test/overtime-routes.test.js`、`test/overtime-overlay.test.js`、`test/gift-detection-service.test.js`、`test/bilibili-identity-cache.test.js`。`test/gift-service.test.js` 适配检测服务新接口、`test/bilibili-user-meta.test.js` 新增跨房守卫过滤测试、`test/frontend-regressions.test.js` 扩展加班机 overlay 断言。
 
 ## v3.2.24 变更
 

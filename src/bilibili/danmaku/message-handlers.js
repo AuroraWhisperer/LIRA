@@ -18,6 +18,7 @@ class MessageHandlers {
     this.startedAtMs = options.startedAtMs || Date.now();
     this.connectionGeneration = Number(options.connectionGeneration) || 0;
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
+    this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.messageBuffer = options.messageBuffer || null;
     this.isCommandText = typeof options.isCommandText === 'function'
       ? options.isCommandText
@@ -40,6 +41,10 @@ class MessageHandlers {
 
   updateConnectionAttempt(connectionAttempt) {
     this.connectionAttempt = Number(connectionAttempt) || 0;
+  }
+
+  updateRoomOwnerUid(roomOwnerUid) {
+    this.roomOwnerUid = cleanText(roomOwnerUid);
   }
 
   // 销毁定时器，避免泄漏
@@ -70,7 +75,7 @@ class MessageHandlers {
   handleDanmaku(message) {
     const info = message.info || [];
     const userInfo = info[2] || [];
-    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info);
+    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid);
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
 

@@ -163,6 +163,7 @@ class BilibiliDanmakuClient {
     if (!this.isConnectionCurrent(generation)) return;
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.ownerName = roomInfo.ownerName || '';
+    this.messageHandlers.updateRoomOwnerUid(roomInfo.uid);
 
     if (!isLive || options.alwaysHistory) {
       this.historyPoller.start(roomInfo.roomId);

@@ -1,6 +1,5 @@
 'use strict';
 
-const { flushStaleComboBuffers } = require('./event-service');
 const {
   cleanText,
   normalizePositiveInteger,
@@ -16,7 +15,6 @@ const BLIND_BOX_ANALYSIS_SORTS = {
 };
 
 function getBlindBoxStats(context, { boxName = '' } = {}) {
-  flushStaleComboBuffers(context);
   const { todayStart, rows } = loadTodayBlindBoxRows(context, { boxName });
   if (rows.length === 0) {
     return {
@@ -99,7 +97,6 @@ function getBlindBoxStats(context, { boxName = '' } = {}) {
 }
 
 function getBlindBoxAnalysis(context, options = {}) {
-  flushStaleComboBuffers(context);
   const view = BLIND_BOX_ANALYSIS_VIEWS.has(options.view) ? options.view : 'users';
   const defaultSort = view === 'records' ? 'createdAt' : 'profit';
   const sort = BLIND_BOX_ANALYSIS_SORTS[view].has(options.sort) ? options.sort : defaultSort;
@@ -157,6 +154,8 @@ function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
            total_price, blind_profit, num, created_at
     FROM gift_events
     WHERE status = 'active'
+      AND detection_status = 'final'
+      AND gift_stats_eligible = 1
       AND is_blind_box = 1
       AND blind_profit IS NOT NULL
       AND created_at >= ?

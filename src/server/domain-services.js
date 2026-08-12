@@ -17,8 +17,9 @@ const { createCheckinService } = require('../bilibili/checkin-service');
 const { createFortuneService } = require('../bilibili/fortune-service');
 const { createCustomReplyService } = require('../bilibili/custom-reply-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
+const { createOvertimeConsumer, createOvertimeService } = require('../overtime');
 
-function createDomainServices({ db, settingsStore, onGiftFlushed }) {
+function createDomainServices({ db, settingsStore, onGiftFlushed, onOvertimeUpdate }) {
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
@@ -37,7 +38,6 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
 
   const state = {
     cooldownByUser: new Map(),
-    giftComboPending: new Map(),
     blindBoxCache: null
   };
 
@@ -86,7 +86,13 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     ensureUnified: () => queueService.ensureUnifiedQueue(queueContext)
   };
 
-  const gifts = giftService.createGiftService(baseContext, { onGiftFlushed });
+  const overtime = createOvertimeService({ giftDb: db.giftDb, onUpdate: onOvertimeUpdate });
+  const overtimeConsumer = createOvertimeConsumer({ service: overtime });
+  const gifts = giftService.createGiftService(baseContext, {
+    onGiftFlushed,
+    consumers: [overtimeConsumer],
+    getOvertimeEpoch: overtime.getCurrentEpoch
+  });
 
   const superChats = {
     getSnapshot: () => superChatService.getSuperChatSnapshot(baseContext),
@@ -143,14 +149,12 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     clearPlayback: () => database.clearPlaybackData(db.musicDb),
     clearGifts() {
       const result = database.clearGiftData(db.giftDb);
-      state.giftComboPending.clear();
       state.blindBoxCache = null;
       return result;
     },
     clearAll() {
       const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb);
       state.cooldownByUser.clear();
-      state.giftComboPending.clear();
       state.blindBoxCache = null;
       songs.ensureCategory('默认');
       queue.ensureUnified();
@@ -169,6 +173,7 @@ function createDomainServices({ db, settingsStore, onGiftFlushed }) {
     songs,
     queue,
     gifts,
+    overtime,
     superChats,
     messages,
     requesterTargets,

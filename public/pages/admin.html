@@ -1640,7 +1640,92 @@
               aria-labelledby="otherOvertimeMachineFeatureTab"
               data-other-feature-panel
               hidden
-            ></section>
+            >
+              <div id="overtimePanel" class="other-feature-panel-body overtime-admin">
+                <header class="overtime-admin-header">
+                  <div>
+                    <p class="overtime-admin-kicker">LIVE OVERTIME CLOCK</p>
+                    <h2>加班机</h2>
+                    <p>礼物整组封账后，只结算一次时间变化。</p>
+                  </div>
+                  <button id="overtimeEnableBtn" class="secondary" type="button">启用加班机</button>
+                </header>
+
+                <section class="overtime-console" aria-labelledby="overtimeClockLabel">
+                  <div class="overtime-clock-block">
+                    <span id="overtimeClockLabel" class="overtime-clock-status">未启用</span>
+                    <strong id="overtimeClockValue" class="overtime-clock-value">00:00:00</strong>
+                  </div>
+                  <div class="overtime-control-stack">
+                    <div class="overtime-consumer-status" aria-label="收礼服务状态">
+                      <span id="overtimeCoreStatus" class="pill warn">共享收礼核心：未运行</span>
+                      <span id="overtimeGiftStatsStatus" class="pill">礼物统计：关闭</span>
+                      <span id="overtimeConsumerStatus" class="pill">加班机：关闭</span>
+                    </div>
+                    <div class="overtime-actions">
+                      <button id="overtimeStartBtn" type="button">开始</button>
+                      <button id="overtimePauseBtn" class="secondary" type="button">暂停</button>
+                      <button id="overtimeResetBtn" class="secondary" type="button">重置</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="overtime-admin-section overtime-time-editor">
+                  <div class="overtime-section-heading">
+                    <div><h3>本场时间</h3><p>格式为 HHH:MM:SS；应用当前时间后会暂停。</p></div>
+                  </div>
+                  <label>本场初始时间<input id="overtimeInitialTime" value="00:00:00" inputmode="numeric" autocomplete="off"></label>
+                  <label>当前剩余时间<input id="overtimeRemainingTime" value="00:00:00" inputmode="numeric" autocomplete="off"></label>
+                  <button id="overtimeApplyTimeBtn" type="button">应用时间</button>
+                </section>
+
+                <section class="overtime-admin-section">
+                  <div class="overtime-section-heading">
+                    <div><h3>礼物时间规则</h3><p>每个礼物组只应用一次；最多启用 8 条。</p></div>
+                    <div class="overtime-heading-actions">
+                      <span id="overtimePendingCount" class="pill">待结算 0</span>
+                      <button id="overtimeAddGiftBtn" class="secondary" type="button">＋ 添加礼物</button>
+                      <button id="overtimeSaveRulesBtn" type="button">保存规则</button>
+                    </div>
+                  </div>
+                  <div id="overtimeRules" class="overtime-rule-list" aria-live="polite"></div>
+                </section>
+
+                <section class="overtime-admin-section overtime-screen-section">
+                  <div class="overtime-section-heading"><div><h3>直播画面</h3><p>背景与前景独立；透明背景适合直接叠加到 OBS。</p></div></div>
+                  <label>背景
+                    <select id="overtimeBackgroundPath">
+                      <option value="">透明</option>
+                      <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
+                    </select>
+                  </label>
+                  <label>适配
+                    <select id="overtimeBackgroundFit">
+                      <option value="cover">铺满</option>
+                      <option value="contain">完整显示</option>
+                      <option value="fill">拉伸</option>
+                    </select>
+                  </label>
+                  <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">保存画面</button>
+                  <button id="overtimeOpenOverlayBtn" class="secondary" type="button">打开画面</button>
+                  <button id="overtimeCopyOverlayBtn" type="button">复制 OBS 地址</button>
+                  <iframe id="overtimePreview" class="overtime-preview" title="加班机实时预览" loading="lazy"></iframe>
+                </section>
+
+                <section class="overtime-admin-section">
+                  <div class="overtime-section-heading"><div><h3>最近结算</h3><p>仅展示已完成或忽略的最近 20 组礼物。</p></div></div>
+                  <div id="overtimeSettlements" class="overtime-settlement-list"></div>
+                </section>
+              </div>
+
+              <dialog id="overtimeGiftPicker" class="overtime-gift-picker">
+                <form method="dialog" class="overtime-picker-shell">
+                  <header><div><h3>选择礼物</h3><p>按名称或礼物 ID 搜索本地目录。</p></div><button class="secondary" value="cancel" type="submit">关闭</button></header>
+                  <input id="overtimeGiftSearch" type="search" placeholder="搜索礼物名称或 ID" autocomplete="off">
+                  <div id="overtimeGiftResults" class="overtime-gift-results"></div>
+                </form>
+              </dialog>
+            </section>
             <section
               id="otherDailyTodoFeature"
               class="other-feature-panel"

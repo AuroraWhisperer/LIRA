@@ -92,13 +92,15 @@ function createServerRuntime(runtimeOptions = {}) {
     WHERE key = 'songScrollSpeedRangeVersion'
   `).get();
   const settingsStore = settingsStoreModule.createSettingsStore(songDb);
+  let publishOvertimeUpdate = () => {};
   const domainServices = createDomainServices({
     db,
     settingsStore,
     onGiftFlushed: (item) => {
-      logGiftDelivery('combo-flush', item);
+      logGiftDelivery('final', item);
       broadcastSnapshot('bilibili:gift');
-    }
+    },
+    onOvertimeUpdate: update => publishOvertimeUpdate(update)
   });
 
   const lyricsService = createLyricsService({
@@ -140,6 +142,12 @@ function createServerRuntime(runtimeOptions = {}) {
   let bilibiliAuthCache = { cookieHeader: '', uid: 0 }; // 同步缓存，createBilibiliClient 同频读取
 
   const webSocketHub = wsTransport.createWebSocketHub();
+  publishOvertimeUpdate = update => webSocketHub.broadcast({
+    type: 'overtime:update',
+    reason: update.reason,
+    state: update.state,
+    ...(update.adjustment ? { adjustment: update.adjustment } : {})
+  });
   let lyricState = {
     trackTitle: '', artists: [], lineText: '', translation: '', words: [],
     currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
@@ -274,6 +282,13 @@ function createServerRuntime(runtimeOptions = {}) {
         getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
         search: domainServices.gifts.search
       },
+      overtime: {
+        getOverview: domainServices.overtime.getOverview,
+        setTime: domainServices.overtime.setTime,
+        act: domainServices.overtime.act,
+        setBackground: domainServices.overtime.setBackground,
+        replaceRules: domainServices.overtime.replaceRules
+      },
       debug: {
         getGiftMessages: () => messageBuffer.getAll(),
         getGiftMessageStats: () => messageBuffer.getStats(),
@@ -400,6 +415,7 @@ function createServerRuntime(runtimeOptions = {}) {
         console.log(`Queue overlay: ${baseUrl}/queue`);
         console.log(`Songs overlay: ${baseUrl}/songlist`);
         console.log(`Blindbox overlay: ${baseUrl}/blindbox`);
+        console.log(`Overtime overlay: ${baseUrl}/overtime`);
         openAdminPageIfNeeded(baseUrl);
         reconnectBilibiliListener().catch((error) => {
           console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
@@ -443,6 +459,8 @@ function createServerRuntime(runtimeOptions = {}) {
       superChats: domainServices.superChats.getSnapshot(),
       gifts: domainServices.gifts.getSnapshot(),
       giftSprint: domainServices.gifts.getSprintSnapshot(),
+      giftDetection: domainServices.gifts.getStatus(),
+      overtime: domainServices.overtime.getSnapshot(),
       settings: settingsStore.getSettings(),
       categories: domainServices.songs.listCategories(),
       tags: domainServices.songs.listTags(),
@@ -626,10 +644,7 @@ function createServerRuntime(runtimeOptions = {}) {
         if (isShuttingDown) return;
         try {
           const item = domainServices.gifts.add(gift);
-          if (item) {
-            logGiftDelivery('immediate', item);
-            broadcastSnapshot('bilibili:gift');
-          }
+          if (item) logGiftDelivery(item.detection_status || 'detected', item);
         } catch (error) {
           console.warn(`[Bilibili] gift record failed: user=${gift.userName || ''} uid=${gift.uid || ''} gift=${gift.giftName || ''} error=${error.message}`);
         }
@@ -704,6 +719,7 @@ function createServerRuntime(runtimeOptions = {}) {
       } catch (error) {
         console.warn('[Shutdown] pending gift flush failed:', error.message);
       }
+      domainServices.overtime.dispose();
       webSocketHub.stop({ shutdownPayload: { type: 'shutdown', reason: 'manual' } });
 
       return new Promise((resolve) => {

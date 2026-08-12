@@ -1,0 +1,144 @@
+'use strict';
+
+const MAX_OVERTIME_SECONDS = 3_599_999;
+const MAX_RANDOM_WEIGHT = 100_000;
+const MAX_ENABLED_RULES = 8;
+
+function validateTimeInput(input) {
+  if (!input || typeof input !== 'object') throw new Error('time input is required.');
+  const result = {};
+  if (Object.hasOwn(input, 'initialSeconds')) {
+    result.initialSeconds = validateSeconds(input.initialSeconds, 'initialSeconds', false);
+  }
+  if (Object.hasOwn(input, 'remainingSeconds')) {
+    result.remainingSeconds = validateSeconds(input.remainingSeconds, 'remainingSeconds', false);
+  }
+  if (!Object.hasOwn(result, 'initialSeconds') && !Object.hasOwn(result, 'remainingSeconds')) {
+    throw new Error('initialSeconds or remainingSeconds is required.');
+  }
+  return result;
+}
+
+function validateAction(action) {
+  const value = String(action || '').trim();
+  if (!['start', 'pause', 'reset', 'enable', 'disable'].includes(value)) {
+    throw new Error('action must be start, pause, reset, enable, or disable.');
+  }
+  return value;
+}
+
+function validateBackground(input) {
+  if (!input || typeof input !== 'object') throw new Error('background input is required.');
+  const path = String(input.path || '').trim();
+  const fit = String(input.fit || 'cover').trim();
+  if (!['cover', 'contain', 'fill'].includes(fit)) {
+    throw new Error('background fit must be cover, contain, or fill.');
+  }
+  if (path && !isAllowedImagePath(path, ['overtime-machine'])) {
+    throw new Error('background path must be a built-in overtime image path.');
+  }
+  return { path, fit };
+}
+
+function validateRules(input) {
+  if (!Array.isArray(input)) throw new Error('rules must be an array.');
+  const giftIds = new Set();
+  const rules = input.map((value, index) => validateRule(value, index));
+  for (const rule of rules) {
+    if (giftIds.has(rule.giftId)) throw new Error(`duplicate giftId: ${rule.giftId}`);
+    giftIds.add(rule.giftId);
+  }
+  if (rules.filter(rule => rule.enabled).length > MAX_ENABLED_RULES) {
+    throw new Error(`enabled rules cannot exceed ${MAX_ENABLED_RULES}.`);
+  }
+  return rules;
+}
+
+function validateRule(input, index) {
+  if (!input || typeof input !== 'object') throw new Error(`rule ${index + 1} must be an object.`);
+  const giftId = String(input.giftId ?? input.gift_id ?? '').trim();
+  if (!giftId || giftId.length > 100) throw new Error(`rule ${index + 1} giftId is invalid.`);
+  const giftName = String(input.giftName ?? input.gift_name ?? '').trim().slice(0, 100);
+  const imagePath = String(input.imagePath ?? input.image_path ?? '').trim();
+  if (imagePath && !isAllowedImagePath(imagePath, ['bilibili-gifts', 'overtime-machine'])) {
+    throw new Error(`rule ${index + 1} imagePath is invalid.`);
+  }
+  const mode = String(input.mode || '').trim();
+  if (!['fixed', 'random'].includes(mode)) throw new Error(`rule ${index + 1} mode is invalid.`);
+  const enabled = input.enabled !== false && Number(input.enabled) !== 0;
+  const sortOrder = normalizeInteger(input.sortOrder ?? input.sort_order ?? index, `rule ${index + 1} sortOrder`);
+
+  if (mode === 'fixed') {
+    return {
+      giftId, giftName, imagePath, mode,
+      fixedSeconds: validateSeconds(input.fixedSeconds ?? input.fixed_seconds, `rule ${index + 1} fixedSeconds`, true),
+      outcomes: [], enabled, sortOrder
+    };
+  }
+
+  const outcomesInput = input.outcomes ?? parseOutcomes(input.outcomes_json);
+  if (!Array.isArray(outcomesInput) || outcomesInput.length < 2 || outcomesInput.length > 10) {
+    throw new Error(`rule ${index + 1} outcomes must contain 2 to 10 items.`);
+  }
+  const outcomes = outcomesInput.map((outcome, outcomeIndex) => ({
+    seconds: validateSeconds(
+      outcome?.seconds,
+      `rule ${index + 1} outcome ${outcomeIndex + 1} seconds`,
+      true
+    ),
+    weight: validateWeight(outcome?.weight, `rule ${index + 1} outcome ${outcomeIndex + 1} weight`)
+  }));
+  const totalWeight = outcomes.reduce((sum, outcome) => sum + outcome.weight, 0);
+  if (totalWeight > MAX_RANDOM_WEIGHT) {
+    throw new Error(`rule ${index + 1} total weight cannot exceed ${MAX_RANDOM_WEIGHT}.`);
+  }
+  return { giftId, giftName, imagePath, mode, fixedSeconds: null, outcomes, enabled, sortOrder };
+}
+
+function validateSeconds(value, field, signed) {
+  const number = normalizeInteger(value, field);
+  const minimum = signed ? -MAX_OVERTIME_SECONDS : 0;
+  if (number < minimum || number > MAX_OVERTIME_SECONDS) {
+    throw new Error(`${field} must be between ${minimum} and ${MAX_OVERTIME_SECONDS}.`);
+  }
+  return number;
+}
+
+function validateWeight(value, field) {
+  const number = normalizeInteger(value, field);
+  if (number <= 0 || number > MAX_RANDOM_WEIGHT) {
+    throw new Error(`${field} must be between 1 and ${MAX_RANDOM_WEIGHT}.`);
+  }
+  return number;
+}
+
+function normalizeInteger(value, field) {
+  const number = Number(value);
+  if (!Number.isSafeInteger(number)) throw new Error(`${field} must be an integer.`);
+  return number;
+}
+
+function parseOutcomes(value) {
+  if (!value) return null;
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return parsed?.version === 1 ? parsed.outcomes : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function isAllowedImagePath(value, roots) {
+  if (value.includes('..') || value.includes('\\') || /^(?:[a-z]+:|\/\/)/i.test(value)) return false;
+  return roots.some(root => new RegExp(`^/img/${root}(?:/[A-Za-z0-9._-]+)+$`).test(value));
+}
+
+module.exports = {
+  MAX_OVERTIME_SECONDS,
+  MAX_RANDOM_WEIGHT,
+  MAX_ENABLED_RULES,
+  validateTimeInput,
+  validateAction,
+  validateBackground,
+  validateRules
+};

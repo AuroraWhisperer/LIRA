@@ -1,0 +1,190 @@
+.overtime-admin {
+  --ot-night: #181823;
+  --ot-pink: #ff6f91;
+  --ot-teal: #21b6a8;
+  --ot-coral: #f0677d;
+  --ot-gold: #f5b72f;
+  gap: 14px;
+  color: var(--text);
+}
+
+.overtime-admin-header,
+.overtime-section-heading,
+.overtime-console,
+.overtime-heading-actions,
+.overtime-actions,
+.overtime-consumer-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overtime-admin-header {
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--ot-pink) 28%, var(--border));
+  border-radius: 12px;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--ot-night) 92%, var(--surface)), var(--surface));
+}
+
+.overtime-admin h2,
+.overtime-admin h3,
+.overtime-admin p { margin: 0; }
+.overtime-admin h2 { margin-top: 2px; font-size: 24px; color: #fff7fb; }
+.overtime-admin h3 { font-size: 15px; }
+.overtime-admin p { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.overtime-admin-kicker {
+  color: var(--ot-pink) !important;
+  font: 700 10px/1.2 Bahnschrift, sans-serif !important;
+  letter-spacing: 0.18em;
+}
+
+.overtime-console {
+  align-items: stretch;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: var(--ot-night);
+  color: #fff7fb;
+}
+.overtime-clock-block { display: grid; min-width: 230px; }
+.overtime-clock-status { color: var(--ot-teal); font-size: 12px; font-weight: 700; }
+.overtime-clock-value {
+  font: 700 clamp(38px, 5vw, 66px)/1 Bahnschrift SemiCondensed, Bahnschrift, "Arial Narrow", sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+.overtime-control-stack { display: grid; align-content: space-between; justify-items: end; gap: 16px; }
+.overtime-consumer-status { flex-wrap: wrap; justify-content: flex-end; }
+.overtime-actions { justify-content: flex-end; }
+
+.overtime-admin-section {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.overtime-section-heading { grid-column: 1 / -1; }
+.overtime-section-heading > div:first-child { min-width: 0; }
+.overtime-heading-actions { flex-wrap: wrap; justify-content: flex-end; }
+.overtime-time-editor label { grid-column: span 4; }
+.overtime-time-editor > button { grid-column: span 4; align-self: end; }
+.overtime-admin-section label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.overtime-admin-section input,
+.overtime-admin-section select { width: 100%; }
+
+.overtime-rule-list,
+.overtime-settlement-list { grid-column: 1 / -1; display: grid; gap: 8px; }
+.overtime-rule-empty,
+.overtime-settlement-empty {
+  padding: 20px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  text-align: center;
+}
+.overtime-rule-row {
+  display: grid;
+  grid-template-columns: 48px minmax(130px, 1fr) 120px minmax(180px, 1.2fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ot-pink);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.overtime-rule-row img,
+.overtime-gift-option img { width: 44px; height: 44px; object-fit: contain; }
+.overtime-rule-identity { min-width: 0; }
+.overtime-rule-identity strong,
+.overtime-rule-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overtime-rule-identity small { margin-top: 3px; color: var(--muted); }
+.overtime-rule-effect { display: grid; gap: 5px; }
+.overtime-random-outcomes { min-height: 58px; resize: vertical; font: 12px/1.45 Consolas, monospace; }
+.overtime-rule-buttons { display: flex; gap: 5px; }
+.overtime-rule-buttons button { min-width: 32px; padding-inline: 8px; }
+
+.overtime-screen-section label { grid-column: span 3; }
+.overtime-screen-section > button { grid-column: span 2; align-self: end; }
+.overtime-preview {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: repeating-conic-gradient(#d9dbe2 0 25%, #f4f5f8 0 50%) 0 / 20px 20px;
+}
+.overtime-settlement-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.overtime-settlement-row .is-positive { color: var(--ot-teal); }
+.overtime-settlement-row .is-negative { color: var(--ot-coral); }
+
+.overtime-gift-picker {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+.overtime-gift-picker::backdrop { background: rgba(10, 10, 18, 0.62); backdrop-filter: blur(4px); }
+.overtime-picker-shell { display: grid; gap: 12px; padding: 16px; }
+.overtime-picker-shell header { display: flex; justify-content: space-between; gap: 12px; }
+.overtime-picker-shell h3,
+.overtime-picker-shell p { margin: 0; }
+.overtime-gift-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  max-height: 480px;
+  overflow: auto;
+}
+.overtime-gift-option {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 64px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+.overtime-gift-option:hover { border-color: var(--ot-pink); }
+.overtime-gift-option span { min-width: 0; }
+.overtime-gift-option strong,
+.overtime-gift-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overtime-gift-option small { margin-top: 3px; color: var(--muted); font-weight: 400; }
+
+@media (max-width: 820px) {
+  .overtime-admin-header,
+  .overtime-console,
+  .overtime-section-heading { align-items: stretch; flex-direction: column; }
+  .overtime-control-stack { justify-items: stretch; }
+  .overtime-consumer-status,
+  .overtime-actions { justify-content: flex-start; }
+  .overtime-rule-row { grid-template-columns: 44px minmax(0, 1fr); }
+  .overtime-rule-row > :nth-child(n + 3) { grid-column: 1 / -1; }
+  .overtime-time-editor label,
+  .overtime-time-editor > button,
+  .overtime-screen-section label,
+  .overtime-screen-section > button { grid-column: 1 / -1; }
+  .overtime-settlement-row { grid-template-columns: 1fr auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overtime-gift-picker::backdrop { backdrop-filter: none; }
+}

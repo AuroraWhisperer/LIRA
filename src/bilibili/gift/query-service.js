@@ -1,6 +1,5 @@
 'use strict';
 
-const { flushStaleComboBuffers } = require('./event-service');
 const { normalizeGiftRow } = require('./normalizer');
 const { now, normalizeMoney } = require('../../shared/utils');
 
@@ -20,10 +19,10 @@ function resetGiftSprintProgress(context) {
 }
 
 function getGiftSnapshot(context) {
-  flushStaleComboBuffers(context);
   const recent = context.db.giftDb.prepare(`
     SELECT * FROM gift_events
     WHERE status = 'active' AND total_price > 0
+      AND detection_status = 'final' AND gift_stats_eligible = 1
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 30
   `).all().map(normalizeGiftRow);
@@ -31,7 +30,6 @@ function getGiftSnapshot(context) {
 }
 
 function getGiftHistory(context, options = {}) {
-  flushStaleComboBuffers(context);
   const giftDb = context.db.giftDb;
   const limit = Math.min(100, Math.max(1, Math.floor(Number(options.limit) || 50)));
   const page = Math.max(1, Math.floor(Number(options.page) || 1));
@@ -65,6 +63,7 @@ function getGiftHistory(context, options = {}) {
   const displayLimitIds = giftDb.prepare(`
     SELECT id FROM gift_events
     WHERE status = 'active' AND total_price > 0
+      AND detection_status = 'final' AND gift_stats_eligible = 1
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 3000
   `).all().map(row => row.id);
@@ -78,14 +77,18 @@ function getGiftHistory(context, options = {}) {
   const totalRow = giftDb.prepare(`
     SELECT COUNT(*) AS count
     FROM gift_events
-    WHERE status = 'active' AND total_price > 0 AND id >= ? AND id <= ?
+    WHERE status = 'active' AND total_price > 0
+      AND detection_status = 'final' AND gift_stats_eligible = 1
+      AND id >= ? AND id <= ?
   `).get(minId, maxId) || {};
   const total = Number(totalRow.count || 0);
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const safePage = Math.min(page, totalPages);
   const items = giftDb.prepare(`
     SELECT * FROM gift_events
-    WHERE status = 'active' AND total_price > 0 AND id >= ? AND id <= ?
+    WHERE status = 'active' AND total_price > 0
+      AND detection_status = 'final' AND gift_stats_eligible = 1
+      AND id >= ? AND id <= ?
     ORDER BY ${orderByClause}
     LIMIT ? OFFSET ?
   `).all(minId, maxId, limit, (safePage - 1) * limit).map(normalizeGiftRow);
@@ -102,6 +105,7 @@ function getGiftSprintSnapshot(context) {
       COUNT(*) AS countedGiftCount
     FROM gift_events
     WHERE status = 'active' AND counted_in_sprint = 1
+      AND detection_status = 'final' AND gift_stats_eligible = 1
   `).get() || {};
   const receivedRmb = normalizeMoney(row.receivedRmb);
   const remainingRmb = Math.max(0, normalizeMoney(targetRmb - receivedRmb));
@@ -118,9 +122,12 @@ function getGiftSprintSnapshot(context) {
 }
 
 function searchGifts(context, { from, to, limit = 100 }) {
-  flushStaleComboBuffers(context);
   const giftDb = context.db.giftDb;
-  let sql = `SELECT * FROM gift_events WHERE status = 'active' AND total_price > 0`;
+  let sql = `
+    SELECT * FROM gift_events
+    WHERE status = 'active' AND total_price > 0
+      AND detection_status = 'final' AND gift_stats_eligible = 1
+  `;
   const params = [];
   if (from) {
     sql += ` AND created_at >= ?`;
@@ -142,6 +149,7 @@ function clearRecentGifts(context) {
     const displayIds = giftDb.prepare(`
       SELECT id FROM gift_events
       WHERE status = 'active' AND total_price > 0
+        AND detection_status = 'final' AND gift_stats_eligible = 1
       ORDER BY datetime(created_at) DESC, id DESC
       LIMIT 3000
     `).all().map(row => row.id);

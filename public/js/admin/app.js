@@ -62,6 +62,7 @@ async function initApp() {
   }
   if (window.AdminApp.desktopLyric) window.AdminApp.desktopLyric.initDesktopLyricForm();
   if (window.AdminApp.metrics) window.AdminApp.metrics.initPerformanceMonitor();
+  if (window.AdminApp.overtime) window.AdminApp.overtime.init();
   // 初始化「百宝箱」页面的通用功能导航
   if (window.AdminApp.other && window.AdminApp.other.initOtherPage) {
     window.AdminApp.other.initOtherPage();

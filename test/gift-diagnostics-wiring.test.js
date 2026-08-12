@@ -18,10 +18,10 @@ test('desktop preload exposes a narrow gift display diagnostic bridge', () => {
   assert.match(mainSource, /writeLog\('gift-display', trace\)/);
 });
 
-test('server logs both immediate and delayed gift broadcasts', () => {
+test('server logs detected gifts and broadcasts only finalized gifts', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8');
-  assert.match(source, /logGiftDelivery\('immediate', item\)/);
-  assert.match(source, /logGiftDelivery\('combo-flush', item\)/);
+  assert.match(source, /logGiftDelivery\(item\.detection_status \|\| 'detected', item\)/);
+  assert.match(source, /logGiftDelivery\('final', item\)/);
   assert.match(source, /\[Bilibili\]\[GiftDelivery\] action=broadcast/);
 });
 

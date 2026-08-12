@@ -15,6 +15,7 @@ const ROUTE_MODULES = [
   require('./routes/queue-routes'),
   require('./routes/superchat-routes'),
   require('./routes/gift-routes'),
+  require('./routes/overtime-routes'),
   require('./routes/debug-routes'),
   require('./routes/data-routes'),
   require('./routes/ai-routes'),

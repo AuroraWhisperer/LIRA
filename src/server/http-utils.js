@@ -86,6 +86,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
     ['/queue', 'pages/overlays/queue.html'],
     ['/songlist', 'pages/overlays/songs.html'],
     ['/blindbox', 'pages/overlays/blindbox.html'],
+    ['/overtime', 'pages/overlays/overtime.html'],
     ['/lyrics', 'pages/overlays/lyric-window.html']
   ]);
   const assetPath = pageMap.get(requestUrl.pathname)

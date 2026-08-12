@@ -290,6 +290,13 @@ const GIFT_SCHEMA = `
     blind_box_price REAL,
     blind_profit REAL,
     counted_in_sprint INTEGER NOT NULL DEFAULT 0,
+    detection_status TEXT NOT NULL DEFAULT 'progress',
+    first_detected_at_ms INTEGER NOT NULL DEFAULT 0,
+    last_platform_at_ms INTEGER NOT NULL DEFAULT 0,
+    finalized_at_ms INTEGER NOT NULL DEFAULT 0,
+    gift_stats_eligible INTEGER NOT NULL DEFAULT 0,
+    gift_stats_delivered INTEGER NOT NULL DEFAULT 0,
+    overtime_epoch INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'active',
     raw_json TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
@@ -304,6 +311,62 @@ const GIFT_SCHEMA = `
     ON gift_events(created_at);
   CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id
     ON gift_events(platform_id);
+
+  CREATE TABLE IF NOT EXISTS overtime_machine_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+    enable_epoch INTEGER NOT NULL DEFAULT 0 CHECK (enable_epoch >= 0),
+    initial_seconds INTEGER NOT NULL DEFAULT 0 CHECK (initial_seconds BETWEEN 0 AND 3599999),
+    remaining_ms INTEGER NOT NULL DEFAULT 0 CHECK (remaining_ms BETWEEN 0 AND 3599999000),
+    anchor_at_ms INTEGER NOT NULL DEFAULT 0 CHECK (anchor_at_ms >= 0),
+    status TEXT NOT NULL DEFAULT 'paused' CHECK (status IN ('paused', 'running', 'finished')),
+    background_path TEXT NOT NULL DEFAULT '',
+    background_fit TEXT NOT NULL DEFAULT 'cover' CHECK (background_fit IN ('cover', 'contain', 'fill')),
+    revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS overtime_gift_rules (
+    gift_id TEXT PRIMARY KEY,
+    gift_name TEXT NOT NULL DEFAULT '',
+    image_path TEXT NOT NULL DEFAULT '',
+    mode TEXT NOT NULL CHECK (mode IN ('fixed', 'random')),
+    fixed_seconds INTEGER,
+    outcomes_json TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_overtime_gift_rules_order
+    ON overtime_gift_rules(enabled DESC, sort_order, gift_id);
+
+  CREATE TABLE IF NOT EXISTS overtime_settlements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gift_event_id INTEGER NOT NULL UNIQUE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'applied', 'ignored')),
+    gift_id TEXT NOT NULL DEFAULT '',
+    gift_name TEXT NOT NULL DEFAULT '',
+    quantity INTEGER NOT NULL DEFAULT 1,
+    total_price REAL NOT NULL DEFAULT 0,
+    event_created_at TEXT NOT NULL DEFAULT '',
+    event_updated_at TEXT NOT NULL DEFAULT '',
+    settle_after_ms INTEGER NOT NULL DEFAULT 0,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    rule_mode TEXT NOT NULL DEFAULT '',
+    rule_snapshot_json TEXT NOT NULL DEFAULT '',
+    requested_delta_seconds INTEGER,
+    applied_delta_seconds INTEGER,
+    outcomes_json TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_overtime_settlements_retry
+    ON overtime_settlements(status, settle_after_ms);
+  CREATE INDEX IF NOT EXISTS idx_overtime_settlements_recent
+    ON overtime_settlements(status, id DESC);
 `;
 
 // ── 播放器 DDL ──

@@ -199,6 +199,7 @@ export const Events = {
   // 礼物相关
   GIFT_RECEIVED: 'gift:received',
   GIFT_SPRINT_UPDATED: 'gift:sprint_updated',
+  OVERTIME_UPDATED: 'overtime:updated',
 
   // 主题相关
   THEME_CHANGED: 'theme:changed',

@@ -52,6 +52,13 @@ export class StateService {
           eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
         }
         this.scheduleSongReload();
+      } else if (payload.type === 'overtime:update') {
+        const currentRevision = Number(this.appState?.overtime?.revision) || 0;
+        const nextRevision = Number(payload.state?.revision) || 0;
+        if (nextRevision <= currentRevision) return;
+        this.appState = this.appState || {};
+        this.appState.overtime = payload.state;
+        eventBus.emit(Events.OVERTIME_UPDATED, payload);
       }
     });
 

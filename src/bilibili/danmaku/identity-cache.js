@@ -24,7 +24,7 @@ class IdentityCache {
       medalLevel: normalizePositiveInteger(input && input.requesterMedalLevel)
     }, cached);
     this.remember(merged);
-    return merged;
+    return publicRequesterIdentity(merged);
   }
 
   lookup(uid, userName) {
@@ -43,10 +43,13 @@ class IdentityCache {
     return null;
   }
 
-  remember(input) {
-    const identity = normalizeRequesterIdentity(input);
+  remember(input, options = {}) {
+    const identity = normalizeRequesterIdentity({
+      ...input,
+      currentRoom: options.currentRoom === true || Boolean(input && input.currentRoom)
+    });
     if (!identity.uid && !identity.userName) return false;
-    if (!identity.guardLevel && !identity.medalLevel && !identity.medalName) return false;
+    if (!identity.currentRoom && !identity.guardLevel && !identity.medalLevel && !identity.medalName) return false;
 
     const previous = this.lookup(identity.uid, identity.userName);
     const merged = {
@@ -78,20 +81,48 @@ function normalizeRequesterIdentity(input) {
     guardLevel: normalizeGuardLevel(input && input.guardLevel),
     medalName: cleanText(input && input.medalName),
     medalLevel: normalizePositiveInteger(input && input.medalLevel),
-    seenAt: normalizePositiveInteger(input && input.seenAt)
+    seenAt: normalizePositiveInteger(input && input.seenAt),
+    currentRoom: Boolean(input && input.currentRoom)
   };
 }
 
 function mergeRequesterIdentity(primary, fallback) {
   const base = normalizeRequesterIdentity(primary);
   const extra = normalizeRequesterIdentity(fallback);
+  if (base.currentRoom) return mergeCurrentRoomIdentity(base, extra);
+  if (extra.currentRoom) return mergeCurrentRoomIdentity(extra, base);
   return {
     uid: base.uid || extra.uid,
     userName: chooseRequesterUserName(base.userName, extra.userName),
     guardLevel: base.guardLevel || extra.guardLevel,
     medalName: base.medalName || extra.medalName,
     medalLevel: base.medalLevel || extra.medalLevel,
-    seenAt: Math.max(base.seenAt, extra.seenAt)
+    seenAt: Math.max(base.seenAt, extra.seenAt),
+    currentRoom: false
+  };
+}
+
+function mergeCurrentRoomIdentity(currentRoom, fallback) {
+  return {
+    uid: currentRoom.uid || fallback.uid,
+    userName: chooseRequesterUserName(currentRoom.userName, fallback.userName),
+    guardLevel: currentRoom.guardLevel,
+    medalName: currentRoom.medalName,
+    medalLevel: currentRoom.medalLevel,
+    seenAt: Math.max(currentRoom.seenAt, fallback.seenAt),
+    currentRoom: true
+  };
+}
+
+function publicRequesterIdentity(input) {
+  const identity = normalizeRequesterIdentity(input);
+  return {
+    uid: identity.uid,
+    userName: identity.userName,
+    guardLevel: identity.guardLevel,
+    medalName: identity.medalName,
+    medalLevel: identity.medalLevel,
+    seenAt: identity.seenAt
   };
 }
 
