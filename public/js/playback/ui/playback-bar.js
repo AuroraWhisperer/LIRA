@@ -206,6 +206,7 @@ export class PlaybackBar {
 
     const sourceName = PlaybackUtils.getSourceName(selectedSource);
     const loggedIn = Boolean(authState && authState.loggedIn);
+    const isWeSing = selectedSource === 'wesing';
 
     // 更新音乐源标签
     document.querySelectorAll('.source-tab').forEach((button) => {
@@ -217,9 +218,11 @@ export class PlaybackBar {
     // 更新状态显示
     const sourceStatus = document.getElementById('playbackSourceStatus');
     if (sourceStatus) {
-      sourceStatus.textContent = loggedIn ? `${sourceName}已检测到登录` : `${sourceName}待登录`;
-      sourceStatus.classList.toggle('good', loggedIn);
-      sourceStatus.classList.toggle('warn', !loggedIn);
+      sourceStatus.textContent = isWeSing
+        ? healthState?.platformDetected ? '已检测到全民 K歌' : '全民 K歌等待检测'
+        : loggedIn ? `${sourceName}已检测到登录` : `${sourceName}待登录`;
+      sourceStatus.classList.toggle('good', isWeSing ? healthState?.platformDetected === true : loggedIn);
+      sourceStatus.classList.toggle('warn', isWeSing ? healthState?.platformDetected !== true : !loggedIn);
     }
 
     // 更新登录/登出按钮（确保互斥显示）
@@ -230,7 +233,12 @@ export class PlaybackBar {
       loginBtn.textContent = `登录${sourceName}`;
 
       // 确保只显示一个按钮
-      if (loggedIn) {
+      if (isWeSing) {
+        loginBtn.style.display = 'none';
+        loginBtn.disabled = true;
+        logoutBtn.style.display = 'none';
+        logoutBtn.disabled = true;
+      } else if (loggedIn) {
         loginBtn.style.display = 'none';
         loginBtn.disabled = true;
         logoutBtn.style.display = '';
@@ -243,16 +251,25 @@ export class PlaybackBar {
       }
     }
 
+    const clearCacheBtn = document.getElementById('playbackClearCacheBtn');
+    if (clearCacheBtn) clearCacheBtn.style.display = isWeSing ? 'none' : '';
+    const healthBtn = document.getElementById('playbackHealthBtn');
+    if (healthBtn) healthBtn.textContent = isWeSing ? '重新检测' : '检查接口';
+
     // 更新用户名显示
     const userName = document.getElementById('playbackUserName');
     if (userName) {
-      userName.textContent = loggedIn ? `${sourceName} Cookie 已就绪` : '未连接音乐账户';
+      userName.textContent = isWeSing
+        ? '本机缓存捕捉，不需要登录'
+        : loggedIn ? `${sourceName} Cookie 已就绪` : '未连接音乐账户';
     }
 
     // 更新 VIP 状态
     const vipState = document.getElementById('playbackVipState');
     if (vipState) {
-      if (authState && authState.desktopUnavailable) {
+      if (isWeSing) {
+        vipState.textContent = '全民 K 歌只读取本地窗口、日志和 QRC 歌词';
+      } else if (authState && authState.desktopUnavailable) {
         vipState.textContent = '扫码登录验证需要在桌面版里使用';
       } else if (authState && authState.error) {
         vipState.textContent = authState.error;

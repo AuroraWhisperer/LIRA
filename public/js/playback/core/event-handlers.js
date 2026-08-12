@@ -166,6 +166,11 @@ export function createEventHandlers(deps) {
         if (!newSource || newSource === playbackState.selectedSource) return;
 
         playbackState.selectedSource = newSource;
+        if (newSource === 'wesing') {
+          // The WeSing client is the playback clock while this source is selected.
+          getPlaybackAudio()?.pause();
+          window.closeFullscreenPlayer?.();
+        }
         deps.playbackAuthState = providerManager.getAuthState(newSource);
         deps.playbackProviderHealth = providerManager.getProviderHealth(newSource);
         searchService.clearResults();
@@ -175,6 +180,7 @@ export function createEventHandlers(deps) {
         renderPlaybackSearchResults();
         closePlaybackDrawer();
         void refreshSelectedMusicProviderState();
+        if (newSource !== 'wesing') void syncPlaybackLyricWindow(true);
 
         console.log('[Playback] After click, selectedSource:', playbackState.selectedSource);
       });

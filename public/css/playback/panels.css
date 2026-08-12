@@ -770,3 +770,300 @@
 }
 
 /* ===== 歌曲行通用组件 ===== */
+/* ===== 全民 K 歌本地歌词捕捉 ===== */
+.playback-wesing-panel {
+  grid-area: search;
+  overflow: hidden;
+  border-color: #d9e4f2;
+  background:
+    radial-gradient(circle at 84% 10%, rgba(22, 119, 232, 0.08), transparent 30%),
+    var(--surface);
+}
+
+.wesing-panel-heading {
+  align-items: center;
+}
+
+.wesing-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #1677e8;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.wesing-capture-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.75fr);
+  gap: 16px;
+}
+
+.wesing-live-stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  min-height: 410px;
+  padding: 24px 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background:
+    linear-gradient(110deg, rgba(21, 119, 232, 0.2), transparent 42%),
+    radial-gradient(circle at 92% 82%, rgba(255, 111, 145, 0.18), transparent 28%),
+    #111827;
+  color: #f8fbff;
+  box-shadow: 0 18px 42px rgba(20, 36, 60, 0.2);
+}
+
+.wesing-live-stage::after {
+  position: absolute;
+  right: -34px;
+  bottom: -52px;
+  width: 210px;
+  height: 210px;
+  border: 34px solid rgba(255, 255, 255, 0.025);
+  border-radius: 50%;
+  content: "";
+}
+
+.wesing-stage-topline,
+.wesing-progress-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.wesing-stage-topline {
+  justify-content: space-between;
+  gap: 16px;
+  color: #9fb0c8;
+  font-size: 11px;
+}
+
+.wesing-live-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #dbe9fb;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+.wesing-live-mark i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #28d68c;
+  box-shadow: 0 0 0 5px rgba(40, 214, 140, 0.11);
+}
+
+.wesing-track-copy {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  margin-top: 20px;
+}
+
+.wesing-track-label {
+  color: #7e91ab;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.wesing-track-copy h3 {
+  max-width: 780px;
+  margin: 7px 0 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(26px, 3.1vw, 46px);
+  line-height: 1.2;
+  letter-spacing: -0.045em;
+}
+
+.wesing-track-copy p {
+  margin: 8px 0 0;
+  color: #9fb0c8;
+  font-size: 12px;
+}
+
+.wesing-lyric-stage {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  min-width: 0;
+  margin-bottom: 26px;
+}
+
+.wesing-lyric-line {
+  min-height: 52px;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #f4f7fb;
+  font-size: clamp(24px, 3vw, 42px);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+}
+
+.wesing-lyric-word {
+  background: linear-gradient(
+    90deg,
+    #ffd45e var(--wesing-word-progress),
+    #f4f7fb var(--wesing-word-progress)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.wesing-lyric-hint {
+  margin: 8px 0 0;
+  color: #7e91ab;
+  font-size: 11px;
+}
+
+.wesing-progress-row {
+  gap: 11px;
+  color: #8293ab;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wesing-progress-track {
+  flex: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.wesing-progress-track span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1677e8, #ff6f91, #ffd45e);
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.wesing-capture-console {
+  display: grid;
+  align-content: start;
+  gap: 15px;
+  padding: 22px;
+  border: 1px solid #dfe7f0;
+  border-radius: 16px;
+  background: rgba(250, 252, 255, 0.94);
+}
+
+.wesing-console-intro > span,
+.wesing-path-field > span {
+  color: #748197;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.wesing-console-intro strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.wesing-console-intro p,
+.wesing-status-message {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.wesing-path-field {
+  display: grid;
+  gap: 7px;
+}
+
+.wesing-path-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 7px;
+}
+
+.wesing-path-control input {
+  min-width: 0;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+}
+
+.wesing-path-control button {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  padding: 0;
+}
+
+.wesing-path-control svg {
+  width: 19px;
+  height: 19px;
+}
+
+.wesing-save-path {
+  justify-self: stretch;
+}
+
+.wesing-signal-list {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #e1e7ee;
+  border-radius: 11px;
+  background: #e1e7ee;
+}
+
+.wesing-signal-list > div {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 41px;
+  padding: 8px 11px;
+  background: #fff;
+}
+
+.wesing-signal-list i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c8d0db;
+}
+
+.wesing-signal-list i.is-active {
+  background: #22b982;
+  box-shadow: 0 0 0 4px rgba(34, 185, 130, 0.1);
+}
+
+.wesing-signal-list span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.wesing-signal-list strong {
+  color: var(--text);
+  font-size: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wesing-progress-track span {
+    will-change: auto;
+  }
+}

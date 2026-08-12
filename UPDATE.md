@@ -1,8 +1,17 @@
 # 打包与更新说明
 
-当前版本：`3.2.26`
+当前版本：`3.3.0`
 
 ---
+
+## v3.3.0 变更
+
+- 🎤 **全民 K 歌直播歌词捕捉（第三个播放来源）**：播放页新增「全民 K歌」来源标签——从本机全民 K 歌桌面客户端读取当前歌曲、播放进度和逐字 QRC 歌词，自动跟随客户端播放并同步到播放页与桌面歌词窗口。新增 `wesing-capture.js` 捕捉服务：通过 PowerShell/.NET UI Automation 监控客户端播放状态，解析本地 `WeSingCache` 目录的 `StartKSong` 日志与加密 QRC 缓存（`qrc-decoder` 解密）。仅当播放来源切换为全民 K 歌时才启动监控，沿用既有 WebSocket `lyric-state` 通道分发歌词，服务关闭时自动停止监控。安全边界：缓存路径必须为绝对路径且目录名为 `WeSingCache`（≤1024 字符、拒绝控制字符）、歌曲 mid 白名单校验、QRC 文件 ≤4MB、不实现登录/云歌单/播放控制、不上传任何本地文件。
+- 🖥️ **全民 K 歌专属播放视图**：新增「全民 K歌歌词现场」面板（LIVE LYRIC 舞台）——当前歌曲标题、逐字歌词行、播放进度条、播放状态提示，右侧捕捉控制台含缓存目录选择（Electron 目录选择器 `music:select-wesing-cache`，默认打开已保存路径）、「保存目录并检测」按钮和客户端/歌词缓存/逐字歌词三路信号状态。选中全民 K 歌来源时自动隐藏在线发现、搜索与点歌匹配等在线内容，进入时暂停在线音频播放，退出时恢复正常来源刷新流程。
+- 🎛️ **桌面歌词设置实时预览**：桌面歌词设置页新增「桌面歌词实时预览」卡片（LIVE PREVIEW）——全民 K 歌捕捉到歌词后在此实时逐字播放，与独立桌面歌词窗口同步，支持网格/纯色两种预览背景切换和「打开桌面歌词」直达按钮。新增共享模块 `lyric-word-renderer.js`（provider 无关的逐字歌词渲染器，含进度锚点与动画帧管理），WeSing 播放页与桌面歌词预览复用同一套时序行为。
+- 📅 **主播计划（原「每日待做」占位面板）**：百宝箱「每日待做」空面板升级为新手友好的本地规划器「主播计划」——按 今天/本周/本月 三个周期与 学歌/开播准备/内容发布/直播复盘 四类分类安排直播工作，含学歌进度标记。快速添加表单 + 四个常用安排模板按钮（学一首歌/开播前检查/整理直播切片/下播后复盘），任务完成度汇总实时显示。数据仅保存在本机浏览器 `localStorage`（版本化 key），无账号、无云端同步、无服务端路由，侧边栏入口同步更名并新增说明文案「安排今天、本周与本月」。
+- 🔌 **服务端集成**：新增认证路由 `GET /api/music/wesing/status`、`POST /api/music/wesing/configure|active|refresh`（配置缓存目录、启停捕捉、手动重新检测），`weSingCachePath` 设置项默认指向 `%APPDATA%\Tencent\WeSing\WeSingCache`，状态快照新增 `weSing` 字段。运行时状态注入 `weSing` 服务接口，关闭流程新增 `weSingCapture.stop()`。
+- 🧪 **测试覆盖增强**：新增 `test/wesing-capture.test.js`（缓存解析/加密 QRC 解密/路径与 mid 安全边界/进度变化状态机）、`test/wesing-routes.test.js`（Token 校验/配置持久化/激活与公开响应形状）、`test/playback-wesing.test.js`（第三来源 DOM 状态/缓存控件/IPC 目录选择器静态断言）、`test/toolbox-todo.test.js`（主播计划标记/表单/列表/持久化）。`test/desktop-lyrics.test.js` 新增实时预览断言，`test/frontend-regressions.test.js` 适配新来源与面板。新增 `specs/wesing-live-lyrics_design.md` 设计文档。
 
 ## v3.2.26 变更
 

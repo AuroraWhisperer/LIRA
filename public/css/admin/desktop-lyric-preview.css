@@ -1,0 +1,185 @@
+/* 桌面歌词设置页实时预览；时间轴算法位于 shared/lyric-word-renderer.js。 */
+.desktop-lyric-preview-card {
+  --preview-font: "Microsoft YaHei", sans-serif;
+  --preview-weight: 800;
+  --preview-size: 42px;
+  --preview-translation-size: 27px;
+  --preview-line-height: 1.4;
+  --preview-color: #000000;
+  --preview-stroke: #ffffff;
+  --preview-stroke-width: 3px;
+  --preview-opacity: 0.95;
+  --preview-bg-opacity: 0.15;
+  --preview-shadow-opacity: 0.35;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.desktop-lyric-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--border);
+}
+
+.desktop-lyric-preview-kicker {
+  color: var(--primary);
+  font-family: "Segoe UI", sans-serif;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.desktop-lyric-preview-header h3 {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.desktop-lyric-preview-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.desktop-lyric-preview-tools,
+.desktop-lyric-preview-backgrounds {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.desktop-lyric-preview-backgrounds {
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.desktop-lyric-preview-backgrounds button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.desktop-lyric-preview-backgrounds button.active {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 7px rgba(22, 31, 43, 0.08);
+}
+
+.desktop-lyric-preview-stage {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  padding: 28px;
+  overflow: hidden;
+  background-color: #15171b;
+  background-image:
+    linear-gradient(45deg, #202328 25%, transparent 25%),
+    linear-gradient(-45deg, #202328 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #202328 75%),
+    linear-gradient(-45deg, transparent 75%, #202328 75%);
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-size: 20px 20px;
+}
+
+.desktop-lyric-preview-stage.is-solid {
+  background-color: #111827;
+  background-image: none;
+}
+
+.desktop-lyric-preview-surface {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(100%, 1100px);
+  padding: 30px 24px;
+  text-align: center;
+  transform: scale(var(--preview-scale, 1));
+  transform-origin: center;
+}
+
+.desktop-lyric-preview-surface::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 999px;
+  background: rgba(6, 12, 24, var(--preview-bg-opacity));
+  content: "";
+  filter: blur(22px);
+  opacity: calc(var(--preview-bg-opacity) * 4);
+}
+
+.desktop-lyric-preview-line {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--preview-color);
+  font-family: var(--preview-font);
+  font-size: min(var(--preview-size), 5vw);
+  font-weight: var(--preview-weight);
+  line-height: var(--preview-line-height);
+  opacity: var(--preview-opacity);
+  paint-order: stroke fill;
+  -webkit-text-stroke: var(--preview-stroke-width) var(--preview-stroke);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, calc(var(--preview-shadow-opacity) * 0.72)),
+    0 3px 8px rgba(0, 0, 0, calc(var(--preview-shadow-opacity) * 0.42));
+}
+
+.desktop-lyric-preview-word {
+  background: linear-gradient(90deg, #ffcf4a var(--preview-word-progress), var(--preview-color) var(--preview-word-progress));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.desktop-lyric-preview-translation {
+  color: var(--preview-color);
+  font-family: var(--preview-font);
+  font-size: min(var(--preview-translation-size), 3.4vw);
+  font-weight: 700;
+  opacity: calc(var(--preview-opacity) * 0.78);
+  paint-order: stroke fill;
+  -webkit-text-stroke: calc(var(--preview-stroke-width) * 0.55) var(--preview-stroke);
+}
+
+.desktop-lyric-preview-progress {
+  width: min(42%, 420px);
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.desktop-lyric-preview-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff6f91, #ffcf4a);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+@media (max-width: 760px) {
+  .desktop-lyric-preview-header,
+  .desktop-lyric-preview-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .desktop-lyric-preview-stage {
+    min-height: 210px;
+    padding: 18px;
+  }
+}

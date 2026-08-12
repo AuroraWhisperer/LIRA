@@ -467,6 +467,22 @@ function configureMusicIpc() {
     });
     return { ok: true, canceled: false, files: files };
   });
+  ipcMain.handle('music:select-wesing-cache', async function (_e) {
+    var senderUrl = (_e && _e.senderFrame) ? _e.senderFrame.url : '';
+    if (!hasExactOrigin(senderUrl, desktopBaseUrl)) {
+      return { ok: false, canceled: true, path: '', error: 'Invalid request origin' };
+    }
+    var savedPath = desktopRuntime && typeof desktopRuntime.getSetting === 'function'
+      ? desktopRuntime.getSetting('weSingCachePath')
+      : '';
+    var result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择全民 K 歌 WeSingCache 目录',
+      defaultPath: savedPath || app.getPath('appData'),
+      properties: ['openDirectory']
+    });
+    if (result.canceled) return { ok: true, canceled: true, path: '' };
+    return { ok: true, canceled: false, path: (result.filePaths || [])[0] || '' };
+  });
   ipcMain.handle('music:resolve-local-media-urls', async function (_e, paths) {
     // 校验请求来源
     var senderUrl = (_e && _e.senderFrame) ? _e.senderFrame.url : '';

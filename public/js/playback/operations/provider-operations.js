@@ -14,6 +14,7 @@ export function createProviderOperations(deps) {
     playbackState,
     providerManager,
     cacheManager,
+    weSingService,
     savePlaybackState,
     renderPlayback,
     getPlaybackAudio,
@@ -32,6 +33,14 @@ export function createProviderOperations(deps) {
   async function refreshSelectedMusicProviderState() {
     const platform = playbackState.selectedSource;
     const refreshId = ++playbackProviderRefreshId;
+    await weSingService.setSelected(platform === 'wesing');
+    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
+    if (platform === 'wesing') {
+      playbackAuthState = weSingService.getAuthState();
+      playbackProviderHealth = weSingService.getProviderHealth();
+      renderPlayback();
+      return;
+    }
     const [authResult, healthResult] = await Promise.allSettled([
       providerManager.refreshAuthState({ platform, notify: false }),
       providerManager.checkProviderHealth({ platform, silent: true, notify: false })
@@ -58,6 +67,11 @@ export function createProviderOperations(deps) {
    */
   async function refreshSelectedMusicAuthState() {
     const platform = playbackState.selectedSource;
+    if (platform === 'wesing') {
+      playbackAuthState = weSingService.getAuthState();
+      renderPlayback();
+      return playbackAuthState;
+    }
     const authState = await providerManager.refreshAuthState({ platform, notify: false });
     if (playbackState.selectedSource === platform) {
       playbackAuthState = authState;
@@ -71,6 +85,13 @@ export function createProviderOperations(deps) {
    */
   async function checkSelectedMusicProviderHealth(options = {}) {
     const platform = playbackState.selectedSource;
+    if (platform === 'wesing') {
+      await weSingService.refresh({ notify: !options.silent });
+      playbackAuthState = weSingService.getAuthState();
+      playbackProviderHealth = weSingService.getProviderHealth();
+      renderPlayback();
+      return playbackProviderHealth;
+    }
     try {
       const healthState = await providerManager.checkProviderHealth({
         platform,

@@ -5,6 +5,13 @@
 import * as PlaybackUtils from '../utils.js';
 import * as PlaybackComponents from '../ui/components.js';
 
+const ONLINE_CONTROL_TITLES = {
+  playbackPrev: '上一首',
+  playbackNext: '下一首',
+  playbackSeek: '',
+  playbackQueueBtn: '播放队列'
+};
+
 export function createRenderer(deps) {
   const {
     uiRenderer,
@@ -12,6 +19,7 @@ export function createRenderer(deps) {
     getPlaybackAudio,
     searchService,
     homeService,
+    weSingService,
     escapeHtml
   } = deps;
 
@@ -21,6 +29,7 @@ export function createRenderer(deps) {
 
     // 使用 UI 渲染器渲染所有界面
     uiRenderer.renderAll(playbackState, audio);
+    renderSourceView();
 
     // 渲染音乐源状态
     console.log('[Playback] Calling renderProviderState with:', playbackState.selectedSource);
@@ -34,7 +43,7 @@ export function createRenderer(deps) {
     const addToPlaylistBtn = document.getElementById('playbackAddToPlaylistBtn');
     if (addToPlaylistBtn) {
       const track = playbackState.current;
-      const canAdd = canAddTrackToPlaylist(track);
+      const canAdd = playbackState.selectedSource !== 'wesing' && canAddTrackToPlaylist(track);
       addToPlaylistBtn.disabled = !canAdd;
       addToPlaylistBtn.title = canAdd ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单` : '当前歌曲无法添加到歌单';
     }
@@ -45,6 +54,30 @@ export function createRenderer(deps) {
 
     // 同步进度条显示
     renderPlaybackProgress();
+  }
+
+  // Online providers share discovery/search panels; WeSing owns a separate capture workspace.
+  function renderSourceView() {
+    const isWeSing = playbackState.selectedSource === 'wesing';
+    document.querySelectorAll('[data-online-source-view]').forEach((element) => {
+      element.hidden = isWeSing;
+    });
+    const weSingView = document.getElementById('playbackWeSingView');
+    if (weSingView) weSingView.hidden = !isWeSing;
+    document.querySelector('.playback-player-panel')?.classList.toggle('is-external-source', isWeSing);
+    ['playbackPrev', 'playbackPlayPause', 'playbackNext', 'playbackSeek', 'playbackModeBtn', 'playbackQueueBtn']
+      .forEach((id) => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        control.disabled = isWeSing;
+        if (isWeSing) {
+          control.title = '全民 K歌播放请在全民 K歌客户端中控制';
+        } else if (Object.hasOwn(ONLINE_CONTROL_TITLES, id)) {
+          // Play and mode titles are dynamic and have already been restored by renderAll().
+          control.title = ONLINE_CONTROL_TITLES[id];
+        }
+      });
+    if (isWeSing) weSingService.render();
   }
 
   function canAddTrackToPlaylist(track) {

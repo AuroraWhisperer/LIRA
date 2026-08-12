@@ -640,3 +640,12 @@ body.player-dock-collapsed {
 }
 
 /* ===== 右侧滑出抽屉 ===== */
+.playback-player-panel.is-external-source .playback-control-buttons,
+.playback-player-panel.is-external-source .playback-mode-wrap,
+.playback-player-panel.is-external-source .playback-seek-wrap {
+  opacity: 0.42;
+}
+
+.playback-player-panel.is-external-source [disabled] {
+  cursor: not-allowed;
+}

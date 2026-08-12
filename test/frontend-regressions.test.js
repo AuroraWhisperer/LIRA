@@ -782,7 +782,7 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   assert.match(buttonRule, /min-height:\s*30px/);
 });
 
-test('toolbox owns independent overtime, daily todo, performance, usage guide, and update features', () => {
+test('toolbox owns independent overtime, streamer planner, performance, usage guide, and update features', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
   const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
@@ -811,7 +811,7 @@ test('toolbox owns independent overtime, daily todo, performance, usage guide, a
   assert.match(html, /data-other-feature="otherOvertimeMachineFeature"/);
   assert.match(html, /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherDailyTodoFeature"/);
-  assert.match(html, /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[^>]*><\/section>/);
+  assert.match(html, /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[\s\S]*?id="streamerPlanner"[\s\S]*?id="plannerTaskForm"/);
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
   assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);

@@ -19,6 +19,7 @@ const settingsStoreModule = require('./storage/settings-store');
 const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { createLyricsService } = require('./music/lyrics-service');
+const { createWeSingCapture } = require('./music/wesing-capture');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
@@ -152,6 +153,20 @@ function createServerRuntime(runtimeOptions = {}) {
     trackTitle: '', artists: [], lineText: '', translation: '', words: [],
     currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
   };
+  const weSingCapture = createWeSingCapture({
+    cachePath: settingsStore.getSettings().weSingCachePath,
+    platform: runtimeOptions.weSingPlatform || process.platform,
+    monitorFactory: runtimeOptions.weSingMonitorFactory,
+    saveCachePath(cachePath) {
+      settingsStore.setSetting('weSingCachePath', cachePath);
+    },
+    onState(state) {
+      webSocketHub.broadcast({ type: 'wesing-state', state });
+      if (!state.active || !state.lyricState) return;
+      lyricState = state.lyricState;
+      webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
+    }
+  });
   let bilibiliClient = null;
   let isShuttingDown = false;
   let startedPort = null;
@@ -311,6 +326,12 @@ function createServerRuntime(runtimeOptions = {}) {
           webSocketHub.broadcast({ type: 'lyric-state', state });
         }
       },
+      weSing: {
+        getStatus: weSingCapture.getStatus,
+        configure: weSingCapture.setCachePath,
+        setActive: weSingCapture.setActive,
+        refresh: weSingCapture.refresh
+      },
       theme: domainServices.theme,
       bilibili: {
         liveStatus,
@@ -467,7 +488,8 @@ function createServerRuntime(runtimeOptions = {}) {
       songCount: domainServices.songs.count(),
       liveStatus,
       bilibiliDiagnostics,
-      lyricState
+      lyricState,
+      weSing: weSingCapture.getStatus()
     };
   }
 
@@ -720,6 +742,7 @@ function createServerRuntime(runtimeOptions = {}) {
         console.warn('[Shutdown] pending gift flush failed:', error.message);
       }
       domainServices.overtime.dispose();
+      weSingCapture.stop();
       webSocketHub.stop({ shutdownPayload: { type: 'shutdown', reason: 'manual' } });
 
       return new Promise((resolve) => {

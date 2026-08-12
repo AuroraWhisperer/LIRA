@@ -32,6 +32,9 @@
 /* 加班机控制台 */
 @import url('./admin/overtime.css');
 
+/* 桌面歌词设置实时预览 */
+@import url('./admin/desktop-lyric-preview.css');
+
 /* 确认弹窗 */
 @import url('./admin/modals.css');
 

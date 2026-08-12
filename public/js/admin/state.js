@@ -43,6 +43,9 @@ export class StateService {
       const payload = JSON.parse(event.data);
       if (payload.type === 'snapshot') {
         this.appState = payload.state;
+        dispatchRealtimeState('app:wesing-state', this.appState?.weSing);
+        dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+        dispatchRealtimeState('app:settings-state', this.appState?.settings);
         // 发布事件而非直接调用其他模块
         eventBus.emit(Events.STATE_LOADED, {
           state: this.appState,
@@ -59,6 +62,14 @@ export class StateService {
         this.appState = this.appState || {};
         this.appState.overtime = payload.state;
         eventBus.emit(Events.OVERTIME_UPDATED, payload);
+      } else if (payload.type === 'wesing-state') {
+        this.appState = this.appState || {};
+        this.appState.weSing = payload.state;
+        dispatchRealtimeState('app:wesing-state', payload.state);
+      } else if (payload.type === 'lyric-state') {
+        this.appState = this.appState || {};
+        this.appState.lyricState = payload.state;
+        dispatchRealtimeState('app:lyric-state', payload.state);
       }
     });
 
@@ -93,6 +104,8 @@ export class StateService {
     if (!payload.ok) throw new Error(payload.error || '读取状态失败');
 
     this.appState = payload.data;
+    dispatchRealtimeState('app:settings-state', this.appState?.settings);
+    dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
     this.categories = this.appState.categories || [];
     this.songTags = new Set(this.appState.tags || []);
 
@@ -186,6 +199,11 @@ export class StateService {
   setShuttingDown(value) {
     this.shuttingDown = value;
   }
+}
+
+function dispatchRealtimeState(eventName, state) {
+  if (!state || typeof CustomEvent === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(eventName, { detail: state }));
 }
 
 function isGiftSnapshotReason(reason) {

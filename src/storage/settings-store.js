@@ -3,9 +3,14 @@
 // 通过 createSettingsStore(db) 初始化，不自动假设全局数据库连接。
 'use strict';
 
+const path = require('node:path');
 const { now } = require('../shared/utils');
 const { CHECKIN_BLESSINGS } = require('../bilibili/checkin-blessings');
 const { FORTUNES } = require('../bilibili/fortune-service');
+
+const DEFAULT_WESING_CACHE_PATH = process.platform === 'win32' && process.env.APPDATA
+  ? path.join(process.env.APPDATA, 'Tencent', 'WeSing', 'WeSingCache')
+  : '';
 
 const DEFAULT_SETTINGS = {
   roomId: '',
@@ -108,6 +113,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricLineHeight: '1.4',
   desktopLyricShadowIntensity: '0.35',
   desktopLyricTranslationScale: '0.65',
+  weSingCachePath: DEFAULT_WESING_CACHE_PATH,
   // 数据保留期（天），0 表示不清理。默认只清理礼物原始报文，业务数据保持永久保留。
   giftRawJsonRetentionDays: '30',
   giftEventRetentionDays: '0',

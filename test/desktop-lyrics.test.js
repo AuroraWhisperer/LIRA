@@ -79,6 +79,29 @@ test('desktop lyric surface is compact and independently resizable', () => {
   assert.match(styles, /font-size:\s*min\(var\(--lyric-size\),\s*8\.5vw,\s*52vh\)/);
 });
 
+test('desktop lyric settings include a live word-timed preview', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
+  const sharedRenderer = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'), 'utf8');
+
+  assert.match(html, /id="desktopLyricLivePreview"/);
+  assert.match(html, /id="desktopLyricPreviewLine"/);
+  assert.match(html, /id="desktopLyricPreviewTranslation"/);
+  assert.match(html, /id="desktopLyricPreviewProgress"/);
+  assert.match(html, /id="desktopLyricOpenWindowBtn"/);
+  assert.match(html, /data-lyric-preview-background="grid"/);
+  assert.match(source, /new LyricWordRenderer/);
+  assert.match(source, /app:lyric-state/);
+  assert.match(source, /musicAPI\.openLyricWindow/);
+  assert.match(source, /desktopLyricFontFamily/);
+  assert.match(source, /style\.setProperty/);
+  assert.match(sharedRenderer, /element\.textContent = word\.text/);
+  assert.match(sharedRenderer, /requestAnimationFrame/);
+  assert.match(styles, /--preview-word-progress/);
+  assert.match(styles, /\.desktop-lyric-preview-stage\.is-solid/);
+});
+
 test('playback publishes lyrics through the authenticated local API', () => {
   const service = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),

@@ -910,6 +910,30 @@
         </div>
         <div id="desktopLyricPage" class="tab-page">
           <div class="panel-body stack">
+            <section id="desktopLyricLivePreview" class="desktop-lyric-preview-card" aria-labelledby="desktopLyricPreviewTitle">
+              <header class="desktop-lyric-preview-header">
+                <div>
+                  <span class="desktop-lyric-preview-kicker">LIVE PREVIEW</span>
+                  <h3 id="desktopLyricPreviewTitle">桌面歌词实时预览</h3>
+                  <p>全民 K 歌捕捉到歌词后会在这里和独立桌面歌词窗口同步播放。</p>
+                </div>
+                <div class="desktop-lyric-preview-tools">
+                  <div class="desktop-lyric-preview-backgrounds" aria-label="预览背景">
+                    <button class="active" type="button" data-lyric-preview-background="grid" aria-pressed="true">网格背景</button>
+                    <button type="button" data-lyric-preview-background="solid" aria-pressed="false">纯色背景</button>
+                  </div>
+                  <button id="desktopLyricOpenWindowBtn" type="button">打开桌面歌词</button>
+                  <span id="desktopLyricPreviewStatus" class="pill warn">等待播放</span>
+                </div>
+              </header>
+              <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage">
+                <div class="desktop-lyric-preview-surface">
+                  <div id="desktopLyricPreviewLine" class="desktop-lyric-preview-line" aria-live="polite">等待播放 · 歌词将在这里实时预览</div>
+                  <div id="desktopLyricPreviewTranslation" class="desktop-lyric-preview-translation" hidden></div>
+                  <div class="desktop-lyric-preview-progress" aria-hidden="true"><span id="desktopLyricPreviewProgress"></span></div>
+                </div>
+              </div>
+            </section>
             <form id="desktopLyricForm" class="stack">
               <fieldset class="theme-section">
                 <legend>桌面歌词样式</legend>
@@ -1343,7 +1367,8 @@
                   </svg>
                 </span>
                 <span class="other-feature-label">
-                  <strong>每日待做</strong>
+                  <strong>主播计划</strong>
+                  <small>安排今天、本周与本月</small>
                 </span>
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1741,7 +1766,96 @@
               aria-labelledby="otherDailyTodoFeatureTab"
               data-other-feature-panel
               hidden
-            ></section>
+            >
+              <div id="streamerPlanner" class="other-feature-panel-body streamer-planner">
+                <header class="planner-hero">
+                  <div class="planner-hero-copy">
+                    <span class="planner-eyebrow">我的直播节奏</span>
+                    <h2>主播计划</h2>
+                    <p>把学歌、开播准备和下播复盘放到合适的时间里，一次只做眼前这件事。</p>
+                  </div>
+                  <div class="planner-hero-status">
+                    <time id="plannerDateLabel">今天</time>
+                    <strong id="plannerSummary">0 / 0 已完成</strong>
+                    <span id="plannerSummaryNote">先安排今天最重要的事</span>
+                  </div>
+                </header>
+
+                <section class="planner-capture" aria-labelledby="plannerCaptureTitle">
+                  <div class="planner-section-heading">
+                    <div>
+                      <h3 id="plannerCaptureTitle">记下一件事</h3>
+                      <p>写清楚要做什么，再选什么时候做。内容会自动保存。</p>
+                    </div>
+                    <span class="planner-local-note">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      所有安排只保存在这台电脑
+                    </span>
+                  </div>
+                  <form id="plannerTaskForm" class="planner-quick-add" autocomplete="off">
+                    <label class="planner-title-field">
+                      <span>要做什么</span>
+                      <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="例如：学《晴天》，练到能跟伴奏唱">
+                    </label>
+                    <label>
+                      <span>什么时候</span>
+                      <select id="plannerTaskPeriod">
+                        <option value="today">今天</option>
+                        <option value="week">本周</option>
+                        <option value="month">本月</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>属于哪类</span>
+                      <select id="plannerTaskCategory">
+                        <option value="song">学歌</option>
+                        <option value="prep">开播准备</option>
+                        <option value="content">内容发布</option>
+                        <option value="review">直播复盘</option>
+                      </select>
+                    </label>
+                    <button class="primary planner-add-button" type="submit">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                      添加安排
+                    </button>
+                  </form>
+                  <div class="planner-template-row" aria-label="常用安排示例">
+                    <span>不会写？点一个再改：</span>
+                    <button type="button" data-planner-template data-title="学一首新歌" data-period="week" data-category="song">学一首歌</button>
+                    <button type="button" data-planner-template data-title="检查麦克风、耳返和网络" data-period="today" data-category="prep">开播前检查</button>
+                    <button type="button" data-planner-template data-title="剪出一条直播切片" data-period="week" data-category="content">整理直播切片</button>
+                    <button type="button" data-planner-template data-title="记下本场高光和需要改进的问题" data-period="today" data-category="review">下播后复盘</button>
+                  </div>
+                </section>
+
+                <div class="planner-timeline" aria-label="今天、本周和本月安排">
+                  <section class="planner-period-card planner-period-today" data-planner-period="today">
+                    <header class="planner-period-heading">
+                      <span class="planner-period-marker" aria-hidden="true"></span>
+                      <div><h3>今天</h3><p>开播前后马上处理</p></div>
+                      <strong id="plannerTodayCount">0 项</strong>
+                    </header>
+                    <div id="plannerTodayList" class="planner-task-list" role="list" aria-live="polite"></div>
+                  </section>
+                  <section class="planner-period-card planner-period-week" data-planner-period="week">
+                    <header class="planner-period-heading">
+                      <span class="planner-period-marker" aria-hidden="true"></span>
+                      <div><h3>本周</h3><p>练习、发布与固定安排</p></div>
+                      <strong id="plannerWeekCount">0 项</strong>
+                    </header>
+                    <div id="plannerWeekList" class="planner-task-list" role="list" aria-live="polite"></div>
+                  </section>
+                  <section class="planner-period-card planner-period-month" data-planner-period="month">
+                    <header class="planner-period-heading">
+                      <span class="planner-period-marker" aria-hidden="true"></span>
+                      <div><h3>本月</h3><p>歌单、内容和成长目标</p></div>
+                      <strong id="plannerMonthCount">0 项</strong>
+                    </header>
+                    <div id="plannerMonthList" class="planner-task-list" role="list" aria-live="polite"></div>
+                  </section>
+                </div>
+              </div>
+            </section>
             <section
               id="otherPerformanceFeature"
               class="other-feature-panel active"
@@ -2209,6 +2323,13 @@
                 <svg class="source-tab-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="12" fill="#ec4141"/><path d="M9 17.5V10l6-1.8v6.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.5" cy="15.5" r="1.3" fill="#fff"/><circle cx="14.5" cy="13.5" r="1.3" fill="#fff"/></svg>
                 网易云音乐
               </button>
+              <button class="source-tab" type="button" data-source="wesing">
+                <svg class="source-tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="11" fill="currentColor"/>
+                  <path d="M9 7.8a3 3 0 0 1 6 0v3.6a3 3 0 0 1-6 0V7.8Zm-2 3.4a5 5 0 0 0 10 0M12 16.2V20m-3 0h6" stroke="#fff" stroke-width="1.55" stroke-linecap="round"/>
+                </svg>
+                全民 K歌
+              </button>
             </div>
             <div class="playback-account-compact">
               <div class="playback-account-status">
@@ -2225,7 +2346,7 @@
           </div>
         </header>
 
-        <div class="playback-grid">
+        <div class="playback-grid" data-online-source-view>
 
           <section class="panel playback-discovery-panel">
             <div class="panel-header">
@@ -2270,7 +2391,67 @@
 
         </div>
 
-        <section class="panel playback-search-panel">
+        <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
+          <div class="panel-header wesing-panel-heading">
+            <div>
+              <span class="wesing-eyebrow">WE SING LIVE CAPTURE</span>
+              <h2>全民 K歌歌词现场</h2>
+              <span class="panel-subtitle">从本机全民 K 歌客户端读取当前歌曲、进度和逐字 QRC 歌词</span>
+            </div>
+            <div class="actions">
+              <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
+              <button id="weSingRefreshBtn" type="button">重新检测</button>
+            </div>
+          </div>
+          <div class="panel-body wesing-capture-layout">
+            <article class="wesing-live-stage" aria-labelledby="weSingTrackTitle">
+              <div class="wesing-stage-topline">
+                <span class="wesing-live-mark"><i aria-hidden="true"></i> LIVE LYRIC</span>
+                <span id="weSingPlaybackState">等待全民 K 歌播放</span>
+              </div>
+              <div class="wesing-track-copy">
+                <span class="wesing-track-label">正在捕捉</span>
+                <h3 id="weSingTrackTitle">尚未检测到歌曲</h3>
+                <p id="weSingTrackMeta">启动全民 K 歌并开始播放后，这里会自动跟随。</p>
+              </div>
+              <div class="wesing-lyric-stage" aria-live="polite">
+                <p id="weSingLyricLine" class="wesing-lyric-line">等待歌词</p>
+                <p id="weSingLyricHint" class="wesing-lyric-hint">逐字进度会同步发送到桌面歌词</p>
+              </div>
+              <div class="wesing-progress-row">
+                <time id="weSingCurrentTime">00:00</time>
+                <div class="wesing-progress-track" aria-hidden="true"><span id="weSingProgressBar"></span></div>
+                <time id="weSingDuration">00:00</time>
+              </div>
+            </article>
+
+            <aside class="wesing-capture-console">
+              <div class="wesing-console-intro">
+                <span>捕捉来源</span>
+                <strong>本机 WeSingCache</strong>
+                <p>仅读取本地日志和歌词缓存，不需要登录，也不会上传文件。</p>
+              </div>
+              <label class="wesing-path-field" for="weSingCachePath">
+                <span>全民 K 歌缓存目录</span>
+                <div class="wesing-path-control">
+                  <input id="weSingCachePath" type="text" spellcheck="false" autocomplete="off" placeholder="C:\Users\你\AppData\Roaming\Tencent\WeSing\WeSingCache">
+                  <button id="weSingSelectCacheBtn" type="button" title="选择目录" aria-label="选择全民 K 歌缓存目录">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10h-17v-12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </label>
+              <button id="weSingSaveCacheBtn" class="primary wesing-save-path" type="button">保存目录并检测</button>
+              <div class="wesing-signal-list" aria-label="捕捉状态">
+                <div><i id="weSingClientSignal" aria-hidden="true"></i><span>全民客户端</span><strong id="weSingClientStatus">未检测</strong></div>
+                <div><i id="weSingCacheSignal" aria-hidden="true"></i><span>歌词缓存</span><strong id="weSingCacheStatus">待检查</strong></div>
+                <div><i id="weSingLyricSignal" aria-hidden="true"></i><span>逐字歌词</span><strong id="weSingLyricStatus">等待歌曲</strong></div>
+              </div>
+              <p id="weSingStatusMessage" class="wesing-status-message">请选择 WeSingCache 目录后开始检测。</p>
+            </aside>
+          </div>
+        </section>
+
+        <section class="panel playback-search-panel" data-online-source-view>
           <div class="panel-header">
             <h2>在线搜索</h2>
             <div class="actions">
@@ -2297,7 +2478,7 @@
           </div>
         </section>
 
-        <details class="panel playback-match-panel">
+        <details class="panel playback-match-panel" data-online-source-view>
           <summary class="panel-header">
             <div>
               <h2>点歌匹配诊断</h2>

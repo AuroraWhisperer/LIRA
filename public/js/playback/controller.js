@@ -22,6 +22,7 @@ import { LyricService } from './services/lyric-service.js';
 import { MatchService } from './services/match-service.js';
 import { ImportService } from './services/import-service.js';
 import { HomeService } from './services/home-service.js';
+import { WeSingService } from './services/wesing-service.js';
 
 // ── 核心模块导入 ──
 import { createInitializer } from './core/initializer.js';
@@ -174,6 +175,13 @@ export function createPlaybackController(initialOptions = {}) {
   });
 
   const uiRenderer = new UIRenderer();
+  const weSingService = new WeSingService({
+    playbackState,
+    onStateChange: () => { if (renderPlayback) renderPlayback(); },
+    showError: (error) => showError(error),
+    toast: (message) => toast(message),
+    readJsonResponse: (response, message) => readJsonResponse(response, message)
+  });
 
   function getPlaybackAudio() {
     return document.getElementById('music-player');
@@ -183,7 +191,8 @@ export function createPlaybackController(initialOptions = {}) {
   // SECTION 5 — 渲染模块（无循环依赖，最先创建）
   // ══════════════════════════════════════════════════════════════
   const rendererModule = createRenderer({
-    uiRenderer, playbackState, getPlaybackAudio, lyricService, searchService, homeService, escapeHtml
+    uiRenderer, playbackState, getPlaybackAudio, lyricService, searchService, homeService,
+    weSingService, escapeHtml
   });
 
   // 直接从渲染模块导出渲染函数
@@ -232,7 +241,7 @@ export function createPlaybackController(initialOptions = {}) {
   // SECTION 7 — 带循环依赖的模块（使用闭包延迟访问 renderPlayback）
   // ══════════════════════════════════════════════════════════════
   const providerOperations = createProviderOperations({
-    playbackState, providerManager, cacheManager,
+    playbackState, providerManager, cacheManager, weSingService,
     savePlaybackState,
     renderPlayback: () => renderPlayback(),
     getPlaybackAudio, toast, showError, U
@@ -432,7 +441,7 @@ export function createPlaybackController(initialOptions = {}) {
     // 核心对象
     playbackState, getPlaybackAudio, uiRenderer, playerController,
     storageManager, cacheManager, localFileManager, queueManager, providerManager,
-    homeService, searchService, matchService, importService, lyricService, streamService,
+    homeService, searchService, matchService, importService, lyricService, streamService, weSingService,
 
     // Provider 状态（getter 延迟访问）
     get playbackAuthState() { return providerOperations.getAuthState(); },
@@ -564,6 +573,8 @@ export function createPlaybackController(initialOptions = {}) {
         if (options.api) api = options.api;
         if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
       }
+
+      weSingService.init();
 
       await playbackInitializer.init(
         eventHandlersModule.setupEventHandlers,

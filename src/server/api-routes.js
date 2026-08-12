@@ -8,6 +8,7 @@ const { readJsonBody, sendJson, verifyToken } = require('./http-utils');
 const ROUTE_MODULES = [
   require('./routes/system-routes'),
   require('./routes/settings-routes'),
+  require('./routes/wesing-routes'),
   require('./routes/music-routes'),
   require('./routes/playback-routes'),
   require('./routes/theme-routes'),

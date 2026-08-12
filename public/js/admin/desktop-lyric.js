@@ -13,6 +13,7 @@
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
+    window.AdminApp.desktopLyricPreview?.init(form);
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -77,6 +78,7 @@
     setValue('desktopLyricShadowIntensityNumber', settings.desktopLyricShadowIntensity || '0.5');
     setValue('desktopLyricTranslationScale', settings.desktopLyricTranslationScale || '0.58');
     setValue('desktopLyricTranslationScaleNumber', settings.desktopLyricTranslationScale || '0.58');
+    window.AdminApp.desktopLyricPreview?.applySettings(settings);
   }
 
   window.AdminApp = window.AdminApp || {};

@@ -58,7 +58,7 @@ export function validateState(state) {
   if (typeof state.volume !== 'number' || state.volume < 0 || state.volume > 1) return false;
 
   // 验证音乐源
-  const validSources = ['qq', 'netease'];
+  const validSources = ['qq', 'netease', 'wesing'];
   if (!validSources.includes(state.selectedSource)) return false;
 
   return true;
@@ -102,7 +102,7 @@ export function normalizeState(state) {
   }
 
   // 确保音乐源合法
-  const validSources = ['qq', 'netease'];
+  const validSources = ['qq', 'netease', 'wesing'];
   if (!validSources.includes(normalized.selectedSource)) {
     normalized.selectedSource = 'qq';
   }
