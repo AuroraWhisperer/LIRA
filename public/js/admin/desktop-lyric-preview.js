@@ -1,4 +1,4 @@
-// 桌面歌词设置实时预览：复用共享逐字渲染器，只负责设置到 CSS 变量的映射。
+// 桌面歌词设置实时预览：完整歌词时间轴 + 当前行逐字进度。
 'use strict';
 
 import { LyricWordRenderer } from '../shared/lyric-word-renderer.js';
@@ -17,24 +17,44 @@ const DEFAULTS = {
   desktopLyricShadowIntensity: '0.35',
   desktopLyricTranslationScale: '0.65'
 };
+const EMPTY_TIMELINE = {
+  trackTitle: '', artists: [], status: 'idle', lines: []
+};
+const COUNTDOWN_WINDOW_MS = 3000;
+const COUNTDOWN_MIN_GAP_MS = 6000;
+const MANUAL_FOLLOW_PAUSE_MS = 6000;
 
 let initialized = false;
 let renderer = null;
 let latestState = null;
+let latestTimeline = EMPTY_TIMELINE;
+let timelineElement = null;
+let viewport = null;
+let countdownElement = null;
+let rowElements = [];
+let activeIndex = -1;
+let activeWordIndex = -1;
+let activeWordSignature = '';
+let activeWordElements = [];
+let manualFollowUntil = 0;
+let followResumeTimer = 0;
 
 function init(form) {
   if (initialized) return;
   const stage = document.getElementById('desktopLyricPreviewStage');
-  const line = document.getElementById('desktopLyricPreviewLine');
-  if (!stage || !line) return;
+  const playback = document.getElementById('desktopLyricPreviewPlayback');
+  timelineElement = document.getElementById('desktopLyricPreviewTimeline');
+  viewport = document.getElementById('desktopLyricPreviewViewport');
+  if (!stage || !playback || !timelineElement || !viewport) return;
   initialized = true;
 
   renderer = new LyricWordRenderer({
-    lineElement: line,
+    lineElement: playback,
     progressElement: document.getElementById('desktopLyricPreviewProgress'),
-    wordClass: 'desktop-lyric-preview-word',
+    wordClass: 'desktop-lyric-preview-live-word',
     progressProperty: '--preview-word-progress',
-    fallbackText: previewFallback
+    fallbackText: previewFallback,
+    onFrame: (position) => renderTimelineFrame(position.currentMs)
   });
 
   form?.addEventListener('input', applyStylesFromForm);
@@ -44,10 +64,19 @@ function init(form) {
   });
   document.getElementById('desktopLyricOpenWindowBtn')?.addEventListener('click', openDesktopLyricWindow);
   window.addEventListener('app:lyric-state', (event) => updateLyricState(event.detail));
+  window.addEventListener('app:lyric-timeline', (event) => updateLyricTimeline(event.detail));
   window.addEventListener('app:settings-state', (event) => applySettings(event.detail));
+  viewport.addEventListener('wheel', pauseAutomaticFollow, { passive: true });
+  viewport.addEventListener('touchstart', pauseAutomaticFollow, { passive: true });
+  viewport.addEventListener('keydown', (event) => {
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) {
+      pauseAutomaticFollow();
+    }
+  });
 
-  const initialState = window.AdminApp.state?.getAppState?.()?.lyricState;
-  if (initialState) updateLyricState(initialState);
+  const appState = window.AdminApp.state?.getAppState?.();
+  if (appState?.lyricTimeline) updateLyricTimeline(appState.lyricTimeline);
+  if (appState?.lyricState) updateLyricState(appState.lyricState);
   applyStylesFromForm();
 }
 
@@ -55,17 +84,246 @@ function updateLyricState(state) {
   if (!state || typeof state !== 'object') return;
   latestState = { ...(latestState || {}), ...state };
   renderer?.setState(latestState);
-  const translation = document.getElementById('desktopLyricPreviewTranslation');
-  if (translation) {
-    translation.textContent = latestState.translation || '';
-    translation.hidden = !latestState.translation;
+  updatePreviewStatus();
+}
+
+function updateLyricTimeline(timeline) {
+  if (!timeline || typeof timeline !== 'object') return;
+  latestTimeline = {
+    ...EMPTY_TIMELINE,
+    ...timeline,
+    lines: Array.isArray(timeline.lines) ? timeline.lines : []
+  };
+  renderTimeline();
+  updatePreviewStatus();
+}
+
+function renderTimeline() {
+  if (!timelineElement) return;
+  const fragment = document.createDocumentFragment();
+  rowElements = [];
+  countdownElement = null;
+  activeIndex = -1;
+  resetActiveWords();
+
+  if (!latestTimeline.lines.length) {
+    const empty = document.createElement('div');
+    empty.className = 'desktop-lyric-preview-empty';
+    empty.textContent = timelineFallback(latestTimeline);
+    fragment.appendChild(empty);
+  } else {
+    latestTimeline.lines.forEach((line, index) => {
+      const row = document.createElement('div');
+      row.className = 'desktop-lyric-preview-row';
+      row.dataset.lyricIndex = String(index);
+      row.setAttribute('role', 'listitem');
+
+      const text = document.createElement('div');
+      text.className = 'desktop-lyric-preview-row-text';
+      text.textContent = line.text || '';
+      row.appendChild(text);
+
+      if (line.translation) {
+        const translation = document.createElement('div');
+        translation.className = 'desktop-lyric-preview-row-translation';
+        translation.textContent = line.translation;
+        row.appendChild(translation);
+      }
+      if (line.roma) {
+        const roma = document.createElement('div');
+        roma.className = 'desktop-lyric-preview-row-roma';
+        roma.textContent = line.roma;
+        row.appendChild(roma);
+      }
+
+      rowElements.push(row);
+      fragment.appendChild(row);
+    });
+    countdownElement = createCountdownElement();
+    fragment.appendChild(countdownElement);
   }
+
+  timelineElement.replaceChildren(fragment);
+  renderTimelineFrame(currentPreviewPosition());
+}
+
+function createCountdownElement() {
+  const countdown = document.createElement('div');
+  countdown.className = 'desktop-lyric-preview-countdown';
+  countdown.setAttribute('role', 'status');
+  countdown.hidden = true;
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement('span');
+    dot.className = 'desktop-lyric-preview-countdown-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    countdown.appendChild(dot);
+  }
+  return countdown;
+}
+
+function renderTimelineFrame(currentMs) {
+  const lines = latestTimeline.lines;
+  if (!lines.length) return;
+  const nextActiveIndex = findActiveLyricIndex(lines, currentMs);
+
+  if (nextActiveIndex !== activeIndex) {
+    const previousIndex = activeIndex;
+    activeIndex = nextActiveIndex;
+    rowElements.forEach((row, index) => {
+      row.classList.toggle('is-past', index < activeIndex);
+      row.classList.toggle('is-active', index === activeIndex);
+    });
+    if (previousIndex !== activeIndex) resetActiveWords();
+    renderActiveWords();
+    followActiveLyric();
+  } else {
+    renderActiveWords();
+  }
+
+  updateActiveWordProgress(currentMs);
+  updateCountdown(currentMs);
+}
+
+function renderActiveWords() {
+  if (activeIndex < 0 || !rowElements[activeIndex]) return;
+  const line = latestTimeline.lines[activeIndex] || {};
+  const words = Array.isArray(latestState?.words) ? latestState.words : [];
+  const matchesCurrentLine = latestState?.lineText === line.text;
+  const signature = JSON.stringify([activeIndex, matchesCurrentLine ? words : []]);
+  if (signature === activeWordSignature) return;
+
+  resetActiveWords();
+  const textElement = rowElements[activeIndex].querySelector('.desktop-lyric-preview-row-text');
+  if (!textElement || !matchesCurrentLine || !words.length) {
+    activeWordSignature = signature;
+    return;
+  }
+
+  textElement.replaceChildren();
+  activeWordElements = words.map((word) => {
+    const element = document.createElement('span');
+    element.className = 'desktop-lyric-preview-word';
+    element.textContent = word.text || '';
+    textElement.appendChild(element);
+    return { element, word };
+  });
+  activeWordIndex = activeIndex;
+  activeWordSignature = signature;
+}
+
+function resetActiveWords() {
+  if (activeWordIndex >= 0 && rowElements[activeWordIndex]) {
+    const textElement = rowElements[activeWordIndex].querySelector('.desktop-lyric-preview-row-text');
+    if (textElement) textElement.textContent = latestTimeline.lines[activeWordIndex]?.text || '';
+  }
+  activeWordIndex = -1;
+  activeWordSignature = '';
+  activeWordElements = [];
+}
+
+function updateActiveWordProgress(currentMs) {
+  activeWordElements.forEach(({ element, word }) => {
+    const startMs = finiteNumber(word.startMs, 0);
+    const endMs = Math.max(startMs, finiteNumber(word.endMs, startMs));
+    const progress = endMs > startMs
+      ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1)
+      : currentMs >= endMs ? 1 : 0;
+    element.style.setProperty('--preview-word-progress', `${progress * 100}%`);
+  });
+}
+
+function updateCountdown(currentMs) {
+  if (!countdownElement || !timelineElement) return;
+  const countdown = getLyricCountdown(latestTimeline.lines, activeIndex, currentMs);
+  if (!countdown) {
+    countdownElement.hidden = true;
+    return;
+  }
+
+  const nextRow = rowElements[countdown.nextIndex];
+  if (nextRow && countdownElement.nextElementSibling !== nextRow) {
+    timelineElement.insertBefore(countdownElement, nextRow);
+  }
+  countdownElement.hidden = false;
+  countdownElement.setAttribute('aria-label', `距离下一句 ${countdown.seconds} 秒`);
+  const activeDot = 3 - countdown.seconds;
+  Array.from(countdownElement.children).forEach((dot, index) => {
+    dot.classList.toggle('is-active', index === activeDot);
+    dot.classList.toggle('is-elapsed', index < activeDot);
+  });
+}
+
+function followActiveLyric() {
+  if (activeIndex < 0 || Date.now() < manualFollowUntil) return;
+  const activeRow = rowElements[activeIndex];
+  if (!activeRow || !viewport || typeof viewport.scrollTo !== 'function') return;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const targetTop = activeRow.offsetTop - viewport.clientHeight / 2 + activeRow.offsetHeight / 2;
+  viewport.scrollTo({
+    top: Math.max(0, targetTop),
+    behavior: reducedMotion ? 'auto' : 'smooth'
+  });
+}
+
+function pauseAutomaticFollow() {
+  manualFollowUntil = Date.now() + MANUAL_FOLLOW_PAUSE_MS;
+  clearTimeout(followResumeTimer);
+  followResumeTimer = setTimeout(() => {
+    manualFollowUntil = 0;
+    followActiveLyric();
+  }, MANUAL_FOLLOW_PAUSE_MS);
+}
+
+export function findActiveLyricIndex(lines, currentMs) {
+  if (!Array.isArray(lines) || !lines.length) return -1;
+  const target = Math.max(0, finiteNumber(currentMs, 0));
+  let low = 0;
+  let high = lines.length - 1;
+  let result = -1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    if (finiteNumber(lines[middle]?.startMs, 0) <= target) {
+      result = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return result;
+}
+
+export function getLyricCountdown(lines, currentIndex, currentMs) {
+  if (!Array.isArray(lines) || !lines.length) return null;
+  const nextIndex = currentIndex + 1;
+  const nextLine = lines[nextIndex];
+  if (!nextLine) return null;
+  const nextStartMs = finiteNumber(nextLine.startMs, 0);
+  const previousStartMs = currentIndex >= 0
+    ? finiteNumber(lines[currentIndex]?.startMs, 0)
+    : 0;
+  const gapMs = nextStartMs - previousStartMs;
+  const remainingMs = nextStartMs - Math.max(0, finiteNumber(currentMs, 0));
+  if (gapMs < COUNTDOWN_MIN_GAP_MS || remainingMs <= 0 || remainingMs > COUNTDOWN_WINDOW_MS) {
+    return null;
+  }
+  return { nextIndex, seconds: Math.max(1, Math.ceil(remainingMs / 1000)) };
+}
+
+function updatePreviewStatus() {
   const status = document.getElementById('desktopLyricPreviewStatus');
-  if (status) {
-    const hasLyric = Boolean(latestState.lineText || latestState.words?.length);
-    status.textContent = hasLyric ? latestState.playing ? '实时播放中' : '歌词已暂停' : '等待播放';
-    status.className = `pill ${hasLyric ? 'good' : 'warn'}`;
+  if (!status) return;
+  const lineCount = latestTimeline.lines.length;
+  const hasLyric = lineCount > 0 || Boolean(latestState?.lineText || latestState?.words?.length);
+  if (latestTimeline.status === 'loading' || latestState?.status === 'loading') {
+    status.textContent = '正在载入歌词';
+  } else if (latestTimeline.status === 'empty' || latestState?.status === 'empty') {
+    status.textContent = '这首歌暂无歌词';
+  } else if (hasLyric) {
+    status.textContent = latestState?.playing ? `实时播放中 · ${lineCount} 行` : `歌词已载入 · ${lineCount} 行`;
+  } else {
+    status.textContent = '等待播放';
   }
+  status.className = `pill ${hasLyric ? 'good' : 'warn'}`;
 }
 
 function applyStylesFromForm() {
@@ -128,7 +386,31 @@ function previewFallback(state) {
   if (state.status === 'loading') return '正在载入歌词';
   if (state.status === 'empty') return '这首歌暂无歌词';
   if (state.status === 'ready') return '前奏中';
-  return '等待播放 · 歌词将在这里实时预览';
+  return '等待播放';
+}
+
+function timelineFallback(timeline) {
+  if (timeline.status === 'loading') return '正在载入整首歌词…';
+  if (timeline.status === 'empty') return '这首歌暂无歌词';
+  if (timeline.status === 'ready') return '歌词已就绪，正在同步完整内容…';
+  return '等待播放 · 歌词将在载入后完整显示';
+}
+
+function currentPreviewPosition() {
+  if (!renderer) return 0;
+  const now = typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+  return renderer.getPosition(now).currentMs;
+}
+
+function finiteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
 }
 
 function numberSetting(value, fallback) {
@@ -137,4 +419,4 @@ function numberSetting(value, fallback) {
 }
 
 window.AdminApp = window.AdminApp || {};
-window.AdminApp.desktopLyricPreview = { init, applySettings, updateLyricState };
+window.AdminApp.desktopLyricPreview = { init, applySettings, updateLyricState, updateLyricTimeline };

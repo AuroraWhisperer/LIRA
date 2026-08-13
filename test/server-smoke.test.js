@@ -203,6 +203,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(initialSnapshot.type, 'snapshot');
     assert.equal(initialSnapshot.reason, 'connect');
     assert.equal(initialSnapshot.state.lyricState.status, 'idle');
+    assert.equal(initialSnapshot.state.lyricTimeline.status, 'idle');
 
     const publishedLyric = await postJson(app.baseUrl, '/api/playback/lyric-state', {
       trackTitle: 'Smoke Song',
@@ -215,6 +216,19 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(publishedLyric.lineText, 'Smoke lyric');
     const lyricSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
     assert.equal(lyricSnapshot.state.lyricState.lineText, 'Smoke lyric');
+
+    const publishedTimeline = await postJson(app.baseUrl, '/api/playback/lyric-timeline', {
+      trackTitle: 'Smoke Song',
+      artists: ['Smoke Artist'],
+      status: 'ready',
+      lines: [
+        { startMs: 0, text: '出品：Smoke Studio' },
+        { startMs: 9000, text: 'Smoke lyric' }
+      ]
+    });
+    assert.equal(publishedTimeline.lines.length, 2);
+    const timelineSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
+    assert.equal(timelineSnapshot.state.lyricTimeline.lines[0].text, '出品：Smoke Studio');
 
     const settingsState = await postJson(app.baseUrl, '/api/settings', {
       enableBilibili: false,

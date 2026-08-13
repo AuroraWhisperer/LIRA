@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`3.3.1`
+当前版本：`3.3.2`
 
 ---
+
+## v3.3.2 变更
+
+- 📜 **桌面歌词完整时间轴预览**：管理页桌面歌词预览从单一「前奏中」提示行升级为完整的可滚动同步歌词时间轴——歌词加载完成后一次性渲染全部歌词、翻译、罗马音与歌词内制作信息（制作人/出品等作为带时间戳的歌词行完整展示），播放位置变化时仅高亮当前行与逐字进度（`requestAnimationFrame` 驱动，只更新 active 类与逐字 CSS 变量，不重建 DOM）。自动跟随当前行，用户滚轮/触摸/键盘滚动时暂停跟随 6 秒便于查看上下文；长间奏后下一句剩余 ≤3 秒时在对应位置显示三拍倒计时。滚动区可键盘聚焦（`tabindex` + `role="list"`），遵守 `prefers-reduced-motion`。
+- 📡 **低频完整时间轴与高频当前行分离**：高频 `lyric-state`（约 180ms 一次）保持轻量不变，完整歌词通过新的低频 `lyric-timeline` WebSocket 消息仅在歌词变化时发布一次——在线播放端 `LyricService` 按曲目身份 + 歌词对象引用去重后 POST，全民 K 歌捕获端在歌词重置/加载完成/失败时回调 `onTimeline`，不在每个进度采样中复制整首歌词。服务端快照新增 `lyricTimeline` 字段，新连接立即可获得完整时间轴，单帧保持在 256 KB 上限以内。
+- 🛡️ **时间轴安全规范化**：新增 `src/music/lyric-timeline.js` 的 `normalizeLyricTimeline()`——状态白名单（idle/loading/ready/empty）、时间戳钳制 0–24h 并按起始时间单调排序、最多 500 行、48 KiB 字符总预算（超出即截断）、控制字符清洗、标题 ≤120 字、歌手 ≤8 位、每行文本/翻译/罗马音各 ≤240 字。新增认证路由 `POST /api/playback/lyric-timeline`（复用本地会话令牌，仅更新易失播放状态、不写数据库）。前端所有歌词文本通过 `textContent` 文本节点渲染，不使用 `innerHTML` 拼接；时间轴发布失败不影响当前行与独立桌面歌词窗口。
+- 📖 **设计文档**：新增 `specs/desktop-lyric-timeline_design.md`（EARS 需求与视觉方向：Night Vinyl / Grid Slate / Lyric Mist / Playback Gold / Control Rose 配色）与 `specs/desktop-lyric-preview_reverse_spec.md`（播放/全民 K 歌歌词数据 → 服务端实时状态 → 管理页预览链路的逆向说明，含「前奏中」成因与已知不确定性）。
+- 🧪 **测试覆盖增强**：`test/desktop-lyrics.test.js` 新增时间轴规范化契约（控制字符/非法时间/超量歌手/字符预算/单调排序）与预览时间轴 DOM 回归断言。`test/server-smoke.test.js` 新增 `lyric-timeline` 路由与快照字段断言。`test/wesing-capture.test.js` 新增 `onTimeline` 回调时序断言（重置/加载完成/失败各发布一次）。
 
 ## v3.3.1 变更
 

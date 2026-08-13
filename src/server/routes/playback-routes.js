@@ -4,6 +4,7 @@
 
 const { sendJson } = require('../http-utils');
 const { normalizeLyricState } = require('../../music/lyric-state');
+const { normalizeLyricTimeline } = require('../../music/lyric-timeline');
 
 const prefixes = ['/api/playback/'];
 
@@ -27,6 +28,12 @@ const routes = {
     const state = normalizeLyricState(await request.body());
     context.playbackLyrics.publish(state);
     return state;
+  }),
+
+  'POST /api/playback/lyric-timeline': storeRoute(async (context, request) => {
+    const timeline = normalizeLyricTimeline(await request.body());
+    context.playbackLyrics.publishTimeline(timeline);
+    return timeline;
   }),
 
   // ── 播放历史 ──

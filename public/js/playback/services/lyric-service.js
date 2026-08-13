@@ -14,6 +14,8 @@ export class LyricService {
     this.windowLocked = false;
     this.lastPublishedState = '';
     this.lastPublishedAt = 0;
+    this.lastTimelineTrackKey = null;
+    this.lastTimelineLyrics = null;
   }
 
   /**
@@ -196,6 +198,7 @@ export class LyricService {
       status: !track ? 'idle' : !hasLyrics ? 'loading' : track.lyrics.lines.length > 0 ? 'ready' : 'empty'
     };
 
+    await this.publishBrowserTimeline(track);
     await this.publishBrowserState(state, force);
 
     if (!this.windowOpen && !force) return false;
@@ -210,6 +213,32 @@ export class LyricService {
     }
 
     return wasOpen !== this.windowOpen;
+  }
+
+  async publishBrowserTimeline(track) {
+    const trackKey = track
+      ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}`
+      : '';
+    const lyrics = track?.lyrics || null;
+    if (trackKey === this.lastTimelineTrackKey && lyrics === this.lastTimelineLyrics) return;
+
+    this.lastTimelineTrackKey = trackKey;
+    this.lastTimelineLyrics = lyrics;
+    const hasLyrics = Boolean(lyrics && Array.isArray(lyrics.lines));
+    const timeline = {
+      trackTitle: track?.title || '',
+      artists: Array.isArray(track?.artists) ? track.artists : [],
+      status: !track ? 'idle' : !hasLyrics ? 'loading' : lyrics.lines.length > 0 ? 'ready' : 'empty',
+      lines: hasLyrics ? lyrics.lines : []
+    };
+
+    try {
+      await fetch('/api/playback/lyric-timeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(timeline)
+      });
+    } catch (_) {}
   }
 
   async publishBrowserState(state, force) {

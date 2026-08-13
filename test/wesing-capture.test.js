@@ -137,12 +137,16 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
 
   let onSample = null;
   const requested = [];
+  const timelines = [];
   const capture = createWeSingCapture({
     cachePath,
     platform: 'win32',
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
+    },
+    onTimeline(timeline) {
+      timelines.push(timeline);
     },
     async resolveFallbackLyrics(input) {
       requested.push(input);
@@ -172,4 +176,7 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   assert.equal(state.lyricSource, 'qq');
   assert.equal(state.lyricState.lineText, '请原谅我的词穷');
   assert.deepEqual(requested, [{ title: '失控', durationMs: 255000 }]);
+  assert.equal(timelines.filter((timeline) => timeline.lines.length > 0).length, 1);
+  assert.equal(timelines.at(-1).trackTitle, '失控');
+  assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');
 });

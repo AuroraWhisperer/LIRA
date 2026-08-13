@@ -1075,11 +1075,13 @@
                 </div>
               </header>
               <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage">
-                <div class="desktop-lyric-preview-surface">
-                  <div id="desktopLyricPreviewLine" class="desktop-lyric-preview-line" aria-live="polite">等待播放 · 歌词将在这里实时预览</div>
-                  <div id="desktopLyricPreviewTranslation" class="desktop-lyric-preview-translation" hidden></div>
-                  <div class="desktop-lyric-preview-progress" aria-hidden="true"><span id="desktopLyricPreviewProgress"></span></div>
+                <div id="desktopLyricPreviewViewport" class="desktop-lyric-preview-viewport" tabindex="0" aria-label="完整歌词，可上下滚动查看">
+                  <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list">
+                    <div class="desktop-lyric-preview-empty">等待播放 · 歌词将在载入后完整显示</div>
+                  </div>
                 </div>
+                <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
+                <div class="desktop-lyric-preview-progress" aria-hidden="true"><span id="desktopLyricPreviewProgress"></span></div>
               </div>
             </section>
             </div>

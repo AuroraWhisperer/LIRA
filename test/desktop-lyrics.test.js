@@ -5,7 +5,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { fileURLToPath, pathToFileURL } = require('node:url');
 const { normalizeLyricState } = require('../src/music/lyric-state');
+const { normalizeLyricTimeline } = require('../src/music/lyric-timeline');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -80,6 +82,33 @@ test('desktop lyric surface is compact and independently resizable', () => {
   assert.match(styles, /font-size:\s*min\(var\(--lyric-size\),\s*8\.5vw,\s*52vh\)/);
 });
 
+test('lyric timeline normalization bounds complete browser lyric payloads', () => {
+  const timeline = normalizeLyricTimeline({
+    trackTitle: ` Song\u0000${'x'.repeat(200)} `,
+    artists: ['Artist', '', ...Array.from({ length: 10 }, (_, index) => `Guest ${index}`)],
+    status: 'ready',
+    lines: Array.from({ length: 600 }, (_, index) => ({
+      startMs: 600000 - index * 1000,
+      endMs: index % 2 === 0 ? -20 : 700000,
+      text: `第 ${index} 行\u0000${'词'.repeat(160)}`,
+      translation: '<b>translation</b>',
+      roma: 'romanization'
+    }))
+  });
+
+  assert.equal(timeline.trackTitle.length, 120);
+  assert.equal(timeline.trackTitle.includes('\u0000'), false);
+  assert.equal(timeline.artists.length, 8);
+  assert.equal(timeline.status, 'ready');
+  assert.ok(timeline.lines.length > 0);
+  assert.ok(timeline.lines.length <= 500);
+  assert.ok(timeline.lines.every((line, index) => (
+    index === 0 || timeline.lines[index - 1].startMs <= line.startMs
+  )));
+  assert.ok(timeline.lines.every((line) => !line.text.includes('\u0000')));
+  assert.ok(Buffer.byteLength(JSON.stringify(timeline), 'utf8') < 220 * 1024);
+});
+
 test('desktop lyric settings include a live word-timed preview', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
@@ -93,13 +122,18 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.ok(html.indexOf('id="desktopLyricForm"') < html.indexOf('id="desktopLyricLivePreview"'));
   assert.doesNotMatch(html, /保存桌面歌词设置/);
   assert.match(html, /id="desktopLyricLivePreview"/);
-  assert.match(html, /id="desktopLyricPreviewLine"/);
-  assert.match(html, /id="desktopLyricPreviewTranslation"/);
+  assert.match(html, /id="desktopLyricPreviewViewport"[^>]*tabindex="0"/);
+  assert.match(html, /id="desktopLyricPreviewTimeline"/);
+  assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
   assert.match(html, /id="desktopLyricPreviewProgress"/);
   assert.match(html, /id="desktopLyricOpenWindowBtn"/);
   assert.match(html, /data-lyric-preview-background="grid"/);
   assert.match(source, /new LyricWordRenderer/);
   assert.match(source, /app:lyric-state/);
+  assert.match(source, /app:lyric-timeline/);
+  assert.match(source, /createElement\('div'\)/);
+  assert.match(source, /textContent\s*=/);
+  assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.match(source, /musicAPI\.openLyricWindow/);
   assert.match(source, /desktopLyricFontFamily/);
   assert.match(source, /style\.setProperty/);
@@ -107,6 +141,14 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(sharedRenderer, /requestAnimationFrame/);
   assert.match(styles, /--preview-word-progress/);
   assert.match(styles, /\.desktop-lyric-preview-stage\.is-solid/);
+  assert.match(styles, /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/);
+  assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /\.desktop-lyric-preview-row\.is-active/);
+  assert.match(styles, /\.desktop-lyric-preview-countdown-dot/);
+  assert.match(styles, /:focus-visible/);
+  assert.match(styles, /prefers-reduced-motion:\s*reduce/);
+  assert.match(source, /viewport\.scrollTo\(/);
+  assert.doesNotMatch(source, /scrollIntoView/);
   assert.match(styles, /grid-template-columns:\s*minmax\(280px, 380px\) minmax\(0, 1fr\)/);
   assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
   assert.match(settingsSource, /AUTOSAVE_DELAY_MS/);
@@ -214,8 +256,90 @@ test('playback publishes lyrics through the authenticated local API', () => {
   const routes = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'routes', 'playback-routes.js'), 'utf8');
 
   assert.match(service, /fetch\('\/api\/playback\/lyric-state'/);
+  assert.match(service, /fetch\('\/api\/playback\/lyric-timeline'/);
   assert.match(service, /status:\s*!track \? 'idle'/);
   assert.match(service, /durationMs:\s*Math\.round\(duration \* 1000\)/);
   assert.match(routes, /'POST \/api\/playback\/lyric-state'/);
+  assert.match(routes, /'POST \/api\/playback\/lyric-timeline'/);
   assert.match(routes, /normalizeLyricState/);
+  assert.match(routes, /normalizeLyricTimeline/);
 });
+
+test('playback publishes a complete timeline only when the lyric identity changes', async () => {
+  const requests = [];
+  const playback = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
+    {
+      fetch: async (url, options) => {
+        requests.push({ url, body: JSON.parse(options.body) });
+        return { ok: true };
+      }
+    }
+  );
+  const service = new playback.LyricService();
+  const track = {
+    id: 'qq:timeline-song',
+    source: 'qq',
+    title: 'Timeline Song',
+    artists: ['Timeline Artist'],
+    lyrics: { lines: [{ startMs: 0, text: '制作：Timeline Studio' }] }
+  };
+  const audio = { currentTime: 1, duration: 120, paused: false };
+
+  await service.syncWindow(track, audio);
+  await service.syncWindow(track, audio);
+  track.lyrics = { lines: [{ startMs: 0, text: '制作：Timeline Studio' }] };
+  await service.syncWindow(track, audio);
+
+  const timelineRequests = requests.filter((request) => request.url === '/api/playback/lyric-timeline');
+  assert.equal(timelineRequests.length, 2);
+  assert.equal(timelineRequests[0].body.lines[0].text, '制作：Timeline Studio');
+});
+
+test('desktop lyric timeline identifies active lines and countdowns for long gaps', async () => {
+  const preview = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js')
+  );
+  const lines = [
+    { startMs: 0, text: '出品：骁Studio' },
+    { startMs: 9000, text: '请原谅我的词穷' },
+    { startMs: 12000, text: '再见都哽在喉咙' }
+  ];
+
+  assert.equal(preview.findActiveLyricIndex(lines, 500), 0);
+  assert.equal(preview.findActiveLyricIndex(lines, 9500), 1);
+  assert.deepEqual(
+    { ...preview.getLyricCountdown(lines, 0, 6200) },
+    { nextIndex: 1, seconds: 3 }
+  );
+  assert.deepEqual(
+    { ...preview.getLyricCountdown(lines, 0, 7200) },
+    { nextIndex: 1, seconds: 2 }
+  );
+  assert.equal(preview.getLyricCountdown(lines, 0, 4000), null);
+  assert.equal(preview.getLyricCountdown(lines, 1, 9500), null);
+});
+
+async function loadModuleExports(entryPath, globals = {}) {
+  const context = vm.createContext({ console, window: {}, ...globals });
+  const modules = new Map();
+
+  async function load(filePath) {
+    const identifier = pathToFileURL(filePath).href;
+    if (modules.has(identifier)) return modules.get(identifier);
+    const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
+      context,
+      identifier
+    });
+    modules.set(identifier, module);
+    await module.link((specifier, referencingModule) => {
+      const dependencyUrl = new URL(specifier, referencingModule.identifier);
+      return load(fileURLToPath(dependencyUrl));
+    });
+    return module;
+  }
+
+  const module = await load(entryPath);
+  await module.evaluate();
+  return module.namespace;
+}

@@ -45,6 +45,7 @@ export class StateService {
         this.appState = payload.state;
         dispatchRealtimeState('app:wesing-state', this.appState?.weSing);
         dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+        dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
         dispatchRealtimeState('app:settings-state', this.appState?.settings);
         // 发布事件而非直接调用其他模块
         eventBus.emit(Events.STATE_LOADED, {
@@ -70,6 +71,10 @@ export class StateService {
         this.appState = this.appState || {};
         this.appState.lyricState = payload.state;
         dispatchRealtimeState('app:lyric-state', payload.state);
+      } else if (payload.type === 'lyric-timeline') {
+        this.appState = this.appState || {};
+        this.appState.lyricTimeline = payload.timeline;
+        dispatchRealtimeState('app:lyric-timeline', payload.timeline);
       }
     });
 
@@ -106,6 +111,7 @@ export class StateService {
     this.appState = payload.data;
     dispatchRealtimeState('app:settings-state', this.appState?.settings);
     dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+    dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
     this.categories = this.appState.categories || [];
     this.songTags = new Set(this.appState.tags || []);
 

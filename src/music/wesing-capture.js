@@ -196,6 +196,7 @@ function createWeSingCapture(options = {}) {
   const now = typeof options.now === 'function' ? options.now : Date.now;
   const platform = options.platform || process.platform;
   const onState = typeof options.onState === 'function' ? options.onState : () => {};
+  const onTimeline = typeof options.onTimeline === 'function' ? options.onTimeline : () => {};
   const monitorFactory = options.monitorFactory || ((callback) => createPowerShellWeSingMonitor(callback));
   const resolveFallbackLyrics = typeof options.resolveFallbackLyrics === 'function'
     ? options.resolveFallbackLyrics
@@ -368,11 +369,15 @@ function createWeSingCapture(options = {}) {
     }
     if (version !== refreshVersion || title !== state.trackTitle) return;
     if (!result) {
+      lyrics = [];
+      lyricArtists = [];
+      lyricDurationMs = 0;
       state.qrcReady = false;
       state.status = 'empty';
       state.message = fallbackError
         ? `在线歌词匹配失败：${String(fallbackError.message || fallbackError).slice(0, 120)}`
         : '本地缓存和在线平台都没有找到可靠的匹配歌词。';
+      publishTimeline();
       updateLyricState();
       emit();
       return;
@@ -390,6 +395,7 @@ function createWeSingCapture(options = {}) {
         ? `已从本地 QRC 捕捉《${title}》的逐字歌词。`
         : `已从${formatLyricSource(state.lyricSource)}匹配《${title}》的歌词。`
       : '歌词已读取，但没有可显示的内容。';
+    publishTimeline();
     updateLyricState();
     emit();
   }
@@ -419,7 +425,18 @@ function createWeSingCapture(options = {}) {
     state.qrcReady = false;
     state.lyricSource = '';
     state.songMid = '';
+    publishTimeline();
     updateLyricState();
+  }
+
+  function publishTimeline() {
+    onTimeline({
+      active: state.active,
+      trackTitle: state.trackTitle,
+      artists: lyricArtists,
+      status: state.qrcReady ? 'ready' : state.status === 'loading' ? 'loading' : state.status === 'empty' ? 'empty' : 'idle',
+      lines: lyrics
+    });
   }
 
   function stopMonitor() {

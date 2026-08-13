@@ -19,6 +19,7 @@ const settingsStoreModule = require('./storage/settings-store');
 const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { createLyricsService } = require('./music/lyrics-service');
+const { normalizeLyricTimeline } = require('./music/lyric-timeline');
 const { createWeSingCapture } = require('./music/wesing-capture');
 const { createWeSingOnlineLyricResolver } = require('./music/wesing-online-lyrics');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
@@ -154,6 +155,14 @@ function createServerRuntime(runtimeOptions = {}) {
     trackTitle: '', artists: [], lineText: '', translation: '', words: [],
     currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
   };
+  let lyricTimeline = {
+    trackTitle: '', artists: [], status: 'idle', lines: []
+  };
+  const publishLyricTimeline = (input) => {
+    lyricTimeline = normalizeLyricTimeline(input);
+    webSocketHub.broadcast({ type: 'lyric-timeline', timeline: lyricTimeline });
+    return lyricTimeline;
+  };
   let musicRegistry = createMusicProviderRegistry();
   const resolveWeSingOnlineLyrics = createWeSingOnlineLyricResolver({
     getRegistry: () => musicRegistry,
@@ -172,6 +181,9 @@ function createServerRuntime(runtimeOptions = {}) {
       if (!state.active || !state.lyricState) return;
       lyricState = state.lyricState;
       webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
+    },
+    onTimeline(timeline) {
+      if (timeline.active) publishLyricTimeline(timeline);
     }
   });
   let bilibiliClient = null;
@@ -330,6 +342,9 @@ function createServerRuntime(runtimeOptions = {}) {
         publish(state) {
           lyricState = state;
           webSocketHub.broadcast({ type: 'lyric-state', state });
+        },
+        publishTimeline(timeline) {
+          return publishLyricTimeline(timeline);
         }
       },
       weSing: {
@@ -495,6 +510,7 @@ function createServerRuntime(runtimeOptions = {}) {
       liveStatus,
       bilibiliDiagnostics,
       lyricState,
+      lyricTimeline,
       weSing: weSingCapture.getStatus()
     };
   }
