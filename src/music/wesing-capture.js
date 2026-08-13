@@ -411,14 +411,10 @@ function createWeSingCapture(options = {}) {
     }
 
     if (hasSampledProgress) {
-      if (lastProgressMs < 0) {
-        lastProgressMs = sampledCurrentMs;
-        lastProgressChangeAt = timestamp;
-        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        startPlaybackClock(timestamp);
-        state.playing = true;
-        state.waitingForPlayback = false;
-      } else if (sampledCurrentMs !== lastProgressMs) {
+      const progressChanged = lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
+      const isFirstProgress = lastProgressMs < 0;
+
+      if (progressChanged) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
@@ -426,6 +422,19 @@ function createWeSingCapture(options = {}) {
         state.playing = true;
         state.waitingForPlayback = false;
         if (state.qrcReady) state.message = `正在同步《${title}》的逐字歌词。`;
+      } else if (isFirstProgress) {
+        lastProgressMs = sampledCurrentMs;
+        lastProgressChangeAt = timestamp;
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
+        if (sampledCurrentMs > 0) {
+          startPlaybackClock(timestamp);
+          state.playing = true;
+          state.waitingForPlayback = false;
+        } else {
+          pausePlaybackClock(timestamp);
+          state.playing = false;
+          state.waitingForPlayback = true;
+        }
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
         pausePlaybackClock(timestamp);
         state.playing = false;
