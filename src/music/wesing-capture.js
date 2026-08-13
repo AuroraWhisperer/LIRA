@@ -12,6 +12,7 @@ const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_QRC_BYTES = 4 * 1024 * 1024;
 const MAX_FALLBACK_FILES = 80;
 const PAUSED_AFTER_MS = 1500;
+const PROGRESS_COMPENSATION_MS = 130;
 const SAFE_SONG_MID = /^[a-zA-Z0-9_-]{1,128}$/;
 
 function normalizeWeSingCachePath(input) {
@@ -376,11 +377,10 @@ function createWeSingCapture(options = {}) {
       if (sampledCurrentMs !== lastProgressMs) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
-        setPlaybackClock(sampledCurrentMs, timestamp);
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
         startPlaybackClock(timestamp);
         state.playing = true;
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
-        setPlaybackClock(sampledCurrentMs, timestamp);
         pausePlaybackClock(timestamp);
         state.playing = false;
       }
@@ -649,7 +649,7 @@ while ($true) {
   }
   Write-Output ($sample | ConvertTo-Json -Compress)
   [Console]::Out.Flush()
-  Start-Sleep -Milliseconds 250
+  Start-Sleep -Milliseconds 100
 }
 `;
 }

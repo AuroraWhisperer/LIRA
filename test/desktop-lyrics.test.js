@@ -371,6 +371,55 @@ test('forced playback states bypass throttling and preserve publication order', 
   assert.equal(stateRequests[1].lineText, '跳转后');
 });
 
+test('shared lyric renderer freezes its clock when playback pauses', async () => {
+  let currentTime = 1000;
+  let nextFrameId = 0;
+  const scheduledFrames = new Map();
+  const canceledFrames = new Set();
+  const lineElement = {
+    textContent: '',
+    replaceChildren() {},
+    appendChild() {}
+  };
+  const progressElement = { style: { transform: '' } };
+  const rendererModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'),
+    {
+      document: {
+        createElement() {
+          return {
+            className: '',
+            textContent: '',
+            style: { setProperty() {} }
+          };
+        }
+      },
+      performance: { now: () => currentTime },
+      requestAnimationFrame(callback) {
+        nextFrameId += 1;
+        scheduledFrames.set(nextFrameId, callback);
+        return nextFrameId;
+      },
+      cancelAnimationFrame(frameId) {
+        canceledFrames.add(frameId);
+      }
+    }
+  );
+  const renderer = new rendererModule.LyricWordRenderer({ lineElement, progressElement });
+
+  renderer.setState({ currentMs: 1000, durationMs: 10000, playing: true, lineText: '播放中' });
+  const playingFrameId = nextFrameId;
+  currentTime = 1500;
+  scheduledFrames.get(playingFrameId)(currentTime);
+  const pendingFrameId = nextFrameId;
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1500);
+
+  renderer.setState({ currentMs: 1200, durationMs: 10000, playing: false, lineText: '已暂停' });
+  assert.equal(canceledFrames.has(pendingFrameId), true);
+  assert.equal(nextFrameId, pendingFrameId, 'paused rendering does not schedule another animation frame');
+  assert.equal(renderer.getPosition(5000).currentMs, 1200);
+});
+
 test('built-in playback forces lyric sync for play, pause, and seek transitions', () => {
   const initializer = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'initializer.js'),

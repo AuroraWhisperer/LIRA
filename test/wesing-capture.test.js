@@ -8,6 +8,7 @@ const test = require('node:test');
 const { encryptQrc } = require('qrc-decoder');
 
 const {
+  buildPowerShellMonitorScript,
   createWeSingCapture,
   findLatestSongEntry,
   loadWeSingLyrics,
@@ -120,7 +121,7 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
   currentTime = 4000;
   onSample({ detected: true, title: '全民K歌 - 测试歌曲', currentSec: -1, totalSec: -1 });
   state = capture.getStatus();
-  assert.equal(state.lyricState.currentMs, 4000);
+  assert.equal(state.lyricState.currentMs, 4130);
   assert.equal(state.lyricState.lineText, '世界');
   assert.equal(state.lyricState.playing, true);
 
@@ -162,7 +163,7 @@ test('WeSing capture keeps a monotonic clock while UI Automation progress is una
   currentTime = 2500;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 2, totalSec: 255 });
   state = capture.getStatus();
-  assert.equal(state.currentMs, 2000);
+  assert.equal(state.currentMs, 2130);
   assert.equal(state.durationMs, 255000);
   assert.equal(state.playing, true);
 });
@@ -188,7 +189,7 @@ test('WeSing capture freezes on a confirmed pause and preserves it through unava
   currentTime = 2600;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 10, totalSec: 255 });
   const pausedAt = capture.getStatus().currentMs;
-  assert.equal(pausedAt, 10000);
+  assert.equal(pausedAt, 11730);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 3600;
@@ -213,11 +214,11 @@ test('WeSing capture accepts backward progress as replay or seek calibration', a
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 20, totalSec: 255 });
   currentTime = 1750;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
-  assert.equal(capture.getStatus().currentMs, 20750);
+  assert.equal(capture.getStatus().currentMs, 20880);
 
   currentTime = 2000;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 2, totalSec: 255 });
-  assert.equal(capture.getStatus().currentMs, 2000);
+  assert.equal(capture.getStatus().currentMs, 2130);
   assert.equal(capture.getStatus().playing, true);
 });
 
@@ -237,7 +238,7 @@ test('WeSing capture restarts timing after the client returns and freezes on mon
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 5, totalSec: 255 });
   currentTime = 1500;
   onSample({ detected: false, title: '', currentSec: -1, totalSec: -1 });
-  assert.equal(capture.getStatus().currentMs, 5500);
+  assert.equal(capture.getStatus().currentMs, 5630);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 2500;
@@ -304,4 +305,8 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   assert.equal(timelines.filter((timeline) => timeline.lines.length > 0).length, 1);
   assert.equal(timelines.at(-1).trackTitle, '失控');
   assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');
+});
+
+test('WeSing monitor uses Now Playing polling cadence', () => {
+  assert.match(buildPowerShellMonitorScript(), /Start-Sleep -Milliseconds 100/);
 });
