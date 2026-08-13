@@ -11,7 +11,7 @@ const { normalizeLyricState } = require('./lyric-state');
 const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_QRC_BYTES = 4 * 1024 * 1024;
 const MAX_FALLBACK_FILES = 80;
-const PAUSED_AFTER_MS = 1500;
+const PAUSED_AFTER_MS = 300;
 const PROGRESS_COMPENSATION_MS = 130;
 const MIN_LYRIC_OFFSET_MS = -1500;
 const MAX_LYRIC_OFFSET_MS = 1500;
@@ -401,9 +401,8 @@ function createWeSingCapture(options = {}) {
     if (sampledDurationMs > 0) state.durationMs = sampledDurationMs;
 
     if (sample.loading === true) {
-      if (state.waitingForPlayback) resetPlaybackClock(timestamp);
-      else pausePlaybackClock(timestamp);
-      state.currentMs = readPlaybackClock(timestamp);
+      resetPlaybackClock(timestamp);
+      state.currentMs = 0;
       state.playing = false;
       state.message = `全民 K 歌正在加载《${title}》，歌词将在播放后开始。`;
       updateLyricState();
