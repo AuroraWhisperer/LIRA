@@ -20,6 +20,7 @@ const { createMusicProviderRegistry } = require('./music/provider-registry');
 const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
 const { createLyricsService } = require('./music/lyrics-service');
 const { createWeSingCapture } = require('./music/wesing-capture');
+const { createWeSingOnlineLyricResolver } = require('./music/wesing-online-lyrics');
 const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
@@ -153,10 +154,16 @@ function createServerRuntime(runtimeOptions = {}) {
     trackTitle: '', artists: [], lineText: '', translation: '', words: [],
     currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
   };
+  let musicRegistry = createMusicProviderRegistry();
+  const resolveWeSingOnlineLyrics = createWeSingOnlineLyricResolver({
+    getRegistry: () => musicRegistry,
+    lyricsService
+  });
   const weSingCapture = createWeSingCapture({
     cachePath: settingsStore.getSettings().weSingCachePath,
     platform: runtimeOptions.weSingPlatform || process.platform,
     monitorFactory: runtimeOptions.weSingMonitorFactory,
+    resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
     saveCachePath(cachePath) {
       settingsStore.setSetting('weSingCachePath', cachePath);
     },
@@ -173,7 +180,6 @@ function createServerRuntime(runtimeOptions = {}) {
   let startPromise = null;
   let shutdownPromise = null;
   let sessionToken = '';
-  let musicRegistry = createMusicProviderRegistry();
   const runtimeGiftCommandPrefixes = new Set();
   const bilibiliDiagnostics = {
     lastPacketAt: '',

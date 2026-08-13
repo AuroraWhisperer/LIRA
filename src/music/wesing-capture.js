@@ -197,6 +197,9 @@ function createWeSingCapture(options = {}) {
   const platform = options.platform || process.platform;
   const onState = typeof options.onState === 'function' ? options.onState : () => {};
   const monitorFactory = options.monitorFactory || ((callback) => createPowerShellWeSingMonitor(callback));
+  const resolveFallbackLyrics = typeof options.resolveFallbackLyrics === 'function'
+    ? options.resolveFallbackLyrics
+    : null;
   let cachePath = safeInitialCachePath(options.cachePath);
   let monitor = null;
   let lyrics = [];
@@ -214,6 +217,7 @@ function createWeSingCapture(options = {}) {
     cacheReady: false,
     platformDetected: false,
     qrcReady: false,
+    lyricSource: '',
     songMid: '',
     trackTitle: '',
     currentMs: 0,
@@ -275,14 +279,6 @@ function createWeSingCapture(options = {}) {
       emit();
       return getStatus();
     }
-    if (!state.cacheReady) {
-      state.qrcReady = false;
-      state.status = 'error';
-      state.message = '未找到 WeSingDL\\Res，请重新选择 WeSingCache。';
-      updateLyricState();
-      emit();
-      return getStatus();
-    }
     if (state.trackTitle) {
       pendingRefresh = refreshLyrics(state.trackTitle);
       await pendingRefresh;
@@ -290,7 +286,9 @@ function createWeSingCapture(options = {}) {
       state.status = 'waiting';
       state.message = state.platformDetected
         ? '已检测到全民 K 歌，等待开始播放。'
-        : '缓存目录可用，等待启动全民 K 歌。';
+        : state.cacheReady
+          ? '缓存目录可用，等待启动全民 K 歌。'
+          : '等待启动全民 K 歌；本地缓存未生成时将自动匹配在线歌词。';
       emit();
     }
     return getStatus();
@@ -335,7 +333,7 @@ function createWeSingCapture(options = {}) {
       resetLyrics();
       if (title) {
         state.status = 'loading';
-        state.message = `正在读取《${title}》的本地歌词…`;
+        state.message = `正在匹配《${title}》的歌词…`;
         pendingRefresh = refreshLyrics(title);
       }
     }
@@ -350,18 +348,31 @@ function createWeSingCapture(options = {}) {
   async function refreshLyrics(title) {
     const version = ++refreshVersion;
     state.status = 'loading';
-    state.message = `正在读取《${title}》的本地歌词…`;
+    state.message = `正在匹配《${title}》的歌词…`;
     updateLyricState();
     emit();
     let result = null;
-    try {
-      result = await loadWeSingLyrics({ cachePath, title });
-    } catch (_) {}
+    let fallbackError = null;
+    if (state.cacheReady) {
+      try {
+        result = await loadWeSingLyrics({ cachePath, title });
+        if (result) result.source = 'wesing';
+      } catch (_) {}
+    }
+    if (!result && resolveFallbackLyrics) {
+      try {
+        result = await resolveFallbackLyrics({ title, durationMs: state.durationMs });
+      } catch (error) {
+        fallbackError = error;
+      }
+    }
     if (version !== refreshVersion || title !== state.trackTitle) return;
     if (!result) {
       state.qrcReady = false;
       state.status = 'empty';
-      state.message = '尚未找到这首歌的 QRC 缓存，可播放几秒后重新检测。';
+      state.message = fallbackError
+        ? `在线歌词匹配失败：${String(fallbackError.message || fallbackError).slice(0, 120)}`
+        : '本地缓存和在线平台都没有找到可靠的匹配歌词。';
       updateLyricState();
       emit();
       return;
@@ -369,13 +380,16 @@ function createWeSingCapture(options = {}) {
     lyrics = result.lines;
     lyricArtists = result.artists;
     lyricDurationMs = result.durationMs;
+    state.lyricSource = result.source || 'wesing';
     state.songMid = result.songMid;
     state.qrcReady = lyrics.length > 0;
     if (!state.durationMs && lyricDurationMs) state.durationMs = lyricDurationMs;
     state.status = state.qrcReady ? 'ready' : 'empty';
     state.message = state.qrcReady
-      ? `已捕捉《${title}》的逐字歌词。`
-      : 'QRC 已读取，但没有可显示的逐字歌词。';
+      ? state.lyricSource === 'wesing'
+        ? `已从本地 QRC 捕捉《${title}》的逐字歌词。`
+        : `已从${formatLyricSource(state.lyricSource)}匹配《${title}》的歌词。`
+      : '歌词已读取，但没有可显示的内容。';
     updateLyricState();
     emit();
   }
@@ -403,6 +417,7 @@ function createWeSingCapture(options = {}) {
     lyricArtists = [];
     lyricDurationMs = 0;
     state.qrcReady = false;
+    state.lyricSource = '';
     state.songMid = '';
     updateLyricState();
   }
@@ -547,6 +562,12 @@ async function isDirectory(directoryPath) {
 
 function safeInitialCachePath(value) {
   try { return normalizeWeSingCachePath(value); } catch (_) { return ''; }
+}
+
+function formatLyricSource(source) {
+  if (source === 'qq') return 'QQ 音乐';
+  if (source === 'netease') return '网易云音乐';
+  return '在线平台';
 }
 
 function stripWeSingWindowTitle(value) {

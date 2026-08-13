@@ -128,3 +128,48 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
   assert.equal(stopped, true);
   assert.equal(capture.getStatus().active, false);
 });
+
+test('WeSing capture falls back to injected online lyrics when local QRC is absent', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-online-'));
+  const cachePath = path.join(root, 'WeSingCache');
+  fs.mkdirSync(cachePath, { recursive: true });
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  let onSample = null;
+  const requested = [];
+  const capture = createWeSingCapture({
+    cachePath,
+    platform: 'win32',
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    },
+    async resolveFallbackLyrics(input) {
+      requested.push(input);
+      return {
+        source: 'qq',
+        songMid: 'qq_mid',
+        title: input.title,
+        artists: ['井迪'],
+        durationMs: input.durationMs,
+        lines: [{
+          startMs: 0,
+          endMs: 2000,
+          text: '请原谅我的词穷',
+          words: [{ text: '请', startMs: 0, endMs: 200 }]
+        }]
+      };
+    }
+  });
+
+  await capture.setActive(true);
+  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 1, totalSec: 255 });
+  await capture.waitForRefresh();
+
+  const state = capture.getStatus();
+  assert.equal(state.cacheReady, false);
+  assert.equal(state.qrcReady, true);
+  assert.equal(state.lyricSource, 'qq');
+  assert.equal(state.lyricState.lineText, '请原谅我的词穷');
+  assert.deepEqual(requested, [{ title: '失控', durationMs: 255000 }]);
+});

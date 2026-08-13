@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const { normalizeLyricState } = require('../src/music/lyric-state');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -81,10 +82,16 @@ test('desktop lyric surface is compact and independently resizable', () => {
 
 test('desktop lyric settings include a live word-timed preview', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
   const sharedRenderer = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'), 'utf8');
 
+  assert.match(html, /class="desktop-lyric-workspace"/);
+  assert.match(html, /class="[^"]*desktop-lyric-settings-fields[^"]*"/);
+  assert.match(html, /id="desktopLyricAutosaveState"/);
+  assert.ok(html.indexOf('id="desktopLyricForm"') < html.indexOf('id="desktopLyricLivePreview"'));
+  assert.doesNotMatch(html, /保存桌面歌词设置/);
   assert.match(html, /id="desktopLyricLivePreview"/);
   assert.match(html, /id="desktopLyricPreviewLine"/);
   assert.match(html, /id="desktopLyricPreviewTranslation"/);
@@ -100,6 +107,103 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(sharedRenderer, /requestAnimationFrame/);
   assert.match(styles, /--preview-word-progress/);
   assert.match(styles, /\.desktop-lyric-preview-stage\.is-solid/);
+  assert.match(styles, /grid-template-columns:\s*minmax\(280px, 380px\) minmax\(0, 1fr\)/);
+  assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+  assert.match(settingsSource, /AUTOSAVE_DELAY_MS/);
+  assert.match(settingsSource, /form\.addEventListener\('input'/);
+  assert.match(settingsSource, /form\.addEventListener\('change'/);
+  assert.doesNotMatch(settingsSource, /form\.addEventListener\('submit'/);
+  assert.doesNotMatch(settingsSource, /reloadState\(\)/);
+});
+
+test('desktop lyric settings debounce input and serialize the latest automatic save', async () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
+  const listeners = new Map();
+  const windowListeners = new Map();
+  const apiCalls = [];
+  const form = {
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    }
+  };
+  const autosaveState = { textContent: '', className: '' };
+  const values = {
+    desktopLyricFontFamily: 'Microsoft YaHei',
+    desktopLyricFontWeight: '800',
+    desktopLyricTextColor: '#000000',
+    desktopLyricStrokeColor: '#ffffff',
+    desktopLyricFontSize: '56',
+    desktopLyricStrokeWidth: '3',
+    desktopLyricOpacity: '0.95',
+    desktopLyricBgOpacity: '0.15',
+    desktopLyricScale: '1',
+    desktopLyricLineHeight: '1.4',
+    desktopLyricShadowIntensity: '0.35',
+    desktopLyricTranslationScale: '0.65'
+  };
+  const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
+  elements.set('desktopLyricForm', form);
+  elements.set('desktopLyricAutosaveState', autosaveState);
+  let scheduledTimer = null;
+  let resolveFirstSave;
+  const sandbox = {
+    document: {
+      getElementById(id) {
+        return elements.get(id) || null;
+      }
+    },
+    setTimeout(callback, delay) {
+      scheduledTimer = { callback, delay };
+      return 1;
+    },
+    clearTimeout() {
+      scheduledTimer = null;
+    },
+    window: {
+      addEventListener(type, handler) {
+        windowListeners.set(type, handler);
+      },
+      AdminApp: {
+        utils: {
+          value: (id) => elements.get(id)?.value || '',
+          setValue: (id, value) => { elements.get(id).value = value; },
+          api: (url, body) => {
+            apiCalls.push({ url, body });
+            if (apiCalls.length === 1) {
+              return new Promise((resolve) => { resolveFirstSave = resolve; });
+            }
+            return Promise.resolve({ ok: true });
+          }
+        },
+        forms: { bindRangePair() {} },
+        desktopLyricPreview: { init() {}, applySettings() {} }
+      }
+    }
+  };
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
+
+  listeners.get('input')();
+  assert.equal(apiCalls.length, 0);
+  assert.equal(scheduledTimer, null);
+  assert.equal(autosaveState.textContent, '正在读取设置…');
+  windowListeners.get('app:settings-state')();
+  assert.equal(scheduledTimer.delay, 500);
+  scheduledTimer.callback();
+  assert.equal(apiCalls.length, 1);
+
+  elements.get('desktopLyricFontSize').value = '64';
+  listeners.get('change')();
+  assert.equal(apiCalls.length, 1, 'a second write waits for the in-flight request');
+  resolveFirstSave({ ok: true });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(apiCalls.length, 2);
+  assert.equal(apiCalls[0].url, '/api/settings');
+  assert.equal(apiCalls[1].body.desktopLyricFontSize, '64');
+  assert.equal(autosaveState.textContent, '已自动保存');
+  assert.match(autosaveState.className, /is-saved/);
 });
 
 test('playback publishes lyrics through the authenticated local API', () => {

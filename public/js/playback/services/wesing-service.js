@@ -10,6 +10,7 @@ const EMPTY_STATUS = {
   cacheReady: false,
   platformDetected: false,
   qrcReady: false,
+  lyricSource: '',
   trackTitle: '',
   currentMs: 0,
   durationMs: 0,
@@ -179,13 +180,15 @@ export class WeSingService {
     const status = this.status;
     setText('weSingTrackTitle', status.trackTitle || '尚未检测到歌曲');
     setText('weSingTrackMeta', status.trackTitle
-      ? (status.lyricState.artists || []).join(' / ') || '全民 K歌客户端'
+      ? (status.lyricState.artists || []).join(' / ') || formatLyricSource(status.lyricSource)
       : '启动全民 K 歌并开始播放后，这里会自动跟随。');
     setText('weSingPlaybackState', status.playing ? '正在播放' : status.platformDetected ? '已暂停 / 等待进度' : '等待全民 K 歌播放');
     setText('weSingStatusMessage', status.message || EMPTY_STATUS.message);
     setText('weSingClientStatus', status.platformDetected ? '已检测' : '未检测');
-    setText('weSingCacheStatus', status.cacheReady ? '目录可用' : '待检查');
-    setText('weSingLyricStatus', status.qrcReady ? '逐字同步中' : status.status === 'loading' ? '读取中' : '等待歌曲');
+    setText('weSingCacheStatus', status.cacheReady ? '本地 QRC 可用' : '本地未生成 / 在线回退');
+    setText('weSingLyricStatus', status.qrcReady
+      ? `${formatLyricSource(status.lyricSource)}同步中`
+      : status.status === 'loading' ? '匹配中' : '等待歌曲');
     setText('weSingCurrentTime', formatTime(status.lyricState.currentMs || status.currentMs));
     setText('weSingDuration', formatTime(status.lyricState.durationMs || status.durationMs));
 
@@ -253,6 +256,13 @@ function formatTime(milliseconds) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatLyricSource(source) {
+  if (source === 'qq') return 'QQ 音乐歌词';
+  if (source === 'netease') return '网易云歌词';
+  if (source === 'wesing') return '全民本地 QRC';
+  return '全民 K歌客户端';
 }
 
 function numberValue(value, fallback) {

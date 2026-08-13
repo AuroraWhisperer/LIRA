@@ -3,10 +3,10 @@
 'use strict';
 
 (function () {
+  const AUTOSAVE_DELAY_MS = 500;
   const {
     value,
     setValue,
-    toast,
     api
   } = window.AdminApp.utils;
 
@@ -14,15 +14,6 @@
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
     window.AdminApp.desktopLyricPreview?.init(form);
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      await api('/api/settings', collectDesktopLyric());
-      toast('桌面歌词设置已保存');
-      if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-        await window.AdminApp.state.reloadState();
-      }
-    });
 
     // Range ↔ Number 双向绑定
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
@@ -36,6 +27,67 @@
       bindRangePair('desktopLyricShadowIntensity', 'desktopLyricShadowIntensityNumber', 0, 1, 0.5);
       bindRangePair('desktopLyricTranslationScale', 'desktopLyricTranslationScaleNumber', 0.4, 1, 0.58);
     }
+
+    const autosaveState = document.getElementById('desktopLyricAutosaveState');
+    let autosaveTimer = null;
+    let dirty = false;
+    let saving = false;
+    let pendingSave = false;
+    let settingsLoaded = Boolean(window.AdminApp.state?.getAppState?.()?.settings);
+
+    const setAutosaveState = (text, state = '') => {
+      if (!autosaveState) return;
+      autosaveState.textContent = text;
+      autosaveState.className = `desktop-lyric-autosave-state${state ? ` ${state}` : ''}`;
+    };
+
+    const saveDesktopLyric = async () => {
+      if (!dirty || !settingsLoaded) return;
+      if (saving) {
+        pendingSave = true;
+        return;
+      }
+
+      saving = true;
+      dirty = false;
+      setAutosaveState('正在自动保存…', 'is-saving');
+      try {
+        await api('/api/settings', collectDesktopLyric());
+        if (!dirty) setAutosaveState('已自动保存', 'is-saved');
+      } catch (_) {
+        dirty = true;
+        setAutosaveState('自动保存失败，请重试', 'is-error');
+      } finally {
+        saving = false;
+        if (pendingSave) {
+          pendingSave = false;
+          void saveDesktopLyric();
+        }
+      }
+    };
+
+    const scheduleAutosave = (immediate = false) => {
+      dirty = true;
+      clearTimeout(autosaveTimer);
+      if (!settingsLoaded) {
+        setAutosaveState('正在读取设置…', 'is-saving');
+        return;
+      }
+      setAutosaveState(immediate ? '正在自动保存…' : '等待自动保存…', 'is-saving');
+      if (immediate) void saveDesktopLyric();
+      else autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
+    };
+
+    window.addEventListener('app:settings-state', () => {
+      if (settingsLoaded) return;
+      settingsLoaded = true;
+      if (!dirty) return;
+      setAutosaveState('等待自动保存…', 'is-saving');
+      autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
+    });
+
+    form.addEventListener('input', () => scheduleAutosave());
+    form.addEventListener('change', () => scheduleAutosave(true));
   }
 
   function collectDesktopLyric() {
