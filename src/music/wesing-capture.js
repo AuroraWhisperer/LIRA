@@ -416,8 +416,9 @@ function createWeSingCapture(options = {}) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        pausePlaybackClock(timestamp);
-        state.playing = false;
+        startPlaybackClock(timestamp);
+        state.playing = true;
+        state.waitingForPlayback = false;
       } else if (sampledCurrentMs !== lastProgressMs) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
@@ -430,6 +431,10 @@ function createWeSingCapture(options = {}) {
         pausePlaybackClock(timestamp);
         state.playing = false;
       }
+    } else if (state.waitingForPlayback) {
+      startPlaybackClock(timestamp);
+      state.playing = true;
+      state.waitingForPlayback = false;
     }
 
     state.currentMs = readPlaybackClock(timestamp);

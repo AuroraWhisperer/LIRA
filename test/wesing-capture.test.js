@@ -115,7 +115,7 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
   assert.equal(state.platformDetected, true);
   assert.equal(state.trackTitle, '测试歌曲');
   assert.equal(state.lyricState.lineText, '你好');
-  assert.equal(state.lyricState.playing, false);
+  assert.equal(state.lyricState.playing, true);
   assert.equal(state.lyricState.words.length, 2);
 
   currentTime = 1100;
@@ -141,7 +141,7 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
   assert.equal(capture.getStatus().active, false);
 });
 
-test('WeSing capture waits for observed progress movement before starting its clock', async () => {
+test('WeSing capture keeps a monotonic fallback clock when progress text is unavailable', async () => {
   let onSample = null;
   let currentTime = 1000;
   const capture = createWeSingCapture({
@@ -157,29 +157,23 @@ test('WeSing capture waits for observed progress movement before starting its cl
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
   let state = capture.getStatus();
   assert.equal(state.currentMs, 0);
-  assert.equal(state.playing, false);
+  assert.equal(state.playing, true);
 
   currentTime = 2250;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
   state = capture.getStatus();
-  assert.equal(state.currentMs, 0);
-  assert.equal(state.playing, false);
+  assert.equal(state.currentMs, 1250);
+  assert.equal(state.playing, true);
 
   currentTime = 2500;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 2, totalSec: 255 });
   state = capture.getStatus();
   assert.equal(state.currentMs, 2130);
   assert.equal(state.durationMs, 255000);
-  assert.equal(state.playing, false);
-
-  currentTime = 2600;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 3, totalSec: 255 });
-  state = capture.getStatus();
-  assert.equal(state.currentMs, 3130);
   assert.equal(state.playing, true);
 });
 
-test('WeSing capture holds lyrics at zero while the client reports song loading', async () => {
+test('WeSing capture starts its fallback clock when the client finishes loading without progress text', async () => {
   let onSample = null;
   let currentTime = 1000;
   const capture = createWeSingCapture({
@@ -203,13 +197,13 @@ test('WeSing capture holds lyrics at zero while the client reports song loading'
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 2000;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 0, totalSec: 255, loading: false });
-  assert.equal(capture.getStatus().currentMs, 130);
-  assert.equal(capture.getStatus().playing, false);
+  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1, loading: false });
+  assert.equal(capture.getStatus().currentMs, 0);
+  assert.equal(capture.getStatus().playing, true);
 
-  currentTime = 3000;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 1, totalSec: 255, loading: false });
-  assert.equal(capture.getStatus().currentMs, 1130);
+  currentTime = 2250;
+  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1, loading: false });
+  assert.equal(capture.getStatus().currentMs, 250);
   assert.equal(capture.getStatus().playing, true);
 });
 
@@ -293,12 +287,12 @@ test('WeSing capture restarts timing after the client returns and freezes on mon
   currentTime = 2500;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
   assert.equal(capture.getStatus().currentMs, 0);
-  assert.equal(capture.getStatus().playing, false);
+  assert.equal(capture.getStatus().playing, true);
 
   currentTime = 3000;
   onSample({ error: 'UI Automation stopped' });
   const failedState = capture.getStatus();
-  assert.equal(failedState.currentMs, 0);
+  assert.equal(failedState.currentMs, 500);
   assert.equal(failedState.playing, false);
   assert.equal(failedState.lyricState.playing, false);
   assert.equal(failedState.status, 'error');

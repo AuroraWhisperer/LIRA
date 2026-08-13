@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a persistent manual WeSing lyric offset and prevent lyric timing from starting while WeSing is still loading or before playback progress is proven to move.
+**Goal:** Add a persistent manual WeSing lyric offset and prevent lyric timing from starting while WeSing is still loading without breaking clients that expose no progress text.
 
-**Architecture:** Keep the authoritative raw WeSing playback clock in `wesing-capture.js`, derive an offset lyric clock only when constructing `lyricState`, and expose a narrowly validated offset endpoint. Detect loading through the existing UI Automation text scan and require a changed valid progress sample before starting a new track. The browser UI edits the setting, while all lyric consumers receive the same backend-derived state.
+**Architecture:** Keep the authoritative raw WeSing playback clock in `wesing-capture.js`, derive an offset lyric clock only when constructing `lyricState`, and expose a narrowly validated offset endpoint. Detect loading through the existing UI Automation text scan, pause while that signal is present, then use the same optimistic monotonic fallback as Now Playing when progress text is unavailable. The browser UI edits the setting, while all lyric consumers receive the same backend-derived state.
 
 **Tech Stack:** Node.js 24, CommonJS server modules, browser ES modules, Node `node:test`, PowerShell UI Automation.
 
@@ -32,10 +32,9 @@
 - [ ] **Step 1: Write failing timing tests**
 
 ```js
+onSample({ detected: true, title, currentSec: -1, totalSec: -1, loading: true });
 assert.equal(capture.getStatus().playing, false);
-onSample({ detected: true, title, currentSec: 0, totalSec: 255, loading: false });
-assert.equal(capture.getStatus().playing, false);
-onSample({ detected: true, title, currentSec: 1, totalSec: 255, loading: false });
+onSample({ detected: true, title, currentSec: -1, totalSec: -1, loading: false });
 assert.equal(capture.getStatus().playing, true);
 ```
 
@@ -190,4 +189,3 @@ Run: `npm test`
 - [ ] **Step 3: Review the final diff for unrelated changes**
 
 Run: `git diff --check` and `git diff --stat`
-
