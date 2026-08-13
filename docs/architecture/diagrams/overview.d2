@@ -1,0 +1,157 @@
+# 点歌助手 · 项目整体全貌(思维导图)
+# 来源:Mermaid mindmap,由 D2 树结构重绘
+# 渲染(d2 0.7.1 PNG 直出依赖 Playwright 驱动,改用 SVG + Edge 截图):
+#   d2 --pad 12 overview.d2 overview.svg
+#   msedge --headless=new --window-size=<W>,<H> --screenshot=overview.png file:///…/overview.svg
+#   (<W>,<H> 取 SVG 根元素 width/height)
+
+direction: right
+
+root: {
+  label: "点歌助手\nv3.3.14"
+  shape: oval
+  class: root
+}
+
+root -> backend
+root -> desktop
+root -> frontend
+root -> modes
+root -> upstream
+root -> deps
+
+backend: {label: "后端服务\nNode≥24 · Port 3000"; class: branch}
+backend -> transport
+backend -> music
+backend -> bili
+backend -> storage
+
+transport: {label: "传输层"; class: sub}
+transport -> http
+transport -> ws
+http: {label: "HTTP 服务\n手写路由 · 90端点 · 15模块"; class: leaf}
+ws: {label: "WebSocket\n手写RFC6455 · 快照15字段"; class: leaf}
+
+music: {label: "音乐子系统"; class: sub}
+music -> qq
+music -> netease
+music -> wesing
+music -> domain
+music -> lyrics
+qq: {label: "QQ音乐Provider\n13端点 · GTK · zzcSign · QRC"; class: leaf}
+netease: {label: "网易云Provider\n12端点 · weapi · AES+RSA"; class: leaf}
+wesing: {label: "全民K歌Provider\n日志扫描 · QRC解密 · PS/C#监视"; class: leaf}
+domain: {label: "领域服务编排\n曲库 · 队列 · 匹配打分 · 冷却 · 缓存"; class: leaf}
+lyrics: {label: "歌词解析器\nLRC · YRC · QRC · 逐字词 · 时间容差"; class: leaf}
+
+bili: {label: "B站子系统"; class: sub}
+bili -> protocol
+bili -> danmaku
+bili -> gift
+bili -> overtime
+bili -> ai
+protocol: {label: "协议层\nHTTP · WBI签名 · WS二进制帧 · protobuf"; class: leaf}
+danmaku: {label: "弹幕机器人\n轮询去重 · 命令解析 · 签到抽签"; class: leaf}
+gift: {label: "礼物检测管道\nprogress→final账本 · 醒目留言SC"; class: leaf}
+overtime: {label: "加班机\n权威倒计时 · 幂等结算 · 盲盒规则"; class: leaf}
+ai: {label: "AI弹幕姬小爱\nDeepSeek双路由 · 6工具 · 配额加密"; class: leaf}
+
+storage: {label: "存储层"; class: sub}
+storage -> sqlite
+storage -> settings
+sqlite: {label: "SQLite\n5数据库 · 26张表 · 迁移系统"; class: leaf}
+settings: {label: "Settings全表\n运行时配置"; class: leaf}
+
+desktop: {label: "桌面壳 Electron43"; class: branch}
+desktop -> win
+desktop -> login
+desktop -> lmp
+desktop -> ipc
+desktop -> upd
+win: {label: "窗口管理\n单实例锁 · 辅助窗口三个"; class: leaf}
+login: {label: "登录系统\nCookie分区 · DPAPI加密"; class: leaf}
+lmp: {label: "local-media协议\n本地音频文件服务"; class: leaf}
+ipc: {label: "IPC桥\n33通道 · contextBridge"; class: leaf}
+upd: {label: "自动更新\nelectron-updater状态机"; class: leaf}
+
+frontend: {label: "前端 Vanilla JS"; class: branch}
+frontend -> admin
+frontend -> player
+frontend -> overlays
+admin: {label: "Admin管理后台\nEventBus · DI · StateService · 27模块"; class: leaf}
+player: {label: "播放引擎\n状态机 · 音源解析 · 队列持久化"; class: leaf}
+overlays: {label: "OBS悬浮层五个"; class: sub}
+overlays -> o1
+overlays -> o2
+overlays -> o3
+overlays -> o4
+overlays -> o5
+o1: {label: "队列层"; class: leaf}
+o2: {label: "歌单层"; class: leaf}
+o3: {label: "盲盒层"; class: leaf}
+o4: {label: "加班机层"; class: leaf}
+o5: {label: "桌面歌词层"; class: leaf}
+
+modes: {label: "三种运行形态"; class: branch}
+modes -> m1
+modes -> m2
+modes -> m3
+m1: {label: "npm start\n纯Node独立服务"; class: leaf}
+m2: {label: "npm run desktop\nElectron同进程内嵌"; class: leaf}
+m3: {label: "OBS浏览器源\n直连悬浮层页面"; class: leaf}
+
+upstream: {label: "外部上游"; class: branch}
+upstream -> u1
+upstream -> u2
+upstream -> u3
+upstream -> u4
+upstream -> u5
+u1: {label: "QQ音乐API\n逆向工程接入"; class: leaf}
+u2: {label: "网易云API\n逆向工程接入"; class: leaf}
+u3: {label: "B站直播API\nWS长连+HTTP"; class: leaf}
+u4: {label: "DeepSeek API\nLLM推理"; class: leaf}
+u5: {label: "全民K歌App\n本机日志监视"; class: leaf}
+
+deps: {label: "三个运行时依赖"; class: branch}
+deps -> qms
+deps -> qrc
+deps -> eupd
+qms: {label: "qmweb-sign\nQQ签名"; class: leaf}
+qrc: {label: "qrc-decoder\nQRC解密"; class: leaf}
+eupd: {label: "electron-updater\n更新"; class: leaf}
+
+classes: {
+  root: {
+    style: {
+      fill: "#c0392b"
+      stroke: "#922b21"
+      font-color: "#ffffff"
+      bold: true
+    }
+  }
+  branch: {
+    style: {
+      fill: "#1f618d"
+      stroke: "#154360"
+      font-color: "#ffffff"
+      bold: true
+      border-radius: 8
+    }
+  }
+  sub: {
+    style: {
+      fill: "#d6eaf8"
+      stroke: "#5dade2"
+      font-color: "#1a5276"
+      border-radius: 8
+    }
+  }
+  leaf: {
+    style: {
+      fill: "#fdfefe"
+      stroke: "#aed6f1"
+      font-color: "#2c3e50"
+      border-radius: 8
+    }
+  }
+}

@@ -1,0 +1,153 @@
+# 点歌助手 · 整体架构图(组件与连接)
+# 来源:Mermaid graph TD,由 D2 重绘(undirected `---` 转为 `<->`;`A -> B & C` 链式 0.7.1 不支持,已展开为逐行)
+# 渲染(d2 0.7.1 PNG 直出依赖 Playwright 驱动,改用 SVG + Edge 截图):
+#   d2 --pad 12 components.d2 components.svg
+#   msedge --headless=new --window-size=<W>,<H> --screenshot=components.png file:///…/components.svg
+#   (<W>,<H> 取 SVG 根元素 width/height)
+# 注: d2 0.7.1 dagre 忽略容器内 direction(子元素一律横排),故用 grid-rows 分行控制宽度
+
+direction: down
+
+S1: {label: "⚡ npm start\n独立服务"; class: entry}
+S2: {label: "🖥 npm run desktop\nElectron 桌面"; class: entry}
+S3: {label: "📺 OBS 浏览器源\n悬浮层直连"; class: entry}
+
+DSK: {
+  label: "🖥 桌面壳 · Electron 43"
+  grid-rows: 2
+  style: {fill: "#eaf2f8"; stroke: "#2980b9"; font-color: "#1a5276"; border-radius: 12}
+  DM: {label: "主进程\n窗口管理 · 单实例锁"; class: desk}
+  DA: {label: "登录 & 会话\nCookie分区 · DPAPI加密\nQQ / 网易云 / B站各自分区"; class: desk}
+  DP: {label: "local-media://\n本地音频文件协议"; class: desk}
+  DI: {label: "IPC桥 · 33通道\ncontextBridge preload"; class: desk}
+  DU: {label: "自动更新\nelectron-updater 状态机"; class: desk}
+  DW: {label: "辅助窗口\n歌词窗 · QQ登录 · B站登录"; class: desk}
+}
+
+BK: {
+  label: "⚙ 后端服务 · Node ≥ 24 · 127.0.0.1:3000"
+  grid-rows: 2
+  style: {fill: "#f8f9f9"; stroke: "#85929e"; font-color: "#2c3e50"; border-radius: 12}
+  BH: {label: "HTTP 服务\nnode:http 手写路由\n15 路由模块 · 90 端点"; class: trans}
+  BW: {label: "WebSocket\n手写 RFC 6455\n快照 15 字段 · 实时广播"; class: trans}
+  BT: {label: "Token 注入\n请求鉴权中间件"; class: trans}
+
+  MUS: {
+    label: "🎵 音乐子系统"
+    grid-rows: 2
+    style: {fill: "#e8f8f5"; stroke: "#1a7a4e"; font-color: "#0b5345"; border-radius: 12}
+    MS: {label: "领域服务编排\nProvider注册 · 曲库 · 队列\n匹配打分 · 冷却 · 缓存"; class: music}
+    ML: {label: "歌词解析器\nLRC · YRC · QRC\n逐字词 · 时间容差"; class: music}
+    MQ: {label: "QQ音乐Provider\n13端点 · GTK签名 · zzcSign"; class: music}
+    MN: {label: "网易云 Provider\n12端点 · weapi · AES+RSA"; class: music}
+    MW: {label: "全民K歌 Provider\n日志扫描 · QRC解密\nPowerShell/C# 监视"; class: music}
+  }
+
+  BIL: {
+    label: "📡 B站子系统"
+    style: {fill: "#f4ecf7"; stroke: "#7d3c98"; font-color: "#4a235a"; border-radius: 12}
+    BP: {label: "协议层\nHTTP API · WBI签名\nWS二进制帧 · protobuf"; class: bili}
+    BD: {label: "弹幕机器人\n轮询 · 去重 · 命令解析\n签到 · 抽签 · 自定义回复"; class: bili}
+    BG: {label: "礼物检测管道\nprogress→final 账本\n醒目留言 SC"; class: bili}
+  }
+
+  FEA: {
+    label: "🔧 功能服务"
+    style: {fill: "#fdf2e9"; stroke: "#ca6f1e"; font-color: "#6e2f1a"; border-radius: 12}
+    FO: {label: "加班机\n服务端权威倒计时\n礼物结算幂等 · 盲盒规则"; class: feat}
+    FA: {label: "AI 弹幕姬 小爱\nDeepSeek双路由 · 6工具\n配额管理 · 密钥加密"; class: feat}
+  }
+
+  STO: {
+    label: "💾 存储层"
+    style: {fill: "#fdedec"; stroke: "#c0392b"; font-color: "#7b241c"; border-radius: 12}
+    SD: {label: "SQLite · node:sqlite\n5 数据库 · 26 张表\n迁移系统 · 保留策略"; class: stor}
+    SS: {label: "Settings 配置表\n运行时全局设置"; class: stor}
+  }
+}
+
+FRN: {
+  label: "🌐 前端 · Vanilla JS ES Modules · 无打包器"
+  grid-rows: 2
+  style: {fill: "#fef9e7"; stroke: "#d4ac0d"; font-color: "#6b4c11"; border-radius: 12}
+  FAD: {label: "Admin 管理后台\nEventBus · DI · StateService\n27 个功能模块"; class: front}
+  FPL: {label: "播放引擎\n状态机 · 音源解析\n本地文件 · 队列持久化"; class: front}
+  OVL: {
+    label: "📺 OBS 悬浮层 ×5\n透明背景 · 双通道数据"
+    grid-rows: 2
+    style: {fill: "#eaf2f8"; stroke: "#5dade2"; font-color: "#1a5276"; border-radius: 12}
+    OV1: {label: "队列层"; class: over}
+    OV2: {label: "歌单层"; class: over}
+    OV3: {label: "盲盒层"; class: over}
+    OV4: {label: "加班机层"; class: over}
+    OV5: {label: "桌面歌词层"; class: over}
+  }
+}
+
+EXT: {
+  label: "🌍 外部上游"
+  grid-rows: 2
+  style: {fill: "#f2f3f4"; stroke: "#717d7e"; font-color: "#212f3d"; border-radius: 12}
+  EQ: {label: "QQ音乐 API"; class: ext}
+  EN: {label: "网易云 API"; class: ext}
+  EB: {label: "B站直播 API"; class: ext}
+  EA: {label: "DeepSeek LLM"; class: ext}
+  EW: {label: "全民K歌 App\n本机日志"; class: ext}
+}
+
+# ── 连接 ──
+S1 -> BK
+S2 -> DSK
+DSK -> BK: "同进程内嵌后端"
+S3 -> OVL
+
+BT -> BH
+BH <-> FAD: "同源静态服务 + API"
+BH <-> FPL: "音源 URL 解析"
+BW <-> FAD: "实时快照推送"
+BW -> OV1: "状态广播"
+BW -> OV2: "状态广播"
+BW -> OV3: "状态广播"
+BW -> OV4: "状态广播"
+BW -> OV5: "状态广播"
+
+DI <-> FAD: "IPC 通信"
+DP -> FPL: "本地音频流"
+DA -> MQ: "Cookie 注入"
+DA -> MN: "Cookie 注入"
+
+MS -> MQ
+MS -> MN
+MS -> MW
+MS -> ML
+ML -> FPL
+
+BD -> BP
+BG -> BP
+BG -> FO
+
+MS -> SD
+BD -> SD
+BG -> SD
+FO -> SD
+FA -> SD
+SS <-> SD
+
+MQ <-> EQ: "逆向 API"
+MN <-> EN: "逆向 API"
+BP <-> EB: "WS + HTTP"
+FA <-> EA: "LLM 调用"
+MW <-> EW: "日志监视"
+
+classes: {
+  entry: {style: {fill: "#c0392b"; stroke: "#922b21"; font-color: "#ffffff"; border-radius: 10}}
+  desk: {style: {fill: "#1a252f"; stroke: "#2980b9"; font-color: "#85c1e9"}}
+  trans: {style: {fill: "#154360"; stroke: "#1f618d"; font-color: "#aed6f1"}}
+  music: {style: {fill: "#0b5345"; stroke: "#1a7a4e"; font-color: "#a9dfbf"}}
+  bili: {style: {fill: "#4a235a"; stroke: "#7d3c98"; font-color: "#d2b4de"}}
+  feat: {style: {fill: "#6e2f1a"; stroke: "#ca6f1e"; font-color: "#fad7a0"}}
+  stor: {style: {fill: "#7b241c"; stroke: "#c0392b"; font-color: "#f1948a"}}
+  front: {style: {fill: "#6b4c11"; stroke: "#d4ac0d"; font-color: "#fef9e7"}}
+  over: {style: {fill: "#1a5276"; stroke: "#5dade2"; font-color: "#d6eaf8"}}
+  ext: {style: {fill: "#212f3d"; stroke: "#717d7e"; font-color: "#abb2b9"}}
+}

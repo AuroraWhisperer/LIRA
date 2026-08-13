@@ -1,7 +1,8 @@
-# ADR-001: Make Local Runtime Resources Instance-Owned
+# ADR-0001: Make Local Runtime Resources Instance-Owned
 
-## Status
-Accepted
+- Status: Accepted
+- Date: 2026-08-13
+- Original ID: ADR-001
 
 ## Context
 The desktop app embeds an HTTP/WebSocket server in the Electron main process. Previously, loading `src/server.js` created databases and mutable runtime state, while WebSocket timers and selected cache paths were module globals. Electron also opened a server-owned SQLite file directly. These boundaries made lifecycle cleanup and isolated tests depend on module-load order.
@@ -35,6 +36,7 @@ Keep the application as a modular monolith with the existing four SQLite files. 
 - Rejected: it preserves hidden initialization order and cannot reliably release owned resources.
 
 ## References
-- `src/server.js`
-- `src/server/ws.js`
-- `src/electron/main.js`
+- ../backend/server-core.md
+- ../backend/ws.md
+- ../backend/storage.md
+- ../desktop/main.md
