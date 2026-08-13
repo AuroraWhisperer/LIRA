@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
+using Accessibility;
 
 public sealed class WeSingPlaybackWindow
 {
@@ -12,8 +14,28 @@ public sealed class WeSingPlaybackWindow
     public string Title { get; set; }
 }
 
+public sealed class WeSingAudioSessionSnapshot
+{
+    public int State { get; set; }
+    public float Peak { get; set; }
+}
+
+public sealed class WeSingAccessiblePlaybackSnapshot
+{
+    public int CurrentSec { get; set; }
+    public int TotalSec { get; set; }
+    public bool Loading { get; set; }
+}
+
 public static class WeSingNativeMonitor
 {
+    private const uint AccessibleClientObjectId = 0xFFFFFFFC;
+    private const int MaximumAccessibleDepth = 20;
+    private const int MaximumAccessibleNodes = 3000;
+    private static readonly Regex ProgressPattern = new Regex(
+        @"^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$",
+        RegexOptions.Compiled
+    );
     private delegate bool EnumWindowsProc(IntPtr handle, IntPtr parameter);
 
     [DllImport("user32.dll")]
@@ -27,6 +49,23 @@ public static class WeSingNativeMonitor
 
     [DllImport("user32.dll")]
     private static extern int GetWindowTextLength(IntPtr handle);
+
+    [DllImport("oleacc.dll")]
+    private static extern int AccessibleObjectFromWindow(
+        IntPtr window,
+        uint objectId,
+        ref Guid interfaceId,
+        [MarshalAs(UnmanagedType.Interface)] out object accessible
+    );
+
+    [DllImport("oleacc.dll")]
+    private static extern int AccessibleChildren(
+        [MarshalAs(UnmanagedType.Interface)] object container,
+        int childStart,
+        int childCount,
+        [In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] object[] children,
+        out int obtained
+    );
 
     public static WeSingPlaybackWindow FindPlaybackWindow(int[] processIds)
     {
@@ -42,15 +81,118 @@ public static class WeSingNativeMonitor
             var text = new StringBuilder(length + 1);
             GetWindowText(handle, text, text.Capacity);
             string title = text.ToString();
-            if (!title.StartsWith("全民K歌 - ", StringComparison.Ordinal) || title.Length <= 7) return true;
+            if (!title.StartsWith("\u5168\u6c11K\u6b4c - ", StringComparison.Ordinal) || title.Length <= 7) return true;
             result = new WeSingPlaybackWindow { Handle = handle, Title = title };
             return false;
         }, IntPtr.Zero);
         return result;
     }
 
-    public static int GetAudioSessionState(int[] processIds)
+    public static WeSingAccessiblePlaybackSnapshot GetAccessiblePlaybackSnapshot(IntPtr windowHandle)
     {
+        var result = new WeSingAccessiblePlaybackSnapshot { CurrentSec = -1, TotalSec = -1 };
+        object rootObject = null;
+        try
+        {
+            Guid accessibleId = typeof(IAccessible).GUID;
+            if (AccessibleObjectFromWindow(
+                windowHandle,
+                AccessibleClientObjectId,
+                ref accessibleId,
+                out rootObject
+            ) < 0) return result;
+            var root = rootObject as IAccessible;
+            if (root == null) return result;
+            int visitedNodes = 0;
+            ReadAccessibleTree(root, 0, result, ref visitedNodes);
+            return result;
+        }
+        catch
+        {
+            return result;
+        }
+        finally
+        {
+            ReleaseComObject(rootObject);
+        }
+    }
+
+    private static bool ReadAccessibleTree(
+        IAccessible accessible,
+        int depth,
+        WeSingAccessiblePlaybackSnapshot result,
+        ref int visitedNodes
+    )
+    {
+        if (accessible == null || depth > MaximumAccessibleDepth || visitedNodes >= MaximumAccessibleNodes) {
+            return false;
+        }
+        visitedNodes += 1;
+        if (ReadAccessibleNode(accessible, 0, result)) return true;
+
+        int childCount;
+        try { childCount = accessible.accChildCount; } catch { return false; }
+        if (childCount <= 0 || childCount > 10000) return false;
+        var children = new object[childCount];
+        int obtained;
+        try
+        {
+            if (AccessibleChildren(accessible, 0, childCount, children, out obtained) < 0) return false;
+        }
+        catch
+        {
+            return false;
+        }
+
+        for (int index = 0; index < obtained && visitedNodes < MaximumAccessibleNodes; index += 1)
+        {
+            var childAccessible = children[index] as IAccessible;
+            if (childAccessible != null)
+            {
+                try
+                {
+                    if (ReadAccessibleTree(childAccessible, depth + 1, result, ref visitedNodes)) return true;
+                }
+                finally
+                {
+                    ReleaseComObject(childAccessible);
+                }
+                continue;
+            }
+            visitedNodes += 1;
+            if (ReadAccessibleNode(accessible, children[index], result)) return true;
+        }
+        return false;
+    }
+
+    private static bool ReadAccessibleNode(
+        IAccessible accessible,
+        object childId,
+        WeSingAccessiblePlaybackSnapshot result
+    )
+    {
+        string name = ReadAccessibleText(() => accessible.get_accName(childId));
+        if (name.IndexOf("\u6b4c\u66f2\u52a0\u8f7d\u4e2d", StringComparison.Ordinal) >= 0) {
+            result.Loading = true;
+        }
+        var match = ProgressPattern.Match(name);
+        if (!match.Success) return false;
+        int current = (int.Parse(match.Groups[1].Value) * 60) + int.Parse(match.Groups[2].Value);
+        int total = (int.Parse(match.Groups[3].Value) * 60) + int.Parse(match.Groups[4].Value);
+        if (total <= 0 || current < 0 || current > total) return false;
+        result.CurrentSec = current;
+        result.TotalSec = total;
+        return true;
+    }
+
+    private static string ReadAccessibleText(Func<string> reader)
+    {
+        try { return reader() ?? string.Empty; } catch { return string.Empty; }
+    }
+
+    public static WeSingAudioSessionSnapshot GetAudioSessionSnapshot(int[] processIds)
+    {
+        var result = new WeSingAudioSessionSnapshot { State = -1, Peak = 0f };
         var wanted = new HashSet<int>(processIds ?? new int[0]);
         object deviceEnumeratorObject = null;
         IMMDevice device = null;
@@ -68,6 +210,7 @@ public static class WeSingNativeMonitor
             int count;
             Marshal.ThrowExceptionForHR(sessions.GetCount(out count));
             bool found = false;
+            bool active = false;
             for (int index = 0; index < count; index += 1)
             {
                 IAudioSessionControl control = null;
@@ -79,18 +222,26 @@ public static class WeSingNativeMonitor
                     if (control2.GetProcessId(out processId) < 0 || !wanted.Contains(processId)) continue;
                     found = true;
                     AudioSessionState state;
-                    if (control.GetState(out state) >= 0 && state == AudioSessionState.Active) return 1;
+                    if (control.GetState(out state) >= 0 && state == AudioSessionState.Active) active = true;
+                    try
+                    {
+                        var meter = (IAudioMeterInformation)control;
+                        float peak;
+                        if (meter.GetPeakValue(out peak) >= 0 && peak > result.Peak) result.Peak = peak;
+                    }
+                    catch { }
                 }
                 finally
                 {
                     ReleaseComObject(control);
                 }
             }
-            return found ? 0 : -1;
+            result.State = found ? (active ? 1 : 0) : -1;
+            return result;
         }
         catch
         {
-            return -1;
+            return result;
         }
         finally
         {
@@ -99,6 +250,11 @@ public static class WeSingNativeMonitor
             ReleaseComObject(device);
             ReleaseComObject(deviceEnumeratorObject);
         }
+    }
+
+    public static int GetAudioSessionState(int[] processIds)
+    {
+        return GetAudioSessionSnapshot(processIds).State;
     }
 
     private static void ReleaseComObject(object value)
@@ -182,6 +338,15 @@ internal interface IAudioSessionControl2
     [PreserveSig] int GetProcessId(out int processId);
     [PreserveSig] int IsSystemSoundsSession();
     [PreserveSig] int SetDuckingPreference([MarshalAs(UnmanagedType.Bool)] bool optOut);
+}
+
+[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("C02216F6-8C67-4B5B-9D00-D008E73E0064")]
+internal interface IAudioMeterInformation
+{
+    [PreserveSig] int GetPeakValue(out float peak);
+    [PreserveSig] int GetMeteringChannelCount(out int channelCount);
+    [PreserveSig] int GetChannelsPeakValues(int channelCount, [Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] float[] peaks);
+    [PreserveSig] int QueryHardwareSupport(out int hardwareSupportMask);
 }
 `;
 

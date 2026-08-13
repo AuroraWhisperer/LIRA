@@ -393,7 +393,99 @@ test('WeSing capture lets explicit audio inactivity override stale UI progress',
     audioActive: false
   });
   assert.equal(capture.getStatus().playing, false);
-  assert.equal(capture.getStatus().currentMs, 10330);
+  assert.equal(capture.getStatus().currentMs, 10130, '暂停时应锚定全民报告的真实进度');
+
+  await capture.setActive(false);
+});
+
+test('WeSing capture keeps a measured pause frozen even when the audio session stays active', async () => {
+  let onSample = null;
+  let currentTime = 1000;
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    now: () => currentTime,
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    }
+  });
+
+  await capture.setActive(true);
+  const sample = (currentSec) => onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec,
+    totalSec: 207,
+    audioActive: true,
+    audioPeak: 0
+  });
+
+  sample(30);
+  currentTime = 2000;
+  sample(31);
+  currentTime = 3600;
+  sample(31);
+  const pausedMs = capture.getStatus().currentMs;
+  assert.equal(capture.getStatus().playing, false);
+
+  currentTime = 5000;
+  sample(31);
+  assert.equal(capture.getStatus().playing, false, 'Active 不能推翻不变的真实进度');
+  assert.equal(capture.getStatus().currentMs, pausedMs);
+
+  currentTime = 5200;
+  sample(32);
+  assert.equal(capture.getStatus().playing, true, '真实进度重新变化后才恢复');
+  assert.ok(capture.getStatus().currentMs >= 32130);
+
+  await capture.setActive(false);
+});
+
+test('WeSing capture resets a same-title replay when measured progress returns to zero', async () => {
+  let onSample = null;
+  let currentTime = 1000;
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    now: () => currentTime,
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    }
+  });
+
+  await capture.setActive(true);
+  const sample = (currentSec, audioActive = true) => onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec,
+    totalSec: 207,
+    audioActive
+  });
+
+  sample(121);
+  currentTime = 2000;
+  sample(122);
+  assert.equal(capture.getStatus().playing, true);
+
+  currentTime = 3000;
+  sample(122, false);
+  assert.equal(capture.getStatus().playing, false);
+
+  currentTime = 10000;
+  sample(122, false);
+  currentTime = 11000;
+  sample(122, true);
+  assert.equal(capture.getStatus().playing, false, '同歌重进时的陈旧进度不能恢复旧时钟');
+
+  currentTime = 11200;
+  sample(0, true);
+  assert.equal(capture.getStatus().currentMs, 130);
+  assert.equal(capture.getStatus().playing, false, '归零后应等待全民真实进度开始走');
+
+  currentTime = 12200;
+  sample(1, true);
+  assert.equal(capture.getStatus().playing, true);
+  assert.ok(capture.getStatus().currentMs >= 1130 && capture.getStatus().currentMs < 1200);
 
   await capture.setActive(false);
 });

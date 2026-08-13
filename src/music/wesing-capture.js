@@ -431,6 +431,11 @@ function createWeSingCapture(options = {}) {
 
     if (audioActive === false) {
       pausePlaybackClock(timestamp);
+      if (hasSampledProgress) {
+        lastProgressMs = sampledCurrentMs;
+        lastProgressChangeAt = timestamp;
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
+      }
       state.currentMs = readPlaybackClock(timestamp);
       state.playing = false;
       state.waitingForPlayback = !hasStartedCurrentTrack;
@@ -442,8 +447,21 @@ function createWeSingCapture(options = {}) {
     if (hasSampledProgress) {
       const progressChanged = lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
       const isFirstProgress = lastProgressMs < 0;
+      const replayedFromStart = lastProgressMs > 3000
+        && sampledCurrentMs <= 2000
+        && sampledCurrentMs < lastProgressMs - 2000;
 
-      if (progressChanged) {
+      if (replayedFromStart) {
+        pausePlaybackClock(timestamp);
+        lastProgressMs = sampledCurrentMs;
+        lastProgressChangeAt = timestamp;
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
+        hasStartedCurrentTrack = sampledCurrentMs > 0;
+        state.playing = sampledCurrentMs > 0;
+        state.waitingForPlayback = sampledCurrentMs === 0;
+        if (state.playing) startPlaybackClock(timestamp);
+        state.message = `检测到《${title}》重新开始，歌词已回到开头。`;
+      } else if (progressChanged) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
@@ -466,10 +484,6 @@ function createWeSingCapture(options = {}) {
           state.playing = false;
           state.waitingForPlayback = true;
         }
-      } else if (audioActive === true && hasStartedCurrentTrack && !state.playing) {
-        startPlaybackClock(timestamp);
-        state.playing = true;
-        state.waitingForPlayback = false;
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
         pausePlaybackClock(timestamp);
         state.playing = false;
@@ -700,13 +714,16 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
   let child = null;
   let stopping = false;
   let pending = '';
+  let pendingError = '';
 
   function start() {
     if (child) return;
     stopping = false;
-    const encoded = Buffer.from(buildPowerShellMonitorScript(), 'utf16le').toString('base64');
+    const script = buildPowerShellMonitorScript(options);
+    const encoded = Buffer.from(script, 'utf8').toString('base64');
+    const command = `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')) | Invoke-Expression`;
     child = spawn('powershell.exe', [
-      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command
     ], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
@@ -718,12 +735,20 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
         try { onSample(JSON.parse(row)); } catch (_) {}
       }
     });
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk) => {
+      pendingError = `${pendingError}${chunk}`.slice(-2000);
+    });
     child.on('error', (error) => {
       if (!stopping) onSample({ error: error.message || String(error) });
     });
     child.on('exit', (code) => {
       child = null;
-      if (!stopping && code !== 0) onSample({ error: `监视进程已退出（${code}）` });
+      if (!stopping && code !== 0) {
+        const detail = pendingError.trim();
+        onSample({ error: detail || `监视进程已退出（${code}）` });
+      }
+      pendingError = '';
     });
   }
 
@@ -738,7 +763,12 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
   return { start, stop };
 }
 
-function buildPowerShellMonitorScript() {
+function buildPowerShellMonitorScript(options = {}) {
+  const includeDiagnostics = options.includeDiagnostics === true ? '$true' : '$false';
+  const requestedIntervalMs = Math.round(Number(options.pollIntervalMs));
+  const pollIntervalMs = Number.isFinite(requestedIntervalMs)
+    ? Math.min(5000, Math.max(100, requestedIntervalMs))
+    : 100;
   return String.raw`
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -746,23 +776,37 @@ $ProgressPreference = 'SilentlyContinue'
 $OutputEncoding = [Console]::OutputEncoding
 Add-Type -AssemblyName UIAutomationClient | Out-Null
 Add-Type -AssemblyName UIAutomationTypes | Out-Null
+Add-Type -AssemblyName Accessibility | Out-Null
 $nativeSource = @'
 ${WESING_NATIVE_MONITOR_SOURCE}
 '@
-Add-Type -TypeDefinition $nativeSource | Out-Null
+Add-Type -TypeDefinition $nativeSource -ReferencedAssemblies Accessibility | Out-Null
 $descendants = [System.Windows.Automation.TreeScope]::Descendants
+$diagnosticsEnabled = ${includeDiagnostics}
 while ($true) {
-  $sample = @{ detected = $false; title = ''; currentSec = -1; totalSec = -1; loading = $false }
+  $sample = @{ detected = $false; title = ''; currentSec = -1; totalSec = -1; loading = $false; audioPeak = -1; windowHandle = 0 }
   $processes = @()
   try {
     $processes = @(Get-Process -Name WeSing -ErrorAction SilentlyContinue)
     if ($processes.Count -gt 0) { $sample.detected = $true }
     $processIds = [int[]]@($processes | ForEach-Object { [int]$_.Id })
-    $audioState = [WeSingNativeMonitor]::GetAudioSessionState($processIds)
-    if ($audioState -ge 0) { $sample.audioActive = $audioState -eq 1 }
+    if ($diagnosticsEnabled) { $sample.processIds = @($processIds) }
+    $audioSnapshot = [WeSingNativeMonitor]::GetAudioSessionSnapshot($processIds)
+    if ($audioSnapshot.State -ge 0) {
+      $sample.audioActive = $audioSnapshot.State -eq 1
+      $sample.audioPeak = [Math]::Round([double]$audioSnapshot.Peak, 6)
+    }
     $windowSnapshot = [WeSingNativeMonitor]::FindPlaybackWindow($processIds)
     if ($null -ne $windowSnapshot) {
       $sample.title = $windowSnapshot.Title
+      $sample.windowHandle = $windowSnapshot.Handle.ToInt64()
+      $accessibleSnapshot = [WeSingNativeMonitor]::GetAccessiblePlaybackSnapshot($windowSnapshot.Handle)
+      if ($accessibleSnapshot.CurrentSec -ge 0) {
+        $sample.currentSec = $accessibleSnapshot.CurrentSec
+        $sample.totalSec = $accessibleSnapshot.TotalSec
+        $sample.progressSource = 'msaa'
+      }
+      if ($accessibleSnapshot.Loading) { $sample.loading = $true }
       try {
         $playWindow = [System.Windows.Automation.AutomationElement]::FromHandle($windowSnapshot.Handle)
         if ($null -ne $playWindow) {
@@ -773,11 +817,36 @@ while ($true) {
           $texts = $playWindow.FindAll($descendants, $textCondition)
           foreach ($textElement in $texts) {
             $text = [string]$textElement.Current.Name
-            if ($text -match '歌曲加载中') { $sample.loading = $true }
+            if ($text -match '\u6b4c\u66f2\u52a0\u8f7d\u4e2d') { $sample.loading = $true }
             if ($sample.currentSec -lt 0 -and $text -match '^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$') {
               $sample.currentSec = ([int]$matches[1] * 60) + [int]$matches[2]
               $sample.totalSec = ([int]$matches[3] * 60) + [int]$matches[4]
+              $sample.progressSource = 'uia'
             }
+          }
+          if ($diagnosticsEnabled) {
+            $controlRows = [System.Collections.Generic.List[object]]::new()
+            $controls = $playWindow.FindAll(
+              $descendants,
+              [System.Windows.Automation.Condition]::TrueCondition
+            )
+            foreach ($control in $controls) {
+              if ($controlRows.Count -ge 250) { break }
+              try {
+                $controlType = [string]$control.Current.ControlType.ProgrammaticName
+                if ($controlType -notmatch '(Button|Text|Slider)') { continue }
+                $controlName = [string]$control.Current.Name
+                $automationId = [string]$control.Current.AutomationId
+                if (-not $controlName -and -not $automationId) { continue }
+                $controlRows.Add(@{
+                  type = $controlType
+                  name = $controlName
+                  automationId = $automationId
+                  enabled = [bool]$control.Current.IsEnabled
+                })
+              } catch {}
+            }
+            $sample.controls = @($controlRows)
           }
         }
       } catch {}
@@ -789,7 +858,7 @@ while ($true) {
   }
   Write-Output ($sample | ConvertTo-Json -Compress)
   [Console]::Out.Flush()
-  Start-Sleep -Milliseconds 100
+  Start-Sleep -Milliseconds ${pollIntervalMs}
 }
 `;
 }

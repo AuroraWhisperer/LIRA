@@ -1,8 +1,17 @@
 # 打包与更新说明
 
-当前版本：`3.3.12`
+当前版本：`3.3.13`
 
 ---
+
+## v3.3.13 变更
+
+- 🕹️ **全民 K 歌状态机三处修正**：音频非活动且有进度样本时，暂停位置锚定到全民报告的真实进度（+130ms 补偿）而非冻结本地插值位置；移除「Active 音频会话恢复时钟」分支——全民暂停时音频会话可能仍为 Active，不得推翻不变的真实进度，真实进度重新变化后才恢复播放；新增同曲重播检测——进度从 >3 秒大幅回退到 ≤2 秒（回退 ≥2 秒）判定为重新开始，歌词时钟回到开头并提示「检测到《》重新开始，歌词已回到开头。」，归零后等待真实进度起播。
+- 📊 **MSAA 无障碍进度读取**：原生监视新增 `GetAccessiblePlaybackSnapshot`——`AccessibleObjectFromWindow` + IAccessible 树遍历（深度 ≤20、节点 ≤3000 守卫）读取 `MM:SS | MM:SS` 进度文本与「歌曲加载中」标记，UIA 文本树读不到进度时回退 MSAA。采样新增 `progressSource` 字段（`msaa` / `uia`）标记进度来源。
+- 🎚️ **音频峰值采样**：原生音频会话快照新增 `IAudioMeterInformation` 峰值读取，采样新增 `audioPeak` 字段（保留 6 位小数），供诊断判断全民是否真实出声。
+- 🛠️ **监视脚本健壮性与诊断模式**：PowerShell 调用从 UTF-16 `-EncodedCommand` 改为 UTF-8 base64 + `Invoke-Expression`（修复脚本内中文文本编码问题，中文全部转义为 `\u` 序列）；捕获 stderr（最近 2000 字符），监视进程异常退出时错误信息附带具体原因；采样间隔可配置（`pollIntervalMs`，100–5000ms 钳制，默认 100ms）；`includeDiagnostics` 诊断模式附加转储进程 ID 与最多 250 个 UIA 控件明细（类型/名称/automationId/启用状态）。
+- 🔬 **全民 K 歌播放诊断工具**：新增 `scripts/inspect-wesing-playback.js`（`npm run diagnose:wesing`）——交互式诊断采样转储与 WeSing 客户端日志增量 tail（UTF-16LE 流式解析、`StartKSong` 提取歌名/mid），支持数字键操作打标（开始录制/暂停/继续/退出/重进/歌词不正确 6 种标记），采样与标记统一写入 `logs/wesing-playback-diagnostic-<时间>.jsonl`。自动从本地运行中的软件读取 WeSingCache 配置（`--cache` 可覆盖），`--duration` 支持 1–3600 秒定时结束。
+- 🧪 **测试覆盖增强**：`test/wesing-capture-recording-mode.test.js` 新增「Active 会话不推翻不变的真实进度」「同曲重播归零重置」测试并更新暂停锚定断言（10330 → 10130）。`test/wesing-capture.test.js` 监视脚本断言更新（MSAA / audioPeak / windowHandle / progressSource / `\u` 转义）。新增 `test/wesing-playback-diagnostic.test.js`——6 个诊断工具测试（参数解析、非法参数拒绝、操作标记映射、本地运行配置读取、StartKSong 提取、采样摘要不含 UIA 控件明细）。
 
 ## v3.3.12 变更
 

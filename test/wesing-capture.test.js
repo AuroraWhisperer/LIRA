@@ -366,14 +366,20 @@ test('WeSing monitor uses Now Playing polling cadence', () => {
   const script = buildPowerShellMonitorScript();
   assert.match(script, /Start-Sleep -Milliseconds 100/);
   assert.match(script, /loading = \$false/);
-  assert.match(script, /歌曲加载中/);
+  assert.match(script, /\\u6b4c\\u66f2\\u52a0\\u8f7d\\u4e2d/);
 });
 
 test('WeSing monitor finds hidden playback windows and reports audio activity', () => {
   const script = buildPowerShellMonitorScript();
   assert.match(script, /EnumWindows/);
+  assert.match(script, /AccessibleObjectFromWindow/);
+  assert.match(script, /GetAccessiblePlaybackSnapshot/);
+  assert.match(script, /progressSource = 'msaa'/);
   assert.match(script, /IAudioSessionManager2/);
+  assert.match(script, /IAudioMeterInformation/);
   assert.match(script, /audioActive/);
+  assert.match(script, /audioPeak/);
+  assert.match(script, /windowHandle/);
   assert.match(script, /AutomationElement\]::FromHandle/);
 });
 
