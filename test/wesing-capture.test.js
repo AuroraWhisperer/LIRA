@@ -218,6 +218,75 @@ test('WeSing capture waits for measured progress after the client finishes loadi
   assert.equal(capture.getStatus().playing, true);
 });
 
+test('WeSing capture refreshes lyrics once after the client finishes loading', async () => {
+  let onSample = null;
+  const requestedDurations = [];
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    },
+    async resolveFallbackLyrics({ title, durationMs }) {
+      requestedDurations.push(durationMs);
+      const loaded = durationMs === 200000;
+      return {
+        source: 'qq',
+        songMid: loaded ? 'correct_mid' : 'stale_mid',
+        title,
+        artists: [loaded ? '正确歌手' : '错误歌手'],
+        durationMs,
+        lines: [{
+          startMs: 0,
+          endMs: durationMs,
+          text: loaded ? '正确歌词' : '错误歌词',
+          words: []
+        }]
+      };
+    }
+  });
+
+  await capture.setActive(true);
+  onSample({
+    detected: true,
+    title: '全民K歌 - 同名歌曲',
+    currentSec: 0,
+    totalSec: 180,
+    loading: true
+  });
+  await capture.waitForRefresh();
+  assert.deepEqual(capture.getStatus().lyricState.artists, ['错误歌手']);
+
+  onSample({
+    detected: true,
+    title: '全民K歌 - 同名歌曲',
+    currentSec: 0,
+    totalSec: 200,
+    loading: false
+  });
+  await capture.waitForRefresh();
+
+  let state = capture.getStatus();
+  assert.deepEqual(requestedDurations, [180000, 200000]);
+  assert.equal(state.songMid, 'correct_mid');
+  assert.deepEqual(state.lyricState.artists, ['正确歌手']);
+  assert.equal(state.lyricState.lineText, '正确歌词');
+
+  onSample({
+    detected: true,
+    title: '全民K歌 - 同名歌曲',
+    currentSec: 1,
+    totalSec: 200,
+    loading: false
+  });
+  await capture.waitForRefresh();
+  state = capture.getStatus();
+  assert.deepEqual(requestedDurations, [180000, 200000]);
+  assert.equal(state.playing, true);
+
+  await capture.setActive(false);
+});
+
 test('WeSing capture freezes on a confirmed pause and preserves it through unavailable samples', async () => {
   let onSample = null;
   let currentTime = 1000;

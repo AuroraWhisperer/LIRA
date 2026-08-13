@@ -239,6 +239,7 @@ function createWeSingCapture(options = {}) {
   let playbackClockStartedAt = 0;
   let playbackClockRunning = false;
   let hasStartedCurrentTrack = false;
+  let loadingTrackTitle = '';
 
   const state = {
     active: false,
@@ -292,6 +293,7 @@ function createWeSingCapture(options = {}) {
     if (!nextActive) {
       stopMonitor();
       stopQrcWatcher();
+      loadingTrackTitle = '';
       pausePlaybackClock(now());
       state.playing = false;
       state.platformDetected = false;
@@ -375,6 +377,7 @@ function createWeSingCapture(options = {}) {
         : null;
 
     if (!state.platformDetected) {
+      loadingTrackTitle = '';
       pausePlaybackClock(timestamp);
       state.currentMs = readPlaybackClock(timestamp);
       state.playing = false;
@@ -393,6 +396,7 @@ function createWeSingCapture(options = {}) {
       resetPlaybackClock(timestamp);
     }
     if (titleChanged) {
+      loadingTrackTitle = '';
       state.trackTitle = title;
       state.currentMs = 0;
       state.playing = false;
@@ -407,6 +411,7 @@ function createWeSingCapture(options = {}) {
     }
 
     if (!title) {
+      loadingTrackTitle = '';
       pausePlaybackClock(timestamp);
       state.currentMs = readPlaybackClock(timestamp);
       state.playing = false;
@@ -420,6 +425,7 @@ function createWeSingCapture(options = {}) {
     if (sampledDurationMs > 0) state.durationMs = sampledDurationMs;
 
     if (sample.loading === true) {
+      loadingTrackTitle = title;
       resetPlaybackClock(timestamp);
       state.currentMs = 0;
       state.playing = false;
@@ -427,6 +433,11 @@ function createWeSingCapture(options = {}) {
       updateLyricState();
       emit();
       return;
+    }
+
+    if (loadingTrackTitle === title) {
+      loadingTrackTitle = '';
+      pendingRefresh = refresh();
     }
 
     if (audioActive === false) {
@@ -699,6 +710,7 @@ function createWeSingCapture(options = {}) {
 
   function stop() {
     state.active = false;
+    loadingTrackTitle = '';
     pausePlaybackClock(now());
     state.playing = false;
     state.platformDetected = false;
