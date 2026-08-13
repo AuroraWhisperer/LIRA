@@ -303,7 +303,7 @@ export function createEventHandlers(deps) {
       const pct = audio.duration > 0 ? Math.round((audio.currentTime / audio.duration) * 1000) / 10 : 0;
       event.target.style.setProperty('--seek-pos', pct + '%');
       renderFullscreenPlayer();
-      syncPlaybackLyricWindow();
+      syncPlaybackLyricWindow(true);
       savePlaybackState();
     });
   }

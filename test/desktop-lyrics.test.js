@@ -323,6 +323,71 @@ test('playback publishes a complete timeline only when the lyric identity change
   assert.equal(timelineRequests[0].body.lines[0].text, '制作：Timeline Studio');
 });
 
+test('forced playback states bypass throttling and preserve publication order', async () => {
+  const stateRequests = [];
+  let releaseFirstState;
+  const playback = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
+    {
+      fetch: async (url, options) => {
+        if (url === '/api/playback/lyric-timeline') return { ok: true };
+        stateRequests.push(JSON.parse(options.body));
+        if (stateRequests.length === 1) {
+          return new Promise((resolve) => {
+            releaseFirstState = () => resolve({ ok: true });
+          });
+        }
+        return { ok: true };
+      }
+    }
+  );
+  const service = new playback.LyricService();
+  const track = {
+    id: 'qq:controlled-song',
+    source: 'qq',
+    title: 'Controlled Song',
+    artists: ['Controlled Artist'],
+    lyrics: { lines: [{ startMs: 0, text: '第一句' }, { startMs: 42000, text: '跳转后' }] }
+  };
+  const audio = { currentTime: 1, duration: 120, paused: false };
+
+  const playingPublish = service.syncWindow(track, audio, true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(stateRequests.length, 1);
+
+  audio.currentTime = 42;
+  audio.paused = true;
+  const seekAndPausePublish = service.syncWindow(track, audio, true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(stateRequests.length, 1, 'newer state waits until the prior request finishes');
+
+  releaseFirstState();
+  await Promise.all([playingPublish, seekAndPausePublish]);
+  assert.equal(stateRequests.length, 2);
+  assert.equal(stateRequests[0].playing, true);
+  assert.equal(stateRequests[0].currentMs, 1000);
+  assert.equal(stateRequests[1].playing, false);
+  assert.equal(stateRequests[1].currentMs, 42000);
+  assert.equal(stateRequests[1].lineText, '跳转后');
+});
+
+test('built-in playback forces lyric sync for play, pause, and seek transitions', () => {
+  const initializer = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'initializer.js'),
+    'utf8'
+  );
+  const handlers = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'event-handlers.js'),
+    'utf8'
+  );
+
+  assert.match(initializer, /addEventListener\('play', \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/);
+  assert.match(initializer, /addEventListener\('pause', \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/);
+  assert.match(initializer, /addEventListener\('seeking', \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/);
+  assert.match(initializer, /addEventListener\('seeked', \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/);
+  assert.match(handlers, /getElementById\('playbackSeek'\)[\s\S]*?syncPlaybackLyricWindow\(true\)/);
+});
+
 test('desktop lyric timeline identifies active lines and countdowns for long gaps', async () => {
   const preview = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js')

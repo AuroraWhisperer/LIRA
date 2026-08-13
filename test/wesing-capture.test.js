@@ -188,7 +188,7 @@ test('WeSing capture freezes on a confirmed pause and preserves it through unava
   currentTime = 2600;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 10, totalSec: 255 });
   const pausedAt = capture.getStatus().currentMs;
-  assert.equal(pausedAt, 11600);
+  assert.equal(pausedAt, 10000);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 3600;
@@ -221,7 +221,7 @@ test('WeSing capture accepts backward progress as replay or seek calibration', a
   assert.equal(capture.getStatus().playing, true);
 });
 
-test('WeSing capture resumes timing after the client returns and freezes on monitor errors', async () => {
+test('WeSing capture restarts timing after the client returns and freezes on monitor errors', async () => {
   let onSample = null;
   let currentTime = 1000;
   const capture = createWeSingCapture({
@@ -242,13 +242,13 @@ test('WeSing capture resumes timing after the client returns and freezes on moni
 
   currentTime = 2500;
   onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
-  assert.equal(capture.getStatus().currentMs, 5500);
+  assert.equal(capture.getStatus().currentMs, 0);
   assert.equal(capture.getStatus().playing, true);
 
   currentTime = 3000;
   onSample({ error: 'UI Automation stopped' });
   const failedState = capture.getStatus();
-  assert.equal(failedState.currentMs, 6000);
+  assert.equal(failedState.currentMs, 500);
   assert.equal(failedState.playing, false);
   assert.equal(failedState.lyricState.playing, false);
   assert.equal(failedState.status, 'error');

@@ -14,6 +14,7 @@ export class LyricService {
     this.windowLocked = false;
     this.lastPublishedState = '';
     this.lastPublishedAt = 0;
+    this.statePublishQueue = Promise.resolve();
     this.lastTimelineTrackKey = null;
     this.lastTimelineLyrics = null;
   }
@@ -254,16 +255,20 @@ export class LyricService {
     this.lastPublishedState = serialized;
     this.lastPublishedAt = now;
 
-    try {
-      const response = await fetch('/api/playback/lyric-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: serialized
-      });
-      if (!response.ok) this.lastPublishedState = '';
-    } catch (_) {
-      this.lastPublishedState = '';
-    }
+    const publish = async () => {
+      try {
+        const response = await fetch('/api/playback/lyric-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: serialized
+        });
+        if (!response.ok && this.lastPublishedState === serialized) this.lastPublishedState = '';
+      } catch (_) {
+        if (this.lastPublishedState === serialized) this.lastPublishedState = '';
+      }
+    };
+    this.statePublishQueue = this.statePublishQueue.then(publish, publish);
+    await this.statePublishQueue;
   }
 
   /**

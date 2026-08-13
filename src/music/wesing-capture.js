@@ -214,7 +214,6 @@ function createWeSingCapture(options = {}) {
   let playbackClockBaseMs = 0;
   let playbackClockStartedAt = 0;
   let playbackClockRunning = false;
-  let resumeAfterDetectionLoss = false;
 
   const state = {
     active: false,
@@ -255,7 +254,6 @@ function createWeSingCapture(options = {}) {
       pausePlaybackClock(now());
       state.playing = false;
       state.platformDetected = false;
-      resumeAfterDetectionLoss = false;
       state.status = 'inactive';
       state.message = '全民 K 歌捕捉未启用。';
       updateLyricState();
@@ -330,7 +328,6 @@ function createWeSingCapture(options = {}) {
       : 0;
 
     if (!state.platformDetected) {
-      if (wasPlatformDetected) resumeAfterDetectionLoss = state.playing;
       pausePlaybackClock(timestamp);
       state.currentMs = readPlaybackClock(timestamp);
       state.playing = false;
@@ -343,7 +340,11 @@ function createWeSingCapture(options = {}) {
 
     const titleChanged = title !== state.trackTitle;
     const platformResumed = !wasPlatformDetected && !titleChanged;
-    const shouldResumePlayback = platformResumed && resumeAfterDetectionLoss;
+    if (platformResumed) {
+      state.currentMs = 0;
+      state.playing = false;
+      resetPlaybackClock(timestamp);
+    }
     if (titleChanged) {
       state.trackTitle = title;
       state.currentMs = 0;
@@ -372,22 +373,22 @@ function createWeSingCapture(options = {}) {
     if (sampledDurationMs > 0) state.durationMs = sampledDurationMs;
 
     if (hasSampledProgress) {
-      if (sampledCurrentMs !== lastProgressMs || shouldResumePlayback) {
+      if (sampledCurrentMs !== lastProgressMs) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs, timestamp);
         startPlaybackClock(timestamp);
         state.playing = true;
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
+        setPlaybackClock(sampledCurrentMs, timestamp);
         pausePlaybackClock(timestamp);
         state.playing = false;
       }
-    } else if (titleChanged || shouldResumePlayback) {
+    } else if (titleChanged || platformResumed) {
       startPlaybackClock(timestamp);
       state.playing = true;
     }
 
-    if (platformResumed) resumeAfterDetectionLoss = false;
     state.currentMs = readPlaybackClock(timestamp);
     updateLyricState();
     emit();
@@ -545,7 +546,6 @@ function createWeSingCapture(options = {}) {
     pausePlaybackClock(now());
     state.playing = false;
     state.platformDetected = false;
-    resumeAfterDetectionLoss = false;
     stopMonitor();
   }
 

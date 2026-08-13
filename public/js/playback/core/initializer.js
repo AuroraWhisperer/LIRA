@@ -46,6 +46,7 @@ export function createInitializer(deps) {
     // 设置全屏播放器 seek 回调
     uiRenderer.getFullscreenPlayer().setSeekCallback(() => {
       renderPlaybackProgress();
+      syncPlaybackLyricWindow(true);
       savePlaybackState();
     });
 
@@ -84,13 +85,26 @@ export function createInitializer(deps) {
     audio.addEventListener('play', () => {
       renderPlayback();
       updatePlaybackMediaSession();
-      syncPlaybackLyricWindow();
+      syncPlaybackLyricWindow(true);
     });
 
     audio.addEventListener('pause', () => {
       renderPlayback();
       updatePlaybackMediaSession();
-      syncPlaybackLyricWindow();
+      syncPlaybackLyricWindow(true);
+      savePlaybackState();
+    });
+
+    audio.addEventListener('seeking', () => {
+      renderPlaybackProgress();
+      renderFullscreenPlayer();
+      syncPlaybackLyricWindow(true);
+    });
+
+    audio.addEventListener('seeked', () => {
+      renderPlaybackProgress();
+      renderFullscreenPlayer();
+      syncPlaybackLyricWindow(true);
       savePlaybackState();
     });
 
