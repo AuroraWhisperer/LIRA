@@ -43,7 +43,7 @@ test('WeSing capture waits for progress change when starting at 0 seconds', asyn
   await capture.setActive(false);
 });
 
-test('WeSing capture pauses quickly when progress stops changing at non-zero position', async () => {
+test('WeSing capture distinguishes an unchanged integer second from a confirmed pause', async () => {
   let onSample = null;
   let currentTime = 1000;
   const capture = createWeSingCapture({
@@ -71,18 +71,24 @@ test('WeSing capture pauses quickly when progress stops changing at non-zero pos
   state = capture.getStatus();
   assert.equal(state.playing, true, '300ms内应该还在播放');
 
-  // 400ms 后（超过 PAUSED_AFTER_MS = 300ms），进度仍然是 58 秒
+  // 400ms 后仍可能只是整数秒显示尚未跳动，不能误判为暂停
   currentTime = 1400;
   onSample({ detected: true, title: '全民K歌 - 收集诗句', currentSec: 58, totalSec: 207 });
   state = capture.getStatus();
-  assert.equal(state.playing, false, '进度超过300ms不变应该暂停');
+  assert.equal(state.playing, true, '同一个整数秒内应该继续播放');
+
+  // 超过 1.5 秒仍不变化，才确认全民已经暂停
+  currentTime = 2601;
+  onSample({ detected: true, title: '全民K歌 - 收集诗句', currentSec: 58, totalSec: 207 });
+  state = capture.getStatus();
+  assert.equal(state.playing, false, '进度超过1.5秒不变应该暂停');
 
   // 确认暂停在正确的位置
   const pausedMs = state.currentMs;
-  assert.ok(pausedMs > 58000 && pausedMs < 59000, `应该暂停在约58秒，实际: ${pausedMs}ms`);
+  assert.ok(pausedMs > 59000 && pausedMs < 60000, `应该冻结连续时钟，实际: ${pausedMs}ms`);
 
-  // 600ms 后，进度仍然是 58 秒，应该保持暂停
-  currentTime = 1600;
+  // 继续收到相同进度时，应该保持暂停
+  currentTime = 2800;
   onSample({ detected: true, title: '全民K歌 - 收集诗句', currentSec: 58, totalSec: 207 });
   state = capture.getStatus();
   assert.equal(state.playing, false, '应该保持暂停状态');
@@ -174,7 +180,7 @@ test('WeSing capture resets lyrics to 0 during loading state', async () => {
   await capture.setActive(false);
 });
 
-test('WeSing capture handles pause and resume correctly with 300ms threshold', async () => {
+test('WeSing capture handles pause and resume with integer-second progress', async () => {
   let onSample = null;
   let currentTime = 1000;
   const capture = createWeSingCapture({
@@ -207,26 +213,65 @@ test('WeSing capture handles pause and resume correctly with 300ms threshold', a
   state = capture.getStatus();
   assert.equal(state.playing, true, '250ms内应该还在播放');
 
-  // 超过 300ms 后
+  // 同一个整数秒内不能误判为暂停
   currentTime = 1550;
   onSample({ detected: true, title: '全民K歌 - 测试', currentSec: 31, totalSec: 180 });
   state = capture.getStatus();
-  assert.equal(state.playing, false, '超过300ms后应该暂停');
+  assert.equal(state.playing, true, '不足1.5秒时应该保持播放');
+
+  // 超过 1.5 秒后才确认暂停
+  currentTime = 2701;
+  onSample({ detected: true, title: '全民K歌 - 测试', currentSec: 31, totalSec: 180 });
+  state = capture.getStatus();
+  assert.equal(state.playing, false, '超过1.5秒后应该暂停');
 
   const pausedMs = state.currentMs;
 
   // 继续暂停
-  currentTime = 2000;
+  currentTime = 3000;
   onSample({ detected: true, title: '全民K歌 - 测试', currentSec: 31, totalSec: 180 });
   state = capture.getStatus();
   assert.equal(state.playing, false);
   assert.equal(state.currentMs, pausedMs, '暂停时时间不应增长');
 
   // 用户恢复播放
-  currentTime = 2100;
+  currentTime = 3100;
   onSample({ detected: true, title: '全民K歌 - 测试', currentSec: 32, totalSec: 180 });
   state = capture.getStatus();
   assert.equal(state.playing, true, '进度变化应该恢复播放');
+
+  await capture.setActive(false);
+});
+
+test('WeSing capture freezes immediately when recording removes the progress text', async () => {
+  let onSample = null;
+  let currentTime = 1000;
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    now: () => currentTime,
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    }
+  });
+
+  await capture.setActive(true);
+  onSample({ detected: true, title: '全民K歌 - 测试', currentSec: 10, totalSec: 180 });
+  currentTime = 1100;
+  onSample({ detected: true, title: '全民K歌 - 测试', currentSec: 11, totalSec: 180 });
+  assert.equal(capture.getStatus().playing, true);
+
+  currentTime = 1200;
+  onSample({ detected: true, title: '全民K歌 - 测试', currentSec: -1, totalSec: -1 });
+  const stoppedAt = capture.getStatus().currentMs;
+  assert.equal(stoppedAt, 11230);
+  assert.equal(capture.getStatus().playing, false);
+  assert.equal(capture.getStatus().lyricState.playing, false);
+
+  currentTime = 5000;
+  onSample({ detected: true, title: '全民K歌 - 测试', currentSec: -1, totalSec: -1 });
+  assert.equal(capture.getStatus().currentMs, stoppedAt);
+  assert.equal(capture.getStatus().playing, false);
 
   await capture.setActive(false);
 });

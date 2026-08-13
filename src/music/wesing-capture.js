@@ -11,7 +11,7 @@ const { normalizeLyricState } = require('./lyric-state');
 const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_QRC_BYTES = 4 * 1024 * 1024;
 const MAX_FALLBACK_FILES = 80;
-const PAUSED_AFTER_MS = 300;
+const PAUSED_AFTER_MS = 1500;
 const PROGRESS_COMPENSATION_MS = 130;
 const MIN_LYRIC_OFFSET_MS = -1500;
 const MAX_LYRIC_OFFSET_MS = 1500;
@@ -439,10 +439,10 @@ function createWeSingCapture(options = {}) {
         pausePlaybackClock(timestamp);
         state.playing = false;
       }
-    } else if (state.waitingForPlayback) {
-      startPlaybackClock(timestamp);
-      state.playing = true;
-      state.waitingForPlayback = false;
+    } else {
+      pausePlaybackClock(timestamp);
+      state.playing = false;
+      state.waitingForPlayback = true;
     }
 
     state.currentMs = readPlaybackClock(timestamp);
