@@ -119,9 +119,14 @@ function selectBestLyricCandidate(candidates, preferredPlatform) {
     const matchGap = Math.abs(left.matchScore - right.matchScore);
     if (matchGap > CLOSE_MATCH_SCORE_GAP) return right.matchScore - left.matchScore;
     return right.qualityScore - left.qualityScore
+      || getLyricLineCount(right) - getLyricLineCount(left)
       || left.durationDistance - right.durationDistance
       || Number(right.platform === preferredPlatform) - Number(left.platform === preferredPlatform);
   })[0] || null;
+}
+
+function getLyricLineCount(candidate) {
+  return Array.isArray(candidate?.result?.lines) ? candidate.result.lines.length : 0;
 }
 
 function scoreLyricQuality(lines) {

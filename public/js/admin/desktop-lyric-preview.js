@@ -23,6 +23,10 @@ const EMPTY_TIMELINE = {
 const COUNTDOWN_WINDOW_MS = 3000;
 const COUNTDOWN_MIN_GAP_MS = 6000;
 const MANUAL_FOLLOW_PAUSE_MS = 6000;
+const SPRING_STIFFNESS = 170;
+const SPRING_DAMPING = 26;
+const SPRING_SETTLE_DISTANCE = 0.5;
+const SPRING_SETTLE_SPEED = 2;
 
 let initialized = false;
 let renderer = null;
@@ -38,6 +42,11 @@ let activeWordSignature = '';
 let activeWordElements = [];
 let manualFollowUntil = 0;
 let followResumeTimer = 0;
+let followAnimationFrame = 0;
+let followPosition = 0;
+let followVelocity = 0;
+let followTarget = 0;
+let followFrameAt = 0;
 
 function init(form) {
   if (initialized) return;
@@ -68,11 +77,13 @@ function init(form) {
   window.addEventListener('app:settings-state', (event) => applySettings(event.detail));
   viewport.addEventListener('wheel', pauseAutomaticFollow, { passive: true });
   viewport.addEventListener('touchstart', pauseAutomaticFollow, { passive: true });
+  viewport.addEventListener('pointerdown', pauseAutomaticFollow, { passive: true });
   viewport.addEventListener('keydown', (event) => {
     if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) {
       pauseAutomaticFollow();
     }
   });
+  window.addEventListener('resize', followActiveLyric);
 
   const appState = window.AdminApp.state?.getAppState?.();
   if (appState?.lyricTimeline) updateLyricTimeline(appState.lyricTimeline);
@@ -104,6 +115,9 @@ function renderTimeline() {
   rowElements = [];
   countdownElement = null;
   activeIndex = -1;
+  stopFollowAnimation();
+  followPosition = viewport?.scrollTop || 0;
+  followVelocity = 0;
   resetActiveWords();
 
   if (!latestTimeline.lines.length) {
@@ -171,6 +185,7 @@ function renderTimelineFrame(currentMs) {
     activeIndex = nextActiveIndex;
     rowElements.forEach((row, index) => {
       row.classList.toggle('is-past', index < activeIndex);
+      row.classList.toggle('is-near', activeIndex >= 0 && Math.abs(index - activeIndex) <= 1);
       row.classList.toggle('is-active', index === activeIndex);
     });
     if (previousIndex !== activeIndex) resetActiveWords();
@@ -256,22 +271,87 @@ function updateCountdown(currentMs) {
 function followActiveLyric() {
   if (activeIndex < 0 || Date.now() < manualFollowUntil) return;
   const activeRow = rowElements[activeIndex];
-  if (!activeRow || !viewport || typeof viewport.scrollTo !== 'function') return;
+  if (!activeRow || !viewport || viewport.clientHeight <= 0) return;
+  const maximum = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+  followTarget = clamp(
+    activeRow.offsetTop - viewport.clientHeight / 2 + activeRow.offsetHeight / 2,
+    0,
+    maximum
+  );
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const targetTop = activeRow.offsetTop - viewport.clientHeight / 2 + activeRow.offsetHeight / 2;
-  viewport.scrollTo({
-    top: Math.max(0, targetTop),
-    behavior: reducedMotion ? 'auto' : 'smooth'
-  });
+  if (reducedMotion || typeof requestAnimationFrame !== 'function') {
+    stopFollowAnimation();
+    followPosition = followTarget;
+    followVelocity = 0;
+    viewport.scrollTop = followTarget;
+    return;
+  }
+  if (followAnimationFrame) return;
+  followPosition = viewport.scrollTop;
+  followFrameAt = 0;
+  viewport.classList.add('is-following');
+  followAnimationFrame = requestAnimationFrame(animateLyricFollow);
+}
+
+function animateLyricFollow(now) {
+  followAnimationFrame = 0;
+  if (!viewport || Date.now() < manualFollowUntil) {
+    stopFollowAnimation();
+    return;
+  }
+
+  const elapsedMs = followFrameAt > 0 ? now - followFrameAt : 16;
+  followFrameAt = now;
+  const next = stepSpringScroll(followPosition, followVelocity, followTarget, elapsedMs);
+  followPosition = next.position;
+  followVelocity = next.velocity;
+  viewport.scrollTop = followPosition;
+
+  if (followPosition === followTarget && followVelocity === 0) {
+    stopFollowAnimation();
+    return;
+  }
+  followAnimationFrame = requestAnimationFrame(animateLyricFollow);
+}
+
+function stopFollowAnimation() {
+  if (followAnimationFrame && typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(followAnimationFrame);
+  }
+  followAnimationFrame = 0;
+  followFrameAt = 0;
+  viewport?.classList.remove('is-following');
 }
 
 function pauseAutomaticFollow() {
   manualFollowUntil = Date.now() + MANUAL_FOLLOW_PAUSE_MS;
+  stopFollowAnimation();
+  followPosition = viewport?.scrollTop || 0;
+  followVelocity = 0;
   clearTimeout(followResumeTimer);
   followResumeTimer = setTimeout(() => {
     manualFollowUntil = 0;
+    followPosition = viewport?.scrollTop || 0;
+    followVelocity = 0;
     followActiveLyric();
   }, MANUAL_FOLLOW_PAUSE_MS);
+}
+
+export function stepSpringScroll(position, velocity, target, elapsedMs) {
+  const currentPosition = finiteNumber(position, 0);
+  const currentVelocity = finiteNumber(velocity, 0);
+  const destination = finiteNumber(target, currentPosition);
+  const deltaSeconds = clamp(finiteNumber(elapsedMs, 0) / 1000, 0, 0.05);
+  const acceleration = (destination - currentPosition) * SPRING_STIFFNESS
+    - currentVelocity * SPRING_DAMPING;
+  const nextVelocity = currentVelocity + acceleration * deltaSeconds;
+  const nextPosition = currentPosition + nextVelocity * deltaSeconds;
+
+  if (Math.abs(destination - nextPosition) <= SPRING_SETTLE_DISTANCE
+      && Math.abs(nextVelocity) <= SPRING_SETTLE_SPEED) {
+    return { position: destination, velocity: 0 };
+  }
+  return { position: nextPosition, velocity: nextVelocity };
 }
 
 export function findActiveLyricIndex(lines, currentMs) {
@@ -348,6 +428,7 @@ function applySettings(settings = {}) {
   card.style.setProperty('--preview-scale', String(numberSetting(values.desktopLyricScale, 1)));
   card.style.setProperty('--preview-line-height', String(numberSetting(values.desktopLyricLineHeight, 1.4)));
   card.style.setProperty('--preview-shadow-opacity', String(numberSetting(values.desktopLyricShadowIntensity, 0.35)));
+  followActiveLyric();
 }
 
 function readFormSettings() {

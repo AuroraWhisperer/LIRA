@@ -109,6 +109,24 @@ test('lyric timeline normalization bounds complete browser lyric payloads', () =
   assert.ok(Buffer.byteLength(JSON.stringify(timeline), 'utf8') < 220 * 1024);
 });
 
+test('lyric timeline normalization preserves all 64 renderable lines from 失控', () => {
+  const timeline = normalizeLyricTimeline({
+    trackTitle: '失控',
+    artists: ['井迪'],
+    status: 'ready',
+    lines: Array.from({ length: 64 }, (_, index) => ({
+      startMs: index === 63 ? 247519 : index * 3900,
+      endMs: index === 63 ? 248500 : index * 3900 + 3000,
+      text: index === 0 ? '井迪儿 - 失控' : index === 63 ? '多嘲讽' : `第 ${index + 1} 行`
+    }))
+  });
+
+  assert.equal(timeline.lines.length, 64);
+  assert.equal(timeline.lines[0].text, '井迪儿 - 失控');
+  assert.equal(timeline.lines.at(-1).text, '多嘲讽');
+  assert.equal(timeline.lines.at(-1).startMs, 247519);
+});
+
 test('desktop lyric settings include a live word-timed preview', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
   const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
@@ -132,6 +150,8 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(source, /app:lyric-state/);
   assert.match(source, /app:lyric-timeline/);
   assert.match(source, /createElement\('div'\)/);
+  assert.match(source, /latestTimeline\.lines\.forEach/);
+  assert.match(source, /`歌词已载入 · \$\{lineCount\} 行`/);
   assert.match(source, /textContent\s*=/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.match(source, /musicAPI\.openLyricWindow/);
@@ -147,8 +167,15 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /\.desktop-lyric-preview-countdown-dot/);
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
-  assert.match(source, /viewport\.scrollTo\(/);
+  assert.match(source, /requestAnimationFrame\(animateLyricFollow\)/);
+  assert.match(source, /stepSpringScroll/);
+  assert.match(source, /MANUAL_FOLLOW_PAUSE_MS = 6000/);
+  assert.match(source, /addEventListener\('pointerdown', pauseAutomaticFollow/);
+  assert.doesNotMatch(source, /behavior:\s*['"]smooth['"]/);
   assert.doesNotMatch(source, /scrollIntoView/);
+  assert.match(styles, /mask-image:\s*linear-gradient\(to bottom/);
+  assert.match(styles, /\.desktop-lyric-preview-viewport\.is-following/);
+  assert.match(styles, /scale\(1\.02\)/);
   assert.match(styles, /grid-template-columns:\s*minmax\(280px, 380px\) minmax\(0, 1fr\)/);
   assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
   assert.match(settingsSource, /AUTOSAVE_DELAY_MS/);
@@ -318,6 +345,23 @@ test('desktop lyric timeline identifies active lines and countdowns for long gap
   );
   assert.equal(preview.getLyricCountdown(lines, 0, 4000), null);
   assert.equal(preview.getLyricCountdown(lines, 1, 9500), null);
+});
+
+test('desktop lyric timeline spring converges smoothly on the active-line anchor', async () => {
+  const preview = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js')
+  );
+  let frame = { position: 0, velocity: 0 };
+
+  frame = preview.stepSpringScroll(frame.position, frame.velocity, 500, 16);
+  assert.ok(frame.position > 0 && frame.position < 500);
+
+  for (let index = 0; index < 180; index += 1) {
+    frame = preview.stepSpringScroll(frame.position, frame.velocity, 500, 16);
+  }
+
+  assert.equal(frame.position, 500);
+  assert.equal(frame.velocity, 0);
 });
 
 async function loadModuleExports(entryPath, globals = {}) {
