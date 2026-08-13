@@ -275,3 +275,125 @@ test('WeSing capture freezes immediately when recording removes the progress tex
 
   await capture.setActive(false);
 });
+
+test('WeSing capture uses audio activity when current WeSing exposes no progress text', async () => {
+  let onSample = null;
+  let currentTime = 1000;
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    now: () => currentTime,
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    }
+  });
+
+  await capture.setActive(true);
+
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec: -1,
+    totalSec: -1,
+    loading: true,
+    audioActive: true
+  });
+  assert.equal(capture.getStatus().currentMs, 0);
+  assert.equal(capture.getStatus().playing, false, '加载优先于音频活动状态');
+
+  currentTime = 1500;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec: -1,
+    totalSec: -1,
+    loading: false,
+    audioActive: true
+  });
+  assert.equal(capture.getStatus().currentMs, 0);
+  assert.equal(capture.getStatus().playing, true, '真实音频开始时应启动歌词');
+  assert.equal(capture.getStatus().waitingForPlayback, false);
+
+  currentTime = 2500;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec: -1,
+    totalSec: -1,
+    audioActive: true
+  });
+  assert.equal(capture.getStatus().currentMs, 1000);
+  assert.equal(capture.getStatus().playing, true);
+
+  currentTime = 2750;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec: -1,
+    totalSec: -1,
+    audioActive: false
+  });
+  const stoppedAt = capture.getStatus().currentMs;
+  assert.equal(stoppedAt, 1250);
+  assert.equal(capture.getStatus().playing, false, '停止录制时应立即冻结');
+  assert.equal(capture.getStatus().lyricState.playing, false);
+
+  currentTime = 5000;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec: -1,
+    totalSec: -1,
+    audioActive: false
+  });
+  assert.equal(capture.getStatus().currentMs, stoppedAt);
+
+  currentTime = 5200;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失眠飞行',
+    currentSec: -1,
+    totalSec: -1,
+    audioActive: true
+  });
+  assert.equal(capture.getStatus().playing, true, '恢复播放时应继续歌词时钟');
+  assert.equal(capture.getStatus().currentMs, stoppedAt);
+
+  await capture.setActive(false);
+});
+
+test('WeSing capture lets explicit audio inactivity override stale UI progress', async () => {
+  let onSample = null;
+  let currentTime = 1000;
+  const capture = createWeSingCapture({
+    platform: 'win32',
+    now: () => currentTime,
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    }
+  });
+
+  await capture.setActive(true);
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试',
+    currentSec: 10,
+    totalSec: 180,
+    audioActive: true
+  });
+  assert.equal(capture.getStatus().playing, true);
+
+  currentTime = 1200;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试',
+    currentSec: 10,
+    totalSec: 180,
+    audioActive: false
+  });
+  assert.equal(capture.getStatus().playing, false);
+  assert.equal(capture.getStatus().currentMs, 10330);
+
+  await capture.setActive(false);
+});

@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`3.3.11`
+当前版本：`3.3.12`
 
 ---
+
+## v3.3.12 变更
+
+- 🎧 **全民 K 歌原生音频会话监控**：PowerShell 监控脚本内嵌 C# interop（新增 `wesing-native-monitor-source.js`）——Win32 `EnumWindows` 枚举包括隐藏窗口在内的全部顶层窗口定位「全民K歌 - 」播放窗口（此前只查 UI Automation 桌面可见子窗口，新版客户端窗口隐藏时检测丢失）；Windows Core Audio WASAPI COM 查询默认渲染端点上 WeSing 进程的音频会话状态（`IAudioSessionManager2` → `IAudioSessionControl2.GetProcessId` → `AudioSessionState`）。采样新增 `audioActive` 字段（true / false / 无法查询时缺省），音频状态只作播放闸门、不作歌词内容来源。
+- 🕹️ **歌词时钟状态机统一决策表**：`handleMonitorSample()` 按优先级依次判定——无客户端/标题暂停、加载中归零暂停、`audioActive=false` 立即冻结并发布 `playing=false`（显式音频非活动覆盖过期 UI 进度文本）、有效进度优先采样校准、进度不可用但 `audioActive=true` 时启动/恢复本地时钟（新增 `hasStartedCurrentTrack` 守卫，仅本曲已起播过才恢复）、无可用权威保守暂停。修复新版全民 K 歌不再暴露进度文本时歌词时钟停摆、以及录制停止后静态进度残留导致误播放的问题。
+- 📄 **QRC 迟到自动刷新**：递归监听所选 `WeSingCache` 目录的 `.qrc` 创建/修改事件（`fs.watch`，2000ms 防抖），歌词文件写完后自动按当前曲目标题重新加载，不重置播放时钟——迟到的歌词直接套用在已经运行的权威时钟位置。停用捕捉、切换缓存目录、服务停止时关闭监听与防抖定时器。
+- 📖 **实现计划文档**：新增 `docs/superpowers/plans/2026-08-13-wesing-lyric-clock.md`——四任务实现计划（三路播放信号采集、状态机统一决策、QRC 监听、验证）。
+- 🧪 **测试覆盖增强**：`test/wesing-capture-recording-mode.test.js` 新增「无进度文本时由音频活动状态驱动时钟」（加载优先于音频、真实音频起播、停止录制立即冻结在 1250ms、恢复续走）与「显式音频非活动覆盖过期 UI 进度」测试。`test/wesing-capture.test.js` 新增监视脚本断言（`EnumWindows` / `IAudioSessionManager2` / `audioActive` / `FromHandle`）与「QRC 迟到刷新不重置播放时钟 + 监听关闭生命周期」测试。
 
 ## v3.3.11 变更
 

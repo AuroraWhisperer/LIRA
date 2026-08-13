@@ -359,6 +359,7 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   assert.equal(timelines.filter((timeline) => timeline.lines.length > 0).length, 1);
   assert.equal(timelines.at(-1).trackTitle, '失控');
   assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');
+  await capture.setActive(false);
 });
 
 test('WeSing monitor uses Now Playing polling cadence', () => {
@@ -366,6 +367,87 @@ test('WeSing monitor uses Now Playing polling cadence', () => {
   assert.match(script, /Start-Sleep -Milliseconds 100/);
   assert.match(script, /loading = \$false/);
   assert.match(script, /歌曲加载中/);
+});
+
+test('WeSing monitor finds hidden playback windows and reports audio activity', () => {
+  const script = buildPowerShellMonitorScript();
+  assert.match(script, /EnumWindows/);
+  assert.match(script, /IAudioSessionManager2/);
+  assert.match(script, /audioActive/);
+  assert.match(script, /AutomationElement\]::FromHandle/);
+});
+
+test('WeSing capture refreshes a late QRC without resetting the playback clock', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  let onSample = null;
+  let watchCallback = null;
+  let watcherClosed = false;
+  let scheduledRefresh = null;
+  let currentTime = 1000;
+  const capture = createWeSingCapture({
+    cachePath: fixture.cachePath,
+    platform: 'win32',
+    now: () => currentTime,
+    monitorFactory(callback) {
+      onSample = callback;
+      return { start() {}, stop() {} };
+    },
+    watchFactory(directoryPath, options, callback) {
+      assert.equal(directoryPath, fixture.cachePath);
+      assert.equal(options.recursive, true);
+      watchCallback = callback;
+      return { close() { watcherClosed = true; } };
+    },
+    setTimer(callback, delayMs) {
+      scheduledRefresh = { callback, delayMs };
+      return 1;
+    },
+    clearTimer() {
+      scheduledRefresh = null;
+    }
+  });
+
+  await capture.setActive(true);
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: -1,
+    totalSec: 8,
+    audioActive: true
+  });
+  await capture.waitForRefresh();
+  assert.equal(typeof watchCallback, 'function');
+
+  currentTime = 3000;
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: -1,
+    totalSec: 8,
+    audioActive: true
+  });
+  const beforeRefreshMs = capture.getStatus().currentMs;
+
+  const replacement = Buffer.from(encryptQrc(qrcXml(
+    '[ti:测试歌曲]\n[ar:测试歌手]\n[0,1200]新(0,600)词(600,600)',
+    { saveTime: 8 }
+  )), 'hex');
+  fs.writeFileSync(
+    path.join(fixture.cachePath, 'WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`),
+    replacement
+  );
+  watchCallback('change', path.join('WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`));
+  assert.equal(scheduledRefresh.delayMs, 2000);
+  scheduledRefresh.callback();
+  await capture.waitForRefresh();
+
+  const state = capture.getStatus();
+  assert.equal(state.currentMs, beforeRefreshMs, '歌词刷新不能重置播放时钟');
+  assert.equal(state.lyricState.lineText, '新词');
+
+  await capture.setActive(false);
+  assert.equal(watcherClosed, true);
 });
 
 test('WeSing lyric offset is validated, persisted, and applied without changing raw progress', async (t) => {

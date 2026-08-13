@@ -7,12 +7,14 @@ const { performance } = require('node:perf_hooks');
 const { decryptQrc } = require('qrc-decoder');
 const { findCurrentLyricLine, parseLyricResult } = require('./lyrics');
 const { normalizeLyricState } = require('./lyric-state');
+const { WESING_NATIVE_MONITOR_SOURCE } = require('./wesing-native-monitor-source');
 
 const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_QRC_BYTES = 4 * 1024 * 1024;
 const MAX_FALLBACK_FILES = 80;
 const PAUSED_AFTER_MS = 1500;
 const PROGRESS_COMPENSATION_MS = 130;
+const QRC_REFRESH_DEBOUNCE_MS = 2000;
 const MIN_LYRIC_OFFSET_MS = -1500;
 const MAX_LYRIC_OFFSET_MS = 1500;
 const SAFE_SONG_MID = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -212,12 +214,20 @@ function createWeSingCapture(options = {}) {
   const onState = typeof options.onState === 'function' ? options.onState : () => {};
   const onTimeline = typeof options.onTimeline === 'function' ? options.onTimeline : () => {};
   const monitorFactory = options.monitorFactory || ((callback) => createPowerShellWeSingMonitor(callback));
+  const watchFactory = options.watchFactory || ((directoryPath, watchOptions, listener) => (
+    fs.watch(directoryPath, watchOptions, listener)
+  ));
+  const setTimer = typeof options.setTimer === 'function' ? options.setTimer : setTimeout;
+  const clearTimer = typeof options.clearTimer === 'function' ? options.clearTimer : clearTimeout;
   const resolveFallbackLyrics = typeof options.resolveFallbackLyrics === 'function'
     ? options.resolveFallbackLyrics
     : null;
   let cachePath = safeInitialCachePath(options.cachePath);
   let lyricOffsetMs = safeInitialLyricOffsetMs(options.lyricOffsetMs);
   let monitor = null;
+  let cacheWatcher = null;
+  let watchedCachePath = '';
+  let qrcRefreshTimer = null;
   let lyrics = [];
   let lyricArtists = [];
   let lyricDurationMs = 0;
@@ -228,6 +238,7 @@ function createWeSingCapture(options = {}) {
   let playbackClockBaseMs = 0;
   let playbackClockStartedAt = 0;
   let playbackClockRunning = false;
+  let hasStartedCurrentTrack = false;
 
   const state = {
     active: false,
@@ -250,6 +261,7 @@ function createWeSingCapture(options = {}) {
   };
 
   async function setCachePath(input) {
+    stopQrcWatcher();
     cachePath = normalizeWeSingCachePath(input);
     state.cachePath = cachePath;
     if (typeof options.saveCachePath === 'function') await options.saveCachePath(cachePath);
@@ -279,6 +291,7 @@ function createWeSingCapture(options = {}) {
     state.active = nextActive;
     if (!nextActive) {
       stopMonitor();
+      stopQrcWatcher();
       pausePlaybackClock(now());
       state.playing = false;
       state.platformDetected = false;
@@ -310,6 +323,7 @@ function createWeSingCapture(options = {}) {
 
   async function refresh() {
     state.cacheReady = await isDirectory(path.join(cachePath, 'WeSingDL', 'Res'));
+    await syncQrcWatcher();
     if (!state.active) {
       emit();
       return getStatus();
@@ -354,6 +368,11 @@ function createWeSingCapture(options = {}) {
     const sampledDurationMs = Number.isFinite(sampledDurationSec) && sampledDurationSec > 0
       ? sampledDurationSec * 1000
       : 0;
+    const audioActive = sample.audioActive === true
+      ? true
+      : sample.audioActive === false
+        ? false
+        : null;
 
     if (!state.platformDetected) {
       pausePlaybackClock(timestamp);
@@ -410,6 +429,16 @@ function createWeSingCapture(options = {}) {
       return;
     }
 
+    if (audioActive === false) {
+      pausePlaybackClock(timestamp);
+      state.currentMs = readPlaybackClock(timestamp);
+      state.playing = false;
+      state.waitingForPlayback = !hasStartedCurrentTrack;
+      updateLyricState();
+      emit();
+      return;
+    }
+
     if (hasSampledProgress) {
       const progressChanged = lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
       const isFirstProgress = lastProgressMs < 0;
@@ -420,6 +449,7 @@ function createWeSingCapture(options = {}) {
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
         startPlaybackClock(timestamp);
         state.playing = true;
+        hasStartedCurrentTrack = true;
         state.waitingForPlayback = false;
         if (state.qrcReady) state.message = `正在同步《${title}》的逐字歌词。`;
       } else if (isFirstProgress) {
@@ -429,20 +459,31 @@ function createWeSingCapture(options = {}) {
         if (sampledCurrentMs > 0) {
           startPlaybackClock(timestamp);
           state.playing = true;
+          hasStartedCurrentTrack = true;
           state.waitingForPlayback = false;
         } else {
           pausePlaybackClock(timestamp);
           state.playing = false;
           state.waitingForPlayback = true;
         }
+      } else if (audioActive === true && hasStartedCurrentTrack && !state.playing) {
+        startPlaybackClock(timestamp);
+        state.playing = true;
+        state.waitingForPlayback = false;
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
         pausePlaybackClock(timestamp);
         state.playing = false;
       }
+    } else if (audioActive === true) {
+      startPlaybackClock(timestamp);
+      state.playing = true;
+      hasStartedCurrentTrack = true;
+      state.waitingForPlayback = false;
+      if (state.qrcReady) state.message = `正在同步《${title}》的逐字歌词。`;
     } else {
       pausePlaybackClock(timestamp);
       state.playing = false;
-      state.waitingForPlayback = true;
+      state.waitingForPlayback = !hasStartedCurrentTrack;
     }
 
     state.currentMs = readPlaybackClock(timestamp);
@@ -483,6 +524,7 @@ function createWeSingCapture(options = {}) {
     playbackClockRunning = false;
     lastProgressMs = -1;
     lastProgressChangeAt = timestamp;
+    hasStartedCurrentTrack = false;
     state.waitingForPlayback = true;
   }
 
@@ -582,6 +624,46 @@ function createWeSingCapture(options = {}) {
     });
   }
 
+  async function syncQrcWatcher() {
+    if (!state.active || !cachePath || !await isDirectory(cachePath)) {
+      stopQrcWatcher();
+      return;
+    }
+    if (cacheWatcher && watchedCachePath === cachePath) return;
+    stopQrcWatcher();
+    try {
+      cacheWatcher = watchFactory(cachePath, { recursive: true }, handleQrcWatchEvent);
+      cacheWatcher.unref?.();
+      watchedCachePath = cachePath;
+    } catch (_) {
+      cacheWatcher = null;
+      watchedCachePath = '';
+    }
+  }
+
+  function handleQrcWatchEvent(_eventType, filename) {
+    if (!state.active || !/\.qrc$/i.test(String(filename || ''))) return;
+    if (qrcRefreshTimer !== null) clearTimer(qrcRefreshTimer);
+    qrcRefreshTimer = setTimer(() => {
+      qrcRefreshTimer = null;
+      if (!state.active || !state.trackTitle) return;
+      pendingRefresh = refreshLyrics(state.trackTitle);
+    }, QRC_REFRESH_DEBOUNCE_MS);
+    qrcRefreshTimer?.unref?.();
+  }
+
+  function stopQrcWatcher() {
+    if (qrcRefreshTimer !== null) {
+      clearTimer(qrcRefreshTimer);
+      qrcRefreshTimer = null;
+    }
+    if (cacheWatcher) {
+      try { cacheWatcher.close(); } catch (_) {}
+    }
+    cacheWatcher = null;
+    watchedCachePath = '';
+  }
+
   function stopMonitor() {
     if (!monitor) return;
     try { monitor.stop(); } catch (_) {}
@@ -607,6 +689,7 @@ function createWeSingCapture(options = {}) {
     state.playing = false;
     state.platformDetected = false;
     stopMonitor();
+    stopQrcWatcher();
   }
 
   return { getStatus, refresh, setActive, setCachePath, setLyricOffsetMs, stop, waitForRefresh };
@@ -663,49 +746,46 @@ $ProgressPreference = 'SilentlyContinue'
 $OutputEncoding = [Console]::OutputEncoding
 Add-Type -AssemblyName UIAutomationClient | Out-Null
 Add-Type -AssemblyName UIAutomationTypes | Out-Null
-$root = [System.Windows.Automation.AutomationElement]::RootElement
-$children = [System.Windows.Automation.TreeScope]::Children
+$nativeSource = @'
+${WESING_NATIVE_MONITOR_SOURCE}
+'@
+Add-Type -TypeDefinition $nativeSource | Out-Null
 $descendants = [System.Windows.Automation.TreeScope]::Descendants
 while ($true) {
   $sample = @{ detected = $false; title = ''; currentSec = -1; totalSec = -1; loading = $false }
+  $processes = @()
   try {
     $processes = @(Get-Process -Name WeSing -ErrorAction SilentlyContinue)
     if ($processes.Count -gt 0) { $sample.detected = $true }
-    $playWindow = $null
-    foreach ($process in $processes) {
-      $pidCondition = [System.Windows.Automation.PropertyCondition]::new(
-        [System.Windows.Automation.AutomationElement]::ProcessIdProperty,
-        $process.Id
-      )
-      $windows = $root.FindAll($children, $pidCondition)
-      foreach ($window in $windows) {
-        $name = [string]$window.Current.Name
-        if ($name.StartsWith('全民K歌 - ') -and $name.Length -gt 7) {
-          $sample.title = $name
-          $playWindow = $window
-          break
+    $processIds = [int[]]@($processes | ForEach-Object { [int]$_.Id })
+    $audioState = [WeSingNativeMonitor]::GetAudioSessionState($processIds)
+    if ($audioState -ge 0) { $sample.audioActive = $audioState -eq 1 }
+    $windowSnapshot = [WeSingNativeMonitor]::FindPlaybackWindow($processIds)
+    if ($null -ne $windowSnapshot) {
+      $sample.title = $windowSnapshot.Title
+      try {
+        $playWindow = [System.Windows.Automation.AutomationElement]::FromHandle($windowSnapshot.Handle)
+        if ($null -ne $playWindow) {
+          $textCondition = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::Text
+          )
+          $texts = $playWindow.FindAll($descendants, $textCondition)
+          foreach ($textElement in $texts) {
+            $text = [string]$textElement.Current.Name
+            if ($text -match '歌曲加载中') { $sample.loading = $true }
+            if ($sample.currentSec -lt 0 -and $text -match '^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$') {
+              $sample.currentSec = ([int]$matches[1] * 60) + [int]$matches[2]
+              $sample.totalSec = ([int]$matches[3] * 60) + [int]$matches[4]
+            }
+          }
         }
-      }
-      if ($playWindow -ne $null) { break }
+      } catch {}
     }
-    if ($playWindow -ne $null) {
-      $textCondition = [System.Windows.Automation.PropertyCondition]::new(
-        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-        [System.Windows.Automation.ControlType]::Text
-      )
-      $texts = $playWindow.FindAll($descendants, $textCondition)
-      foreach ($textElement in $texts) {
-        $text = [string]$textElement.Current.Name
-        if ($text -match '歌曲加载中') { $sample.loading = $true }
-        if ($sample.currentSec -lt 0 -and $text -match '^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$') {
-          $sample.currentSec = ([int]$matches[1] * 60) + [int]$matches[2]
-          $sample.totalSec = ([int]$matches[3] * 60) + [int]$matches[4]
-        }
-      }
-    }
-    foreach ($process in $processes) { $process.Dispose() }
   } catch {
     $sample.error = $_.Exception.Message
+  } finally {
+    foreach ($process in $processes) { $process.Dispose() }
   }
   Write-Output ($sample | ConvertTo-Json -Compress)
   [Console]::Out.Flush()
