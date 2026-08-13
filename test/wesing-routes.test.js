@@ -68,6 +68,22 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   assert.equal(configured.payload.data.cacheReady, true);
   assert.equal(runtime.getSetting('weSingCachePath'), cachePath);
 
+  const offset = await requestJson(`${app.baseUrl}/api/music/wesing/offset`, token, {
+    method: 'POST',
+    body: JSON.stringify({ offsetMs: -250 })
+  });
+  assert.equal(offset.response.status, 200);
+  assert.equal(offset.payload.data.lyricOffsetMs, -250);
+  assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '-250');
+
+  const invalidOffset = await requestJson(`${app.baseUrl}/api/music/wesing/offset`, token, {
+    method: 'POST',
+    body: JSON.stringify({ offsetMs: 1501 })
+  });
+  assert.equal(invalidOffset.response.status, 400);
+  assert.match(invalidOffset.payload.error, /-1500.*1500/);
+  assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '-250');
+
   const activated = await requestJson(`${app.baseUrl}/api/music/wesing/active`, token, {
     method: 'POST',
     body: JSON.stringify({ active: true })

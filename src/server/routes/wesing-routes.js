@@ -22,6 +22,11 @@ const routes = {
     return context.weSing.configure(body.cachePath);
   }),
 
+  'POST /api/music/wesing/offset': weSingRoute(async (context, request) => {
+    const body = await request.body();
+    return context.weSing.setLyricOffsetMs(body.offsetMs);
+  }),
+
   'POST /api/music/wesing/active': weSingRoute(async (context, request) => {
     const body = await request.body();
     if (typeof body.active !== 'boolean') throw new Error('active 必须是布尔值。');

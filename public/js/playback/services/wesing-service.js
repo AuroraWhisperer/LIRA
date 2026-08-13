@@ -15,6 +15,8 @@ const EMPTY_STATUS = {
   currentMs: 0,
   durationMs: 0,
   playing: false,
+  waitingForPlayback: true,
+  lyricOffsetMs: 0,
   status: 'inactive',
   message: '请选择 WeSingCache 目录后开始检测。',
   lyricState: {
@@ -52,6 +54,21 @@ export class WeSingService {
     });
     document.getElementById('weSingRefreshBtn')?.addEventListener('click', () => {
       void this.refresh({ notify: true });
+    });
+    const offsetRange = document.getElementById('weSingLyricOffsetMs');
+    const offsetNumber = document.getElementById('weSingLyricOffsetMsNumber');
+    offsetRange?.addEventListener('input', () => {
+      if (offsetNumber) offsetNumber.value = offsetRange.value;
+    });
+    offsetRange?.addEventListener('change', () => {
+      void this.saveLyricOffset(offsetRange.value);
+    });
+    offsetNumber?.addEventListener('input', () => {
+      const offsetMs = parseLyricOffset(offsetNumber.value);
+      if (offsetRange && offsetMs !== null) offsetRange.value = String(offsetMs);
+    });
+    offsetNumber?.addEventListener('change', () => {
+      void this.saveLyricOffset(offsetNumber.value);
     });
     document.getElementById('weSingCachePath')?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -124,6 +141,27 @@ export class WeSingService {
     }
   }
 
+  async saveLyricOffset(rawValue) {
+    const offsetMs = parseLyricOffset(rawValue);
+    if (offsetMs === null) {
+      this.renderOffsetInputs(true);
+      this.showError(new Error('歌词时间偏移必须在 -1500 到 1500 毫秒之间'));
+      return;
+    }
+    try {
+      const data = await this.request('/api/music/wesing/offset', {
+        method: 'POST',
+        body: { offsetMs }
+      });
+      this.applyStatus(data);
+      this.renderOffsetInputs(true);
+      this.toast(`全民歌词偏移已设为 ${formatSignedMilliseconds(offsetMs)}`);
+    } catch (error) {
+      this.renderOffsetInputs(true);
+      this.showError(error);
+    }
+  }
+
   async selectCachePath() {
     if (!window.musicAPI || typeof window.musicAPI.selectWeSingCacheDirectory !== 'function') {
       this.toast('目录选择器需要在桌面版里使用，也可以直接粘贴路径');
@@ -182,20 +220,23 @@ export class WeSingService {
     setText('weSingTrackMeta', status.trackTitle
       ? (status.lyricState.artists || []).join(' / ') || formatLyricSource(status.lyricSource)
       : '启动全民 K 歌并开始播放后，这里会自动跟随。');
-    setText('weSingPlaybackState', status.playing ? '正在播放' : status.platformDetected ? '已暂停 / 等待进度' : '等待全民 K 歌播放');
+    setText('weSingPlaybackState', status.playing
+      ? '正在播放'
+      : !status.platformDetected ? '等待全民 K 歌播放' : status.waitingForPlayback ? '等待全民开始播放' : '已暂停');
     setText('weSingStatusMessage', status.message || EMPTY_STATUS.message);
     setText('weSingClientStatus', status.platformDetected ? '已检测' : '未检测');
     setText('weSingCacheStatus', status.cacheReady ? '本地 QRC 可用' : '本地未生成 / 在线回退');
     setText('weSingLyricStatus', status.qrcReady
       ? `${formatLyricSource(status.lyricSource)}同步中`
       : status.status === 'loading' ? '匹配中' : '等待歌曲');
-    setText('weSingCurrentTime', formatTime(status.lyricState.currentMs || status.currentMs));
+    setText('weSingCurrentTime', formatTime(numberValue(status.lyricState.currentMs, status.currentMs)));
     setText('weSingDuration', formatTime(status.lyricState.durationMs || status.durationMs));
 
     const pathInput = document.getElementById('weSingCachePath');
     if (pathInput && pathInput !== document.activeElement && status.cachePath) {
       pathInput.value = status.cachePath;
     }
+    this.renderOffsetInputs();
     setSignal('weSingClientSignal', status.platformDetected);
     setSignal('weSingCacheSignal', status.cacheReady);
     setSignal('weSingLyricSignal', status.qrcReady);
@@ -214,6 +255,14 @@ export class WeSingService {
       ? '逐字进度正在同步到桌面歌词'
       : this.status.message || '逐字进度会同步发送到桌面歌词');
     this.lyricRenderer?.setState(lyricState);
+  }
+
+  renderOffsetInputs(force = false) {
+    const value = String(numberValue(this.status.lyricOffsetMs, 0));
+    const range = document.getElementById('weSingLyricOffsetMs');
+    const number = document.getElementById('weSingLyricOffsetMsNumber');
+    if (range && (force || range !== document.activeElement)) range.value = value;
+    if (number && (force || number !== document.activeElement)) number.value = value;
   }
 
   async request(url, options = {}) {
@@ -268,6 +317,17 @@ function formatLyricSource(source) {
 function numberValue(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function parseLyricOffset(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < -1500 || number > 1500) return null;
+  return Math.round(number);
+}
+
+function formatSignedMilliseconds(value) {
+  const number = numberValue(value, 0);
+  return `${number > 0 ? '+' : ''}${number} ms`;
 }
 
 function lyricFallback(state) {

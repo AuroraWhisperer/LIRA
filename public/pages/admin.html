@@ -2451,6 +2451,15 @@
                 </div>
               </label>
               <button id="weSingSaveCacheBtn" class="primary wesing-save-path" type="button">保存目录并检测</button>
+              <label class="wesing-offset-field" for="weSingLyricOffsetMs">
+                <span>歌词时间偏移</span>
+                <div class="wesing-offset-control">
+                  <input id="weSingLyricOffsetMs" type="range" min="-1500" max="1500" step="50" value="0">
+                  <input id="weSingLyricOffsetMsNumber" type="number" min="-1500" max="1500" step="50" value="0" aria-label="全民歌词时间偏移毫秒数">
+                  <span>ms</span>
+                </div>
+                <small>负值延后歌词，正值提前歌词；松开滑块或确认数字后自动保存。</small>
+              </label>
               <div class="wesing-signal-list" aria-label="捕捉状态">
                 <div><i id="weSingClientSignal" aria-hidden="true"></i><span>全民客户端</span><strong id="weSingClientStatus">未检测</strong></div>
                 <div><i id="weSingCacheSignal" aria-hidden="true"></i><span>歌词缓存</span><strong id="weSingCacheStatus">待检查</strong></div>

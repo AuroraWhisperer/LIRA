@@ -114,6 +114,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricShadowIntensity: '0.35',
   desktopLyricTranslationScale: '0.65',
   weSingCachePath: DEFAULT_WESING_CACHE_PATH,
+  weSingLyricOffsetMs: '0',
   // 数据保留期（天），0 表示不清理。默认只清理礼物原始报文，业务数据保持永久保留。
   giftRawJsonRetentionDays: '30',
   giftEventRetentionDays: '0',

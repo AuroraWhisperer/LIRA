@@ -170,11 +170,15 @@ function createServerRuntime(runtimeOptions = {}) {
   });
   const weSingCapture = createWeSingCapture({
     cachePath: settingsStore.getSettings().weSingCachePath,
+    lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
     platform: runtimeOptions.weSingPlatform || process.platform,
     monitorFactory: runtimeOptions.weSingMonitorFactory,
     resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
     saveCachePath(cachePath) {
       settingsStore.setSetting('weSingCachePath', cachePath);
+    },
+    saveLyricOffsetMs(offsetMs) {
+      settingsStore.setSetting('weSingLyricOffsetMs', String(offsetMs));
     },
     onState(state) {
       webSocketHub.broadcast({ type: 'wesing-state', state });
@@ -350,6 +354,7 @@ function createServerRuntime(runtimeOptions = {}) {
       weSing: {
         getStatus: weSingCapture.getStatus,
         configure: weSingCapture.setCachePath,
+        setLyricOffsetMs: weSingCapture.setLyricOffsetMs,
         setActive: weSingCapture.setActive,
         refresh: weSingCapture.refresh
       },

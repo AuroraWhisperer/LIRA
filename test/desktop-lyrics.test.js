@@ -420,6 +420,33 @@ test('shared lyric renderer freezes its clock when playback pauses', async () =>
   assert.equal(renderer.getPosition(5000).currentMs, 1200);
 });
 
+test('shared lyric renderer accepts small backward authoritative corrections', async () => {
+  let currentTime = 1000;
+  const rendererModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'),
+    {
+      document: { createElement() { return {}; } },
+      performance: { now: () => currentTime },
+      requestAnimationFrame() { return 0; },
+      cancelAnimationFrame() {}
+    }
+  );
+  const renderer = new rendererModule.LyricWordRenderer();
+
+  renderer.setState({ currentMs: 1000, durationMs: 10000, playing: true });
+  currentTime = 1300;
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1300);
+
+  renderer.setState({ currentMs: 1100, durationMs: 10000, playing: true });
+  assert.equal(renderer.getPosition(currentTime).currentMs, 1100);
+
+  const overlaySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'),
+    'utf8'
+  );
+  assert.doesNotMatch(overlaySource, /Math\.max\(incoming, estimated\)/);
+});
+
 test('built-in playback forces lyric sync for play, pause, and seek transitions', () => {
   const initializer = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'initializer.js'),

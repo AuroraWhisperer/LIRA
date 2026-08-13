@@ -966,7 +966,8 @@
 }
 
 .wesing-console-intro > span,
-.wesing-path-field > span {
+.wesing-path-field > span,
+.wesing-offset-field > span {
   color: #748197;
   font-size: 10px;
   font-weight: 750;
@@ -991,6 +992,37 @@
 .wesing-path-field {
   display: grid;
   gap: 7px;
+}
+
+.wesing-offset-field {
+  display: grid;
+  gap: 7px;
+}
+
+.wesing-offset-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.wesing-offset-control input[type="range"] {
+  min-width: 0;
+}
+
+.wesing-offset-control input[type="number"] {
+  width: 82px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wesing-offset-control > span,
+.wesing-offset-field small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.wesing-offset-field small {
+  line-height: 1.5;
 }
 
 .wesing-path-control {

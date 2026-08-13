@@ -36,7 +36,7 @@ function updateLyricState(state) {
   const incomingCurrentMs = hasOwn(state, 'currentMs') ? numberValue(state.currentMs, 0) : estimated.currentMs;
   lyricState = { ...lyricState, ...(state || {}) };
   playbackAnchor = {
-    currentMs: smoothCurrentMs(incomingCurrentMs, estimated.currentMs, nextPlaying),
+    currentMs: incomingCurrentMs,
     durationMs: hasOwn(state, 'durationMs') ? numberValue(state.durationMs, 0) : playbackAnchor.durationMs,
     progress: hasOwn(state, 'progress') ? numberValue(state.progress, 0) : estimated.progress,
     updatedAt: now
@@ -211,11 +211,6 @@ function playbackPosition(now) {
     ? currentMs / durationMs
     : playbackAnchor.progress;
   return { currentMs, progress: clamp(progress, 0, 1) };
-}
-
-function smoothCurrentMs(incoming, estimated, playing) {
-  if (!playing || Math.abs(incoming - estimated) > 600) return incoming;
-  return Math.max(incoming, estimated);
 }
 
 function setupWheelZoom() {

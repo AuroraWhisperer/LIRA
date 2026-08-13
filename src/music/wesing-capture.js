@@ -13,6 +13,8 @@ const MAX_QRC_BYTES = 4 * 1024 * 1024;
 const MAX_FALLBACK_FILES = 80;
 const PAUSED_AFTER_MS = 1500;
 const PROGRESS_COMPENSATION_MS = 130;
+const MIN_LYRIC_OFFSET_MS = -1500;
+const MAX_LYRIC_OFFSET_MS = 1500;
 const SAFE_SONG_MID = /^[a-zA-Z0-9_-]{1,128}$/;
 
 function normalizeWeSingCachePath(input) {
@@ -29,6 +31,16 @@ function normalizeWeSingCachePath(input) {
     throw new Error('请选择名称为 WeSingCache 的目录。');
   }
   return resolved;
+}
+
+function normalizeWeSingLyricOffsetMs(input) {
+  const value = Number(input);
+  if (!Number.isFinite(value)) throw new Error('歌词时间偏移必须是数字。');
+  const rounded = Math.round(value);
+  if (rounded < MIN_LYRIC_OFFSET_MS || rounded > MAX_LYRIC_OFFSET_MS) {
+    throw new Error(`歌词时间偏移必须在 ${MIN_LYRIC_OFFSET_MS} 到 ${MAX_LYRIC_OFFSET_MS} 毫秒之间。`);
+  }
+  return rounded;
 }
 
 async function findLatestSongEntry(cachePath, expectedTitle = '') {
@@ -204,6 +216,7 @@ function createWeSingCapture(options = {}) {
     ? options.resolveFallbackLyrics
     : null;
   let cachePath = safeInitialCachePath(options.cachePath);
+  let lyricOffsetMs = safeInitialLyricOffsetMs(options.lyricOffsetMs);
   let monitor = null;
   let lyrics = [];
   let lyricArtists = [];
@@ -229,6 +242,8 @@ function createWeSingCapture(options = {}) {
     currentMs: 0,
     durationMs: 0,
     playing: false,
+    waitingForPlayback: true,
+    lyricOffsetMs,
     status: 'inactive',
     message: '全民 K 歌捕捉未启用。',
     lyricState: normalizeLyricState({ status: 'idle' })
@@ -240,6 +255,18 @@ function createWeSingCapture(options = {}) {
     if (typeof options.saveCachePath === 'function') await options.saveCachePath(cachePath);
     resetLyrics();
     await refresh();
+    return getStatus();
+  }
+
+  async function setLyricOffsetMs(input) {
+    const nextLyricOffsetMs = normalizeWeSingLyricOffsetMs(input);
+    if (typeof options.saveLyricOffsetMs === 'function') {
+      await options.saveLyricOffsetMs(nextLyricOffsetMs);
+    }
+    lyricOffsetMs = nextLyricOffsetMs;
+    state.lyricOffsetMs = lyricOffsetMs;
+    updateLyricState();
+    emit();
     return getStatus();
   }
 
@@ -373,20 +400,36 @@ function createWeSingCapture(options = {}) {
 
     if (sampledDurationMs > 0) state.durationMs = sampledDurationMs;
 
+    if (sample.loading === true) {
+      if (state.waitingForPlayback) resetPlaybackClock(timestamp);
+      else pausePlaybackClock(timestamp);
+      state.currentMs = readPlaybackClock(timestamp);
+      state.playing = false;
+      state.message = `全民 K 歌正在加载《${title}》，歌词将在播放后开始。`;
+      updateLyricState();
+      emit();
+      return;
+    }
+
     if (hasSampledProgress) {
-      if (sampledCurrentMs !== lastProgressMs) {
+      if (lastProgressMs < 0) {
+        lastProgressMs = sampledCurrentMs;
+        lastProgressChangeAt = timestamp;
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
+        pausePlaybackClock(timestamp);
+        state.playing = false;
+      } else if (sampledCurrentMs !== lastProgressMs) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
         setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
         startPlaybackClock(timestamp);
         state.playing = true;
+        state.waitingForPlayback = false;
+        if (state.qrcReady) state.message = `正在同步《${title}》的逐字歌词。`;
       } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
         pausePlaybackClock(timestamp);
         state.playing = false;
       }
-    } else if (titleChanged || platformResumed) {
-      startPlaybackClock(timestamp);
-      state.playing = true;
     }
 
     state.currentMs = readPlaybackClock(timestamp);
@@ -427,6 +470,7 @@ function createWeSingCapture(options = {}) {
     playbackClockRunning = false;
     lastProgressMs = -1;
     lastProgressChangeAt = timestamp;
+    state.waitingForPlayback = true;
   }
 
   async function refreshLyrics(title) {
@@ -484,17 +528,20 @@ function createWeSingCapture(options = {}) {
   }
 
   function updateLyricState() {
-    const currentLine = findCurrentLyricLine(lyrics, state.currentMs);
     const durationMs = state.durationMs || lyricDurationMs;
+    const lyricCurrentMs = durationMs > 0
+      ? Math.min(durationMs, Math.max(0, state.currentMs + lyricOffsetMs))
+      : Math.max(0, state.currentMs + lyricOffsetMs);
+    const currentLine = findCurrentLyricLine(lyrics, lyricCurrentMs);
     state.lyricState = normalizeLyricState({
       trackTitle: state.trackTitle,
       artists: lyricArtists,
       lineText: currentLine ? currentLine.text : '',
       translation: currentLine ? currentLine.translation : '',
       words: currentLine ? currentLine.words : [],
-      currentMs: state.currentMs,
+      currentMs: lyricCurrentMs,
       durationMs,
-      progress: durationMs > 0 ? state.currentMs / durationMs : 0,
+      progress: durationMs > 0 ? lyricCurrentMs / durationMs : 0,
       playing: state.playing,
       status: state.qrcReady ? 'ready' : state.status === 'loading' ? 'loading' : state.status === 'empty' ? 'empty' : 'idle'
     });
@@ -549,7 +596,7 @@ function createWeSingCapture(options = {}) {
     stopMonitor();
   }
 
-  return { getStatus, refresh, setActive, setCachePath, stop, waitForRefresh };
+  return { getStatus, refresh, setActive, setCachePath, setLyricOffsetMs, stop, waitForRefresh };
 }
 
 function createPowerShellWeSingMonitor(onSample, options = {}) {
@@ -607,7 +654,7 @@ $root = [System.Windows.Automation.AutomationElement]::RootElement
 $children = [System.Windows.Automation.TreeScope]::Children
 $descendants = [System.Windows.Automation.TreeScope]::Descendants
 while ($true) {
-  $sample = @{ detected = $false; title = ''; currentSec = -1; totalSec = -1 }
+  $sample = @{ detected = $false; title = ''; currentSec = -1; totalSec = -1; loading = $false }
   try {
     $processes = @(Get-Process -Name WeSing -ErrorAction SilentlyContinue)
     if ($processes.Count -gt 0) { $sample.detected = $true }
@@ -636,10 +683,10 @@ while ($true) {
       $texts = $playWindow.FindAll($descendants, $textCondition)
       foreach ($textElement in $texts) {
         $text = [string]$textElement.Current.Name
-        if ($text -match '^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$') {
+        if ($text -match '歌曲加载中') { $sample.loading = $true }
+        if ($sample.currentSec -lt 0 -and $text -match '^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$') {
           $sample.currentSec = ([int]$matches[1] * 60) + [int]$matches[2]
           $sample.totalSec = ([int]$matches[3] * 60) + [int]$matches[4]
-          break
         }
       }
     }
@@ -665,6 +712,10 @@ async function isDirectory(directoryPath) {
 
 function safeInitialCachePath(value) {
   try { return normalizeWeSingCachePath(value); } catch (_) { return ''; }
+}
+
+function safeInitialLyricOffsetMs(value) {
+  try { return normalizeWeSingLyricOffsetMs(value); } catch (_) { return 0; }
 }
 
 function formatLyricSource(source) {
@@ -704,5 +755,6 @@ module.exports = {
   findLatestSongEntry,
   loadWeSingLyrics,
   normalizeWeSingCachePath,
+  normalizeWeSingLyricOffsetMs,
   parseQrcDocument
 };

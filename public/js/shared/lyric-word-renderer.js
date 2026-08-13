@@ -39,7 +39,7 @@ export class LyricWordRenderer {
     const incomingCurrentMs = numberValue(nextState.currentMs, estimated.currentMs);
     this.state = { ...this.state, ...nextState };
     this.anchor = {
-      currentMs: smoothCurrentMs(incomingCurrentMs, estimated.currentMs, playing),
+      currentMs: incomingCurrentMs,
       durationMs: numberValue(nextState.durationMs, this.anchor.durationMs),
       progress: numberValue(nextState.progress, estimated.progress),
       updatedAt: now
@@ -111,11 +111,6 @@ export class LyricWordRenderer {
     cancelFrame(this.animationFrame);
     this.animationFrame = 0;
   }
-}
-
-function smoothCurrentMs(incoming, estimated, playing) {
-  if (!playing || Math.abs(incoming - estimated) > 600) return incoming;
-  return Math.max(incoming, estimated);
 }
 
 function numberValue(value, fallback) {

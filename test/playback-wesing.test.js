@@ -21,6 +21,8 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   assert.match(html, /id="weSingCachePath"/);
   assert.match(html, /id="weSingSelectCacheBtn"/);
   assert.match(html, /id="weSingSaveCacheBtn"/);
+  assert.match(html, /id="weSingLyricOffsetMs"[^>]*min="-1500"[^>]*max="1500"[^>]*step="50"/);
+  assert.match(html, /id="weSingLyricOffsetMsNumber"[^>]*min="-1500"[^>]*max="1500"[^>]*step="50"/);
   assert.match(html, /id="weSingRefreshBtn"/);
   assert.match(html, /id="weSingLyricLine"/);
   assert.match(html, /data-online-source-view/);
@@ -39,6 +41,8 @@ test('WeSing browser client activates capture and renders WebSocket lyrics safel
   assert.match(state, /\['qq', 'netease', 'wesing'\]/);
   assert.match(source, /\/api\/music\/wesing\/active/);
   assert.match(source, /\/api\/music\/wesing\/configure/);
+  assert.match(source, /\/api\/music\/wesing\/offset/);
+  assert.match(source, /saveLyricOffset/);
   assert.match(source, /selectWeSingCacheDirectory/);
   assert.match(renderer, /requestAnimationFrame/);
   assert.match(source, /new LyricWordRenderer/);
