@@ -3,6 +3,7 @@
 const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { performance } = require('node:perf_hooks');
 const { decryptQrc } = require('qrc-decoder');
 const { findCurrentLyricLine, parseLyricResult } = require('./lyrics');
 const { normalizeLyricState } = require('./lyric-state');
@@ -193,7 +194,7 @@ function toLyricResult(parsed, songMid, fallbackTitle) {
 }
 
 function createWeSingCapture(options = {}) {
-  const now = typeof options.now === 'function' ? options.now : Date.now;
+  const now = typeof options.now === 'function' ? options.now : () => performance.now();
   const platform = options.platform || process.platform;
   const onState = typeof options.onState === 'function' ? options.onState : () => {};
   const onTimeline = typeof options.onTimeline === 'function' ? options.onTimeline : () => {};
@@ -210,6 +211,10 @@ function createWeSingCapture(options = {}) {
   let pendingRefresh = Promise.resolve();
   let lastProgressMs = -1;
   let lastProgressChangeAt = 0;
+  let playbackClockBaseMs = 0;
+  let playbackClockStartedAt = 0;
+  let playbackClockRunning = false;
+  let resumeAfterDetectionLoss = false;
 
   const state = {
     active: false,
@@ -247,7 +252,10 @@ function createWeSingCapture(options = {}) {
     state.active = nextActive;
     if (!nextActive) {
       stopMonitor();
+      pausePlaybackClock(now());
       state.playing = false;
+      state.platformDetected = false;
+      resumeAfterDetectionLoss = false;
       state.status = 'inactive';
       state.message = '全民 K 歌捕捉未启用。';
       updateLyricState();
@@ -298,19 +306,33 @@ function createWeSingCapture(options = {}) {
   function handleMonitorSample(sample = {}) {
     if (!state.active) return;
     if (sample.error) {
+      const timestamp = now();
+      pausePlaybackClock(timestamp);
+      state.currentMs = readPlaybackClock(timestamp);
+      state.playing = false;
       state.status = 'error';
       state.message = `全民 K 歌检测异常：${String(sample.error).slice(0, 160)}`;
+      updateLyricState();
       emit();
       return;
     }
 
     const timestamp = now();
+    const wasPlatformDetected = state.platformDetected;
     state.platformDetected = sample.detected === true;
     const title = stripWeSingWindowTitle(sample.title);
-    const currentMs = Math.max(0, Number(sample.currentSec) * 1000 || 0);
-    const durationMs = Math.max(0, Number(sample.totalSec) * 1000 || 0);
+    const sampledCurrentSec = Number(sample.currentSec);
+    const hasSampledProgress = Number.isFinite(sampledCurrentSec) && sampledCurrentSec >= 0;
+    const sampledCurrentMs = hasSampledProgress ? sampledCurrentSec * 1000 : null;
+    const sampledDurationSec = Number(sample.totalSec);
+    const sampledDurationMs = Number.isFinite(sampledDurationSec) && sampledDurationSec > 0
+      ? sampledDurationSec * 1000
+      : 0;
 
     if (!state.platformDetected) {
+      if (wasPlatformDetected) resumeAfterDetectionLoss = state.playing;
+      pausePlaybackClock(timestamp);
+      state.currentMs = readPlaybackClock(timestamp);
       state.playing = false;
       state.status = 'waiting';
       state.message = '等待启动全民 K 歌客户端。';
@@ -319,18 +341,15 @@ function createWeSingCapture(options = {}) {
       return;
     }
 
-    if (currentMs !== lastProgressMs) {
-      lastProgressMs = currentMs;
-      lastProgressChangeAt = timestamp;
-      state.playing = true;
-    } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
-      state.playing = false;
-    }
-    state.currentMs = currentMs;
-    if (durationMs > 0) state.durationMs = durationMs;
-
-    if (title !== state.trackTitle) {
+    const titleChanged = title !== state.trackTitle;
+    const platformResumed = !wasPlatformDetected && !titleChanged;
+    const shouldResumePlayback = platformResumed && resumeAfterDetectionLoss;
+    if (titleChanged) {
       state.trackTitle = title;
+      state.currentMs = 0;
+      state.playing = false;
+      state.durationMs = sampledDurationMs;
+      resetPlaybackClock(timestamp);
       resetLyrics();
       if (title) {
         state.status = 'loading';
@@ -338,12 +357,75 @@ function createWeSingCapture(options = {}) {
         pendingRefresh = refreshLyrics(title);
       }
     }
+
     if (!title) {
+      pausePlaybackClock(timestamp);
+      state.currentMs = readPlaybackClock(timestamp);
+      state.playing = false;
       state.status = 'waiting';
       state.message = '已检测到全民 K 歌，等待开始播放。';
+      updateLyricState();
+      emit();
+      return;
     }
+
+    if (sampledDurationMs > 0) state.durationMs = sampledDurationMs;
+
+    if (hasSampledProgress) {
+      if (sampledCurrentMs !== lastProgressMs || shouldResumePlayback) {
+        lastProgressMs = sampledCurrentMs;
+        lastProgressChangeAt = timestamp;
+        setPlaybackClock(sampledCurrentMs, timestamp);
+        startPlaybackClock(timestamp);
+        state.playing = true;
+      } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
+        pausePlaybackClock(timestamp);
+        state.playing = false;
+      }
+    } else if (titleChanged || shouldResumePlayback) {
+      startPlaybackClock(timestamp);
+      state.playing = true;
+    }
+
+    if (platformResumed) resumeAfterDetectionLoss = false;
+    state.currentMs = readPlaybackClock(timestamp);
     updateLyricState();
     emit();
+  }
+
+  function readPlaybackClock(timestamp) {
+    const elapsed = playbackClockRunning
+      ? Math.max(0, timestamp - playbackClockStartedAt)
+      : 0;
+    const currentMs = Math.max(0, playbackClockBaseMs + elapsed);
+    const durationMs = state.durationMs || lyricDurationMs;
+    return durationMs > 0 ? Math.min(durationMs, currentMs) : currentMs;
+  }
+
+  function setPlaybackClock(currentMs, timestamp) {
+    playbackClockBaseMs = Math.max(0, Number(currentMs) || 0);
+    playbackClockStartedAt = timestamp;
+  }
+
+  function startPlaybackClock(timestamp) {
+    if (playbackClockRunning) return;
+    playbackClockStartedAt = timestamp;
+    playbackClockRunning = true;
+  }
+
+  function pausePlaybackClock(timestamp) {
+    if (!playbackClockRunning) return;
+    playbackClockBaseMs = readPlaybackClock(timestamp);
+    playbackClockStartedAt = timestamp;
+    playbackClockRunning = false;
+  }
+
+  function resetPlaybackClock(timestamp) {
+    playbackClockBaseMs = 0;
+    playbackClockStartedAt = timestamp;
+    playbackClockRunning = false;
+    lastProgressMs = -1;
+    lastProgressChangeAt = timestamp;
   }
 
   async function refreshLyrics(title) {
@@ -460,6 +542,10 @@ function createWeSingCapture(options = {}) {
 
   function stop() {
     state.active = false;
+    pausePlaybackClock(now());
+    state.playing = false;
+    state.platformDetected = false;
+    resumeAfterDetectionLoss = false;
     stopMonitor();
   }
 
