@@ -18,7 +18,7 @@ const { installTerminalLog, formatLogLine } = require('./terminal-log');
 const serverRuntimeModule = require('../server');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
-const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/Request-song';
+const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
 const MUSIC_LOGIN_CONFIG = authMgr.MUSIC_LOGIN_CONFIG;
 
 let mainWindow = null;
@@ -66,7 +66,7 @@ if (!gotLock) {
   });
 }
 
-app.setName('点歌助手');
+app.setName('LIRA');
 
 app.on('second-instance', function () {
   if (!mainWindow) return;
@@ -318,7 +318,7 @@ function createMainWindow(baseUrl) {
   desktopBaseUrl = baseUrl;
   var opts = {
     width: 1280, height: 720, minWidth: 1024, minHeight: 680,
-    show: false, title: '点歌助手', backgroundColor: '#f7f3ef',
+    show: false, title: 'LIRA', backgroundColor: '#f7f3ef',
     frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

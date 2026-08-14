@@ -1,8 +1,15 @@
 # 打包与更新说明
 
-当前版本：`3.3.15`
+当前版本：`3.3.16`
 
 ---
+
+## v3.3.16 变更
+
+- 🏷️ **软件更名为 LIRA**：弃用旧名 `bilibili-live-song-plugin`——npm 包名、appId（`com.aurorawhisperer.lira`）、安装包命名（`lira-setup-${version}.exe`）、产品名/快捷方式/卸载名（LIRA）、服务身份标识 `SERVICE_ID`（`lira`）、GitHub 仓库链接（`AuroraWhisperer/LIRA`）与文档引用全部统一为 LIRA；管理后台界面文案（页面标题、退出确认、关闭屏、「本软件」监控卡片、使用文档）同步更新；NSIS 卸载脚本清理 `%APPDATA%\LIRA`，并对旧名残留目录（`%APPDATA%\bilibili-live-song-plugin`、`%APPDATA%\点歌助手`）保留兼容清理。
+- 🌐 **README 双语化**：README.md 重写为英文版（LIRA = Live Interaction & Request Assistant），新增 README.zh-CN.md 中文版，两版互相链接；仓库简介同步新仓库链接与使用声明。
+- 🧹 **仓库清理**：删除已无引用的 `WESING_LYRICS_FIX.md`、`generate-theme-presets.js` 与三篇已完成的实现计划文档（wesing 歌词时钟/歌词同步控制/正在播放同步）；`.gitignore` 新增个人笔记排除。
+- 📖 **架构文档与测试同步 LIRA 命名**：`docs/architecture/`（索引、后端核心的 SERVICE_ID、桌面 main/update、D2 图源）、`specs/desktop-lyric-timeline_design.md` 与 `test/server-smoke.test.js` 的 serviceId 断言同步更新为新名。
 
 ## v3.3.15 变更
 
@@ -284,7 +291,7 @@
 - 💬 **@回复超长拆分优化**：`splitDanmakuReplyMessage()` 在拆分 @ 回复时预留 @名字 空间——第一条消息长度上限 = 40 - @名字长度，确保第一条分片内 @名字 + 首段签文完整不截断。签到回复、抽签签文等自动回复的长消息均受益。`normalizeReplyTarget` 上提到 send 入口统一调用，各分片复用同一 target 而非每片重新构造。
 - 💾 **百宝箱功能选中持久化**：`other.js` 新增 `admin.toolboxSelectedFeature` localStorage 键——选中功能面板时自动写入、页面初始化时优先恢复上次选中项（仅当对应按钮和面板均可用时），避免每次刷新或切换页面后回到默认面板。
 - 🎨 **侧边栏快捷入口文案增强**：弹幕姬侧边栏链接新增描述 `<small>发送弹幕并管理互动回复</small>`，使用文档功能按钮新增 `<small>查看功能说明与常见问题</small>`，帮助新手快速理解入口用途。
-- 📖 **使用文档新增升级安装指南**：新增「电脑上已经安装过点歌助手」章节，含两张安装截图（已安装用户提示、安装位置确认），引导已有用户直接「下一步→安装」完成升级，无需手动卸载。新增 `.usage-guide-image` 样式（边框圆角、全宽自适应）。
+- 📖 **使用文档新增升级安装指南**：新增「电脑上已经安装过 LIRA」章节，含两张安装截图（已安装用户提示、安装位置确认），引导已有用户直接「下一步→安装」完成升级，无需手动卸载。新增 `.usage-guide-image` 样式（边框圆角、全宽自适应）。
 - 🎨 **机器人开关三列网格**：弹幕姬自动回复区的开关网格从 2 列扩展为 3 列（`repeat(3, minmax(0, 1fr))`），容纳随机点歌回复/签到机器人/抽签机器人三个独立开关。
 - 🧪 **测试覆盖增强**：新增 `test/fortune-service.test.js`（签文日稳定性、开关关闭/缺失 UID 拒绝、签池结构 20 支加权分布、宜忌成对断言、长签文测试、命令过滤、domain 集成回复链路）。`test/danmaku-sender-service.test.js` 新增长签文和签到消息的 @名字 预留拆分测试、`fortuneBotEnabled` 状态字段断言。`test/frontend-regressions.test.js` 新增抽签机器人开关 DOM 断言。`test/toolbox-sidebar.test.js` 新增三列网格 CSS 断言。
 
@@ -1230,7 +1237,7 @@
 
 ## v1.0.0 变更
 
-- 初始发布：Bilibili 直播点歌助手 Electron 桌面应用。
+- 初始发布：Bilibili 直播 LIRA Electron 桌面应用。
 - 支持弹幕点歌（`点歌 xxx` / `随机`）、OBS 叠加层（队列/歌单展示板）、GitHub 自动更新。
 
 ---
@@ -1245,8 +1252,8 @@ npm.cmd run dist:win
 生成文件在 `release/`：
 
 ```text
-bilibili-live-song-plugin-setup-1.3.12.exe
-bilibili-live-song-plugin-setup-1.3.12.exe.blockmap
+lira-setup-1.3.12.exe
+lira-setup-1.3.12.exe.blockmap
 latest.yml
 ```
 
@@ -1258,6 +1265,6 @@ GitHub 自动更新依赖 Releases。发布新版本时，先修改 `package.jso
 npm.cmd run release:win
 ```
 
-如果手动上传 Release，必须把安装包、同名 `.blockmap` 和 `latest.yml` 一起上传到 `AuroraWhisperer/Request-song` 的同一个 Release。
+如果手动上传 Release，必须把安装包、同名 `.blockmap` 和 `latest.yml` 一起上传到 `AuroraWhisperer/LIRA` 的同一个 Release。
 
 桌面版"桌面更新"页会读取 `latest.yml`，发现新版本后优先通过 `.blockmap` 差分下载变化部分，并提示应用更新。

@@ -38,7 +38,7 @@
 
 ## Visual direction
 
-- 主题：直播点歌助手的“歌词跑道”，单一任务是边调样式边检查整首实时歌词。
+- 主题：LIRA 的”歌词跑道”，单一任务是边调样式边检查整首实时歌词。
 - 色彩：Night Vinyl `#15171b`、Grid Slate `#202328`、Lyric Mist `#f5f7fa`、Playback Gold `#ffcf4a`、Control Rose `#ff6f91`。
 - 字体：歌词继续使用用户选择的字体；标题和控制沿用现有界面字体；倒计时使用窄幅数字感字形。
 - 布局：

@@ -15,3 +15,6 @@ tools/qq-music-analyzer/*.har
 tools/qq-music-analyzer/*.jsonl
 tools/qq-music-analyzer/analysis-report.json
 tools/qq-music-analyzer/recommend-feed-response.json
+
+# 个人笔记
+笔记.txt

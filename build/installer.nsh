@@ -8,7 +8,7 @@ ManifestDPIAware true
     EnumRegKey $R0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall" $R1
     StrCmp $R0 "" customInitDone
     ReadRegStr $R2 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\$R0" "DisplayName"
-    StrCmp $R2 "点歌助手" customInitFound
+    StrCmp $R2 "LIRA" customInitFound
     IntOp $R1 $R1 + 1
     Goto customInitLoop
   customInitFound:
@@ -19,8 +19,9 @@ ManifestDPIAware true
 !macroend
 
 !macro customUnInstall
-  RMDir /r "$APPDATA\bilibili-live-song-plugin"
   ; 清理旧版本残留在 %APPDATA% 下的 Electron Chromium 持久化分区数据
   ; （新版本已将 userData 重定向到安装目录，此目录仅用于旧版本升级时的清理）
-  RMDir /r "$APPDATA\点歌助手"
+  RMDir /r "$APPDATA\LIRA"
+  ; 兼容清理更早期的旧名称遗留数据
+  RMDir /r "$APPDATA\bilibili-live-song-plugin"
 !macroend

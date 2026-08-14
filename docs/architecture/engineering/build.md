@@ -40,9 +40,9 @@
 
 | 配置项 | 值 | 出处 | 说明 |
 |---|---|---|---|
-| `appId` | `com.aurorawhisperer.bilibili-live-song-plugin` | [package.json:33](../../../package.json#L33) | 应用标识 |
-| `productName` | 点歌助手 | [package.json:34](../../../package.json#L34) | 安装/卸载显示名 |
-| `artifactName` | `bilibili-live-song-plugin-setup-${version}.${ext}` | [package.json:35](../../../package.json#L35) | 安装包命名 |
+| `appId` | `com.aurorawhisperer.lira` | [package.json:33](../../../package.json#L33) | 应用标识 |
+| `productName` | LIRA | [package.json:34](../../../package.json#L34) | 安装/卸载显示名 |
+| `artifactName` | `lira-setup-${version}.${ext}` | [package.json:35](../../../package.json#L35) | 安装包命名 |
 | `directories.output` | `release` | [package.json:37](../../../package.json#L37) | 产物目录(见 §4) |
 | `files` | `src/**/*` + `public/**/*` + `package.json` | [package.json:40-44](../../../package.json#L40-L44) | 白名单打包,排除 `data/`、`release/`、`node_modules/` 等 |
 | `asar` | `true` | [package.json:45](../../../package.json#L45) | 源码打成 asar 归档 |
@@ -52,10 +52,10 @@
 | `nsis.oneClick` | `false` | [package.json:61](../../../package.json#L61) | 标准安装向导,非一键安装 |
 | `nsis.perMachine` | `false` | [package.json:62](../../../package.json#L62) | 按用户安装,无需管理员权限 |
 | `nsis.allowToChangeInstallationDirectory` | `true` | [package.json:63](../../../package.json#L63) | 允许自定义安装目录 |
-| `nsis.shortcutName` / `uninstallDisplayName` | 点歌助手 | [package.json:64-65](../../../package.json#L64-L65) | 快捷方式与卸载显示名 |
+| `nsis.shortcutName` / `uninstallDisplayName` | LIRA | [package.json:64-65](../../../package.json#L64-L65) | 快捷方式与卸载显示名 |
 | `nsis.createDesktopShortcut` / `createStartMenuShortcut` | `true` | [package.json:66-67](../../../package.json#L66-L67) | 桌面 + 开始菜单快捷方式 |
 | `nsis.include` | `build/installer.nsh` | [package.json:60](../../../package.json#L60) | 自定义 NSIS 宏(见 §6) |
-| `publish` | GitHub `AuroraWhisperer/Request-song`,`releaseType: release` | [package.json:69-76](../../../package.json#L69-L76) | electron-updater 更新源与发布脚本读取 |
+| `publish` | GitHub `AuroraWhisperer/LIRA`,`releaseType: release` | [package.json:69-76](../../../package.json#L69-L76) | electron-updater 更新源与发布脚本读取 |
 
 `artifactName` 在顶层 `build` 与 `build.nsis` 各声明一次([package.json:35](../../../package.json#L35)、[package.json:59](../../../package.json#L59));发布脚本按 `build.nsis.artifactName` 计算产物文件名([publish-release.js:14-16](../../../scripts/publish-release.js#L14-L16))。
 
@@ -63,8 +63,8 @@
 
 | 产物 | 说明 |
 |---|---|
-| `bilibili-live-song-plugin-setup-{version}.exe` | NSIS 安装包,发布时的上传主产物 |
-| `…setup-{version}.exe.blockmap` | 差分更新块映射(electron-updater 用) |
+| `lira-setup-{version}.exe` | NSIS 安装包,发布时的上传主产物 |
+| `lira-setup-{version}.exe.blockmap` | 差分更新块映射(electron-updater 用) |
 | `latest.yml` | 更新清单,electron-updater 的版本比对依据 |
 | `win-unpacked/` | 未打包目录(本地运行/调试) |
 
@@ -83,8 +83,8 @@
 被 `nsis.include` 引用([package.json:60](../../../package.json#L60)),在标准 NSIS 流程上追加:
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
-- `customInit`([installer.nsh:3-19](../../../build/installer.nsh#L3-L19)):安装前遍历 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`,删除 DisplayName 为「点歌助手」但 UninstallString 指向的文件已不存在的**残留注册表项** — 避免 NSIS 因找不到旧卸载程序而中止(`Failed to uninstall old application files.: 2`)。
-- `customUnInstall`([installer.nsh:21-26](../../../build/installer.nsh#L21-L26)):卸载时递归删除 `%APPDATA%\bilibili-live-song-plugin` 与 `%APPDATA%\点歌助手` — 旧版本残留在 %APPDATA% 下的 Chromium 分区数据(userData 已重定向到安装目录下 `data/`,见 [desktop/main.md](../desktop/main.md))。
+- `customInit`([installer.nsh:3-19](../../../build/installer.nsh#L3-L19)):安装前遍历 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`,删除 DisplayName 为「LIRA」但 UninstallString 指向的文件已不存在的**残留注册表项** — 避免 NSIS 因找不到旧卸载程序而中止(`Failed to uninstall old application files.: 2`)。
+- `customUnInstall`([installer.nsh:21-26](../../../build/installer.nsh#L21-L26)):卸载时递归删除 `%APPDATA%\LIRA` — 旧版本残留在 %APPDATA% 下的 Chromium 分区数据(userData 已重定向到安装目录下 `data/`,见 [desktop/main.md](../desktop/main.md))。同时兼容清理更早期的 `%APPDATA%\bilibili-live-song-plugin` 遗留数据。
 
 ## 7. 发布流程(scripts/publish-release.js)
 

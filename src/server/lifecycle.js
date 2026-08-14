@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const SESSION_TOKEN_FILE_NAME = '.session-token';
 const RUNTIME_FILE_NAME = '.server-runtime.json';
-const SERVICE_ID = 'bilibili-live-song-plugin';
+const SERVICE_ID = 'lira';
 
 async function listenWithFallback(server, options) {
   const startPort = Number(options.startPort);
@@ -84,7 +84,7 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
 
-  console.log(`Found previous song helper service on ${host}:${port}; asking it to shut down...`);
+  console.log(`Found previous LIRA service on ${host}:${port}; asking it to shut down...`);
   await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
   if (await waitForPortRelease(port, host, options)) {
     if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
@@ -275,7 +275,7 @@ function isOwnProcessInfo(info, options) {
   const commandLine = String(info.CommandLine || '').toLowerCase();
   const ownRoot = normalizePathForCompare(options.rootDir);
 
-  return (executablePath && executablePath.endsWith('\\点歌助手.exe'))
+  return (executablePath && executablePath.endsWith('\\LIRA.exe'))
     || (ownRoot && commandLine.includes(ownRoot.toLowerCase()))
     || commandLine.includes('src\\server.js')
     || commandLine.includes('src/server.js');

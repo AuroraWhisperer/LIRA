@@ -441,7 +441,7 @@
 
   function renderShutdownScreen(isDesktop) {
     const hintText = isDesktop
-      ? '点击下方按钮重新启动点歌助手，恢复直播服务。'
+      ? '点击下方按钮重新启动 LIRA，恢复直播服务。'
       : '本地服务已关闭，端口已释放。<br>再次使用时双击项目里的 <code>一键启动.bat</code>。';
     return `
       <main class="app-shell shutdown-screen">
@@ -454,7 +454,7 @@
               <circle cx="36" cy="56" r="2.5" fill="currentColor" opacity="0.7"/>
             </svg>
           </div>
-          <h1 class="shutdown-title">点歌助手已退出</h1>
+          <h1 class="shutdown-title">LIRA 已退出</h1>
           <p class="shutdown-subtitle">本地服务已安全关闭</p>
           <ul class="shutdown-checklist">
             <li><span class="check-mark">✓</span> 本地 HTTP 服务已停止</li>
@@ -473,7 +473,7 @@
   }
 
   async function shutdownServer() {
-    if (!confirm('确认退出点歌助手？退出后会关闭本地服务并释放端口。')) {
+    if (!confirm('确认退出 LIRA？退出后会关闭本地服务并释放端口。')) {
       return;
     }
     if (window.AdminApp.state && window.AdminApp.state.setShuttingDown) {

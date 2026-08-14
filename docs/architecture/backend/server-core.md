@@ -33,7 +33,7 @@
 | 回退辅助 | `listenWithFallback` 扫描 `startPort..startPort+19`,仅独立/兼容模式可用 | [lifecycle.js:13-29](../../../src/server/lifecycle.js#L13-L29) |
 | 端口冲突处理 | 启动前 `cleanupOwnPortOccupant`:识别并关闭**上一个本服务实例**(同数据目录/SERVICE_ID/可执行路径),再绑定 | [lifecycle.js:65-111](../../../src/server/lifecycle.js#L65-L111) |
 
-`SERVICE_ID = 'bilibili-live-song-plugin'`([lifecycle.js:11](../../../src/server/lifecycle.js#L11)),用于 `/api/health` 应答与旧实例识别。旧实例清理顺序:读 `.server-runtime.json` → GET `/api/health` 验证身份 → POST `/api/system/shutdown` 请求退出 → 轮询端口释放(1.2s 超时/120ms 间隔)→ 仍占用则 `SIGTERM` 杀进程。
+`SERVICE_ID = 'lira'`([lifecycle.js:11](../../../src/server/lifecycle.js#L11)),用于 `/api/health` 应答与旧实例识别。旧实例清理顺序:读 `.server-runtime.json` → GET `/api/health` 验证身份 → POST `/api/system/shutdown` 请求退出 → 轮询端口释放(1.2s 超时/120ms 间隔)→ 仍占用则 `SIGTERM` 杀进程。
 
 ## 3. 环境变量(唯一成表处)
 

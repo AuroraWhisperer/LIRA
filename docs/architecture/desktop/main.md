@@ -10,7 +10,7 @@
 |---|---|---|
 | 入口 | `package.json` 的 `main` 指向 `src/electron/main.js`,Electron 启动即执行此文件 | [package.json:8](../../../package.json#L8) |
 | 运行形态 | `npm run desktop` → `electron .`;后端 HTTP 服务与 Electron main **同进程**(`require('../server')` 的运行时适配,见 §2) | [package.json:11](../../../package.json#L11)、[server-core.md](../backend/server-core.md) §1 |
-| 应用名 | `app.setName('点歌助手')` — 决定 `%APPDATA%/点歌助手` 等派生路径 | [main.js:69](../../../src/electron/main.js#L69) |
+| 应用名 | `app.setName('LIRA')` — 决定 `%APPDATA%/LIRA` 等派生路径 | [main.js:69](../../../src/electron/main.js#L69) |
 
 **单实例锁**:`app.requestSingleInstanceLock()` 拿不到锁立即 `app.quit()`([main.js:59-67](../../../src/electron/main.js#L59-L67));`second-instance` 事件时还原并聚焦主窗口([main.js:71-75](../../../src/electron/main.js#L71-L75));锁在退出流程末尾释放(§7)。
 
@@ -51,7 +51,7 @@
 
 ### 3.2 旧数据迁移 migrateUserDataFromAppData
 
-旧版本把 Chromium 登录分区残留在 `%APPDATA%/点歌助手/Partitions/`,升级后用户会丢失登录态。`migrateUserDataFromAppData`([main.js:218-234](../../../src/electron/main.js#L218-L234)):当旧路径存在且新路径不存在时 `fs.cpSync(oldPartitions, newPartitions, {recursive:true})`;失败仅记日志、不阻断启动(非致命)。
+旧版本把 Chromium 登录分区残留在 `%APPDATA%/LIRA/Partitions/`,升级后用户会丢失登录态。`migrateUserDataFromAppData`([main.js:218-234](../../../src/electron/main.js#L218-L234)):当旧路径存在且新路径不存在时 `fs.cpSync(oldPartitions, newPartitions, {recursive:true})`;失败仅记日志、不阻断启动(非致命)。
 
 ## 4. 主窗口
 

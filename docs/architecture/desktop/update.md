@@ -9,7 +9,7 @@
 | 侧 | 事实 | 出处 |
 |---|---|---|
 | 运行时 | `electron-updater` 6.x 的 `autoUpdater`;延迟加载(`getAutoUpdater` 首次调用才 require,避免 ready 前初始化) | [update-manager.js:10-15](../../../src/electron/update-manager.js#L10-L15) |
-| 版本来源 | GitHub `AuroraWhisperer/Request-song` Releases 的 `latest.yml` | [../engineering/build.md](../engineering/build.md) |
+| 版本来源 | GitHub `AuroraWhisperer/LIRA` Releases 的 `latest.yml` | [../engineering/build.md](../engineering/build.md) |
 | 开关 | 设置 `enableAutoUpdate === 'true'`(设置存储见 [../backend/storage.md](../backend/storage.md) §7) | [main.js:677-685](../../../src/electron/main.js#L677-L685) |
 | 触发 | 主窗口 `ready-to-show` 后,仅**打包版且开关开启**时延迟 **1s** 首查 | [main.js:339-343](../../../src/electron/main.js#L339-L343) |
 

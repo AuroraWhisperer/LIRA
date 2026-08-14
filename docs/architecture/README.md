@@ -1,4 +1,4 @@
-# 点歌助手 架构文档
+# LIRA 架构文档
 
 > 版本:**v3.3.14**(2026-08)· 适用代码:仓库根 [src/](../../src/)、[public/](../../public/)、[package.json](../../package.json)
 
@@ -18,11 +18,11 @@
 
 **项目整体全貌**(思维导图 · 源 [diagrams/overview.d2](diagrams/overview.d2)):
 
-![点歌助手项目整体全貌](diagrams/overview.png)
+![LIRA 项目整体全貌](diagrams/overview.png)
 
 **整体架构 · 组件与连接**(源 [diagrams/components.d2](diagrams/components.d2)):
 
-![点歌助手整体架构图](diagrams/components.png)
+![LIRA 整体架构图](diagrams/components.png)
 
 **点歌全链路时序图**(观众弹幕 → 播放 · [diagrams/song-request-flow.md](diagrams/song-request-flow.md),Mermaid `sequenceDiagram`,GitHub 原生渲染;本地预览用 VSCode Mermaid 插件)。
 

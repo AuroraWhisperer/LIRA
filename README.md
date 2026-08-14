@@ -1,92 +1,90 @@
-# 点歌助手
+# LIRA
 
-Bilibili 直播弹幕点歌工具。运行在主播电脑本地，观众弹幕点歌后自动加入队列，通过 OBS / 直播姬网页源展示到直播画面。除点歌外，还集成弹幕互动机器人、AI 弹幕姬、礼物驱动的加班机与全民 K 歌歌词捕捉等直播工具。
+English | [简体中文](README.zh-CN.md)
 
-数据只保存在本机。
+**LIRA** (**L**ive **I**nteraction & **R**equest **A**ssistant) is a lightweight, local-first companion for Bilibili streamers, featuring danmaku song requests, queue and library management, live overlays, and more — with no server or subscription required. It runs entirely on the streamer's computer: viewers request songs via danmaku, requests are queued automatically, and the queue is shown on stream through an OBS browser source. Beyond song requests, it packs a danmaku bot, an AI chat assistant, a gift-driven overtime timer, and Quanmin K-Ge lyrics capture.
 
-.\node_modules\.bin\electron.cmd scripts\bilibili-capture-electron --room 1700301235 --duration 1200 --output tmp\bilibili-guard-events-auth.ndjson --bilibili-user-data "D:\Work\live-exe\bilibili-live-song-plugin\data"
+## Usage Declaration
 
-使用声明
+This project is for personal learning, research, and reference only. Commercial use, modification, republishing, or resale without written permission from the author is strictly prohibited. See [LICENSE](LICENSE) for details.
 
-本项目仅供个人学习、研究和参考使用。未经作者书面许可，严禁商用、二次修改、再发布或转售。详见 [LICENSE](LICENSE)。
+## Installation
 
-## 安装使用
+Download the latest installer from [Releases](https://github.com/AuroraWhisperer/LIRA/releases) and run it.
 
-从 [Releases](https://github.com/AuroraWhisperer/Request-song/releases) 下载最新安装包，双击安装即可。
+## Key Features
 
-## 主要功能
+**Song Requests**
 
-**弹幕点歌**
+- `点歌 晴天` — request a song via danmaku, with fuzzy matching
+- `随机点歌` — random pick from the library, filterable by artist, category, language
+- Manual queue management: add, skip, pin, clear
+- Floating notification on successful request
 
-- `点歌 晴天` — 观众发送弹幕点歌，支持模糊匹配歌库
-- `随机点歌` — 从歌库随机一首，支持按歌手、分类、语言筛选
-- 手动入队、切歌、置顶、清空队列
-- 点歌成功时悬浮通知确认
+**Danmaku Monitoring**
 
-**弹幕监听**
+- Real-time Bilibili public danmaku WebSocket with history compensation
+- Dedicated Super Chat (SC) queue, sorted by amount
+- Gift sprint tracking: target amount, collected stats, crystal ball conversion
 
-- Bilibili 公开弹幕 WebSocket 实时监听，含历史补偿
-- 醒目留言（SC）独立队列，按金额排序
-- 礼物冲刺追踪：目标金额、已收统计、水晶球换算
+**Danmaku Interaction**
 
-**弹幕互动**
+- Danmaku bot: posts in the live room with a logged-in account, auto-mentions recent requesters
+- Check-in / fortune slip bot: `签到` auto-replies with streak days, `抽签` draws a daily fortune
+- DIY keyword replies: custom keyword triggers with fixed responses
 
-- 弹幕姬：用已登录账号向直播间发送弹幕，自动 @ 最近点歌人
-- 签到 / 抽签机器人：`签到` 自动回复累计天数，`抽签` 每日一签
-- DIY 关键词回复：自定义关键词触发固定文案
+**AI Danmaku Assistant**
 
-**AI 弹幕姬**
+- Auto-generates replies via DeepSeek when "小米" is mentioned; personality and system prompt are customizable
+- Supports web search, weather, route queries, auto-retry on failed delivery
 
-- 弹幕提及「小米」时自动调用 DeepSeek 生成回复，人格与系统提示词可自定义
-- 支持联网搜索、天气、路线查询，回复未送达自动重发
+**Song Queue Display**
 
-**点歌队列**
+- Two display styles: classic queue / transparent leaderboard identity
+- Loop or bounce scrolling with adjustable speed
+- 11 preset themes + customizable colors, transparency, font size, border radius, font family, weight
+- Glass morphism, gradient background, glow intensity, low resource mode
 
-- 两种展示风格：经典队列 / 透明榜单身份样式
-- 循环或往返滚动，速率可调
-- 11 套预设主题 + 颜色、透明度、字号、圆角、字体、字重自定义
-- 毛玻璃效果、渐变背景、发光强度、低占用模式
+**Music Player**
 
-**音乐播放器**
+- Built-in player with NetEase Cloud Music and QQ Music search & playback
+- Playback queue popup: current song highlighted, played songs dimmed, click any row to jump
+- Playback history, playlist loop playback
+- Right drawer panel: daily recommendations, favorites, playlist browser, play all / shuffle
+- Desktop lyrics, volume control, player docking/expansion
 
-- 内置播放器，支持网易云音乐、QQ 音乐搜索播放
-- 播放队列弹窗：当前播放高亮、已播灰显，可点击任意行跳转
-- 播放历史记录，歌单循环播放
-- 右侧抽屉面板：每日推荐、我喜欢、歌单浏览，支持播放全部 / 随机播放
-- 桌面歌词、音量控制、播放器停靠展开
+**Quanmin K-Ge Lyrics Capture**
 
-**全民 K 歌歌词捕捉**
+- Third playback source on the player page: reads current song, progress, and word-by-word lyrics from the local Quanmin K-Ge client, auto-follows playback and syncs desktop lyrics
+- Local QRC cache, auto-fallback to QQ Music / NetEase Cloud online lyrics when missing
+- Manual lyrics time offset (±1500ms)
 
-- 播放页第三播放来源：从本机全民 K 歌客户端读取当前歌曲、进度与逐字歌词，自动跟随播放并同步桌面歌词
-- 本地 QRC 缓存，缺失时自动回退 QQ 音乐 / 网易云在线歌词
-- 歌词时间偏移手动微调（±1500ms）
+**Songlist Display Board**
 
-**歌单展示板**
+- Scrolling display of all requestable songs, 6 independent preset themes
+- Sort by initial letter, category, artist, language, song name length
 
-- 滚动展示全部可点歌曲，6 套独立预设主题
-- 支持按首字母、分类、歌手、语言、歌名长度排序
+**Song Library Management**
 
-**歌库管理**
+- Add, edit, enable/disable, delete songs
+- Search, category filter, language filter, artist filter
 
-- 歌曲新增、编辑、启用/停用、删除
-- 搜索、分类筛选、语言筛选、歌手筛选
+**Overtime Timer**
 
-**加班机**
+- Gift-driven countdown: viewers extend the countdown with gifts, real-time OBS overlay
+- Gift rule editor: direct time adjustment / random result draw / time mystery box
 
-- 礼物驱动的直播倒计时：观众送礼延长倒计时，OBS 悬浮层实时展示
-- 礼物规则编辑器：直接改时间 / 随机抽结果 / 时间盲盒
+**Streamer Planner**
 
-**主播计划**
+- Local streaming planner: organize work by today / this week / this month across song learning, stream prep, content publishing, and stream review — all data stays local
 
-- 本地直播规划器：按今天 / 本周 / 本月与学歌 / 开播准备 / 内容发布 / 直播复盘安排直播工作，数据仅保存在本机
+**Desktop Features**
 
-**桌面版特性**
+- Frameless window, SVG icons, custom minimize/maximize/close buttons
+- Auto-checks GitHub Releases for updates, one-click restart to upgrade
+- One-click open data and log directories
 
-- 无边框窗口，SVG 图标，最小化 / 最大化 / 关闭按钮自定义样式
-- GitHub Releases 自动检查更新，一键重启升级
-- 数据目录、日志目录一键打开
+## Documentation
 
-## 项目文档
-
-- [架构文档](docs/architecture/README.md) — 后端 / 前端 / 桌面端 / 工程全量架构
-- [更新日志](UPDATE.md) — 各版本变更记录
+- [Architecture Documentation](docs/architecture/README.md) — full architecture for backend / frontend / desktop / engineering
+- [Changelog](UPDATE.md) — version change records

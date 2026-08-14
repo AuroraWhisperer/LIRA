@@ -1,9 +1,9 @@
 {
-  "name": "bilibili-live-song-plugin",
-  "version": "3.3.15",
+  "name": "lira",
+  "version": "3.3.16",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Local Bilibili live song request assistant MVP.",
+  "description": "LIRA - Live Interactive Request Assistant",
   "author": "Aurora",
   "main": "src/electron/main.js",
   "scripts": {
@@ -30,9 +30,9 @@
     "electron-builder": "^26.11.1"
   },
   "build": {
-    "appId": "com.aurorawhisperer.bilibili-live-song-plugin",
-    "productName": "点歌助手",
-    "artifactName": "bilibili-live-song-plugin-setup-${version}.${ext}",
+    "appId": "com.aurorawhisperer.lira",
+    "productName": "LIRA",
+    "artifactName": "lira-setup-${version}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -56,13 +56,13 @@
       ]
     },
     "nsis": {
-      "artifactName": "bilibili-live-song-plugin-setup-${version}.${ext}",
+      "artifactName": "lira-setup-${version}.${ext}",
       "include": "build/installer.nsh",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "点歌助手",
-      "uninstallDisplayName": "点歌助手",
+      "shortcutName": "LIRA",
+      "uninstallDisplayName": "LIRA",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
@@ -70,7 +70,7 @@
       {
         "provider": "github",
         "owner": "AuroraWhisperer",
-        "repo": "Request-song",
+        "repo": "LIRA",
         "releaseType": "release"
       }
     ]
