@@ -130,6 +130,7 @@
     setValue('desktopLyricShadowIntensityNumber', settings.desktopLyricShadowIntensity || '0.5');
     setValue('desktopLyricTranslationScale', settings.desktopLyricTranslationScale || '0.58');
     setValue('desktopLyricTranslationScaleNumber', settings.desktopLyricTranslationScale || '0.58');
+    window.AdminApp.forms?.refreshParameterRanges?.();
     window.AdminApp.desktopLyricPreview?.applySettings(settings);
   }
 

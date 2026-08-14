@@ -201,21 +201,21 @@ function createOvertimeService(options = {}) {
 
   function resolveGiftSettlement(giftEventId, gift, rule, currentState, updatedAt) {
     const selection = selectRuleResult(rule);
-    const requestedDeltaSeconds = selection.seconds;
     const beforeMs = clampMs(currentState.remainingMs);
-    const afterMs = clampMs(beforeMs + requestedDeltaSeconds * 1000);
+    const afterMs = applyEffect(beforeMs, selection.effect);
     const appliedDeltaSeconds = Math.trunc((afterMs - beforeMs) / 1000);
+    const requestedDeltaSeconds = requestedDelta(selection.effect, appliedDeltaSeconds);
     const nextState = { ...currentState, remainingMs: afterMs };
 
     if (afterMs === 0) nextState.status = 'finished';
-    else if (requestedDeltaSeconds > 0 && currentState.status === 'finished') nextState.status = 'running';
+    else if (afterMs > beforeMs && currentState.status === 'finished') nextState.status = 'running';
     nextState.revision += 1;
     nextState.updatedAt = updatedAt;
 
     const ruleSnapshot = {
-      version: 1,
+      version: 2,
       mode: rule.mode,
-      fixedSeconds: rule.mode === 'fixed' ? rule.fixedSeconds : null,
+      fixedEffect: rule.mode === 'fixed' ? rule.fixedEffect : null,
       outcomes: rule.mode === 'random' ? rule.outcomes : [],
       ruleUpdatedAt: rule.updatedAt
     };
@@ -227,9 +227,12 @@ function createOvertimeService(options = {}) {
       totalPrice: Number(gift.total_price) || 0,
       imagePath: rule.imagePath,
       mode: rule.mode,
+      effect: selection.effect,
+      beforeSeconds: Math.floor(beforeMs / 1000),
+      afterSeconds: Math.floor(afterMs / 1000),
       requestedDeltaSeconds,
       appliedDeltaSeconds,
-      resultSeconds: requestedDeltaSeconds,
+      resultSeconds: appliedDeltaSeconds,
       result: selection.outcome
     };
 
@@ -245,7 +248,7 @@ function createOvertimeService(options = {}) {
   }
 
   function selectRuleResult(rule) {
-    if (rule.mode === 'fixed') return { seconds: Number(rule.fixedSeconds) || 0, outcome: null };
+    if (rule.mode === 'fixed') return { effect: rule.fixedEffect, outcome: null };
     const totalWeight = rule.outcomes.reduce((sum, outcome) => sum + Number(outcome.weight), 0);
     const draw = randomInt(totalWeight);
     let cumulative = 0;
@@ -254,12 +257,12 @@ function createOvertimeService(options = {}) {
       cumulative += Number(outcome.weight);
       if (draw < cumulative) {
         const result = {
-          version: 1,
+          version: 2,
           selectedIndex: index,
-          selectedSeconds: Number(outcome.seconds),
+          selectedEffect: { operation: outcome.operation, value: Number(outcome.value) },
           totalWeight
         };
-        return { seconds: result.selectedSeconds, outcome: result };
+        return { effect: result.selectedEffect, outcome: result };
       }
     }
     throw new Error('Overtime random rule has no selectable outcome.');
@@ -397,6 +400,25 @@ function createOvertimeService(options = {}) {
     replaceRules,
     dispose
   };
+}
+
+function applyEffect(beforeMs, effect) {
+  const operation = effect?.operation;
+  const value = Math.max(0, Math.floor(Number(effect?.value) || 0));
+  if (operation === 'clear') return 0;
+  if (operation === 'add') return clampMs(beforeMs + value * 1000);
+  if (operation === 'subtract') return clampMs(beforeMs - value * 1000);
+  if (operation === 'multiply') {
+    return beforeMs > MAX_OVERTIME_MS / value ? MAX_OVERTIME_MS : clampMs(beforeMs * value);
+  }
+  if (operation === 'divide') return clampMs(Math.floor(beforeMs / value / 1000) * 1000);
+  throw new Error('Overtime effect operation is invalid.');
+}
+
+function requestedDelta(effect, appliedDeltaSeconds) {
+  if (effect.operation === 'add') return effect.value;
+  if (effect.operation === 'subtract') return -effect.value;
+  return appliedDeltaSeconds;
 }
 
 function getGiftEventId(event) {

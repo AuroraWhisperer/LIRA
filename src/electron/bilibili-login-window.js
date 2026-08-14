@@ -27,6 +27,9 @@ async function openBilibiliLoginWindow(options = {}) {
     }
   });
 
+  // 登录页(直播首页)可能自动播放带声音的直播流,默认禁音避免打扰
+  loginWindow.webContents.setAudioMuted(true);
+
   const loginSession = loginWindow.webContents.session;
   loginSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 

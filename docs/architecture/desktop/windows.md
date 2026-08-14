@@ -37,20 +37,21 @@
 
 ## 3. B站登录窗(bilibili-login-window.js)
 
-`openBilibiliLoginWindow(options)`([bilibili-login-window.js:3-128](../../../src/electron/bilibili-login-window.js#L3-L128))依赖注入式实现(BrowserWindow/shell/auth 由 main.js 传入),与音乐登录窗同构:
+`openBilibiliLoginWindow(options)`([bilibili-login-window.js:3-131](../../../src/electron/bilibili-login-window.js#L3-L131))依赖注入式实现(BrowserWindow/shell/auth 由 main.js 传入),与音乐登录窗同构:
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 初始 URL | `https://live.bilibili.com/`(登录 URL 唯一成表处:[auth.md](auth.md) §2) | [bilibili-login-window.js:117](../../../src/electron/bilibili-login-window.js#L117) |
+| 初始 URL | `https://live.bilibili.com/`(登录 URL 唯一成表处:[auth.md](auth.md) §2) | [bilibili-login-window.js:120](../../../src/electron/bilibili-login-window.js#L120) |
 | partition | Bilibili 持久化登录分区([auth.md](auth.md) §1) | [bilibili-login-window.js:23](../../../src/electron/bilibili-login-window.js#L23) |
-| 权限 | 拒绝所有权限请求 | [bilibili-login-window.js:31](../../../src/electron/bilibili-login-window.js#L31) |
-| 导航 | `isAllowedBilibiliLoginUrl` 白名单(域名清单见 [auth.md](auth.md) §3),外部链接走系统浏览器 | [bilibili-login-window.js:37-50](../../../src/electron/bilibili-login-window.js#L37-L50) |
+| 默认禁音 | `webContents.setAudioMuted(true)` — 登录页(直播首页)可能自动播放带声音的直播流,静音为 webContents 级属性,跨页内导航持续生效 | [bilibili-login-window.js:31](../../../src/electron/bilibili-login-window.js#L31) |
+| 权限 | 拒绝所有权限请求 | [bilibili-login-window.js:34](../../../src/electron/bilibili-login-window.js#L34) |
+| 导航 | `isAllowedBilibiliLoginUrl` 白名单(域名清单见 [auth.md](auth.md) §3),外部链接走系统浏览器 | [bilibili-login-window.js:40-53](../../../src/electron/bilibili-login-window.js#L40-L53) |
 
 与音乐登录窗的差异:
 
-- **关闭快照**:`closed` 时执行 `persistBilibiliCookieSnapshot(dataDir)`(含明文导出逻辑,见 [auth.md](auth.md) §6)并取回最新 auth state,一并 resolve([bilibili-login-window.js:95-114](../../../src/electron/bilibili-login-window.js#L95-L114))。
-- **防重入**:`loginCheckInFlight`(检测在飞时不重复发起)与 `loginCloseRequested`(已请求关闭后不再触发)两道守卫保护自动关闭检测([bilibili-login-window.js:54-55](../../../src/electron/bilibili-login-window.js#L54-L55)、[65-80](../../../src/electron/bilibili-login-window.js#L65-L80))。
-- **加载失败处理**:`loadURL` 失败时清理监听并 `destroy()` 窗口,异常上抛给 IPC 调用方([bilibili-login-window.js:116-122](../../../src/electron/bilibili-login-window.js#L116-L122))。
+- **关闭快照**:`closed` 时执行 `persistBilibiliCookieSnapshot(dataDir)`(含明文导出逻辑,见 [auth.md](auth.md) §6)并取回最新 auth state,一并 resolve([bilibili-login-window.js:98-117](../../../src/electron/bilibili-login-window.js#L98-L117))。
+- **防重入**:`loginCheckInFlight`(检测在飞时不重复发起)与 `loginCloseRequested`(已请求关闭后不再触发)两道守卫保护自动关闭检测([bilibili-login-window.js:57-58](../../../src/electron/bilibili-login-window.js#L57-L58)、[68-83](../../../src/electron/bilibili-login-window.js#L68-L83))。
+- **加载失败处理**:`loadURL` 失败时清理监听并 `destroy()` 窗口,异常上抛给 IPC 调用方([bilibili-login-window.js:119-125](../../../src/electron/bilibili-login-window.js#L119-L125))。
 
 ## 4. 生命周期与 IPC 语义
 

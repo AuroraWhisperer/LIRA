@@ -37,6 +37,34 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.equal(importLines.at(-1), "import './app.js';");
 });
 
+test('parameter ranges use the shared sky-blue component without changing playback controls', async () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'components', 'parameter-range.css'), 'utf8');
+  const { getParameterRangeProgress } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'parameter-range.js')
+  );
+
+  assert.equal(getParameterRangeProgress({ min: '0', max: '100', value: '25' }), 25);
+  assert.equal(getParameterRangeProgress({ min: '-3000', max: '3000', value: '0' }), 50);
+  for (const id of [
+    'queueScrollSpeedRange', 'queueSongFontSize', 'queueTitleFontSize',
+    'themeOpacity', 'backdropBlur', 'glowIntensity', 'identityQueueFontSize',
+    'identityQueueScrollSpeedRange', 'overlayRuleFontSize', 'scrollSecondsRange',
+    'songBoardFontSize', 'songBoardSongFontSize', 'songBoardTitleFontSize',
+    'songBoardBackdropBlur', 'songBoardGlowIntensity', 'songBoardThemeOpacity',
+    'desktopLyricFontSize', 'desktopLyricStrokeWidth', 'desktopLyricOpacity',
+    'desktopLyricBgOpacity', 'desktopLyricScale', 'desktopLyricLineHeight',
+    'desktopLyricShadowIntensity', 'desktopLyricTranslationScale', 'weSingLyricOffsetMs'
+  ]) {
+    assert.match(html, new RegExp(`id="${id}" class="parameter-range" type="range"`));
+  }
+  assert.doesNotMatch(html, /id="playbackSeek" class="parameter-range"/);
+  assert.doesNotMatch(html, /id="playbackVolume" class="[^\"]*parameter-range/);
+  assert.match(styles, /\.parameter-range\[type="range"\]/);
+  assert.match(styles, /#43c7ff/);
+  assert.match(styles, /#bdebff/);
+});
+
 test('admin form refresh does not overwrite the field currently being edited', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
 
@@ -1809,6 +1837,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(source, /`ID \$\{gift\.id\}[^`]*`/);
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(source, /MAX_ENABLED_RULES\s*=\s*8/);
+  assert.match(source, /该下播了/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });
 
@@ -1845,7 +1874,10 @@ test('overtime gift rules use novice-friendly structured controls', () => {
   const overtimeStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'overtime.css'), 'utf8');
 
   assert.match(html, /添加礼物后，选择[“"]直接改时间[”"]或[“"]随机抽结果[”"]/);
-  assert.match(source, /dataset\.ruleDirection/);
+  assert.match(source, /dataset\.ruleOperation/);
+  for (const operation of ['add', 'subtract', 'multiply', 'divide', 'clear']) {
+    assert.match(source, new RegExp(`createOperationOption\\(name, '${operation}'`));
+  }
   assert.match(source, /dataset\[`duration\$\{part\[0\]\.toUpperCase\(\)\}\$\{part\.slice\(1\)\}`\]/);
   assert.match(source, /data-duration-\$\{part\}/);
   assert.match(source, /dataset\.randomOutcome/);
@@ -1856,31 +1888,48 @@ test('overtime gift rules use novice-friendly structured controls', () => {
   assert.doesNotMatch(source, /应写成“\+00:05:00 \| 40”/);
   assert.match(overtimeStyles, /\.overtime-rule-mode-options/);
   assert.match(overtimeStyles, /\.overtime-outcome-card/);
-  assert.match(overtimeStyles, /\.overtime-direction-option\.is-add/);
-  assert.match(overtimeStyles, /\.overtime-direction-option\.is-subtract/);
+  assert.match(overtimeStyles, /\.overtime-operation-option\.is-add/);
+  assert.match(overtimeStyles, /\.overtime-operation-option\.is-subtract/);
+  assert.match(overtimeStyles, /\.overtime-operation-option\.is-multiply/);
+  assert.match(overtimeStyles, /\.overtime-operation-option\.is-divide/);
+  assert.match(overtimeStyles, /\.overtime-operation-option\.is-clear/);
 
-  const durationStart = source.indexOf('function readSignedDuration');
+  const durationStart = source.indexOf('function readEffect');
   const durationEnd = source.indexOf('\nfunction ruleButton', durationStart);
   const durationSandbox = {};
   vm.runInNewContext(
-    `const MAX_RULE_SECONDS = 24 * 60 * 60;\n${source.slice(durationStart, durationEnd)}\n` +
-      'this.readSignedDuration = readSignedDuration;',
+    `const MAX_RULE_SECONDS = 24 * 60 * 60; const MAX_EFFECT_FACTOR = 1000;\n${source.slice(durationStart, durationEnd)}\n` +
+      'this.readEffect = readEffect;',
     durationSandbox
   );
-  const durationRoot = (direction, hours, minutes, seconds) => ({
+  const durationRoot = (operation, hours, minutes, seconds, factor = 2) => ({
     querySelector(selector) {
-      if (selector === '[data-rule-direction]:checked') return { value: direction };
+      if (selector === '[data-rule-operation]:checked') return { value: operation };
+      if (selector === '[data-effect-factor]') return { value: factor };
       if (selector === '[data-duration-hours]') return { value: hours };
       if (selector === '[data-duration-minutes]') return { value: minutes };
       if (selector === '[data-duration-seconds]') return { value: seconds };
       return null;
     }
   });
-  assert.equal(durationSandbox.readSignedDuration(durationRoot('add', '1', '2', '3')), 3723);
-  assert.equal(durationSandbox.readSignedDuration(durationRoot('subtract', '0', '5', '0')), -300);
-  assert.equal(durationSandbox.readSignedDuration(durationRoot('empty', '', '', '')), 0);
+  assert.equal(
+    JSON.stringify(durationSandbox.readEffect(durationRoot('add', '1', '2', '3'))),
+    JSON.stringify({ operation: 'add', value: 3723 })
+  );
+  assert.equal(
+    JSON.stringify(durationSandbox.readEffect(durationRoot('multiply', '', '', '', '8'))),
+    JSON.stringify({ operation: 'multiply', value: 8 })
+  );
+  assert.equal(
+    JSON.stringify(durationSandbox.readEffect(durationRoot('clear', '', '', ''))),
+    JSON.stringify({ operation: 'clear', value: 0 })
+  );
   assert.throws(
-    () => durationSandbox.readSignedDuration(durationRoot('add', '24', '1', '0')),
+    () => durationSandbox.readEffect(durationRoot('divide', '', '', '', '1')),
+    /倍数/
+  );
+  assert.throws(
+    () => durationSandbox.readEffect(durationRoot('add', '24', '1', '0')),
     /不能超过 24 小时/
   );
 
@@ -2364,7 +2413,7 @@ test('identity queue scrolls from actual overflow', () => {
 
 test('song board scroll speed stays constant as content grows', async () => {
   const adminHtml = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
-  assert.match(adminHtml, /id="scrollSecondsRange" type="range" min="1" max="100"/);
+  assert.match(adminHtml, /id="scrollSecondsRange" class="parameter-range" type="range" min="1" max="100"/);
   assert.match(adminHtml, /id="scrollSeconds" type="number" min="1" max="100"/);
   const songModule = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),

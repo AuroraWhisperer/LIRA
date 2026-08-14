@@ -20,10 +20,10 @@ const {
   getSchemaVersions
 } = require('../src/storage/database');
 
-test('gift database v5 creates overtime tables and safe singleton defaults', () => {
+test('gift database v6 creates overtime tables and safe singleton defaults', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.db).giftDb, 5);
+    assert.equal(getSchemaVersions(fixture.db).giftDb, 6);
     const tables = new Set(
       fixture.db.giftDb.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all()
         .map(row => row.name)
@@ -43,6 +43,48 @@ test('gift database v5 creates overtime tables and safe singleton defaults', () 
     assert.equal(state.revision, 0);
   } finally {
     fixture.close();
+  }
+});
+
+test('gift database v6 preserves v5 overtime state while widening its bounds', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-migration-'));
+  let db = createDatabases({ dataDir });
+  try {
+    db.giftDb.exec(`
+      DROP TABLE overtime_machine_state;
+      CREATE TABLE overtime_machine_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+        enable_epoch INTEGER NOT NULL DEFAULT 0 CHECK (enable_epoch >= 0),
+        initial_seconds INTEGER NOT NULL DEFAULT 0 CHECK (initial_seconds BETWEEN 0 AND 3599999),
+        remaining_ms INTEGER NOT NULL DEFAULT 0 CHECK (remaining_ms BETWEEN 0 AND 3599999000),
+        anchor_at_ms INTEGER NOT NULL DEFAULT 0 CHECK (anchor_at_ms >= 0),
+        status TEXT NOT NULL DEFAULT 'paused' CHECK (status IN ('paused', 'running', 'finished')),
+        background_path TEXT NOT NULL DEFAULT '',
+        background_fit TEXT NOT NULL DEFAULT 'cover' CHECK (background_fit IN ('cover', 'contain', 'fill')),
+        revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO overtime_machine_state VALUES (
+        1, 1, 7, 3600, 2700000, 1234, 'paused', '/img/overtime-machine/night.webp',
+        'contain', 9, '2026-08-14T00:00:00.000Z'
+      );
+      UPDATE schema_version SET version = 5 WHERE key = 'gift_db';
+    `);
+    closeDatabases(db);
+
+    db = createDatabases({ dataDir });
+    const state = db.giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
+    assert.equal(getSchemaVersions(db).giftDb, 6);
+    assert.equal(state.enabled, 1);
+    assert.equal(state.enable_epoch, 7);
+    assert.equal(state.remaining_ms, 2_700_000);
+    assert.equal(state.background_fit, 'contain');
+    db.giftDb.prepare('UPDATE overtime_machine_state SET remaining_ms = ? WHERE id = 1')
+      .run(MAX_OVERTIME_SECONDS * 1000);
+  } finally {
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
@@ -145,6 +187,7 @@ test('restart deducts offline elapsed time and never gains time after wall-clock
 });
 
 test('time, background, and rules validation enforce server limits', () => {
+  assert.equal(MAX_OVERTIME_SECONDS, 9_999 * 365 * 24 * 60 * 60);
   assert.deepEqual(validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS }), {
     remainingSeconds: MAX_OVERTIME_SECONDS
   });
@@ -168,10 +211,26 @@ test('time, background, and rules validation enforce server limits', () => {
     {
       giftId: '1', giftName: '盲盒', imagePath: '', mode: 'random', enabled: false,
       outcomes: [{ seconds: 60, weight: 2 }, { seconds: -30, weight: 1 }], sortOrder: 1
+    },
+    {
+      giftId: '2', giftName: '翻倍', imagePath: '', mode: 'fixed', enabled: false,
+      fixedEffect: { operation: 'multiply', value: 8 }, sortOrder: 2
     }
   ]);
   assert.equal(rules[0].fixedSeconds, 300);
-  assert.deepEqual(rules[1].outcomes, [{ seconds: 60, weight: 2 }, { seconds: -30, weight: 1 }]);
+  assert.deepEqual(rules[0].fixedEffect, { operation: 'add', value: 300 });
+  assert.deepEqual(rules[1].outcomes, [
+    { operation: 'add', value: 60, weight: 2 },
+    { operation: 'subtract', value: 30, weight: 1 }
+  ]);
+  assert.deepEqual(rules[2].fixedEffect, { operation: 'multiply', value: 8 });
+  assert.equal(rules[2].fixedSeconds, null);
+  assert.throws(
+    () => validateRules([{
+      giftId: 'bad-factor', mode: 'fixed', fixedEffect: { operation: 'divide', value: 1 }
+    }]),
+    /value/
+  );
   assert.throws(
     () => validateRules(Array.from({ length: 9 }, (_, index) => ({
       giftId: String(index), mode: 'fixed', fixedSeconds: 1, enabled: true
@@ -237,11 +296,70 @@ test('random gift groups persist one weighted result and never redraw', () => {
     assert.equal(draws, 1);
     assert.equal(service.getSnapshot().effectiveRemainingMs, 90_000);
     assert.deepEqual(JSON.parse(fixture.getSettlement(event.giftEventId).outcomes_json), {
-      version: 1,
+      version: 2,
       selectedIndex: 1,
-      selectedSeconds: -30,
+      selectedEffect: { operation: 'subtract', value: 30 },
       totalWeight: 3
     });
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('gift rules apply add, subtract, multiply, divide, and clear in constant time', () => {
+  const fixture = createFixture();
+  const updates = [];
+  const service = fixture.createService({ onUpdate: update => updates.push(update) });
+  const consumer = createOvertimeConsumer({ service });
+
+  try {
+    service.act('enable');
+    service.setTime({ remainingSeconds: 125 });
+    service.replaceRules([
+      effectRule('multiply', 'multiply', 3, 0),
+      effectRule('divide', 'divide', 2, 1),
+      effectRule('subtract', 'subtract', 20, 2),
+      effectRule('add', 'add', 10, 3),
+      effectRule('clear', 'clear', 0, 4)
+    ]);
+
+    for (const [giftId, expectedSeconds] of [
+      ['multiply', 375],
+      ['divide', 187],
+      ['subtract', 167],
+      ['add', 177],
+      ['clear', 0]
+    ]) {
+      consumer.handle(fixture.insertFinalGift({ giftId, overtimeEpoch: 1 }));
+      assert.equal(service.getSnapshot().effectiveRemainingMs, expectedSeconds * 1000);
+    }
+
+    const giftUpdates = updates.filter(update => update.reason === 'gift');
+    assert.deepEqual(giftUpdates.map(update => update.adjustment.effect.operation), [
+      'multiply', 'divide', 'subtract', 'add', 'clear'
+    ]);
+    assert.equal(service.getSnapshot().status, 'finished');
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('multiplication saturates at 9,999 years without overflowing storage', () => {
+  const fixture = createFixture();
+  const service = fixture.createService();
+  const consumer = createOvertimeConsumer({ service });
+
+  try {
+    service.act('enable');
+    service.setTime({ remainingSeconds: Math.floor(MAX_OVERTIME_SECONDS / 2) + 1 });
+    service.replaceRules([effectRule('multiply', 'multiply', 3)]);
+    const event = fixture.insertFinalGift({ giftId: 'multiply', overtimeEpoch: 1 });
+    consumer.handle(event);
+
+    assert.equal(service.getSnapshot().effectiveRemainingMs, MAX_OVERTIME_SECONDS * 1000);
+    assert.equal(fixture.getSettlement(event.giftEventId).applied_delta_seconds > 0, true);
   } finally {
     service.dispose();
     fixture.close();
@@ -433,6 +551,18 @@ function fixedRule(giftId, fixedSeconds, sortOrder = 0) {
   return {
     giftId, giftName: giftId, imagePath: '', mode: 'fixed', fixedSeconds,
     enabled: true, sortOrder
+  };
+}
+
+function effectRule(giftId, operation, value, sortOrder = 0) {
+  return {
+    giftId,
+    giftName: giftId,
+    imagePath: '',
+    mode: 'fixed',
+    fixedEffect: { operation, value },
+    enabled: true,
+    sortOrder
   };
 }
 

@@ -1,0 +1,109 @@
+/* 参数调节滑块：只对显式标记为 parameter-range 的控件生效。 */
+input.parameter-range[type="range"] {
+  --parameter-range-thumb-size: 18px;
+  --parameter-range-track-height: 6px;
+  --parameter-range-track-inset: 9px;
+  --parameter-range-track-length: calc(100% - 18px);
+  --parameter-range-fill-length: 0px;
+  --parameter-range-track: color-mix(in srgb, var(--border, #b9c9d9) 76%, #ffffff);
+  --parameter-range-start: #43c7ff;
+  --parameter-range-mid: #61b4ff;
+  --parameter-range-end: #bdebff;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background:
+    linear-gradient(90deg, var(--parameter-range-start), var(--parameter-range-mid) 62%, var(--parameter-range-end))
+      var(--parameter-range-track-inset) center / var(--parameter-range-fill-length) var(--parameter-range-track-height) no-repeat,
+    linear-gradient(var(--parameter-range-track), var(--parameter-range-track))
+      var(--parameter-range-track-inset) center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+}
+
+input.parameter-range[type="range"]::-webkit-slider-runnable-track {
+  height: var(--parameter-range-track-height);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+input.parameter-range[type="range"]::-moz-range-track {
+  height: var(--parameter-range-track-height);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+input.parameter-range[type="range"]::-webkit-slider-thumb {
+  width: var(--parameter-range-thumb-size);
+  height: var(--parameter-range-thumb-size);
+  margin-top: calc((var(--parameter-range-track-height) - var(--parameter-range-thumb-size)) / 2);
+  appearance: none;
+  -webkit-appearance: none;
+  background:
+    radial-gradient(circle at 31% 25%, rgba(255, 255, 255, 0.96) 0 11%, transparent 30%),
+    linear-gradient(145deg, #d7f6ff 2%, #64c9f8 45%, #249eea 100%);
+  border: 2px solid rgba(255, 255, 255, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.32), 0 0 0 1px rgba(31, 151, 220, 0.18);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+input.parameter-range[type="range"]::-moz-range-thumb {
+  width: calc(var(--parameter-range-thumb-size) - 4px);
+  height: calc(var(--parameter-range-thumb-size) - 4px);
+  background:
+    radial-gradient(circle at 31% 25%, rgba(255, 255, 255, 0.96) 0 11%, transparent 30%),
+    linear-gradient(145deg, #d7f6ff 2%, #64c9f8 45%, #249eea 100%);
+  border: 2px solid rgba(255, 255, 255, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.32), 0 0 0 1px rgba(31, 151, 220, 0.18);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+input.parameter-range[type="range"]:hover::-webkit-slider-thumb {
+  box-shadow: 0 3px 9px rgba(20, 132, 199, 0.4), 0 0 0 4px rgba(104, 205, 248, 0.18);
+  transform: scale(1.08);
+}
+
+input.parameter-range[type="range"]:hover::-moz-range-thumb {
+  box-shadow: 0 3px 9px rgba(20, 132, 199, 0.4), 0 0 0 4px rgba(104, 205, 248, 0.18);
+  transform: scale(1.08);
+}
+
+input.parameter-range[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.36), 0 0 0 4px rgba(255, 255, 255, 0.92), 0 0 0 7px rgba(52, 168, 229, 0.5);
+}
+
+input.parameter-range[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.36), 0 0 0 4px rgba(255, 255, 255, 0.92), 0 0 0 7px rgba(52, 168, 229, 0.5);
+}
+
+input.parameter-range[type="range"]:disabled {
+  --parameter-range-start: #a8c9d9;
+  --parameter-range-end: #d8edf6;
+  --parameter-range-track: #dbe5ea;
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+input.parameter-range[type="range"]:disabled::-webkit-slider-thumb {
+  box-shadow: 0 1px 3px rgba(89, 123, 142, 0.22);
+}
+
+input.parameter-range[type="range"]:disabled::-moz-range-thumb {
+  box-shadow: 0 1px 3px rgba(89, 123, 142, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input.parameter-range[type="range"]::-webkit-slider-thumb,
+  input.parameter-range[type="range"]::-moz-range-thumb {
+    transition: none;
+  }
+}

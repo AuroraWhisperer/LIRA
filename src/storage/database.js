@@ -165,6 +165,33 @@ function runAllMigrations(databases, options = {}) {
           anchor_at_ms, status, background_path, background_fit, revision, updated_at
         ) VALUES (1, 0, 0, 0, 0, 0, 'paused', '', 'cover', 0, ?)
       `).run(now());
+    },
+    (db) => {
+      // v6: 乘法可产生超长倒计时，将安全上限扩展为 9,999 个 365 天年。
+      db.exec(`
+        ALTER TABLE overtime_machine_state RENAME TO overtime_machine_state_v5;
+        CREATE TABLE overtime_machine_state (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+          enable_epoch INTEGER NOT NULL DEFAULT 0 CHECK (enable_epoch >= 0),
+          initial_seconds INTEGER NOT NULL DEFAULT 0 CHECK (initial_seconds BETWEEN 0 AND 315328464000),
+          remaining_ms INTEGER NOT NULL DEFAULT 0 CHECK (remaining_ms BETWEEN 0 AND 315328464000000),
+          anchor_at_ms INTEGER NOT NULL DEFAULT 0 CHECK (anchor_at_ms >= 0),
+          status TEXT NOT NULL DEFAULT 'paused' CHECK (status IN ('paused', 'running', 'finished')),
+          background_path TEXT NOT NULL DEFAULT '',
+          background_fit TEXT NOT NULL DEFAULT 'cover' CHECK (background_fit IN ('cover', 'contain', 'fill')),
+          revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO overtime_machine_state (
+          id, enabled, enable_epoch, initial_seconds, remaining_ms,
+          anchor_at_ms, status, background_path, background_fit, revision, updated_at
+        )
+        SELECT id, enabled, enable_epoch, initial_seconds, remaining_ms,
+               anchor_at_ms, status, background_path, background_fit, revision, updated_at
+        FROM overtime_machine_state_v5;
+        DROP TABLE overtime_machine_state_v5;
+      `);
     }
   ]));
 

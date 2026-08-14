@@ -48,6 +48,7 @@
     document.getElementById('scrollSeconds').addEventListener('input', () => {
       const { normalizeRangeValue } = window.AdminApp.utils;
       setValue('scrollSecondsRange', String(Math.round(Number(normalizeRangeValue(value('scrollSeconds'), 1, 100, 45)))));
+      window.AdminApp.forms?.refreshParameterRanges?.(document.getElementById('scrollSecondsRange'));
     });
 
     // Song board sync toggle
@@ -80,6 +81,7 @@
           setValue('songBoardSongFontSizeNumber', s.songBoardSongFontSize || '16');
           setValue('songBoardTitleFontSize', s.songBoardTitleFontSize || '15');
           setValue('songBoardTitleFontSizeNumber', s.songBoardTitleFontSize || '15');
+          window.AdminApp.forms?.refreshParameterRanges?.();
         }
       }
     });

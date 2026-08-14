@@ -3,6 +3,7 @@
 'use strict';
 
 import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
+import { initParameterRanges } from '../shared/parameter-range.js';
 
 /**
  * 表单服务
@@ -16,9 +17,14 @@ export class FormsService {
     document.getElementById(rangeId).addEventListener('input', () =>
       setValue(numberId, value(rangeId))
     );
-    document.getElementById(numberId).addEventListener('input', () =>
-      setValue(rangeId, normalizeRangeValue(value(numberId), min, max, fallback))
-    );
+    document.getElementById(numberId).addEventListener('input', () => {
+      setValue(rangeId, normalizeRangeValue(value(numberId), min, max, fallback));
+      this.refreshParameterRanges(document.getElementById(rangeId));
+    });
+  }
+
+  refreshParameterRanges(root = document) {
+    return initParameterRanges(root);
   }
 
   /**
@@ -274,6 +280,7 @@ export class FormsService {
       setValue('identityQueueScrollSpeed', identityScrollSpeed);
       setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
+    this.refreshParameterRanges();
   }
 
   /**
@@ -336,6 +343,7 @@ if (typeof window !== 'undefined') {
     bindRangePair: (...args) => formsService.bindRangePair(...args),
     initTabs: () => formsService.initTabs(),
     initWorkspaceControls: () => formsService.initWorkspaceControls(),
+    refreshParameterRanges: (root) => formsService.refreshParameterRanges(root),
     fillForm: (values) => formsService.fillForm(values),
     normalizeQueueScrollSpeedForDisplay: (input) => formsService.normalizeQueueScrollSpeedForDisplay(input),
     normalizeSongScrollSpeedForDisplay: (input) => formsService.normalizeSongScrollSpeedForDisplay(input),

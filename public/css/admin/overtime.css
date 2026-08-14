@@ -68,6 +68,13 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.035em;
 }
+.overtime-clock-value.is-calendar { font-size: clamp(25px, 3.6vw, 48px); letter-spacing: -0.015em; }
+.overtime-clock-value.is-years { font-size: clamp(22px, 3vw, 40px); }
+.overtime-clock-value.is-finished {
+  color: #fff2b8;
+  font-size: clamp(24px, 3.4vw, 46px);
+  letter-spacing: 0.015em;
+}
 .overtime-control-stack { display: grid; align-content: space-between; justify-items: end; gap: 16px; }
 .overtime-consumer-status { flex-wrap: wrap; justify-content: flex-end; }
 .overtime-actions { justify-content: flex-end; }
@@ -253,7 +260,7 @@
 .overtime-rule-step strong { font-size: 14px; }
 .overtime-rule-step small { color: var(--muted); font-size: 12px; line-height: 1.45; }
 .overtime-rule-mode-options,
-.overtime-direction-control,
+.overtime-operation-control,
 .overtime-duration-control {
   min-width: 0;
   margin: 0;
@@ -262,7 +269,7 @@
 }
 .overtime-rule-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .overtime-rule-mode-options > legend,
-.overtime-direction-control > legend,
+.overtime-operation-control > legend,
 .overtime-duration-control > legend {
   position: absolute;
   width: 1px;
@@ -300,7 +307,7 @@
 }
 .overtime-mode-option.is-random input { accent-color: var(--ot-gold); }
 .overtime-mode-option:has(input:focus-visible),
-.overtime-direction-option:has(input:focus-visible) {
+.overtime-operation-option:has(input:focus-visible) {
   outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
   outline-offset: 2px;
 }
@@ -317,8 +324,9 @@
   background: var(--surface-2);
 }
 .overtime-effect-sentence > span { font-weight: 700; }
-.overtime-direction-control { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.overtime-direction-option {
+.overtime-effect-controls { display: grid; flex: 1 1 620px; min-width: 0; gap: 10px; }
+.overtime-operation-control { display: grid; grid-template-columns: repeat(5, minmax(74px, 1fr)); gap: 6px; }
+.overtime-operation-option {
   display: inline-flex !important;
   grid-template-columns: none !important;
   align-items: center;
@@ -331,31 +339,44 @@
   color: var(--text) !important;
   cursor: pointer;
 }
-.overtime-direction-option input {
+.overtime-operation-option input {
   position: absolute;
   width: 1px !important;
   height: 1px;
   opacity: 0;
 }
-.overtime-direction-option > span {
+.overtime-operation-option > span {
   font: 800 16px/1 Bahnschrift, sans-serif;
 }
-.overtime-direction-option strong { font-size: 12px; white-space: nowrap; }
-.overtime-direction-option.is-add:has(input:checked) {
+.overtime-operation-option strong { font-size: 12px; white-space: nowrap; }
+.overtime-operation-option.is-add:has(input:checked) {
   border-color: var(--ot-teal);
   background: color-mix(in srgb, var(--ot-teal) 13%, var(--surface));
   color: color-mix(in srgb, var(--ot-teal) 72%, var(--text)) !important;
   box-shadow: inset 0 0 0 1px var(--ot-teal);
 }
-.overtime-direction-option.is-subtract:has(input:checked) {
+.overtime-operation-option.is-subtract:has(input:checked) {
   border-color: var(--ot-coral);
   background: color-mix(in srgb, var(--ot-coral) 12%, var(--surface));
   color: color-mix(in srgb, var(--ot-coral) 76%, var(--text)) !important;
   box-shadow: inset 0 0 0 1px var(--ot-coral);
 }
-.overtime-direction-option.is-empty:has(input:checked) {
+.overtime-operation-option.is-multiply:has(input:checked) {
+  border-color: var(--ot-gold);
+  background: color-mix(in srgb, var(--ot-gold) 14%, var(--surface));
+  color: color-mix(in srgb, var(--ot-gold) 76%, var(--text)) !important;
+  box-shadow: inset 0 0 0 1px var(--ot-gold);
+}
+.overtime-operation-option.is-divide:has(input:checked) {
+  border-color: var(--ot-pink);
+  background: color-mix(in srgb, var(--ot-pink) 12%, var(--surface));
+  color: color-mix(in srgb, var(--ot-pink) 78%, var(--text)) !important;
+  box-shadow: inset 0 0 0 1px var(--ot-pink);
+}
+.overtime-operation-option.is-clear:has(input:checked) {
   border-color: var(--muted);
-  background: color-mix(in srgb, var(--muted) 12%, var(--surface));
+  background: color-mix(in srgb, var(--ot-night) 88%, var(--surface));
+  color: #fff7fb !important;
   box-shadow: inset 0 0 0 1px var(--muted);
 }
 .overtime-duration-control { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
@@ -374,6 +395,24 @@
   text-align: center;
   font: 700 14px/1 Bahnschrift, sans-serif;
   font-variant-numeric: tabular-nums;
+}
+.overtime-factor-control {
+  display: grid !important;
+  grid-template-columns: auto minmax(84px, 120px) auto !important;
+  align-items: center;
+  justify-content: start;
+  gap: 8px !important;
+  color: var(--text) !important;
+  font-weight: 700;
+}
+.overtime-factor-control input { width: 100% !important; text-align: center; font-weight: 700; }
+.overtime-factor-control small { color: var(--muted); font-weight: 400; }
+.overtime-clear-hint {
+  padding: 10px 12px;
+  border-left: 3px solid var(--ot-night);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--ot-night) 7%, var(--surface));
+  font-size: 12px;
 }
 
 .overtime-random-editor { padding-top: 16px; }
@@ -407,7 +446,7 @@
   font-variant-numeric: tabular-nums;
 }
 .overtime-outcome-result { display: grid; gap: 9px; }
-.overtime-outcome-result.is-empty .overtime-duration-control { opacity: 0.42; }
+.overtime-outcome-card .overtime-operation-control { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .overtime-outcome-weight {
   display: grid !important;
   grid-template-columns: auto minmax(72px, 100px) auto !important;
@@ -515,8 +554,9 @@
   .overtime-random-editor { padding-inline: 12px; }
   .overtime-rule-mode-options { grid-template-columns: 1fr; }
   .overtime-effect-sentence { align-items: stretch; flex-direction: column; }
-  .overtime-direction-control { display: grid; grid-template-columns: 1fr; }
-  .overtime-direction-option { justify-content: center; }
+  .overtime-operation-control,
+  .overtime-outcome-card .overtime-operation-control { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overtime-operation-option { justify-content: center; }
   .overtime-duration-control { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .overtime-duration-control label { display: grid !important; justify-items: stretch; text-align: center; }
   .overtime-duration-control input { width: 100% !important; }

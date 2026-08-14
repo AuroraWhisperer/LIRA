@@ -76,6 +76,36 @@ test('overtime overlay explains configured gift effects to viewers', () => {
   assert.equal(sandbox.describeRuleEffect({ mode: 'random' }).value, '盲盒');
   assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: 300 }).verb, '加时');
   assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: -90 }).value, '1分30秒');
+  assert.equal(
+    JSON.stringify(sandbox.describeRuleEffect({
+      mode: 'fixed', fixedEffect: { operation: 'multiply', value: 8 }
+    })),
+    JSON.stringify({ modifier: 'is-multiply', verb: '时间', value: '×8' })
+  );
+  assert.equal(
+    sandbox.describeRuleEffect({ mode: 'fixed', fixedEffect: { operation: 'clear', value: 0 } }).value,
+    '清零'
+  );
+});
+
+test('overtime clock uses bounded calendar tiers for large durations', () => {
+  const source = read('public/js/overlays/overtime.js');
+  const helperStart = source.indexOf('function formatClockDisplay(milliseconds, status)');
+  const helperEnd = source.indexOf('\nfunction describeRuleEffect', helperStart);
+  const sandbox = {};
+  vm.runInNewContext(
+    `${source.slice(helperStart, helperEnd)}\n` +
+      'this.helpers = { formatClockDisplay, formatClock };',
+    sandbox
+  );
+
+  assert.equal(sandbox.helpers.formatClock(23 * 60 * 60 * 1000 + 59_000), '23:00:59');
+  assert.equal(sandbox.helpers.formatClock(24 * 60 * 60 * 1000), '1天 00:00');
+  assert.equal(sandbox.helpers.formatClock(365 * 24 * 60 * 60 * 1000), '1年 0天 0小时');
+  assert.equal(sandbox.helpers.formatClock(9_999 * 365 * 24 * 60 * 60 * 1000), '9999年 0天 0小时');
+  assert.equal(sandbox.helpers.formatClockDisplay(0, 'paused'), '00:00:00');
+  assert.equal(sandbox.helpers.formatClockDisplay(0, 'running'), '该下播了');
+  assert.equal(sandbox.helpers.formatClockDisplay(0, 'finished'), '该下播了');
 });
 
 function read(relativePath) {

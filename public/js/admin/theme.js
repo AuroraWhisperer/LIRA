@@ -143,6 +143,7 @@
     document.getElementById('queueScrollSpeed').addEventListener('input', () => {
       if (window.AdminApp.forms && window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay) {
         setValue('queueScrollSpeedRange', window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed')));
+        window.AdminApp.forms.refreshParameterRanges?.(document.getElementById('queueScrollSpeedRange'));
       }
     });
   }
@@ -220,6 +221,7 @@
       setValue('scrollSeconds', songScrollSpeed);
       setValue('scrollSecondsRange', songScrollSpeed);
     }
+    window.AdminApp.forms?.refreshParameterRanges?.();
   }
 
   function setOverlayStyle(style) {

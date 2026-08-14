@@ -98,6 +98,9 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   white-space: nowrap;
   text-shadow: 0 0 1.8em rgba(255, 111, 145, 0.2);
 }
+.overtime-clock.is-calendar { font-size: 5.6em; letter-spacing: -0.02em; }
+.overtime-clock.is-years { font-size: 4em; }
+.overtime-clock.is-finished { color: #fff2b8; font-size: 4.6em; letter-spacing: 0.02em; }
 .overtime-clock.is-positive { animation: overtime-clock-positive 820ms ease-out; }
 .overtime-clock.is-negative { animation: overtime-clock-negative 820ms ease-out; }
 
@@ -185,6 +188,9 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 .overtime-ticket.is-positive { --ticket-accent: var(--ot-teal); }
 .overtime-ticket.is-negative { --ticket-accent: var(--ot-coral); }
 .overtime-ticket.is-random { --ticket-accent: var(--ot-gold); }
+.overtime-ticket.is-multiply { --ticket-accent: var(--ot-gold); }
+.overtime-ticket.is-divide { --ticket-accent: var(--ot-pink); }
+.overtime-ticket.is-clear { --ticket-accent: #a8a5b3; }
 .overtime-ticket.is-neutral { --ticket-accent: #a8a5b3; }
 .overtime-ticket.is-hit { animation: overtime-ticket-hit 900ms ease-out; }
 .overtime-ticket-image {

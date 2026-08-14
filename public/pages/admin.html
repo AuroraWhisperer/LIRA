@@ -21,9 +21,18 @@
     <main class="app-shell">
       <header class="topbar">
         <div class="titlebar-brand">
-          <svg class="titlebar-logo" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M9 8l8 4-8 4V8z" fill="currentColor"/>
+          <svg class="titlebar-logo" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="titlebarLogoFill" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#ff7568"/>
+                <stop offset="0.55" stop-color="#d92d20"/>
+                <stop offset="1" stop-color="#9f1712"/>
+              </linearGradient>
+            </defs>
+            <rect x="2.25" y="2.25" width="19.5" height="19.5" rx="6.25" fill="url(#titlebarLogoFill)"/>
+            <path d="M7.15 6.55v6.72c0 2.55 1.55 4.08 4.12 4.08h5.58" stroke="#fffaf5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M11.25 10.6v2.45M14.15 8.45v4.6M17.05 9.85v3.2" stroke="#f7cf75" stroke-width="1.65" stroke-linecap="round"/>
+            <path d="M5.65 5.72c.63-.72 1.42-1.26 2.33-1.58" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
           </svg>
         </div>
         <div class="primary-nav-slot">
@@ -371,7 +380,7 @@
                     <label>
                       点歌板滚动速率
                       <span class="range-row">
-                        <input id="queueScrollSpeedRange" type="range" min="1" max="100" step="1">
+                        <input id="queueScrollSpeedRange" class="parameter-range" type="range" min="1" max="100" step="1">
                         <input id="queueScrollSpeed" type="number" min="1" max="100" step="1">
                       </span>
                       <span class="hint">1-100</span>
@@ -436,14 +445,14 @@
                     <label>
                       点歌内容字号
                       <span class="range-row">
-                        <input id="queueSongFontSize" type="range" min="10" max="70" step="1">
+                        <input id="queueSongFontSize" class="parameter-range" type="range" min="10" max="70" step="1">
                         <input id="queueSongFontSizeNumber" type="number" min="10" max="70" step="1">
                       </span>
                     </label>
                     <label>
                       队列标题字号
                       <span class="range-row">
-                        <input id="queueTitleFontSize" type="range" min="10" max="40" step="1">
+                        <input id="queueTitleFontSize" class="parameter-range" type="range" min="10" max="40" step="1">
                         <input id="queueTitleFontSizeNumber" type="number" min="10" max="40" step="1">
                       </span>
                     </label>
@@ -508,7 +517,7 @@
                     <label>
                       背景透明度
                       <span class="range-row">
-                        <input id="themeOpacity" type="range" min="0" max="1" step="0.01">
+                        <input id="themeOpacity" class="parameter-range" type="range" min="0" max="1" step="0.01">
                         <input id="themeOpacityNumber" type="number" min="0" max="1" step="0.01">
                       </span>
                     </label>
@@ -520,7 +529,7 @@
                     <label>
                       背景模糊
                       <span class="range-row">
-                        <input id="backdropBlur" type="range" min="0" max="30" step="1">
+                        <input id="backdropBlur" class="parameter-range" type="range" min="0" max="30" step="1">
                         <input id="backdropBlurNumber" type="number" min="0" max="30" step="1">
                       </span>
                       <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
@@ -528,7 +537,7 @@
                     <label>
                       发光强度
                       <span class="range-row">
-                        <input id="glowIntensity" type="range" min="0" max="20" step="1">
+                        <input id="glowIntensity" class="parameter-range" type="range" min="0" max="20" step="1">
                         <input id="glowIntensityNumber" type="number" min="0" max="20" step="1">
                       </span>
                       <span class="hint">辅助色的发光强度，0 为关闭</span>
@@ -561,7 +570,7 @@
                   <label>
                     点歌内容字号
                     <span class="range-row">
-                      <input id="identityQueueFontSize" type="range" min="9" max="78" step="1" value="26">
+                      <input id="identityQueueFontSize" class="parameter-range" type="range" min="9" max="78" step="1" value="26">
                       <input id="identityQueueFontSizeNumber" type="number" min="9" max="78" step="1" value="26">
                     </span>
                     <span class="hint">同时控制序号、歌名、点歌人、SC 和置顶文字，默认 26px</span>
@@ -573,7 +582,7 @@
                   <label>
                     上下滚动速率
                     <span class="range-row">
-                      <input id="identityQueueScrollSpeedRange" type="range" min="1" max="100" step="1">
+                      <input id="identityQueueScrollSpeedRange" class="parameter-range" type="range" min="1" max="100" step="1">
                       <input id="identityQueueScrollSpeed" type="number" min="1" max="100" step="1">
                     </span>
                     <span class="hint">1-100，仅控制点歌板风格 2</span>
@@ -604,7 +613,7 @@
                     <label class="identity-rule-font">
                       规则小块字号
                       <span class="range-row">
-                        <input id="overlayRuleFontSize" type="range" min="8" max="18" step="1">
+                        <input id="overlayRuleFontSize" class="parameter-range" type="range" min="8" max="18" step="1">
                         <input id="overlayRuleFontSizeNumber" type="number" min="8" max="18" step="1">
                       </span>
                     </label>
@@ -655,7 +664,7 @@
               <label>
                 歌单滚动速率
                 <span class="range-row">
-                  <input id="scrollSecondsRange" type="range" min="1" max="100" step="1">
+                  <input id="scrollSecondsRange" class="parameter-range" type="range" min="1" max="100" step="1">
                   <input id="scrollSeconds" type="number" min="1" max="100" step="1">
                 </span>
                 <span class="hint">数值越大滚动越快，1 最慢，100 最快</span>
@@ -676,7 +685,7 @@
                 <label>
                   字体大小
                   <span class="range-row">
-                    <input id="songBoardFontSize" type="range" min="10" max="80" step="1" value="50">
+                    <input id="songBoardFontSize" class="parameter-range" type="range" min="10" max="80" step="1" value="50">
                     <input id="songBoardFontSizeNumber" type="number" min="10" max="80" step="1" value="50">
                   </span>
                   <span class="hint">控制歌单展示板所有文字大小，默认 50px</span>
@@ -770,14 +779,14 @@
                     <label>
                       歌名字号
                       <span class="range-row">
-                        <input id="songBoardSongFontSize" type="range" min="10" max="40" step="1">
+                        <input id="songBoardSongFontSize" class="parameter-range" type="range" min="10" max="40" step="1">
                         <input id="songBoardSongFontSizeNumber" type="number" min="10" max="40" step="1">
                       </span>
                     </label>
                     <label>
                       标题字号
                       <span class="range-row">
-                        <input id="songBoardTitleFontSize" type="range" min="10" max="28" step="1">
+                        <input id="songBoardTitleFontSize" class="parameter-range" type="range" min="10" max="28" step="1">
                         <input id="songBoardTitleFontSizeNumber" type="number" min="10" max="28" step="1">
                       </span>
                     </label>
@@ -790,7 +799,7 @@
                     <label>
                       背景模糊
                       <span class="range-row">
-                        <input id="songBoardBackdropBlur" type="range" min="0" max="30" step="1">
+                        <input id="songBoardBackdropBlur" class="parameter-range" type="range" min="0" max="30" step="1">
                         <input id="songBoardBackdropBlurNumber" type="number" min="0" max="30" step="1">
                       </span>
                       <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
@@ -798,7 +807,7 @@
                     <label>
                       发光强度
                       <span class="range-row">
-                        <input id="songBoardGlowIntensity" type="range" min="0" max="20" step="1">
+                        <input id="songBoardGlowIntensity" class="parameter-range" type="range" min="0" max="20" step="1">
                         <input id="songBoardGlowIntensityNumber" type="number" min="0" max="20" step="1">
                       </span>
                       <span class="hint">辅助色的发光强度，0 为关闭</span>
@@ -830,7 +839,7 @@
                     <label>
                       背景透明度
                       <span class="range-row">
-                        <input id="songBoardThemeOpacity" type="range" min="0" max="1" step="0.01">
+                        <input id="songBoardThemeOpacity" class="parameter-range" type="range" min="0" max="1" step="0.01">
                         <input id="songBoardThemeOpacityNumber" type="number" min="0" max="1" step="0.01">
                       </span>
                     </label>
@@ -975,7 +984,7 @@
                   <label>
                     字号大小
                     <span class="range-row">
-                      <input id="desktopLyricFontSize" type="range" min="24" max="72" step="2" value="36">
+                      <input id="desktopLyricFontSize" class="parameter-range" type="range" min="24" max="72" step="2" value="36">
                       <input id="desktopLyricFontSizeNumber" type="number" min="24" max="72" step="2" value="36">
                     </span>
                     <span class="hint">推荐 36-48</span>
@@ -983,7 +992,7 @@
                   <label>
                     描边宽度
                     <span class="range-row">
-                      <input id="desktopLyricStrokeWidth" type="range" min="0" max="5" step="0.5" value="2">
+                      <input id="desktopLyricStrokeWidth" class="parameter-range" type="range" min="0" max="5" step="0.5" value="2">
                       <input id="desktopLyricStrokeWidthNumber" type="number" min="0" max="5" step="0.5" value="2">
                     </span>
                     <span class="hint">0 为无描边</span>
@@ -997,7 +1006,7 @@
                   <label>
                     文字透明度
                     <span class="range-row">
-                      <input id="desktopLyricOpacity" type="range" min="0" max="1" step="0.05" value="1">
+                      <input id="desktopLyricOpacity" class="parameter-range" type="range" min="0" max="1" step="0.05" value="1">
                       <input id="desktopLyricOpacityNumber" type="number" min="0" max="1" step="0.05" value="1">
                     </span>
                     <span class="hint">1 为完全不透明</span>
@@ -1005,7 +1014,7 @@
                   <label>
                     背景透明度
                     <span class="range-row">
-                      <input id="desktopLyricBgOpacity" type="range" min="0" max="1" step="0.05" value="0">
+                      <input id="desktopLyricBgOpacity" class="parameter-range" type="range" min="0" max="1" step="0.05" value="0">
                       <input id="desktopLyricBgOpacityNumber" type="number" min="0" max="1" step="0.05" value="0">
                     </span>
                     <span class="hint">0 为完全透明</span>
@@ -1019,7 +1028,7 @@
                   <label>
                     整体缩放
                     <span class="range-row">
-                      <input id="desktopLyricScale" type="range" min="0.5" max="2" step="0.1" value="1">
+                      <input id="desktopLyricScale" class="parameter-range" type="range" min="0.5" max="2" step="0.1" value="1">
                       <input id="desktopLyricScaleNumber" type="number" min="0.5" max="2" step="0.1" value="1">
                     </span>
                     <span class="hint">1 为正常大小，可通过 Ctrl+滚轮 调节</span>
@@ -1027,7 +1036,7 @@
                   <label>
                     行间距
                     <span class="range-row">
-                      <input id="desktopLyricLineHeight" type="range" min="1" max="2" step="0.1" value="1.3">
+                      <input id="desktopLyricLineHeight" class="parameter-range" type="range" min="1" max="2" step="0.1" value="1.3">
                       <input id="desktopLyricLineHeightNumber" type="number" min="1" max="2" step="0.1" value="1.3">
                     </span>
                     <span class="hint">推荐 1.2-1.5</span>
@@ -1041,7 +1050,7 @@
                   <label>
                     文字阴影强度
                     <span class="range-row">
-                      <input id="desktopLyricShadowIntensity" type="range" min="0" max="1" step="0.1" value="0.5">
+                      <input id="desktopLyricShadowIntensity" class="parameter-range" type="range" min="0" max="1" step="0.1" value="0.5">
                       <input id="desktopLyricShadowIntensityNumber" type="number" min="0" max="1" step="0.1" value="0.5">
                     </span>
                     <span class="hint">0 为无阴影</span>
@@ -1049,7 +1058,7 @@
                   <label>
                     翻译字号比例
                     <span class="range-row">
-                      <input id="desktopLyricTranslationScale" type="range" min="0.4" max="1" step="0.05" value="0.58">
+                      <input id="desktopLyricTranslationScale" class="parameter-range" type="range" min="0.4" max="1" step="0.05" value="0.58">
                       <input id="desktopLyricTranslationScaleNumber" type="number" min="0.4" max="1" step="0.05" value="0.58">
                     </span>
                     <span class="hint">相对主歌词的大小</span>
@@ -1063,7 +1072,6 @@
                 <div>
                   <span class="desktop-lyric-preview-kicker">LIVE PREVIEW</span>
                   <h3 id="desktopLyricPreviewTitle">桌面歌词实时预览</h3>
-                  <p>全民 K 歌捕捉到歌词后会在这里和独立桌面歌词窗口同步播放。</p>
                 </div>
                 <div class="desktop-lyric-preview-tools">
                   <div class="desktop-lyric-preview-backgrounds" aria-label="预览背景">
@@ -1724,7 +1732,7 @@
 
                 <section class="overtime-admin-section">
                   <div class="overtime-section-heading">
-                    <div><h3>礼物时间规则</h3><p>添加礼物后，选择“直接改时间”或“随机抽结果”，填好选项后保存。每组礼物只生效一次。</p></div>
+                    <div><h3>礼物时间规则</h3><p>添加礼物后，选择“直接改时间”或“随机抽结果”，再从增加、减少、乘倍数、除倍数、清零中设置效果。累计最多 9999 年，达到后不再增长。</p></div>
                     <div class="overtime-heading-actions">
                       <span id="overtimePendingCount" class="pill">待结算 0</span>
                       <button id="overtimeAddGiftBtn" class="secondary" type="button">＋ 添加礼物</button>
@@ -2334,10 +2342,7 @@
                 网易云音乐
               </button>
               <button class="source-tab" type="button" data-source="wesing">
-                <svg class="source-tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="11" fill="currentColor"/>
-                  <path d="M9 7.8a3 3 0 0 1 6 0v3.6a3 3 0 0 1-6 0V7.8Zm-2 3.4a5 5 0 0 0 10 0M12 16.2V20m-3 0h6" stroke="#fff" stroke-width="1.55" stroke-linecap="round"/>
-                </svg>
+                <img class="source-tab-icon" src="/img/wesing-icon.jpg" alt="" draggable="false">
                 全民 K歌
               </button>
             </div>
@@ -2436,11 +2441,6 @@
             </article>
 
             <aside class="wesing-capture-console">
-              <div class="wesing-console-intro">
-                <span>捕捉来源</span>
-                <strong>本机 WeSingCache</strong>
-                <p>仅读取本地日志和歌词缓存，不需要登录，也不会上传文件。</p>
-              </div>
               <label class="wesing-path-field" for="weSingCachePath">
                 <span>全民 K 歌缓存目录</span>
                 <div class="wesing-path-control">
@@ -2454,11 +2454,11 @@
               <label class="wesing-offset-field" for="weSingLyricOffsetMs">
                 <span>歌词时间偏移</span>
                 <div class="wesing-offset-control">
-                  <input id="weSingLyricOffsetMs" type="range" min="-1500" max="1500" step="50" value="0">
-                  <input id="weSingLyricOffsetMsNumber" type="number" min="-1500" max="1500" step="50" value="0" aria-label="全民歌词时间偏移毫秒数">
+                  <input id="weSingLyricOffsetMs" class="parameter-range" type="range" min="-3000" max="3000" step="50" value="0">
+                  <input id="weSingLyricOffsetMsNumber" type="number" min="-3000" max="3000" step="50" value="0" aria-label="全民歌词时间偏移毫秒数">
+                  <button id="weSingResetLyricOffsetBtn" type="button">重置</button>
                   <span>ms</span>
                 </div>
-                <small>负值延后歌词，正值提前歌词；松开滑块或确认数字后自动保存。</small>
               </label>
               <div class="wesing-signal-list" aria-label="捕捉状态">
                 <div><i id="weSingClientSignal" aria-hidden="true"></i><span>全民客户端</span><strong id="weSingClientStatus">未检测</strong></div>

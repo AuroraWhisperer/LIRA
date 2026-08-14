@@ -1,6 +1,8 @@
 'use strict';
 
-const MAX_OVERTIME_SECONDS = 3_599_999;
+const MAX_OVERTIME_YEARS = 9_999;
+const MAX_OVERTIME_SECONDS = MAX_OVERTIME_YEARS * 365 * 24 * 60 * 60;
+const MAX_EFFECT_FACTOR = 1_000;
 const MAX_RANDOM_WEIGHT = 100_000;
 const MAX_ENABLED_RULES = 8;
 
@@ -69,9 +71,15 @@ function validateRule(input, index) {
   const sortOrder = normalizeInteger(input.sortOrder ?? input.sort_order ?? index, `rule ${index + 1} sortOrder`);
 
   if (mode === 'fixed') {
+    const fixedEffect = validateEffect(
+      input.fixedEffect ?? input.fixed_effect ?? input.effect,
+      input.fixedSeconds ?? input.fixed_seconds,
+      `rule ${index + 1} fixedEffect`
+    );
     return {
       giftId, giftName, imagePath, mode,
-      fixedSeconds: validateSeconds(input.fixedSeconds ?? input.fixed_seconds, `rule ${index + 1} fixedSeconds`, true),
+      fixedSeconds: effectToLegacySeconds(fixedEffect),
+      fixedEffect,
       outcomes: [], enabled, sortOrder
     };
   }
@@ -81,10 +89,10 @@ function validateRule(input, index) {
     throw new Error(`rule ${index + 1} outcomes must contain 2 to 10 items.`);
   }
   const outcomes = outcomesInput.map((outcome, outcomeIndex) => ({
-    seconds: validateSeconds(
+    ...validateEffect(
+      outcome?.effect ?? outcome,
       outcome?.seconds,
-      `rule ${index + 1} outcome ${outcomeIndex + 1} seconds`,
-      true
+      `rule ${index + 1} outcome ${outcomeIndex + 1}`
     ),
     weight: validateWeight(outcome?.weight, `rule ${index + 1} outcome ${outcomeIndex + 1} weight`)
   }));
@@ -102,6 +110,38 @@ function validateSeconds(value, field, signed) {
     throw new Error(`${field} must be between ${minimum} and ${MAX_OVERTIME_SECONDS}.`);
   }
   return number;
+}
+
+function validateEffect(input, legacySeconds, field) {
+  if (input && typeof input === 'object' && Object.hasOwn(input, 'operation')) {
+    const operation = String(input.operation || '').trim();
+    if (!['add', 'subtract', 'multiply', 'divide', 'clear'].includes(operation)) {
+      throw new Error(`${field} operation is invalid.`);
+    }
+    if (operation === 'clear') return { operation, value: 0 };
+    if (operation === 'multiply' || operation === 'divide') {
+      const value = normalizeInteger(input.value, `${field} value`);
+      if (value < 2 || value > MAX_EFFECT_FACTOR) {
+        throw new Error(`${field} value must be between 2 and ${MAX_EFFECT_FACTOR}.`);
+      }
+      return { operation, value };
+    }
+    return {
+      operation,
+      value: validateSeconds(input.value, `${field} value`, false)
+    };
+  }
+
+  const seconds = validateSeconds(legacySeconds, `${field} seconds`, true);
+  return seconds < 0
+    ? { operation: 'subtract', value: Math.abs(seconds) }
+    : { operation: 'add', value: seconds };
+}
+
+function effectToLegacySeconds(effect) {
+  if (effect.operation === 'add') return effect.value;
+  if (effect.operation === 'subtract') return -effect.value;
+  return null;
 }
 
 function validateWeight(value, field) {
@@ -122,7 +162,7 @@ function parseOutcomes(value) {
   if (!value) return null;
   try {
     const parsed = typeof value === 'string' ? JSON.parse(value) : value;
-    return parsed?.version === 1 ? parsed.outcomes : null;
+    return [1, 2].includes(parsed?.version) ? parsed.outcomes : null;
   } catch (_) {
     return null;
   }
@@ -135,6 +175,7 @@ function isAllowedImagePath(value, roots) {
 
 module.exports = {
   MAX_OVERTIME_SECONDS,
+  MAX_EFFECT_FACTOR,
   MAX_RANDOM_WEIGHT,
   MAX_ENABLED_RULES,
   validateTimeInput,

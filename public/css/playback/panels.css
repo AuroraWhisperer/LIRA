@@ -965,7 +965,6 @@
   background: rgba(250, 252, 255, 0.94);
 }
 
-.wesing-console-intro > span,
 .wesing-path-field > span,
 .wesing-offset-field > span {
   color: #748197;
@@ -974,14 +973,6 @@
   letter-spacing: 0.04em;
 }
 
-.wesing-console-intro strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--text);
-  font-size: 18px;
-}
-
-.wesing-console-intro p,
 .wesing-status-message {
   margin: 6px 0 0;
   color: var(--muted);
@@ -1001,7 +992,7 @@
 
 .wesing-offset-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 82px auto;
+  grid-template-columns: minmax(0, 1fr) 82px auto auto;
   align-items: center;
   gap: 8px;
 }
@@ -1015,14 +1006,16 @@
   font-variant-numeric: tabular-nums;
 }
 
-.wesing-offset-control > span,
-.wesing-offset-field small {
+.wesing-offset-control button {
+  min-width: 42px;
+  padding: 0 10px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
-.wesing-offset-field small {
-  line-height: 1.5;
+.wesing-offset-control > span {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .wesing-path-control {

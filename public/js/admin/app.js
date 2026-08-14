@@ -7,6 +7,7 @@ import { eventBus, Events } from '../shared/event-bus.js';
 import { logger } from '../shared/logger.js';
 import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
+import { initParameterRanges } from '../shared/parameter-range.js';
 
 // 导入服务（如果已经重构为ES6模块）
 import { StateService, stateService } from './state.js';
@@ -17,6 +18,8 @@ import { FormsService, formsService } from './forms.js';
  */
 async function initApp() {
   logger.debug('正在初始化...');
+
+  initParameterRanges();
 
   await Theme.loadThemeConfig();
 

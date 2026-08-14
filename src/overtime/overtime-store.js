@@ -76,8 +76,8 @@ function createOvertimeStore(giftDb) {
           rule.mode,
           rule.fixedSeconds,
           rule.mode === 'random'
-            ? JSON.stringify({ version: 1, outcomes: rule.outcomes })
-            : '',
+            ? JSON.stringify({ version: 2, outcomes: rule.outcomes })
+            : JSON.stringify({ version: 2, effect: rule.fixedEffect }),
           rule.enabled ? 1 : 0,
           rule.sortOrder,
           updatedAt
@@ -302,27 +302,41 @@ function createOvertimeStore(giftDb) {
 }
 
 function normalizeRule(row) {
+  const stored = parseStoredJson(row.outcomes_json);
+  const fixedSeconds = row.fixed_seconds === null ? null : Number(row.fixed_seconds);
+  const fixedEffect = stored?.version === 2 && stored.effect
+    ? stored.effect
+    : effectFromLegacySeconds(fixedSeconds);
+  const outcomes = stored?.version === 2 && Array.isArray(stored.outcomes)
+    ? stored.outcomes
+    : parseLegacyOutcomes(stored);
   return {
     giftId: row.gift_id,
     giftName: row.gift_name,
     imagePath: row.image_path,
     mode: row.mode,
-    fixedSeconds: row.fixed_seconds === null ? null : Number(row.fixed_seconds),
-    outcomes: parseStoredOutcomes(row.outcomes_json),
+    fixedSeconds,
+    fixedEffect,
+    outcomes,
     enabled: Number(row.enabled) === 1,
     sortOrder: Number(row.sort_order),
     updatedAt: row.updated_at
   };
 }
 
-function parseStoredOutcomes(value) {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return parsed?.version === 1 && Array.isArray(parsed.outcomes) ? parsed.outcomes : [];
-  } catch (_) {
-    return [];
-  }
+function parseLegacyOutcomes(stored) {
+  if (stored?.version !== 1 || !Array.isArray(stored.outcomes)) return [];
+  return stored.outcomes.map(outcome => ({
+    ...effectFromLegacySeconds(Number(outcome?.seconds) || 0),
+    weight: Number(outcome?.weight) || 0
+  }));
+}
+
+function effectFromLegacySeconds(seconds) {
+  const value = Number(seconds) || 0;
+  return value < 0
+    ? { operation: 'subtract', value: Math.abs(value) }
+    : { operation: 'add', value };
 }
 
 function isEligible(state, gift) {

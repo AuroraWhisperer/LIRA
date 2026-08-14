@@ -17,12 +17,15 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   const panelStyles = read('public', 'css', 'playback', 'panels.css');
 
   assert.match(html, /data-source="wesing"[\s\S]*全民 K歌/);
+  assert.match(html, /data-source="wesing"[\s\S]*src="\/img\/wesing-icon\.jpg"/);
   assert.match(html, /id="playbackWeSingView"/);
   assert.match(html, /id="weSingCachePath"/);
   assert.match(html, /id="weSingSelectCacheBtn"/);
   assert.match(html, /id="weSingSaveCacheBtn"/);
-  assert.match(html, /id="weSingLyricOffsetMs"[^>]*min="-1500"[^>]*max="1500"[^>]*step="50"/);
-  assert.match(html, /id="weSingLyricOffsetMsNumber"[^>]*min="-1500"[^>]*max="1500"[^>]*step="50"/);
+  assert.match(html, /id="weSingLyricOffsetMs"[^>]*min="-3000"[^>]*max="3000"[^>]*step="50"/);
+  assert.match(html, /id="weSingLyricOffsetMsNumber"[^>]*min="-3000"[^>]*max="3000"[^>]*step="50"/);
+  assert.match(html, /id="weSingResetLyricOffsetBtn"[^>]*>重置<\/button>/);
+  assert.doesNotMatch(html, /捕捉来源|仅读取本地日志和歌词缓存|负值延后歌词/);
   assert.match(html, /id="weSingRefreshBtn"/);
   assert.match(html, /id="weSingLyricLine"/);
   assert.match(html, /data-online-source-view/);
@@ -43,6 +46,7 @@ test('WeSing browser client activates capture and renders WebSocket lyrics safel
   assert.match(source, /\/api\/music\/wesing\/configure/);
   assert.match(source, /\/api\/music\/wesing\/offset/);
   assert.match(source, /saveLyricOffset/);
+  assert.match(source, /weSingResetLyricOffsetBtn/);
   assert.match(source, /selectWeSingCacheDirectory/);
   assert.match(renderer, /requestAnimationFrame/);
   assert.match(source, /new LyricWordRenderer/);

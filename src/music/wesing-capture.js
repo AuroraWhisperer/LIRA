@@ -15,8 +15,9 @@ const MAX_FALLBACK_FILES = 80;
 const PAUSED_AFTER_MS = 1500;
 const PROGRESS_COMPENSATION_MS = 130;
 const QRC_REFRESH_DEBOUNCE_MS = 2000;
-const MIN_LYRIC_OFFSET_MS = -1500;
-const MAX_LYRIC_OFFSET_MS = 1500;
+const PLAYBACK_REFRESH_DELAY_MS = 1000;
+const MIN_LYRIC_OFFSET_MS = -3000;
+const MAX_LYRIC_OFFSET_MS = 3000;
 const SAFE_SONG_MID = /^[a-zA-Z0-9_-]{1,128}$/;
 
 function normalizeWeSingCachePath(input) {
@@ -228,6 +229,8 @@ function createWeSingCapture(options = {}) {
   let cacheWatcher = null;
   let watchedCachePath = '';
   let qrcRefreshTimer = null;
+  let playbackRefreshTimer = null;
+  let playbackRefreshPending = false;
   let lyrics = [];
   let lyricArtists = [];
   let lyricDurationMs = 0;
@@ -293,6 +296,7 @@ function createWeSingCapture(options = {}) {
     if (!nextActive) {
       stopMonitor();
       stopQrcWatcher();
+      cancelPlaybackRefresh();
       loadingTrackTitle = '';
       pausePlaybackClock(now());
       state.playing = false;
@@ -377,6 +381,7 @@ function createWeSingCapture(options = {}) {
         : null;
 
     if (!state.platformDetected) {
+      cancelPlaybackRefresh();
       loadingTrackTitle = '';
       pausePlaybackClock(timestamp);
       state.currentMs = readPlaybackClock(timestamp);
@@ -396,6 +401,8 @@ function createWeSingCapture(options = {}) {
       resetPlaybackClock(timestamp);
     }
     if (titleChanged) {
+      cancelPlaybackRefresh();
+      playbackRefreshPending = Boolean(title);
       loadingTrackTitle = '';
       state.trackTitle = title;
       state.currentMs = 0;
@@ -437,7 +444,6 @@ function createWeSingCapture(options = {}) {
 
     if (loadingTrackTitle === title) {
       loadingTrackTitle = '';
-      pendingRefresh = refresh();
     }
 
     if (audioActive === false) {
@@ -512,6 +518,7 @@ function createWeSingCapture(options = {}) {
     }
 
     state.currentMs = readPlaybackClock(timestamp);
+    if (playbackRefreshPending && state.playing) schedulePlaybackRefresh(title);
     updateLyricState();
     emit();
   }
@@ -677,6 +684,25 @@ function createWeSingCapture(options = {}) {
     qrcRefreshTimer?.unref?.();
   }
 
+  function schedulePlaybackRefresh(title) {
+    playbackRefreshPending = false;
+    if (playbackRefreshTimer !== null) clearTimer(playbackRefreshTimer);
+    playbackRefreshTimer = setTimer(() => {
+      playbackRefreshTimer = null;
+      if (!state.active || !state.platformDetected || state.trackTitle !== title) return;
+      pendingRefresh = refreshLyrics(title);
+    }, PLAYBACK_REFRESH_DELAY_MS);
+    playbackRefreshTimer?.unref?.();
+  }
+
+  function cancelPlaybackRefresh() {
+    if (playbackRefreshTimer !== null) {
+      clearTimer(playbackRefreshTimer);
+      playbackRefreshTimer = null;
+    }
+    playbackRefreshPending = false;
+  }
+
   function stopQrcWatcher() {
     if (qrcRefreshTimer !== null) {
       clearTimer(qrcRefreshTimer);
@@ -716,6 +742,7 @@ function createWeSingCapture(options = {}) {
     state.platformDetected = false;
     stopMonitor();
     stopQrcWatcher();
+    cancelPlaybackRefresh();
   }
 
   return { getStatus, refresh, setActive, setCachePath, setLyricOffsetMs, stop, waitForRefresh };

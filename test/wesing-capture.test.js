@@ -218,14 +218,24 @@ test('WeSing capture waits for measured progress after the client finishes loadi
   assert.equal(capture.getStatus().playing, true);
 });
 
-test('WeSing capture refreshes lyrics once after the client finishes loading', async () => {
+test('WeSing capture delays the forced lyric refresh until one second after playback starts', async () => {
   let onSample = null;
   const requestedDurations = [];
+  const timers = [];
   const capture = createWeSingCapture({
     platform: 'win32',
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
+    },
+    setTimer(callback, delayMs) {
+      const timer = { callback, delayMs };
+      timers.push(timer);
+      return timer;
+    },
+    clearTimer(timer) {
+      const index = timers.indexOf(timer);
+      if (index >= 0) timers.splice(index, 1);
     },
     async resolveFallbackLyrics({ title, durationMs }) {
       requestedDurations.push(durationMs);
@@ -264,13 +274,7 @@ test('WeSing capture refreshes lyrics once after the client finishes loading', a
     totalSec: 200,
     loading: false
   });
-  await capture.waitForRefresh();
-
-  let state = capture.getStatus();
-  assert.deepEqual(requestedDurations, [180000, 200000]);
-  assert.equal(state.songMid, 'correct_mid');
-  assert.deepEqual(state.lyricState.artists, ['正确歌手']);
-  assert.equal(state.lyricState.lineText, '正确歌词');
+  assert.deepEqual(requestedDurations, [180000]);
 
   onSample({
     detected: true,
@@ -279,9 +283,17 @@ test('WeSing capture refreshes lyrics once after the client finishes loading', a
     totalSec: 200,
     loading: false
   });
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1000);
+
+  timers[0].callback();
   await capture.waitForRefresh();
-  state = capture.getStatus();
+
+  let state = capture.getStatus();
   assert.deepEqual(requestedDurations, [180000, 200000]);
+  assert.equal(state.songMid, 'correct_mid');
+  assert.deepEqual(state.lyricState.artists, ['正确歌手']);
+  assert.equal(state.lyricState.lineText, '正确歌词');
   assert.equal(state.playing, true);
 
   await capture.setActive(false);
@@ -556,6 +568,8 @@ test('WeSing lyric offset is validated, persisted, and applied without changing 
   assert.equal(state.lyricState.currentMs, 4380);
   assert.equal(state.lyricState.lineText, '世界');
   assert.deepEqual(savedOffsets, [250]);
-  await assert.rejects(capture.setLyricOffsetMs(1501), /-1500.*1500/);
+  state = await capture.setLyricOffsetMs(3000);
+  assert.equal(state.lyricOffsetMs, 3000);
+  await assert.rejects(capture.setLyricOffsetMs(3001), /-3000.*3000/);
   await assert.rejects(capture.setLyricOffsetMs('not-a-number'), /数字/);
 });

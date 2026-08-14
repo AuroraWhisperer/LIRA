@@ -85,7 +85,13 @@ function applyState(state, { force }) {
 function renderClockFrame(nowMs) {
   if (currentState) {
     const elapsed = currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
-    byId('overtimeClock').textContent = formatClock(Math.max(0, anchorRemainingMs - elapsed));
+    const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
+    const value = formatClockDisplay(remainingMs, currentState.status);
+    const clock = byId('overtimeClock');
+    clock.textContent = value;
+    clock.classList.toggle('is-calendar', /[天年]/.test(value));
+    clock.classList.toggle('is-years', value.includes('年'));
+    clock.classList.toggle('is-finished', value === '该下播了');
   }
   requestAnimationFrame(renderClockFrame);
 }
@@ -199,7 +205,7 @@ function playNextAdjustment() {
   const result = document.createElement('span');
   result.textContent = adjustment.aggregate
     ? formatSignedSeconds(delta)
-    : `整组 ${formatSignedSeconds(delta)}`;
+    : `整组 ${formatAdjustmentEffect(adjustment.effect, delta)}`;
   card.append(title, result);
   stage.replaceChildren(card);
   flashClock(delta);
@@ -229,22 +235,63 @@ function flashClock(delta) {
   setTimeout(() => clock.classList.remove(className), lowMotion ? 220 : 920);
 }
 
+function formatClockDisplay(milliseconds, status) {
+  const remainingMs = Math.max(0, Number(milliseconds) || 0);
+  const finished = status === 'finished' || (status === 'running' && remainingMs === 0);
+  return finished ? '该下播了' : formatClock(remainingMs);
+}
+
 function formatClock(milliseconds) {
   return formatClockSeconds(Math.ceil((Number(milliseconds) || 0) / 1000));
+}
+
+function formatClockSeconds(seconds) {
+  const whole = Math.max(0, Math.floor(Number(seconds) || 0));
+  const days = Math.floor(whole / 86400);
+  if (days >= 365) {
+    const years = Math.floor(days / 365);
+    return `${years}年 ${days % 365}天 ${Math.floor((whole % 86400) / 3600)}小时`;
+  }
+  if (days > 0) {
+    const hours = Math.floor((whole % 86400) / 3600);
+    const minutes = Math.floor((whole % 3600) / 60);
+    return `${days}天 ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+  const hours = Math.floor(whole / 3600);
+  const minutes = Math.floor((whole % 3600) / 60);
+  const rest = whole % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
 }
 
 function describeRuleEffect(rule) {
   if (rule?.mode === 'random') {
     return { modifier: 'is-random', verb: '', value: '盲盒' };
   }
-  const seconds = Number(rule?.fixedSeconds) || 0;
-  if (seconds > 0) {
-    return { modifier: 'is-positive', verb: '加时', value: formatDurationLabel(seconds) };
+  const effect = normalizeRuleEffect(rule?.fixedEffect, rule?.fixedSeconds);
+  if (effect.operation === 'add') {
+    return { modifier: 'is-positive', verb: '加时', value: formatDurationLabel(effect.value) };
   }
-  if (seconds < 0) {
-    return { modifier: 'is-negative', verb: '减时', value: formatDurationLabel(Math.abs(seconds)) };
+  if (effect.operation === 'subtract') {
+    return { modifier: 'is-negative', verb: '减时', value: formatDurationLabel(effect.value) };
   }
-  return { modifier: 'is-neutral', verb: '时间', value: '不变' };
+  if (effect.operation === 'multiply') {
+    return { modifier: 'is-multiply', verb: '时间', value: `×${effect.value}` };
+  }
+  if (effect.operation === 'divide') {
+    return { modifier: 'is-divide', verb: '时间', value: `÷${effect.value}` };
+  }
+  return { modifier: 'is-clear', verb: '时间', value: '清零' };
+}
+
+function normalizeRuleEffect(effect, legacySeconds) {
+  const operation = String(effect?.operation || '');
+  if (['add', 'subtract', 'multiply', 'divide', 'clear'].includes(operation)) {
+    return { operation, value: Math.max(0, Math.floor(Number(effect.value) || 0)) };
+  }
+  const seconds = Math.trunc(Number(legacySeconds) || 0);
+  return seconds < 0
+    ? { operation: 'subtract', value: Math.abs(seconds) }
+    : { operation: 'add', value: seconds };
 }
 
 function formatDurationLabel(seconds) {
@@ -264,12 +311,11 @@ function formatSignedSeconds(seconds) {
   return `${value < 0 ? '−' : '+'}${formatClockSeconds(Math.abs(value))}`;
 }
 
-function formatClockSeconds(seconds) {
-  const whole = Math.max(0, Math.floor(Number(seconds) || 0));
-  const hours = Math.floor(whole / 3600);
-  const minutes = Math.floor((whole % 3600) / 60);
-  const rest = whole % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+function formatAdjustmentEffect(effect, deltaSeconds) {
+  if (effect?.operation === 'multiply') return `×${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
+  if (effect?.operation === 'divide') return `÷${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
+  if (effect?.operation === 'clear') return '清零';
+  return formatSignedSeconds(deltaSeconds);
 }
 
 function formatQuantity(value) {

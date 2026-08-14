@@ -357,9 +357,9 @@ body.desktop-shell .titlebar-brand {
 }
 
 body.desktop-shell .titlebar-logo {
-  color: var(--primary);
+  display: block;
   flex-shrink: 0;
-  opacity: 0.85;
+  filter: drop-shadow(0 2px 3px rgba(180, 35, 24, 0.2));
 }
 
 body.desktop-shell .titlebar-name {

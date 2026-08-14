@@ -16,6 +16,10 @@ class FakeBrowserWindow extends EventEmitter {
     FakeBrowserWindow.latest = this;
     this.destroyed = false;
     this.webContents = new EventEmitter();
+    this.webContents.audioMuteCalls = [];
+    this.webContents.setAudioMuted = (muted) => {
+      this.webContents.audioMuteCalls.push(muted);
+    };
     this.webContents.session = {
       cookies: new FakeCookies(),
       setPermissionRequestHandler() {}
@@ -92,6 +96,14 @@ test('login window resolves with a logged-out state when final auth lookup fails
   assert.deepEqual(result.state, { loggedIn: false });
   assert.equal(logs.some((entry) => entry.scope === 'bilibili-auth-state'), true);
   assert.equal(FakeBrowserWindow.latest.webContents.session.cookies.listenerCount('changed'), 0);
+});
+
+test('login window is muted by default so the live homepage cannot play sound', async () => {
+  const resultPromise = open(createAuth());
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(FakeBrowserWindow.latest.webContents.audioMuteCalls, [true]);
+  FakeBrowserWindow.latest.close();
+  await resultPromise;
 });
 
 test('login completion is logged and closed once when several cookie changes arrive together', async () => {

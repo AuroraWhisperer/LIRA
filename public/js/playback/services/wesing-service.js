@@ -2,6 +2,7 @@
 'use strict';
 
 import { LyricWordRenderer } from '../../shared/lyric-word-renderer.js';
+import { refreshParameterRange } from '../../shared/parameter-range.js';
 
 const EMPTY_STATUS = {
   active: false,
@@ -65,10 +66,16 @@ export class WeSingService {
     });
     offsetNumber?.addEventListener('input', () => {
       const offsetMs = parseLyricOffset(offsetNumber.value);
-      if (offsetRange && offsetMs !== null) offsetRange.value = String(offsetMs);
+      if (offsetRange && offsetMs !== null) {
+        offsetRange.value = String(offsetMs);
+        refreshParameterRange(offsetRange);
+      }
     });
     offsetNumber?.addEventListener('change', () => {
       void this.saveLyricOffset(offsetNumber.value);
+    });
+    document.getElementById('weSingResetLyricOffsetBtn')?.addEventListener('click', () => {
+      void this.saveLyricOffset(0);
     });
     document.getElementById('weSingCachePath')?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -145,7 +152,7 @@ export class WeSingService {
     const offsetMs = parseLyricOffset(rawValue);
     if (offsetMs === null) {
       this.renderOffsetInputs(true);
-      this.showError(new Error('歌词时间偏移必须在 -1500 到 1500 毫秒之间'));
+      this.showError(new Error('歌词时间偏移必须在 -3000 到 3000 毫秒之间'));
       return;
     }
     try {
@@ -261,7 +268,10 @@ export class WeSingService {
     const value = String(numberValue(this.status.lyricOffsetMs, 0));
     const range = document.getElementById('weSingLyricOffsetMs');
     const number = document.getElementById('weSingLyricOffsetMsNumber');
-    if (range && (force || range !== document.activeElement)) range.value = value;
+    if (range && (force || range !== document.activeElement)) {
+      range.value = value;
+      refreshParameterRange(range);
+    }
     if (number && (force || number !== document.activeElement)) number.value = value;
   }
 
@@ -321,7 +331,7 @@ function numberValue(value, fallback) {
 
 function parseLyricOffset(value) {
   const number = Number(value);
-  if (!Number.isFinite(number) || number < -1500 || number > 1500) return null;
+  if (!Number.isFinite(number) || number < -3000 || number > 3000) return null;
   return Math.round(number);
 }
 
