@@ -199,7 +199,6 @@ function updateClock(nowMs) {
     const clock = byId('overtimeClockValue');
     clock.textContent = value;
     clock.classList.toggle('is-calendar', /[天年]/.test(value));
-    clock.classList.toggle('is-years', value.includes('年'));
     clock.classList.toggle('is-finished', value === '该下播了');
   }
   requestAnimationFrame(updateClock);

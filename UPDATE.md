@@ -1,6 +1,19 @@
 # 打包与更新说明
 
-当前版本：`3.3.17`
+当前版本：`3.4.0`
+
+---
+
+## v3.4.0 变更
+
+- 🎁 **礼物图标库大扩充与价格区间细分**：重新抓取扩充 B 站礼物图片（新增 640 张 WebP，覆盖 ¥0-100 至 ¥3000+ 全部区间）。原 `2000-above` 区间拆分为 `2000-2499`、`2500-2999`、`3000-above` 三档并新增 `1800-1900` 区间；映射文档拆分为 `gift-mapping.md`（金瓜子付费礼物，按每 100 元区间整理）+ `silver-free-mapping.md`（银瓜子/免费礼物，直接引用 B 站 CDN 链接不存本地），删除旧 `000-gift-mapping.md` 与 `special/13000.webp`；`bilibili-gifts.json` 与最近礼物图标映射表（`recent.js`）同步新目录路径。
+- 🎵 **网易云搜索结果真实专辑封面**：搜索接口不返回专辑封面，现在每页结果按批调用一次 `/api/song/detail`（所有结果 ID 合并为单次请求，不逐首请求）取 `al.picUrl` 注入搜索结果。封面优先级调整为：搜索详情专辑封面 → 歌曲自带专辑封面 → 艺术家头像回退；详情请求失败或缺失时搜索仍然成功、保持原有头像回退行为。
+- 🖼️ **网易云来源标签官方图标**：播放来源切换按钮中网易云的临时内联 SVG 换成官方图标 `/img/netease-music-icon.ico`。
+- 💬 **音乐登录窗关闭提示按平台显示**：Cookie 刷新 Toast 从固定「QQ音乐登录窗口已关闭」改为按当前所选音乐平台名称显示（如「网易云音乐登录窗口已关闭」）。
+- ⏱️ **全民 K 歌偏移滑块防旧状态覆盖**：歌词时间偏移保存期间新增 `pendingLyricOffsetMs` 缓冲——用户正在拖动/输入偏移值时，WebSocket 推送的旧 `lyric-state` 不再把滑块跳回旧值，保存成功或失败后清空缓冲。
+- 🕐 **加班机超长倒计时统一大字号**：移除天/年格式（`is-calendar` / `is-years`）的缩小字号样式——超过 24 小时或 365 天的倒计时沿用同一 8.5em 大字号（仅保留 letter-spacing 微调），管理后台与观众 Overlay 同步，避免超长倒计时数字变小。
+- 🧪 **测试覆盖增强**：新增 `test/playback-provider-operations.test.js`（VM 加载 ES 模块断言登录窗关闭 Toast 按平台显示）；`test/playback-wesing.test.js` 新增偏移保存期间旧状态不覆盖预览值的 VM 测试；`test/netease-provider.test.js` 新增批量详情封面请求与失败回退测试；`test/overtime-overlay.test.js` 断言天/年格式不再缩小字号。
+- 📖 **架构文档同步**：`docs/architecture/frontend/pages.md` 更新礼物图片区间目录说明（`0000-under-0100/` ~ `3000-above/`）与 `image` 字段相对路径基准（`public/img/`）校正。
 
 ---
 

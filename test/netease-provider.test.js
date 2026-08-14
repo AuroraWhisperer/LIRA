@@ -12,6 +12,65 @@ function createProvider() {
   });
 }
 
+test('Netease search enriches result artwork with one batched song-detail request', async () => {
+  const provider = createProvider();
+  const requests = [];
+  provider.requestJson = async (pathname, params) => {
+    requests.push({ pathname, params });
+    if (pathname === '/api/search/get/web') {
+      return {
+        result: {
+          songs: [{
+            id: 11,
+            name: 'A',
+            album: { id: 1, name: 'Old' },
+            artists: [{ name: 'Singer', img1v1Url: 'https://artist.test/a.jpg' }]
+          }, {
+            id: 22,
+            name: 'B',
+            album: { id: 2, name: 'Other' },
+            artists: [{ name: 'Second singer', img1v1Url: 'https://artist.test/b.jpg' }]
+          }]
+        }
+      };
+    }
+    return {
+      songs: [
+        { id: 22, album: { picUrl: 'https://album.test/b.jpg' } },
+        { id: 11, album: { picUrl: 'https://album.test/a.jpg' } }
+      ]
+    };
+  };
+
+  const tracks = await provider.searchTracks('A', { limit: 9 });
+
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].pathname, '/api/song/detail');
+  assert.equal(requests[1].params.ids, '[11,22]');
+  assert.equal(tracks[0].coverUrl, 'https://album.test/a.jpg');
+  assert.equal(tracks[1].coverUrl, 'https://album.test/b.jpg');
+});
+
+test('Netease search preserves artist artwork when song-detail lookup fails', async () => {
+  const provider = createProvider();
+  provider.requestJson = async (pathname) => pathname === '/api/search/get/web'
+    ? {
+      result: {
+        songs: [{
+          id: 11,
+          name: 'A',
+          album: { id: 1, name: 'Old' },
+          artists: [{ name: 'Singer', img1v1Url: 'https://artist.test/a.jpg' }]
+        }]
+      }
+    }
+    : Promise.reject(new Error('HTTP 500'));
+
+  const tracks = await provider.searchTracks('A');
+
+  assert.equal(tracks[0].coverUrl, 'https://artist.test/a.jpg');
+});
+
 test('Netease provider writes numeric tracks to a playlist', async () => {
   const provider = createProvider();
   let captured;

@@ -11,6 +11,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('overtime overlay has independent layers and responsive container scaling', () => {
   const html = read('public/pages/overlays/overtime.html');
   const css = read('public/css/overlays/overtime.css');
+  const adminCss = read('public/css/admin/overtime.css');
   const serverSource = read('src/server/http-utils.js');
 
   assert.match(serverSource, /\['\/overtime', 'pages\/overlays\/overtime\.html'\]/);
@@ -35,6 +36,11 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(css, /font:\s*800 1\.9em\/1/);
   assert.match(css, /repeat\(var\(--ticket-wide-columns/);
   assert.match(css, /repeat\(var\(--ticket-narrow-columns/);
+  assert.match(css, /\.overtime-clock\s*\{[\s\S]*?font:\s*700 8\.5em\/0\.9/);
+  assert.doesNotMatch(css, /\.overtime-clock\.is-calendar\s*\{[^}]*font-size/);
+  assert.doesNotMatch(css, /\.overtime-clock\.is-years/);
+  assert.doesNotMatch(adminCss, /\.overtime-clock-value\.is-calendar\s*\{[^}]*font-size/);
+  assert.doesNotMatch(adminCss, /\.overtime-clock-value\.is-years/);
   assert.doesNotMatch(css, /font-size:\s*clamp/);
 });
 

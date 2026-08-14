@@ -147,7 +147,7 @@ export function createProviderOperations(deps) {
       U.showStackedToast({
         key: 'music-cookie-refreshed',
         title: 'Cookie 已刷新',
-        message: 'QQ音乐登录窗口已关闭',
+        message: `${PlaybackUtils.getSourceName(platform)}登录窗口已关闭`,
         className: 'music-cookie-refreshed-toast',
         duration: 3600
       });

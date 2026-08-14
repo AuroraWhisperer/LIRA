@@ -42,6 +42,7 @@ export class WeSingService {
     this.initialized = false;
     this.activationQueue = Promise.resolve();
     this.lyricRenderer = null;
+    this.pendingLyricOffsetMs = null;
   }
 
   init() {
@@ -59,6 +60,7 @@ export class WeSingService {
     const offsetRange = document.getElementById('weSingLyricOffsetMs');
     const offsetNumber = document.getElementById('weSingLyricOffsetMsNumber');
     offsetRange?.addEventListener('input', () => {
+      this.pendingLyricOffsetMs = Number(offsetRange.value);
       if (offsetNumber) offsetNumber.value = offsetRange.value;
     });
     offsetRange?.addEventListener('change', () => {
@@ -67,6 +69,7 @@ export class WeSingService {
     offsetNumber?.addEventListener('input', () => {
       const offsetMs = parseLyricOffset(offsetNumber.value);
       if (offsetRange && offsetMs !== null) {
+        this.pendingLyricOffsetMs = offsetMs;
         offsetRange.value = String(offsetMs);
         refreshParameterRange(offsetRange);
       }
@@ -151,19 +154,24 @@ export class WeSingService {
   async saveLyricOffset(rawValue) {
     const offsetMs = parseLyricOffset(rawValue);
     if (offsetMs === null) {
+      this.pendingLyricOffsetMs = null;
       this.renderOffsetInputs(true);
       this.showError(new Error('歌词时间偏移必须在 -3000 到 3000 毫秒之间'));
       return;
     }
+    this.pendingLyricOffsetMs = offsetMs;
+    this.renderOffsetInputs(true);
     try {
       const data = await this.request('/api/music/wesing/offset', {
         method: 'POST',
         body: { offsetMs }
       });
       this.applyStatus(data);
+      this.pendingLyricOffsetMs = null;
       this.renderOffsetInputs(true);
       this.toast(`全民歌词偏移已设为 ${formatSignedMilliseconds(offsetMs)}`);
     } catch (error) {
+      this.pendingLyricOffsetMs = null;
       this.renderOffsetInputs(true);
       this.showError(error);
     }
@@ -265,7 +273,7 @@ export class WeSingService {
   }
 
   renderOffsetInputs(force = false) {
-    const value = String(numberValue(this.status.lyricOffsetMs, 0));
+    const value = String(this.pendingLyricOffsetMs ?? numberValue(this.status.lyricOffsetMs, 0));
     const range = document.getElementById('weSingLyricOffsetMs');
     const number = document.getElementById('weSingLyricOffsetMsNumber');
     if (range && (force || range !== document.activeElement)) {

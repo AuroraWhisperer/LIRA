@@ -124,7 +124,7 @@
 | 资源 | 说明 |
 |---|---|
 | `img/bilibili-gifts.json` | 礼物目录，字段 schema 见 §6.1 |
-| `img/bilibili-gifts/` | 礼物图标(按价格区间分目录:`0000-under-0100/` ~ `2000-above/`、`blind-box/`、`special/`),映射说明见 `000-gift-mapping.md` |
+| `img/bilibili-gifts/` | 礼物图标(按价格区间分目录:`0000-under-0100/` ~ `3000-above/`、`blind-box/`、`special/`),映射说明见 `gift-mapping.md` |
 | `img/overtime-machine/` | 加班机内置背景:`midnight-grid.svg`、`gift-placeholder.svg`(占位图),选型见 ADR [0005-built-in-overtime-backgrounds](../adr/0005-built-in-overtime-backgrounds.md) |
 | `img/bilibili-guard-*.png` | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物 |
 | `img/qqmusic-icon.png` / `player-turntable-chassis.png` / `gift-section-icon.png` / `live-refresh-icon.png` | 播放器/礼物面板图标 |
@@ -153,7 +153,7 @@
 | `price` | string | 展示价格文本，如 `"90电池"` |
 | `battery` | number | 电池数量（与金瓜子 ×10 对应） |
 | `rmb` | number | 等值人民币（`battery / 10`） |
-| `image` | string | 本地图标路径，相对于 `public/`，如 `"bilibili-gifts/blind-box/35800.webp"` |
+| `image` | string | 本地图标路径，相对于 `public/img/`，如 `"bilibili-gifts/blind-box/35800.webp"` |
 | `sourceUrl` | string | 图标来源 CDN URL（用于更新图标） |
 | `category` | string | 分类标签：`blind-box`（盲盒）/ `guard`（大航海）/ `special`（特殊）/ 其他值为普通礼物 |
 

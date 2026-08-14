@@ -98,8 +98,7 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   white-space: nowrap;
   text-shadow: 0 0 1.8em rgba(255, 111, 145, 0.2);
 }
-.overtime-clock.is-calendar { font-size: 5.6em; letter-spacing: -0.02em; }
-.overtime-clock.is-years { font-size: 4em; }
+.overtime-clock.is-calendar { letter-spacing: -0.02em; }
 .overtime-clock.is-finished { color: #fff2b8; font-size: 4.6em; letter-spacing: 0.02em; }
 .overtime-clock.is-positive { animation: overtime-clock-positive 820ms ease-out; }
 .overtime-clock.is-negative { animation: overtime-clock-negative 820ms ease-out; }

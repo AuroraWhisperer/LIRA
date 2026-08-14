@@ -70,9 +70,31 @@ class NeteaseMusicProvider {
     const songs = data && data.result && Array.isArray(data.result.songs)
       ? data.result.songs
       : [];
-    // 搜索 API 不返回 album.picUrl，封面回退到 artist.img1v1Url
-    // 无需额外网络请求，零后端负荷
-    return songs.map(mapNeteaseSong).filter(Boolean);
+    const coverUrls = await this.getSearchCoverUrls(songs);
+    return songs.map((song) => mapNeteaseSong(song, coverUrls.get(String(song.id)))).filter(Boolean);
+  }
+
+  async getSearchCoverUrls(songs) {
+    const ids = [...new Set((Array.isArray(songs) ? songs : [])
+      .map((song) => song && song.id)
+      .filter((id) => /^\d+$/.test(String(id))))];
+    if (ids.length === 0) return new Map();
+
+    try {
+      const data = await this.requestJson('/api/song/detail', {
+        ids: JSON.stringify(ids)
+      });
+      const detailSongs = data && Array.isArray(data.songs) ? data.songs : [];
+      const coverUrls = new Map();
+      for (const song of detailSongs) {
+        const album = song && (song.album || song.al);
+        const coverUrl = String(album && album.picUrl || '').trim();
+        if (song && song.id && coverUrl) coverUrls.set(String(song.id), coverUrl);
+      }
+      return coverUrls;
+    } catch (_) {
+      return new Map();
+    }
   }
 
   async getPersonalizedPlaylists(options = {}) {
@@ -375,7 +397,7 @@ class NeteaseMusicProvider {
   }
 }
 
-function mapNeteaseSong(song) {
+function mapNeteaseSong(song, searchCoverUrl) {
   if (!song || !song.id || !song.name) return null;
   const album = song.album || song.al || {};
   const artists = Array.isArray(song.artists)
@@ -384,9 +406,11 @@ function mapNeteaseSong(song) {
   const sourceTrackId = String(song.id);
 
   // 封面来源优先级：
-  // 1. 专辑 picUrl（歌单/推荐等接口有，搜索接口没有）
-  // 2. 第一位艺术家的头像（搜索接口始终返回，零额外网络请求）
-  var coverUrl = String(album && (album.picUrl || album.pic_url) || '');
+  // 1. 搜索详情中的专辑 picUrl
+  // 2. 当前歌曲中的专辑 picUrl（歌单/推荐等接口有）
+  // 3. 第一位艺术家的头像（搜索详情缺失或请求失败时的回退）
+  var coverUrl = String(searchCoverUrl || '').trim();
+  if (!coverUrl) coverUrl = String(album && (album.picUrl || album.pic_url) || '');
   if (!coverUrl && artists.length > 0) {
     coverUrl = String(artists[0].img1v1Url || '');
   }

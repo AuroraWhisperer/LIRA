@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
+const { fileURLToPath, pathToFileURL } = require('node:url');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -46,6 +48,8 @@ test('WeSing browser client activates capture and renders WebSocket lyrics safel
   assert.match(source, /\/api\/music\/wesing\/configure/);
   assert.match(source, /\/api\/music\/wesing\/offset/);
   assert.match(source, /saveLyricOffset/);
+  assert.match(source, /pendingLyricOffsetMs/);
+  assert.match(source, /pendingLyricOffsetMs \?\? numberValue\(this\.status\.lyricOffsetMs, 0\)/);
   assert.match(source, /weSingResetLyricOffsetBtn/);
   assert.match(source, /selectWeSingCacheDirectory/);
   assert.match(renderer, /requestAnimationFrame/);
@@ -57,6 +61,28 @@ test('WeSing browser client activates capture and renders WebSocket lyrics safel
   assert.match(adminState, /app:lyric-state/);
 });
 
+test('WeSing lyric-offset preview survives older live status while saving', async () => {
+  const range = { value: '-1500', min: '-3000', max: '3000', style: { setProperty() {} } };
+  const number = { value: '-1500' };
+  const document = {
+    activeElement: null,
+    getElementById(id) {
+      return { weSingLyricOffsetMs: range, weSingLyricOffsetMsNumber: number }[id] || null;
+    }
+  };
+  const { WeSingService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'wesing-service.js'),
+    { document, window: {}, performance: { now: () => 0 } }
+  );
+  const service = new WeSingService();
+
+  service.pendingLyricOffsetMs = 700;
+  service.applyStatus({ lyricOffsetMs: -1500 });
+
+  assert.equal(range.value, '700');
+  assert.equal(number.value, '700');
+});
+
 test('Electron exposes a directory-only WeSing cache picker', () => {
   const main = read('src', 'electron', 'main.js');
   const preload = read('src', 'electron', 'preload.js');
@@ -66,3 +92,26 @@ test('Electron exposes a directory-only WeSing cache picker', () => {
   assert.match(main, /properties:\s*\['openDirectory'\]/);
   assert.match(preload, /selectWeSingCacheDirectory:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('music:select-wesing-cache'\)/);
 });
+
+async function loadModuleExports(entryPath, globals = {}) {
+  const context = vm.createContext({ console, window: {}, ...globals });
+  const modules = new Map();
+
+  async function load(filePath) {
+    const identifier = pathToFileURL(filePath).href;
+    if (modules.has(identifier)) return modules.get(identifier);
+    const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
+      context,
+      identifier
+    });
+    modules.set(identifier, module);
+    await module.link((specifier, referencingModule) => {
+      return load(fileURLToPath(new URL(specifier, referencingModule.identifier)));
+    });
+    return module;
+  }
+
+  const module = await load(entryPath);
+  await module.evaluate();
+  return module.namespace;
+}

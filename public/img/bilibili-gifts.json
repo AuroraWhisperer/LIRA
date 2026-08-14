@@ -155,11 +155,11 @@
       "id": 35502,
       "name": "bilibili世界",
       "price": "3万电池",
-      "image": "bilibili-gifts/2000-above/35502.webp",
+      "image": "bilibili-gifts/3000-above/35502.webp",
       "sourceUrl": "https://s1.hdslb.com/bfs/live/f307cb4f29be9f13b6610a8ebbdd8acffa068ba9.png@100w_100h.webp",
       "battery": 30000,
       "rmb": 3000,
-      "category": "2000-above"
+      "category": "3000-above"
     },
     {
       "id": 35521,
@@ -365,11 +365,11 @@
       "id": 34998,
       "name": "小电视飞船",
       "price": "2.999万电池",
-      "image": "bilibili-gifts/2000-above/34998.webp",
+      "image": "bilibili-gifts/2500-2999/34998.webp",
       "sourceUrl": "https://s1.hdslb.com/bfs/live/48884b1b1d3bf9df185f43ff6651748040faf5de.png@100w_100h.webp",
       "battery": 29990,
       "rmb": 2999,
-      "category": "2000-above"
+      "category": "2500-2999"
     },
     {
       "id": 31088,
@@ -505,21 +505,21 @@
       "id": 31028,
       "name": "探索者启航",
       "price": "2.233万电池",
-      "image": "bilibili-gifts/2000-above/31028.webp",
+      "image": "bilibili-gifts/2000-2499/31028.webp",
       "sourceUrl": "https://s1.hdslb.com/bfs/live/f95de770154c6b89e376a16cfae6f5a5bf751d05.png@100w_100h.webp",
       "battery": 22330,
       "rmb": 2233,
-      "category": "2000-above"
+      "category": "2000-2499"
     },
     {
       "id": 34383,
       "name": "梦幻游乐园",
       "price": "3万电池",
-      "image": "bilibili-gifts/2000-above/34383.webp",
+      "image": "bilibili-gifts/3000-above/34383.webp",
       "sourceUrl": "https://s1.hdslb.com/bfs/live/f1ed9d627f75b46fe621558951847e0e4e95d6a2.png@100w_100h.webp",
       "battery": 30000,
       "rmb": 3000,
-      "category": "2000-above"
+      "category": "3000-above"
     }
   ]
 }
