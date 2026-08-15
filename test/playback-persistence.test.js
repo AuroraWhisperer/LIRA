@@ -173,9 +173,9 @@ test('pagehide preserves personal playlist caches for the next desktop start', a
   await flushAsyncWork();
   await app.emitHomeAction();
   await flushAsyncWork();
-  assert.equal(app.hasStorageKey('playbackCache:qq:liked'), true);
+  assert.equal(app.hasStorageKey('playbackCache:v2:qq:liked'), true);
 
   await app.emitWindow('pagehide');
 
-  assert.equal(app.hasStorageKey('playbackCache:qq:liked'), true);
+  assert.equal(app.hasStorageKey('playbackCache:v2:qq:liked'), true);
 });

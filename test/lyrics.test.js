@@ -81,7 +81,7 @@ test('lyric and stream provider calls retain the QQ numeric sourceSongId', async
   assert.equal(streamTrack.sourceSongId, 563728446);
 });
 
-test('lyric service ignores incomplete v2 lyric cache entries', async (t) => {
+test('lyric service ignores incomplete v4 lyric cache entries', async (t) => {
   const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-cache-version-'));
   t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));
 
@@ -92,7 +92,7 @@ test('lyric service ignores incomplete v2 lyric cache entries', async (t) => {
     sourceTrackId: '000w1gfs48CBnw',
     title: '해볼래 (试试看)'
   };
-  const oldCacheKey = musicCacheKey('lyrics-v2', {
+  const oldCacheKey = musicCacheKey('lyrics-v4', {
     source: 'qq',
     sourceTrackId: '000w1gfs48CBnw'
   });

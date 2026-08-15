@@ -70,31 +70,41 @@ class NeteaseMusicProvider {
     const songs = data && data.result && Array.isArray(data.result.songs)
       ? data.result.songs
       : [];
-    const coverUrls = await this.getSearchCoverUrls(songs);
-    return songs.map((song) => mapNeteaseSong(song, coverUrls.get(String(song.id)))).filter(Boolean);
+    return this.mapTracksWithArtwork(songs);
   }
 
-  async getSearchCoverUrls(songs) {
+  async mapTracksWithArtwork(songs) {
+    const list = Array.isArray(songs) ? songs : [];
+    const coverUrls = await this.getMissingCoverUrls(list);
+    return list.map((song) => mapNeteaseSong(song, coverUrls.get(String(song && song.id)))).filter(Boolean);
+  }
+
+  async getMissingCoverUrls(songs) {
     const ids = [...new Set((Array.isArray(songs) ? songs : [])
+      .filter((song) => {
+        const album = song && (song.album || song.al);
+        return !String(album && (album.picUrl || album.pic_url) || '').trim();
+      })
       .map((song) => song && song.id)
       .filter((id) => /^\d+$/.test(String(id))))];
-    if (ids.length === 0) return new Map();
-
-    try {
-      const data = await this.requestJson('/api/song/detail', {
-        ids: JSON.stringify(ids)
-      });
-      const detailSongs = data && Array.isArray(data.songs) ? data.songs : [];
-      const coverUrls = new Map();
-      for (const song of detailSongs) {
-        const album = song && (song.album || song.al);
-        const coverUrl = String(album && album.picUrl || '').trim();
-        if (song && song.id && coverUrl) coverUrls.set(String(song.id), coverUrl);
+    const coverUrls = new Map();
+    for (let index = 0; index < ids.length; index += 100) {
+      const batch = ids.slice(index, index + 100);
+      try {
+        const data = await this.requestJson('/api/song/detail', {
+          ids: JSON.stringify(batch)
+        });
+        const detailSongs = data && Array.isArray(data.songs) ? data.songs : [];
+        for (const song of detailSongs) {
+          const album = song && (song.album || song.al);
+          const coverUrl = String(album && (album.picUrl || album.pic_url) || '').trim();
+          if (song && song.id && coverUrl) coverUrls.set(String(song.id), coverUrl);
+        }
+      } catch (_) {
+        // Preserve list results when one detail batch is unavailable.
       }
-      return coverUrls;
-    } catch (_) {
-      return new Map();
     }
+    return coverUrls;
   }
 
   async getPersonalizedPlaylists(options = {}) {
@@ -116,7 +126,7 @@ class NeteaseMusicProvider {
       : [];
     // 网易云每日推荐是「当天固定一份」，接口不分页。这里按 page 开窗口往后取，
     // 取完就绕回开头 —— 换一批只能在当天这份列表里换，不会有全新的歌。
-    return sliceByPage(songs, limit, page).map(mapNeteaseSong).filter(Boolean);
+    return this.mapTracksWithArtwork(sliceByPage(songs, limit, page));
   }
 
   async getRadioTracks(options = {}) {
@@ -129,7 +139,7 @@ class NeteaseMusicProvider {
     const songs = data && Array.isArray(data.result)
       ? data.result.map((item) => item && (item.song || item))
       : [];
-    return sliceByPage(songs, limit, page).map(mapNeteaseSong).filter(Boolean);
+    return this.mapTracksWithArtwork(sliceByPage(songs, limit, page));
   }
 
   async getLikedTracks(options = {}) {
@@ -173,12 +183,10 @@ class NeteaseMusicProvider {
     const rows = data && Array.isArray(data.weekData)
       ? data.weekData
       : [];
-    return rows
+    return this.mapTracksWithArtwork(rows
       .map((row) => row && row.song)
       .filter(Boolean)
-      .slice(0, limit)
-      .map(mapNeteaseSong)
-      .filter(Boolean);
+      .slice(0, limit));
   }
 
   async getPlaylistTracks(playlistId, options = {}) {
@@ -194,7 +202,7 @@ class NeteaseMusicProvider {
     const tracks = data && data.playlist && Array.isArray(data.playlist.tracks)
       ? data.playlist.tracks
       : [];
-    return tracks.map(mapNeteaseSong).filter(Boolean);
+    return this.mapTracksWithArtwork(tracks);
   }
 
   async playlistContainsTrack(playlistId, track) {
@@ -273,6 +281,7 @@ class NeteaseMusicProvider {
       lv: '-1',
       kv: '-1',
       tv: '-1',
+      rv: '-1',
       ytv: '-1'
     });
     return {

@@ -121,8 +121,11 @@ class QQMusicProvider extends QQMusicClient {
         const lyric = decodeQQPlayableLyric(data.lyric, encrypted);
         const translation = decodeQQPlayableLyric(data.trans, encrypted);
         const roma = decodeQQPlayableLyric(data.roma, encrypted);
-        // qrc 才是词级（逐字）歌词，之前误把行级 lyric 当词级传入，导致 words 恒为空。
-        const wordLyric = decodeQQPlayableLyric(data.qrc, encrypted);
+        // qrc 可能是独立歌词正文，也可能只是声明 lyric 含逐字歌词的数字标志。
+        const qrcPayload = String(data.qrc ?? '').trim();
+        const wordLyric = !qrcPayload || qrcPayload === '0' || qrcPayload === '1'
+          ? lyric
+          : decodeQQPlayableLyric(qrcPayload, encrypted);
         const lines = parseLyricResult(lyric, translation, wordLyric, roma);
         if (lines.length > 0) return { source: this.source, sourceTrackId, lines };
         throw new Error('QQ 音乐返回的歌词无法解析。');

@@ -116,6 +116,46 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
   }
 });
 
+test('QQ provider treats numeric qrc as a flag and keeps rich lyric translations', async () => {
+  const provider = createProvider();
+  let legacyRequests = 0;
+  provider.requestMusicu = async () => ({
+    code: 0,
+    req_0: {
+      code: 0,
+      data: {
+        crypt: 1,
+        lyric: encryptedQrc(qrcXml(
+          '[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)'
+        )),
+        qrc: 1,
+        trans: encryptedQrc('[00:01.05]翻译一\n[00:04.04]翻译二'),
+        roma: encryptedQrc(qrcXml(
+          '[1001,1900]jia (1001,900)yi(1901,1000)\n[4001,1000]bing(4001,1000)'
+        ))
+      }
+    }
+  });
+  provider.getLegacyLyrics = async () => {
+    legacyRequests += 1;
+    return { source: 'qq', sourceTrackId: 'song-mid', lines: [] };
+  };
+
+  const result = await provider.getLyrics({
+    sourceTrackId: 'song-mid',
+    sourceSongId: 219082993,
+    title: '测试歌曲'
+  });
+
+  assert.equal(legacyRequests, 0);
+  assert.equal(result.lines.length, 2);
+  assert.equal(result.lines[0].translation, '翻译一');
+  assert.equal(result.lines[0].roma, 'jia yi');
+  assert.deepEqual(result.lines[0].words.map((word) => word.text), ['甲', '乙']);
+  assert.equal(result.lines[1].translation, '翻译二');
+  assert.equal(result.lines[1].roma, 'bing');
+});
+
 test('QQ provider falls back to the legacy lyric endpoint', async () => {
   const originalFetch = global.fetch;
   const urls = [];

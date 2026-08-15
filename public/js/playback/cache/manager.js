@@ -3,7 +3,7 @@
 // 命中后由 ContentLoader 后台刷新，兼顾启动速度和数据新鲜度
 'use strict';
 
-const CACHE_PREFIX = 'playbackCache:';
+const CACHE_PREFIX = 'playbackCache:v2:';
 
 /** 缓存有效期（毫秒） */
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;

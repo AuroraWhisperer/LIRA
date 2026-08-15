@@ -12,6 +12,28 @@ function createProvider() {
   });
 }
 
+test('Netease provider requests and aligns translated and romanized lyrics', async () => {
+  const provider = createProvider();
+  let captured;
+  provider.requestJson = async (pathname, params) => {
+    captured = { pathname, params };
+    return {
+      lrc: { lyric: '[00:19.64]あの日見渡した渚を\n[00:24.50]今も思い出すんだ' },
+      tlyric: { lyric: '[00:19.64]那天所眺望的海岸\n[00:24.50]直至今日仍能想起' },
+      romalrc: { lyric: '[00:19.64]a no hi mi wa ta shi ta na gi sa wo\n[00:24.50]i ma mo o mo i da su n da' }
+    };
+  };
+
+  const result = await provider.getLyrics({ sourceTrackId: '496869422' });
+
+  assert.equal(captured.pathname, '/api/song/lyric');
+  assert.equal(captured.params.rv, '-1');
+  assert.equal(result.lines[0].translation, '那天所眺望的海岸');
+  assert.equal(result.lines[0].roma, 'a no hi mi wa ta shi ta na gi sa wo');
+  assert.equal(result.lines[1].translation, '直至今日仍能想起');
+  assert.equal(result.lines[1].roma, 'i ma mo o mo i da su n da');
+});
+
 test('Netease provider resolves a full stream with the current account rights', async () => {
   const provider = createProvider();
   let captured;
@@ -148,6 +170,99 @@ test('Netease search preserves artist artwork when song-detail lookup fails', as
   const tracks = await provider.searchTracks('A');
 
   assert.equal(tracks[0].coverUrl, 'https://artist.test/a.jpg');
+});
+
+test('Netease track lists enrich every missing album cover', async (t) => {
+  const listSongs = [{
+    id: 11,
+    name: 'Already complete',
+    album: { id: 1, name: 'First', picUrl: 'https://album.test/existing.jpg' },
+    artists: [{ name: 'Singer A' }]
+  }, {
+    id: 22,
+    name: 'Needs artwork',
+    album: { id: 2, name: 'Second' },
+    artists: [{ name: 'Singer B' }]
+  }];
+
+  const cases = [{
+    name: 'daily recommendations',
+    listPath: '/api/v1/discovery/recommend/songs',
+    listPayload: { recommend: listSongs },
+    load: (provider) => provider.getDailyTracks({ limit: 20 })
+  }, {
+    name: 'radio',
+    listPath: '/api/personalized/newsong',
+    listPayload: { result: listSongs.map((song) => ({ song })) },
+    load: (provider) => provider.getRadioTracks({ limit: 20 })
+  }, {
+    name: 'playlist tracks',
+    listPath: '/api/v6/playlist/detail',
+    listPayload: { playlist: { tracks: listSongs } },
+    load: (provider) => provider.getPlaylistTracks('123456', { limit: 20 })
+  }, {
+    name: 'recent tracks',
+    listPath: '/api/play-record',
+    listPayload: { weekData: listSongs.map((song) => ({ song })) },
+    load: (provider) => provider.getRecentTracks({ limit: 20 }),
+    needsProfile: true
+  }];
+
+  for (const item of cases) {
+    await t.test(item.name, async () => {
+      const provider = createProvider();
+      const detailRequests = [];
+      provider.requestJson = async (pathname, params) => {
+        if (pathname === '/api/nuser/account/get' && item.needsProfile) {
+          return { profile: { userId: 42, nickname: 'Tester' } };
+        }
+        if (pathname === item.listPath) return item.listPayload;
+        if (pathname === '/api/song/detail') {
+          detailRequests.push(params.ids);
+          return { songs: [{ id: 22, album: { picUrl: 'https://album.test/enriched.jpg' } }] };
+        }
+        throw new Error(`Unexpected request: ${pathname}`);
+      };
+
+      const tracks = await item.load(provider);
+
+      assert.deepEqual(detailRequests, ['[22]']);
+      assert.equal(tracks[0].coverUrl, 'https://album.test/existing.jpg');
+      assert.equal(tracks[1].coverUrl, 'https://album.test/enriched.jpg');
+    });
+  }
+});
+
+test('Netease artwork enrichment batches large lists and preserves successful batches', async () => {
+  const provider = createProvider();
+  const songs = Array.from({ length: 101 }, (_, index) => ({
+    id: index + 1,
+    name: `Song ${index + 1}`,
+    album: { id: index + 1, name: `Album ${index + 1}` },
+    artists: [{ name: 'Singer' }]
+  }));
+  const detailRequests = [];
+  provider.requestJson = async (pathname, params) => {
+    if (pathname === '/api/v6/playlist/detail') return { playlist: { tracks: songs } };
+    if (pathname === '/api/song/detail') {
+      const ids = JSON.parse(params.ids);
+      detailRequests.push(ids);
+      if (ids.includes(101)) throw new Error('HTTP 500');
+      return {
+        songs: ids.map((id) => ({ id, album: { picUrl: `https://album.test/${id}.jpg` } }))
+      };
+    }
+    throw new Error(`Unexpected request: ${pathname}`);
+  };
+
+  const tracks = await provider.getPlaylistTracks('123456', { limit: 101 });
+
+  assert.equal(detailRequests.length, 2);
+  assert.equal(detailRequests[0].length, 100);
+  assert.deepEqual(detailRequests[1], [101]);
+  assert.equal(tracks[0].coverUrl, 'https://album.test/1.jpg');
+  assert.equal(tracks[99].coverUrl, 'https://album.test/100.jpg');
+  assert.equal(tracks[100].coverUrl, '');
 });
 
 test('Netease provider writes numeric tracks to a playlist', async () => {

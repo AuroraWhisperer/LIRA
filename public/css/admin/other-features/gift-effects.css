@@ -55,13 +55,6 @@
   font-size: 16px;
 }
 
-.gift-effect-card-heading p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
-}
-
 .gift-effect-lookup-form {
   margin-top: 22px;
 }
@@ -138,11 +131,17 @@
   line-height: 1.55;
 }
 
+.gift-effect-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 10px;
+}
+
 .gift-effect-url-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: stretch;
   gap: 10px;
-  margin-top: 12px;
 }
 
 @media (max-width: 1200px) {
@@ -157,7 +156,8 @@
   }
 
   .gift-effect-tool-heading,
-  .gift-effect-input-row {
+  .gift-effect-input-row,
+  .gift-effect-url-row {
     grid-template-columns: 1fr;
   }
 
