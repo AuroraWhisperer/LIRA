@@ -184,10 +184,11 @@ function init() {
   fetchModelsButton.addEventListener('click', async () => {
     fetchModelsButton.disabled = true;
     fetchModelsButton.textContent = '获取中…';
-    setState(modelFetchState, '正在从 DeepSeek 官方获取模型…');
+    setState(modelFetchState, '正在从当前模型服务获取可用模型…');
     try {
       const apiKey = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
-      const result = await readApi('/api/ai/models', { method: 'POST', body: JSON.stringify({ apiKey }) });
+      const apiUrl = document.getElementById('xiaomiAiDeepSeekUrl').value.trim();
+      const result = await readApi('/api/ai/models', { method: 'POST', body: JSON.stringify({ apiKey, apiUrl }) });
       const models = Array.isArray(result.models) ? result.models : [];
       const options = models.map((model) => {
         const option = document.createElement('option');
@@ -210,12 +211,12 @@ function init() {
       });
       modelOptions.replaceChildren(...options);
       modelMenu.replaceChildren(...menuItems);
-      setState(modelFetchState, `已获取 ${options.length} 个官方模型；可选择或直接输入。`, options.length ? 'good' : 'warn');
+      setState(modelFetchState, `已获取 ${options.length} 个可用模型；可选择或直接输入。`, options.length ? 'good' : 'warn');
       modelMenu.hidden = menuItems.length === 0;
       modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
       fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
     } catch (error) {
-      setState(modelFetchState, error.message || '无法获取 DeepSeek 模型列表。', 'warn');
+      setState(modelFetchState, error.message || '无法获取当前服务的模型列表。', 'warn');
     } finally {
       fetchModelsButton.disabled = false;
       fetchModelsButton.textContent = '获取模型';
@@ -276,7 +277,7 @@ function renderConfigSummary(config) {
   renderSecretHint('xiaomiAiDeepSeekKeyHint', config.hasDeepSeekApiKey);
   renderSecretHint('xiaomiAiQWeatherKeyHint', config.hasQWeatherApiKey);
   renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
-  document.getElementById('xiaomiAiConfigState').textContent = config.hasDeepSeekApiKey && config.deepseekResponsesUrl ? '可运行' : '等待配置';
+  document.getElementById('xiaomiAiConfigState').textContent = config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger ? '可运行' : '等待配置';
   document.getElementById('xiaomiAiModelState').textContent = config.model || 'deepseek-v4-flash';
 }
 
@@ -296,15 +297,15 @@ function setState(element, text, kind = '') {
 }
 
 function providerLabel(provider) {
-  return { deepseek: 'DeepSeek', qweather: '和风天气', amap: '高德地图' }[provider] || 'API';
+  return { deepseek: '模型服务', qweather: '和风天气', amap: '高德地图' }[provider] || 'API';
 }
 
 function providerErrorMessage(provider, error) {
   const messages = {
     DEEPSEEK_URL_MISSING: '请先填写完整的 Responses API 地址。',
-    DEEPSEEK_KEY_MISSING: '请先填写 DeepSeek API Key。',
-    DEEPSEEK_AUTH_FAILED: 'DeepSeek 拒绝了该 Key，请检查 Key 是否有效及账户权限。',
-    DEEPSEEK_INVALID_RESPONSE: 'DeepSeek 已响应，但没有返回可识别的文本。',
+    DEEPSEEK_KEY_MISSING: '请先填写当前模型服务的 API Key。',
+    DEEPSEEK_AUTH_FAILED: '模型服务拒绝了该 Key，请检查 Key 是否有效及账户权限。',
+    DEEPSEEK_INVALID_RESPONSE: '模型服务已响应，但没有返回可识别的文本。',
     QWEATHER_HOST_MISSING: '请先填写和风天气专属 API Host。',
     QWEATHER_KEY_MISSING: '请先填写和风天气 API Key。',
     QWEATHER_AUTH_FAILED: '和风天气拒绝了该 Key，请检查 Key 与专属 Host 是否属于同一项目。',

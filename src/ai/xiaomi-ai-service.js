@@ -282,7 +282,8 @@ function createXiaomiAiService(dependencies) {
   async function listModels(input = {}) {
     const config = store.getConfig();
     const apiKey = String(input.apiKey || '').trim() || config.deepseekApiKey;
-    return deepseek.listModels({ apiKey, requestTimeoutMs: config.requestTimeoutMs });
+    const responsesUrl = String(input.apiUrl || '').trim() || config.deepseekResponsesUrl;
+    return deepseek.listModels({ apiKey, responsesUrl, requestTimeoutMs: config.requestTimeoutMs });
   }
 
   function getStatus() {

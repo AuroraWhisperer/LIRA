@@ -120,8 +120,8 @@
 
 .gift-effect-url-block code {
   display: block;
-  min-height: 52px;
-  padding: 13px 14px;
+  min-height: 36px;
+  padding: 7px 10px;
   overflow-wrap: anywhere;
   border: 1px solid rgba(217, 75, 112, 0.2);
   border-radius: 10px;

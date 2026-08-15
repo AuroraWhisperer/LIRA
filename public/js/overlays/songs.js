@@ -323,7 +323,7 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-text', resolve('themeText', 'songBoardThemeText', '#fff7fb'));
   root.style.setProperty('--overlay-opacity', resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
   root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
-  const songBoardFontSize = Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 50));
+  const songBoardFontSize = Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 40));
   root.style.setProperty('--overlay-font-scale', String(songBoardFontSize / 16));
 
   const primaryHex = resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91');

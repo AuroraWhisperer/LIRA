@@ -45,7 +45,7 @@ const DEFAULT_SETTINGS = {
   themeOpacity: '0.48',
   themeRadius: '8',
   themeFontScale: '1',
-  songBoardFontSize: '50',
+  songBoardFontSize: '40',
   queueSongFontSize: '40',
   queueTitleFontSize: '30',
   identityQueueFontSize: '26',

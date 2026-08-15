@@ -39,7 +39,7 @@ test('AI config route returns a validation error without exposing request intern
   assert.equal(JSON.parse(res.body).error, '发送间隔无效。');
 });
 
-test('AI models route passes an optional temporary key without exposing it', async () => {
+test('AI models route passes an optional temporary endpoint and key without exposing the key', async () => {
   let received;
   const context = {
     ai: {
@@ -51,11 +51,11 @@ test('AI models route passes an optional temporary key without exposing it', asy
   };
   const res = createResponseRecorder();
   await routes['POST /api/ai/models'](context, {
-    body: async () => ({ apiKey: 'temporary-key' })
+    body: async () => ({ apiKey: 'temporary-key', apiUrl: 'https://gateway.example.test/v1/responses' })
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(received, { apiKey: 'temporary-key' });
+  assert.deepEqual(received, { apiKey: 'temporary-key', apiUrl: 'https://gateway.example.test/v1/responses' });
   assert.deepEqual(JSON.parse(res.body).data.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
   assert.doesNotMatch(res.body, /temporary-key/);
 });

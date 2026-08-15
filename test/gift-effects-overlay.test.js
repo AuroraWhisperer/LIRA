@@ -142,6 +142,7 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   assert.match(toolSource, /window\.open\(liveUrl, 'liraGiftEffectPreview'\)/);
   assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
+  assert.match(styles, /\.gift-effect-url-block code\s*\{[^}]*min-height:\s*36px[^}]*padding:\s*7px 10px/);
 });
 
 test('gift effect API docs describe lookup, CDN rules and transparent composition', () => {

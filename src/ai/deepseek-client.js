@@ -3,8 +3,6 @@
 const crypto = require('node:crypto');
 const { fetchJson, createPublicError } = require('./http-client');
 
-const DEEPSEEK_MODELS_URL = 'https://api.deepseek.com/models';
-
 function createDeepSeekClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const logEvent = options.logEvent;
@@ -13,7 +11,7 @@ function createDeepSeekClient(options = {}) {
   async function createResponse(request) {
     const config = request.config || {};
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
-      throw createPublicError('AI_NOT_CONFIGURED', 'DeepSeek API 尚未配置。');
+      throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
     }
     const responsesBody = {
       model: config.model,
@@ -98,9 +96,9 @@ function createDeepSeekClient(options = {}) {
       const result = normalize(payload);
       if (!result.text && !result.functionCalls.length) {
         if (result.finishReason === 'length' || result.finishReason === 'max_output_tokens') {
-          throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', 'DeepSeek 输出达到长度上限，未生成完整回复。');
+          throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', '模型输出达到长度上限，未生成完整回复。');
         }
-        throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
+        throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
       }
       await safeLog({
         type: 'normalized_response', requestId, purpose: purpose || 'model_request',
@@ -135,8 +133,10 @@ function createDeepSeekClient(options = {}) {
 
   async function listModels(request = {}) {
     const apiKey = String(request.apiKey || '').trim();
-    if (!apiKey) throw createPublicError('AI_NOT_CONFIGURED', '请先填写 DeepSeek API Key。');
-    const payload = await fetchJson(DEEPSEEK_MODELS_URL, {
+    const responsesUrl = String(request.responsesUrl || '').trim();
+    if (!responsesUrl) throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 API 请求地址。');
+    if (!apiKey) throw createPublicError('AI_NOT_CONFIGURED', '请先填写当前模型服务的 API Key。');
+    const payload = await fetchJson(resolveModelsEndpoint(responsesUrl), {
       headers: { Authorization: `Bearer ${apiKey}` },
       timeoutMs: request.requestTimeoutMs,
       fetchImpl
@@ -154,7 +154,7 @@ function createDeepSeekClient(options = {}) {
       throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 Responses API 地址。');
     }
     if (!config.deepseekApiKey) {
-      throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写 DeepSeek API Key。');
+      throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写当前模型服务的 API Key。');
     }
     let responseText;
     const testEndpoint = resolveOfficialChatEndpoint(config.deepseekResponsesUrl);
@@ -170,13 +170,13 @@ function createDeepSeekClient(options = {}) {
       responseText = response.text;
     } catch (error) {
       if (isAuthenticationError(error)) {
-        throw createPublicError('DEEPSEEK_AUTH_FAILED', 'DeepSeek 拒绝了该 API Key。');
+        throw createPublicError('DEEPSEEK_AUTH_FAILED', '模型服务拒绝了该 API Key。');
       }
       throw error;
     }
     responseText = String(responseText || '').trim();
     if (!responseText) {
-      throw createPublicError('DEEPSEEK_INVALID_RESPONSE', 'DeepSeek 返回了空响应。');
+      throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
     }
     return {
       provider: 'deepseek',
@@ -200,6 +200,23 @@ function resolveOfficialChatEndpoint(value) {
   if (chatPaths.includes(path)) return { url: value, adapted: true };
   const prefix = path === '/v1' ? '/v1' : '';
   return { url: `${url.origin}${prefix}/chat/completions`, adapted: true };
+}
+
+function resolveModelsEndpoint(value) {
+  const url = new URL(value);
+  const path = url.pathname.replace(/\/+$/, '');
+  if (path.endsWith('/chat/completions')) {
+    url.pathname = `${path.slice(0, -'/chat/completions'.length)}/models`;
+  } else if (path.endsWith('/responses')) {
+    url.pathname = `${path.slice(0, -'/responses'.length)}/models`;
+  } else if (path.endsWith('/models')) {
+    url.pathname = path;
+  } else {
+    url.pathname = `${path}/models`;
+  }
+  url.search = '';
+  url.hash = '';
+  return url.toString();
 }
 
 function normalizeChatResponse(payload) {
@@ -348,7 +365,7 @@ function parseArguments(value, finishReason = '') {
   if (value && typeof value === 'object') return value;
   try { return JSON.parse(String(value || '{}')); } catch {
     if (finishReason === 'length' || finishReason === 'max_output_tokens') {
-      throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', 'DeepSeek 输出达到长度上限，工具参数不完整。');
+      throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', '模型输出达到长度上限，工具参数不完整。');
     }
     throw createPublicError('INVALID_TOOL_ARGUMENTS', '模型给出了无效的工具参数。');
   }

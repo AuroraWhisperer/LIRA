@@ -20,6 +20,7 @@ function createStore(options = {}) {
 test('AI config defaults are redacted and secrets are stored encrypted', () => {
   const { db, store } = createStore();
   const defaults = store.getPublicConfig();
+  assert.equal(defaults.trigger, '');
   assert.equal(defaults.model, 'deepseek-v4-flash');
   assert.equal(defaults.maxToolCalls, 6);
   assert.equal(defaults.deepseekResponsesUrl, '');
@@ -40,6 +41,12 @@ test('AI config normalizes the legacy DeepSeek model to its official name', () =
   assert.equal(store.updateConfig({ model: 'ds-v4-flash' }).model, 'deepseek-v4-flash');
   assert.equal(store.getConfig().model, 'deepseek-v4-flash');
   assert.equal(store.updateConfig({ model: 'custom-model' }).model, 'custom-model');
+});
+
+test('AI config allows an empty trigger while the assistant is being configured', () => {
+  const { store } = createStore();
+  assert.equal(store.updateConfig({ trigger: '' }).trigger, '');
+  assert.throws(() => store.updateConfig({ trigger: '昵称'.repeat(7) }), /不能超过 12/);
 });
 
 test('AI config migrates the previous built-in Xiaomi prompt without replacing custom text', () => {

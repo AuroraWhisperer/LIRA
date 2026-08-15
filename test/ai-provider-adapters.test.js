@@ -344,7 +344,7 @@ test('DeepSeek connection test keeps a complete Responses API URL unchanged', as
   });
 });
 
-test('DeepSeek client lists sanitized official model ids', async () => {
+test('model client derives and sanitizes model listings from the configured API', async () => {
   let captured;
   const client = createDeepSeekClient({
     fetchImpl: async (url, options) => {
@@ -362,9 +362,13 @@ test('DeepSeek client lists sanitized official model ids', async () => {
     }
   });
 
-  const result = await client.listModels({ apiKey: 'temporary-secret', requestTimeoutMs: 3000 });
+  const result = await client.listModels({
+    apiKey: 'temporary-secret',
+    responsesUrl: 'https://gateway.example.test/openai/v1/responses?ignored=true',
+    requestTimeoutMs: 3000
+  });
 
-  assert.equal(captured.url, 'https://api.deepseek.com/models');
+  assert.equal(captured.url, 'https://gateway.example.test/openai/v1/models');
   assert.equal(captured.options.headers.Authorization, 'Bearer temporary-secret');
   assert.doesNotMatch(captured.url, /temporary-secret/);
   assert.deepEqual(result.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);

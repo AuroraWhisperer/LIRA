@@ -10,7 +10,7 @@ const AI_SECRET_KEYS = Object.freeze([
 
 const AI_CONFIG_DEFAULTS = Object.freeze({
   enabled: false,
-  trigger: '小米',
+  trigger: '',
   deepseekResponsesUrl: '',
   deepseekApiKey: '',
   model: 'deepseek-v4-flash',
@@ -79,8 +79,8 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
     if (key === 'model' && value === 'ds-v4-flash') value = 'deepseek-v4-flash';
     if (key === 'qweatherApiHost' && value && !value.includes('://')) value = `https://${value}`;
     if (URL_KEYS.has(key) && value) validateHttpUrl(key, value);
-    if (key === 'trigger' && (!value || Array.from(value).length > 12)) {
-      throw new Error('触发关键词长度必须为 1 到 12 个字符。');
+    if (key === 'trigger' && Array.from(value).length > 12) {
+      throw new Error('触发关键词不能超过 12 个字符。');
     }
     if (key === 'model' && (!value || value.length > 80)) throw new Error('模型名称无效。');
     if (key === 'systemPrompt' && (value.length < 20 || value.length > 8000)) {
@@ -106,6 +106,7 @@ function validateHttpUrl(key, value) {
 function isAiReady(config) {
   return Boolean(
     config.enabled
+    && config.trigger
     && config.deepseekResponsesUrl
     && config.deepseekApiKey
     && config.model

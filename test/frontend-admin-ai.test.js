@@ -152,7 +152,7 @@ test('opening disconnected danmaku tool refreshes live once and distinguishes co
   assert.match(styles, /strong\.connection-bad::before/);
 });
 
-test('danmaku tool places modular Xiaomi AI settings after the manual sender with safe defaults', () => {
+test('danmaku tool places the AI interaction assistant after the manual sender with safe defaults', () => {
   const html = readAdminHtml();
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'xiaomi-ai-settings.js'), 'utf8');
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
@@ -160,6 +160,10 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
 
   assert.ok(html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
+  assert.match(html, /id="xiaomiAiTitle">AI 互动助手</);
+  assert.match(html, /按昵称响应直播间弹幕，并通过已配置的模型服务生成回复/);
+  assert.match(html, /Responses API 兼容/);
+  assert.match(html, /支持 DeepSeek、OpenAI 等官方服务/);
   assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*value="deepseek-v4-flash"/);
   assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
   assert.match(html, /id="xiaomiAiQWeatherTestBtn"[^>]*type="button"/);
@@ -175,8 +179,11 @@ test('danmaku tool places modular Xiaomi AI settings after the manual sender wit
   assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
   assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);
-  assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="留空/);
+  assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/api\.openai\.com\/v1\/responses"/);
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
+  assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="例如：小米"/);
+  assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
+  assert.match(html, /id="xiaomiAiTestBtn"[^>]*>测试模型服务</);
   assert.match(html, /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/);
   assert.match(html, /<details class="xiaomi-ai-collapsible">[\s\S]*?扩展能力/);
   assert.match(html, /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/);
@@ -363,6 +370,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   await new Promise(resolve => setImmediate(resolve));
   const modelRequest = fetchCalls.find(call => call.url === '/api/ai/models');
   assert.equal(JSON.parse(modelRequest.options.body).apiKey, 'deepseek-secret');
+  assert.equal(JSON.parse(modelRequest.options.body).apiUrl, 'https://api.deepseek.com/responses');
   assert.deepEqual(
     elements.get('xiaomiAiModelOptions').children.map(option => option.value),
     ['deepseek-v4-flash', 'deepseek-v4-pro']
@@ -372,7 +380,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     elements.get('xiaomiAiModelMenu').children.map(option => option.textContent),
     ['deepseek-v4-flash', 'deepseek-v4-pro']
   );
-  assert.equal(elements.get('xiaomiAiModelFetchState').textContent, '已获取 2 个官方模型；可选择或直接输入。');
+  assert.equal(elements.get('xiaomiAiModelFetchState').textContent, '已获取 2 个可用模型；可选择或直接输入。');
 
   elements.get('xiaomiAiModelMenu').children[1].listeners.click();
   assert.equal(elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');

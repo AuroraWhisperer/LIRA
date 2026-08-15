@@ -52,17 +52,19 @@ const routes = {
     try {
       const body = await request.body();
       const apiKey = body?.apiKey ?? '';
-      if (typeof apiKey !== 'string' || apiKey.length > 512) throw new Error('DeepSeek API Key 格式无效。');
-      sendJson(res, 200, { ok: true, data: await context.ai.listModels({ apiKey: apiKey.trim() }) });
+      const apiUrl = body?.apiUrl ?? '';
+      if (typeof apiKey !== 'string' || apiKey.length > 512) throw new Error('API Key 格式无效。');
+      if (typeof apiUrl !== 'string' || apiUrl.length > 2048) throw new Error('API 请求地址格式无效。');
+      sendJson(res, 200, { ok: true, data: await context.ai.listModels({ apiKey: apiKey.trim(), apiUrl: apiUrl.trim() }) });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message || '无法获取 DeepSeek 模型列表。' });
+      sendJson(res, 400, { ok: false, error: error.message || '无法获取模型列表。' });
     }
   },
   async 'POST /api/ai/test'(context, request, res) {
     try {
       sendJson(res, 200, { ok: true, data: await context.ai.test() });
     } catch (error) {
-      sendJson(res, 502, { ok: false, error: error.message || 'DeepSeek 连接测试失败。' });
+      sendJson(res, 502, { ok: false, error: error.message || '模型服务连接测试失败。' });
     }
   },
   'POST /api/ai/test/deepseek': createProviderTestRoute('deepseek'),
