@@ -22,8 +22,42 @@ test('server exposes gift effect lookup and broadcasts finalized gift effects', 
   assert.match(serverSource, /buildGiftEffectEvent\(item, giftEffectResolver\)/);
   assert.match(serverSource, /webSocketHub\.broadcast\(effectEvent\)/);
   assert.match(apiContextSource, /resolveEffect/);
+  assert.match(apiContextSource, /previewEffect/);
   assert.match(giftRoutesSource, /GET \/api\/gifts\/effects\/resolve/);
+  assert.match(giftRoutesSource, /POST \/api\/gifts\/effects\/preview/);
   assert.match(giftRoutesSource, /\^\\d\{1,12\}\$/);
+});
+
+test('gift effect preview resolves the gift and broadcasts to the fixed overlay url', async () => {
+  const { routes } = require('../src/server/routes/gift-routes');
+  const handler = routes['POST /api/gifts/effects/preview'];
+  const broadcasts = [];
+  const context = {
+    gifts: {
+      async resolveEffect(giftId) {
+        return giftId === 33909
+          ? { effectId: 1466, mp4Url: 'https://i0.hdslb.com/bfs/live/effect.mp4' }
+          : null;
+      },
+      previewEffect(payload) {
+        broadcasts.push(payload);
+      }
+    }
+  };
+
+  const found = await invokeBodyRoute(handler, context, { giftId: '33909' });
+  assert.equal(found.status, 200);
+  assert.deepEqual(broadcasts, [{
+    type: 'gift:effect',
+    eventId: 0,
+    giftId: 33909,
+    effect: { effectId: 1466, mp4Url: 'https://i0.hdslb.com/bfs/live/effect.mp4' },
+    preview: true
+  }]);
+
+  const invalid = await invokeBodyRoute(handler, context, { giftId: 'abc' });
+  assert.equal(invalid.status, 400);
+  assert.equal(broadcasts.length, 1);
 });
 
 test('gift effect lookup validates ids and returns only resolved effect data', async () => {
@@ -56,7 +90,7 @@ test('gift effect lookup validates ids and returns only resolved effect data', a
   assert.equal(missing.status, 404);
 });
 
-test('gift effects overlay is routed, referrer-safe and luma-keys MP4 frames', () => {
+test('gift effects overlay preserves aspect ratio and composites black or packed-alpha MP4 frames', () => {
   const serverSource = read('src/server/http-utils.js');
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
@@ -67,10 +101,13 @@ test('gift effects overlay is routed, referrer-safe and luma-keys MP4 frames', (
   assert.match(html, /id="giftEffectStage"/);
   assert.match(css, /\.gift-effects-overlay-body\s*\{[^}]*background:\s*transparent/);
   assert.match(overlayJs, /payload\.type === 'gift:effect'/);
-  assert.match(overlayJs, /\/api\/gifts\/effects\/resolve\?giftId=/);
   assert.match(overlayJs, /referrerPolicy\s*=\s*'no-referrer'/);
   assert.match(overlayJs, /crossOrigin\s*=\s*'anonymous'/);
   assert.match(overlayJs, /keyOutBlack/);
+  assert.match(overlayJs, /applyAlphaMask/);
+  assert.match(overlayJs, /255 - Math\.max\(mask\[i\], mask\[i \+ 1\], mask\[i \+ 2\]\)/);
+  assert.match(overlayJs, /height \* 9 \/ 16/);
+  assert.match(overlayJs, /containRect/);
   assert.match(overlayJs, /Math\.max\(data\[i\], data\[i \+ 1\], data\[i \+ 2\]\)/);
   assert.match(overlayJs, /MAX_PLAYING/);
   assert.doesNotMatch(overlayJs, /innerHTML/);
@@ -80,6 +117,7 @@ test('gift effects overlay is routed, referrer-safe and luma-keys MP4 frames', (
 test('toolbox includes a gift effect tab with lookup and preview controls', () => {
   const html = readAdminHtml();
   const indexSource = read('public/js/admin/index.js');
+  const toolSource = read('public/js/admin/gift-effects.js');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
   assert.match(html, /data-other-feature="otherGiftEffectsFeature"[\s\S]*?<strong>礼物特效<\/strong>/);
@@ -89,6 +127,9 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   assert.match(html, /id="giftEffectLookupBtn"/);
   assert.match(html, /id="giftEffectOpenBtn"/);
   assert.match(indexSource, /import '\.\/gift-effects\.js';/);
+  assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
+  assert.doesNotMatch(toolSource, /\?giftId=/);
+  assert.match(toolSource, /window\.open\(liveUrl, 'liraGiftEffectPreview'\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
 });
 
@@ -115,4 +156,19 @@ async function invokeRoute(handler, context, giftId) {
   };
   await handler(context, { query: new URLSearchParams({ giftId }) }, response);
   return { status, body };
+}
+
+async function invokeBodyRoute(handler, context, body) {
+  let status = 0;
+  let responseBody = null;
+  const response = {
+    writeHead(nextStatus) {
+      status = nextStatus;
+    },
+    end(content) {
+      responseBody = JSON.parse(content);
+    }
+  };
+  await handler(context, { body: async () => body }, response);
+  return { status, body: responseBody };
 }

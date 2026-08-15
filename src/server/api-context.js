@@ -9,6 +9,7 @@ function createApiContext(options) {
     maxBodyBytes,
     sessionToken,
     broadcastSnapshot,
+    broadcastGiftEffectPreview,
     domainServices,
     messageBuffer,
     publishLyricState,
@@ -47,7 +48,8 @@ function createApiContext(options) {
       getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
       search: domainServices.gifts.search,
       clearRecent: domainServices.gifts.clearRecent,
-      resolveEffect: domainServices.gifts.resolveEffect
+      resolveEffect: domainServices.gifts.resolveEffect,
+      previewEffect: broadcastGiftEffectPreview
     },
     overtime: {
       getOverview: domainServices.overtime.getOverview,

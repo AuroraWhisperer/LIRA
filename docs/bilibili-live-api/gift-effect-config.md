@@ -29,7 +29,7 @@ GET https://api.live.bilibili.com/xlive/general-interface/v1/fullScSpecialEffect
 
 ## CDN 与透明画面
 
-MP4 通常是黑色背景且没有 alpha 通道。第三方页面直接携带 Referer 请求 CDN 还可能得到 403，因此 overlay 同时使用：
+MP4 既可能是黑色背景，也可能把 `9:16` 彩色画面和半宽 alpha 遮罩横向打包在同一帧。overlay 会识别打包格式、按原始比例居中合成；普通黑底素材继续使用亮度抠黑。第三方页面直接携带 Referer 请求 CDN 还可能得到 403，因此 overlay 同时使用：
 
 - 页面级 `<meta name="referrer" content="no-referrer">`
 - 视频元素 `referrerPolicy = 'no-referrer'`
@@ -45,7 +45,7 @@ alpha = max(r, g, b)
 
 - 查询礼物 ID：`GET /api/gifts/effects/resolve?giftId=31645`
 - 直播监听 overlay：`/gift-effects`
-- 手动预览：`/gift-effects?giftId=31645&debug=1`
+- 手动预览：在百宝箱输入礼物 ID 后，服务端通过 WebSocket 通知已打开的固定 `/gift-effects` 页面播放
 - 服务端解析：`src/bilibili/gift/effect-config.js`
 - 百宝箱工具：`public/pages/admin/toolbox/gift-effects.html`
 - 透明合成：`public/js/overlays/gift-effects.js`
@@ -67,4 +67,3 @@ alpha = max(r, g, b)
   }
 }
 ```
-

@@ -1,6 +1,6 @@
 # 后端核心:HTTP 服务与进程生命周期
 
-> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
+> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
 
 本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、token 注入机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
 
@@ -21,14 +21,14 @@
 | 独立服务 | `npm start` → [src/server.js](../../../src/server.js)(`require.main === module` 分支) | 纯 Node 进程,无 safeStorage、无 Cookie 注入(降级认证模式) |
 | Electron 内嵌 | `npm run desktop` → [src/electron/main.js](../../../src/electron/main.js) 内 `require('../server')` **同进程**调用 | 桌面模式下服务与 Electron main 共享一个进程,见 [desktop/main.md](../desktop/main.md) |
 
-核心入口是工厂函数 `createServerRuntime(runtimeOptions)`([server.js:56](../../../src/server.js#L56)),返回 `{ start, stop, setPreShutdownHook, persistPlaybackSnapshot, getApiToken, getSetting }`。文件底部另有一套兼容层单例(`getCompatibilityRuntime()`),让旧调用方 `startServer()`/`shutdownApplication()` 等顶层导出仍可用。
+核心入口是工厂函数 `createServerRuntime(runtimeOptions)`([server.js:43](../../../src/server.js#L43)),返回 `{ start, stop, setPreShutdownHook, persistPlaybackSnapshot, getApiToken, getSetting }`。文件底部另有一套兼容层单例,由 [compatibility-runtime.js](../../../src/server/compatibility-runtime.js) 适配旧调用方 `startServer()`/`shutdownApplication()` 等顶层导出。
 
 ## 2. 端口与监听
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 默认端口 | `START_PORT = 3000` | [server.js:45](../../../src/server.js#L45) |
-| 默认主机 | `127.0.0.1`(`localhost` 归一化为 `127.0.0.1`,见 `normalizeServerHost`) | [server.js:51-54](../../../src/server.js#L51-L54) |
+| 默认端口 | `START_PORT = 3000` | [server.js:32](../../../src/server.js#L32) |
+| 默认主机 | `127.0.0.1`(`localhost` 归一化为 `127.0.0.1`,见 `normalizeServerHost`) | [server.js:38-40](../../../src/server.js#L38-L40) |
 | 监听方式 | `lifecycle.listenExactly` — **精确端口,失败即报错**(不做回退) | [lifecycle.js:31-47](../../../src/server/lifecycle.js#L31-L47) |
 | 回退辅助 | `listenWithFallback` 扫描 `startPort..startPort+19`,仅独立/兼容模式可用 | [lifecycle.js:13-29](../../../src/server/lifecycle.js#L13-L29) |
 | 端口冲突处理 | 启动前 `cleanupOwnPortOccupant`:识别并关闭**上一个本服务实例**(同数据目录/SERVICE_ID/可执行路径),再绑定 | [lifecycle.js:65-111](../../../src/server/lifecycle.js#L65-L111) |
@@ -47,13 +47,13 @@
 
 ## 4. 请求管线
 
-[server.js:264-283](../../../src/server.js#L264-L283) 的 `http.createServer` 回调按序分发:
+[server.js:170-189](../../../src/server.js#L170-L189) 的 `http.createServer` 回调按序分发:
 
 1. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)
 2. `pathname.startsWith('/api/')` → [api-routes.js](../../../src/server/api-routes.js) 的 `handleApi(createApiContext(), req, res, requestUrl)`
 3. 其余 → `httpUtils.servePageOrAsset(PUBLIC_DIR, …)` 静态页面/资源
 
-`server.on('upgrade')`([server.js:285-292](../../../src/server.js#L285-L292)):仅 `/ws` 路径交给 `webSocketHub.handleUpgrade`,其余直接 `socket.destroy()`。
+`server.on('upgrade')`([server.js:191-198](../../../src/server.js#L191-L198)):仅 `/ws` 路径交给 `webSocketHub.handleUpgrade`,其余直接 `socket.destroy()`。
 
 ### 4.1 API 路由分发
 
@@ -62,12 +62,12 @@
 - **15 个路由模块**按 `ROUTE_MODULES` 数组顺序前缀匹配(完整端点清单见 [api.md](api.md))。
 - **Token 校验**:除 `PUBLIC_API_PATHS = {'/api/health'}` 外全部要求 Bearer 头或 `?token=` 查询参数,失败回 401(`verifyToken`,[http-utils.js:46-54](../../../src/server/http-utils.js#L46-L54))。
 - **405 与 404 区分**:`findRoute` 在模块前缀命中但方法不匹配时标记 `pathExists` → 405;否则 404。
-- **请求体惰性读取**:`createBodyReader` 只在 handler 真正调用时读一次 JSON([api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48)),上限 `MAX_BODY_BYTES = 16 MB`([server.js:48](../../../src/server.js#L48)),超限/非法 JSON 在 `readJsonBody` 中拒绝。
+- **请求体惰性读取**:`createBodyReader` 只在 handler 真正调用时读一次 JSON([api-routes.js:42-47](../../../src/server/api-routes.js#L42-L47)),上限 `MAX_BODY_BYTES = 16 MB`([server.js:35](../../../src/server.js#L35)),超限/非法 JSON 在 `readJsonBody` 中拒绝。
 - 顶层异常兜底:500 + `{ok:false, error}`。
 
 ### 4.2 API Context 注入
 
-`createApiContext()`([server.js:295-410](../../../src/server.js#L295-L410))**按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / debug / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music` 共 16 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数全部来自领域服务(见 [domain-services.js](../../../src/server/domain-services.js))或运行时组件(weSingCapture、xiaomiAi、danmakuSender、musicRegistry)。
+`server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / debug / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music` 共 16 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
 
 ### 4.3 静态页面服务与 Token 注入
 
@@ -83,7 +83,7 @@
 
 ## 5. 领域服务装配
 
-`createDomainServices({ db, settingsStore, onGiftFlushed, onOvertimeUpdate })`([domain-services.js:22-188](../../../src/server/domain-services.js#L22-L188))是唯一组装点,产出:
+`createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate })`([domain-services.js:22](../../../src/server/domain-services.js#L22))是唯一领域服务组装点,产出:
 
 | 领域 | 组成 | 详情文档 |
 |---|---|---|
@@ -97,13 +97,13 @@
 | `data` | 清库/保留策略入口(database + retention) | [storage.md](storage.md) |
 | `playback / theme / cooldowns` | playback-store / theme-store / cooldown-store | [storage.md](storage.md) |
 
-**启动时数据修复链**([server.js:113-133](../../../src/server.js#L113-L133)):`repairGiftV2Events` → 4 个 settings 迁移(`migrateQueueScrollSpeedSetting`/`migrateSongScrollSpeedSetting`/`migrateQueueFontSizeSettings`/`migrateSongBoardFontSizeSetting`)→ `clearLegacyIdentityRuleDefaults` → `migrateBlindBoxConfig` → `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。
+**启动时数据修复链**([server.js:91-98](../../../src/server.js#L91-L98)):`giftEffectResolver` 预热 → `repairGiftV2Events` → `settingsBootstrap.runMigrations()`(详见 [settings-bootstrap.js](../../../src/server/settings-bootstrap.js))→ `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。
 
-**运行时组件装配**([server.js:147-262](../../../src/server.js#L147-L262)):WS hub、歌词状态(`lyricState`/`lyricTimeline` + 发布器)、musicRegistry、weSingCapture、danmakuSender、aiConfigStore/apiQuotaStore/deliveryVerifier/requestLogger、xiaomiAi(DeepSeek + 4 工具)、messageBuffer(礼物调试缓冲,容量 500)。Bilibili 客户端在 `startServer` 成功后按设置重建(见 [bilibili/danmaku.md](bilibili/danmaku.md))。
+**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()`([music-runtime.js:9](../../../src/server/music-runtime.js#L9))拥有;AI 配置、配额、DeepSeek 客户端、4 个工具、投递校验与请求日志由 `buildAiRuntime()`([ai-runtime.js:15](../../../src/server/ai-runtime.js#L15))拥有。`server.js` 作为 composition root 保留 WS hub、礼物特效解析器、danmakuSender、messageBuffer 与两个 runtime builder 的调用([server.js:85](../../../src/server.js#L85)、[server.js:163](../../../src/server.js#L163))。Bilibili 客户端在 `startServer` 成功后按设置重建(见 [bilibili/danmaku.md](bilibili/danmaku.md))。
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 
-### 6.1 启动(startServer,[server.js:439-501](../../../src/server.js#L439-L501))
+### 6.1 启动(startServer,[server.js:269-326](../../../src/server.js#L269-L326))
 
 1. 重建 `musicRegistry`(注入 `musicAuth` 适配器)并记录 `bilibiliAuthProvider`
 2. `cleanupOwnPortOccupant` 清理旧实例 → `listenExactly` 绑定精确端口
@@ -113,11 +113,11 @@
 
 启动失败时回滚:删除 token/运行时文件、停客户端、关服务器、重置 `startPromise` 后重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 
-### 6.2 关闭(shutdownApplication,[server.js:741-801](../../../src/server.js#L741-L801))
+### 6.2 关闭(shutdownApplication,[server.js:494-552](../../../src/server.js#L494-L552))
 
 顺序:
 
-1. `xiaomiAi.shutdown()`(停止 AI 内部异步任务)
+1. `aiRuntime.service.shutdown()`(停止 AI 内部异步任务)
 2. 等待启动完成(若进行中)
 3. `preShutdownHook()` — 由 Electron main 注入,用于刷新渲染进程播放状态(见 [desktop/main.md](../desktop/main.md))
 4. 删除 `.session-token` 与 `.server-runtime.json`

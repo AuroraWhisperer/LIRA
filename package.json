@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "3.4.2",
+  "version": "3.4.3",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -41,6 +41,10 @@
       "src/**/*",
       "public/**/*",
       "package.json"
+    ],
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
     ],
     "asar": true,
     "npmRebuild": false,

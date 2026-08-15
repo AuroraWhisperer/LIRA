@@ -26,33 +26,6 @@
 
   function init() {
     connectSocket();
-    loadManualPreview();
-  }
-
-  async function loadManualPreview() {
-    const rawGiftId = String(params.get('giftId') || '').trim();
-    if (!rawGiftId) return;
-    if (!/^\d{1,12}$/.test(rawGiftId) || Number(rawGiftId) <= 0) {
-      showStatus('礼物 ID 无效，请返回百宝箱重新输入。');
-      return;
-    }
-
-    showStatus(`正在从 B站查询礼物 ${rawGiftId} 的全屏特效…`);
-    try {
-      const response = await fetch(`/api/gifts/effects/resolve?giftId=${encodeURIComponent(rawGiftId)}`);
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload.ok || !payload.data?.effect) {
-        throw new Error(payload.error || `查询失败（HTTP ${response.status}）`);
-      }
-      showStatus(`礼物 ${rawGiftId} 已匹配特效 ${payload.data.effect.effectId}，正在播放。`);
-      handleEffectEvent({
-        eventId: 0,
-        giftId: Number(rawGiftId),
-        effect: payload.data.effect
-      });
-    } catch (error) {
-      showStatus(error.message || '礼物特效查询失败。');
-    }
   }
 
   function connectSocket() {
@@ -72,7 +45,10 @@
       } catch (_) {
         return;
       }
-      if (payload.type === 'gift:effect') handleEffectEvent(payload);
+      if (payload.type === 'gift:effect') {
+        if (payload.preview) showStatus(`礼物 ${payload.giftId} 已匹配特效 ${payload.effect?.effectId}，正在播放。`);
+        handleEffectEvent(payload);
+      }
     });
     socket.addEventListener('close', () => {
       const delay = Math.min(30000, 1000 * (2 ** Math.min(reconnectAttempts, 5)));
@@ -115,8 +91,11 @@
     resizeCanvas(canvas);
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) return;
+    const maskCanvas = document.createElement('canvas');
+    const maskContext = maskCanvas.getContext('2d', { willReadFrequently: true });
+    if (!maskContext) return;
 
-    playing.set(layerId, { video, canvas, context });
+    playing.set(layerId, { video, canvas, context, maskCanvas, maskContext });
     stage.appendChild(canvas);
     video.addEventListener('playing', () => {
       requestAnimationFrame(drawLoop(layerId));
@@ -136,9 +115,7 @@
       }
       if (video.readyState >= 2 && !video.paused && !video.ended) {
         try {
-          context.clearRect(0, 0, canvas.width, canvas.height);
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          keyOutBlack(context, canvas.width, canvas.height);
+          drawEffectFrame(layer);
         } catch (error) {
           showStatus(`特效画面合成失败：${error.message || error}`);
           removeEffect(layerId);
@@ -149,13 +126,75 @@
     };
   }
 
-  function keyOutBlack(context, width, height) {
-    const frame = context.getImageData(0, 0, width, height);
+  function drawEffectFrame(layer) {
+    const { video, canvas, context, maskCanvas, maskContext } = layer;
+    const source = getSourceLayout(video.videoWidth, video.videoHeight);
+    if (!source) return;
+    const target = containRect(source.colorWidth, source.height, canvas.width, canvas.height);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(
+      video,
+      0, 0, source.colorWidth, source.height,
+      target.x, target.y, target.width, target.height
+    );
+
+    if (!source.packedAlpha) {
+      keyOutBlack(context, target.x, target.y, target.width, target.height);
+      return;
+    }
+
+    resizeCanvasTo(maskCanvas, target.width, target.height);
+    maskContext.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    maskContext.drawImage(
+      video,
+      source.colorWidth, 0, source.maskWidth, source.height,
+      0, 0, maskCanvas.width, maskCanvas.height
+    );
+    applyAlphaMask(context, maskContext, target.x, target.y, target.width, target.height);
+  }
+
+  function getSourceLayout(width, height) {
+    if (width <= 0 || height <= 0) return null;
+    const portraitWidth = Math.round(height * 9 / 16);
+    const maskWidth = width - portraitWidth;
+    const packedAlpha = maskWidth >= portraitWidth * 0.45 && maskWidth <= portraitWidth * 0.55;
+    return {
+      packedAlpha,
+      colorWidth: packedAlpha ? portraitWidth : width,
+      maskWidth: packedAlpha ? maskWidth : 0,
+      height
+    };
+  }
+
+  function containRect(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+    const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    return {
+      x: Math.floor((targetWidth - width) / 2),
+      y: Math.floor((targetHeight - height) / 2),
+      width,
+      height
+    };
+  }
+
+  function keyOutBlack(context, x, y, width, height) {
+    const frame = context.getImageData(x, y, width, height);
     const data = frame.data;
     for (let i = 0; i < data.length; i += 4) {
       data[i + 3] = Math.max(data[i], data[i + 1], data[i + 2]);
     }
-    context.putImageData(frame, 0, 0);
+    context.putImageData(frame, x, y);
+  }
+
+  function applyAlphaMask(context, maskContext, x, y, width, height) {
+    const frame = context.getImageData(x, y, width, height);
+    const mask = maskContext.getImageData(0, 0, width, height).data;
+    for (let i = 0; i < frame.data.length; i += 4) {
+      // B站打包遮罩使用白色表示透明、黑色表示不透明。
+      frame.data[i + 3] = 255 - Math.max(mask[i], mask[i + 1], mask[i + 2]);
+    }
+    context.putImageData(frame, x, y);
   }
 
   function removeEffect(layerId) {
@@ -170,8 +209,14 @@
   }
 
   function resizeCanvas(canvas) {
-    canvas.width = Math.max(1, window.innerWidth);
-    canvas.height = Math.max(1, window.innerHeight);
+    resizeCanvasTo(canvas, window.innerWidth, window.innerHeight);
+  }
+
+  function resizeCanvasTo(canvas, width, height) {
+    const nextWidth = Math.max(1, Math.round(width));
+    const nextHeight = Math.max(1, Math.round(height));
+    if (canvas.width !== nextWidth) canvas.width = nextWidth;
+    if (canvas.height !== nextHeight) canvas.height = nextHeight;
   }
 
   function isTrustedEffectUrl(value) {
@@ -198,4 +243,3 @@
     return Math.min(max, Math.max(min, parsed));
   }
 })();
-

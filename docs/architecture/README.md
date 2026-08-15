@@ -1,6 +1,6 @@
 # LIRA 架构文档
 
-> 版本:**v3.3.14**(2026-08)· 适用代码:仓库根 [src/](../../src/)、[public/](../../public/)、[package.json](../../package.json)
+> 版本:**v3.4.2**(2026-08)· 适用代码:仓库根 [src/](../../src/)、[public/](../../public/)、[package.json](../../package.json)
 
 本目录按**位置**组织架构文档(后端 / 前端 / 桌面端 / 工程),摒弃旧的 00–11 编号。核心约定:**每个技术事实只在一个文件成表**(单一事实源),其余文件用相对链接引用——低耦合、高细节(精确到端口、函数、通道、端点、常量)。事实归属见文末[事实地图](#事实地图)。
 
@@ -73,7 +73,7 @@
 | 文档 | 内容 |
 |---|---|
 | [build.md](engineering/build.md) | npm scripts、依赖清单、electron-builder 配置、发布流水线、运行模式 |
-| [test.md](engineering/test.md) | node:test 测试体系、65 个测试文件的覆盖地图、静态检查与诊断脚本 |
+| [test.md](engineering/test.md) | node:test 测试体系、85 个测试文件的覆盖地图、静态检查与诊断脚本 |
 
 ### 图表 diagrams/
 

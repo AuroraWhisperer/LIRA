@@ -2,6 +2,7 @@
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -16,12 +17,20 @@ const EXE_NAME = PKG.build.nsis.artifactName
   .replace('${ext}', 'exe');
 const EXPECTED_ASSETS = [EXE_NAME, `${EXE_NAME}.blockmap`, 'latest.yml'];
 const MAX_PUBLISH_ATTEMPTS = 3;
+// 常见本地代理端口（Clash 默认 7890、v2rayN 默认 10809/1080），上传慢时自动探测提速
+const LOCAL_PROXY_PORTS = [7890, 10809, 1080];
 
-main();
+let proxyUrl = '';
 
-function main() {
+main().catch((error) => {
+  console.error(`[publish-release] ${error.message || error}`);
+  process.exit(1);
+});
+
+async function main() {
   log(`Preparing release ${TAG} for ${OWNER}/${REPO}`);
 
+  proxyUrl = await resolveProxy();
   ensureCleanEnoughGitState();
   ensureTag();
   ensureGhToken();
@@ -56,6 +65,43 @@ function main() {
     `Release ${TAG} is incomplete after ${MAX_PUBLISH_ATTEMPTS} attempts. ` +
     `Check "gh release view ${TAG}" and re-run this script.`
   );
+}
+
+async function resolveProxy() {
+  const fromEnv = process.env.HTTPS_PROXY || process.env.https_proxy
+    || process.env.HTTP_PROXY || process.env.http_proxy;
+  if (fromEnv && fromEnv.trim()) {
+    log(`Using proxy from environment: ${fromEnv.trim()}`);
+    return fromEnv.trim();
+  }
+  if (process.env.RELEASE_NO_PROXY === '1') {
+    log('Proxy disabled by RELEASE_NO_PROXY=1, uploading directly');
+    return '';
+  }
+  for (const port of LOCAL_PROXY_PORTS) {
+    if (await probeProxyPort(port)) {
+      const detected = `http://127.0.0.1:${port}`;
+      log(`Auto-detected local proxy ${detected}, routing GitHub uploads through it`);
+      return detected;
+    }
+  }
+  log('No local proxy detected, uploading directly (may be slow). Set HTTPS_PROXY to use one.');
+  return '';
+}
+
+function probeProxyPort(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: '127.0.0.1', port, timeout: 500 });
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once('error', () => resolve(false));
+  });
 }
 
 function ensureCleanEnoughGitState() {
@@ -152,14 +198,29 @@ function findMissingAssets() {
   return EXPECTED_ASSETS.filter((name) => !uploaded.has(name));
 }
 
+function proxyEnv(baseEnv) {
+  if (!proxyUrl) return baseEnv;
+  return {
+    ...baseEnv,
+    HTTPS_PROXY: proxyUrl,
+    https_proxy: proxyUrl,
+    HTTP_PROXY: proxyUrl,
+    http_proxy: proxyUrl
+  };
+}
+
 function run(command, args) {
   log(`$ ${command} ${args.join(' ')}`);
-  const env = { ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' };
+  const env = proxyEnv({ ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' });
   execFileSync(command, args, { cwd: ROOT_DIR, stdio: 'inherit', shell: process.platform === 'win32', env });
 }
 
 function runCapture(command, args) {
-  return execFileSync(command, args, { cwd: ROOT_DIR, shell: process.platform === 'win32' }).toString();
+  return execFileSync(command, args, {
+    cwd: ROOT_DIR,
+    shell: process.platform === 'win32',
+    env: proxyEnv(process.env)
+  }).toString();
 }
 
 function tryCapture(command, args) {
@@ -168,6 +229,7 @@ function tryCapture(command, args) {
       cwd: ROOT_DIR,
       shell: process.platform === 'win32',
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: proxyEnv(process.env)
     }).toString();
   } catch {
     return '';

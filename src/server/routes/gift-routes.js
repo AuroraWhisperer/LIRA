@@ -56,22 +56,28 @@ const routes = {
   },
 
   async 'GET /api/gifts/effects/resolve'(context, request, res) {
-    const rawGiftId = String(request.query.get('giftId') || '').trim();
-    if (!/^\d{1,12}$/.test(rawGiftId)) {
-      sendJson(res, 400, { ok: false, error: '礼物 ID 必须是 1 至 12 位数字。' });
-      return;
-    }
-    const giftId = Number(rawGiftId);
-    if (!Number.isSafeInteger(giftId) || giftId <= 0) {
-      sendJson(res, 400, { ok: false, error: '礼物 ID 无效。' });
-      return;
-    }
+    const giftId = parseGiftEffectId(request.query.get('giftId'));
+    if (!giftId) return sendJson(res, 400, { ok: false, error: '礼物 ID 必须是 1 至 12 位正整数。' });
 
     const effect = await context.gifts.resolveEffect(giftId);
     if (!effect) {
       sendJson(res, 404, { ok: false, error: '这个礼物暂时没有可播放的 MP4 全屏特效。' });
       return;
     }
+    sendJson(res, 200, { ok: true, data: { giftId, effect } });
+  },
+
+  async 'POST /api/gifts/effects/preview'(context, request, res) {
+    const body = await request.body();
+    const giftId = parseGiftEffectId(body.giftId);
+    if (!giftId) return sendJson(res, 400, { ok: false, error: '礼物 ID 必须是 1 至 12 位正整数。' });
+
+    const effect = await context.gifts.resolveEffect(giftId);
+    if (!effect) {
+      sendJson(res, 404, { ok: false, error: '这个礼物暂时没有可播放的 MP4 全屏特效。' });
+      return;
+    }
+    context.gifts.previewEffect({ type: 'gift:effect', eventId: 0, giftId, effect, preview: true });
     sendJson(res, 200, { ok: true, data: { giftId, effect } });
   },
 
@@ -86,5 +92,12 @@ const routes = {
     sendJson(res, 200, { ok: true, data: result });
   }
 };
+
+function parseGiftEffectId(value) {
+  const rawGiftId = String(value || '').trim();
+  if (!/^\d{1,12}$/.test(rawGiftId)) return 0;
+  const giftId = Number(rawGiftId);
+  return Number.isSafeInteger(giftId) && giftId > 0 ? giftId : 0;
+}
 
 module.exports = { prefixes, routes };

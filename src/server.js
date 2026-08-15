@@ -203,6 +203,7 @@ function createServerRuntime(runtimeOptions = {}) {
       maxBodyBytes: MAX_BODY_BYTES,
       sessionToken,
       broadcastSnapshot,
+      broadcastGiftEffectPreview: payload => webSocketHub.broadcast(payload),
       domainServices,
       messageBuffer,
       publishLyricState: musicRuntime.publishLyricState,
