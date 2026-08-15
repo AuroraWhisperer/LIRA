@@ -1,49 +1,38 @@
             <section id="otherGiftEffectsFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="otherGiftEffectsFeatureTab" data-other-feature-panel hidden>
               <div class="other-feature-panel-body gift-effect-tool-panel">
                 <header class="gift-effect-tool-heading">
-                  <div>
-                    <span class="gift-effect-tool-kicker">BILIBILI FULL-SCREEN EFFECT</span>
-                    <h2>礼物特效</h2>
-                    <p>输入 B站礼物 ID，系统会从官方配置中匹配全屏 MP4；直播收到同一礼物时，投屏网址也会自动播放。</p>
-                  </div>
-                  <span id="giftEffectLookupState" class="pill">等待查询</span>
+                  <h2>礼物特效</h2>
+                  <span id="giftEffectLookupState" class="pill">待播放</span>
                 </header>
 
                 <div class="gift-effect-tool-grid">
                   <section class="gift-effect-control-card" aria-labelledby="giftEffectLookupTitle">
                     <div class="gift-effect-card-heading">
-                      <span aria-hidden="true">01</span>
-                      <div><h3 id="giftEffectLookupTitle">查找礼物特效</h3><p>礼物代码就是弹幕数据里的 gift_id，只接受数字。</p></div>
+                      <h3 id="giftEffectLookupTitle">测试播放</h3>
                     </div>
                     <form id="giftEffectLookupForm" class="gift-effect-lookup-form">
-                      <label for="giftEffectGiftId">礼物代码</label>
+                      <label for="giftEffectGiftId">礼物 ID</label>
                       <div class="gift-effect-input-row">
-                        <input id="giftEffectGiftId" type="text" inputmode="numeric" pattern="[0-9]{1,12}" maxlength="12" autocomplete="off" placeholder="例如：31645" required>
-                        <button id="giftEffectLookupBtn" class="primary" type="submit">查找特效</button>
+                        <input id="giftEffectGiftId" type="text" inputmode="numeric" pattern="[0-9]{1,12}" maxlength="12" autocomplete="off" placeholder="例如 32132" required>
+                        <button id="giftEffectLookupBtn" class="primary" type="submit">播放特效</button>
                       </div>
                     </form>
-                    <div id="giftEffectMatchSummary" class="gift-effect-match-summary" role="status" aria-live="polite">
-                      输入礼物代码后查询；没有 MP4 的老 SVGA 礼物暂时不会播放。
-                    </div>
+                    <div id="giftEffectMatchSummary" class="gift-effect-match-summary" role="status" aria-live="polite"></div>
                   </section>
 
                   <section class="gift-effect-address-card" aria-labelledby="giftEffectAddressTitle">
                     <div class="gift-effect-card-heading">
-                      <span aria-hidden="true">02</span>
-                      <div><h3 id="giftEffectAddressTitle">固定预览与投屏网址</h3><p>只需打开一次；以后每次查找成功，页面和 OBS 都会自动播放。</p></div>
+                      <h3 id="giftEffectAddressTitle">直播投屏</h3>
+                      <p>把地址添加到 OBS 浏览器源，直播收到匹配礼物时会自动播放。</p>
                     </div>
                     <div class="gift-effect-url-block">
-                      <span>当前网址</span>
+                      <span>OBS / 预览地址</span>
                       <code id="giftEffectOverlayUrl"></code>
                     </div>
                     <div class="gift-effect-url-actions">
-                      <button id="giftEffectCopyBtn" class="secondary" type="button">复制网址</button>
-                      <button id="giftEffectOpenBtn" class="primary" type="button">打开固定预览</button>
+                      <button id="giftEffectCopyBtn" class="secondary" type="button">复制地址</button>
+                      <button id="giftEffectOpenBtn" class="primary" type="button">打开预览</button>
                     </div>
-                    <dl class="gift-effect-address-notes">
-                      <div><dt>直播监听</dt><dd id="giftEffectLiveUrl"></dd></div>
-                      <div><dt>播放方式</dt><dd>按官方坐标裁出完整动画与透明遮罩；普通黑底素材按原始比例透明输出。</dd></div>
-                    </dl>
                   </section>
                 </div>
               </div>

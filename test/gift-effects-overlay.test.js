@@ -132,12 +132,14 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   assert.match(html, /id="giftEffectOverlayUrl"/);
   assert.match(html, /id="giftEffectLookupBtn"/);
   assert.match(html, /id="giftEffectOpenBtn"/);
+  assert.match(html, />测试播放</);
+  assert.match(html, />直播投屏</);
+  assert.doesNotMatch(html, /BILIBILI FULL-SCREEN EFFECT|id="giftEffectLiveUrl"/);
   assert.match(indexSource, /import '\.\/gift-effects\.js';/);
   assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
   assert.doesNotMatch(toolSource, /\?giftId=/);
-  assert.match(toolSource, /const previewUrl = new URL\(liveUrl\)/);
-  assert.match(toolSource, /previewUrl\.searchParams\.set\('debug', '1'\)/);
-  assert.match(toolSource, /window\.open\(previewUrl\.toString\(\), 'liraGiftEffectPreview'\)/);
+  assert.doesNotMatch(toolSource, /debug/);
+  assert.match(toolSource, /window\.open\(liveUrl, 'liraGiftEffectPreview'\)/);
   assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
 });

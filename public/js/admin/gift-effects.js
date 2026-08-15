@@ -13,24 +13,20 @@
     const { localOverlayOrigin, readJsonResponse, toast } = window.AdminApp.utils;
     const input = document.getElementById('giftEffectGiftId');
     const urlNode = document.getElementById('giftEffectOverlayUrl');
-    const liveUrlNode = document.getElementById('giftEffectLiveUrl');
     const stateNode = document.getElementById('giftEffectLookupState');
     const summaryNode = document.getElementById('giftEffectMatchSummary');
     const liveUrl = `${localOverlayOrigin(location)}/gift-effects`;
-    const previewUrl = new URL(liveUrl);
-    previewUrl.searchParams.set('debug', '1');
     urlNode.textContent = liveUrl;
-    liveUrlNode.textContent = liveUrl;
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const rawGiftId = input.value.trim();
       if (!/^\d{1,12}$/.test(rawGiftId) || Number(rawGiftId) <= 0) {
-        setLookupState(stateNode, summaryNode, '输入有误', '礼物代码必须是 1 至 12 位正整数。', 'error');
+        setLookupState(stateNode, summaryNode, '输入有误', '请输入 1 至 12 位正整数的礼物 ID。', 'error');
         return;
       }
 
-      setLookupState(stateNode, summaryNode, '正在查询', `正在从 B站官方配置中查找礼物 ${rawGiftId}…`, 'loading');
+      setLookupState(stateNode, summaryNode, '正在查询', `正在查询礼物 ${rawGiftId}…`, 'loading');
       try {
         const response = await fetch('/api/gifts/effects/preview', {
           method: 'POST',
@@ -43,12 +39,12 @@
         }
 
         const effect = payload.data.effect;
-        const sizeText = effect.fileSize > 0 ? `，素材 ${(effect.fileSize / 1024 / 1024).toFixed(2)} MB` : '';
+        const sizeText = effect.fileSize > 0 ? `${(effect.fileSize / 1024 / 1024).toFixed(2)} MB` : '';
         setLookupState(
           stateNode,
           summaryNode,
-          '已匹配',
-          `礼物 ${rawGiftId} 对应特效 ${effect.effectId}${sizeText}。已通知打开的预览与投屏页面播放。`,
+          '已触发',
+          `已触发：礼物 ${rawGiftId} → 特效 ${effect.effectId}${sizeText ? `（${sizeText}）` : ''}`,
           'success'
         );
       } catch (error) {
@@ -59,7 +55,7 @@
     input.addEventListener('input', () => {
       const rawGiftId = input.value.trim();
       if (!rawGiftId) {
-        setLookupState(stateNode, summaryNode, '等待查询', '输入礼物代码后查询；没有 MP4 的老 SVGA 礼物暂时不会播放。', 'idle');
+        setLookupState(stateNode, summaryNode, '待播放', '', 'idle');
       }
     });
 
@@ -68,7 +64,7 @@
       toast('礼物特效网址已复制');
     });
     document.getElementById('giftEffectOpenBtn').addEventListener('click', () => {
-      window.open(previewUrl.toString(), 'liraGiftEffectPreview');
+      window.open(liveUrl, 'liraGiftEffectPreview');
     });
     initialized = true;
   }
