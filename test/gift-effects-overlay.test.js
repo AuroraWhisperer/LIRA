@@ -129,7 +129,10 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   assert.match(indexSource, /import '\.\/gift-effects\.js';/);
   assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
   assert.doesNotMatch(toolSource, /\?giftId=/);
-  assert.match(toolSource, /window\.open\(liveUrl, 'liraGiftEffectPreview'\)/);
+  assert.match(toolSource, /const previewUrl = new URL\(liveUrl\)/);
+  assert.match(toolSource, /previewUrl\.searchParams\.set\('debug', '1'\)/);
+  assert.match(toolSource, /window\.open\(previewUrl\.toString\(\), 'liraGiftEffectPreview'\)/);
+  assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
 });
 

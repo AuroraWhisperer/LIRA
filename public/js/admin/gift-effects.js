@@ -17,6 +17,8 @@
     const stateNode = document.getElementById('giftEffectLookupState');
     const summaryNode = document.getElementById('giftEffectMatchSummary');
     const liveUrl = `${localOverlayOrigin(location)}/gift-effects`;
+    const previewUrl = new URL(liveUrl);
+    previewUrl.searchParams.set('debug', '1');
     urlNode.textContent = liveUrl;
     liveUrlNode.textContent = liveUrl;
 
@@ -66,7 +68,7 @@
       toast('礼物特效网址已复制');
     });
     document.getElementById('giftEffectOpenBtn').addEventListener('click', () => {
-      window.open(liveUrl, 'liraGiftEffectPreview');
+      window.open(previewUrl.toString(), 'liraGiftEffectPreview');
     });
     initialized = true;
   }
