@@ -11,6 +11,7 @@ const {
   buildGiftEffectEvent,
   createGiftEffectResolver,
   isTrustedEffectUrl,
+  parseEffectLayout,
   pickEffect
 } = require('../src/bilibili/gift/effect-config');
 const { createGiftDetectionService } = require('../src/bilibili/gift');
@@ -22,12 +23,28 @@ function confEntry(id, giftIds, mp4Url = `https://i0.hdslb.com/bfs/live/effect-$
     type: 1,
     bind_gift_ids: giftIds,
     web_mp4: mp4Url,
+    web_mp4_json: `https://i0.hdslb.com/bfs/live/effect-${id}.json`,
     web_mp4_md5: `md5-${id}`,
     web_mp4_file_size: 1000 + id
   };
 }
 
+function packedLayout() {
+  return {
+    info: {
+      videoW: 1088,
+      videoH: 1296,
+      rgbFrame: [0, 0, 720, 1280],
+      aFrame: [724, 0, 360, 640],
+      fps: 30,
+      f: 270
+    }
+  };
+}
+
 test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
+  const untrustedLayout = confEntry(2001, [99998]);
+  untrustedLayout.web_mp4_json = 'https://example.com/effect.json';
   const payload = {
     data: {
       full_sc_resource: {
@@ -37,6 +54,7 @@ test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
           confEntry(147, [30636]),
           confEntry(1638, [30636]),
           confEntry(2000, [99999], 'https://example.com/effect.mp4'),
+          untrustedLayout,
           confEntry(1, [0])
         ]
       }
@@ -48,9 +66,11 @@ test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
   assert.equal(map.size, 2);
   assert.equal(map.get(31645).effectId, 584);
   assert.equal(map.get(31645).fileSize, 1584);
+  assert.equal(map.get(31645).layoutUrl, 'https://i0.hdslb.com/bfs/live/effect-584.json');
   assert.equal(map.get(30636).effectId, 1638);
   assert.equal(map.get(25), undefined);
   assert.equal(map.get(99999), undefined);
+  assert.equal(map.get(99998), undefined);
 });
 
 test('effect helpers tolerate missing entries and reject untrusted URLs', () => {
@@ -61,6 +81,49 @@ test('effect helpers tolerate missing entries and reject untrusted URLs', () => 
   assert.equal(isTrustedEffectUrl('https://i0.hdslb.com/bfs/live/a.mp4'), true);
   assert.equal(isTrustedEffectUrl('http://i0.hdslb.com/bfs/live/a.mp4'), false);
   assert.equal(isTrustedEffectUrl('https://hdslb.com.example.com/a.mp4'), false);
+});
+
+test('parseEffectLayout keeps the official RGB and alpha rectangles and rejects invalid bounds', () => {
+  assert.deepEqual(parseEffectLayout(packedLayout()), {
+    videoWidth: 1088,
+    videoHeight: 1296,
+    rgbFrame: [0, 0, 720, 1280],
+    alphaFrame: [724, 0, 360, 640]
+  });
+  assert.throws(() => parseEffectLayout({
+    info: {
+      ...packedLayout().info,
+      rgbFrame: [0, 0, 1089, 1296]
+    }
+  }), /\u5750\u6807/);
+  assert.throws(() => parseEffectLayout({
+    info: {
+      ...packedLayout().info,
+      aFrame: [724, 0, 0, 640]
+    }
+  }), /\u5750\u6807/);
+
+  assert.deepEqual(parseEffectLayout({
+    info: {
+      videoW: 1088,
+      videoH: 368,
+      rgbFrame: [0, 0, 1080, 240],
+      aFrame: [0, 244, 540, 120]
+    }
+  }), {
+    videoWidth: 1088,
+    videoHeight: 368,
+    rgbFrame: [0, 0, 1080, 240],
+    alphaFrame: [0, 244, 540, 120]
+  });
+  assert.deepEqual(parseEffectLayout({
+    info: {
+      videoW: 464,
+      videoH: 592,
+      rgbFrame: [0, 0, 300, 579],
+      aFrame: [304, 0, 150, 289]
+    }
+  }).rgbFrame, [0, 0, 300, 579]);
 });
 
 test('resolver fetches lazily, dedupes concurrent calls and refreshes after ttl', async () => {
@@ -123,6 +186,80 @@ test('resolver keeps stale cache when refresh fails', async () => {
   nowMs += 10;
   await resolver.getEffectMap();
   assert.equal(calls, 2, 'failed refreshes should be throttled');
+});
+
+test('resolver fetches and dedupes packed-alpha layout metadata lazily', async () => {
+  let catalogCalls = 0;
+  let layoutCalls = 0;
+  const resolver = createGiftEffectResolver({
+    fetchJson: async () => {
+      catalogCalls += 1;
+      return {
+        payload: {
+          data: { full_sc_resource: { conf_list: [confEntry(806, [32132])] } }
+        }
+      };
+    },
+    fetchLayoutJson: async (name, url) => {
+      layoutCalls += 1;
+      assert.equal(name, 'gift_effect_layout');
+      assert.equal(url, 'https://i0.hdslb.com/bfs/live/effect-806.json');
+      return { payload: packedLayout() };
+    }
+  });
+
+  const [first, same] = await Promise.all([
+    resolver.resolveEffect(32132),
+    resolver.resolveEffect(32132)
+  ]);
+
+  assert.equal(catalogCalls, 1);
+  assert.equal(layoutCalls, 1);
+  assert.deepEqual(first, same);
+  assert.deepEqual(first.layout, {
+    videoWidth: 1088,
+    videoHeight: 1296,
+    rgbFrame: [0, 0, 720, 1280],
+    alphaFrame: [724, 0, 360, 640]
+  });
+
+  await resolver.resolveEffect(32132);
+  assert.equal(layoutCalls, 1);
+});
+
+test('resolver throttles failed layout requests and retries after the retry window', async () => {
+  let nowMs = 1000;
+  let layoutCalls = 0;
+  const resolver = createGiftEffectResolver({
+    retryMs: 50,
+    now: () => nowMs,
+    fetchJson: async () => ({
+      payload: {
+        data: { full_sc_resource: { conf_list: [confEntry(806, [32132])] } }
+      }
+    }),
+    fetchLayoutJson: async () => {
+      layoutCalls += 1;
+      if (layoutCalls === 1) throw new Error('layout network down');
+      return { payload: packedLayout() };
+    }
+  });
+
+  const [first, sameFailure] = await Promise.all([
+    resolver.resolveEffect(32132),
+    resolver.resolveEffect(32132)
+  ]);
+  assert.equal(first, null);
+  assert.equal(sameFailure, null);
+  assert.equal(layoutCalls, 1);
+
+  nowMs += 49;
+  assert.equal(await resolver.resolveEffect(32132), null);
+  assert.equal(layoutCalls, 1);
+
+  nowMs += 1;
+  assert.equal((await resolver.resolveEffect(32132)).effectId, 806);
+  assert.equal(layoutCalls, 2);
 });
 
 test('buildGiftEffectEvent supports normalized database rows and camelCase inputs', async () => {

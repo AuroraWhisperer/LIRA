@@ -100,8 +100,7 @@ function createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlu
     ...giftRuntime,
     async resolveEffect(giftId) {
       if (!giftEffectResolver) return null;
-      const effectMap = await giftEffectResolver.getEffectMap();
-      return effectMap.get(Number(giftId)) || null;
+      return giftEffectResolver.resolveEffect(giftId);
     }
   };
 

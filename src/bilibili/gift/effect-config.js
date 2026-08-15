@@ -6,6 +6,7 @@ const EFFECT_API_URL = 'https://api.live.bilibili.com/xlive/general-interface/v1
   '?platform=pc&room_id=0&area_parent_id=0&area_id=0&source=live&build=0&base_version=0';
 const DEFAULT_REFRESH_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_RETRY_MS = 60 * 1000;
+const MAX_LAYOUT_DIMENSION = 8192;
 const TRUSTED_EFFECT_HOSTS = ['hdslb.com', 'bilibili.com', 'bilivideo.com'];
 
 function pickEffect(entries) {
@@ -32,6 +33,35 @@ function normalizeEffectUrl(value) {
   return isTrustedEffectUrl(normalized) ? normalized : '';
 }
 
+function parseEffectLayout(payload) {
+  const info = payload?.info;
+  const videoWidth = Number(info?.videoW);
+  const videoHeight = Number(info?.videoH);
+  if (!Number.isInteger(videoWidth) || !Number.isInteger(videoHeight)
+    || videoWidth <= 0 || videoHeight <= 0
+    || videoWidth > MAX_LAYOUT_DIMENSION || videoHeight > MAX_LAYOUT_DIMENSION) {
+    throw new Error('礼物特效视频尺寸无效');
+  }
+
+  const rgbFrame = parseEffectFrame(info.rgbFrame, videoWidth, videoHeight);
+  const alphaFrame = parseEffectFrame(info.aFrame, videoWidth, videoHeight);
+  return Object.freeze({ videoWidth, videoHeight, rgbFrame, alphaFrame });
+}
+
+function parseEffectFrame(value, videoWidth, videoHeight) {
+  if (!Array.isArray(value) || value.length !== 4) {
+    throw new Error('礼物特效画面坐标无效');
+  }
+  const frame = value.map(Number);
+  if (!frame.every(Number.isInteger)) throw new Error('礼物特效画面坐标无效');
+  const [x, y, width, height] = frame;
+  if (x < 0 || y < 0 || width <= 0 || height <= 0
+    || x + width > videoWidth || y + height > videoHeight) {
+    throw new Error('礼物特效画面坐标无效');
+  }
+  return Object.freeze(frame);
+}
+
 function buildEffectMap(payload) {
   const confList = payload?.data?.full_sc_resource?.conf_list;
   const byGiftId = new Map();
@@ -39,12 +69,14 @@ function buildEffectMap(payload) {
 
   for (const raw of confList) {
     const mp4Url = normalizeEffectUrl(raw?.web_mp4);
-    if (!mp4Url) continue;
+    const layoutUrl = normalizeEffectUrl(raw?.web_mp4_json);
+    if (!mp4Url || !layoutUrl) continue;
 
     const effect = Object.freeze({
       effectId: Number(raw.id) || 0,
       type: Number(raw.type) || 0,
       mp4Url,
+      layoutUrl,
       md5: String(raw.web_mp4_md5 || ''),
       fileSize: Math.max(0, Number(raw.web_mp4_file_size) || 0)
     });
@@ -62,6 +94,7 @@ function buildEffectMap(payload) {
 
 function createGiftEffectResolver(options = {}) {
   const fetchJson = options.fetchJson || defaultFetchJson;
+  const fetchLayoutJson = options.fetchLayoutJson || defaultFetchLayoutJson;
   const now = options.now || Date.now;
   const refreshMs = numberOption(options.refreshMs, DEFAULT_REFRESH_MS);
   const retryMs = numberOption(options.retryMs, DEFAULT_RETRY_MS);
@@ -69,6 +102,9 @@ function createGiftEffectResolver(options = {}) {
   let fetchedAt = 0;
   let failedAt = 0;
   let pending = null;
+  const layoutByUrl = new Map();
+  const pendingLayoutByUrl = new Map();
+  const failedLayoutAtByUrl = new Map();
 
   function isFresh(currentMs) {
     return fetchedAt > 0 && currentMs - fetchedAt < refreshMs;
@@ -106,7 +142,43 @@ function createGiftEffectResolver(options = {}) {
     return byGiftId.get(id) || null;
   }
 
-  return { getEffectMap, resolve };
+  async function getEffectLayout(layoutUrl) {
+    if (layoutByUrl.has(layoutUrl)) return layoutByUrl.get(layoutUrl);
+    if (pendingLayoutByUrl.has(layoutUrl)) return pendingLayoutByUrl.get(layoutUrl);
+    const failedAtMs = failedLayoutAtByUrl.get(layoutUrl);
+    if (failedAtMs !== undefined && now() - failedAtMs < retryMs) return null;
+
+    const request = Promise.resolve()
+      .then(() => fetchLayoutJson('gift_effect_layout', layoutUrl))
+      .then(({ payload }) => parseEffectLayout(payload))
+      .then((layout) => {
+        layoutByUrl.set(layoutUrl, layout);
+        failedLayoutAtByUrl.delete(layoutUrl);
+        return layout;
+      })
+      .catch((error) => {
+        failedLayoutAtByUrl.set(layoutUrl, now());
+        console.warn(`[Bilibili][GiftEffect] 特效坐标拉取失败：${error.message || error}`);
+        return null;
+      })
+      .finally(() => {
+        pendingLayoutByUrl.delete(layoutUrl);
+      });
+    pendingLayoutByUrl.set(layoutUrl, request);
+    return request;
+  }
+
+  async function resolveEffect(giftId) {
+    await getEffectMap();
+    const effect = resolve(giftId);
+    if (!effect) return null;
+    if (!effect.layoutUrl) return effect;
+
+    const layout = await getEffectLayout(effect.layoutUrl);
+    return layout ? Object.freeze({ ...effect, layout }) : null;
+  }
+
+  return { getEffectMap, resolve, resolveEffect };
 }
 
 async function buildGiftEffectEvent(item, resolver) {
@@ -115,8 +187,12 @@ async function buildGiftEffectEvent(item, resolver) {
 
   let effect = null;
   try {
-    const effectMap = await resolver.getEffectMap();
-    effect = effectMap.get(giftId) || null;
+    if (typeof resolver.resolveEffect === 'function') {
+      effect = await resolver.resolveEffect(giftId);
+    } else {
+      const effectMap = await resolver.getEffectMap();
+      effect = effectMap.get(giftId) || null;
+    }
   } catch (_) {
     return null;
   }
@@ -141,6 +217,19 @@ function numberOption(value, fallback) {
 }
 
 async function defaultFetchJson(endpointName, url) {
+  const result = await fetchJsonDocument(endpointName, url);
+  const { payload, response } = result;
+  if (Number(payload.code) !== 0) {
+    throw new Error(`Bilibili API ${endpointName} failed: http=${response.status} code=${payload.code} message=${payload.message || payload.msg || ''}`);
+  }
+  return result;
+}
+
+async function defaultFetchLayoutJson(endpointName, url) {
+  return fetchJsonDocument(endpointName, url);
+}
+
+async function fetchJsonDocument(endpointName, url) {
   const response = await fetch(url, {
     signal: AbortSignal.timeout(15000),
     headers: {
@@ -158,8 +247,8 @@ async function defaultFetchJson(endpointName, url) {
   } catch (_) {
     throw new Error(`Bilibili API ${endpointName} returned non-JSON response. HTTP ${response.status}.`);
   }
-  if (!response.ok || Number(payload.code) !== 0) {
-    throw new Error(`Bilibili API ${endpointName} failed: http=${response.status} code=${payload.code} message=${payload.message || payload.msg || ''}`);
+  if (!response.ok) {
+    throw new Error(`Bilibili API ${endpointName} failed: http=${response.status}`);
   }
   return { payload, response };
 }
@@ -170,6 +259,7 @@ module.exports = {
   DEFAULT_RETRY_MS,
   pickEffect,
   isTrustedEffectUrl,
+  parseEffectLayout,
   buildEffectMap,
   createGiftEffectResolver,
   buildGiftEffectEvent

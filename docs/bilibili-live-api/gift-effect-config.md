@@ -22,20 +22,36 @@ GET https://api.live.bilibili.com/xlive/general-interface/v1/fullScSpecialEffect
 | `type` | 特效类型 |
 | `bind_gift_ids` | 与该特效绑定的礼物 ID 数组，`0` 表示未绑定 |
 | `web_mp4` | Web 直播间使用的全屏 MP4 素材 |
+| `web_mp4_json` | MP4 内彩色画面与 alpha 遮罩的官方坐标配置 |
 | `web_mp4_md5` | MP4 的 MD5 信息 |
 | `web_mp4_file_size` | MP4 文件大小 |
 
-`web_mp4` 为空的旧 SVGA 特效暂不播放。实现只接受 HTTPS 且位于 B站相关 CDN 域名下的素材，避免将 lookup API 变成任意远程视频入口。
+`web_mp4` 为空的旧 SVGA 特效暂不播放。MP4 和坐标 JSON 必须同时存在，并且只接受 HTTPS 且位于 B站相关 CDN 域名下的素材；坐标拉取或校验失败时直接跳过该特效，避免把辅助区当成画面，也避免将 lookup API 变成任意远程视频入口。
 
 ## CDN 与透明画面
 
-MP4 既可能是黑色背景，也可能把 `9:16` 彩色画面和半宽 alpha 遮罩横向打包在同一帧。overlay 会识别打包格式、按原始比例居中合成；普通黑底素材继续使用亮度抠黑。第三方页面直接携带 Referer 请求 CDN 还可能得到 403，因此 overlay 同时使用：
+MP4 既可能是普通黑色背景，也可能把彩色画面和灰度 alpha 遮罩打包在同一帧。打包方式不能根据 MP4 宽高猜测：服务端会继续读取并校验 `web_mp4_json`，再把其中的 `rgbFrame` 与 `aFrame` 随播放事件发给 overlay。
+
+例如礼物 `32132` 的 MP4 解码尺寸是 `1088×1296`，官方坐标是：
+
+```json
+{
+  "videoW": 1088,
+  "videoH": 1296,
+  "rgbFrame": [0, 0, 720, 1280],
+  "aFrame": [724, 0, 360, 640]
+}
+```
+
+overlay 严格按 `rgbFrame` 取出完整的 `720×1280` 彩色动画，按 `aFrame` 取出右侧 `360×640` 遮罩并缩放到彩色区尺寸，然后直接使用遮罩灰度作为 alpha（白色不透明、黑色透明）。分隔带、右侧辅助区和编码填充都不会进入最终画面，也不会用额外白色图层遮住动画。亮度抠黑只保留为兼容旧的无坐标事件，不用于当前官方素材。
+
+第三方页面直接携带 Referer 请求 CDN 还可能得到 403，因此 overlay 同时使用：
 
 - 页面级 `<meta name="referrer" content="no-referrer">`
 - 视频元素 `referrerPolicy = 'no-referrer'`
 - 视频元素 `crossOrigin = 'anonymous'`
 
-透明合成不能依赖 `mix-blend-mode: screen`，因为透明页面本身没有可混合的底色。本项目把每一帧绘制到 canvas，并使用亮度抠黑：
+透明合成不能依赖 `mix-blend-mode: screen`，因为透明页面本身没有可混合的底色。普通黑底素材绘制到 canvas 后使用亮度抠黑：
 
 ```text
 alpha = max(r, g, b)
@@ -62,8 +78,15 @@ alpha = max(r, g, b)
     "effectId": 584,
     "type": 1,
     "mp4Url": "https://i0.hdslb.com/bfs/live/example.mp4",
+    "layoutUrl": "https://i0.hdslb.com/bfs/live/example.json",
     "md5": "",
-    "fileSize": 417612
+    "fileSize": 417612,
+    "layout": {
+      "videoWidth": 1088,
+      "videoHeight": 1296,
+      "rgbFrame": [0, 0, 720, 1280],
+      "alphaFrame": [724, 0, 360, 640]
+    }
   }
 }
 ```

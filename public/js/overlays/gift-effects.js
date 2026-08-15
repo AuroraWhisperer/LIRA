@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 监听 gift:effect 事件，播放 B站 MP4 并逐帧抠黑合成到透明画布。
+// 监听 gift:effect 事件，按 B站官方帧坐标合成透明 MP4；普通黑底素材继续逐帧抠黑。
 'use strict';
 
 (function () {
@@ -95,7 +95,14 @@
     const maskContext = maskCanvas.getContext('2d', { willReadFrequently: true });
     if (!maskContext) return;
 
-    playing.set(layerId, { video, canvas, context, maskCanvas, maskContext });
+    playing.set(layerId, {
+      video,
+      canvas,
+      context,
+      maskCanvas,
+      maskContext,
+      layout: payload.effect.layout || null
+    });
     stage.appendChild(canvas);
     video.addEventListener('playing', () => {
       requestAnimationFrame(drawLoop(layerId));
@@ -127,14 +134,14 @@
   }
 
   function drawEffectFrame(layer) {
-    const { video, canvas, context, maskCanvas, maskContext } = layer;
-    const source = getSourceLayout(video.videoWidth, video.videoHeight);
+    const { video, canvas, context, maskCanvas, maskContext, layout } = layer;
+    const source = getSourceLayout(layout, video.videoWidth, video.videoHeight);
     if (!source) return;
-    const target = containRect(source.colorWidth, source.height, canvas.width, canvas.height);
+    const target = containRect(source.colorWidth, source.colorHeight, canvas.width, canvas.height);
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.drawImage(
       video,
-      0, 0, source.colorWidth, source.height,
+      source.colorX, source.colorY, source.colorWidth, source.colorHeight,
       target.x, target.y, target.width, target.height
     );
 
@@ -147,23 +154,63 @@
     maskContext.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
     maskContext.drawImage(
       video,
-      source.colorWidth, 0, source.maskWidth, source.height,
+      source.maskX, source.maskY, source.maskWidth, source.maskHeight,
       0, 0, maskCanvas.width, maskCanvas.height
     );
     applyAlphaMask(context, maskContext, target.x, target.y, target.width, target.height);
   }
 
-  function getSourceLayout(width, height) {
+  function getSourceLayout(layout, width, height) {
     if (width <= 0 || height <= 0) return null;
-    const portraitWidth = Math.round(height * 9 / 16);
-    const maskWidth = width - portraitWidth;
-    const packedAlpha = maskWidth >= portraitWidth * 0.45 && maskWidth <= portraitWidth * 0.55;
-    return {
-      packedAlpha,
-      colorWidth: packedAlpha ? portraitWidth : width,
-      maskWidth: packedAlpha ? maskWidth : 0,
+    if (!layout) {
+      return {
+        packedAlpha: false,
+        colorX: 0,
+        colorY: 0,
+        colorWidth: width,
+        colorHeight: height,
+        maskX: 0,
+        maskY: 0,
+        maskWidth: 0,
+        maskHeight: 0
+      };
+    }
+    if (layout.videoWidth !== width || layout.videoHeight !== height) {
+      throw new Error('视频尺寸与官方特效坐标不一致');
+    }
+    const [colorX, colorY, colorWidth, colorHeight] = validateSourceFrame(
+      layout.rgbFrame,
+      width,
       height
+    );
+    const [maskX, maskY, maskWidth, maskHeight] = validateSourceFrame(
+      layout.alphaFrame,
+      width,
+      height
+    );
+    return {
+      packedAlpha: true,
+      colorX,
+      colorY,
+      colorWidth,
+      colorHeight,
+      maskX,
+      maskY,
+      maskWidth,
+      maskHeight
     };
+  }
+
+  function validateSourceFrame(value, videoWidth, videoHeight) {
+    if (!Array.isArray(value) || value.length !== 4) throw new Error('官方特效坐标无效');
+    const frame = value.map(Number);
+    if (!frame.every(Number.isInteger)) throw new Error('官方特效坐标无效');
+    const [x, y, width, height] = frame;
+    if (x < 0 || y < 0 || width <= 0 || height <= 0
+      || x + width > videoWidth || y + height > videoHeight) {
+      throw new Error('官方特效坐标无效');
+    }
+    return frame;
   }
 
   function containRect(sourceWidth, sourceHeight, targetWidth, targetHeight) {
@@ -191,8 +238,8 @@
     const frame = context.getImageData(x, y, width, height);
     const mask = maskContext.getImageData(0, 0, width, height).data;
     for (let i = 0; i < frame.data.length; i += 4) {
-      // B站打包遮罩使用白色表示透明、黑色表示不透明。
-      frame.data[i + 3] = 255 - Math.max(mask[i], mask[i + 1], mask[i + 2]);
+      // B站官方遮罩以白色表示不透明、黑色表示透明。
+      frame.data[i + 3] = mask[i];
     }
     context.putImageData(frame, x, y);
   }

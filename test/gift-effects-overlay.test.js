@@ -90,7 +90,7 @@ test('gift effect lookup validates ids and returns only resolved effect data', a
   assert.equal(missing.status, 404);
 });
 
-test('gift effects overlay preserves aspect ratio and composites black or packed-alpha MP4 frames', () => {
+test('gift effects overlay uses official frame metadata without cropping or inverting packed alpha', () => {
   const serverSource = read('src/server/http-utils.js');
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
@@ -105,10 +105,16 @@ test('gift effects overlay preserves aspect ratio and composites black or packed
   assert.match(overlayJs, /crossOrigin\s*=\s*'anonymous'/);
   assert.match(overlayJs, /keyOutBlack/);
   assert.match(overlayJs, /applyAlphaMask/);
-  assert.match(overlayJs, /255 - Math\.max\(mask\[i\], mask\[i \+ 1\], mask\[i \+ 2\]\)/);
-  assert.match(overlayJs, /height \* 9 \/ 16/);
+  assert.match(overlayJs, /frame\.data\[i \+ 3\] = mask\[i\]/);
+  assert.match(overlayJs, /layout\.rgbFrame/);
+  assert.match(overlayJs, /layout\.alphaFrame/);
+  assert.match(overlayJs, /source\.colorX, source\.colorY, source\.colorWidth, source\.colorHeight/);
+  assert.match(overlayJs, /source\.maskX, source\.maskY, source\.maskWidth, source\.maskHeight/);
+  assert.match(overlayJs, /videoWidth !== width \|\| layout\.videoHeight !== height/);
   assert.match(overlayJs, /containRect/);
   assert.match(overlayJs, /Math\.max\(data\[i\], data\[i \+ 1\], data\[i \+ 2\]\)/);
+  assert.doesNotMatch(overlayJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
+  assert.doesNotMatch(overlayJs, /255 - Math\.max\(mask/);
   assert.match(overlayJs, /MAX_PLAYING/);
   assert.doesNotMatch(overlayJs, /innerHTML/);
   assert.doesNotMatch(css, /mix-blend-mode/);
@@ -142,6 +148,10 @@ test('gift effect API docs describe lookup, CDN rules and transparent compositio
   assert.match(doc, /GetEffectConfListV2/);
   assert.match(doc, /bind_gift_ids/);
   assert.match(doc, /web_mp4/);
+  assert.match(doc, /web_mp4_json/);
+  assert.match(doc, /rgbFrame/);
+  assert.match(doc, /aFrame/);
+  assert.match(doc, /白色不透明、黑色透明/);
   assert.match(doc, /no-referrer/);
   assert.match(doc, /alpha = max\(r, g, b\)/);
 });
