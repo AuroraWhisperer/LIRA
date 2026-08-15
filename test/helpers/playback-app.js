@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const { fileURLToPath, pathToFileURL } = require('node:url');
 
 async function createPlaybackApp(initialState, options = {}) {
+  const appOptions = options;
   const elements = new Map();
   const storage = options.storage || new Map();
   const localState = Object.hasOwn(options, 'localState') ? options.localState : initialState;
@@ -19,6 +20,7 @@ async function createPlaybackApp(initialState, options = {}) {
   let shutdownAcknowledged = false;
   const fetchCalls = [];
   const errors = [];
+  let resolveStreamRequestCount = 0;
   const windowListeners = new Map();
   const homeTracks = options.homeTracks;
   const homeActionButton = options.homeAction ? new FakeElement() : null;
@@ -139,9 +141,14 @@ async function createPlaybackApp(initialState, options = {}) {
       });
     }
     if (url === '/api/music/resolve-stream') {
+      resolveStreamRequestCount += 1;
+      const requestBody = options.body ? JSON.parse(options.body) : {};
+      const stream = typeof appOptions.resolveStream === 'function'
+        ? await appOptions.resolveStream(resolveStreamRequestCount, requestBody)
+        : { url: 'https://example.test/audio.mp3' };
       return response({
         ok: true,
-        data: { url: 'https://example.test/audio.mp3' }
+        data: stream
       });
     }
     if (url === '/api/music/lyrics') {
@@ -293,6 +300,12 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     audioPlayCalls() {
       return document.getElementById('music-player').playCalls;
+    },
+    errors() {
+      return errors.slice();
+    },
+    resolveStreamRequestCount() {
+      return resolveStreamRequestCount;
     }
   };
 }

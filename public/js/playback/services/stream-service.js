@@ -53,6 +53,13 @@ export class StreamService {
     // 更新曲目的播放信息
     track.playUrl = stream.url;
     track.playUrlExpireAt = Number(stream.expireAt || stream.playUrlExpireAt || 0);
+    track.playbackTrial = stream.trial === true;
+    track.playbackTrialStartMs = Math.max(0, Number(stream.trialStartMs || 0));
+    track.playbackTrialEndMs = Math.max(0, Number(stream.trialEndMs || 0));
+
+    if (track.playbackTrial) {
+      this.toast('当前账号仅支持试听片段');
+    }
 
     return track.playUrl;
   }
@@ -105,7 +112,7 @@ export class StreamService {
     if (this.retryCount >= this.maxRetries) {
       this.toast('播放地址刷新后仍失败，已跳过当前歌曲');
       this.resetRetryCount();
-      if (onRetryFailed) onRetryFailed();
+      if (onRetryFailed) await onRetryFailed();
       return;
     }
 
@@ -119,14 +126,14 @@ export class StreamService {
       if (newUrl) {
         this.toast('播放地址已刷新');
         if (onRetrySuccess) {
-          onRetrySuccess(track, resumeAt);
+          await onRetrySuccess(track, resumeAt);
         }
       } else {
         throw new Error('无法获取新的播放地址');
       }
     } catch (error) {
       this.onError(error);
-      if (onRetryFailed) onRetryFailed();
+      if (onRetryFailed) await onRetryFailed();
     }
   }
 

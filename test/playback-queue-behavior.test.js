@@ -302,3 +302,39 @@ test('previous playback pops history once without pushing the current track back
   assert.equal(persisted.current.id, 'previous');
   assert.deepEqual(persisted.history.map((item) => item.id), ['older']);
 });
+
+test('audio errors refresh the current stream and skip safely after the retry limit', async () => {
+  const app = await createPlaybackApp({
+    current: track('current', 'Current'),
+    currentOrigin: 'normal',
+    requestedQueue: [],
+    normalQueue: [track('next', 'Next')],
+    normalQueueTracks: [],
+    radioQueue: [],
+    history: [],
+    mode: 'sequence',
+    selectedSource: 'qq',
+    queueType: 'queue',
+    queueTitle: '播放队列',
+    volume: 0.75
+  });
+
+  await app.init();
+  await flushAsyncWork();
+
+  await assert.doesNotReject(app.emit('music-player', 'error'));
+  await flushAsyncWork();
+
+  assert.equal(app.savedState().current.id, 'current');
+  assert.equal(app.audioPlayCalls(), 1);
+  assert.equal(app.resolveStreamRequestCount(), 1);
+  assert.deepEqual(app.errors(), []);
+
+  await assert.doesNotReject(app.emit('music-player', 'error'));
+  await flushAsyncWork();
+
+  assert.equal(app.savedState().current.id, 'next');
+  assert.equal(app.audioPlayCalls(), 2);
+  assert.equal(app.resolveStreamRequestCount(), 2);
+  assert.deepEqual(app.errors(), []);
+});

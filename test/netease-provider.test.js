@@ -12,6 +12,85 @@ function createProvider() {
   });
 }
 
+test('Netease provider resolves a full stream with the current account rights', async () => {
+  const provider = createProvider();
+  let captured;
+  provider.requestJson = async (pathname, params) => {
+    captured = { pathname, params };
+    return {
+      code: 200,
+      data: [{
+        id: 461011,
+        url: 'https://cdn.test/full.mp3',
+        code: 200,
+        expi: 1200,
+        level: 'standard',
+        type: 'mp3',
+        freeTrialInfo: null
+      }]
+    };
+  };
+
+  const stream = await provider.resolvePlayableUrl({ sourceTrackId: '461011' });
+
+  assert.equal(captured.pathname, '/api/song/enhance/player/url/v1');
+  assert.equal(captured.params.ids, '[461011]');
+  assert.equal(captured.params.level, 'standard');
+  assert.equal(captured.params.encodeType, 'mp3');
+  assert.equal(stream.url, 'https://cdn.test/full.mp3');
+  assert.equal(stream.trial, false);
+  assert.equal(stream.level, 'standard');
+  assert.equal(stream.type, 'mp3');
+  assert.ok(stream.expireAt > Date.now());
+});
+
+test('Netease provider preserves an official trial stream for a non-VIP account', async () => {
+  const provider = createProvider();
+  provider.requestJson = async () => ({
+    code: 200,
+    data: [{
+      id: 461011,
+      url: 'http://cdn.test/trial.mp3',
+      code: 200,
+      expi: 600,
+      freeTrialInfo: { start: 30, end: 60 }
+    }]
+  });
+
+  const stream = await provider.resolvePlayableUrl({ sourceTrackId: '461011' });
+
+  assert.equal(stream.url, 'http://cdn.test/trial.mp3');
+  assert.equal(stream.trial, true);
+  assert.equal(stream.trialStartMs, 30000);
+  assert.equal(stream.trialEndMs, 60000);
+});
+
+test('Netease provider rejects songs that the current account cannot play or trial', async () => {
+  const provider = createProvider();
+  provider.requestJson = async () => ({
+    code: 200,
+    data: [{ id: 461011, url: null, code: -110, freeTrialInfo: null }]
+  });
+
+  await assert.rejects(
+    provider.resolvePlayableUrl({ sourceTrackId: '461011' }),
+    /无法播放或试听/
+  );
+});
+
+test('Netease provider rejects unsafe upstream stream protocols', async () => {
+  const provider = createProvider();
+  provider.requestJson = async () => ({
+    code: 200,
+    data: [{ id: 461011, url: 'javascript:alert(1)', code: 200 }]
+  });
+
+  await assert.rejects(
+    provider.resolvePlayableUrl({ sourceTrackId: '461011' }),
+    /地址无效/
+  );
+});
+
 test('Netease search enriches result artwork with one batched song-detail request', async () => {
   const provider = createProvider();
   const requests = [];

@@ -511,7 +511,11 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   // SECTION 13 — 流处理 & 电台模块
   // ══════════════════════════════════════════════════════════════
-  const streamHandler = createStreamHandler(sharedDeps);
+  const streamHandler = createStreamHandler({
+    ...sharedDeps,
+    playPlaybackTrack: (...args) => playPlaybackTrack(...args),
+    playbackNext: (...args) => playbackNext(...args)
+  });
 
   const radioMode = createRadioMode(sharedDeps);
   ensurePlaybackRadioQueueFilled = radioMode.ensurePlaybackRadioQueueFilled;

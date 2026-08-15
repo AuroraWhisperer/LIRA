@@ -289,13 +289,49 @@ class NeteaseMusicProvider {
 
   async resolvePlayableUrl(track) {
     const sourceTrackId = extractSourceTrackId(track);
-    const expiresAt = Date.now() + STREAM_TTL_MS;
+    if (!/^\d+$/.test(sourceTrackId)) throw new Error('网易云歌曲 ID 必须是正整数。');
+
+    const payload = await this.requestJson('/api/song/enhance/player/url/v1', {
+      ids: JSON.stringify([Number(sourceTrackId)]),
+      level: 'standard',
+      encodeType: 'mp3'
+    });
+    const stream = payload && Array.isArray(payload.data) ? payload.data[0] : null;
+    const streamUrl = String(stream && stream.url || '').trim();
+    if (!streamUrl) {
+      throw new Error('当前网易云音乐账号无法播放或试听该歌曲。');
+    }
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(streamUrl);
+    } catch (_) {
+      throw new Error('网易云音乐返回的播放地址无效。');
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new Error('网易云音乐返回的播放地址无效。');
+    }
+
+    const expiresInSeconds = Number(stream.expi);
+    const expiresAt = Date.now() + (
+      Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+        ? expiresInSeconds * 1000
+        : STREAM_TTL_MS
+    );
+    const trialInfo = stream.freeTrialInfo && typeof stream.freeTrialInfo === 'object'
+      ? stream.freeTrialInfo
+      : null;
     return {
       source: this.source,
       sourceTrackId,
-      url: `${NETEASE_BASE_URL}/song/media/outer/url?id=${encodeURIComponent(sourceTrackId)}.mp3`,
+      url: parsedUrl.href,
       expireAt: expiresAt,
-      playUrlExpireAt: expiresAt
+      playUrlExpireAt: expiresAt,
+      trial: Boolean(trialInfo),
+      trialStartMs: normalizeTrialTimeMs(trialInfo && trialInfo.start),
+      trialEndMs: normalizeTrialTimeMs(trialInfo && trialInfo.end),
+      level: String(stream.level || ''),
+      type: String(stream.type || stream.encodeType || '')
     };
   }
 
@@ -458,6 +494,11 @@ function normalizeNeteasePlaylistTrackIds(tracks) {
   if (trackIds.length === 0) throw new Error('缺少网易云歌曲 ID。');
   if (trackIds.some((id) => !/^\d+$/.test(id))) throw new Error('网易云歌曲 ID 必须是正整数。');
   return trackIds;
+}
+
+function normalizeTrialTimeMs(value) {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : 0;
 }
 
 function extractCookieValue(cookieHeader, name) {

@@ -214,7 +214,12 @@ class QQMusicProvider extends QQMusicClient {
       ? data.req_0.data.midurlinfo[0]
       : null;
     const purl = midUrlInfo && midUrlInfo.purl ? String(midUrlInfo.purl) : '';
-    if (!purl) throw new Error('当前 QQ 音乐账号无法播放该歌曲。');
+    if (!purl) {
+      if (!hasQQMusicAuthCookie(cookieHeader)) {
+        throw new Error('请先登录 QQ 音乐后再播放该歌曲。');
+      }
+      throw new Error('当前 QQ 音乐账号没有该歌曲的完整播放或试听权益，可能需要 VIP 或受版权、地区限制。');
+    }
     const sip = data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.sip)
       ? data.req_0.data.sip
       : [];

@@ -3,14 +3,21 @@
 'use strict';
 
 export function createStreamHandler(deps) {
-  const { streamService, showError, playbackState } = deps;
+  const {
+    streamService,
+    playbackState,
+    getPlaybackAudio,
+    playPlaybackTrack,
+    playbackNext
+  } = deps;
 
   async function getPlaybackTrackUrl(track, options = {}) {
     return await streamService.getTrackUrl(track, options);
   }
 
-  async function handlePlaybackError(audio, playPlaybackTrack) {
+  async function handlePlaybackError() {
     const track = playbackState.current;
+    const audio = getPlaybackAudio();
 
     await streamService.handlePlaybackError(
       track,
@@ -19,14 +26,13 @@ export function createStreamHandler(deps) {
         // 重试成功回调
         playPlaybackTrack(track, {
           origin: playbackState.currentOrigin,
-          forceRefresh: true,
           isRetry: true,
           startAt: resumeAt
         });
       },
-      (playbackNext) => {
+      () => {
         // 重试失败回调
-        playbackNext(false);
+        return playbackNext(false);
       }
     );
   }

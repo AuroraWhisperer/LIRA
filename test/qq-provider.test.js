@@ -33,6 +33,33 @@ test('QQ provider keeps HTTP and authentication behind a focused client', () => 
   assert.equal(typeof provider.requireLogin, 'function');
 });
 
+test('QQ provider tells logged-out users to sign in when no stream is available', async () => {
+  const provider = new QQMusicProvider({
+    getAuthState: () => ({ loggedIn: false }),
+    getCookieHeader: () => ''
+  });
+  provider.requestMusicu = async () => ({
+    req_0: { data: { midurlinfo: [{ purl: '' }], sip: [] } }
+  });
+
+  await assert.rejects(
+    provider.resolvePlayableUrl({ sourceTrackId: 'paid-song-mid' }),
+    /请先登录 QQ 音乐/
+  );
+});
+
+test('QQ provider distinguishes logged-in playback rights from login failure', async () => {
+  const provider = createProvider();
+  provider.requestMusicu = async () => ({
+    req_0: { data: { midurlinfo: [{ purl: '' }], sip: [] } }
+  });
+
+  await assert.rejects(
+    provider.resolvePlayableUrl({ sourceTrackId: 'paid-song-mid' }),
+    /没有该歌曲的完整播放或试听权益/
+  );
+});
+
 test('QQ provider requests, decrypts, and aligns translated and romanized lyrics', async () => {
   const originalFetch = global.fetch;
   let capturedUrl = '';
