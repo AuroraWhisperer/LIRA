@@ -12,14 +12,20 @@ test('desktop preload exposes a narrow gift display diagnostic bridge', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'preload.js'), 'utf8');
   assert.match(source, /reportGiftDisplay:\s*\(gift\)\s*=>\s*ipcRenderer\.invoke\('desktop:gift-display', gift\)/);
 
-  const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
+  const mainSource = [
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8'),
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'update-ipc.js'), 'utf8')
+  ].join('\n');
   assert.match(mainSource, /ipcMain\.handle\('desktop:gift-display'/);
   assert.match(mainSource, /\[Bilibili\]\[GiftDisplay\] action=toast-requested/);
   assert.match(mainSource, /writeLog\('gift-display', trace\)/);
 });
 
 test('server logs detected gifts and broadcasts only finalized gifts', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8');
+  const source = [
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8'),
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'bilibili-client.js'), 'utf8')
+  ].join('\n');
   assert.match(source, /logGiftDelivery\(item\.detection_status \|\| 'detected', item\)/);
   assert.match(source, /logGiftDelivery\('final', item\)/);
   assert.match(source, /\[Bilibili\]\[GiftDelivery\] action=broadcast/);

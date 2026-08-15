@@ -540,7 +540,7 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
   try {
     counts.songs = countRows(songDb, 'songs');
     counts.categories = countRows(songDb, 'song_categories');
-    counts.queue = (songDb.prepare("SELECT COUNT(*) AS count FROM queue WHERE status != 'deleted'").get() || {}).count || 0;
+    counts.queue = countRows(songDb, 'queue');
     counts.requests = countRows(songDb, 'requests');
 
     songDb.prepare('DELETE FROM requests').run();

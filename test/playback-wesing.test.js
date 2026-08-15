@@ -1,11 +1,14 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { fileURLToPath, pathToFileURL } = require('node:url');
+const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -14,9 +17,9 @@ function read(...parts) {
 }
 
 test('playback page offers a dedicated WeSing source and cache capture workspace', () => {
-  const html = read('public', 'pages', 'admin.html');
+  const html = readAdminHtml();
   const headerStyles = read('public', 'css', 'playback', 'header.css');
-  const panelStyles = read('public', 'css', 'playback', 'panels.css');
+  const panelStyles = readCssBundle('public', 'css', 'playback', 'panels.css');
 
   assert.match(html, /data-source="wesing"[\s\S]*全民 K歌/);
   assert.match(html, /data-source="wesing"[\s\S]*src="\/img\/wesing-icon\.jpg"/);
@@ -84,7 +87,10 @@ test('WeSing lyric-offset preview survives older live status while saving', asyn
 });
 
 test('Electron exposes a directory-only WeSing cache picker', () => {
-  const main = read('src', 'electron', 'main.js');
+  const main = [
+    read('src', 'electron', 'main.js'),
+    read('src', 'electron', 'ipc', 'music-ipc.js')
+  ].join('\n');
   const preload = read('src', 'electron', 'preload.js');
 
   assert.match(main, /music:select-wesing-cache/);

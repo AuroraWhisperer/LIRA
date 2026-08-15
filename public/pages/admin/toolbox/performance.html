@@ -1,0 +1,92 @@
+            <section
+              id="otherPerformanceFeature"
+              class="other-feature-panel active"
+              role="tabpanel"
+              aria-labelledby="otherPerformanceFeatureTab"
+              data-other-feature-panel
+            >
+              <div class="other-feature-panel-body stack">
+                <div class="monitor-hero">
+                  <div>
+                    <h3>性能检测</h3>
+                    <p id="metricsStatus">未检测</p>
+                  </div>
+                  <div class="monitor-actions">
+                    <label class="switch-control" title="检测最近 5 秒的资源使用率">
+                      <input id="metricsToggle" type="checkbox">
+                      <span class="switch-track"></span>
+                      <span id="metricsToggleText">开始检测</span>
+                    </label>
+                    <button id="metricsRefreshBtn" class="primary" type="button">检测 5 秒</button>
+                  </div>
+                </div>
+
+                <div class="monitor-grid">
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>整机 CPU</span>
+                      <small>全部程序</small>
+                    </div>
+                    <div class="metric-value" id="metricSystemCpu">--</div>
+                    <div class="metric-bar"><span id="metricSystemCpuBar"></span></div>
+                    <div class="metric-detail" id="metricSystemCpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>整机 GPU</span>
+                      <small>全部程序</small>
+                    </div>
+                    <div class="metric-value" id="metricSystemGpu">--</div>
+                    <div class="metric-bar"><span id="metricSystemGpuBar"></span></div>
+                    <div class="metric-detail" id="metricSystemGpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>整机内存</span>
+                      <small>全部程序</small>
+                    </div>
+                    <div class="metric-value" id="metricSystemMemory">--</div>
+                    <div class="metric-bar"><span id="metricSystemMemoryBar"></span></div>
+                    <div class="metric-detail" id="metricSystemMemoryDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>本软件 CPU</span>
+                      <small>LIRA</small>
+                    </div>
+                    <div class="metric-value" id="metricAppCpu">--</div>
+                    <div class="metric-bar"><span id="metricAppCpuBar"></span></div>
+                    <div class="metric-detail" id="metricAppCpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>本软件 GPU</span>
+                      <small>LIRA</small>
+                    </div>
+                    <div class="metric-value" id="metricAppGpu">--</div>
+                    <div class="metric-bar"><span id="metricAppGpuBar"></span></div>
+                    <div class="metric-detail" id="metricAppGpuDetail">等待检测</div>
+                  </section>
+
+                  <section class="metric-card">
+                    <div class="metric-head">
+                      <span>本软件内存</span>
+                      <small>LIRA</small>
+                    </div>
+                    <div class="metric-value" id="metricAppMemory">--</div>
+                    <div class="metric-bar"><span id="metricAppMemoryBar"></span></div>
+                    <div class="metric-detail" id="metricAppMemoryDetail">等待检测</div>
+                  </section>
+                </div>
+
+                <div class="monitor-footer">
+                  <span id="metricsSampleWindow">采样窗口：--</span>
+                  <span id="metricsSampleTime">检测时间：--</span>
+                  <span id="metricsProcessPid">本次服务进程：--</span>
+                </div>
+              </div>
+            </section>

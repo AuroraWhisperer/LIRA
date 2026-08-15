@@ -1,5 +1,7 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -128,7 +130,7 @@ test('lyric timeline normalization preserves all 64 renderable lines from 失控
 });
 
 test('desktop lyric settings include a live word-timed preview', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const html = readAdminHtml();
   const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
   const sharedRenderer = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'), 'utf8');

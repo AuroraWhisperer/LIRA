@@ -8,6 +8,10 @@ const { parseCustomReplyRules } = require('../../bilibili/custom-reply-service')
 
 const prefixes = ['/api/settings'];
 
+// 这些 key 的默认值本身就是 JSON 字符串；前端若以数组/对象提交，必须显式序列化，
+// 否则 String(rawValue) 会得到 "[object Object]"。
+const JSON_SETTING_KEYS = new Set(['giftBlindBoxConfig', 'checkinBlessings', 'fortunePool']);
+
 const routes = {
   async 'POST /api/settings'(context, request, res) {
     const body = await request.body();
@@ -27,6 +31,10 @@ const routes = {
 function normalizeSettingValue(key, rawValue) {
   if (key === 'roomId') return normalizeRoomInput(rawValue);
   if (key === 'customReplyRules') return JSON.stringify(parseCustomReplyRules(rawValue));
+  if (JSON_SETTING_KEYS.has(key)) {
+    if (rawValue === null || rawValue === undefined) return String(rawValue);
+    return typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue);
+  }
   return String(rawValue);
 }
 

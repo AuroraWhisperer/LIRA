@@ -1,0 +1,134 @@
+.song-board {
+  width: min(413px, calc(100vw - 32px));
+  font-size: calc(16px * var(--overlay-font-scale, 1));
+}
+
+.song-board .overlay-header {
+  padding: clamp(4px, calc(6px * var(--overlay-font-scale, 1)), 8px)
+    clamp(8px, calc(14px * var(--overlay-font-scale, 1)), 24px);
+}
+
+.song-board .overlay-content {
+  padding: clamp(5px, calc(8px * var(--overlay-font-scale, 1)), 18px);
+}
+
+.song-board .overlay-title {
+  font-size: calc(var(--overlay-title-font-size, 15px) * var(--overlay-font-scale, 1));
+}
+
+.song-board .overlay-empty {
+  font-size: inherit;
+}
+
+.song-scroll-window {
+  height: min(52vh, 450px);
+  overflow: hidden;
+  overflow-anchor: none;
+}
+
+.song-scroll-list {
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 8px;
+  overflow-anchor: none;
+}
+
+.song-scroll-list.grouped {
+  gap: 6px;
+}
+
+.song-scroll-list.grouped .song-group-title {
+  margin-top: 2px;
+}
+
+.song-group-title {
+  color: var(--overlay-accent, #21b6a8);
+  font-size: calc(14px * var(--overlay-font-scale, 1));
+  font-weight: 900;
+}
+
+.song-card {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.055);
+  padding: 8px 10px;
+  transition: background 160ms ease;
+}
+
+.overlay-panel.has-backdrop-blur .song-card {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.song-card strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--overlay-song-color, var(--overlay-text, var(--color-text-light)));
+  overflow-wrap: anywhere;
+  font-size: calc(16px * var(--overlay-font-scale, 1));
+  word-break: break-word;
+  line-height: 1.25;
+}
+
+.song-card span {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(32.4%, 9em);
+  overflow: hidden;
+  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 26%);
+  font-size: calc(10.5px * var(--overlay-font-scale, 1));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .song-card {
+    gap: 5px;
+    padding: 6px 7px;
+  }
+
+  .song-card strong {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .song-card span {
+    max-width: 30%;
+  }
+}
+
+@media (max-width: 280px) {
+  .song-card span {
+    display: none;
+  }
+}
+
+@keyframes identity-scroll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-1 * var(--identity-loop-distance, 280px)));
+  }
+}
+
+@keyframes identity-sc-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .identity-rule-text {
+    transform: none !important;
+  }
+}

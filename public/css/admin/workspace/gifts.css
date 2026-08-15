@@ -1,0 +1,163 @@
+
+/* ===== 礼物工作区布局 ===== */
+.gift-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: repeat(6, max-content);
+  align-content: start;
+  gap: 14px;
+  height: calc(100vh - 58px - var(--player-dock-height, 96px));
+  padding: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body.player-dock-expanded .gift-workspace {
+  height: calc(100vh - 58px - var(--player-dock-height, 218px));
+}
+
+.gift-detection-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.gift-notification-panel {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.gift-recent-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.gift-sprint-panel {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+.gift-blindbox-panel {
+  grid-column: 1 / -1;
+  grid-row: 4;
+}
+
+.gift-blindbox-mapping-panel {
+  grid-column: 1 / -1;
+  grid-row: 6;
+}
+
+.gift-blindbox-broadcast-panel {
+  grid-column: 1 / -1;
+  grid-row: 5;
+}
+
+.gift-page .panel-body .gift-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 10px;
+}
+
+.gift-workspace .panel,
+.gift-workspace .panel-body {
+  min-width: 0;
+  min-height: auto;
+}
+
+.gift-workspace .panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.gift-workspace .panel > .panel-body {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+/* 跨列面板用内容自然高度，不伸缩 */
+.gift-blindbox-panel > .panel-body,
+.gift-blindbox-mapping-panel > .panel-body {
+  flex: 0 0 auto;
+  overflow: visible;
+  min-height: auto;
+}
+
+/* Compact controls: keep the two switches visible without making them compete with the data panels. */
+.gift-detection-panel,
+.gift-notification-panel {
+  position: relative;
+  overflow: hidden;
+  min-height: 112px;
+  border-color: #d7e9e6;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, #f5fbfa 100%);
+  box-shadow: 0 8px 24px rgba(27, 72, 67, 0.07);
+}
+
+.gift-detection-panel::before,
+.gift-notification-panel::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: linear-gradient(180deg, #21b6a8, #87d8ce);
+  content: "";
+}
+
+.gift-notification-panel::before {
+  background: linear-gradient(180deg, #ef9b72, #f6c6ad);
+}
+
+.gift-detection-panel .panel-header,
+.gift-notification-panel .panel-header {
+  min-height: 0;
+  padding: 15px 18px 3px 21px;
+  border-bottom: 0;
+}
+
+.gift-detection-panel .panel-header h2,
+.gift-notification-panel .panel-header h2 {
+  color: #253a3a;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+
+.gift-detection-panel > .panel-body,
+.gift-notification-panel > .panel-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 18px 15px 21px;
+  overflow: visible;
+}
+
+.gift-detection-panel .switch-control,
+.gift-notification-panel .switch-control {
+  flex: 0 0 auto;
+  min-height: 34px;
+  gap: 10px;
+  color: #203332;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.gift-detection-panel #giftStatusLine,
+.gift-notification-panel .gift-setting-desc {
+  max-width: 52%;
+  margin: 0;
+  color: #718381;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.gift-notification-panel .gift-setting-desc {
+  max-width: 48%;
+}
+
+/* 歌库表格行：跳过屏幕外行的渲染，减少折叠面板展开时的布局重计算 */
+#songsTable tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 42px;
+}

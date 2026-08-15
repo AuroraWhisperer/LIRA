@@ -1,7 +1,7 @@
 'use strict';
 
 const { fetchJson, joinApiUrl, createPublicError } = require('../http-client');
-const { requireApiQuota } = require('../api-quota-store');
+const { withApiQuota } = require('../api-quota-store');
 
 function createQWeatherTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -13,14 +13,14 @@ function createQWeatherTool(options = {}) {
     url.searchParams.set('location', String(location || ''));
     url.searchParams.set('number', '5');
     url.searchParams.set('key', config.qweatherApiKey);
-    requireApiQuota(quotaStore, 'qweather');
-    const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
-    const candidates = Array.isArray(payload?.location) ? payload.location : [];
-    if (!candidates.length) throw createPublicError('WEATHER_LOCATION_NOT_FOUND', '没有查到这个天气地点。');
-    if (isAmbiguousLocation(location, candidates)) {
-      return { ambiguous: true, candidates: candidates.slice(0, 3).map(normalizeLocation) };
-    }
-    return { ambiguous: false, location: normalizeLocation(candidates[0]) };
+    return requestWithQuota(url, config, (payload) => {
+      const candidates = Array.isArray(payload?.location) ? payload.location : [];
+      if (!candidates.length) throw createPublicError('WEATHER_LOCATION_NOT_FOUND', '没有查到这个天气地点。');
+      if (isAmbiguousLocation(location, candidates)) {
+        return { ambiguous: true, candidates: candidates.slice(0, 3).map(normalizeLocation) };
+      }
+      return { ambiguous: false, location: normalizeLocation(candidates[0]) };
+    });
   }
 
   async function getWeather(config, input) {
@@ -34,32 +34,46 @@ function createQWeatherTool(options = {}) {
     const url = joinApiUrl(config.qweatherApiHost, pathName);
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
-    requireApiQuota(quotaStore, 'qweather');
-    const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
-    return {
+    return requestWithQuota(url, config, (payload) => ({
       location,
       observedAt: payload.updateTime || '',
       now: payload.now || null,
       forecast: Array.isArray(payload.daily) ? payload.daily : []
-    };
+    }));
   }
 
   async function getAir(config, location) {
     const url = joinApiUrl(config.qweatherApiHost, '/v7/air/now');
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
-    requireApiQuota(quotaStore, 'qweather');
-    const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
-    return { location, observedAt: payload.updateTime || '', air: payload.now || null };
+    return requestWithQuota(url, config, (payload) => ({
+      location, observedAt: payload.updateTime || '', air: payload.now || null
+    }));
   }
 
   async function getWarning(config, location) {
     const url = joinApiUrl(config.qweatherApiHost, '/v7/warning/now');
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
-    requireApiQuota(quotaStore, 'qweather');
-    const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
-    return { location, observedAt: payload.updateTime || '', warnings: payload.warning || [] };
+    return requestWithQuota(url, config, (payload) => ({
+      location, observedAt: payload.updateTime || '', warnings: payload.warning || []
+    }));
+  }
+
+  // 预扣配额 → 请求 → 校验业务 code；任何失败都退款，避免失败请求永久扣配额。
+  async function requestWithQuota(url, config, transform = (payload) => payload) {
+    return withApiQuota(quotaStore, 'qweather', async () => {
+      let payload;
+      payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
+      const code = String(payload?.code || '');
+      if (code === '401' || code === '403') {
+        throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');
+      }
+      if (code && code !== '200') {
+        throw createPublicError('QWEATHER_REJECTED', '和风天气返回了业务错误。');
+      }
+      return transform(payload);
+    });
   }
 
   async function testConnection(config = {}) {
@@ -73,27 +87,19 @@ function createQWeatherTool(options = {}) {
     url.searchParams.set('location', '北京');
     url.searchParams.set('number', '1');
     url.searchParams.set('key', config.qweatherApiKey);
-    requireApiQuota(quotaStore, 'qweather');
-    let payload;
     try {
-      payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
+      return await requestWithQuota(url, config, (payload) => {
+        if (!Array.isArray(payload?.location) || !payload.location[0]?.id) {
+          throw createPublicError('QWEATHER_INVALID_RESPONSE', '和风天气返回格式不正确。');
+        }
+        return { provider: 'qweather' };
+      });
     } catch (error) {
       if (/^(?:401|403|HTTP_401|HTTP_403)$/i.test(String(error?.code || ''))) {
         throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');
       }
       throw error;
     }
-    const code = String(payload?.code || '');
-    if (code === '401' || code === '403') {
-      throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');
-    }
-    if (code && code !== '200') {
-      throw createPublicError('QWEATHER_REJECTED', '和风天气返回了业务错误。');
-    }
-    if (!Array.isArray(payload?.location) || !payload.location[0]?.id) {
-      throw createPublicError('QWEATHER_INVALID_RESPONSE', '和风天气返回格式不正确。');
-    }
-    return { provider: 'qweather' };
   }
 
   return { resolveLocation, getWeather, testConnection };

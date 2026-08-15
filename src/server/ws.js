@@ -15,6 +15,8 @@ function createWebSocketHub(options = {}) {
   const heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
   const socketTimeoutMs = options.socketTimeoutMs || SOCKET_TIMEOUT_MS;
   let heartbeatTimer = null;
+  let snapshotFlushQueued = false;
+  let pendingSnapshot = null;
 
   function handleWebSocketUpgrade(context, req, socket) {
     const key = req.headers['sec-websocket-key'];
@@ -211,10 +213,20 @@ function createWebSocketHub(options = {}) {
   }
 
   function broadcastSnapshot(context, reason) {
-    const payload = { type: 'snapshot', reason, state: context.getState() };
-    for (const socket of Array.from(sockets)) {
-      sendWebSocket(socket, payload);
-    }
+    if (sockets.size === 0) return;
+    pendingSnapshot = { context, reason };
+    if (snapshotFlushQueued) return;
+    snapshotFlushQueued = true;
+    queueMicrotask(() => {
+      snapshotFlushQueued = false;
+      const next = pendingSnapshot;
+      pendingSnapshot = null;
+      if (!next || sockets.size === 0) return;
+      const payload = { type: 'snapshot', reason: next.reason, state: next.context.getState() };
+      for (const socket of Array.from(sockets)) {
+        sendWebSocket(socket, payload);
+      }
+    });
   }
 
   function broadcast(payload) {
@@ -224,6 +236,8 @@ function createWebSocketHub(options = {}) {
   }
 
   function stop(options = {}) {
+    pendingSnapshot = null;
+    snapshotFlushQueued = false;
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;

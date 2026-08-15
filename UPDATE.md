@@ -1,6 +1,32 @@
 # 打包与更新说明
 
-当前版本：`3.4.0`
+当前版本：`3.4.1`
+
+---
+
+## v3.4.1 变更
+
+- 🧱 **管理后台页面服务端片段组合**：单体 `admin.html` 拆分为 `public/pages/admin/` 片段目录——页面壳（`shell-start` / `main-end` / `document-end`）与 `song/`、`gifts/`、`toolbox/`、`playback/`、`shared/` 各工作区片段，新增 `src/server/admin-page.js` 单一 composer 按显式有序清单组合，`/`、`/admin`、`/settings`、`/songs` 四个路由在 token 注入前完成组合。拆分前后逐字节/SHA-256 等价校验，渲染 DOM 与初始化时序不变；`public/pages/README.md` 同步片段目录说明。
+- 🧩 **前后端大型文件模块化拆分**：按「单文件 ≤1000 行」目标拆分十余个超大源文件，行为全部保持——
+  - **Electron 主进程**：`main.js` 只保留生命周期与 IPC 接线；server API 兼容适配抽到 `desktop-runtime.js`、`local-media://` 协议处理抽到 `local-media-protocol.js`（授权谓词注入，`getAllowedPaths` 返回副本防外部篡改），更新/音乐/B 站三类 IPC 注册拆到 `src/electron/ipc/`；`preload.js` 新增 `music:get-recent-local-files`。
+  - **服务端运行时**：`server.js` 瘦身为编排入口——API 上下文（`api-context.js`）、B 站事件桥接（`bilibili-client.js`）、设置引导（`settings-bootstrap.js`）、旧版兼容包装（`compatibility-runtime.js`）、音乐运行时（`music-runtime.js`）、AI 运行时（`ai-runtime.js`）各成独立模块，显式依赖注入、无隐藏全局状态。
+  - **QQ 音乐 Provider**：认证请求/登录守卫/签名写歌单请求上移到新基类 `qq-provider-client.js`，`QQMusicProvider` 继承并保留全部公开方法与导出；无状态映射/解码/Cookie/规范化助手移到 `qq-provider-utils.js`。URL、payload、header、签名与回退顺序不变。
+  - **全民 K 歌采集**：961 行的 `wesing-capture.js` 变为兼容门面——路径/日志/QRC 解析进 `wesing-cache.js`、采集状态机进 `wesing-capture-engine.js`、进程控制与 PowerShell 生成进 `wesing-monitor.js`；导出、计时常量、状态转换、缓存路径校验与生成的 PowerShell 源码逐字节保持。
+  - **CSS 按连续区间拆分**：`gifts.css`（6 文件）、`other-features.css`（6 文件）、`toasts.css`、`workspace.css`、`overlays/base.css`（3 文件）、`playback/panels.css`（8 文件）全部拆为特性文件，原文件改为有序 `@import` 门面，选择器与级联顺序逐字保留，入口 URL 不变；礼物审核页样式独立为新 `gift-audit.css`。
+  - **Overlay/页面 JS 拆 ES 模块**：队列 overlay 控制器拆为 `queue-render.js`（DOM 生成/主题）、`queue-scroll.js`（动画/布局）、`queue-utils.js`（纯计算/转义）、`queue-viewport.js`（视口测量），网络与状态协调留在 `queue.js`；礼物审核页拆为 `analysis.js`（无 DOM 解析/比对）、`view.js`（转义渲染）、`index.js`（WS/fetch 协调）；加班规则编辑器从 `overtime.js` 抽出为 `overtime-rule-editor.js`。
+  - **测试文件拆分与共享 helper**：2547 行的 `frontend-regressions.test.js` 按领域拆成 6 个文件（admin-AI / 礼物 / admin shell / 播放 / 队列 overlay / 歌曲面板），886 行的 `playback-queue.test.js` 与 790 行的 `gift-service.test.js` 拆成 4 个新文件；共享 VM 加载器、CSS 递归读取器与页面夹具沉淀为 `test/helpers/`（`js-module-bundle`、`css-bundle`、`playback-app`、`frontend-modules`、`admin-html`）。原有测试用例名称与断言全部保留。
+- 🐛 **弹幕点歌冷却表有界化**：`cooldown-store.js` 新增剪枝方法（24 小时保留期，持久化行按最旧优先加载），弹幕冷却查询前自动剪枝；AI 观众维度冷却表同样每 60 秒剪枝过期条目（保留期 = 冷却时长 + 60 秒）。长直播下两张冷却表不再无界增长。
+- 🐛 **AI 投递循环异常隔离**：`async-coordinator.js` 游标先于回调推进，且 `onError` 自身抛错被捕获——单条回复失败不再卡死投递队列，剩余回复仍能依次送达。
+- 🐛 **清空数据删除计数完整**：`clearAllData` 在整表删除前统计所有队列行（原先漏计），清空后的删除统计数字准确。
+- 🐛 **第三方 API 配额生命周期安全**：`api-quota-store.js` 新增幂等 `withApiQuota` 助手——操作成功才提交、抛错只释放一次；高德/和风天气的响应校验与规范化（空地点、空路线、无效连接响应）全部包进该生命周期，处理失败不再泄漏月度配额。
+- 🐛 **B 站弹幕包畸形防护**：`packet-decoder.js` 解析前校验包长度（头长 ≥16 且 ≤ 包长、包不越界），畸形包中止解析而非抛出 RangeError 中断整个 buffer，后续好包正常处理。
+- 🎵 **网易云「我喜欢」歌单缺失明确报错**：读取「我喜欢」失败时不再静默回退任意歌单——直接提示「当前登录凭证不完整或已失效，请重新登录网易云音乐」，避免误把其他歌单当收藏同步。
+- 🎵 **空歌词结果不再缓存**：歌词缓存只在结果含至少一行时写入，登录后才能获取的歌词不再被空结果压制 30 天内的重试；API/歌词缓存字节上限常量化（50MB / 300MB）并显式传入写缓存函数。
+- ⚙️ **JSON 型设置项显式序列化**：`giftBlindBoxConfig`、`checkinBlessings`、`fortunePool` 三个设置项前端以数组/对象提交时服务端先 `JSON.stringify` 再存，修复默认值本身是 JSON 字符串时被 `String()` 转成 `[object Object]` 的问题；内置祝福语/签池文案上移到新共享模块 `src/shared/bot-defaults.js`，storage 默认值与 bilibili 运行时回退共用同一份词库。
+- ⚡ **健康检查 schema 版本缓存**：运行时缓存 schema 版本，不再每次 `/api/health` 重算 5 个 SELECT。
+- 📡 **WebSocket 快照合并 flush**：同一事件循环轮内最多 flush 一次状态快照并保留最新 reason/context，新连接立即 flush——高频广播下客户端不再被重复快照刷屏。
+- 🧪 **测试覆盖增强**：新增 `cooldown-store.test.js`（剪枝回归）、`database-maintenance.test.js`（清库计数）、`packet-decoder.test.js`（坏包后接好包不丢弃）、`electron-main-modules.test.js`、`esm-module-boundaries.test.js`、`server-modules.test.js`、`admin-page-composition.test.js`（四路由组合/片段顺序/ID 唯一）、`overtime-rule-editor.test.js`、`gift-audit-page.test.js`、`queue-overlay-esm.test.js`、`playback-queue-behavior.test.js`、`playback-persistence.test.js`、`gift-capture-service.test.js`、`gift-analysis-service.test.js` 及 6 个领域前端测试；`websocket-transport.test.js` 新增同轮多次广播只触发一次 `getState()` 断言，`message-deduplicator.test.js` 补匿名跨源去重用例，`ai-provider-adapters.test.js` 补配额释放次数断言。
+- 📖 **实现计划文档**：新增 `docs/superpowers/plans/` 下 17 篇已完成的模块化/修复计划文档；另有 B 站礼物全屏特效计划（`2026-08-14-bilibili-gift-effects.md`）为后续工作，本期未实施。
 
 ---
 

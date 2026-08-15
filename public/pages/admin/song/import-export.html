@@ -1,0 +1,22 @@
+        <div id="importPage" class="tab-page">
+          <div class="panel-body stack">
+            <div class="actions">
+              <a href="/api/songs/template.xlsx"><button type="button">下载导入模板</button></a>
+              <a href="/api/songs/export.xlsx"><button type="button">导出歌库 Excel</button></a>
+              <button id="clearDatabaseBtn" class="danger" type="button">清空歌库</button>
+              <button id="clearSuperChatsBtn" class="danger" type="button">清空 SC 记录</button>
+              <button id="clearAllBtn" class="danger" type="button" style="border-color:#c0392b;color:#fff;background:#c0392b;">清空全部数据</button>
+            </div>
+            <label>
+              选择 Excel / CSV / TSV 文件
+              <input id="importFile" type="file" accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values">
+            </label>
+            <label>
+              或从 Excel 复制表格后粘贴
+              <textarea id="importText" placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	核对平台	核对备注"></textarea>
+            </label>
+            <button id="importBtn" class="primary" type="button">导入歌库</button>
+            <p class="hint">支持粘贴 TSV/CSV 或上传 Excel (.xlsx) 文件。表头可以用「原唱/首发歌手」「歌曲标签」「核对平台」「核对备注」等，旧格式也会自动识别。清空歌库只会删除歌曲和分类，不会删除直播间号、主题颜色和其他设置。</p>
+            <div id="importResult" class="hint"></div>
+          </div>
+        </div>

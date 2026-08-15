@@ -1,0 +1,118 @@
+        <div id="songsPage" class="tab-page active">
+          <div class="panel-body stack">
+            <form id="songForm" class="grid-3">
+              <input id="songId" type="hidden">
+              <label>
+                歌曲名字
+                <input id="songName" required>
+              </label>
+              <label>
+                原唱/首发歌手
+                <input id="songArtist">
+              </label>
+              <label>
+                歌曲分类
+                <input id="songCategory" value="默认">
+              </label>
+              <label>
+                歌曲标签
+                <input id="songTags" placeholder="多个标签用逗号隔开">
+              </label>
+              <label>
+                是否可点
+                <select id="songIsEnabled">
+                  <option value="true">是</option>
+                  <option value="false">否</option>
+                </select>
+              </label>
+              <label>
+                语言
+                <input id="songLanguage" placeholder="例如：国语">
+              </label>
+              <label>
+                核对平台
+                <input id="songSourcePlatform" placeholder="例如：QQ音乐 / 网易云音乐">
+              </label>
+              <label>
+                核对备注
+                <input id="songNote">
+              </label>
+              <div class="form-actions-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <button class="primary" type="submit">保存歌曲</button>
+                <button id="resetSongForm" type="button">清空表单</button>
+              </div>
+            </form>
+
+            <hr class="section-divider">
+
+            <div class="grid-3">
+              <label>
+                搜索
+                <input id="songSearch" placeholder="歌名、歌手、分类或标签">
+              </label>
+              <div class="category-filter-field">
+                <span>分类</span>
+                <details id="categoryFilter" class="category-filter" name="songLibraryFilter">
+                  <summary>
+                    <span id="categoryFilterSummary">全部分类</span>
+                    <span class="category-filter-hint">可多选</span>
+                  </summary>
+                  <div class="category-filter-menu">
+                    <div id="categoryFilterOptions" class="category-filter-options" role="group" aria-label="分类（可多选）"></div>
+                    <button id="clearCategoryFilter" class="category-filter-clear" type="button">清除选择</button>
+                  </div>
+                </details>
+              </div>
+              <label>
+                语言
+                <select id="languageFilter"></select>
+              </label>
+            </div>
+            <div class="grid-3">
+              <label>
+                歌手
+                <select id="artistFilter"></select>
+              </label>
+              <div class="category-filter-field">
+                <span>标签</span>
+                <details id="tagFilter" class="category-filter" name="songLibraryFilter">
+                  <summary>
+                    <span id="tagFilterSummary" class="category-filter-summary">全部标签</span>
+                    <span class="category-filter-hint">可多选</span>
+                  </summary>
+                  <div class="category-filter-menu">
+                    <div id="tagFilterOptions" class="category-filter-options" role="group" aria-label="标签（可多选）"></div>
+                    <button id="clearTagFilter" class="category-filter-clear" type="button">清除选择</button>
+                  </div>
+                </details>
+              </div>
+              <label>
+                只看可点
+                <select id="enabledFilter">
+                  <option value="false">全部歌曲</option>
+                  <option value="true">只看可点</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>首字母</th>
+                    <th>歌曲名字</th>
+                    <th>原唱/首发歌手</th>
+                    <th>歌曲分类</th>
+                    <th>歌曲标签</th>
+                    <th>语言</th>
+                    <th>状态</th>
+                    <th>核对备注</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="songsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+

@@ -32,6 +32,11 @@ function createAiApiQuotaStore(db, options = {}) {
   const readStatement = db.prepare(`
     SELECT request_count FROM ai_api_usage WHERE category = ? AND month_key = ?
   `);
+  const releaseStatement = db.prepare(`
+    UPDATE ai_api_usage
+    SET request_count = request_count - 1, updated_at = ?
+    WHERE category = ? AND month_key = ? AND request_count > 0
+  `);
 
   function consume(category) {
     const limit = requireLimit(category);
@@ -40,6 +45,13 @@ function createAiApiQuotaStore(db, options = {}) {
     const row = consumeStatement.get(category, monthKey, timestamp, limit);
     const requestCount = row ? Number(row.request_count) : limit;
     return { allowed: Boolean(row), category, monthKey, requestCount, limit };
+  }
+
+  // 退款：请求失败（超时/5xx/中断/业务错误）时把预扣的配额退回，
+  // 避免“成功前就扣”导致失败请求也永久烧掉配额。
+  function release(category, monthKey = getBeijingMonthKey(now())) {
+    const timestamp = now();
+    releaseStatement.run(timestamp, category, monthKey);
   }
 
   function getUsage(category) {
@@ -62,17 +74,51 @@ function createAiApiQuotaStore(db, options = {}) {
     return Object.keys(API_QUOTAS).map(getUsage);
   }
 
-  return { consume, getUsage, getAllUsage, getExcludedToolNames };
+  return { consume, release, getUsage, getAllUsage, getExcludedToolNames };
 }
 
 function requireApiQuota(quotaStore, category) {
-  if (!quotaStore) return;
+  const reservation = reserveApiQuota(quotaStore, category);
+  reservation.commit();
+}
+
+function releaseApiQuota(quotaStore, category, monthKey) {
+  if (!quotaStore || typeof quotaStore.release !== 'function') return;
+  quotaStore.release(category, monthKey);
+}
+
+function reserveApiQuota(quotaStore, category) {
+  if (!quotaStore) return { commit() {}, release() {} };
   const usage = quotaStore.consume(category);
-  if (usage.allowed) return;
-  const error = new Error('本月第三方 API 安全用量已达到上限，请改用 web_search。');
-  error.code = CATEGORY_ERROR_CODES[category];
-  error.quotaCategory = category;
-  throw error;
+  if (!usage.allowed) {
+    const error = new Error('本月第三方 API 安全用量已达到上限，请改用 web_search。');
+    error.code = CATEGORY_ERROR_CODES[category];
+    error.quotaCategory = category;
+    throw error;
+  }
+  let active = true;
+  return {
+    commit() {
+      active = false;
+    },
+    release() {
+      if (!active) return;
+      active = false;
+      releaseApiQuota(quotaStore, category, usage.monthKey);
+    }
+  };
+}
+
+async function withApiQuota(quotaStore, category, operation) {
+  const reservation = reserveApiQuota(quotaStore, category);
+  try {
+    const result = await operation(reservation);
+    reservation.commit();
+    return result;
+  } catch (error) {
+    reservation.release();
+    throw error;
+  }
 }
 
 function getQuotaToolNames(error) {
@@ -93,6 +139,9 @@ module.exports = {
   API_QUOTAS,
   createAiApiQuotaStore,
   requireApiQuota,
+  releaseApiQuota,
+  reserveApiQuota,
+  withApiQuota,
   getQuotaToolNames,
   getBeijingMonthKey
 };

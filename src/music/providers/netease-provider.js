@@ -138,9 +138,10 @@ class NeteaseMusicProvider {
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, { limit: 50 });
-    const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title))
-      || playlists[0];
-    if (!likedPlaylist) return [];
+    const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title));
+    if (!likedPlaylist) {
+      throw new Error('没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。');
+    }
     return this.getPlaylistTracks(likedPlaylist.id, { limit, offset });
   }
 

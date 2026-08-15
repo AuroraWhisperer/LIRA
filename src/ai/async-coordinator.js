@@ -50,13 +50,19 @@ function createOrderedAsyncCoordinator(options = {}) {
       while (!stopped && completed.has(nextDelivery)) {
         const job = completed.get(nextDelivery);
         completed.delete(nextDelivery);
+        // 先推进游标：即使 deliver/onError 抛错，后续条目也不会被这个失败条目卡死。
+        nextDelivery += 1;
         try {
           if (job.error) throw job.error;
           await deliver(job.item, job.result);
         } catch (error) {
-          await onError(error, job.item);
+          try {
+            await onError(error, job.item);
+          } catch (onErrorError) {
+            // onError 自身抛错不能阻断投递循环，否则剩余回复永远无法送达。
+            console.warn('[async-coordinator] onError threw:', onErrorError && onErrorError.message);
+          }
         }
-        nextDelivery += 1;
       }
     } finally {
       delivering = false;

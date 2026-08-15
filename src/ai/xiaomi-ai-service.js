@@ -35,6 +35,7 @@ function createXiaomiAiService(dependencies) {
   } = dependencies;
   const userLastRequest = new Map();
   const roomRequests = [];
+  let lastUserMapPruneAt = 0;
   let lastDeliveryAt = 0;
   let lastError = '';
   let handledCount = 0;
@@ -86,7 +87,19 @@ function createXiaomiAiService(dependencies) {
     if (roomRequests.length >= config.roomLimitPerMinute) return 'room_rate_limited';
     userLastRequest.set(uid, current);
     roomRequests.push(current);
+    pruneUserLastRequest(current, config);
     return '';
+  }
+
+  // 与 roomRequests 一样把观众维度的冷却表有界化：长直播下永不清理会无界增长。
+  function pruneUserLastRequest(current, config) {
+    if (current - lastUserMapPruneAt < 60000) return;
+    lastUserMapPruneAt = current;
+    const retentionMs = Math.max(60000, Number(config.userCooldownSeconds) * 1000 + 60000);
+    const expireBefore = current - retentionMs;
+    for (const [uid, timestamp] of userLastRequest) {
+      if (timestamp < expireBefore) userLastRequest.delete(uid);
+    }
   }
 
   async function generateReply(item, options = {}) {

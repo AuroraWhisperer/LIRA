@@ -1,0 +1,339 @@
+/* ---- 盲盒盈亏统计 ---- */
+.gift-blindbox-panel {
+  overflow: hidden;
+  padding: 0;
+  border-color: var(--color-border-light);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--color-bg-primary) 0%, #fcfdff 100%);
+  box-shadow: 0 8px 24px rgba(23, 32, 42, 0.06);
+}
+
+.gift-blindbox-panel > .panel-header {
+  cursor: pointer;
+  position: relative;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gift-blindbox-panel > .panel-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+  background: linear-gradient(135deg,
+              rgba(142, 68, 173, 0.1) 0%,
+              rgba(142, 68, 173, 0.04) 50%,
+              transparent 100%);
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.gift-blindbox-panel > .panel-header:hover {
+  background: linear-gradient(to right,
+              rgba(142, 68, 173, 0.06),
+              rgba(142, 68, 173, 0.02));
+  box-shadow: 0 0 0 1px rgba(142, 68, 173, 0.15) inset,
+              0 6px 20px -2px rgba(142, 68, 173, 0.25),
+              0 3px 10px -2px rgba(142, 68, 173, 0.15);
+  transform: translateY(-2px);
+}
+
+.gift-blindbox-panel > .panel-header:hover::before {
+  opacity: 1;
+}
+
+.gift-blindbox-panel > .panel-header:active {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+
+.blind-stats-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #edf0f4;
+  user-select: none;
+  transition: background-color 150ms ease, border-bottom-color 200ms ease;
+  pointer-events: none;
+}
+
+.blind-stats-heading:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.blind-stats-heading-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #fff0f5, #ffe4ed);
+  color: var(--primary-strong);
+}
+
+.blind-stats-heading-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.blind-stats-heading h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.gift-blind-stats-summary {
+  padding: 16px 20px;
+}
+
+.gift-blindbox-panel .stats-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gift-blindbox-panel .stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e8edf3;
+  border-radius: 10px;
+  background: var(--color-bg-tertiary);
+}
+
+.gift-blindbox-panel .stat-chip-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  background: var(--color-bg-primary);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(23, 32, 42, 0.07);
+}
+
+.gift-blindbox-panel .stat-chip-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gift-blindbox-panel .stat-chip small {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.gift-blindbox-panel .stat-chip strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gift-blindbox-panel .stat-chip.profit-up {
+  border-color: rgba(33, 182, 168, 0.22);
+  background: var(--color-accent-light);
+}
+
+.gift-blindbox-panel .stat-chip.profit-down {
+  border-color: rgba(192, 57, 43, 0.18);
+  background: var(--color-danger-light);
+}
+
+.gift-blindbox-panel .stat-chip.profit-up .stat-chip-icon,
+.gift-blindbox-panel .stat-chip.profit-up strong {
+  color: #148f82;
+}
+
+.gift-blindbox-panel .stat-chip.profit-down .stat-chip-icon,
+.gift-blindbox-panel .stat-chip.profit-down strong {
+  color: var(--danger);
+}
+
+.blind-stats-status {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 24px 16px 26px;
+  text-align: center;
+}
+
+.blind-stats-status-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border: 1px solid #e4e9ef;
+  border-radius: 14px;
+  background: #f5f7fa;
+  color: #98a3b1;
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.blind-stats-status-icon.is-loading::before {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d9dee6;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  content: "";
+  animation: blind-stats-spin 800ms linear infinite;
+}
+
+.blind-stats-status strong {
+  font-size: 14px;
+}
+
+.blind-stats-status > span:last-child {
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.blind-stats-status.is-error .blind-stats-status-icon {
+  border-color: rgba(192, 57, 43, 0.16);
+  background: #fff5f4;
+  color: var(--danger);
+}
+
+@keyframes blind-stats-spin {
+  to { transform: rotate(360deg); }
+}
+
+.blind-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 620px;
+}
+
+.blind-stats-table th {
+  text-align: left;
+  padding: 10px 20px;
+  border-bottom: 1px solid #e8edf2;
+  background: #f7f9fb;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.blind-stats-table td {
+  padding: 12px 20px;
+  border-bottom: 1px solid #eef1f5;
+  white-space: nowrap;
+}
+
+.blind-stats-table th:not(:first-child),
+.blind-stats-table td:not(:first-child) {
+  text-align: right;
+}
+
+.blind-stats-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.blind-stats-table tbody tr:hover {
+  background: #fafbfd;
+}
+
+.blind-stats-table .blind-stats-user-row {
+  cursor: pointer;
+}
+
+.blind-stats-table .blind-stats-user-row:hover {
+  background: #f3faf8;
+}
+
+.blind-stats-table .blind-stats-user-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.blind-stats-table .user-cell {
+  max-width: 320px;
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+}
+
+.blind-stats-table .empty {
+  display: table-cell;
+  height: 72px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+  color: var(--muted);
+  padding: 20px;
+}
+
+.gift-blind-stats-table-wrap,
+.gift-blindbox-stats-table-wrap {
+  max-height: none !important;
+  overflow: visible !important;
+  border-top: 1px solid #edf0f4;
+}
+
+/* 加载/空状态/错误状态时，只显示状态消息，隐藏表格 */
+.gift-blindbox-panel[data-state="loading"] .gift-blind-stats-table-wrap,
+.gift-blindbox-panel[data-state="empty"] .gift-blind-stats-table-wrap,
+.gift-blindbox-panel[data-state="error"] .gift-blind-stats-table-wrap {
+  display: none;
+}
+
+/* 盲盒盈亏折叠 */
+.blind-stats-collapsible {
+  overflow: visible;
+  max-height: none;
+  /* 只对 opacity/transform 做过渡，max-height 瞬间切换避免布局抖动 */
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.gift-blindbox-panel.is-collapsed .blind-stats-collapsible {
+  overflow: hidden;
+  max-height: 0 !important;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.gift-blindbox-panel.is-collapsed .blind-stats-heading {
+  border-bottom-color: transparent;
+}
+
+.gift-blindbox-panel.is-collapsed .section-toggle svg {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 980px) {
+  .gift-blindbox-panel .stats-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .blind-stats-heading,
+  .gift-blind-stats-summary {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .gift-blindbox-panel .stats-summary-row {
+    grid-template-columns: 1fr;
+  }
+}
+

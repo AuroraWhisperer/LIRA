@@ -8,6 +8,8 @@ const crypto = require('node:crypto');
 
 const MUSIC_API_CACHE_TTL_MS = 5 * 60 * 1000;
 const MUSIC_LYRIC_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MUSIC_API_CACHE_MAX_BYTES = 50 * 1024 * 1024;
+const MUSIC_LYRIC_CACHE_MAX_BYTES = 300 * 1024 * 1024;
 
 function musicCacheKey(scope, payload) {
   return crypto.createHash('sha1')
@@ -26,14 +28,14 @@ function readMusicJsonCache(directory, key, ttlMs) {
   } catch (_) { return null; }
 }
 
-function writeMusicJsonCache(directory, key, data) {
+function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MAX_BYTES) {
   if (!key || !data) return;
   try {
     fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(directory, `${key}.json`), JSON.stringify({
       savedAt: new Date().toISOString(), data
     }), 'utf8');
-    pruneMusicCacheDirectory(directory, directory.includes('lyrics') ? 300 * 1024 * 1024 : 50 * 1024 * 1024);
+    pruneMusicCacheDirectory(directory, Number(maxBytes) || MUSIC_API_CACHE_MAX_BYTES);
   } catch (_) { /* Cache failures must not affect playback. */ }
 }
 
@@ -86,6 +88,8 @@ function getMusicCacheStats(apiDir, lyricDir) {
 }
 
 module.exports = {
+  MUSIC_API_CACHE_MAX_BYTES,
+  MUSIC_LYRIC_CACHE_MAX_BYTES,
   musicCacheKey,
   readMusicJsonCache,
   writeMusicJsonCache,

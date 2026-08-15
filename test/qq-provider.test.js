@@ -24,6 +24,15 @@ function qrcXml(content) {
   return `<?xml version="1.0" encoding="utf-8"?>\n<QrcInfos><LyricInfo><Lyric_1 LyricType="1" LyricContent="${content}"/></LyricInfo></QrcInfos>`;
 }
 
+test('QQ provider keeps HTTP and authentication behind a focused client', () => {
+  const { QQMusicClient } = require('../src/music/providers/qq-provider-client');
+  const provider = createProvider();
+
+  assert.ok(provider instanceof QQMusicClient);
+  assert.equal(typeof provider.requestJson, 'function');
+  assert.equal(typeof provider.requireLogin, 'function');
+});
+
 test('QQ provider requests, decrypts, and aligns translated and romanized lyrics', async () => {
   const originalFetch = global.fetch;
   let capturedUrl = '';
@@ -36,6 +45,9 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
         data: {
           crypt: 1,
           lyric: encryptedQrc(qrcXml(
+            '[00:01.00]甲乙\n[00:04.00]丙'
+          )),
+          qrc: encryptedQrc(qrcXml(
             '[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)'
           )),
           trans: encryptedQrc('[00:01.05]翻译一\n[00:04.04]翻译二'),

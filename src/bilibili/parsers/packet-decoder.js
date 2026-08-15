@@ -49,6 +49,10 @@ function parseBilibiliPackets(buffer) {
   while (offset + 16 <= buffer.length) {
     const packetLength = buffer.readUInt32BE(offset);
     const headerLength = buffer.readUInt16BE(offset + 4);
+    // 畸形包防护：长度不合法时中止解析，避免 subarray 越界抛 RangeError 中断整个 buffer。
+    if (packetLength < 16 || headerLength < 16 || headerLength > packetLength || offset + packetLength > buffer.length) {
+      break;
+    }
     const protocolVersion = buffer.readUInt16BE(offset + 6);
     const operation = buffer.readUInt32BE(offset + 8);
     const bodyStart = offset + headerLength;
@@ -80,7 +84,7 @@ function parseBilibiliPackets(buffer) {
       }
     }
 
-    offset += packetLength > 0 ? packetLength : buffer.length;
+    offset += packetLength;
   }
   return messages;
 }

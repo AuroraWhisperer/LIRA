@@ -438,6 +438,79 @@ test('QWeather does not send a request after its monthly quota is exhausted', as
   assert.equal(fetchCalls, 0);
 });
 
+test('QWeather refunds quota when a successful response has no locations', async () => {
+  let releases = 0;
+  const tool = createQWeatherTool({
+    fetchImpl: async () => jsonResponse({ code: '200', location: [] }),
+    quotaStore: {
+      consume: () => ({ allowed: true }),
+      release: () => { releases += 1; }
+    }
+  });
+
+  await assert.rejects(
+    tool.resolveLocation({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, '未知地点'),
+    (error) => error.code === 'WEATHER_LOCATION_NOT_FOUND'
+  );
+  assert.equal(releases, 1);
+});
+
+test('AMap refunds quota when route normalization finds no route', async () => {
+  let releases = 0;
+  const tool = createAmapTool({
+    fetchImpl: async (url) => {
+      const pathName = new URL(url).pathname;
+      if (pathName.includes('/direction/')) {
+        return jsonResponse({ status: '1', route: { paths: [] } });
+      }
+      return jsonResponse({ status: '1', geocodes: [{ formatted_address: '地点', location: '120,30' }] });
+    },
+    quotaStore: {
+      consume: () => ({ allowed: true }),
+      release: () => { releases += 1; }
+    }
+  });
+
+  await assert.rejects(
+    tool.getRoute(
+      { amapApiHost: 'https://amap.test', amapApiKey: 'key' },
+      { origin: '甲地', destination: '乙地', city: '苏州', mode: 'driving' }
+    ),
+    (error) => error.code === 'AMAP_ROUTE_NOT_FOUND'
+  );
+  assert.equal(releases, 1);
+});
+
+test('provider connection checks refund quota for invalid successful payloads', async () => {
+  let qweatherReleases = 0;
+  const qweather = createQWeatherTool({
+    fetchImpl: async () => jsonResponse({ code: '200', location: [{}] }),
+    quotaStore: {
+      consume: () => ({ allowed: true }),
+      release: () => { qweatherReleases += 1; }
+    }
+  });
+  await assert.rejects(
+    qweather.testConnection({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }),
+    (error) => error.code === 'QWEATHER_INVALID_RESPONSE'
+  );
+  assert.equal(qweatherReleases, 1);
+
+  let amapReleases = 0;
+  const amap = createAmapTool({
+    fetchImpl: async () => jsonResponse({ status: '1', geocodes: [{}] }),
+    quotaStore: {
+      consume: () => ({ allowed: true }),
+      release: () => { amapReleases += 1; }
+    }
+  });
+  await assert.rejects(
+    amap.testConnection({ amapApiHost: 'https://amap.test', amapApiKey: 'key' }),
+    (error) => error.code === 'AMAP_INVALID_RESPONSE'
+  );
+  assert.equal(amapReleases, 1);
+});
+
 test('AMap separates search and LBS quota categories before sending requests', async () => {
   const categories = [];
   let fetchCalls = 0;

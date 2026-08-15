@@ -5,8 +5,7 @@
 
 const path = require('node:path');
 const { now } = require('../shared/utils');
-const { CHECKIN_BLESSINGS } = require('../bilibili/checkin-blessings');
-const { FORTUNES } = require('../bilibili/fortune-service');
+const { CHECKIN_BLESSINGS, FORTUNES } = require('../shared/bot-defaults');
 
 const DEFAULT_WESING_CACHE_PATH = process.platform === 'win32' && process.env.APPDATA
   ? path.join(process.env.APPDATA, 'Tencent', 'WeSing', 'WeSingCache')

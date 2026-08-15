@@ -1,5 +1,7 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -21,7 +23,7 @@ async function loadCategoryFilterModule() {
 }
 
 test('song library multi-select filters allow only one open menu', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'pages', 'admin.html'), 'utf8');
+  const html = readAdminHtml();
 
   assert.match(html, /<details id="categoryFilter"[^>]* name="songLibraryFilter">/);
   assert.match(html, /<details id="tagFilter"[^>]* name="songLibraryFilter">/);

@@ -1,0 +1,137 @@
+/* ===== 搜索面板 ===== */
+.playback-search-panel {
+  grid-area: search;
+  display: flex;
+  flex-direction: column;
+  max-height: 390px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(22, 31, 43, 0.06);
+}
+
+.playback-search-panel .panel-header {
+  min-height: 56px;
+  flex-shrink: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(217, 224, 232, 0.5);
+}
+
+.playback-search-panel .panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px 18px;
+}
+
+.playback-search-panel .form-grid.three {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 76px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.playback-search-panel #playbackSearchBtn {
+  min-width: 82px;
+}
+
+.playback-search-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 70px;
+  padding: 4px 2px 6px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+/* 美化搜索结果滚动条 */
+.playback-search-results::-webkit-scrollbar {
+  width: 8px;
+}
+
+.playback-search-results::-webkit-scrollbar-track {
+  background: rgba(22, 31, 43, 0.04);
+  border-radius: 4px;
+}
+
+.playback-search-results::-webkit-scrollbar-thumb {
+  background: rgba(217, 75, 112, 0.3);
+  border-radius: 4px;
+  transition: background 200ms ease;
+}
+
+.playback-search-results::-webkit-scrollbar-thumb:hover {
+  background: rgba(217, 75, 112, 0.5);
+}
+
+.playback-search-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--surface);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  box-shadow: 0 1px 3px rgba(22, 31, 43, 0.06);
+}
+
+.playback-search-row:hover {
+  border-color: var(--primary);
+  box-shadow:
+    0 4px 12px rgba(217, 75, 112, 0.12),
+    0 2px 4px rgba(22, 31, 43, 0.06);
+  transform: translateY(-1px);
+}
+
+.playback-search-row .playback-row-main {
+  gap: 10px;
+}
+
+.playback-search-row .song {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.playback-search-row .meta {
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+
+.playback-search-row .playback-artwork {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  font-size: 14px;
+}
+
+.playback-search-row .queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+.playback-search-row .queue-actions button {
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 28px;
+}
+
+/* 宽屏上搜索结果显示 3 列 */
+@media (min-width: 1400px) {
+  .playback-search-results {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 窄屏回退到单列 */
+@media (max-width: 780px) {
+  .playback-search-results {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('musicAPI', {
     return () => ipcRenderer.removeListener('music:lyric-state', listener);
   },
   selectLocalFiles: () => ipcRenderer.invoke('music:select-local-files'),
+  getRecentLocalFiles: () => ipcRenderer.invoke('music:get-recent-local-files'),
   selectWeSingCacheDirectory: () => ipcRenderer.invoke('music:select-wesing-cache'),
   resolveLocalMediaUrls: (paths) => ipcRenderer.invoke('music:resolve-local-media-urls', paths),
   savePlaybackState: (clientId, payload) => ipcRenderer.invoke('playback:save-state', { clientId, payload }),

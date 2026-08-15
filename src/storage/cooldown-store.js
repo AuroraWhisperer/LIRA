@@ -17,6 +17,7 @@ function createCooldownStore(db) {
         SELECT user_key, last_request_at
         FROM user_cooldowns
         WHERE last_request_at >= ?
+        ORDER BY last_request_at ASC
       `).all(threshold);
       for (const row of rows) {
         map.set(row.user_key, Number(row.last_request_at) || 0);
@@ -43,6 +44,18 @@ function createCooldownStore(db) {
       const threshold = Date.now() - Math.max(0, Number(retentionMs) || 0);
       const result = db.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?').run(threshold);
       return Number(result.changes) || 0;
+    },
+
+    pruneMap(map, at = Date.now(), retentionMs = COOLDOWN_RETENTION_MS) {
+      if (!map || typeof map.entries !== 'function') return 0;
+      const threshold = Number(at) - Math.max(0, Number(retentionMs) || 0);
+      let removed = 0;
+      for (const [key, lastAt] of map) {
+        if (Number(lastAt) >= threshold) break;
+        map.delete(key);
+        removed += 1;
+      }
+      return removed;
     },
 
     clear() {

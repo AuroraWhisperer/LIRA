@@ -3,7 +3,10 @@
 'use strict';
 
 const { cleanText, cleanTextPreserveLines } = require('../shared/utils');
-const { musicCacheKey, readMusicJsonCache, writeMusicJsonCache } = require('./music-cache');
+const {
+  musicCacheKey, readMusicJsonCache, writeMusicJsonCache,
+  MUSIC_API_CACHE_MAX_BYTES, MUSIC_LYRIC_CACHE_MAX_BYTES
+} = require('./music-cache');
 const { parseLyricResult } = require('./lyrics');
 const { rankTrackCandidates } = require('./song-matcher');
 const { normalizeMusicPlatform } = require('./provider-registry');
@@ -81,7 +84,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   let result;
   if (action === 'personalized') {
     result = { source: platform, action, playlists: await provider.getPersonalizedPlaylists({ limit: Math.min(limit, 30), page }) };
-    if (cacheKey) writeMusicJsonCache(apiCacheDir, cacheKey, result);
+    if (cacheKey) writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
     return result;
   }
   if (action === 'playlist-tracks') {
@@ -89,7 +92,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
     if (!playlistId) throw new Error('缺少歌单 ID。');
     result = { source: platform, action, playlistId, tracks: await provider.getPlaylistTracks(playlistId, { limit }) };
     if (cacheKey && result.tracks && result.tracks.length > 0) {
-      writeMusicJsonCache(apiCacheDir, cacheKey, result);
+      writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
     }
     return result;
   }
@@ -124,7 +127,11 @@ async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
   if (cached) return { ...cached, cached: true };
   const provider = registry.get(normalizedTrack.source);
   const result = await provider.getLyrics(normalizedTrack);
-  writeMusicJsonCache(lyricCacheDir, cacheKey, result);
+  // 空歌词结果不缓存：否则会压制 30 天内的重试（例如登录后才可获取的歌词）。
+  const lines = Array.isArray(result && result.lines) ? result.lines : [];
+  if (lines.length > 0) {
+    writeMusicJsonCache(lyricCacheDir, cacheKey, result, MUSIC_LYRIC_CACHE_MAX_BYTES);
+  }
   return result;
 }
 

@@ -1,0 +1,514 @@
+
+/* ===== 礼物通知 Toast ===== */
+.gift-notify-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 4px;
+  width: min(360px, calc(100vw - 48px));
+  min-height: 72px;
+  overflow: hidden;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.14), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.08), transparent 48%),
+    linear-gradient(145deg, #1f1a10 0%, #181611 100%);
+  padding: 16px 22px 16px 66px;
+  box-shadow:
+    0 18px 44px rgba(40, 28, 8, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.gift-notify-toast::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 11px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(145deg, #f59e0b, #d97706);
+  box-shadow:
+    0 8px 20px rgba(217, 119, 6, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%);
+}
+
+.gift-notify-toast::after {
+  content: "🎁";
+  position: absolute;
+  left: 35px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.gift-notify-toast strong {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+.gift-notify-toast span {
+  display: block;
+  color: rgba(235, 220, 195, 0.65);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.gift-notify-toast .gift-price-badge {
+  display: inline-block;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 2px 8px;
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+/* 大航海礼物变体 */
+.gift-notify-toast.gift-guard {
+  border-color: rgba(168, 85, 247, 0.28);
+  background:
+    radial-gradient(circle at 0 0, rgba(168, 85, 247, 0.16), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.1), transparent 48%),
+    linear-gradient(145deg, #1a1428 0%, #161120 100%);
+  box-shadow:
+    0 18px 44px rgba(30, 10, 55, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.gift-notify-toast.gift-guard::before {
+  border-color: rgba(168, 85, 247, 0.4);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(145deg, #8b5cf6, #7c3aed);
+  box-shadow:
+    0 8px 20px rgba(124, 58, 237, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gift-notify-toast.gift-guard::after {
+  content: "👑";
+}
+
+.gift-notify-toast.gift-guard .gift-price-badge {
+  background: rgba(168, 85, 247, 0.18);
+  color: #c4b5fd;
+}
+
+/* 免费/低价礼物变体 */
+.gift-notify-toast.gift-free {
+  border-color: rgba(148, 163, 184, 0.2);
+  background:
+    radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.1), transparent 52%),
+    linear-gradient(145deg, #181b1f 0%, #14161a 100%);
+  box-shadow:
+    0 18px 44px rgba(8, 10, 14, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+}
+
+.gift-notify-toast.gift-free::before {
+  border-color: rgba(148, 163, 184, 0.3);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent 60%),
+    linear-gradient(145deg, #64748b, #475569);
+  box-shadow:
+    0 6px 14px rgba(71, 85, 105, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.gift-notify-toast.gift-free::after {
+  content: "💝";
+}
+
+.gift-notify-toast.gift-free span {
+  color: rgba(200, 205, 215, 0.55);
+}
+
+/* 盲盒礼物变体 */
+.gift-notify-toast.gift-blind-box {
+  border-color: rgba(236, 72, 153, 0.24);
+  background:
+    radial-gradient(circle at 0 0, rgba(236, 72, 153, 0.12), transparent 52%),
+    radial-gradient(circle at 100% 100%, rgba(244, 114, 182, 0.08), transparent 48%),
+    linear-gradient(145deg, #1f141c 0%, #1a1318 100%);
+  box-shadow:
+    0 18px 44px rgba(40, 8, 30, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.gift-notify-toast.gift-blind-box::before {
+  border-color: rgba(236, 72, 153, 0.35);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(145deg, #ec4899, #db2777);
+  box-shadow:
+    0 8px 20px rgba(219, 39, 119, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gift-notify-toast.gift-blind-box::after {
+  content: "📦";
+}
+
+.gift-notify-toast.gift-blind-box .gift-price-badge {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f9a8d4;
+}
+
+/* 高价值礼物变体（≥100元） */
+.gift-notify-toast.gift-premium {
+  border-color: rgba(251, 191, 36, 0.35);
+  background:
+    radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.2), transparent 48%),
+    radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.14), transparent 44%),
+    radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.05), transparent 60%),
+    linear-gradient(145deg, #221c0c 0%, #1a1608 100%);
+  border-width: 1.5px;
+  box-shadow:
+    0 22px 52px rgba(50, 35, 8, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 32px rgba(251, 191, 36, 0.06);
+}
+
+.gift-notify-toast.gift-premium::before {
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow:
+    0 8px 24px rgba(245, 158, 11, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.gift-notify-toast.gift-premium .gift-price-badge {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fcd34d;
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+.copy-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.copy-grid code {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 8px 10px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.overlay-address-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.overlay-address-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  padding: 14px;
+}
+
+.overlay-address-item div {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+}
+
+.overlay-address-item strong {
+  font-size: 17px;
+}
+
+.overlay-address-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.overlay-address-item code {
+  display: block;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  padding: 9px 10px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.swatch-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.swatch-row input[type="color"] {
+  padding: 2px;
+  min-height: 40px;
+}
+
+.range-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  gap: 8px;
+  align-items: center;
+}
+
+.identity-rule-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.identity-rule-font {
+  max-width: 420px;
+}
+
+.identity-rule-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.identity-rule-setting {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 46px;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  padding: 10px;
+}
+
+.identity-rule-setting > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.identity-rule-setting input[type="color"] {
+  min-height: 34px;
+  padding: 2px;
+}
+
+.style-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.style-option {
+  min-height: 58px;
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  justify-items: start;
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.style-option strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.style-option span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.style-option.active {
+  border-color: rgba(255, 111, 145, 0.58);
+  background: var(--color-primary-light);
+  box-shadow: inset 0 0 0 2px rgba(255, 111, 145, 0.18);
+}
+
+.style-option.active strong {
+  color: var(--primary-strong);
+}
+
+.monitor-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, #f7fbfa 48%, var(--color-primary-light) 100%);
+  padding: 16px;
+}
+
+.monitor-hero h3 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.monitor-hero p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.monitor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.switch-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-track {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #dfe5ec;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-bg-primary);
+  box-shadow: 0 2px 6px rgba(22, 31, 43, 0.2);
+  transition: transform 160ms ease;
+}
+
+.switch-control input:checked + .switch-track {
+  border-color: rgba(33, 182, 168, 0.45);
+  background: var(--accent);
+}
+
+.switch-control input:checked + .switch-track::after {
+  transform: translateX(22px);
+}
+
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 12px;
+  min-height: 148px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  padding: 14px;
+}
+
+.metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.metric-head span {
+  font-weight: 800;
+}
+
+.metric-head small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-value {
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.metric-bar {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1f5;
+}
+
+.metric-bar span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 220ms ease;
+}
+
+.metric-detail {
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.metric-card.good-level .metric-bar span {
+  background: var(--accent);
+}
+
+.metric-card.warn-level .metric-bar span {
+  background: #e2a12f;
+}
+
+.metric-card.danger-level .metric-bar span {
+  background: var(--danger);
+}
+
+.metric-card.muted .metric-value {
+  color: var(--muted);
+  font-size: 28px;
+}
+
+/* ---- 礼物检测 ---- */
+.gift-detection-panel legend {
+  margin-bottom: 8px;

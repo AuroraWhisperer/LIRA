@@ -114,6 +114,35 @@ test('WebSocket hub starts heartbeat on upgrade and releases resources on stop',
   assert.equal(stoppedHeartbeatCount, heartbeatCount);
 });
 
+test('coalesces same-turn hub snapshots and keeps the latest reason', async () => {
+  const hub = createWebSocketHub();
+  const socket = new FakeSocket();
+  let stateReads = 0;
+  const context = {
+    sessionToken: '',
+    getState: () => { stateReads += 1; return { stateReads }; }
+  };
+  hub.handleUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+    }
+  }, socket);
+  socket.writes = [];
+  stateReads = 0;
+
+  hub.broadcastSnapshot(context, 'first:update');
+  hub.broadcastSnapshot(context, 'latest:update');
+  assert.equal(stateReads, 0);
+  await new Promise((resolve) => queueMicrotask(resolve));
+
+  assert.equal(stateReads, 1);
+  assert.equal(socket.writes.length, 1);
+  assert.match(socket.writes[0].toString('utf8'), /latest:update/);
+  hub.stop();
+});
+
 test('compatibility broadcasts remain isolated to their context sockets', () => {
   const firstSocket = new FakeSocket();
   const secondSocket = new FakeSocket();

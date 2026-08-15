@@ -1,19 +1,28 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-test('toolbox sidebar switches between labeled and icon-only layouts', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
-  const styles = fs.readFileSync(
+test('toolbox styles load feature-owned stylesheets in order', () => {
+  const entry = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
     'utf8'
   );
+
+  assert.match(entry, /@import url\('\.\/other-features\/streamer-planner\.css'\);/);
+});
+
+test('toolbox sidebar switches between labeled and icon-only layouts', () => {
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
   assert.match(html, /data-other-sidebar-toggle/);
   assert.match(html, /data-other-feature="otherDanmakuFeature"[^>]*>[\s\S]*?弹幕姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/);
@@ -34,11 +43,8 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
 });
 
 test('danmaku detail panel fills the workspace and keeps actions grouped', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
-    'utf8'
-  );
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
   assert.match(html, /class="danmaku-feature-section danmaku-connection-section"[\s\S]*?id="danmakuAccountState"[\s\S]*?id="danmakuRoomState"[\s\S]*?id="danmakuToolStatus"/);
   assert.match(html, /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/);
@@ -128,7 +134,7 @@ test('desktop shell reveals the desktop update toolbox feature', () => {
 });
 
 test('desktop update feature keeps its tab and panel mapping', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const html = readAdminHtml();
   assert.match(html, /id="otherDesktopUpdateFeatureTab"[\s\S]*data-other-feature="otherDesktopUpdateFeature"/);
   assert.match(html, /id="otherDesktopUpdateFeature"[\s\S]*data-other-feature-panel/);
   assert.match(html, /aria-labelledby="otherDesktopUpdateFeatureTab"/);

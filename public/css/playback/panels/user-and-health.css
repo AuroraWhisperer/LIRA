@@ -1,0 +1,118 @@
+.playback-grid {
+  display: contents;
+}
+
+/* ===== 用户信息 & 缓存 ===== */
+.playback-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f9fbfd;
+  padding: 14px;
+}
+
+.playback-avatar,
+.playback-cover {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--color-bg-primary);
+  font-weight: 900;
+}
+
+.playback-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.playback-user strong,
+.playback-user span {
+  display: block;
+}
+
+.playback-user span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.playback-cache-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  padding: 10px 12px;
+}
+
+.playback-cache-row .hint {
+  display: none;
+}
+
+/* Provider 健康状态显示 */
+.playback-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+  min-height: 26px;
+}
+
+.playback-health-status {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-height: 24px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  transition: color 300ms ease, background-color 300ms ease, border-color 300ms ease;
+}
+
+.playback-health-status.success {
+  color: #0d7d4a;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  font-weight: 600;
+}
+
+.playback-health-status.success::before {
+  content: "✓ ";
+  font-weight: bold;
+}
+
+.playback-health-status.error {
+  color: #b91c1c;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  font-weight: 600;
+}
+
+.playback-health-status.error::before {
+  content: "✕ ";
+  font-weight: bold;
+}
+
+.playback-health-status.warning {
+  color: #c2410c;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  font-weight: 600;
+}
+
+.playback-health-status.warning::before {
+  content: "⚠ ";
+  font-weight: bold;
+}
+

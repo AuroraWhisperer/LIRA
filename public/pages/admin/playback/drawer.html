@@ -1,0 +1,28 @@
+        <!-- 右侧滑出抽屉 -->
+        <div class="playback-drawer-backdrop" id="playbackDrawerBackdrop"></div>
+        <aside class="playback-drawer" id="playbackDrawer">
+          <div class="playback-drawer-head">
+            <button id="playbackDrawerBack" class="playback-icon-btn" type="button" title="返回">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="playback-drawer-title">
+              <strong id="playbackDrawerTitle">浏览内容</strong>
+              <span id="playbackDrawerSubtitle"></span>
+            </div>
+            <button id="playbackDrawerPlayAllHeader" class="playback-drawer-play-all-btn" type="button" title="顺序播放时从第一首开始，随机播放时从随机一首开始" hidden>播放全部</button>
+            <button id="playbackDrawerRefresh" class="playback-icon-btn" type="button" title="换一批" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <button id="playbackDrawerClose" class="playback-icon-btn" type="button" title="关闭">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="playback-drawer-body" id="playbackDrawerBody">
+            <p class="hint" style="text-align:center;padding:40px 0;">点击左侧卡片浏览内容</p>
+          </div>
+          <div class="playback-drawer-actions" id="playbackDrawerActions" hidden>
+            <button id="playbackDrawerPlayAll" type="button">播放全部</button>
+            <button id="playbackDrawerShuffleAll" type="button">随机播放</button>
+          </div>
+        </aside>
+

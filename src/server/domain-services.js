@@ -40,6 +40,8 @@ function createDomainServices({ db, settingsStore, onGiftFlushed, onOvertimeUpda
     cooldownByUser: new Map(),
     blindBoxCache: null
   };
+  // schema 版本只在启动迁移时变化，运行时缓存避免每次 /api/health 重算 5 个 SELECT。
+  let schemaVersionsCache = null;
 
   // 冷却记录重启后从 DB 恢复，避免观众靠重启绕过冷却
   const restoredCooldowns = cooldownStore.loadInto(state.cooldownByUser);
@@ -160,7 +162,10 @@ function createDomainServices({ db, settingsStore, onGiftFlushed, onOvertimeUpda
       queue.ensureUnified();
       return result;
     },
-    getSchemaVersions: () => database.getSchemaVersions(db),
+    getSchemaVersions: () => {
+      if (!schemaVersionsCache) schemaVersionsCache = database.getSchemaVersions(db);
+      return schemaVersionsCache;
+    },
     getRetentionStats: () => retention.getRetentionStats(db),
     runRetention(options = {}) {
       const policy = options.policy || retention.readRetentionPolicy(settingsStore.getSettings());

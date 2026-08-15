@@ -1,10 +1,13 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const STORAGE_KEY = 'admin.streamerPlanner.v1';
@@ -25,7 +28,7 @@ function createTodoSandbox(stored) {
 }
 
 test('streamer planner provides beginner-friendly periods and task controls', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const html = readAdminHtml();
 
   assert.match(html, /<strong>主播计划<\/strong>\s*<small>安排今天、本周与本月<\/small>/);
   assert.match(html, /id="plannerTaskForm"[\s\S]*id="plannerTaskTitle"[\s\S]*id="plannerTaskPeriod"[\s\S]*id="plannerTaskCategory"/);
@@ -35,10 +38,7 @@ test('streamer planner provides beginner-friendly periods and task controls', ()
 });
 
 test('streamer planner timeline keeps its three periods readable on narrow screens', () => {
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
-    'utf8'
-  );
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
   assert.match(styles, /\.planner-timeline\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(styles, /@media \(max-width: 1100px\)[\s\S]*?\.planner-timeline\s*\{[^}]*grid-template-columns:\s*1fr/);

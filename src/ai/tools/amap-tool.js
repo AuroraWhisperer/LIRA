@@ -1,13 +1,13 @@
 'use strict';
 
 const { fetchJson, joinApiUrl, createPublicError } = require('../http-client');
-const { requireApiQuota } = require('../api-quota-store');
+const { withApiQuota } = require('../api-quota-store');
 
 function createAmapTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const quotaStore = options.quotaStore;
 
-  async function request(config, pathName, params) {
+  async function request(config, pathName, params, transform = (payload) => payload) {
     if (!config.amapApiHost || !config.amapApiKey) {
       throw createPublicError('AMAP_NOT_CONFIGURED', '高德地图尚未配置。');
     }
@@ -16,36 +16,38 @@ function createAmapTool(options = {}) {
     for (const [key, value] of Object.entries(params || {})) {
       if (value !== '' && value !== null && value !== undefined) url.searchParams.set(key, String(value));
     }
-    requireApiQuota(quotaStore, pathName === '/v3/place/text' ? 'amap_search' : 'amap_lbs');
-    const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
-    if (String(payload.status || '1') !== '1') {
-      throw createPublicError(String(payload.infocode || 'AMAP_ERROR'), '高德地图查询失败。');
-    }
-    return payload;
+    const category = pathName === '/v3/place/text' ? 'amap_search' : 'amap_lbs';
+    return withApiQuota(quotaStore, category, async () => {
+      const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
+      if (String(payload.status || '1') !== '1') {
+        throw createPublicError(String(payload.infocode || 'AMAP_ERROR'), '高德地图查询失败。');
+      }
+      return transform(payload);
+    });
   }
 
   async function resolveLocation(config, input) {
-    const payload = await request(config, '/v3/geocode/geo', { address: input.address, city: input.city });
-    const matches = (payload.geocodes || []).slice(0, 5).map((item) => ({
-      formattedAddress: item.formatted_address || '', province: item.province || '', city: item.city || '',
-      district: item.district || '', adcode: item.adcode || '', location: item.location || ''
-    }));
-    if (!matches.length) throw createPublicError('AMAP_LOCATION_NOT_FOUND', '没有查到这个地点。');
-    return { ambiguous: matches.length > 1, matches };
+    return request(config, '/v3/geocode/geo', { address: input.address, city: input.city }, (payload) => {
+      const matches = (payload.geocodes || []).slice(0, 5).map((item) => ({
+        formattedAddress: item.formatted_address || '', province: item.province || '', city: item.city || '',
+        district: item.district || '', adcode: item.adcode || '', location: item.location || ''
+      }));
+      if (!matches.length) throw createPublicError('AMAP_LOCATION_NOT_FOUND', '没有查到这个地点。');
+      return { ambiguous: matches.length > 1, matches };
+    });
   }
 
   async function searchPlaces(config, input) {
-    const payload = await request(config, '/v3/place/text', {
+    return request(config, '/v3/place/text', {
       keywords: input.keywords, city: input.district || input.city, citylimit: input.city || input.district ? 'true' : 'false',
       location: input.location, offset: 5, page: 1, extensions: 'base'
-    });
-    return {
+    }, (payload) => ({
       count: Number(payload.count) || 0,
       places: (payload.pois || []).slice(0, 5).map((poi) => ({
         id: poi.id || '', name: poi.name || '', type: poi.type || '', address: poi.address || '',
         location: poi.location || '', distance: poi.distance || '', adname: poi.adname || ''
       }))
-    };
+    }));
   }
 
   async function getRoute(config, input) {
@@ -55,10 +57,9 @@ function createAmapTool(options = {}) {
     ]);
     const mode = ['driving', 'transit', 'walking'].includes(input.mode) ? input.mode : 'driving';
     const pathName = mode === 'transit' ? '/v3/direction/transit/integrated' : `/v3/direction/${mode}`;
-    const payload = await request(config, pathName, {
+    return request(config, pathName, {
       origin: origin.location, destination: destination.location, city: input.city, extensions: 'base'
-    });
-    return normalizeRoute(payload.route, mode, origin, destination);
+    }, (payload) => normalizeRoute(payload.route, mode, origin, destination));
   }
 
   async function ensureCoordinate(config, value, city) {
@@ -82,9 +83,13 @@ function createAmapTool(options = {}) {
     if (!config.amapApiKey) {
       throw createPublicError('AMAP_KEY_MISSING', '请先填写高德 Web 服务 Key。');
     }
-    let payload;
     try {
-      payload = await request(config, '/v3/geocode/geo', { address: '天安门', city: '北京' });
+      return await request(config, '/v3/geocode/geo', { address: '天安门', city: '北京' }, (payload) => {
+        if (!Array.isArray(payload?.geocodes) || !payload.geocodes[0]?.location) {
+          throw createPublicError('AMAP_INVALID_RESPONSE', '高德地图返回格式不正确。');
+        }
+        return { provider: 'amap' };
+      });
     } catch (error) {
       if (['10001', '10002', '10003', '10007', '10008', '10009', '10010'].includes(String(error?.code || ''))) {
         throw createPublicError('AMAP_AUTH_FAILED', '高德地图拒绝了该 Web 服务 Key。');
@@ -92,10 +97,6 @@ function createAmapTool(options = {}) {
       if (String(error?.code || '').startsWith('AMAP_')) throw error;
       throw createPublicError('AMAP_REJECTED', '高德地图返回了业务错误。');
     }
-    if (!Array.isArray(payload?.geocodes) || !payload.geocodes[0]?.location) {
-      throw createPublicError('AMAP_INVALID_RESPONSE', '高德地图返回格式不正确。');
-    }
-    return { provider: 'amap' };
   }
 
   return { resolveLocation, searchPlaces, getRoute, testConnection };

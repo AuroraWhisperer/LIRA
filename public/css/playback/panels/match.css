@@ -1,0 +1,76 @@
+/* ===== 匹配面板 ===== */
+.playback-match-panel {
+  grid-area: match;
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(22, 31, 43, 0.06);
+}
+
+.playback-match-panel > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 16px 18px;
+}
+
+.playback-match-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.playback-match-panel .details-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.playback-match-panel .details-indicator::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 160ms ease;
+}
+
+.playback-match-panel[open] .details-indicator::after {
+  transform: rotate(225deg) translate(-2px, -1px);
+}
+
+.playback-match-results {
+  display: grid;
+  gap: 8px;
+}
+
+.match-result-row {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  padding: 10px 12px;
+}
+
+.match-result-row.accepted {
+  border-color: rgba(33, 182, 168, 0.4);
+  background: var(--color-success-light);
+}
+
+.match-result-row strong {
+  color: var(--text);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.match-result-row span,
+.match-result-row small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+

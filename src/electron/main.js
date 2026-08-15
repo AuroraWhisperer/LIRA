@@ -11,10 +11,15 @@ const bilibiliAuth = require('./bilibili-auth');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
 const loginWin = require('./login-window');
 const lyricWin = require('./lyric-window');
+const { createDesktopRuntime } = require('./desktop-runtime');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
+const { registerLocalMediaProtocol } = require('./local-media-protocol');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
 const { installTerminalLog, formatLogLine } = require('./terminal-log');
+const { registerUpdateIpc } = require('./ipc/update-ipc');
+const { registerMusicIpc } = require('./ipc/music-ipc');
+const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const serverRuntimeModule = require('../server');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
@@ -29,6 +34,7 @@ let gracefulQuitStarted = false;
 let forceQuitTimer = null;
 let musicMediaHeadersConfigured = false;
 let localMediaAccess = null;
+let musicProviderRegistry = null;
 let dataDir = '';
 let logDir = '';
 let logFile = '';
@@ -39,6 +45,7 @@ let updateState = {
   status: 'idle', message: '尚未检查更新', version: '',
   canDownload: false, canInstall: false, progress: null, updateVersion: ''
 };
+let lastUpdateStatus = '';
 
 // ---- app lifecycle ----
 
@@ -108,9 +115,53 @@ async function startDesktopApp() {
   migrateUserDataFromAppData();
   configureMenu();
   configureLocalMediaProtocol();
-  configureUpdateIpc();
-  configureMusicIpc();
-  configureBilibiliIpc();
+  registerUpdateIpc({
+    ipcMain, app, shell,
+    getDataDir: () => dataDir,
+    getLogFile: () => logFile,
+    getLogDir: () => logDir,
+    getTerminalLogFile: () => terminalLogFile,
+    getUpdateState: () => updateState,
+    githubRepoUrl: GITHUB_REPO_URL,
+    checkForUpdates,
+    downloadUpdate,
+    installUpdate,
+    getShutdownApplication: () => shutdownApplication,
+    getMainWindow: () => mainWindow,
+    normalizeGiftDisplayTrace,
+    writeLog
+  });
+  registerMusicIpc({
+    ipcMain, dialog,
+    getMainWindow: () => mainWindow,
+    getDesktopBaseUrl: () => desktopBaseUrl,
+    getDesktopRuntime: () => desktopRuntime,
+    getAppDataPath: () => app.getPath('appData'),
+    getLocalMediaAccess: () => localMediaAccess,
+    getMusicAuthState,
+    loginMusicAccount,
+    logoutMusicAccount,
+    openLyricWindow,
+    closeLyricWindow,
+    updateLyricWindow,
+    setLyricWindowLocked,
+    getMusicProviderRegistry,
+    hasExactOrigin,
+    isPathAllowedForLocalMedia,
+    acknowledgePlaybackFlush: playbackFlush.acknowledgePlaybackFlush,
+    writePlaybackSnapshot: (payload, clientId) => {
+      if (!desktopRuntime || typeof desktopRuntime.persistPlaybackSnapshot !== 'function') {
+        return { ok: false, error: 'Playback store not available' };
+      }
+      return desktopRuntime.persistPlaybackSnapshot(payload, clientId);
+    }
+  });
+  registerBilibiliIpc({
+    ipcMain,
+    getAuthState: getBilibiliAuthState,
+    login: loginBilibiliAccount,
+    logout: logoutBilibiliAccount
+  });
   configureMusicMediaRequestHeaders();
   configureBilibiliMediaRequestHeaders();
   updateMgr.configureAutoUpdater({ onStateChange: onUpdateStateChange, writeLog: writeLog });
@@ -151,39 +202,6 @@ async function startDesktopApp() {
     };
     sendUpdateState();
   }
-}
-
-function createDesktopRuntime(serverModule, options = {}) {
-  if (isServerRuntime(serverModule)) return serverModule;
-  if (serverModule && typeof serverModule.createServerRuntime === 'function') {
-    return serverModule.createServerRuntime(options);
-  }
-
-  if (!serverModule || typeof serverModule.startServer !== 'function' ||
-      typeof serverModule.shutdownApplication !== 'function') {
-    throw new Error('Server runtime is not available.');
-  }
-
-  return {
-    start: (startOptions) => serverModule.startServer(startOptions),
-    stop: (stopOptions) => serverModule.shutdownApplication(stopOptions),
-    setPreShutdownHook: typeof serverModule.setPreShutdownHook === 'function'
-      ? (hook) => serverModule.setPreShutdownHook(hook)
-      : () => {},
-    persistPlaybackSnapshot: typeof serverModule.persistPlaybackSnapshot === 'function'
-      ? (payload, clientId) => serverModule.persistPlaybackSnapshot(payload, clientId)
-      : null,
-    getSetting: typeof serverModule.getSetting === 'function'
-      ? (key) => serverModule.getSetting(key)
-      : () => undefined
-  };
-}
-
-function isServerRuntime(value) {
-  return Boolean(value &&
-    typeof value.start === 'function' &&
-    typeof value.stop === 'function' &&
-    typeof value.setPreShutdownHook === 'function');
 }
 
 function configureDesktopEnvironment() {
@@ -242,76 +260,7 @@ function isPathAllowedForLocalMedia(filePath) {
 }
 
 function configureLocalMediaProtocol() {
-  protocol.handle('local-media', function (request) {
-    // Parse URL: local-media://media/<base64url-encoded-path>
-    var urlPath = '';
-    try { urlPath = new URL(request.url).pathname; } catch (_) { return new Response('Bad URL', { status: 400 }); }
-    var encoded = urlPath.replace(/^\/+/, '');
-    var filePath = '';
-    try { filePath = Buffer.from(encoded, 'base64url').toString('utf8'); } catch (_) {
-      return new Response('Invalid path encoding', { status: 400 });
-    }
-
-    // Validate path exists within allowed directories
-    if (!filePath || !fs.existsSync(filePath)) {
-      return new Response('File not found', { status: 404 });
-    }
-
-    // Validate path is within the app data directory or an allowed media source
-    if (!isPathAllowedForLocalMedia(filePath)) {
-      return new Response('Forbidden', { status: 403 });
-    }
-
-    var stat = fs.statSync(filePath);
-    var fileSize = stat.size;
-    var ext = path.extname(filePath).toLowerCase();
-    var mimeTypes = {
-      '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav',
-      '.aac': 'audio/aac', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4',
-      '.wma': 'audio/x-ms-wma'
-    };
-    var contentType = mimeTypes[ext] || 'application/octet-stream';
-
-    // Handle Range requests for seeking
-    var rangeHeader = request.headers.get('range');
-    if (rangeHeader) {
-      var match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
-      if (match) {
-        var start = parseInt(match[1], 10);
-        var end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
-        if (start >= fileSize) {
-          return new Response('', { status: 416, headers: { 'Content-Range': 'bytes */' + fileSize } });
-        }
-        end = Math.min(end, fileSize - 1);
-        var chunkSize = end - start + 1;
-        var buffer = Buffer.alloc(chunkSize);
-        var fd = fs.openSync(filePath, 'r');
-        try { fs.readSync(fd, buffer, 0, chunkSize, start); } finally { fs.closeSync(fd); }
-        return new Response(buffer, {
-          status: 206,
-          headers: {
-            'Content-Type': contentType,
-            'Content-Range': 'bytes ' + start + '-' + end + '/' + fileSize,
-            'Content-Length': String(chunkSize),
-            'Accept-Ranges': 'bytes',
-            'Cache-Control': 'no-store'
-          }
-        });
-      }
-    }
-
-    // Full file response
-    var fullBuffer = fs.readFileSync(filePath);
-    return new Response(fullBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Content-Length': String(fileSize),
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'no-store'
-      }
-    });
-  });
+  registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia);
 }
 
 function createMainWindow(baseUrl) {
@@ -376,152 +325,6 @@ function createMainWindow(baseUrl) {
 
 // ---- IPC handlers ----
 
-function configureUpdateIpc() {
-  ipcMain.handle('desktop:get-info', function () {
-    return {
-      version: app.getVersion(), isPackaged: app.isPackaged,
-      platform: process.platform, dataDir: dataDir, logFile: logFile,
-      terminalLogFile: terminalLogFile,
-      githubRepoUrl: GITHUB_REPO_URL, updateState: updateState
-    };
-  });
-  ipcMain.handle('desktop:check-for-updates', function () {
-    writeLog('ipc', { action: 'check-for-updates' });
-    return checkForUpdates();
-  });
-  ipcMain.handle('desktop:download-update', function () {
-    writeLog('ipc', { action: 'download-update' });
-    return downloadUpdate();
-  });
-  ipcMain.handle('desktop:install-update', function () {
-    writeLog('ipc', { action: 'install-update' });
-    return installUpdate();
-  });
-  ipcMain.handle('desktop:open-data-dir', function () { return dataDir ? shell.openPath(dataDir) : ''; });
-  ipcMain.handle('desktop:open-log-dir', function () { return logDir ? shell.openPath(logDir) : ''; });
-  ipcMain.handle('desktop:open-github', function () { return shell.openExternal(GITHUB_REPO_URL); });
-  ipcMain.handle('desktop:set-auto-update', function (_event, enabled) {
-    // 持久化由渲染进程通过 /api/settings 完成，此处仅记录日志
-    writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
-  });
-  ipcMain.handle('desktop:gift-display', function (_event, gift) {
-    var trace = normalizeGiftDisplayTrace(gift);
-    var line = `[Bilibili][GiftDisplay] action=toast-requested trace=${JSON.stringify(trace)}`;
-    console.log(line);
-    writeLog('gift-display', trace);
-    return { ok: true };
-  });
-  ipcMain.handle('desktop:restart', async function () {
-    writeLog('ipc', { action: 'restart' });
-    try {
-      if (shutdownApplication) {
-        await shutdownApplication({ exitProcess: false });
-      }
-    } catch (_) {
-      // Server may already be stopped.
-    }
-    app.relaunch();
-    app.exit(0);
-  });
-  ipcMain.handle('desktop:close-window', function () {
-    writeLog('ipc', { action: 'close-window' });
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
-  });
-  ipcMain.handle('desktop:minimize-window', function () {
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
-  });
-  ipcMain.handle('desktop:maximize-window', function () {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMaximized()) mainWindow.unmaximize();
-      else mainWindow.maximize();
-    }
-  });
-}
-
-function configureMusicIpc() {
-  ipcMain.handle('music:get-auth-state', function (_e, p) { return getMusicAuthState(p); });
-  ipcMain.handle('music:login', function (_e, p) { return loginMusicAccount(p); });
-  ipcMain.handle('music:logout', function (_e, p) { return logoutMusicAccount(p); });
-  ipcMain.handle('music:open-lyric-window', function () { return openLyricWindow(); });
-  ipcMain.handle('music:close-lyric-window', function () { return closeLyricWindow(); });
-  ipcMain.handle('music:update-lyric-window', function (_e, s) { return updateLyricWindow(s); });
-  ipcMain.handle('music:set-lyric-window-locked', function (_e, l) { return setLyricWindowLocked(l); });
-  ipcMain.handle('music:provider-health', async function (_e, platform) {
-    var createMusicProviderRegistry = require('../music/provider-registry').createMusicProviderRegistry;
-    return createMusicProviderRegistry({
-      getAuthState: getMusicAuthState,
-      getCookieHeader: getMusicCookieHeader
-    }).healthCheck(platform);
-  });
-  ipcMain.handle('music:select-local-files', async function () {
-    var result = await dialog.showOpenDialog(mainWindow, {
-      title: '选择本地音频文件',
-      properties: ['openFile', 'multiSelections'],
-      filters: [{ name: '音频文件', extensions: ['mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a', 'wma'] }]
-    });
-    if (result.canceled) return { ok: true, canceled: true, files: [] };
-    var selectedPaths = result.filePaths || [];
-    localMediaAccess.allowPaths(selectedPaths);
-    var files = selectedPaths.map(function (p) {
-      return { path: p, name: path.basename(p), ext: path.extname(p) };
-    });
-    return { ok: true, canceled: false, files: files };
-  });
-  ipcMain.handle('music:select-wesing-cache', async function (_e) {
-    var senderUrl = (_e && _e.senderFrame) ? _e.senderFrame.url : '';
-    if (!hasExactOrigin(senderUrl, desktopBaseUrl)) {
-      return { ok: false, canceled: true, path: '', error: 'Invalid request origin' };
-    }
-    var savedPath = desktopRuntime && typeof desktopRuntime.getSetting === 'function'
-      ? desktopRuntime.getSetting('weSingCachePath')
-      : '';
-    var result = await dialog.showOpenDialog(mainWindow, {
-      title: '选择全民 K 歌 WeSingCache 目录',
-      defaultPath: savedPath || app.getPath('appData'),
-      properties: ['openDirectory']
-    });
-    if (result.canceled) return { ok: true, canceled: true, path: '' };
-    return { ok: true, canceled: false, path: (result.filePaths || [])[0] || '' };
-  });
-  ipcMain.handle('music:resolve-local-media-urls', async function (_e, paths) {
-    // 校验请求来源
-    var senderUrl = (_e && _e.senderFrame) ? _e.senderFrame.url : '';
-    if (!hasExactOrigin(senderUrl, desktopBaseUrl)) {
-      return { results: {} };
-    }
-    var results = {};
-    var list = Array.isArray(paths) ? paths : [];
-    for (var i = 0; i < list.length; i++) {
-      var p = list[i];
-      try {
-        var resolved = path.resolve(p);
-        if (fs.existsSync(resolved) && isPathAllowedForLocalMedia(resolved)) {
-          var encoded = Buffer.from(p, 'utf8').toString('base64url');
-          results[p] = { ok: true, url: 'local-media://media/' + encoded };
-        } else {
-          results[p] = { ok: false, reason: fs.existsSync(resolved) ? 'not-allowed' : 'missing' };
-        }
-      } catch (_err) {
-        results[p] = { ok: false, reason: 'error' };
-      }
-    }
-    return { results: results };
-  });
-  ipcMain.handle('playback:save-state', function (_e, data) {
-    if (!desktopRuntime || typeof desktopRuntime.persistPlaybackSnapshot !== 'function') {
-      return { ok: false, error: 'Playback store not available' };
-    }
-    return desktopRuntime.persistPlaybackSnapshot(
-      (data && data.payload) || {},
-      (data && data.clientId) || 'default'
-    );
-  });
-  ipcMain.handle('playback:flush-ack', function () {
-    playbackFlush.acknowledgePlaybackFlush();
-    return { ok: true };
-  });
-}
-
 function configureMusicMediaRequestHeaders() {
   if (musicMediaHeadersConfigured) return;
   musicMediaHeadersConfigured = true;
@@ -542,12 +345,6 @@ function configureMusicMediaRequestHeaders() {
     }
     callback({ requestHeaders: headers });
   });
-}
-
-function configureBilibiliIpc() {
-  ipcMain.handle('bilibili:get-auth-state', function () { return getBilibiliAuthState(); });
-  ipcMain.handle('bilibili:login', function () { return loginBilibiliAccount(); });
-  ipcMain.handle('bilibili:logout', function () { return logoutBilibiliAccount(); });
 }
 
 function configureBilibiliMediaRequestHeaders() {
@@ -574,6 +371,17 @@ function getMusicAuthState(platform) {
 
 function getMusicCookieHeader(platform) {
   return authMgr.getMusicCookieHeader(platform);
+}
+
+// 复用同一个 provider registry，避免每次 health 检查都重新实例化（状态不一致 + 无谓开销）。
+function getMusicProviderRegistry() {
+  if (!musicProviderRegistry) {
+    musicProviderRegistry = require('../music/provider-registry').createMusicProviderRegistry({
+      getAuthState: getMusicAuthState,
+      getCookieHeader: getMusicCookieHeader
+    });
+  }
+  return musicProviderRegistry;
 }
 
 function logoutMusicAccount(platform) {
@@ -706,6 +514,13 @@ function setUpdateState(nextState) {
 function sendUpdateState() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('desktop:update-state', updateState);
+    // 让预留的 desktop:show-update-page 通道生效：更新可用/已下载时主动切到更新页。
+    if (updateState.status !== lastUpdateStatus) {
+      lastUpdateStatus = updateState.status;
+      if (updateState.status === 'available' || updateState.status === 'downloaded') {
+        mainWindow.webContents.send('desktop:show-update-page');
+      }
+    }
   }
 }
 

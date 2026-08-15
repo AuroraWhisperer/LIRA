@@ -1,5 +1,7 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -148,7 +150,7 @@ test('song library requires every selected complete tag and composes with catego
 });
 
 test('song library table displays the language column for rows and empty results', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const html = readAdminHtml();
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
   const header = html.match(/<tbody id="songsTable"><\/tbody>[\s\S]*?<thead>|<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0]
     ?? html.match(/<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0];

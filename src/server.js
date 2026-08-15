@@ -1,4 +1,4 @@
-﻿// 编写人：Aurora
+// 编写人：Aurora
 // 当前项目版本：1.4.6
 'use strict';
 
@@ -8,35 +8,21 @@ const childProcess = require('node:child_process');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const apiRoutes = require('./server/api-routes');
+const { createApiContext: buildApiContext } = require('./server/api-context');
+const { createBilibiliClient: buildBilibiliClient } = require('./server/bilibili-client');
+const { buildMusicRuntime } = require('./server/music-runtime');
+const { buildAiRuntime } = require('./server/ai-runtime');
+const { createServerCompatibility } = require('./server/compatibility-runtime');
 const httpUtils = require('./server/http-utils');
 const lifecycle = require('./server/lifecycle');
-const systemMetrics = require('./server/system-metrics');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
 const sharedUtils = require('./shared/utils');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const settingsStoreModule = require('./storage/settings-store');
-const { createMusicProviderRegistry } = require('./music/provider-registry');
-const { clearMusicCache, getMusicCacheStats } = require('./music/music-cache');
-const { createLyricsService } = require('./music/lyrics-service');
-const { normalizeLyricTimeline } = require('./music/lyric-timeline');
-const { createWeSingCapture } = require('./music/wesing-capture');
-const { createWeSingOnlineLyricResolver } = require('./music/wesing-online-lyrics');
-const { BilibiliDanmakuClient } = require('./bilibili/danmaku-client');
+const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
-const { createAiConfigStore } = require('./ai/config-store');
-const { createAiApiQuotaStore } = require('./ai/api-quota-store');
-const { createElectronSecretCodec } = require('./ai/secret-codec');
-const { createDeepSeekClient } = require('./ai/deepseek-client');
-const { createAiRequestLogger } = require('./ai/request-logger');
-const { createQWeatherTool } = require('./ai/tools/qweather-tool');
-const { createAmapTool } = require('./ai/tools/amap-tool');
-const { createWebSearchTool } = require('./ai/tools/web-search-tool');
-const { getCurrentTime } = require('./ai/tools/current-time-tool');
-const { createXiaomiAiService } = require('./ai/xiaomi-ai-service');
-const { createDanmakuDeliveryVerifier } = require('./ai/danmaku-delivery-verifier');
-const { isBilibiliCommandText } = require('./bilibili/danmaku/command-text');
 const giftService = require('./bilibili/gift');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
@@ -74,27 +60,8 @@ function createServerRuntime(runtimeOptions = {}) {
   const superChatDb = db.superChatDb;
   const giftDb = db.giftDb;
 
-  const queueScrollSpeedRangeVersion = songDb.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'queueScrollSpeedRangeVersion'
-  `).get();
-  const queueFontSizeRangeVersion = songDb.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'queueFontSizeRangeVersion'
-  `).get();
-  const songScrollSpeedRow = songDb.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'scrollSeconds'
-  `).get();
-  const songScrollSpeedRangeVersion = songDb.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'songScrollSpeedRangeVersion'
-  `).get();
-  const settingsStore = settingsStoreModule.createSettingsStore(songDb);
+  const settingsBootstrap = prepareSettingsBootstrap(songDb, settingsStoreModule);
+  const settingsStore = settingsBootstrap.settingsStore;
   let publishOvertimeUpdate = () => {};
   const domainServices = createDomainServices({
     db,
@@ -106,28 +73,15 @@ function createServerRuntime(runtimeOptions = {}) {
     onOvertimeUpdate: update => publishOvertimeUpdate(update)
   });
 
-  const lyricsService = createLyricsService({
-    apiCacheDir: MUSIC_API_CACHE_DIR,
-    lyricCacheDir: MUSIC_LYRIC_CACHE_DIR
+  const webSocketHub = wsTransport.createWebSocketHub();
+  const musicRuntime = buildMusicRuntime({
+    dataDir: { apiCacheDir: MUSIC_API_CACHE_DIR, lyricCacheDir: MUSIC_LYRIC_CACHE_DIR },
+    runtimeOptions,
+    settingsStore,
+    webSocketHub
   });
   giftService.repairGiftV2Events({ db });
-  settingsStoreModule.migrateQueueScrollSpeedSetting(
-    songDb,
-    queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value
-  );
-  settingsStoreModule.migrateSongScrollSpeedSetting(
-    songDb,
-    songScrollSpeedRangeVersion && songScrollSpeedRangeVersion.value
-      ? songScrollSpeedRangeVersion.value
-      : songScrollSpeedRow ? '' : '2'
-  );
-  settingsStoreModule.migrateQueueFontSizeSettings(
-    songDb,
-    queueFontSizeRangeVersion && queueFontSizeRangeVersion.value
-  );
-  settingsStoreModule.migrateSongBoardFontSizeSetting(songDb);
-  settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);
-  settingsStoreModule.migrateBlindBoxConfig(songDb);
+  settingsBootstrap.runMigrations();
   domainServices.songs.ensureCategory('默认');
   domainServices.queue.clearOnStartup();
   runStartupRetention();
@@ -144,51 +98,11 @@ function createServerRuntime(runtimeOptions = {}) {
   let bilibiliAuthProvider = null; // { getAuthState, getCookieHeader, getUid }
   let bilibiliAuthCache = { cookieHeader: '', uid: 0 }; // 同步缓存，createBilibiliClient 同频读取
 
-  const webSocketHub = wsTransport.createWebSocketHub();
   publishOvertimeUpdate = update => webSocketHub.broadcast({
     type: 'overtime:update',
     reason: update.reason,
     state: update.state,
     ...(update.adjustment ? { adjustment: update.adjustment } : {})
-  });
-  let lyricState = {
-    trackTitle: '', artists: [], lineText: '', translation: '', words: [],
-    currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
-  };
-  let lyricTimeline = {
-    trackTitle: '', artists: [], status: 'idle', lines: []
-  };
-  const publishLyricTimeline = (input) => {
-    lyricTimeline = normalizeLyricTimeline(input);
-    webSocketHub.broadcast({ type: 'lyric-timeline', timeline: lyricTimeline });
-    return lyricTimeline;
-  };
-  let musicRegistry = createMusicProviderRegistry();
-  const resolveWeSingOnlineLyrics = createWeSingOnlineLyricResolver({
-    getRegistry: () => musicRegistry,
-    lyricsService
-  });
-  const weSingCapture = createWeSingCapture({
-    cachePath: settingsStore.getSettings().weSingCachePath,
-    lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
-    platform: runtimeOptions.weSingPlatform || process.platform,
-    monitorFactory: runtimeOptions.weSingMonitorFactory,
-    resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
-    saveCachePath(cachePath) {
-      settingsStore.setSetting('weSingCachePath', cachePath);
-    },
-    saveLyricOffsetMs(offsetMs) {
-      settingsStore.setSetting('weSingLyricOffsetMs', String(offsetMs));
-    },
-    onState(state) {
-      webSocketHub.broadcast({ type: 'wesing-state', state });
-      if (!state.active || !state.lyricState) return;
-      lyricState = state.lyricState;
-      webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
-    },
-    onTimeline(timeline) {
-      if (timeline.active) publishLyricTimeline(timeline);
-    }
   });
   let bilibiliClient = null;
   let isShuttingDown = false;
@@ -237,28 +151,11 @@ function createServerRuntime(runtimeOptions = {}) {
       return new BilibiliApiClient(roomId, auth);
     }
   });
-  const aiConfigStore = createAiConfigStore(
+  const aiRuntime = buildAiRuntime({
     songDb,
-    runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage)
-  );
-  const aiApiQuotaStore = createAiApiQuotaStore(songDb);
-  const aiDanmakuDeliveryVerifier = createDanmakuDeliveryVerifier();
-  const aiRequestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ filePath: AI_LOG_PATH });
-  const xiaomiAi = createXiaomiAiService({
-    store: aiConfigStore,
-    quotaStore: aiApiQuotaStore,
-    deepseek: createDeepSeekClient({
-      fetchImpl: runtimeOptions.fetchImpl,
-      logEvent: (event, options) => aiRequestLogger.log(event, options)
-    }),
-    tools: {
-      qweather: createQWeatherTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
-      amap: createAmapTool({ fetchImpl: runtimeOptions.fetchImpl, quotaStore: aiApiQuotaStore }),
-      webSearch: createWebSearchTool({ fetchImpl: runtimeOptions.fetchImpl }),
-      getCurrentTime
-    },
-    sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),
-    waitForDelivery: (delivery) => aiDanmakuDeliveryVerifier.waitForDelivery(delivery)
+    runtimeOptions,
+    aiLogPath: AI_LOG_PATH,
+    danmakuSender
   });
 
   const server = http.createServer(async (req, res) => {
@@ -293,120 +190,44 @@ function createServerRuntime(runtimeOptions = {}) {
 
   // 按领域分组注入路由层，避免上下文退化成平铺的 Fat Context
   function createApiContext() {
-    return {
+    return buildApiContext({
       maxBodyBytes: MAX_BODY_BYTES,
       sessionToken,
       broadcastSnapshot,
-      songs: {
-        list: domainServices.songs.list,
-        save: domainServices.songs.save,
-        delete: domainServices.songs.delete,
-        toggle: domainServices.songs.toggle,
-        import: domainServices.songs.import,
-        listCategories: domainServices.songs.listCategories
-      },
-      queue: {
-        add: domainServices.queue.add,
-        handleAction: domainServices.queue.handleAction
-      },
-      superChat: {
-        handleAction: domainServices.superChats.handleAction
-      },
-      gifts: {
-        resetSprint: domainServices.gifts.resetSprint,
-        getHistory: (options) => domainServices.gifts.getHistory(options),
-        getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
-        getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
-        search: domainServices.gifts.search
-      },
-      overtime: {
-        getOverview: domainServices.overtime.getOverview,
-        setTime: domainServices.overtime.setTime,
-        act: domainServices.overtime.act,
-        setBackground: domainServices.overtime.setBackground,
-        replaceRules: domainServices.overtime.replaceRules
-      },
-      debug: {
-        getGiftMessages: () => messageBuffer.getAll(),
-        getGiftMessageStats: () => messageBuffer.getStats(),
-        clearGiftMessages: () => messageBuffer.clear()
-      },
-      data: {
-        clearSongLibrary: domainServices.data.clearSongLibrary,
-        clearSuperChats: domainServices.data.clearSuperChats,
-        clearPlayback: domainServices.data.clearPlayback,
-        clearGifts: domainServices.data.clearGifts,
-        clearAll: domainServices.data.clearAll,
-        getSchemaVersions: domainServices.data.getSchemaVersions,
-        getRetentionStats: domainServices.data.getRetentionStats,
-        runRetention: domainServices.data.runRetention
-      },
-      playback: domainServices.playback,
-      playbackLyrics: {
-        publish(state) {
-          lyricState = state;
-          webSocketHub.broadcast({ type: 'lyric-state', state });
-        },
-        publishTimeline(timeline) {
-          return publishLyricTimeline(timeline);
-        }
-      },
-      weSing: {
-        getStatus: weSingCapture.getStatus,
-        configure: weSingCapture.setCachePath,
-        setLyricOffsetMs: weSingCapture.setLyricOffsetMs,
-        setActive: weSingCapture.setActive,
-        refresh: weSingCapture.refresh
-      },
-      theme: domainServices.theme,
+      domainServices,
+      messageBuffer,
+      publishLyricState: musicRuntime.publishLyricState,
+      publishLyricTimeline: musicRuntime.publishLyricTimeline,
+      weSingCapture: musicRuntime.weSingCapture,
       bilibili: {
         liveStatus,
         configure: configureBilibiliListener,
         reconnect: reconnectBilibiliListener,
         updateStatus: updateLiveStatus,
         auth: bilibiliAuthProvider,
-        getDanmakuSenderState: () => danmakuSender.getState(),
-        sendDanmaku: (input) => danmakuSender.send(input)
+        danmakuSender
       },
-      ai: {
-        getConfig: () => aiConfigStore.getPublicConfig(),
-        updateConfig: (input) => aiConfigStore.updateConfig(input),
-        getStatus: () => xiaomiAi.getStatus(),
-        listModels: (input) => xiaomiAi.listModels(input),
-        test: () => xiaomiAi.testConfiguration(),
-        testProvider: (provider) => xiaomiAi.testProvider(provider)
-      },
-      settings: {
-        defaults: DEFAULT_SETTINGS,
-        get: settingsStore.getSettings,
-        set: settingsStore.setSetting
-      },
+      ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
+      settings: { defaults: DEFAULT_SETTINGS, store: settingsStore },
       system: {
-        getHealth: () => ({
-          serviceId: lifecycle.SERVICE_ID,
-          rootDir: ROOT_DIR,
-          dataDir: DATA_DIR,
-          songDb: SONG_DB_PATH,
-          superChatDb: SUPER_CHAT_DB_PATH,
-          giftDb: GIFT_DB_PATH,
-          musicDb: MUSIC_DB_PATH,
-          checkinDb: CHECKIN_DB_PATH,
-          schemaVersions: domainServices.data.getSchemaVersions(),
-          desktop: process.env.ELECTRON_DESKTOP === '1',
-          pid: process.pid,
-          liveStatus
-        }),
+        rootDir: ROOT_DIR,
+        dataDir: DATA_DIR,
+        songDbPath: SONG_DB_PATH,
+        superChatDbPath: SUPER_CHAT_DB_PATH,
+        giftDbPath: GIFT_DB_PATH,
+        musicDbPath: MUSIC_DB_PATH,
+        checkinDbPath: CHECKIN_DB_PATH,
+        liveStatus,
         getState,
-        getMetrics: systemMetrics.getSystemMetrics,
         shutdown: () => shutdownApplication({ exitProcess: true })
       },
       music: {
-        registry: musicRegistry,
-        lyrics: lyricsService,
-        getCacheStats: () => getMusicCacheStats(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR),
-        clearCache: () => clearMusicCache(MUSIC_API_CACHE_DIR, MUSIC_LYRIC_CACHE_DIR)
+        registry: musicRuntime.getMusicRegistry(),
+        lyrics: musicRuntime.lyricsService,
+        apiCacheDir: MUSIC_API_CACHE_DIR,
+        lyricCacheDir: MUSIC_LYRIC_CACHE_DIR
       }
-    };
+    });
   }
 
   // 启动时按 settings 里的保留期清理过期数据；清理失败不能阻断启动
@@ -440,7 +261,7 @@ function createServerRuntime(runtimeOptions = {}) {
     if (startPromise) return startPromise;
     if (isShuttingDown) return Promise.reject(new Error('Server runtime is shutting down.'));
 
-    musicRegistry = createMusicProviderRegistry(options.musicAuth || {});
+    musicRuntime.setMusicRegistry(options.musicAuth || {});
     bilibiliAuthProvider = options.bilibiliAuth || null;
     const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
     const host = normalizeServerHost(options.host || HOST);
@@ -514,9 +335,9 @@ function createServerRuntime(runtimeOptions = {}) {
       songCount: domainServices.songs.count(),
       liveStatus,
       bilibiliDiagnostics,
-      lyricState,
-      lyricTimeline,
-      weSing: weSingCapture.getStatus()
+      lyricState: musicRuntime.getLyricState(),
+      lyricTimeline: musicRuntime.getLyricTimeline(),
+      weSing: musicRuntime.weSingCapture.getStatus()
     };
   }
 
@@ -546,7 +367,18 @@ function createServerRuntime(runtimeOptions = {}) {
       return;
     }
 
-    replaceBilibiliClient(roomId);
+    // configure 是 fire-and-forget 入口，必须在这里消费 rejection，避免 unhandled rejection。
+    replaceBilibiliClient(roomId).catch((error) => {
+      if (isShuttingDown) return;
+      console.warn(`[Bilibili] configure failed: ${error.message}`);
+      updateLiveStatus({
+        connected: false,
+        enabled: true,
+        roomId,
+        mode: 'bilibili',
+        message: sharedUtils.publicBilibiliErrorMessage(error, true)
+      });
+    });
   }
 
   async function reconnectBilibiliListener() {
@@ -607,107 +439,19 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function createBilibiliClient(roomId) {
-    return new BilibiliDanmakuClient(roomId, {
-      onMessage: (danmaku) => {
-        if (isShuttingDown) return;
-        try {
-          aiDanmakuDeliveryVerifier.observe(danmaku);
-          const result = domainServices.messages.handleDanmaku({
-            message: danmaku.message,
-            userName: danmaku.userName,
-            uid: String(danmaku.uid || ''),
-            source: danmaku.source || 'danmaku',
-            messageTimestamp: danmaku.messageTimestamp,
-            requesterGuardLevel: danmaku.requesterGuardLevel,
-            requesterMedalName: danmaku.requesterMedalName,
-            requesterMedalLevel: danmaku.requesterMedalLevel,
-            isPinned: danmaku.isPinned
-          });
-          domainServices.messages.logDanmaku(danmaku, result);
-          xiaomiAi.handleDanmaku({
-            message: danmaku.message,
-            userName: danmaku.userName,
-            uid: String(danmaku.uid || '')
-          });
-          if (result.autoReply) {
-            void danmakuSender.send({
-              message: result.autoReply.message,
-              mentionTarget: result.autoReply.target
-            }).catch((error) => {
-              console.warn(`[Bilibili] random scope auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
-            });
-          }
-          if (result.checkinReply) {
-            void danmakuSender.send({
-              message: result.checkinReply.message,
-              mentionTarget: result.checkinReply.target
-            }).catch((error) => {
-              console.warn(`[Bilibili] check-in auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
-            });
-          }
-          if (result.fortuneReply) {
-            void danmakuSender.send({
-              message: result.fortuneReply.message,
-              mentionTarget: result.fortuneReply.target
-            }).catch((error) => {
-              console.warn(`[Bilibili] fortune auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
-            });
-          }
-          if (result.customReplyReply) {
-            void danmakuSender.send({
-              message: result.customReplyReply.message,
-              mentionTarget: result.customReplyReply.target
-            }).catch((error) => {
-              console.warn(`[Bilibili] custom auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`);
-            });
-          }
-          if (result.accepted) {
-            broadcastSnapshot(danmaku.source === 'superchat' ? 'bilibili:superchat' : 'bilibili:danmaku');
-          }
-        } catch (error) {
-          console.warn(`[Bilibili] danmaku command failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} message=${JSON.stringify(danmaku.message)} error=${error.message}`);
-        }
-      },
-      onSuperChat: (superChat) => {
-        if (isShuttingDown) return;
-        try {
-          const item = domainServices.superChats.add({
-            platformId: superChat.id,
-            message: superChat.message,
-            price: superChat.price,
-            uid: String(superChat.uid || ''),
-            userName: superChat.userName,
-            requesterGuardLevel: superChat.requesterGuardLevel,
-            requesterMedalName: superChat.requesterMedalName,
-            requesterMedalLevel: superChat.requesterMedalLevel,
-            messageTimestamp: superChat.messageTimestamp
-          });
-          if (item) {
-            broadcastSnapshot('bilibili:superchat');
-          }
-        } catch (error) {
-          console.warn(`[Bilibili] superchat record failed: user=${superChat.userName || ''} uid=${superChat.uid || ''} price=${superChat.price || 0} message=${JSON.stringify(superChat.message)} error=${error.message}`);
-        }
-      },
-      onGift: (gift) => {
-        if (isShuttingDown) return;
-        try {
-          const item = domainServices.gifts.add(gift);
-          if (item) logGiftDelivery(item.detection_status || 'detected', item);
-        } catch (error) {
-          console.warn(`[Bilibili] gift record failed: user=${gift.userName || ''} uid=${gift.uid || ''} gift=${gift.giftName || ''} error=${error.message}`);
-        }
-      },
-      onStatus: updateLiveStatus
-    }, {
-      diagnostics: bilibiliDiagnostics,
+    return buildBilibiliClient(roomId, {
+      isShuttingDown: () => isShuttingDown,
+      aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
+      domainServices,
+      xiaomiAi: aiRuntime.service,
+      danmakuSender,
+      broadcastSnapshot,
+      updateLiveStatus,
+      bilibiliDiagnostics,
       runtimeGiftCommandPrefixes,
       messageBuffer,
-      bilibiliAuth: {
-        cookieHeader: bilibiliAuthCache.cookieHeader,
-        uid: bilibiliAuthCache.uid
-      },
-      isCommandText: (message) => isBilibiliCommandText(message, domainServices.customReplies.isCommandText)
+      bilibiliAuthCache,
+      logGiftDelivery
     });
   }
 
@@ -743,7 +487,7 @@ function createServerRuntime(runtimeOptions = {}) {
     if (shutdownPromise) return shutdownPromise;
     if (isShuttingDown) return Promise.resolve();
     isShuttingDown = true;
-    xiaomiAi.shutdown();
+    aiRuntime.service.shutdown();
     console.log('Shutting down local song request service...');
 
     shutdownPromise = (async () => {
@@ -769,7 +513,7 @@ function createServerRuntime(runtimeOptions = {}) {
         console.warn('[Shutdown] pending gift flush failed:', error.message);
       }
       domainServices.overtime.dispose();
-      weSingCapture.stop();
+      musicRuntime.weSingCapture.stop();
       webSocketHub.stop({ shutdownPayload: { type: 'shutdown', reason: 'manual' } });
 
       return new Promise((resolve) => {
@@ -859,37 +603,13 @@ function createServerRuntime(runtimeOptions = {}) {
   };
 }
 
-let compatibilityRuntime = null;
-
-function getCompatibilityRuntime(options = {}) {
-  if (!compatibilityRuntime) {
-    compatibilityRuntime = createServerRuntime({ dataDir: options.dataDir });
-  }
-  return compatibilityRuntime;
-}
-
-function startServer(options = {}) {
-  return getCompatibilityRuntime(options).start(options);
-}
-
-function shutdownApplication(options = {}) {
-  const stopOptions = options.exitProcess === undefined
-    ? { ...options, exitProcess: true }
-    : options;
-  return getCompatibilityRuntime().stop(stopOptions);
-}
-
-function setPreShutdownHook(fn) {
-  getCompatibilityRuntime().setPreShutdownHook(fn);
-}
-
-function persistPlaybackSnapshot(payload, clientId) {
-  return getCompatibilityRuntime().persistPlaybackSnapshot(payload, clientId);
-}
-
-function getApiToken() {
-  return getCompatibilityRuntime().getApiToken();
-}
+const {
+  getApiToken,
+  persistPlaybackSnapshot,
+  setPreShutdownHook,
+  shutdownApplication,
+  startServer
+} = createServerCompatibility(createServerRuntime);
 
 if (require.main === module) {
   process.once('SIGINT', () => shutdownApplication());

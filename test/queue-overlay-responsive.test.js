@@ -1,18 +1,46 @@
 'use strict';
 
+const { readAdminHtml } = require('./helpers/admin-html');
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { readCssBundle } = require('./helpers/css-bundle');
+const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('overlay base styles load feature-owned stylesheets in order', () => {
+  const entry = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
+    'utf8'
+  );
+
+  assert.match(entry, /@import url\('\.\/base\/identity\.css'\);/);
+});
+
+test('queue overlay loads one focused module entrypoint', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'queue.html'),
+    'utf8'
+  );
+  const entrySource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'),
+    'utf8'
+  );
+
+  assert.match(html, /<script type="module" src="\/js\/overlays\/queue\.js\?v=[^"]+"><\/script>/);
+  assert.match(entrySource, /from '\.\/queue-render\.js';/);
+  assert.match(entrySource, /from '\.\/queue-scroll\.js';/);
+});
+
 test('classic queue starts at its fixed size and follows a resized browser source', () => {
-  const adminHtml = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin.html'), 'utf8');
+  const adminHtml = readAdminHtml();
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
-  const queueSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
-  const overlayCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const queueSource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
   const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
 
@@ -32,7 +60,7 @@ test('classic queue starts at its fixed size and follows a resized browser sourc
 });
 
 test('classic queue animates only when its rendered rows overflow available height', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const styleValues = new Map();
   const sandbox = {
     console,
@@ -105,8 +133,8 @@ test('classic queue animates only when its rendered rows overflow available heig
 });
 
 test('identity queue starts at its fixed size and follows a resized browser source', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js'), 'utf8');
-  const overlayCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const styleValues = new Map();
   const sandbox = {
     console,

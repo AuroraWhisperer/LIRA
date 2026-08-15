@@ -36,6 +36,18 @@ test('keeps simultaneous commands from different viewers', () => {
   }), true);
 });
 
+test('deduplicates anonymous commands across live and history sources', () => {
+  const deduplicator = new MessageDeduplicator();
+  const timestamp = Date.now();
+
+  assert.equal(deduplicator.remember(0, '点歌 匿名曲', timestamp, {
+    userName: '观众', source: 'danmaku'
+  }), true);
+  assert.equal(deduplicator.remember(0, '点歌 匿名曲', timestamp + 500, {
+    userName: '观众', source: 'history'
+  }), false);
+});
+
 test('matches repeated cross-source commands one to one', () => {
   const deduplicator = new MessageDeduplicator();
   const timestamp = Date.now();

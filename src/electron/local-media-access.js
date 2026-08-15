@@ -34,7 +34,11 @@ function createLocalMediaAccess(dataDir) {
     return resolvedPaths;
   }
 
-  return { allowPath, allowPaths, isAllowed };
+  function getAllowedPaths() {
+    return [...allowedPaths];
+  }
+
+  return { allowPath, allowPaths, isAllowed, getAllowedPaths };
 }
 
 function hasExactOrigin(candidateUrl, expectedUrl) {

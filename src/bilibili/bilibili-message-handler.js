@@ -28,6 +28,9 @@ function handleDanmakuMessage(context, {
   const defaults = context.settingsStore.getDefaultSettings();
   const cooldownSeconds = Number(settings.userCooldownSeconds || defaults.userCooldownSeconds);
   const cooldownKey = cleanText(uid) || cleanText(userName) || 'anonymous';
+  if (context.cooldownStore?.pruneMap) {
+    context.cooldownStore.pruneMap(context.state.cooldownByUser);
+  }
   const lastAt = context.state.cooldownByUser.get(cooldownKey) || 0;
   const elapsedSeconds = (Date.now() - lastAt) / 1000;
   if (cooldownSeconds > 0 && elapsedSeconds < cooldownSeconds) {
@@ -88,6 +91,8 @@ function handleDanmakuMessage(context, {
   }
 
   const acceptedAt = Date.now();
+  // Keep insertion order aligned with last-request order for cheap head pruning.
+  context.state.cooldownByUser.delete(cooldownKey);
   context.state.cooldownByUser.set(cooldownKey, acceptedAt);
   // 内存 Map 是读路径，DB 只为重启后能恢复冷却；写失败不影响本次点歌
   if (context.cooldownStore) {

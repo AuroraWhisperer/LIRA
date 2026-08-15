@@ -4,6 +4,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 
 function readJsonBody(req, maxBodyBytes = 0) {
   return new Promise((resolve, reject) => {
@@ -78,11 +79,8 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
     return;
   }
 
+  const isAdminPage = isAdminPageRoute(requestUrl.pathname);
   const pageMap = new Map([
-    ['/', 'pages/admin.html'],
-    ['/admin', 'pages/admin.html'],
-    ['/settings', 'pages/admin.html'],
-    ['/songs', 'pages/admin.html'],
     ['/queue', 'pages/overlays/queue.html'],
     ['/songlist', 'pages/overlays/songs.html'],
     ['/blindbox', 'pages/overlays/blindbox.html'],
@@ -91,13 +89,15 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
   ]);
   const assetPath = pageMap.get(requestUrl.pathname)
     || requestUrl.pathname.replace(/^\/+/, '');
-  const resolvedPath = path.resolve(publicDir, assetPath);
-  if (!resolvedPath.startsWith(publicDir)) {
+  const resolvedPath = isAdminPage
+    ? path.join(publicDir, 'pages', 'admin', 'shell-start.html')
+    : path.resolve(publicDir, assetPath);
+  if (!isAdminPage && resolvedPath !== publicDir && !resolvedPath.startsWith(publicDir + path.sep)) {
     sendJson(res, 403, { ok: false, error: 'Forbidden.' });
     return;
   }
 
-  fs.readFile(resolvedPath, (error, content) => {
+  const sendContent = (error, content) => {
     if (error) {
       sendJson(res, 404, { ok: false, error: 'Not found.' });
       return;
@@ -150,7 +150,18 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
     } else {
       res.end(body);
     }
-  });
+  };
+
+  if (isAdminPage) {
+    try {
+      sendContent(null, Buffer.from(composeAdminHtml(publicDir)));
+    } catch (error) {
+      sendContent(error);
+    }
+    return;
+  }
+
+  fs.readFile(resolvedPath, sendContent);
 }
 
 function contentType(filePath) {

@@ -1,0 +1,74 @@
+/* ---- 礼物检测 ---- */
+.gift-detection-panel legend {
+  margin-bottom: 8px;
+}
+
+.gift-detect-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.gift-detect-head .pill {
+  margin-left: auto;
+}
+
+.gift-setting-desc {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-left: 48px;
+}
+
+/* ---- 月底冲刺 ---- */
+.gift-sprint-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gift-sprint-form-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.gift-sprint-form-row label {
+  flex: 1;
+  min-width: 160px;
+}
+
+.gift-stat {
+  display: grid;
+  gap: 6px;
+  min-height: 84px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--color-bg-tertiary);
+}
+
+.gift-stat span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gift-stat strong {
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.gift-stat.highlight {
+  border-color: rgba(33, 182, 168, 0.45);
+  background: var(--color-success-light);
+}
+
+.gift-form-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
