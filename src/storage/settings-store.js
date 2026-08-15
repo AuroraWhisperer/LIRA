@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = {
   enableGiftSprint: 'true',
   enableGiftNotification: 'true',
   giftSprintTargetRmb: '0',
-  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":[{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}]},{"name":"幸运盲盒","price":5,"outputs":[{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}]},{"name":"小熊虫盲盒","price":9,"outputs":[{"name":"虫事顺意","price":9},{"name":"虫满元气","price":9},{"name":"重虫出击","price":9},{"name":"顺虫自然","price":9},{"name":"虫容不迫","price":9},{"name":"虫装镇定","price":9},{"name":"一虫莫展","price":9},{"name":"心事虫虫","price":9}]}]',
+  giftBlindBoxConfig: '[{"name":"心动盲盒","price":15,"outputs":[{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}]},{"name":"幸运盲盒","price":5,"outputs":[{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}]},{"name":"小熊虫盲盒","price":9,"outputs":[{"name":"虫事顺意","price":9},{"name":"虫满元气","price":9},{"name":"重虫出击","price":9},{"name":"顺虫自然","price":9},{"name":"虫容不迫","price":9},{"name":"虫装镇定","price":9},{"name":"一虫莫展","price":9},{"name":"心事虫虫","price":9}]},{"name":"七夕鹊匣","price":25,"outputs":[{"name":"宸星定情","price":1200},{"name":"星河相拥","price":500},{"name":"云桥缘续","price":66},{"name":"鹊语相思","price":26},{"name":"锦书传意","price":19},{"name":"月下牵丝","price":5}]}]',
   paused: 'false',
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',
@@ -325,7 +325,8 @@ function migrateBlindBoxConfig(db) {
     const knownPrices = {
       '心动盲盒': { '电影票': 2, '棉花糖': 9, '爱心抱枕': 16, '绮彩权杖': 40, '时空之站': 100, '神驹宝玺': 200, '浪漫城堡': 2233 },
       '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 },
-      '小熊虫盲盒': { '虫事顺意': 9, '虫满元气': 9, '重虫出击': 9, '顺虫自然': 9, '虫容不迫': 9, '虫装镇定': 9, '一虫莫展': 9, '心事虫虫': 9 }
+      '小熊虫盲盒': { '虫事顺意': 9, '虫满元气': 9, '重虫出击': 9, '顺虫自然': 9, '虫容不迫': 9, '虫装镇定': 9, '一虫莫展': 9, '心事虫虫': 9 },
+      '七夕鹊匣': { '宸星定情': 1200, '星河相拥': 500, '云桥缘续': 66, '鹊语相思': 26, '锦书传意': 19, '月下牵丝': 5 }
     };
 
     for (const box of config) {

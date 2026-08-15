@@ -120,6 +120,30 @@
   background: rgba(201, 75, 132, 0.09);
 }
 
+/* 七夕鹊匣专属样式 — 樱粉向雾紫过渡，呼应鹊匣的七夕主题 */
+.blind-box-chip:has(img[alt*="七夕鹊匣"]) {
+  border-color: #d786dc;
+  background: linear-gradient(135deg, #fff2fb 0%, #f3e8ff 100%);
+}
+
+.blind-box-chip:has(img[alt*="七夕鹊匣"]):hover {
+  border-color: #bb63c4;
+  box-shadow: 0 4px 12px rgba(155, 63, 166, 0.18);
+}
+
+.blind-box-chip:has(img[alt*="七夕鹊匣"]) .bb-chip-icon {
+  background: linear-gradient(135deg, #ffe8f7 0%, #eadcff 100%);
+}
+
+.blind-box-chip:has(img[alt*="七夕鹊匣"]) .bb-chip-name {
+  color: #9b3fa6;
+}
+
+.blind-box-chip:has(img[alt*="七夕鹊匣"]) .bb-chip-price {
+  color: #a94db4;
+  background: rgba(169, 77, 180, 0.1);
+}
+
 .bb-chip-icon-fallback {
   width: 44px;
   height: 44px;
@@ -224,4 +248,3 @@
 #blindBoxAdvanced button {
   margin-top: 6px;
 }
-

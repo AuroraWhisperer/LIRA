@@ -1,6 +1,76 @@
 {
-  "retrievedAt": "2026-08-02T13:32:50.000Z",
+  "retrievedAt": "2026-08-14T10:38:15.000Z",
   "gifts": [
+    {
+      "id": 35786,
+      "name": "七夕鹊匣",
+      "price": "250电池",
+      "image": "bilibili-gifts/blind-box/35786.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/253bbeffb604e6203dddf2bd066a9777e28109e4.webp",
+      "battery": 250,
+      "rmb": 25,
+      "category": "blind-box"
+    },
+    {
+      "id": 35787,
+      "name": "月下牵丝",
+      "price": "50电池",
+      "image": "bilibili-gifts/0000-under-0100/35787.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/f0ac0d304c1700bad7d210faa25b9cd82845c634.webp",
+      "battery": 50,
+      "rmb": 5,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35788,
+      "name": "锦书传意",
+      "price": "190电池",
+      "image": "bilibili-gifts/0000-under-0100/35788.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/8a687bb4505793e7270a704c0282efaf7f49eb17.webp",
+      "battery": 190,
+      "rmb": 19,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35789,
+      "name": "鹊语相思",
+      "price": "260电池",
+      "image": "bilibili-gifts/0000-under-0100/35789.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/8717bad71fd9a4350a7589b8c7f1dd3744ae09fb.webp",
+      "battery": 260,
+      "rmb": 26,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35790,
+      "name": "云桥缘续",
+      "price": "660电池",
+      "image": "bilibili-gifts/0000-under-0100/35790.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/0e0ae1997c6dacdc561abc877a622c7676980425.webp",
+      "battery": 660,
+      "rmb": 66,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35791,
+      "name": "星河相拥",
+      "price": "5000电池",
+      "image": "bilibili-gifts/0500-0600/35791.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/fe4cc2fc8518c35e2512cb67733baf6861b40db9.webp",
+      "battery": 5000,
+      "rmb": 500,
+      "category": "0500-0600"
+    },
+    {
+      "id": 35792,
+      "name": "宸星定情",
+      "price": "1.2万电池",
+      "image": "bilibili-gifts/1200-1300/35792.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/903955e5af7826eb10962463143e456f0c1b18ac.webp",
+      "battery": 12000,
+      "rmb": 1200,
+      "category": "1200-1300"
+    },
     {
       "id": 35800,
       "name": "小熊虫盲盒",

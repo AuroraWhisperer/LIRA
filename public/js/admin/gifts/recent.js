@@ -89,14 +89,12 @@
 
       if (typeIcon) cardClass += ' has-type-icon';
       if (guardBadge) cardClass += ` guard-card guard-${guardBadge.level}`;
+      if (blindBoxIcon) cardClass += ` blind-box-card ${blindBoxIcon.className}`;
       if (isHighValueTotal && !guardBadge && !blindBoxIcon) cardClass += ' high-value-gift-card';
 
       if (item.is_blind_box && item.blind_box_name) {
         const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
         const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : 'profit-neutral';
-        const blindBoxClass = blindBoxIcon && blindBoxIcon.className ? ` ${blindBoxIcon.className}` : '';
-        cardClass += ' blind-box-card';
-        cardClass += blindBoxClass;
         blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
       } else if (item.is_blind_box && item.blind_box_price !== null && item.blind_box_price !== undefined) {
         blindLine = `<span class="gift-result">开出 ${formatMoney(item.total_price)}</span>`;
@@ -148,7 +146,7 @@
    * @returns {Object|null} 图标信息 {name, src}
    */
   function getBlindBoxIcon(item) {
-    const blindBoxName = String(item && (item.blind_box_name || item.name) || '').trim();
+    const blindBoxName = String(item && (item.blind_box_name || item.name || item.gift_name) || '').trim();
     if (blindBoxName.includes('心动盲盒')) {
       return { name: '心动盲盒', className: 'blind-box-heart', src: '/img/bilibili-gifts/blind-box/32251.webp' };
     }
@@ -157,6 +155,9 @@
     }
     if (blindBoxName.includes('小熊虫盲盒')) {
       return { name: '小熊虫盲盒', className: 'blind-box-bear', src: '/img/bilibili-gifts/blind-box/35800.webp' };
+    }
+    if (blindBoxName.includes('七夕鹊匣')) {
+      return { name: '七夕鹊匣', className: 'blind-box-qixi', src: '/img/bilibili-gifts/blind-box/35786.webp' };
     }
     return null;
   }
