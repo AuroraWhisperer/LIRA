@@ -1,0 +1,229 @@
+/* 百宝箱：B站礼物全屏特效工具 */
+.gift-effect-tool-panel {
+  width: 100%;
+  max-width: none;
+  padding: 22px;
+}
+
+.gift-effect-tool-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 2px 2px 20px;
+}
+
+.gift-effect-tool-heading h2 {
+  margin: 4px 0 7px;
+  color: var(--text);
+  font-size: 26px;
+}
+
+.gift-effect-tool-heading p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+#giftEffectLookupState {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.gift-effect-tool-kicker {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.gift-effect-tool-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 16px;
+}
+
+.gift-effect-control-card,
+.gift-effect-address-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.gift-effect-address-card {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(217, 75, 112, 0.11), transparent 34%),
+    var(--surface);
+}
+
+.gift-effect-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.gift-effect-card-heading > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gift-effect-card-heading h3 {
+  margin: 0 0 5px;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.gift-effect-card-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.gift-effect-lookup-form {
+  margin-top: 22px;
+}
+
+.gift-effect-lookup-form > label,
+.gift-effect-url-block > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gift-effect-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.gift-effect-input-row input {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.gift-effect-match-summary {
+  min-height: 64px;
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.gift-effect-match-summary[data-state="success"] {
+  border-color: rgba(33, 182, 168, 0.34);
+  color: #147f75;
+}
+
+.gift-effect-match-summary[data-state="error"] {
+  border-color: rgba(217, 75, 112, 0.34);
+  color: var(--primary-strong);
+}
+
+#giftEffectLookupState[data-state="success"] {
+  color: #147f75;
+}
+
+#giftEffectLookupState[data-state="error"] {
+  color: var(--primary-strong);
+}
+
+.gift-effect-url-block {
+  margin-top: 22px;
+}
+
+.gift-effect-url-block code {
+  display: block;
+  min-height: 52px;
+  padding: 13px 14px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(217, 75, 112, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.gift-effect-url-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.gift-effect-address-notes {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.gift-effect-address-notes > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.gift-effect-address-notes dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.gift-effect-address-notes dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+@media (max-width: 1200px) {
+  .gift-effect-tool-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .gift-effect-tool-panel {
+    padding: 16px;
+  }
+
+  .gift-effect-tool-heading,
+  .gift-effect-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gift-effect-tool-heading {
+    display: grid;
+  }
+
+  .gift-effect-url-actions {
+    justify-content: stretch;
+  }
+
+  .gift-effect-url-actions button {
+    flex: 1 1 0;
+  }
+}

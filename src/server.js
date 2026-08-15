@@ -24,6 +24,7 @@ const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
 const giftService = require('./bilibili/gift');
+const giftEffectModule = require('./bilibili/gift/effect-config');
 const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -62,24 +63,32 @@ function createServerRuntime(runtimeOptions = {}) {
 
   const settingsBootstrap = prepareSettingsBootstrap(songDb, settingsStoreModule);
   const settingsStore = settingsBootstrap.settingsStore;
+  const webSocketHub = wsTransport.createWebSocketHub();
+  const giftEffectResolver = giftEffectModule.createGiftEffectResolver();
   let publishOvertimeUpdate = () => {};
   const domainServices = createDomainServices({
     db,
     settingsStore,
+    giftEffectResolver,
     onGiftFlushed: (item) => {
       logGiftDelivery('final', item);
       broadcastSnapshot('bilibili:gift');
+      giftEffectModule.buildGiftEffectEvent(item, giftEffectResolver).then((effectEvent) => {
+        if (effectEvent) webSocketHub.broadcast(effectEvent);
+      }).catch((error) => {
+        console.warn(`[Bilibili][GiftEffect] 礼物特效事件构造失败：${error.message || error}`);
+      });
     },
     onOvertimeUpdate: update => publishOvertimeUpdate(update)
   });
 
-  const webSocketHub = wsTransport.createWebSocketHub();
   const musicRuntime = buildMusicRuntime({
     dataDir: { apiCacheDir: MUSIC_API_CACHE_DIR, lyricCacheDir: MUSIC_LYRIC_CACHE_DIR },
     runtimeOptions,
     settingsStore,
     webSocketHub
   });
+  void giftEffectResolver.getEffectMap();
   giftService.repairGiftV2Events({ db });
   settingsBootstrap.runMigrations();
   domainServices.songs.ensureCategory('默认');

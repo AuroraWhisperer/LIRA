@@ -27,6 +27,7 @@ function createGiftDetectionService(context, options = {}) {
   const nowMs = typeof options.now === 'function' ? options.now : Date.now;
   const scheduleTimeout = options.setTimeout || setTimeout;
   const cancelTimeout = options.clearTimeout || clearTimeout;
+  const captureWhenDisabled = options.captureWhenDisabled === true;
   const onGiftFinalized = typeof options.onGiftFinalized === 'function'
     ? options.onGiftFinalized
     : (typeof options.onGiftFlushed === 'function' ? options.onGiftFlushed : null);
@@ -40,7 +41,7 @@ function createGiftDetectionService(context, options = {}) {
 
     const giftStatisticsEligible = context.settings().enableGiftSprint === 'true';
     const overtimeEpoch = Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0));
-    if (!giftStatisticsEligible && overtimeEpoch === 0) {
+    if (!giftStatisticsEligible && overtimeEpoch === 0 && !captureWhenDisabled) {
       logGiftServiceDecision('ignored', input, null, 'all-consumers-disabled');
       return null;
     }
@@ -161,8 +162,8 @@ function createGiftDetectionService(context, options = {}) {
       SELECT COUNT(*) AS count FROM gift_events WHERE detection_status = 'progress'
     `).get()?.count) || 0;
     return {
-      coreActive: giftStatistics || overtime || pendingCount > 0,
-      consumers: { giftStatistics, overtime },
+      coreActive: giftStatistics || overtime || captureWhenDisabled || pendingCount > 0,
+      consumers: { giftStatistics, overtime, giftEffects: captureWhenDisabled },
       pendingCount
     };
   }

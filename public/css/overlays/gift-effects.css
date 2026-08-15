@@ -1,0 +1,53 @@
+/* B站礼物全屏特效 overlay */
+.gift-effects-overlay-body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.gift-effects-overlay-body.is-debug {
+  background-color: #11131a;
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%);
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  background-size: 24px 24px;
+}
+
+#giftEffectStage {
+  position: fixed;
+  inset: 0;
+}
+
+.gift-effect-layer {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+.gift-effect-status {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  max-width: min(520px, calc(100vw - 36px));
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(16, 18, 25, 0.82);
+  color: #f8f9ff;
+  font: 600 13px/1.5 "Microsoft YaHei", sans-serif;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-effect-layer {
+    animation: none;
+  }
+}
+

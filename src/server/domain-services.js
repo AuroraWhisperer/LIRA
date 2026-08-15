@@ -19,7 +19,7 @@ const { createCustomReplyService } = require('../bilibili/custom-reply-service')
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 const { createOvertimeConsumer, createOvertimeService } = require('../overtime');
 
-function createDomainServices({ db, settingsStore, onGiftFlushed, onOvertimeUpdate }) {
+function createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate }) {
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
@@ -90,11 +90,20 @@ function createDomainServices({ db, settingsStore, onGiftFlushed, onOvertimeUpda
 
   const overtime = createOvertimeService({ giftDb: db.giftDb, onUpdate: onOvertimeUpdate });
   const overtimeConsumer = createOvertimeConsumer({ service: overtime });
-  const gifts = giftService.createGiftService(baseContext, {
+  const giftRuntime = giftService.createGiftService(baseContext, {
     onGiftFlushed,
     consumers: [overtimeConsumer],
-    getOvertimeEpoch: overtime.getCurrentEpoch
+    getOvertimeEpoch: overtime.getCurrentEpoch,
+    captureWhenDisabled: Boolean(giftEffectResolver)
   });
+  const gifts = {
+    ...giftRuntime,
+    async resolveEffect(giftId) {
+      if (!giftEffectResolver) return null;
+      const effectMap = await giftEffectResolver.getEffectMap();
+      return effectMap.get(Number(giftId)) || null;
+    }
+  };
 
   const superChats = {
     getSnapshot: () => superChatService.getSuperChatSnapshot(baseContext),

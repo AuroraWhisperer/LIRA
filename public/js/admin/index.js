@@ -23,6 +23,7 @@ import './xiaomi-ai-settings.js';
 import './todo.js';
 import './other.js';
 import './overtime.js';
+import './gift-effects.js';
 import './desktop-lyric-preview.js';
 import './desktop-lyric.js';
 import './app.js';

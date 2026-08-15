@@ -46,7 +46,8 @@ function createApiContext(options) {
       getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
       getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
       search: domainServices.gifts.search,
-      clearRecent: domainServices.gifts.clearRecent
+      clearRecent: domainServices.gifts.clearRecent,
+      resolveEffect: domainServices.gifts.resolveEffect
     },
     overtime: {
       getOverview: domainServices.overtime.getOverview,
@@ -134,4 +135,3 @@ function createApiContext(options) {
 }
 
 module.exports = { createApiContext };
-

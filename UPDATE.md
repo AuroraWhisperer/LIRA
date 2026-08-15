@@ -1,6 +1,17 @@
 # 打包与更新说明
 
-当前版本：`3.4.1`
+当前版本：`3.4.2`
+
+---
+
+## v3.4.2 变更
+
+- 🎆 **B站礼物全屏特效**：服务端拉取 B站 Web 直播间特效配置接口（`GetEffectConfListV2`）建立「礼物 ID → 全屏 MP4 素材」映射（`src/bilibili/gift/effect-config.js`）——配置缓存 12 小时、刷新失败保留旧缓存并限频重试；素材只接受 HTTPS 且位于 B站相关 CDN 域名（`hdslb.com` / `bilibili.com` / `bilivideo.com`）下的地址，同一礼物多条记录取特效 ID 最大者。礼物整组封账结算后通过现有 WebSocket 广播 `gift:effect` 事件（含礼物名、数量、单价与特效元数据），`web_mp4` 为空的旧 SVGA 特效跳过。
+- 🖥️ **礼物特效观众 Overlay**：新增 `/gift-effects` 监听页面——MP4 通常黑底且无 alpha 通道，逐帧绘制到 canvas 后按亮度抠黑（`alpha = max(r, g, b)`）合成到透明画布；页面 meta + 视频元素 `no-referrer` 引用策略、`crossOrigin=anonymous` 规避 CDN 403。最多同时播放 3 个特效、排队上限 8 个，按 `eventId` 去重，断线指数退避自动重连；支持 `?giftId=xxx&debug=1` 手动预览与 `?sound=1` 开启声音。
+- 🧰 **百宝箱礼物特效工具**：新增「礼物特效」面板——输入礼物 ID 查询对应全屏特效，展示特效 ID 与素材大小，一键复制/打开 Overlay 网址（含调试预览参数）；新增认证路由 `GET /api/gifts/effects/resolve?giftId=`（仅接受 1–12 位数字）。
+- 🔧 **礼物捕获独立于消费者开关**：礼物检测服务新增 `captureWhenDisabled`——即使礼物冲刺统计与加班机都关闭，仍捕获并结算礼物以驱动特效广播。
+- 📖 **接口文档**：新增 `docs/bilibili-live-api/gift-effect-config.md`——特效配置接口字段、CDN 与透明合成方案、本项目接口与页面说明。
+- 🧪 **测试覆盖增强**：新增 `test/gift-effect-config.test.js`（映射构建、URL 白名单、惰性拉取/并发去重/TTL 刷新、失败保留旧缓存、事件构造、消费者关闭时仍捕获）与 `test/gift-effects-overlay.test.js`（查询路由与广播、ID 校验、Overlay 路由/no-referrer/抠黑合成、百宝箱面板控件、接口文档）。
 
 ---
 

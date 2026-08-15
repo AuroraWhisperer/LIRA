@@ -55,6 +55,26 @@ const routes = {
     sendJson(res, 200, { ok: true, data: rows });
   },
 
+  async 'GET /api/gifts/effects/resolve'(context, request, res) {
+    const rawGiftId = String(request.query.get('giftId') || '').trim();
+    if (!/^\d{1,12}$/.test(rawGiftId)) {
+      sendJson(res, 400, { ok: false, error: '礼物 ID 必须是 1 至 12 位数字。' });
+      return;
+    }
+    const giftId = Number(rawGiftId);
+    if (!Number.isSafeInteger(giftId) || giftId <= 0) {
+      sendJson(res, 400, { ok: false, error: '礼物 ID 无效。' });
+      return;
+    }
+
+    const effect = await context.gifts.resolveEffect(giftId);
+    if (!effect) {
+      sendJson(res, 404, { ok: false, error: '这个礼物暂时没有可播放的 MP4 全屏特效。' });
+      return;
+    }
+    sendJson(res, 200, { ok: true, data: { giftId, effect } });
+  },
+
   async 'POST /api/gifts/clear-recent'(context, request, res) {
     const body = await request.body();
     if (body.confirm !== true) {

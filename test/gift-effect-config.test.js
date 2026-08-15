@@ -1,0 +1,198 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const test = require('node:test');
+const {
+  EFFECT_API_URL,
+  buildEffectMap,
+  buildGiftEffectEvent,
+  createGiftEffectResolver,
+  isTrustedEffectUrl,
+  pickEffect
+} = require('../src/bilibili/gift/effect-config');
+const { createGiftDetectionService } = require('../src/bilibili/gift');
+const { closeDatabases, createDatabases } = require('../src/storage/database');
+
+function confEntry(id, giftIds, mp4Url = `https://i0.hdslb.com/bfs/live/effect-${id}.mp4`) {
+  return {
+    id,
+    type: 1,
+    bind_gift_ids: giftIds,
+    web_mp4: mp4Url,
+    web_mp4_md5: `md5-${id}`,
+    web_mp4_file_size: 1000 + id
+  };
+}
+
+test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
+  const payload = {
+    data: {
+      full_sc_resource: {
+        conf_list: [
+          confEntry(8, [25], ''),
+          confEntry(584, [31645]),
+          confEntry(147, [30636]),
+          confEntry(1638, [30636]),
+          confEntry(2000, [99999], 'https://example.com/effect.mp4'),
+          confEntry(1, [0])
+        ]
+      }
+    }
+  };
+
+  const map = buildEffectMap(payload);
+
+  assert.equal(map.size, 2);
+  assert.equal(map.get(31645).effectId, 584);
+  assert.equal(map.get(31645).fileSize, 1584);
+  assert.equal(map.get(30636).effectId, 1638);
+  assert.equal(map.get(25), undefined);
+  assert.equal(map.get(99999), undefined);
+});
+
+test('effect helpers tolerate missing entries and reject untrusted URLs', () => {
+  assert.equal(buildEffectMap(null).size, 0);
+  assert.equal(buildEffectMap({ data: {} }).size, 0);
+  assert.equal(pickEffect([confEntry(2, [1]), confEntry(9, [1])]).id, 9);
+  assert.equal(pickEffect([]), null);
+  assert.equal(isTrustedEffectUrl('https://i0.hdslb.com/bfs/live/a.mp4'), true);
+  assert.equal(isTrustedEffectUrl('http://i0.hdslb.com/bfs/live/a.mp4'), false);
+  assert.equal(isTrustedEffectUrl('https://hdslb.com.example.com/a.mp4'), false);
+});
+
+test('resolver fetches lazily, dedupes concurrent calls and refreshes after ttl', async () => {
+  let calls = 0;
+  let nowMs = 1000;
+  const resolver = createGiftEffectResolver({
+    refreshMs: 100,
+    now: () => nowMs,
+    fetchJson: async (name, url) => {
+      calls += 1;
+      assert.equal(name, 'gift_effect_config');
+      assert.equal(url, EFFECT_API_URL);
+      return {
+        payload: {
+          data: { full_sc_resource: { conf_list: [confEntry(584 + calls, [31645])] } }
+        }
+      };
+    }
+  });
+
+  assert.equal(resolver.resolve(31645), null);
+  const [first, same] = await Promise.all([resolver.getEffectMap(), resolver.getEffectMap()]);
+  assert.equal(calls, 1);
+  assert.equal(first, same);
+  assert.equal(resolver.resolve(31645).effectId, 585);
+
+  nowMs += 99;
+  await resolver.getEffectMap();
+  assert.equal(calls, 1);
+
+  nowMs += 1;
+  await resolver.getEffectMap();
+  assert.equal(calls, 2);
+  assert.equal(resolver.resolve(31645).effectId, 586);
+});
+
+test('resolver keeps stale cache when refresh fails', async () => {
+  let calls = 0;
+  let nowMs = 1000;
+  const resolver = createGiftEffectResolver({
+    refreshMs: 10,
+    retryMs: 50,
+    now: () => nowMs,
+    fetchJson: async () => {
+      calls += 1;
+      if (calls > 1) throw new Error('network down');
+      return {
+        payload: {
+          data: { full_sc_resource: { conf_list: [confEntry(584, [31645])] } }
+        }
+      };
+    }
+  });
+
+  await resolver.getEffectMap();
+  nowMs += 10;
+  const stale = await resolver.getEffectMap();
+  assert.equal(stale.get(31645).effectId, 584);
+
+  nowMs += 10;
+  await resolver.getEffectMap();
+  assert.equal(calls, 2, 'failed refreshes should be throttled');
+});
+
+test('buildGiftEffectEvent supports normalized database rows and camelCase inputs', async () => {
+  const effect = {
+    effectId: 584,
+    type: 1,
+    mp4Url: 'https://i0.hdslb.com/bfs/live/effect.mp4',
+    md5: '',
+    fileSize: 417612
+  };
+  const resolver = {
+    getEffectMap: async () => new Map([[35457, effect]])
+  };
+
+  const fromRow = await buildGiftEffectEvent({
+    id: 77,
+    gift_id: '35457',
+    gift_name: '马上来财',
+    num: 2,
+    unit_price: 10,
+    user_name: '观众A'
+  }, resolver);
+  assert.deepEqual(fromRow, {
+    type: 'gift:effect',
+    eventId: 77,
+    giftId: 35457,
+    giftName: '马上来财',
+    num: 2,
+    unitPrice: 10,
+    userName: '观众A',
+    effect
+  });
+
+  const fromCamelCase = await buildGiftEffectEvent({ id: 78, giftId: 35457 }, resolver);
+  assert.equal(fromCamelCase.giftName, '礼物');
+  assert.equal(await buildGiftEffectEvent({ id: 79, gift_id: '0' }, resolver), null);
+  assert.equal(await buildGiftEffectEvent({ id: 80, gift_id: '31643' }, resolver), null);
+});
+
+test('gift effect capture stays active when sprint and overtime consumers are disabled', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gift-effect-capture-'));
+  const db = createDatabases({ dataDir });
+  const finalized = [];
+  const detection = createGiftDetectionService({
+    db,
+    settings: () => ({ enableGiftSprint: 'false', giftBlindBoxConfig: '' }),
+    state: { blindBoxCache: null }
+  }, {
+    captureWhenDisabled: true,
+    onGiftFinalized: (row) => finalized.push(row)
+  });
+
+  try {
+    const row = detection.detect({
+      cmd: 'SEND_GIFT',
+      giftId: '31645',
+      giftName: '测试礼物',
+      uid: '42',
+      userName: '观众A',
+      num: 1,
+      unitPrice: 1,
+      totalPrice: 1
+    });
+
+    assert.equal(row.detection_status, 'final');
+    assert.equal(finalized.length, 1);
+    assert.equal(detection.getStatus().consumers.giftEffects, true);
+  } finally {
+    detection.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
