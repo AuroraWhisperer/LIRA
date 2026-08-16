@@ -67,6 +67,10 @@ function validateRule(input, index) {
   }
   const mode = String(input.mode || '').trim();
   if (!['fixed', 'random'].includes(mode)) throw new Error(`rule ${index + 1} mode is invalid.`);
+  const quantityMode = String(input.quantityMode ?? input.quantity_mode ?? 'group').trim();
+  if (!['group', 'item'].includes(quantityMode)) {
+    throw new Error(`rule ${index + 1} quantityMode is invalid.`);
+  }
   const enabled = input.enabled !== false && Number(input.enabled) !== 0;
   const sortOrder = normalizeInteger(input.sortOrder ?? input.sort_order ?? index, `rule ${index + 1} sortOrder`);
 
@@ -77,7 +81,7 @@ function validateRule(input, index) {
       `rule ${index + 1} fixedEffect`
     );
     return {
-      giftId, giftName, imagePath, mode,
+      giftId, giftName, imagePath, mode, quantityMode,
       fixedSeconds: effectToLegacySeconds(fixedEffect),
       fixedEffect,
       outcomes: [], enabled, sortOrder
@@ -100,7 +104,7 @@ function validateRule(input, index) {
   if (totalWeight > MAX_RANDOM_WEIGHT) {
     throw new Error(`rule ${index + 1} total weight cannot exceed ${MAX_RANDOM_WEIGHT}.`);
   }
-  return { giftId, giftName, imagePath, mode, fixedSeconds: null, outcomes, enabled, sortOrder };
+  return { giftId, giftName, imagePath, mode, quantityMode, fixedSeconds: null, outcomes, enabled, sortOrder };
 }
 
 function validateSeconds(value, field, signed) {

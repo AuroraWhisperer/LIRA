@@ -116,6 +116,12 @@ test('gift effects overlay uses official frame metadata without cropping or inve
   assert.doesNotMatch(overlayJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
   assert.doesNotMatch(overlayJs, /255 - Math\.max\(mask/);
   assert.match(overlayJs, /MAX_PLAYING/);
+  assert.match(overlayJs, /const MAX_PLAYING = 1/);
+  assert.match(overlayJs, /const MAX_PENDING = 10/);
+  assert.match(overlayJs, /PREVIEW_MODE/);
+  assert.match(overlayJs, /visibilitychange/);
+  assert.match(overlayJs, /if \(pending\.length >= MAX_PENDING\) return/);
+  assert.match(overlayJs, /playNextEffect\(\)/);
   assert.doesNotMatch(overlayJs, /innerHTML/);
   assert.doesNotMatch(css, /mix-blend-mode/);
 });
@@ -139,7 +145,7 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
   assert.doesNotMatch(toolSource, /\?giftId=/);
   assert.doesNotMatch(toolSource, /debug/);
-  assert.match(toolSource, /window\.open\(liveUrl, 'liraGiftEffectPreview'\)/);
+  assert.match(toolSource, /window\.open\(`\$\{liveUrl\}\?preview=1`, 'liraGiftEffectPreview'\)/);
   assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
   assert.match(styles, /\.gift-effect-url-block code\s*\{[^}]*min-height:\s*36px[^}]*padding:\s*7px 10px/);

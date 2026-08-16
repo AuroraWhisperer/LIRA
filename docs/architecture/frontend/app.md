@@ -1,6 +1,6 @@
 # Admin 应用与公共框架
 
-> 涉及文件:[pages/admin.html](../../../public/pages/admin.html)、[js/admin/index.js](../../../public/js/admin/index.js)、[js/admin/app.js](../../../public/js/admin/app.js)、[js/admin/state.js](../../../public/js/admin/state.js)、[js/admin/forms.js](../../../public/js/admin/forms.js)、[js/shared/](../../../public/js/shared/)、[js/desktop.js](../../../public/js/desktop.js)、[js/admin/gifts/](../../../public/js/admin/gifts/)、[pages/gift-audit.html](../../../public/pages/gift-audit.html)、[pages/debug-gifts.html](../../../public/pages/debug-gifts.html)
+> 涉及文件:[pages/admin.html](../../../public/pages/admin.html)、[js/admin/index.js](../../../public/js/admin/index.js)、[js/admin/app.js](../../../public/js/admin/app.js)、[js/admin/legacy-admin-bridge.js](../../../public/js/admin/legacy-admin-bridge.js)、[js/admin/state.js](../../../public/js/admin/state.js)、[js/admin/forms.js](../../../public/js/admin/forms.js)、[js/shared/](../../../public/js/shared/)、[js/desktop.js](../../../public/js/desktop.js)、[js/admin/gifts/](../../../public/js/admin/gifts/)、[pages/gift-audit.html](../../../public/pages/gift-audit.html)、[pages/debug-gifts.html](../../../public/pages/debug-gifts.html)
 
 本文档描述管理后台(`/admin`)的页面结构、公共框架与各业务模块。通信行为见 [comms.md](comms.md),端点定义见 [api.md](../backend/api.md),快照与消息类型见 [ws.md](../backend/ws.md),IPC 通道见 [desktop/preload.md](../desktop/preload.md)。
 
@@ -44,7 +44,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 模块 | 文件 | 说明 |
 |---|---|---|
 | EventBus | [shared/event-bus.js](../../../public/js/shared/event-bus.js) | 应用内事件总线(`on/off/once/emit/clear`),单例挂 `window.AdminApp.eventBus`;常用事件常量 `Events`(SONG_ADDED/QUEUE_UPDATED/PLAYBACK_*/GIFT_RECEIVED/OVERTIME_UPDATED/STATE_LOADED/STATE_SAVED 等,[event-bus.js:181-211](../../../public/js/shared/event-bus.js#L181-L211)) |
-| DI Container | [shared/container.js](../../../public/js/shared/container.js) | 轻量依赖注入(工厂 + 单例缓存 + 循环依赖检测),单例挂 `window.__DI_CONTAINER__`;app.js 注册 `eventBus/utils/theme/state/forms` 五个服务([app.js:24-29](../../../public/js/admin/app.js#L24-L29)) |
+| Legacy Bridge | [admin/legacy-admin-bridge.js](../../../public/js/admin/legacy-admin-bridge.js) | 迁移期唯一允许访问 `window.AdminApp` 的边界;`app.js` 通过 `getLegacyAdminModules()` 取得窄兼容接口,通过 `publishNavigation()` 发布导航 API |
 | StateService | [admin/state.js](../../../public/js/admin/state.js) | 全局状态唯一入口:WS 客户端 + `/api/state` + `/api/songs` 加载,快照经 EventBus 派发 `STATE_LOADED`/`SONG_UPDATED`,同时以 CustomEvent(`app:wesing-state` 等)广播实时状态(详见 [comms.md](comms.md) §3) |
 | FormsService | [admin/forms.js](../../../public/js/admin/forms.js) | 表单工具:`bindRangePair`(range↔number 双向)、`initTabs`、`fillForm`(快照设置→表单,正在编辑的输入框不被覆盖,[forms.js:174-179](../../../public/js/admin/forms.js#L174-L179))、播放器全屏/收起、滚动速度与字号归一化 |
 | Logger | [shared/logger.js](../../../public/js/shared/logger.js) | 生产自动禁用 debug 日志(仅 localhost/127.0.0.1 或 `AdminApp.debug` 时输出) |
@@ -52,7 +52,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | Utils | [shared/utils.js](../../../public/js/shared/utils.js) | `api/readJsonResponse/toast/escapeHtml/formatBytes/dangerConfirm/…`(清单见 [comms.md](comms.md) §2) |
 | Desktop | [desktop.js](../../../public/js/desktop.js) | 桌面外壳:更新状态机渲染、`desktop.getInfo()` 版本徽章、`onShowUpdatePage`/`onUpdateState` 回调订阅(详见 [comms.md](comms.md) §4) |
 
-**模块注册惯例**:Classic Script 模块在 IIFE 内自执行,把公共函数挂到 `window.AdminApp.<模块名>`;ES Module 模块(如 `forms.js`/`state.js`/`app.js`)导出类 + 单例,同时保留 `window.AdminApp` 兼容层(文件内注释标注"阶段5时删除")。**跨模块调用一律走 `window.AdminApp.*` 或 EventBus,不互相 import**(避免 Classic/ESM 混合依赖)。
+**模块注册惯例**:遗留模块仍可在 IIFE 内把公共函数注册到 `window.AdminApp.<模块名>`,但新 ESM 代码禁止直接访问该全局;所有兼容读取集中在 `legacy-admin-bridge.js`。新模块优先使用具名 import/export 和显式工厂参数;EventBus 只承担一对多通知,不作为隐藏的请求/响应依赖。
 
 **事件流约定**:
 
@@ -64,7 +64,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | `Events.OVERTIME_UPDATED` | stateService(overtime:update)→ overtime.js | 加班机面板增量刷新(带 revision 去重) |
 | CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | WeSing 面板、桌面歌词预览、设置自动保存就绪信号 |
 
-**模块间直接调用示例**:`queue.renderState` 内调 `forms.fillForm(settings)`、`gifts.renderGiftPanel(...)`、`songs.renderCategoryFilter(...)`([queue.js:92-115](../../../public/js/admin/queue.js#L92-L115))——渲染链从快照事件出发、经 `window.AdminApp.*` 串联,各模块不需要互相 import。
+**迁移期调用示例**:`app.js` 收到 `STATE_LOADED` 后通过 bridge 返回的 `queue.renderState` 渲染;遗留模块内部现有的全局调用保持兼容,新增跨模块调用不得继续扩大该模式。
 
 ## 3. 启动时序
 
@@ -75,14 +75,12 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 ### 3.2 初始化([app.js:18-99](../../../public/js/admin/app.js#L18-L99))
 
 1. `await Theme.loadThemeConfig()` 预载主题配置
-2. DI 注册五个服务
-3. `initMainPages()` 绑定主页面 Tab(按 hash 选中初始页)
-4. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键、快速入队折叠)
-5. 监听 `playback-module-loaded` 事件(播放助手模块异步加载完成后)调 `initPlaybackAssistant(options)`,把 `getSongs/reloadSongs/toast/showError/api/readJsonResponse` 注入播放控制器([app.js:104-115](../../../public/js/admin/app.js#L104-L115))
-6. `desktop.initDesktopShell()`(仅桌面环境)
-7. 逐个初始化各模块表单(`queue/songs/settings/theme/display/desktopLyric/metrics/overtime/todo/other/gifts`)
-8. `stateService.connectSocket()` + `await stateService.reloadAll()`(先 WS 后 HTTP 兜底)
-9. 渲染主题预设卡片
+2. `initMainPages()` 绑定主页面 Tab(按 hash 选中初始页)
+3. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键、快速入队折叠)
+4. 监听 `playback-module-loaded` 事件(播放助手模块异步加载完成后)调 `initPlaybackAssistant(options)`,把浏览器基础设施能力注入播放控制器
+5. 通过 `legacy-admin-bridge` 取得迁移期模块并逐个初始化(`desktop/queue/songs/settings/theme/display/desktopLyric/metrics/overtime/todo/other/gifts`)
+6. `stateService.connectSocket()` + `await stateService.reloadAll()`(先 WS 后 HTTP 兜底)
+7. 渲染主题预设卡片
 
 ## 4. 点歌主页面模块
 

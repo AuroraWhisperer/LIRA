@@ -7,7 +7,7 @@
 - 当礼物当前在售且能在本地 Markdown 映射中找到自身或“同特效代码”时，系统应复用对应本地图片。
 - 当礼物当前在售但没有本地图片时，系统仍应使用占位图把它列入加班机选择器；“发红包”（ID 13000）作为操作入口固定排除。
 - 当礼物面板中的盲盒当前在售时，系统应把盲盒本体和 `giftBlindBoxConfig` 中该盲盒的每个可开出礼物分别计为在售。
-- 当刷新成功时，系统应把三份礼物 Markdown 的“当前在售”列更新为“在售”或“非目前在售”。
+- 当刷新成功时，系统不得修改三份礼物 Markdown；这些文档只作为本地图片和别名映射来源。
 - 当刷新失败时，系统应保留最后一次成功目录和既有加班规则，并向管理端显示可理解的错误。
 - 当既有加班规则中的礼物已不在售时，系统应标记该规则，但不得自动删除或禁用它。
 
@@ -22,9 +22,9 @@
 
 ### Backend
 
-- `src/bilibili/gift/sale-catalog.js` 负责固定 Bilibili 接口访问、响应校验、在售 ID 展平、Markdown 映射解析、目录构建、缓存持久化和 Markdown 状态列更新。
+- `src/bilibili/gift/sale-catalog.js` 负责固定 Bilibili 接口访问、响应校验、在售 ID 展平、只读 Markdown 映射解析、目录构建和缓存持久化。
 - `GET /api/overtime/gifts` 返回最后一次成功快照；`POST /api/overtime/gifts/refresh` 使用服务端设置里的直播间号刷新。
-- 快照写入 `data/overtime-gift-sale.json`，安装版不依赖修改只读的 `asar`；Markdown 可写时同步更新，无法写入时刷新目录仍成功并返回 `markdownUpdated: false`。
+- 快照写入 `data/overtime-gift-sale.json`；三份 Markdown 永远只读，因此安装版不依赖修改 `asar` 内容。
 - `scripts/refresh-bilibili-gift-sale.js` 复用同一服务，支持 `--room-id <id>`，未传时读取默认数据目录中的设置。
 
 ### Security
@@ -34,7 +34,7 @@
 - 每次请求设 15 秒超时；刷新最短间隔 10 秒，并合并并发刷新。
 - 只返回 `id`、`name`、`battery`、`rmb`、`imagePath` 等显式字段。
 - 礼物名称通过 DOM `textContent` 输出；未知图片只使用内置占位图。
-- Markdown 只修改三个固定路径，并使用临时文件原子替换。
+- Markdown 只从三个固定路径读取，刷新过程不写入任何文档文件。
 
 ## In-Sale Definition
 
@@ -62,8 +62,7 @@
     "roomId": "22637261",
     "refreshedAt": "2026-08-16T06:00:00.000Z",
     "gifts": [],
-    "count": 0,
-    "markdownUpdated": true
+    "count": 0
   }
 }
 ```
@@ -77,7 +76,7 @@
 
 ## Acceptance Criteria
 
-- 三份 Markdown 每个礼物表格都有且只有一个“当前在售”列。
+- 刷新前后三份 Markdown 内容保持完全不变。
 - 同特效别名在售时，其主行显示“在售”。
 - 除“发红包”（ID 13000）外，刷新返回的每个在售 ID 都能出现在加班机选择器，即使只能显示占位图。
 - 在售盲盒本体和映射中的所有可开出礼物均分别出现在目录中；未在售盲盒不展开产物。

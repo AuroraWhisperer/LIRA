@@ -6,8 +6,9 @@
   const params = new URLSearchParams(location.search);
   const SOUND_ON = params.get('sound') === '1';
   const DEBUG = params.get('debug') === '1';
-  const MAX_PLAYING = clampInteger(params.get('max'), 1, 6, 3);
-  const MAX_PENDING = 8;
+  const PREVIEW_MODE = params.get('preview') === '1';
+  const MAX_PLAYING = 1;
+  const MAX_PENDING = 10;
   const stage = document.getElementById('giftEffectStage');
   const status = document.getElementById('giftEffectStatus');
   const playing = new Map();
@@ -25,6 +26,7 @@
   }
 
   function init() {
+    if (PREVIEW_MODE) document.addEventListener('visibilitychange', playNextEffect);
     connectSocket();
   }
 
@@ -67,12 +69,16 @@
 
     const effect = payload.effect;
     if (!effect || !isTrustedEffectUrl(effect.mp4Url)) return;
-    if (playing.size >= MAX_PLAYING) {
-      if (pending.length >= MAX_PENDING) pending.shift();
-      pending.push(payload);
-      return;
-    }
-    spawnEffect(payload);
+    if (pending.length >= MAX_PENDING) return;
+    pending.push(payload);
+    playNextEffect();
+  }
+
+  function playNextEffect() {
+    if (playing.size >= MAX_PLAYING) return;
+    if (PREVIEW_MODE && document.visibilityState === 'hidden') return;
+    const payload = pending.shift();
+    if (payload) spawnEffect(payload);
   }
 
   function spawnEffect(payload) {
@@ -252,7 +258,7 @@
     layer.video.removeAttribute('src');
     layer.video.load();
     layer.canvas.remove();
-    if (pending.length > 0) spawnEffect(pending.shift());
+    playNextEffect();
   }
 
   function resizeCanvas(canvas) {
@@ -284,9 +290,4 @@
     status.hidden = false;
   }
 
-  function clampInteger(value, min, max, fallback) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed)) return fallback;
-    return Math.min(max, Math.max(min, parsed));
-  }
 })();

@@ -10,6 +10,7 @@ const { URL } = require('node:url');
 const apiRoutes = require('./server/api-routes');
 const { createApiContext: buildApiContext } = require('./server/api-context');
 const { createBilibiliClient: buildBilibiliClient } = require('./server/bilibili-client');
+const { createBilibiliRuntime } = require('./server/bilibili-runtime');
 const { buildMusicRuntime } = require('./server/music-runtime');
 const { buildAiRuntime } = require('./server/ai-runtime');
 const { createServerCompatibility } = require('./server/compatibility-runtime');
@@ -21,11 +22,8 @@ const sharedUtils = require('./shared/utils');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const settingsStoreModule = require('./storage/settings-store');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
-const { BilibiliApiClient } = require('./bilibili/danmaku/api-client');
-const { createDanmakuSenderService } = require('./bilibili/danmaku/sender-service');
 const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
-const { createMessageBuffer } = require('./bilibili/diagnostics/message-buffer');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -99,71 +97,36 @@ function createServerRuntime(runtimeOptions = {}) {
   domainServices.queue.clearOnStartup();
   runStartupRetention();
 
-  const liveStatus = {
-    connected: false,
-    enabled: false,
-    roomId: '',
-    mode: 'disabled',
-    message: '未启用 Bilibili 监听',
-    updatedAt: sharedUtils.now()
-  };
-
-  let bilibiliAuthProvider = null; // { getAuthState, getCookieHeader, getUid }
-  let bilibiliAuthCache = { cookieHeader: '', uid: 0 }; // 同步缓存，createBilibiliClient 同频读取
-
   publishOvertimeUpdate = update => webSocketHub.broadcast({
     type: 'overtime:update',
     reason: update.reason,
     state: update.state,
     ...(update.adjustment ? { adjustment: update.adjustment } : {})
   });
-  let bilibiliClient = null;
   let isShuttingDown = false;
   let startedPort = null;
   let startPromise = null;
   let shutdownPromise = null;
   let sessionToken = '';
-  const runtimeGiftCommandPrefixes = new Set();
-  const bilibiliDiagnostics = {
-    lastPacketAt: '',
-    lastCommandAt: '',
-    lastGiftAt: '',
-    parsedGiftCount: 0,
-    unparsedGiftCount: 0,
-    commandCounts: {},
-    recentCommands: [],
-    recentGiftLikeCommands: []
-  };
-  const messageBuffer = createMessageBuffer(500);
-  const danmakuSender = createDanmakuSenderService({
-    async getAuth() {
-      await refreshBilibiliAuthCache();
-      const state = bilibiliAuthProvider
-        ? await bilibiliAuthProvider.getAuthState().catch(() => ({ loggedIn: false, uid: 0 }))
-        : { loggedIn: false, uid: 0 };
-      return {
-        loggedIn: Boolean(state.loggedIn),
-        uid: Number(state.uid || bilibiliAuthCache.uid) || 0,
-        cookieHeader: bilibiliAuthCache.cookieHeader
-      };
-    },
-    async getRoom() {
-      return { roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId) };
-    },
-    getLiveStatus: () => liveStatus,
-    getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
-    getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
-    getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
-    getFortuneBotEnabled: () => settingsStore.getSettings().enableFortuneBot === 'true',
-    getCustomReplyBotEnabled: () => settingsStore.getSettings().enableCustomReplyBot === 'true',
-    createClient(roomId, auth) {
-      if (bilibiliClient && bilibiliClient.roomId === roomId) {
-        bilibiliClient.apiClient.updateAuth(auth.cookieHeader, auth.uid);
-        return bilibiliClient.apiClient;
-      }
-      return new BilibiliApiClient(roomId, auth);
+  const bilibiliRuntime = createBilibiliRuntime({
+    settingsStore,
+    domainServices,
+    broadcastSnapshot,
+    buildClient(roomId, context) {
+      return buildBilibiliClient(roomId, {
+        ...context,
+        aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
+        domainServices,
+        xiaomiAi: aiRuntime.service,
+        broadcastSnapshot,
+        logGiftDelivery
+      });
     }
   });
+  const liveStatus = bilibiliRuntime.getLiveStatus();
+  const bilibiliDiagnostics = bilibiliRuntime.getDiagnostics();
+  const messageBuffer = bilibiliRuntime.getMessageBuffer();
+  const danmakuSender = bilibiliRuntime.getDanmakuSender();
   const aiRuntime = buildAiRuntime({
     songDb,
     runtimeOptions,
@@ -215,10 +178,10 @@ function createServerRuntime(runtimeOptions = {}) {
       weSingCapture: musicRuntime.weSingCapture,
       bilibili: {
         liveStatus,
-        configure: configureBilibiliListener,
-        reconnect: reconnectBilibiliListener,
-        updateStatus: updateLiveStatus,
-        auth: bilibiliAuthProvider,
+        configure: bilibiliRuntime.configure,
+        reconnect: bilibiliRuntime.reconnect,
+        updateStatus: bilibiliRuntime.updateStatus,
+        auth: bilibiliRuntime.getAuthProvider(),
         danmakuSender
       },
       ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
@@ -276,7 +239,7 @@ function createServerRuntime(runtimeOptions = {}) {
     if (isShuttingDown) return Promise.reject(new Error('Server runtime is shutting down.'));
 
     musicRuntime.setMusicRegistry(options.musicAuth || {});
-    bilibiliAuthProvider = options.bilibiliAuth || null;
+    bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
     const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
     const host = normalizeServerHost(options.host || HOST);
     startPromise = lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host))
@@ -299,9 +262,9 @@ function createServerRuntime(runtimeOptions = {}) {
         console.log(`Blindbox overlay: ${baseUrl}/blindbox`);
         console.log(`Overtime overlay: ${baseUrl}/overtime`);
         openAdminPageIfNeeded(baseUrl);
-        reconnectBilibiliListener().catch((error) => {
+        bilibiliRuntime.reconnect().catch((error) => {
           console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
-          updateLiveStatus({
+          bilibiliRuntime.updateStatus({
             connected: false,
             enabled: true,
             roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
@@ -315,10 +278,7 @@ function createServerRuntime(runtimeOptions = {}) {
         lifecycle.removeSessionToken(DATA_DIR, sessionToken);
         lifecycle.removeRuntimeInfo(DATA_DIR, { pid: process.pid, port: startedPort });
         sessionToken = '';
-        if (bilibiliClient) {
-          bilibiliClient.stop();
-          bilibiliClient = null;
-        }
+        bilibiliRuntime.disconnect();
         if (server.listening) {
           await new Promise((resolve) => {
             server.close(() => resolve());
@@ -353,129 +313,6 @@ function createServerRuntime(runtimeOptions = {}) {
       lyricTimeline: musicRuntime.getLyricTimeline(),
       weSing: musicRuntime.weSingCapture.getStatus()
     };
-  }
-
-  function configureBilibiliListener(force = false) {
-    if (isShuttingDown) return;
-    const settings = settingsStore.getSettings();
-    const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
-    const enabled = settings.enableBilibili === 'true' && roomId;
-
-    if (!enabled) {
-      if (bilibiliClient) {
-        bilibiliClient.stop();
-        bilibiliClient = null;
-      }
-      updateLiveStatus({
-        connected: false,
-        enabled: false,
-        roomId,
-        mode: 'disabled',
-        message: '未启用 Bilibili 监听'
-      });
-      return;
-    }
-
-    // 相同房间且非强制时跳过，避免无谓断线重连
-    if (!force && bilibiliClient && bilibiliClient.roomId === roomId) {
-      return;
-    }
-
-    // configure 是 fire-and-forget 入口，必须在这里消费 rejection，避免 unhandled rejection。
-    replaceBilibiliClient(roomId).catch((error) => {
-      if (isShuttingDown) return;
-      console.warn(`[Bilibili] configure failed: ${error.message}`);
-      updateLiveStatus({
-        connected: false,
-        enabled: true,
-        roomId,
-        mode: 'bilibili',
-        message: sharedUtils.publicBilibiliErrorMessage(error, true)
-      });
-    });
-  }
-
-  async function reconnectBilibiliListener() {
-    if (isShuttingDown) throw new Error('Server runtime is shutting down.');
-    const settings = settingsStore.getSettings();
-    const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
-    const enabled = settings.enableBilibili === 'true' && roomId;
-
-    if (!enabled) {
-      // 未启用时复用 configure 的禁用逻辑，不重复写状态更新
-      configureBilibiliListener(true);
-      return { liveStatus };
-    }
-
-    // 强制重连：等待握手完成再返回
-    await replaceBilibiliClient(roomId, true);
-    return { liveStatus };
-  }
-
-  // 共用：停止旧客户端、创建新客户端并启动
-  // restart=true 时 await 握手完成（reconnect 场景），否则 start() 立即返回（configure 场景）
-  let _replaceClientChain = Promise.resolve();
-  async function replaceBilibiliClient(roomId, restart = false) {
-    const run = async () => {
-      if (isShuttingDown) return;
-      if (bilibiliClient) bilibiliClient.stop();
-      // 重建前先刷新 Bilibili 登录态缓存
-      await refreshBilibiliAuthCache();
-      if (isShuttingDown) return;
-      const client = createBilibiliClient(roomId);
-      bilibiliClient = client;
-      if (restart) {
-        try {
-          await client.restart();
-        } finally {
-          if (isShuttingDown) client.stop();
-        }
-      } else {
-        client.start();
-      }
-    };
-    const result = _replaceClientChain.then(run, run);
-    _replaceClientChain = result.catch(() => {});
-    return result;
-  }
-
-  async function refreshBilibiliAuthCache() {
-    if (!bilibiliAuthProvider) return;
-    try {
-      const [cookieHeader, uid] = await Promise.all([
-        bilibiliAuthProvider.getCookieHeader().catch(() => ''),
-        bilibiliAuthProvider.getUid().catch(() => 0)
-      ]);
-      bilibiliAuthCache = { cookieHeader: cookieHeader || '', uid: Number(uid) || 0 };
-    } catch (_) {
-      // 非 Electron 模式或 auth 不可用，保持默认值
-    }
-  }
-
-  function createBilibiliClient(roomId) {
-    return buildBilibiliClient(roomId, {
-      isShuttingDown: () => isShuttingDown,
-      aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
-      domainServices,
-      xiaomiAi: aiRuntime.service,
-      danmakuSender,
-      broadcastSnapshot,
-      updateLiveStatus,
-      bilibiliDiagnostics,
-      runtimeGiftCommandPrefixes,
-      messageBuffer,
-      bilibiliAuthCache,
-      logGiftDelivery
-    });
-  }
-
-  function updateLiveStatus(nextStatus) {
-    if (isShuttingDown) return;
-    Object.assign(liveStatus, {
-      ...nextStatus,
-      updatedAt: sharedUtils.now()
-    });
-    broadcastSnapshot('live:status');
   }
 
   function openAdminPageIfNeeded(baseUrl) {
@@ -517,10 +354,7 @@ function createServerRuntime(runtimeOptions = {}) {
       lifecycle.removeSessionToken(DATA_DIR, sessionToken);
       lifecycle.removeRuntimeInfo(DATA_DIR, { pid: process.pid, port: startedPort });
 
-      if (bilibiliClient) {
-        bilibiliClient.stop();
-        bilibiliClient = null;
-      }
+      bilibiliRuntime.stop();
       try {
         domainServices.gifts.dispose();
       } catch (error) {

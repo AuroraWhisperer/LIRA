@@ -1,12 +1,12 @@
 # 测试策略
 
-> 涉及文件:[package.json](../../../package.json)(`test`/`check` 脚本)、[test/](../../../test/)(85 个 `*.test.js`)、[scripts/check-js.js](../../../scripts/check-js.js)、[scripts/inspect-wesing-playback.js](../../../scripts/inspect-wesing-playback.js)、[scripts/capture-bilibili-events.js](../../../scripts/capture-bilibili-events.js)、[scripts/bilibili-capture-electron/](../../../scripts/bilibili-capture-electron/)
+> 涉及文件:[package.json](../../../package.json)(`test`/`check` 脚本)、[test/](../../../test/)(92 个 `*.test.js`)、[scripts/check-js.js](../../../scripts/check-js.js)、[scripts/inspect-wesing-playback.js](../../../scripts/inspect-wesing-playback.js)、[scripts/capture-bilibili-events.js](../../../scripts/capture-bilibili-events.js)、[scripts/bilibili-capture-electron/](../../../scripts/bilibili-capture-electron/)
 
 本文档是测试的**唯一事实源**:测试框架与命令、全部测试文件的清单与归属、静态检查、专用诊断、辅助捕获脚本均只在此成表。构建/发布相关命令见 [build.md](build.md)。
 
 ## 1. 框架与命令
 
-- **框架**:Node 内置 `node:test` + `node:assert/strict`,**零第三方测试依赖**([package.json:13](../../../package.json#L13));85 个测试文件全部基于 `node:test`。
+- **框架**:Node 内置 `node:test` + `node:assert/strict`,**零第三方测试依赖**([package.json:13](../../../package.json#L13));92 个测试文件全部基于 `node:test`。
 - **全量运行**:`npm test` = `node --experimental-vm-modules --test --test-concurrency=4` — **并发数 4**。
 - **为什么需要 `--experimental-vm-modules`**:源码以 CJS(`require`)为主,但多个前端测试会通过 `vm.SourceTextModule` 或动态 `import()` 加载 `public/js/` 下的 ESM 模块;去掉该 flag 这些测试会失败。
 - **单文件运行**:`node --experimental-vm-modules --test test/xxx.test.js`(flag 必须保留)。
@@ -27,10 +27,11 @@
 | [ai-web-search-tool.test.js](../../../test/ai-web-search-tool.test.js) | `ai/tools/web-search-tool`(联网搜索工具) | 同上 |
 | [frontend-admin-ai.test.js](../../../test/frontend-admin-ai.test.js) | Admin 弹幕工具与小米 AI 配置 UI | 同上 + [frontend/app.md](../frontend/app.md) |
 | [xiaomi-ai-service.test.js](../../../test/xiaomi-ai-service.test.js) | `ai/xiaomi-ai-service`(服务编排) | 同上 |
-| **Bilibili 弹幕/协议(12)** | | [backend/bilibili/danmaku.md](../backend/bilibili/danmaku.md) |
+| **Bilibili 弹幕/协议(13)** | | [backend/bilibili/danmaku.md](../backend/bilibili/danmaku.md) |
 | [bilibili-danmaku-send.test.js](../../../test/bilibili-danmaku-send.test.js) | `bilibili/danmaku/api-client`(发弹幕) | 同上 |
 | [bilibili-identity-cache.test.js](../../../test/bilibili-identity-cache.test.js) | `bilibili/danmaku/identity-cache`(身份缓存) | 同上 |
 | [bilibili-message-log.test.js](../../../test/bilibili-message-log.test.js) | `bilibili/bilibili-message-handler`(消息日志格式) | 同上 |
+| [bilibili-runtime.test.js](../../../test/bilibili-runtime.test.js) | `server/bilibili-runtime` 的认证缓存、客户端替换与关闭所有权 | [backend/server-core.md](../backend/server-core.md) |
 | [bilibili-user-meta.test.js](../../../test/bilibili-user-meta.test.js) | `bilibili/utils/user-meta-extractor`(用户信息提取) | 同上 |
 | [checkin-service.test.js](../../../test/checkin-service.test.js) | `bilibili/checkin-service`(签到) | 同上 |
 | [custom-reply-service.test.js](../../../test/custom-reply-service.test.js) | `bilibili/danmaku/command-text`(自定义回复) | 同上 |
@@ -71,25 +72,28 @@
 | [overtime-routes.test.js](../../../test/overtime-routes.test.js) | `server/routes`(加班机 API) | 同上 + [backend/api.md](../backend/api.md) |
 | [overtime-rule-editor.test.js](../../../test/overtime-rule-editor.test.js) | 加班机礼物规则编辑器模块边界 | 同上 + [frontend/app.md](../frontend/app.md) |
 | [overtime-overlay.test.js](../../../test/overtime-overlay.test.js) | `public/pages/overlays/overtime.html`+js/css(叠加层) | 同上 + [frontend/pages.md](../frontend/pages.md) |
-| **服务器核心(5)** | | [backend/server-core.md](../backend/server-core.md) |
+| **服务器核心(6)** | | [backend/server-core.md](../backend/server-core.md) |
 | [admin-page-composition.test.js](../../../test/admin-page-composition.test.js) | Admin HTML 分片组合顺序、完整性与 token 注入 | 同上 + [frontend/pages.md](../frontend/pages.md) |
 | [server-lifecycle.test.js](../../../test/server-lifecycle.test.js) | `server/lifecycle`(端口/生命周期) | 同上 |
 | [server-modules.test.js](../../../test/server-modules.test.js) | 服务兼容层与 API Context 模块边界 | 同上 |
 | [server-smoke.test.js](../../../test/server-smoke.test.js) | `src/server`(端到端冒烟) | 同上 + [backend/api.md](../backend/api.md) |
+| [module-boundaries.test.js](../../../test/module-boundaries.test.js) | 持久化、Admin、播放、组合根和 shared 工具的架构适应度函数 | [modularity-standard.md](modularity-standard.md) |
 | [websocket-transport.test.js](../../../test/websocket-transport.test.js) | `server/ws`(WS 传输) | [backend/ws.md](../backend/ws.md) |
-| **桌面层(8)** | | 见各列 |
+| **桌面层(9)** | | 见各列 |
 | [bilibili-login-window.test.js](../../../test/bilibili-login-window.test.js) | `electron/bilibili-login-window`(登录窗口) | [desktop/auth.md](../desktop/auth.md) |
 | [bilibili-startup-wiring.test.js](../../../test/bilibili-startup-wiring.test.js) | `server.js`+`electron/main.js`(启动装配断言) | [backend/server-core.md](../backend/server-core.md) + [desktop/main.md](../desktop/main.md) |
 | [desktop-lyrics.test.js](../../../test/desktop-lyrics.test.js) | `music/lyric-state`(歌词窗口状态) | [frontend/playback.md](../frontend/playback.md) |
+| [desktop-state.test.js](../../../test/desktop-state.test.js) | Electron 主进程运行时状态隔离 | [desktop/main.md](../desktop/main.md) |
 | [electron-main-modules.test.js](../../../test/electron-main-modules.test.js) | Electron server runtime 适配与 `local-media://` 协议 | [desktop/main.md](../desktop/main.md) |
 | [local-media-access.test.js](../../../test/local-media-access.test.js) | `electron/local-media-access`(local-media:// 协议) | [desktop/main.md](../desktop/main.md) |
 | [playback-flush.test.js](../../../test/playback-flush.test.js) | `electron/playback-flush`(播放状态落盘) | [backend/storage.md](../backend/storage.md) + [desktop/main.md](../desktop/main.md) |
 | [terminal-log.test.js](../../../test/terminal-log.test.js) | `electron/terminal-log`(终端日志) | [desktop/main.md](../desktop/main.md) |
 | [update-manager.test.js](../../../test/update-manager.test.js) | `electron/update-manager`(自动更新) | [desktop/update.md](../desktop/update.md) |
-| **存储(3)** | | [backend/storage.md](../backend/storage.md) |
+| **存储(4)** | | [backend/storage.md](../backend/storage.md) |
 | [cooldown-store.test.js](../../../test/cooldown-store.test.js) | 冷却 Map 的过期剪枝 | 同上 |
 | [database-maintenance.test.js](../../../test/database-maintenance.test.js) | 全量清理的删除计数与队列处理 | 同上 |
 | [playback-store.test.js](../../../test/playback-store.test.js) | `storage/playback-store`(播放状态库) | 同上 |
+| [superchat-store.test.js](../../../test/superchat-store.test.js) | `storage/superchat-store` 的 SQLite 映射与领域对象契约 | 同上 |
 | **前端(20)** | | 见各列 |
 | [esm-module-boundaries.test.js](../../../test/esm-module-boundaries.test.js) | `public/js/` ESM 未声明标识符边界审计 | [frontend/app.md](../frontend/app.md) |
 | [frontend-admin-shell.test.js](../../../test/frontend-admin-shell.test.js) | Admin 外壳、工具箱、布局、主题与初始化回归 | [frontend/app.md](../frontend/app.md) |

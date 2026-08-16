@@ -1,6 +1,6 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
-> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
+> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
@@ -15,6 +15,8 @@
 **单实例锁**:`app.requestSingleInstanceLock()` 拿不到锁立即 `app.quit()`([main.js:59-67](../../../src/electron/main.js#L59-L67));`second-instance` 事件时还原并聚焦主窗口([main.js:71-75](../../../src/electron/main.js#L71-L75));锁在退出流程末尾释放(§7)。
 
 `window-all-closed` 时非 darwin 平台直接 `app.quit()`([main.js:77-79](../../../src/electron/main.js#L77-L79))。
+
+主进程可变状态由 `createDesktopState()` 创建并按 `window/lifecycle/media/paths/logging/update` 六个职责分组。`main.js` 只保留这些分组引用,窗口、内嵌服务、更新状态和日志序列不再散落为模块级 `let`。
 
 ## 2. 启动序列 startDesktopApp
 
@@ -100,7 +102,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒
 | `*://*.qqmusic.qq.com/*`、`*://*.gtimg.cn/*`、`*://*.y.qq.com/*` | 以 `qqmusic.qq.com` / `gtimg.cn` / `y.qq.com` 结尾 | `Referer: https://y.qq.com/` + `Origin: https://y.qq.com` |
 | `*://*.bilibili.com/*`、`*://*.hdslb.com/*` | 以 `bilibili.com` / `hdslb.com` 结尾 | `Referer: https://www.bilibili.com/` + `Origin: https://www.bilibili.com` |
 
-出处:[configureMusicMediaRequestHeaders:525-545](../../../src/electron/main.js#L525-L545)、[configureBilibiliMediaRequestHeaders:553-566](../../../src/electron/main.js#L553-L566)。音乐组带 `musicMediaHeadersConfigured` 幂等标记([main.js:526-527](../../../src/electron/main.js#L526-L527))。
+出处:`configureMusicMediaRequestHeaders` 与 `configureBilibiliMediaRequestHeaders`。音乐组使用 `mediaState.headersConfigured` 幂等标记。
 
 ## 7. 关闭序列与播放状态冲刷
 

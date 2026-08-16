@@ -56,10 +56,8 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   const U = Utils;
   const escapeHtml = U.escapeHtml;
-  const escapeAttr = U.escapeAttr;
   const value = U.value;
   const formatBytes = U.formatBytes;
-  const formatCompactNumber = U.formatCompactNumber;
 
   let getSongs = () => [];
   let reloadSongs = async () => {};
@@ -77,14 +75,7 @@ export function createPlaybackController(initialOptions = {}) {
   const playbackStreamMaxRetries = PlaybackConfig.STREAM_MAX_RETRIES;
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 3 — 前向声明（解决循环依赖）
-  // ══════════════════════════════════════════════════════════════
-  let renderPlayback;
-  let playPlaybackTrack;
-  let ensurePlaybackRadioQueueFilled;
-
-  // ══════════════════════════════════════════════════════════════
-  // SECTION 4 — 管理器和服务的创建
+  // SECTION 3 — 管理器和服务的创建
   // ══════════════════════════════════════════════════════════════
   const stateManager = new StateManager();
   const storageManager = new StorageManager();
@@ -99,28 +90,27 @@ export function createPlaybackController(initialOptions = {}) {
 
   const providerManager = new ProviderManager({
     state: playbackState,
-    onStateChange: () => { if (renderPlayback) renderPlayback(); },
+    onStateChange: renderPlayback,
     onError: (error) => showError(error)
   });
   providerManager.setJsonResponseReader((r, msg) => readJsonResponse(r, msg));
 
   const cacheManager = new CacheManager();
 
-  // contentLoader 的 onBackgroundUpdate 通过闭包延迟访问 homeService
-  let homeService; // 前向声明供 contentLoader 闭包使用
+  function applyBackgroundHomeUpdate(update) {
+    if (homeService.getHomeState().action !== update.action) return;
+    homeService._applyBackgroundUpdate(update);
+    renderPlaybackHomeResults(update.action, update.title);
+    toast(HomeService.getActionName(update.action) + '已自动更新');
+  }
+
   const contentLoader = new ContentLoader({
     state: playbackState,
     providerManager,
     cacheManager,
     onError: (error) => showError(error),
     readJsonResponse: (r, msg) => readJsonResponse(r, msg),
-    onBackgroundUpdate: (update) => {
-      if (homeService && homeService.getHomeState().action === update.action) {
-        homeService._applyBackgroundUpdate(update);
-        renderPlaybackHomeResults(update.action, update.title);
-        toast(HomeService.getActionName(update.action) + '已自动更新');
-      }
-    }
+    onBackgroundUpdate: applyBackgroundHomeUpdate
   });
 
   const localFileManager = new LocalFileManager({ onError: (error) => showError(error) });
@@ -134,11 +124,9 @@ export function createPlaybackController(initialOptions = {}) {
   const playerController = new PlayerController({
     state: playbackState,
     queueManager,
-    onTrackChange: (track, options) => {
-      if (playPlaybackTrack) playPlaybackTrack(track, options);
-    },
+    onTrackChange: playPlaybackTrack,
     onStateChange: () => {
-      if (renderPlayback) renderPlayback();
+      renderPlayback();
       savePlaybackState();
     },
     onError: (error) => { showError(error); }
@@ -169,7 +157,7 @@ export function createPlaybackController(initialOptions = {}) {
     readJsonResponse: (r, m) => readJsonResponse(r, m), toast: (m) => toast(m)
   });
 
-  homeService = new HomeService({
+  const homeService = new HomeService({
     state: playbackState, contentLoader,
     onError: (e) => showError(e), readJsonResponse: (r, m) => readJsonResponse(r, m), toast: (m) => toast(m)
   });
@@ -177,7 +165,7 @@ export function createPlaybackController(initialOptions = {}) {
   const uiRenderer = new UIRenderer();
   const weSingService = new WeSingService({
     playbackState,
-    onStateChange: () => { if (renderPlayback) renderPlayback(); },
+    onStateChange: renderPlayback,
     showError: (error) => showError(error),
     toast: (message) => toast(message),
     readJsonResponse: (response, message) => readJsonResponse(response, message)
@@ -188,7 +176,7 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 5 — 渲染模块（无循环依赖，最先创建）
+  // SECTION 4 — 渲染模块
   // ══════════════════════════════════════════════════════════════
   const rendererModule = createRenderer({
     uiRenderer, playbackState, getPlaybackAudio, lyricService, searchService, homeService,
@@ -198,13 +186,12 @@ export function createPlaybackController(initialOptions = {}) {
   // 直接从渲染模块导出渲染函数
   const renderPlaybackProgress = rendererModule.renderPlaybackProgress;
   const renderFullscreenPlayer = rendererModule.renderFullscreenPlayer;
-  const renderPendingConfirmPopup = rendererModule.renderPendingConfirmPopup;
   const renderPlaybackSearchResults = rendererModule.renderPlaybackSearchResults;
   const renderPlaybackHomeResults = rendererModule.renderPlaybackHomeResults;
   const renderPlaybackMatchResults = rendererModule.renderPlaybackMatchResults;
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 6 — 无循环依赖的功能模块
+  // SECTION 5 — 独立功能模块
   // ══════════════════════════════════════════════════════════════
   const cacheOperations = createCacheOperations({ readJsonResponse, formatBytes, toast, showError });
 
@@ -238,7 +225,7 @@ export function createPlaybackController(initialOptions = {}) {
   });
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 7 — 带循环依赖的模块（使用闭包延迟访问 renderPlayback）
+  // SECTION 6 — Provider 与歌单操作
   // ══════════════════════════════════════════════════════════════
   const providerOperations = createProviderOperations({
     playbackState, providerManager, cacheManager, weSingService,
@@ -255,24 +242,37 @@ export function createPlaybackController(initialOptions = {}) {
   });
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 8 — 渲染包装函数
+  // SECTION 7 — 渲染与延迟绑定包装函数
   // ══════════════════════════════════════════════════════════════
-  renderPlayback = function () {
+  function renderPlayback() {
     rendererModule.renderPlayback(
       providerOperations.getAuthState(),
       providerOperations.getProviderHealth()
     );
-  };
+  }
 
   function syncPlaybackLyricWindow(force = false) {
     return lyricControls.syncPlaybackLyricWindow(force, getPlaybackAudio);
   }
 
-  // updatePlaybackMediaSession 稍后赋值（需要 togglePlayback/playbackPrevious/playbackNext）
-  let updatePlaybackMediaSession;
+  function playPlaybackTrack(...args) {
+    return playbackControls.playPlaybackTrack(...args);
+  }
+
+  function ensurePlaybackRadioQueueFilled(...args) {
+    return radioMode.ensurePlaybackRadioQueueFilled(...args);
+  }
+
+  function updatePlaybackMediaSession() {
+    rendererModule.updatePlaybackMediaSession(
+      togglePlayback,
+      playbackPrevious,
+      () => playbackNext(false)
+    );
+  }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 9 — 队列操作模块 + 包装器
+  // SECTION 8 — 队列操作模块 + 包装器
   // ══════════════════════════════════════════════════════════════
   const queueOps = createQueueOperations({
     playbackState, queueManager, savePlaybackState,
@@ -301,12 +301,8 @@ export function createPlaybackController(initialOptions = {}) {
     if (!result) return;
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
-    if (playPlaybackTrack) {
-      await playPlaybackTrack(result.track, { origin: result.origin });
-    }
-    if (queueType === 'radio' && ensurePlaybackRadioQueueFilled) {
-      ensurePlaybackRadioQueueFilled();
-    }
+    await playPlaybackTrack(result.track, { origin: result.origin });
+    if (queueType === 'radio') ensurePlaybackRadioQueueFilled();
   }
 
   function appendPlaybackTracks(tracks) {
@@ -325,14 +321,12 @@ export function createPlaybackController(initialOptions = {}) {
       return;
     }
     savePlaybackState();
-    if (playPlaybackTrack) {
-      await playPlaybackTrack(result.track, { origin: result.origin });
-    }
+    await playPlaybackTrack(result.track, { origin: result.origin });
   }
 
   function takeNextPlaybackTrack() {
     const result = queueOps.takeNextPlaybackTrack(takeNextShuffleNormalTrack);
-    if (result && playbackState.queueType === 'radio' && ensurePlaybackRadioQueueFilled) {
+    if (result && playbackState.queueType === 'radio') {
       ensurePlaybackRadioQueueFilled();
     }
     return result;
@@ -374,7 +368,7 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 10 — 适配器函数（模块 → sharedDeps 的固定签名接口）
+  // SECTION 9 — 功能适配器
   // ══════════════════════════════════════════════════════════════
   const queueCallbacks = {
     startPlaybackCollection, appendPlaybackTracks, insertAndPlayPlaybackTrack,
@@ -435,120 +429,127 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 11 — 构建 sharedDeps
+  // SECTION 10 — 播放控制模块
   // ══════════════════════════════════════════════════════════════
-  const sharedDeps = {
-    // 核心对象
-    playbackState, getPlaybackAudio, uiRenderer, playerController,
-    storageManager, cacheManager, localFileManager, queueManager, providerManager,
-    homeService, searchService, matchService, importService, lyricService, streamService, weSingService,
-
-    // Provider 状态（getter 延迟访问）
-    get playbackAuthState() { return providerOperations.getAuthState(); },
-    get playbackProviderHealth() { return providerOperations.getProviderHealth(); },
-
-    // 渲染函数
-    renderPlayback: () => renderPlayback(),
-    renderPlaybackProgress: () => renderPlaybackProgress(),
-    renderFullscreenPlayer: () => renderFullscreenPlayer(),
-    renderPendingConfirmPopup: () => renderPendingConfirmPopup(),
-    renderPlaybackSearchResults: () => renderPlaybackSearchResults(),
-    renderPlaybackHomeResults: (...args) => renderPlaybackHomeResults(...args),
+  const playbackControls = createPlaybackControls({
+    playbackState,
+    getPlaybackAudio,
+    showError,
+    toast,
+    lyricService,
+    localFileManager,
+    streamService,
     savePlaybackState,
-    syncPlaybackLyricWindow: () => syncPlaybackLyricWindow(),
-    updatePlaybackMediaSession: () => updatePlaybackMediaSession(),
-
-    // Provider 操作
-    refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
-    refreshPlaybackMusicCacheStats: () => cacheOperations.refreshPlaybackMusicCacheStats(),
-    loginSelectedMusicProvider: () => providerOperations.loginSelectedMusicProvider(),
-    logoutSelectedMusicProvider: () => providerOperations.logoutSelectedMusicProvider(),
-    checkSelectedMusicProviderHealth: (o) => providerOperations.checkSelectedMusicProviderHealth(o),
-    clearPlaybackMusicCache: () => cacheOperations.clearPlaybackMusicCache(),
-
-    // 首页 & Drawer 操作
-    loadPlaybackHomeContent,
-    loadPlaybackPlaylistTracks,
-    refreshPlaybackHomeContent,
-    handlePlaybackHomeBulkAction,
-    handlePlaybackDrawerHeaderPlayAll,
-    handlePlaybackHomeTrackAction,
-    handlePlaybackSearchAction,
-    toggleTrackMenu: (i) => homeHandler.toggleTrackMenu(i),
-    openPlaybackDrawer: (...a) => homeHandler.openPlaybackDrawer(...a),
-    closePlaybackDrawer: () => homeHandler.closePlaybackDrawer(),
-    playbackDrawerGoBack: () => homeHandler.playbackDrawerGoBack(),
-    toggleQueuePopup: () => homeHandler.toggleQueuePopup(),
-    closeQueuePopup: () => homeHandler.closeQueuePopup(),
-
-    // 队列操作
-    clearPlaybackQueue, importSongQueueToPlayback,
-    takePlaybackQueueTrack, jumpToPlaylistTrack,
-    rebuildPlaybackShuffleOrder, startPlaybackCollection,
-    appendPlaybackTracks, insertPlaybackTracksNext,
-    addCurrentTrackToPlaylist: () => playlistOperations.addCurrentTrackToPlaylist(),
-
-    // 匹配 & 搜索
-    runPlaybackMatchTest: () => matchHandler.runPlaybackMatchTest(),
-    runPlaybackSearch: () => searchHandler.runPlaybackSearch(),
-    clearPlaybackSearch: () => searchHandler.clearPlaybackSearch(),
-
-    // 工具函数
-    escapeHtml, escapeAttr, value, formatBytes, formatCompactNumber, toast, showError, readJsonResponse, U
-  };
-
-  // ══════════════════════════════════════════════════════════════
-  // SECTION 12 — 播放控制模块（产生 playPlaybackTrack）
-  // ══════════════════════════════════════════════════════════════
-  const playbackControls = createPlaybackControls(sharedDeps);
-  playPlaybackTrack = playbackControls.playPlaybackTrack;
+    renderPlayback,
+    updatePlaybackMediaSession,
+    syncPlaybackLyricWindow,
+    getPlaybackAuthState: () => providerOperations.getAuthState(),
+    rebuildPlaybackShuffleOrder,
+    U
+  });
   const togglePlaybackRaw = playbackControls.togglePlayback;
   const playbackPrevious = playbackControls.playbackPrevious;
   const playbackNextRaw = playbackControls.playbackNext;
-  const loadPlaybackLyrics = playbackControls.loadPlaybackLyrics;
-  const ensureLocalTrackPlayable = playbackControls.ensureLocalTrackPlayable;
+  const changePlaybackQuality = playbackControls.changePlaybackQuality;
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 13 — 流处理 & 电台模块
+  // SECTION 11 — 流处理 & 电台模块
   // ══════════════════════════════════════════════════════════════
   const streamHandler = createStreamHandler({
-    ...sharedDeps,
-    playPlaybackTrack: (...args) => playPlaybackTrack(...args),
-    playbackNext: (...args) => playbackNext(...args)
+    streamService,
+    playbackState,
+    getPlaybackAudio,
+    playPlaybackTrack,
+    playbackNext
   });
 
-  const radioMode = createRadioMode(sharedDeps);
-  ensurePlaybackRadioQueueFilled = radioMode.ensurePlaybackRadioQueueFilled;
+  const radioMode = createRadioMode({
+    playbackState,
+    readJsonResponse,
+    playbackRadioRefillThreshold,
+    playbackRadioRefillBatchSize,
+    savePlaybackState,
+    renderPlayback
+  });
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 14 — 回调注入（包装需要注入回调的函数）
+  // SECTION 12 — 回调注入（包装需要注入回调的函数）
   // ══════════════════════════════════════════════════════════════
-  const togglePlayback = function () {
+  function togglePlayback() {
     return togglePlaybackRaw(takeNextPlaybackTrack, () => providerOperations.showPlaybackLoginPrompt());
-  };
+  }
 
-  const playbackNext = function (fromEnded) {
+  function playbackNext(fromEnded) {
     return playbackNextRaw(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled);
-  };
-
-  // updatePlaybackMediaSession 现在可以正确赋值
-  updatePlaybackMediaSession = function () {
-    rendererModule.updatePlaybackMediaSession(togglePlayback, playbackPrevious, () => playbackNext(false));
-  };
+  }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 15 — 初始化器 & 事件处理器
+  // SECTION 13 — 初始化器 & 事件处理器
   // ══════════════════════════════════════════════════════════════
   const eventHandlersModule = createEventHandlers({
-    ...sharedDeps,
-    playbackPrevious, playbackNext,
-    togglePlayback, playPlaybackTrack,
+    playbackState,
+    getPlaybackAudio,
+    uiRenderer,
+    homeService,
+    searchService,
+    matchService,
+    providerManager,
+    savePlaybackState,
+    renderPlayback,
+    renderPlaybackSearchResults,
+    renderPlaybackHomeResults,
     handlePlaybackPendingAction,
-    renderPlaybackMatchResults: (d) => renderPlaybackMatchResults(d)
+    renderPlaybackMatchResults,
+    renderFullscreenPlayer,
+    syncPlaybackLyricWindow,
+    clearPlaybackQueue,
+    importSongQueueToPlayback,
+    playbackPrevious,
+    playbackNext,
+    togglePlayback,
+    changePlaybackQuality,
+    addCurrentTrackToPlaylist: () => playlistOperations.addCurrentTrackToPlaylist(),
+    loginSelectedMusicProvider: () => providerOperations.loginSelectedMusicProvider(),
+    logoutSelectedMusicProvider: () => providerOperations.logoutSelectedMusicProvider(),
+    checkSelectedMusicProviderHealth: (options) => providerOperations.checkSelectedMusicProviderHealth(options),
+    clearPlaybackMusicCache: () => cacheOperations.clearPlaybackMusicCache(),
+    runPlaybackMatchTest: () => matchHandler.runPlaybackMatchTest(),
+    runPlaybackSearch: () => searchHandler.runPlaybackSearch(),
+    clearPlaybackSearch: () => searchHandler.clearPlaybackSearch(),
+    loadPlaybackHomeContent,
+    toggleQueuePopup: () => homeHandler.toggleQueuePopup(),
+    closeQueuePopup: () => homeHandler.closeQueuePopup(),
+    closePlaybackDrawer: () => homeHandler.closePlaybackDrawer(),
+    playbackDrawerGoBack: () => homeHandler.playbackDrawerGoBack(),
+    refreshPlaybackHomeContent,
+    handlePlaybackDrawerHeaderPlayAll,
+    handlePlaybackHomeBulkAction,
+    loadPlaybackPlaylistTracks,
+    toggleTrackMenu: (index) => homeHandler.toggleTrackMenu(index),
+    handlePlaybackHomeTrackAction,
+    handlePlaybackSearchAction,
+    takePlaybackQueueTrack,
+    jumpToPlaylistTrack,
+    playPlaybackTrack,
+    rebuildPlaybackShuffleOrder,
+    refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
+    escapeHtml,
+    value
   });
 
   const playbackInitializer = createInitializer({
-    ...sharedDeps,
+    playbackState,
+    getPlaybackAudio,
+    uiRenderer,
+    playerController,
+    storageManager,
+    localFileManager,
+    renderPlayback,
+    renderPlaybackProgress,
+    renderFullscreenPlayer,
+    savePlaybackState,
+    syncPlaybackLyricWindow,
+    updatePlaybackMediaSession,
     playbackNext,
     handlePlaybackError: streamHandler.handlePlaybackError,
     flushPlaybackStateOnUnload: statePersistence.flushPlaybackStateOnUnload,
@@ -565,7 +566,7 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION 16 — 公共 API
+  // SECTION 14 — 公共 API
   // ══════════════════════════════════════════════════════════════
   return {
     init: async (options) => {

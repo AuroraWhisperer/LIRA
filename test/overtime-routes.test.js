@@ -72,6 +72,18 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(configured.response.status, 200);
     assert.equal(configured.payload.data.effectiveRemainingMs, 300_000);
 
+    const invalidQuantityMode = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [{ giftId: '35793', mode: 'fixed', fixedSeconds: 60, quantityMode: 'price' }]
+    });
+    assert.equal(invalidQuantityMode.response.status, 400);
+    assert.match(invalidQuantityMode.payload.error, /quantityMode/);
+
+    const savedRules = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [{ giftId: '35793', mode: 'fixed', fixedSeconds: 60, quantityMode: 'item' }]
+    });
+    assert.equal(savedRules.response.status, 200);
+    assert.equal(savedRules.payload.data.rules[0].quantityMode, 'item');
+
     const malicious = await postJson(app.baseUrl, token, '/api/overtime/config', {
       path: '../secret.png',
       fit: 'cover'

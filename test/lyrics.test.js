@@ -81,6 +81,29 @@ test('lyric and stream provider calls retain the QQ numeric sourceSongId', async
   assert.equal(streamTrack.sourceSongId, 563728446);
 });
 
+test('stream resolver forwards the selected quality to the provider', async () => {
+  let receivedOptions;
+  const registry = {
+    get() {
+      return {
+        async resolvePlayableUrl(_track, options) {
+          receivedOptions = options;
+          return { url: 'https://example.test/song.flac' };
+        }
+      };
+    }
+  };
+
+  await resolveMusicStream(registry, {
+    id: 'netease:461011',
+    source: 'netease',
+    sourceTrackId: '461011',
+    title: 'Example Song'
+  }, { quality: 'lossless', forceRefresh: true });
+
+  assert.deepEqual(receivedOptions, { forceRefresh: true, quality: 'lossless' });
+});
+
 test('lyric service ignores incomplete v4 lyric cache entries', async (t) => {
   const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-cache-version-'));
   t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));

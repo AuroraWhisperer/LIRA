@@ -1,5 +1,7 @@
 'use strict';
 
+const { canonicalizeGuardGiftId } = require('../bilibili/gift/guard-gift-aliases');
+
 function createOvertimeStore(giftDb) {
   if (!giftDb || typeof giftDb.prepare !== 'function') {
     throw new Error('giftDb is required to create OvertimeStore.');
@@ -76,8 +78,8 @@ function createOvertimeStore(giftDb) {
           rule.mode,
           rule.fixedSeconds,
           rule.mode === 'random'
-            ? JSON.stringify({ version: 2, outcomes: rule.outcomes })
-            : JSON.stringify({ version: 2, effect: rule.fixedEffect }),
+            ? JSON.stringify({ version: 2, quantityMode: rule.quantityMode, outcomes: rule.outcomes })
+            : JSON.stringify({ version: 2, quantityMode: rule.quantityMode, effect: rule.fixedEffect }),
           rule.enabled ? 1 : 0,
           rule.sortOrder,
           updatedAt
@@ -120,9 +122,13 @@ function createOvertimeStore(giftDb) {
       settlement = getSettlement(giftEventId);
       if (gift.detection_status !== 'final') return { kind: 'pending', settlement };
 
-      const ruleRow = giftDb.prepare(`
+      const rawGiftId = String(gift.gift_id || '').trim();
+      const canonicalGiftId = canonicalizeGuardGiftId(rawGiftId);
+      const findRule = giftDb.prepare(`
         SELECT * FROM overtime_gift_rules WHERE gift_id = ? AND enabled = 1
-      `).get(String(gift.gift_id || '').trim());
+      `);
+      const ruleRow = findRule.get(canonicalGiftId)
+        || (canonicalGiftId !== rawGiftId ? findRule.get(rawGiftId) : null);
       if (!ruleRow) {
         ignoreSettlement(giftEventId, updatedAt);
         return { kind: 'ignored', settlement: getSettlement(giftEventId) };
@@ -315,6 +321,7 @@ function normalizeRule(row) {
     giftName: row.gift_name,
     imagePath: row.image_path,
     mode: row.mode,
+    quantityMode: stored?.quantityMode === 'item' ? 'item' : 'group',
     fixedSeconds,
     fixedEffect,
     outcomes,

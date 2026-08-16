@@ -53,6 +53,8 @@ test('overtime overlay anchors server time and only animates fresh revisioned ad
   assert.match(source, /payload\.type === 'overtime:update'/);
   assert.match(source, /revision\s*<=\s*currentRevision/);
   assert.match(source, /MAX_ANIMATION_QUEUE\s*=\s*5/);
+  assert.match(source, /按数量结算/);
+  assert.match(source, /applicationCount/);
   assert.match(source, /quality.*low/);
   assert.doesNotMatch(source, /setInterval\([^,]+,\s*1000\s*\)/);
 });

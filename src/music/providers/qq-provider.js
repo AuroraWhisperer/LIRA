@@ -29,6 +29,24 @@ const QQ_PLAYLIST_DETAIL_URL = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdin
 const QQ_CREATED_PLAYLIST_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
 const QQ_COLLECTED_ASSET_URL = 'https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg';
 const STREAM_TTL_MS = 5 * 60 * 1000;
+const QQ_STREAM_QUALITIES = {
+  standard: { prefix: 'M500', extension: 'mp3' },
+  high: { prefix: 'M800', extension: 'mp3' },
+  lossless: { prefix: 'F000', extension: 'flac' }
+};
+const QQ_STREAM_FALLBACKS = {
+  standard: ['standard'],
+  high: ['high', 'standard'],
+  lossless: ['lossless', 'high', 'standard']
+};
+
+function identifyQQStreamQuality(value, fallback) {
+  const text = String(value || '');
+  if (text.includes('F000')) return 'lossless';
+  if (text.includes('M800')) return 'high';
+  if (text.includes('M500')) return 'standard';
+  return fallback;
+}
 
 class QQMusicProvider extends QQMusicClient {
   constructor(options = {}) {
@@ -189,8 +207,17 @@ class QQMusicProvider extends QQMusicClient {
     };
   }
 
-  async resolvePlayableUrl(track) {
+  async resolvePlayableUrl(track, options = {}) {
     const sourceTrackId = extractSourceTrackId(track);
+    const sourceMediaId = String(track && track.sourceMediaId || sourceTrackId).trim();
+    const requestedQuality = Object.hasOwn(QQ_STREAM_QUALITIES, options.quality)
+      ? options.quality
+      : 'standard';
+    const qualityCandidates = QQ_STREAM_FALLBACKS[requestedQuality];
+    const filenames = qualityCandidates.map((quality) => {
+      const format = QQ_STREAM_QUALITIES[quality];
+      return `${format.prefix}${sourceMediaId}.${format.extension}`;
+    });
     const guid = buildGuid();
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
@@ -205,17 +232,20 @@ class QQMusicProvider extends QQMusicClient {
         method: 'CgiGetVkey',
         param: {
           guid,
-          songmid: [sourceTrackId],
-          songtype: [0],
+          songmid: qualityCandidates.map(() => sourceTrackId),
+          songtype: qualityCandidates.map(() => 0),
+          filename: filenames,
           uin,
           loginflag: cookieHeader ? 1 : 0,
           platform: '20'
         }
       }
     });
-    const midUrlInfo = data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.midurlinfo)
-      ? data.req_0.data.midurlinfo[0]
-      : null;
+    const midUrlInfoList = data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.midurlinfo)
+      ? data.req_0.data.midurlinfo
+      : [];
+    const streamIndex = midUrlInfoList.findIndex((item) => item && item.purl);
+    const midUrlInfo = streamIndex >= 0 ? midUrlInfoList[streamIndex] : null;
     const purl = midUrlInfo && midUrlInfo.purl ? String(midUrlInfo.purl) : '';
     if (!purl) {
       if (!hasQQMusicAuthCookie(cookieHeader)) {
@@ -228,12 +258,18 @@ class QQMusicProvider extends QQMusicClient {
       : [];
     const baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/';
     const expiresAt = Date.now() + STREAM_TTL_MS;
+    const actualQuality = identifyQQStreamQuality(
+      midUrlInfo && (midUrlInfo.filename || midUrlInfo.purl),
+      qualityCandidates[streamIndex] || requestedQuality
+    );
     return {
       source: this.source,
       sourceTrackId,
       url: `${baseUrl}${purl}`,
       expireAt: expiresAt,
-      playUrlExpireAt: expiresAt
+      playUrlExpireAt: expiresAt,
+      requestedQuality,
+      quality: actualQuality
     };
   }
 

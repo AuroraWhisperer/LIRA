@@ -76,6 +76,7 @@ export class StorageManager {
         mode: state.mode,
         volume: state.volume,
         selectedSource: state.selectedSource,
+        qualityPreferences: state.qualityPreferences,
         shuffleOrder: state.shuffleOrder,
         shuffleCursor: state.shuffleCursor,
         restoredTime: 0, // 不保存播放位置

@@ -493,6 +493,142 @@ body.player-dock-collapsed {
   border-left: 1px solid var(--border);
 }
 
+/* ===== 音质选择 ===== */
+.playback-quality-wrap {
+  position: relative;
+}
+
+.playback-quality-btn {
+  min-width: 42px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 7px 0 9px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  color: var(--primary-strong, var(--primary));
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 140ms ease;
+}
+
+.playback-quality-btn svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 160ms ease;
+}
+
+.playback-quality-btn:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 13%, var(--surface));
+  transform: translateY(-1px);
+}
+
+.playback-quality-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 24%, transparent);
+  outline-offset: 2px;
+}
+
+.playback-quality-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.playback-quality-wrap.open .playback-quality-btn svg {
+  transform: rotate(180deg);
+}
+
+.playback-quality-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 70;
+  width: 220px;
+  padding: 7px;
+  border: 1px solid rgba(217, 224, 232, 0.96);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 36px rgba(22, 31, 43, 0.18);
+  backdrop-filter: blur(18px);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transform: translateY(7px) scale(0.98);
+  transform-origin: 85% 100%;
+  transition: opacity 150ms ease, transform 170ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.playback-quality-panel::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  border-right: 1px solid rgba(217, 224, 232, 0.96);
+  border-bottom: 1px solid rgba(217, 224, 232, 0.96);
+  background: rgba(255, 255, 255, 0.98);
+  transform: rotate(45deg);
+}
+
+.playback-quality-wrap.open .playback-quality-panel {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+}
+
+.playback-quality-option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 48px 1fr 18px;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.playback-quality-option:hover {
+  background: rgba(22, 31, 43, 0.055);
+}
+
+.playback-quality-option.selected {
+  background: color-mix(in srgb, var(--primary) 10%, white);
+  color: var(--primary-strong, var(--primary));
+}
+
+.playback-quality-option span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.playback-quality-option small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.playback-quality-option svg {
+  width: 15px;
+  height: 15px;
+  opacity: 0;
+}
+
+.playback-quality-option.selected svg {
+  opacity: 1;
+}
+
 /* 分隔线 */
 .playback-controls-divider {
   width: 1px;
@@ -642,7 +778,8 @@ body.player-dock-collapsed {
 /* ===== 右侧滑出抽屉 ===== */
 .playback-player-panel.is-external-source .playback-control-buttons,
 .playback-player-panel.is-external-source .playback-mode-wrap,
-.playback-player-panel.is-external-source .playback-seek-wrap {
+.playback-player-panel.is-external-source .playback-seek-wrap,
+.playback-player-panel.is-external-source .playback-quality-wrap {
   opacity: 0.42;
 }
 

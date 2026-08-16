@@ -2,6 +2,34 @@
 // 播放助手工具函数模块
 'use strict';
 
+const QUALITY_OPTIONS = {
+  qq: [
+    { id: 'standard', label: '标准', detail: '128kbps' },
+    { id: 'high', label: 'HQ', detail: '最高 320kbps' },
+    { id: 'lossless', label: 'SQ', detail: '无损 FLAC' }
+  ],
+  netease: [
+    { id: 'standard', label: '标准', detail: '128kbps' },
+    { id: 'higher', label: '较高', detail: '最高 192kbps' },
+    { id: 'exhigh', label: '极高', detail: '最高 320kbps' },
+    { id: 'lossless', label: '无损', detail: '无损 FLAC' },
+    { id: 'hires', label: 'Hi-Res', detail: '高解析度无损' }
+  ]
+};
+
+export function getQualityOptions(source) {
+  return QUALITY_OPTIONS[source] || [];
+}
+
+export function normalizeQuality(source, quality) {
+  const options = getQualityOptions(source);
+  return options.some((item) => item.id === quality) ? quality : 'standard';
+}
+
+export function getQualityLabel(source, quality) {
+  return getQualityOptions(source).find((item) => item.id === quality)?.label || '标准';
+}
+
 /**
  * 标准化在线音乐轨道数据
  * @param {Object} track - 原始轨道数据
@@ -19,6 +47,7 @@ export function normalizeOnlineTrack(track) {
     durationMs: Math.max(0, Number(track.durationMs) || 0),
     coverUrl: track.coverUrl || '',
     sourceTrackId,
+    sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
@@ -41,6 +70,7 @@ export function serializeTrackForProvider(track) {
     durationMs: track.durationMs || 0,
     coverUrl: track.coverUrl || '',
     sourceTrackId: track.sourceTrackId || track.id,
+    sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,

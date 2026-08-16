@@ -8,6 +8,8 @@ const { createPlaybackStore } = require('../storage/playback-store');
 const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
 const { createCheckinStore } = require('../storage/checkin-store');
+const { createQueueStore } = require('../storage/queue-store');
+const { createSuperChatStore } = require('../storage/superchat-store');
 const { createRequesterTargetStore } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
 const queueService = require('../music/queue-service');
@@ -30,6 +32,8 @@ function createDomainServices(options) {
   const themeStore = createThemeStore(db.songDb, settingsStore);
   const requesterTargets = createRequesterTargetStore(db.songDb);
   const checkinStore = createCheckinStore(db.checkinDb);
+  const queueStore = createQueueStore(db.songDb);
+  const superChatStore = createSuperChatStore(db.superChatDb);
   const checkins = createCheckinService({
     store: checkinStore,
     settings: () => settingsStore.getSettings()
@@ -82,7 +86,9 @@ function createDomainServices(options) {
   };
 
   const queueContext = {
-    ...baseContext,
+    store: queueStore,
+    settings: () => settingsStore.getSettings(),
+    defaults: () => settingsStore.getDefaultSettings(),
     findSong: songs.find
   };
   const queue = {
@@ -119,10 +125,11 @@ function createDomainServices(options) {
     }
   };
 
+  const superChatContext = { store: superChatStore };
   const superChats = {
-    getSnapshot: () => superChatService.getSuperChatSnapshot(baseContext),
-    add: (input) => superChatService.addSuperChatItem(baseContext, input),
-    handleAction: (action, id) => superChatService.handleSuperChatAction(baseContext, action, id)
+    getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
+    add: (input) => superChatService.addSuperChatItem(superChatContext, input),
+    handleAction: (action, id) => superChatService.handleSuperChatAction(superChatContext, action, id)
   };
 
   const messages = {

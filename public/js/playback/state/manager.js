@@ -24,6 +24,7 @@ export function createInitialState() {
     mode: 'sequence',
     volume: 0.3,
     selectedSource: 'qq',
+    qualityPreferences: { qq: 'standard', netease: 'standard' },
     shuffleOrder: [],
     shuffleCursor: 0,
     restoredTime: 0
@@ -106,6 +107,16 @@ export function normalizeState(state) {
   if (!validSources.includes(normalized.selectedSource)) {
     normalized.selectedSource = 'qq';
   }
+
+  const qualityPreferences = normalized.qualityPreferences && typeof normalized.qualityPreferences === 'object'
+    ? normalized.qualityPreferences
+    : {};
+  normalized.qualityPreferences = {
+    qq: ['standard', 'high', 'lossless'].includes(qualityPreferences.qq) ? qualityPreferences.qq : 'standard',
+    netease: ['standard', 'higher', 'exhigh', 'lossless', 'hires'].includes(qualityPreferences.netease)
+      ? qualityPreferences.netease
+      : 'standard'
+  };
 
   // 确保 queueType 合法
   const validQueueTypes = ['queue', 'playlist', 'radio'];

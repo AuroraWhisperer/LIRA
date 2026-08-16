@@ -225,6 +225,17 @@ test('time, background, and rules validation enforce server limits', () => {
   ]);
   assert.deepEqual(rules[2].fixedEffect, { operation: 'multiply', value: 8 });
   assert.equal(rules[2].fixedSeconds, null);
+  assert.deepEqual(rules.map(rule => rule.quantityMode), ['group', 'group', 'group']);
+  const itemRule = validateRules([{
+    giftId: 'quantity-item', mode: 'fixed', quantityMode: 'item', fixedSeconds: 1
+  }]);
+  assert.equal(itemRule[0].quantityMode, 'item');
+  assert.throws(
+    () => validateRules([{
+      giftId: 'bad-quantity-mode', mode: 'fixed', quantityMode: 'price', fixedSeconds: 1
+    }]),
+    /quantityMode/
+  );
   assert.throws(
     () => validateRules([{
       giftId: 'bad-factor', mode: 'fixed', fixedEffect: { operation: 'divide', value: 1 }
@@ -239,7 +250,7 @@ test('time, background, and rules validation enforce server limits', () => {
   );
 });
 
-test('final gift groups apply a fixed rule once without multiplying by quantity', () => {
+test('group quantity mode applies a fixed rule once for the finalized combo', () => {
   const fixture = createFixture();
   const updates = [];
   const service = fixture.createService({ onUpdate: update => updates.push(update) });
@@ -262,6 +273,69 @@ test('final gift groups apply a fixed rule once without multiplying by quantity'
     assert.equal(settlement.applied_delta_seconds, 300);
     assert.equal(fixture.countSettlements(event.giftEventId), 1);
     assert.equal(updates.filter(update => update.reason === 'gift').length, 1);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('item quantity mode applies a fixed rule once per gift in the finalized combo', () => {
+  const fixture = createFixture();
+  const service = fixture.createService();
+  const consumer = createOvertimeConsumer({ service });
+
+  try {
+    service.act('enable');
+    service.setTime({ remainingSeconds: 120 });
+    service.replaceRules([fixedRule('gift-a', 300, 0, 'item')]);
+    const event = fixture.insertFinalGift({ giftId: 'gift-a', num: 100, overtimeEpoch: 1 });
+
+    consumer.handle(event);
+    consumer.handle(event);
+
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 30_120_000);
+    const settlement = fixture.getSettlement(event.giftEventId);
+    assert.equal(settlement.quantity, 100);
+    assert.equal(settlement.requested_delta_seconds, 30_000);
+    assert.equal(settlement.applied_delta_seconds, 30_000);
+    assert.equal(fixture.countSettlements(event.giftEventId), 1);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('guard purchases and room gift aliases share the three canonical guard rules', () => {
+  const fixture = createFixture();
+  const service = fixture.createService();
+  const consumer = createOvertimeConsumer({ service });
+
+  try {
+    service.act('enable');
+    service.replaceRules([
+      fixedRule('guard-1', 100, 0, 'item'),
+      fixedRule('guard-2', 10, 1, 'item'),
+      fixedRule('guard-3', 1, 2, 'item')
+    ]);
+
+    let expectedSeconds = 0;
+    for (const [giftId, seconds] of [
+      ['guard-1', 100], ['10001', 100], ['33909', 100], ['34639', 100],
+      ['guard-2', 10], ['10002', 10], ['33908', 10], ['34638', 10],
+      ['guard-3', 1], ['10003', 1], ['34637', 1], ['33972', 1],
+      ['33978', 1], ['34636', 1]
+    ]) {
+      const event = fixture.insertFinalGift({ giftId, overtimeEpoch: 1 });
+      consumer.handle(event);
+      expectedSeconds += seconds;
+      assert.equal(service.getSnapshot().effectiveRemainingMs, expectedSeconds * 1000, giftId);
+      assert.equal(fixture.getSettlement(event.giftEventId).status, 'applied', giftId);
+    }
+
+    const multiMonth = fixture.insertFinalGift({ giftId: '10003', num: 12, overtimeEpoch: 1 });
+    consumer.handle(multiMonth);
+    expectedSeconds += 12;
+    assert.equal(service.getSnapshot().effectiveRemainingMs, expectedSeconds * 1000);
   } finally {
     service.dispose();
     fixture.close();
@@ -299,6 +373,39 @@ test('random gift groups persist one weighted result and never redraw', () => {
       version: 2,
       selectedIndex: 1,
       selectedEffect: { operation: 'subtract', value: 30 },
+      totalWeight: 3
+    });
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('item quantity mode draws one random result per gift and persists every selected index', () => {
+  const fixture = createFixture();
+  const draws = [0, 2, 0];
+  const service = fixture.createService({ randomInt: () => draws.shift() });
+  const consumer = createOvertimeConsumer({ service });
+
+  try {
+    service.act('enable');
+    service.setTime({ remainingSeconds: 120 });
+    service.replaceRules([{
+      giftId: 'blind', giftName: 'Blind', imagePath: '', mode: 'random', quantityMode: 'item',
+      outcomes: [{ seconds: 60, weight: 2 }, { seconds: -30, weight: 1 }],
+      enabled: true, sortOrder: 0
+    }]);
+    const event = fixture.insertFinalGift({ giftId: 'blind', num: 3, overtimeEpoch: 1 });
+
+    consumer.handle(event);
+    consumer.handle(event);
+
+    assert.equal(draws.length, 0);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 210_000);
+    assert.deepEqual(JSON.parse(fixture.getSettlement(event.giftEventId).outcomes_json), {
+      version: 3,
+      quantity: 3,
+      selectedIndexes: [0, 1, 0],
       totalWeight: 3
     });
   } finally {
@@ -547,10 +654,10 @@ function createFixture() {
   };
 }
 
-function fixedRule(giftId, fixedSeconds, sortOrder = 0) {
+function fixedRule(giftId, fixedSeconds, sortOrder = 0, quantityMode = 'group') {
   return {
     giftId, giftName: giftId, imagePath: '', mode: 'fixed', fixedSeconds,
-    enabled: true, sortOrder
+    quantityMode, enabled: true, sortOrder
   };
 }
 

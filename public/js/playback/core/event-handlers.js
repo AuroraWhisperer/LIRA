@@ -26,6 +26,7 @@ export function createEventHandlers(deps) {
     playbackPrevious,
     playbackNext,
     togglePlayback,
+    changePlaybackQuality,
     addCurrentTrackToPlaylist,
     loginSelectedMusicProvider,
     logoutSelectedMusicProvider,
@@ -67,6 +68,7 @@ export function createEventHandlers(deps) {
     setupSearchButtons();
     setupQueueListEvents();
     setupModeButton();
+    setupQualityControls();
     setupVolumeControls();
     setupSeekControl();
   }
@@ -171,8 +173,6 @@ export function createEventHandlers(deps) {
           getPlaybackAudio()?.pause();
           window.closeFullscreenPlayer?.();
         }
-        deps.playbackAuthState = providerManager.getAuthState(newSource);
-        deps.playbackProviderHealth = providerManager.getProviderHealth(newSource);
         searchService.clearResults();
         homeService.clearHomeState();
         savePlaybackState();
@@ -291,6 +291,42 @@ export function createEventHandlers(deps) {
         if (event.key === 'Escape') {
           setVolumePanelOpen(false);
         }
+      });
+    }
+  }
+
+  function setupQualityControls() {
+    const qualityWrap = document.getElementById('playbackQualityWrap');
+    const qualityPanel = document.getElementById('playbackQualityPanel');
+    const qualityButton = document.getElementById('playbackQualityBtn');
+
+    const setQualityPanelOpen = (open) => {
+      qualityWrap?.classList.toggle('open', open);
+      qualityPanel?.setAttribute('aria-hidden', String(!open));
+      qualityButton?.setAttribute('aria-expanded', String(open));
+    };
+
+    qualityButton?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      setQualityPanelOpen(!qualityWrap?.classList.contains('open'));
+    });
+
+    qualityPanel?.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const option = event.target.closest('[data-playback-quality]');
+      if (!option) return;
+      setQualityPanelOpen(false);
+      await changePlaybackQuality(option.dataset.playbackQuality);
+    });
+
+    if (typeof document.addEventListener === 'function') {
+      document.addEventListener('click', (event) => {
+        if (!event.target?.closest?.('.playback-quality-wrap')) {
+          setQualityPanelOpen(false);
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setQualityPanelOpen(false);
       });
     }
   }

@@ -15,11 +15,18 @@ function mapQQSong(song) {
   const albumMid = album && (album.mid || album.pmid)
     ? String(album.mid || album.pmid)
     : String(song.albummid || song.AlbumMid || '');
+  const sourceMediaId = String(
+    song.file && (song.file.media_mid || song.file.mediaMid)
+      || song.media_mid
+      || song.mediaMid
+      || sourceTrackId
+  ).trim();
   const numericSongId = Number(song.id || song.songid || song.songId || song.song_id || song.SongId || song.SongID || 0);
   return {
     id: `qq:${sourceTrackId}`,
     source: 'qq',
     sourceTrackId,
+    sourceMediaId,
     sourceSongId: Number.isSafeInteger(numericSongId) && numericSongId > 0 ? numericSongId : 0,
     sourceAlbumId: album && (album.mid || album.id) ? String(album.mid || album.id) : albumMid,
     title,

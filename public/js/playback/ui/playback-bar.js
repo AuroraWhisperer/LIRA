@@ -22,6 +22,9 @@ export class PlaybackBar {
     this.modeLabelEl = null;
     this.volumeSlider = null;
     this.volumeIcon = null;
+    this.qualityButton = null;
+    this.qualityLabel = null;
+    this.qualityPanel = null;
     this.marqueeAnimations = new WeakMap();
     this.marqueeResizeObserver = null;
   }
@@ -38,6 +41,9 @@ export class PlaybackBar {
     this.modeLabelEl = document.getElementById('playbackModeLabel');
     this.volumeSlider = document.getElementById('playbackVolume');
     this.volumeIcon = document.getElementById('playbackVolumeIcon');
+    this.qualityButton = document.getElementById('playbackQualityBtn');
+    this.qualityLabel = document.getElementById('playbackQualityLabel');
+    this.qualityPanel = document.getElementById('playbackQualityPanel');
 
     const marqueeElements = [this.titleEl, this.artistEl].filter(Boolean);
     if (typeof ResizeObserver === 'function') {
@@ -68,6 +74,9 @@ export class PlaybackBar {
 
     // 渲染音量
     this.renderVolume(state.volume);
+
+    // 渲染音质
+    this.renderQuality(state);
   }
 
   /**
@@ -193,6 +202,37 @@ export class PlaybackBar {
     }
 
     UIComponents.updateVolumeUI(volume);
+  }
+
+  renderQuality(state) {
+    if (!this.qualityButton || !this.qualityLabel || !this.qualityPanel) return;
+
+    const currentSource = state.current?.source;
+    const source = currentSource === 'qq' || currentSource === 'netease'
+      ? currentSource
+      : state.selectedSource;
+    const options = PlaybackUtils.getQualityOptions(source);
+    const disabled = options.length === 0 || currentSource === 'local';
+    const preferredQuality = PlaybackUtils.normalizeQuality(
+      source,
+      state.qualityPreferences?.[source]
+    );
+    const actualQuality = currentSource === source && state.current?.playbackQuality
+      ? state.current.playbackQuality
+      : preferredQuality;
+
+    this.qualityButton.disabled = disabled;
+    this.qualityButton.title = disabled
+      ? '当前音源不支持在这里切换音质'
+      : `播放音质：${PlaybackUtils.getQualityLabel(source, actualQuality)}`;
+    this.qualityLabel.textContent = disabled ? '音质' : PlaybackUtils.getQualityLabel(source, actualQuality);
+    this.qualityPanel.innerHTML = options.map((option) => `
+      <button class="playback-quality-option${option.id === preferredQuality ? ' selected' : ''}" type="button" role="menuitemradio" aria-checked="${option.id === preferredQuality}" data-playback-quality="${option.id}">
+        <span>${option.label}</span>
+        <small>${option.detail}</small>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>
+      </button>
+    `).join('');
   }
 
   /**

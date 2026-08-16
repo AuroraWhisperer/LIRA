@@ -1,6 +1,6 @@
 # 后端核心:HTTP 服务与进程生命周期
 
-> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
+> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/bilibili-runtime.js](../../../src/server/bilibili-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
 
 本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、token 注入机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
 
@@ -99,17 +99,17 @@
 
 **启动时数据修复链**([server.js:91-98](../../../src/server.js#L91-L98)):`giftEffectResolver` 预热 → `repairGiftV2Events` → `settingsBootstrap.runMigrations()`(详见 [settings-bootstrap.js](../../../src/server/settings-bootstrap.js))→ `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。
 
-**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()`([music-runtime.js:9](../../../src/server/music-runtime.js#L9))拥有;AI 配置、配额、DeepSeek 客户端、4 个工具、投递校验与请求日志由 `buildAiRuntime()`([ai-runtime.js:15](../../../src/server/ai-runtime.js#L15))拥有。`server.js` 作为 composition root 保留 WS hub、礼物特效解析器、danmakuSender、messageBuffer 与两个 runtime builder 的调用([server.js:85](../../../src/server.js#L85)、[server.js:163](../../../src/server.js#L163))。Bilibili 客户端在 `startServer` 成功后按设置重建(见 [bilibili/danmaku.md](bilibili/danmaku.md))。
+**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 
 ### 6.1 启动(startServer,[server.js:269-326](../../../src/server.js#L269-L326))
 
-1. 重建 `musicRegistry`(注入 `musicAuth` 适配器)并记录 `bilibiliAuthProvider`
+1. 重建 `musicRegistry`(注入 `musicAuth` 适配器)并向 `bilibiliRuntime` 注入认证 Provider
 2. `cleanupOwnPortOccupant` 清理旧实例 → `listenExactly` 绑定精确端口
 3. 生成会话令牌 `sessionToken = crypto.randomUUID()`,写入 `data/.session-token`(mode 0600)与 `data/.server-runtime.json`(pid/port/host)
 4. `AUTO_OPEN_ADMIN=1` 时打开管理页
-5. `reconnectBilibiliListener()` 重建 Bilibili 弹幕客户端(失败仅告警并更新 liveStatus,不阻断服务)
+5. `bilibiliRuntime.reconnect()` 重建 Bilibili 弹幕客户端(失败仅告警并更新 liveStatus,不阻断服务)
 
 启动失败时回滚:删除 token/运行时文件、停客户端、关服务器、重置 `startPromise` 后重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 

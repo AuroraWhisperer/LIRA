@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { addQueueItem } = require('../src/music/queue-service');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
+const { createQueueStore } = require('../src/storage/queue-store');
 
 test('queue and request inserts roll back together when request persistence fails', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-queue-atomic-'));
@@ -27,9 +28,9 @@ test('queue and request inserts roll back together when request persistence fail
     `);
 
     assert.throws(() => addQueueItem({
-      db,
+      store: createQueueStore(db.songDb),
       settings: () => defaults,
-      settingsStore: { getDefaultSettings: () => defaults }
+      defaults: () => defaults
     }, {
       songName: 'Atomic Song',
       requesterName: 'Tester',

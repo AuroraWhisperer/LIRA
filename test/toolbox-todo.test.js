@@ -103,5 +103,5 @@ test('streamer planner module is loaded and initialized by the admin entry', () 
   );
 
   assert.match(indexSource, /import '\.\/todo\.js';/);
-  assert.match(appSource, /window\.AdminApp\.todo\.init\(\)/);
+  assert.match(appSource, /modules\.todo\?\.init\?\.\(\)/);
 });

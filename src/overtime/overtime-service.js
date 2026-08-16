@@ -200,11 +200,12 @@ function createOvertimeService(options = {}) {
   }
 
   function resolveGiftSettlement(giftEventId, gift, rule, currentState, updatedAt) {
-    const selection = selectRuleResult(rule);
+    const quantity = normalizeQuantity(gift.num);
+    const applicationCount = rule.quantityMode === 'item' ? quantity : 1;
     const beforeMs = clampMs(currentState.remainingMs);
-    const afterMs = applyEffect(beforeMs, selection.effect);
+    const resolution = applyRule(rule, applicationCount, beforeMs);
+    const afterMs = resolution.afterMs;
     const appliedDeltaSeconds = Math.trunc((afterMs - beforeMs) / 1000);
-    const requestedDeltaSeconds = requestedDelta(selection.effect, appliedDeltaSeconds);
     const nextState = { ...currentState, remainingMs: afterMs };
 
     if (afterMs === 0) nextState.status = 'finished';
@@ -215,6 +216,7 @@ function createOvertimeService(options = {}) {
     const ruleSnapshot = {
       version: 2,
       mode: rule.mode,
+      quantityMode: rule.quantityMode,
       fixedEffect: rule.mode === 'fixed' ? rule.fixedEffect : null,
       outcomes: rule.mode === 'random' ? rule.outcomes : [],
       ruleUpdatedAt: rule.updatedAt
@@ -223,27 +225,60 @@ function createOvertimeService(options = {}) {
       giftEventId,
       giftId: String(gift.gift_id || ''),
       giftName: String(gift.gift_name || ''),
-      quantity: Math.max(1, Math.floor(Number(gift.num) || 1)),
+      quantity,
+      quantityMode: rule.quantityMode,
+      applicationCount,
       totalPrice: Number(gift.total_price) || 0,
       imagePath: rule.imagePath,
       mode: rule.mode,
-      effect: selection.effect,
+      effect: resolution.effect,
       beforeSeconds: Math.floor(beforeMs / 1000),
       afterSeconds: Math.floor(afterMs / 1000),
-      requestedDeltaSeconds,
+      requestedDeltaSeconds: resolution.requestedDeltaSeconds,
       appliedDeltaSeconds,
       resultSeconds: appliedDeltaSeconds,
-      result: selection.outcome
+      result: resolution.outcome
     };
 
     return {
       state: nextState,
       ruleMode: rule.mode,
       ruleSnapshotJson: JSON.stringify(ruleSnapshot),
-      requestedDeltaSeconds,
+      requestedDeltaSeconds: resolution.requestedDeltaSeconds,
       appliedDeltaSeconds,
-      outcomesJson: selection.outcome ? JSON.stringify(selection.outcome) : '',
+      outcomesJson: resolution.outcome ? JSON.stringify(resolution.outcome) : '',
       adjustment
+    };
+  }
+
+  function applyRule(rule, applicationCount, beforeMs) {
+    if (rule.mode === 'fixed') {
+      const afterMs = applyFixedEffectRepeatedly(beforeMs, rule.fixedEffect, applicationCount);
+      const appliedDeltaSeconds = Math.trunc((afterMs - beforeMs) / 1000);
+      return {
+        afterMs,
+        requestedDeltaSeconds: requestedRepeatedDelta(rule.fixedEffect, applicationCount, appliedDeltaSeconds),
+        effect: rule.fixedEffect,
+        outcome: null
+      };
+    }
+
+    let afterMs = beforeMs;
+    let requestedDeltaSeconds = 0;
+    const outcomes = [];
+    for (let index = 0; index < applicationCount; index += 1) {
+      const selection = selectRuleResult(rule);
+      const nextMs = applyEffect(afterMs, selection.effect);
+      const appliedDeltaSeconds = Math.trunc((nextMs - afterMs) / 1000);
+      requestedDeltaSeconds += requestedDelta(selection.effect, appliedDeltaSeconds);
+      afterMs = nextMs;
+      outcomes.push(selection.outcome);
+    }
+    return {
+      afterMs,
+      requestedDeltaSeconds,
+      effect: applicationCount === 1 ? outcomes[0].selectedEffect : null,
+      outcome: summarizeRandomOutcomes(outcomes)
     };
   }
 
@@ -415,6 +450,38 @@ function applyEffect(beforeMs, effect) {
   throw new Error('Overtime effect operation is invalid.');
 }
 
+function applyFixedEffectRepeatedly(beforeMs, effect, applicationCount) {
+  const operation = effect?.operation;
+  const value = Math.max(0, Math.floor(Number(effect?.value) || 0));
+  if (operation === 'add') return clampMs(beforeMs + value * applicationCount * 1000);
+  if (operation === 'subtract') return clampMs(beforeMs - value * applicationCount * 1000);
+  if (operation === 'clear') return 0;
+
+  let afterMs = beforeMs;
+  for (let index = 0; index < applicationCount; index += 1) {
+    const nextMs = applyEffect(afterMs, effect);
+    if (nextMs === afterMs) break;
+    afterMs = nextMs;
+  }
+  return afterMs;
+}
+
+function requestedRepeatedDelta(effect, applicationCount, appliedDeltaSeconds) {
+  if (effect.operation === 'add') return effect.value * applicationCount;
+  if (effect.operation === 'subtract') return -effect.value * applicationCount;
+  return appliedDeltaSeconds;
+}
+
+function summarizeRandomOutcomes(outcomes) {
+  if (outcomes.length === 1) return outcomes[0];
+  return {
+    version: 3,
+    quantity: outcomes.length,
+    selectedIndexes: outcomes.map(outcome => outcome.selectedIndex),
+    totalWeight: outcomes[0]?.totalWeight || 0
+  };
+}
+
 function requestedDelta(effect, appliedDeltaSeconds) {
   if (effect.operation === 'add') return effect.value;
   if (effect.operation === 'subtract') return -effect.value;
@@ -424,6 +491,11 @@ function requestedDelta(effect, appliedDeltaSeconds) {
 function getGiftEventId(event) {
   const giftEventId = Math.floor(Number(event?.giftEventId) || 0);
   return giftEventId > 0 ? giftEventId : 0;
+}
+
+function normalizeQuantity(value) {
+  const quantity = Math.floor(Number(value) || 1);
+  return quantity > 0 ? quantity : 1;
 }
 
 function normalizeState(row) {

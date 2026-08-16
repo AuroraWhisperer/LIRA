@@ -9,7 +9,8 @@ const ONLINE_CONTROL_TITLES = {
   playbackPrev: '上一首',
   playbackNext: '下一首',
   playbackSeek: '',
-  playbackQueueBtn: '播放队列'
+  playbackQueueBtn: '播放队列',
+  playbackQualityBtn: '选择播放音质'
 };
 
 export function createRenderer(deps) {
@@ -65,7 +66,7 @@ export function createRenderer(deps) {
     const weSingView = document.getElementById('playbackWeSingView');
     if (weSingView) weSingView.hidden = !isWeSing;
     document.querySelector('.playback-player-panel')?.classList.toggle('is-external-source', isWeSing);
-    ['playbackPrev', 'playbackPlayPause', 'playbackNext', 'playbackSeek', 'playbackModeBtn', 'playbackQueueBtn']
+    ['playbackPrev', 'playbackPlayPause', 'playbackNext', 'playbackSeek', 'playbackModeBtn', 'playbackQueueBtn', 'playbackQualityBtn']
       .forEach((id) => {
         const control = document.getElementById(id);
         if (!control) return;

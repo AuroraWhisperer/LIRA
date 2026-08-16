@@ -32,7 +32,10 @@ const routes = {
     await sendProviderResult(res, '在线音源 Provider 尚未接入。', () => resolveMusicStream(
       context.music.registry,
       body.track,
-      { forceRefresh: body.forceRefresh === true }
+      {
+        forceRefresh: body.forceRefresh === true,
+        quality: String(body.quality || '')
+      }
     ));
   },
 

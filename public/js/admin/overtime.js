@@ -23,6 +23,7 @@ let rulesDirty = false;
 let rulesSaving = false;
 let catalogRefreshing = false;
 let giftCatalogSnapshot = null;
+let catalogLiveStatus = null;
 let saleGiftIds = new Set();
 let ruleEditor = null;
 
@@ -33,7 +34,9 @@ function init() {
   bindControls();
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     giftDetection = state?.giftDetection || giftDetection;
+    catalogLiveStatus = state?.liveStatus || catalogLiveStatus;
     if (state?.overtime) renderState(state.overtime);
+    if (giftCatalogSnapshot?.refreshedAt) renderGiftCatalogStatus();
   });
   eventBus.on(Events.OVERTIME_UPDATED, payload => {
     renderState(payload.state);
@@ -242,8 +245,14 @@ function renderGiftCatalogStatus() {
   const timeLabel = Number.isNaN(refreshedAt.getTime())
     ? ''
     : refreshedAt.toLocaleString('zh-CN', { hour12: false });
-  const markdownLabel = giftCatalogSnapshot.markdownUpdated === false ? ' · Markdown 未更新' : '';
-  status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · 房间 ${giftCatalogSnapshot.roomId || '—'}${timeLabel ? ` · ${timeLabel}` : ''}${markdownLabel}`;
+  status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · 房间 ${catalogRoomLabel(giftCatalogSnapshot, catalogLiveStatus)}${timeLabel ? ` · ${timeLabel}` : ''}`;
+}
+
+function catalogRoomLabel(snapshot, liveStatus) {
+  const roomId = String(snapshot?.roomId || '');
+  const liveRoomId = String(liveStatus?.roomId || '');
+  const ownerName = String(liveStatus?.ownerName || '').trim();
+  return ownerName && roomId && liveRoomId === roomId ? ownerName : (roomId || '—');
 }
 
 function syncCatalogRefreshButton() {
@@ -435,6 +444,12 @@ function formatClockSeconds(seconds) {
 }
 
 function formatSettlementEffect(item) {
+  const applicationCount = item.ruleSnapshot?.quantityMode === 'item'
+    ? Math.max(1, Math.floor(Number(item.quantity) || 1))
+    : 1;
+  if (applicationCount > 1) {
+    return `结算 ${applicationCount} 次 · ${formatSignedClock(item.appliedDeltaSeconds)}`;
+  }
   const effect = item.outcome?.selectedEffect ?? item.ruleSnapshot?.fixedEffect;
   if (!effect) return formatSignedClock(item.appliedDeltaSeconds);
   if (effect.operation === 'multiply') return `×${effect.value}（${formatSignedClock(item.appliedDeltaSeconds)}）`;

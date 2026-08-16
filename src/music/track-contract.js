@@ -29,6 +29,7 @@ function normalizeMusicTrackForProvider(track) {
     durationMs: Math.max(0, Number(track.durationMs) || 0),
     coverUrl: cleanText(track.coverUrl),
     sourceTrackId,
+    sourceMediaId: cleanText(track.sourceMediaId),
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
     sourceAlbumId: cleanText(track.sourceAlbumId),
     playable: track.playable !== false,

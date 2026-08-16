@@ -68,6 +68,12 @@ function findByClass(root, className) {
   return null;
 }
 
+function findAllByDataset(root, key) {
+  const matches = root.dataset?.[key] === 'true' ? [root] : [];
+  for (const child of root.children || []) matches.push(...findAllByDataset(child, key));
+  return matches;
+}
+
 test('rule editor exposes createRule and appends a fixed-mode rule row', async () => {
   const namespace = await loadModuleExports(EDITOR_ENTRY, { document: createFakeDocument() });
   const dirtyCalls = [];
@@ -94,6 +100,9 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   toggle.listeners.click();
   assert.equal(newRuleBody.hidden, true);
   assert.equal(toggle.textContent, '展开设置');
+  const guardQuantityOptions = findAllByDataset(row, 'ruleQuantityMode');
+  assert.equal(guardQuantityOptions.find(option => option.value === 'item').checked, true);
+  assert.equal(guardQuantityOptions.find(option => option.value === 'group').checked, false);
 
   editor.renderRules([{
     giftId: '33988',
@@ -105,5 +114,7 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   const savedRuleBody = findByClass(root.children[0], 'overtime-rule-body');
   const summary = findByClass(root.children[0], 'overtime-rule-summary');
   assert.equal(savedRuleBody.hidden, true);
-  assert.equal(summary.textContent, '增加 5 分钟');
+  assert.equal(summary.textContent, '增加 5 分钟 · 按连击组');
+  const savedQuantityOptions = findAllByDataset(root.children[0], 'ruleQuantityMode');
+  assert.equal(savedQuantityOptions.find(option => option.value === 'group').checked, true);
 });

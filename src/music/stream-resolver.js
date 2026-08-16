@@ -8,7 +8,8 @@ function resolveMusicStream(registry, track, options = {}) {
   const normalizedTrack = normalizeMusicTrackForProvider(track);
   const provider = registry.get(normalizedTrack.source);
   return provider.resolvePlayableUrl(normalizedTrack, {
-    forceRefresh: options.forceRefresh === true
+    forceRefresh: options.forceRefresh === true,
+    quality: String(options.quality || '')
   });
 }
 

@@ -60,6 +60,42 @@ test('QQ provider distinguishes logged-in playback rights from login failure', a
   );
 });
 
+test('QQ provider requests the selected quality and falls back to the best playable stream', async () => {
+  const provider = createProvider();
+  let requestBody;
+  provider.requestMusicu = async (body) => {
+    requestBody = body;
+    return {
+      req_0: {
+        data: {
+          midurlinfo: [
+            { filename: 'F000media-mid.flac', purl: '' },
+            { filename: 'M800media-mid.mp3', purl: 'M800media-mid.mp3?vkey=test' },
+            { filename: 'M500media-mid.mp3', purl: 'M500media-mid.mp3?vkey=test' }
+          ],
+          sip: ['https://isure.test/']
+        }
+      }
+    };
+  };
+
+  const stream = await provider.resolvePlayableUrl({
+    sourceTrackId: 'song-mid',
+    sourceMediaId: 'media-mid'
+  }, { quality: 'lossless' });
+
+  const params = requestBody.req_0.param;
+  assert.deepEqual(params.filename, [
+    'F000media-mid.flac',
+    'M800media-mid.mp3',
+    'M500media-mid.mp3'
+  ]);
+  assert.deepEqual(params.songmid, ['song-mid', 'song-mid', 'song-mid']);
+  assert.equal(stream.url, 'https://isure.test/M800media-mid.mp3?vkey=test');
+  assert.equal(stream.requestedQuality, 'lossless');
+  assert.equal(stream.quality, 'high');
+});
+
 test('QQ provider requests, decrypts, and aligns translated and romanized lyrics', async () => {
   const originalFetch = global.fetch;
   let capturedUrl = '';

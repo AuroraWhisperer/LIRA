@@ -21,9 +21,6 @@ async function main() {
   });
   const snapshot = await service.refresh();
   console.log(`已刷新直播间 ${snapshot.roomId}：当前在售 ${snapshot.count} 个礼物。`);
-  console.log(snapshot.markdownUpdated
-    ? '三份礼物 Markdown 的“当前在售”列已更新。'
-    : '在售目录已更新，但当前安装目录不可写，Markdown 未修改。');
 }
 
 function readConfiguredBlindBoxConfig(dataDir) {

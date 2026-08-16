@@ -330,6 +330,7 @@ class FakeElement {
     };
     this.textContent = '';
     this.value = '';
+    this.attributes = new Map();
   }
 
   prepend(child) {
@@ -347,6 +348,14 @@ class FakeElement {
   addEventListener(eventName, listener) {
     if (!this.listeners.has(eventName)) this.listeners.set(eventName, []);
     this.listeners.get(eventName).push(listener);
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  getAttribute(name) {
+    return this.attributes.get(name) ?? null;
   }
 
   async emit(eventName, event = {}) {

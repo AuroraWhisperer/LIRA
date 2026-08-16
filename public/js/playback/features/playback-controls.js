@@ -22,6 +22,8 @@ export function createPlaybackControls(deps) {
     renderPlayback,
     updatePlaybackMediaSession,
     syncPlaybackLyricWindow,
+    getPlaybackAuthState,
+    rebuildPlaybackShuffleOrder,
     U
   } = deps;
   let playRequestGeneration = 0;
@@ -81,7 +83,11 @@ export function createPlaybackControls(deps) {
     let streamUrl = '';
     try {
       streamUrl = await streamService.getTrackUrl(track, {
-        forceRefresh: options.forceRefresh === true
+        forceRefresh: options.forceRefresh === true,
+        quality: PlaybackUtils.normalizeQuality(
+          track.source,
+          playbackState.qualityPreferences?.[track.source]
+        )
       });
     } catch (error) {
       if (requestGeneration !== playRequestGeneration) return;
@@ -158,6 +164,56 @@ export function createPlaybackControls(deps) {
     }
   }
 
+  async function changePlaybackQuality(quality) {
+    const audio = getPlaybackAudio();
+    const currentSource = playbackState.current?.source;
+    const source = currentSource === 'qq' || currentSource === 'netease'
+      ? currentSource
+      : playbackState.selectedSource;
+    const normalizedQuality = PlaybackUtils.normalizeQuality(source, quality);
+    if (!PlaybackUtils.getQualityOptions(source).some((item) => item.id === quality)) return;
+
+    playbackState.qualityPreferences[source] = normalizedQuality;
+    savePlaybackState();
+    renderPlayback();
+
+    const track = playbackState.current;
+    if (!audio || !track || track.source !== source) {
+      toast(`${PlaybackUtils.getSourceName(source)}默认音质已设为${PlaybackUtils.getQualityLabel(source, normalizedQuality)}`);
+      return;
+    }
+
+    const resumeAt = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const shouldResume = !audio.paused;
+    try {
+      const streamUrl = await streamService.getTrackUrl(track, {
+        forceRefresh: true,
+        quality: normalizedQuality
+      });
+      if (!streamUrl) return;
+
+      audio.src = streamUrl;
+      audio.load();
+      audio.addEventListener('loadedmetadata', () => {
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 1));
+        }
+      }, { once: true });
+      if (shouldResume) await audio.play();
+
+      const actualQuality = PlaybackUtils.getQualityLabel(source, track.playbackQuality);
+      const requestedLabel = PlaybackUtils.getQualityLabel(source, normalizedQuality);
+      toast(actualQuality === requestedLabel
+        ? `已切换到${actualQuality}音质`
+        : `${requestedLabel}不可用，已使用${actualQuality}音质`);
+      savePlaybackState();
+      renderPlayback();
+    } catch (error) {
+      showError(error);
+      renderPlayback();
+    }
+  }
+
   async function togglePlayback(takeNextPlaybackTrack, showPlaybackLoginPrompt) {
     const audio = getPlaybackAudio();
     if (!audio) return;
@@ -172,7 +228,7 @@ export function createPlaybackControls(deps) {
 
     const track = playbackState.current;
     if (!track) {
-      const playbackAuthState = deps.playbackAuthState;
+      const playbackAuthState = getPlaybackAuthState();
       if (!playbackAuthState || !playbackAuthState.loggedIn) {
         showPlaybackLoginPrompt();
       } else {
@@ -247,7 +303,7 @@ export function createPlaybackControls(deps) {
       const first = tracks[0];
       playbackState.normalQueue = tracks.slice(1);
       playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex((track) => track.id === first.id);
-      deps.rebuildPlaybackShuffleOrder();
+      rebuildPlaybackShuffleOrder();
       savePlaybackState();
       playPlaybackTrack(first, { origin: 'normal' });
       return;
@@ -266,6 +322,7 @@ export function createPlaybackControls(deps) {
 
   return {
     playPlaybackTrack,
+    changePlaybackQuality,
     togglePlayback,
     playbackPrevious,
     playbackNext,

@@ -100,7 +100,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 ### 3.1 结算键与生命周期
 
-- 一个 `gift_events.id` 就是一组礼物,也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`num`/`total_price` 只是封账时的展示与审计快照,绝不作为时间乘数。
+- 一个 `gift_events.id` 就是一次连击最终封账后的礼物组,也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`quantityMode='group'` 时整组执行一次规则；`quantityMode='item'` 时按封账数量 `num` 执行对应次数。
 - 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态,重复包、迟到包、数量继续增长都不再修改(`isComplete`,[overtime-store.js:335-337](../../../src/overtime/overtime-store.js#L335-L337))。
 - **单一静默窗口**:检测核心在平台结束标记(`COMBO_SEND` 或非连击包,[detection-service.js:261-263](../../../src/bilibili/gift/detection-service.js#L261-L263))或 `last_platform_at_ms` 连续 `GIFT_FINALIZE_QUIET_MS = 10s` 未变化时,把事件改为 `final` 并分发一次([detection-service.js:14](../../../src/bilibili/gift/detection-service.js#L14)、[98-127](../../../src/bilibili/gift/detection-service.js#L98-L127));加班机收到 final **立即结算,不再等待第二个 10 秒**。
 - **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js:328-333](../../../src/overtime/overtime-store.js#L328-L333))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
@@ -124,19 +124,20 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 |---|---|---|
 | pending 幂等 upsert | `ensurePending`:`INSERT … ON CONFLICT(gift_event_id) DO UPDATE … WHERE status='pending'`,仅刷新快照字段(quantity/total_price/事件时间) | [overtime-store.js:236-263](../../../src/overtime/overtime-store.js#L236-L263) |
 | final 结算 | `settleFinal` 同一事务内:复验 enabled/epoch → 幂等确保 pending → 确认 `detection_status='final'` → 查 `enabled=1` 规则(无规则 → ignored)→ `resolve` 计算时间变化 → `saveState` + pending 行置 `applied`(写全量快照字段) | [overtime-store.js:105-163](../../../src/overtime/overtime-store.js#L105-L163) |
-| 时间变化 | `requestedDeltaSeconds`(规则净变化)→ `beforeMs = clamp(remainingMs)` → `afterMs = clamp(beforeMs + delta*1000)` → `appliedDeltaSeconds = trunc((afterMs-beforeMs)/1000)`,经 `clampMs` **双向钳制**:负数归零、超上限截断 | [overtime-service.js:202-213](../../../src/overtime/overtime-service.js#L202-L213) |
+| 时间变化 | 按规则的 `quantityMode` 得到执行次数:连击组模式为 1,具体数量模式为 `num`;固定操作顺序重复,随机模式每次独立抽取。最终 `appliedDeltaSeconds = trunc((afterMs-beforeMs)/1000)`,经 `clampMs` **双向钳制**:负数归零、超上限截断 | [overtime-service.js:202-278](../../../src/overtime/overtime-service.js#L202-L278) |
 | 状态联动 | `afterMs === 0` → `finished`;`requested>0` 且当前 `finished` → 自动恢复 `running` | [210-211](../../../src/overtime/overtime-service.js#L210-L211) |
 | 审计快照 | `rule_snapshot_json` version 1:`{mode, fixedSeconds\|null, outcomes[], ruleUpdatedAt}`;盲盒结果 `outcomes_json` version 1(§4.3);`rule_mode` = `fixed/random/ignored` | [215-221](../../../src/overtime/overtime-service.js#L215-L221)、[247-266](../../../src/overtime/overtime-service.js#L247-L266) |
 | 广播 | `kind === 'applied'` 才 `onUpdate({reason:'gift', state, adjustment})`;`ignored` 不递增 revision、不广播、不动效 | [overtime-service.js:178-188](../../../src/overtime/overtime-service.js#L178-L188) |
 
-`adjustment` 载荷由 [resolveGiftSettlement:222-234](../../../src/overtime/overtime-service.js#L222-L234) 构造,经 `overtime:update` 的 `adjustment` 字段下发(见 [ws.md](ws.md) §3.2);`quantity` 为 `max(1, floor(num))`(**as-built 无旧规格所说的 100000 显示上限**,原样落库)。示例(固定规则 `+300s` 的 `x100` 连击):
+`adjustment` 载荷由 `resolveGiftSettlement` 构造,经 `overtime:update` 的 `adjustment` 字段下发(见 [ws.md](ws.md) §3.2);`quantity` 是封账数量,`applicationCount` 是实际规则执行次数。示例(固定规则 `+300s` 的 `x100` 连击,选择按具体数量):
 
 ```json
 {
   "giftEventId": 42, "giftId": "35521", "giftName": "心动时刻",
   "quantity": 100, "totalPrice": 10, "imagePath": "/img/bilibili-gifts/.../35521.webp",
-  "mode": "fixed", "requestedDeltaSeconds": 300,
-  "appliedDeltaSeconds": 300, "resultSeconds": 300, "result": null
+  "mode": "fixed", "quantityMode": "item", "applicationCount": 100,
+  "requestedDeltaSeconds": 30000,
+  "appliedDeltaSeconds": 30000, "resultSeconds": 30000, "result": null
 }
 ```
 
@@ -181,7 +182,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 - 规则存储:`mode='fixed'` 时 `outcomes_json=''`;`random` 时 `{ "version": 1, "outcomes": [{"seconds": 300, "weight": 40}, …] }`([overtime-store.js:78-80](../../../src/overtime/overtime-store.js#L78-L80));读取经 `parseStoredOutcomes` 只接受 version 1([318-326](../../../src/overtime/overtime-store.js#L318-L326))。
 - 结算行审计:盲盒结果 `outcomes_json` 持久化为 `{ "version": 1, "selectedIndex": 0, "selectedSeconds": 300, "totalWeight": 100 }`,客户端只播放已保存的 `selectedSeconds`,绝不自行随机;固定规则快照 `outcomes: []`、随机规则快照 `fixedSeconds: null`,流水可仅凭快照还原当时配置。
 - `selectRuleResult`([overtime-service.js:247-266](../../../src/overtime/overtime-service.js#L247-L266)):`fixed` 直接取 `fixedSeconds`;`random` 按 outcomes 数组顺序累计权重,用 **`node:crypto.randomInt(totalWeight)`** 抽取一次(import 见 [overtime-service.js:3](../../../src/overtime/overtime-service.js#L3);校验已保证权重 ≥1,无结果分支正常不可达)。
-- **随机结果只产生一次**:页面刷新、WS 重连、重复礼物包都不能重抽(结算行已 complete);规则以**封账事务开始时**的启用配置为准,静默窗口内改规则会影响尚未封账的整组。
+- **随机结果按执行次数产生**:`group` 模式抽一次,`item` 模式按最终数量独立抽取;同一结算会保存全部抽中索引。页面刷新、WS 重连和重复礼物包都不能重抽(结算行已 complete)。
 
 ## 5. 配置校验
 
@@ -247,7 +248,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | 结算事务失败 | 事务回滚,行保持 `pending`;`retry_count` 指数退避 1–30s 自动重试;重启后继续 |
 | 消费者首次投递失败 | 检测核心侧退避重发 final + 加班机补偿扫描双保险,结果仍恰好一次提交 |
 | 关闭/禁用期间 | `disable` 立即把 pending 全置 `ignored`;旧 epoch 组(首包冻结 epoch≠当前)一律 `ineligible`,不补投、不回放 |
-| 重复包 / 连击增长 | 结算行 `applied/ignored` 终态不再修改;progress 阶段只刷新 pending 快照并重置静默窗口,整组只结算一次 |
+| 重复包 / 连击增长 | progress 阶段刷新 pending 数量并重置静默窗口;final 后按规则选择“连击组一次”或“具体数量 N 次”,结算行进入终态后重复包不再修改 |
 | 无匹配规则 | final 结算置 `ignored`(占用唯一结算键),不改变时间、不广播 |
 | 盲盒抽到 0 / 已归零仍减时 / 已在上限仍加时 | 一律正常写结算与广播 adjustment(实际变化为 0),保证可审计 |
 | 清空礼物数据库 | `gift_events` + `overtime_settlements` 同事务清空,**保留** `overtime_machine_state`/`overtime_gift_rules`(见 [storage.md](storage.md) §6) |

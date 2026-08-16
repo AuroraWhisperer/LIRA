@@ -73,7 +73,8 @@
 | 文档 | 内容 |
 |---|---|
 | [build.md](engineering/build.md) | npm scripts、依赖清单、electron-builder 配置、发布流水线、运行模式 |
-| [test.md](engineering/test.md) | node:test 测试体系、85 个测试文件的覆盖地图、静态检查与诊断脚本 |
+| [test.md](engineering/test.md) | node:test 测试体系、92 个测试文件的覆盖地图、静态检查与诊断脚本 |
+| [modularity-standard.md](engineering/modularity-standard.md) | 模块边界、组合根、持久化端口、共享工具和架构适应度函数的强制规范 |
 
 ### 图表 diagrams/
 
@@ -85,7 +86,7 @@
 
 ### 决策记录 adr/
 
-[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md)
+[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md)
 
 ## 技术栈速查(名称速览,精确版本见 [engineering/build.md](engineering/build.md))
 
@@ -131,6 +132,7 @@
 | 加班机算法(权重/时钟/重试) | [backend/overtime.md](backend/overtime.md) |
 | npm scripts/依赖版本/electron-builder 配置 | [engineering/build.md](engineering/build.md) |
 | 测试命令与测试文件清单 | [engineering/test.md](engineering/test.md) |
+| 模块化、低耦合与组合根约束 | [engineering/modularity-standard.md](engineering/modularity-standard.md) |
 | 架构图表(D2 源与 PNG、Mermaid 时序图) | [diagrams/](diagrams/) |
 | 架构决策 | [adr/](adr/) |
 

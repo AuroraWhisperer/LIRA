@@ -66,6 +66,34 @@ test('Netease provider resolves a full stream with the current account rights', 
   assert.ok(stream.expireAt > Date.now());
 });
 
+test('Netease provider forwards a selected lossless level', async () => {
+  const provider = createProvider();
+  let captured;
+  provider.requestJson = async (pathname, params) => {
+    captured = { pathname, params };
+    return {
+      code: 200,
+      data: [{
+        id: 461011,
+        url: 'https://cdn.test/lossless.flac',
+        code: 200,
+        level: 'lossless',
+        type: 'flac'
+      }]
+    };
+  };
+
+  const stream = await provider.resolvePlayableUrl(
+    { sourceTrackId: '461011' },
+    { quality: 'lossless' }
+  );
+
+  assert.equal(captured.params.level, 'lossless');
+  assert.equal(captured.params.encodeType, 'flac');
+  assert.equal(stream.requestedQuality, 'lossless');
+  assert.equal(stream.quality, 'lossless');
+});
+
 test('Netease provider preserves an official trial stream for a non-VIP account', async () => {
   const provider = createProvider();
   provider.requestJson = async () => ({

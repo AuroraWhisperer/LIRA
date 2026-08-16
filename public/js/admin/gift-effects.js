@@ -64,7 +64,7 @@
       toast('礼物特效网址已复制');
     });
     document.getElementById('giftEffectOpenBtn').addEventListener('click', () => {
-      window.open(liveUrl, 'liraGiftEffectPreview');
+      window.open(`${liveUrl}?preview=1`, 'liraGiftEffectPreview');
     });
     initialized = true;
   }

@@ -31,7 +31,7 @@ js/playback.js          兼容层,仅 import playback/index.js
 | `cache/` | manager | "我喜欢"/歌单 24h localStorage 缓存(`playbackCache:` 前缀,内存→localStorage 两级,过期失效,登录态变化清缓存) |
 | — | config.js / utils.js | 配置常量(§2);工具(轨道归一化/序列化/洗牌/本地判定/URL 可用性/时长与元数据格式化/封面渲染/背景主题选取 `pickBackgroundTheme`) |
 
-**依赖注入方式**:`controller.js` 一个文件完成全部装配,功能模块通过 `create*(deps)` 工厂拿到依赖对象;有循环依赖的模块(如 `renderPlayback` 闭包)用前向声明 + 闭包延迟访问([controller.js:82-85](../../../public/js/playback/controller.js#L82-L85));渲染包装函数在 SECTION 8 组装完成后才可被调用。
+**依赖注入方式**:`controller.js` 是播放域的组合根,功能模块通过 `create*(deps)` 工厂只接收自身实际使用的字段。播放、渲染和电台之间的初始化顺序由命名委托函数延迟绑定,不使用可变前向声明或通用 `sharedDeps` 依赖包;工厂参数因此可以从源码直接审计。
 
 ## 2. 播放主流程
 
@@ -120,7 +120,7 @@ PlayerController.setAudio → audio.load()/play()
 
 - `ui/index.js` `UIRenderer` 渲染整页;`ui/playback-bar.js` 底部控制栏(进度/播放暂停/上下首/音量/模式/队列弹出/歌词);`ui/fullscreen.js` 全屏播放器(点击面板切换,ESC 退出,空格播放暂停,封面背景按 `pickBackgroundTheme` 30 套轮换,[forms.js:74-92](../../../public/js/admin/forms.js#L74-L92));`ui/drawer.js` 首页抽屉(歌单内页与返回栈);`ui/queue-popup.js` 队列弹出窗(收起播放器时联动关闭)。
 - **工作区集成**:播放器 dock 默认收起(`player-dock-collapsed`,避免遮挡点歌工作区),由 `forms.js` 的 `setPlayerDockCollapsed` 统一管理,收起时联动关闭全屏播放器/队列弹窗/音量面板([forms.js:133-169](../../../public/js/admin/forms.js#L133-L169))。
-- `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),回调经 `sharedDeps` 注入各功能模块;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
+- `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),控制器显式注入其所需回调;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
 - 播放器状态变化统一走 `onStateChange → renderPlayback() + savePlaybackState()`;MediaSession(系统媒体控制)由 `updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext)` 更新([controller.js:531-533](../../../public/js/playback/controller.js#L531-L533))。
 - 音频事件链([initializer.js:67-113](../../../public/js/playback/core/initializer.js#L67-L113)):`loadedmetadata` 回写 `durationMs` → `timeupdate` 推进进度条并落盘 → `play/pause` 同步 MediaSession 与歌词窗口 → `seeking/seeked` 强刷歌词与状态 → `ended` 触发 `playbackNext(true)` → `error` 走流刷新重试;`pagehide` 时 `flushPlaybackStateOnUnload`(sendBeacon/IPC 双通道,见 §6)。
 

@@ -561,9 +561,9 @@ test('admin state events render queue empty states and song data', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
 
   assert.match(source, /eventBus\.on\(Events\.STATE_LOADED/);
-  assert.match(source, /window\.AdminApp\.queue\.renderState\(state, songs\)/);
+  assert.match(source, /getLegacyAdminModules\(\)\.queue\?\.renderState\?\.\(state, songs\)/);
   assert.match(source, /eventBus\.on\(Events\.SONG_UPDATED/);
-  assert.match(source, /window\.AdminApp\.songs\.renderSongs\(songs, languages, artists, tags\)/);
+  assert.match(source, /getLegacyAdminModules\(\)\.songs\?\.renderSongs\?\.\(songs, languages, artists, tags\)/);
 });
 
 test('admin initialization waits for sibling module scripts at interactive ready state', () => {
@@ -576,8 +576,8 @@ test('admin initialization waits for sibling module scripts at interactive ready
 test('admin loads theme presets before initializing theme forms', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
   const loadPosition = source.indexOf('await Theme.loadThemeConfig()');
-  const themeFormPosition = source.indexOf('window.AdminApp.theme.initThemeForm()');
-  const displayFormPosition = source.indexOf('window.AdminApp.display.initDisplayForm()');
+  const themeFormPosition = source.indexOf('modules.theme?.initThemeForm?.()');
+  const displayFormPosition = source.indexOf('modules.display.initDisplayForm()');
 
   assert.ok(loadPosition >= 0, 'theme configuration should be loaded');
   assert.ok(loadPosition < themeFormPosition, 'theme presets should load before the theme form');

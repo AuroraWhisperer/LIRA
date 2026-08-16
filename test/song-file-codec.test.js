@@ -11,7 +11,7 @@ const {
   SONG_IMPORT_ALIASES,
   normalizeImportedSongRow
 } = require('../src/music/song-import-schema');
-const { createZip, readZipFiles } = require('../src/shared/utils');
+const { createZip, readZipFiles } = require('../src/shared/xlsx-codec');
 const songService = require('../src/music/song-service');
 
 function namespaceWorksheetTags(buffer) {

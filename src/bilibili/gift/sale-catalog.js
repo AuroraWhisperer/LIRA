@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { isGuardGiftAliasId } = require('./guard-gift-aliases');
 
 const GIFT_DATA_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftData';
 const GIFT_CONFIG_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftConfig';
@@ -22,7 +23,6 @@ function createUnavailableGiftSaleCatalogService() {
         count: 0,
         panelCount: 0,
         gifts: [],
-        markdownUpdated: false,
         cached: true
       };
     },
@@ -52,7 +52,7 @@ function addGiftEntries(ids, entries) {
 
 function addGiftEntry(ids, entry) {
   const id = Number(entry?.gift_id ?? entry?.id);
-  if (Number.isSafeInteger(id) && id > 0 && !EXCLUDED_GIFT_IDS.has(id)) ids.add(id);
+  if (Number.isSafeInteger(id) && id > 0 && !isExcludedGiftId(id)) ids.add(id);
   addGiftEntries(ids, entry?.upgrade_gift);
 }
 
@@ -114,7 +114,7 @@ function expandBlindBoxSaleIds(panelSaleIds, configById, rawConfig) {
         ? candidates
         : candidates.filter(gift => Math.abs(gift.rmb - output.rmb) < 0.001);
       const gift = priceMatches[0] || candidates[0];
-      if (gift && !EXCLUDED_GIFT_IDS.has(gift.id)) saleIds.add(gift.id);
+      if (gift && !isExcludedGiftId(gift.id)) saleIds.add(gift.id);
     }
   }
   return saleIds;
@@ -191,20 +191,18 @@ function markdownImagePath(cell) {
 function readGiftMappings(publicDir) {
   const giftDir = path.join(publicDir, 'img', 'bilibili-gifts');
   const byId = new Map();
-  const documents = [];
   for (const name of MAPPING_FILES) {
     const filePath = path.join(giftDir, name);
     const content = fs.readFileSync(filePath, 'utf8');
-    documents.push({ name, filePath, content });
     for (const [id, mapping] of parseGiftMappingDocument(content)) {
       if (!byId.has(id)) byId.set(id, mapping);
     }
   }
-  return { byId, documents };
+  return byId;
 }
 
 function buildGiftCatalog(saleIds, configById, mappingById) {
-  return [...saleIds].map((id) => {
+  return [...saleIds].filter(id => !isExcludedGiftId(id)).map((id) => {
     const metadata = configById.get(id);
     const mapping = mappingById.get(id);
     return {
@@ -226,42 +224,9 @@ function finiteNonNegative(value) {
   return Number.isFinite(number) && number >= 0 ? number : 0;
 }
 
-function updateMarkdownAvailability(content, saleIds) {
-  const lines = String(content || '').split(/\r?\n/);
-  let table = null;
-  return lines.map((line) => {
-    const cells = splitMarkdownRow(line);
-    if (cells && cells[0] === '礼物 ID' && cells.includes('礼物名称')) {
-      const statusIndex = cells.indexOf('当前在售');
-      if (statusIndex < 0) cells.push('当前在售');
-      table = {
-        columnCount: cells.length,
-        aliasIndex: cells.indexOf('同特效代码'),
-        statusIndex: cells.indexOf('当前在售')
-      };
-      return formatMarkdownRow(cells);
-    }
-    if (!table) return line;
-    if (cells && cells.every((cell) => /^:?-{3,}:?$/.test(cell))) {
-      while (cells.length < table.columnCount) cells.push('---');
-      cells[table.statusIndex] = '---';
-      return formatMarkdownRow(cells.slice(0, table.columnCount));
-    }
-    const id = Number(cells?.[0]);
-    if (Number.isSafeInteger(id) && id > 0) {
-      while (cells.length < table.columnCount) cells.push('');
-      const representedIds = new Set([id]);
-      if (table.aliasIndex >= 0) {
-        for (const match of String(cells[table.aliasIndex] || '').matchAll(/\d+/g)) representedIds.add(Number(match[0]));
-      }
-      cells[table.statusIndex] = [...representedIds].some((giftId) => saleIds.has(giftId))
-        ? '在售'
-        : '非目前在售';
-      return formatMarkdownRow(cells.slice(0, table.columnCount));
-    }
-    if (line.startsWith('## ') || (line.trim() === '' && table)) table = null;
-    return line;
-  }).join('\n');
+function isExcludedGiftId(value) {
+  const id = Number(value);
+  return EXCLUDED_GIFT_IDS.has(id) || isGuardGiftAliasId(id);
 }
 
 function splitMarkdownRow(line) {
@@ -283,10 +248,6 @@ function splitMarkdownRow(line) {
   }
   if (current.trim()) cells.push(current.trim());
   return cells;
-}
-
-function formatMarkdownRow(cells) {
-  return `| ${cells.join(' | ')} |`;
 }
 
 function createGiftSaleCatalogService(options = {}) {
@@ -327,26 +288,18 @@ function createGiftSaleCatalogService(options = {}) {
       const configById = parseGiftConfig(giftConfig);
       const saleIds = expandBlindBoxSaleIds(panelSaleIds, configById, getBlindBoxConfig());
       const mappings = readGiftMappings(publicDir);
-      const gifts = buildGiftCatalog(saleIds, configById, mappings.byId);
-      let markdownUpdated = false;
-      try {
-        updateMappingDocuments(mappings.documents, saleIds);
-        markdownUpdated = true;
-      } catch (error) {
-        console.warn(`[Bilibili][GiftSale] Markdown 状态更新失败，目录刷新继续：${error.message || error}`);
-      }
+      const gifts = buildGiftCatalog(saleIds, configById, mappings);
       snapshot = {
         roomId,
         refreshedAt: new Date(currentMs).toISOString(),
         count: gifts.length,
         panelCount: panelSaleIds.size,
         gifts,
-        markdownUpdated,
         cached: false
       };
       writeJsonAtomic(snapshotPath, snapshot);
       lastRefreshMs = currentMs;
-      console.log(`[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length} markdownUpdated=${markdownUpdated}`);
+      console.log(`[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length}`);
       return getUncachedSnapshot(snapshot);
     }).finally(() => {
       pending = null;
@@ -401,22 +354,6 @@ async function defaultFetchJson(endpointName, url, roomId) {
   return payload;
 }
 
-function updateMappingDocuments(documents, saleIds) {
-  const pendingFiles = documents.map((document) => ({
-    ...document,
-    nextContent: `${updateMarkdownAvailability(document.content, saleIds).replace(/\n+$/, '')}\n`,
-    tempPath: `${document.filePath}.tmp-${process.pid}`
-  }));
-  try {
-    for (const file of pendingFiles) fs.writeFileSync(file.tempPath, file.nextContent);
-    for (const file of pendingFiles) fs.renameSync(file.tempPath, file.filePath);
-  } finally {
-    for (const file of pendingFiles) {
-      if (fs.existsSync(file.tempPath)) fs.rmSync(file.tempPath, { force: true });
-    }
-  }
-}
-
 function readSnapshot(filePath) {
   try {
     const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -427,17 +364,16 @@ function readSnapshot(filePath) {
       count: gifts.length,
       panelCount: Math.max(0, Number(parsed.panelCount) || gifts.length),
       gifts,
-      markdownUpdated: parsed.markdownUpdated === true,
       cached: true
     };
   } catch (_) {
-    return { roomId: '', refreshedAt: '', count: 0, panelCount: 0, gifts: [], markdownUpdated: false, cached: true };
+    return { roomId: '', refreshedAt: '', count: 0, panelCount: 0, gifts: [], cached: true };
   }
 }
 
 function normalizeSnapshotGift(gift) {
   const id = String(gift?.id || '').trim();
-  if (!/^\d+$/.test(id) || EXCLUDED_GIFT_IDS.has(Number(id))) return null;
+  if (!/^\d+$/.test(id) || isExcludedGiftId(id)) return null;
   return {
     id,
     name: String(gift?.name || `礼物 ${id}`).slice(0, 100),
@@ -474,6 +410,5 @@ module.exports = {
   parseGiftConfig,
   parseGiftMappingDocument,
   readGiftMappings,
-  updateMarkdownAvailability,
   validateRoomId
 };

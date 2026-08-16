@@ -17,12 +17,17 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const rules = rows.map((row, index) => {
       const mode = row.querySelector('[data-rule-mode]:checked')?.value;
       if (!mode) throw new Error(`第 ${index + 1} 条礼物规则还没有选择生效方式。`);
+      const quantityMode = row.querySelector('[data-rule-quantity-mode]:checked')?.value;
+      if (!['group', 'item'].includes(quantityMode)) {
+        throw new Error(`第 ${index + 1} 条礼物规则还没有选择数量计算方式。`);
+      }
       const enabled = row.querySelector('[data-rule-enabled]').checked;
       const base = {
         giftId: row.dataset.giftId,
         giftName: row.dataset.giftName,
         imagePath: row.dataset.imagePath,
         mode,
+        quantityMode,
         enabled,
         sortOrder: index
       };
@@ -70,6 +75,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
       giftName: gift.name,
       imagePath: gift.imagePath,
       mode: 'fixed',
+      quantityMode: String(gift.id).startsWith('guard-') ? 'item' : 'group',
       fixedEffect: { operation: 'add', value: 300 },
       outcomes: [],
       enabled: count < MAX_ENABLED_RULES,
@@ -164,7 +170,17 @@ export function createOvertimeRuleEditor(root, markDirty) {
       createModeOption(modeName, 'fixed', '直接改时间', rule.mode !== 'random'),
       createModeOption(modeName, 'random', '随机抽结果', rule.mode === 'random')
     );
-    modeSection.append(modeOptions);
+    const quantityOptions = document.createElement('fieldset');
+    quantityOptions.className = 'overtime-rule-quantity-options';
+    const quantityLegend = document.createElement('legend');
+    quantityLegend.textContent = '选择数量计算方式';
+    quantityOptions.append(quantityLegend);
+    const quantityName = `overtime-rule-quantity-${++ruleControlSequence}`;
+    quantityOptions.append(
+      createQuantityOption(quantityName, 'group', '按连击组', '同一次连击只结算一次', rule.quantityMode !== 'item'),
+      createQuantityOption(quantityName, 'item', '按具体数量', '数量 ×N 就结算 N 次', rule.quantityMode === 'item')
+    );
+    modeSection.append(modeOptions, quantityOptions);
     body.append(modeSection);
 
     const effect = document.createElement('div');
@@ -251,6 +267,25 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const strong = document.createElement('strong');
     strong.textContent = title;
     copy.append(strong);
+    label.append(input, copy);
+    return label;
+  }
+
+  function createQuantityOption(name, value, title, description, checked) {
+    const label = document.createElement('label');
+    label.className = 'overtime-mode-option is-quantity';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = name;
+    input.value = value;
+    input.checked = checked;
+    input.dataset.ruleQuantityMode = 'true';
+    const copy = document.createElement('span');
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    const small = document.createElement('small');
+    small.textContent = description;
+    copy.append(strong, small);
     label.append(input, copy);
     return label;
   }
@@ -481,27 +516,29 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const summary = row.querySelector('[data-rule-summary]');
     const mode = row.querySelector('[data-rule-mode]:checked')?.value;
     if (!summary || !mode) return;
+    const quantityMode = row.querySelector('[data-rule-quantity-mode]:checked')?.value;
+    const quantityLabel = describeQuantityMode(quantityMode);
     if (mode === 'random') {
       const count = row.querySelectorAll('[data-random-outcome]').length;
-      summary.textContent = `随机抽取 · ${count} 个结果`;
+      summary.textContent = `随机抽取 · ${count} 个结果 · ${quantityLabel}`;
       return;
     }
     const panel = row.querySelector('[data-effect-mode="fixed"]');
     const operation = panel?.querySelector('[data-rule-operation]:checked')?.value;
     if (!operation) return;
     if (operation === 'clear') {
-      summary.textContent = '剩余时间清零';
+      summary.textContent = `剩余时间清零 · ${quantityLabel}`;
       return;
     }
     if (operation === 'multiply' || operation === 'divide') {
       const value = Math.max(0, Math.floor(Number(panel.querySelector('[data-effect-factor]')?.value) || 0));
-      summary.textContent = operation === 'multiply' ? `剩余时间乘 ${value}` : `剩余时间除以 ${value}`;
+      summary.textContent = `${operation === 'multiply' ? `剩余时间乘 ${value}` : `剩余时间除以 ${value}`} · ${quantityLabel}`;
       return;
     }
     const hours = Number(panel.querySelector('[data-duration-hours]')?.value) || 0;
     const minutes = Number(panel.querySelector('[data-duration-minutes]')?.value) || 0;
     const seconds = Number(panel.querySelector('[data-duration-seconds]')?.value) || 0;
-    summary.textContent = `${operation === 'subtract' ? '减少' : '增加'} ${formatDurationSummary(hours * 3600 + minutes * 60 + seconds)}`;
+    summary.textContent = `${operation === 'subtract' ? '减少' : '增加'} ${formatDurationSummary(hours * 3600 + minutes * 60 + seconds)} · ${quantityLabel}`;
   }
 
   function describeRule(rule) {
@@ -509,9 +546,13 @@ export function createOvertimeRuleEditor(root, markDirty) {
       const count = Array.isArray(rule.outcomes) && rule.outcomes.length >= MIN_RANDOM_OUTCOMES
         ? rule.outcomes.length
         : MIN_RANDOM_OUTCOMES;
-      return `随机抽取 · ${count} 个结果`;
+      return `随机抽取 · ${count} 个结果 · ${describeQuantityMode(rule.quantityMode)}`;
     }
-    return describeEffect(normalizeEffect(rule.fixedEffect, rule.fixedSeconds));
+    return `${describeEffect(normalizeEffect(rule.fixedEffect, rule.fixedSeconds))} · ${describeQuantityMode(rule.quantityMode)}`;
+  }
+
+  function describeQuantityMode(value) {
+    return value === 'item' ? '按具体数量' : '按连击组';
   }
 
   function describeEffect(effect) {

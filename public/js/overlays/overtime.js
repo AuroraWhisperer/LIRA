@@ -204,7 +204,9 @@ function playNextAdjustment() {
   const result = document.createElement('span');
   result.textContent = adjustment.aggregate
     ? formatSignedSeconds(delta)
-    : `整组 ${formatAdjustmentEffect(adjustment.effect, delta)}`;
+    : Number(adjustment.applicationCount) > 1
+      ? `按数量结算 ${adjustment.applicationCount} 次 · ${formatSignedSeconds(delta)}`
+      : `结算 1 次 · ${formatAdjustmentEffect(adjustment.effect, delta)}`;
   card.append(title, result);
   stage.replaceChildren(card);
   flashClock(delta);

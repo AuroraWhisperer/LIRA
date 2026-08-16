@@ -311,6 +311,7 @@
 }
 .overtime-rule-mode { border-right: 1px solid var(--border); background: var(--surface-2); }
 .overtime-rule-mode-options,
+.overtime-rule-quantity-options,
 .overtime-operation-control,
 .overtime-duration-control {
   min-width: 0;
@@ -318,8 +319,11 @@
   padding: 0;
   border: 0;
 }
-.overtime-rule-mode-options { display: grid; gap: 6px; }
+.overtime-rule-mode-options,
+.overtime-rule-quantity-options { display: grid; gap: 6px; }
+.overtime-rule-quantity-options { margin-top: 8px; }
 .overtime-rule-mode-options > legend,
+.overtime-rule-quantity-options > legend,
 .overtime-operation-control > legend,
 .overtime-duration-control > legend {
   position: absolute;
@@ -346,6 +350,7 @@
 .overtime-mode-option input { flex: 0 0 auto; width: auto !important; accent-color: var(--ot-pink); }
 .overtime-mode-option > span { display: grid; min-width: 0; }
 .overtime-mode-option strong { font-size: 13px; }
+.overtime-mode-option small { margin-top: 1px; color: var(--muted); font-size: 11px; }
 .overtime-mode-option:has(input:checked) {
   border-color: var(--ot-pink);
   background: color-mix(in srgb, var(--ot-pink) 9%, var(--surface));

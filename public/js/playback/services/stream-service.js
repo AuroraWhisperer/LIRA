@@ -35,14 +35,19 @@ export class StreamService {
       return track.objectUrl;
     }
 
-    // 如果不强制刷新且 URL 仍可用，直接返回
-    if (!options.forceRefresh && hasUsableUrl(track, this.refreshMarginMs)) {
+    const requestedQuality = String(options.quality || 'standard');
+
+    // 如果不强制刷新、URL 仍可用且请求档位未变化，直接返回
+    if (!options.forceRefresh
+      && track.requestedPlaybackQuality === requestedQuality
+      && hasUsableUrl(track, this.refreshMarginMs)) {
       return track.playUrl;
     }
 
     // 解析新的播放地址
     const stream = await this.resolveStream(track, {
-      forceRefresh: options.forceRefresh === true
+      forceRefresh: options.forceRefresh === true,
+      quality: requestedQuality
     });
 
     if (!stream || !stream.url) {
@@ -53,6 +58,8 @@ export class StreamService {
     // 更新曲目的播放信息
     track.playUrl = stream.url;
     track.playUrlExpireAt = Number(stream.expireAt || stream.playUrlExpireAt || 0);
+    track.requestedPlaybackQuality = String(stream.requestedQuality || requestedQuality);
+    track.playbackQuality = String(stream.quality || stream.level || requestedQuality);
     track.playbackTrial = stream.trial === true;
     track.playbackTrialStartMs = Math.max(0, Number(stream.trialStartMs || 0));
     track.playbackTrialEndMs = Math.max(0, Number(stream.trialEndMs || 0));
@@ -78,7 +85,8 @@ export class StreamService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         track: payloadTrack,
-        forceRefresh: options.forceRefresh === true
+        forceRefresh: options.forceRefresh === true,
+        quality: String(options.quality || 'standard')
       })
     });
 

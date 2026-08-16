@@ -296,14 +296,17 @@ class NeteaseMusicProvider {
     };
   }
 
-  async resolvePlayableUrl(track) {
+  async resolvePlayableUrl(track, options = {}) {
     const sourceTrackId = extractSourceTrackId(track);
     if (!/^\d+$/.test(sourceTrackId)) throw new Error('网易云歌曲 ID 必须是正整数。');
+    const supportedLevels = new Set(['standard', 'higher', 'exhigh', 'lossless', 'hires']);
+    const requestedQuality = supportedLevels.has(options.quality) ? options.quality : 'standard';
+    const encodeType = requestedQuality === 'lossless' || requestedQuality === 'hires' ? 'flac' : 'mp3';
 
     const payload = await this.requestJson('/api/song/enhance/player/url/v1', {
       ids: JSON.stringify([Number(sourceTrackId)]),
-      level: 'standard',
-      encodeType: 'mp3'
+      level: requestedQuality,
+      encodeType
     });
     const stream = payload && Array.isArray(payload.data) ? payload.data[0] : null;
     const streamUrl = String(stream && stream.url || '').trim();
@@ -339,6 +342,8 @@ class NeteaseMusicProvider {
       trial: Boolean(trialInfo),
       trialStartMs: normalizeTrialTimeMs(trialInfo && trialInfo.start),
       trialEndMs: normalizeTrialTimeMs(trialInfo && trialInfo.end),
+      requestedQuality,
+      quality: String(stream.level || requestedQuality),
       level: String(stream.level || ''),
       type: String(stream.type || stream.encodeType || '')
     };

@@ -2,16 +2,15 @@
 // Admin应用统一入口 - ES6模块化版本
 'use strict';
 
-import { container } from '../shared/container.js';
 import { eventBus, Events } from '../shared/event-bus.js';
 import { logger } from '../shared/logger.js';
 import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
+import { getLegacyAdminModules, publishNavigation } from './legacy-admin-bridge.js';
 
-// 导入服务（如果已经重构为ES6模块）
-import { StateService, stateService } from './state.js';
-import { FormsService, formsService } from './forms.js';
+import { stateService } from './state.js';
+import { formsService } from './forms.js';
 
 /**
  * 应用初始化
@@ -22,14 +21,6 @@ async function initApp() {
   initParameterRanges();
 
   await Theme.loadThemeConfig();
-
-  // 注册服务到容器
-  container
-    .register('eventBus', () => eventBus)
-    .register('utils', () => Utils)
-    .register('theme', () => Theme)
-    .register('state', () => stateService)
-    .register('forms', () => formsService);
 
   // 初始化导航
   initMainPages();
@@ -42,49 +33,40 @@ async function initApp() {
   window.addEventListener('playback-module-loaded', initPlaybackAssistant, { once: true });
 
   // 如果模块已经加载完成（DOMContentLoaded 晚于模块加载），立即初始化
-  if (window.AdminApp.playback && window.AdminApp.playback.initPlaybackAssistant) {
+  const modules = getLegacyAdminModules();
+  if (modules.playback?.initPlaybackAssistant) {
     initPlaybackAssistant();
   }
 
   // 初始化桌面环境
-  if (window.AdminApp.desktop && window.AdminApp.desktop.initDesktopShell) {
-    window.AdminApp.desktop.initDesktopShell();
-  }
+  modules.desktop?.initDesktopShell?.();
 
   // 初始化各模块表单（使用兼容层调用）
-  if (window.AdminApp.queue) window.AdminApp.queue.initQueueForm();
-  if (window.AdminApp.songs) window.AdminApp.songs.initSongForm();
-  if (window.AdminApp.settings) {
-    window.AdminApp.settings.initSettingsForm();
-    window.AdminApp.settings.initBilibiliAuth();
+  modules.queue?.initQueueForm?.();
+  modules.songs?.initSongForm?.();
+  if (modules.settings) {
+    modules.settings.initSettingsForm();
+    modules.settings.initBilibiliAuth();
   }
-  if (window.AdminApp.theme) window.AdminApp.theme.initThemeForm();
-  if (window.AdminApp.display) {
-    window.AdminApp.display.initDisplayForm();
-    window.AdminApp.display.initOverlayUrls();
+  modules.theme?.initThemeForm?.();
+  if (modules.display) {
+    modules.display.initDisplayForm();
+    modules.display.initOverlayUrls();
   }
-  if (window.AdminApp.desktopLyric) window.AdminApp.desktopLyric.initDesktopLyricForm();
-  if (window.AdminApp.metrics) window.AdminApp.metrics.initPerformanceMonitor();
-  if (window.AdminApp.overtime) window.AdminApp.overtime.init();
-  if (window.AdminApp.giftEffects) window.AdminApp.giftEffects.init();
-  if (window.AdminApp.todo) window.AdminApp.todo.init();
+  modules.desktopLyric?.initDesktopLyricForm?.();
+  modules.metrics?.initPerformanceMonitor?.();
+  modules.overtime?.init?.();
+  modules.giftEffects?.init?.();
+  modules.todo?.init?.();
   // 初始化「百宝箱」页面的通用功能导航
-  if (window.AdminApp.other && window.AdminApp.other.initOtherPage) {
-    window.AdminApp.other.initOtherPage();
-  }
-  if (window.AdminApp.gifts && window.AdminApp.gifts.initGiftHistoryDrawer) {
-    window.AdminApp.gifts.initGiftHistoryDrawer();
-  }
+  modules.other?.initOtherPage?.();
+  modules.gifts?.initGiftHistoryDrawer?.();
 
   eventBus.on(Events.STATE_LOADED, ({ state, songs }) => {
-    if (window.AdminApp.queue && window.AdminApp.queue.renderState) {
-      window.AdminApp.queue.renderState(state, songs);
-    }
+    getLegacyAdminModules().queue?.renderState?.(state, songs);
   });
   eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
-    if (window.AdminApp.songs && window.AdminApp.songs.renderSongs) {
-      window.AdminApp.songs.renderSongs(songs, languages, artists, tags);
-    }
+    getLegacyAdminModules().songs?.renderSongs?.(songs, languages, artists, tags);
   });
 
   // 连接WebSocket和加载数据
@@ -92,11 +74,11 @@ async function initApp() {
   await stateService.reloadAll();
 
   // 渲染主题预设
-  if (window.AdminApp.theme && window.AdminApp.theme.renderPresetCards) {
+  if (modules.theme?.renderPresetCards) {
     const { classicThemePresets, classicPresetLabels, classicPresetSwatches,
-            songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches } = window.AdminApp.theme;
-    window.AdminApp.theme.renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
-    window.AdminApp.theme.renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
+            songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches } = modules.theme;
+    modules.theme.renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
+    modules.theme.renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
   }
 
   logger.debug('初始化完成');
@@ -106,8 +88,9 @@ async function initApp() {
  * 初始化播放助手
  */
 function initPlaybackAssistant() {
-  if (window.AdminApp.playback && window.AdminApp.playback.initPlaybackAssistant) {
-    window.AdminApp.playback.initPlaybackAssistant({
+  const playback = getLegacyAdminModules().playback;
+  if (playback?.initPlaybackAssistant) {
+    playback.initPlaybackAssistant({
       getSongs: () => stateService.getSongs(),
       reloadSongs: () => stateService.reloadSongs(),
       toast: Utils.toast,
@@ -170,19 +153,17 @@ function setMainPage(pageId) {
   }
 }
 
-window.AdminApp = window.AdminApp || {};
-window.AdminApp.navigation = { setMainPage };
+publishNavigation({ setMainPage });
 
 // 模块脚本执行时文档通常已是 interactive，但同级模块可能仍未执行完；
-// 等到 DOMContentLoaded 再启动，确保所有 window.AdminApp 模块均已注册。
+// 等到 DOMContentLoaded 再启动，确保所有遗留模块均已注册。
 if (document.readyState === 'complete') {
   initApp();
 } else {
   document.addEventListener('DOMContentLoaded', initApp, { once: true });
 }
 
-// 【过渡期】暴露到全局，方便调试和兼容
+// 【过渡期】暴露事件总线，方便调试和兼容
 if (typeof window !== 'undefined') {
-  window.__APP_CONTAINER__ = container;
   window.__APP_EVENT_BUS__ = eventBus;
 }

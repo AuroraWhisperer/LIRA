@@ -2,14 +2,16 @@
 
 const {
   cleanText,
-  csvCell,
+  csvCell
+} = require('../shared/utils');
+const {
   escapeXml,
   columnName,
   createZip,
   readZipFiles,
   parseSharedStrings,
   parseWorksheetXml
-} = require('../shared/utils');
+} = require('../shared/xlsx-codec');
 const {
   SONG_EXPORT_HEADERS,
   SONG_IMPORT_ALIASES,

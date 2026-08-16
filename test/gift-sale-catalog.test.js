@@ -11,15 +11,20 @@ const {
   createGiftSaleCatalogService,
   expandBlindBoxSaleIds,
   parseGiftConfig,
-  parseGiftMappingDocument,
-  updateMarkdownAvailability
+  parseGiftMappingDocument
 } = require('../src/bilibili/gift/sale-catalog');
 
-test('collectPanelGiftIds includes panel gifts but excludes the red-packet action', () => {
+test('collectPanelGiftIds excludes red-packet and guard purchase actions', () => {
   const ids = collectPanelGiftIds({
     data: {
       room_gift_list: {
-        gold_list: [{ gift_id: 1, upgrade_gift: [{ gift_id: 2 }] }, { gift_id: 13000 }],
+        gold_list: [
+          { gift_id: 1, upgrade_gift: [{ gift_id: 2 }] },
+          { gift_id: 13000 },
+          { gift_id: 34637 },
+          { gift_id: 34638 },
+          { gift_id: 34639 }
+        ],
         silver_list: [{ id: 3 }]
       },
       tab_list: [{ list: [{ gift_id: 4, upgrade_gift: [{ gift_id: 5 }] }] }],
@@ -39,7 +44,7 @@ test('parseGiftConfig and buildGiftCatalog reuse alias images and keep unknown s
 | ---: | --- | --- | ---: | ---: | --- |
 | 101 | [101.webp](0000-under-0100/101.webp) | 主礼物 | 10 | ¥1.00 | 202 |
 `);
-  const catalog = buildGiftCatalog(new Set([202, 303]), config, mappings);
+  const catalog = buildGiftCatalog(new Set([202, 303, 34637]), config, mappings);
   assert.deepEqual(catalog, [
     {
       id: '202',
@@ -74,25 +79,9 @@ test('expandBlindBoxSaleIds adds outputs only for sale boxes and prefers non-bag
   assert.deepEqual([...expanded].sort((left, right) => left - right), [10, 12, 13]);
 });
 
-test('updateMarkdownAvailability adds one status column and treats aliases as in sale', () => {
-  const source = `# gifts
-
-| 礼物 ID | 图片 | 礼物名称 | 电池 | 人民币 | 同特效代码 |
-| ---: | --- | --- | ---: | ---: | --- |
-| 100 | [100.webp](100.webp) | A | 1 | ¥0.10 | 200 |
-| 300 | [300.webp](300.webp) | B | 2 | ¥0.20 |
-`;
-  const first = updateMarkdownAvailability(source, new Set([200]));
-  const second = updateMarkdownAvailability(first, new Set([300]));
-  assert.match(first, /\| 100 \|[^\n]+\| 200 \| 在售 \|/);
-  assert.match(first, /\| 300 \|[^\n]+\| 非目前在售 \|/);
-  assert.match(second, /\| 100 \|[^\n]+\| 200 \| 非目前在售 \|/);
-  assert.match(second, /\| 300 \|[^\n]+¥0\.20 \|\s*\| 在售 \|/);
-  assert.equal((second.match(/当前在售/g) || []).length, 1);
-});
-
-test('gift sale service validates room ID, caches refreshes, persists snapshots, and updates fixed Markdown files', async () => {
+test('gift sale service validates room ID, caches refreshes, persists snapshots, and leaves Markdown unchanged', async () => {
   const fixture = createFixture();
+  const mappingBefore = fixture.mappingPaths.map(filePath => fs.readFileSync(filePath, 'utf8'));
   let nowMs = Date.parse('2026-08-16T06:00:00.000Z');
   let roomId = '22637261';
   let fetchCount = 0;
@@ -120,10 +109,8 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
   assert.equal(refreshed.count, 2);
   assert.equal(refreshed.panelCount, 1);
   assert.deepEqual(refreshed.gifts.map(gift => gift.id), ['100', '101']);
-  assert.equal(refreshed.markdownUpdated, true);
   assert.equal(fetchCount, 2);
-  assert.match(fs.readFileSync(fixture.mappingPaths[0], 'utf8'), /\| 在售 \|/);
-  assert.match(fs.readFileSync(fixture.mappingPaths[1], 'utf8'), /\| 在售 \|/);
+  assert.deepEqual(fixture.mappingPaths.map(filePath => fs.readFileSync(filePath, 'utf8')), mappingBefore);
   assert.equal(fs.existsSync(path.join(fixture.dataDir, 'overtime-gift-sale.json')), true);
 
   const cached = await service.refresh();
@@ -150,6 +137,29 @@ test('gift sale service does not call upstream without a configured room', async
   });
   await assert.rejects(service.refresh(), /直播间号/);
   assert.equal(called, false);
+});
+
+test('gift sale service removes guard aliases from an existing cached snapshot', () => {
+  const fixture = createFixture();
+  fs.writeFileSync(path.join(fixture.dataDir, 'overtime-gift-sale.json'), JSON.stringify({
+    roomId: '22637261',
+    refreshedAt: '2026-08-16T06:00:00.000Z',
+    panelCount: 3,
+    gifts: [
+      { id: '100', name: '普通礼物', rmb: 1 },
+      { id: '34637', name: '舰长一号', rmb: 198 },
+      { id: '34638', name: '提督一号', rmb: 1998 },
+      { id: '34639', name: '总督一号', rmb: 19998 }
+    ]
+  }));
+  const service = createGiftSaleCatalogService({
+    dataDir: fixture.dataDir,
+    publicDir: fixture.publicDir
+  });
+
+  const snapshot = service.getSnapshot();
+  assert.equal(snapshot.count, 1);
+  assert.deepEqual(snapshot.gifts.map(gift => gift.id), ['100']);
 });
 
 function createFixture() {
