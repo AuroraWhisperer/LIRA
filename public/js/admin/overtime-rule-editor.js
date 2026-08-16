@@ -74,12 +74,12 @@ export function createOvertimeRuleEditor(root, markDirty) {
       outcomes: [],
       enabled: count < MAX_ENABLED_RULES,
       sortOrder: count
-    }, count, count + 1);
+    }, count, count + 1, true);
     root.append(row);
     return row;
   }
 
-  function createRuleRow(rule, index, count) {
+  function createRuleRow(rule, index, count, expanded = false) {
     const row = document.createElement('article');
     row.className = 'overtime-rule-row';
     row.dataset.overtimeRule = 'true';
@@ -101,9 +101,11 @@ export function createOvertimeRuleEditor(root, markDirty) {
     identity.className = 'overtime-rule-identity';
     const name = document.createElement('strong');
     name.textContent = rule.giftName || `礼物 ${rule.giftId}`;
-    const id = document.createElement('small');
-    id.textContent = `礼物 ID ${rule.giftId}`;
-    identity.append(name, id);
+    const summary = document.createElement('small');
+    summary.className = 'overtime-rule-summary';
+    summary.dataset.ruleSummary = 'true';
+    summary.textContent = describeRule(rule);
+    identity.append(name, summary);
     gift.append(identity);
     header.append(gift);
 
@@ -115,20 +117,43 @@ export function createOvertimeRuleEditor(root, markDirty) {
     enabled.type = 'checkbox';
     enabled.checked = rule.enabled !== false;
     enabled.dataset.ruleEnabled = 'true';
-    enabledLabel.append(enabled, document.createElement('span'), document.createTextNode('启用这条规则'));
+    enabledLabel.append(enabled, document.createElement('span'), document.createTextNode('启用'));
     controls.append(enabledLabel);
-    controls.append(ruleButton('上移', '将这条规则上移', index === 0, () => moveRule(row, -1)));
-    controls.append(ruleButton('下移', '将这条规则下移', index === count - 1, () => moveRule(row, 1)));
-    controls.append(ruleButton('删除', '删除规则', false, () => {
+    const moveUp = ruleButton('↑', '将这条规则上移', index === 0, () => moveRule(row, -1));
+    moveUp.classList.add('overtime-rule-icon-button');
+    const moveDown = ruleButton('↓', '将这条规则下移', index === count - 1, () => moveRule(row, 1));
+    moveDown.classList.add('overtime-rule-icon-button');
+    controls.append(moveUp, moveDown);
+    const remove = ruleButton('删除', '删除规则', false, () => {
       markDirty();
       row.remove();
-    }));
+    });
+    remove.classList.add('overtime-rule-remove');
+    controls.append(remove);
+
+    const body = document.createElement('div');
+    body.className = 'overtime-rule-body';
+    body.id = `overtime-rule-body-${++ruleControlSequence}`;
+    body.hidden = !expanded;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'secondary overtime-rule-toggle';
+    toggle.setAttribute('aria-controls', body.id);
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.textContent = expanded ? '收起设置' : '展开设置';
+    toggle.addEventListener('click', () => {
+      const nextExpanded = body.hidden;
+      body.hidden = !nextExpanded;
+      row.classList.toggle('is-expanded', nextExpanded);
+      toggle.setAttribute('aria-expanded', String(nextExpanded));
+      toggle.textContent = nextExpanded ? '收起设置' : '展开设置';
+    });
+    controls.append(toggle);
     header.append(controls);
     row.append(header);
 
     const modeSection = document.createElement('section');
     modeSection.className = 'overtime-rule-mode';
-    modeSection.append(createEffectStep('1', '这个礼物如何改变时间？', '二选一，点击最符合你需求的方式。'));
     const modeOptions = document.createElement('fieldset');
     modeOptions.className = 'overtime-rule-mode-options';
     const modeLegend = document.createElement('legend');
@@ -136,11 +161,11 @@ export function createOvertimeRuleEditor(root, markDirty) {
     modeOptions.append(modeLegend);
     const modeName = `overtime-rule-mode-${++ruleControlSequence}`;
     modeOptions.append(
-      createModeOption(modeName, 'fixed', '直接改时间', '每次都增加或减少同样的时长', rule.mode !== 'random'),
-      createModeOption(modeName, 'random', '随机抽结果', '像开盲盒一样，从多个结果中抽一个', rule.mode === 'random')
+      createModeOption(modeName, 'fixed', '直接改时间', rule.mode !== 'random'),
+      createModeOption(modeName, 'random', '随机抽结果', rule.mode === 'random')
     );
     modeSection.append(modeOptions);
-    row.append(modeSection);
+    body.append(modeSection);
 
     const effect = document.createElement('div');
     effect.className = 'overtime-rule-effect';
@@ -148,7 +173,11 @@ export function createOvertimeRuleEditor(root, markDirty) {
     modeOptions.addEventListener('change', event => {
       if (event.target.matches('[data-rule-mode]:checked')) setEffectMode(effect, event.target.value);
     });
-    row.append(effect);
+    body.append(effect);
+    body.addEventListener('input', () => updateRuleSummary(row));
+    body.addEventListener('change', () => updateRuleSummary(row));
+    row.classList.toggle('is-expanded', expanded);
+    row.append(body);
     return row;
   }
 
@@ -157,21 +186,17 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const fixedPanel = document.createElement('section');
     fixedPanel.className = 'overtime-fixed-editor';
     fixedPanel.dataset.effectMode = 'fixed';
-    fixedPanel.append(createEffectStep('2', '选择一种时间操作', '加、减填写时长；乘、除填写倍数；清零无需填写。'));
     const sentence = document.createElement('div');
     sentence.className = 'overtime-effect-sentence';
-    const sentenceStart = document.createElement('span');
-    sentenceStart.textContent = '收到这个礼物后';
-    sentence.append(sentenceStart, createEffectControls(normalizeEffect(rule.fixedEffect, rule.fixedSeconds)));
+    sentence.append(createEffectControls(normalizeEffect(rule.fixedEffect, rule.fixedSeconds)));
     fixedPanel.append(sentence);
 
     const randomPanel = document.createElement('section');
     randomPanel.className = 'overtime-random-editor';
     randomPanel.dataset.effectMode = 'random';
-    randomPanel.append(createEffectStep('2', '设置盲盒里可能抽到的结果', '每次收到这个礼物，只会随机抽中下面一个结果。'));
     const randomHint = document.createElement('p');
     randomHint.className = 'overtime-random-hint';
-    randomHint.textContent = '“抽中机会”的数字越大越容易抽中。不用凑到 100，系统会自动换算成百分比。';
+    randomHint.textContent = '机会值越大，抽中概率越高，系统会自动换算百分比。';
     randomPanel.append(randomHint);
 
     const outcomeList = document.createElement('div');
@@ -194,11 +219,12 @@ export function createOvertimeRuleEditor(root, markDirty) {
     addOutcome.type = 'button';
     addOutcome.className = 'secondary overtime-add-outcome';
     addOutcome.dataset.addOutcome = 'true';
-    addOutcome.textContent = '＋ 添加一个可能结果';
+    addOutcome.textContent = '＋ 添加结果';
     addOutcome.addEventListener('click', () => {
       if (outcomeList.children.length >= MAX_RANDOM_OUTCOMES) return;
       outcomeList.append(createOutcomeCard({ operation: 'add', value: 60, weight: 10 }, outcomeList.children.length));
       refreshOutcomeCards(randomPanel);
+      updateRuleSummary(randomPanel.closest('[data-overtime-rule]'));
       outcomeList.lastElementChild.querySelector('input')?.focus();
     });
     randomFooter.append(outcomeCount, addOutcome);
@@ -212,7 +238,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
     setEffectMode(root, rule.mode === 'random' ? 'random' : 'fixed');
   }
 
-  function createModeOption(name, value, title, description, checked) {
+  function createModeOption(name, value, title, checked) {
     const label = document.createElement('label');
     label.className = `overtime-mode-option is-${value}`;
     const input = document.createElement('input');
@@ -224,26 +250,9 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const copy = document.createElement('span');
     const strong = document.createElement('strong');
     strong.textContent = title;
-    const small = document.createElement('small');
-    small.textContent = description;
-    copy.append(strong, small);
+    copy.append(strong);
     label.append(input, copy);
     return label;
-  }
-
-  function createEffectStep(number, title, hint) {
-    const step = document.createElement('div');
-    step.className = 'overtime-rule-step';
-    const marker = document.createElement('span');
-    marker.textContent = number;
-    const copy = document.createElement('div');
-    const strong = document.createElement('strong');
-    strong.textContent = title;
-    const small = document.createElement('small');
-    small.textContent = hint;
-    copy.append(strong, small);
-    step.append(marker, copy);
-    return step;
   }
 
   function normalizeEffect(effect, legacySeconds) {
@@ -412,12 +421,14 @@ export function createOvertimeRuleEditor(root, markDirty) {
     remove.type = 'button';
     remove.className = 'secondary overtime-remove-outcome';
     remove.dataset.removeOutcome = 'true';
-    remove.textContent = '删除这个结果';
+    remove.textContent = '删除结果';
     remove.addEventListener('click', () => {
       const editor = card.closest('.overtime-random-editor');
       if (!editor || editor.querySelectorAll('[data-random-outcome]').length <= MIN_RANDOM_OUTCOMES) return;
+      const row = card.closest('[data-overtime-rule]');
       card.remove();
       refreshOutcomeCards(editor);
+      updateRuleSummary(row);
     });
     card.append(heading, result, chance, remove);
     return card;
@@ -430,10 +441,10 @@ export function createOvertimeRuleEditor(root, markDirty) {
       card.querySelector('[data-outcome-weight]').setAttribute('aria-label', `可能结果 ${index + 1} 的抽中机会`);
       const remove = card.querySelector('[data-remove-outcome]');
       remove.disabled = cards.length <= MIN_RANDOM_OUTCOMES;
-      remove.textContent = remove.disabled ? '盲盒至少保留 2 个结果' : '删除这个结果';
+      remove.textContent = remove.disabled ? '至少保留 2 个结果' : '删除结果';
     });
     const count = root.querySelector('[data-outcome-count]');
-    if (count) count.textContent = `已有 ${cards.length} 个可能结果（最多 ${MAX_RANDOM_OUTCOMES} 个）`;
+    if (count) count.textContent = `${cards.length} 个结果（最多 ${MAX_RANDOM_OUTCOMES} 个）`;
     const add = root.querySelector('[data-add-outcome]');
     if (add) add.disabled = cards.length >= MAX_RANDOM_OUTCOMES;
     updateOutcomeProbabilities(root);
@@ -463,6 +474,63 @@ export function createOvertimeRuleEditor(root, markDirty) {
       panel.hidden = panel.dataset.effectMode !== mode;
     });
     root.classList.toggle('is-random', mode === 'random');
+  }
+
+  function updateRuleSummary(row) {
+    if (!row) return;
+    const summary = row.querySelector('[data-rule-summary]');
+    const mode = row.querySelector('[data-rule-mode]:checked')?.value;
+    if (!summary || !mode) return;
+    if (mode === 'random') {
+      const count = row.querySelectorAll('[data-random-outcome]').length;
+      summary.textContent = `随机抽取 · ${count} 个结果`;
+      return;
+    }
+    const panel = row.querySelector('[data-effect-mode="fixed"]');
+    const operation = panel?.querySelector('[data-rule-operation]:checked')?.value;
+    if (!operation) return;
+    if (operation === 'clear') {
+      summary.textContent = '剩余时间清零';
+      return;
+    }
+    if (operation === 'multiply' || operation === 'divide') {
+      const value = Math.max(0, Math.floor(Number(panel.querySelector('[data-effect-factor]')?.value) || 0));
+      summary.textContent = operation === 'multiply' ? `剩余时间乘 ${value}` : `剩余时间除以 ${value}`;
+      return;
+    }
+    const hours = Number(panel.querySelector('[data-duration-hours]')?.value) || 0;
+    const minutes = Number(panel.querySelector('[data-duration-minutes]')?.value) || 0;
+    const seconds = Number(panel.querySelector('[data-duration-seconds]')?.value) || 0;
+    summary.textContent = `${operation === 'subtract' ? '减少' : '增加'} ${formatDurationSummary(hours * 3600 + minutes * 60 + seconds)}`;
+  }
+
+  function describeRule(rule) {
+    if (rule.mode === 'random') {
+      const count = Array.isArray(rule.outcomes) && rule.outcomes.length >= MIN_RANDOM_OUTCOMES
+        ? rule.outcomes.length
+        : MIN_RANDOM_OUTCOMES;
+      return `随机抽取 · ${count} 个结果`;
+    }
+    return describeEffect(normalizeEffect(rule.fixedEffect, rule.fixedSeconds));
+  }
+
+  function describeEffect(effect) {
+    if (effect.operation === 'clear') return '剩余时间清零';
+    if (effect.operation === 'multiply') return `剩余时间乘 ${effect.value}`;
+    if (effect.operation === 'divide') return `剩余时间除以 ${effect.value}`;
+    return `${effect.operation === 'subtract' ? '减少' : '增加'} ${formatDurationSummary(effect.value)}`;
+  }
+
+  function formatDurationSummary(seconds) {
+    const whole = Math.max(0, Math.floor(Number(seconds) || 0));
+    const parts = [];
+    const hours = Math.floor(whole / 3600);
+    const minutes = Math.floor((whole % 3600) / 60);
+    const rest = whole % 60;
+    if (hours) parts.push(`${hours} 小时`);
+    if (minutes) parts.push(`${minutes} 分钟`);
+    if (rest || !parts.length) parts.push(`${rest} 秒`);
+    return parts.join(' ');
   }
 
   function readEffect(root) {
@@ -498,6 +566,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
     button.className = 'secondary';
     button.textContent = label;
     button.title = title;
+    button.setAttribute('aria-label', title);
     button.disabled = disabled;
     button.addEventListener('click', handler);
     return button;

@@ -1,6 +1,6 @@
 # preload 桥与 IPC 全量注册表
 
-> 涉及文件:[src/electron/preload.js](../../../src/electron/preload.js)、[src/electron/main.js](../../../src/electron/main.js)(handler 注册)、[src/electron/lyric-window.js](../../../src/electron/lyric-window.js)(`music:lyric-state` 发送)
+> 涉及文件:[src/electron/preload.js](../../../src/electron/preload.js)、[src/electron/main.js](../../../src/electron/main.js)(handler 注册)
 
 本文档是 IPC 的**唯一事实源**:所有通道、方向、载荷、handler 摘要只在此成表,其他文档一律链接此处。窗口生命周期见 [main.md](main.md) / [windows.md](windows.md),更新语义见 [update.md](update.md),登录语义见 [auth.md](auth.md)。
 
@@ -36,10 +36,6 @@
 | `music:get-auth-state` | `platform: 'qq' \| 'netease'` | 平台 auth state([auth.md](auth.md) §4) | 读分区 Cookie 判定登录态 | [main.js:442](../../../src/electron/main.js#L442) |
 | `music:login` | `platform` | `{platform, snapshot, state}` | 打开音乐登录窗并等待关闭([windows.md](windows.md) §2) | [main.js:443](../../../src/electron/main.js#L443) |
 | `music:logout` | `platform` | 最新 auth state | 清分区 + 删快照([auth.md](auth.md) §7) | [main.js:444](../../../src/electron/main.js#L444) |
-| `music:open-lyric-window` | — | `{open:boolean}` | 打开/复用歌词窗 | [main.js:445](../../../src/electron/main.js#L445) |
-| `music:close-lyric-window` | — | `{open:false}` | 关闭歌词窗 | [main.js:446](../../../src/electron/main.js#L446) |
-| `music:update-lyric-window` | 歌词 state | `{open:boolean}` | 归一化后推送歌词窗(§2.2 `music:lyric-state`) | [main.js:447](../../../src/electron/main.js#L447) |
-| `music:set-lyric-window-locked` | `locked: boolean` | `{open, locked}` | 歌词窗鼠标穿透锁定 | [main.js:448](../../../src/electron/main.js#L448) |
 | `music:provider-health` | `platform` | 平台健康检查结果 | 临时构造 provider 注册表执行 healthCheck | [main.js:449-455](../../../src/electron/main.js#L449-L455) |
 | `music:select-local-files` | — | `{ok, canceled, files:[{path,name,ext}]}` | 多选音频文件对话框 + `allowPaths` 入白名单([main.md](main.md) §5) | [main.js:456-469](../../../src/electron/main.js#L456-L469) |
 | `music:select-wesing-cache` | — | `{ok, canceled, path}` | 目录对话框选 WeSingCache(校验 origin;默认路径取设置 `weSingCachePath`) | [main.js:470-485](../../../src/electron/main.js#L470-L485) |
@@ -56,7 +52,6 @@
 |---|---|---|---|---|
 | `desktop:update-state` | `{status, message, version, canDownload, canInstall, progress, updateVersion}`(形状见 [update.md](update.md) §4) | 更新状态每次变化(`sendUpdateState`) | 主窗口 `songAssistantDesktop.onUpdateState` | [main.js:706-710](../../../src/electron/main.js#L706-L710) |
 | `desktop:window-maximized` | `boolean` | 主窗口 maximize/unmaximize 事件 | 主窗口 `songAssistantDesktop.onWindowMaximized` | [main.js:364-374](../../../src/electron/main.js#L364-L374) |
-| `music:lyric-state` | 归一化歌词 state,或 `{locked}` | `music:update-lyric-window` / `music:set-lyric-window-locked` | **歌词窗** `musicAPI.onLyricState` | [lyric-window.js:48-60](../../../src/electron/lyric-window.js#L48-L60) |
 | `app:prepare-shutdown` | — | 关闭时序 `requestPlaybackFlush`([main.md](main.md) §7) | 主窗口 `musicAPI.onPrepareShutdown` | [playback-flush.js:22](../../../src/electron/playback-flush.js#L22) |
 
 > `desktop:show-update-page` 在 preload 注册了监听([preload.js:19-25](../../../src/electron/preload.js#L19-L25)),但当前 main 进程未发送此事件,属预留通道。
@@ -83,7 +78,6 @@
 | `songAssistantDesktop` | reportGiftDisplay | 礼物通知 `js/admin/gifts/notification.js` | 同上 |
 | `musicAPI` | getAuthState / providerHealth / login / logout | 播放页 `js/playback/provider/manager.js`、`js/playback/operations/provider-operations.js` | 同上 |
 | `musicAPI` | selectLocalFiles / resolveLocalMediaUrls | 播放页 `js/playback/local/manager.js`、`js/playback/features/playback-controls.js` | 同上 |
-| `musicAPI` | openLyricWindow / closeLyricWindow / updateLyricWindow / setLyricWindowLocked / onLyricState | 播放页 `js/playback/services/lyric-service.js`;歌词窗 `js/overlays/lyric-window.js`(onLyricState);管理页 `js/admin/desktop-lyric-preview.js` | 同上 |
 | `musicAPI` | selectWeSingCacheDirectory | 播放页 `js/playback/services/wesing-service.js`(全民K歌设置) | 同上,WeSing 语义见 [../backend/music/wesing.md](../backend/music/wesing.md) |
 | `musicAPI` | savePlaybackState / onPrepareShutdown / confirmShutdownFlush | 播放页 `js/playback/operations/state-persistence.js`、`js/playback/core/initializer.js` | 同上 |
 | `bilibiliAuth` | getAuthState / login / logout | 管理页 `js/admin/settings.js`(Bilibili 登录区) | 同上 |

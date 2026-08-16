@@ -76,7 +76,7 @@
 |---|---|---|
 | 管理页 `StateService` | close 后固定 **1600ms** 重连;`setShuttingDown(true)` 时改显示"程序已退出"并停止重连 | [state.js:81-92](../../../public/js/admin/state.js#L81-L92) |
 | 叠加层(队列/歌单/盲盒/加班机) | 指数退避 `min(30000, 800 × 2^min(attempts,6))`,重连前先 `loadState()` 拿快照兜底 | [overlays/queue.js:86-93](../../../public/js/overlays/queue.js#L86-L93) |
-| 歌词窗口 | `min(15000, 1000 × 2^min(attempts-1,4))`,断连时显示"正在重新连接"占位 | [overlays/lyric-window.js:73-85](../../../public/js/overlays/lyric-window.js#L73-L85) |
+| 桌面歌词浏览器源 | `min(15000, 1000 × 2^min(attempts-1,4))`,连接恢复后继续接收状态与时间轴 | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
 | shutdown | 服务关闭前广播 `shutdown`(见 [ws.md](../backend/ws.md) §3),管理页据此进入"程序已退出"状态 | [ws.md](../backend/ws.md) §3 |
 
 ### 3.4 客户端消费的消息类型(全集在 [ws.md](../backend/ws.md) §3)
@@ -90,7 +90,7 @@
 | 桥 | 典型用法 | 检测方式 |
 |---|---|---|
 | `window.songAssistantDesktop` | 窗口控制 `minimizeWindow/maximizeWindow/closeWindow/restart`、`onWindowMaximized` 图标切换、更新流程 `checkForUpdates/downloadUpdate/installUpdate`、`openDataDir/openLogDir/openGithub`、`setAutoUpdate` | `if (window.songAssistantDesktop)`([settings.js:327](../../../public/js/admin/settings.js#L327)) |
-| `window.musicAPI` | 播放器域:登录态/健康 `getAuthState/providerHealth`、播放状态落盘 `savePlaybackState`(卸载/关机前刷新)、本地文件 `selectLocalFiles/getRecentLocalFiles/resolveLocalMediaUrls`、歌词窗口 `openLyricWindow/updateLyricWindow/setLyricWindowLocked`、WeSing 目录选择 `selectWeSingCacheDirectory`、关机钩子 `onPrepareShutdown/confirmShutdownFlush` | `typeof window.musicAPI?.xxx === 'function'` |
+| `window.musicAPI` | 播放器域:登录态/健康 `getAuthState/providerHealth`、播放状态落盘 `savePlaybackState`(卸载/关机前刷新)、本地文件 `selectLocalFiles/getRecentLocalFiles/resolveLocalMediaUrls`、WeSing 目录选择 `selectWeSingCacheDirectory`、关机钩子 `onPrepareShutdown/confirmShutdownFlush` | `typeof window.musicAPI?.xxx === 'function'` |
 | `window.bilibiliAuth` | Bilibili 扫码登录 `login/logout/getAuthState`;Web 模式禁用并显示"Web 模式(不可用)" | `!!window.bilibiliAuth`([settings.js:23-30](../../../public/js/admin/settings.js#L23-L30)) |
 
 **降级路径**:同一功能先走 IPC、后端不可用再回退 HTTP(如 `ProviderManager.refreshProviderState` 先 `musicAPI.providerHealth(source)`,浏览器回退 `GET /api/music/health`([provider/manager.js:42-64](../../../public/js/playback/provider/manager.js#L42-L64)));登录态接口 404/501 时标记不可用并静默返回空态。

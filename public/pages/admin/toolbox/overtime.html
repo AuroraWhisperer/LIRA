@@ -53,11 +53,13 @@
 
                 <section class="overtime-admin-section">
                   <div class="overtime-section-heading">
-                    <div><h3>礼物时间规则</h3><p>添加礼物后，选择“直接改时间”或“随机抽结果”，再从增加、减少、乘倍数、除倍数、清零中设置效果。累计最多 9999 年，达到后不再增长。</p></div>
-                    <div class="overtime-heading-actions">
+                    <div class="overtime-rules-heading-title">
+                      <h3>礼物时间规则</h3>
                       <span id="overtimePendingCount" class="pill">待结算 0</span>
-                      <button id="overtimeAddGiftBtn" class="secondary" type="button">＋ 添加礼物</button>
-                      <button id="overtimeSaveRulesBtn" type="button">保存规则</button>
+                    </div>
+                    <div class="overtime-heading-actions">
+                      <button id="overtimeAddGiftBtn" class="overtime-add-gift-action" type="button">＋ 添加礼物</button>
+                      <button id="overtimeSaveRulesBtn" class="secondary overtime-save-rules-action" type="button" aria-live="polite" disabled>✓ 已保存</button>
                     </div>
                   </div>
                   <div id="overtimeRules" class="overtime-rule-list" aria-live="polite"></div>
@@ -92,8 +94,8 @@
 
               <dialog id="overtimeGiftPicker" class="overtime-gift-picker">
                 <form method="dialog" class="overtime-picker-shell">
-                  <header><div><h3>选择礼物</h3><p>按名称或礼物 ID 搜索本地目录。</p></div><button class="secondary" value="cancel" type="submit">关闭</button></header>
-                  <input id="overtimeGiftSearch" type="search" placeholder="搜索礼物名称或 ID" autocomplete="off">
+                  <header><h3>添加礼物</h3><button class="secondary" value="cancel" type="submit">取消</button></header>
+                  <input id="overtimeGiftSearch" type="search" aria-label="搜索礼物" placeholder="输入礼物名称" autocomplete="off">
                   <div id="overtimeGiftResults" class="overtime-gift-results"></div>
                 </form>
               </dialog>

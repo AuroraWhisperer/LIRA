@@ -14,10 +14,6 @@ function registerMusicIpc({
   getMusicAuthState,
   loginMusicAccount,
   logoutMusicAccount,
-  openLyricWindow,
-  closeLyricWindow,
-  updateLyricWindow,
-  setLyricWindowLocked,
   getMusicProviderRegistry,
   hasExactOrigin,
   isPathAllowedForLocalMedia,
@@ -27,10 +23,6 @@ function registerMusicIpc({
   ipcMain.handle('music:get-auth-state', function (_event, platform) { return getMusicAuthState(platform); });
   ipcMain.handle('music:login', function (_event, platform) { return loginMusicAccount(platform); });
   ipcMain.handle('music:logout', function (_event, platform) { return logoutMusicAccount(platform); });
-  ipcMain.handle('music:open-lyric-window', function () { return openLyricWindow(); });
-  ipcMain.handle('music:close-lyric-window', function () { return closeLyricWindow(); });
-  ipcMain.handle('music:update-lyric-window', function (_event, state) { return updateLyricWindow(state); });
-  ipcMain.handle('music:set-lyric-window-locked', function (_event, locked) { return setLyricWindowLocked(locked); });
   ipcMain.handle('music:provider-health', async function (_event, platform) {
     return getMusicProviderRegistry().healthCheck(platform);
   });

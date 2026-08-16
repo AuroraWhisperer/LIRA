@@ -78,7 +78,7 @@ PlayerController.setAudio → audio.load()/play()
 | 行定位 | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88)) |
 | 逐字进度 | `shared/lyric-word-renderer.js` 的 `LyricWordRenderer`(rAF 驱动,`--word-progress` 百分比注入,respect prefers-reduced-motion) |
 | **上报** | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + 内容指纹去重 + 串行队列);`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
-| 桌面歌词窗口 | `musicAPI.openLyricWindow/updateLyricWindow/setLyricWindowLocked` 推送渲染状态(IPC 定义见 [desktop/preload.md](../desktop/preload.md));浏览器/无桥环境静默跳过 |
+| 桌面歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染 |
 
 ## 4. 服务层(services/)
 
@@ -86,7 +86,7 @@ PlayerController.setAudio → audio.load()/play()
 |---|---|
 | search-service | 在线搜索 `POST /api/music/search`(platform/keyword/limit,默认 9 条),`searchGeneration` 防串号(旧请求结果丢弃) |
 | stream-service | 播放流解析 `POST /api/music/resolve-stream`(forceRefresh),URL 缓存 + 30s 刷新边距 + 1 次重试 |
-| lyric-service | 歌词加载、行定位、桌面歌词窗口管理、浏览器端 lyric-state/timeline 上报(§3) |
+| lyric-service | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3) |
 | match-service | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗) |
 | import-service | 点歌队列导入:读 `/api/state` 的 queue 快照 → 按 track 结构转换后插入播放队列 |
 | home-service | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新") |

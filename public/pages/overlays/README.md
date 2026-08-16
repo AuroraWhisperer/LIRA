@@ -6,7 +6,7 @@
 
 | 文件 | 说明 | 访问路径 |
 |-----|------|---------|
-| `lyric-window.html` | 桌面歌词窗口 | `/lyrics` |
+| `lyric-window.html` | 桌面歌词浏览器源 | `/lyrics` |
 | `blindbox.html` | 盲盒盈亏展示 | `/blindbox` |
 | `queue.html` | 点歌队列展示 | `/queue` |
 | `songs.html` | 可点歌单展示 | `/songlist` |

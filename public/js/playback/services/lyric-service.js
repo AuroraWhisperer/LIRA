@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 歌词服务 - 负责歌词加载、桌面歌词窗口管理、歌词同步
+// 歌词服务 - 负责歌词加载和浏览器源同步
 'use strict';
 
 /**
@@ -8,10 +8,7 @@
 export class LyricService {
   constructor(options = {}) {
     this.state = options.state || null;
-    this.onError = options.onError || (() => {});
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
-    this.windowOpen = false;
-    this.windowLocked = false;
     this.lastPublishedState = '';
     this.lastPublishedAt = 0;
     this.statePublishQueue = Promise.resolve();
@@ -88,98 +85,13 @@ export class LyricService {
   }
 
   /**
-   * 打开桌面歌词窗口
-   * @returns {Promise<boolean>} 是否成功打开
-   */
-  async openWindow() {
-    if (!window.musicAPI || typeof window.musicAPI.openLyricWindow !== 'function') {
-      throw new Error('桌面歌词需要在桌面版里使用');
-    }
-
-    try {
-      await window.musicAPI.openLyricWindow();
-      this.windowOpen = true;
-      return true;
-    } catch (error) {
-      this.onError(error);
-      return false;
-    }
-  }
-
-  /**
-   * 关闭桌面歌词窗口
-   * @returns {Promise<boolean>} 是否成功关闭
-   */
-  async closeWindow() {
-    if (!window.musicAPI || typeof window.musicAPI.closeLyricWindow !== 'function') {
-      return false;
-    }
-
-    try {
-      await window.musicAPI.closeLyricWindow();
-      this.windowOpen = false;
-      return true;
-    } catch (error) {
-      this.onError(error);
-      return false;
-    }
-  }
-
-  /**
-   * 切换桌面歌词窗口开关状态
-   * @returns {Promise<boolean>} 切换后的状态
-   */
-  async toggleWindow() {
-    if (!window.musicAPI || typeof window.musicAPI.openLyricWindow !== 'function') {
-      throw new Error('桌面歌词需要在桌面版里使用');
-    }
-
-    if (this.windowOpen) {
-      await this.closeWindow();
-    } else {
-      await this.openWindow();
-    }
-
-    return this.windowOpen;
-  }
-
-  /**
-   * 设置桌面歌词窗口锁定状态
-   * @param {boolean} locked - 是否锁定
-   * @returns {Promise<boolean>} 设置后的锁定状态
-   */
-  async setWindowLocked(locked) {
-    if (!window.musicAPI || typeof window.musicAPI.setLyricWindowLocked !== 'function') {
-      return this.windowLocked;
-    }
-
-    try {
-      const result = await window.musicAPI.setLyricWindowLocked(locked);
-      this.windowLocked = Boolean(result && result.locked);
-      return this.windowLocked;
-    } catch (error) {
-      this.onError(error);
-      return this.windowLocked;
-    }
-  }
-
-  /**
-   * 切换桌面歌词窗口锁定状态
-   * @returns {Promise<boolean>} 切换后的锁定状态
-   */
-  async toggleWindowLock() {
-    return this.setWindowLocked(!this.windowLocked);
-  }
-
-  /**
-   * 同步桌面歌词窗口
+   * 同步桌面歌词浏览器源
    * @param {Object} track - 当前曲目
    * @param {HTMLAudioElement} audio - 音频元素
    * @param {boolean} force - 是否强制同步
    * @returns {Promise<void>}
    */
   async syncWindow(track, audio, force = false) {
-    const wasOpen = this.windowOpen;
     const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
     const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const progress = duration > 0 ? currentTime / duration : 0;
@@ -195,25 +107,13 @@ export class LyricService {
       durationMs: Math.round(duration * 1000),
       progress,
       playing: audio ? !audio.paused : false,
-      locked: this.windowLocked,
+      locked: false,
       status: !track ? 'idle' : !hasLyrics ? 'loading' : track.lyrics.lines.length > 0 ? 'ready' : 'empty'
     };
 
     await this.publishBrowserTimeline(track);
     await this.publishBrowserState(state, force);
-
-    if (!this.windowOpen && !force) return false;
-    if (!window.musicAPI || typeof window.musicAPI.updateLyricWindow !== 'function') return false;
-
-    try {
-      const result = await window.musicAPI.updateLyricWindow(state);
-
-      this.windowOpen = Boolean(result && result.open);
-    } catch (_) {
-      this.windowOpen = false;
-    }
-
-    return wasOpen !== this.windowOpen;
+    return false;
   }
 
   async publishBrowserTimeline(track) {
@@ -269,17 +169,6 @@ export class LyricService {
     };
     this.statePublishQueue = this.statePublishQueue.then(publish, publish);
     await this.statePublishQueue;
-  }
-
-  /**
-   * 获取桌面歌词窗口状态
-   * @returns {Object}
-   */
-  getWindowState() {
-    return {
-      open: this.windowOpen,
-      locked: this.windowLocked
-    };
   }
 
   /**

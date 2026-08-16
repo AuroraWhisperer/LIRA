@@ -8,11 +8,14 @@ const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
   trigger: ['xiaomiAiTrigger', 'value'],
   deepseekResponsesUrl: ['xiaomiAiDeepSeekUrl', 'value'],
+  deepseekApiKey: ['xiaomiAiDeepSeekKey', 'value'],
   model: ['xiaomiAiModel', 'value'],
   webSearchEnabled: ['xiaomiAiWebSearch', 'checked'],
   reasoningEnabled: ['xiaomiAiReasoning', 'checked'],
   qweatherApiHost: ['xiaomiAiQWeatherHost', 'value'],
+  qweatherApiKey: ['xiaomiAiQWeatherKey', 'value'],
   amapApiHost: ['xiaomiAiAmapHost', 'value'],
+  amapApiKey: ['xiaomiAiAmapKey', 'value'],
   replyMaxChars: ['xiaomiAiReplyMaxChars', 'number'],
   generationConcurrency: ['xiaomiAiConcurrency', 'number'],
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
@@ -257,9 +260,6 @@ function collectConfig() {
     if (!element) continue;
     config[key] = kind === 'checked' ? element.checked : (kind === 'number' ? Number(element.value) : element.value.trim());
   }
-  config.deepseekApiKey = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
-  config.qweatherApiKey = document.getElementById('xiaomiAiQWeatherKey').value.trim();
-  config.amapApiKey = document.getElementById('xiaomiAiAmapKey').value.trim();
   return config;
 }
 
@@ -278,7 +278,7 @@ function renderConfigSummary(config) {
   renderSecretHint('xiaomiAiQWeatherKeyHint', config.hasQWeatherApiKey);
   renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
   document.getElementById('xiaomiAiConfigState').textContent = config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger ? '可运行' : '等待配置';
-  document.getElementById('xiaomiAiModelState').textContent = config.model || 'deepseek-v4-flash';
+  document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
 }
 
 function renderStatus(status) {

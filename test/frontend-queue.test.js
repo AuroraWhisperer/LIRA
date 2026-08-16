@@ -271,6 +271,36 @@ test('overtime controller delegates rule editing through a narrow module boundar
   assert.match(editor, /return \{ readRules, renderRules, createRule \};/);
 });
 
+test('overtime gift rule actions keep adding obvious and saving stateful', () => {
+  const html = readAdminHtml();
+  const source = readOvertimeAdminSource();
+  const overtimeStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'overtime.css'), 'utf8');
+
+  assert.match(html, /id="overtimeAddGiftBtn" class="overtime-add-gift-action"/);
+  assert.match(html, /id="overtimeSaveRulesBtn"[^>]+disabled>✓ 已保存<\/button>/);
+  assert.match(html, /<h3>添加礼物<\/h3>/);
+  assert.match(html, /placeholder="输入礼物名称"/);
+  assert.doesNotMatch(html, /按名称或礼物 ID 搜索本地目录/);
+  assert.match(source, /createOvertimeRuleEditor\(byId\('overtimeRules'\), markRulesDirty\)/);
+  assert.match(source, /row\.scrollIntoView\(\{ block: 'nearest' \}\)/);
+  assert.match(source, /toast\(`已添加 \$\{gift\.name\}`\)/);
+  assert.match(overtimeStyles, /\.overtime-add-gift-action/);
+  assert.match(overtimeStyles, /\.overtime-save-rules-action\.is-dirty/);
+  assert.match(overtimeStyles, /--ot-action-add:\s*#6657c7/);
+  assert.match(overtimeStyles, /--ot-action-save:\s*#147d73/);
+
+  const stateStart = source.indexOf('function getRulesSaveButtonState');
+  const stateEnd = source.indexOf('\nfunction syncRulesSaveButton', stateStart);
+  const sandbox = {};
+  vm.runInNewContext(`${source.slice(stateStart, stateEnd)}\nthis.getState = getRulesSaveButtonState;`, sandbox);
+  assert.equal(sandbox.getState(false, false).label, '✓ 已保存');
+  assert.equal(sandbox.getState(false, false).disabled, true);
+  assert.equal(sandbox.getState(true, false).label, '保存修改');
+  assert.equal(sandbox.getState(true, false).disabled, false);
+  assert.equal(sandbox.getState(true, true).label, '保存中…');
+  assert.equal(sandbox.getState(true, true).disabled, true);
+});
+
 test('overtime initial duration is minute-based, selectable, and readable', () => {
   const html = readAdminHtml();
   const source = readOvertimeAdminSource();
@@ -303,7 +333,13 @@ test('overtime gift rules use novice-friendly structured controls', () => {
   const source = readOvertimeAdminSource();
   const overtimeStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'overtime.css'), 'utf8');
 
-  assert.match(html, /添加礼物后，选择[“"]直接改时间[”"]或[“"]随机抽结果[”"]/);
+  assert.doesNotMatch(html, /添加礼物后，选择[“"]直接改时间[”"]或[“"]随机抽结果[”"]/);
+  assert.match(source, /className = 'secondary overtime-rule-toggle'/);
+  assert.match(source, /dataset\.ruleSummary/);
+  assert.match(source, /body\.hidden = !expanded/);
+  assert.match(source, /toggle\.setAttribute\('aria-expanded'/);
+  assert.doesNotMatch(source, /这个礼物如何改变时间/);
+  assert.doesNotMatch(source, /选择一种时间操作/);
   assert.match(source, /dataset\.ruleOperation/);
   for (const operation of ['add', 'subtract', 'multiply', 'divide', 'clear']) {
     assert.match(source, new RegExp(`createOperationOption\\(name, '${operation}'`));
@@ -312,11 +348,14 @@ test('overtime gift rules use novice-friendly structured controls', () => {
   assert.match(source, /data-duration-\$\{part\}/);
   assert.match(source, /dataset\.randomOutcome/);
   assert.match(source, /dataset\.addOutcome/);
-  assert.match(source, /不用凑到 100/);
+  assert.match(source, /系统会自动换算百分比/);
   assert.match(source, /function updateOutcomeProbabilities/);
   assert.doesNotMatch(source, /createElement\('textarea'\)/);
   assert.doesNotMatch(source, /应写成“\+00:05:00 \| 40”/);
   assert.match(overtimeStyles, /\.overtime-rule-mode-options/);
+  assert.match(overtimeStyles, /\.overtime-rule-body/);
+  assert.match(overtimeStyles, /\.overtime-rule-toggle/);
+  assert.match(overtimeStyles, /\.overtime-rule-effect \[hidden\] \{ display: none !important; \}/);
   assert.match(overtimeStyles, /\.overtime-outcome-card/);
   assert.match(overtimeStyles, /\.overtime-operation-option\.is-add/);
   assert.match(overtimeStyles, /\.overtime-operation-option\.is-subtract/);

@@ -38,7 +38,6 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   function getPublicConfig() {
     const config = getConfig();
     const result = { ...config };
-    for (const key of AI_SECRET_KEYS) delete result[key];
     result.hasDeepSeekApiKey = Boolean(config.deepseekApiKey);
     result.hasQWeatherApiKey = Boolean(config.qweatherApiKey);
     result.hasAmapApiKey = Boolean(config.amapApiKey);

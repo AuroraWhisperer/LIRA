@@ -17,16 +17,19 @@ function createStore(options = {}) {
   return { db, store: createAiConfigStore(db, codec, options) };
 }
 
-test('AI config defaults are redacted and secrets are stored encrypted', () => {
+test('AI config defaults expose editable secrets while storing them encrypted', () => {
   const { db, store } = createStore();
   const defaults = store.getPublicConfig();
+  assert.equal(defaults.enabled, true);
   assert.equal(defaults.trigger, '');
-  assert.equal(defaults.model, 'deepseek-v4-flash');
+  assert.equal(defaults.model, '');
   assert.equal(defaults.maxToolCalls, 6);
   assert.equal(defaults.deepseekResponsesUrl, '');
   assert.equal(defaults.userCooldownSeconds, 0);
   assert.equal(defaults.hasDeepSeekApiKey, false);
-  assert.equal('deepseekApiKey' in defaults, false);
+  assert.equal(defaults.deepseekApiKey, '');
+  assert.equal(defaults.qweatherApiKey, '');
+  assert.equal(defaults.amapApiKey, '');
 
   store.updateConfig({ deepseekApiKey: 'sk-secret-value', enabled: true });
   const row = db.prepare("SELECT value, is_secret FROM ai_configuration WHERE key = 'deepseekApiKey'").get();
@@ -34,6 +37,7 @@ test('AI config defaults are redacted and secrets are stored encrypted', () => {
   assert.doesNotMatch(row.value, /sk-secret-value/);
   assert.equal(store.getConfig().deepseekApiKey, 'sk-secret-value');
   assert.equal(store.getPublicConfig().hasDeepSeekApiKey, true);
+  assert.equal(store.getPublicConfig().deepseekApiKey, 'sk-secret-value');
 });
 
 test('AI config normalizes the legacy DeepSeek model to its official name', () => {
@@ -43,9 +47,10 @@ test('AI config normalizes the legacy DeepSeek model to its official name', () =
   assert.equal(store.updateConfig({ model: 'custom-model' }).model, 'custom-model');
 });
 
-test('AI config allows an empty trigger while the assistant is being configured', () => {
+test('AI config allows an empty trigger and model while the assistant is being configured', () => {
   const { store } = createStore();
   assert.equal(store.updateConfig({ trigger: '' }).trigger, '');
+  assert.equal(store.updateConfig({ model: '' }).model, '');
   assert.throws(() => store.updateConfig({ trigger: '昵称'.repeat(7) }), /不能超过 12/);
 });
 

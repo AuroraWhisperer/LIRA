@@ -2,12 +2,16 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
+const { closeDatabases, createDatabases } = require('../src/storage/database');
+const settingsStoreModule = require('../src/storage/settings-store');
 const {
   DEFAULT_SETTINGS,
   migrateBlindBoxConfig
-} = require('../src/storage/settings-store');
+} = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -31,11 +35,12 @@ test('default blind-box config keeps 七夕鹊匣 as the fourth box', () => {
   );
 });
 
-test('blind-box migration appends 七夕鹊匣 without replacing user entries', () => {
+test('blind-box migration appends missing defaults without replacing user entries', () => {
   const existing = [
     { name: '心动盲盒', price: 15, outputs: [] },
     { name: '幸运盲盒', price: 5, outputs: [] },
-    { name: '小熊虫盲盒', price: 9, outputs: [] }
+    { name: '小熊虫盲盒', price: 9, outputs: [] },
+    { name: '用户自定义盲盒', price: 88, outputs: [{ name: '自定义礼物', price: 188 }] }
   ];
   const updates = [];
   const db = {
@@ -54,9 +59,37 @@ test('blind-box migration appends 七夕鹊匣 without replacing user entries', 
 
   assert.equal(updates.length, 1);
   const migrated = JSON.parse(updates[0].value);
-  assert.deepEqual(migrated.slice(0, 3), existing);
+  assert.deepEqual(migrated.slice(0, existing.length), existing);
   assert.equal(migrated.filter(box => box.name === '七夕鹊匣').length, 1);
-  assert.equal(migrated[3].price, 25);
+  assert.equal(migrated[existing.length].price, 25);
+});
+
+test('settings bootstrap merges new blind-box defaults before the first settings read', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-blind-box-bootstrap-'));
+  const databases = createDatabases({ dataDir, defaultSettings: DEFAULT_SETTINGS });
+  const existing = [
+    { name: '心动盲盒', price: 12, outputs: [{ name: '用户修改礼物', price: 99 }] },
+    { name: '用户自定义盲盒', price: 88, outputs: [{ name: '自定义礼物', price: 188 }] }
+  ];
+
+  try {
+    databases.songDb.prepare(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('giftBlindBoxConfig', ?, ?)
+    `).run(JSON.stringify(existing), new Date().toISOString());
+
+    const { settingsStore } = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
+    const migrated = JSON.parse(settingsStore.getSettings().giftBlindBoxConfig);
+
+    assert.deepEqual(migrated.slice(0, existing.length), existing);
+    assert.deepEqual(
+      migrated.slice(existing.length).map(box => box.name),
+      ['幸运盲盒', '小熊虫盲盒', '七夕鹊匣']
+    );
+  } finally {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });
 
 test('blind-box migration does not duplicate an existing 七夕鹊匣 entry', () => {

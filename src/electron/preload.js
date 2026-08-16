@@ -44,17 +44,6 @@ contextBridge.exposeInMainWorld('musicAPI', {
   login: (platform) => ipcRenderer.invoke('music:login', platform),
   logout: (platform) => ipcRenderer.invoke('music:logout', platform),
   providerHealth: (platform) => ipcRenderer.invoke('music:provider-health', platform),
-  openLyricWindow: () => ipcRenderer.invoke('music:open-lyric-window'),
-  closeLyricWindow: () => ipcRenderer.invoke('music:close-lyric-window'),
-  updateLyricWindow: (state) => ipcRenderer.invoke('music:update-lyric-window', state),
-  setLyricWindowLocked: (locked) => ipcRenderer.invoke('music:set-lyric-window-locked', locked),
-  onLyricState: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('music:lyric-state', listener);
-    return () => ipcRenderer.removeListener('music:lyric-state', listener);
-  },
   selectLocalFiles: () => ipcRenderer.invoke('music:select-local-files'),
   getRecentLocalFiles: () => ipcRenderer.invoke('music:get-recent-local-files'),
   selectWeSingCacheDirectory: () => ipcRenderer.invoke('music:select-wesing-cache'),

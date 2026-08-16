@@ -9,11 +9,11 @@ const AI_SECRET_KEYS = Object.freeze([
 ]);
 
 const AI_CONFIG_DEFAULTS = Object.freeze({
-  enabled: false,
+  enabled: true,
   trigger: '',
   deepseekResponsesUrl: '',
   deepseekApiKey: '',
-  model: 'deepseek-v4-flash',
+  model: '',
   webSearchEnabled: true,
   reasoningEnabled: false,
   qweatherApiHost: '',
@@ -82,7 +82,7 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
     if (key === 'trigger' && Array.from(value).length > 12) {
       throw new Error('触发关键词不能超过 12 个字符。');
     }
-    if (key === 'model' && (!value || value.length > 80)) throw new Error('模型名称无效。');
+    if (key === 'model' && value.length > 80) throw new Error('模型名称无效。');
     if (key === 'systemPrompt' && (value.length < 20 || value.length > 8000)) {
       throw new Error('人格预设长度必须为 20 到 8000 个字符。');
     }

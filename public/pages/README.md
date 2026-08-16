@@ -15,7 +15,7 @@ pages/
 ├── gift-audit.html     # 礼物审计页面
 ├── debug-gifts.html    # 礼物调试页面
 └── overlays/          # Overlay 页面（用于 OBS 投屏）
-    ├── lyric-window.html    # 桌面歌词窗口
+    ├── lyric-window.html    # 桌面歌词浏览器源
     ├── blindbox.html        # 盲盒盈亏展示
     ├── queue.html           # 点歌队列展示
     └── songs.html           # 可点歌单展示
@@ -34,7 +34,7 @@ pages/
 | `/queue`     | `pages/overlays/queue.html`      | 点歌队列 overlay |
 | `/songlist`  | `pages/overlays/songs.html`      | 歌单展示 overlay |
 | `/blindbox`  | `pages/overlays/blindbox.html`   | 盲盒盈亏 overlay |
-| `/lyrics`    | `pages/overlays/lyric-window.html` | 桌面歌词窗口    |
+| `/lyrics`    | `pages/overlays/lyric-window.html` | 桌面歌词浏览器源 |
 
 ## 📝 添加新页面
 

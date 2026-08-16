@@ -5,14 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>桌面歌词</title>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01">
-    <link rel="stylesheet" href="/css/styles-playback.css?v=20260804-05">
+    <link rel="stylesheet" href="/css/admin/desktop-lyric-preview.css?v=20260816-01">
+    <link rel="stylesheet" href="/css/styles-playback.css?v=20260816-01">
   </head>
   <body class="lyric-window-body">
-    <main class="lyric-window-surface">
-      <div id="lyricLine" class="lyric-window-line" aria-live="polite">等待播放</div>
-      <div id="lyricTranslation" class="lyric-window-translation" hidden></div>
-      <div class="lyric-window-progress" aria-hidden="true"><span id="lyricProgress"></span></div>
+    <main id="desktopLyricSurface" class="desktop-lyric-preview-card lyric-window-card">
+      <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage lyric-window-stage">
+        <div id="desktopLyricPreviewViewport" class="desktop-lyric-preview-viewport" tabindex="0" aria-label="完整歌词，可上下滚动查看">
+          <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list">
+            <div class="desktop-lyric-preview-empty">等待播放 · 歌词将在载入后完整显示</div>
+          </div>
+        </div>
+        <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
+        <div class="desktop-lyric-preview-progress" aria-hidden="true"><span id="desktopLyricPreviewProgress"></span></div>
+      </div>
     </main>
-    <script src="/js/overlays/lyric-window.js?v=20260804-03"></script>
+    <script type="module" src="/js/overlays/lyric-window.js?v=20260816-01"></script>
   </body>
 </html>

@@ -28,7 +28,7 @@
 | `/songlist` | [overlays/songs.html](../../../public/pages/overlays/songs.html) | OBS 浏览器源 | 歌单展示板叠加层,支持 `?category=` 过滤 |
 | `/blindbox` | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | OBS 浏览器源 | 盲盒盈亏投屏,支持 `?top=/winners=/heartBox=/title=` 等参数(管理页「直播画面」生成链接) |
 | `/overtime` | [overlays/overtime.html](../../../public/pages/overlays/overtime.html) | OBS 浏览器源、管理页预览 `<iframe>` | 加班机叠加层,支持 `?quality=low`(降帧/降动画) |
-| `/lyrics` | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | 浏览器、Electron 歌词窗口 | 桌面歌词;Electron 歌词窗口加载 `/lyrics?desktop=1`([desktop/windows.md](../desktop/windows.md)) |
+| `/lyrics` | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | OBS 浏览器源、独立浏览器窗口 | 桌面歌词完整时间轴;地址由管理页「复制桌面歌词」提供 |
 
 调试页面(无 URL 映射,只能按文件路径访问):
 
@@ -48,7 +48,7 @@
 | 歌单叠加层 | [pages/overlays/songs.html](../../../public/pages/overlays/songs.html) | ES Module(`js/overlays/songs.js`) | 可点歌单展示,虚拟滚动 + 按时长/字母分组 |
 | 盲盒叠加层 | [pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | Classic(`js/overlays/blindbox.js`) | 盲盒盈亏汇总 + 排行榜 + 冲刺模式 |
 | 加班机叠加层 | [pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html) | Classic(`js/overlays/overtime.js`) | 直播加班倒计时 + 送礼加班表 + 结算动画 |
-| 桌面歌词页 | [pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | Classic(`js/overlays/lyric-window.js`) | 桌面歌词(逐字进度、翻译行、滚轮缩放、锁定态),Electron 歌词窗口与浏览器共用 |
+| 桌面歌词页 | [pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | ES Module(`js/overlays/lyric-window.js`) | 复用管理页实时预览的完整时间轴、当前行高亮、逐字进度、翻译/罗马音与自动跟随 |
 
 ## 4. JS 模块地图
 

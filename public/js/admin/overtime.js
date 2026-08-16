@@ -20,12 +20,13 @@ let settlements = [];
 let anchorRemainingMs = 0;
 let localAnchorMs = 0;
 let rulesDirty = false;
+let rulesSaving = false;
 let ruleEditor = null;
 
 function init() {
   if (initialized || !document.getElementById('overtimePanel')) return;
   initialized = true;
-  ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), () => { rulesDirty = true; });
+  ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), markRulesDirty);
   bindControls();
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     giftDetection = state?.giftDetection || giftDetection;
@@ -61,13 +62,14 @@ function bindControls() {
   byId('overtimeInitialMinutes').addEventListener('change', syncDurationInputFromSelectors);
   byId('overtimeAddGiftBtn').addEventListener('click', openGiftPicker);
   byId('overtimeGiftSearch').addEventListener('input', renderGiftPicker);
-  byId('overtimeRules').addEventListener('input', () => { rulesDirty = true; });
-  byId('overtimeRules').addEventListener('change', () => { rulesDirty = true; });
+  byId('overtimeRules').addEventListener('input', markRulesDirty);
+  byId('overtimeRules').addEventListener('change', markRulesDirty);
   byId('overtimeSaveRulesBtn').addEventListener('click', saveRules);
   byId('overtimeSaveBackgroundBtn').addEventListener('click', saveBackground);
   byId('overtimeOpenOverlayBtn').addEventListener('click', () => window.open(overlayUrl(), '_blank', 'noopener'));
   byId('overtimeCopyOverlayBtn').addEventListener('click', copyOverlayUrl);
   byId('overtimePreview').src = '/overtime?quality=low';
+  syncRulesSaveButton();
 }
 
 async function runAction(action) {
@@ -101,15 +103,41 @@ async function saveBackground() {
 }
 
 async function saveRules() {
+  if (rulesSaving || !rulesDirty) return;
+  rulesSaving = true;
+  syncRulesSaveButton();
   try {
     const rules = ruleEditor.readRules();
     const result = await api('/api/overtime/rules', { rules });
     rulesDirty = false;
     renderState(result.data);
-    toast('礼物规则已保存');
+    toast('修改已保存');
   } catch (error) {
     showError(error);
+  } finally {
+    rulesSaving = false;
+    syncRulesSaveButton();
   }
+}
+
+function markRulesDirty() {
+  rulesDirty = true;
+  syncRulesSaveButton();
+}
+
+function getRulesSaveButtonState(dirty, saving) {
+  if (saving) return { label: '保存中…', disabled: true, dirty: false };
+  if (dirty) return { label: '保存修改', disabled: false, dirty: true };
+  return { label: '✓ 已保存', disabled: true, dirty: false };
+}
+
+function syncRulesSaveButton() {
+  const button = byId('overtimeSaveRulesBtn');
+  if (!button) return;
+  const state = getRulesSaveButtonState(rulesDirty, rulesSaving);
+  button.textContent = state.label;
+  button.disabled = state.disabled;
+  button.classList.toggle('is-dirty', state.dirty);
 }
 
 function renderState(nextState) {
@@ -172,9 +200,11 @@ async function loadCatalog() {
 }
 
 function openGiftPicker() {
-  byId('overtimeGiftSearch').value = '';
+  const search = byId('overtimeGiftSearch');
+  search.value = '';
   renderGiftPicker();
   byId('overtimeGiftPicker').showModal();
+  search.focus();
 }
 
 function renderGiftPicker() {
@@ -206,12 +236,14 @@ function renderGiftPicker() {
     button.addEventListener('click', () => addGiftRule(gift));
     root.append(button);
   }
-  if (!matches.length) root.append(createMessage('overtime-rule-empty', '没有匹配的礼物。'));
+  if (!matches.length) root.append(createMessage('overtime-rule-empty', '没有找到这个礼物。'));
 }
 
 function addGiftRule(gift) {
-  ruleEditor.createRule(gift);
+  const row = ruleEditor.createRule(gift);
   byId('overtimeGiftPicker').close();
+  row.scrollIntoView({ block: 'nearest' });
+  toast(`已添加 ${gift.name}`);
 }
 
 function renderSettlements() {

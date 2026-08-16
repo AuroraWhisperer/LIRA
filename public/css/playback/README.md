@@ -12,7 +12,7 @@ public/css/playback/
 ├── song-row.css        (40行)  - 歌曲行通用组件
 ├── player.css         (564行)  - 播放器面板
 ├── drawer.css         (195行)  - 右侧滑出抽屉
-├── desktop-lyric.css   (53行)  - 桌面歌词窗口
+├── desktop-lyric.css           - 桌面歌词浏览器源框架
 ├── queue-modal.css    (142行)  - 播放队列弹窗
 ├── fullscreen.css     (671行)  - 全屏播放器
 ├── responsive.css     (424行)  - 响应式样式
@@ -65,8 +65,8 @@ public/css/playback/
 - 滑出动画效果
 
 ### desktop-lyric.css
-桌面歌词窗口：
-- `.desktop-lyric-window` - 桌面歌词窗口样式
+桌面歌词浏览器源：
+- `.lyric-window-card` - 全屏时间轴容器
 
 ### queue-modal.css
 播放队列弹窗：

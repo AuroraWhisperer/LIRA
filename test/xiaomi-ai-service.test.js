@@ -509,6 +509,7 @@ function createTestService(overrides = {}) {
     trigger: '小米',
     deepseekResponsesUrl: 'https://example.test/responses',
     deepseekApiKey: 'secret',
+    model: 'test-model',
     sendIntervalMs: 1500,
     ...overrides.config
   };

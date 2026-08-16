@@ -155,7 +155,7 @@ export function createPlaybackController(initialOptions = {}) {
   });
 
   const lyricService = new LyricService({
-    state: playbackState, onError: (e) => showError(e),
+    state: playbackState,
     readJsonResponse: (r, m) => readJsonResponse(r, m)
   });
 

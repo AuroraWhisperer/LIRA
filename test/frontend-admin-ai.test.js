@@ -164,7 +164,10 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /按昵称响应直播间弹幕，并通过已配置的模型服务生成回复/);
   assert.match(html, /Responses API 兼容/);
   assert.match(html, /支持 DeepSeek、OpenAI 等官方服务/);
-  assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*value="deepseek-v4-flash"/);
+  assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
+  assert.match(html, /id="xiaomiAiModelState">未配置</);
+  assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*placeholder="填写模型 ID"/);
+  assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*value=/);
   assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
   assert.match(html, /id="xiaomiAiQWeatherTestBtn"[^>]*type="button"/);
   assert.match(html, /id="xiaomiAiAmapTestBtn"[^>]*type="button"/);
@@ -180,7 +183,9 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
   assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);
   assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/api\.openai\.com\/v1\/responses"/);
-  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
+  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="text"/);
+  assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="text"/);
+  assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="text"/);
   assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="例如：小米"/);
   assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
   assert.match(html, /id="xiaomiAiTestBtn"[^>]*>测试模型服务</);
@@ -195,6 +200,10 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(source, /form\.addEventListener\('input'/);
   assert.match(source, /form\.addEventListener\('change'/);
   assert.match(source, /enabledInput\.addEventListener\('change'/);
+  assert.match(source, /deepseekApiKey: \['xiaomiAiDeepSeekKey', 'value'\]/);
+  assert.match(source, /qweatherApiKey: \['xiaomiAiQWeatherKey', 'value'\]/);
+  assert.match(source, /amapApiKey: \['xiaomiAiAmapKey', 'value'\]/);
+  assert.match(source, /config\.model \|\| '未配置'/);
   assert.match(source, /if \(saving\) \{[\s\S]*?pendingSave = true/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.match(styles, /\.xiaomi-ai-section\s*\{/);

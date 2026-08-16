@@ -43,8 +43,8 @@ function prepareSettingsBootstrap(songDb, settingsStoreModule) {
     settingsStoreModule.migrateBlindBoxConfig(songDb);
   }
 
-  return { settingsStore, runMigrations };
+  runMigrations();
+  return { settingsStore };
 }
 
 module.exports = { prepareSettingsBootstrap };
-

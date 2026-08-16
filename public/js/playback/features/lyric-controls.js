@@ -10,8 +10,7 @@
 export function createLyricControls(deps) {
   const {
     playbackState,
-    lyricService,
-    renderPlayback
+    lyricService
   } = deps;
 
   /**
@@ -22,8 +21,7 @@ export function createLyricControls(deps) {
   async function syncPlaybackLyricWindow(force = false, getPlaybackAudio) {
     const audio = getPlaybackAudio();
     const track = playbackState.current || null;
-    const changed = await lyricService.syncWindow(track, audio, force);
-    if (changed) renderPlayback();
+    await lyricService.syncWindow(track, audio, force);
   }
 
   return {

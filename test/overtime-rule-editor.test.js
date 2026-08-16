@@ -59,6 +59,15 @@ function createFakeDocument() {
   };
 }
 
+function findByClass(root, className) {
+  if (String(root.className || '').split(/\s+/).includes(className)) return root;
+  for (const child of root.children || []) {
+    const match = findByClass(child, className);
+    if (match) return match;
+  }
+  return null;
+}
+
 test('rule editor exposes createRule and appends a fixed-mode rule row', async () => {
   const namespace = await loadModuleExports(EDITOR_ENTRY, { document: createFakeDocument() });
   const dirtyCalls = [];
@@ -76,4 +85,25 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   assert.equal(row.dataset.overtimeRule, 'true');
   assert.equal(dirtyCalls.length, 1);
   assert.equal(root.children.length, 1);
+
+  const newRuleBody = findByClass(row, 'overtime-rule-body');
+  const toggle = findByClass(row, 'overtime-rule-toggle');
+  assert.equal(newRuleBody.hidden, false);
+  assert.equal(toggle.textContent, '收起设置');
+
+  toggle.listeners.click();
+  assert.equal(newRuleBody.hidden, true);
+  assert.equal(toggle.textContent, '展开设置');
+
+  editor.renderRules([{
+    giftId: '33988',
+    giftName: '人气票',
+    mode: 'fixed',
+    enabled: true,
+    fixedEffect: { operation: 'add', value: 300 }
+  }]);
+  const savedRuleBody = findByClass(root.children[0], 'overtime-rule-body');
+  const summary = findByClass(root.children[0], 'overtime-rule-summary');
+  assert.equal(savedRuleBody.hidden, true);
+  assert.equal(summary.textContent, '增加 5 分钟');
 });

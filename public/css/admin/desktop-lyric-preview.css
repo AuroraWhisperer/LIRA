@@ -8,6 +8,13 @@
 
 .desktop-lyric-settings {
   min-width: 0;
+  max-height: clamp(580px, calc(100vh - 145px), 820px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #b7c2c9 transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .desktop-lyric-settings-header {
@@ -391,6 +398,10 @@
 
   .desktop-lyric-settings {
     grid-row: 2;
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
   }
 
   .desktop-lyric-preview-stage {

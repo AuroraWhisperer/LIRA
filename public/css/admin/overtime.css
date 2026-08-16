@@ -4,6 +4,8 @@
   --ot-teal: #21b6a8;
   --ot-coral: #f0677d;
   --ot-gold: #f5b72f;
+  --ot-action-add: #6657c7;
+  --ot-action-save: #147d73;
   display: grid;
   gap: 14px;
   align-content: start;
@@ -108,6 +110,42 @@
 .overtime-section-heading { grid-column: 1 / -1; }
 .overtime-section-heading > div:first-child { min-width: 0; }
 .overtime-heading-actions { flex-wrap: wrap; justify-content: flex-end; }
+.overtime-rules-heading-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.overtime-add-gift-action,
+.overtime-save-rules-action {
+  min-width: 104px;
+  min-height: 38px;
+  font-weight: 700;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.overtime-add-gift-action {
+  border-color: var(--ot-action-add);
+  background: var(--ot-action-add);
+  color: #fff;
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--ot-action-add) 18%, transparent);
+}
+.overtime-add-gift-action:hover {
+  border-color: color-mix(in srgb, var(--ot-action-add) 86%, #000);
+  background: color-mix(in srgb, var(--ot-action-add) 86%, #000);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-add) 24%, transparent);
+}
+.overtime-save-rules-action:disabled {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  opacity: 1;
+}
+.overtime-save-rules-action.is-dirty {
+  border-color: var(--ot-action-save);
+  background: var(--ot-action-save);
+  color: #fff;
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--ot-action-save) 18%, transparent);
+}
+.overtime-save-rules-action.is-dirty:hover {
+  border-color: color-mix(in srgb, var(--ot-action-save) 86%, #000);
+  background: color-mix(in srgb, var(--ot-action-save) 86%, #000);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-save) 24%, transparent);
+}
 .overtime-manual-duration { grid-column: span 4; }
 .overtime-manual-duration span { display: flex; justify-content: space-between; gap: 8px; }
 .overtime-manual-duration small { color: var(--text); font-weight: 700; letter-spacing: 0.04em; }
@@ -136,7 +174,7 @@
 
 .overtime-rule-list,
 .overtime-settlement-list { grid-column: 1 / -1; display: grid; gap: 8px; }
-.overtime-rule-list { gap: 14px; }
+.overtime-rule-list { gap: 8px; }
 .overtime-rule-empty,
 .overtime-settlement-empty {
   padding: 20px;
@@ -151,9 +189,9 @@
   grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 11px;
   background: var(--surface);
-  box-shadow: 0 8px 24px rgba(24, 24, 35, 0.07);
+  box-shadow: 0 4px 14px rgba(24, 24, 35, 0.05);
 }
 .overtime-rule-header,
 .overtime-rule-gift,
@@ -167,36 +205,44 @@
 }
 .overtime-rule-header {
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 18px;
-  border-bottom: 1px dashed color-mix(in srgb, var(--border) 76%, var(--ot-pink));
+  gap: 12px;
+  min-height: 62px;
+  padding: 9px 12px;
   background: linear-gradient(110deg, color-mix(in srgb, var(--surface-2) 86%, #fff), var(--surface));
 }
-.overtime-rule-gift { min-width: 0; gap: 12px; }
+.overtime-rule-gift { min-width: 0; gap: 10px; }
 .overtime-rule-row img,
 .overtime-gift-option img { width: 44px; height: 44px; object-fit: contain; }
 .overtime-rule-row img {
-  width: 52px;
-  height: 52px;
-  padding: 4px;
+  width: 42px;
+  height: 42px;
+  padding: 3px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, var(--ot-pink));
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface);
 }
 .overtime-rule-identity { min-width: 0; }
 .overtime-rule-identity strong,
 .overtime-rule-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.overtime-rule-identity strong { font-size: 16px; }
-.overtime-rule-identity small { margin-top: 3px; color: var(--muted); }
-.overtime-rule-buttons { flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.overtime-rule-buttons button { min-width: 48px; padding: 7px 10px; font-size: 12px; }
+.overtime-rule-identity strong { font-size: 14px; }
+.overtime-rule-identity small { margin-top: 2px; color: var(--muted); }
+.overtime-rule-summary { color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important; font-weight: 700; }
+.overtime-rule-buttons { flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.overtime-rule-buttons button { min-width: 0; min-height: 32px; padding: 5px 9px; font-size: 12px; }
+.overtime-rule-buttons .overtime-rule-icon-button { width: 32px; padding-inline: 0; font-size: 15px; }
+.overtime-rule-remove { color: var(--muted); }
+.overtime-rule-toggle {
+  border-color: color-mix(in srgb, var(--ot-teal) 54%, var(--border)) !important;
+  color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
+  font-weight: 700;
+}
 .overtime-rule-enabled {
   display: inline-flex !important;
   grid-template-columns: none !important;
   align-items: center;
   gap: 8px !important;
-  min-height: 34px;
-  margin-right: 4px;
+  min-height: 32px;
+  margin-right: 2px;
   color: var(--text) !important;
   font-weight: 700;
   cursor: pointer;
@@ -209,8 +255,8 @@
 }
 .overtime-rule-enabled > span {
   position: relative;
-  width: 38px;
-  height: 22px;
+  width: 34px;
+  height: 20px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted) 25%, var(--surface));
@@ -220,8 +266,8 @@
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 4px rgba(24, 24, 35, 0.25);
@@ -229,35 +275,26 @@
   transition: transform 160ms ease;
 }
 .overtime-rule-enabled input:checked + span { border-color: var(--ot-teal); background: var(--ot-teal); }
-.overtime-rule-enabled input:checked + span::after { transform: translateX(16px); }
+.overtime-rule-enabled input:checked + span::after { transform: translateX(14px); }
 .overtime-rule-enabled:has(input:focus-visible) > span {
   outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
   outline-offset: 2px;
 }
 
+.overtime-rule-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+}
+.overtime-rule-body[hidden] { display: none; }
 .overtime-rule-mode,
 .overtime-fixed-editor,
 .overtime-random-editor {
   display: grid;
-  gap: 14px;
-  padding: 16px 18px;
+  gap: 10px;
+  padding: 12px;
 }
-.overtime-rule-mode { border-bottom: 1px solid var(--border); }
-.overtime-rule-step { display: flex; align-items: flex-start; gap: 10px; }
-.overtime-rule-step > span {
-  display: grid;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--ot-night);
-  color: #fff;
-  font: 800 13px/1 Bahnschrift, sans-serif;
-}
-.overtime-rule-step > div { display: grid; gap: 3px; }
-.overtime-rule-step strong { font-size: 14px; }
-.overtime-rule-step small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.overtime-rule-mode { border-right: 1px solid var(--border); background: var(--surface-2); }
 .overtime-rule-mode-options,
 .overtime-operation-control,
 .overtime-duration-control {
@@ -266,7 +303,7 @@
   padding: 0;
   border: 0;
 }
-.overtime-rule-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.overtime-rule-mode-options { display: grid; gap: 6px; }
 .overtime-rule-mode-options > legend,
 .overtime-operation-control > legend,
 .overtime-duration-control > legend {
@@ -280,20 +317,20 @@
   position: relative;
   display: flex !important;
   grid-template-columns: none !important;
-  align-items: flex-start;
-  gap: 10px !important;
+  align-items: center;
+  gap: 8px !important;
   min-width: 0;
-  padding: 13px 14px;
+  min-height: 36px;
+  padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 11px;
   background: var(--surface-2);
   color: var(--text) !important;
   cursor: pointer;
 }
-.overtime-mode-option input { flex: 0 0 auto; width: auto !important; margin-top: 2px; accent-color: var(--ot-pink); }
-.overtime-mode-option > span { display: grid; min-width: 0; gap: 3px; }
-.overtime-mode-option strong { font-size: 14px; }
-.overtime-mode-option small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.overtime-mode-option input { flex: 0 0 auto; width: auto !important; accent-color: var(--ot-pink); }
+.overtime-mode-option > span { display: grid; min-width: 0; }
+.overtime-mode-option strong { font-size: 13px; }
 .overtime-mode-option:has(input:checked) {
   border-color: var(--ot-pink);
   background: color-mix(in srgb, var(--ot-pink) 9%, var(--surface));
@@ -312,26 +349,20 @@
 }
 
 .overtime-rule-effect { min-width: 0; }
-.overtime-rule-effect [hidden] { display: none; }
+.overtime-rule-effect [hidden] { display: none !important; }
 .overtime-rule-effect.is-random { background: color-mix(in srgb, var(--ot-gold) 3%, var(--surface)); }
 .overtime-effect-sentence {
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-2);
+  min-width: 0;
 }
-.overtime-effect-sentence > span { font-weight: 700; }
-.overtime-effect-controls { display: grid; flex: 1 1 620px; min-width: 0; gap: 10px; }
-.overtime-operation-control { display: grid; grid-template-columns: repeat(5, minmax(74px, 1fr)); gap: 6px; }
+.overtime-effect-controls { display: grid; flex: 1 1 620px; min-width: 0; gap: 8px; }
+.overtime-operation-control { display: grid; grid-template-columns: repeat(5, minmax(68px, 1fr)); gap: 5px; }
 .overtime-operation-option {
   display: inline-flex !important;
   grid-template-columns: none !important;
   align-items: center;
   gap: 6px !important;
-  min-height: 38px;
-  padding: 7px 10px;
+  min-height: 34px;
+  padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface);
@@ -344,9 +375,7 @@
   height: 1px;
   opacity: 0;
 }
-.overtime-operation-option > span {
-  font: 800 16px/1 Bahnschrift, sans-serif;
-}
+.overtime-operation-option > span { font: 800 14px/1 Bahnschrift, sans-serif; }
 .overtime-operation-option strong { font-size: 12px; white-space: nowrap; }
 .overtime-operation-option.is-add:has(input:checked) {
   border-color: var(--ot-teal);
@@ -388,7 +417,8 @@
   font-weight: 700;
 }
 .overtime-duration-control input {
-  width: 64px !important;
+  width: 54px !important;
+  height: 34px;
   min-width: 0;
   padding-inline: 6px;
   text-align: center;
@@ -404,7 +434,7 @@
   color: var(--text) !important;
   font-weight: 700;
 }
-.overtime-factor-control input { width: 100% !important; text-align: center; font-weight: 700; }
+.overtime-factor-control input { width: 100% !important; height: 34px; text-align: center; font-weight: 700; }
 .overtime-factor-control small { color: var(--muted); font-weight: 400; }
 .overtime-clear-hint {
   padding: 10px 12px;
@@ -414,10 +444,9 @@
   font-size: 12px;
 }
 
-.overtime-random-editor { padding-top: 16px; }
-.overtime-random-editor .overtime-rule-step > span { background: var(--ot-gold); color: #3b2a00; }
 .overtime-random-hint {
-  padding: 10px 12px;
+  margin: 0 !important;
+  padding: 8px 10px;
   border-left: 3px solid var(--ot-gold);
   border-radius: 7px;
   background: color-mix(in srgb, var(--ot-gold) 13%, var(--surface));
@@ -427,8 +456,8 @@
 .overtime-outcome-card {
   display: grid;
   min-width: 0;
-  gap: 12px;
-  padding: 13px;
+  gap: 9px;
+  padding: 10px;
   border: 1px solid color-mix(in srgb, var(--border) 76%, var(--ot-gold));
   border-top: 3px solid var(--ot-gold);
   border-radius: 11px;
@@ -455,7 +484,7 @@
   font-weight: 700;
 }
 .overtime-outcome-weight input { width: 100% !important; text-align: center; font-variant-numeric: tabular-nums; }
-.overtime-remove-outcome { justify-self: start; padding: 6px 9px; font-size: 11px; }
+.overtime-remove-outcome { justify-self: start; min-height: 30px; padding: 5px 8px; font-size: 11px; }
 .overtime-remove-outcome:disabled { cursor: not-allowed; opacity: 0.68; }
 .overtime-random-footer { justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 .overtime-random-footer > span { color: var(--muted); font-size: 12px; }
@@ -484,7 +513,7 @@
 .overtime-settlement-row .is-negative { color: var(--ot-coral); }
 
 .overtime-gift-picker {
-  width: min(760px, calc(100vw - 32px));
+  width: min(680px, calc(100vw - 32px));
   max-height: min(720px, calc(100dvh - 32px));
   padding: 0;
   border: 1px solid var(--border);
@@ -493,10 +522,10 @@
   color: var(--text);
 }
 .overtime-gift-picker::backdrop { background: rgba(10, 10, 18, 0.62); backdrop-filter: blur(4px); }
-.overtime-picker-shell { display: grid; gap: 12px; padding: 16px; }
-.overtime-picker-shell header { display: flex; justify-content: space-between; gap: 12px; }
-.overtime-picker-shell h3,
-.overtime-picker-shell p { margin: 0; }
+.overtime-picker-shell { display: grid; gap: 10px; padding: 14px; }
+.overtime-picker-shell header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.overtime-picker-shell h3 { margin: 0; }
+.overtime-picker-shell > input { min-height: 42px; }
 .overtime-gift-results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -509,8 +538,8 @@
   grid-template-columns: 44px minmax(0, 1fr);
   gap: 9px;
   align-items: center;
-  min-height: 64px;
-  padding: 9px;
+  min-height: 58px;
+  padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface-2);
@@ -535,8 +564,12 @@
   .overtime-control-stack { justify-items: stretch; }
   .overtime-consumer-status,
   .overtime-actions { justify-content: flex-start; }
+  .overtime-rules-heading-title { justify-content: space-between; }
+  .overtime-heading-actions > button { flex: 1 1 150px; }
   .overtime-rule-header { align-items: stretch; flex-direction: column; }
   .overtime-rule-buttons { justify-content: flex-start; }
+  .overtime-rule-body { grid-template-columns: 1fr; }
+  .overtime-rule-mode { border-right: 0; border-bottom: 1px solid var(--border); }
   .overtime-outcome-list { grid-template-columns: 1fr; }
   .overtime-manual-duration,
   .overtime-duration-selectors,

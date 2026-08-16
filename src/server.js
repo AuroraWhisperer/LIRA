@@ -90,7 +90,6 @@ function createServerRuntime(runtimeOptions = {}) {
   });
   void giftEffectResolver.getEffectMap();
   giftService.repairGiftV2Events({ db });
-  settingsBootstrap.runMigrations();
   domainServices.songs.ensureCategory('默认');
   domainServices.queue.clearOnStartup();
   runStartupRetention();

@@ -41,47 +41,44 @@ test('lyric state normalization limits browser-source payloads', () => {
   assert.equal(state.playing, true);
 });
 
-test('lyrics browser source shows only current lyrics and real translations', () => {
+test('lyrics browser source reuses the full live timeline preview', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'lyric-window.html'), 'utf8');
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'), 'utf8');
+  const previewSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'desktop-lyric.css'), 'utf8');
 
-  assert.doesNotMatch(html, /id="lyricMeta"|id="lyricPlaybackState"|id="lyricTrack"/);
-  assert.match(html, /id="lyricTranslation"[^>]*hidden/);
-  assert.match(html, /id="lyricProgress"/);
+  assert.match(html, /css\/admin\/desktop-lyric-preview\.css/);
+  assert.match(html, /id="desktopLyricPreviewViewport"[^>]*tabindex="0"/);
+  assert.match(html, /id="desktopLyricPreviewTimeline"/);
+  assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
+  assert.match(html, /id="desktopLyricPreviewProgress"/);
+  assert.match(html, /script type="module"[^>]*js\/overlays\/lyric-window\.js/);
+  assert.match(source, /import '\.\.\/admin\/desktop-lyric-preview\.js';/);
+  assert.match(source, /desktopLyricPreview\.init\(null\)/);
   assert.match(source, /new WebSocket\(`/);
   assert.match(source, /payload\.type === 'lyric-state'/);
-  assert.match(source, /正在载入歌词/);
-  assert.match(source, /这首歌暂无歌词/);
-  assert.match(source, /正在重新连接/);
-  assert.match(source, /escapeHtml\(word\.text/);
-  assert.match(source, /translation\.textContent = lyricState\.translation/);
-  assert.match(source, /translation\.hidden = !lyricState\.translation/);
-  assert.match(source, /requestAnimationFrame\(renderPlaybackFrame\)/);
-  assert.match(source, /cancelAnimationFrame\(animationFrame\)/);
-  assert.match(source, /progress\.style\.transform = `scaleX/);
-  assert.doesNotMatch(source, /lyricPlaybackState|lyricTrack|formatArtists|fallback\.detail/);
-  assert.match(styles, /-webkit-text-stroke:\s*var\(--lyric-stroke-width\)/);
-  assert.match(styles, /linear-gradient\(90deg, #ffcf4a var\(--word-progress\)/);
-  assert.doesNotMatch(styles, /transition:\s*width/);
-  assert.match(styles, /transform-origin:\s*left center/);
+  assert.match(source, /payload\.type === 'lyric-timeline'/);
+  assert.match(source, /payload\.state\?\.lyricTimeline/);
+  assert.match(source, /desktopLyricPreview\.applySettings/);
+  assert.match(previewSource, /getElementById\('desktopLyricSurface'\)/);
+  assert.match(styles, /\.lyric-window-card\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/);
+  assert.match(styles, /\.lyric-window-stage\s*\{[^}]*height:\s*100vh/);
+  assert.match(styles, /background(?:-color)?:\s*transparent/);
 });
 
-test('desktop lyric surface is compact and independently resizable', () => {
-  const windowSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'lyric-window.js'), 'utf8');
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'desktop-lyric.css'), 'utf8');
+test('obsolete Electron lyric window path is removed', () => {
+  const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
+  const ipcSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'music-ipc.js'), 'utf8');
+  const preloadSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'preload.js'), 'utf8');
+  const serviceSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'), 'utf8');
 
-  assert.match(windowSource, /width:\s*840/);
-  assert.match(windowSource, /height:\s*128/);
-  assert.match(windowSource, /minWidth:\s*280/);
-  assert.match(windowSource, /minHeight:\s*64/);
-  assert.match(windowSource, /resizable:\s*true/);
-  assert.doesNotMatch(windowSource, /setAspectRatio|aspectRatio/);
-  assert.match(styles, /height:\s*min\(78vh,\s*220px\)/);
-  assert.match(styles, /font-size:\s*min\(var\(--lyric-size\),\s*8\.5vw,\s*34vh\)/);
-  assert.match(styles, /@media \(max-height:\s*96px\)/);
-  assert.match(styles, /\.lyric-window-translation,\s*\.lyric-window-progress\s*\{\s*display:\s*none/);
-  assert.match(styles, /font-size:\s*min\(var\(--lyric-size\),\s*8\.5vw,\s*52vh\)/);
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'src', 'electron', 'lyric-window.js')), false);
+  assert.doesNotMatch(mainSource, /lyricWin|openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked/);
+  assert.doesNotMatch(ipcSource, /music:(?:open|close|update|set)-lyric-window|LyricWindow/);
+  assert.doesNotMatch(preloadSource, /openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked|onLyricState/);
+  assert.doesNotMatch(serviceSource, /windowOpen|windowLocked|musicAPI\.(?:open|close|update|set)LyricWindow/);
+  assert.match(serviceSource, /fetch\('\/api\/playback\/lyric-state'/);
+  assert.match(serviceSource, /fetch\('\/api\/playback\/lyric-timeline'/);
 });
 
 test('lyric timeline normalization bounds complete browser lyric payloads', () => {
@@ -135,6 +132,7 @@ test('desktop lyric settings include a live word-timed preview', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
   const sharedRenderer = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'), 'utf8');
+  const workspaceStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace', 'song.css'), 'utf8');
 
   assert.match(html, /class="desktop-lyric-workspace"/);
   assert.match(html, /class="[^"]*desktop-lyric-settings-fields[^"]*"/);
@@ -146,7 +144,7 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(html, /id="desktopLyricPreviewTimeline"/);
   assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
   assert.match(html, /id="desktopLyricPreviewProgress"/);
-  assert.match(html, /id="desktopLyricOpenWindowBtn"/);
+  assert.match(html, /id="desktopLyricCopyUrlBtn"[^>]*>复制桌面歌词</);
   assert.match(html, /data-lyric-preview-background="grid"/);
   assert.match(source, /new LyricWordRenderer/);
   assert.match(source, /app:lyric-state/);
@@ -156,7 +154,10 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(source, /`歌词已载入 · \$\{lineCount\} 行`/);
   assert.match(source, /textContent\s*=/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
-  assert.match(source, /musicAPI\.openLyricWindow/);
+  assert.match(source, /navigator\.clipboard\.writeText\(desktopLyricUrl\)/);
+  assert.match(source, /`\$\{localOverlayOrigin\(location\)\}\/lyrics`/);
+  assert.match(source, /桌面歌词地址已复制/);
+  assert.doesNotMatch(source, /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/);
   assert.match(source, /desktopLyricFontFamily/);
   assert.match(source, /style\.setProperty/);
   assert.match(sharedRenderer, /element\.textContent = word\.text/);
@@ -164,7 +165,10 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /--preview-word-progress/);
   assert.match(styles, /\.desktop-lyric-preview-stage\.is-solid/);
   assert.match(styles, /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/);
+  assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*clamp\(580px,\s*calc\(100vh - 145px\),\s*820px\)[^}]*overflow-y:\s*auto/);
   assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /@media \(max-width:\s*980px\)[\s\S]*?\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/);
   assert.match(styles, /\.desktop-lyric-preview-row\.is-active/);
   assert.match(styles, /\.desktop-lyric-preview-countdown-dot/);
   assert.match(styles, /:focus-visible/);

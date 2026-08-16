@@ -121,11 +121,10 @@
 
 [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js):
 
-- 使用方:浏览器直接打开,或 Electron 歌词窗口加载 `/lyrics?desktop=1`(窗口生命周期见 [desktop/windows.md](../desktop/windows.md));桌面窗口内 `window.musicAPI.onLyricState` 直达 IPC,浏览器回退 WS `lyric-state`/snapshot([lyric-window.js:48-56](../../../public/js/overlays/lyric-window.js#L48-L56))。
-- 数据:设置来自 `GET /api/settings` 的 `desktopLyric*` 12 键(字体/描边/字号/透明度/缩放/行高/阴影/翻译比例),以 CSS 变量 `--lyric-*` 注入 + surface `scale()` 缩放;歌词状态含 `words[]` 逐字数组。
-- 渲染:内容指纹(lineText+translation+words)变化才重建 DOM;逐字进度按 `playbackAnchor` 锚点 + rAF 插值推进(`--word-progress`),与 `shared/lyric-word-renderer.js` 同模式(该渲染器还服务 WeSing 面板与桌面歌词预览,见 [playback.md](playback.md) §3);翻译行(`#lyricTranslation`)、锁定态(`is-locked` 类)、断连占位文案("正在重新连接/正在载入歌词/前奏中")齐全。
-- **交互**:**Ctrl+滚轮**在歌词表面缩放(0.5–2 倍,±0.1 步进),锁定态下禁用(`setupWheelZoom`,[lyric-window.js:216-228](../../../public/js/overlays/lyric-window.js#L216-L228));缩放仅影响本次会话,持久倍率来自设置 `desktopLyricScale`;CSS 变量注入(`--lyric-font/--lyric-size/--lyric-color/--lyric-stroke/...`)+ surface `scale()` 变换,[lyric-window.js:113-126](../../../public/js/overlays/lyric-window.js#L113-L126)。
-- 锁定/穿透:锁定态(`musicAPI.setLyricWindowLocked`)下窗口不可拖动、Ctrl+滚轮缩放失效(窗口侧处理)。
+- 使用方:管理页「复制桌面歌词」复制规范地址 `/lyrics`,供浏览器或 OBS 浏览器源使用;页面背景透明,实际输出不包含管理页预览使用的网格/纯色辅助背景。
+- 数据:首帧设置来自 `GET /api/settings` 的 `desktopLyric*` 12 键;实时连接 `/ws`,消费 `lyric-state`、`lyric-timeline` 与 snapshot 中的 `lyricState`/`lyricTimeline`/`settings`。
+- 渲染:直接复用 `admin/desktop-lyric-preview.js` 的完整时间轴渲染器,显示整首歌词、翻译、罗马音、当前行逐字进度、长间奏三秒倒计时和播放进度;样式设置通过同一组 `--preview-*` CSS 变量应用,因此浏览器源与管理页实时预览一致。
+- **滚动与跟随**:歌词视口拥有独立纵向滚动;当前行切换时使用弹簧动画居中跟随。用户滚轮、触摸、指针或键盘滚动后暂停自动跟随 6 秒,再恢复到当前行。
 
 ## 7. 数据消费一览
 
@@ -135,6 +134,6 @@
 | songs | `/api/state` + `/api/songs` | snapshot | orderKey/layoutKey/motionKey | `songs:*`/`database:clear`(220ms 重载) |
 | blindbox | `/api/state` + `/api/gifts/blind-box-stats` | snapshot(仅缓存)+ 轮询 | 统计接口每次重取 | `bilibili:gift`/`gift:sprint:reset`/`connect` |
 | overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
-| lyric-window | `/api/settings` | `lyric-state`/snapshot 或 IPC | 内容签名(line+translation+words) | 逐条推送 |
+| lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
 
 消息类型与 reason 的全集定义以 [ws.md](../backend/ws.md) §3 为准;本表只描述各叠加层**消费**哪些。

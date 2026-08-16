@@ -2,6 +2,7 @@
 'use strict';
 
 import { LyricWordRenderer } from '../shared/lyric-word-renderer.js';
+import { localOverlayOrigin } from '../shared/utils.js';
 
 const DEFAULTS = {
   desktopLyricFontFamily: 'Microsoft YaHei',
@@ -71,7 +72,7 @@ function init(form) {
   document.querySelectorAll('[data-lyric-preview-background]').forEach((button) => {
     button.addEventListener('click', () => setBackground(button.dataset.lyricPreviewBackground));
   });
-  document.getElementById('desktopLyricOpenWindowBtn')?.addEventListener('click', openDesktopLyricWindow);
+  document.getElementById('desktopLyricCopyUrlBtn')?.addEventListener('click', copyDesktopLyricUrl);
   window.addEventListener('app:lyric-state', (event) => updateLyricState(event.detail));
   window.addEventListener('app:lyric-timeline', (event) => updateLyricTimeline(event.detail));
   window.addEventListener('app:settings-state', (event) => applySettings(event.detail));
@@ -411,7 +412,8 @@ function applyStylesFromForm() {
 }
 
 function applySettings(settings = {}) {
-  const card = document.getElementById('desktopLyricLivePreview');
+  const card = document.getElementById('desktopLyricLivePreview')
+    || document.getElementById('desktopLyricSurface');
   if (!card) return;
   const values = { ...DEFAULTS, ...settings };
   const fontSize = numberSetting(values.desktopLyricFontSize, 56);
@@ -450,16 +452,13 @@ function setBackground(background) {
   });
 }
 
-async function openDesktopLyricWindow() {
-  if (!window.musicAPI || typeof window.musicAPI.openLyricWindow !== 'function') {
-    window.AdminApp.utils?.toast?.('独立桌面歌词需要在桌面版里使用');
-    return;
-  }
+async function copyDesktopLyricUrl() {
+  const desktopLyricUrl = `${localOverlayOrigin(location)}/lyrics`;
   try {
-    await window.musicAPI.openLyricWindow();
-    window.AdminApp.utils?.toast?.('桌面歌词窗口已打开');
+    await navigator.clipboard.writeText(desktopLyricUrl);
+    window.AdminApp.utils?.toast?.('桌面歌词地址已复制');
   } catch (error) {
-    window.AdminApp.utils?.showError?.(error);
+    prompt('复制以下桌面歌词地址：', desktopLyricUrl);
   }
 }
 

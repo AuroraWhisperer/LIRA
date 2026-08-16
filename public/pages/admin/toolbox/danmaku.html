@@ -58,12 +58,12 @@
                       <span class="xiaomi-ai-cat" aria-hidden="true"><i></i></span>
                       <div><h3 id="xiaomiAiTitle">AI 互动助手</h3><p>按昵称响应直播间弹幕，并通过已配置的模型服务生成回复。</p></div>
                     </div>
-                    <label class="switch-control"><input id="xiaomiAiEnabled" type="checkbox"><span class="switch-track"></span><span>启用 AI</span></label>
+                    <label class="switch-control"><input id="xiaomiAiEnabled" type="checkbox" checked><span class="switch-track"></span><span>启用 AI</span></label>
                   </div>
                   <div class="xiaomi-ai-status-grid" aria-label="AI 互动助手状态">
                     <div><span>配置状态</span><strong id="xiaomiAiConfigState">正在读取</strong></div>
                     <div><span>等待队列</span><strong id="xiaomiAiQueueState">0</strong></div>
-                    <div><span>运行模型</span><strong id="xiaomiAiModelState">deepseek-v4-flash</strong></div>
+                    <div><span>运行模型</span><strong id="xiaomiAiModelState">未配置</strong></div>
                   </div>
                   <form id="xiaomiAiForm" class="xiaomi-ai-form">
                     <fieldset class="xiaomi-ai-primary-config">
@@ -74,11 +74,11 @@
                       </div>
                       <div class="xiaomi-ai-field-grid">
                         <label class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://api.openai.com/v1/responses"><small>填写完整的 Responses API 地址；DeepSeek 官方地址会自动适配。</small></label>
-                        <label>API Key<input id="xiaomiAiDeepSeekKey" type="password" autocomplete="new-password" placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
+                        <label>API Key<input id="xiaomiAiDeepSeekKey" type="text" autocomplete="off" spellcheck="false" placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
                         <label>模型
                           <span class="xiaomi-ai-model-picker">
                             <span class="xiaomi-ai-model-input-wrap">
-                              <input id="xiaomiAiModel" type="text" maxlength="80" list="xiaomiAiModelOptions" value="deepseek-v4-flash" autocomplete="off" aria-controls="xiaomiAiModelMenu" aria-expanded="false">
+                              <input id="xiaomiAiModel" type="text" maxlength="80" list="xiaomiAiModelOptions" autocomplete="off" placeholder="填写模型 ID" aria-controls="xiaomiAiModelMenu" aria-expanded="false">
                               <span id="xiaomiAiModelMenu" class="xiaomi-ai-model-menu" role="listbox" aria-label="可用模型" hidden></span>
                             </span>
                             <button id="xiaomiAiFetchModelsBtn" class="secondary" type="button" aria-controls="xiaomiAiModelMenu" aria-expanded="false">获取模型</button>
@@ -109,14 +109,14 @@
                           <div class="xiaomi-ai-subheading"><h4 id="xiaomiAiWeatherTitle">和风天气</h4><span>天气</span></div>
                           <div class="xiaomi-ai-field-grid">
                             <label class="wide">专属 API Host（无需 https://）<input id="xiaomiAiQWeatherHost" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="nn7mdbwku9.re.qweatherapi.com"></label>
-                            <label class="wide">API Key<input id="xiaomiAiQWeatherKey" type="password" autocomplete="new-password" placeholder="直接粘贴和风天气 API Key"><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label>
+                            <label class="wide">API Key<input id="xiaomiAiQWeatherKey" type="text" autocomplete="off" spellcheck="false" placeholder="直接粘贴和风天气 API Key"><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label>
                           </div>
                         </section>
                         <section aria-labelledby="xiaomiAiAmapTitle">
                           <div class="xiaomi-ai-subheading"><h4 id="xiaomiAiAmapTitle">高德地图</h4><span>地点 · 路线</span></div>
                           <div class="xiaomi-ai-field-grid">
                             <label class="wide">Web 服务 API Host<input id="xiaomiAiAmapHost" type="url" autocomplete="off" placeholder="留空，填写你的高德 API Host"></label>
-                            <label class="wide">Web 服务 Key<input id="xiaomiAiAmapKey" type="password" autocomplete="new-password" placeholder="留空，填写高德 Web 服务 Key"><small id="xiaomiAiAmapKeyHint">尚未保存</small></label>
+                            <label class="wide">Web 服务 Key<input id="xiaomiAiAmapKey" type="text" autocomplete="off" spellcheck="false" placeholder="留空，填写高德 Web 服务 Key"><small id="xiaomiAiAmapKeyHint">尚未保存</small></label>
                           </div>
                         </section>
                       </div>

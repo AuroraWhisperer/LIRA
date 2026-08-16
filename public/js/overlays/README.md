@@ -6,7 +6,7 @@
 
 | 文件 | 说明 | 对应页面 |
 |-----|------|---------|
-| `lyric-window.js` | 桌面歌词窗口逻辑 | `/lyrics` |
+| `lyric-window.js` | 桌面歌词浏览器源逻辑 | `/lyrics` |
 | `blindbox.js` | 盲盒盈亏展示逻辑 | `/blindbox` |
 | `queue.js` | 点歌队列展示逻辑 | `/queue` |
 | `songs.js` | 可点歌单展示逻辑 | `/songlist` |
@@ -15,9 +15,9 @@
 ## 🔌 功能说明
 
 ### lyric-window.js
-- 接收来自主应用的歌词数据
-- 实时更新当前歌词行
-- 支持翻译显示
+- 通过 WebSocket 接收歌词状态与完整时间轴
+- 复用管理页实时预览样式,显示整首歌词、翻译、罗马音与逐字进度
+- 支持独立滚动和当前行自动跟随
 
 ### blindbox.js
 - 连接 WebSocket 接收盲盒数据

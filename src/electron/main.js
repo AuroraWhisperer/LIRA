@@ -10,7 +10,6 @@ const authMgr = require('./auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
 const loginWin = require('./login-window');
-const lyricWin = require('./lyric-window');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
@@ -141,10 +140,6 @@ async function startDesktopApp() {
     getMusicAuthState,
     loginMusicAccount,
     logoutMusicAccount,
-    openLyricWindow,
-    closeLyricWindow,
-    updateLyricWindow,
-    setLyricWindowLocked,
     getMusicProviderRegistry,
     hasExactOrigin,
     isPathAllowedForLocalMedia,
@@ -456,26 +451,6 @@ async function loginMusicAccount(platform) {
   } finally {
     writeLog('window', { event: 'closed', window: 'music-login', platform });
   }
-}
-
-function openLyricWindow() {
-  var result = lyricWin.openLyricWindow(desktopBaseUrl, path.join(__dirname, 'preload.js'));
-  writeLog('window', { event: 'open', window: 'lyrics' });
-  return result;
-}
-
-function closeLyricWindow() {
-  var result = lyricWin.closeLyricWindow();
-  writeLog('window', { event: 'close', window: 'lyrics' });
-  return result;
-}
-
-function updateLyricWindow(state) {
-  return lyricWin.updateLyricWindow(state);
-}
-
-function setLyricWindowLocked(locked) {
-  return lyricWin.setLyricWindowLocked(locked);
 }
 
 async function checkForUpdates() {
