@@ -1,7 +1,7 @@
 /* 桌面歌词设置页实时预览；时间轴算法位于 shared/lyric-word-renderer.js。 */
 .desktop-lyric-workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(460px, 1fr) minmax(320px, 720px);
   align-items: start;
   gap: 16px;
 }
@@ -9,29 +9,46 @@
 .desktop-lyric-settings {
   min-width: 0;
   max-height: clamp(580px, calc(100vh - 145px), 820px);
+  padding-right: 4px;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: auto;
-  scrollbar-color: transparent transparent;
+  overscroll-behavior-y: contain;
+  scrollbar-color: rgba(217, 75, 112, 0.58) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
 
-.desktop-lyric-settings:hover {
-  scrollbar-color: #b7c2c9 transparent;
+.desktop-lyric-settings:hover,
+.desktop-lyric-settings:focus-within {
+  scrollbar-color: #d94b70 transparent;
 }
 
 .desktop-lyric-settings::-webkit-scrollbar {
-  width: 8px;
+  width: 12px;
 }
 
-.desktop-lyric-settings::-webkit-scrollbar-thumb {
-  border-radius: 999px;
+.desktop-lyric-settings::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.desktop-lyric-settings:hover::-webkit-scrollbar-thumb {
-  background: #b7c2c9;
+.desktop-lyric-settings::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.desktop-lyric-settings::-webkit-scrollbar-thumb {
+  min-height: 52px;
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background: rgba(217, 75, 112, 0.58);
+  background-clip: padding-box;
+}
+
+.desktop-lyric-settings:hover::-webkit-scrollbar-thumb,
+.desktop-lyric-settings:focus-within::-webkit-scrollbar-thumb {
+  background: #d94b70;
+  background-clip: padding-box;
 }
 
 .desktop-lyric-settings-header {
@@ -46,7 +63,11 @@
 .desktop-lyric-settings-header h3 {
   margin: 3px 0 0;
   color: var(--text);
-  font-size: 16px;
+  font-size: 20px;
+}
+
+.desktop-lyric-settings .desktop-lyric-preview-kicker {
+  font-size: 10px;
 }
 
 .desktop-lyric-autosave-state {
@@ -54,7 +75,7 @@
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -90,12 +111,20 @@
 }
 
 .desktop-lyric-settings .theme-section {
-  padding: 10px 12px 12px;
+  padding: 14px 16px 16px;
+}
+
+.desktop-lyric-settings .theme-section legend {
+  font-size: 16px;
+}
+
+.desktop-lyric-settings .hint {
+  font-size: 13px;
 }
 
 .desktop-lyric-source-settings {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .desktop-lyric-source-hint {
@@ -110,7 +139,7 @@
 
 .desktop-lyric-source-label {
   color: var(--text);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -136,7 +165,7 @@
 
 .desktop-lyric-source-choice {
   display: flex;
-  min-height: 42px;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
   gap: 7px;
@@ -145,16 +174,16 @@
   border-radius: 10px;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   text-align: center;
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
 .desktop-lyric-source-choice img {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -193,7 +222,7 @@
 
 .desktop-lyric-smart-match-copy strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .desktop-lyric-smart-match-copy .hint {
@@ -206,7 +235,7 @@
 
 .desktop-lyric-setting-groups {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .desktop-lyric-settings-group {
@@ -251,11 +280,11 @@
 .desktop-lyric-settings-group > summary,
 .desktop-lyric-reset-group > header {
   display: flex;
-  min-height: 54px;
+  min-height: 60px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 13px 10px 15px;
+  padding: 12px 16px 12px 18px;
 }
 
 .desktop-lyric-settings-group > summary {
@@ -298,13 +327,13 @@
 .desktop-lyric-settings-group > summary strong,
 .desktop-lyric-reset-group > header strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .desktop-lyric-settings-group > summary small,
 .desktop-lyric-reset-group > header small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.4;
 }
@@ -315,23 +344,23 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--desktop-lyric-group-accent) 10%, transparent);
   color: var(--desktop-lyric-group-accent);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .desktop-lyric-group-body {
-  padding: 0 13px 11px 15px;
+  padding: 0 16px 14px 18px;
   border-top: 1px solid var(--border);
 }
 
 .desktop-lyric-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(104px, 144px);
+  grid-template-columns: minmax(0, 1fr) minmax(144px, 200px);
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   min-width: 0;
-  padding: 10px 0;
+  padding: 12px 0;
 }
 
 .desktop-lyric-control + .desktop-lyric-control {
@@ -346,13 +375,13 @@
 
 .desktop-lyric-control-copy strong {
   color: var(--text);
-  font-size: 11px;
+  font-size: 15px;
   line-height: 1.35;
 }
 
 .desktop-lyric-control-copy small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.4;
 }
@@ -361,9 +390,9 @@
 .desktop-lyric-control > input[type="text"] {
   width: 100%;
   min-width: 0;
-  height: 34px;
-  padding: 5px 8px;
-  font-size: 10px;
+  height: 38px;
+  padding: 6px 10px;
+  font-size: 14px;
 }
 
 .desktop-lyric-control > .switch-control {
@@ -371,8 +400,8 @@
 }
 
 .desktop-lyric-color {
-  width: 44px;
-  height: 32px;
+  width: 48px;
+  height: 36px;
   justify-self: end;
   padding: 3px;
   border-radius: 8px;
@@ -386,18 +415,18 @@
 
 .desktop-lyric-control .range-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 28px;
+  grid-template-columns: minmax(0, 1fr) 68px 32px;
   align-items: center;
   gap: 7px;
   width: 100%;
 }
 
 .desktop-lyric-control .range-row input[type="number"] {
-  width: 64px;
+  width: 68px;
   min-width: 0;
-  height: 30px;
-  padding: 4px 5px;
-  font-size: 10px;
+  height: 34px;
+  padding: 5px 6px;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -405,7 +434,7 @@
   overflow: hidden;
   color: var(--muted);
   font-family: "Segoe UI", sans-serif;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -419,11 +448,11 @@
 }
 
 .desktop-lyric-reset-button {
-  min-height: 34px;
+  min-height: 38px;
   border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
   background: color-mix(in srgb, var(--danger) 7%, var(--surface));
   color: var(--danger);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -468,7 +497,7 @@
   flex-direction: column;
   width: 100%;
   min-width: 0;
-  max-width: 1080px;
+  max-width: 720px;
   justify-self: center;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -480,7 +509,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
   padding: 15px 17px;
   border-bottom: 1px solid var(--border);
 }
@@ -510,6 +540,12 @@
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+.desktop-lyric-preview-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .desktop-lyric-preview-backgrounds {
@@ -639,6 +675,28 @@
     scale(var(--preview-scale, 1));
   transform-origin: top center;
   transform-style: preserve-3d;
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-card {
+  container-name: admin-lyric-preview;
+  container-type: inline-size;
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-timeline {
+  padding-right: clamp(18px, 6%, 44px);
+  padding-left: clamp(18px, 6%, 44px);
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-row-text {
+  font-size: min(var(--preview-size), 8.5cqi);
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-row-translation {
+  font-size: min(var(--preview-translation-size), 7cqi);
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-row-roma {
+  font-size: min(calc(var(--preview-translation-size) * 0.86), 6cqi);
 }
 
 .desktop-lyric-preview-row {
@@ -837,6 +895,35 @@
 
   .desktop-lyric-preview-viewport.is-following .desktop-lyric-preview-row:not(.is-active) {
     filter: none;
+  }
+}
+
+@container admin-lyric-preview (max-width: 560px) {
+  .desktop-lyric-preview-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .desktop-lyric-preview-tools {
+    width: 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
+  .desktop-lyric-preview-timeline {
+    gap: clamp(13px, 2vh, 20px);
+  }
+
+  .desktop-lyric-preview-row {
+    padding: 5px 8px;
+  }
+
+  .desktop-lyric-preview-card.is-current-enhanced .desktop-lyric-preview-row.is-active {
+    transform: translateX(6px);
+  }
+
+  .desktop-lyric-preview-card.is-current-enhanced.is-scale-enabled .desktop-lyric-preview-row.is-active {
+    transform: translateX(6px) scale(1.02);
   }
 }
 

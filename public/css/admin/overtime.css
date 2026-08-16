@@ -110,7 +110,15 @@
 .overtime-section-heading { grid-column: 1 / -1; }
 .overtime-section-heading > div:first-child { min-width: 0; }
 .overtime-heading-actions { flex-wrap: wrap; justify-content: flex-end; }
+.overtime-gift-catalog-status {
+  max-width: min(100%, 420px);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: right;
+}
 .overtime-rules-heading-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.overtime-refresh-gifts-action,
 .overtime-add-gift-action,
 .overtime-save-rules-action {
   min-width: 104px;
@@ -118,6 +126,7 @@
   font-weight: 700;
   transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
+.overtime-refresh-gifts-action { min-width: 118px; }
 .overtime-add-gift-action {
   border-color: var(--ot-action-add);
   background: var(--ot-action-add);
@@ -193,6 +202,10 @@
   background: var(--surface);
   box-shadow: 0 4px 14px rgba(24, 24, 35, 0.05);
 }
+.overtime-rule-row.is-unavailable {
+  border-color: color-mix(in srgb, var(--ot-coral) 58%, var(--border));
+  background: color-mix(in srgb, var(--ot-coral) 5%, var(--surface));
+}
 .overtime-rule-header,
 .overtime-rule-gift,
 .overtime-rule-buttons,
@@ -227,6 +240,8 @@
 .overtime-rule-identity strong { font-size: 14px; }
 .overtime-rule-identity small { margin-top: 2px; color: var(--muted); }
 .overtime-rule-summary { color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important; font-weight: 700; }
+.overtime-rule-sale-status { color: var(--ot-teal) !important; font-weight: 700; }
+.overtime-rule-row.is-unavailable .overtime-rule-sale-status { color: var(--ot-coral) !important; }
 .overtime-rule-buttons { flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .overtime-rule-buttons button { min-width: 0; min-height: 32px; padding: 5px 9px; font-size: 12px; }
 .overtime-rule-buttons .overtime-rule-icon-button { width: 32px; padding-inline: 0; font-size: 15px; }
@@ -565,6 +580,7 @@
   .overtime-consumer-status,
   .overtime-actions { justify-content: flex-start; }
   .overtime-rules-heading-title { justify-content: space-between; }
+  .overtime-gift-catalog-status { max-width: none; text-align: left; }
   .overtime-heading-actions > button { flex: 1 1 150px; }
   .overtime-rule-header { align-items: stretch; flex-direction: column; }
   .overtime-rule-buttons { justify-content: flex-start; }

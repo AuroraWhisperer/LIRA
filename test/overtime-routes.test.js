@@ -10,7 +10,20 @@ const { createServerRuntime } = require('../src/server');
 
 test('overtime API requires auth, validates commands, extends snapshots, and broadcasts updates', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-routes-'));
-  const runtime = createServerRuntime({ dataDir });
+  const giftSalePublicDir = createGiftSalePublicFixture(dataDir);
+  const runtime = createServerRuntime({
+    dataDir,
+    giftSalePublicDir,
+    giftSaleGetRoomId: () => '22637261',
+    giftSaleFetchJson: async (name) => {
+      if (name === 'gift_data') {
+        return { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: 35793 }] } } };
+      }
+      return { code: 0, data: { list: [
+        { id: 35793, name: '传情鹊', price: 100, coin_type: 'gold' }
+      ] } };
+    }
+  });
 
   try {
     const app = await runtime.start({ host: '127.0.0.1', startPort: await findAvailablePort() });
@@ -23,6 +36,15 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(initial.enabled, false);
     assert.equal(initial.pendingCount, 0);
     assert.deepEqual(initial.settlements, []);
+
+    const initialCatalog = await requestJson(app.baseUrl, token, '/api/overtime/gifts');
+    assert.equal(initialCatalog.count, 0);
+
+    const refreshedCatalog = await postJson(app.baseUrl, token, '/api/overtime/gifts/refresh', {});
+    assert.equal(refreshedCatalog.response.status, 200);
+    assert.equal(refreshedCatalog.payload.data.count, 1);
+    assert.equal(refreshedCatalog.payload.data.gifts[0].id, '35793');
+    assert.equal(refreshedCatalog.payload.data.gifts[0].imagePath, '/img/bilibili-gifts/0000-under-0100/35793.webp');
 
     const snapshotMessage = await readNextWebSocketMessage(app.baseUrl, token);
     assert.equal(snapshotMessage.type, 'snapshot');
@@ -60,6 +82,29 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+function createGiftSalePublicFixture(root) {
+  const publicDir = path.join(root, 'public-fixture');
+  const giftDir = path.join(publicDir, 'img', 'bilibili-gifts');
+  fs.mkdirSync(path.join(giftDir, '0000-under-0100'), { recursive: true });
+  fs.writeFileSync(path.join(giftDir, '0000-under-0100', '35793.webp'), 'fixture');
+  const gold = `# gifts
+
+| 礼物 ID | 图片 | 礼物名称 | 电池 | 人民币 | 同特效代码 |
+| ---: | --- | --- | ---: | ---: | --- |
+| 35793 | [35793.webp](0000-under-0100/35793.webp) | 传情鹊 | 1 | ¥0.10 |
+`;
+  const silver = `# free
+
+| 礼物 ID | 图片 | 礼物名称 | 电池 | 人民币 |
+| ---: | --- | --- | ---: | ---: |
+| 13000 | https://i0.hdslb.com/free.webp | 发红包 | 0 | ¥0.00 |
+`;
+  fs.writeFileSync(path.join(giftDir, 'gift-mapping-under-100.md'), gold);
+  fs.writeFileSync(path.join(giftDir, 'gift-mapping-100-above.md'), gold);
+  fs.writeFileSync(path.join(giftDir, 'silver-free-mapping.md'), silver);
+  return publicDir;
+}
 
 async function requestJson(baseUrl, token, pathname, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, {

@@ -21,6 +21,9 @@ let anchorRemainingMs = 0;
 let localAnchorMs = 0;
 let rulesDirty = false;
 let rulesSaving = false;
+let catalogRefreshing = false;
+let giftCatalogSnapshot = null;
+let saleGiftIds = new Set();
 let ruleEditor = null;
 
 function init() {
@@ -60,6 +63,7 @@ function bindControls() {
   byId('overtimeInitialTime').addEventListener('input', syncDurationSelectorsFromInput);
   byId('overtimeInitialHours').addEventListener('change', syncDurationInputFromSelectors);
   byId('overtimeInitialMinutes').addEventListener('change', syncDurationInputFromSelectors);
+  byId('overtimeRefreshGiftsBtn').addEventListener('click', refreshGiftCatalog);
   byId('overtimeAddGiftBtn').addEventListener('click', openGiftPicker);
   byId('overtimeGiftSearch').addEventListener('input', renderGiftPicker);
   byId('overtimeRules').addEventListener('input', markRulesDirty);
@@ -157,7 +161,10 @@ function renderState(nextState) {
   setValueUnlessFocused('overtimeBackgroundFit', overtimeState.background?.fit || 'cover');
   byId('overtimePendingCount').textContent = `待结算 ${Number(overtimeState.pendingCount) || 0}`;
   renderConsumerStatus();
-  if (Array.isArray(nextState.rules) && !rulesDirty) ruleEditor.renderRules(nextState.rules);
+  if (Array.isArray(nextState.rules) && !rulesDirty) {
+    ruleEditor.renderRules(nextState.rules);
+    syncRuleAvailability();
+  }
 }
 
 function renderConsumerStatus() {
@@ -189,14 +196,81 @@ function updateClock(nowMs) {
 }
 
 async function loadCatalog() {
-  const response = await fetch('/img/bilibili-gifts.json');
-  const data = await readJsonResponse(response, '读取礼物目录失败');
-  catalog = [...GUARD_GIFTS, ...(Array.isArray(data.gifts) ? data.gifts : [])].map(gift => ({
+  const response = await fetch('/api/overtime/gifts');
+  const payload = await readJsonResponse(response, '读取在售礼物失败');
+  if (!payload.ok) throw new Error(payload.error || '读取在售礼物失败');
+  applyGiftCatalog(payload.data);
+}
+
+async function refreshGiftCatalog() {
+  if (catalogRefreshing) return;
+  catalogRefreshing = true;
+  syncCatalogRefreshButton();
+  try {
+    const result = await api('/api/overtime/gifts/refresh', {});
+    applyGiftCatalog(result.data);
+    toast(`已刷新 ${giftCatalogSnapshot.count} 个在售礼物`);
+  } catch (error) {
+    showError(error);
+  } finally {
+    catalogRefreshing = false;
+    syncCatalogRefreshButton();
+  }
+}
+
+function applyGiftCatalog(snapshot) {
+  giftCatalogSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
+  const saleGifts = Array.isArray(giftCatalogSnapshot.gifts) ? giftCatalogSnapshot.gifts : [];
+  saleGiftIds = new Set(saleGifts.map(gift => String(gift.id)));
+  catalog = [...GUARD_GIFTS, ...saleGifts].map(gift => ({
     id: String(gift.id),
     name: String(gift.name || gift.id),
     rmb: Number(gift.rmb) || 0,
-    imagePath: `/img/${String(gift.image || '').replace(/^\/+/, '')}`
+    imagePath: String(gift.imagePath || (gift.image ? `/img/${String(gift.image).replace(/^\/+/, '')}` : ''))
   })).sort((left, right) => left.rmb - right.rmb);
+  renderGiftCatalogStatus();
+  syncRuleAvailability();
+}
+
+function renderGiftCatalogStatus() {
+  const status = byId('overtimeGiftCatalogStatus');
+  if (!giftCatalogSnapshot?.refreshedAt) {
+    status.textContent = '在售目录：未刷新';
+    return;
+  }
+  const refreshedAt = new Date(giftCatalogSnapshot.refreshedAt);
+  const timeLabel = Number.isNaN(refreshedAt.getTime())
+    ? ''
+    : refreshedAt.toLocaleString('zh-CN', { hour12: false });
+  const markdownLabel = giftCatalogSnapshot.markdownUpdated === false ? ' · Markdown 未更新' : '';
+  status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · 房间 ${giftCatalogSnapshot.roomId || '—'}${timeLabel ? ` · ${timeLabel}` : ''}${markdownLabel}`;
+}
+
+function syncCatalogRefreshButton() {
+  const button = byId('overtimeRefreshGiftsBtn');
+  if (!button) return;
+  button.disabled = catalogRefreshing;
+  button.textContent = catalogRefreshing ? '刷新中…' : '刷新在售礼物';
+}
+
+function syncRuleAvailability() {
+  const hasSnapshot = Boolean(giftCatalogSnapshot?.refreshedAt);
+  for (const row of byId('overtimeRules').querySelectorAll('[data-overtime-rule]')) {
+    const giftId = String(row.dataset.giftId || '');
+    const available = giftId.startsWith('guard-') || saleGiftIds.has(giftId);
+    row.classList.toggle('is-unavailable', hasSnapshot && !available);
+    const identity = row.querySelector('.overtime-rule-identity');
+    if (!identity) continue;
+    let status = identity.querySelector('[data-rule-sale-status]');
+    if (!status) {
+      status = document.createElement('small');
+      status.className = 'overtime-rule-sale-status';
+      status.dataset.ruleSaleStatus = 'true';
+      identity.append(status);
+    }
+    status.hidden = !hasSnapshot || giftId.startsWith('guard-');
+    status.textContent = available ? '当前在售' : '当前未在售';
+  }
 }
 
 function openGiftPicker() {
@@ -213,7 +287,7 @@ function renderGiftPicker() {
   const selectedIds = new Set(Array.from(byId('overtimeRules').querySelectorAll('[data-overtime-rule]')).map(row => row.dataset.giftId));
   const matches = catalog.filter(gift => !selectedIds.has(gift.id) && (
     !query || gift.id.toLocaleLowerCase().includes(query) || gift.name.toLocaleLowerCase().includes(query)
-  )).slice(0, 80);
+  ));
   root.replaceChildren();
   for (const gift of matches) {
     const button = document.createElement('button');
@@ -241,6 +315,7 @@ function renderGiftPicker() {
 
 function addGiftRule(gift) {
   const row = ruleEditor.createRule(gift);
+  syncRuleAvailability();
   byId('overtimeGiftPicker').close();
   row.scrollIntoView({ block: 'nearest' });
   toast(`已添加 ${gift.name}`);

@@ -18,6 +18,10 @@ function overtimeRoute(run) {
 const routes = {
   'GET /api/overtime': overtimeRoute(overtime => overtime.getOverview()),
 
+  'GET /api/overtime/gifts': overtimeRoute(overtime => overtime.getGiftCatalog()),
+
+  'POST /api/overtime/gifts/refresh': overtimeRoute(overtime => overtime.refreshGiftCatalog()),
+
   'POST /api/overtime/time': overtimeRoute(async (overtime, request) => {
     return overtime.setTime(await request.body());
   }),

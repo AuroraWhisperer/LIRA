@@ -69,6 +69,11 @@ function createServerRuntime(runtimeOptions = {}) {
   const domainServices = createDomainServices({
     db,
     settingsStore,
+    dataDir: DATA_DIR,
+    publicDir: runtimeOptions.giftSalePublicDir || PUBLIC_DIR,
+    giftSaleGetRoomId: runtimeOptions.giftSaleGetRoomId,
+    giftSaleGetBlindBoxConfig: runtimeOptions.giftSaleGetBlindBoxConfig,
+    giftSaleFetchJson: runtimeOptions.giftSaleFetchJson,
     giftEffectResolver,
     onGiftFlushed: (item) => {
       logGiftDelivery('final', item);

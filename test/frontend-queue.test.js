@@ -246,11 +246,16 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(html, /id="overtimeClockValue"/);
   assert.match(html, /id="overtimeRules"/);
   assert.match(html, /id="overtimeGiftPicker"/);
+  assert.match(html, /id="overtimeRefreshGiftsBtn"/);
+  assert.match(html, /id="overtimeGiftCatalogStatus"[^>]+role="status"/);
   assert.match(html, /id="overtimePreview"/);
   assert.match(entrySource, /import '\.\/overtime\.js';/);
   assert.match(styles, /@import url\('\.\/admin\/overtime\.css'\);/);
   assert.match(source, /\.textContent\s*=/);
-  assert.match(source, /fetch\('\/img\/bilibili-gifts\.json'/);
+  assert.doesNotMatch(source, /fetch\('\/img\/bilibili-gifts\.json'/);
+  assert.match(source, /fetch\('\/api\/overtime\/gifts'/);
+  assert.match(source, /\/api\/overtime\/gifts\/refresh/);
+  assert.match(source, /当前未在售/);
   assert.match(source, /\.sort\(\(left, right\) => left\.rmb - right\.rmb\)/);
   assert.match(source, /if \(!gift\.id\.startsWith\('guard-'\)\) \{[\s\S]*meta\.textContent = `¥\$\{gift\.rmb\.toFixed\(2\)\}`/);
   assert.doesNotMatch(source, /`ID \$\{gift\.id\}[^`]*`/);

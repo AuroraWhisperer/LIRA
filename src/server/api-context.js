@@ -1,6 +1,7 @@
 'use strict';
 
 const { clearMusicCache, getMusicCacheStats } = require('../music/music-cache');
+const { createUnavailableGiftSaleCatalogService } = require('../bilibili/gift/sale-catalog');
 const lifecycle = require('./lifecycle');
 const systemMetrics = require('./system-metrics');
 
@@ -21,6 +22,8 @@ function createApiContext(options) {
     system,
     music
   } = options;
+  const overtimeGiftCatalog = domainServices.overtimeGiftCatalog
+    || createUnavailableGiftSaleCatalogService();
 
   return {
     maxBodyBytes,
@@ -56,7 +59,9 @@ function createApiContext(options) {
       setTime: domainServices.overtime.setTime,
       act: domainServices.overtime.act,
       setBackground: domainServices.overtime.setBackground,
-      replaceRules: domainServices.overtime.replaceRules
+      replaceRules: domainServices.overtime.replaceRules,
+      getGiftCatalog: overtimeGiftCatalog.getSnapshot,
+      refreshGiftCatalog: overtimeGiftCatalog.refresh
     },
     debug: {
       getGiftMessages: () => messageBuffer.getAll(),

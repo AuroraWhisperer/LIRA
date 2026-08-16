@@ -273,9 +273,10 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/);
   assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
   assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*clamp\(580px,\s*calc\(100vh - 145px\),\s*820px\)[^}]*overflow-y:\s*auto/);
-  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*overscroll-behavior-y:\s*auto[^}]*scrollbar-color:\s*transparent transparent/);
-  assert.match(styles, /\.desktop-lyric-settings:hover\s*\{[^}]*scrollbar-color:\s*#b7c2c9 transparent/);
-  assert.match(styles, /\.desktop-lyric-settings:hover::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*#b7c2c9/);
+  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*overscroll-behavior-y:\s*contain[^}]*scrollbar-color:\s*rgba\(217, 75, 112, 0\.58\) transparent/);
+  assert.match(styles, /\.desktop-lyric-settings:hover,[\s\S]*?\.desktop-lyric-settings:focus-within\s*\{[^}]*scrollbar-color:\s*#d94b70 transparent/);
+  assert.match(styles, /\.desktop-lyric-settings::-webkit-scrollbar-button\s*\{[^}]*display:\s*none/);
+  assert.match(styles, /\.desktop-lyric-settings::-webkit-scrollbar-thumb\s*\{[^}]*border:\s*4px solid transparent[^}]*background:\s*rgba\(217, 75, 112, 0\.58\)/);
   assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
   assert.match(styles, /@media \(max-width:\s*980px\)[\s\S]*?\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/);
   assert.match(styles, /\.desktop-lyric-preview-row\.is-active/);
@@ -296,7 +297,10 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /\.desktop-lyric-preview-card\.is-background-enabled/);
   assert.match(styles, /--preview-global-opacity/);
   assert.match(styles, /scale\(1\.02\)/);
-  assert.match(styles, /grid-template-columns:\s*minmax\(280px, 380px\) minmax\(0, 1fr\)/);
+  assert.match(styles, /grid-template-columns:\s*minmax\(460px, 1fr\) minmax\(320px, 720px\)/);
+  assert.match(styles, /\.desktop-lyric-preview-card\s*\{[^}]*max-width:\s*720px/);
+  assert.match(styles, /container-name:\s*admin-lyric-preview/);
+  assert.match(styles, /font-size:\s*min\(var\(--preview-size\), 8\.5cqi\)/);
   assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
   assert.match(settingsSource, /AUTOSAVE_DELAY_MS/);
   assert.match(settingsSource, /form\.addEventListener\('input'/);

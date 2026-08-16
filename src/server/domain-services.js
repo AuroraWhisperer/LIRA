@@ -18,8 +18,13 @@ const { createFortuneService } = require('../bilibili/fortune-service');
 const { createCustomReplyService } = require('../bilibili/custom-reply-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 const { createOvertimeConsumer, createOvertimeService } = require('../overtime');
+const {
+  createGiftSaleCatalogService,
+  createUnavailableGiftSaleCatalogService
+} = require('../bilibili/gift/sale-catalog');
 
-function createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate }) {
+function createDomainServices(options) {
+  const { db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate } = options;
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
@@ -89,6 +94,16 @@ function createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlu
   };
 
   const overtime = createOvertimeService({ giftDb: db.giftDb, onUpdate: onOvertimeUpdate });
+  const overtimeGiftCatalog = options.dataDir && options.publicDir
+    ? createGiftSaleCatalogService({
+      dataDir: options.dataDir,
+      publicDir: options.publicDir,
+      getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
+      getBlindBoxConfig: options.giftSaleGetBlindBoxConfig
+        || (() => settingsStore.getSettings().giftBlindBoxConfig),
+      fetchJson: options.giftSaleFetchJson
+    })
+    : createUnavailableGiftSaleCatalogService();
   const overtimeConsumer = createOvertimeConsumer({ service: overtime });
   const giftRuntime = giftService.createGiftService(baseContext, {
     onGiftFlushed,
@@ -187,6 +202,7 @@ function createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlu
     queue,
     gifts,
     overtime,
+    overtimeGiftCatalog,
     superChats,
     messages,
     requesterTargets,

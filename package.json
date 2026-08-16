@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "3.4.12",
+  "version": "3.4.13",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -11,6 +11,7 @@
     "desktop": "electron .",
     "check": "node scripts/check-js.js",
     "test": "node --experimental-vm-modules --test --test-concurrency=4",
+    "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",
     "make:icon": "node scripts/create-icon.js",
     "dist:win": "npm run make:icon && electron-builder --win nsis --x64",
