@@ -21,7 +21,14 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   };
   const resolveWeSingOnlineLyrics = createWeSingOnlineLyricResolver({
     getRegistry: () => musicRegistry,
-    lyricsService
+    lyricsService,
+    getPreferences() {
+      const settings = settingsStore.getSettings();
+      return {
+        preferredPlatform: settings.weSingLyricSource,
+        smartMatch: settings.weSingSmartLyricMatch
+      };
+    }
   });
   const publishLyricTimeline = (input) => {
     lyricTimeline = normalizeLyricTimeline(input);

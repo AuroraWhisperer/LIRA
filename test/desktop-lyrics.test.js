@@ -10,6 +10,7 @@ const vm = require('node:vm');
 const { fileURLToPath, pathToFileURL } = require('node:url');
 const { normalizeLyricState } = require('../src/music/lyric-state');
 const { normalizeLyricTimeline } = require('../src/music/lyric-timeline');
+const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -53,7 +54,7 @@ test('lyrics browser source reuses the full live timeline preview', () => {
   assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
   assert.match(html, /id="desktopLyricPreviewProgress"/);
   assert.match(html, /script type="module"[^>]*js\/overlays\/lyric-window\.js/);
-  assert.match(source, /import '\.\.\/admin\/desktop-lyric-preview\.js';/);
+  assert.match(source, /import '\.\.\/admin\/desktop-lyric-preview\.js\?v=20260816-02';/);
   assert.match(source, /desktopLyricPreview\.init\(null\)/);
   assert.match(source, /new WebSocket\(`/);
   assert.match(source, /payload\.type === 'lyric-state'/);
@@ -126,6 +127,108 @@ test('lyric timeline normalization preserves all 64 renderable lines from 失控
   assert.equal(timeline.lines.at(-1).startMs, 247519);
 });
 
+test('desktop lyric settings expose WeSing-only lyric source preferences', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    'utf8'
+  );
+  const sourceSettingsIndex = html.indexOf('class="theme-section desktop-lyric-source-settings"');
+  const styleSettingsIndex = html.indexOf('<strong>基础样式</strong>');
+
+  assert.ok(sourceSettingsIndex >= 0 && sourceSettingsIndex < styleSettingsIndex);
+  assert.match(html, /role="radiogroup"[^>]*aria-labelledby="weSingLyricSourceLabel"/);
+  assert.match(html, /<input type="radio" name="weSingLyricSource" value="netease" checked>/);
+  assert.match(html, /<input type="radio" name="weSingLyricSource" value="qq">/);
+  assert.doesNotMatch(html, /网易云音乐（默认）/);
+  assert.match(html, /<input id="weSingSmartLyricMatch" type="checkbox" checked/);
+  assert.match(html, /<legend>全民 K 歌在线歌词<\/legend>/);
+  assert.match(html, /仅在本地 QRC 不可用时生效/);
+  assert.match(html, /不会改变 QQ 音乐或网易云音乐播放器的歌词来源/);
+  assert.doesNotMatch(html, /\bsource-tab\b/);
+  assert.match(styles, /\.desktop-lyric-source-options\s*\{/);
+  assert.match(styles, /\.desktop-lyric-source-option input:checked \+ \.desktop-lyric-source-choice/);
+  assert.match(styles, /\.desktop-lyric-source-option input:focus-visible \+ \.desktop-lyric-source-choice/);
+  assert.match(styles, /\.desktop-lyric-smart-match-row\s*\{/);
+});
+
+test('desktop lyric settings define the merged presentation defaults', () => {
+  assert.equal(DEFAULT_SETTINGS.desktopLyricFallbackFontFamily, 'Microsoft JhengHei');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricTextAlign, 'left');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricShowTranslation, 'true');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricKaraokeEnabled, 'true');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricHideOnPause, 'false');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricTimeOffsetMs, '0');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricSpringAnimation, 'true');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricAlignPosition, '0.5');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricBackgroundEnabled, 'false');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricBrightness, '1');
+});
+
+test('desktop lyric settings organize the merged controls below lyric matching', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const sourceIndex = html.indexOf('<legend>全民 K 歌在线歌词</legend>');
+  const groupNames = [
+    '基础样式',
+    '描边与阴影',
+    '内容与显示',
+    '可见性与同步',
+    '动画与布局',
+    '背景与渲染',
+    '操作'
+  ];
+  let previousIndex = sourceIndex;
+  for (const name of groupNames) {
+    const index = html.indexOf(`>${name}<`);
+    assert.ok(index > previousIndex, `${name} should follow the previous settings group`);
+    previousIndex = index;
+  }
+
+  for (const id of [
+    'desktopLyricFallbackFontFamily',
+    'desktopLyricTextAlign',
+    'desktopLyricLetterSpacing',
+    'desktopLyricStrokeEnabled',
+    'desktopLyricShadowEnabled',
+    'desktopLyricShadowColor',
+    'desktopLyricShowTranslation',
+    'desktopLyricKaraokeEnabled',
+    'desktopLyricHidePassedLines',
+    'desktopLyricTraditionalMode',
+    'desktopLyricHideOnPause',
+    'desktopLyricCurrentLineEnhanced',
+    'desktopLyricBaseOpacity',
+    'desktopLyricTranslationOpacity',
+    'desktopLyricTimeOffsetMs',
+    'desktopLyricNoLyricText',
+    'desktopLyricSpringAnimation',
+    'desktopLyricBlurEffect',
+    'desktopLyricScaleEffect',
+    'desktopLyricAlignPosition',
+    'desktopLyricAlignAnchor',
+    'desktopLyricTranslateX',
+    'desktopLyricTranslateY',
+    'desktopLyricPerspective',
+    'desktopLyricRotateX',
+    'desktopLyricRotateY',
+    'desktopLyricBackgroundEnabled',
+    'desktopLyricBackgroundRenderer',
+    'desktopLyricGlobalOpacity',
+    'desktopLyricBrightness',
+    'desktopLyricContrast',
+    'desktopLyricSaturation',
+    'desktopLyricResetBtn'
+  ]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+});
+
 test('desktop lyric settings include a live word-timed preview', () => {
   const html = readAdminHtml();
   const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
@@ -160,6 +263,9 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.doesNotMatch(source, /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/);
   assert.match(source, /desktopLyricFontFamily/);
   assert.match(source, /style\.setProperty/);
+  assert.match(source, /desktopLyricTimeOffsetMs/);
+  assert.match(source, /desktopLyricHideOnPause/);
+  assert.match(source, /desktopLyricBackgroundRenderer/);
   assert.match(sharedRenderer, /element\.textContent = word\.text/);
   assert.match(sharedRenderer, /requestAnimationFrame/);
   assert.match(styles, /--preview-word-progress/);
@@ -167,6 +273,9 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/);
   assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
   assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*clamp\(580px,\s*calc\(100vh - 145px\),\s*820px\)[^}]*overflow-y:\s*auto/);
+  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*overscroll-behavior-y:\s*auto[^}]*scrollbar-color:\s*transparent transparent/);
+  assert.match(styles, /\.desktop-lyric-settings:hover\s*\{[^}]*scrollbar-color:\s*#b7c2c9 transparent/);
+  assert.match(styles, /\.desktop-lyric-settings:hover::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*#b7c2c9/);
   assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
   assert.match(styles, /@media \(max-width:\s*980px\)[\s\S]*?\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/);
   assert.match(styles, /\.desktop-lyric-preview-row\.is-active/);
@@ -181,6 +290,11 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.doesNotMatch(source, /scrollIntoView/);
   assert.match(styles, /mask-image:\s*linear-gradient\(to bottom/);
   assert.match(styles, /\.desktop-lyric-preview-viewport\.is-following/);
+  assert.match(styles, /\.desktop-lyric-preview-card\.is-translation-hidden/);
+  assert.match(styles, /\.desktop-lyric-preview-card\.is-hide-passed/);
+  assert.match(styles, /\.desktop-lyric-preview-card\.is-paused-hidden/);
+  assert.match(styles, /\.desktop-lyric-preview-card\.is-background-enabled/);
+  assert.match(styles, /--preview-global-opacity/);
   assert.match(styles, /scale\(1\.02\)/);
   assert.match(styles, /grid-template-columns:\s*minmax\(280px, 380px\) minmax\(0, 1fr\)/);
   assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
@@ -202,6 +316,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     }
   };
   const autosaveState = { textContent: '', className: '' };
+  const resetListeners = new Map();
   const values = {
     desktopLyricFontFamily: 'Microsoft YaHei',
     desktopLyricFontWeight: '800',
@@ -217,14 +332,34 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricTranslationScale: '0.65'
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
+  const lyricSourceInputs = [
+    { value: 'netease', checked: true },
+    { value: 'qq', checked: false }
+  ];
+  const smartLyricMatch = { checked: true };
   elements.set('desktopLyricForm', form);
   elements.set('desktopLyricAutosaveState', autosaveState);
+  elements.set('weSingSmartLyricMatch', smartLyricMatch);
+  elements.set('desktopLyricResetBtn', {
+    addEventListener(type, handler) {
+      resetListeners.set(type, handler);
+    }
+  });
   let scheduledTimer = null;
   let resolveFirstSave;
   const sandbox = {
     document: {
       getElementById(id) {
         return elements.get(id) || null;
+      },
+      querySelector(selector) {
+        if (selector === 'input[name="weSingLyricSource"]:checked') {
+          return lyricSourceInputs.find((input) => input.checked) || null;
+        }
+        return null;
+      },
+      querySelectorAll(selector) {
+        return selector === 'input[name="weSingLyricSource"]' ? lyricSourceInputs : [];
       }
     },
     setTimeout(callback, delay) {
@@ -241,7 +376,10 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
       AdminApp: {
         utils: {
           value: (id) => elements.get(id)?.value || '',
-          setValue: (id, value) => { elements.get(id).value = value; },
+          setValue: (id, value) => {
+            const element = elements.get(id);
+            if (element) element.value = value;
+          },
           api: (url, body) => {
             apiCalls.push({ url, body });
             if (apiCalls.length === 1) {
@@ -263,10 +401,29 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls.length, 0);
   assert.equal(scheduledTimer, null);
   assert.equal(autosaveState.textContent, '正在读取设置…');
-  windowListeners.get('app:settings-state')();
+  windowListeners.get('app:settings-state')({
+    detail: {
+      ...values,
+      weSingLyricSource: 'netease',
+      weSingSmartLyricMatch: 'true'
+    }
+  });
   assert.equal(scheduledTimer.delay, 500);
   scheduledTimer.callback();
   assert.equal(apiCalls.length, 1);
+  assert.equal(apiCalls[0].body.weSingLyricSource, 'netease');
+  assert.equal(apiCalls[0].body.weSingSmartLyricMatch, 'true');
+
+  windowListeners.get('app:settings-state')({
+    detail: {
+      ...values,
+      weSingLyricSource: 'qq',
+      weSingSmartLyricMatch: 'false'
+    }
+  });
+  assert.equal(lyricSourceInputs[0].checked, false);
+  assert.equal(lyricSourceInputs[1].checked, true);
+  assert.equal(smartLyricMatch.checked, false);
 
   elements.get('desktopLyricFontSize').value = '64';
   listeners.get('change')();
@@ -277,8 +434,17 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls.length, 2);
   assert.equal(apiCalls[0].url, '/api/settings');
   assert.equal(apiCalls[1].body.desktopLyricFontSize, '64');
+  assert.equal(apiCalls[1].body.weSingLyricSource, 'qq');
+  assert.equal(apiCalls[1].body.weSingSmartLyricMatch, 'false');
   assert.equal(autosaveState.textContent, '已自动保存');
   assert.match(autosaveState.className, /is-saved/);
+
+  await new Promise((resolve) => setImmediate(resolve));
+  resetListeners.get('click')();
+  assert.equal(apiCalls.length, 3);
+  assert.equal(apiCalls[2].body.desktopLyricFontSize, '56');
+  assert.equal(apiCalls[2].body.weSingLyricSource, 'qq');
+  assert.equal(apiCalls[2].body.weSingSmartLyricMatch, 'false');
 });
 
 test('playback publishes lyrics through the authenticated local API', () => {
@@ -509,6 +675,38 @@ test('desktop lyric timeline spring converges smoothly on the active-line anchor
 
   assert.equal(frame.position, 500);
   assert.equal(frame.velocity, 0);
+});
+
+test('desktop lyric renderer normalizes timing, empty text, and anchor settings', async () => {
+  const preview = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js')
+  );
+  const settings = preview.resolveDesktopLyricSettings({
+    desktopLyricTimeOffsetMs: '350',
+    desktopLyricShowTitleWhenNoLyric: 'true',
+    desktopLyricNoLyricText: '没有歌词',
+    desktopLyricHideOnPause: 'true',
+    desktopLyricAlignPosition: '0.25',
+    desktopLyricAlignAnchor: 'end'
+  });
+
+  assert.equal(settings.timeOffsetMs, 350);
+  assert.equal(settings.showTitleWhenNoLyric, true);
+  assert.equal(settings.hideOnPause, true);
+  assert.equal(settings.alignPosition, 0.25);
+  assert.equal(settings.alignAnchor, 'end');
+  assert.equal(preview.resolveLyricTime(1000, settings), 1350);
+  assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, settings), '测试歌曲');
+  assert.equal(
+    preview.calculateFollowTarget(600, 100, 400, 1200, settings.alignPosition, settings.alignAnchor),
+    600
+  );
+
+  const fallbackSettings = preview.resolveDesktopLyricSettings({
+    desktopLyricShowTitleWhenNoLyric: 'false',
+    desktopLyricNoLyricText: '纯音乐'
+  });
+  assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, fallbackSettings), '纯音乐');
 });
 
 async function loadModuleExports(entryPath, globals = {}) {

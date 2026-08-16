@@ -6,17 +6,54 @@ import { localOverlayOrigin } from '../shared/utils.js';
 
 const DEFAULTS = {
   desktopLyricFontFamily: 'Microsoft YaHei',
+  desktopLyricFallbackFontFamily: 'Microsoft JhengHei',
   desktopLyricFontWeight: '800',
   desktopLyricTextColor: '#000000',
+  desktopLyricTextAlign: 'left',
+  desktopLyricLetterSpacing: '0',
+  desktopLyricStrokeEnabled: 'true',
   desktopLyricStrokeColor: '#ffffff',
   desktopLyricFontSize: '56',
   desktopLyricStrokeWidth: '3',
+  desktopLyricShadowEnabled: 'true',
+  desktopLyricShadowColor: '#000000',
+  desktopLyricShadowBlur: '8',
+  desktopLyricShadowOffsetX: '0',
+  desktopLyricShadowOffsetY: '3',
   desktopLyricOpacity: '0.95',
+  desktopLyricBaseOpacity: '0.38',
+  desktopLyricTranslationOpacity: '0.72',
   desktopLyricBgOpacity: '0.15',
   desktopLyricScale: '1',
   desktopLyricLineHeight: '1.4',
   desktopLyricShadowIntensity: '0.35',
-  desktopLyricTranslationScale: '0.65'
+  desktopLyricTranslationScale: '0.65',
+  desktopLyricShowTranslation: 'true',
+  desktopLyricKaraokeEnabled: 'true',
+  desktopLyricHidePassedLines: 'false',
+  desktopLyricTraditionalMode: 'false',
+  desktopLyricInterludeOffsetEm: '0',
+  desktopLyricHideOnPause: 'false',
+  desktopLyricCurrentLineEnhanced: 'true',
+  desktopLyricTimeOffsetMs: '0',
+  desktopLyricShowTitleWhenNoLyric: 'false',
+  desktopLyricNoLyricText: '纯音乐，请欣赏',
+  desktopLyricSpringAnimation: 'true',
+  desktopLyricBlurEffect: 'true',
+  desktopLyricScaleEffect: 'true',
+  desktopLyricAlignPosition: '0.5',
+  desktopLyricAlignAnchor: 'center',
+  desktopLyricTranslateX: '0',
+  desktopLyricTranslateY: '0',
+  desktopLyricPerspective: '800',
+  desktopLyricRotateX: '0',
+  desktopLyricRotateY: '0',
+  desktopLyricBackgroundEnabled: 'false',
+  desktopLyricBackgroundRenderer: 'mesh',
+  desktopLyricGlobalOpacity: '1',
+  desktopLyricBrightness: '1',
+  desktopLyricContrast: '1',
+  desktopLyricSaturation: '1'
 };
 const EMPTY_TIMELINE = {
   trackTitle: '', artists: [], status: 'idle', lines: []
@@ -48,6 +85,7 @@ let followPosition = 0;
 let followVelocity = 0;
 let followTarget = 0;
 let followFrameAt = 0;
+let currentDisplaySettings = resolveDesktopLyricSettings(DEFAULTS);
 
 function init(form) {
   if (initialized) return;
@@ -96,6 +134,7 @@ function updateLyricState(state) {
   if (!state || typeof state !== 'object') return;
   latestState = { ...(latestState || {}), ...state };
   renderer?.setState(latestState);
+  applyPlaybackVisibility();
   updatePreviewStatus();
 }
 
@@ -124,7 +163,7 @@ function renderTimeline() {
   if (!latestTimeline.lines.length) {
     const empty = document.createElement('div');
     empty.className = 'desktop-lyric-preview-empty';
-    empty.textContent = timelineFallback(latestTimeline);
+    empty.textContent = timelineFallback(latestTimeline, currentDisplaySettings);
     fragment.appendChild(empty);
   } else {
     latestTimeline.lines.forEach((line, index) => {
@@ -179,7 +218,8 @@ function createCountdownElement() {
 function renderTimelineFrame(currentMs) {
   const lines = latestTimeline.lines;
   if (!lines.length) return;
-  const nextActiveIndex = findActiveLyricIndex(lines, currentMs);
+  const lyricTime = resolveLyricTime(currentMs, currentDisplaySettings);
+  const nextActiveIndex = findActiveLyricIndex(lines, lyricTime);
 
   if (nextActiveIndex !== activeIndex) {
     const previousIndex = activeIndex;
@@ -196,12 +236,16 @@ function renderTimelineFrame(currentMs) {
     renderActiveWords();
   }
 
-  updateActiveWordProgress(currentMs);
-  updateCountdown(currentMs);
+  updateActiveWordProgress(lyricTime);
+  updateCountdown(lyricTime);
 }
 
 function renderActiveWords() {
   if (activeIndex < 0 || !rowElements[activeIndex]) return;
+  if (!currentDisplaySettings.karaokeEnabled) {
+    resetActiveWords();
+    return;
+  }
   const line = latestTimeline.lines[activeIndex] || {};
   const words = Array.isArray(latestState?.words) ? latestState.words : [];
   const matchesCurrentLine = latestState?.lineText === line.text;
@@ -273,14 +317,16 @@ function followActiveLyric() {
   if (activeIndex < 0 || Date.now() < manualFollowUntil) return;
   const activeRow = rowElements[activeIndex];
   if (!activeRow || !viewport || viewport.clientHeight <= 0) return;
-  const maximum = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
-  followTarget = clamp(
-    activeRow.offsetTop - viewport.clientHeight / 2 + activeRow.offsetHeight / 2,
-    0,
-    maximum
+  followTarget = calculateFollowTarget(
+    activeRow.offsetTop,
+    activeRow.offsetHeight,
+    viewport.clientHeight,
+    viewport.scrollHeight,
+    currentDisplaySettings.alignPosition,
+    currentDisplaySettings.alignAnchor
   );
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (reducedMotion || typeof requestAnimationFrame !== 'function') {
+  if (!currentDisplaySettings.springAnimation || reducedMotion || typeof requestAnimationFrame !== 'function') {
     stopFollowAnimation();
     followPosition = followTarget;
     followVelocity = 0;
@@ -415,21 +461,59 @@ function applySettings(settings = {}) {
   const card = document.getElementById('desktopLyricLivePreview')
     || document.getElementById('desktopLyricSurface');
   if (!card) return;
-  const values = { ...DEFAULTS, ...settings };
-  const fontSize = numberSetting(values.desktopLyricFontSize, 56);
-  const translationScale = numberSetting(values.desktopLyricTranslationScale, 0.65);
-  card.style.setProperty('--preview-font', `${values.desktopLyricFontFamily}, "Microsoft YaHei", sans-serif`);
-  card.style.setProperty('--preview-weight', values.desktopLyricFontWeight);
-  card.style.setProperty('--preview-color', values.desktopLyricTextColor);
-  card.style.setProperty('--preview-stroke', values.desktopLyricStrokeColor);
-  card.style.setProperty('--preview-size', `${fontSize}px`);
-  card.style.setProperty('--preview-translation-size', `${fontSize * translationScale}px`);
-  card.style.setProperty('--preview-stroke-width', `${numberSetting(values.desktopLyricStrokeWidth, 3)}px`);
-  card.style.setProperty('--preview-opacity', String(numberSetting(values.desktopLyricOpacity, 0.95)));
-  card.style.setProperty('--preview-bg-opacity', String(numberSetting(values.desktopLyricBgOpacity, 0.15)));
-  card.style.setProperty('--preview-scale', String(numberSetting(values.desktopLyricScale, 1)));
-  card.style.setProperty('--preview-line-height', String(numberSetting(values.desktopLyricLineHeight, 1.4)));
-  card.style.setProperty('--preview-shadow-opacity', String(numberSetting(values.desktopLyricShadowIntensity, 0.35)));
+  const previousSettings = currentDisplaySettings;
+  currentDisplaySettings = resolveDesktopLyricSettings(settings);
+  const values = currentDisplaySettings;
+  card.style.setProperty('--preview-font', `${values.fontFamily}, ${values.fallbackFontFamily}, "Microsoft YaHei", sans-serif`);
+  card.style.setProperty('--preview-weight', values.fontWeight);
+  card.style.setProperty('--preview-color', values.textColor);
+  card.style.setProperty('--preview-text-align', values.textAlign);
+  card.style.setProperty('--preview-row-align', textAlignToFlex(values.textAlign));
+  card.style.setProperty('--preview-letter-spacing', `${values.letterSpacing}em`);
+  card.style.setProperty('--preview-stroke', values.strokeColor);
+  card.style.setProperty('--preview-size', `${values.fontSize}px`);
+  card.style.setProperty('--preview-translation-size', `${values.fontSize * values.translationScale}px`);
+  card.style.setProperty('--preview-stroke-width', `${values.strokeEnabled ? values.strokeWidth : 0}px`);
+  card.style.setProperty('--preview-opacity', String(values.opacity));
+  card.style.setProperty('--preview-base-opacity', String(values.baseOpacity));
+  card.style.setProperty('--preview-translation-opacity', String(values.translationOpacity));
+  card.style.setProperty('--preview-bg-opacity', String(values.backgroundOpacity));
+  card.style.setProperty('--preview-scale', String(values.scale));
+  card.style.setProperty('--preview-line-height', String(values.lineHeight));
+  card.style.setProperty('--preview-shadow-color', values.shadowEnabled
+    ? hexWithAlpha(values.shadowColor, values.shadowIntensity)
+    : 'transparent');
+  card.style.setProperty('--preview-shadow-blur', `${values.shadowBlur}px`);
+  card.style.setProperty('--preview-shadow-x', `${values.shadowOffsetX}px`);
+  card.style.setProperty('--preview-shadow-y', `${values.shadowOffsetY}px`);
+  card.style.setProperty('--preview-interlude-offset', `${values.interludeOffsetEm}em`);
+  card.style.setProperty('--preview-translate-x', `${values.translateX}px`);
+  card.style.setProperty('--preview-translate-y', `${values.translateY}px`);
+  card.style.setProperty('--preview-perspective', `${values.perspective}px`);
+  card.style.setProperty('--preview-rotate-x', `${values.rotateX}deg`);
+  card.style.setProperty('--preview-rotate-y', `${values.rotateY}deg`);
+  card.style.setProperty('--preview-global-opacity', String(values.globalOpacity));
+  card.style.setProperty('--preview-brightness', String(values.brightness));
+  card.style.setProperty('--preview-contrast', String(values.contrast));
+  card.style.setProperty('--preview-saturation', String(values.saturation));
+  card.classList.toggle('is-translation-hidden', !values.showTranslation);
+  card.classList.toggle('is-hide-passed', values.hidePassedLines);
+  card.classList.toggle('is-traditional', values.traditionalMode);
+  card.classList.toggle('is-current-enhanced', values.currentLineEnhanced);
+  card.classList.toggle('is-spring-enabled', values.springAnimation);
+  card.classList.toggle('is-blur-enabled', values.blurEffect);
+  card.classList.toggle('is-scale-enabled', values.scaleEffect);
+  card.classList.toggle('is-background-enabled', values.backgroundEnabled);
+  for (const rendererName of ['mesh', 'aurora', 'solid']) {
+    card.classList.toggle(`is-background-${rendererName}`, values.backgroundRenderer === rendererName);
+  }
+  applyPlaybackVisibility();
+  if (previousSettings.karaokeEnabled !== values.karaokeEnabled) {
+    resetActiveWords();
+    renderActiveWords();
+  }
+  if (!latestTimeline.lines.length) renderTimeline();
+  else renderTimelineFrame(currentPreviewPosition());
   followActiveLyric();
 }
 
@@ -437,7 +521,7 @@ function readFormSettings() {
   const values = {};
   for (const key of Object.keys(DEFAULTS)) {
     const input = document.getElementById(key);
-    if (input) values[key] = input.value;
+    if (input) values[key] = input.type === 'checkbox' ? String(input.checked) : input.value;
   }
   return values;
 }
@@ -464,16 +548,24 @@ async function copyDesktopLyricUrl() {
 
 function previewFallback(state) {
   if (state.status === 'loading') return '正在载入歌词';
-  if (state.status === 'empty') return '这首歌暂无歌词';
+  if (state.status === 'empty') return resolveNoLyricText(latestTimeline, currentDisplaySettings);
   if (state.status === 'ready') return '前奏中';
   return '等待播放';
 }
 
-function timelineFallback(timeline) {
+function timelineFallback(timeline, settings) {
   if (timeline.status === 'loading') return '正在载入整首歌词…';
-  if (timeline.status === 'empty') return '这首歌暂无歌词';
+  if (timeline.status === 'empty') return resolveNoLyricText(timeline, settings);
   if (timeline.status === 'ready') return '歌词已就绪，正在同步完整内容…';
   return '等待播放 · 歌词将在载入后完整显示';
+}
+
+function applyPlaybackVisibility() {
+  const card = document.getElementById('desktopLyricLivePreview')
+    || document.getElementById('desktopLyricSurface');
+  if (!card) return;
+  const hidden = currentDisplaySettings.hideOnPause && latestState?.playing === false;
+  card.classList.toggle('is-paused-hidden', hidden);
 }
 
 function currentPreviewPosition() {
@@ -496,6 +588,103 @@ function clamp(value, minimum, maximum) {
 function numberSetting(value, fallback) {
   const number = Number.parseFloat(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function boolSetting(value, fallback) {
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  return fallback;
+}
+
+function enumSetting(value, allowed, fallback) {
+  return allowed.includes(value) ? value : fallback;
+}
+
+export function resolveDesktopLyricSettings(settings = {}) {
+  const values = { ...DEFAULTS, ...settings };
+  return {
+    fontFamily: String(values.desktopLyricFontFamily || DEFAULTS.desktopLyricFontFamily),
+    fallbackFontFamily: String(values.desktopLyricFallbackFontFamily || DEFAULTS.desktopLyricFallbackFontFamily),
+    fontWeight: String(values.desktopLyricFontWeight || DEFAULTS.desktopLyricFontWeight),
+    textColor: String(values.desktopLyricTextColor || DEFAULTS.desktopLyricTextColor),
+    textAlign: enumSetting(values.desktopLyricTextAlign, ['left', 'center', 'right'], 'left'),
+    letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 0.3),
+    fontSize: clamp(numberSetting(values.desktopLyricFontSize, 56), 24, 72),
+    lineHeight: clamp(numberSetting(values.desktopLyricLineHeight, 1.4), 1, 2),
+    strokeEnabled: boolSetting(values.desktopLyricStrokeEnabled, true),
+    strokeColor: String(values.desktopLyricStrokeColor || DEFAULTS.desktopLyricStrokeColor),
+    strokeWidth: clamp(numberSetting(values.desktopLyricStrokeWidth, 3), 0, 6),
+    shadowEnabled: boolSetting(values.desktopLyricShadowEnabled, true),
+    shadowColor: String(values.desktopLyricShadowColor || DEFAULTS.desktopLyricShadowColor),
+    shadowIntensity: clamp(numberSetting(values.desktopLyricShadowIntensity, 0.35), 0, 1),
+    shadowBlur: clamp(numberSetting(values.desktopLyricShadowBlur, 8), 0, 30),
+    shadowOffsetX: clamp(numberSetting(values.desktopLyricShadowOffsetX, 0), -20, 20),
+    shadowOffsetY: clamp(numberSetting(values.desktopLyricShadowOffsetY, 3), -20, 20),
+    showTranslation: boolSetting(values.desktopLyricShowTranslation, true),
+    translationScale: clamp(numberSetting(values.desktopLyricTranslationScale, 0.65), 0.4, 1),
+    karaokeEnabled: boolSetting(values.desktopLyricKaraokeEnabled, true),
+    hidePassedLines: boolSetting(values.desktopLyricHidePassedLines, false),
+    traditionalMode: boolSetting(values.desktopLyricTraditionalMode, false),
+    interludeOffsetEm: clamp(numberSetting(values.desktopLyricInterludeOffsetEm, 0), -10, 10),
+    hideOnPause: boolSetting(values.desktopLyricHideOnPause, false),
+    currentLineEnhanced: boolSetting(values.desktopLyricCurrentLineEnhanced, true),
+    opacity: clamp(numberSetting(values.desktopLyricOpacity, 0.95), 0, 1),
+    baseOpacity: clamp(numberSetting(values.desktopLyricBaseOpacity, 0.38), 0, 1),
+    translationOpacity: clamp(numberSetting(values.desktopLyricTranslationOpacity, 0.72), 0, 1),
+    timeOffsetMs: clamp(numberSetting(values.desktopLyricTimeOffsetMs, 0), -5000, 5000),
+    showTitleWhenNoLyric: boolSetting(values.desktopLyricShowTitleWhenNoLyric, false),
+    noLyricText: String(values.desktopLyricNoLyricText || DEFAULTS.desktopLyricNoLyricText).slice(0, 80),
+    springAnimation: boolSetting(values.desktopLyricSpringAnimation, true),
+    blurEffect: boolSetting(values.desktopLyricBlurEffect, true),
+    scaleEffect: boolSetting(values.desktopLyricScaleEffect, true),
+    scale: clamp(numberSetting(values.desktopLyricScale, 1), 0.5, 2),
+    alignPosition: clamp(numberSetting(values.desktopLyricAlignPosition, 0.5), 0, 1),
+    alignAnchor: enumSetting(values.desktopLyricAlignAnchor, ['start', 'center', 'end'], 'center'),
+    translateX: clamp(numberSetting(values.desktopLyricTranslateX, 0), -500, 500),
+    translateY: clamp(numberSetting(values.desktopLyricTranslateY, 0), -500, 500),
+    perspective: clamp(numberSetting(values.desktopLyricPerspective, 800), 200, 2000),
+    rotateX: clamp(numberSetting(values.desktopLyricRotateX, 0), -45, 45),
+    rotateY: clamp(numberSetting(values.desktopLyricRotateY, 0), -45, 45),
+    backgroundEnabled: boolSetting(values.desktopLyricBackgroundEnabled, false),
+    backgroundRenderer: enumSetting(values.desktopLyricBackgroundRenderer, ['mesh', 'aurora', 'solid'], 'mesh'),
+    backgroundOpacity: clamp(numberSetting(values.desktopLyricBgOpacity, 0.15), 0, 1),
+    globalOpacity: clamp(numberSetting(values.desktopLyricGlobalOpacity, 1), 0, 1),
+    brightness: clamp(numberSetting(values.desktopLyricBrightness, 1), 0.2, 2),
+    contrast: clamp(numberSetting(values.desktopLyricContrast, 1), 0.2, 2),
+    saturation: clamp(numberSetting(values.desktopLyricSaturation, 1), 0, 2)
+  };
+}
+
+export function resolveLyricTime(currentMs, settings) {
+  return Math.max(0, finiteNumber(currentMs, 0) + finiteNumber(settings?.timeOffsetMs, 0));
+}
+
+export function resolveNoLyricText(timeline, settings) {
+  const title = String(timeline?.trackTitle || '').trim();
+  if (settings?.showTitleWhenNoLyric && title) return title;
+  return String(settings?.noLyricText || DEFAULTS.desktopLyricNoLyricText).trim()
+    || DEFAULTS.desktopLyricNoLyricText;
+}
+
+export function calculateFollowTarget(rowTop, rowHeight, viewportHeight, scrollHeight, alignPosition, alignAnchor) {
+  const anchorRatio = alignAnchor === 'start' ? 0 : alignAnchor === 'end' ? 1 : 0.5;
+  const maximum = Math.max(0, finiteNumber(scrollHeight, 0) - finiteNumber(viewportHeight, 0));
+  const rowAnchor = finiteNumber(rowTop, 0) + finiteNumber(rowHeight, 0) * anchorRatio;
+  const viewportAnchor = finiteNumber(viewportHeight, 0) * clamp(finiteNumber(alignPosition, 0.5), 0, 1);
+  return clamp(rowAnchor - viewportAnchor, 0, maximum);
+}
+
+function textAlignToFlex(textAlign) {
+  if (textAlign === 'center') return 'center';
+  if (textAlign === 'right') return 'flex-end';
+  return 'flex-start';
+}
+
+function hexWithAlpha(color, alpha) {
+  const match = /^#([0-9a-f]{6})$/i.exec(String(color || ''));
+  if (!match) return String(color || 'transparent');
+  const value = Number.parseInt(match[1], 16);
+  return `rgba(${value >> 16}, ${(value >> 8) & 255}, ${value & 255}, ${clamp(alpha, 0, 1)})`;
 }
 
 window.AdminApp = window.AdminApp || {};

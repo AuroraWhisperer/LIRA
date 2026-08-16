@@ -5,10 +5,103 @@
 (function () {
   const AUTOSAVE_DELAY_MS = 500;
   const {
-    value,
     setValue,
     api
   } = window.AdminApp.utils;
+  const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
+    desktopLyricFontFamily: 'Microsoft YaHei',
+    desktopLyricFallbackFontFamily: 'Microsoft JhengHei',
+    desktopLyricFontWeight: '800',
+    desktopLyricTextColor: '#000000',
+    desktopLyricTextAlign: 'left',
+    desktopLyricLetterSpacing: '0',
+    desktopLyricFontSize: '56',
+    desktopLyricLineHeight: '1.4',
+    desktopLyricStrokeEnabled: 'true',
+    desktopLyricStrokeColor: '#ffffff',
+    desktopLyricStrokeWidth: '3',
+    desktopLyricShadowEnabled: 'true',
+    desktopLyricShadowColor: '#000000',
+    desktopLyricShadowIntensity: '0.35',
+    desktopLyricShadowBlur: '8',
+    desktopLyricShadowOffsetX: '0',
+    desktopLyricShadowOffsetY: '3',
+    desktopLyricShowTranslation: 'true',
+    desktopLyricTranslationScale: '0.65',
+    desktopLyricKaraokeEnabled: 'true',
+    desktopLyricHidePassedLines: 'false',
+    desktopLyricTraditionalMode: 'false',
+    desktopLyricInterludeOffsetEm: '0',
+    desktopLyricHideOnPause: 'false',
+    desktopLyricCurrentLineEnhanced: 'true',
+    desktopLyricOpacity: '0.95',
+    desktopLyricBaseOpacity: '0.38',
+    desktopLyricTranslationOpacity: '0.72',
+    desktopLyricTimeOffsetMs: '0',
+    desktopLyricShowTitleWhenNoLyric: 'false',
+    desktopLyricNoLyricText: '纯音乐，请欣赏',
+    desktopLyricSpringAnimation: 'true',
+    desktopLyricBlurEffect: 'true',
+    desktopLyricScaleEffect: 'true',
+    desktopLyricScale: '1',
+    desktopLyricAlignPosition: '0.5',
+    desktopLyricAlignAnchor: 'center',
+    desktopLyricTranslateX: '0',
+    desktopLyricTranslateY: '0',
+    desktopLyricPerspective: '800',
+    desktopLyricRotateX: '0',
+    desktopLyricRotateY: '0',
+    desktopLyricBackgroundEnabled: 'false',
+    desktopLyricBackgroundRenderer: 'mesh',
+    desktopLyricBgOpacity: '0.15',
+    desktopLyricGlobalOpacity: '1',
+    desktopLyricBrightness: '1',
+    desktopLyricContrast: '1',
+    desktopLyricSaturation: '1'
+  });
+  const CHECKBOX_KEYS = new Set([
+    'desktopLyricStrokeEnabled',
+    'desktopLyricShadowEnabled',
+    'desktopLyricShowTranslation',
+    'desktopLyricKaraokeEnabled',
+    'desktopLyricHidePassedLines',
+    'desktopLyricTraditionalMode',
+    'desktopLyricHideOnPause',
+    'desktopLyricCurrentLineEnhanced',
+    'desktopLyricShowTitleWhenNoLyric',
+    'desktopLyricSpringAnimation',
+    'desktopLyricBlurEffect',
+    'desktopLyricScaleEffect',
+    'desktopLyricBackgroundEnabled'
+  ]);
+  const RANGE_PAIRS = [
+    ['desktopLyricFontSize', 24, 72, 56],
+    ['desktopLyricLetterSpacing', -0.1, 0.3, 0],
+    ['desktopLyricLineHeight', 1, 2, 1.4],
+    ['desktopLyricStrokeWidth', 0, 6, 3],
+    ['desktopLyricShadowIntensity', 0, 1, 0.35],
+    ['desktopLyricShadowBlur', 0, 30, 8],
+    ['desktopLyricShadowOffsetX', -20, 20, 0],
+    ['desktopLyricShadowOffsetY', -20, 20, 3],
+    ['desktopLyricTranslationScale', 0.4, 1, 0.65],
+    ['desktopLyricInterludeOffsetEm', -10, 10, 0],
+    ['desktopLyricOpacity', 0, 1, 0.95],
+    ['desktopLyricBaseOpacity', 0, 1, 0.38],
+    ['desktopLyricTranslationOpacity', 0, 1, 0.72],
+    ['desktopLyricTimeOffsetMs', -5000, 5000, 0],
+    ['desktopLyricScale', 0.5, 2, 1],
+    ['desktopLyricAlignPosition', 0, 1, 0.5],
+    ['desktopLyricTranslateX', -500, 500, 0],
+    ['desktopLyricTranslateY', -500, 500, 0],
+    ['desktopLyricPerspective', 200, 2000, 800],
+    ['desktopLyricRotateX', -45, 45, 0],
+    ['desktopLyricRotateY', -45, 45, 0],
+    ['desktopLyricBgOpacity', 0, 1, 0.15],
+    ['desktopLyricGlobalOpacity', 0, 1, 1],
+    ['desktopLyricBrightness', 0.2, 2, 1],
+    ['desktopLyricContrast', 0.2, 2, 1],
+    ['desktopLyricSaturation', 0, 2, 1]
+  ];
 
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
@@ -18,14 +111,9 @@
     // Range ↔ Number 双向绑定
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
-      bindRangePair('desktopLyricFontSize', 'desktopLyricFontSizeNumber', 24, 72, 36);
-      bindRangePair('desktopLyricStrokeWidth', 'desktopLyricStrokeWidthNumber', 0, 5, 2);
-      bindRangePair('desktopLyricOpacity', 'desktopLyricOpacityNumber', 0, 1, 1);
-      bindRangePair('desktopLyricBgOpacity', 'desktopLyricBgOpacityNumber', 0, 1, 0);
-      bindRangePair('desktopLyricScale', 'desktopLyricScaleNumber', 0.5, 2, 1);
-      bindRangePair('desktopLyricLineHeight', 'desktopLyricLineHeightNumber', 1, 2, 1.3);
-      bindRangePair('desktopLyricShadowIntensity', 'desktopLyricShadowIntensityNumber', 0, 1, 0.5);
-      bindRangePair('desktopLyricTranslationScale', 'desktopLyricTranslationScaleNumber', 0.4, 1, 0.58);
+      RANGE_PAIRS.forEach(([key, minimum, maximum, fallback]) => {
+        bindRangePair(key, `${key}Number`, minimum, maximum, fallback);
+      });
     }
 
     const autosaveState = document.getElementById('desktopLyricAutosaveState');
@@ -33,7 +121,9 @@
     let dirty = false;
     let saving = false;
     let pendingSave = false;
-    let settingsLoaded = Boolean(window.AdminApp.state?.getAppState?.()?.settings);
+    const currentSettings = window.AdminApp.state?.getAppState?.()?.settings;
+    let settingsLoaded = Boolean(currentSettings);
+    if (currentSettings) loadDesktopLyricSettings(currentSettings);
 
     const setAutosaveState = (text, state = '') => {
       if (!autosaveState) return;
@@ -78,9 +168,14 @@
       else autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     };
 
-    window.addEventListener('app:settings-state', () => {
-      if (settingsLoaded) return;
-      settingsLoaded = true;
+    window.addEventListener('app:settings-state', (event) => {
+      loadWeSingLyricSettings(event.detail);
+      if (!settingsLoaded) {
+        settingsLoaded = true;
+        loadDesktopLyricSettings(event.detail);
+      } else if (!dirty && !saving) {
+        loadDesktopLyricSettings(event.detail);
+      }
       if (!dirty) return;
       setAutosaveState('等待自动保存…', 'is-saving');
       autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
@@ -88,50 +183,63 @@
 
     form.addEventListener('input', () => scheduleAutosave());
     form.addEventListener('change', () => scheduleAutosave(true));
+    document.getElementById('desktopLyricResetBtn')?.addEventListener('click', () => {
+      loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, { includeWeSing: false });
+      scheduleAutosave(true);
+    });
+  }
+
+  function selectedWeSingLyricSource() {
+    return document.querySelector('input[name="weSingLyricSource"]:checked')?.value || 'netease';
+  }
+
+  function checkedValue(id) {
+    return document.getElementById(id)?.checked ? 'true' : 'false';
   }
 
   function collectDesktopLyric() {
-    return {
-      desktopLyricFontFamily: value('desktopLyricFontFamily'),
-      desktopLyricFontWeight: value('desktopLyricFontWeight'),
-      desktopLyricTextColor: value('desktopLyricTextColor'),
-      desktopLyricStrokeColor: value('desktopLyricStrokeColor'),
-      desktopLyricFontSize: value('desktopLyricFontSize'),
-      desktopLyricStrokeWidth: value('desktopLyricStrokeWidth'),
-      desktopLyricOpacity: value('desktopLyricOpacity'),
-      desktopLyricBgOpacity: value('desktopLyricBgOpacity'),
-      desktopLyricScale: value('desktopLyricScale'),
-      desktopLyricLineHeight: value('desktopLyricLineHeight'),
-      desktopLyricShadowIntensity: value('desktopLyricShadowIntensity'),
-      desktopLyricTranslationScale: value('desktopLyricTranslationScale')
+    const settings = {
+      weSingLyricSource: selectedWeSingLyricSource(),
+      weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch')
     };
+    Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
+      const input = document.getElementById(key);
+      settings[key] = input
+        ? CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value
+        : fallback;
+    });
+    return settings;
   }
 
-  function loadDesktopLyricSettings(settings) {
+  function loadDesktopLyricSettings(settings, options = {}) {
     if (!settings) return;
 
-    setValue('desktopLyricFontFamily', settings.desktopLyricFontFamily || 'Microsoft YaHei');
-    setValue('desktopLyricFontWeight', settings.desktopLyricFontWeight || '700');
-    setValue('desktopLyricTextColor', settings.desktopLyricTextColor || '#ffffff');
-    setValue('desktopLyricStrokeColor', settings.desktopLyricStrokeColor || '#000000');
-    setValue('desktopLyricFontSize', settings.desktopLyricFontSize || '36');
-    setValue('desktopLyricFontSizeNumber', settings.desktopLyricFontSize || '36');
-    setValue('desktopLyricStrokeWidth', settings.desktopLyricStrokeWidth || '2');
-    setValue('desktopLyricStrokeWidthNumber', settings.desktopLyricStrokeWidth || '2');
-    setValue('desktopLyricOpacity', settings.desktopLyricOpacity || '1');
-    setValue('desktopLyricOpacityNumber', settings.desktopLyricOpacity || '1');
-    setValue('desktopLyricBgOpacity', settings.desktopLyricBgOpacity || '0');
-    setValue('desktopLyricBgOpacityNumber', settings.desktopLyricBgOpacity || '0');
-    setValue('desktopLyricScale', settings.desktopLyricScale || '1');
-    setValue('desktopLyricScaleNumber', settings.desktopLyricScale || '1');
-    setValue('desktopLyricLineHeight', settings.desktopLyricLineHeight || '1.3');
-    setValue('desktopLyricLineHeightNumber', settings.desktopLyricLineHeight || '1.3');
-    setValue('desktopLyricShadowIntensity', settings.desktopLyricShadowIntensity || '0.5');
-    setValue('desktopLyricShadowIntensityNumber', settings.desktopLyricShadowIntensity || '0.5');
-    setValue('desktopLyricTranslationScale', settings.desktopLyricTranslationScale || '0.58');
-    setValue('desktopLyricTranslationScaleNumber', settings.desktopLyricTranslationScale || '0.58');
+    if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
+    Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
+      const nextValue = settings[key] ?? fallback;
+      const input = document.getElementById(key);
+      if (CHECKBOX_KEYS.has(key)) {
+        if (input) input.checked = nextValue !== 'false';
+        return;
+      }
+      setValue(key, nextValue);
+      if (RANGE_PAIRS.some(([rangeKey]) => rangeKey === key)) {
+        setValue(`${key}Number`, nextValue);
+      }
+    });
     window.AdminApp.forms?.refreshParameterRanges?.();
-    window.AdminApp.desktopLyricPreview?.applySettings(settings);
+    window.AdminApp.desktopLyricPreview?.applySettings({ ...DESKTOP_LYRIC_DEFAULTS, ...settings });
+  }
+
+  function loadWeSingLyricSettings(settings) {
+    if (!settings) return;
+
+    const selectedSource = settings.weSingLyricSource === 'qq' ? 'qq' : 'netease';
+    document.querySelectorAll('input[name="weSingLyricSource"]').forEach((input) => {
+      input.checked = input.value === selectedSource;
+    });
+    const smartLyricMatch = document.getElementById('weSingSmartLyricMatch');
+    if (smartLyricMatch) smartLyricMatch.checked = settings.weSingSmartLyricMatch !== 'false';
   }
 
   window.AdminApp = window.AdminApp || {};

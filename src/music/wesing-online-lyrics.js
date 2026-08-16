@@ -3,6 +3,8 @@
 const { scoreTrackMatch } = require('./song-matcher');
 
 const DEFAULT_PLATFORMS = ['qq', 'netease'];
+const DEFAULT_PREFERRED_PLATFORM = 'netease';
+const SUPPORTED_PLATFORMS = new Set(DEFAULT_PLATFORMS);
 const MIN_TITLE_MATCH_SCORE = 60;
 const CLOSE_MATCH_SCORE_GAP = 5;
 
@@ -16,11 +18,14 @@ function createWeSingOnlineLyricResolver(options = {}) {
   const getRegistry = typeof options.getRegistry === 'function'
     ? options.getRegistry
     : () => options.registry;
+  const getPreferences = typeof options.getPreferences === 'function'
+    ? options.getPreferences
+    : () => ({
+      preferredPlatform: options.preferredPlatform,
+      smartMatch: options.smartMatch
+    });
   const lyricsService = options.lyricsService;
   const platforms = normalizePlatforms(options.platforms);
-  const preferredPlatform = platforms.includes(options.preferredPlatform)
-    ? options.preferredPlatform
-    : platforms[0];
 
   if (!lyricsService
       || typeof lyricsService.searchMusicTracks !== 'function'
@@ -35,10 +40,13 @@ function createWeSingOnlineLyricResolver(options = {}) {
 
     const registry = getRegistry();
     if (!registry) throw new Error('音乐 Provider 尚未初始化。');
+    const preferences = normalizeLyricPreferences(getPreferences(), platforms);
+    const requestedPlatforms = preferences.smartMatch
+      ? platforms
+      : [preferences.preferredPlatform];
 
-    // Now Playing queries both providers and chooses the more complete lyric.
     // allSettled keeps one unavailable provider from suppressing the other.
-    const settled = await Promise.allSettled(platforms.map((platform) => (
+    const settled = await Promise.allSettled(requestedPlatforms.map((platform) => (
       resolveProviderLyrics({ registry, lyricsService, platform, title, durationMs })
     )));
     const candidates = settled
@@ -50,7 +58,7 @@ function createWeSingOnlineLyricResolver(options = {}) {
       return null;
     }
 
-    const selected = selectBestLyricCandidate(candidates, preferredPlatform);
+    const selected = selectBestLyricCandidate(candidates, preferences.preferredPlatform);
     return selected ? selected.result : null;
   };
 }
@@ -136,8 +144,22 @@ function scoreLyricQuality(lines) {
 }
 
 function normalizePlatforms(value) {
-  const platforms = Array.isArray(value) ? value.map(String).filter(Boolean) : DEFAULT_PLATFORMS;
+  const platforms = Array.isArray(value)
+    ? value.map((platform) => String(platform).trim().toLowerCase()).filter((platform) => SUPPORTED_PLATFORMS.has(platform))
+    : DEFAULT_PLATFORMS;
   return [...new Set(platforms.length > 0 ? platforms : DEFAULT_PLATFORMS)];
+}
+
+function normalizeLyricPreferences(value, platforms) {
+  const input = value && typeof value === 'object' ? value : {};
+  const requestedPlatform = String(input.preferredPlatform || '').trim().toLowerCase();
+  const preferredPlatform = platforms.includes(requestedPlatform)
+    ? requestedPlatform
+    : platforms.includes(DEFAULT_PREFERRED_PLATFORM) ? DEFAULT_PREFERRED_PLATFORM : platforms[0];
+  const smartMatch = input.smartMatch === undefined
+    ? true
+    : input.smartMatch === true || input.smartMatch === 'true';
+  return { preferredPlatform, smartMatch };
 }
 
 function getLastLineEnd(lines) {
