@@ -69,11 +69,11 @@
                     <fieldset class="xiaomi-ai-primary-config">
                       <legend>模型服务</legend>
                       <div class="xiaomi-ai-provider-note">
-                        <span>Responses API 兼容</span>
-                        <p>支持 DeepSeek、OpenAI 等官方服务，以及兼容 Responses API 的第三方服务。</p>
+                        <span>OpenAI 兼容 API</span>
+                        <p>支持 DeepSeek 官方服务、Responses API，以及第三方 OpenAI Chat Completions API。</p>
                       </div>
                       <div class="xiaomi-ai-field-grid">
-                        <label class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://api.openai.com/v1/responses"><small>填写完整的 Responses API 地址；DeepSeek 官方地址会自动适配。</small></label>
+                        <label class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"><small>可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。</small></label>
                         <label>API Key<input id="xiaomiAiDeepSeekKey" type="text" autocomplete="off" spellcheck="false" placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
                         <label>模型
                           <span class="xiaomi-ai-model-picker">

@@ -11,7 +11,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 事实 | 值 | 出处 |
 |---|---|---|
 | 角色人格 | `SYSTEM_PROMPT`:直播间橘猫"小米",含 `<identity>/<priority>/<tool_policy>/<safety>` 等段落 | [prompt.js:7-62](../../../src/ai/prompt.js#L7-L62) |
-| 模型后端 | DeepSeek;默认模型 `deepseek-v4-flash`(旧别名 `ds-v4-flash` 自动归一化) | [config.js:16](../../../src/ai/config.js#L16)、[config.js:79](../../../src/ai/config.js#L79) |
+| 模型后端 | DeepSeek 官方、Responses API 或 OpenAI 兼容 Chat Completions;默认模型 `deepseek-v4-flash`(旧别名 `ds-v4-flash` 自动归一化) | [config.js:16](../../../src/ai/config.js#L16)、[config.js:79](../../../src/ai/config.js#L79) |
 | 触发关键词 | 配置键 `trigger`,默认 `'小米'`,1–12 字符;消息中出现即触发 | [config.js:13](../../../src/ai/config.js#L13)、[ai-assistant-service.js:308-316](../../../src/ai/ai-assistant-service.js#L308-L316) |
 | 就绪条件 | `isAiReady`:enabled + deepseekResponsesUrl + deepseekApiKey + model 全部非空 | [config.js:106-113](../../../src/ai/config.js#L106-L113) |
 | 回复发送 | `sendReply` = `danmakuSender.send({…, waitForRateLimit: true})`,等待发送频率而非抛错 | [server.js:260](../../../src/server.js#L260) |
@@ -64,7 +64,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 停止 | `stop()` 清空 waiting/completed,已停止后 `enqueue` 返回 false，并返回等待 active generation/当前 delivery 结束的 drain Promise；active 结果不会重新进入 completed | [async-coordinator.js](../../../src/ai/async-coordinator.js) |
 | 状态 | `getStatus()`:`queued/waiting/generating/ready/delivering`,经 `GET /api/ai/status` 暴露 | [async-coordinator.js:66-74](../../../src/ai/async-coordinator.js#L66-L74) |
 
-## 4. DeepSeek 客户端(双协议路由)
+## 4. 模型客户端(双协议路由)
 
 [deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口,所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MB、错误码归一化)。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
 
@@ -72,8 +72,8 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 | 协议 | 条件 | 请求体要点 | 出处 |
 |---|---|---|---|
-| **Responses API**(默认) | 配置的 `deepseekResponsesUrl` 不是官方端点时原样使用 | `{model, instructions, input, tools, max_output_tokens(≥64), previous_response_id?}`;`reasoningEnabled` 为 false 时附 `reasoning: {effort: 'none'}` | [deepseek-client.js:13-40](../../../src/ai/deepseek-client.js#L13-L40) |
-| **Chat Completions**(自动适配) | URL 为 `api.deepseek.com` 且路径 ∈ `['', '/v1', '/chat/completions', '/v1/chat/completions']` 时(`resolveOfficialChatEndpoint`),自动改写为 `/chat/completions` 并切换协议 | `{model, messages, max_tokens, stream: false}`;`reasoningEnabled` 为 false 时附 `thinking: {type: 'disabled'}`;工具转 `tools`(function) | [deepseek-client.js:192-203](../../../src/ai/deepseek-client.js#L192-L203)、[42-72](../../../src/ai/deepseek-client.js#L42-L72)、[263-293](../../../src/ai/deepseek-client.js#L263-L293) |
+| **Responses API**(完整端点) | URL 路径以 `/responses` 结尾，或是无法安全判定为基础地址的完整自定义路径时原样使用 | `{model, instructions, input, tools, max_output_tokens(≥64), previous_response_id?}`;`reasoningEnabled` 为 false 时附 `reasoning: {effort: 'none'}` | [deepseek-client.js:13-40](../../../src/ai/deepseek-client.js#L13-L40) |
+| **Chat Completions**(自动适配) | 完整 `/chat/completions` 地址原样使用；任意 `/v1` 基础地址追加 `/chat/completions`；第三方服务根地址追加 `/v1/chat/completions`；DeepSeek 官方根地址保持追加 `/chat/completions` | `{model, messages, max_tokens, stream: false}`;仅 DeepSeek 官方在 `reasoningEnabled` 为 false 时附 `thinking: {type: 'disabled'}`;工具转 `tools`(function) | [deepseek-client.js:27-72](../../../src/ai/deepseek-client.js#L27-L72)、[206-235](../../../src/ai/deepseek-client.js#L206-L235) |
 
 双协议的**回退行为**:Chat Completions 路径用内存 `chatHistory` Map(上限 100 条)以 `previousResponseId` 为键保存历史,续问时拼接 `messages` 并删除旧键([deepseek-client.js:130-134](../../../src/ai/deepseek-client.js#L130-L134)、[249-261](../../../src/ai/deepseek-client.js#L249-L261));Responses 路径用官方 `previous_response_id`。
 
@@ -85,7 +85,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 - Chat Completions:`normalizeChatResponse` 取 `choices[0].message` 的 `tool_calls` 与 `content`([deepseek-client.js:205-232](../../../src/ai/deepseek-client.js#L205-L232))。
 - 空响应:finishReason 为 `length`/`max_output_tokens` → `DEEPSEEK_OUTPUT_TRUNCATED`,否则 `DEEPSEEK_INVALID_RESPONSE`;工具参数 JSON 解析失败同样按截断处理([deepseek-client.js:99-104](../../../src/ai/deepseek-client.js#L99-L104)、[347-355](../../../src/ai/deepseek-client.js#L347-L355))。
 
-辅助接口:`listModels`(GET `https://api.deepseek.com/models` + Bearer Key,去重排序,[136-150](../../../src/ai/deepseek-client.js#L136-L150));`testConnection`(发"你好"取 200 字回复,401/403/AUTH 类错误码 → `DEEPSEEK_AUTH_FAILED`,[152-187](../../../src/ai/deepseek-client.js#L152-L187))。
+辅助接口:`listModels` 根据配置地址推导同级 `/models`；第三方服务根地址默认使用 `/v1/models`，DeepSeek 官方根地址保持 `/models`，结果去重排序([146-163](../../../src/ai/deepseek-client.js#L146-L163));`testConnection`(发"你好"取 200 字回复,401/403/AUTH 类错误码 → `DEEPSEEK_AUTH_FAILED`,[165-203](../../../src/ai/deepseek-client.js#L165-L203))。
 
 ### 4.3 请求日志脱敏
 
@@ -123,7 +123,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 |---|---|---|---|
 | 总开关 | `enabled` | `false` | 布尔 |
 | 触发 | `trigger` | `'小米'` | 1–12 字符 |
-| DeepSeek | `deepseekResponsesUrl` / `deepseekApiKey` / `model` | 空 / 空 / `deepseek-v4-flash` | URL 须为无账号信息的 HTTP(S);model ≤ 80 字符 |
+| 模型服务 | `deepseekResponsesUrl` / `deepseekApiKey` / `model` | 空 / 空 / `deepseek-v4-flash` | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点;model ≤ 80 字符 |
 | 行为开关 | `webSearchEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | true / false / true / true / true | 布尔;`reasoningEnabled` 关闭时双方协议都禁推理 |
 | 第三方凭证 | `qweatherApiHost` / `qweatherApiKey` / `amapApiHost` / `amapApiKey` | 全空 | Host 缺协议自动补 `https://` |
 | 数值 | `replyMaxChars` | 50 | 偏好长度,10–50 |

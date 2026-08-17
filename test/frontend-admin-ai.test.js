@@ -176,8 +176,8 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
   assert.match(html, /id="xiaomiAiTitle">AI 互动助手</);
   assert.match(html, /按昵称响应直播间弹幕，并通过已配置的模型服务生成回复/);
-  assert.match(html, /Responses API 兼容/);
-  assert.match(html, /支持 DeepSeek、OpenAI 等官方服务/);
+  assert.match(html, /OpenAI 兼容 API/);
+  assert.match(html, /支持 DeepSeek 官方服务、Responses API/);
   assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
   assert.match(html, /id="xiaomiAiModelState">未配置</);
   assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*placeholder="填写模型 ID"/);
@@ -196,7 +196,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
   assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);
-  assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/api\.openai\.com\/v1\/responses"/);
+  assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/gcli\.ggchan\.dev\/ 或 https:\/\/api\.openai\.com\/v1"/);
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="text"/);
   assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="text"/);
   assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="text"/);

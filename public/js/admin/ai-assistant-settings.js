@@ -328,10 +328,10 @@ function providerLabel(provider) {
 
 function providerErrorMessage(provider, error) {
   const messages = {
-    DEEPSEEK_URL_MISSING: '请先填写完整的 Responses API 地址。',
+    DEEPSEEK_URL_MISSING: '请填写服务根地址、/v1 基础地址或完整 API 地址。',
     DEEPSEEK_KEY_MISSING: '请先填写当前模型服务的 API Key。',
     DEEPSEEK_AUTH_FAILED: '模型服务拒绝了该 Key，请检查 Key 是否有效及账户权限。',
-    DEEPSEEK_INVALID_RESPONSE: '模型服务已响应，但没有返回可识别的文本。',
+    DEEPSEEK_INVALID_RESPONSE: '模型服务已响应，但没有返回可识别的文本（可能是 API 格式不兼容）。',
     QWEATHER_HOST_MISSING: '请先填写和风天气专属 API Host。',
     QWEATHER_KEY_MISSING: '请先填写和风天气 API Key。',
     QWEATHER_AUTH_FAILED: '和风天气拒绝了该 Key，请检查 Key 与专属 Host 是否属于同一项目。',
@@ -349,7 +349,7 @@ function providerErrorMessage(provider, error) {
     FORM_INVALID: '请先修正表单中的网址或数值。'
   };
   if (['HTTP_404', 'HTTP_405'].includes(error?.code)) {
-    return `${providerLabel(provider)}接口地址不正确，请检查 Host 或完整接口路径。`;
+    return `${providerLabel(provider)}接口地址不正确，请检查服务根地址、/v1 或完整接口路径。`;
   }
   if (['HTTP_401', 'HTTP_403'].includes(error?.code)) {
     return `${providerLabel(provider)}拒绝了该密钥，请检查密钥类型与权限。`;

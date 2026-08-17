@@ -24,9 +24,9 @@ function createDeepSeekClient(options = {}) {
     if (request.previousResponseId) responsesBody.previous_response_id = request.previousResponseId;
     if (!config.reasoningEnabled) responsesBody.reasoning = { effort: 'none' };
 
-    const officialEndpoint = resolveOfficialChatEndpoint(config.deepseekResponsesUrl);
-    if (officialEndpoint.adapted) {
-      return createChatResponse(request, config, officialEndpoint.url);
+    const endpoint = resolveModelEndpoint(config.deepseekResponsesUrl);
+    if (endpoint.protocol === 'chat_completions') {
+      return createChatResponse(request, config, endpoint);
     }
     return sendModelRequest({
       url: config.deepseekResponsesUrl,
@@ -39,7 +39,7 @@ function createDeepSeekClient(options = {}) {
     });
   }
 
-  async function createChatResponse(request, config, url) {
+  async function createChatResponse(request, config, endpoint) {
     const previousId = String(request.previousResponseId || '');
     const previousMessages = previousId ? chatHistory.get(previousId) : null;
     const instructions = appendChatCapabilityNotice(request.instructions, request.tools);
@@ -52,12 +52,14 @@ function createDeepSeekClient(options = {}) {
       max_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
       stream: false
     };
-    if (!config.reasoningEnabled) body.thinking = { type: 'disabled' };
+    if (!config.reasoningEnabled && endpoint.officialDeepSeek) {
+      body.thinking = { type: 'disabled' };
+    }
     const tools = toChatTools(request.tools);
     if (tools.length) body.tools = tools;
 
     const result = await sendModelRequest({
-      url,
+      url: endpoint.url,
       config,
       purpose: request.purpose,
       protocol: 'chat_completions',
@@ -164,17 +166,17 @@ function createDeepSeekClient(options = {}) {
 
   async function testConnection(config = {}, options = {}) {
     if (!config.deepseekResponsesUrl) {
-      throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 Responses API 地址。');
+      throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写模型服务 API 地址。');
     }
     if (!config.deepseekApiKey) {
       throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写当前模型服务的 API Key。');
     }
     let responseText;
-    const testEndpoint = resolveOfficialChatEndpoint(config.deepseekResponsesUrl);
+    const testEndpoint = resolveModelEndpoint(config.deepseekResponsesUrl);
     try {
       const response = await createResponse({
         config,
-        instructions: testEndpoint.adapted ? '' : '请简短回复用户。',
+        instructions: testEndpoint.protocol === 'chat_completions' ? '' : '请简短回复用户。',
         input: '你好',
         tools: [],
         maxOutputTokens: 128,
@@ -203,17 +205,33 @@ function createDeepSeekClient(options = {}) {
   return { createResponse, listModels, testConnection };
 }
 
-function resolveOfficialChatEndpoint(value) {
+function resolveModelEndpoint(value) {
   const url = new URL(value);
-  const officialHost = url.protocol === 'https:' && url.hostname === 'api.deepseek.com' && !url.port;
   const path = url.pathname.replace(/\/+$/, '');
-  const chatPaths = ['/chat/completions', '/v1/chat/completions'];
-  if (!officialHost || !['', '/v1', ...chatPaths].includes(path) || url.search || url.hash) {
-    return { url: value, adapted: false };
+  const officialDeepSeek = isOfficialDeepSeekUrl(url);
+  if (path.endsWith('/chat/completions')) {
+    return { url: value, protocol: 'chat_completions', adapted: true, officialDeepSeek };
   }
-  if (chatPaths.includes(path)) return { url: value, adapted: true };
-  const prefix = path === '/v1' ? '/v1' : '';
-  return { url: `${url.origin}${prefix}/chat/completions`, adapted: true };
+  if (path.endsWith('/responses') || url.search || url.hash) {
+    return { url: value, protocol: 'responses', adapted: false, officialDeepSeek };
+  }
+  if (path === '' || path.endsWith('/v1')) {
+    url.pathname = path
+      ? `${path}/chat/completions`
+      : (officialDeepSeek ? '/chat/completions' : '/v1/chat/completions');
+    return {
+      url: url.toString(),
+      protocol: 'chat_completions',
+      adapted: true,
+      officialDeepSeek
+    };
+  }
+  return { url: value, protocol: 'responses', adapted: false, officialDeepSeek };
+}
+
+function isOfficialDeepSeekUrl(value) {
+  const url = value instanceof URL ? value : new URL(value);
+  return url.protocol === 'https:' && url.hostname === 'api.deepseek.com' && !url.port;
 }
 
 function resolveModelsEndpoint(value) {
@@ -225,6 +243,8 @@ function resolveModelsEndpoint(value) {
     url.pathname = `${path.slice(0, -'/responses'.length)}/models`;
   } else if (path.endsWith('/models')) {
     url.pathname = path;
+  } else if (path === '' && !isOfficialDeepSeekUrl(url)) {
+    url.pathname = '/v1/models';
   } else {
     url.pathname = `${path}/models`;
   }
