@@ -180,12 +180,13 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /可选择官方供应商预设/);
   assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
   assert.match(html, /id="xiaomiAiModelState">未配置</);
-  assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*placeholder="填写模型 ID"/);
+  assert.match(html, /id="xiaomiAiModel"[^>]*placeholder="填写模型 ID"[^>]*aria-controls="xiaomiAiModelMenu"/);
+  assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*\blist=/);
   assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*value=/);
   assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
   assert.match(html, /id="xiaomiAiQWeatherTestBtn"[^>]*type="button"/);
   assert.match(html, /id="xiaomiAiAmapTestBtn"[^>]*type="button"/);
-  assert.match(html, /id="xiaomiAiModelOptions"/);
+  assert.doesNotMatch(html, /<datalist\b/);
   assert.match(html, /id="xiaomiAiWebSearch"[^>]*checked/);
   assert.match(html, /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
@@ -236,10 +237,12 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(source, /value !== '\*\*\*\*\*\*\*\*' && \(value \|\| !SECRET_CONFIG_KEYS\.has\(key\)\)/);
   assert.match(source, /element\.type = 'password'/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
+  assert.doesNotMatch(source, /modelOptions/);
   assert.match(styles, /\.xiaomi-ai-section\s*\{/);
   assert.match(styles, /\.xiaomi-ai-integration-grid\s*\{/);
   assert.match(styles, /\.xiaomi-ai-test-actions\s*\{/);
   assert.match(styles, /\.xiaomi-ai-capability-rail\s*\{/);
+  assert.match(styles, /overscroll-behavior:\s*contain/);
   assert.match(styles, /@media \(max-width: 520px\)/);
 });
 
@@ -296,10 +299,6 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
       addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
     });
   }
-  elements.set('xiaomiAiModelOptions', {
-    children: [],
-    replaceChildren(...children) { this.children = children; }
-  });
   elements.set('xiaomiAiModelMenu', {
     hidden: true,
     children: [],
@@ -500,10 +499,6 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   assert.equal(JSON.parse(modelRequest.options.body).apiUrl, 'https://api.deepseek.com/responses');
   assert.equal(JSON.parse(modelRequest.options.body).modelProvider, 'custom');
   assert.equal(JSON.parse(modelRequest.options.body).modelApiProtocol, 'responses');
-  assert.deepEqual(
-    elements.get('xiaomiAiModelOptions').children.map(option => option.value),
-    ['deepseek-v4-flash', 'deepseek-v4-pro']
-  );
   assert.equal(elements.get('xiaomiAiModelMenu').hidden, false);
   assert.deepEqual(
     elements.get('xiaomiAiModelMenu').children.map(option => option.textContent),
@@ -514,6 +509,14 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   elements.get('xiaomiAiModelMenu').children[1].listeners.click();
   assert.equal(elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');
   assert.equal(elements.get('xiaomiAiModelMenu').hidden, true);
+  listeners.get('xiaomiAiFetchModelsBtn:click')();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(elements.get('xiaomiAiModelMenu').hidden, false);
+  assert.deepEqual(
+    elements.get('xiaomiAiModelMenu').children.map(option => option.textContent),
+    ['deepseek-v4-flash', 'deepseek-v4-pro']
+  );
+  elements.get('xiaomiAiModelMenu').children[1].listeners.click();
   timers.at(-1)();
   await new Promise(resolve => setImmediate(resolve));
   saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
@@ -647,7 +650,6 @@ test('AI assistant masks saved secrets and omits mask placeholders from submissi
       addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
     });
   }
-  elements.set('xiaomiAiModelOptions', { children: [], replaceChildren(...children) { this.children = children; } });
   elements.set('xiaomiAiModelMenu', { hidden: true, children: [], replaceChildren(...children) { this.children = children; } });
   const form = {
     checkValidity: () => true,

@@ -128,8 +128,10 @@
   right: 0;
   left: 0;
   display: grid;
-  max-height: 220px;
+  max-height: min(220px, 50vh);
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 5px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -147,6 +149,10 @@
 }
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:hover,
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:focus-visible { background: var(--surface-2); }
+.xiaomi-ai-model-menu .xiaomi-ai-model-option[aria-selected="true"] {
+  background: var(--color-primary-light);
+  color: var(--primary);
+}
 .xiaomi-ai-field-grid small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
 .xiaomi-ai-capability-rail {
   display: grid;

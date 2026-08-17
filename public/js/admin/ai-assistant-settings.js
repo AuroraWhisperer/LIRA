@@ -41,7 +41,6 @@ function init() {
   ];
   const fetchModelsButton = document.getElementById('xiaomiAiFetchModelsBtn');
   const modelInput = document.getElementById('xiaomiAiModel');
-  const modelOptions = document.getElementById('xiaomiAiModelOptions');
   const modelMenu = document.getElementById('xiaomiAiModelMenu');
   const modelFetchState = document.getElementById('xiaomiAiModelFetchState');
   const providerInput = document.getElementById('xiaomiAiModelProvider');
@@ -231,16 +230,12 @@ function init() {
         body: JSON.stringify({ apiKey, apiUrl, modelProvider, modelApiProtocol })
       });
       const models = Array.isArray(result.models) ? result.models : [];
-      const options = models.map((model) => {
-        const option = document.createElement('option');
-        option.value = model;
-        return option;
-      });
       const menuItems = models.map((model) => {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = 'xiaomi-ai-model-option';
         item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(model === modelInput.value));
         item.textContent = model;
         item.addEventListener('click', () => {
           modelInput.value = model;
@@ -250,9 +245,8 @@ function init() {
         });
         return item;
       });
-      modelOptions.replaceChildren(...options);
       modelMenu.replaceChildren(...menuItems);
-      setState(modelFetchState, `已获取 ${options.length} 个可用模型；可选择或直接输入。`, options.length ? 'good' : 'warn');
+      setState(modelFetchState, `已获取 ${menuItems.length} 个可用模型；可选择或直接输入。`, menuItems.length ? 'good' : 'warn');
       modelMenu.hidden = menuItems.length === 0;
       modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
       fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
