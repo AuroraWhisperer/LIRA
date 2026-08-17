@@ -5,15 +5,17 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 async function fetchJson(url, options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 12000;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const signal = createRequestSignal(options.signal, timeoutMs);
   let response;
   try {
     response = await fetchImpl(url, {
       method: options.method || 'GET',
       headers: options.headers,
       body: options.body,
-      signal: AbortSignal.timeout(timeoutMs)
+      signal
     });
   } catch (error) {
+    if (options.signal?.aborted) throwAbortReason(options.signal);
     if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
       throw createPublicError('UPSTREAM_TIMEOUT', '查询超时了，请稍后再试。');
     }
@@ -45,6 +47,21 @@ async function fetchJson(url, options = {}) {
   return payload;
 }
 
+function createRequestSignal(signal, timeoutMs) {
+  const timeoutSignal = AbortSignal.timeout(Number(timeoutMs) || 12000);
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throwAbortReason(signal);
+}
+
+function throwAbortReason(signal) {
+  if (signal?.reason instanceof Error) throw signal.reason;
+  throw createPublicError('AI_SHUTDOWN', 'AI service is shutting down.');
+}
+
 async function notifyResponse(options, response, text, payload) {
   if (typeof options.onResponse !== 'function') return;
   try {
@@ -68,4 +85,10 @@ function joinApiUrl(host, pathName) {
   return new URL(`${base}/${String(pathName || '').replace(/^\/+/, '')}`);
 }
 
-module.exports = { fetchJson, createPublicError, joinApiUrl };
+module.exports = {
+  fetchJson,
+  createPublicError,
+  createRequestSignal,
+  throwIfAborted,
+  joinApiUrl
+};

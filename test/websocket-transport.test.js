@@ -176,3 +176,73 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
   firstSocket.emit('close');
   secondSocket.emit('close');
 });
+
+test('WebSocket upgrade rejects requests with wrong Origin', () => {
+  const socket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    allowedOrigins: ['http://127.0.0.1:3000'],
+    getState: () => ({ ok: true })
+  };
+
+  handleWebSocketUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      origin: 'http://evil.com'
+    }
+  }, socket);
+
+  assert.equal(socket.destroyed, true);
+  const responseText = socket.writes.join('');
+  assert.match(responseText, /403 Forbidden/);
+});
+
+test('WebSocket upgrade accepts requests with correct Origin', () => {
+  const socket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    allowedOrigins: ['http://127.0.0.1:3000'],
+    state: { sockets: new Set() },
+    getState: () => ({ ok: true })
+  };
+
+  handleWebSocketUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      origin: 'http://127.0.0.1:3000'
+    }
+  }, socket);
+
+  assert.equal(socket.destroyed, false);
+  const responseText = socket.writes.join('');
+  assert.match(responseText, /101 Switching Protocols/);
+  socket.emit('close');
+});
+
+test('WebSocket upgrade accepts requests without Origin header (non-browser)', () => {
+  const socket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    allowedOrigins: ['http://127.0.0.1:3000'],
+    state: { sockets: new Set() },
+    getState: () => ({ ok: true })
+  };
+
+  handleWebSocketUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+      // No origin header
+    }
+  }, socket);
+
+  assert.equal(socket.destroyed, false);
+  const responseText = socket.writes.join('');
+  assert.match(responseText, /101 Switching Protocols/);
+  socket.emit('close');
+});

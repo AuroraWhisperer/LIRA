@@ -1,10 +1,14 @@
 # Admin 应用与公共框架
 
-> 涉及文件:[pages/admin.html](../../../public/pages/admin.html)、[js/admin/index.js](../../../public/js/admin/index.js)、[js/admin/app.js](../../../public/js/admin/app.js)、[js/admin/legacy-admin-bridge.js](../../../public/js/admin/legacy-admin-bridge.js)、[js/admin/state.js](../../../public/js/admin/state.js)、[js/admin/forms.js](../../../public/js/admin/forms.js)、[js/shared/](../../../public/js/shared/)、[js/desktop.js](../../../public/js/desktop.js)、[js/admin/gifts/](../../../public/js/admin/gifts/)、[pages/gift-audit.html](../../../public/pages/gift-audit.html)、[pages/debug-gifts.html](../../../public/pages/debug-gifts.html)
+> 涉及文件:[pages/admin/](../../../public/pages/admin/)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin-page-composition.test.js)、[js/admin/index.js](../../../public/js/admin/index.js)、[js/admin/app.js](../../../public/js/admin/app.js)、[js/admin/legacy-admin-bridge.js](../../../public/js/admin/legacy-admin-bridge.js)、[js/admin/state.js](../../../public/js/admin/state.js)、[js/admin/forms.js](../../../public/js/admin/forms.js)、[js/shared/](../../../public/js/shared/)、[js/desktop.js](../../../public/js/desktop.js)、[js/admin/gifts/](../../../public/js/admin/gifts/)、[pages/gift-audit.html](../../../public/pages/gift-audit.html)、[pages/debug-gifts.html](../../../public/pages/debug-gifts.html)
 
 本文档描述管理后台(`/admin`)的页面结构、公共框架与各业务模块。通信行为见 [comms.md](comms.md),端点定义见 [api.md](../backend/api.md),快照与消息类型见 [ws.md](../backend/ws.md),IPC 通道见 [desktop/preload.md](../desktop/preload.md)。
 
-## 1. 页面结构([admin.html](../../../public/pages/admin.html))
+## 1. 页面结构
+
+管理页 HTML 分片位于 [pages/admin/](../../../public/pages/admin/)，由
+[server/admin-page.js](../../../src/server/admin-page.js) 按固定顺序组合；完整性、顺序和唯一 ID 由
+[admin-page-composition.test.js](../../../test/admin-page-composition.test.js) 保护。
 
 ```
 topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
@@ -23,7 +27,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 └── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/主播计划/性能检测/使用文档/桌面更新)
 ```
 
-六个内部 Tab 的内容([admin.html:150-156](../../../public/pages/admin.html#L150-L156)):
+六个内部 Tab 的内容由 [pages/admin/song/](../../../public/pages/admin/song/) 下的分片组成:
 
 | Tab | 主要内容 |
 |---|---|
@@ -37,7 +41,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 主页面切换由 [app.js](../../../public/js/admin/app.js) 的 `setMainPage` 负责:维护 `VALID_MAIN_PAGES`/`MAIN_PAGE_HASH_MAP`/`MAIN_PAGE_BODY_MAP` 三张表,切换 `body.dataset.mainPage` 并同步 `location.hash`(`#playback`/`#gifts`/`#other` 直达,[app.js:120-167](../../../public/js/admin/app.js#L120-L167))。
 
-**桌面形态**:`/admin?desktop=1` 时在 CSS 加载前给 `html` 加 `desktop-shell` 类([admin.html:11](../../../public/pages/admin.html#L11)),加载 `css/overlays/desktop.css` 的暖金主题,顶栏变为 `-webkit-app-region: drag` 拖拽区,`#windowControls` 与 `.desktop-only` 元素显示([desktop.js:14-17](../../../public/js/desktop.js#L14-L17))。
+**桌面形态**:`/admin?desktop=1` 时由 [shell-start.html](../../../public/pages/admin/shell-start.html) 在 CSS 加载前给 `html` 加 `desktop-shell` 类,加载 `css/overlays/desktop.css` 的暖金主题,顶栏变为 `-webkit-app-region: drag` 拖拽区,`#windowControls` 与 `.desktop-only` 元素显示([desktop.js:14-17](../../../public/js/desktop.js#L14-L17))。
 
 ## 2. 公共框架(shared/)
 
@@ -70,7 +74,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 3.1 模块加载([index.js](../../../public/js/admin/index.js))
 
-`admin.html` 按序加载共享层与全部 admin 模块(顺序即依赖顺序):`shared/utils` → `shared/theme` → `desktop.js` → `import` → `queue` → `songs` → `theme` → `display` → `settings` → `gifts/*`(notification/detection/sprint/recent/blindbox/blindbox-analysis/history/index)→ `metrics` → `danmaku-tool` → `xiaomi-ai-settings` → `todo` → `other` → `overtime` → `desktop-lyric-preview` → `desktop-lyric` → `app.js`。另有 `<script type="module" src="/js/playback.js">` 异步加载播放助手。
+[document-end.html](../../../public/pages/admin/document-end.html) 加载 [index.js](../../../public/js/admin/index.js)，入口按序导入共享层与全部 Admin 模块(顺序即依赖顺序):`shared/utils` → `shared/theme` → `desktop.js` → `import` → `queue` → `songs` → `theme` → `display` → `settings` → `gifts/*`(notification/detection/sprint/recent/blindbox/blindbox-analysis/history/index)→ `metrics` → `danmaku-tool` → `xiaomi-ai-settings` → `todo` → `other` → `overtime` → `gift-effects` → `desktop-lyric-preview` → `desktop-lyric` → `app.js`。同一分片另加载 `<script type="module" src="/js/playback.js">` 播放助手入口。
 
 ### 3.2 初始化([app.js:18-99](../../../public/js/admin/app.js#L18-L99))
 
@@ -144,8 +148,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 |---|---|---|
 | 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 发送弹幕(`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数)、连接/账号/房间状态(`/api/bilibili/danmaku/state`,断开时可一键重连并回读新状态)、四个机器人开关(`enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`,无发送权限时禁用) |
 | 弹幕库编辑器 | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js) | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键) |
-| 小爱 AI | [xiaomi-ai-settings.js](../../../public/js/admin/xiaomi-ai-settings.js) | DeepSeek 配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`(deepseek/qweather/amap 三路连通性测试)、`/api/ai/models`(按 apiKey 拉模型列表,支持下拉选择);700ms 自动保存 + 保存失败重试队列 |
-| 加班机 | [overtime.js](../../../public/js/admin/overtime.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,权重 1-10000、最多 10 结果、最多 8 条启用规则,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`) |
+| 小爱 AI | [xiaomi-ai-settings.js](../../../public/js/admin/xiaomi-ai-settings.js) | DeepSeek 配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`(deepseek/qweather/amap 三路连通性测试)、`/api/ai/models`(按 apiKey 拉模型列表,支持下拉选择);密钥字段渲染为 `type="password"`,已保存密钥显示 `'********'` 遮罩,提交时过滤遮罩值(保留现有密钥);700ms 自动保存 + 保存失败重试队列 |
+| 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 主播计划 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 规划器**(`admin.streamerPlanner.v1`):今天/本周/本月三栏,学歌/开播准备/内容发布/直播复盘四类,进度 0-100% 五档(学歌类用"还没听熟/能跟伴奏唱/可以上播"文案),首次启动播种 6 条示例任务;模板按钮一键填充表单;不经过后端 |
 | 性能检测 | metrics.js(见 §4.6) | |
 | 使用文档 / 桌面更新 | — / [desktop.js](../../../public/js/desktop.js) | 文档链接;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |

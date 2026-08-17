@@ -53,9 +53,12 @@ function createAuth(overrides = {}) {
     BILIBILI_LOGIN_CONFIG: {
       name: 'Bilibili',
       partition: 'persist:bilibili',
-      loginUrl: 'https://passport.bilibili.com/login'
+      loginUrl: 'https://passport.bilibili.com/login',
+      allowedHosts: [
+        'bilibili.com', 'www.bilibili.com', 'live.bilibili.com',
+        'passport.bilibili.com', 'api.bilibili.com', 'api.live.bilibili.com'
+      ]
     },
-    isAllowedBilibiliLoginUrl: () => true,
     persistBilibiliCookieSnapshot: async () => ({ saved: true }),
     getBilibiliAuthState: async () => ({ loggedIn: false }),
     ...overrides
@@ -123,4 +126,51 @@ test('login completion is logged and closed once when several cookie changes arr
     scope: 'bilibili-login-auto-close',
     message: 'Bilibili 登录成功，自动关闭登录窗口'
   }]);
+});
+
+test('login window cleans up listeners on did-fail-load', async () => {
+  const logs = [];
+  const resultPromise = open(createAuth(), (scope, data) => logs.push({ scope, data }));
+
+  await new Promise((resolve) => setImmediate(resolve));
+  const win = FakeBrowserWindow.latest;
+
+  // Simulate navigation failure
+  win.webContents.emit('did-fail-load', null, -3, 'ERR_ABORTED');
+
+  // Window should be destroyed and listeners cleaned up
+  assert.equal(win.isDestroyed(), true);
+  assert.equal(win.webContents.session.cookies.listenerCount('changed'), 0);
+
+  const failureLog = logs.find((log) => log.scope === 'bilibili-login-load-failure');
+  assert.ok(failureLog);
+  assert.equal(failureLog.data.errorCode, -3);
+  assert.equal(failureLog.data.errorDescription, 'ERR_ABORTED');
+});
+
+test('URL policy: allows navigation to allowedHosts domains', async () => {
+  const { isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
+  const config = createAuth().BILIBILI_LOGIN_CONFIG;
+
+  assert.equal(isAllowedLoginNavigation('https://bilibili.com', config.allowedHosts), true);
+  assert.equal(isAllowedLoginNavigation('https://passport.bilibili.com', config.allowedHosts), true);
+  assert.equal(isAllowedLoginNavigation('https://api.live.bilibili.com', config.allowedHosts), true);
+});
+
+test('URL policy: rejects navigation to disallowed domains', async () => {
+  const { isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
+  const config = createAuth().BILIBILI_LOGIN_CONFIG;
+
+  assert.equal(isAllowedLoginNavigation('https://evil.com', config.allowedHosts), false);
+  assert.equal(isAllowedLoginNavigation('http://bilibili.com', config.allowedHosts), false);
+  assert.equal(isAllowedLoginNavigation('file:///etc/passwd', config.allowedHosts), false);
+});
+
+test('URL policy: external URLs require https protocol', async () => {
+  const { isAllowedExternal } = require('../src/electron/external-url-policy');
+
+  assert.equal(isAllowedExternal('https://github.com'), true);
+  assert.equal(isAllowedExternal('http://github.com'), false);
+  assert.equal(isAllowedExternal('javascript:alert(1)'), false);
+  assert.equal(isAllowedExternal('file:///C:/Windows/calc.exe'), false);
 });

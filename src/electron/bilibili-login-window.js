@@ -1,5 +1,7 @@
 'use strict';
 
+const { isAllowedLoginNavigation, isAllowedExternal } = require('./external-url-policy');
+
 async function openBilibiliLoginWindow(options = {}) {
   const {
     BrowserWindow,
@@ -34,11 +36,13 @@ async function openBilibiliLoginWindow(options = {}) {
   loginSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
   const openExternal = (url, scope) => {
-    Promise.resolve(shell.openExternal(url)).catch((error) => writeLog(scope, error));
+    if (isAllowedExternal(url)) {
+      Promise.resolve(shell.openExternal(url)).catch((error) => writeLog(scope, error));
+    }
   };
 
   loginWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (auth.isAllowedBilibiliLoginUrl(url)) {
+    if (isAllowedLoginNavigation(url, config.allowedHosts)) {
       loginWindow.loadURL(url).catch((error) => writeLog('bilibili-login-navigation', error));
     } else {
       openExternal(url, 'bilibili-login-external');
@@ -47,7 +51,7 @@ async function openBilibiliLoginWindow(options = {}) {
   });
 
   loginWindow.webContents.on('will-navigate', (event, url) => {
-    if (auth.isAllowedBilibiliLoginUrl(url)) return;
+    if (isAllowedLoginNavigation(url, config.allowedHosts)) return;
     event.preventDefault();
     openExternal(url, 'bilibili-login-external');
   });
@@ -93,6 +97,14 @@ async function openBilibiliLoginWindow(options = {}) {
     clearInterval(loginCheckTimer);
     loginSession.cookies.removeListener('changed', onCookieChanged);
   };
+
+  loginWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    writeLog('bilibili-login-load-failure', { errorCode, errorDescription });
+    cleanup();
+    if (!loginWindow.isDestroyed()) {
+      loginWindow.destroy();
+    }
+  });
 
   const completion = new Promise((resolve) => {
     loginWindow.once('closed', async () => {

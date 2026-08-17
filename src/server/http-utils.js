@@ -142,6 +142,12 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
         body = Buffer.concat([body.subarray(0, headEnd), tokenScript, body.subarray(headEnd)]);
       }
     }
+
+    // Add frame protection headers for HTML pages before writeHead
+    if (resolvedPath.endsWith('.html')) {
+      addFrameProtectionHeaders(res, requestUrl.pathname);
+    }
+
     res.writeHead(200, {
       'Content-Type': contentType(resolvedPath),
       'Cache-Control': 'no-store'
@@ -183,4 +189,71 @@ function contentType(filePath) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-module.exports = { readJsonBody, sendJson, sendCsv, sendBuffer, servePageOrAsset, contentType, verifyToken };
+function validateRequestHost(req, runtimeBaseUrl) {
+  const requestHost = req.headers.host;
+  if (!requestHost) return false;
+
+  const trustedUrl = new URL(runtimeBaseUrl);
+  const trustedHostPort = trustedUrl.host; // includes port
+
+  return requestHost === trustedHostPort;
+}
+
+function validateOrigin(req, allowedOrigins) {
+  const origin = req.headers.origin;
+
+  // No Origin header means non-browser request (e.g., curl, health check)
+  if (!origin) return true;
+
+  // Check against allowed origins
+  return allowedOrigins.some(allowed => origin === allowed);
+}
+
+function addFrameProtectionHeaders(res, pathname) {
+  // Exclude overlay pages - they need to be frameable for OBS
+  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics'];
+  const isOverlay = overlayPaths.includes(pathname);
+
+  if (!isOverlay) {
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+    res.setHeader('X-Frame-Options', 'DENY');
+  }
+}
+
+/**
+ * Sends a stable error response that maps internal errors to fixed client-facing messages.
+ * Prevents internal details (stack traces, file paths) from leaking.
+ * @param {http.ServerResponse} res - Response object
+ * @param {Error} error - Error to map
+ */
+function sendStableError(res, error) {
+  const message = error?.message || '';
+
+  // Map known error patterns to stable 4xx responses
+  if (message === 'Invalid JSON body.' || message.includes('JSON')) {
+    sendJson(res, 400, { ok: false, error: 'Request body must be valid JSON.' });
+    return;
+  }
+
+  if (message === 'Request body is too large.' || message.includes('too large')) {
+    sendJson(res, 413, { ok: false, error: 'Request body exceeds size limit.' });
+    return;
+  }
+
+  // Default: stable 500 without internal details
+  sendJson(res, 500, { ok: false, error: 'Internal server error.' });
+}
+
+module.exports = {
+  readJsonBody,
+  sendJson,
+  sendCsv,
+  sendBuffer,
+  servePageOrAsset,
+  contentType,
+  verifyToken,
+  validateRequestHost,
+  validateOrigin,
+  addFrameProtectionHeaders,
+  sendStableError
+};

@@ -25,7 +25,47 @@ const routes = {
   'POST /api/database/clear-superchats': clearRoute((context) => context.data.clearSuperChats(), 'database:clear-superchats'),
   'POST /api/database/clear-playback': clearRoute((context) => context.data.clearPlayback(), 'database:clear-playback'),
   'POST /api/database/clear-gifts': clearRoute((context) => context.data.clearGifts(), 'database:clear-gifts'),
-  'POST /api/database/clear-all': clearRoute((context) => context.data.clearAll(), 'database:clear-all'),
+
+  // 清空全部：需要静默异步写入器并处理部分失败
+  async 'POST /api/database/clear-all'(context, request, res) {
+    const body = await request.body();
+    if (body.confirm !== true) {
+      sendJson(res, 400, { ok: false, error: '缺少清空确认。' });
+      return;
+    }
+
+    // 静默异步写入器，避免清空过程中的并发写入
+    if (context.gifts && typeof context.gifts.pauseDetection === 'function') {
+      context.gifts.pauseDetection();
+    }
+    if (context.overtime && typeof context.overtime.pauseRecovery === 'function') {
+      context.overtime.pauseRecovery();
+    }
+
+    const result = context.data.clearAll();
+
+    // 处理部分失败：某些数据库提交成功，某些失败
+    if (result.partial === true) {
+      sendJson(res, 500, {
+        ok: false,
+        partial: true,
+        error: result.error,
+        data: result
+      });
+      return;
+    }
+
+    // 成功后重置内存状态
+    if (result.cleared && context.gifts && typeof context.gifts.resumeDetection === 'function') {
+      context.gifts.resumeDetection();
+    }
+    if (result.cleared && context.overtime && typeof context.overtime.resumeRecovery === 'function') {
+      context.overtime.resumeRecovery();
+    }
+
+    context.broadcastSnapshot('database:clear-all');
+    sendJson(res, 200, { ok: true, data: result });
+  },
 
   // 存储占用与各库 schema 版本，供管理页展示
   'GET /api/database/stats'(context, request, res) {

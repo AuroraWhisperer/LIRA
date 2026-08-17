@@ -9,8 +9,10 @@ function createDanmakuDeliveryVerifier(options = {}) {
   const now = options.now || Date.now;
   const events = [];
   const pending = new Set();
+  let disposed = false;
 
   function observe(danmaku = {}) {
+    if (disposed) return;
     const uid = cleanText(danmaku.uid);
     const message = cleanText(danmaku.message);
     if (!uid || !message) return;
@@ -20,6 +22,7 @@ function createDanmakuDeliveryVerifier(options = {}) {
   }
 
   function waitForDelivery(delivery = {}) {
+    if (disposed) return Promise.resolve(false);
     const waiter = {
       accountUid: cleanText(delivery.accountUid),
       mentionName: cleanText(delivery.mentionName),
@@ -27,13 +30,20 @@ function createDanmakuDeliveryVerifier(options = {}) {
       sentAfter: Number(delivery.sentAfter) || now(),
       matched: new Set(),
       resolve: null,
-      timer: null
+      timer: null,
+      signal: delivery.signal,
+      onAbort: null
     };
     if (!waiter.accountUid || !waiter.messages.length) return Promise.resolve(false);
 
     return new Promise((resolve) => {
       waiter.resolve = resolve;
       pending.add(waiter);
+      if (waiter.signal) {
+        waiter.onAbort = () => finish(waiter, false);
+        waiter.signal.addEventListener('abort', waiter.onAbort, { once: true });
+        if (waiter.signal.aborted) waiter.onAbort();
+      }
       checkWaiter(waiter);
       if (!pending.has(waiter)) return;
       const timeoutMs = Math.max(1, Number(delivery.timeoutMs) || DEFAULT_TIMEOUT_MS);
@@ -69,7 +79,17 @@ function createDanmakuDeliveryVerifier(options = {}) {
   function finish(waiter, delivered) {
     if (!pending.delete(waiter)) return;
     if (waiter.timer) clearTimeout(waiter.timer);
+    if (waiter.signal && waiter.onAbort) {
+      waiter.signal.removeEventListener('abort', waiter.onAbort);
+    }
     waiter.resolve(delivered);
+  }
+
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    events.length = 0;
+    for (const waiter of Array.from(pending)) finish(waiter, false);
   }
 
   function pruneEvents() {
@@ -77,7 +97,7 @@ function createDanmakuDeliveryVerifier(options = {}) {
     while (events.length && events[0].observedAt < cutoff) events.shift();
   }
 
-  return { observe, waitForDelivery };
+  return { observe, waitForDelivery, dispose };
 }
 
 module.exports = {

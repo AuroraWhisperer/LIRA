@@ -81,16 +81,26 @@
 
 **URL 格式**:`local-media://media/<base64url 编码的绝对路径>`(URL 由 `music:resolve-local-media-urls` 生成,见 [preload.md](preload.md) §2.1)。
 
-**handler 流程**([main.js:244-315](../../../src/electron/main.js#L244-L315)):
+**handler 流程**([local-media-protocol.js](../../../src/electron/local-media-protocol.js)):
 
 1. 解析 URL pathname,base64url 解码出文件路径;非法 → 400
-2. `fs.existsSync` 失败 → 404
-3. `localMediaAccess.isAllowed(filePath)` 校验失败 → 403
-4. 按扩展名给 MIME:`.mp3 → audio/mpeg`、`.flac → audio/flac`、`.wav → audio/wav`、`.aac → audio/aac`、`.ogg → audio/ogg`、`.m4a → audio/mp4`、`.wma → audio/x-ms-wma`,未知 → `application/octet-stream`
-5. 请求带 `Range` 头时回 206(`Content-Range`/`Content-Length`,起始 ≥ 文件大小回 416);否则回 200 全量
-6. 两类响应均带 `Accept-Ranges: bytes` 与 **`Cache-Control: no-store`**(本地文件无需缓存)
+2. `fs.realpathSync` 规范化路径,防止符号链接逃逸;失败 → 404
+3. `localMediaAccess.isAllowed(canonicalPath)` 校验失败 → 403
+4. **音频扩展名白名单**校验(`.mp3`/`.flac`/`.wav`/`.aac`/`.ogg`/`.m4a`/`.wma`);非白名单扩展名 → 403
+5. 按扩展名给 MIME:`.mp3 → audio/mpeg`、`.flac → audio/flac`、`.wav → audio/wav`、`.aac → audio/aac`、`.ogg → audio/ogg`、`.m4a → audio/mp4`、`.wma → audio/x-ms-wma`
+6. 请求带 `Range` 头时回 206(`Content-Range`/`Content-Length`,起始 ≥ 文件大小回 416);否则回 200 全量
+7. 两类响应均带 `Accept-Ranges: bytes` 与 **`Cache-Control: no-store`**(本地文件无需缓存)
 
-**访问控制**([local-media-access.js](../../../src/electron/local-media-access.js)):`createLocalMediaAccess(dataDir)` 维护允许清单,持久化到 `dataDir/local-media-access.json`([local-media-access.js:6](../../../src/electron/local-media-access.js#L6))。`isAllowed` 规则:位于 dataDir 根下(含子目录)的文件直接放行,其余必须命中允许清单([local-media-access.js:13-17](../../../src/electron/local-media-access.js#L13-L17));`allowPaths` 把用户经文件对话框选中的路径写入清单并落盘([local-media-access.js:23-35](../../../src/electron/local-media-access.js#L23-L35));`hasExactOrigin(candidateUrl, expectedUrl)` 比较 origin,用于 IPC 请求来源校验([local-media-access.js:40-46](../../../src/electron/local-media-access.js#L40-L46))。`music:select-local-files` 返回前调用 `allowPaths`([main.js:464](../../../src/electron/main.js#L464))。
+**访问控制**([local-media-access.js](../../../src/electron/local-media-access.js)):`createLocalMediaAccess(dataDir)` 维护允许清单,持久化到 `dataDir/local-media-access.json`。
+
+**安全模型(H05 限制)**:
+
+- **仅允许清单内路径**:不再隐式允许 dataDir 子树访问,防止渲染进程通过 `local-media://` 读取数据库、会话 token、配置文件等敏感文件
+- **音频扩展名白名单**:`allowPaths` 授权时与 `isAllowed` 检查时双重验证扩展名,拒绝 `.txt`/`.js`/`.db`/`.json` 等非音频文件
+- **符号链接规范化**:`allowPaths` 使用 `fs.realpathSync` 将符号链接解析为真实路径,防止攻击者通过符号链接逃逸到未授权目录;协议处理器同样规范化请求路径
+- **IPC 来源校验**:`music:resolve-local-media-urls` 使用 `hasExactOrigin(senderUrl, baseUrl)` 验证请求来自可信 origin([music-ipc.js:69-70](../../../src/electron/ipc/music-ipc.js#L69-L70))
+
+`music:select-local-files` 文件对话框过滤器限定音频扩展名([music-ipc.js:33](../../../src/electron/ipc/music-ipc.js#L33)),返回前调用 `allowPaths` 将选中路径规范化并写入清单。
 
 ## 6. 请求头伪装(唯一成文处)
 

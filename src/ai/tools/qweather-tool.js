@@ -7,7 +7,7 @@ function createQWeatherTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const quotaStore = options.quotaStore;
 
-  async function resolveLocation(config, location) {
+  async function resolveLocation(config, location, options = {}) {
     requireConfig(config);
     const url = joinApiUrl(config.qweatherApiHost, '/geo/v2/city/lookup');
     url.searchParams.set('location', String(location || ''));
@@ -20,16 +20,16 @@ function createQWeatherTool(options = {}) {
         return { ambiguous: true, candidates: candidates.slice(0, 3).map(normalizeLocation) };
       }
       return { ambiguous: false, location: normalizeLocation(candidates[0]) };
-    });
+    }, options);
   }
 
-  async function getWeather(config, input) {
-    const resolved = await resolveLocation(config, input.location);
+  async function getWeather(config, input, options = {}) {
+    const resolved = await resolveLocation(config, input.location, options);
     if (resolved.ambiguous) return resolved;
     const location = resolved.location;
     const dataType = input.dataType || 'weather';
-    if (dataType === 'air') return getAir(config, location);
-    if (dataType === 'warning') return getWarning(config, location);
+    if (dataType === 'air') return getAir(config, location, options);
+    if (dataType === 'warning') return getWarning(config, location, options);
     const pathName = shouldUseForecast(input.date) ? '/v7/weather/3d' : '/v7/weather/now';
     const url = joinApiUrl(config.qweatherApiHost, pathName);
     url.searchParams.set('location', location.id);
@@ -39,32 +39,36 @@ function createQWeatherTool(options = {}) {
       observedAt: payload.updateTime || '',
       now: payload.now || null,
       forecast: Array.isArray(payload.daily) ? payload.daily : []
-    }));
+    }), options);
   }
 
-  async function getAir(config, location) {
+  async function getAir(config, location, options) {
     const url = joinApiUrl(config.qweatherApiHost, '/v7/air/now');
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
     return requestWithQuota(url, config, (payload) => ({
       location, observedAt: payload.updateTime || '', air: payload.now || null
-    }));
+    }), options);
   }
 
-  async function getWarning(config, location) {
+  async function getWarning(config, location, options) {
     const url = joinApiUrl(config.qweatherApiHost, '/v7/warning/now');
     url.searchParams.set('location', location.id);
     url.searchParams.set('key', config.qweatherApiKey);
     return requestWithQuota(url, config, (payload) => ({
       location, observedAt: payload.updateTime || '', warnings: payload.warning || []
-    }));
+    }), options);
   }
 
   // 预扣配额 → 请求 → 校验业务 code；任何失败都退款，避免失败请求永久扣配额。
-  async function requestWithQuota(url, config, transform = (payload) => payload) {
+  async function requestWithQuota(url, config, transform = (payload) => payload, options = {}) {
     return withApiQuota(quotaStore, 'qweather', async () => {
       let payload;
-      payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
+      payload = await fetchJson(url, {
+        timeoutMs: config.requestTimeoutMs,
+        fetchImpl,
+        signal: options.signal
+      });
       const code = String(payload?.code || '');
       if (code === '401' || code === '403') {
         throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');
@@ -76,7 +80,7 @@ function createQWeatherTool(options = {}) {
     });
   }
 
-  async function testConnection(config = {}) {
+  async function testConnection(config = {}, options = {}) {
     if (!config.qweatherApiHost) {
       throw createPublicError('QWEATHER_HOST_MISSING', '请先填写和风天气专属 API Host。');
     }
@@ -93,7 +97,7 @@ function createQWeatherTool(options = {}) {
           throw createPublicError('QWEATHER_INVALID_RESPONSE', '和风天气返回格式不正确。');
         }
         return { provider: 'qweather' };
-      });
+      }, options);
     } catch (error) {
       if (/^(?:401|403|HTTP_401|HTTP_403)$/i.test(String(error?.code || ''))) {
         throw createPublicError('QWEATHER_AUTH_FAILED', '和风天气拒绝了该 API Key。');

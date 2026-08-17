@@ -61,12 +61,12 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 | 生成并发 | 由 `generationConcurrency`(默认 3,1–5)控制同时生成的回复数 | [async-coordinator.js:29-44](../../../src/ai/async-coordinator.js#L29-L44) |
 | 投递顺序 | 按入队序号 `nextSequence/nextDelivery` 串行投递,前一条完成后才投下一条(同观众多段回复不会插队) | [async-coordinator.js:46-64](../../../src/ai/async-coordinator.js#L46-L64) |
 | 失败隔离 | 生成或投递抛错 → `onError`(记 `delivery`/`generation` 失败日志),不阻断后续序号 | [async-coordinator.js:53-58](../../../src/ai/async-coordinator.js#L53-L58) |
-| 停止 | `stop()` 清空 waiting/completed,已停止后 `enqueue` 返回 false | [async-coordinator.js:76-80](../../../src/ai/async-coordinator.js#L76-L80) |
+| 停止 | `stop()` 清空 waiting/completed,已停止后 `enqueue` 返回 false，并返回等待 active generation/当前 delivery 结束的 drain Promise；active 结果不会重新进入 completed | [async-coordinator.js](../../../src/ai/async-coordinator.js) |
 | 状态 | `getStatus()`:`queued/waiting/generating/ready/delivering`,经 `GET /api/ai/status` 暴露 | [async-coordinator.js:66-74](../../../src/ai/async-coordinator.js#L66-L74) |
 
 ## 4. DeepSeek 客户端(双协议路由)
 
-[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口,所有请求经 [http-client.js:5-46](../../../src/ai/http-client.js#L5-L46) 的 `fetchJson`(AbortSignal 超时、响应体 ≤ 2 MB 上限([http-client.js:3](../../../src/ai/http-client.js#L3))、错误码归一化)。
+[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口,所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MB、错误码归一化)。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
 
 ### 4.1 协议选择
 
@@ -147,7 +147,8 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 | 存储标记 | 密钥以 `is_secret=1` 存 `ai_configuration`,写入时 `secretCodec.encrypt` | [config-store.js:49-78](../../../src/ai/config-store.js#L49-L78) |
 | 加密实现 | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key" | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31) |
 | 读取降级 | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取 | [config-store.js:20-25](../../../src/ai/config-store.js#L20-L25) |
-| 公开视图 | `getPublicConfig` 删除三个密钥键,替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey` 布尔与 `secretEncryptionAvailable` | [config-store.js:38-47](../../../src/ai/config-store.js#L38-L47) |
+| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey` 布尔标志与 `secretEncryptionAvailable`;`updateConfig` 返回同样经 `getPublicConfig` 过滤的结果,GET/PUT 响应均不回显密钥明文 | [config-store.js:38-46](../../../src/ai/config-store.js#L38-L46) |
+| 前端遮罩 | 管理页密钥输入框类型为 `password`;已保存密钥渲染为 `'********'` 遮罩(display only);提交时遇 `'********'` 值则跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新" | [xiaomi-ai-settings.js:266-283](../../../public/js/admin/xiaomi-ai-settings.js#L266-L283)、[256-264](../../../public/js/admin/xiaomi-ai-settings.js#L256-L264) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §14);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 
@@ -194,6 +195,7 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。
 - **重试**:未确认送达时最多重试 3 次(`MAX_DELIVERY_ATTEMPTS = 3`,[16](../../../src/ai/xiaomi-ai-service.js#L16)),每次**重新生成**回复(`bypassCache: true`,避免原内容再次被吞),3 次仍失败 → 抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志([xiaomi-ai-service.js:248-253](../../../src/ai/xiaomi-ai-service.js#L248-L253))。
+- **关闭**:`waitForDelivery` 接受 shutdown signal;`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。shutdown 取消不触发重新生成/重试或普通 delivery 失败审计。
 
 ### 9.3 失败回复文案
 
@@ -221,4 +223,4 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 | 模型空回复/截断 | `DEEPSEEK_OUTPUT_TRUNCATED` / `DEEPSEEK_INVALID_RESPONSE` 按失败文案回复 |
 | 弹幕被吞(风控等) | 送达验证 10 秒超时 → 重新生成后重发,最多 3 次;仍失败记 `delivery` 失败 |
 | 密钥缺失/不可加密 | 独立模式写入密钥抛错(§7.2);未配置时 `handleDanmaku` 直接 `disabled_or_unconfigured` |
-| 服务关闭 | `xiaomiAi.shutdown()` 停止协调器,排队任务丢弃;在途 HTTP 请求由进程退出兜底(见 [server-core.md](server-core.md) §6.2) |
+| 服务关闭 | `aiRuntime.shutdown()` 单飞:停止准入并触发 `AI_SHUTDOWN`，丢弃未开始任务，等待 active generation/current delivery/direct provider 操作；取消后不再发送/重试或写 context/cache/audit，最后 dispose delivery verifier 并 flush `ai.log`。已开始的外部弹幕发送只能等待完成，不能撤回。见 [server-core.md](server-core.md) §6.2。 |

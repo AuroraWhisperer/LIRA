@@ -12,7 +12,8 @@
 |---|---|---|
 | 连接路径 | `/ws`,升级请求经 `server.on('upgrade')` 分发(其他路径直接 destroy) | [server.js:285-292](../../../src/server.js#L285-L292) |
 | 握手 | `Sec-WebSocket-Key` + 魔数 `258EAFA5-E914-47DA-95CA-C5AB0DC85B11` 做 SHA1 → Base64 `Sec-WebSocket-Accept` | [ws.js:38-48](../../../src/server/ws.js#L38-L48) |
-| 鉴权 | `?token=` 查询参数必须等于会话令牌,否则回写 `401 Unauthorized` 后销毁连接 | [ws.js:26-36](../../../src/server/ws.js#L26-L36) |
+| **Origin 验证**(H06) | **检查 `req.headers.origin` 是否在 `context.allowedOrigins` 白名单内。无 Origin 头(非浏览器客户端)放行。不匹配回写 `403 Forbidden` 后销毁连接** | [ws.js:21-29](../../../src/server/ws.js#L21-L29) |
+| 鉴权 | `?token=` 查询参数必须等于会话令牌,否则回写 `401 Unauthorized` 后销毁连接 | [ws.js:31-39](../../../src/server/ws.js#L31-L39) |
 | 帧上限 | 单帧 `MAX_FRAME_BYTES = 256 KB`,跨分片消息 `MAX_MESSAGE_BYTES = 256 KB`,超限回 close code 1009 | [ws.js:8-9](../../../src/server/ws.js#L8-L9) |
 | 心跳 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()` | [ws.js:10-11](../../../src/server/ws.js#L10-L11) |
 | 客户端消息 | **服务端不消费任何客户端消息**:文本/二进制帧与分片会被正确解析/重组(防止内存泄漏)后丢弃;close 帧回显后关闭;ping 回 pong | [ws.js:143-193](../../../src/server/ws.js#L143-L193) |
@@ -20,6 +21,8 @@
 | 停止 | `webSocketHub.stop({shutdownPayload})` 先广播 shutdown 消息再逐连接 `end()` | [ws.js:226-240](../../../src/server/ws.js#L226-L240) |
 
 文件底部另有一套模块级兼容导出(`handleWebSocketUpgrade`/`broadcastSnapshot` 走模块级 `compatibilityHub`),运行时不使用。
+
+**WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [server.js](../../../src/server.js) 中构造。
 
 ## 2. 快照(Snapshot)15 字段
 

@@ -426,16 +426,57 @@
     const ok = await dangerConfirm({
       title: '清空全部数据',
       message: '此操作将删除以下所有数据：',
-      deletes: ['歌库', '分类', '点歌队列', '点歌记录', 'SC 记录'],
-      keeps: ['直播间号', '主题颜色', '所有设置'],
+      deletes: [
+        '歌曲', '分类', '点歌队列', '点歌记录', '导入批次',
+        'SC 记录', '礼物记录', '加班机结算记录',
+        '播放历史', '播放队列状态', '签到记录',
+        '用户冷却', 'AI 请求日志', 'AI 使用统计',
+        'AI 观众上下文', 'AI 查询缓存', 'AI 黑名单'
+      ],
+      keeps: [
+        '直播间号', '主题颜色', '所有设置',
+        'AI 配置', '主题预设',
+        '加班机状态', '加班机规则',
+        '收藏', '歌单'
+      ],
       confirmLabel: '确认清空全部'
     });
     if (!ok) return;
-    const response = await api('/api/database/clear-all', { confirm: true });
-    const d = response.data.deletedCounts;
-    toast(`全部数据已清空 — 歌曲 ${d.songs} · 队列 ${d.queue} · 记录 ${d.requests} · SC ${d.sc}（共 ${response.data.totalDeleted} 条），设置已保留`);
-    if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
-      await window.AdminApp.state.reloadAll();
+
+    try {
+      const response = await api('/api/database/clear-all', { confirm: true });
+
+      // 检测部分失败
+      if (response.partial === true) {
+        const committed = response.data?.committed || [];
+        const failed = response.data?.failed || [];
+        const message = `数据库清空部分失败：\n\n` +
+          `✓ 已提交：${committed.join(', ')}\n` +
+          `✗ 失败：${failed.join(', ')}\n\n` +
+          `数据库处于不一致状态，页面将重新加载。`;
+
+        alert(message);
+
+        // 部分失败时强制重新加载页面
+        window.location.reload();
+        return;
+      }
+
+      const d = response.data.deletedCounts;
+      const total = response.data.totalDeleted || 0;
+      toast(
+        `全部数据已清空 — ` +
+        `歌曲 ${d.songs} · 队列 ${d.queue} · 记录 ${d.requests} · ` +
+        `SC ${d.sc} · 礼物 ${d.gifts} · 播放 ${d.playHistory} · ` +
+        `签到 ${d.checkins}（共 ${total} 条），配置已保留`
+      );
+
+      if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
+        await window.AdminApp.state.reloadAll();
+      }
+    } catch (error) {
+      // 网络错误或其他异常
+      toast('清空失败：' + (error.message || String(error)));
     }
   }
 

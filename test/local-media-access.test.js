@@ -12,9 +12,13 @@ test('explicit local media access survives a cold start and remains path-specifi
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
   const dataDir = path.join(tempRoot, 'data');
-  const selectedPath = path.join(tempRoot, 'music', 'selected.mp3');
-  const siblingPath = path.join(tempRoot, 'music', 'not-selected.mp3');
+  const musicDir = path.join(tempRoot, 'music');
+  const selectedPath = path.join(musicDir, 'selected.mp3');
+  const siblingPath = path.join(musicDir, 'not-selected.mp3');
   fs.mkdirSync(dataDir, { recursive: true });
+  fs.mkdirSync(musicDir, { recursive: true });
+  fs.writeFileSync(selectedPath, 'fake-audio', 'utf8');
+  fs.writeFileSync(siblingPath, 'fake-audio', 'utf8');
 
   const firstRun = createLocalMediaAccess(dataDir);
   assert.equal(firstRun.isAllowed(selectedPath), false);
@@ -26,16 +30,22 @@ test('explicit local media access survives a cold start and remains path-specifi
   assert.equal(coldStart.isAllowed(selectedPath), true);
   assert.equal(coldStart.isAllowed(siblingPath), false);
 });
-
-test('files under the application data directory remain allowed', (t) => {
+test('dataDir files are not implicitly allowed (security: no privilege escalation)', (t) => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
   const dataDir = path.join(tempRoot, 'data');
   fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(path.join(dataDir, '.session-token'), 'secret-token', 'utf8');
+  fs.writeFileSync(path.join(dataDir, 'database.db'), 'db-content', 'utf8');
+  fs.writeFileSync(path.join(dataDir, 'config.json'), '{}', 'utf8');
 
   const access = createLocalMediaAccess(dataDir);
-  assert.equal(access.isAllowed(path.join(dataDir, 'cache', 'track.mp3')), true);
+  // Verify sensitive files are rejected even though they're in dataDir
+  assert.equal(access.isAllowed(path.join(dataDir, '.session-token')), false);
+  assert.equal(access.isAllowed(path.join(dataDir, 'database.db')), false);
+  assert.equal(access.isAllowed(path.join(dataDir, 'config.json')), false);
+  assert.equal(access.isAllowed(path.join(dataDir, 'local-media-access.json')), false);
 });
 
 test('IPC sender validation compares exact origins', () => {
@@ -43,4 +53,61 @@ test('IPC sender validation compares exact origins', () => {
   assert.equal(hasExactOrigin('http://127.0.0.1:3000/admin?desktop=1', expected), true);
   assert.equal(hasExactOrigin('http://127.0.0.1:3000@evil.example/admin', expected), false);
   assert.equal(hasExactOrigin('http://127.0.0.1:3001/admin', expected), false);
+});
+
+test('only audio extensions are allowed in the whitelist', (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+
+  const dataDir = path.join(tempRoot, 'data');
+  const musicDir = path.join(tempRoot, 'music');
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.mkdirSync(musicDir, { recursive: true });
+
+  const audioFile = path.join(musicDir, 'track.mp3');
+  const textFile = path.join(musicDir, 'lyrics.txt');
+  const jsFile = path.join(musicDir, 'malware.js');
+  fs.writeFileSync(audioFile, 'fake-audio', 'utf8');
+  fs.writeFileSync(textFile, 'lyrics', 'utf8');
+  fs.writeFileSync(jsFile, 'alert(1)', 'utf8');
+
+  const access = createLocalMediaAccess(dataDir);
+  const allowed = access.allowPaths([audioFile, textFile, jsFile]);
+
+  // Only the audio file should be granted
+  assert.equal(allowed.length, 1);
+  assert.equal(allowed[0], audioFile);
+  assert.equal(access.isAllowed(audioFile), true);
+  assert.equal(access.isAllowed(textFile), false);
+  assert.equal(access.isAllowed(jsFile), false);
+});
+
+test('symlinks are canonicalized to prevent escape', (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+
+  const dataDir = path.join(tempRoot, 'data');
+  const musicDir = path.join(tempRoot, 'music');
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.mkdirSync(musicDir, { recursive: true });
+
+  const realFile = path.join(musicDir, 'track.mp3');
+  const symlinkFile = path.join(tempRoot, 'link-to-track.mp3');
+  fs.writeFileSync(realFile, 'fake-audio', 'utf8');
+
+  try {
+    fs.symlinkSync(realFile, symlinkFile);
+  } catch (_) {
+    // Symlink creation might fail on Windows without admin rights
+    // Skip test if symlink creation fails
+    t.skip();
+    return;
+  }
+
+  const access = createLocalMediaAccess(dataDir);
+  access.allowPaths([symlinkFile]);
+
+  // Both symlink and real path should resolve to the same canonical path
+  assert.equal(access.isAllowed(symlinkFile), true);
+  assert.equal(access.isAllowed(realFile), true);
 });

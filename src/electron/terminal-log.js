@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const util = require('node:util');
+const { redactCredentials } = require('../shared/log-redaction');
 
 const TERMINAL_LOG_METHODS = ['log', 'info', 'debug', 'warn', 'error'];
 
@@ -39,6 +40,8 @@ function installTerminalLog(filePath, options = {}) {
 
 function appendTerminalLine(filePath, args, method, context) {
   try {
+    const message = util.format(...args);
+    const redactedMessage = redactCredentials(message);
     fs.appendFileSync(filePath, formatLogLine({
       timestamp: context.now(),
       runId: context.runId,
@@ -46,7 +49,7 @@ function appendTerminalLine(filePath, args, method, context) {
       pid: context.pid,
       processType: context.processType,
       source: `terminal:${method}`,
-      message: util.format(...args)
+      message: redactedMessage
     }), 'utf8');
   } catch (_) {
     // Logging must never interfere with the application.

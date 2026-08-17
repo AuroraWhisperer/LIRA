@@ -1,132 +1,218 @@
-# 模块化与低耦合工程规范
+# Modularity And Low-Coupling Engineering Standard
 
-> 状态：新代码与本次修改代码强制执行 · 适用范围：`src/`、`public/js/`、`scripts/`、`test/`
+> Status: Applies to new code and code changed by the current task
+>
+> Scope: `src/`, `public/js/`, `scripts/`, and `test/`
 
-本规范约束 LIRA 模块化单体的依赖方向、组合方式、持久化边界和兼容迁移。目标不是增加抽象数量，而是让一次业务修改只影响所属模块及其明确调用方。
+This standard defines dependency direction, composition, persistence boundaries,
+and compatibility migration for the LIRA modular monolith. The objective is not
+to maximize abstraction count. It is to keep a business change inside its owning
+module and explicit consumers.
 
-## 1. 设计目标
+## 1. Design Goals
 
-- 后端继续内嵌 Electron main；不新增独立服务、后台进程、端口或部署单元，并保持零 Web 框架、无前端构建器。
-- HTTP、WebSocket、IPC、SQLite schema 和浏览器页面契约默认保持兼容。
-- 运行资源由显式 runtime 实例拥有，禁止通过模块加载隐式创建数据库、Socket 或定时器。
-- 依赖必须可从 `import`、`require` 或工厂参数直接看出；全局对象只可存在于兼容适配层。
-- 新抽象必须隔离真实变化来源；只被一个调用点使用且没有边界价值的包装不得新增。
+- Keep the backend embedded in Electron main. Do not add a service, background
+  process, port, deployment unit, web framework, or frontend build system.
+- Preserve HTTP, WebSocket, IPC, SQLite schema, persisted data, and browser page
+  contracts by default.
+- Runtime resources are owned by explicit runtime instances. Module loading must
+  not implicitly create databases, sockets, timers, or listeners.
+- Dependencies are visible through `import`, `require`, or factory parameters.
+  Globals exist only at documented compatibility boundaries.
+- A new abstraction must isolate a real source of change or protect a boundary.
+  Do not add a wrapper used by one caller when it provides no boundary value.
 
-## 2. 允许的依赖方向
+## 2. Allowed Dependency Direction
 
 ```mermaid
 flowchart LR
-  Entrypoint["组合入口\nserver.js / electron/main.js / admin/index.js"] --> Transport["传输与 UI 适配\nroutes / IPC / DOM handlers"]
-  Entrypoint --> Application["应用编排\nruntimes / controllers"]
+  Entrypoint["Composition entry\nserver.js / electron/main.js / admin/index.js"] --> Transport["Transport and UI adapters\nroutes / IPC / DOM handlers"]
+  Entrypoint --> Application["Application coordination\nruntimes / controllers"]
   Transport --> Application
-  Application --> Domain["领域服务\nmusic / bilibili / overtime / ai"]
-  Application --> Ports["端口接口\nrepositories / publishers / clocks"]
-  Storage["基础设施实现\nstorage / provider clients"] --> Ports
+  Application --> Domain["Domain services\nmusic / bilibili / overtime / ai"]
+  Application --> Ports["Ports\nrepositories / publishers / clocks"]
+  Storage["Infrastructure implementations\nstorage / provider clients"] --> Ports
   Domain --> Ports
 ```
 
-强制规则：
+Required direction:
 
-1. `server/routes/` 不得接收数据库句柄，只调用 API context 暴露的应用能力。
-2. 领域服务不得接收包含无关能力的通用 `context` 或整个 `db` 对象；需要持久化时依赖窄 repository/store 接口。
-3. `storage/` 可以依赖共享的纯函数，但不得依赖 `server/`、`electron/` 或 `public/`。
-4. `server.js`、`electron/main.js` 和前端入口可以依赖内部模块；内部模块不得反向导入入口。
-5. 跨领域调用必须经过显式 facade、consumer 或 port，不得直接读取另一领域的内部状态。
+1. `src/server/routes/` receives application capabilities, not database handles.
+2. Domain services do not receive a broad `context` or complete `db` object when
+   they need only a narrow store, repository, publisher, clock, or provider.
+3. `src/storage/` may depend on pure shared helpers, but not on `src/server/`,
+   `src/electron/`, or `public/`.
+4. `src/server.js`, `src/electron/main.js`, and frontend entrypoints may depend on
+   internal modules. Internal modules do not import those entrypoints.
+5. Cross-domain calls use an explicit facade, consumer, or port. A domain does
+   not read another domain's internal mutable state.
 
-### 2.1 目录映射与导入矩阵
+### 2.1 Directory Roles
 
-| 代码位置 | 架构角色 | 允许依赖 | 禁止依赖 |
+| Code location | Architecture role | Allowed dependencies | Prohibited dependencies |
 |---|---|---|---|
-| `src/server.js`、`src/electron/main.js`、前端入口 | Composition Root | 所有内部公开工厂与 adapter | 被内部模块反向导入 |
-| `src/server/routes/`、`src/electron/ipc/`、DOM handlers | Transport / UI Adapter | application facade、稳定契约、纯工具 | SQLite 句柄、领域内部状态 |
-| `src/server/*-runtime.js`、前端 controller | Application | 领域服务、port、基础设施 adapter 的公开工厂 | 入口模块、未声明全局依赖 |
-| `src/music/`、`src/bilibili/`、`src/overtime/`、`src/ai/` | Domain | 领域内模块、窄 port、纯共享契约 | `server.js`、Electron、DOM、SQL |
-| `src/storage/`、Provider client、Electron adapter | Infrastructure | 领域契约、纯共享工具、平台 API | 组合入口的可变状态 |
-| `src/shared/`、`public/js/shared/` | Stable Shared | Node/浏览器标准 API、同主题纯函数 | 领域服务、入口、运行时资源 |
+| `src/server.js`, `src/electron/main.js`, frontend entrypoints | Composition Root | Public factories and adapters from internal modules | Reverse imports from internal modules |
+| `src/server/routes/`, `src/electron/ipc/`, DOM handlers | Transport / UI Adapter | Application facades, stable contracts, pure helpers | SQLite handles, domain internal state |
+| `src/server/*-runtime.js`, frontend controllers | Application | Domain services, ports, public infrastructure factories | Entrypoints, undeclared globals |
+| `src/music/`, `src/bilibili/`, `src/overtime/`, `src/ai/` | Domain | Domain-local modules, narrow ports, pure shared contracts | Entrypoints, Electron, DOM, direct SQL |
+| `src/storage/`, provider clients, Electron adapters | Infrastructure | Domain contracts, pure shared helpers, platform APIs | Mutable composition-root state |
+| `src/shared/`, `public/js/shared/` | Stable Shared | Standard APIs and same-topic pure helpers | Domain services, entrypoints, runtime resources |
 
-每个领域新增跨目录能力时，应通过一个命名明确的公开 factory/facade 暴露；调用方不得导入另一领域的私有实现文件。结构测试应遍历目标目录，而不是只检查单个已知文件。
+Expose a cross-directory capability through a clearly named public factory,
+facade, consumer, or port. Consumers must not import another domain's private
+implementation merely because the file is reachable. A structural test for a
+directory-wide boundary must enumerate the target directory instead of checking
+only one known file.
 
-## 3. 组合根规范
+## 3. Composition Roots
 
-组合根只负责：创建对象、连接回调、选择实现、启动和按逆序关闭资源。
+Composition roots create objects, connect callbacks, choose implementations,
+start resources, and close them in reverse order.
 
-- 业务判断、重试策略、状态格式化和日志 payload 构造应放入所属 runtime/service。
-- 组合根允许导入较多模块，但不得构造可被任意模块读取的“依赖大包”。
-- 工厂只接收自身实际使用的字段。若参数超过一个清晰职责，应先拆分职责，而不是把字段装进 `sharedDeps`。
-- 为解决初始化顺序，可注入命名回调端口；禁止依赖可变的前向声明形成隐式循环。
-- 资源关闭必须幂等，并由创建该资源的 runtime 负责。
+- Business decisions, retry policy, state formatting, and log payload construction
+  belong to the owning runtime or service.
+- A composition root may import many modules, but it must not create a mutable
+  dependency bag readable by arbitrary modules.
+- A factory accepts only fields it uses. Split responsibilities instead of
+  hiding an unclear interface inside `sharedDeps` or a generic context.
+- Initialization ordering may use named callback ports. Do not use mutable
+  forward declarations as an implicit dependency cycle.
+- The runtime that creates a resource owns idempotent cleanup.
 
-## 4. 前端模块规范
+## 4. Frontend Modules
 
-- 新代码使用具名 ESM 导入/导出；禁止新增 `window.AdminApp.*` 依赖。
-- `legacy-admin-bridge.js` 是新 ESM 消费遗留全局的唯一入口；现有 IIFE 模块仍可作为遗留全局生产者和消费者，但其文件与引用次数由结构测试冻结，只能减少、不得增加。
-- 入口文件允许副作用导入兼容模块，但应用代码必须通过 bridge 返回的窄接口使用它们。
-- EventBus 仅用于一对多通知，不得用于请求/响应式调用或隐藏必需依赖。
-- DI 容器只有在生产代码实际 `resolve()` 服务时才允许存在；仅注册而不解析的容器应删除。
-- DOM、Electron `window.musicAPI` 和网络调用属于基础设施边界，应通过注入函数或专用适配器进入核心逻辑。
+- New frontend code uses named ESM imports and exports.
+- Do not add `window.AdminApp` dependencies.
+  `public/js/admin/legacy-admin-bridge.js` is the intentional compatibility
+  boundary for new Admin ESM consumers.
+- Existing classic or IIFE modules may remain during incremental migration, but
+  their legacy global text debt can only decrease.
+- Entrypoints may use side-effect imports for documented compatibility modules;
+  application code consumes narrow explicit interfaces.
+- EventBus is for one-to-many notification, not hidden request-response calls or
+  required dependencies.
+- A dependency-injection container is justified only when production code
+  resolves registered services. Registration without resolution adds no value.
+- DOM, `window.musicAPI`, and network calls are infrastructure boundaries. Core
+  logic receives them through focused adapters or injected functions where
+  isolation provides test value.
 
-## 5. 持久化规范
+## 5. Persistence
 
-- SQL、表名、列名和事务只出现在 `src/storage/` 的 store/repository 基础设施适配器中；领域目录中的 `*-store.js` 只能声明行为契约或内存 fake，不得包含 SQL。
-- 领域服务依赖行为接口，例如 `queueStore.addRequest(input)`，不得调用 `db.prepare()`。
-- 事务边界由 store/repository 拥有；同一数据库内的跨表原子写入由一个协调 repository/unit-of-work 方法完成。禁止为事务拆数据库、增进程或新增依赖。
-- Store 返回稳定领域对象，不向上泄漏 `DatabaseSync`、statement 或 SQLite 特有结果。
-- Schema 变更必须同时更新迁移、store、回归测试和 `docs/architecture/backend/storage.md`。
+- SQL, table names, columns, and transactions target `src/storage/` store or
+  repository adapters. Existing exceptions are frozen legacy debt, not examples
+  for new code.
+- Domain services depend on behavioral interfaces such as
+  `queueStore.addRequest(input)`, not `db.prepare()` or `db.exec()`.
+- Stores and repositories own transaction boundaries. Atomic writes across tables
+  in one database use one coordinating repository or unit-of-work method.
+- Do not split a database, add a process, or add a dependency merely to model a
+  transaction.
+- Store return values are stable domain objects and do not expose
+  `DatabaseSync`, prepared statements, or SQLite-specific result objects.
+- A schema change updates migrations, affected stores, regression tests, and
+  `docs/architecture/backend/storage.md`.
 
-## 6. Shared 模块规范
+## 6. Shared Modules
 
-`shared/` 仅放跨领域、无副作用、语义稳定的纯函数或契约。
+Shared code is cross-domain, side-effect-free, and semantically stable.
 
-- 文件按单一主题组织，例如 `text-utils.js`、`time-utils.js`、`xlsx-codec.js`。
-- 平台、协议或业务专属函数必须放回对应领域。
-- 不得为了减少 import 行数建立新的 `utils.js` 聚合桶。
-- 兼容 re-export 只能用于迁移期，并必须有删除条件和结构测试。
+- Organize helpers by one subject, for example text, time, or a file codec.
+- Platform-, protocol-, or domain-specific behavior remains with its owner.
+- Do not create a new `utils.js` aggregation bucket to reduce import lines.
+- Compatibility re-exports require a migration reason, a removal condition, and
+  a structural regression test.
 
-## 7. 测试与架构适应度函数
+## 7. Rule Registry
 
-每次边界调整至少包含：
+Status meanings:
 
-1. 一个先失败的结构或单元测试。
-2. 目标模块测试通过。
-3. `npm run check` 通过。
-4. `npm test` 全量通过。
+- `Enforced`: a deterministic gate comprehensively blocks the violation.
+- `Incrementally Enforced`: tests freeze known debt or cover only selected paths.
+- `Migration Target`: desired direction is documented but not comprehensively
+  machine-enforced.
 
-兼容性验证至少覆盖：
+| Rule ID | Rule | Status | Enforcement |
+|---|---|---|---|
+| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle | Incrementally Enforced | Selected composition-root assertions plus review |
+| `MOD-STORAGE-001` | Domain services do not issue SQL | Incrementally Enforced | Receiver-aware SQL debt budget |
+| `MOD-STORAGE-002` | Stores own transaction boundaries | Incrementally Enforced | Selected store atomicity tests plus review |
+| `MOD-ADMIN-001` | New Admin code does not add global-state access | Incrementally Enforced | `window.AdminApp` debt budget |
+| `MOD-FRONTEND-001` | New frontend code uses explicit ESM boundaries | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
+| `MOD-SHARED-001` | Shared utilities remain domain-neutral | Migration Target | Selected regression assertions |
+| `MOD-CONTRACT-001` | Public contracts remain compatible by default | Incrementally Enforced | Existing regression tests; full inventory deferred |
 
-- HTTP：方法、路径、状态码、JSON 字段和公开错误语义。
-- WebSocket：消息类型、必需字段、快照字段和关键发布顺序。
-- IPC：channel 名、参数形状、返回值与错误形状。
-- SQLite：受支持旧 schema 可迁移、数据保留、事务原子性和重复启动幂等。
+Review-only or partial coverage must not be labeled `Enforced`.
 
-结构测试必须阻止：
+## 8. Tests And Architecture Fitness Functions
 
-- 领域服务重新出现 `.prepare()` / `.exec()`。
-- `public/js/admin/app.js` 直接访问 `window.AdminApp`。
-- 播放控制器重新引入 `sharedDeps` 或“前向声明解决循环依赖”。
-- Spreadsheet/ZIP 实现重新进入通用 `shared/utils.js`。
-- 内部模块反向依赖组合入口。
-- Admin 遗留全局文件或 `window.AdminApp` 引用次数增加。
+For a boundary change:
 
-## 8. 变更流程
+1. Add a focused failing structural or unit regression when practical.
+2. Run the affected module tests.
+3. Run `npm run check`.
+4. Run `npm run verify:architecture`.
+5. Run `npm test` before completion.
 
-1. 写清行为不变量和允许改变的边界。
-2. 为当前问题写失败测试。
-3. 做能通过测试的最小结构调整。
-4. 删除本次调整产生的废弃导入、兼容代码和死抽象。
-5. 更新架构文档；重要依赖方向变化写 ADR。
-6. 运行目标测试、静态检查和全量测试。
+Compatibility coverage should include the changed part of each relevant public
+contract:
 
-禁止顺手重排无关代码、统一格式或迁移未涉及的模块。
+- HTTP: method, path, status, response fields, and public error semantics.
+- WebSocket: message type, required fields, snapshot fields, and important order.
+- IPC: channel, arguments, result shape, and public error shape.
+- SQLite: supported old-schema migration, data retention, atomicity, and repeated
+  startup idempotency.
 
-## 9. 非功能要求
+Current fitness functions block or freeze selected regressions, including:
 
-- 性能：本次模块化调整不得增加网络跳数、数据库连接数或持久化次数。
-- 可靠性：启动、重连、播放恢复和关闭冲刷保持幂等。
-- 安全：认证 token、Cookie、safeStorage 和本地媒体访问边界保持不变。
-- 可维护性：新增领域能力应能通过注入 fake store/provider 做离线测试。
-- 运维：不增加新进程、新端口、新服务或运行时依赖。
-- 依赖：模块化重构不得新增 `package.json` 依赖或修改 lockfile；依赖升级属于独立评审事项。
+- Queue and SuperChat services issuing SQLite statements directly.
+- Receiver-aware domain SQL debt expanding outside storage.
+- Admin legacy global debt expanding to a new file or beyond a file baseline.
+- Empty or comment-only catch debt expanding in `src/` or `public/js/`.
+- Playback composition reintroducing generic dependencies or mutable forward
+  declarations.
+- Spreadsheet or ZIP codecs returning to the generic shared utility module.
+- Selected server and desktop composition roots regaining mutable subsystem
+  behavior.
+- Public ESM modules referencing identifiers they neither declare nor import.
 
-## 10. 例外与审查
+Internal modules importing composition entrypoints remain prohibited. Current
+coverage for that direction is partial, so review and future directory-wide
+fitness tests must treat it as an enforcement gap rather than a passed gate.
 
-永久改变本规范必须通过 ADR 修订规范。临时豁免必须记录：违反规则、责任人、原因、替代方案、截止日期或版本、删除条件和失败保护测试；过期豁免不得继续合并。没有退出条件的“临时兼容”不予接受。
+## 9. Change Workflow
+
+1. State behavior invariants and the boundary allowed to change.
+2. Locate the owner through the fact map and AI workflow route table.
+3. Add the smallest focused regression for the problem.
+4. Implement the minimum change that passes it.
+5. Remove only dead imports, compatibility code, or abstractions created by the
+   current change.
+6. Update the owning architecture document. Record an important dependency
+   direction change in an ADR.
+7. Run focused, quick, and full verification in increasing scope.
+
+Do not opportunistically reorder, reformat, or migrate unrelated modules.
+
+## 10. Nonfunctional Requirements
+
+- **Performance:** A modularity change does not add network hops, database
+  connections, or persistence operations without an accepted requirement.
+- **Reliability:** Startup, reconnection, playback restoration, and shutdown flush
+  remain idempotent.
+- **Security:** Authentication tokens, cookies, `safeStorage`, renderer privilege,
+  and local-media access boundaries remain intact.
+- **Maintainability:** A new domain capability should be testable offline through
+  a focused fake store, provider, clock, or publisher when the boundary warrants
+  it.
+- **Operations:** Do not add a process, port, service, or deployment unit.
+- **Dependencies:** Modularity work does not add a package dependency or modify
+  the lockfile. Dependency upgrades receive separate review.
+
+## 11. Exceptions And Review
+
+A permanent change to this standard requires an ADR. A temporary exception must
+record the violated rule, responsible owner, narrow scope, reason, alternative
+considered, expiry date or version, removal condition, and a failure-protection
+test. An expired exception must not continue to merge. A temporary compatibility
+layer without an exit condition is not acceptable.

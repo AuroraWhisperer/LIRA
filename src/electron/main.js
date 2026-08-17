@@ -21,6 +21,8 @@ const { registerUpdateIpc } = require('./ipc/update-ipc');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const serverRuntimeModule = require('../server');
+const { redactCredentials } = require('../shared/log-redaction');
+const { isAllowedExternal } = require('./external-url-policy');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
@@ -282,7 +284,9 @@ function createMainWindow(baseUrl) {
   });
 
   windowState.main.webContents.setWindowOpenHandler(function (detail) {
-    shell.openExternal(detail.url);
+    if (isAllowedExternal(detail.url)) {
+      shell.openExternal(detail.url);
+    }
     return { action: 'deny' };
   });
 
@@ -291,7 +295,9 @@ function createMainWindow(baseUrl) {
     var base = new URL(baseUrl);
     if (parsed && parsed.protocol === base.protocol && parsed.hostname === base.hostname && parsed.port === base.port) return;
     event.preventDefault();
-    shell.openExternal(url);
+    if (isAllowedExternal(url)) {
+      shell.openExternal(url);
+    }
   });
 
   windowState.main.on('closed', function () {
@@ -511,9 +517,10 @@ async function requestPlaybackFlush() {
 }
 
 function writeLog(scope, value) {
-  var msg = value instanceof Error
-    ? (value.stack || value.message)
-    : (typeof value === 'string' ? value : JSON.stringify(value));
+  var redactedValue = redactCredentials(value);
+  var msg = redactedValue instanceof Error
+    ? (redactedValue.stack || redactedValue.message)
+    : (typeof redactedValue === 'string' ? redactedValue : JSON.stringify(redactedValue));
   var line = formatLogLine({
     timestamp: new Date().toISOString(),
     runId: loggingState.runId,

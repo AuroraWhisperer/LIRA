@@ -40,3 +40,17 @@ test('AI request logger starts a fresh readable session and redacts secrets recu
   assert.equal(blocks[2].details.length, 4014);
   assert.match(blocks[2].details, /\.\.\.\[truncated\]$/);
 });
+
+test('AI request logger flush waits for queued writes', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-request-log-flush-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'ai.log');
+  const logger = createAiRequestLogger({ filePath });
+
+  logger.log({ type: 'queued-before-shutdown', requestId: 'flush-1' });
+  await logger.flush();
+
+  const content = await fs.readFile(filePath, 'utf8');
+  assert.match(content, /queued-before-shutdown/);
+  assert.match(content, /flush-1/);
+});

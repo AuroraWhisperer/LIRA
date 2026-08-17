@@ -12,13 +12,17 @@
 | `desktop` | `electron .` | 桌面模式:Electron 壳与 HTTP 服务同进程 |
 | `check` | `node scripts/check-js.js` | 全量 JS 语法检查(见 [test.md](test.md) §3) |
 | `test` | `node --experimental-vm-modules --test --test-concurrency=4` | 单元测试:node:test,并发 4(见 [test.md](test.md)) |
+| `verify:docs` | `node --test test/governance-docs.test.js` | 治理文件、路由表、规格索引和范围内 Markdown 链接检查 |
+| `verify:architecture` | `node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js` | 模块边界、遗留债务预算和前端 ESM 边界检查 |
+| `verify:quick` | `npm run verify:docs && npm run check && npm run verify:architecture` | 日常评审前快速门禁:文档 → 语法 → 架构 |
+| `verify` | `npm run verify:quick && npm test` | 完整门禁:先快速失败,再运行全量测试 |
 | `diagnose:wesing` | `node scripts/inspect-wesing-playback.js` | 全民 K 歌播放状态交互诊断(见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)) |
 | `make:icon` | `node scripts/create-icon.js` | 生成 `build/icon.png` + `build/icon.ico`(见 §5) |
 | `dist:win` | `npm run make:icon && electron-builder --win nsis --x64` | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包 |
 | `dist:win:local` | `npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --config.electronDist=node_modules/electron/dist` | 本地打包:跳过二进制下载,复用 `node_modules/electron/dist` |
 | `release:win` | `node scripts/publish-release.js` | 完整发布流水线(见 §7) |
 
-- 出处:[package.json:9-19](../../../package.json#L9-L19)。共 9 个 script。
+- 出处:[package.json](../../../package.json) 的 `scripts` 字段。
 - `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具,该命令只能在 Windows cmd 下执行。
 - `test` 的 `--test-concurrency=4`(并发数 4,勿改回 1);`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
 
@@ -33,6 +37,8 @@
 | devDependencies | `electron-builder` | `^26.11.1` | 打包器([package.json:30](../../../package.json#L30)) |
 
 **engines:`node >=24`**([package.json:20-22](../../../package.json#L20-L22))。运行时依赖仅 3 个,其余功能全部手写(见 [00-overview.md](../README.md))。
+
+**npm overrides**([package.json:79-81](../../../package.json#L79-L81)):js-yaml 强制 `^4.3.1` 以解决 GHSA-5p4m-2wfm-xmqj(CVE-2026-59870,!!omap 二次方 CPU 消耗)。该漏洞影响 electron-updater 与 electron-builder 的传递依赖 js-yaml 4.0.0-4.3.0;override 后生产依赖审计为 0 高危漏洞。
 
 ## 3. electron-builder 配置(唯一成表处)
 
@@ -132,3 +138,32 @@
 ## 11. 自动更新
 
 运行时依赖 `electron-updater` ^6.8.4(见 §2);更新清单即 §7 上传的 `latest.yml`。检查时机、更新状态机(`idle → checking → update-available → downloading → downloaded`)、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
+
+## 12. Windows 代码签名
+
+**当前状态:设计完成,实现阻塞于所有者输入**。完整设计见 [code-signing.md](code-signing.md)。
+
+所需所有者决策:
+- **发布者名称**(Publisher Name):证书主题 CN,必须与购买/生成的代码签名证书完全匹配(如 `Aurora`、`AuroraWhisperer`)
+- **证书存储方式**:选择文件存储(.pfx 文件路径 + 密码环境变量)或 Windows 证书存储区(指纹)
+- **CI/自动化策略**:是否在 CI 中强制签名检查,或仅在手动发布脚本中执行
+
+签名基础设施已就绪:
+- [scripts/sign-windows.js](../../../scripts/sign-windows.js):electron-builder 签名脚本(骨架实现,等待证书配置)
+- [scripts/verify-windows-release.js](../../../scripts/verify-windows-release.js):PowerShell `Get-AuthenticodeSignature` 验证脚本(完整实现)
+- 发布门禁集成点已设计(在 [scripts/publish-release.js](../../../scripts/publish-release.js) electron-builder 成功后插入验证)
+
+**当前完整性保护**:electron-updater 已通过 SHA-512 哈希验证保护更新完整性([desktop/update.md](../desktop/update.md) §5 的 `checksum mismatch` 错误映射)。代码签名的附加价值:Windows SmartScreen 信誉、发布者身份验证、企业环境兼容性(详见 [code-signing.md](code-signing.md) §7)。
+
+配置签名后需更新 `package.json` `build.win`:
+```json
+"win": {
+  "icon": "build/icon.ico",
+  "target": [...],
+  "signingHashAlgorithms": ["sha256"],
+  "certificateSubjectName": "<OWNER_INPUT_PUBLISHER_NAME>",
+  "sign": "./scripts/sign-windows.js"
+}
+```
+
+并在 §7 发布流程步骤 6-7 之间插入签名验证(详见 [code-signing.md](code-signing.md) §5)。

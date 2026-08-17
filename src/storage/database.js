@@ -16,6 +16,7 @@ const {
 } = require('../shared/utils');
 const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
+const { createGiftMaintenanceStore } = require('./gift-maintenance-store');
 
 const DB_FILE_NAMES = {
   songDb: 'song-request-data.db',
@@ -32,25 +33,38 @@ function createDatabases(options = {}) {
   if (!dataDir) throw new Error('dataDir is required to create databases.');
 
   fs.mkdirSync(dataDir, { recursive: true });
+  const databases = {};
 
-  const songDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.songDb), { foreignKeys: true });
-  const superChatDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.superChatDb));
-  const giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
-  const musicDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.musicDb), { foreignKeys: true });
-  const checkinDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.checkinDb));
+  try {
+    databases.songDb = openSqliteDatabase(
+      path.join(dataDir, DB_FILE_NAMES.songDb),
+      { foreignKeys: true }
+    );
+    databases.superChatDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.superChatDb));
+    databases.giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb));
+    databases.musicDb = openSqliteDatabase(
+      path.join(dataDir, DB_FILE_NAMES.musicDb),
+      { foreignKeys: true }
+    );
+    databases.checkinDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.checkinDb));
 
-  // 建表是幂等的，每次启动都跑；一次性的数据搬迁走下面的迁移步骤
-  songDb.exec(schema.SONG_SCHEMA);
-  superChatDb.exec(schema.SUPER_CHAT_SCHEMA);
-  giftDb.exec(schema.GIFT_SCHEMA);
-  musicDb.exec(schema.MUSIC_SCHEMA);
-  checkinDb.exec(schema.CHECKIN_SCHEMA);
+    // 依赖迁移列的索引必须在不可变迁移完成后创建。
+    databases.songDb.exec(schema.SONG_TABLE_SCHEMA);
+    databases.superChatDb.exec(schema.SUPER_CHAT_SCHEMA);
+    databases.giftDb.exec(schema.GIFT_TABLE_SCHEMA);
+    databases.musicDb.exec(schema.MUSIC_SCHEMA);
+    databases.checkinDb.exec(schema.CHECKIN_SCHEMA);
 
-  const databases = { songDb, superChatDb, giftDb, musicDb, checkinDb };
-  runAllMigrations(databases, options);
-  migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb);
+    runAllMigrations(databases, options);
+    databases.songDb.exec(schema.SONG_INDEX_SCHEMA);
+    databases.giftDb.exec(schema.GIFT_INDEX_SCHEMA);
+    migrateLegacySuperChatsToDedicatedDatabase(databases.songDb, databases.superChatDb);
 
-  return databases;
+    return databases;
+  } catch (error) {
+    closeDatabases(databases);
+    throw error;
+  }
 }
 
 // ── 迁移注册表 ──
@@ -449,6 +463,68 @@ function legacySuperChatFingerprint(row) {
   ].join('|');
 }
 
+// ── 清空操作矩阵 ──
+
+/**
+ * Clear-all matrix: 定义哪些表保留、删除、重建默认行。
+ * 保留：配置类（settings、ai_configuration、theme_presets、favorites、playlists）
+ *       加班机状态（overtime_machine_state、overtime_gift_rules）
+ * 删除：所有业务数据（歌曲、队列、礼物、SC、播放历史、签到等）
+ * 重建：默认分类、禁用加班机初始状态
+ */
+const CLEAR_ALL_MATRIX = {
+  preserve: [
+    'settings',
+    'ai_configuration',
+    'theme_presets',
+    'overtime_machine_state',
+    'overtime_gift_rules',
+    'favorites',
+    'playlists',
+    'playlist_tracks'
+  ],
+  delete: [
+    'songs',
+    'song_categories',
+    'queue',
+    'requests',
+    'import_batches',
+    'user_cooldowns',
+    'ai_request_logs',
+    'ai_api_usage',
+    'ai_viewer_context',
+    'ai_query_cache',
+    'ai_blacklist',
+    'super_chats',
+    'gift_events',
+    'overtime_settlements',
+    'play_history',
+    'play_queue_state',
+    'checkin_users'
+  ],
+  recreate: [
+    {
+      table: 'song_categories',
+      row: { name: '默认分类', sort_order: 0, is_enabled: 1 }
+    },
+    {
+      table: 'overtime_machine_state',
+      row: {
+        id: 1,
+        enabled: 0,
+        enable_epoch: 0,
+        initial_seconds: 0,
+        remaining_ms: 0,
+        anchor_at_ms: 0,
+        status: 'paused',
+        background_path: '',
+        background_fit: 'cover',
+        revision: 0
+      }
+    }
+  ]
+};
+
 // ── 清空操作 ──
 
 function clearSongLibraryData(db) {
@@ -512,36 +588,101 @@ function clearPlaybackData(musicDb) {
 }
 
 function clearGiftData(giftDb) {
-  let count = 0;
+  const timestamp = now();
+
   giftDb.exec('BEGIN IMMEDIATE');
   try {
-    count = countRows(giftDb, 'gift_events');
-    giftDb.prepare('DELETE FROM overtime_settlements').run();
+    // 第一步：将所有 pending settlements 标记为 ignored
+    giftDb.prepare(`
+      UPDATE overtime_settlements
+      SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
+          last_error = ?, updated_at = ?
+      WHERE status = 'pending'
+    `).run('manual:clear-gifts', timestamp);
+
+    // 第二步：删除所有礼物事件
+    const giftCount = countRows(giftDb, 'gift_events');
     giftDb.prepare('DELETE FROM gift_events').run();
+
+    // 第三步：删除所有结算记录（包括 applied/ignored 审计记录）
+    // 这是用户显式的"清空全部礼物数据"操作
+    giftDb.prepare('DELETE FROM overtime_settlements').run();
+
+    // 清理自增序列
     giftDb.prepare(`
       DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
     `).run();
+
     giftDb.exec('COMMIT');
+    return { gifts: giftCount };
   } catch (error) {
     giftDb.exec('ROLLBACK');
     throw error;
   }
-  return { gifts: count };
 }
 
+/**
+ * 清空全部业务数据，保留配置。使用两阶段提交确保原子性。
+ * Phase 1: 开启所有事务并执行 DELETE，但不提交
+ * Phase 2: 依次提交所有事务；如有失败则返回部分失败状态
+ */
 function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
   const counts = {
-    songs: 0, categories: 0, queue: 0, requests: 0,
-    sc: 0, gifts: 0, playHistory: 0, checkins: 0
+    songs: 0,
+    categories: 0,
+    queue: 0,
+    requests: 0,
+    importBatches: 0,
+    userCooldowns: 0,
+    aiRequestLogs: 0,
+    aiApiUsage: 0,
+    aiViewerContext: 0,
+    aiQueryCache: 0,
+    aiBlacklist: 0,
+    sc: 0,
+    gifts: 0,
+    overtimeSettlements: 0,
+    playHistory: 0,
+    playQueueState: 0,
+    checkins: 0
   };
 
-  // 点歌库：settings 和 theme_presets 保留，其余业务数据清空
-  songDb.exec('BEGIN');
+  const databases = [
+    { name: 'songDb', db: songDb },
+    { name: 'superChatDb', db: superChatDb },
+    { name: 'giftDb', db: giftDb },
+    { name: 'musicDb', db: musicDb },
+    { name: 'checkinDb', db: checkinDb }
+  ];
+
+  // Phase 1: 开启所有事务并执行 DELETE，统计行数
+  const beginErrors = [];
+  const rollbackAll = () => {
+    for (const { name, db } of databases) {
+      if (db) {
+        try {
+          db.exec('ROLLBACK');
+        } catch (rollbackError) {
+          console.warn(`[Database] Failed to rollback ${name}:`, rollbackError.message);
+        }
+      }
+    }
+  };
+
   try {
+    // songDb: 清空业务数据，保留 settings, ai_configuration, theme_presets
+    songDb.exec('BEGIN');
     counts.songs = countRows(songDb, 'songs');
     counts.categories = countRows(songDb, 'song_categories');
     counts.queue = countRows(songDb, 'queue');
     counts.requests = countRows(songDb, 'requests');
+    counts.importBatches = countRows(songDb, 'import_batches');
+    counts.userCooldowns = countRows(songDb, 'user_cooldowns');
+    counts.aiRequestLogs = countRows(songDb, 'ai_request_logs');
+    counts.aiApiUsage = countRows(songDb, 'ai_api_usage');
+    counts.aiViewerContext = countRows(songDb, 'ai_viewer_context');
+    counts.aiQueryCache = countRows(songDb, 'ai_query_cache');
+    counts.aiBlacklist = countRows(songDb, 'ai_blacklist');
 
     songDb.prepare('DELETE FROM requests').run();
     songDb.prepare('DELETE FROM queue').run();
@@ -549,63 +690,153 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
     songDb.prepare('DELETE FROM song_categories').run();
     songDb.prepare('DELETE FROM import_batches').run();
     songDb.prepare('DELETE FROM user_cooldowns').run();
+    songDb.prepare('DELETE FROM ai_request_logs').run();
+    songDb.prepare('DELETE FROM ai_api_usage').run();
+    songDb.prepare('DELETE FROM ai_viewer_context').run();
+    songDb.prepare('DELETE FROM ai_query_cache').run();
+    songDb.prepare('DELETE FROM ai_blacklist').run();
     songDb.prepare(`
       DELETE FROM sqlite_sequence
-      WHERE name IN ('songs', 'song_categories', 'import_batches', 'queue', 'requests')
+      WHERE name IN ('songs', 'song_categories', 'import_batches', 'queue', 'requests', 'ai_request_logs')
     `).run();
-    songDb.exec('COMMIT');
   } catch (error) {
-    songDb.exec('ROLLBACK');
-    throw error;
+    beginErrors.push({ db: 'songDb', phase: 'delete', error: error.message });
+    rollbackAll();
   }
 
-  superChatDb.exec('BEGIN');
-  try {
-    counts.sc = countRows(superChatDb, 'super_chats');
-    superChatDb.prepare('DELETE FROM super_chats').run();
-    superChatDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'super_chats'").run();
-    superChatDb.exec('COMMIT');
-  } catch (error) {
-    superChatDb.exec('ROLLBACK');
-    throw error;
-  }
-
-  giftDb.exec('BEGIN IMMEDIATE');
-  try {
-    counts.gifts = countRows(giftDb, 'gift_events');
-    giftDb.prepare('DELETE FROM overtime_settlements').run();
-    giftDb.prepare('DELETE FROM gift_events').run();
-    giftDb.prepare(`
-      DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
-    `).run();
-    giftDb.exec('COMMIT');
-  } catch (error) {
-    giftDb.exec('ROLLBACK');
-    throw error;
-  }
-
-  if (musicDb) {
-    counts.playHistory = clearPlaybackData(musicDb).deletedCount;
-  }
-
-  if (checkinDb) {
-    checkinDb.exec('BEGIN');
+  if (beginErrors.length === 0) {
     try {
+      superChatDb.exec('BEGIN');
+      counts.sc = countRows(superChatDb, 'super_chats');
+      superChatDb.prepare('DELETE FROM super_chats').run();
+      superChatDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'super_chats'").run();
+    } catch (error) {
+      beginErrors.push({ db: 'superChatDb', phase: 'delete', error: error.message });
+      rollbackAll();
+    }
+  }
+
+  if (beginErrors.length === 0) {
+    try {
+      giftDb.exec('BEGIN IMMEDIATE');
+      counts.gifts = countRows(giftDb, 'gift_events');
+      counts.overtimeSettlements = countRows(giftDb, 'overtime_settlements');
+      const timestamp = now();
+
+      // 将所有 pending settlements 标记为 ignored
+      giftDb.prepare(`
+        UPDATE overtime_settlements
+        SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
+            last_error = ?, updated_at = ?
+        WHERE status = 'pending'
+      `).run('manual:clear-all', timestamp);
+
+      // 删除所有礼物事件
+      giftDb.prepare('DELETE FROM gift_events').run();
+
+      // 手动清空全部操作：删除所有结算记录（包括审计记录）
+      giftDb.prepare('DELETE FROM overtime_settlements').run();
+
+      giftDb.prepare(`
+        DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
+      `).run();
+    } catch (error) {
+      beginErrors.push({ db: 'giftDb', phase: 'delete', error: error.message });
+      rollbackAll();
+    }
+  }
+
+  if (beginErrors.length === 0 && musicDb) {
+    try {
+      musicDb.exec('BEGIN');
+      counts.playHistory = countRows(musicDb, 'play_history');
+      counts.playQueueState = countRows(musicDb, 'play_queue_state');
+      musicDb.prepare('DELETE FROM play_history').run();
+      musicDb.prepare('DELETE FROM play_queue_state').run();
+      musicDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'").run();
+    } catch (error) {
+      beginErrors.push({ db: 'musicDb', phase: 'delete', error: error.message });
+      rollbackAll();
+    }
+  }
+
+  if (beginErrors.length === 0 && checkinDb) {
+    try {
+      checkinDb.exec('BEGIN');
       counts.checkins = countRows(checkinDb, 'checkin_users');
       checkinDb.prepare('DELETE FROM checkin_users').run();
-      checkinDb.exec('COMMIT');
     } catch (error) {
-      checkinDb.exec('ROLLBACK');
-      throw error;
+      beginErrors.push({ db: 'checkinDb', phase: 'delete', error: error.message });
+      rollbackAll();
     }
+  }
+
+  // 如果 Phase 1 有任何失败，返回错误
+  if (beginErrors.length > 0) {
+    const error = new Error(`Clear-all pre-commit failed: ${beginErrors.map(e => `${e.db} ${e.phase}`).join(', ')}`);
+    error.details = beginErrors;
+    throw error;
+  }
+
+  // Phase 2: 依次提交所有事务
+  const commitResults = [];
+  const committed = [];
+  const failed = [];
+
+  for (const { name, db } of databases) {
+    if (!db) continue;
+    try {
+      db.exec('COMMIT');
+      committed.push(name);
+      commitResults.push({ db: name, status: 'committed' });
+    } catch (error) {
+      failed.push(name);
+      commitResults.push({ db: name, status: 'failed', error: error.message });
+      // 首次提交失败后立即停止，不再尝试后续提交
+      break;
+    }
+  }
+
+  // 如果有提交失败，返回部分失败状态
+  if (failed.length > 0) {
+    return {
+      ok: false,
+      partial: true,
+      committed,
+      failed,
+      error: `Commit failed at ${failed[0]}`,
+      deletedCounts: counts,
+      results: commitResults
+    };
+  }
+
+  // Phase 3: 所有提交成功，重建默认行
+  try {
+    // 重建默认分类
+    const timestamp = now();
+    songDb.prepare(`
+      INSERT INTO song_categories (name, sort_order, is_enabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run('默认分类', 0, 1, timestamp, timestamp);
+
+    // 确保加班机状态行存在且为禁用状态
+    giftDb.prepare(`
+      INSERT OR REPLACE INTO overtime_machine_state (
+        id, enabled, enable_epoch, initial_seconds, remaining_ms,
+        anchor_at_ms, status, background_path, background_fit, revision, updated_at
+      ) VALUES (1, 0, 0, 0, 0, 0, 'paused', '', 'cover', 0, ?)
+    `).run(timestamp);
+  } catch (error) {
+    console.warn('[Database] Failed to recreate defaults after clear-all:', error.message);
   }
 
   return {
     cleared: true,
     scope: 'all',
-    preserved: ['settings', 'themePresets'],
+    preserved: CLEAR_ALL_MATRIX.preserve,
     deletedCounts: counts,
-    totalDeleted: Object.values(counts).reduce((a, b) => a + b, 0)
+    totalDeleted: Object.values(counts).reduce((a, b) => a + b, 0),
+    recreated: ['song_categories', 'overtime_machine_state']
   };
 }
 

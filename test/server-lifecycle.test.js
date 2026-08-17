@@ -8,6 +8,7 @@ const test = require('node:test');
 const http = require('node:http');
 
 const lifecycle = require('../src/server/lifecycle');
+const { createInflightTracker } = require('../src/server/inflight-tracker');
 
 function cleanupOptions(dataDir, fetchImpl, canConnectToPort) {
   return {
@@ -279,4 +280,28 @@ test('runtime info records the previous pid and port and removes only its own re
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
+});
+
+test('inflight tracker rejects new work and drains already accepted handlers', async () => {
+  const tracker = createInflightTracker();
+  let release;
+  const accepted = tracker.run(() => new Promise((resolve) => {
+    release = resolve;
+  }));
+
+  tracker.quiesce();
+  const drain = tracker.drain();
+  let drained = false;
+  drain.then(() => { drained = true; });
+  await assert.rejects(
+    tracker.run(() => Promise.resolve()),
+    (error) => error.code === 'SERVER_QUIESCING'
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(drained, false);
+
+  release('done');
+  assert.equal(await accepted, 'done');
+  await drain;
+  assert.equal(drained, true);
 });

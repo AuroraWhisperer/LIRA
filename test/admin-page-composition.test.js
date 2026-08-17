@@ -53,12 +53,15 @@ test('HTTP admin routes compose before token injection without a legacy page map
 test('HTTP admin routes inject the token into the composed document', () => {
   for (const pathname of ['/', '/admin', '/settings', '/songs']) {
     let status;
-    let headers;
+    let headers = {};
     let body;
     const response = {
+      setHeader(name, value) {
+        headers[name] = value;
+      },
       writeHead(nextStatus, nextHeaders) {
         status = nextStatus;
-        headers = nextHeaders;
+        headers = { ...headers, ...nextHeaders };
       },
       end(nextBody) {
         body = nextBody;
@@ -79,5 +82,59 @@ test('HTTP admin routes inject the token into the composed document', () => {
     assert.ok(html.indexOf('window.__API_TOKEN__') < html.indexOf('</head>'));
     assert.match(html, /var t="test-token"/);
     assert.match(html, /<script type="module" src="\/js\/admin\/index\.js/);
+  }
+});
+
+test('admin pages include frame protection headers', () => {
+  for (const pathname of ['/', '/admin', '/settings', '/songs']) {
+    let headers = {};
+    const response = {
+      setHeader(name, value) {
+        headers[name] = value;
+      },
+      writeHead(status, nextHeaders) {
+        headers = { ...headers, ...nextHeaders };
+      },
+      end() {}
+    };
+
+    servePageOrAsset(
+      PUBLIC_DIR,
+      { method: 'GET' },
+      response,
+      new URL(`http://127.0.0.1${pathname}`),
+      'test-token'
+    );
+
+    assert.equal(headers['Content-Security-Policy'], "frame-ancestors 'none'");
+    assert.equal(headers['X-Frame-Options'], 'DENY');
+  }
+});
+
+test('overlay pages do not include frame protection headers', () => {
+  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics'];
+
+  for (const pathname of overlayPaths) {
+    let headers = {};
+    const response = {
+      setHeader(name, value) {
+        headers[name] = value;
+      },
+      writeHead(status, nextHeaders) {
+        headers = { ...headers, ...nextHeaders };
+      },
+      end() {}
+    };
+
+    servePageOrAsset(
+      PUBLIC_DIR,
+      { method: 'GET' },
+      response,
+      new URL(`http://127.0.0.1${pathname}`),
+      'test-token'
+    );
+
+    assert.equal(headers['Content-Security-Policy'], undefined);
+    assert.equal(headers['X-Frame-Options'], undefined);
   }
 });

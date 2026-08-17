@@ -65,7 +65,7 @@ function getSchemaVersion(db, key) {
 
 // ── 点歌库 DDL ──
 
-const SONG_SCHEMA = `
+const SONG_TABLE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -176,9 +176,6 @@ const SONG_SCHEMA = `
     FOREIGN KEY (song_id) REFERENCES songs(id)
   );
 
-  CREATE INDEX IF NOT EXISTS idx_queue_status
-    ON queue(status, is_pinned, pinned_at, created_at);
-
   CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     queue_id INTEGER,
@@ -245,6 +242,13 @@ const SONG_SCHEMA = `
     ON user_cooldowns(last_request_at);
 `;
 
+const SONG_INDEX_SCHEMA = `
+  CREATE INDEX IF NOT EXISTS idx_queue_status
+    ON queue(status, is_pinned, pinned_at, created_at);
+`;
+
+const SONG_SCHEMA = `${SONG_TABLE_SCHEMA}\n${SONG_INDEX_SCHEMA}`;
+
 // ── 醒目留言 DDL ──
 
 const SUPER_CHAT_SCHEMA = `
@@ -272,7 +276,7 @@ const SUPER_CHAT_SCHEMA = `
 
 // ── 礼物 DDL ──
 
-const GIFT_SCHEMA = `
+const GIFT_TABLE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS gift_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     platform_id TEXT NOT NULL DEFAULT '',
@@ -305,8 +309,6 @@ const GIFT_SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_gift_events_status
     ON gift_events(status, created_at);
-  CREATE INDEX IF NOT EXISTS idx_gift_events_sprint
-    ON gift_events(counted_in_sprint, status, created_at);
   CREATE INDEX IF NOT EXISTS idx_gift_events_created_at
     ON gift_events(created_at);
   CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id
@@ -368,6 +370,13 @@ const GIFT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_overtime_settlements_recent
     ON overtime_settlements(status, id DESC);
 `;
+
+const GIFT_INDEX_SCHEMA = `
+  CREATE INDEX IF NOT EXISTS idx_gift_events_sprint
+    ON gift_events(counted_in_sprint, status, created_at);
+`;
+
+const GIFT_SCHEMA = `${GIFT_TABLE_SCHEMA}\n${GIFT_INDEX_SCHEMA}`;
 
 // ── 播放器 DDL ──
 // 播放状态原先只在浏览器 localStorage，清缓存即丢失、多页面无法共享
@@ -471,8 +480,12 @@ const CHECKIN_SCHEMA = `
 module.exports = {
   runMigrations,
   getSchemaVersion,
+  SONG_TABLE_SCHEMA,
+  SONG_INDEX_SCHEMA,
   SONG_SCHEMA,
   SUPER_CHAT_SCHEMA,
+  GIFT_TABLE_SCHEMA,
+  GIFT_INDEX_SCHEMA,
   GIFT_SCHEMA,
   MUSIC_SCHEMA,
   CHECKIN_SCHEMA

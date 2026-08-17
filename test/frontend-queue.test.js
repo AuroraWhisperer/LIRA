@@ -325,7 +325,8 @@ test('overtime initial duration is minute-based, selectable, and readable', () =
   const helperEnd = source.indexOf('\nfunction formatClock', helperStart);
   const sandbox = {};
   vm.runInNewContext(
-    `const MAX_INITIAL_HOURS = 999;\n${source.slice(helperStart, helperEnd)}\n` +
+    `const serverLimits = { maxSeconds: 315328464000, maxEffectFactor: 1000, maxRandomWeight: 100000, maxEnabledRules: 8 };\n` +
+      `${source.slice(helperStart, helperEnd)}\n` +
       'this.helpers = { parseInitialDuration, formatInitialDuration };',
     sandbox
   );
@@ -374,8 +375,7 @@ test('overtime gift rules use novice-friendly structured controls', () => {
   const durationEnd = source.indexOf('\n  function ruleButton', durationStart);
   const durationSandbox = {};
   vm.runInNewContext(
-    `const MAX_RULE_SECONDS = 24 * 60 * 60; const MAX_EFFECT_FACTOR = 1000;\n${source.slice(durationStart, durationEnd)}\n` +
-      'this.readEffect = readEffect;',
+    source.slice(durationStart, durationEnd) + '\nthis.readEffect = readEffect;',
     durationSandbox
   );
   const durationRoot = (operation, hours, minutes, seconds, factor = 2) => ({
@@ -404,17 +404,16 @@ test('overtime gift rules use novice-friendly structured controls', () => {
     () => durationSandbox.readEffect(durationRoot('divide', '', '', '', '1')),
     /倍数/
   );
-  assert.throws(
-    () => durationSandbox.readEffect(durationRoot('add', '24', '1', '0')),
-    /不能超过 24 小时/
+  assert.equal(
+    JSON.stringify(durationSandbox.readEffect(durationRoot('add', '999', '0', '0'))),
+    JSON.stringify({ operation: 'add', value: 999 * 3600 })
   );
 
   const probabilityStart = source.indexOf('function updateOutcomeProbabilities');
   const probabilityEnd = source.indexOf('\n  function setEffectMode', probabilityStart);
   const probabilitySandbox = {};
   vm.runInNewContext(
-    `const MAX_OUTCOME_WEIGHT = 10000;\n${source.slice(probabilityStart, probabilityEnd)}\n` +
-      'this.updateOutcomeProbabilities = updateOutcomeProbabilities;',
+    source.slice(probabilityStart, probabilityEnd) + '\nthis.updateOutcomeProbabilities = updateOutcomeProbabilities;',
     probabilitySandbox
   );
   const badges = [{}, {}];

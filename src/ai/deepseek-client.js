@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { fetchJson, createPublicError } = require('./http-client');
+const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
 
 function createDeepSeekClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -9,6 +9,7 @@ function createDeepSeekClient(options = {}) {
   const chatHistory = new Map();
 
   async function createResponse(request) {
+    throwIfAborted(request.signal);
     const config = request.config || {};
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
       throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
@@ -33,7 +34,8 @@ function createDeepSeekClient(options = {}) {
       purpose: request.purpose,
       protocol: 'responses',
       body: responsesBody,
-      normalize: normalizeResponse
+      normalize: normalizeResponse,
+      signal: request.signal
     });
   }
 
@@ -60,7 +62,8 @@ function createDeepSeekClient(options = {}) {
       purpose: request.purpose,
       protocol: 'chat_completions',
       body,
-      normalize: normalizeChatResponse
+      normalize: normalizeChatResponse,
+      signal: request.signal
     });
     const assistantMessage = toAssistantHistoryMessage(result.rawMessage);
     const responseId = result.id || `chat_${crypto.randomUUID()}`;
@@ -69,7 +72,8 @@ function createDeepSeekClient(options = {}) {
     return { ...result, id: responseId, rawMessage: undefined };
   }
 
-  async function sendModelRequest({ url, config, purpose, protocol, body, normalize }) {
+  async function sendModelRequest({ url, config, purpose, protocol, body, normalize, signal }) {
+    throwIfAborted(signal);
     const requestId = crypto.randomUUID();
     const secrets = [config.deepseekApiKey];
     await safeLog({
@@ -77,6 +81,7 @@ function createDeepSeekClient(options = {}) {
       provider: 'deepseek', protocol, method: 'POST', url, model: config.model,
       body: sanitizeRequestBodyForLog(body, protocol)
     }, secrets);
+    throwIfAborted(signal);
     try {
       const payload = await fetchJson(url, {
         method: 'POST',
@@ -87,12 +92,17 @@ function createDeepSeekClient(options = {}) {
         body: JSON.stringify(body),
         timeoutMs: config.requestTimeoutMs,
         fetchImpl,
-        onResponse: (response) => safeLog({
-          type: 'response', requestId, purpose: purpose || 'model_request',
-          provider: 'deepseek', protocol, status: response.status,
-          ok: response.ok, rawText: response.text, payload: response.payload
-        }, secrets)
+        signal,
+        onResponse: (response) => {
+          throwIfAborted(signal);
+          return safeLog({
+            type: 'response', requestId, purpose: purpose || 'model_request',
+            provider: 'deepseek', protocol, status: response.status,
+            ok: response.ok, rawText: response.text, payload: response.payload
+          }, secrets);
+        }
       });
+      throwIfAborted(signal);
       const result = normalize(payload);
       if (!result.text && !result.functionCalls.length) {
         if (result.finishReason === 'length' || result.finishReason === 'max_output_tokens') {
@@ -100,12 +110,14 @@ function createDeepSeekClient(options = {}) {
         }
         throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
       }
+      throwIfAborted(signal);
       await safeLog({
         type: 'normalized_response', requestId, purpose: purpose || 'model_request',
         provider: 'deepseek', protocol, result
       }, secrets);
       return result;
     } catch (error) {
+      if (error?.code === 'AI_SHUTDOWN') throw error;
       await safeLog({
         type: 'error', requestId, purpose: purpose || 'model_request',
         provider: 'deepseek', protocol,
@@ -139,7 +151,8 @@ function createDeepSeekClient(options = {}) {
     const payload = await fetchJson(resolveModelsEndpoint(responsesUrl), {
       headers: { Authorization: `Bearer ${apiKey}` },
       timeoutMs: request.requestTimeoutMs,
-      fetchImpl
+      fetchImpl,
+      signal: request.signal
     });
     const models = Array.from(new Set(
       (Array.isArray(payload?.data) ? payload.data : [])
@@ -149,7 +162,7 @@ function createDeepSeekClient(options = {}) {
     return { models };
   }
 
-  async function testConnection(config = {}) {
+  async function testConnection(config = {}, options = {}) {
     if (!config.deepseekResponsesUrl) {
       throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 Responses API 地址。');
     }
@@ -165,7 +178,8 @@ function createDeepSeekClient(options = {}) {
         input: '你好',
         tools: [],
         maxOutputTokens: 128,
-        purpose: 'connection_test'
+        purpose: 'connection_test',
+        signal: options.signal
       });
       responseText = response.text;
     } catch (error) {

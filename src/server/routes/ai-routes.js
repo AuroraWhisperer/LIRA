@@ -29,7 +29,7 @@ function createProviderTestRoute(provider) {
 
 const routes = {
   'GET /api/ai/config'(context, request, res) {
-    sendJson(res, 200, { ok: true, data: context.ai.getConfig() });
+    sendJson(res, 200, { ok: true, data: context.ai.getPublicConfig() });
   },
   async 'PUT /api/ai/config'(context, request, res) {
     try {

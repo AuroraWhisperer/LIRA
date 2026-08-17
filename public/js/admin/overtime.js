@@ -4,7 +4,6 @@ import { eventBus, Events } from '../shared/event-bus.js';
 import { api, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 
-const MAX_INITIAL_HOURS = 999;
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const GUARD_GIFTS = [
   { id: 'guard-1', name: '总督', rmb: 19998, image: 'bilibili-guard-governor.png' },
@@ -14,6 +13,7 @@ const GUARD_GIFTS = [
 
 let initialized = false;
 let overtimeState = null;
+let serverLimits = { maxSeconds: 315328464000, maxEffectFactor: 1000, maxRandomWeight: 100000, maxEnabledRules: 8 };
 let giftDetection = null;
 let catalog = [];
 let settlements = [];
@@ -149,6 +149,7 @@ function syncRulesSaveButton() {
 
 function renderState(nextState) {
   if (!nextState) return;
+  if (nextState.limits) serverLimits = nextState.limits;
   overtimeState = { ...overtimeState, ...nextState };
   anchorRemainingMs = Number(overtimeState.effectiveRemainingMs) || 0;
   localAnchorMs = performance.now();
@@ -357,7 +358,7 @@ function renderSettlements() {
 function populateInitialDurationSelectors() {
   const hours = byId('overtimeInitialHours');
   const minutes = byId('overtimeInitialMinutes');
-  for (let value = 0; value <= MAX_INITIAL_HOURS; value += 1) {
+  for (let value = 0; value <= 999; value += 1) {
     appendOption(hours, String(value), `${value} 小时`);
   }
   for (let value = 0; value < 60; value += 1) {
@@ -378,10 +379,7 @@ function syncDurationInputFromSelectors() {
 }
 
 function renderInitialDuration(seconds) {
-  const normalizedSeconds = Math.min(
-    MAX_INITIAL_HOURS * 3600 + 59 * 60,
-    Math.max(0, Math.floor((Number(seconds) || 0) / 60) * 60)
-  );
+  const normalizedSeconds = Math.max(0, Math.floor((Number(seconds) || 0) / 60) * 60);
   setValueUnlessFocused('overtimeInitialTime', formatInitialDuration(normalizedSeconds));
   renderDurationSelectors(normalizedSeconds);
 }
@@ -398,8 +396,19 @@ function parseInitialDuration(value) {
   if (!match) throw new Error('初始时长格式应为 HHH:MM。');
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
-  if (hours > MAX_INITIAL_HOURS || minutes > 59) throw new Error('小时不能超过 999，分钟必须小于 60。');
-  return (hours * 60 + minutes) * 60;
+  if (minutes > 59) throw new Error('分钟必须小于 60。');
+  const seconds = (hours * 60 + minutes) * 60;
+  if (seconds > serverLimits.maxSeconds) {
+    throw new Error(`初始时长不能超过 ${formatMaxSeconds(serverLimits.maxSeconds)}。`);
+  }
+  return seconds;
+}
+
+function formatMaxSeconds(seconds) {
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}:${String(minutes).padStart(2, '0')}`;
 }
 
 function formatInitialDuration(seconds) {

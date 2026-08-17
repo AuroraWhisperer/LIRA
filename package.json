@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "3.4.14",
+  "version": "3.4.15",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -11,6 +11,10 @@
     "desktop": "electron .",
     "check": "node scripts/check-js.js",
     "test": "node --experimental-vm-modules --test --test-concurrency=4",
+    "verify:docs": "node --test test/governance-docs.test.js",
+    "verify:architecture": "node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js",
+    "verify:quick": "npm run verify:docs && npm run check && npm run verify:architecture",
+    "verify": "npm run verify:quick && npm test",
     "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",
     "make:icon": "node scripts/create-icon.js",
@@ -79,5 +83,8 @@
         "releaseType": "release"
       }
     ]
+  },
+  "overrides": {
+    "js-yaml": "^4.3.1"
   }
 }

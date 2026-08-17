@@ -1,6 +1,6 @@
 # LIRA 架构文档
 
-> 版本:**v3.4.2**(2026-08)· 适用代码:仓库根 [src/](../../src/)、[public/](../../public/)、[package.json](../../package.json)
+> 适用代码:仓库根 [src/](../../src/)、[public/](../../public/)、[package.json](../../package.json)
 
 本目录按**位置**组织架构文档(后端 / 前端 / 桌面端 / 工程),摒弃旧的 00–11 编号。核心约定:**每个技术事实只在一个文件成表**(单一事实源),其余文件用相对链接引用——低耦合、高细节(精确到端口、函数、通道、端点、常量)。事实归属见文末[事实地图](#事实地图)。
 
@@ -73,8 +73,10 @@
 | 文档 | 内容 |
 |---|---|
 | [build.md](engineering/build.md) | npm scripts、依赖清单、electron-builder 配置、发布流水线、运行模式 |
-| [test.md](engineering/test.md) | node:test 测试体系、92 个测试文件的覆盖地图、静态检查与诊断脚本 |
+| [test.md](engineering/test.md) | node:test 测试体系、覆盖地图、分层验证、静态检查与诊断脚本 |
 | [modularity-standard.md](engineering/modularity-standard.md) | 模块边界、组合根、持久化端口、共享工具和架构适应度函数的强制规范 |
+| [ai-workflow.md](engineering/ai-workflow.md) | AI 变更的 owner、contract、consumer 与 test 路由表 |
+| [legacy-boundaries.md](engineering/legacy-boundaries.md) | 遗留边界、迁移方向与增量执行状态 |
 
 ### 图表 diagrams/
 
@@ -86,7 +88,7 @@
 
 ### 决策记录 adr/
 
-[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md)
+[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md) · [0008-ai-assisted-change-governance](adr/0008-ai-assisted-change-governance.md)
 
 ## 技术栈速查(名称速览,精确版本见 [engineering/build.md](engineering/build.md))
 
@@ -133,6 +135,9 @@
 | npm scripts/依赖版本/electron-builder 配置 | [engineering/build.md](engineering/build.md) |
 | 测试命令与测试文件清单 | [engineering/test.md](engineering/test.md) |
 | 模块化、低耦合与组合根约束 | [engineering/modularity-standard.md](engineering/modularity-standard.md) |
+| AI 任务的 owner/contract/consumer/test 路由 | [engineering/ai-workflow.md](engineering/ai-workflow.md) |
+| 遗留边界、迁移方向与执行状态 | [engineering/legacy-boundaries.md](engineering/legacy-boundaries.md) |
+| 规格生命周期状态与运行时证据 | [../../specs/README.md](../../specs/README.md) |
 | 架构图表(D2 源与 PNG、Mermaid 时序图) | [diagrams/](diagrams/) |
 | 架构决策 | [adr/](adr/) |
 

@@ -186,10 +186,15 @@ function createDomainServices(options) {
     },
     clearAll() {
       const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb);
-      state.cooldownByUser.clear();
-      state.blindBoxCache = null;
-      songs.ensureCategory('默认');
-      queue.ensureUnified();
+
+      // 只有完全成功时才重置内存状态
+      if (result.cleared === true && !result.partial) {
+        state.cooldownByUser.clear();
+        state.blindBoxCache = null;
+        songs.ensureCategory('默认');
+        queue.ensureUnified();
+      }
+
       return result;
     },
     getSchemaVersions: () => {

@@ -24,9 +24,27 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
     if (!filePath || !fs.existsSync(filePath)) {
       return new Response('File not found', { status: 404 });
     }
-    if (!isPathAllowedForLocalMedia(filePath)) {
+
+    // Canonicalize path to prevent symlink escapes
+    let canonicalPath;
+    try {
+      canonicalPath = fs.realpathSync(filePath);
+    } catch (_) {
+      return new Response('File not found', { status: 404 });
+    }
+
+    if (!isPathAllowedForLocalMedia(canonicalPath)) {
       return new Response('Forbidden', { status: 403 });
     }
+
+    // Enforce audio extension whitelist at protocol boundary
+    const ext = path.extname(canonicalPath).toLowerCase();
+    if (!['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma'].includes(ext)) {
+      return new Response('Forbidden', { status: 403 });
+    }
+
+    // Use canonical path for all subsequent operations
+    filePath = canonicalPath;
 
     let stat;
     try {

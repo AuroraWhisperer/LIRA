@@ -12,23 +12,36 @@ function createResponseRecorder() {
   };
 }
 
-test('AI config route allowlists fields, keeps blank secrets, and supports explicit clearing', async () => {
+test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys', async () => {
   let saved;
   const context = {
     ai: {
+      getPublicConfig() {
+        return { model: 'deepseek-v4-flash', hasDeepSeekApiKey: true };
+      },
       updateConfig(changes) { saved = changes; return { model: 'ds-v4-flash', hasDeepSeekApiKey: true }; }
     }
   };
-  const res = createResponseRecorder();
+
+  const getRes = createResponseRecorder();
+  await routes['GET /api/ai/config'](context, {}, getRes);
+  assert.equal(getRes.statusCode, 200);
+  const getBody = JSON.parse(getRes.body);
+  assert.equal(getBody.data.hasDeepSeekApiKey, true);
+  assert.equal(getBody.data.deepseekApiKey, undefined);
+  assert.doesNotMatch(getRes.body, /sk-secret-123/);
+
+  const putRes = createResponseRecorder();
   await routes['PUT /api/ai/config'](context, {
     body: async () => ({
       model: 'ds-v4-flash', deepseekApiKey: '', qweatherApiKey: null,
       unknownSecret: 'must-not-pass'
     })
-  }, res);
-  assert.equal(res.statusCode, 200);
+  }, putRes);
+  assert.equal(putRes.statusCode, 200);
   assert.deepEqual(saved, { model: 'ds-v4-flash', qweatherApiKey: '' });
-  assert.doesNotMatch(res.body, /must-not-pass/);
+  assert.doesNotMatch(putRes.body, /must-not-pass/);
+  assert.doesNotMatch(putRes.body, /sk-secret-123/);
 });
 
 test('AI config route returns a validation error without exposing request internals', async () => {

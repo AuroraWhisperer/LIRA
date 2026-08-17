@@ -35,16 +35,21 @@ function createXiaomiAiService(dependencies) {
   } = dependencies;
   const userLastRequest = new Map();
   const roomRequests = [];
+  const shutdownController = new AbortController();
+  const directOperations = new Set();
   let lastUserMapPruneAt = 0;
   let lastDeliveryAt = 0;
   let lastError = '';
   let handledCount = 0;
+  let shuttingDown = false;
+  let shutdownPromise = null;
 
   const coordinator = createOrderedAsyncCoordinator({
     generate: generateReply,
     deliver: deliverReply,
     getConcurrency: () => store.getConfig().generationConcurrency,
     onError(error, item) {
+      if (isShutdownError(error)) return;
       lastError = publicError(error);
       store.logRequest({
         uid: item.uid, userName: item.userName, category: 'delivery', status: 'failed',
@@ -55,6 +60,7 @@ function createXiaomiAiService(dependencies) {
   });
 
   function handleDanmaku(danmaku = {}) {
+    if (shuttingDown) return { accepted: false, reason: 'stopped' };
     const config = store.getConfig();
     if (!isAiReady(config)) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
@@ -103,6 +109,7 @@ function createXiaomiAiService(dependencies) {
   }
 
   async function generateReply(item, options = {}) {
+    throwIfShuttingDown();
     const startedAt = now();
     const config = store.getConfig();
     if (item.localRefusal) {
@@ -117,6 +124,7 @@ function createXiaomiAiService(dependencies) {
       const inputReview = await runSafetyReview(
         config, buildInputReviewPrompt(item.question), usage, 'input_review'
       );
+      throwIfShuttingDown();
       if (!inputReview.allowed) {
         return { text: inputReview.safeText || SAFE_REFUSAL, category: 'safety', usage, toolCalls: 0 };
       }
@@ -136,8 +144,10 @@ function createXiaomiAiService(dependencies) {
         input,
         tools: buildAvailableTools(config, excludedToolNames),
         maxOutputTokens: getModelOutputTokens(config),
-        purpose: 'generation'
+        purpose: 'generation',
+        signal: shutdownController.signal
       });
+      throwIfShuttingDown();
       addUsage(usage, response.usage);
 
       while (response.functionCalls.length) {
@@ -147,6 +157,7 @@ function createXiaomiAiService(dependencies) {
         const outputs = [];
         for (const call of response.functionCalls) {
           const result = await executeToolWithQuotaFallback(call, config, excludedToolNames);
+          throwIfShuttingDown();
           outputs.push({ type: 'function_call_output', call_id: call.callId, output: JSON.stringify(result) });
           toolCallCount += 1;
         }
@@ -159,8 +170,10 @@ function createXiaomiAiService(dependencies) {
           tools: buildAvailableTools(config, excludedToolNames),
           previousResponseId: response.id,
           maxOutputTokens: getModelOutputTokens(config),
-          purpose: 'tool_followup'
+          purpose: 'tool_followup',
+          signal: shutdownController.signal
         });
+        throwIfShuttingDown();
         addUsage(usage, response.usage);
       }
 
@@ -168,11 +181,15 @@ function createXiaomiAiService(dependencies) {
       const outputReview = await runSafetyReview(
         config, buildOutputReviewPrompt(item.question, rawText), usage, 'output_review'
       );
+      throwIfShuttingDown();
       const approved = outputReview.allowed ? (outputReview.safeText || rawText) : (outputReview.safeText || SAFE_REFUSAL);
       const text = truncateReply(approved, replyBudget.threeMessages);
       const result = { text, category: toolCallCount ? 'tool' : 'chat', usage, toolCalls: toolCallCount };
+      throwIfShuttingDown();
       store.setContext(item.uid, { question: item.question, answer: text }, config.contextTtlSeconds);
+      throwIfShuttingDown();
       store.setCache(cacheKey, result, config.cacheTtlSeconds);
+      throwIfShuttingDown();
       store.logRequest({
         uid: item.uid, userName: item.userName, category: result.category, status: 'generated',
         latencyMs: now() - startedAt, inputTokens: usage.inputTokens,
@@ -180,6 +197,7 @@ function createXiaomiAiService(dependencies) {
       });
       return result;
     } catch (error) {
+      if (isShutdownError(error)) throw error;
       lastError = publicError(error);
       store.logRequest({
         uid: item.uid, userName: item.userName, category: 'generation', status: 'failed',
@@ -197,18 +215,20 @@ function createXiaomiAiService(dependencies) {
       : '执行直播输入安全审核，只输出指定 JSON。';
     const response = await deepseek.createResponse({
       config, instructions, input: prompt,
-      tools: [], maxOutputTokens: REVIEW_OUTPUT_TOKENS, purpose
+      tools: [], maxOutputTokens: REVIEW_OUTPUT_TOKENS, purpose,
+      signal: shutdownController.signal
     });
     addUsage(usage, response.usage);
     return parseSafetyReview(response.text);
   }
 
   async function executeTool(call, config) {
-    if (call.name === 'get_weather') return tools.qweather.getWeather(config, call.arguments);
-    if (call.name === 'search_places') return tools.amap.searchPlaces(config, call.arguments);
-    if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments);
-    if (call.name === 'get_route') return tools.amap.getRoute(config, call.arguments);
-    if (call.name === 'web_search') return tools.webSearch.search(config, call.arguments);
+    const options = { signal: shutdownController.signal };
+    if (call.name === 'get_weather') return tools.qweather.getWeather(config, call.arguments, options);
+    if (call.name === 'search_places') return tools.amap.searchPlaces(config, call.arguments, options);
+    if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments, options);
+    if (call.name === 'get_route') return tools.amap.getRoute(config, call.arguments, options);
+    if (call.name === 'web_search') return tools.webSearch.search(config, call.arguments, options);
     if (call.name === 'get_current_time') return tools.getCurrentTime(call.arguments);
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
@@ -233,11 +253,15 @@ function createXiaomiAiService(dependencies) {
   async function deliverReply(item, result) {
     let currentResult = result;
     for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt += 1) {
+      throwIfShuttingDown();
       const chunkIntervalMs = randomIntervalMs(random, MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS);
       const waitMs = lastDeliveryAt
         ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt))
         : 0;
-      if (waitMs) await delay(waitMs);
+      if (waitMs) {
+        await delay(waitMs);
+        throwIfShuttingDown();
+      }
       const mentionTarget = {
         uid: item.uid.startsWith('name:') ? '' : item.uid,
         name: item.userName,
@@ -250,13 +274,16 @@ function createXiaomiAiService(dependencies) {
         intervalMs: chunkIntervalMs,
         rateLimitIntervalMs: 0
       });
+      throwIfShuttingDown();
       lastDeliveryAt = now();
       if (typeof waitForDelivery !== 'function') return;
       const delivered = await waitForDelivery({
         ...delivery,
         mentionName: mentionTarget.name,
-        timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS
+        timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS,
+        signal: shutdownController.signal
       });
+      throwIfShuttingDown();
       if (delivered) return;
       log.warn?.(`[AI] reply missing from room feed uid=${JSON.stringify(item.uid)} attempt=${attempt}/${MAX_DELIVERY_ATTEMPTS}`);
       if (attempt < MAX_DELIVERY_ATTEMPTS) {
@@ -268,22 +295,32 @@ function createXiaomiAiService(dependencies) {
 
   async function testConfiguration() {
     const config = store.getConfig();
-    return deepseek.testConnection(config);
+    return runDirectOperation(() => deepseek.testConnection(config, {
+      signal: shutdownController.signal
+    }));
   }
 
   async function testProvider(provider) {
     const config = store.getConfig();
-    if (provider === 'deepseek') return deepseek.testConnection(config);
-    if (provider === 'qweather') return tools.qweather.testConnection(config);
-    if (provider === 'amap') return tools.amap.testConnection(config);
-    throw codedError('AI_PROVIDER_UNKNOWN', '不支持该连接测试。');
+    return runDirectOperation(() => {
+      const options = { signal: shutdownController.signal };
+      if (provider === 'deepseek') return deepseek.testConnection(config, options);
+      if (provider === 'qweather') return tools.qweather.testConnection(config, options);
+      if (provider === 'amap') return tools.amap.testConnection(config, options);
+      throw codedError('AI_PROVIDER_UNKNOWN', '不支持该连接测试。');
+    });
   }
 
   async function listModels(input = {}) {
     const config = store.getConfig();
     const apiKey = String(input.apiKey || '').trim() || config.deepseekApiKey;
     const responsesUrl = String(input.apiUrl || '').trim() || config.deepseekResponsesUrl;
-    return deepseek.listModels({ apiKey, responsesUrl, requestTimeoutMs: config.requestTimeoutMs });
+    return runDirectOperation(() => deepseek.listModels({
+      apiKey,
+      responsesUrl,
+      requestTimeoutMs: config.requestTimeoutMs,
+      signal: shutdownController.signal
+    }));
   }
 
   function getStatus() {
@@ -300,8 +337,32 @@ function createXiaomiAiService(dependencies) {
     };
   }
 
+  function runDirectOperation(work) {
+    throwIfShuttingDown();
+    const operation = Promise.resolve().then(work);
+    directOperations.add(operation);
+    operation.then(
+      () => directOperations.delete(operation),
+      () => directOperations.delete(operation)
+    );
+    return operation;
+  }
+
+  function throwIfShuttingDown() {
+    if (!shuttingDown && !shutdownController.signal.aborted) return;
+    throw createShutdownError();
+  }
+
   function shutdown() {
-    coordinator.stop();
+    if (shutdownPromise) return shutdownPromise;
+    shuttingDown = true;
+    shutdownController.abort(createShutdownError());
+    const coordinatorDrain = coordinator.stop();
+    shutdownPromise = Promise.allSettled([
+      coordinatorDrain,
+      ...directOperations
+    ]).then(() => {});
+    return shutdownPromise;
   }
 
   return { handleDanmaku, testConfiguration, testProvider, listModels, getStatus, shutdown };
@@ -390,6 +451,14 @@ function codedError(code, message) {
   const error = new Error(message);
   error.code = code;
   return error;
+}
+
+function createShutdownError() {
+  return codedError('AI_SHUTDOWN', 'AI service is shutting down.');
+}
+
+function isShutdownError(error) {
+  return error?.code === 'AI_SHUTDOWN';
 }
 
 function publicError(error) {

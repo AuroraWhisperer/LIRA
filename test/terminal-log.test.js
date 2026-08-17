@@ -56,3 +56,44 @@ test('resets the terminal log and mirrors ordinary console output', () => {
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('redacts credentials from terminal output', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
+  const filePath = path.join(directory, 'terminal.log');
+  const originalLog = console.log;
+  let restore;
+
+  try {
+    restore = installTerminalLog(filePath, {
+      runId: 'run-test',
+      pid: 1234,
+      processType: 'browser',
+      now: () => '2026-08-03T15:07:34.288Z',
+      nextSequence: (() => {
+        let sequence = 0;
+        return () => {
+          sequence += 1;
+          return sequence;
+        };
+      })()
+    });
+
+    console.log('Authorization: Bearer secret-token-12345');
+    console.log('Cookie: session=abc123; user=john');
+    console.log('API URL: https://api.example.com/data?key=secret123&other=value');
+    console.log('Connecting to https://user:password@example.com/resource');
+
+    const content = fs.readFileSync(filePath, 'utf8');
+
+    // Verify credentials are redacted
+    assert.ok(!content.includes('secret-token-12345'), 'Bearer token should be redacted');
+    assert.ok(!content.includes('session=abc123'), 'Cookie values should be redacted');
+    assert.ok(!content.includes('key=secret123'), 'Query param secrets should be redacted');
+    assert.ok(!content.includes('user:password@'), 'URL userinfo should be redacted');
+    assert.ok(content.includes('[REDACTED]'), 'Should contain redaction placeholder');
+  } finally {
+    restore?.();
+    console.log = originalLog;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});

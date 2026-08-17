@@ -17,7 +17,7 @@ function createStore(options = {}) {
   return { db, store: createAiConfigStore(db, codec, options) };
 }
 
-test('AI config defaults expose editable secrets while storing them encrypted', () => {
+test('AI config masks secrets in public projection while storing them encrypted', () => {
   const { db, store } = createStore();
   const defaults = store.getPublicConfig();
   assert.equal(defaults.enabled, true);
@@ -27,9 +27,9 @@ test('AI config defaults expose editable secrets while storing them encrypted', 
   assert.equal(defaults.deepseekResponsesUrl, '');
   assert.equal(defaults.userCooldownSeconds, 0);
   assert.equal(defaults.hasDeepSeekApiKey, false);
-  assert.equal(defaults.deepseekApiKey, '');
-  assert.equal(defaults.qweatherApiKey, '');
-  assert.equal(defaults.amapApiKey, '');
+  assert.equal(defaults.deepseekApiKey, undefined);
+  assert.equal(defaults.qweatherApiKey, undefined);
+  assert.equal(defaults.amapApiKey, undefined);
 
   store.updateConfig({ deepseekApiKey: 'sk-secret-value', enabled: true });
   const row = db.prepare("SELECT value, is_secret FROM ai_configuration WHERE key = 'deepseekApiKey'").get();
@@ -37,7 +37,16 @@ test('AI config defaults expose editable secrets while storing them encrypted', 
   assert.doesNotMatch(row.value, /sk-secret-value/);
   assert.equal(store.getConfig().deepseekApiKey, 'sk-secret-value');
   assert.equal(store.getPublicConfig().hasDeepSeekApiKey, true);
-  assert.equal(store.getPublicConfig().deepseekApiKey, 'sk-secret-value');
+  assert.equal(store.getPublicConfig().deepseekApiKey, undefined);
+
+  store.updateConfig({ qweatherApiKey: 'qw-key-123', amapApiKey: 'amap-key-456' });
+  const publicConfig = store.getPublicConfig();
+  assert.equal(publicConfig.hasQWeatherApiKey, true);
+  assert.equal(publicConfig.hasAmapApiKey, true);
+  assert.equal(publicConfig.qweatherApiKey, undefined);
+  assert.equal(publicConfig.amapApiKey, undefined);
+  assert.equal(store.getConfig().qweatherApiKey, 'qw-key-123');
+  assert.equal(store.getConfig().amapApiKey, 'amap-key-456');
 });
 
 test('AI config normalizes the legacy DeepSeek model to its official name', () => {

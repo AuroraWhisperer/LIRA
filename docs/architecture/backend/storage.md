@@ -101,11 +101,11 @@ data/
 |---|---|---|---|
 | songDb | `song_db` | v1-v3 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引 |
 | superChatDb | `super_chat_db` | v1 | 基线 |
-| giftDb | `gift_db` | v1-v5 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1) |
+| giftDb | `gift_db` | v1-v6 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限 |
 | musicDb | `music_db` | v1 | 基线 |
 | checkinDb | `checkin_db` | v1 | 基线 |
 
-建表本身幂等(每次启动 `exec(SCHEMA)`,CREATE IF NOT EXISTS);一次性数据搬迁走迁移步骤。版本可由 `/api/state` 的 `schemaVersions` 或 `GET /api/database/stats` 查看(见 [api.md](api.md))。
+初始化顺序固定为基础表 DDL → 不可变迁移 → 依赖迁移列的索引 DDL → legacy Super Chat 搬迁。song/gift 的组合 schema 导出仅用于兼容；`createDatabases()` 使用拆分后的 table/index schema，避免真正的 pre-v1 库在 `pinned_at` 或 `counted_in_sprint` 补列前创建相关索引。任何初始化步骤失败时，本次已打开的全部数据库句柄都会关闭。版本可由 `/api/state` 的 `schemaVersions` 或 `GET /api/database/stats` 查看(见 [api.md](api.md))。
 
 ## 5. 数据保留策略(Retention)
 
@@ -125,7 +125,55 @@ data/
 | `clearSuperChatData` | super_chats | — |
 | `clearPlaybackData` | play_history/play_queue_state | favorites/playlists |
 | `clearGiftData` | **gift_events + overtime_settlements 同事务**(`BEGIN IMMEDIATE`) | overtime_machine_state/overtime_gift_rules |
-| `clearAllData` | 五库全部业务数据 | **settings 与 theme_presets** |
+| `clearAllData` | 五库全部业务数据(见下文矩阵) | 配置类表(settings/ai_configuration/theme_presets/overtime_*/favorites/playlists) |
+
+### 6.1 Clear-All Matrix(清空全部矩阵)
+
+`clearAllData()` 使用 **两阶段提交**确保原子性。矩阵常量 `CLEAR_ALL_MATRIX`([database.js:465-516](../../../src/storage/database.js#L465-L516)):
+
+**保留(Preserve)**:配置类表,清空后应用仍可用
+- `settings`:直播间号、主题颜色、所有功能开关
+- `ai_configuration`:AI 提供商配置与凭证
+- `theme_presets`:主题预设(内置 + 用户自建)
+- `overtime_machine_state`:加班机状态(清空后重置为 id=1 禁用行)
+- `overtime_gift_rules`:加班机礼物规则
+- `favorites`:播放器收藏
+- `playlists` + `playlist_tracks`:播放器歌单
+
+**删除(Delete)**:全部业务数据
+- 点歌业务:`songs`、`song_categories`(清空后重建默认分类)、`queue`、`requests`、`import_batches`、`user_cooldowns`
+- AI 运行时:`ai_request_logs`、`ai_api_usage`、`ai_viewer_context`、`ai_query_cache`、`ai_blacklist`
+- 直播数据:`super_chats`、`gift_events`、`overtime_settlements`、`checkin_users`
+- 播放器数据:`play_history`、`play_queue_state`
+
+**重建(Recreate)**:业务必需的默认行
+- `song_categories`:插入"默认分类"行(name='默认分类', sort_order=0, is_enabled=1)
+- `overtime_machine_state`:确保 id=1 行存在且为禁用状态(enabled=0, status='paused')
+
+### 6.2 两阶段提交流程
+
+**Phase 1**(预提交验证):
+1. 对所有 5 个数据库依次执行 `BEGIN` + `DELETE` + 统计行数,但**不提交**
+2. 若任一 BEGIN/DELETE 失败,回滚全部并抛出聚合错误(`error.details` 包含各库状态)
+
+**Phase 2**(提交):
+1. 依次对所有数据库执行 `COMMIT`
+2. 若全部成功:重建默认行,返回 `{ cleared: true, preserved: [...], deletedCounts: {...}, recreated: [...] }`
+3. 若任一 COMMIT 失败:立即停止,返回 `{ ok: false, partial: true, committed: [...], failed: [...], deletedCounts: {...} }`
+
+部分失败时数据库处于**不一致状态**(部分库已清空、部分未清空),路由返回 HTTP 500 + `partial: true`,前端强制刷新页面并提示用户手动检查。
+
+### 6.3 并发写入静默(Quiesce)
+
+清空全部前路由会调用上下文的静默方法([data-routes.js:30-37](../../../src/server/routes/data-routes.js#L30-L37)):
+- `context.gifts.pauseDetection()`:暂停礼物检测写入
+- `context.overtime.pauseRecovery()`:暂停加班机后台恢复写入
+
+成功后恢复:
+- `context.gifts.resumeDetection()`
+- `context.overtime.resumeRecovery()`
+
+部分失败时**不恢复**,避免向不一致的数据库写入。
 
 ## 7. 设置存储(settings-store)
 

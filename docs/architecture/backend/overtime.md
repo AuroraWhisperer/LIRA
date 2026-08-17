@@ -60,7 +60,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | 字段(内存/列) | 说明 |
 |---|---|
 | `enabled` / `enable_epoch` | 总开关;每次 `enable()` 递增 epoch(`+1`),未启用时 `getCurrentEpoch()` 对外恒为 0 |
-| `initial_seconds` | 重置基准值(0–3,599,999) |
+| `initial_seconds` | 重置基准值(0–315,328,464,000,即 9,999 年) |
 | `remaining_ms` / `anchor_at_ms` | 锚点时刻的剩余毫秒与锚点墙钟(Unix ms) |
 | `status` | 仅 `paused \| running \| finished`;**对外快照**在未启用时派生为 `'disabled'` |
 | `background_path` / `background_fit` | 内置背景与适配模式(§5) |
@@ -88,7 +88,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 - **有效剩余时间**:`effectiveRemainingMs = max(0, remaining_ms - (now_ms - anchor_at_ms))`,仅 `running` 状态按流逝扣减;`paused/finished` 恒返回物化值([getEffectiveRemainingMs:290-294](../../../src/overtime/overtime-service.js#L290-L294))。
 - **运行中单调时钟**:进程内流逝用 `performance.now()`(单调,不受 NTP/手工校时影响,见 [server-core.md](server-core.md) 的 Node 运行时假设);每次开始/暂停/调整/结算先 `materialize()` 把时间物化到当前瞬间并重建锚点([materialize:296-302](../../../src/overtime/overtime-service.js#L296-L302))。**墙钟只用于持久化与跨重启恢复**。
 - **重启恢复**:启动时若持久状态为 `running`,按墙钟锚点扣减停机流逝 `offlineElapsedMs = max(0, now - anchor_at_ms)`,归零则置 `finished` 并 revision+1,随后重建归零定时器([recoverPersistedClock:268-288](../../../src/overtime/overtime-service.js#L268-L288))。**系统时钟回拨时停机流逝按 0 计,绝不反向增加时间**;大幅前跳按真实墙钟扣减(无法与长时间停机可靠区分)。
-- **上限**:`MAX_OVERTIME_MS = 3,599,999_000`,`clampMs` 双向钳制([overtime-service.js:14](../../../src/overtime/overtime-service.js#L14)、[422-425](../../../src/overtime/overtime-service.js#L422-L425))。
+- **上限**:`MAX_OVERTIME_MS = 315_328_464_000_000`,`clampMs` 双向钳制([overtime-service.js:14](../../../src/overtime/overtime-service.js#L14)、[516-519](../../../src/overtime/overtime-service.js#L516-L519))。
 
 ### 2.4 归零定时器与 revision
 
@@ -158,24 +158,22 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 规则表 `overtime_gift_rules`(`gift_id` PK)由 `POST /api/overtime/rules` **整表原子替换**(`replaceRules` 在单个 `BEGIN IMMEDIATE` 事务内 DELETE + 批量 INSERT,[overtime-store.js:62-87](../../../src/overtime/overtime-store.js#L62-L87));读取按 `sort_order, gift_id` 排序([55-60](../../../src/overtime/overtime-store.js#L55-L60)),快照 `rules` 字段返回**全部**规则(含停用)。
 
-### 4.1 校验常量(as-built,与旧设计规格的差异)
+### 4.1 校验常量
 
 | 常量 | 值 | 出处 |
 |---|---|---|
-| `MAX_OVERTIME_SECONDS` | **3,599,999**(≈ 999.99 小时 ≈ 41.7 天) | [overtime-contract.js:3](../../../src/overtime/overtime-contract.js#L3) |
-| `MAX_RANDOM_WEIGHT` | **100,000** | [overtime-contract.js:4](../../../src/overtime/overtime-contract.js#L4) |
-| `MAX_ENABLED_RULES` | **8** | [overtime-contract.js:5](../../../src/overtime/overtime-contract.js#L5) |
-
-- **修正 1(旧规格偏差)**:单项盲盒结果/固定秒数的绝对值上限是 **3,599,999 秒(≈41.7 天)**,不是旧设计规格所写的"24 小时"——校验走同一个 `validateSeconds(signed=true)`([overtime-contract.js:98-105](../../../src/overtime/overtime-contract.js#L98-L105)),DB 的 `initial_seconds/remaining_ms` CHECK 同源([schema.js:319-320](../../../src/storage/schema.js#L319-L320))。
-- **修正 2(旧规格偏差)**:单项权重上限是 **1–100,000**,不是旧规格所写的 1–10,000(`validateWeight`,[overtime-contract.js:107-113](../../../src/overtime/overtime-contract.js#L107-L113));总权重仍 ≤ 100,000([91-94](../../../src/overtime/overtime-contract.js#L91-L94))。
+| `MAX_OVERTIME_SECONDS` | **315,328,464,000**(9,999 年) | [overtime-contract.js:4](../../../src/overtime/overtime-contract.js#L4) |
+| `MAX_EFFECT_FACTOR` | **1,000** | [overtime-contract.js:5](../../../src/overtime/overtime-contract.js#L5) |
+| `MAX_RANDOM_WEIGHT` | **100,000** | [overtime-contract.js:6](../../../src/overtime/overtime-contract.js#L6) |
+| `MAX_ENABLED_RULES` | **8** | [overtime-contract.js:7](../../../src/overtime/overtime-contract.js#L7) |
 
 ### 4.2 规则形态
 
 | 模式 | 字段 | 校验 |
 |---|---|---|
-| `fixed` | `fixedSeconds`(可正可负,±3,599,999) | — |
-| `random`(时间盲盒) | `outcomes[2..10]`,每项 `{seconds(±3,599,999), weight(1..100,000)}`,总权重 ≤ 100,000;兼容 `outcomes_json`(version 1)输入 | [overtime-contract.js:79-95](../../../src/overtime/overtime-contract.js#L79-L95) |
-| 公共 | `giftId` 必填 ≤100 字符且数组内唯一;`giftName` ≤100;`imagePath` 必须站内路径(§5);`enabled` 默认 true;`sortOrder` 整数;启用的规则 ≤ 8 条 | [overtime-contract.js:43-77](../../../src/overtime/overtime-contract.js#L43-L77) |
+| `fixed` | `fixedEffect:{operation, value}`;operation ∈ `add`/`subtract`/`multiply`/`divide`/`clear`;add/subtract 的 value ∈ 0–315,328,464,000;multiply/divide 的 value ∈ 2–1,000 | [overtime-contract.js:119-143](../../../src/overtime/overtime-contract.js#L119-L143) |
+| `random`(时间盲盒) | `outcomes[2..10]`,每项 `{operation, value, weight}`;weight ∈ 1–100,000,总权重 ≤ 100,000 | [overtime-contract.js:91-107](../../../src/overtime/overtime-contract.js#L91-L107) |
+| 公共 | `giftId` 必填 ≤100 字符且数组内唯一;`giftName` ≤100;`imagePath` 必须站内路径(§5);`quantityMode` ∈ `group`/`item`;`enabled` 默认 true;`sortOrder` 整数;启用的规则 ≤ 8 条 | [overtime-contract.js:59-108](../../../src/overtime/overtime-contract.js#L59-L108) |
 
 ### 4.3 存储形态与带权抽取
 
@@ -191,7 +189,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | 背景 `path` | 必须为空字符串,或匹配 `/img/overtime-machine/<name>` 的内置图片路径 | [overtime-contract.js:30-41](../../../src/overtime/overtime-contract.js#L30-L41) |
 | 背景 `fit` | `cover`(默认)`\| contain \| fill` | 同上 |
 | 路径安全 | `isAllowedImagePath`:拒绝 `..`、反斜杠、协议头(`scheme:`/`//`),且限定于 `public/img/overtime-machine/`(规则图片另允许 `/img/bilibili-gifts/`) | [overtime-contract.js:62-65](../../../src/overtime/overtime-contract.js#L62-L65)、[131-134](../../../src/overtime/overtime-contract.js#L131-L134) |
-| 时间输入 | `initialSeconds`/`remainingSeconds` 至少一个,0–3,599,999 整数 | [overtime-contract.js:7-20](../../../src/overtime/overtime-contract.js#L7-L20) |
+| 时间输入 | `initialSeconds`/`remainingSeconds` 至少一个,0–315,328,464,000 整数 | [overtime-contract.js:9-22](../../../src/overtime/overtime-contract.js#L9-L22) |
 | 动作 | `start \| pause \| reset \| enable \| disable` | [overtime-contract.js:22-28](../../../src/overtime/overtime-contract.js#L22-L28) |
 
 服务端对时间、权重、路径、状态与 JSON 结构做完整校验,不信任 Admin DOM 的 `min/max`。V1 不做任意背景上传,全部内置资源(ADR [0005-built-in-overtime-backgrounds](../adr/0005-built-in-overtime-backgrounds.md));规则与时钟状态同库同域,清库时保留(ADR [0004-reuse-monolith-and-gift-db](../adr/0004-reuse-monolith-and-gift-db.md)、[storage.md](storage.md) §6)。
@@ -256,7 +254,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 ## 8. 参考
 
 - 表 DDL 与迁移:[storage.md](storage.md) §3.3、§4(giftDb v5 插入单例行)
-- HTTP 端点:[api.md](api.md) §11(校验常量随代码:3,599,999 / 100,000 / 8)
+- HTTP 端点:[api.md](api.md) §11(校验常量:`MAX_OVERTIME_SECONDS=315,328,464,000`、`MAX_EFFECT_FACTOR=1,000`、`MAX_RANDOM_WEIGHT=100,000`、`MAX_ENABLED_RULES=8`)
 - WebSocket 契约:[ws.md](ws.md) §2(`overtime`/`giftDetection` 快照字段)、§3.2(`overtime:update` reason 枚举)
 - 礼物检测核心与消费注册表:[bilibili/gift.md](bilibili/gift.md)
 - ADR:[0002-server-authoritative-timing](../adr/0002-server-authoritative-timing.md)、[0003-settle-once-per-gift-group](../adr/0003-settle-once-per-gift-group.md)、[0004-reuse-monolith-and-gift-db](../adr/0004-reuse-monolith-and-gift-db.md)、[0005-built-in-overtime-backgrounds](../adr/0005-built-in-overtime-backgrounds.md)、[0006-shared-gift-detection-core](../adr/0006-shared-gift-detection-core.md)

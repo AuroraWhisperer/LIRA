@@ -1,6 +1,6 @@
 'use strict';
 
-const { createPublicError } = require('../http-client');
+const { createPublicError, createRequestSignal } = require('../http-client');
 
 const SEARCH_URL = 'https://www.bing.com/search';
 const MAX_QUERY_CHARS = 200;
@@ -9,7 +9,7 @@ const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 function createWebSearchTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
 
-  async function search(config = {}, input = {}) {
+  async function search(config = {}, input = {}, options = {}) {
     const query = String(input.query || '').trim().slice(0, MAX_QUERY_CHARS);
     if (!query) throw createPublicError('WEB_SEARCH_QUERY_MISSING', '联网搜索缺少关键词。');
     const url = new URL(SEARCH_URL);
@@ -19,9 +19,13 @@ function createWebSearchTool(options = {}) {
     try {
       response = await fetchImpl(url, {
         headers: { Accept: 'application/rss+xml, application/xml, text/xml', 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(Number(config.requestTimeoutMs) || 12000)
+        signal: createRequestSignal(options.signal, config.requestTimeoutMs)
       });
     } catch (error) {
+      if (options.signal?.aborted) {
+        if (options.signal.reason instanceof Error) throw options.signal.reason;
+        throw createPublicError('AI_SHUTDOWN', 'AI service is shutting down.');
+      }
       if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
         throw createPublicError('WEB_SEARCH_TIMEOUT', '联网搜索超时了，请稍后再试。');
       }

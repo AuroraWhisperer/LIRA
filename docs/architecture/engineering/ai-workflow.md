@@ -1,0 +1,30 @@
+# AI Change Routing
+
+Use this table after the architecture fact map and before editing source. Each
+route identifies the likely owner, current contract documentation, common
+consumers, and focused tests. Validate the route against imports and callers for
+the current task; Git history is optional supporting archaeology, not ownership
+proof.
+
+Owner, Contract, and Tests entries are literal repository paths so the governance
+test can verify them. Do not add wildcards or volatile inventory counts.
+
+<!-- ROUTE_TABLE_START -->
+| Route ID | Domain | Owner | Contract | Typical Consumers | Tests |
+|---|---|---|---|---|---|
+| `ROUTE-MUSIC-REQUESTS` | Song library, requests, matching, queue, and cooldowns | `src/music/` | `docs/architecture/backend/music/services.md` | `src/server/routes/song-routes.js`<br>`src/server/routes/queue-routes.js`<br>`src/bilibili/bilibili-message-handler.js` | `test/queue-service.test.js`<br>`test/song-library-filter.test.js`<br>`test/random-song-filter.test.js` |
+| `ROUTE-PLAYBACK` | Playback, providers, streams, and lyrics | `public/js/playback/`<br>`src/music/` | `docs/architecture/frontend/playback.md`<br>`docs/architecture/backend/music/services.md` | `public/js/playback.js`<br>`src/server/routes/playback-routes.js` | `test/frontend-playback.test.js`<br>`test/playback-provider-operations.test.js`<br>`test/playback-persistence.test.js` |
+| `ROUTE-WESING` | WeSing capture and synchronization | `src/music/wesing-capture.js`<br>`src/music/wesing-capture-engine.js` | `docs/architecture/backend/music/wesing.md` | `src/server/music-runtime.js`<br>`public/js/playback/services/wesing-service.js` | `test/wesing-capture.test.js`<br>`test/wesing-routes.test.js`<br>`test/playback-wesing.test.js` |
+| `ROUTE-BILIBILI` | Bilibili danmaku and commands | `src/bilibili/` | `docs/architecture/backend/bilibili/danmaku.md`<br>`docs/architecture/backend/bilibili/protocol.md` | `src/server/bilibili-runtime.js`<br>`src/server.js` | `test/bilibili-runtime.test.js`<br>`test/danmaku-client.test.js`<br>`test/packet-decoder.test.js` |
+| `ROUTE-GIFTS` | Gifts and SuperChat | `src/bilibili/gift/`<br>`src/bilibili/superchat-service.js` | `docs/architecture/backend/bilibili/gift.md` | `src/server/routes/gift-routes.js`<br>`src/overtime/overtime-consumer.js` | `test/gift-detection-service.test.js`<br>`test/gift-analysis-service.test.js`<br>`test/superchat-store.test.js` |
+| `ROUTE-OVERTIME` | Overtime settlement and countdown | `src/overtime/` | `docs/architecture/backend/overtime.md` | `src/server/routes/overtime-routes.js`<br>`public/js/admin/overtime.js`<br>`public/js/overlays/overtime.js` | `test/overtime-service.test.js`<br>`test/overtime-routes.test.js`<br>`test/overtime-overlay.test.js` |
+| `ROUTE-AI` | AI assistant and provider adapters | `src/ai/` | `docs/architecture/backend/ai.md` | `src/server/ai-runtime.js`<br>`src/server/routes/ai-routes.js`<br>`public/js/admin/xiaomi-ai-settings.js` | `test/xiaomi-ai-service.test.js`<br>`test/ai-provider-adapters.test.js`<br>`test/ai-routes.test.js` |
+| `ROUTE-STORAGE` | Storage, schema, migrations, and retention | `src/storage/` | `docs/architecture/backend/storage.md` | `src/server/domain-services.js`<br>`src/server/settings-bootstrap.js` | `test/database-maintenance.test.js`<br>`test/playback-store.test.js`<br>`test/superchat-store.test.js` |
+| `ROUTE-SERVER` | Server core, HTTP, WebSocket, and lifecycle | `src/server.js`<br>`src/server/` | `docs/architecture/backend/server-core.md`<br>`docs/architecture/backend/api.md`<br>`docs/architecture/backend/ws.md` | `src/electron/desktop-runtime.js`<br>`public/js/admin/state.js` | `test/server-lifecycle.test.js`<br>`test/server-smoke.test.js`<br>`test/websocket-transport.test.js` |
+| `ROUTE-ELECTRON` | Electron windows, login, IPC, update, and shutdown | `src/electron/` | `docs/architecture/desktop/` | `src/electron/main.js`<br>`public/js/desktop.js` | `test/electron-main-modules.test.js`<br>`test/local-media-access.test.js`<br>`test/update-manager.test.js` |
+| `ROUTE-ADMIN` | Admin frontend and page composition | `public/js/admin/`<br>`src/server/admin-page.js` | `docs/architecture/frontend/app.md`<br>`docs/architecture/frontend/pages.md` | `public/pages/admin/`<br>`public/js/admin/index.js` | `test/admin-page-composition.test.js`<br>`test/frontend-admin-shell.test.js`<br>`test/frontend-admin-ai.test.js` |
+| `ROUTE-OVERLAYS` | OBS overlays | `public/js/overlays/`<br>`public/pages/overlays/` | `docs/architecture/frontend/overlays.md` | OBS browser sources<br>`src/server/ws.js` | `test/queue-overlay-esm.test.js`<br>`test/overtime-overlay.test.js`<br>`test/gift-effects-overlay.test.js` |
+<!-- ROUTE_TABLE_END -->
+
+If a task spans routes, identify the contract and state owner for each route.
+Do not create a new shared owner merely because several consumers change.

@@ -405,6 +405,102 @@ test('provider connection tests dispatch with the saved private configuration', 
   assert.deepEqual(received, [['deepseek', 'secret'], ['qweather', 'secret'], ['amap', 'secret']]);
 });
 
+test('shutdown aborts and drains active generation without writes or delivery', async () => {
+  const writes = [];
+  const deliveries = [];
+  let requestSignal;
+  const service = createTestService({
+    store: {
+      getCache: () => null,
+      getContext: () => null,
+      setCache: () => writes.push('cache'),
+      setContext: () => writes.push('context'),
+      logRequest: () => writes.push('audit')
+    },
+    deepseek: {
+      async createResponse(request) {
+        requestSignal = request.signal;
+        return new Promise((resolve, reject) => {
+          request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
+        });
+      }
+    },
+    sendReply: async (value) => deliveries.push(value)
+  });
+
+  assert.equal(service.handleDanmaku({
+    uid: 'shutdown-user', userName: 'Alice', message: '小米 等待中的问题'
+  }).accepted, true);
+  await waitUntil(() => requestSignal);
+
+  const shutdown = service.shutdown();
+  assert.equal(service.handleDanmaku({
+    uid: 'late-user', userName: 'Bob', message: '小米 新问题'
+  }).reason, 'stopped');
+  await shutdown;
+
+  assert.equal(requestSignal.aborted, true);
+  assert.equal(requestSignal.reason.code, 'AI_SHUTDOWN');
+  assert.deepEqual(writes, []);
+  assert.deepEqual(deliveries, []);
+  assert.equal(service.getStatus().queued, 0);
+});
+
+test('shutdown aborts and waits for direct provider operations', async () => {
+  let requestSignal;
+  const service = createTestService({
+    deepseek: {
+      async listModels(request) {
+        requestSignal = request.signal;
+        return new Promise((resolve, reject) => {
+          request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
+        });
+      }
+    }
+  });
+
+  const listing = service.listModels();
+  await waitUntil(() => requestSignal);
+  const firstShutdown = service.shutdown();
+  const secondShutdown = service.shutdown();
+
+  assert.equal(firstShutdown, secondShutdown);
+  await assert.rejects(listing, (error) => error.code === 'AI_SHUTDOWN');
+  await firstShutdown;
+  assert.equal(requestSignal.aborted, true);
+  await assert.rejects(service.testConfiguration(), (error) => error.code === 'AI_SHUTDOWN');
+});
+
+test('shutdown releases delivery confirmation without retrying or logging a failure', async () => {
+  const deliveries = [];
+  const audits = [];
+  let answerCount = 0;
+  let deliverySignal;
+  const service = createTestService({
+    store: { logRequest: (entry) => audits.push(entry) },
+    deepseek: createAnsweringDeepseek(() => `answer-${++answerCount}`),
+    sendReply: async (value) => {
+      deliveries.push(value.message);
+      return { accountUid: '9', messages: [value.message], sentAfter: Date.now() };
+    },
+    waitForDelivery: async (delivery) => {
+      deliverySignal = delivery.signal;
+      return new Promise((resolve) => {
+        delivery.signal.addEventListener('abort', () => resolve(false), { once: true });
+      });
+    }
+  });
+
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: '小米 shutdown delivery' });
+  await waitUntil(() => deliverySignal);
+  await service.shutdown();
+
+  assert.equal(deliverySignal.aborted, true);
+  assert.deepEqual(deliveries, ['answer-1']);
+  assert.equal(answerCount, 1);
+  assert.equal(audits.some((entry) => entry.status === 'failed'), false);
+});
+
 test('model requests identify review, generation, and output review stages', async () => {
   const purposes = [];
   const deliveries = [];
@@ -517,7 +613,8 @@ function createTestService(overrides = {}) {
   const store = {
     getConfig: () => ({ ...config }), isBlacklisted: () => false,
     getCache: (key) => cache.get(key) || null, setCache: (key, value) => cache.set(key, value),
-    getContext: () => null, setContext: () => {}, logRequest: () => {}
+    getContext: () => null, setContext: () => {}, logRequest: () => {},
+    ...overrides.store
   };
   return createXiaomiAiService({
     store,

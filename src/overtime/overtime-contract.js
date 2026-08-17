@@ -178,6 +178,7 @@ function isAllowedImagePath(value, roots) {
 }
 
 module.exports = {
+  MAX_OVERTIME_YEARS,
   MAX_OVERTIME_SECONDS,
   MAX_EFFECT_FACTOR,
   MAX_RANDOM_WEIGHT,

@@ -5,6 +5,9 @@ const { performance } = require('node:perf_hooks');
 const { createOvertimeStore } = require('./overtime-store');
 const {
   MAX_OVERTIME_SECONDS,
+  MAX_EFFECT_FACTOR,
+  MAX_RANDOM_WEIGHT,
+  MAX_ENABLED_RULES,
   validateTimeInput,
   validateAction,
   validateBackground,
@@ -57,7 +60,13 @@ function createOvertimeService(options = {}) {
     return {
       ...getSnapshot(),
       pendingCount: store.countPending(),
-      settlements: store.listRecent(20)
+      settlements: store.listRecent(20),
+      limits: {
+        maxSeconds: MAX_OVERTIME_SECONDS,
+        maxEffectFactor: MAX_EFFECT_FACTOR,
+        maxRandomWeight: MAX_RANDOM_WEIGHT,
+        maxEnabledRules: MAX_ENABLED_RULES
+      }
     };
   }
 

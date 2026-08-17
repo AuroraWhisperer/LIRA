@@ -258,17 +258,38 @@ function collectConfig() {
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element) continue;
-    config[key] = kind === 'checked' ? element.checked : (kind === 'number' ? Number(element.value) : element.value.trim());
+    if (kind === 'checked') {
+      config[key] = element.checked;
+    } else if (kind === 'number') {
+      config[key] = Number(element.value);
+    } else {
+      const value = element.value.trim();
+      if (value && value !== '********') {
+        config[key] = value;
+      }
+    }
   }
   return config;
 }
 
 function renderConfig(config, preservedFieldIds = new Set()) {
+  const secretFields = {
+    deepseekApiKey: ['xiaomiAiDeepSeekKey', config.hasDeepSeekApiKey],
+    qweatherApiKey: ['xiaomiAiQWeatherKey', config.hasQWeatherApiKey],
+    amapApiKey: ['xiaomiAiAmapKey', config.hasAmapApiKey]
+  };
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
-    if (!element || config[key] === undefined || preservedFieldIds.has(id)) continue;
-    if (kind === 'checked') element.checked = config[key] === true;
-    else element.value = String(config[key]);
+    if (!element || preservedFieldIds.has(id)) continue;
+    if (kind === 'checked') {
+      if (config[key] !== undefined) element.checked = config[key] === true;
+    } else if (secretFields[key]) {
+      const [, hasKey] = secretFields[key];
+      element.value = hasKey ? '********' : '';
+      element.type = 'password';
+    } else if (config[key] !== undefined) {
+      element.value = String(config[key]);
+    }
   }
   renderConfigSummary(config);
 }
@@ -288,7 +309,7 @@ function renderStatus(status) {
 
 function renderSecretHint(id, saved) {
   const element = document.getElementById(id);
-  element.textContent = saved ? '已加密保存；留空表示保留' : '尚未保存';
+  element.textContent = saved ? '已加密保存；清空或输入新值以更新' : '尚未保存';
 }
 
 function setState(element, text, kind = '') {

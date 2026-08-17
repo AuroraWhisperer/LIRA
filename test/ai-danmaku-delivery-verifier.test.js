@@ -52,3 +52,21 @@ test('delivery verifier can complete a pending wait from later room events', asy
 
   assert.equal(await pending, true);
 });
+
+test('delivery verifier dispose clears pending timers and rejects new waits', async () => {
+  const verifier = createDanmakuDeliveryVerifier();
+  const pending = verifier.waitForDelivery({
+    accountUid: '9',
+    messages: ['never-arrives'],
+    sentAfter: Date.now(),
+    timeoutMs: 60000
+  });
+
+  verifier.dispose();
+
+  assert.equal(await pending, false);
+  assert.equal(await verifier.waitForDelivery({
+    accountUid: '9', messages: ['late'], timeoutMs: 60000
+  }), false);
+  verifier.dispose();
+});

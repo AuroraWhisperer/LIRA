@@ -2,6 +2,7 @@
 
 const { normalizeGiftRow } = require('./normalizer');
 const { now, normalizeMoney } = require('../../shared/utils');
+const { createGiftMaintenanceStore } = require('../../storage/gift-maintenance-store');
 
 const CRYSTAL_BALL_VALUE_RMB = 100;
 
@@ -144,31 +145,34 @@ function searchGifts(context, { from, to, limit = 100 }) {
 
 function clearRecentGifts(context) {
   const giftDb = context.db.giftDb;
-  giftDb.exec('BEGIN');
-  try {
-    const displayIds = giftDb.prepare(`
+  const maintenance = createGiftMaintenanceStore(giftDb);
+  const timestamp = now();
+
+  // 使用维护存储协调删除，确保 pending settlements 被标记为 ignored
+  const whereClause = `
+    status = 'active' AND total_price > 0
+    AND detection_status = 'final' AND gift_stats_eligible = 1
+    AND id IN (
       SELECT id FROM gift_events
       WHERE status = 'active' AND total_price > 0
         AND detection_status = 'final' AND gift_stats_eligible = 1
       ORDER BY datetime(created_at) DESC, id DESC
       LIMIT 3000
-    `).all().map(row => row.id);
+    )
+  `.trim();
 
-    if (displayIds.length === 0) {
-      giftDb.exec('COMMIT');
-      return { cleared: true, scope: 'display-gifts', deletedCount: 0 };
-    }
+  const result = maintenance.deleteGiftsByPredicate(
+    whereClause,
+    [],
+    'manual:clear-recent',
+    timestamp
+  );
 
-    const placeholders = displayIds.map(() => '?').join(',');
-    const result = giftDb.prepare(`
-      DELETE FROM gift_events WHERE id IN (${placeholders})
-    `).run(...displayIds);
-    giftDb.exec('COMMIT');
-    return { cleared: true, scope: 'display-gifts', deletedCount: Number(result.changes || 0) };
-  } catch (error) {
-    giftDb.exec('ROLLBACK');
-    throw error;
-  }
+  return {
+    cleared: true,
+    scope: 'display-gifts',
+    deletedCount: result.deletedGifts
+  };
 }
 
 module.exports = {

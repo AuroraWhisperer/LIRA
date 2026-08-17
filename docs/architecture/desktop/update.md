@@ -84,3 +84,15 @@ checking ──无新版本──▶ not-available
 | 其他 | `error` | 暂时无法检查更新,详细原因已写入日志。 |
 
 消费点:autoUpdater `error` 事件与 `checkForUpdates`/`downloadUpdate` 的 catch 均走该映射([update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105)、[115-148](../../../src/electron/update-manager.js#L115-L148));main.js `setUpdateError` 同样调用并下推状态([main.js:712-721](../../../src/electron/main.js#L712-L721))。
+
+## 6. 完整性验证与代码签名
+
+**SHA-512 哈希验证**(当前已实现):electron-updater 在下载完成后,根据 `latest.yml` 中记录的 `sha512` 字段验证安装包完整性。校验失败映射到 `checksum mismatch` 错误(见 §5),阻止损坏或被篡改的更新包安装。
+
+**Windows 代码签名**(设计完成,阻塞于所有者输入):通过 Authenticode 数字签名验证发布者身份与 Windows 生态集成。完整设计见 [../engineering/code-signing.md](../engineering/code-signing.md)。签名后的附加价值:
+- **Windows SmartScreen 信誉**:正式 EV 证书签名的应用不触发 SmartScreen 警告
+- **发布者身份验证**:用户可验证应用确实来自声明的发布者
+- **企业环境兼容性**:部分企业 IT 策略仅允许安装已签名应用
+- **长期可验证性**:时间戳签名确保证书过期后签名仍可验证
+
+两种验证机制互补:SHA-512 哈希保护传输完整性(防篡改),代码签名验证发布者身份(防假冒)。

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ACCESS_FILE_NAME = 'local-media-access.json';
+const ALLOWED_AUDIO_EXTENSIONS = new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']);
 
 function createLocalMediaAccess(dataDir) {
   const dataRoot = path.resolve(dataDir);
@@ -12,8 +13,9 @@ function createLocalMediaAccess(dataDir) {
 
   function isAllowed(filePath) {
     const resolved = path.resolve(filePath);
-    if (resolved === dataRoot || resolved.startsWith(dataRoot + path.sep)) return true;
-    return allowedPaths.has(resolved);
+    if (!allowedPaths.has(resolved)) return false;
+    const ext = path.extname(resolved).toLowerCase();
+    return ALLOWED_AUDIO_EXTENSIONS.has(ext);
   }
 
   function allowPath(filePath) {
@@ -21,8 +23,18 @@ function createLocalMediaAccess(dataDir) {
   }
 
   function allowPaths(filePaths) {
-    const resolvedPaths = (Array.isArray(filePaths) ? filePaths : [])
-      .map((filePath) => path.resolve(filePath));
+    const resolvedPaths = [];
+    for (const filePath of (Array.isArray(filePaths) ? filePaths : [])) {
+      try {
+        const canonical = fs.realpathSync(filePath);
+        const ext = path.extname(canonical).toLowerCase();
+        if (ALLOWED_AUDIO_EXTENSIONS.has(ext)) {
+          resolvedPaths.push(canonical);
+        }
+      } catch (_) {
+        // Skip inaccessible paths or symlink resolution failures
+      }
+    }
     let changed = false;
     for (const resolved of resolvedPaths) {
       if (!allowedPaths.has(resolved)) {

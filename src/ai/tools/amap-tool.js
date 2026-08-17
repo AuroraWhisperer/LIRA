@@ -7,7 +7,7 @@ function createAmapTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const quotaStore = options.quotaStore;
 
-  async function request(config, pathName, params, transform = (payload) => payload) {
+  async function request(config, pathName, params, transform = (payload) => payload, options = {}) {
     if (!config.amapApiHost || !config.amapApiKey) {
       throw createPublicError('AMAP_NOT_CONFIGURED', '高德地图尚未配置。');
     }
@@ -18,7 +18,11 @@ function createAmapTool(options = {}) {
     }
     const category = pathName === '/v3/place/text' ? 'amap_search' : 'amap_lbs';
     return withApiQuota(quotaStore, category, async () => {
-      const payload = await fetchJson(url, { timeoutMs: config.requestTimeoutMs, fetchImpl });
+      const payload = await fetchJson(url, {
+        timeoutMs: config.requestTimeoutMs,
+        fetchImpl,
+        signal: options.signal
+      });
       if (String(payload.status || '1') !== '1') {
         throw createPublicError(String(payload.infocode || 'AMAP_ERROR'), '高德地图查询失败。');
       }
@@ -26,7 +30,7 @@ function createAmapTool(options = {}) {
     });
   }
 
-  async function resolveLocation(config, input) {
+  async function resolveLocation(config, input, options = {}) {
     return request(config, '/v3/geocode/geo', { address: input.address, city: input.city }, (payload) => {
       const matches = (payload.geocodes || []).slice(0, 5).map((item) => ({
         formattedAddress: item.formatted_address || '', province: item.province || '', city: item.city || '',
@@ -34,10 +38,10 @@ function createAmapTool(options = {}) {
       }));
       if (!matches.length) throw createPublicError('AMAP_LOCATION_NOT_FOUND', '没有查到这个地点。');
       return { ambiguous: matches.length > 1, matches };
-    });
+    }, options);
   }
 
-  async function searchPlaces(config, input) {
+  async function searchPlaces(config, input, options = {}) {
     return request(config, '/v3/place/text', {
       keywords: input.keywords, city: input.district || input.city, citylimit: input.city || input.district ? 'true' : 'false',
       location: input.location, offset: 5, page: 1, extensions: 'base'
@@ -47,25 +51,25 @@ function createAmapTool(options = {}) {
         id: poi.id || '', name: poi.name || '', type: poi.type || '', address: poi.address || '',
         location: poi.location || '', distance: poi.distance || '', adname: poi.adname || ''
       }))
-    }));
+    }), options);
   }
 
-  async function getRoute(config, input) {
+  async function getRoute(config, input, options = {}) {
     const [origin, destination] = await Promise.all([
-      ensureCoordinate(config, input.origin, input.city),
-      ensureCoordinate(config, input.destination, input.city)
+      ensureCoordinate(config, input.origin, input.city, options),
+      ensureCoordinate(config, input.destination, input.city, options)
     ]);
     const mode = ['driving', 'transit', 'walking'].includes(input.mode) ? input.mode : 'driving';
     const pathName = mode === 'transit' ? '/v3/direction/transit/integrated' : `/v3/direction/${mode}`;
     return request(config, pathName, {
       origin: origin.location, destination: destination.location, city: input.city, extensions: 'base'
-    }, (payload) => normalizeRoute(payload.route, mode, origin, destination));
+    }, (payload) => normalizeRoute(payload.route, mode, origin, destination), options);
   }
 
-  async function ensureCoordinate(config, value, city) {
+  async function ensureCoordinate(config, value, city, options) {
     const text = String(value || '').trim();
     if (/^-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?$/.test(text)) return { location: text, name: text };
-    const resolved = await resolveLocation(config, { address: text, city });
+    const resolved = await resolveLocation(config, { address: text, city }, options);
     const selected = selectGeocodeMatch(resolved.matches, text);
     return {
       ...selected,
@@ -76,7 +80,7 @@ function createAmapTool(options = {}) {
     };
   }
 
-  async function testConnection(config = {}) {
+  async function testConnection(config = {}, options = {}) {
     if (!config.amapApiHost) {
       throw createPublicError('AMAP_HOST_MISSING', '请先填写高德 Web 服务 API Host。');
     }
@@ -89,7 +93,7 @@ function createAmapTool(options = {}) {
           throw createPublicError('AMAP_INVALID_RESPONSE', '高德地图返回格式不正确。');
         }
         return { provider: 'amap' };
-      });
+      }, options);
     } catch (error) {
       if (['10001', '10002', '10003', '10007', '10008', '10009', '10010'].includes(String(error?.code || ''))) {
         throw createPublicError('AMAP_AUTH_FAILED', '高德地图拒绝了该 Web 服务 Key。');

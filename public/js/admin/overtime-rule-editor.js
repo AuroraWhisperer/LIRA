@@ -1,12 +1,8 @@
 'use strict';
 
 const MAX_ENABLED_RULES = 8;
-const MAX_RANDOM_WEIGHT = 100000;
-const MAX_OUTCOME_WEIGHT = 10000;
 const MAX_RANDOM_OUTCOMES = 10;
 const MIN_RANDOM_OUTCOMES = 2;
-const MAX_RULE_SECONDS = 24 * 60 * 60;
-const MAX_EFFECT_FACTOR = 1000;
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 
 export function createOvertimeRuleEditor(root, markDirty) {
@@ -40,14 +36,11 @@ export function createOvertimeRuleEditor(root, markDirty) {
       }
       const outcomes = outcomeCards.map((card, outcomeIndex) => {
         const weight = Number(card.querySelector('[data-outcome-weight]').value);
-        if (!Number.isSafeInteger(weight) || weight < 1 || weight > MAX_OUTCOME_WEIGHT) {
-          throw new Error(`盲盒结果 ${outcomeIndex + 1} 的抽中机会应填写 1–${MAX_OUTCOME_WEIGHT} 的整数。`);
+        if (!Number.isSafeInteger(weight) || weight < 1) {
+          throw new Error(`盲盒结果 ${outcomeIndex + 1} 的抽中机会应填写正整数。`);
         }
         return { ...readEffect(card), weight };
       });
-      if (outcomes.reduce((sum, outcome) => sum + outcome.weight, 0) > MAX_RANDOM_WEIGHT) {
-        throw new Error(`盲盒总权重不能超过 ${MAX_RANDOM_WEIGHT}。`);
-      }
       return { ...base, outcomes };
     });
     if (rules.filter(rule => rule.enabled).length > MAX_ENABLED_RULES) {
@@ -361,14 +354,13 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const input = document.createElement('input');
     input.type = 'number';
     input.min = '2';
-    input.max = String(MAX_EFFECT_FACTOR);
     input.step = '1';
     input.value = String(value);
     input.inputMode = 'numeric';
     input.dataset.effectFactor = 'true';
-    input.setAttribute('aria-label', `时间变化倍数，2 到 ${MAX_EFFECT_FACTOR}`);
+    input.setAttribute('aria-label', '时间变化倍数，最小 2');
     const hint = document.createElement('small');
-    hint.textContent = `2–${MAX_EFFECT_FACTOR} 倍`;
+    hint.textContent = '最小 2 倍';
     label.append(caption, input, hint);
     return label;
   }
@@ -381,7 +373,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
   }
 
   function createDurationControl(seconds) {
-    const absoluteSeconds = Math.min(MAX_RULE_SECONDS, Math.abs(Math.trunc(Number(seconds) || 0)));
+    const absoluteSeconds = Math.abs(Math.trunc(Number(seconds) || 0));
     const values = {
       hours: Math.floor(absoluteSeconds / 3600),
       minutes: Math.floor((absoluteSeconds % 3600) / 60),
@@ -393,7 +385,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
     legend.textContent = '填写时长';
     fieldset.append(legend);
     fieldset.append(
-      createDurationPart('hours', '小时', values.hours, 24),
+      createDurationPart('hours', '小时', values.hours, 999),
       createDurationPart('minutes', '分钟', values.minutes, 59),
       createDurationPart('seconds', '秒', values.seconds, 59)
     );
@@ -442,7 +434,6 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const weight = document.createElement('input');
     weight.type = 'number';
     weight.min = '1';
-    weight.max = String(MAX_OUTCOME_WEIGHT);
     weight.step = '1';
     weight.value = String(Number(outcome.weight) || 1);
     weight.inputMode = 'numeric';
@@ -488,7 +479,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
   function updateOutcomeProbabilities(root) {
     const cards = Array.from(root.querySelectorAll('[data-random-outcome]'));
     const weights = cards.map(card => Number(card.querySelector('[data-outcome-weight]').value));
-    const valid = weights.every(weight => Number.isSafeInteger(weight) && weight > 0 && weight <= MAX_OUTCOME_WEIGHT);
+    const valid = weights.every(weight => Number.isSafeInteger(weight) && weight > 0);
     const total = valid ? weights.reduce((sum, weight) => sum + weight, 0) : 0;
     cards.forEach((card, index) => {
       const badge = card.querySelector('[data-outcome-probability]');
@@ -580,16 +571,15 @@ export function createOvertimeRuleEditor(root, markDirty) {
     if (operation === 'clear') return { operation, value: 0 };
     if (operation === 'multiply' || operation === 'divide') {
       const value = Number(root.querySelector('[data-effect-factor]')?.value);
-      if (!Number.isSafeInteger(value) || value < 2 || value > MAX_EFFECT_FACTOR) {
-        throw new Error(`倍数应填写 2–${MAX_EFFECT_FACTOR} 的整数。`);
+      if (!Number.isSafeInteger(value) || value < 2) {
+        throw new Error('倍数应填写大于等于 2 的整数。');
       }
       return { operation, value };
     }
-    const hours = readDurationPart(root, 'hours', '小时', 24);
+    const hours = readDurationPart(root, 'hours', '小时', 999);
     const minutes = readDurationPart(root, 'minutes', '分钟', 59);
     const seconds = readDurationPart(root, 'seconds', '秒', 59);
     const absoluteSeconds = hours * 3600 + minutes * 60 + seconds;
-    if (absoluteSeconds > MAX_RULE_SECONDS) throw new Error('单次增加或减少的时间不能超过 24 小时。');
     return { operation, value: absoluteSeconds };
   }
 

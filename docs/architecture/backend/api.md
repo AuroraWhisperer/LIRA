@@ -242,12 +242,12 @@ handler 未包 try/catch:抛错走顶层 **500**。
 > 模块文件:[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)
 > 前缀:`/api/overtime`
 
-全部端点经 `overtimeRoute` 包装:抛错统一回 **400** `{ok:false, error}`。校验规则全部来自 [overtime-contract.js](../../../src/overtime/overtime-contract.js),常量:`MAX_OVERTIME_SECONDS = 3_599_999`、`MAX_RANDOM_WEIGHT = 100_000`、`MAX_ENABLED_RULES = 8`。
+全部端点经 `overtimeRoute` 包装:抛错统一回 **400** `{ok:false, error}`。校验规则全部来自 [overtime-contract.js](../../../src/overtime/overtime-contract.js),常量:`MAX_OVERTIME_SECONDS = 315_328_464_000`(9,999 年)、`MAX_EFFECT_FACTOR = 1_000`、`MAX_RANDOM_WEIGHT = 100_000`、`MAX_ENABLED_RULES = 8`。
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/overtime` | 无 | 加班机总览(`getSnapshot()`:`enabled/status/initialSeconds/effectiveRemainingMs/serverNowMs/revision/background/rules`) | 400 |
-| `POST /api/overtime/time` | `{initialSeconds?}` 与 `{remainingSeconds?}` **至少一个**,取值范围 **0–3,599,999**;`remainingSeconds` 设置后状态置为 `paused`(归零时 `finished`) | 更新后的快照 | 400(`initialSeconds or remainingSeconds is required.`/越界报错) |
+| `GET /api/overtime` | 无 | 加班机总览(`getSnapshot()`:`enabled/status/initialSeconds/effectiveRemainingMs/serverNowMs/revision/background/rules`) + `limits:{maxSeconds, maxEffectFactor, maxRandomWeight, maxEnabledRules}` | 400 |
+| `POST /api/overtime/time` | `{initialSeconds?}` 与 `{remainingSeconds?}` **至少一个**,取值范围 **0–315,328,464,000**;`remainingSeconds` 设置后状态置为 `paused`(归零时 `finished`) | 更新后的快照 | 400(`initialSeconds or remainingSeconds is required.`/越界报错) |
 | `POST /api/overtime/action` | `{action}` ∈ `start`/`pause`/`reset`/`enable`/`disable` | 更新后的快照 | 400(`action must be start, pause, reset, enable, or disable.`) |
 | `POST /api/overtime/config` | `{path?, fit?}`:`fit` ∈ `cover`/`contain`/`fill`(默认 `cover`);`path` 若非空必须是内置图片路径(正则 `/img/overtime-machine/…`,拒绝 `..`/反斜杠/协议头) | 更新后的快照 | 400 |
 | `POST /api/overtime/rules` | `{rules: [...]}`(规则数组,整体替换;校验见下) | 更新后的快照 | 400 |
@@ -260,10 +260,11 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `giftName` | ≤ 100 字符 |
 | `imagePath` | 非空时必须是 `/img/bilibili-gifts/` 或 `/img/overtime-machine/` 内置路径 |
 | `mode`(必填) | `fixed` 或 `random` |
+| `quantityMode` | `group`(默认,按连击组)或 `item`(按具体数量) |
 | `enabled` | 默认 true;**启用的规则 ≤ 8 条** |
 | `sortOrder` | 整数 |
-| `fixedSeconds`(mode=fixed) | **-3,599,999–3,599,999**(有符号) |
-| `outcomes`(mode=random) | **2–10 项**,每项 `{seconds`(-3,599,999–3,599,999), `weight`(1–100,000)`;**总权重 ≤ 100,000**;兼容 `outcomes_json`(version 1) |
+| `fixedEffect`(mode=fixed) | `{operation, value}`:operation ∈ `add`/`subtract`/`multiply`/`divide`/`clear`;add/subtract 的 value ∈ **0–315,328,464,000**;multiply/divide 的 value ∈ **2–1,000**;clear 的 value = 0 |
+| `outcomes`(mode=random) | **2–10 项**,每项 `{operation, value, weight}`;weight ∈ **1–100,000**;**总权重 ≤ 100,000** |
 
 行为文档:[overtime.md](overtime.md)。
 
@@ -295,11 +296,72 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/database/clear-superchats` | `{confirm: true}` | 清 SC 库;广播 `database:clear-superchats` | 400 |
 | `POST /api/database/clear-playback` | `{confirm: true}` | 清播放历史与队列态(保留收藏/歌单);广播 `database:clear-playback` | 400 |
 | `POST /api/database/clear-gifts` | `{confirm: true}` | 清礼物事件+结算流水(保留加班机状态/规则);广播 `database:clear-gifts` | 400 |
-| `POST /api/database/clear-all` | `{confirm: true}` | 清五库全部业务数据(保留 settings 与 theme_presets);广播 `database:clear-all` | 400 |
+| `POST /api/database/clear-all` | `{confirm: true}` | **清五库全部业务数据**(见 §13.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、**500**(部分失败,见 §13.1) |
 | `GET /api/database/stats` | 无 | `{schemaVersions, tables}`(各库版本 + 保留期统计行数/时间范围/raw_json 字节数) | — |
 | `POST /api/database/retention` | `{dryRun?`, `confirm?`, `policy?}`:`dryRun: true` 只统计不删除(**免 confirm**,不广播);否则需 `confirm: true` | 保留策略执行统计;非 dryRun 广播 `database:retention` | 400(`缺少清理确认。`) |
 
-行为文档:[server-core.md](server-core.md) §5、[storage.md](storage.md) §5–§6。
+### 13.1 Clear-All 部分失败契约
+
+`POST /api/database/clear-all` 使用两阶段提交,可能返回部分失败状态:
+
+**成功响应(HTTP 200)**:
+```json
+{
+  "ok": true,
+  "data": {
+    "cleared": true,
+    "scope": "all",
+    "preserved": ["settings", "ai_configuration", "theme_presets", "overtime_machine_state", "overtime_gift_rules", "favorites", "playlists", "playlist_tracks"],
+    "deletedCounts": {
+      "songs": 100, "categories": 5, "queue": 10, "requests": 200,
+      "importBatches": 3, "userCooldowns": 50, "aiRequestLogs": 1000,
+      "aiApiUsage": 12, "aiViewerContext": 5, "aiQueryCache": 20, "aiBlacklist": 2,
+      "sc": 30, "gifts": 500, "overtimeSettlements": 10,
+      "playHistory": 300, "playQueueState": 1, "checkins": 80
+    },
+    "totalDeleted": 2328,
+    "recreated": ["song_categories", "overtime_machine_state"]
+  }
+}
+```
+
+**部分失败响应(HTTP 500)**:
+```json
+{
+  "ok": false,
+  "partial": true,
+  "error": "Commit failed at giftDb",
+  "data": {
+    "ok": false,
+    "partial": true,
+    "committed": ["songDb", "superChatDb"],
+    "failed": ["giftDb"],
+    "deletedCounts": { /* 各表统计,包括失败库的预统计 */ },
+    "results": [
+      {"db": "songDb", "status": "committed"},
+      {"db": "superChatDb", "status": "committed"},
+      {"db": "giftDb", "status": "failed", "error": "database is locked"}
+    ]
+  }
+}
+```
+
+**部分失败处理要求**:
+- 前端检测 `response.partial === true` 时**强制刷新页面**并提示用户数据库不一致,需手动检查
+- 部分失败后异步写入器(礼物检测/加班机恢复)**不恢复**,避免向不一致数据库写入
+- `committed` 数组列出已清空的库,`failed` 列出失败的库
+- 数据库处于不一致状态,建议用户手动清理或恢复备份
+
+**静默协调(Quiesce)**:
+清空全部前路由调用:
+- `context.gifts.pauseDetection()`:暂停礼物检测写入
+- `context.overtime.pauseRecovery()`:暂停加班机后台恢复
+
+成功后恢复:
+- `context.gifts.resumeDetection()`
+- `context.overtime.resumeRecovery()`
+
+行为文档:[server-core.md](server-core.md) §5、[storage.md](storage.md) §6(清空矩阵详细说明)。
 
 ## 14. AI 域(ai)
 
@@ -308,10 +370,12 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 `ALLOWED_KEYS`([ai-routes.js:7-14](../../../src/server/routes/ai-routes.js#L7-L14)):`enabled, trigger, deepseekResponsesUrl, deepseekApiKey, model, webSearchEnabled, reasoningEnabled, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt`;密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
 
+**密钥字段安全契约**:GET 响应与 PUT 响应均**不回显密钥明文**;GET 返回 `has*ApiKey` 布尔标志(`hasDeepSeekApiKey, hasQWeatherApiKey, hasAmapApiKey`),密钥字段本身**不出现**在响应中;PUT 请求时传 `''` 跳过更新(保留现值)、传非空字符串更新、传 `null` 清空。前端渲染已保存密钥为 `'********'` 遮罩,提交时过滤该遮罩值(等同跳过)。
+
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/ai/config` | 无 | AI 配置(不含密钥回显) | — |
-| `PUT /api/ai/config` | body:仅 `ALLOWED_KEYS` 子集生效(其余忽略);密钥键传 `''` 跳过、传 `null` 置空 | 更新后的配置 | 400(`AI 配置无效。`) |
+| `GET /api/ai/config` | 无 | AI 配置(`getPublicConfig()`):密钥字段(`deepseekApiKey, qweatherApiKey, amapApiKey`)不出现;包含 `has*ApiKey` 布尔标志 | — |
+| `PUT /api/ai/config` | body:仅 `ALLOWED_KEYS` 子集生效(其余忽略);密钥键传 `''` 跳过、传 `null` 置空 | 更新后的配置(同 GET,密钥不回显) | 400(`AI 配置无效。`) |
 | `GET /api/ai/status` | 无 | AI 运行状态 | — |
 | `POST /api/ai/models` | `{apiKey?}`(字符串,**≤ 512 字符**) | DeepSeek 模型列表 | 400(`DeepSeek API Key 格式无效。`) |
 | `POST /api/ai/test` | 无 | DeepSeek 连通性测试 | **502**(`{ok:false, error}`) |

@@ -33,7 +33,11 @@ function createAiRequestLogger(options = {}) {
     return pending;
   }
 
-  return { filePath, log };
+  function flush() {
+    return pending;
+  }
+
+  return { filePath, log, flush };
 }
 
 function formatSummary(entry) {

@@ -63,12 +63,12 @@ function tryListen(server, port, host) {
 }
 
 async function cleanupOwnPortOccupant(options) {
-  const runtime = readRuntimeInfo(options.dataDir);
   const requestedPort = Number(options.port);
   const port = requestedPort;
   const host = options.host;
-  const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
   if (!Number.isInteger(port) || port <= 0) return;
+  const runtime = readRuntimeInfo(options.dataDir);
+  const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
   if (runtimeForPort && Number(runtimeForPort.pid) === process.pid) return;
 
   const fetchImpl = options.fetch || globalThis.fetch;

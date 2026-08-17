@@ -15,6 +15,8 @@ function createOrderedAsyncCoordinator(options = {}) {
   let active = 0;
   let stopped = false;
   let delivering = false;
+  let drainPromise = null;
+  let resolveDrain = null;
   const waiting = [];
   const completed = new Map();
 
@@ -33,12 +35,17 @@ function createOrderedAsyncCoordinator(options = {}) {
       active += 1;
       Promise.resolve()
         .then(() => generate(job.item))
-        .then((result) => completed.set(job.sequence, { item: job.item, result }))
-        .catch((error) => completed.set(job.sequence, { item: job.item, error }))
+        .then((result) => {
+          if (!stopped) completed.set(job.sequence, { item: job.item, result });
+        })
+        .catch((error) => {
+          if (!stopped) completed.set(job.sequence, { item: job.item, error });
+        })
         .finally(() => {
           active -= 1;
           pumpGeneration();
           void pumpDelivery();
+          resolveDrainIfIdle();
         });
     }
   }
@@ -66,6 +73,7 @@ function createOrderedAsyncCoordinator(options = {}) {
       }
     } finally {
       delivering = false;
+      resolveDrainIfIdle();
     }
   }
 
@@ -80,9 +88,22 @@ function createOrderedAsyncCoordinator(options = {}) {
   }
 
   function stop() {
+    if (drainPromise) return drainPromise;
     stopped = true;
     waiting.length = 0;
     completed.clear();
+    drainPromise = new Promise((resolve) => {
+      resolveDrain = resolve;
+      resolveDrainIfIdle();
+    });
+    return drainPromise;
+  }
+
+  function resolveDrainIfIdle() {
+    if (!stopped || active > 0 || delivering || !resolveDrain) return;
+    const resolve = resolveDrain;
+    resolveDrain = null;
+    resolve();
   }
 
   return { enqueue, getStatus, stop };

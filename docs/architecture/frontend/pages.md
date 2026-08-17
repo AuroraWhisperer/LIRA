@@ -1,8 +1,10 @@
 # 前端页面与入口清单
 
-> 涉及文件:[admin.html](../../../public/pages/admin.html)、[gift-audit.html](../../../public/pages/gift-audit.html)、[debug-gifts.html](../../../public/pages/debug-gifts.html)、[overlays/](../../../public/pages/overlays/)、[js/admin/](../../../public/js/admin/)、[js/playback/](../../../public/js/playback/)、[js/overlays/](../../../public/js/overlays/)、[js/shared/](../../../public/js/shared/)、[css/](../../../public/css/)、[img/](../../../public/img/)
+> 涉及文件:[pages/admin/](../../../public/pages/admin/)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin-page-composition.test.js)、[gift-audit.html](../../../public/pages/gift-audit.html)、[debug-gifts.html](../../../public/pages/debug-gifts.html)、[overlays/](../../../public/pages/overlays/)、[js/admin/](../../../public/js/admin/)、[js/playback/](../../../public/js/playback/)、[js/overlays/](../../../public/js/overlays/)、[js/shared/](../../../public/js/shared/)、[css/](../../../public/css/)、[img/](../../../public/img/)
 
 本文档是前端**页面清单**的唯一事实源:每个页面是什么、由谁打开、入口 URL 只在此成表。URL → HTML 的映射表(`pageMap`)本身归 [server-core.md](../backend/server-core.md) §4.3 所有,此处只列出面向使用者的入口语义。
+
+管理后台没有单一 `public/pages/admin.html` 文件。HTML 分片位于 [pages/admin/](../../../public/pages/admin/)，由 [server/admin-page.js](../../../src/server/admin-page.js) 组合，顺序由 [admin-page-composition.test.js](../../../test/admin-page-composition.test.js) 保护。
 
 ## 1. 技术选型
 
@@ -20,9 +22,9 @@
 
 | 入口 URL | 实际 HTML | 打开者 | 行为说明 |
 |---|---|---|---|
-| `/admin` | [admin.html](../../../public/pages/admin.html) | 浏览器(手动或 `AUTO_OPEN_ADMIN=1` 自动打开)、Electron 主窗口 | 管理后台:点歌/播放/礼物/百宝箱四个主页面;`#playback`/`#gifts`/`#other` hash 直达对应主页面 |
-| `/admin?desktop=1` | 同上 | Electron 主窗口([desktop/main.md](../desktop/main.md)) | 在 CSS 加载前即写入 `html.desktop-shell` 主题类(防粉色闪烁,见 [admin.html:11](../../../public/pages/admin.html#L11)),显示标题栏拖拽区与窗口控制按钮;退出后展示桌面版重启屏 |
-| `/settings` | [admin.html](../../../public/pages/admin.html) | 浏览器(旧书签/外部链接) | 历史兼容入口,落到管理后台默认页(点歌) |
+| `/admin` | [pages/admin/](../../../public/pages/admin/) 分片经 [server/admin-page.js](../../../src/server/admin-page.js) 组合 | 浏览器(手动或 `AUTO_OPEN_ADMIN=1` 自动打开)、Electron 主窗口 | 管理后台:点歌/播放/礼物/百宝箱四个主页面;`#playback`/`#gifts`/`#other` hash 直达对应主页面 |
+| `/admin?desktop=1` | 同上 | Electron 主窗口([desktop/main.md](../desktop/main.md)) | [shell-start.html](../../../public/pages/admin/shell-start.html) 在 CSS 加载前写入 `html.desktop-shell` 主题类(防粉色闪烁),显示标题栏拖拽区与窗口控制按钮;退出后展示桌面版重启屏 |
+| `/settings` | 同上 | 浏览器(旧书签/外部链接) | 历史兼容入口,落到管理后台默认页(点歌) |
 | `/songs` | 同上 | 浏览器 | 同上,兼容入口 |
 | `/queue` | [overlays/queue.html](../../../public/pages/overlays/queue.html) | OBS 浏览器源、独立浏览器窗口 | 点歌队列叠加层,透明背景 |
 | `/songlist` | [overlays/songs.html](../../../public/pages/overlays/songs.html) | OBS 浏览器源 | 歌单展示板叠加层,支持 `?category=` 过滤 |
@@ -41,7 +43,7 @@
 
 | 页面 | 文件 | 类型 | 内容 |
 |---|---|---|---|
-| 管理后台 | [pages/admin.html](../../../public/pages/admin.html) | Classic + ES Module | 点歌/播放/礼物/百宝箱四主页面 + 状态条(WS/直播/歌库计数)+ 窗口控件 |
+| 管理后台 | [pages/admin/](../../../public/pages/admin/) 分片 + [server/admin-page.js](../../../src/server/admin-page.js) | Classic + ES Module | 点歌/播放/礼物/百宝箱四主页面 + 状态条(WS/直播/歌库计数)+ 窗口控件 |
 | 礼物审计 | [pages/gift-audit.html](../../../public/pages/gift-audit.html) | 内联脚本 | 气泡流 vs WS 流交叉对比、事件重放、手动投递 |
 | 礼物调试 | [pages/debug-gifts.html](../../../public/pages/debug-gifts.html) | 内联脚本 | 礼物解析诊断(统计卡片、cmd 分解、messageBuffer 回放) |
 | 队列叠加层 | [pages/overlays/queue.html](../../../public/pages/overlays/queue.html) | Classic(`js/overlays/queue.js`) | 点歌队列滚动展示,classic/identity 两种风格 |

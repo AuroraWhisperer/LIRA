@@ -57,7 +57,9 @@ function isAllowedMusicLoginUrl(platform, rawUrl) {
   try { parsed = new URL(rawUrl); } catch (_) { return false; }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
   const host = parsed.hostname.toLowerCase();
-  return MUSIC_LOGIN_CONFIG[platform].allowedHosts.some((allowed) => {
+  const config = MUSIC_LOGIN_CONFIG[platform];
+  if (!config) return false;
+  return config.allowedHosts.some((allowed) => {
     const cleanAllowed = allowed.toLowerCase();
     return host === cleanAllowed || host.endsWith(`.${cleanAllowed}`);
   });

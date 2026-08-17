@@ -4,6 +4,7 @@
 'use strict';
 
 const { now } = require('../shared/utils');
+const { createGiftMaintenanceStore } = require('./gift-maintenance-store');
 
 // 默认保留期（天）。0 表示不清理。
 const DEFAULT_POLICY = {
@@ -60,9 +61,25 @@ function applyRetentionPolicies(databases, options = {}) {
 
   const giftEventDays = normalizeDays(policy.giftEventDays);
   if (giftEventDays > 0 && databases.giftDb) {
-    result.giftEventsDeleted = deleteOlderThan(
-      databases.giftDb, 'gift_events', isoDaysAgo(giftEventDays), dryRun
-    );
+    const threshold = isoDaysAgo(giftEventDays);
+    const maintenance = createGiftMaintenanceStore(databases.giftDb);
+
+    if (dryRun) {
+      // Dry-run: 只统计数量
+      result.giftEventsDeleted = maintenance.countGiftsByPredicate(
+        'created_at < ?',
+        [threshold]
+      );
+    } else {
+      // 实际删除：使用维护存储协调删除，确保 pending settlements 被标记为 ignored
+      const deleteResult = maintenance.deleteGiftsByPredicate(
+        'created_at < ?',
+        [threshold],
+        'retention:expired',
+        now()
+      );
+      result.giftEventsDeleted = deleteResult.deletedGifts;
+    }
   }
 
   const requestDays = normalizeDays(policy.requestDays);

@@ -25,6 +25,17 @@ function createWebSocketHub(options = {}) {
       return;
     }
 
+    // Origin validation: Check Origin header if present (browser requests)
+    const origin = req.headers.origin;
+    if (origin && context.allowedOrigins) {
+      const allowed = context.allowedOrigins.some(allowed => origin === allowed);
+      if (!allowed) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+    }
+
     // Token 校验：检查 URL query param 中的 token
     const token = context.sessionToken;
     if (token) {

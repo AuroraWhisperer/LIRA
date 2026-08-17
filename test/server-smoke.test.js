@@ -2,11 +2,13 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const lifecycle = require('../src/server/lifecycle');
 
 let _testToken = '';
 
@@ -110,6 +112,21 @@ function readInjectedApiAnchor(html, baseUrl, href) {
   return anchor.href;
 }
 
+test('server runtime construction performs no data-directory I/O', async () => {
+  const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lazy-runtime-'));
+  const dataDir = path.join(parentDir, 'not-created-yet');
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+
+  try {
+    assert.equal(fs.existsSync(dataDir), false);
+    await runtime.stop({ exitProcess: false });
+    assert.equal(fs.existsSync(dataDir), false);
+  } finally {
+    fs.rmSync(parentDir, { recursive: true, force: true });
+  }
+});
+
 test('server normalizes localhost to the IPv4 loopback address', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-loopback-'));
   const { createServerRuntime } = require('../src/server');
@@ -121,6 +138,169 @@ test('server normalizes localhost to the IPv4 loopback address', async () => {
     assert.equal(app.host, '127.0.0.1');
     assert.equal(app.baseUrl, `http://127.0.0.1:${port}`);
   } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server rejects non-loopback host addresses', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-reject-host-'));
+  const { createServerRuntime } = require('../src/server');
+
+  try {
+    // Host validation happens during createServerRuntime construction
+    assert.throws(
+      () => createServerRuntime({ dataDir, host: '0.0.0.0' }),
+      /Host must be '127\.0\.0\.1' or 'localhost'/
+    );
+
+    assert.throws(
+      () => createServerRuntime({ dataDir, host: '192.168.1.100' }),
+      /Host must be '127\.0\.0\.1' or 'localhost'/
+    );
+
+    assert.throws(
+      () => createServerRuntime({ dataDir, host: 'example.com' }),
+      /Host must be '127\.0\.0\.1' or 'localhost'/
+    );
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server rejects requests with mismatched Host header', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-host-header-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  const port = await findAvailablePort();
+
+  try {
+    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
+    _testToken = runtime.getApiToken();
+
+    // Use http.request to set a custom Host header (fetch normalizes it)
+    const response = await new Promise((resolve, reject) => {
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port,
+        path: '/api/state',
+        method: 'GET',
+        headers: {
+          'Host': 'evil.com',
+          'Authorization': `Bearer ${_testToken}`
+        }
+      }, resolve);
+      req.on('error', reject);
+      req.end();
+    });
+
+    let body = '';
+    for await (const chunk of response) {
+      body += chunk;
+    }
+
+    assert.equal(response.statusCode, 400);
+    const payload = JSON.parse(body);
+    assert.equal(payload.error, 'Invalid Host header.');
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server rejects state-changing requests with wrong Origin', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-origin-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  const port = await findAvailablePort();
+
+  try {
+    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
+    _testToken = runtime.getApiToken();
+
+    const response = await fetch(`${app.baseUrl}/api/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${_testToken}`,
+        'Origin': 'http://evil.com'
+      },
+      body: JSON.stringify({ queueLimit: 5 })
+    });
+    assert.equal(response.status, 403);
+    const payload = await response.json();
+    assert.equal(payload.error, 'Origin not allowed.');
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server allows requests without Origin header (non-browser clients)', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-no-origin-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  const port = await findAvailablePort();
+
+  try {
+    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
+    _testToken = runtime.getApiToken();
+
+    // POST without Origin header should succeed (simulates curl, scripts, etc.)
+    const response = await fetch(`${app.baseUrl}/api/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${_testToken}`
+        // No Origin header
+      },
+      body: JSON.stringify({ queueLimit: 7 })
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.ok, true);
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('server quiesce rejects new API work and retains the port until cleanup finishes', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-quiesce-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  const port = await findAvailablePort();
+  let releaseHook;
+  let hookStartedResolve;
+  const hookStarted = new Promise((resolve) => { hookStartedResolve = resolve; });
+  runtime.setPreShutdownHook(() => new Promise((resolve) => {
+    releaseHook = resolve;
+    hookStartedResolve();
+  }));
+
+  try {
+    const app = await runtime.start({ host: '127.0.0.1', startPort: port });
+    const stop = runtime.stop({ exitProcess: false });
+    await hookStarted;
+
+    const response = await fetch(`${app.baseUrl}/api/state`, {
+      headers: { Authorization: `Bearer ${runtime.getApiToken()}` }
+    });
+    assert.equal(response.status, 503);
+
+    const contender = http.createServer();
+    await assert.rejects(
+      lifecycle.listenExactly(contender, { port, host: '127.0.0.1' }),
+      { code: 'EADDRINUSE' }
+    );
+
+    releaseHook();
+    await stop;
+
+    await lifecycle.listenExactly(contender, { port, host: '127.0.0.1' });
+    await new Promise((resolve) => contender.close(resolve));
+  } finally {
+    if (releaseHook) releaseHook();
     await runtime.stop({ exitProcess: false });
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

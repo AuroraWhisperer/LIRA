@@ -36,8 +36,19 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
     sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),
     waitForDelivery: (delivery) => deliveryVerifier.waitForDelivery(delivery)
   });
+  let shutdownPromise = null;
 
-  return { configStore, quotaStore, deliveryVerifier, requestLogger, service };
+  function shutdown() {
+    if (shutdownPromise) return shutdownPromise;
+    shutdownPromise = (async () => {
+      await service.shutdown();
+      deliveryVerifier.dispose();
+      await requestLogger.flush?.();
+    })();
+    return shutdownPromise;
+  }
+
+  return { configStore, quotaStore, deliveryVerifier, requestLogger, service, shutdown };
 }
 
 module.exports = { buildAiRuntime };
