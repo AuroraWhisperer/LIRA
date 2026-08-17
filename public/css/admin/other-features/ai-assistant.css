@@ -115,7 +115,8 @@
 .xiaomi-ai-field-grid label { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 600; }
 .xiaomi-ai-field-grid label.wide { grid-column: 1 / -1; }
 .xiaomi-ai-field-grid input,
-.xiaomi-ai-field-grid textarea { margin-top: 5px; }
+.xiaomi-ai-field-grid textarea,
+.xiaomi-ai-field-grid select { margin-top: 5px; }
 .xiaomi-ai-model-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; margin-top: 5px; }
 .xiaomi-ai-model-input-wrap { position: relative; min-width: 0; }
 .xiaomi-ai-field-grid .xiaomi-ai-model-picker input { width: 100%; min-width: 0; margin-top: 0; }
@@ -147,8 +148,27 @@
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:hover,
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:focus-visible { background: var(--surface-2); }
 .xiaomi-ai-field-grid small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
-.xiaomi-ai-toggle-row { display: flex; flex-wrap: wrap; gap: 10px 20px; color: var(--muted); font-size: 12px; }
+.xiaomi-ai-capability-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+.xiaomi-ai-capability-rail > div { display: grid; gap: 3px; min-width: 0; padding: 9px 10px; }
+.xiaomi-ai-capability-rail > div + div { border-left: 1px solid var(--border); }
+.xiaomi-ai-capability-rail span { color: var(--muted); font-size: 9px; }
+.xiaomi-ai-capability-rail strong { color: var(--text); font-size: 11px; overflow-wrap: anywhere; }
+.xiaomi-ai-toggle-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 20px; color: var(--muted); font-size: 12px; }
 .xiaomi-ai-toggle-row input { accent-color: var(--accent); }
+.xiaomi-ai-capability-control { display: grid; gap: 4px; min-width: min(100%, 190px); font-weight: 600; }
+.xiaomi-ai-capability-control[hidden],
+.xiaomi-ai-provider-managed[hidden] { display: none; }
+.xiaomi-ai-capability-control b { color: var(--text); font-size: 12px; font-weight: 600; }
+.xiaomi-ai-capability-control small { max-width: 320px; color: var(--muted); font-size: 10px; font-weight: 400; line-height: 1.45; }
+.xiaomi-ai-capability-control select { min-width: 150px; }
+.xiaomi-ai-provider-managed { flex: 1 1 100%; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .xiaomi-ai-collapsible {
   overflow: hidden;
   border: 1px solid var(--border);
@@ -225,6 +245,8 @@
   .xiaomi-ai-status-grid { grid-template-columns: 1fr; }
   .xiaomi-ai-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
   .xiaomi-ai-provider-note { align-items: flex-start; flex-direction: column; }
+  .xiaomi-ai-capability-rail { grid-template-columns: 1fr; }
+  .xiaomi-ai-capability-rail > div + div { border-top: 1px solid var(--border); border-left: 0; }
   .xiaomi-ai-model-picker { grid-template-columns: 1fr; }
   .xiaomi-ai-model-picker button { width: 100%; }
   .xiaomi-ai-test-actions { display: grid; grid-template-columns: 1fr; }

@@ -8,14 +8,36 @@ const AI_SECRET_KEYS = Object.freeze([
   'amapApiKey'
 ]);
 
+const MODEL_PROVIDER_PRESETS = Object.freeze({
+  deepseek: Object.freeze({
+    url: 'https://api.deepseek.com',
+    protocol: 'chat_completions'
+  }),
+  openai: Object.freeze({
+    url: 'https://api.openai.com/v1',
+    protocol: 'responses'
+  }),
+  anthropic: Object.freeze({
+    url: 'https://api.anthropic.com/v1',
+    protocol: 'chat_completions'
+  }),
+  gemini: Object.freeze({
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    protocol: 'chat_completions'
+  })
+});
+
 const AI_CONFIG_DEFAULTS = Object.freeze({
   enabled: true,
   trigger: '',
+  modelProvider: 'auto',
   deepseekResponsesUrl: '',
+  modelApiProtocol: 'auto',
   deepseekApiKey: '',
   model: '',
   webSearchEnabled: true,
   reasoningEnabled: false,
+  reasoningEffort: 'auto',
   qweatherApiHost: '',
   qweatherApiKey: '',
   amapApiHost: '',
@@ -41,6 +63,12 @@ const BOOLEAN_KEYS = new Set([
   'weatherEnabled', 'placesEnabled', 'routesEnabled'
 ]);
 
+const ENUM_VALUES = Object.freeze({
+  modelProvider: new Set(['auto', 'deepseek', 'openai', 'anthropic', 'gemini', 'custom']),
+  modelApiProtocol: new Set(['auto', 'responses', 'chat_completions']),
+  reasoningEffort: new Set(['auto', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+});
+
 const NUMBER_LIMITS = Object.freeze({
   replyMaxChars: [10, 50],
   generationConcurrency: [1, 5],
@@ -59,9 +87,12 @@ const URL_KEYS = new Set(['deepseekResponsesUrl', 'qweatherApiHost', 'amapApiHos
 function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
   const result = { ...AI_CONFIG_DEFAULTS, ...current };
   const allowedKeys = new Set(Object.keys(AI_CONFIG_DEFAULTS));
+  const requestedProvider = String(input?.modelProvider ?? result.modelProvider ?? 'auto').trim().toLowerCase();
+  const providerPresetActive = Boolean(MODEL_PROVIDER_PRESETS[requestedProvider]);
 
   for (const [key, rawValue] of Object.entries(input || {})) {
     if (!allowedKeys.has(key)) continue;
+    if (providerPresetActive && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;
     if (BOOLEAN_KEYS.has(key)) {
       result[key] = rawValue === true || rawValue === 'true';
       continue;
@@ -73,6 +104,14 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
         throw new Error(`${key} 必须在 ${minimum} 到 ${maximum} 之间。`);
       }
       result[key] = Math.round(value);
+      continue;
+    }
+    if (ENUM_VALUES[key]) {
+      const value = String(rawValue ?? '').trim().toLowerCase();
+      if (!ENUM_VALUES[key].has(value)) {
+        throw new Error(`${key} 配置无效。`);
+      }
+      result[key] = value;
       continue;
     }
     let value = String(rawValue ?? '').trim();
@@ -88,7 +127,17 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
     }
     result[key] = value;
   }
-  return result;
+  return applyModelProviderPreset(result);
+}
+
+function applyModelProviderPreset(config = {}) {
+  const preset = MODEL_PROVIDER_PRESETS[config.modelProvider];
+  if (!preset) return { ...config };
+  return {
+    ...config,
+    deepseekResponsesUrl: preset.url,
+    modelApiProtocol: preset.protocol
+  };
 }
 
 function validateHttpUrl(key, value) {
@@ -116,7 +165,10 @@ function isAiReady(config) {
 module.exports = {
   AI_CONFIG_DEFAULTS,
   AI_SECRET_KEYS,
+  MODEL_PROVIDER_PRESETS,
   NUMBER_LIMITS,
+  ENUM_VALUES,
+  applyModelProviderPreset,
   normalizeAiConfig,
   isAiReady
 };

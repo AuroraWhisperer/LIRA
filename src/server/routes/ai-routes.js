@@ -1,12 +1,14 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
+const { ENUM_VALUES } = require('../../ai/config');
 
 const prefixes = ['/api/ai'];
 const SECRET_KEYS = new Set(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 const ALLOWED_KEYS = new Set([
-  'enabled', 'trigger', 'deepseekResponsesUrl', 'deepseekApiKey', 'model',
-  'webSearchEnabled', 'reasoningEnabled', 'qweatherApiHost', 'qweatherApiKey',
+  'enabled', 'trigger', 'modelProvider', 'deepseekResponsesUrl', 'deepseekApiKey', 'model',
+  'modelApiProtocol', 'webSearchEnabled', 'reasoningEnabled', 'reasoningEffort',
+  'qweatherApiHost', 'qweatherApiKey',
   'amapApiHost', 'amapApiKey', 'weatherEnabled', 'placesEnabled', 'routesEnabled',
   'replyMaxChars', 'generationConcurrency', 'queueLimit', 'sendIntervalMs',
   'userCooldownSeconds', 'roomLimitPerMinute', 'requestTimeoutMs', 'maxToolCalls',
@@ -53,9 +55,27 @@ const routes = {
       const body = await request.body();
       const apiKey = body?.apiKey ?? '';
       const apiUrl = body?.apiUrl ?? '';
+      const modelProvider = body?.modelProvider ?? '';
+      const modelApiProtocol = body?.modelApiProtocol ?? '';
       if (typeof apiKey !== 'string' || apiKey.length > 512) throw new Error('API Key 格式无效。');
       if (typeof apiUrl !== 'string' || apiUrl.length > 2048) throw new Error('API 请求地址格式无效。');
-      sendJson(res, 200, { ok: true, data: await context.ai.listModels({ apiKey: apiKey.trim(), apiUrl: apiUrl.trim() }) });
+      if (typeof modelProvider !== 'string' || modelProvider.length > 32) throw new Error('模型供应商格式无效。');
+      if (typeof modelApiProtocol !== 'string' || modelApiProtocol.length > 32) throw new Error('接口协议格式无效。');
+      const input = { apiKey: apiKey.trim(), apiUrl: apiUrl.trim() };
+      const normalizedProvider = modelProvider.trim().toLowerCase();
+      const normalizedProtocol = modelApiProtocol.trim().toLowerCase();
+      if (normalizedProvider && !ENUM_VALUES.modelProvider.has(normalizedProvider)) {
+        throw new Error('模型供应商格式无效。');
+      }
+      if (normalizedProtocol && !ENUM_VALUES.modelApiProtocol.has(normalizedProtocol)) {
+        throw new Error('接口协议格式无效。');
+      }
+      if (normalizedProvider) input.modelProvider = normalizedProvider;
+      if (normalizedProtocol) input.modelApiProtocol = normalizedProtocol;
+      sendJson(res, 200, {
+        ok: true,
+        data: await context.ai.listModels(input)
+      });
     } catch (error) {
       sendJson(res, 400, { ok: false, error: error.message || '无法获取模型列表。' });
     }

@@ -378,12 +378,17 @@ test('model listing uses the saved key and prefers a newly entered key', async (
 
   assert.deepEqual(await service.listModels(), { models: ['deepseek-v4-flash'] });
   assert.deepEqual(await service.listModels({
-    apiKey: 'new-secret', apiUrl: 'https://gateway.example.test/v1/responses'
+    apiKey: 'new-secret', apiUrl: 'https://gateway.example.test/v1/responses',
+    modelApiProtocol: 'responses'
   }), { models: ['deepseek-v4-flash'] });
   assert.equal(requests[0].apiKey, 'secret');
   assert.equal(requests[0].responsesUrl, 'https://example.test/responses');
+  assert.equal(requests[0].modelProvider, 'auto');
+  assert.equal(requests[0].modelApiProtocol, 'auto');
   assert.equal(requests[1].apiKey, 'new-secret');
   assert.equal(requests[1].responsesUrl, 'https://gateway.example.test/v1/responses');
+  assert.equal(requests[1].modelProvider, 'auto');
+  assert.equal(requests[1].modelApiProtocol, 'responses');
 });
 
 test('provider connection tests dispatch with the saved private configuration', async () => {

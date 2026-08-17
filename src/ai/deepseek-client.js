@@ -2,6 +2,8 @@
 
 const crypto = require('node:crypto');
 const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
+const { resolveModelEndpoint, resolveModelsEndpoint } = require('./model-endpoint');
+const { applyModelProviderPreset } = require('./config');
 
 function createDeepSeekClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
@@ -10,10 +12,11 @@ function createDeepSeekClient(options = {}) {
 
   async function createResponse(request) {
     throwIfAborted(request.signal);
-    const config = request.config || {};
+    const config = applyModelProviderPreset(request.config || {});
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
       throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
     }
+    const endpoint = resolveModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol);
     const responsesBody = {
       model: config.model,
       instructions: request.instructions,
@@ -22,14 +25,20 @@ function createDeepSeekClient(options = {}) {
       max_output_tokens: Math.max(64, Number(request.maxOutputTokens) || 256)
     };
     if (request.previousResponseId) responsesBody.previous_response_id = request.previousResponseId;
-    if (!config.reasoningEnabled) responsesBody.reasoning = { effort: 'none' };
+    if (!config.reasoningEnabled) {
+      responsesBody.reasoning = { effort: 'none' };
+    } else if (config.reasoningEffort && config.reasoningEffort !== 'auto') {
+      const reasoningEffort = endpoint.officialDeepSeek
+        ? toDeepSeekReasoningEffort(config.reasoningEffort)
+        : config.reasoningEffort;
+      if (reasoningEffort) responsesBody.reasoning = { effort: reasoningEffort };
+    }
 
-    const endpoint = resolveModelEndpoint(config.deepseekResponsesUrl);
     if (endpoint.protocol === 'chat_completions') {
       return createChatResponse(request, config, endpoint);
     }
     return sendModelRequest({
-      url: config.deepseekResponsesUrl,
+      url: endpoint.url,
       config,
       purpose: request.purpose,
       protocol: 'responses',
@@ -52,8 +61,14 @@ function createDeepSeekClient(options = {}) {
       max_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
       stream: false
     };
-    if (!config.reasoningEnabled && endpoint.officialDeepSeek) {
-      body.thinking = { type: 'disabled' };
+    if (endpoint.officialDeepSeek) {
+      body.thinking = { type: config.reasoningEnabled ? 'enabled' : 'disabled' };
+      const reasoningEffort = toDeepSeekReasoningEffort(config.reasoningEffort);
+      if (config.reasoningEnabled && reasoningEffort) body.reasoning_effort = reasoningEffort;
+    } else if (config.modelProvider === 'gemini') {
+      const reasoningEffort = toGeminiReasoningEffort(config.reasoningEffort);
+      if (!config.reasoningEnabled) body.reasoning_effort = 'none';
+      else if (reasoningEffort) body.reasoning_effort = reasoningEffort;
     }
     const tools = toChatTools(request.tools);
     if (tools.length) body.tools = tools;
@@ -147,10 +162,15 @@ function createDeepSeekClient(options = {}) {
 
   async function listModels(request = {}) {
     const apiKey = String(request.apiKey || '').trim();
-    const responsesUrl = String(request.responsesUrl || '').trim();
+    const providerConfig = applyModelProviderPreset({
+      modelProvider: request.modelProvider,
+      deepseekResponsesUrl: request.responsesUrl,
+      modelApiProtocol: request.modelApiProtocol
+    });
+    const responsesUrl = String(providerConfig.deepseekResponsesUrl || '').trim();
     if (!responsesUrl) throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 API 请求地址。');
     if (!apiKey) throw createPublicError('AI_NOT_CONFIGURED', '请先填写当前模型服务的 API Key。');
-    const payload = await fetchJson(resolveModelsEndpoint(responsesUrl), {
+    const payload = await fetchJson(resolveModelsEndpoint(responsesUrl, providerConfig.modelApiProtocol), {
       headers: { Authorization: `Bearer ${apiKey}` },
       timeoutMs: request.requestTimeoutMs,
       fetchImpl,
@@ -165,6 +185,7 @@ function createDeepSeekClient(options = {}) {
   }
 
   async function testConnection(config = {}, options = {}) {
+    config = applyModelProviderPreset(config);
     if (!config.deepseekResponsesUrl) {
       throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写模型服务 API 地址。');
     }
@@ -172,7 +193,7 @@ function createDeepSeekClient(options = {}) {
       throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写当前模型服务的 API Key。');
     }
     let responseText;
-    const testEndpoint = resolveModelEndpoint(config.deepseekResponsesUrl);
+    const testEndpoint = resolveModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol);
     try {
       const response = await createResponse({
         config,
@@ -205,54 +226,6 @@ function createDeepSeekClient(options = {}) {
   return { createResponse, listModels, testConnection };
 }
 
-function resolveModelEndpoint(value) {
-  const url = new URL(value);
-  const path = url.pathname.replace(/\/+$/, '');
-  const officialDeepSeek = isOfficialDeepSeekUrl(url);
-  if (path.endsWith('/chat/completions')) {
-    return { url: value, protocol: 'chat_completions', adapted: true, officialDeepSeek };
-  }
-  if (path.endsWith('/responses') || url.search || url.hash) {
-    return { url: value, protocol: 'responses', adapted: false, officialDeepSeek };
-  }
-  if (path === '' || path.endsWith('/v1')) {
-    url.pathname = path
-      ? `${path}/chat/completions`
-      : (officialDeepSeek ? '/chat/completions' : '/v1/chat/completions');
-    return {
-      url: url.toString(),
-      protocol: 'chat_completions',
-      adapted: true,
-      officialDeepSeek
-    };
-  }
-  return { url: value, protocol: 'responses', adapted: false, officialDeepSeek };
-}
-
-function isOfficialDeepSeekUrl(value) {
-  const url = value instanceof URL ? value : new URL(value);
-  return url.protocol === 'https:' && url.hostname === 'api.deepseek.com' && !url.port;
-}
-
-function resolveModelsEndpoint(value) {
-  const url = new URL(value);
-  const path = url.pathname.replace(/\/+$/, '');
-  if (path.endsWith('/chat/completions')) {
-    url.pathname = `${path.slice(0, -'/chat/completions'.length)}/models`;
-  } else if (path.endsWith('/responses')) {
-    url.pathname = `${path.slice(0, -'/responses'.length)}/models`;
-  } else if (path.endsWith('/models')) {
-    url.pathname = path;
-  } else if (path === '' && !isOfficialDeepSeekUrl(url)) {
-    url.pathname = '/v1/models';
-  } else {
-    url.pathname = `${path}/models`;
-  }
-  url.search = '';
-  url.hash = '';
-  return url.toString();
-}
-
 function normalizeChatResponse(payload) {
   const choice = payload?.choices?.[0] || {};
   const message = choice.message || {};
@@ -280,6 +253,24 @@ function normalizeChatResponse(payload) {
     },
     rawMessage: message
   };
+}
+
+function toDeepSeekReasoningEffort(value) {
+  const effort = String(value || 'auto').trim().toLowerCase();
+  if (effort === 'auto') return '';
+  if (effort === 'low' || effort === 'max') return effort;
+  if (['minimal', 'medium', 'high', 'xhigh'].includes(effort)) {
+    return effort === 'minimal' ? 'low' : 'high';
+  }
+  return '';
+}
+
+function toGeminiReasoningEffort(value) {
+  const effort = String(value || 'auto').trim().toLowerCase();
+  if (effort === 'auto') return '';
+  if (['minimal', 'low', 'medium', 'high'].includes(effort)) return effort;
+  if (effort === 'xhigh' || effort === 'max') return 'high';
+  return '';
 }
 
 function appendChatCapabilityNotice(instructions, tools) {

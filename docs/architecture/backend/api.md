@@ -368,16 +368,16 @@ handler 未包 try/catch:抛错走顶层 **500**。
 > 模块文件:[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)
 > 前缀:`/api/ai`
 
-`ALLOWED_KEYS`([ai-routes.js:7-14](../../../src/server/routes/ai-routes.js#L7-L14)):`enabled, trigger, deepseekResponsesUrl, deepseekApiKey, model, webSearchEnabled, reasoningEnabled, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt`;密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
+`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt`;`modelProvider` 固定枚举为 `auto, deepseek, openai, anthropic, gemini, custom`，官方预设的地址与协议由服务端强制；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
 
 **密钥字段安全契约**:GET 响应与 PUT 响应均**不回显密钥明文**;GET 返回 `has*ApiKey` 布尔标志(`hasDeepSeekApiKey, hasQWeatherApiKey, hasAmapApiKey`),密钥字段本身**不出现**在响应中;PUT 请求时传 `''` 跳过更新(保留现值)、传非空字符串更新、传 `null` 清空。前端渲染已保存密钥为 `'********'` 遮罩,提交时过滤该遮罩值(等同跳过)。
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/ai/config` | 无 | AI 配置(`getPublicConfig()`):密钥字段(`deepseekApiKey, qweatherApiKey, amapApiKey`)不出现;包含 `has*ApiKey` 布尔标志 | — |
+| `GET /api/ai/config` | 无 | AI 配置(`getPublicConfig()`):密钥字段不出现；包含 `has*ApiKey` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}` | — |
 | `PUT /api/ai/config` | body:仅 `ALLOWED_KEYS` 子集生效(其余忽略);密钥键传 `''` 跳过、传 `null` 置空 | 更新后的配置(同 GET,密钥不回显) | 400(`AI 配置无效。`) |
 | `GET /api/ai/status` | 无 | AI 运行状态 | — |
-| `POST /api/ai/models` | `{apiKey?}`(字符串,**≤ 512 字符**) | DeepSeek 模型列表 | 400(`DeepSeek API Key 格式无效。`) |
+| `POST /api/ai/models` | `{apiKey?, apiUrl?, modelProvider?, modelApiProtocol?}`；Key ≤ 512、URL ≤ 2048、两个枚举字段各 ≤ 32 字符 | 当前模型服务的模型列表；官方供应商忽略 `apiUrl`/协议覆盖 | 400(字段、枚举或上游响应无效) |
 | `POST /api/ai/test` | 无 | DeepSeek 连通性测试 | **502**(`{ok:false, error}`) |
 | `POST /api/ai/test/deepseek` | 无 | 该 Provider 连接测试 | **502** `{ok:false, code(≤80 字符), error}` |
 | `POST /api/ai/test/qweather` | 无 | 同上(和风天气) | 502 |

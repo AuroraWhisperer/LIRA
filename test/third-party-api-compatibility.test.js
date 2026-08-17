@@ -103,3 +103,60 @@ test('third-party site root derives the conventional v1 models endpoint', async 
   assert.equal(capturedUrl, 'https://gcli.ggchan.dev/v1/models');
   assert.deepEqual(result.models, ['custom-model']);
 });
+
+test('explicit Responses protocol adapts a third-party root and sends reasoning effort', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), body: JSON.parse(options.body) };
+      return jsonResponse({ id: 'resp_custom', output_text: 'ok' });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://www.aiyoyoo.com',
+      modelApiProtocol: 'responses',
+      deepseekApiKey: 'temporary-test-key',
+      model: 'gpt-5.6-sol',
+      reasoningEnabled: true,
+      reasoningEffort: 'high',
+      requestTimeoutMs: 3000
+    },
+    instructions: '简短回复。',
+    input: '你好',
+    tools: []
+  });
+
+  assert.equal(captured.url, 'https://www.aiyoyoo.com/v1/responses');
+  assert.deepEqual(captured.body.reasoning, { effort: 'high' });
+  assert.equal(captured.body.messages, undefined);
+});
+
+test('explicit Chat Completions protocol adapts a third-party root without reasoning fields', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), body: JSON.parse(options.body) };
+      return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://gateway.example.test',
+      modelApiProtocol: 'chat_completions',
+      deepseekApiKey: 'temporary-test-key',
+      model: 'custom-reasoning-model',
+      reasoningEnabled: true,
+      reasoningEffort: 'high',
+      requestTimeoutMs: 3000
+    },
+    input: '你好',
+    tools: []
+  });
+
+  assert.equal(captured.url, 'https://gateway.example.test/v1/chat/completions');
+  assert.equal(captured.body.reasoning, undefined);
+  assert.equal(captured.body.thinking, undefined);
+});

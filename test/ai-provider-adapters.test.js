@@ -183,6 +183,137 @@ test('DeepSeek official Chat Completions URL remains usable and carries tool res
   assert.equal(second.text, '苏州今天晴');
 });
 
+test('DeepSeek official Chat enables thinking and sends the selected reasoning effort', async () => {
+  let capturedBody;
+  const client = createDeepSeekClient({
+    fetchImpl: async (_url, options) => {
+      capturedBody = JSON.parse(options.body);
+      return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://api.deepseek.com',
+      deepseekApiKey: 'secret',
+      model: 'deepseek-v4-pro',
+      reasoningEnabled: true,
+      reasoningEffort: 'max',
+      requestTimeoutMs: 3000
+    },
+    input: 'hello'
+  });
+
+  assert.deepEqual(capturedBody.thinking, { type: 'enabled' });
+  assert.equal(capturedBody.reasoning_effort, 'max');
+});
+
+test('DeepSeek official Responses API uses its root path and mapped reasoning effort', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), body: JSON.parse(options.body) };
+      return jsonResponse({ id: 'resp_ds', output_text: 'ok' });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://api.deepseek.com',
+      modelApiProtocol: 'responses',
+      deepseekApiKey: 'secret',
+      model: 'deepseek-v4-pro',
+      reasoningEnabled: true,
+      reasoningEffort: 'medium',
+      requestTimeoutMs: 3000
+    },
+    input: 'hello'
+  });
+
+  assert.equal(captured.url, 'https://api.deepseek.com/responses');
+  assert.deepEqual(captured.body.reasoning, { effort: 'high' });
+});
+
+test('OpenAI provider preset fixes the official Responses endpoint', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), body: JSON.parse(options.body) };
+      return jsonResponse({ id: 'resp_openai', output_text: 'ok' });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      modelProvider: 'openai',
+      deepseekResponsesUrl: 'https://untrusted.example.test',
+      modelApiProtocol: 'chat_completions',
+      deepseekApiKey: 'secret',
+      model: 'gpt-test',
+      reasoningEnabled: true,
+      reasoningEffort: 'high',
+      requestTimeoutMs: 3000
+    },
+    input: 'hello'
+  });
+
+  assert.equal(captured.url, 'https://api.openai.com/v1/responses');
+  assert.deepEqual(captured.body.reasoning, { effort: 'high' });
+});
+
+test('Claude provider preset uses the official OpenAI compatibility endpoint', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), body: JSON.parse(options.body) };
+      return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      modelProvider: 'anthropic',
+      deepseekApiKey: 'secret',
+      model: 'claude-test',
+      reasoningEnabled: true,
+      reasoningEffort: 'high',
+      requestTimeoutMs: 3000
+    },
+    input: 'hello'
+  });
+
+  assert.equal(captured.url, 'https://api.anthropic.com/v1/chat/completions');
+  assert.equal(captured.body.reasoning, undefined);
+  assert.equal(captured.body.reasoning_effort, undefined);
+  assert.equal(captured.body.thinking, undefined);
+});
+
+test('Gemini provider preset uses the official compatibility endpoint and reasoning effort', async () => {
+  let captured;
+  const client = createDeepSeekClient({
+    fetchImpl: async (url, options) => {
+      captured = { url: String(url), body: JSON.parse(options.body) };
+      return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+    }
+  });
+
+  await client.createResponse({
+    config: {
+      modelProvider: 'gemini',
+      deepseekApiKey: 'secret',
+      model: 'gemini-test',
+      reasoningEnabled: true,
+      reasoningEffort: 'xhigh',
+      requestTimeoutMs: 3000
+    },
+    input: 'hello'
+  });
+
+  assert.equal(captured.url, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+  assert.equal(captured.body.reasoning_effort, 'high');
+  assert.equal(captured.body.thinking, undefined);
+});
+
 test('DeepSeek reports a length-truncated empty Chat Completions response precisely', async () => {
   const client = createDeepSeekClient({
     fetchImpl: async () => jsonResponse({

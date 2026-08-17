@@ -1,6 +1,6 @@
 # AI 互动助手集成
 
-> 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
+> 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/model-endpoint.js](../../../src/ai/model-endpoint.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
 
 本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §14;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
@@ -11,8 +11,8 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 事实 | 值 | 出处 |
 |---|---|---|
 | 角色人格 | `SYSTEM_PROMPT`:直播间橘猫"小米",含 `<identity>/<priority>/<tool_policy>/<safety>` 等段落 | [prompt.js:7-62](../../../src/ai/prompt.js#L7-L62) |
-| 模型后端 | DeepSeek 官方、Responses API 或 OpenAI 兼容 Chat Completions;默认模型 `deepseek-v4-flash`(旧别名 `ds-v4-flash` 自动归一化) | [config.js:16](../../../src/ai/config.js#L16)、[config.js:79](../../../src/ai/config.js#L79) |
-| 触发关键词 | 配置键 `trigger`,默认 `'小米'`,1–12 字符;消息中出现即触发 | [config.js:13](../../../src/ai/config.js#L13)、[ai-assistant-service.js:308-316](../../../src/ai/ai-assistant-service.js#L308-L316) |
+| 模型后端 | 供应商可选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js) |
+| 触发关键词 | 配置键 `trigger`,默认空字符串,1–12 字符;配置后消息中出现即触发 | [config.js](../../../src/ai/config.js)、[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) |
 | 就绪条件 | `isAiReady`:enabled + deepseekResponsesUrl + deepseekApiKey + model 全部非空 | [config.js:106-113](../../../src/ai/config.js#L106-L113) |
 | 回复发送 | `sendReply` = `danmakuSender.send({…, waitForRateLimit: true})`,等待发送频率而非抛错 | [server.js:260](../../../src/server.js#L260) |
 | 关闭时序 | 服务关闭第一步 `aiAssistant.shutdown()` → 协调器 stop,丢弃排队任务 | [ai-assistant-service.js:289-291](../../../src/ai/ai-assistant-service.js#L289-L291)、[server-core.md](server-core.md) §6.2 |
@@ -66,14 +66,25 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 ## 4. 模型客户端(双协议路由)
 
-[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口,所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MB、错误码归一化)。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
+[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口；端点与能力判定由 [model-endpoint.js](../../../src/ai/model-endpoint.js) 统一负责。所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MB、错误码归一化)。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
 
 ### 4.1 协议选择
 
+| `modelProvider` | 服务端固定基础地址 | 固定协议 |
+|---|---|---|
+| `deepseek` | `https://api.deepseek.com` | Chat Completions |
+| `openai` | `https://api.openai.com/v1` | Responses API |
+| `anthropic` | `https://api.anthropic.com/v1` | Chat Completions（Anthropic 官方 OpenAI 兼容层） |
+| `gemini` | `https://generativelanguage.googleapis.com/v1beta/openai` | Chat Completions（Google 官方 OpenAI 兼容层） |
+
+`auto` 保留旧设置的地址识别；`custom` 允许手工编辑地址和协议。官方预设在服务端覆盖请求中的 URL/协议，因此前端解除禁用或直接调用配置 API 都不能改写官方目标。
+
 | 协议 | 条件 | 请求体要点 | 出处 |
 |---|---|---|---|
-| **Responses API**(完整端点) | URL 路径以 `/responses` 结尾，或是无法安全判定为基础地址的完整自定义路径时原样使用 | `{model, instructions, input, tools, max_output_tokens(≥64), previous_response_id?}`;`reasoningEnabled` 为 false 时附 `reasoning: {effort: 'none'}` | [deepseek-client.js:13-40](../../../src/ai/deepseek-client.js#L13-L40) |
-| **Chat Completions**(自动适配) | 完整 `/chat/completions` 地址原样使用；任意 `/v1` 基础地址追加 `/chat/completions`；第三方服务根地址追加 `/v1/chat/completions`；DeepSeek 官方根地址保持追加 `/chat/completions` | `{model, messages, max_tokens, stream: false}`;仅 DeepSeek 官方在 `reasoningEnabled` 为 false 时附 `thinking: {type: 'disabled'}`;工具转 `tools`(function) | [deepseek-client.js:27-72](../../../src/ai/deepseek-client.js#L27-L72)、[206-235](../../../src/ai/deepseek-client.js#L206-L235) |
+| **Responses API** | 完整 `/responses` 原样使用；显式选择时第三方根地址补 `/v1/responses`，DeepSeek 官方根地址补 `/responses`；`auto` 下无法安全判定为基础地址的完整自定义路径仍原样使用 | `{model, instructions, input, tools, max_output_tokens(≥64), previous_response_id?}`；关闭推理附 `reasoning: {effort: 'none'}`，启用且强度非 `auto` 时附所选强度；DeepSeek 官方映射为 `low/high/max` | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[deepseek-client.js:13-48](../../../src/ai/deepseek-client.js#L13-L48) |
+| **Chat Completions** | 完整 `/chat/completions` 原样使用；显式选择或 `auto` 识别根地址、`/v1` 后补全；第三方根地址用 `/v1/chat/completions`，DeepSeek 官方根地址用 `/chat/completions` | `{model, messages, max_tokens, stream: false}`；DeepSeek 官方发送 `thinking.enabled/disabled`，启用时把公共强度映射为 `reasoning_effort: low/high/max`；普通第三方 Chat 不发送这些专用字段；工具转 `tools`(function) | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[deepseek-client.js:31-76](../../../src/ai/deepseek-client.js#L31-L76) |
+
+`modelApiProtocol` 默认 `auto`，用于保持旧配置的 URL 自动识别行为。完整 `/responses` 或 `/chat/completions` 路径优先于选择器，避免把已明确的端点改写成另一种协议。联网能力也分协议：Responses 的 `web_search` 由上游托管；Chat Completions 转为 LIRA 本地函数工具，要求模型支持 `tool_calls`。
 
 双协议的**回退行为**:Chat Completions 路径用内存 `chatHistory` Map(上限 100 条)以 `previousResponseId` 为键保存历史,续问时拼接 `messages` 并删除旧键([deepseek-client.js:130-134](../../../src/ai/deepseek-client.js#L130-L134)、[249-261](../../../src/ai/deepseek-client.js#L249-L261));Responses 路径用官方 `previous_response_id`。
 
@@ -121,10 +132,12 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 | 分组 | 键 | 默认 | 说明 |
 |---|---|---|---|
-| 总开关 | `enabled` | `false` | 布尔 |
-| 触发 | `trigger` | `'小米'` | 1–12 字符 |
-| 模型服务 | `deepseekResponsesUrl` / `deepseekApiKey` / `model` | 空 / 空 / `deepseek-v4-flash` | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点;model ≤ 80 字符 |
-| 行为开关 | `webSearchEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | true / false / true / true / true | 布尔;`reasoningEnabled` 关闭时双方协议都禁推理 |
+| 总开关 | `enabled` | `true` | 布尔 |
+| 触发 | `trigger` | 空 | 空或 1–12 字符；为空时尚未就绪 |
+| 供应商 | `modelProvider` | `auto` | 枚举：`auto, deepseek, openai, anthropic, gemini, custom`；四个官方预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖 |
+| 模型服务 | `deepseekResponsesUrl` / `deepseekApiKey` / `model` | 全空 | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点；model 为空或 ≤ 80 字符 |
+| 协议与推理强度 | `modelApiProtocol` / `reasoningEffort` | `auto` / `auto` | 协议枚举:`auto, responses, chat_completions`；强度枚举:`auto, minimal, low, medium, high, xhigh, max`；DeepSeek 官方把 `minimal→low`、`medium/high/xhigh→high`，保留 `low/max` |
+| 行为开关 | `webSearchEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | true / false / true / true / true | 布尔；Responses 与 DeepSeek 官方 Chat 可控制推理，普通第三方 Chat 的推理由供应商或模型 ID 管理 |
 | 第三方凭证 | `qweatherApiHost` / `qweatherApiKey` / `amapApiHost` / `amapApiKey` | 全空 | Host 缺协议自动补 `https://` |
 | 数值 | `replyMaxChars` | 50 | 偏好长度,10–50 |
 | 数值 | `generationConcurrency` | 3 | 生成并发,1–5 |
@@ -147,7 +160,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 存储标记 | 密钥以 `is_secret=1` 存 `ai_configuration`,写入时 `secretCodec.encrypt` | [config-store.js:49-78](../../../src/ai/config-store.js#L49-L78) |
 | 加密实现 | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key" | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31) |
 | 读取降级 | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取 | [config-store.js:20-25](../../../src/ai/config-store.js#L20-L25) |
-| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey` 布尔标志与 `secretEncryptionAvailable`;`updateConfig` 返回同样经 `getPublicConfig` 过滤的结果,GET/PUT 响应均不回显密钥明文 | [config-store.js:38-46](../../../src/ai/config-store.js#L38-L46) |
+| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js) |
 | 前端遮罩 | 管理页密钥输入框类型为 `password`;已保存密钥渲染为 `'********'` 遮罩(display only);提交时遇 `'********'` 值则跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新" | [ai-assistant-settings.js:266-283](../../../public/js/admin/ai-assistant-settings.js#L266-L283)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §14);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。

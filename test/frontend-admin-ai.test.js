@@ -176,8 +176,8 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
   assert.match(html, /id="xiaomiAiTitle">AI 互动助手</);
   assert.match(html, /按昵称响应直播间弹幕，并通过已配置的模型服务生成回复/);
-  assert.match(html, /OpenAI 兼容 API/);
-  assert.match(html, /支持 DeepSeek 官方服务、Responses API/);
+  assert.match(html, /id="xiaomiAiProviderBadge">自动识别</);
+  assert.match(html, /可选择官方供应商预设/);
   assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
   assert.match(html, /id="xiaomiAiModelState">未配置</);
   assert.match(html, /id="xiaomiAiModel"[^>]*list="xiaomiAiModelOptions"[^>]*placeholder="填写模型 ID"/);
@@ -197,6 +197,13 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
   assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);
   assert.match(html, /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/gcli\.ggchan\.dev\/ 或 https:\/\/api\.openai\.com\/v1"/);
+  assert.match(html, /id="xiaomiAiModelProvider"[\s\S]*?value="deepseek"[\s\S]*?value="openai"[\s\S]*?value="anthropic"[\s\S]*?value="gemini"[\s\S]*?value="custom"/);
+  assert.match(html, /id="xiaomiAiModelApiProtocol"[\s\S]*?value="auto"[\s\S]*?value="responses"[\s\S]*?value="chat_completions"/);
+  assert.match(html, /id="xiaomiAiProtocolCapability">等待配置</);
+  assert.match(html, /id="xiaomiAiWebSearchCapability">等待配置</);
+  assert.match(html, /id="xiaomiAiReasoningCapability">等待配置</);
+  assert.match(html, /id="xiaomiAiReasoningEffort"[\s\S]*?value="high">High<[\s\S]*?value="max">Max</);
+  assert.match(html, /id="xiaomiAiProviderManagedReasoning"[^>]*hidden/);
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="text"/);
   assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="text"/);
   assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="text"/);
@@ -215,16 +222,24 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(source, /form\.addEventListener\('change'/);
   assert.match(source, /enabledInput\.addEventListener\('change'/);
   assert.match(source, /deepseekApiKey: \['xiaomiAiDeepSeekKey', 'value'\]/);
+  assert.match(source, /modelProvider: \['xiaomiAiModelProvider', 'value'\]/);
+  assert.match(source, /Claude 官方兼容/);
+  assert.match(source, /Gemini 官方兼容/);
+  assert.match(source, /modelApiProtocol: \['xiaomiAiModelApiProtocol', 'value'\]/);
+  assert.match(source, /reasoningEffort: \['xiaomiAiReasoningEffort', 'value'\]/);
+  assert.match(source, /provider_managed: '供应商管理'/);
+  assert.match(source, /当前模型必须支持 Chat Completions tool_calls/);
   assert.match(source, /qweatherApiKey: \['xiaomiAiQWeatherKey', 'value'\]/);
   assert.match(source, /amapApiKey: \['xiaomiAiAmapKey', 'value'\]/);
   assert.match(source, /config\.model \|\| '未配置'/);
   assert.match(source, /if \(saving\) \{[\s\S]*?pendingSave = true/);
-  assert.match(source, /if \(value && value !== '\*\*\*\*\*\*\*\*'\)/);
+  assert.match(source, /value !== '\*\*\*\*\*\*\*\*' && \(value \|\| !SECRET_CONFIG_KEYS\.has\(key\)\)/);
   assert.match(source, /element\.type = 'password'/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.match(styles, /\.xiaomi-ai-section\s*\{/);
   assert.match(styles, /\.xiaomi-ai-integration-grid\s*\{/);
   assert.match(styles, /\.xiaomi-ai-test-actions\s*\{/);
+  assert.match(styles, /\.xiaomi-ai-capability-rail\s*\{/);
   assert.match(styles, /@media \(max-width: 520px\)/);
 });
 
@@ -237,9 +252,12 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
     xiaomiAiEnabled: false,
     xiaomiAiTrigger: '小米',
     xiaomiAiDeepSeekUrl: '',
+    xiaomiAiModelProvider: 'auto',
+    xiaomiAiModelApiProtocol: 'auto',
     xiaomiAiModel: 'deepseek-v4-flash',
     xiaomiAiWebSearch: true,
     xiaomiAiReasoning: false,
+    xiaomiAiReasoningEffort: 'auto',
     xiaomiAiQWeatherHost: '',
     xiaomiAiAmapHost: '',
     xiaomiAiReplyMaxChars: '50',
@@ -266,7 +284,11 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
     'xiaomiAiSaveState', 'xiaomiAiTestBtn', 'xiaomiAiQWeatherTestBtn', 'xiaomiAiAmapTestBtn',
     'xiaomiAiFetchModelsBtn', 'xiaomiAiDeepSeekKeyHint',
     'xiaomiAiQWeatherKeyHint', 'xiaomiAiAmapKeyHint', 'xiaomiAiConfigState',
-    'xiaomiAiModelState', 'xiaomiAiQueueState', 'xiaomiAiModelFetchState'
+    'xiaomiAiModelState', 'xiaomiAiQueueState', 'xiaomiAiModelFetchState',
+    'xiaomiAiProtocolCapability', 'xiaomiAiWebSearchCapability', 'xiaomiAiReasoningCapability',
+    'xiaomiAiWebSearchLabel', 'xiaomiAiWebSearchHelp', 'xiaomiAiReasoningLabel',
+    'xiaomiAiReasoningHelp', 'xiaomiAiProviderBadge', 'xiaomiAiProviderNote',
+    'xiaomiAiEndpointHelp'
   ]) {
     if (!elements.has(id)) elements.set(id, {
       id, value: '', checked: false, textContent: '', className: '', disabled: false, attributes: {},
@@ -283,6 +305,19 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
     children: [],
     replaceChildren(...children) { this.children = children; }
   });
+  for (const id of ['xiaomiAiReasoningControl', 'xiaomiAiReasoningEffortControl', 'xiaomiAiProviderManagedReasoning']) {
+    elements.set(id, {
+      id, value: '', checked: false, textContent: '', className: '', disabled: false, hidden: true,
+      attributes: {},
+      setAttribute(name, value) { this.attributes[name] = value; },
+      addEventListener(type, handler) { listeners.set(`${id}:${type}`, handler); }
+    });
+  }
+  elements.set('xiaomiAiProtocolControl', {
+    id: 'xiaomiAiProtocolControl', hidden: false, textContent: '', attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(type, handler) { listeners.set(`xiaomiAiProtocolControl:${type}`, handler); }
+  });
   const form = {
     checkValidity: () => true,
     reportValidity: () => true,
@@ -294,9 +329,15 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
     enabled: false,
     trigger: '小米',
     deepseekResponsesUrl: 'https://api.example.com/responses',
+    modelProvider: 'custom',
+    modelApiProtocol: 'responses',
     model: 'deepseek-v4-flash',
     webSearchEnabled: true,
     reasoningEnabled: false,
+    reasoningEffort: 'high',
+    modelEndpoint: {
+      protocol: 'responses', provider: 'custom', webSearchMode: 'hosted', reasoningMode: 'effort'
+    },
     qweatherApiHost: '',
     amapApiHost: '',
     replyMaxChars: 50,
@@ -374,6 +415,56 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').value, 'https://api.deepseek.com/responses');
   assert.equal(elements.get('xiaomiAiSystemPrompt').value, publicConfig.systemPrompt);
+  assert.equal(elements.get('xiaomiAiModelApiProtocol').value, 'responses');
+  assert.equal(elements.get('xiaomiAiModelProvider').value, 'custom');
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, false);
+  assert.equal(elements.get('xiaomiAiProtocolControl').hidden, false);
+  assert.equal(elements.get('xiaomiAiReasoningEffort').value, 'high');
+  assert.equal(elements.get('xiaomiAiProtocolCapability').textContent, 'Responses API');
+  assert.equal(elements.get('xiaomiAiWebSearchCapability').textContent, '服务端托管');
+  assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, '可设置强度');
+  assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
+  assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
+  assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, true);
+  assert.equal(elements.get('xiaomiAiReasoningEffort').disabled, true);
+
+  publicConfig.modelEndpoint = {
+    protocol: 'chat_completions', provider: 'deepseek',
+    webSearchMode: 'local_function', reasoningMode: 'deepseek_effort'
+  };
+  publicConfig.modelProvider = 'deepseek';
+  publicConfig.deepseekResponsesUrl = 'https://api.deepseek.com';
+  publicConfig.modelApiProtocol = 'chat_completions';
+  await sandbox.window.AdminApp.aiAssistantSettings.refresh();
+  assert.equal(elements.get('xiaomiAiProtocolCapability').textContent, 'Chat Completions');
+  assert.equal(elements.get('xiaomiAiWebSearchCapability').textContent, 'LIRA 工具调用');
+  assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, 'DeepSeek 强度');
+  assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
+  assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
+  assert.equal(elements.get('xiaomiAiReasoningLabel').textContent, '启用 DeepSeek 思考');
+  assert.equal(elements.get('xiaomiAiProviderBadge').textContent, 'DeepSeek 官方');
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, true);
+  assert.equal(elements.get('xiaomiAiProtocolControl').hidden, true);
+
+  publicConfig.modelEndpoint = {
+    protocol: 'chat_completions', provider: 'anthropic',
+    webSearchMode: 'local_function', reasoningMode: 'provider_managed'
+  };
+  publicConfig.modelProvider = 'anthropic';
+  publicConfig.deepseekResponsesUrl = 'https://api.anthropic.com/v1';
+  await sandbox.window.AdminApp.aiAssistantSettings.refresh();
+  assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, '供应商管理');
+  assert.equal(elements.get('xiaomiAiReasoningControl').hidden, true);
+  assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, false);
+
+  publicConfig.modelEndpoint = {
+    protocol: 'responses', provider: 'custom', webSearchMode: 'hosted', reasoningMode: 'effort'
+  };
+  publicConfig.modelProvider = 'custom';
+  publicConfig.deepseekResponsesUrl = 'https://api.example.com/responses';
+  publicConfig.modelApiProtocol = 'responses';
+  await sandbox.window.AdminApp.aiAssistantSettings.refresh();
+  elements.get('xiaomiAiDeepSeekUrl').value = 'https://api.deepseek.com/responses';
 
   listeners.get('form:submit')({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
@@ -381,6 +472,9 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   assert.equal(saves.length, 1);
   const firstSavedConfig = JSON.parse(saves[0].options.body);
   assert.equal(firstSavedConfig.enabled, false);
+  assert.equal(firstSavedConfig.modelProvider, 'custom');
+  assert.equal(firstSavedConfig.modelApiProtocol, 'responses');
+  assert.equal(firstSavedConfig.reasoningEffort, 'high');
   assert.equal(firstSavedConfig.deepseekResponsesUrl, 'https://api.deepseek.com/responses');
   assert.equal(firstSavedConfig.deepseekApiKey, 'deepseek-secret');
   assert.equal(firstSavedConfig.qweatherApiHost, 'nn7mdbwku9.re.qweatherapi.com');
@@ -404,6 +498,8 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   const modelRequest = fetchCalls.find(call => call.url === '/api/ai/models');
   assert.equal(JSON.parse(modelRequest.options.body).apiKey, 'deepseek-secret');
   assert.equal(JSON.parse(modelRequest.options.body).apiUrl, 'https://api.deepseek.com/responses');
+  assert.equal(JSON.parse(modelRequest.options.body).modelProvider, 'custom');
+  assert.equal(JSON.parse(modelRequest.options.body).modelApiProtocol, 'responses');
   assert.deepEqual(
     elements.get('xiaomiAiModelOptions').children.map(option => option.value),
     ['deepseek-v4-flash', 'deepseek-v4-pro']
@@ -462,6 +558,46 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   const weatherTestIndex = callsAfterWeatherTest.findIndex(call => call.url === '/api/ai/test/qweather');
   assert.ok(weatherSaveIndex >= 0 && weatherTestIndex > weatherSaveIndex);
   assert.match(fetchCalls.find(call => call.toast)?.toast.className, /xiaomi-ai-test-toast-good/);
+
+  publicConfig.modelProvider = 'openai';
+  publicConfig.deepseekResponsesUrl = 'https://api.openai.com/v1';
+  publicConfig.modelApiProtocol = 'responses';
+  publicConfig.modelEndpoint = {
+    protocol: 'responses', provider: 'openai', webSearchMode: 'hosted', reasoningMode: 'effort'
+  };
+  await sandbox.window.AdminApp.aiAssistantSettings.refresh();
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, true);
+
+  elements.get('xiaomiAiModelProvider').value = 'custom';
+  listeners.get('xiaomiAiModelProvider:change')();
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, true);
+  assert.equal(elements.get('xiaomiAiProtocolControl').hidden, false);
+  publicConfig.modelProvider = 'custom';
+  publicConfig.deepseekResponsesUrl = 'https://saved-custom.example/v1';
+  publicConfig.modelApiProtocol = 'chat_completions';
+  publicConfig.modelEndpoint = {
+    protocol: 'chat_completions', provider: 'custom',
+    webSearchMode: 'local_function', reasoningMode: 'provider_managed'
+  };
+  listeners.get('form:change')({
+    target: { id: 'xiaomiAiModelProvider', matches: selector => selector.includes('select') }
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
+  const providerSwitchConfig = JSON.parse(saves.at(-1).options.body);
+  assert.equal(providerSwitchConfig.modelProvider, 'custom');
+  assert.equal(providerSwitchConfig.deepseekResponsesUrl, undefined);
+  assert.equal(providerSwitchConfig.modelApiProtocol, undefined);
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').value, 'https://saved-custom.example/v1');
+  assert.equal(elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
+  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, false);
+
+  elements.get('xiaomiAiDeepSeekUrl').value = '';
+  listeners.get('form:input')({ target: { id: 'xiaomiAiDeepSeekUrl', matches: () => false } });
+  timers.at(-1)();
+  await new Promise(resolve => setImmediate(resolve));
+  saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
+  assert.equal(JSON.parse(saves.at(-1).options.body).deepseekResponsesUrl, '');
 });
 
 test('AI assistant masks saved secrets and omits mask placeholders from submission', async () => {

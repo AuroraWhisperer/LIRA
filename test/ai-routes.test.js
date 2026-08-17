@@ -34,12 +34,16 @@ test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys
   const putRes = createResponseRecorder();
   await routes['PUT /api/ai/config'](context, {
     body: async () => ({
-      model: 'ds-v4-flash', deepseekApiKey: '', qweatherApiKey: null,
+      model: 'ds-v4-flash', modelProvider: 'openai', modelApiProtocol: 'responses', reasoningEffort: 'high',
+      deepseekApiKey: '', qweatherApiKey: null,
       unknownSecret: 'must-not-pass'
     })
   }, putRes);
   assert.equal(putRes.statusCode, 200);
-  assert.deepEqual(saved, { model: 'ds-v4-flash', qweatherApiKey: '' });
+  assert.deepEqual(saved, {
+    model: 'ds-v4-flash', modelProvider: 'openai', modelApiProtocol: 'responses',
+    reasoningEffort: 'high', qweatherApiKey: ''
+  });
   assert.doesNotMatch(putRes.body, /must-not-pass/);
   assert.doesNotMatch(putRes.body, /sk-secret-123/);
 });
@@ -64,11 +68,21 @@ test('AI models route passes an optional temporary endpoint and key without expo
   };
   const res = createResponseRecorder();
   await routes['POST /api/ai/models'](context, {
-    body: async () => ({ apiKey: 'temporary-key', apiUrl: 'https://gateway.example.test/v1/responses' })
+    body: async () => ({
+      apiKey: 'temporary-key',
+      apiUrl: 'https://gateway.example.test/v1/responses',
+      modelProvider: 'custom',
+      modelApiProtocol: 'responses'
+    })
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(received, { apiKey: 'temporary-key', apiUrl: 'https://gateway.example.test/v1/responses' });
+  assert.deepEqual(received, {
+    apiKey: 'temporary-key',
+    apiUrl: 'https://gateway.example.test/v1/responses',
+    modelProvider: 'custom',
+    modelApiProtocol: 'responses'
+  });
   assert.deepEqual(JSON.parse(res.body).data.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
   assert.doesNotMatch(res.body, /temporary-key/);
 });
@@ -84,6 +98,23 @@ test('AI models route rejects an invalid temporary key before calling the servic
   assert.equal(res.statusCode, 400);
   assert.equal(called, false);
   assert.doesNotMatch(res.body, /xxxxxxxx/);
+});
+
+test('AI models route rejects unknown provider and protocol values', async () => {
+  let called = false;
+  const context = { ai: { async listModels() { called = true; } } };
+  const providerRes = createResponseRecorder();
+  await routes['POST /api/ai/models'](context, {
+    body: async () => ({ modelProvider: 'unknown' })
+  }, providerRes);
+  assert.equal(providerRes.statusCode, 400);
+
+  const protocolRes = createResponseRecorder();
+  await routes['POST /api/ai/models'](context, {
+    body: async () => ({ modelApiProtocol: 'messages' })
+  }, protocolRes);
+  assert.equal(protocolRes.statusCode, 400);
+  assert.equal(called, false);
 });
 
 test('AI provider test routes dispatch fixed providers and expose safe error codes', async () => {

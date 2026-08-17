@@ -318,6 +318,8 @@ function createAiAssistantService(dependencies) {
     return runDirectOperation(() => deepseek.listModels({
       apiKey,
       responsesUrl,
+      modelProvider: input.modelProvider || config.modelProvider,
+      modelApiProtocol: input.modelApiProtocol || config.modelApiProtocol,
       requestTimeoutMs: config.requestTimeoutMs,
       signal: shutdownController.signal
     }));

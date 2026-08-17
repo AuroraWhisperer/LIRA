@@ -3,15 +3,19 @@
 let initialized = false;
 let refreshConfig = null;
 const AUTOSAVE_DELAY_MS = 700;
+const SECRET_CONFIG_KEYS = new Set(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
   trigger: ['xiaomiAiTrigger', 'value'],
+  modelProvider: ['xiaomiAiModelProvider', 'value'],
   deepseekResponsesUrl: ['xiaomiAiDeepSeekUrl', 'value'],
+  modelApiProtocol: ['xiaomiAiModelApiProtocol', 'value'],
   deepseekApiKey: ['xiaomiAiDeepSeekKey', 'value'],
   model: ['xiaomiAiModel', 'value'],
   webSearchEnabled: ['xiaomiAiWebSearch', 'checked'],
   reasoningEnabled: ['xiaomiAiReasoning', 'checked'],
+  reasoningEffort: ['xiaomiAiReasoningEffort', 'value'],
   qweatherApiHost: ['xiaomiAiQWeatherHost', 'value'],
   qweatherApiKey: ['xiaomiAiQWeatherKey', 'value'],
   amapApiHost: ['xiaomiAiAmapHost', 'value'],
@@ -40,6 +44,8 @@ function init() {
   const modelOptions = document.getElementById('xiaomiAiModelOptions');
   const modelMenu = document.getElementById('xiaomiAiModelMenu');
   const modelFetchState = document.getElementById('xiaomiAiModelFetchState');
+  const providerInput = document.getElementById('xiaomiAiModelProvider');
+  const reasoningInput = document.getElementById('xiaomiAiReasoning');
   let autosaveTimer = null;
   let saving = false;
   let pendingSave = false;
@@ -47,6 +53,7 @@ function init() {
   let configLoaded = false;
   let savingPromise = null;
   let initialLoadPromise = null;
+  let restoreManualEndpointAfterProviderSave = false;
   const editedFieldIds = new Set();
 
   refreshConfig = async () => {
@@ -86,12 +93,23 @@ function init() {
     savingPromise = (async () => {
       try {
         const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
+        if (restoreManualEndpointAfterProviderSave) {
+          const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
+          const protocolInput = document.getElementById('xiaomiAiModelApiProtocol');
+          if (endpointInput) endpointInput.value = config.deepseekResponsesUrl || '';
+          if (protocolInput) protocolInput.value = config.modelApiProtocol || 'auto';
+          restoreManualEndpointAfterProviderSave = false;
+        }
         renderConfigSummary(config);
         editedFieldIds.clear();
         setState(saveState, '已保存，后续新弹幕立即生效。', 'good');
         return true;
       } catch (error) {
         dirty = true;
+        if (restoreManualEndpointAfterProviderSave) {
+          restoreManualEndpointAfterProviderSave = false;
+          renderProviderSelection(providerInput?.value);
+        }
         setState(saveState, error.message || '保存 AI 配置失败', 'warn');
         return false;
       } finally {
@@ -137,6 +155,15 @@ function init() {
     return true;
   };
 
+  providerInput?.addEventListener('change', () => {
+    const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
+    const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(providerInput.value);
+    restoreManualEndpointAfterProviderSave = !official && Boolean(endpointInput?.disabled);
+    renderProviderSelection(providerInput.value, {
+      keepEndpointLocked: restoreManualEndpointAfterProviderSave
+    });
+  });
+
   form.addEventListener('input', (event) => {
     if (event.target.matches('input[type="checkbox"]')) return;
     if (event.target.id) editedFieldIds.add(event.target.id);
@@ -144,8 +171,9 @@ function init() {
   });
 
   form.addEventListener('change', (event) => {
-    if (event.target.matches('input[type="checkbox"], input[type="number"]')) {
+    if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id) editedFieldIds.add(event.target.id);
+      if (event.target === reasoningInput) syncReasoningEffortAvailability();
       scheduleSave(true);
     }
   });
@@ -196,7 +224,12 @@ function init() {
     try {
       const apiKey = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
       const apiUrl = document.getElementById('xiaomiAiDeepSeekUrl').value.trim();
-      const result = await readApi('/api/ai/models', { method: 'POST', body: JSON.stringify({ apiKey, apiUrl }) });
+      const modelProvider = document.getElementById('xiaomiAiModelProvider')?.value || 'auto';
+      const modelApiProtocol = document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto';
+      const result = await readApi('/api/ai/models', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey, apiUrl, modelProvider, modelApiProtocol })
+      });
       const models = Array.isArray(result.models) ? result.models : [];
       const options = models.map((model) => {
         const option = document.createElement('option');
@@ -263,13 +296,14 @@ function collectConfig() {
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element) continue;
+    if (element.disabled && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;
     if (kind === 'checked') {
       config[key] = element.checked;
     } else if (kind === 'number') {
       config[key] = Number(element.value);
     } else {
       const value = element.value.trim();
-      if (value && value !== '********') {
+      if (value !== '********' && (value || !SECRET_CONFIG_KEYS.has(key))) {
         config[key] = value;
       }
     }
@@ -305,6 +339,107 @@ function renderConfigSummary(config) {
   renderSecretHint('xiaomiAiAmapKeyHint', config.hasAmapApiKey);
   document.getElementById('xiaomiAiConfigState').textContent = config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger ? '可运行' : '等待配置';
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
+  renderProviderSelection(config);
+  renderModelCapabilities(config.modelEndpoint);
+}
+
+function renderProviderSelection(value, options = {}) {
+  const config = value && typeof value === 'object' ? value : null;
+  const provider = String(config?.modelProvider || value || 'auto');
+  const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(provider);
+  const endpointLocked = official || options.keepEndpointLocked === true;
+  const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
+  const protocolInput = document.getElementById('xiaomiAiModelApiProtocol');
+  const protocolControl = document.getElementById('xiaomiAiProtocolControl');
+  if (endpointInput) {
+    endpointInput.disabled = endpointLocked;
+    if (official && config?.deepseekResponsesUrl) endpointInput.value = config.deepseekResponsesUrl;
+  }
+  if (protocolInput) {
+    protocolInput.disabled = endpointLocked;
+    if (official && config?.modelApiProtocol) protocolInput.value = config.modelApiProtocol;
+  }
+  if (protocolControl) protocolControl.hidden = official;
+
+  const labels = {
+    auto: ['自动识别', '保留旧配置的地址识别规则；新配置建议明确选择供应商。'],
+    deepseek: ['DeepSeek 官方', '固定使用 DeepSeek 官方地址和 Chat Completions，支持思考强度。'],
+    openai: ['OpenAI 官方', '固定使用 OpenAI 官方 Responses API。'],
+    anthropic: ['Claude 官方兼容', '使用 Anthropic 官方 OpenAI 兼容入口；部分 Claude 原生能力不可用。'],
+    gemini: ['Gemini 官方兼容', '使用 Google 官方 OpenAI 兼容入口，支持模型相关的推理强度。'],
+    custom: ['自定义兼容', '填写第三方或其他 OpenAI 兼容服务的地址和协议。']
+  };
+  const [badge, note] = labels[provider] || labels.auto;
+  setText('xiaomiAiProviderBadge', badge);
+  setText('xiaomiAiProviderNote', note);
+  setText('xiaomiAiEndpointHelp', official
+    ? '官方预设地址由 LIRA 固定，切换到自定义供应商后可编辑。'
+    : '可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。');
+}
+
+function renderModelCapabilities(endpoint = {}) {
+  const protocol = endpoint.protocol || 'unconfigured';
+  const webSearchMode = endpoint.webSearchMode || 'unconfigured';
+  const reasoningMode = endpoint.reasoningMode || 'unconfigured';
+  setText('xiaomiAiProtocolCapability', {
+    responses: 'Responses API',
+    chat_completions: 'Chat Completions',
+    unconfigured: '等待配置'
+  }[protocol] || '等待配置');
+  setText('xiaomiAiWebSearchCapability', {
+    hosted: '服务端托管',
+    local_function: 'LIRA 工具调用',
+    unconfigured: '等待配置'
+  }[webSearchMode] || '等待配置');
+  setText('xiaomiAiReasoningCapability', {
+    effort: '可设置强度',
+    deepseek_effort: 'DeepSeek 强度',
+    gemini_effort: 'Gemini 强度',
+    provider_managed: '供应商管理',
+    unconfigured: '等待配置'
+  }[reasoningMode] || '等待配置');
+
+  if (webSearchMode === 'hosted') {
+    setText('xiaomiAiWebSearchLabel', '启用服务端 Web Search');
+    setText('xiaomiAiWebSearchHelp', '由 Responses API 服务执行，需要上游支持 web_search。');
+  } else if (webSearchMode === 'local_function') {
+    setText('xiaomiAiWebSearchLabel', '启用 LIRA Web Search');
+    setText('xiaomiAiWebSearchHelp', 'LIRA 执行搜索，当前模型必须支持 Chat Completions tool_calls。');
+  } else {
+    setText('xiaomiAiWebSearchLabel', '启用 Web Search');
+    setText('xiaomiAiWebSearchHelp', '保存模型服务地址和协议后显示实际联网方式。');
+  }
+
+  const reasoningControl = document.getElementById('xiaomiAiReasoningControl');
+  const effortControl = document.getElementById('xiaomiAiReasoningEffortControl');
+  const providerManaged = document.getElementById('xiaomiAiProviderManagedReasoning');
+  const configurableReasoning = ['effort', 'deepseek_effort', 'gemini_effort'].includes(reasoningMode);
+  if (reasoningControl) reasoningControl.hidden = !configurableReasoning;
+  if (effortControl) effortControl.hidden = !configurableReasoning;
+  if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed';
+  if (reasoningMode === 'effort') {
+    setText('xiaomiAiReasoningLabel', '启用模型推理');
+    setText('xiaomiAiReasoningHelp', 'Responses API 可按强度控制；“服务默认”不覆盖上游设置。');
+  } else if (reasoningMode === 'deepseek_effort') {
+    setText('xiaomiAiReasoningLabel', '启用 DeepSeek 思考');
+    setText('xiaomiAiReasoningHelp', 'DeepSeek 官方支持 low、high、max；其他档位会映射到最接近的官方强度。');
+  } else if (reasoningMode === 'gemini_effort') {
+    setText('xiaomiAiReasoningLabel', '启用 Gemini 思考');
+    setText('xiaomiAiReasoningHelp', 'Gemini 支持 minimal 到 high；能否关闭思考取决于所选模型。');
+  }
+  syncReasoningEffortAvailability();
+}
+
+function syncReasoningEffortAvailability() {
+  const reasoningInput = document.getElementById('xiaomiAiReasoning');
+  const effortInput = document.getElementById('xiaomiAiReasoningEffort');
+  const effortControl = document.getElementById('xiaomiAiReasoningEffortControl');
+  if (effortInput) effortInput.disabled = Boolean(effortControl?.hidden) || !reasoningInput?.checked;
+}
+
+function setText(id, text) {
+  const element = document.getElementById(id);
+  if (element) element.textContent = text;
 }
 
 function renderStatus(status) {

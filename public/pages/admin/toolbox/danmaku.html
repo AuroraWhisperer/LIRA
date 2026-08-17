@@ -69,13 +69,32 @@
                     <fieldset class="xiaomi-ai-primary-config">
                       <legend>模型服务</legend>
                       <div class="xiaomi-ai-provider-note">
-                        <span>OpenAI 兼容 API</span>
-                        <p>支持 DeepSeek 官方服务、Responses API，以及第三方 OpenAI Chat Completions API。</p>
+                        <span id="xiaomiAiProviderBadge">自动识别</span>
+                        <p id="xiaomiAiProviderNote">可选择官方供应商预设，或继续使用自定义 OpenAI 兼容地址。</p>
                       </div>
                       <div class="xiaomi-ai-field-grid">
-                        <label class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"><small>可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。</small></label>
+                        <label>模型供应商
+                          <select id="xiaomiAiModelProvider">
+                            <option value="auto">自动识别（兼容旧设置）</option>
+                            <option value="deepseek">DeepSeek 官方</option>
+                            <option value="openai">OpenAI 官方</option>
+                            <option value="anthropic">Claude 官方兼容</option>
+                            <option value="gemini">Gemini 官方兼容</option>
+                            <option value="custom">自定义 / 第三方兼容</option>
+                          </select>
+                          <small>官方预设会锁定正确地址和推荐协议。</small>
+                        </label>
                         <label>API Key<input id="xiaomiAiDeepSeekKey" type="text" autocomplete="off" spellcheck="false" placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
-                        <label>模型
+                        <label id="xiaomiAiEndpointControl" class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"><small id="xiaomiAiEndpointHelp">可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。</small></label>
+                        <label id="xiaomiAiProtocolControl">接口协议
+                          <select id="xiaomiAiModelApiProtocol">
+                            <option value="auto">自动识别</option>
+                            <option value="responses">Responses API</option>
+                            <option value="chat_completions">Chat Completions</option>
+                          </select>
+                          <small>第三方文档写明 wire_api 时请显式选择；不确定可保持自动。</small>
+                        </label>
+                        <label class="wide">模型
                           <span class="xiaomi-ai-model-picker">
                             <span class="xiaomi-ai-model-input-wrap">
                               <input id="xiaomiAiModel" type="text" maxlength="80" list="xiaomiAiModelOptions" autocomplete="off" placeholder="填写模型 ID" aria-controls="xiaomiAiModelMenu" aria-expanded="false">
@@ -94,9 +113,26 @@
                         <label>触发关键词<input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="例如：小米"><small>观众弹幕包含这个昵称时唤醒助手。</small></label>
                         <label>回复长度偏好<input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"><small>不是硬截断：优先一条，信息较多时两条，确有必要才三条</small></label>
                       </div>
+                      <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
+                        <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
+                        <div><span>联网</span><strong id="xiaomiAiWebSearchCapability">等待配置</strong></div>
+                        <div><span>推理</span><strong id="xiaomiAiReasoningCapability">等待配置</strong></div>
+                      </div>
                       <div class="xiaomi-ai-toggle-row">
-                        <label><input id="xiaomiAiWebSearch" type="checkbox" checked> 启用 Web Search</label>
-                        <label><input id="xiaomiAiReasoning" type="checkbox"> 启用思考</label>
+                        <label class="xiaomi-ai-capability-control"><span><input id="xiaomiAiWebSearch" type="checkbox" checked> <b id="xiaomiAiWebSearchLabel">启用 Web Search</b></span><small id="xiaomiAiWebSearchHelp">根据当前接口协议选择联网方式。</small></label>
+                        <label id="xiaomiAiReasoningControl" class="xiaomi-ai-capability-control" hidden><span><input id="xiaomiAiReasoning" type="checkbox"> <b id="xiaomiAiReasoningLabel">启用模型推理</b></span><small id="xiaomiAiReasoningHelp"></small></label>
+                        <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control" hidden>推理强度
+                          <select id="xiaomiAiReasoningEffort">
+                            <option value="auto">服务默认</option>
+                            <option value="minimal">Minimal</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="xhigh">XHigh</option>
+                            <option value="max">Max</option>
+                          </select>
+                        </label>
+                        <p id="xiaomiAiProviderManagedReasoning" class="xiaomi-ai-provider-managed" hidden>当前 Chat Completions 服务的思考能力由模型 ID 或供应商决定，LIRA 不发送非标准参数。</p>
                       </div>
                     </fieldset>
                     <details class="xiaomi-ai-collapsible">

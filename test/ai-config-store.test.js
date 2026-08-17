@@ -25,6 +25,15 @@ test('AI config masks secrets in public projection while storing them encrypted'
   assert.equal(defaults.model, '');
   assert.equal(defaults.maxToolCalls, 6);
   assert.equal(defaults.deepseekResponsesUrl, '');
+  assert.equal(defaults.modelProvider, 'auto');
+  assert.equal(defaults.modelApiProtocol, 'auto');
+  assert.equal(defaults.reasoningEffort, 'auto');
+  assert.deepEqual(defaults.modelEndpoint, {
+    protocol: 'unconfigured',
+    provider: 'unconfigured',
+    webSearchMode: 'unconfigured',
+    reasoningMode: 'unconfigured'
+  });
   assert.equal(defaults.userCooldownSeconds, 0);
   assert.equal(defaults.hasDeepSeekApiKey, false);
   assert.equal(defaults.deepseekApiKey, undefined);
@@ -97,6 +106,72 @@ test('AI config validates URLs and numeric stability limits', () => {
   assert.equal(store.updateConfig({ userCooldownSeconds: 0 }).userCooldownSeconds, 0);
   assert.throws(() => store.updateConfig({ userCooldownSeconds: -1 }), /0/);
   assert.throws(() => store.updateConfig({ replyMaxChars: 51 }), /10 到 50/);
+  assert.throws(() => store.updateConfig({ modelApiProtocol: 'messages' }), /modelApiProtocol/);
+  assert.throws(() => store.updateConfig({ modelProvider: 'unknown' }), /modelProvider/);
+  assert.throws(() => store.updateConfig({ reasoningEffort: 'extreme' }), /reasoningEffort/);
+});
+
+test('AI config applies server-owned official provider presets', () => {
+  const { store } = createStore();
+  store.updateConfig({
+    modelProvider: 'custom',
+    deepseekResponsesUrl: 'https://saved-custom.example/v1',
+    modelApiProtocol: 'responses'
+  });
+  const cases = [
+    ['deepseek', 'https://api.deepseek.com', 'chat_completions', 'deepseek', 'deepseek_effort'],
+    ['openai', 'https://api.openai.com/v1', 'responses', 'openai', 'effort'],
+    ['anthropic', 'https://api.anthropic.com/v1', 'chat_completions', 'anthropic', 'provider_managed'],
+    ['gemini', 'https://generativelanguage.googleapis.com/v1beta/openai', 'chat_completions', 'gemini', 'gemini_effort']
+  ];
+  for (const [provider, url, protocol, projectedProvider, reasoningMode] of cases) {
+    const config = store.updateConfig({
+      modelProvider: provider,
+      deepseekResponsesUrl: 'javascript:ignored',
+      modelApiProtocol: 'responses'
+    });
+    assert.equal(config.modelProvider, provider);
+    assert.equal(config.deepseekResponsesUrl, url);
+    assert.equal(config.modelApiProtocol, protocol);
+    assert.equal(config.modelEndpoint.provider, projectedProvider);
+    assert.equal(config.modelEndpoint.reasoningMode, reasoningMode);
+  }
+  const restored = store.updateConfig({ modelProvider: 'custom' });
+  assert.equal(restored.deepseekResponsesUrl, 'https://saved-custom.example/v1');
+  assert.equal(restored.modelApiProtocol, 'responses');
+});
+
+test('AI config persists protocol choices and projects secret-free endpoint capabilities', () => {
+  const { db, store } = createStore();
+  const publicConfig = store.updateConfig({
+    deepseekResponsesUrl: 'https://gateway.example.test',
+    modelApiProtocol: 'responses',
+    reasoningEffort: 'high'
+  });
+  assert.equal(publicConfig.modelApiProtocol, 'responses');
+  assert.equal(publicConfig.reasoningEffort, 'high');
+  assert.deepEqual(publicConfig.modelEndpoint, {
+    protocol: 'responses',
+    provider: 'custom',
+    webSearchMode: 'hosted',
+    reasoningMode: 'effort'
+  });
+  assert.equal(db.prepare("SELECT value FROM ai_configuration WHERE key = 'modelApiProtocol'").get().value, 'responses');
+  assert.equal(db.prepare("SELECT value FROM ai_configuration WHERE key = 'reasoningEffort'").get().value, 'high');
+  assert.equal(publicConfig.deepseekApiKey, undefined);
+
+  const chatConfig = store.updateConfig({
+    deepseekResponsesUrl: 'https://api.deepseek.com',
+    modelApiProtocol: 'chat_completions',
+    reasoningEffort: 'max'
+  });
+  assert.equal(chatConfig.reasoningEffort, 'max');
+  assert.deepEqual(chatConfig.modelEndpoint, {
+    protocol: 'chat_completions',
+    provider: 'deepseek',
+    webSearchMode: 'local_function',
+    reasoningMode: 'deepseek_effort'
+  });
 });
 
 test('AI config accepts a QWeather host without an HTTPS scheme', () => {

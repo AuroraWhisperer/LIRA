@@ -1,8 +1,14 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { AI_CONFIG_DEFAULTS, AI_SECRET_KEYS, normalizeAiConfig } = require('./config');
+const {
+  AI_CONFIG_DEFAULTS,
+  AI_SECRET_KEYS,
+  MODEL_PROVIDER_PRESETS,
+  normalizeAiConfig
+} = require('./config');
 const { SYSTEM_PROMPT } = require('./prompt');
+const { describeModelEndpoint } = require('./model-endpoint');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
 
@@ -47,6 +53,11 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     result.hasQWeatherApiKey = Boolean(config.qweatherApiKey);
     result.hasAmapApiKey = Boolean(config.amapApiKey);
     result.secretEncryptionAvailable = Boolean(secretCodec?.isAvailable?.());
+    result.modelEndpoint = describeModelEndpoint(
+      config.deepseekResponsesUrl,
+      config.modelApiProtocol,
+      config.modelProvider
+    );
     return result;
   }
 
@@ -67,6 +78,8 @@ function createAiConfigStore(db, secretCodec, options = {}) {
     try {
       for (const key of Object.keys(changes)) {
         if (!(key in AI_CONFIG_DEFAULTS)) continue;
+        if (MODEL_PROVIDER_PRESETS[normalized.modelProvider]
+          && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;
         const secret = SECRET_SET.has(key);
         const value = normalized[key];
         const storedValue = secret && value ? secretCodec.encrypt(value) : serializeValue(value);
