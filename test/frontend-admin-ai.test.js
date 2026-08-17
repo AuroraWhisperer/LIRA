@@ -138,6 +138,20 @@ test('admin danmaku status prefers account and room display names', () => {
   assert.match(source, /roomState\.title = state\.roomId \? `房间 \$\{state\.roomId\}` : '';/);
 });
 
+test('successful Bilibili login refreshes the danmaku tool automatically', () => {
+  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings.js'), 'utf8');
+  const toolSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
+
+  assert.match(
+    settingsSource,
+    /if \(result\.state\.loggedIn\) \{[\s\S]*?document\.dispatchEvent\(new CustomEvent\('app:bilibili-auth-changed'\)\)/
+  );
+  assert.match(
+    toolSource,
+    /document\.addEventListener\('app:bilibili-auth-changed', \(\) => refreshState\(\)\)/
+  );
+});
+
 test('opening disconnected danmaku tool refreshes live once and distinguishes connection states', () => {
   const toolSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
   const navigationSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8');
@@ -192,7 +206,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/);
   assert.match(html, /<details class="xiaomi-ai-collapsible">[\s\S]*?扩展能力/);
   assert.match(html, /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/);
-  assert.doesNotMatch(html, /id="xiaomiAiSaveBtn"/);
+  assert.match(html, /id="xiaomiAiSaveBtn"[^>]*type="submit"[^>]*>保存配置</);
   assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
   assert.match(indexSource, /import '\.\/xiaomi-ai-settings\.js';/);
   assert.match(source, /element\.textContent = text/);
@@ -353,7 +367,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').value, 'https://api.deepseek.com/responses');
   assert.equal(elements.get('xiaomiAiSystemPrompt').value, publicConfig.systemPrompt);
 
-  timers.at(-1)();
+  listeners.get('form:submit')({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
   let saves = fetchCalls.filter(call => call.url === '/api/ai/config' && call.options.method === 'PUT');
   assert.equal(saves.length, 1);

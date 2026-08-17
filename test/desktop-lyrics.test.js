@@ -191,6 +191,8 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   }
 
   for (const id of [
+    'desktopLyricLoadLocalFontsBtn',
+    'desktopLyricLocalFontStatus',
     'desktopLyricFallbackFontFamily',
     'desktopLyricTextAlign',
     'desktopLyricLetterSpacing',
@@ -227,6 +229,129 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+});
+
+test('desktop lyric settings list unique local font families and preserve denial state', async () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
+  const listeners = new Map();
+  const form = { addEventListener() {} };
+  const status = { textContent: '', className: '' };
+  const builtInOption = { value: 'Microsoft YaHei', textContent: '微软雅黑（默认）' };
+  const select = {
+    value: 'Microsoft YaHei',
+    children: [],
+    appendChild(child) {
+      child.parentNode = this;
+      this.children.push(child);
+      return child;
+    },
+    querySelector(selector) {
+      if (selector !== 'optgroup[data-local-fonts="true"]') return null;
+      return this.children.find((child) => child.dataset?.localFonts === 'true') || null;
+    },
+    get options() {
+      return [builtInOption, ...this.children.flatMap((child) => child.children || [])];
+    }
+  };
+  const button = {
+    disabled: false,
+    attributes: new Map(),
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    },
+    setAttribute(name, value) {
+      this.attributes.set(name, value);
+    },
+    removeAttribute(name) {
+      this.attributes.delete(name);
+    }
+  };
+  const elements = new Map([
+    ['desktopLyricForm', form],
+    ['desktopLyricFontFamily', select],
+    ['desktopLyricLoadLocalFontsBtn', button],
+    ['desktopLyricLocalFontStatus', status]
+  ]);
+  function createNode(tagName) {
+    return {
+      tagName: tagName.toUpperCase(),
+      children: [],
+      dataset: {},
+      value: '',
+      textContent: '',
+      appendChild(child) {
+        child.parentNode = this;
+        this.children.push(child);
+        return child;
+      },
+      remove() {
+        if (!this.parentNode) return;
+        this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+        this.parentNode = null;
+      }
+    };
+  }
+
+  let queryCount = 0;
+  let denyPermission = false;
+  const sandbox = {
+    console: { ...console, warn() {} },
+    document: {
+      getElementById(id) { return elements.get(id) || null; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      createElement: createNode
+    },
+    setTimeout,
+    clearTimeout,
+    window: {
+      addEventListener() {},
+      async queryLocalFonts() {
+        queryCount += 1;
+        if (denyPermission) {
+          const error = new Error('Permission denied');
+          error.name = 'NotAllowedError';
+          throw error;
+        }
+        return [
+          { family: 'Arial' },
+          { family: 'Arial' },
+          { family: ' 宋体 ' },
+          { family: 'Cascadia Code' },
+          { family: '' }
+        ];
+      },
+      AdminApp: {
+        utils: { setValue() {}, api: async () => ({ ok: true }) },
+        forms: { bindRangePair() {} },
+        desktopLyricPreview: { init() {}, applySettings() {} }
+      }
+    }
+  };
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
+  await listeners.get('click')();
+
+  assert.equal(queryCount, 1);
+  const localGroup = select.querySelector('optgroup[data-local-fonts="true"]');
+  assert.equal(localGroup.label, '本机字体');
+  assert.deepEqual(localGroup.children.map((option) => option.textContent), ['Arial', 'Cascadia Code', '宋体']);
+  assert.deepEqual(localGroup.children.map((option) => option.value), ['"Arial"', '"Cascadia Code"', '"宋体"']);
+  assert.equal(select.value, 'Microsoft YaHei');
+  assert.equal(button.disabled, false);
+  assert.equal(button.attributes.has('aria-busy'), false);
+  assert.equal(status.textContent, '已读取 3 个本机字体');
+
+  await listeners.get('click')();
+  assert.equal(queryCount, 2);
+  assert.equal(select.querySelector('optgroup[data-local-fonts="true"]').children.length, 3);
+
+  denyPermission = true;
+  await listeners.get('click')();
+  assert.equal(queryCount, 3);
+  assert.equal(select.querySelector('optgroup[data-local-fonts="true"]').children.length, 3);
+  assert.equal(status.textContent, '未获得本机字体读取权限');
 });
 
 test('desktop lyric settings include a live word-timed preview', () => {

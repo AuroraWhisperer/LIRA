@@ -167,6 +167,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 - 校验 `normalizeWeSingLyricOffsetMs`(±1500,取整,[wesing-capture.js:38-46](../../../../src/music/wesing-capture.js#L38-L46));`setLyricOffsetMs` 先持久化再生效([wesing-capture.js:274-284](../../../../src/music/wesing-capture.js#L274-L284))
 - 生效点 `updateLyricState`([wesing-capture.js:610-628](../../../../src/music/wesing-capture.js#L610-L628)):`lyricCurrentMs = clamp(0, currentMs + offset)` 再夹到时长;`findCurrentLyricLine` 二分取当前行,产出 `lyricState`(经 `normalizeLyricState`,字段契约见 [services.md](services.md) §13)
 - 设置键 `weSingCachePath` / `weSingLyricOffsetMs`,持久化见 [storage.md](../storage.md) §7
+- 未手动配置时,缓存目录默认按当前 Windows 用户的 `%APPDATA%\\Tencent\\WeSing\\WeSingCache` 生成;保存目录或首次启用检测时会递归创建缺失的 `WeSingCache` 目录
 
 ### 7.2 刷新竞态
 

@@ -47,22 +47,26 @@
                 <details class="desktop-lyric-settings-group is-basic" open>
                   <summary><span><strong>基础样式</strong><small>字体、字号、颜色与文字排版</small></span><span class="desktop-lyric-group-count">8 项</span></summary>
                   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <label class="desktop-lyric-control">
+                    <div class="desktop-lyric-control desktop-lyric-font-control">
                       <span class="desktop-lyric-control-copy"><strong>主字体</strong><small>歌词优先使用的字体</small></span>
-                      <select id="desktopLyricFontFamily">
-                        <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
-                        <option value="Microsoft YaHei">微软雅黑（默认）</option>
-                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
-                        <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
-                        <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
-                        <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
-                        <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
-                        <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
-                        <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
-                        <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
-                        <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
-                      </select>
-                    </label>
+                      <div class="desktop-lyric-font-picker">
+                        <select id="desktopLyricFontFamily" aria-describedby="desktopLyricLocalFontStatus">
+                          <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
+                          <option value="Microsoft YaHei">微软雅黑（默认）</option>
+                          <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
+                          <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
+                          <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
+                          <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
+                          <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
+                          <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
+                          <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
+                          <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
+                          <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
+                        </select>
+                        <button id="desktopLyricLoadLocalFontsBtn" type="button">获取本地字体</button>
+                        <small id="desktopLyricLocalFontStatus" class="desktop-lyric-local-font-status" aria-live="polite">需要授权，仅读取字体名称</small>
+                      </div>
+                    </div>
                     <label class="desktop-lyric-control">
                       <span class="desktop-lyric-control-copy"><strong>备选字体</strong><small>主字体缺少字符时使用</small></span>
                       <input id="desktopLyricFallbackFontFamily" type="text" value="Microsoft JhengHei" placeholder="Microsoft JhengHei">

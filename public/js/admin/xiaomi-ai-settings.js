@@ -77,13 +77,13 @@ function init() {
     saving = true;
     dirty = false;
     const submittedConfig = collectConfig();
-    setState(saveState, '正在自动保存…');
+    setState(saveState, '正在保存…');
     savingPromise = (async () => {
       try {
         const config = await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify(submittedConfig) });
         renderConfigSummary(config);
         editedFieldIds.clear();
-        setState(saveState, '已自动保存，后续新弹幕立即生效。', 'good');
+        setState(saveState, '已保存，后续新弹幕立即生效。', 'good');
         return true;
       } catch (error) {
         dirty = true;
@@ -109,7 +109,7 @@ function init() {
       setState(saveState, '请先完成或修正当前输入，随后会自动保存。', 'warn');
       return;
     }
-    setState(saveState, immediate ? '正在自动保存…' : '等待自动保存…');
+    setState(saveState, immediate ? '正在保存…' : '等待自动保存…');
     if (immediate) void saveConfig();
     else autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
   };

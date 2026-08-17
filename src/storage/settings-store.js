@@ -26,7 +26,7 @@ const DEFAULT_SETTINGS = {
   enableRandomTagReply: 'true',
   enableCheckinBot: 'true',
   enableFortuneBot: 'true',
-  enableCustomReplyBot: 'false',
+  enableCustomReplyBot: 'true',
   checkinBlessings: JSON.stringify(CHECKIN_BLESSINGS),
   fortunePool: JSON.stringify(FORTUNES),
   customReplyRules: '[]',

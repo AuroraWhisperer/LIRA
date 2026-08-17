@@ -66,6 +66,7 @@ function init() {
   elements.message.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && event.ctrlKey) elements.form.requestSubmit();
   });
+  document.addEventListener('app:bilibili-auth-changed', () => refreshState());
   elements.refreshButton.addEventListener('click', refreshState);
   bindSettingToggle(elements.replyToggle, {
     key: 'enableRandomTagReply',

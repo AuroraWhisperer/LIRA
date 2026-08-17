@@ -6,10 +6,10 @@ const { performance } = require('node:perf_hooks');
 const { findCurrentLyricLine } = require('./lyrics');
 const { normalizeLyricState } = require('./lyric-state');
 const {
+  ensureWeSingCacheDirectory,
   formatLyricSource,
   isDirectory,
   loadWeSingLyrics,
-  normalizeWeSingCachePath,
   normalizeWeSingLyricOffsetMs,
   safeInitialCachePath,
   safeInitialLyricOffsetMs,
@@ -78,8 +78,9 @@ function createWeSingCapture(options = {}) {
   };
 
   async function setCachePath(input) {
+    const nextCachePath = await ensureWeSingCacheDirectory(input);
     stopQrcWatcher();
-    cachePath = normalizeWeSingCachePath(input);
+    cachePath = nextCachePath;
     state.cachePath = cachePath;
     if (typeof options.saveCachePath === 'function') await options.saveCachePath(cachePath);
     resetLyrics();
@@ -126,6 +127,18 @@ function createWeSingCapture(options = {}) {
       updateLyricState();
       emit();
       return getStatus();
+    }
+    if (cachePath) {
+      try {
+        await ensureWeSingCacheDirectory(cachePath);
+      } catch (error) {
+        state.active = false;
+        state.status = 'error';
+        state.message = `无法创建全民 K 歌缓存目录：${error.message || String(error)}`;
+        updateLyricState();
+        emit();
+        return getStatus();
+      }
     }
     try {
       monitor = monitorFactory(handleMonitorSample);

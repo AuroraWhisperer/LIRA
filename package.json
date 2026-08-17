@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "3.4.15",
+  "version": "3.4.16",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -10,7 +10,7 @@
     "start": "node src/server.js",
     "desktop": "electron .",
     "check": "node scripts/check-js.js",
-    "test": "node --experimental-vm-modules --test --test-concurrency=4",
+    "test": "node --experimental-vm-modules --test --test-concurrency=6",
     "verify:docs": "node --test test/governance-docs.test.js",
     "verify:architecture": "node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js",
     "verify:quick": "npm run verify:docs && npm run check && npm run verify:architecture",

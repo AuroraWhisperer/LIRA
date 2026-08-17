@@ -95,6 +95,42 @@ test('WeSing log parser ignores title mismatches and unsafe song IDs', async (t)
   assert.throws(() => normalizeWeSingCachePath('C:\\Temp\\OtherFolder'), /WeSingCache/);
 });
 
+test('WeSing cache configuration creates a missing user cache directory', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-missing-cache-'));
+  const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  const capture = createWeSingCapture({ platform: 'win32' });
+  const status = await capture.setCachePath(cachePath);
+
+  assert.equal(status.cachePath, cachePath);
+  assert.equal(fs.statSync(cachePath).isDirectory(), true);
+});
+
+test('WeSing activation creates a missing initial cache directory before detection starts', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-initial-cache-'));
+  const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');
+  let cacheExistedAtMonitorStart = false;
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  const capture = createWeSingCapture({
+    cachePath,
+    platform: 'win32',
+    monitorFactory() {
+      return {
+        start() { cacheExistedAtMonitorStart = fs.existsSync(cachePath); },
+        stop() {}
+      };
+    }
+  });
+  t.after(() => capture.stop());
+
+  const status = await capture.setActive(true);
+
+  assert.equal(status.active, true);
+  assert.equal(cacheExistedAtMonitorStart, true);
+});
+
 test('WeSing capture activates an injected monitor and derives live lyric state', async (t) => {
   const fixture = createFixture();
   t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));

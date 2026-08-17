@@ -38,6 +38,12 @@ function normalizeWeSingLyricOffsetMs(input) {
   return rounded;
 }
 
+async function ensureWeSingCacheDirectory(input) {
+  const cachePath = normalizeWeSingCachePath(input);
+  await fs.promises.mkdir(cachePath, { recursive: true });
+  return cachePath;
+}
+
 async function findLatestSongEntry(cachePath, expectedTitle = '') {
   const basePath = normalizeWeSingCachePath(cachePath);
   const logDir = path.join(basePath, 'Log', 'WeSing');
@@ -248,6 +254,7 @@ function decodeXmlEntities(value) {
 }
 
 module.exports = {
+  ensureWeSingCacheDirectory,
   extractQrcLyricContent,
   findLatestSongEntry,
   formatLyricSource,

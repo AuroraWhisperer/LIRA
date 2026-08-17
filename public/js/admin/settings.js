@@ -58,8 +58,10 @@
         const result = await window.bilibiliAuth.login();
         if (result && result.state) {
           await refreshAuthState();
-          // 登录成功后提示重连以使用新 cookie
-          toast('Bilibili 登录成功！建议点击"刷新直播"以使用登录态重连。');
+          if (result.state.loggedIn) {
+            document.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
+            toast('Bilibili 登录成功！弹幕姬状态已刷新。');
+          }
         }
       } catch (err) {
         toast('登录失败：' + (err.message || String(err)));

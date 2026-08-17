@@ -103,9 +103,103 @@
     ['desktopLyricSaturation', 0, 2, 1]
   ];
 
+  function quoteCssFontFamily(family) {
+    return `"${family.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+  }
+
+  function normalizeLocalFontFamilies(fonts) {
+    const uniqueFamilies = new Map();
+    Array.from(fonts || []).forEach((font) => {
+      const family = String(font?.family || '')
+        .replace(/[\u0000-\u001f\u007f]/g, '')
+        .trim()
+        .slice(0, 200);
+      const key = family.toLocaleLowerCase();
+      if (family && !uniqueFamilies.has(key)) uniqueFamilies.set(key, family);
+    });
+    return Array.from(uniqueFamilies.values())
+      .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base', numeric: true }));
+  }
+
+  function setLocalFontStatus(message, state = '') {
+    const status = document.getElementById('desktopLyricLocalFontStatus');
+    if (!status) return;
+    status.textContent = message;
+    status.className = `desktop-lyric-local-font-status${state ? ` ${state}` : ''}`;
+  }
+
+  function ensureSavedFontOption(value) {
+    const select = document.getElementById('desktopLyricFontFamily');
+    if (!select?.options || !value) return;
+    const exists = Array.from(select.options).some((option) => option.value === value);
+    if (exists) return;
+
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = `${String(value).replace(/^"|"$/g, '')}（当前设置）`;
+    option.dataset.savedLocalFont = 'true';
+    select.appendChild(option);
+  }
+
+  function replaceLocalFontOptions(select, families) {
+    const currentValue = select.value;
+    select.querySelector('optgroup[data-local-fonts="true"]')?.remove();
+    const existingValues = new Set(Array.from(select.options).map((option) => option.value));
+    const group = document.createElement('optgroup');
+    group.label = '本机字体';
+    group.dataset.localFonts = 'true';
+    families.forEach((family) => {
+      const value = quoteCssFontFamily(family);
+      if (existingValues.has(value) || existingValues.has(family)) return;
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = family;
+      group.appendChild(option);
+    });
+
+    select.appendChild(group);
+    if (Array.from(select.options).some((option) => option.value === currentValue)) {
+      select.value = currentValue;
+    }
+  }
+
+  function initLocalFontLibrary() {
+    const select = document.getElementById('desktopLyricFontFamily');
+    const button = document.getElementById('desktopLyricLoadLocalFontsBtn');
+    if (!select || !button) return;
+
+    button.addEventListener('click', async () => {
+      if (typeof window.queryLocalFonts !== 'function') {
+        setLocalFontStatus('当前客户端不支持读取本机字体', 'is-error');
+        return;
+      }
+
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      setLocalFontStatus('正在读取本机字体…');
+      try {
+        const families = normalizeLocalFontFamilies(await window.queryLocalFonts());
+        if (families.length === 0) {
+          setLocalFontStatus('没有读取到可用的本机字体', 'is-error');
+          return;
+        }
+        replaceLocalFontOptions(select, families);
+        setLocalFontStatus(`已读取 ${families.length} 个本机字体`, 'is-success');
+      } catch (error) {
+        const denied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError';
+        setLocalFontStatus(denied ? '未获得本机字体读取权限' : '读取本机字体失败，请重试', 'is-error');
+        console.warn('Local font access failed:', error?.message || error);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
+  }
+
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
+    initLocalFontLibrary();
     window.AdminApp.desktopLyricPreview?.init(form);
 
     // Range ↔ Number 双向绑定
@@ -222,6 +316,7 @@
         if (input) input.checked = nextValue !== 'false';
         return;
       }
+      if (key === 'desktopLyricFontFamily') ensureSavedFontOption(nextValue);
       setValue(key, nextValue);
       if (RANGE_PAIRS.some(([rangeKey]) => rangeKey === key)) {
         setValue(`${key}Number`, nextValue);

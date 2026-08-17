@@ -395,6 +395,57 @@
   font-size: 14px;
 }
 
+.desktop-lyric-font-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+  min-width: 0;
+}
+
+.desktop-lyric-font-picker select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.desktop-lyric-font-picker button {
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 11px;
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.desktop-lyric-font-picker button:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+}
+
+.desktop-lyric-font-picker button:disabled {
+  cursor: wait;
+  opacity: 0.64;
+}
+
+.desktop-lyric-local-font-status {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.desktop-lyric-local-font-status.is-success {
+  color: var(--accent);
+}
+
+.desktop-lyric-local-font-status.is-error {
+  color: var(--danger);
+}
+
 .desktop-lyric-control > .switch-control {
   justify-self: end;
 }

@@ -12,6 +12,7 @@ const { openBilibiliLoginWindow } = require('./bilibili-login-window');
 const loginWin = require('./login-window');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const { createDesktopState } = require('./desktop-state');
+const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
 const updateMgr = require('./update-manager');
@@ -180,6 +181,13 @@ async function startDesktopApp() {
 
   var serverInfo = await lifecycleState.runtime.start(serverOptions);
 
+  registerLocalFontPermissionHandler({
+    desktopSession: session.defaultSession,
+    dialog,
+    desktopBaseUrl: serverInfo.baseUrl,
+    getMainWindow: () => windowState.main,
+    hasExactOrigin
+  });
   createMainWindow(serverInfo.baseUrl);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
