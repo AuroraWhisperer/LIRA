@@ -8,7 +8,7 @@ function createBilibiliClient(roomId, context) {
     isShuttingDown,
     aiDanmakuDeliveryVerifier,
     domainServices,
-    xiaomiAi,
+    aiAssistant,
     danmakuSender,
     broadcastSnapshot,
     updateLiveStatus,
@@ -35,7 +35,7 @@ function createBilibiliClient(roomId, context) {
           isPinned: danmaku.isPinned
         });
         domainServices.messages.logDanmaku(danmaku, result);
-        xiaomiAi.handleDanmaku({
+        aiAssistant.handleDanmaku({
           message: danmaku.message,
           userName: danmaku.userName,
           uid: String(danmaku.uid || '')

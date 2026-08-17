@@ -1,7 +1,7 @@
 /* Toolbox styles - ordered compatibility entrypoint. */
 @import url('./other-features/shell.css');
 @import url('./other-features/danmaku-tool.css');
-@import url('./other-features/xiaomi-ai.css');
+@import url('./other-features/ai-assistant.css');
 @import url('./other-features/danmaku-editors.css');
 @import url('./other-features/gift-effects.css');
 @import url('./other-features/usage-guide.css');

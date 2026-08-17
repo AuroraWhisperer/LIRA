@@ -107,7 +107,7 @@
 | ID | Finding | Evidence | Required outcome | Track |
 |---|---|---|---|---|
 | `AUD-M01` | 删除礼物事件会遗留永久 pending 的加班结算 | [query-service.js](../../src/bilibili/gift/query-service.js#L145), [retention.js](../../src/storage/retention.js#L61), [overtime-store.js](../../src/overtime/overtime-store.js#L193) | 手动清理和保留期删除必须在同库事务中处理 pending/applied/ignored 三类结算 | 4 |
-| `AUD-M02` | AI shutdown 不取消或等待在途任务 | [async-coordinator.js](../../src/ai/async-coordinator.js#L36), [xiaomi-ai-service.js](../../src/ai/xiaomi-ai-service.js#L174), [server.js](../../src/server.js#L373) | stop 后不得投递、重新填充 ready 队列、写数据库或遗留 delivery timer | 4 |
+| `AUD-M02` | AI shutdown 不取消或等待在途任务 | [async-coordinator.js](../../src/ai/async-coordinator.js#L36), [ai-assistant-service.js](../../src/ai/ai-assistant-service.js#L174), [server.js](../../src/server.js#L373) | stop 后不得投递、重新填充 ready 队列、写数据库或遗留 delivery timer | 4 |
 | `AUD-M03` | 服务关闭不追踪异步 HTTP handler | [server.js](../../src/server.js#L139), [server.js](../../src/server.js#L340), [server.js](../../src/server.js#L373) | shutdown 必须先停止 ingress，等待请求/异步任务，再关闭 DB，且端口只能在 DB 关闭后释放 | 2 |
 | `AUD-M04` | clear-all 跨五库逐个提交，失败后可能部分清空 | [database.js](../../src/storage/database.js#L539), [database.js](../../src/storage/database.js#L591) | 提交前失败统一回滚；不可避免的提交期失败返回精确 per-database partial 结果并触发状态重载 | 4 |
 | `AUD-M05` | AI 审计、上下文和缓存没有主动保留期 | [config-store.js](../../src/ai/config-store.js#L80), [config-store.js](../../src/ai/config-store.js#L149), [retention.js](../../src/storage/retention.js#L9) | 启动时清 TTL 数据；AI request log 采用明确、可配置的默认保留期并支持 dry-run | 4 |
@@ -152,7 +152,7 @@
 
 | Area | Runtime owner | Public contract | Primary tests |
 |---|---|---|---|
-| AI config and lifecycle | `src/ai/`, `src/server/ai-runtime.js` | `docs/architecture/backend/ai.md` | `test/ai-config-store.test.js`, `test/ai-routes.test.js`, `test/xiaomi-ai-service.test.js` |
+| AI config and lifecycle | `src/ai/`, `src/server/ai-runtime.js` | `docs/architecture/backend/ai.md` | `test/ai-config-store.test.js`, `test/ai-routes.test.js`, `test/ai-assistant-service.test.js` |
 | Server lifecycle and browser boundary | `src/server.js`, `src/server/` | `docs/architecture/backend/server-core.md`, `api.md`, `ws.md` | `test/server-smoke.test.js`, `test/server-lifecycle.test.js`, `test/websocket-transport.test.js` |
 | Storage and migrations | `src/storage/` | `docs/architecture/backend/storage.md` | `test/database-maintenance.test.js`, `test/overtime-service.test.js` |
 | Electron security | `src/electron/` | `docs/architecture/desktop/` | `test/electron-main-modules.test.js`, `test/local-media-access.test.js`, `test/bilibili-login-window.test.js`, `test/terminal-log.test.js` |
@@ -231,7 +231,7 @@ Files:
 
 - Modify: `src/ai/config-store.js`
 - Modify: `public/pages/admin/toolbox/danmaku.html`
-- Modify: `public/js/admin/xiaomi-ai-settings.js`
+- Modify: `public/js/admin/ai-assistant-settings.js`
 - Modify: `test/ai-config-store.test.js`
 - Modify: `test/ai-routes.test.js`
 - Modify: `test/frontend-admin-ai.test.js`
@@ -580,13 +580,13 @@ Steps:
 Files:
 
 - Modify: `src/ai/async-coordinator.js`
-- Modify: `src/ai/xiaomi-ai-service.js`
+- Modify: `src/ai/ai-assistant-service.js`
 - Modify: `src/ai/danmaku-delivery-verifier.js`
 - Modify: `src/ai/http-client.js` and provider/tool adapters that need a signal
 - Modify: `src/server/ai-runtime.js`
 - Modify: `src/storage/retention.js`
 - Modify: `src/storage/settings-store.js`
-- Modify: `test/xiaomi-ai-service.test.js`
+- Modify: `test/ai-assistant-service.test.js`
 - Modify: `test/ai-danmaku-delivery-verifier.test.js`
 - Modify: `test/database-maintenance.test.js`
 

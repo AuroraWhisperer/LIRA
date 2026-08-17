@@ -9,7 +9,7 @@ const { createQWeatherTool } = require('../ai/tools/qweather-tool');
 const { createAmapTool } = require('../ai/tools/amap-tool');
 const { createWebSearchTool } = require('../ai/tools/web-search-tool');
 const { getCurrentTime } = require('../ai/tools/current-time-tool');
-const { createXiaomiAiService } = require('../ai/xiaomi-ai-service');
+const { createAiAssistantService } = require('../ai/ai-assistant-service');
 const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifier');
 
 function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender }) {
@@ -20,7 +20,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
   const quotaStore = createAiApiQuotaStore(songDb);
   const deliveryVerifier = createDanmakuDeliveryVerifier();
   const requestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ filePath: aiLogPath });
-  const service = createXiaomiAiService({
+  const service = createAiAssistantService({
     store: configStore,
     quotaStore,
     deepseek: createDeepSeekClient({

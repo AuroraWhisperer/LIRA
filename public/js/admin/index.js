@@ -19,7 +19,7 @@ import './gifts/history.js';
 import './gifts/index.js';
 import './metrics.js';
 import './danmaku-tool.js';
-import './xiaomi-ai-settings.js';
+import './ai-assistant-settings.js';
 import './todo.js';
 import './other.js';
 import './overtime.js';

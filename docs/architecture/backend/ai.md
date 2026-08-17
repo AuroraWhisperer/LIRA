@@ -1,56 +1,56 @@
-# AI 弹幕姬(小爱)集成
+# AI 互动助手集成
 
-> 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/xiaomi-ai-service.js](../../../src/ai/xiaomi-ai-service.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
+> 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
 
 本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §14;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
 ## 1. 概览与触发链
 
-AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回复弹幕的聊天机器人。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `xiaomiAi.handleDanmaku({message, userName, uid})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
+AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认实例使用"小米"(直播间橘猫)人格回复弹幕。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `aiAssistant.handleDanmaku({message, userName, uid})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
 
 | 事实 | 值 | 出处 |
 |---|---|---|
 | 角色人格 | `SYSTEM_PROMPT`:直播间橘猫"小米",含 `<identity>/<priority>/<tool_policy>/<safety>` 等段落 | [prompt.js:7-62](../../../src/ai/prompt.js#L7-L62) |
 | 模型后端 | DeepSeek;默认模型 `deepseek-v4-flash`(旧别名 `ds-v4-flash` 自动归一化) | [config.js:16](../../../src/ai/config.js#L16)、[config.js:79](../../../src/ai/config.js#L79) |
-| 触发关键词 | 配置键 `trigger`,默认 `'小米'`,1–12 字符;消息中出现即触发 | [config.js:13](../../../src/ai/config.js#L13)、[xiaomi-ai-service.js:308-316](../../../src/ai/xiaomi-ai-service.js#L308-L316) |
+| 触发关键词 | 配置键 `trigger`,默认 `'小米'`,1–12 字符;消息中出现即触发 | [config.js:13](../../../src/ai/config.js#L13)、[ai-assistant-service.js:308-316](../../../src/ai/ai-assistant-service.js#L308-L316) |
 | 就绪条件 | `isAiReady`:enabled + deepseekResponsesUrl + deepseekApiKey + model 全部非空 | [config.js:106-113](../../../src/ai/config.js#L106-L113) |
 | 回复发送 | `sendReply` = `danmakuSender.send({…, waitForRateLimit: true})`,等待发送频率而非抛错 | [server.js:260](../../../src/server.js#L260) |
-| 关闭时序 | 服务关闭第一步 `xiaomiAi.shutdown()` → 协调器 stop,丢弃排队任务 | [xiaomi-ai-service.js:289-291](../../../src/ai/xiaomi-ai-service.js#L289-L291)、[server-core.md](server-core.md) §6.2 |
+| 关闭时序 | 服务关闭第一步 `aiAssistant.shutdown()` → 协调器 stop,丢弃排队任务 | [ai-assistant-service.js:289-291](../../../src/ai/ai-assistant-service.js#L289-L291)、[server-core.md](server-core.md) §6.2 |
 
 ## 2. 弹幕准入链(handleDanmaku)
 
-`handleDanmaku`([xiaomi-ai-service.js:56-72](../../../src/ai/xiaomi-ai-service.js#L56-L72))按序检查,任一失败即返回 `{accepted: false, reason}`:
+`handleDanmaku`([ai-assistant-service.js:56-72](../../../src/ai/ai-assistant-service.js#L56-L72))按序检查,任一失败即返回 `{accepted: false, reason}`:
 
 | 检查 | 语义 | 出处 |
 |---|---|---|
-| 就绪检查 | `isAiReady` 不成立 → `disabled_or_unconfigured` | [xiaomi-ai-service.js:57-58](../../../src/ai/xiaomi-ai-service.js#L57-L58) |
-| 触发词匹配 | `extractTriggeredQuestion` 在消息中定位 `trigger`,两侧文本拼回作为问题;空问题回退为"和大家打个招呼";未命中 → `not_triggered` | [xiaomi-ai-service.js:60-61](../../../src/ai/xiaomi-ai-service.js#L60-L61)、[308-316](../../../src/ai/xiaomi-ai-service.js#L308-L316) |
-| UID 归一化 | 无 uid 时用 `name:<userName>` 作为身份键 | [xiaomi-ai-service.js:62](../../../src/ai/xiaomi-ai-service.js#L62) |
-| 黑名单 | `store.isBlacklisted(uid)` 命中 → `blacklisted`(表 `ai_blacklist`) | [xiaomi-ai-service.js:63](../../../src/ai/xiaomi-ai-service.js#L63)、[config-store.js:95-98](../../../src/ai/config-store.js#L95-L98) |
-| 本地安全规则 | `checkLocalInput` 命中硬规则 → 以 `localRefusal` 直接入队(不再调用模型),见 §6 | [xiaomi-ai-service.js:64-70](../../../src/ai/xiaomi-ai-service.js#L64-L70) |
-| 用户冷却 | `userCooldownSeconds`(默认 0)内同一 uid 重复触发 → `user_rate_limited` | [xiaomi-ai-service.js:80-90](../../../src/ai/xiaomi-ai-service.js#L80-L90) |
+| 就绪检查 | `isAiReady` 不成立 → `disabled_or_unconfigured` | [ai-assistant-service.js:57-58](../../../src/ai/ai-assistant-service.js#L57-L58) |
+| 触发词匹配 | `extractTriggeredQuestion` 在消息中定位 `trigger`,两侧文本拼回作为问题;空问题回退为"和大家打个招呼";未命中 → `not_triggered` | [ai-assistant-service.js:60-61](../../../src/ai/ai-assistant-service.js#L60-L61)、[308-316](../../../src/ai/ai-assistant-service.js#L308-L316) |
+| UID 归一化 | 无 uid 时用 `name:<userName>` 作为身份键 | [ai-assistant-service.js:62](../../../src/ai/ai-assistant-service.js#L62) |
+| 黑名单 | `store.isBlacklisted(uid)` 命中 → `blacklisted`(表 `ai_blacklist`) | [ai-assistant-service.js:63](../../../src/ai/ai-assistant-service.js#L63)、[config-store.js:95-98](../../../src/ai/config-store.js#L95-L98) |
+| 本地安全规则 | `checkLocalInput` 命中硬规则 → 以 `localRefusal` 直接入队(不再调用模型),见 §6 | [ai-assistant-service.js:64-70](../../../src/ai/ai-assistant-service.js#L64-L70) |
+| 用户冷却 | `userCooldownSeconds`(默认 0)内同一 uid 重复触发 → `user_rate_limited` | [ai-assistant-service.js:80-90](../../../src/ai/ai-assistant-service.js#L80-L90) |
 | 全房间限速 | 60 秒滑动窗口内最多 `roomLimitPerMinute`(默认 20)条 → `room_rate_limited` | 同上 |
-| 队列上限 | `coordinator.getStatus().queued >= queueLimit`(默认 30)→ `queue_full` | [xiaomi-ai-service.js:67](../../../src/ai/xiaomi-ai-service.js#L67) |
-| 入队 | 通过 → `{accepted: true, reason: 'queued'}`(协调器已停止时为 `'stopped'`) | [xiaomi-ai-service.js:74-78](../../../src/ai/xiaomi-ai-service.js#L74-L78) |
+| 队列上限 | `coordinator.getStatus().queued >= queueLimit`(默认 30)→ `queue_full` | [ai-assistant-service.js:67](../../../src/ai/ai-assistant-service.js#L67) |
+| 入队 | 通过 → `{accepted: true, reason: 'queued'}`(协调器已停止时为 `'stopped'`) | [ai-assistant-service.js:74-78](../../../src/ai/ai-assistant-service.js#L74-L78) |
 
 ## 3. 回复生成管线与协调器
 
 ### 3.1 生成管线(generateReply)
 
-[generateReply](../../../src/ai/xiaomi-ai-service.js#L92-L179) 按序执行:
+[generateReply](../../../src/ai/ai-assistant-service.js#L92-L179) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
-2. **查询缓存**:缓存键 `"${model}\n${question}"`(sha256 落库),命中返回 `category: 'cache'`;投递重试时 `bypassCache` 强制绕过([xiaomi-ai-service.js:98-100](../../../src/ai/xiaomi-ai-service.js#L98-L100)、[250](../../../src/ai/xiaomi-ai-service.js#L250))。
+2. **查询缓存**:缓存键 `"${model}\n${question}"`(sha256 落库),命中返回 `category: 'cache'`;投递重试时 `bypassCache` 强制绕过([ai-assistant-service.js:98-100](../../../src/ai/ai-assistant-service.js#L98-L100)、[250](../../../src/ai/ai-assistant-service.js#L250))。
 3. **输入安全审核**:`runSafetyReview(buildInputReviewPrompt(question))` 未通过 → 直接返回拒答。
-4. **观众上下文**:按 uid 读取 `ai_viewer_context` 中的上轮 `{question, answer}`,以"短期上下文"前缀拼入本次问题([buildConversationInput](../../../src/ai/xiaomi-ai-service.js#L322-L325))。
-5. **主生成**:`deepseek.createResponse`(见 §4),`instructions` = 人格预设 + `<runtime_task_policy>` 长度合约([buildReplyInstructions](../../../src/ai/xiaomi-ai-service.js#L331-L342))。
+4. **观众上下文**:按 uid 读取 `ai_viewer_context` 中的上轮 `{question, answer}`,以"短期上下文"前缀拼入本次问题([buildConversationInput](../../../src/ai/ai-assistant-service.js#L322-L325))。
+5. **主生成**:`deepseek.createResponse`(见 §4),`instructions` = 人格预设 + `<runtime_task_policy>` 长度合约([buildReplyInstructions](../../../src/ai/ai-assistant-service.js#L331-L342))。
 6. **工具循环**:`response.functionCalls` 非空时执行工具(§5),结果以 `function_call_output` 回填并带 `previousResponseId` 续问;累计调用超过 `maxToolCalls`(默认 6)→ `TOOL_LIMIT`。
 7. **输出安全与质量审核**:`runSafetyReview(buildOutputReviewPrompt(question, rawText))` 未通过 → 用模型给出的 `safeText` 或 `SAFE_REFUSAL` 替换。
 8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写上下文、写缓存、写 `ai_request_logs`(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
 
-长度预算([getReplyLengthBudget](../../../src/ai/xiaomi-ai-service.js#L344-L354)):单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度,允许 1–3 条;偏好长度 `replyMaxChars`(默认 50,10–50 区间)仅是偏好不是目标。运行时预算会覆盖人格预设中的"50 字符"旧表述。
+长度预算([getReplyLengthBudget](../../../src/ai/ai-assistant-service.js#L344-L354)):单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度,允许 1–3 条;偏好长度 `replyMaxChars`(默认 50,10–50 区间)仅是偏好不是目标。运行时预算会覆盖人格预设中的"50 字符"旧表述。
 
-输出 token 上限按是否开启思考模式切换:`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`,审核请求固定 `REVIEW_OUTPUT_TOKENS = 384`([xiaomi-ai-service.js:22-24](../../../src/ai/xiaomi-ai-service.js#L22-L24)、[371-373](../../../src/ai/xiaomi-ai-service.js#L371-L373))。
+输出 token 上限按是否开启思考模式切换:`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`,审核请求固定 `REVIEW_OUTPUT_TOKENS = 384`([ai-assistant-service.js:22-24](../../../src/ai/ai-assistant-service.js#L22-L24)、[371-373](../../../src/ai/ai-assistant-service.js#L371-L373))。
 
 ### 3.2 顺序协调器(createOrderedAsyncCoordinator)
 
@@ -104,14 +104,14 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 | `web_search` | Bing RSS | `https://www.bing.com/search?format=rss&q=…`(查询 ≤ 200 字符),解析 `<item>` 前 5 条为 `{title, snippet, url}`;空结果 → `WEB_SEARCH_EMPTY` | [web-search-tool.js:5-41](../../../src/ai/tools/web-search-tool.js#L5-L41) |
 | `get_current_time` | 本地 | `Intl.DateTimeFormat('zh-CN', {timeZone})` 格式化,默认 `Asia/Shanghai`;返回 `{timeZone, formatted, isoUtc}`;无效时区抛错 | [current-time-tool.js:3-16](../../../src/ai/tools/current-time-tool.js#L3-L16) |
 
-**工具调用回路**:`executeTool` 按 `call.name` 分派([xiaomi-ai-service.js:193-201](../../../src/ai/xiaomi-ai-service.js#L193-L201));结果 `JSON.stringify` 为 `function_call_output` 回喂模型(§3.1 第 6 步)。**配额降级**:工具抛月度配额错误(§8)时,`executeToolWithQuotaFallback` 把该工具名加入 `excludedToolNames`(本次会话内后续请求不再下发该工具)并返回 `{unavailable: true, reason: 'monthly_api_quota_reached', instruction}` 让模型改用 `web_search` 或如实说明([xiaomi-ai-service.js:203-218](../../../src/ai/xiaomi-ai-service.js#L203-L218));生成前也按 `quotaStore.getExcludedToolNames()` 预先裁剪工具列表([116-117](../../../src/ai/xiaomi-ai-service.js#L116-L117))。
+**工具调用回路**:`executeTool` 按 `call.name` 分派([ai-assistant-service.js:193-201](../../../src/ai/ai-assistant-service.js#L193-L201));结果 `JSON.stringify` 为 `function_call_output` 回喂模型(§3.1 第 6 步)。**配额降级**:工具抛月度配额错误(§8)时,`executeToolWithQuotaFallback` 把该工具名加入 `excludedToolNames`(本次会话内后续请求不再下发该工具)并返回 `{unavailable: true, reason: 'monthly_api_quota_reached', instruction}` 让模型改用 `web_search` 或如实说明([ai-assistant-service.js:203-218](../../../src/ai/ai-assistant-service.js#L203-L218));生成前也按 `quotaStore.getExcludedToolNames()` 预先裁剪工具列表([116-117](../../../src/ai/ai-assistant-service.js#L116-L117))。
 
 **测试接口**:`testProvider('qweather'|'amap'|'deepseek')` 分别调用各工具 `testConnection`(校验 Key/错误码映射),经 `/api/ai/test/*` 暴露。
 
 ## 6. 安全过滤(两道)
 
 1. **本地硬规则** `checkLocalInput`([safety.js:3-18](../../../src/ai/safety.js#L3-L18)):四类正则——`sexual`(色情)、`illegal`(违法)、`privacy`(隐私信息)、`prompt_injection`(提示词注入/越狱);命中返回固定 `SAFE_REFUSAL = '这个不适合直播间回答，换个轻松问题吧喵～'`。在入队前执行,不消耗模型配额。
-2. **LLM 审核** `runSafetyReview`([xiaomi-ai-service.js:181-191](../../../src/ai/xiaomi-ai-service.js#L181-L191)):输入审核与输出审核各发起一次独立 DeepSeek 调用,要求只输出 JSON。`parseSafetyReview`([safety.js:28-40](../../../src/ai/safety.js#L28-L40))解析失败时**拒绝放行**并以 `SAFE_REFUSAL` 兜底。输出审核同时承担质量校验:要求直接回应原问题、逐项满足硬约束、删除凑数推荐、保留确定事实不得编造([safety.js:24-26](../../../src/ai/safety.js#L24-L26))。
+2. **LLM 审核** `runSafetyReview`([ai-assistant-service.js:181-191](../../../src/ai/ai-assistant-service.js#L181-L191)):输入审核与输出审核各发起一次独立 DeepSeek 调用,要求只输出 JSON。`parseSafetyReview`([safety.js:28-40](../../../src/ai/safety.js#L28-L40))解析失败时**拒绝放行**并以 `SAFE_REFUSAL` 兜底。输出审核同时承担质量校验:要求直接回应原问题、逐项满足硬约束、删除凑数推荐、保留确定事实不得编造([safety.js:24-26](../../../src/ai/safety.js#L24-L26))。
 
 ## 7. 配置与密钥
 
@@ -148,7 +148,7 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 | 加密实现 | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key" | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31) |
 | 读取降级 | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取 | [config-store.js:20-25](../../../src/ai/config-store.js#L20-L25) |
 | 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey` 布尔标志与 `secretEncryptionAvailable`;`updateConfig` 返回同样经 `getPublicConfig` 过滤的结果,GET/PUT 响应均不回显密钥明文 | [config-store.js:38-46](../../../src/ai/config-store.js#L38-L46) |
-| 前端遮罩 | 管理页密钥输入框类型为 `password`;已保存密钥渲染为 `'********'` 遮罩(display only);提交时遇 `'********'` 值则跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新" | [xiaomi-ai-settings.js:266-283](../../../public/js/admin/xiaomi-ai-settings.js#L266-L283)、[256-264](../../../public/js/admin/xiaomi-ai-settings.js#L256-L264) |
+| 前端遮罩 | 管理页密钥输入框类型为 `password`;已保存密钥渲染为 `'********'` 遮罩(display only);提交时遇 `'********'` 值则跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新" | [ai-assistant-settings.js:266-283](../../../public/js/admin/ai-assistant-settings.js#L266-L283)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §14);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 
@@ -180,13 +180,13 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 
 ### 9.1 发送节奏
 
-`deliverReply`([xiaomi-ai-service.js:220-254](../../../src/ai/xiaomi-ai-service.js#L220-L254)):
+`deliverReply`([ai-assistant-service.js:220-254](../../../src/ai/ai-assistant-service.js#L220-L254)):
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 回复间隔 | 距上次发送 500–2000 ms 随机(不足则等待) | [xiaomi-ai-service.js:18-19](../../../src/ai/xiaomi-ai-service.js#L18-L19)、[296-302](../../../src/ai/xiaomi-ai-service.js#L296-L302) |
-| 分段间隔 | 每条分块 200–600 ms 随机,`intervalMs` | [xiaomi-ai-service.js:20-21](../../../src/ai/xiaomi-ai-service.js#L20-L21)、[233-239](../../../src/ai/xiaomi-ai-service.js#L233-L239) |
-| 发送参数 | `mentionEveryChunk: true`(每段都带 @用户名)、`rateLimitIntervalMs: 0`(绕过发送器全局限速,由 AI 自行控速)、`waitForRateLimit: true` | [server.js:260](../../../src/server.js#L260)、[xiaomi-ai-service.js:233-239](../../../src/ai/xiaomi-ai-service.js#L233-L239) |
+| 回复间隔 | 距上次发送 500–2000 ms 随机(不足则等待) | [ai-assistant-service.js:18-19](../../../src/ai/ai-assistant-service.js#L18-L19)、[296-302](../../../src/ai/ai-assistant-service.js#L296-L302) |
+| 分段间隔 | 每条分块 200–600 ms 随机,`intervalMs` | [ai-assistant-service.js:20-21](../../../src/ai/ai-assistant-service.js#L20-L21)、[233-239](../../../src/ai/ai-assistant-service.js#L233-L239) |
+| 发送参数 | `mentionEveryChunk: true`(每段都带 @用户名)、`rateLimitIntervalMs: 0`(绕过发送器全局限速,由 AI 自行控速)、`waitForRateLimit: true` | [server.js:260](../../../src/server.js#L260)、[ai-assistant-service.js:233-239](../../../src/ai/ai-assistant-service.js#L233-L239) |
 
 ### 9.2 送达验证(danmaku-delivery-verifier)
 
@@ -194,12 +194,12 @@ AI 弹幕姬是一个由 DeepSeek 驱动、以"小米"(直播间橘猫)人格回
 
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。
-- **重试**:未确认送达时最多重试 3 次(`MAX_DELIVERY_ATTEMPTS = 3`,[16](../../../src/ai/xiaomi-ai-service.js#L16)),每次**重新生成**回复(`bypassCache: true`,避免原内容再次被吞),3 次仍失败 → 抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志([xiaomi-ai-service.js:248-253](../../../src/ai/xiaomi-ai-service.js#L248-L253))。
+- **重试**:未确认送达时最多重试 3 次(`MAX_DELIVERY_ATTEMPTS = 3`,[16](../../../src/ai/ai-assistant-service.js#L16)),每次**重新生成**回复(`bypassCache: true`,避免原内容再次被吞),3 次仍失败 → 抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志([ai-assistant-service.js:248-253](../../../src/ai/ai-assistant-service.js#L248-L253))。
 - **关闭**:`waitForDelivery` 接受 shutdown signal;`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。shutdown 取消不触发重新生成/重试或普通 delivery 失败审计。
 
 ### 9.3 失败回复文案
 
-`failureReply`([xiaomi-ai-service.js:385-395](../../../src/ai/xiaomi-ai-service.js#L385-L395))按错误码前缀(UPSTREAM_TIMEOUT / WEB_SEARCH_ / QWEATHER_ / AMAP_ / AI_NOT_CONFIGURED 等)映射为人话弹幕;未识别错误统一"这次查询没完成，换个问法或稍后再试～"。`getStatus` 暴露 `lastError`(截断 160 字符)供管理页诊断。
+`failureReply`([ai-assistant-service.js:385-395](../../../src/ai/ai-assistant-service.js#L385-L395))按错误码前缀(UPSTREAM_TIMEOUT / WEB_SEARCH_ / QWEATHER_ / AMAP_ / AI_NOT_CONFIGURED 等)映射为人话弹幕;未识别错误统一"这次查询没完成，换个问法或稍后再试～"。`getStatus` 暴露 `lastError`(截断 160 字符)供管理页诊断。
 
 ## 10. 持久化与故障行为
 

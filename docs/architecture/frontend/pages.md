@@ -71,7 +71,7 @@
 | `metrics.js` | 系统性能检测(`/api/system/metrics` 5 秒采样) | [app.md](app.md) §4 |
 | `danmaku-tool.js` | 弹幕姬:发送弹幕、机器人开关 | [app.md](app.md) §6 |
 | `danmaku-libraries.js` | 签到祝福语/抽签词库/DIY 关键词回复三个编辑器 | [app.md](app.md) §6 |
-| `xiaomi-ai-settings.js` | 小爱 AI(DeepSeek)配置:模型拉取、供应商测试、限流参数 | [app.md](app.md) §6 |
+| `ai-assistant-settings.js` | AI 互动助手配置:模型拉取、供应商测试、限流参数 | [app.md](app.md) §6 |
 | `overtime.js` | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景 | [app.md](app.md) §6 |
 | `todo.js` | 主播计划:localStorage 本地规划器(今天/本周/本月) | [app.md](app.md) §6 |
 | `other.js` | 百宝箱侧边导航(功能面板切换,不承载业务) | [app.md](app.md) §6 |

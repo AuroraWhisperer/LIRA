@@ -31,7 +31,7 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/admin/state.js': 4,
   'public/js/admin/theme.js': 51,
   'public/js/admin/todo.js': 3,
-  'public/js/admin/xiaomi-ai-settings.js': 4,
+  'public/js/admin/ai-assistant-settings.js': 4,
   'public/js/desktop.js': 7,
   'public/js/overlays/lyric-window.js': 1,
   'public/js/playback/index.js': 3,

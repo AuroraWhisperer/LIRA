@@ -168,7 +168,7 @@ test('opening disconnected danmaku tool refreshes live once and distinguishes co
 
 test('danmaku tool places the AI interaction assistant after the manual sender with safe defaults', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'xiaomi-ai-settings.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'ai-assistant-settings.js'), 'utf8');
   const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
@@ -208,7 +208,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/);
   assert.match(html, /id="xiaomiAiSaveBtn"[^>]*type="submit"[^>]*>保存配置</);
   assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
-  assert.match(indexSource, /import '\.\/xiaomi-ai-settings\.js';/);
+  assert.match(indexSource, /import '\.\/ai-assistant-settings\.js';/);
   assert.match(source, /element\.textContent = text/);
   assert.match(source, /const AUTOSAVE_DELAY_MS = 700/);
   assert.match(source, /form\.addEventListener\('input'/);
@@ -228,8 +228,8 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(styles, /@media \(max-width: 520px\)/);
 });
 
-test('Xiaomi AI autosaves toggles immediately and text after a debounce', async () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'xiaomi-ai-settings.js'), 'utf8');
+test('AI assistant autosaves toggles immediately and text after a debounce', async () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'ai-assistant-settings.js'), 'utf8');
   const listeners = new Map();
   const fetchCalls = [];
   const timers = [];
@@ -348,7 +348,7 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
     window: { AdminApp: { utils: { showStackedToast(options) { fetchCalls.push({ toast: options }); } } } }
   };
   vm.runInNewContext(source, sandbox);
-  sandbox.window.AdminApp.xiaomiAiSettings.init();
+  sandbox.window.AdminApp.aiAssistantSettings.init();
 
   elements.get('xiaomiAiDeepSeekUrl').value = 'https://api.deepseek.com/responses';
   listeners.get('form:input')({ target: { id: 'xiaomiAiDeepSeekUrl', matches: () => false } });
@@ -362,6 +362,14 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   listeners.get('form:input')({ target: { id: 'xiaomiAiAmapHost', matches: () => false } });
   elements.get('xiaomiAiAmapKey').value = 'amap-secret';
   listeners.get('form:input')({ target: { id: 'xiaomiAiAmapKey', matches: () => false } });
+  listeners.get('form:submit')({ preventDefault() {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(
+    elements.get('xiaomiAiSaveState').textContent,
+    '配置尚未加载，暂时无法保存；请等待或刷新页面重试。'
+  );
+  assert.equal(fetchCalls.filter(call => call.options.method === 'PUT').length, 0);
+
   resolveInitialConfig({ ok: true, json: async () => ({ ok: true, data: publicConfig }) });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').value, 'https://api.deepseek.com/responses');
@@ -456,8 +464,8 @@ test('Xiaomi AI autosaves toggles immediately and text after a debounce', async 
   assert.match(fetchCalls.find(call => call.toast)?.toast.className, /xiaomi-ai-test-toast-good/);
 });
 
-test('Xiaomi AI masks saved secrets and omits mask placeholders from submission', async () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'xiaomi-ai-settings.js'), 'utf8');
+test('AI assistant masks saved secrets and omits mask placeholders from submission', async () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'ai-assistant-settings.js'), 'utf8');
   const listeners = new Map();
   const fetchCalls = [];
   const timers = [];
@@ -557,7 +565,7 @@ test('Xiaomi AI masks saved secrets and omits mask placeholders from submission'
     window: { AdminApp: { utils: { showStackedToast() {} } } }
   };
   vm.runInNewContext(source, sandbox);
-  sandbox.window.AdminApp.xiaomiAiSettings.init();
+  sandbox.window.AdminApp.aiAssistantSettings.init();
   await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(elements.get('xiaomiAiDeepSeekKey').type, 'password');

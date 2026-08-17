@@ -38,7 +38,7 @@
 | [ws.md](backend/ws.md) | WebSocket 传输(手写 RFC 6455)、快照 15 字段、消息类型与广播原因全集 |
 | [api.md](backend/api.md) | **HTTP API 端点全量注册表**:15 路由模块 × 90 端点 |
 | [storage.md](backend/storage.md) | 存储层:数据目录、SQLite 五库 26 表、迁移系统、保留策略、settings 全表 |
-| [ai.md](backend/ai.md) | AI 弹幕姬(小爱):DeepSeek 双路由、6 工具、配额与审计、密钥加密 |
+| [ai.md](backend/ai.md) | AI 互动助手:模型服务、6 工具、配额与审计、密钥加密 |
 | [overtime.md](backend/overtime.md) | 加班机:服务端权威倒计时、礼物结算幂等管线、规则与盲盒 |
 | [music/qq-provider.md](backend/music/qq-provider.md) | QQ 音乐上游 API 逆向工程(13 端点、GTK、zzcSign、QRC) |
 | [music/netease-provider.md](backend/music/netease-provider.md) | 网易云上游 API 逆向工程(12 端点、weapi 双 AES+RSA、歌词解析器) |
@@ -108,7 +108,7 @@
 | 音乐播放(QQ/网易云/本地/全民K歌) | [backend/music/](backend/music/) + [frontend/playback.md](frontend/playback.md) |
 | 弹幕交互(协议/机器人/礼物/SC) | [backend/bilibili/](backend/bilibili/) |
 | 加班机(礼物→倒计时) | [backend/overtime.md](backend/overtime.md) |
-| AI 弹幕姬(小爱/DeepSeek) | [backend/ai.md](backend/ai.md) |
+| AI 互动助手 | [backend/ai.md](backend/ai.md) |
 | 桌面壳(窗口/登录/更新) | [desktop/](desktop/) |
 | 悬浮层(OBS) | [frontend/overlays.md](frontend/overlays.md) |
 

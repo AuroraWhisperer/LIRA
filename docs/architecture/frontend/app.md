@@ -74,7 +74,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 3.1 模块加载([index.js](../../../public/js/admin/index.js))
 
-[document-end.html](../../../public/pages/admin/document-end.html) 加载 [index.js](../../../public/js/admin/index.js)，入口按序导入共享层与全部 Admin 模块(顺序即依赖顺序):`shared/utils` → `shared/theme` → `desktop.js` → `import` → `queue` → `songs` → `theme` → `display` → `settings` → `gifts/*`(notification/detection/sprint/recent/blindbox/blindbox-analysis/history/index)→ `metrics` → `danmaku-tool` → `xiaomi-ai-settings` → `todo` → `other` → `overtime` → `gift-effects` → `desktop-lyric-preview` → `desktop-lyric` → `app.js`。同一分片另加载 `<script type="module" src="/js/playback.js">` 播放助手入口。
+[document-end.html](../../../public/pages/admin/document-end.html) 加载 [index.js](../../../public/js/admin/index.js)，入口按序导入共享层与全部 Admin 模块(顺序即依赖顺序):`shared/utils` → `shared/theme` → `desktop.js` → `import` → `queue` → `songs` → `theme` → `display` → `settings` → `gifts/*`(notification/detection/sprint/recent/blindbox/blindbox-analysis/history/index)→ `metrics` → `danmaku-tool` → `ai-assistant-settings` → `todo` → `other` → `overtime` → `gift-effects` → `desktop-lyric-preview` → `desktop-lyric` → `app.js`。同一分片另加载 `<script type="module" src="/js/playback.js">` 播放助手入口。
 
 ### 3.2 初始化([app.js:18-99](../../../public/js/admin/app.js#L18-L99))
 
@@ -148,7 +148,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 |---|---|---|
 | 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 发送弹幕(`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数)、连接/账号/房间状态(`/api/bilibili/danmaku/state`,断开时可一键重连并回读新状态)、四个机器人开关(`enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`,无发送权限时禁用) |
 | 弹幕库编辑器 | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js) | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键) |
-| 小爱 AI | [xiaomi-ai-settings.js](../../../public/js/admin/xiaomi-ai-settings.js) | DeepSeek 配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`(deepseek/qweather/amap 三路连通性测试)、`/api/ai/models`(按 apiKey 拉模型列表,支持下拉选择);密钥字段渲染为 `type="password"`,已保存密钥显示 `'********'` 遮罩,提交时过滤遮罩值(保留现有密钥);700ms 自动保存 + 保存失败重试队列 |
+| AI 互动助手 | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`(deepseek/qweather/amap 三路连通性测试)、`/api/ai/models`(按 apiKey 拉模型列表,支持下拉选择);密钥字段渲染为 `type="password"`,已保存密钥显示 `'********'` 遮罩,提交时过滤遮罩值(保留现有密钥);700ms 自动保存 + 保存失败重试队列 |
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 主播计划 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 规划器**(`admin.streamerPlanner.v1`):今天/本周/本月三栏,学歌/开播准备/内容发布/直播复盘四类,进度 0-100% 五档(学歌类用"还没听熟/能跟伴奏唱/可以上播"文案),首次启动播种 6 条示例任务;模板按钮一键填充表单;不经过后端 |
 | 性能检测 | metrics.js(见 §4.6) | |
@@ -167,7 +167,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 - 所有设置键经同一个 `/api/settings` 端点(端点定义见 [api.md](../backend/api.md));DB 持久化与默认键见 [storage.md](../backend/storage.md) §7。
 - 前端不维护"已保存"标志:每次快照都回灌表单,保证多窗口/叠加层视觉一致;AI 配置等含密钥的设置**不**走通用 settings(见 [storage.md](../backend/storage.md) §3.1 `ai_configuration`)。
-- 各表单的保存节奏不同:点歌板/展示板 **180ms 防抖自动保存**(input/change),设置页**提交时保存**,桌面歌词 **500ms 自动保存**(带"读取设置中→等待→已保存"状态条与失败重试,[desktop-lyric.js:31-90](../../../public/js/admin/desktop-lyric.js#L31-L90)),小爱 AI **700ms 自动保存**。
+- 各表单的保存节奏不同:点歌板/展示板 **180ms 防抖自动保存**(input/change),设置页**提交时保存**,桌面歌词 **500ms 自动保存**(带"读取设置中→等待→已保存"状态条与失败重试,[desktop-lyric.js:31-90](../../../public/js/admin/desktop-lyric.js#L31-L90)),AI 互动助手 **700ms 自动保存**。
 - `fillForm` 的"正在编辑不覆盖"规则([forms.js:174-179](../../../public/js/admin/forms.js#L174-L179)):快照回灌时跳过 `document.activeElement`,避免用户输入被实时快照打断。
 
 ## 8. 播放助手页(playbackAssistantPage)

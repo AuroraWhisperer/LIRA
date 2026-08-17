@@ -25,7 +25,7 @@ const REVIEW_OUTPUT_TOKENS = 384;
 const DANMAKU_MESSAGE_LIMIT = 40;
 const MAX_REPLY_MESSAGES = 3;
 
-function createXiaomiAiService(dependencies) {
+function createAiAssistantService(dependencies) {
   const {
     store, deepseek, tools, sendReply, waitForDelivery, quotaStore,
     now = Date.now,
@@ -265,7 +265,7 @@ function createXiaomiAiService(dependencies) {
       const mentionTarget = {
         uid: item.uid.startsWith('name:') ? '' : item.uid,
         name: item.userName,
-        source: 'xiaomi-ai'
+        source: 'ai-assistant'
       };
       const delivery = await sendReply({
         message: currentResult.text,
@@ -478,7 +478,7 @@ function failureReply(error) {
 }
 
 module.exports = {
-  createXiaomiAiService,
+  createAiAssistantService,
   extractTriggeredQuestion,
   truncateReply,
   buildConversationInput,

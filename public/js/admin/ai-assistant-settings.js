@@ -68,7 +68,12 @@ function init() {
   };
 
   const saveConfig = async () => {
-    if (!dirty || !configLoaded || !form.checkValidity()) return !dirty;
+    if (!dirty) return true;
+    if (!configLoaded) {
+      setState(saveState, '配置尚未加载，暂时无法保存；请等待或刷新页面重试。', 'warn');
+      return false;
+    }
+    if (!form.checkValidity()) return false;
     if (saving) {
       pendingSave = true;
       await savingPromise;
@@ -373,4 +378,4 @@ function refresh() {
 }
 
 window.AdminApp = window.AdminApp || {};
-window.AdminApp.xiaomiAiSettings = { init, refresh };
+window.AdminApp.aiAssistantSettings = { init, refresh };

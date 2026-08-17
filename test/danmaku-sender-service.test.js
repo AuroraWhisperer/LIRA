@@ -107,7 +107,7 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
 test('sender service repeats an AI mention on every 40-character chunk', async () => {
   const calls = [];
   const waits = [];
-  const target = { uid: '42', name: 'Alice', source: 'xiaomi-ai' };
+  const target = { uid: '42', name: 'Alice', source: 'ai-assistant' };
   const service = createDanmakuSenderService({
     getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
     getRoom: async () => ({ roomId: '123' }),
@@ -158,7 +158,7 @@ test('sender service waits only after each AI chunk finishes before sending the 
 
   const sending = service.send({
     message: '猫'.repeat(50),
-    mentionTarget: { uid: '42', name: 'Alice', source: 'xiaomi-ai' },
+    mentionTarget: { uid: '42', name: 'Alice', source: 'ai-assistant' },
     mentionEveryChunk: true,
     intervalMs: 200
   });
@@ -190,7 +190,7 @@ test('AI chunking moves a short trailing emoticon instead of cutting through it'
 
 test('AI chunking prefers nearby punctuation without creating more than three messages', () => {
   const message = `${'甲'.repeat(28)}。${'乙'.repeat(28)}，${'丙'.repeat(28)}`;
-  const chunks = splitDanmakuEveryMentionMessage(message, { name: '哈极光dd_', source: 'xiaomi-ai' });
+  const chunks = splitDanmakuEveryMentionMessage(message, { name: '哈极光dd_', source: 'ai-assistant' });
 
   assert.equal(chunks[0], `${'甲'.repeat(28)}。`);
   assert.equal(chunks.join(''), message);

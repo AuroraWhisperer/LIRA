@@ -184,7 +184,7 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 | `result.fortuneReply` | 抽签命令接受后 | [server.js:648-655](../../../../src/server.js#L648-L655) |
 | `result.customReplyReply` | 自定义关键词命中 | [server.js:656-663](../../../../src/server.js#L656-L663) |
 
-另有一条独立发送通道:AI(DeepSeek)回复经 `xiaomiAi.sendReply` 走 `danmakuSender.send({waitForRateLimit: true})`([server.js:260-261](../../../../src/server.js#L260-L261)),见 [ai.md](../ai.md)。
+另有一条独立发送通道:AI 互动助手回复经 `aiAssistant` 走 `danmakuSender.send({waitForRateLimit: true})`([server.js:260-261](../../../../src/server.js#L260-L261)),见 [ai.md](../ai.md)。
 
 ## 8. 诊断快照与调试缓冲
 

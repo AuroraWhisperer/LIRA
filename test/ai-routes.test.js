@@ -16,7 +16,7 @@ test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys
   let saved;
   const context = {
     ai: {
-      getPublicConfig() {
+      getConfig() {
         return { model: 'deepseek-v4-flash', hasDeepSeekApiKey: true };
       },
       updateConfig(changes) { saved = changes; return { model: 'ds-v4-flash', hasDeepSeekApiKey: true }; }

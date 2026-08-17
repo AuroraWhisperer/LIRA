@@ -3,13 +3,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  createXiaomiAiService,
+  createAiAssistantService,
   extractTriggeredQuestion,
   truncateReply,
   buildReplyInstructions,
   getReplyLengthBudget,
   failureReply
-} = require('../src/ai/xiaomi-ai-service');
+} = require('../src/ai/ai-assistant-service');
 const { AI_CONFIG_DEFAULTS } = require('../src/ai/config');
 const { SYSTEM_PROMPT } = require('../src/ai/prompt');
 
@@ -99,6 +99,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
   pendingAnswers.get('第一题')({ text: '第一答', functionCalls: [], usage: {} });
   await waitUntil(() => deliveries.length === 2);
   assert.deepEqual(deliveries.map((item) => item.mentionTarget.name), ['甲', '乙']);
+  assert.ok(deliveries.every((item) => item.mentionTarget.source === 'ai-assistant'));
   assert.ok(deliveries.every((item) => item.mentionEveryChunk === true));
 });
 
@@ -616,7 +617,7 @@ function createTestService(overrides = {}) {
     getContext: () => null, setContext: () => {}, logRequest: () => {},
     ...overrides.store
   };
-  return createXiaomiAiService({
+  return createAiAssistantService({
     store,
     deepseek: overrides.deepseek || { createResponse: async () => ({ text: 'ok', functionCalls: [], usage: {} }) },
     tools: overrides.tools || { qweather: {}, amap: {}, webSearch: {}, getCurrentTime: () => ({}) },

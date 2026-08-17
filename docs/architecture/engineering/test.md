@@ -31,8 +31,8 @@
 | [ai-routes.test.js](../../../test/ai-routes.test.js) | `server/routes/ai-routes`(API 路由) | 同上 + [backend/api.md](../backend/api.md) |
 | [ai-safety.test.js](../../../test/ai-safety.test.js) | `ai/safety`(输出安全审查) | 同上 |
 | [ai-web-search-tool.test.js](../../../test/ai-web-search-tool.test.js) | `ai/tools/web-search-tool`(联网搜索工具) | 同上 |
-| [frontend-admin-ai.test.js](../../../test/frontend-admin-ai.test.js) | Admin 弹幕工具与小米 AI 配置 UI | 同上 + [frontend/app.md](../frontend/app.md) |
-| [xiaomi-ai-service.test.js](../../../test/xiaomi-ai-service.test.js) | `ai/xiaomi-ai-service`(服务编排) | 同上 |
+| [frontend-admin-ai.test.js](../../../test/frontend-admin-ai.test.js) | Admin 弹幕工具与 AI 互动助手配置 UI | 同上 + [frontend/app.md](../frontend/app.md) |
+| [ai-assistant-service.test.js](../../../test/ai-assistant-service.test.js) | `ai/ai-assistant-service`(服务编排) | 同上 |
 | **Bilibili 弹幕/协议** | | [backend/bilibili/danmaku.md](../backend/bilibili/danmaku.md) |
 | [bilibili-danmaku-send.test.js](../../../test/bilibili-danmaku-send.test.js) | `bilibili/danmaku/api-client`(发弹幕) | 同上 |
 | [bilibili-identity-cache.test.js](../../../test/bilibili-identity-cache.test.js) | `bilibili/danmaku/identity-cache`(身份缓存) | 同上 |

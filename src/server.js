@@ -139,7 +139,7 @@ function createServerRuntime(runtimeOptions = {}) {
             ...context,
             aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
             domainServices,
-            xiaomiAi: aiRuntime.service,
+            aiAssistant: aiRuntime.service,
             broadcastSnapshot,
             logGiftDelivery
           });
