@@ -59,7 +59,7 @@
 | 文件 | 职责 | 文档 |
 |---|---|---|
 | `index.js` | 模块加载入口(import 全部 admin 模块,顺序见 [app.md](app.md) §3) | [app.md](app.md) |
-| `app.js` | 应用启动:DI 注册、导航初始化、播放助手桥接、WebSocket 连接 | [app.md](app.md) §3 |
+| `app.js` | 应用启动:导航初始化、播放助手桥接、WebSocket 连接 | [app.md](app.md) §3 |
 | `state.js` | `StateService` 单例:状态快照 + WS 客户端 + `/api/state`/`/api/songs` 加载 | [comms.md](comms.md)、[app.md](app.md) §2 |
 | `queue.js` | 点歌队列 / SC 队列渲染与操作 | [app.md](app.md) §4 |
 | `songs.js` | 歌库表格、筛选(分类/语言/歌手/标签)、编辑/入队/删除 | [app.md](app.md) §4 |
@@ -100,7 +100,6 @@
 |---|---|
 | `shared/utils.js` | 全局工具 + 兼容层 `window.AdminApp.utils`(见 [comms.md](comms.md) §2) |
 | `shared/event-bus.js` | `EventBus` 单例 + `Events` 常量(见 [app.md](app.md) §2) |
-| `shared/container.js` | DI `Container` 单例(挂 `window.__DI_CONTAINER__`) |
 | `shared/logger.js` | `Logger` 单例(挂 `window.AdminApp.logger`) |
 | `shared/theme.js` | 主题配置加载(`/data/theme-presets.json`)与预设访问器 |
 | `shared/lyric-word-renderer.js` | 逐字歌词渲染器(rAF 驱动,WeSing 面板/桌面歌词预览/歌词窗口共用) |
