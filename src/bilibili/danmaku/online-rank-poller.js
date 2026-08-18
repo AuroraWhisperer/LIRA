@@ -38,6 +38,8 @@ class OnlineRankPoller {
 
   async pollOnlineRank(roomId, ruid) {
     let cachedCount = 0;
+    const onlineUids = [];
+    this.identityCache.markOnlineSnapshot([]);
 
     for (let page = 1; page <= BILIBILI_ONLINE_RANK_MAX_PAGES; page += 1) {
       const data = await this.apiClient.fetchOnlineRank(roomId, ruid, page, BILIBILI_ONLINE_RANK_PAGE_SIZE);
@@ -46,6 +48,7 @@ class OnlineRankPoller {
 
       for (const item of items) {
         const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, ruid);
+        if (userMeta.uid) onlineUids.push(userMeta.uid);
         if (this.identityCache.remember(userMeta, { currentRoom: true, source: 'online_rank' })) {
           cachedCount += 1;
         }
@@ -56,6 +59,7 @@ class OnlineRankPoller {
       if (onlineNum > 0 && page * BILIBILI_ONLINE_RANK_PAGE_SIZE >= onlineNum) break;
     }
 
+    this.identityCache.markOnlineSnapshot(onlineUids);
     this.identityCache.cleanup();
     if (cachedCount > 0) {
       console.log(`[Bilibili] online rank cached ${cachedCount} viewer identity record(s).`);

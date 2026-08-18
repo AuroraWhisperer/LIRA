@@ -10,11 +10,10 @@
     <main id="gameStage" class="game-stage">
       <div class="game-atmosphere" aria-hidden="true"><span></span><span></span><span></span></div>
       <header class="game-stage-header">
-        <div><span class="game-stage-kicker">LIVE ARCADE / <span id="gameModeLabel">ROOM GAME</span></span><h1 id="gameTitle">小游戏</h1></div>
-        <div class="game-stage-meta"><span id="gameConnection" class="game-connection">连接中</span><span id="gameTurn" class="game-turn">等待开局</span></div>
+        <div class="game-stage-meta"><span id="gameTurn" class="game-turn">等待开局</span></div>
       </header>
       <section id="numberBombView" class="game-view" hidden>
-        <div class="bomb-hero"><div><span class="game-view-eyebrow">THE HIDDEN SPARK</span><h2>数字炸弹</h2><p>安全区会越来越窄，别踩中那颗看不见的雷。</p></div><div class="bomb-range"><span>当前安全范围</span><strong id="bombRange">1 — 100</strong></div></div>
+        <div class="bomb-hero"><div><span class="game-view-eyebrow">THE HIDDEN SPARK</span><h2>数字炸弹</h2><p>安全区会越来越窄，别踩中那颗看不见的雷。</p></div><div class="bomb-range-visual" aria-hidden="true"><i></i><span></span></div></div>
         <div id="bombNumbers" class="bomb-numbers" aria-label="数字炸弹选择区"></div>
         <footer class="game-view-footer"><span id="bombHint">主播先手 · 点击一个数字</span><span id="bombHistory"></span></footer>
       </section>

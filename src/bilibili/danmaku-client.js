@@ -131,6 +131,7 @@ class BilibiliDanmakuClient {
     this.historyPoller.stop();
     this.onlineRankPoller.stop();
     this.fansMedalPoller.stop();
+    this.identityCache.markOnlineSnapshot([]);
     this.liveStatusMonitor.stop();
     if (this.messageHandlers && typeof this.messageHandlers.destroy === 'function') {
       this.messageHandlers.destroy();
@@ -152,7 +153,7 @@ class BilibiliDanmakuClient {
   }
 
   getViewerCandidates() {
-    return this.identityCache.listRecent();
+    return this.identityCache.listOnline();
   }
 
   async connect(options = {}, generation = this.connectionGeneration) {

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** Implement this plan task by task in the current worktree. Steps use checkbox (`- [ ]`) syntax for tracking. Do not create commits unless the user explicitly requests one.
 
-**Goal:** 在 LIRA 首次启动时提供一个按步骤验证的配置引导，帮助用户完成 Bilibili 直播基础配置、至少一个音乐账号登录、可选 AI 配置和直播画面接入；完成后不再自动弹出，但可从使用文档重新打开。
+**Goal:** 在 LIRA 首次启动时提供一个按步骤验证的配置引导，帮助用户完成 Bilibili 直播基础配置、了解歌单导入入口、知道各音乐平台登录位置，并按需配置 AI；完成后不再自动弹出，但可从使用文档重新打开。
 
-**Architecture:** 引导是现有 Admin 页面中的 Vanilla JS 模块和遮罩层，复用现有 `/api/settings`、`/api/ai/*`、`window.bilibiliAuth`、`window.musicAPI` 与已有地址生成逻辑。`src/storage/settings-store.js` 只增加三个字符串设置键保存引导完成版本/时间/可选跳过项；不新增 HTTP、WebSocket、IPC、数据库表、进程或运行时依赖。纯状态闸门与步骤定义独立于 DOM，Electron/Web 模式差异由能力探测处理。
+**Architecture:** 引导是现有 Admin 页面中的 Vanilla JS 模块和遮罩层，复用现有 `/api/settings`、`/api/ai/*`、`window.bilibiliAuth`、`window.musicAPI` 与点歌页已有导入/登录入口。`src/storage/settings-store.js` 只增加三个字符串设置键保存引导完成版本/时间/可选跳过项；不新增 HTTP、WebSocket、IPC、数据库表、进程或运行时依赖。纯状态闸门与步骤定义独立于 DOM，Electron/Web 模式差异由能力探测处理。
 
 **Tech Stack:** Node.js 24+、CommonJS backend、Vanilla JavaScript ES modules、原生 CSS、Electron 43、`node:test`。
 
@@ -13,7 +13,7 @@
 - 保持模块化单体、Node.js 24+、CommonJS 后端、Vanilla JS ES 模块和无构建步骤。
 - 不改变现有 HTTP 方法/路径/响应形状、WebSocket 消息、IPC 通道、Cookie 分区、`safeStorage`、`local-media://` 校验和页面 URL。
 - 不在引导层读取、记录或广播 Cookie、API Key 或其他秘密；登录与密钥保存必须调用现有边界。
-- Bilibili + 房间号是必做步骤；QQ/网易云至少完成一个；AI 和 OBS/直播姬地址是可选但必须有明确跳过/确认状态。
+- Bilibili + 房间号是必做步骤；歌单导入说明是新增的中间步骤；音乐平台登录位置说明随后进行；AI 配置是可选但必须有明确跳过状态。
 - 引导完成状态使用设置存储，不使用 localStorage 作为最终事实源；当前临时步骤不得在异常退出后伪造完成。
 - 所有用户可见异步操作必须有禁用、加载、成功和失败状态；下一步不得在闸门未满足时可点击。
 - 保留现有使用文档、功能页和登录入口；重新打开引导不得清除歌曲、队列、账号 Cookie、AI 密钥或主题。
@@ -22,10 +22,10 @@
 
 - Admin 初始化在 `public/js/admin/app.js` 中统一启动设置、使用文档和百宝箱模块。
 - Bilibili 登录只在 Electron 暴露 `window.bilibiliAuth`，已有 `getAuthState/login/logout`；Web 模式显示不可用。
-- QQ 音乐/网易云登录只在 Electron 暴露 `window.musicAPI.getAuthState/login/logout`，播放器已有登录操作。
+- QQ 音乐/网易云登录只在 Electron 暴露 `window.musicAPI.getAuthState/login/logout`，播放器已有内置登录操作；全民 K 歌账号登录由全民 K 歌宿主客户端负责，LIRA 不提供登录桥接。
 - 直播间号由 `public/js/admin/settings.js` 通过 `POST /api/settings` 保存，服务端在 `src/server/routes/settings-routes.js` 中白名单过滤并规范化 `roomId`。
 - AI 配置由 `/api/ai/config` 读写，API Key 在 `src/ai/config-store.js` 通过现有密钥编解码器保存，公开配置只返回 `hasDeepSeekApiKey`。
-- 使用文档已在 `public/pages/admin/toolbox/usage-guide.html` 提供账号登录、DeepSeek 和直播姬/OBS 说明，但没有从首次启动状态驱动的交互式步骤。
+- 使用文档已在 `public/pages/admin/toolbox/usage-guide.html` 提供账号登录、导入歌库和 DeepSeek 说明，但没有从首次启动状态驱动的交互式步骤。
 - `src/server.js#getState()` 会返回普通 settings，因此新增 onboarding 键会随现有状态快照可见；不得把秘密放入该对象。
 
 ## Ownership
@@ -42,10 +42,11 @@
 | Step | Visible goal | Completion gate | Skip policy | Next action |
 |---|---|---|---|---|
 | `welcome` | 知道引导范围和桌面版要求 | 用户点击开始 | 不适用 | 进入 Bilibili |
-| `bilibili` | 扫码登录并填写房间号 | `loggedIn`, 非空规范化房间号，点击刷新直播后连接状态不为配置缺失 | 不允许 | 进入音乐账号 |
-| `music` | 登录 QQ 或网易云至少一个 | 任一平台 `loggedIn`；另一个可显示未登录 | 可跳过但完成页标记“未完成基础音乐配置” | 进入 AI |
-| `ai` | 选择是否启用 AI 并测试 DeepSeek | 未启用可直接通过；启用要求 `hasDeepSeekApiKey`、地址/模型有效且测试成功 | 可跳过 | 进入画面 |
-| `overlay` | 选择地址并确认添加到直播软件 | 至少选一个现有地址且勾选确认 | 可跳过，完成页标记 | 进入完成 |
+| `bilibili` | 登录 Bilibili、填写房间号 | `loggedIn`、非空规范化房间号，点击刷新直播后连接状态不为配置缺失 | 不允许 | 进入歌单导入 |
+| `import` | 知道如何导入歌单 | 用户打开或确认「点歌 → 导入导出」入口及 XLSX/CSV/TSV/粘贴方式 | 不允许 | 进入音乐登录位置 |
+| `music` | 选择并了解音乐平台登录位置 | 用户选择需要了解的平台并确认说明已读；QQ/网易云说明 LIRA 播放页内置登录，全民 K 歌说明宿主客户端登录 | 不允许 | 进入 AI |
+| `ai` | 选择是否启用 AI 并测试 DeepSeek | 未启用可直接通过；启用要求 `hasDeepSeekApiKey`、地址/模型有效且测试成功 | 可跳过 | 进入完成 |
+| `docs` | 知道完整说明文档在哪里 | 用户确认已知道「百宝箱 → 使用文档」入口 | 不允许 | 进入完成 |
 | `complete` | 检查摘要和后续入口 | 用户点击完成 | 不适用 | 保存完成状态并关闭 |
 
 ## Proposed Files And Interfaces
@@ -57,7 +58,7 @@ Export these testable functions and initialize `window.AdminApp.onboarding`:
 ```js
 export const ONBOARDING_VERSION = 1;
 export const ONBOARDING_STEPS = Object.freeze([
-  'welcome', 'bilibili', 'music', 'ai', 'overlay', 'complete'
+  'welcome', 'bilibili', 'import', 'music', 'ai', 'docs', 'complete'
 ]);
 
 export function normalizeOnboardingState(input = {});
@@ -69,7 +70,7 @@ export function createOnboardingController(deps);
 export function initOnboarding();
 ```
 
-`deps` must provide `{ document, window, api, toast, showError, getAppState, localOverlayOrigin }` so the controller is testable without Electron. The controller must expose `{ open, close, reset, next, previous, refresh, getState }`; `open()` renders the current step and traps focus inside the dialog, `close()` only closes after completion or explicit “退出引导” confirmation, `reset()` clears only the three onboarding settings keys, and `next()` rejects when `getStepGate()` is false.
+`deps` must provide `{ document, window, api, toast, showError, getAppState }` so the controller is testable without Electron. The controller must expose `{ open, close, reset, next, previous, refresh, getState }`; `open()` renders the current step and traps focus inside the dialog, `close()` only closes after completion or explicit “退出引导” confirmation, `reset()` clears only the three onboarding settings keys, and `next()` rejects when `getStepGate()` is false.
 
 The controller reads auth states only through these existing methods:
 
@@ -102,7 +103,7 @@ Add one dialog fragment inside the Admin composition, with stable IDs:
 - `#liraOnboarding` (`role="dialog"`, `aria-modal="true"`, `hidden` by default)
 - `#onboardingStepContent`, `#onboardingProgress`, `#onboardingStatus`
 - `#onboardingBackBtn`, `#onboardingNextBtn`, `#onboardingSkipBtn`, `#onboardingCloseBtn`
-- action targets `#onboardingBilibiliLogin`, `#onboardingMusicQqLogin`, `#onboardingMusicNeteaseLogin`, `#onboardingBilibiliRefresh`, `#onboardingAiEnable`, `#onboardingAiTest`, `#onboardingOverlayConfirm`, `#onboardingFinishBtn`
+- action targets `#onboardingBilibiliLogin`, `#onboardingBilibiliRefresh`, `#onboardingImportOpen`, `#onboardingImportAcknowledged`, `#onboardingMusicPlatform`, `#onboardingMusicQqLogin`, `#onboardingMusicNeteaseLogin`, `#onboardingAiEnable`, `#onboardingAiTest`, `#onboardingDocsOpen`, `#onboardingDocsAcknowledged`, `#onboardingFinishBtn`
 
 The fragment must not duplicate the full settings or AI forms. It contains compact links/buttons that select the existing page/feature when a user needs advanced configuration.
 
@@ -158,17 +159,17 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 
 **Interfaces:**
 
-- Consumes: existing Admin utility `api`, `toast`, `showError`, `localOverlayOrigin`, existing state service, Bilibili/music preload bridges and AI endpoints.
+  - Consumes: existing Admin utility `api`, `toast`, `showError`, existing state service, Bilibili/music preload bridges and AI endpoints.
 - Produces: exported gate helpers and `window.AdminApp.onboarding` controller described above.
 
-- [ ] Write failing unit tests for: Bilibili gate rejection without desktop bridge; room ID normalization requirement; music gate requiring QQ or NetEase; AI disabled/enabled branches; overlay confirmation; completed-version suppression; next/previous bounds; optional skip tracking.
+- [ ] Write failing unit tests for: Bilibili gate rejection without desktop bridge; room ID normalization requirement; import acknowledgment; music platform-location acknowledgment; Quanmin host-login copy; AI disabled/enabled branches; documentation-location acknowledgment; completed-version suppression; next/previous bounds; optional skip tracking.
 - [ ] Run `node --test test/onboarding.test.js` and confirm the helpers/controller are missing or fail.
 - [ ] Implement immutable step definitions, `normalizeOnboardingState`, `getStepGate`, `getNextStep`, `isOnboardingComplete` and `getIncompleteOptionalSteps` before adding DOM behavior.
 - [ ] Implement event handlers with an operation token or disabled buttons so double clicks cannot start two login/save/test requests.
 - [ ] Implement `open`, `close`, `reset`, `next`, `previous`, `refresh`, focus restoration and `aria` updates. Do not use `innerHTML` for untrusted account names, model errors or server messages; use `textContent`.
 - [ ] Run `node --test test/onboarding.test.js` and confirm all pure/controller tests pass.
 
-### Task 3: Compose the overlay and visual states
+### Task 3: Compose the onboarding dialog and visual states
 
 **Files:**
 
@@ -190,7 +191,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - [ ] Import and initialize the module without delaying state/WebSocket startup.
 - [ ] Run the focused shell test and `npm run check`.
 
-### Task 4: Wire real login, room, AI and overlay actions
+### Task 4: Wire real login, room, import guidance and AI actions
 
 **Files:**
 
@@ -202,14 +203,15 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 
 **Interfaces:**
 
-- Consumes existing `window.bilibiliAuth`, `window.musicAPI`, `/api/settings`, `/api/ai/config`, `/api/ai/test/deepseek` and overlay URL builders.
+- Consumes existing `window.bilibiliAuth`, `window.musicAPI`, `/api/settings`, `/api/ai/config`, `/api/ai/test/deepseek`, the existing song import tab and player login controls.
 - Produces the user route in this plan without changing any provider or IPC contract.
 
-- [ ] Add tests for successful Bilibili login + room save + refresh, one-provider music completion, AI test failure retention, explicit optional skip, and completion persistence.
+- [ ] Add tests for successful Bilibili login + room save + refresh, import acknowledgment, selected music-platform location copy, Quanmin host-login distinction, AI test failure retention, documentation-location acknowledgment, explicit optional skip, and completion persistence.
 - [ ] Implement Bilibili login action followed by auth-state refresh; save room ID before calling the existing reconnect action.
-- [ ] Implement QQ/NetEase login buttons independently; show both statuses without exposing cookie names or values.
+- [ ] Implement the music step as a platform selector. For QQ/NetEase, show the existing in-app login button/location and optionally refresh status without making login a gate. For Quanmin K-Ge, show only the host-app login instruction and never call `window.musicAPI.login('wesing')`.
 - [ ] Implement AI enable toggle, config save/test and a password input. A failed test leaves the step incomplete and keeps the user-entered key only in the request body until the existing server response returns.
-- [ ] Implement overlay selection from existing generated URLs and a required confirmation checkbox; do not attempt to call OBS/直播姬 or create a new URL contract.
+- [ ] Implement the import step as a link to the existing `点歌 → 导入导出` tab and a confirmation that the user knows how to upload XLSX/CSV/TSV or paste a table; do not copy the parser or invent an import endpoint.
+- [ ] Implement the documentation step as a link/selection to `百宝箱 → 使用文档`, a concise explanation of what that page contains, and a confirmation checkbox; do not duplicate the full guide inside the dialog.
 - [ ] Add the usage-guide reopen action and verify it does not reset completion automatically.
 - [ ] Run `node --test test/onboarding.test.js test/frontend-admin-shell.test.js test/ai-routes.test.js`.
 
@@ -246,7 +248,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - [ ] Run `node --test test/onboarding.test.js test/frontend-admin-shell.test.js test/settings-store.test.js`.
 - [ ] Run `npm run check` and `npm run verify:quick`.
 - [ ] Start the app with `npm start` or `npm run desktop` and verify first-run behavior at desktop width and narrow width: scrim covers the app, focus stays in the dialog, disabled Next cannot advance, errors remain readable, and no content overlaps.
-- [ ] Verify Electron: Bilibili, QQ and NetEase login buttons open only their existing allowed windows; Web mode clearly reports desktop-only actions.
+- [ ] Verify Electron: Bilibili, QQ and NetEase login buttons open only their existing allowed windows; Quanmin K-Ge is described as a host-app login; Web mode clearly reports desktop-only actions.
 - [ ] Verify refresh, app restart, manual reopen, optional skip and reset; ensure no secret appears in `/api/state`, WebSocket snapshots, DOM status text or logs.
 - [ ] Run `npm test`, `npm run verify`, `git diff --check`, and `git status --short`; inspect that only planned files changed and no `data/`, `logs/`, `tmp/` or `release/` output is included.
 
@@ -256,8 +258,8 @@ If a login bridge, API test or browser check fails, leave the current step open 
 
 ## Done When
 
-- First-run Admin shows the six-step route and cannot advance past an unmet required gate.
-- Bilibili login + room ID and at least one music login are actually verified through existing status APIs; AI and overlay steps have explicit optional/confirmation states.
+- First-run Admin shows the welcome, Bilibili, import, music-location, AI, documentation-location and completion route and cannot advance past an unmet required gate.
+- Bilibili login + room ID are actually verified through existing status APIs; the import step explains the existing location; the music step distinguishes QQ/NetEase in-app login from Quanmin host-app login; the documentation step points to `百宝箱 → 使用文档`; AI has an explicit optional state.
 - Completion persists across refresh and restart; manual reopen/reset affects only onboarding keys.
 - No new process, dependency, HTTP/WS/IPC contract, database table, secret exposure or login-window security relaxation is introduced.
 - Focused tests, syntax, quick verification and full test gate pass; desktop/Web visual and mode checks pass.

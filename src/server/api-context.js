@@ -159,7 +159,7 @@ function createGamesContext(games = {}) {
     start: service.start,
     stop: service.stop,
     move: service.move,
-    listViewers: () => mergeViewerCandidates(service.listViewers(), listOnlineViewers())
+    listViewers: () => mergeViewerCandidates(listOnlineViewers())
   };
 }
 

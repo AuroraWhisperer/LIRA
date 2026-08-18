@@ -18,6 +18,7 @@ class IdentityCache {
     this.identityByUid = new Map();
     this.identityByName = new Map();
     this.recentByUid = new Map();
+    this.onlineUids = new Set();
   }
 
   resolve(input) {
@@ -110,6 +111,18 @@ class IdentityCache {
       })
       .map(publicRequesterIdentity)
       .sort((left, right) => right.seenAt - left.seenAt);
+  }
+
+  markOnlineSnapshot(uids = []) {
+    this.onlineUids = new Set(uids.map(uid => cleanText(uid)).filter(Boolean));
+  }
+
+  listOnline() {
+    return [...this.onlineUids]
+      .map(uid => this.identityByUid.get(uid) || this.recentByUid.get(uid))
+      .filter(Boolean)
+      .map(publicRequesterIdentity)
+      .sort((left, right) => left.userName.localeCompare(right.userName, 'zh-CN'));
   }
 }
 

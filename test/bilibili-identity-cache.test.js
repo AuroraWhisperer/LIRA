@@ -102,3 +102,13 @@ test('fans snapshot does not override identity captured from the point-song danm
   assert.equal(identity.medalName, 'imilly');
   assert.equal(identity.medalLevel, 28);
 });
+
+test('online viewer candidates only include the latest online snapshot', () => {
+  const cache = new IdentityCache();
+  cache.remember({ uid: '1', userName: 'Online', currentRoom: true }, { currentRoom: true, source: 'online_rank' });
+  cache.remember({ uid: '2', userName: 'Recent', currentRoom: true }, { currentRoom: true, source: 'danmaku' });
+  cache.markOnlineSnapshot(['1']);
+  assert.deepEqual(cache.listOnline().map(viewer => viewer.uid), ['1']);
+  cache.markOnlineSnapshot([]);
+  assert.deepEqual(cache.listOnline(), []);
+});

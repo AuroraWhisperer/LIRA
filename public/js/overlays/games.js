@@ -9,8 +9,6 @@ let reconnectAttempts = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
   document.body.dataset.game = game;
-  byId('gameTitle').textContent = game === 'gomoku' ? '五子棋' : '数字炸弹';
-  byId('gameModeLabel').textContent = game === 'gomoku' ? 'GOMOKU TABLE' : 'NUMBER BOMB';
   renderGame(session);
   loadSnapshot();
   connectSocket();
@@ -21,21 +19,20 @@ async function loadSnapshot() {
     const response = await fetch('/api/games/session');
     const payload = await response.json();
     if (payload.ok) renderGame(payload.data);
-  } catch (_) { setConnection('重试连接'); }
+  } catch (_) { byId('gameTurn').textContent = '等待连接'; }
 }
 
 function connectSocket() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
   socket = new WebSocket(`${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`);
-  socket.addEventListener('open', () => { reconnectAttempts = 0; setConnection('实时连接'); });
+  socket.addEventListener('open', () => { reconnectAttempts = 0; });
   socket.addEventListener('message', event => {
     const payload = JSON.parse(event.data);
     if (payload.type === 'game:update') renderGame(payload.session);
     if (payload.type === 'snapshot') renderGame(payload.state?.games || session);
   });
   socket.addEventListener('close', () => {
-    setConnection('连接中断');
     const delay = Math.min(30000, 800 * (2 ** Math.min(reconnectAttempts, 6)));
     reconnectAttempts += 1;
     clearTimeout(reconnectTimer);
@@ -56,7 +53,6 @@ function renderGame(nextSession) {
 }
 
 function renderBomb(state) {
-  byId('bombRange').textContent = `${state.min} — ${state.max}`;
   byId('bombHint').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}先选一个数字`;
   byId('bombHistory').textContent = state.lastGuess ? `上次：${state.lastGuess}` : '尚未落子';
   const root = byId('bombNumbers');
@@ -64,7 +60,8 @@ function renderBomb(state) {
   for (let value = 1; value <= 100; value += 1) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'bomb-number';
+    const isSafe = value >= state.min && value <= state.max;
+    button.className = `bomb-number ${isSafe ? 'is-safe' : 'is-unsafe'}`;
     button.textContent = String(value);
     button.disabled = value < state.min || value > state.max || Boolean(state.winner) || state.turn !== 'host';
     if (value === state.lastGuess) button.classList.add('last');
@@ -96,11 +93,10 @@ async function submitMove(value) {
     const response = await fetch('/api/games/session/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value }) });
     const payload = await response.json();
     if (payload.ok) renderGame(payload.data);
-  } catch (_) { setConnection('操作失败'); }
+  } catch (_) { byId('gameTurn').textContent = '操作失败'; }
 }
 
 function coordinateLabel(move) { return `${String.fromCharCode(65 + Number(move.column))}${Number(move.row) + 1}`; }
 function turnLabel(turn) { return turn === 'viewer' ? '观众' : '主播'; }
 function winnerLabel(winner) { return winner === 'draw' ? '和棋' : `${winner === 'viewer' ? '观众' : '主播'}获胜`; }
-function setConnection(label) { byId('gameConnection').textContent = label; }
 function byId(id) { return document.getElementById(id); }

@@ -8,9 +8,6 @@ let currentSession = null;
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
-  byId('gamesOverlayUrl').value = overlayBaseUrl();
-  byId('gamesCopyBaseUrlBtn').addEventListener('click', () => copyUrl(overlayBaseUrl()));
-  byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayUrl(currentSession?.game || 'number-bomb'), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => refreshViewers().catch(showError));
   byId('gamesStopBtn').addEventListener('click', () => stopGame().catch(showError));
   byId('numberBombMode').addEventListener('change', syncViewerMode);
@@ -30,7 +27,7 @@ async function refreshViewers() {
   const payload = await readJsonResponse(response, '读取在线观众失败');
   if (!payload.ok) throw new Error(payload.error || '读取在线观众失败');
   for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), payload.data || []);
-  toast(`已找到 ${(payload.data || []).length} 位最近在线观众`);
+  toast(`已找到 ${(payload.data || []).length} 位当前在线观众`);
 }
 
 function renderViewerOptions(select, viewers) {
@@ -38,13 +35,13 @@ function renderViewerOptions(select, viewers) {
   select.replaceChildren();
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = viewers.length ? '请选择观众' : '暂无可选观众（等待弹幕）';
+  placeholder.textContent = viewers.length ? '请选择观众' : '暂无当前在线观众';
   select.append(placeholder);
   for (const viewer of viewers) {
     const option = document.createElement('option');
     option.value = viewer.uid;
     option.dataset.name = viewer.name;
-    option.textContent = `${viewer.name} · UID ${viewer.uid}`;
+    option.textContent = viewer.name;
     select.append(option);
   }
   if ([...select.options].some(option => option.value === previous)) select.value = previous;
@@ -92,7 +89,7 @@ function renderSession(session) {
     return;
   }
   const gameName = session.game === 'gomoku' ? '五子棋' : '数字炸弹';
-  const opponent = session.mode === 'multi' ? '不限观众' : (session.targetName || `UID ${session.targetUid}`);
+  const opponent = session.mode === 'multi' ? '不限观众' : (session.targetName || '指定观众');
   status.textContent = `${gameName}进行中 · ${opponent}`;
 }
 

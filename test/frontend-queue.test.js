@@ -195,8 +195,8 @@ test('identity queue keeps song and requester fields in one continuous stream', 
   assert.doesNotMatch(row, /identity-song-wrapper|identity-details-wrapper|identity-details/);
   assert.match(
     row,
-    /identity-requester">[^<]*<\/span>\s*<\/span>\s*<\/span>\s*<span class="identity-badge[^"]*">[^<]*<\/span>\s*<span class="identity-medal">/,
-    'badge and medal stay pinned outside the fading scroll wrapper so the right-edge mask never covers them'
+    /identity-requester">[^<]*<\/span>\s*<span class="identity-badge[^"]*">[^<]*<\/span>\s*<span class="identity-medal">[^<]*<\/span>\s*<\/span>\s*<\/span>/,
+    'badge and medal stay inside the same fading scroll wrapper as the song and requester'
   );
   const contentWrapperRule = overlayStyles.match(/\.identity-content-wrapper\s*\{[^}]*\}/)?.[0];
   const contentRule = overlayStyles.match(/\.identity-content\s*\{[^}]*\}/)?.[0];

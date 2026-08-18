@@ -16,22 +16,6 @@
                   <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
                 </header>
 
-                <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
-                  <div>
-                    <span class="games-link-label">OBS / 直播姬浏览器源</span>
-                    <strong id="gamesLinkTitle">一个页面承载两款游戏</strong>
-                    <p>推荐尺寸 1280 × 720；在链接后选择对应游戏。</p>
-                  </div>
-                  <label class="games-link-field">
-                    <span>网页链接</span>
-                    <input id="gamesOverlayUrl" type="text" readonly>
-                  </label>
-                  <div class="games-link-actions">
-                    <button id="gamesCopyBaseUrlBtn" class="primary" type="button">复制网页链接</button>
-                    <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开网页</button>
-                  </div>
-                </section>
-
                 <section class="games-catalog" aria-label="小游戏列表">
                   <article class="game-admin-card is-bomb" data-game-card="number-bomb">
                     <div class="game-card-poster" aria-hidden="true"><span>01</span><strong>1—100</strong><i></i></div>
@@ -49,7 +33,7 @@
                           </select>
                         </label>
                         <label data-viewer-picker="number-bomb">对战观众
-                          <select id="numberBombViewer"><option value="">等待刷新在线观众</option></select>
+                          <select id="numberBombViewer"><option value="">等待刷新当前在线观众</option></select>
                         </label>
                       </div>
                       <div class="game-card-actions">
@@ -58,6 +42,14 @@
                       </div>
                     </div>
                   </article>
+
+                  <footer class="games-admin-footer">
+                    <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
+                    <div>
+                      <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新当前在线观众</button>
+                      <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
+                    </div>
+                  </footer>
 
                   <article class="game-admin-card is-gomoku" data-game-card="gomoku">
                     <div class="game-card-poster" aria-hidden="true"><span>02</span><strong>A1—O15</strong><i></i></div>
@@ -70,7 +62,7 @@
                       <div class="game-config-grid is-single">
                         <label>观众输入示例<input type="text" value="B2" readonly></label>
                         <label>对战观众
-                          <select id="gomokuViewer"><option value="">等待刷新在线观众</option></select>
+                          <select id="gomokuViewer"><option value="">等待刷新当前在线观众</option></select>
                         </label>
                       </div>
                       <div class="game-card-actions">
@@ -81,12 +73,5 @@
                   </article>
                 </section>
 
-                <footer class="games-admin-footer">
-                  <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
-                  <div>
-                    <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新在线观众</button>
-                    <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
-                  </div>
-                </footer>
               </div>
             </section>
