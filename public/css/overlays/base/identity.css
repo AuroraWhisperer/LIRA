@@ -307,7 +307,7 @@
 .identity-badge,
 .identity-medal {
   flex: 0 0 auto;
-  height: max(16px, 1.15em);
+  height: max(17.6px, 1.265em);
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;

@@ -598,6 +598,8 @@ test('song request and display board forms autosave every parameter change', () 
   assert.match(themeSource, /themeForm\.addEventListener\('change', autosaveTheme\)/);
   assert.match(displaySource, /displayForm\.addEventListener\('input', autosaveDisplay\)/);
   assert.match(displaySource, /displayForm\.addEventListener\('change', autosaveDisplay\)/);
+  assert.match(displaySource, /await copyText\(url\)/);
+  assert.doesNotMatch(displaySource, /navigator\.clipboard\.writeText\(url\)/);
 
   assert.match(themeSource, /classicPresets[\s\S]*?await saveTheme\(\)/);
   assert.match(themeSource, /quickBeautifyBtn[\s\S]*?await saveTheme\(\)/);

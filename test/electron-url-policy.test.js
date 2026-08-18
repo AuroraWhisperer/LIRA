@@ -4,7 +4,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { isAllowedExternal, isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
+const { isAllowedExternal, isAllowedLocalUrl, isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
 
 describe('external-url-policy', () => {
   describe('isAllowedExternal', () => {
@@ -108,6 +108,21 @@ describe('external-url-policy', () => {
     it('allows nested subdomains', () => {
       assert.strictEqual(isAllowedLoginNavigation('https://a.b.c.example.com', testDomains), true);
       assert.strictEqual(isAllowedLoginNavigation('https://deep.sub.bilibili.com', testDomains), true);
+    });
+  });
+
+  describe('isAllowedLocalUrl', () => {
+    it('allows local HTTP overlay URLs', () => {
+      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1/overtime'), true);
+      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1:4312/overtime?quality=low'), true);
+    });
+
+    it('rejects non-loopback or credential-bearing URLs', () => {
+      assert.strictEqual(isAllowedLocalUrl('http://localhost/overtime'), false);
+      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.2/overtime'), false);
+      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1.evil.example/overtime'), false);
+      assert.strictEqual(isAllowedLocalUrl('http://user:pass@127.0.0.1/overtime'), false);
+      assert.strictEqual(isAllowedLocalUrl('https://127.0.0.1/overtime'), false);
     });
   });
 });

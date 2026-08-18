@@ -23,7 +23,7 @@ const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const serverRuntimeModule = require('../server');
 const { redactCredentials } = require('../shared/log-redaction');
-const { isAllowedExternal } = require('./external-url-policy');
+const { isAllowedExternal, isAllowedLocalUrl } = require('./external-url-policy');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
@@ -292,7 +292,7 @@ function createMainWindow(baseUrl) {
   });
 
   windowState.main.webContents.setWindowOpenHandler(function (detail) {
-    if (isAllowedExternal(detail.url)) {
+    if (isAllowedExternal(detail.url) || isAllowedLocalUrl(detail.url)) {
       shell.openExternal(detail.url);
     }
     return { action: 'deny' };
@@ -303,7 +303,7 @@ function createMainWindow(baseUrl) {
     var base = new URL(baseUrl);
     if (parsed && parsed.protocol === base.protocol && parsed.hostname === base.hostname && parsed.port === base.port) return;
     event.preventDefault();
-    if (isAllowedExternal(url)) {
+    if (isAllowedExternal(url) || isAllowedLocalUrl(url)) {
       shell.openExternal(url);
     }
   });

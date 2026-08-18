@@ -7,6 +7,7 @@
     value,
     setValue,
     localOverlayOrigin,
+    copyText,
     toast,
     api,
     debounce
@@ -138,8 +139,13 @@
     document.querySelectorAll('[data-copy-url]').forEach((button) => {
       button.addEventListener('click', async () => {
         const url = document.getElementById(button.dataset.copyUrl).textContent;
-        await navigator.clipboard.writeText(url);
-        toast('直播画面地址已复制');
+        try {
+          await copyText(url);
+          toast('直播画面地址已复制');
+        } catch (error) {
+          toast(error?.message || '复制失败，请手动复制地址');
+          prompt('复制以下地址：', url);
+        }
       });
     });
   }

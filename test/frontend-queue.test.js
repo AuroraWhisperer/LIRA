@@ -114,7 +114,7 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.ok(identityBlockRule);
   assert.ok(medalRule);
   assert.match(identityBlockRule, /font-size:\s*75%/);
-  assert.match(identityBlockRule, /height:\s*max\(16px,\s*1\.15em\)/);
+  assert.match(identityBlockRule, /height:\s*max\(17\.6px,\s*1\.265em\)/);
   assert.match(identityBlockRule, /padding:\s*0\s+0\.24em/);
   assert.match(identityBlockRule, /border-radius:\s*max\(3px,\s*0\.15em\)/);
   assert.doesNotMatch(identityBlockRule, /overlay-font-scale/);
