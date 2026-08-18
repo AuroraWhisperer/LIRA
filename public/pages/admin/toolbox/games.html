@@ -16,6 +16,30 @@
                   <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
                 </header>
 
+                <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
+                  <div>
+                    <span class="games-link-label">OBS / 直播姬浏览器源</span>
+                    <strong id="gamesLinkTitle">固定游戏链接</strong>
+                    <p>复制一次即可；游戏切换会在同一个页面自动显示。</p>
+                  </div>
+                  <label class="games-link-field">
+                    <span>网页链接</span>
+                    <input id="gamesOverlayUrl" type="text" readonly>
+                  </label>
+                  <div class="games-link-actions">
+                    <button id="gamesCopyBaseUrlBtn" class="primary" type="button">复制网页链接</button>
+                    <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开网页</button>
+                  </div>
+                </section>
+
+                <footer class="games-admin-footer">
+                  <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
+                  <div>
+                    <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新当前在线观众</button>
+                    <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
+                  </div>
+                </footer>
+
                 <section class="games-catalog" aria-label="小游戏列表">
                   <article class="game-admin-card is-bomb" data-game-card="number-bomb">
                     <div class="game-card-poster" aria-hidden="true"><span>01</span><strong>1—100</strong><i></i></div>
@@ -38,18 +62,9 @@
                       </div>
                       <div class="game-card-actions">
                         <button class="primary" type="button" data-start-game="number-bomb">开始数字炸弹</button>
-                        <button class="secondary" type="button" data-copy-game="number-bomb">复制专用链接</button>
                       </div>
                     </div>
                   </article>
-
-                  <footer class="games-admin-footer">
-                    <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
-                    <div>
-                      <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新当前在线观众</button>
-                      <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
-                    </div>
-                  </footer>
 
                   <article class="game-admin-card is-gomoku" data-game-card="gomoku">
                     <div class="game-card-poster" aria-hidden="true"><span>02</span><strong>A1—O15</strong><i></i></div>
@@ -67,11 +82,9 @@
                       </div>
                       <div class="game-card-actions">
                         <button class="primary" type="button" data-start-game="gomoku">开始五子棋</button>
-                        <button class="secondary" type="button" data-copy-game="gomoku">复制专用链接</button>
                       </div>
                     </div>
                   </article>
                 </section>
-
               </div>
             </section>

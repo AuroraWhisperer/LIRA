@@ -204,6 +204,7 @@ test('identity queue keeps song and requester fields in one continuous stream', 
   assert.ok(contentRule);
   assert.match(contentWrapperRule, /flex:\s*1 1 auto/);
   assert.match(contentWrapperRule, /overflow:\s*hidden/);
+  assert.doesNotMatch(contentWrapperRule, /mask-image/);
   assert.match(contentRule, /display:\s*inline-flex/);
   assert.match(contentRule, /min-width:\s*max-content/);
   assert.match(contentRule, /gap:\s*max\(4px,\s*0\.3em\)/);

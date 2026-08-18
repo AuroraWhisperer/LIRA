@@ -21,7 +21,8 @@ const routes = {
       }
       sendJson(res, 200, { ok: true, data: context.games.start(normalizeSessionInput(body)) });
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message || '无法开始游戏。' });
+      const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;
+      sendJson(res, status, { ok: false, error: error.message || '无法开始游戏。' });
     }
   },
   async 'POST /api/games/session/move'(context, request, res) {

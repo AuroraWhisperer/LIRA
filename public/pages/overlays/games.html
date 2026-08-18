@@ -4,26 +4,27 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260818-01">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260818-03">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
-      <div class="game-atmosphere" aria-hidden="true"><span></span><span></span><span></span></div>
       <header class="game-stage-header">
         <div class="game-stage-meta"><span id="gameTurn" class="game-turn">等待开局</span></div>
       </header>
       <section id="numberBombView" class="game-view" hidden>
-        <div class="bomb-hero"><div><span class="game-view-eyebrow">THE HIDDEN SPARK</span><h2>数字炸弹</h2><p>安全区会越来越窄，别踩中那颗看不见的雷。</p></div><div class="bomb-range-visual" aria-hidden="true"><i></i><span></span></div></div>
+        <div class="bomb-hero"><h2>数字炸弹</h2></div>
         <div id="bombNumbers" class="bomb-numbers" aria-label="数字炸弹选择区"></div>
         <footer class="game-view-footer"><span id="bombHint">主播先手 · 点击一个数字</span><span id="bombHistory"></span></footer>
       </section>
       <section id="gomokuView" class="game-view gomoku-view" hidden>
-        <div class="gomoku-hero"><div><span class="game-view-eyebrow">BLACK × WHITE</span><h2>五子棋</h2><p>主播执黑点击棋盘，观众弹幕输入坐标落子。</p></div><div class="gomoku-legend"><span><i class="stone black"></i>主播</span><span><i class="stone white"></i>观众</span></div></div>
-        <div class="gomoku-board-wrap"><div id="gomokuLabels" class="gomoku-labels" aria-hidden="true"></div><div id="gomokuBoard" class="gomoku-board" aria-label="五子棋棋盘"></div></div>
-        <footer class="game-view-footer"><span id="gomokuHint">主播先手 · 点击棋盘落子</span><span id="gomokuLastMove"></span></footer>
+        <div class="gomoku-board-wrap">
+          <div id="gomokuColumnLabels" class="gomoku-column-labels" aria-hidden="true"></div>
+          <div id="gomokuRowLabels" class="gomoku-row-labels" aria-hidden="true"></div>
+          <div id="gomokuBoard" class="gomoku-board" aria-label="五子棋棋盘"></div>
+        </div>
       </section>
-      <section id="gameEmptyView" class="game-empty" hidden><span>LIVE ARCADE</span><strong>等待主播开局</strong><p>游戏开始后，这里会变成直播间的互动棋盘。</p></section>
+      <section id="gameEmptyView" class="game-empty" hidden><strong>等待主播开局</strong></section>
     </main>
-    <script src="/js/overlays/games.js?v=20260818-01"></script>
+    <script src="/js/overlays/games.js?v=20260818-03"></script>
   </body>
 </html>

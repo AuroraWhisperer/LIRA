@@ -23,6 +23,11 @@ function createGameSessionService(options = {}) {
   }
 
   function start(input = {}) {
+    if (session) {
+      const error = new Error('已有游戏正在进行，请先结束当前游戏。');
+      error.statusCode = 409;
+      throw error;
+    }
     const game = input.game === 'gomoku' ? 'gomoku' : 'number-bomb';
     const mode = input.mode === 'multi' ? 'multi' : 'single';
     const targetUid = String(input.targetUid || '').trim();

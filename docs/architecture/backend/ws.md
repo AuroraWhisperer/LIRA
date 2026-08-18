@@ -58,7 +58,7 @@
 | `wesing-state` | `{type:'wesing-state', state}` | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184)) |
 | `overtime:update` | `{type, reason, state, adjustment?}` | 加班机状态变更([server.js:148-153](../../../src/server.js#L148-L153)),`adjustment` 仅礼物结算时携带 |
 | `shutdown` | `{type:'shutdown', reason:'manual'}` | 服务关闭前(`webSocketHub.stop` 的 `shutdownPayload`,见 §1) |
-| `game:update` | `{type:'game:update', session}` | 小游戏会话开始、停止或落子；Admin 与 `/games` 浏览器源消费 |
+| `game:update` | `{type:'game:update', session}` | 小游戏会话开始、停止或落子；Admin 与固定 `/games` 浏览器源消费，浏览器源按 `session.game` 切换画面 |
 
 ### 3.1 `snapshot` 的 reason 枚举
 

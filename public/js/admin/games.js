@@ -3,19 +3,20 @@
 import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 
 let initialized = false;
-let currentSession = null;
 
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
+  byId('gamesOverlayUrl').value = overlayBaseUrl();
+  byId('gamesCopyBaseUrlBtn').addEventListener('click', () => copyUrl(overlayBaseUrl()));
+  byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => refreshViewers().catch(showError));
   byId('gamesStopBtn').addEventListener('click', () => stopGame().catch(showError));
   byId('numberBombMode').addEventListener('change', syncViewerMode);
   document.querySelectorAll('[data-start-game]').forEach(button => button.addEventListener('click', () => {
-    startGame(button.dataset.startGame).catch(showError);
-  }));
-  document.querySelectorAll('[data-copy-game]').forEach(button => button.addEventListener('click', () => {
-    copyUrl(overlayUrl(button.dataset.copyGame));
+    startGame(button.dataset.startGame).catch(async () => {
+      await refreshSession().catch(() => {});
+    });
   }));
   window.addEventListener('app:game-update', event => renderSession(event.detail));
   syncViewerMode();
@@ -66,7 +67,6 @@ async function startGame(game) {
     targetName: mode === 'multi' ? '直播间观众' : (option?.dataset.name || '')
   });
   renderSession(result.data);
-  window.open(overlayUrl(game), '_blank', 'noopener');
   toast(`${game === 'gomoku' ? '五子棋' : '数字炸弹'}已开始`);
 }
 
@@ -77,10 +77,13 @@ async function stopGame() {
 }
 
 function renderSession(session) {
-  currentSession = session || null;
   const status = byId('gamesSessionStatus');
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
+  document.querySelectorAll('[data-start-game]').forEach(button => {
+    button.disabled = Boolean(session);
+    button.setAttribute('aria-disabled', String(Boolean(session)));
+  });
   document.querySelectorAll('[data-game-card]').forEach(card => {
     card.classList.toggle('is-running', card.dataset.gameCard === session?.game);
   });
@@ -103,10 +106,6 @@ function syncViewerMode() {
 async function copyUrl(url) {
   await copyText(url);
   toast('游戏网页地址已复制');
-}
-
-function overlayUrl(game) {
-  return `${localOverlayOrigin()}/games?game=${encodeURIComponent(game)}`;
 }
 
 function overlayBaseUrl() {

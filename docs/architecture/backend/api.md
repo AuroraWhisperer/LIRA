@@ -400,7 +400,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 行为文档:[bilibili/danmaku.md](bilibili/danmaku.md)。
 # 小游戏 API
 
-`GET /api/games/viewers` 返回最近捕捉到的直播间观众候选；
+`GET /api/games/viewers` 返回当前在线快照中的直播间观众候选；
 `GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置）；
-`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，或接受 `{action:"stop"}` 结束会话；
+`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
 `POST /api/games/session/move` 接受主播的 `{value}` 落子。所有端点沿用现有 session token 与 `{ok,data}` 信封。

@@ -1,14 +1,11 @@
 'use strict';
 
-const params = new URLSearchParams(location.search);
-const game = params.get('game') === 'gomoku' ? 'gomoku' : 'number-bomb';
 let session = null;
 let socket = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.dataset.game = game;
   renderGame(session);
   loadSnapshot();
   connectSocket();
@@ -30,7 +27,7 @@ function connectSocket() {
   socket.addEventListener('message', event => {
     const payload = JSON.parse(event.data);
     if (payload.type === 'game:update') renderGame(payload.session);
-    if (payload.type === 'snapshot') renderGame(payload.state?.games || session);
+    if (payload.type === 'snapshot') renderGame(payload.state?.games || null);
   });
   socket.addEventListener('close', () => {
     const delay = Math.min(30000, 800 * (2 ** Math.min(reconnectAttempts, 6)));
@@ -41,7 +38,9 @@ function connectSocket() {
 }
 
 function renderGame(nextSession) {
-  session = nextSession && nextSession.game === game ? nextSession : null;
+  session = nextSession || null;
+  const game = nextSession?.game || '';
+  document.body.dataset.game = game;
   byId('gameEmptyView').hidden = Boolean(session);
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
@@ -71,8 +70,7 @@ function renderBomb(state) {
 }
 
 function renderGomoku(state) {
-  byId('gomokuHint').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}先落子`;
-  byId('gomokuLastMove').textContent = state.lastMove ? `最近：${coordinateLabel(state.lastMove)}` : '尚未落子';
+  renderGomokuCoordinates(state.size);
   const root = byId('gomokuBoard');
   root.replaceChildren();
   for (let row = 0; row < state.size; row += 1) {
@@ -85,6 +83,21 @@ function renderGomoku(state) {
       button.addEventListener('click', () => submitMove(coordinateLabel({ row, column })));
       root.append(button);
     }
+  }
+}
+
+function renderGomokuCoordinates(size) {
+  const columns = byId('gomokuColumnLabels');
+  const rows = byId('gomokuRowLabels');
+  columns.replaceChildren();
+  rows.replaceChildren();
+  for (let index = 0; index < size; index += 1) {
+    const column = document.createElement('span');
+    column.textContent = String.fromCharCode(65 + index);
+    columns.append(column);
+    const row = document.createElement('span');
+    row.textContent = String(index + 1);
+    rows.append(row);
   }
 }
 

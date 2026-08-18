@@ -271,8 +271,6 @@
   min-width: 0;
   overflow: hidden;
   position: relative;
-  mask-image: linear-gradient(to right, black 90%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
 }
 
 .identity-content {
@@ -407,4 +405,3 @@
 .overlay-panel.low-power .identity-pin-row {
   text-shadow: none;
 }
-
