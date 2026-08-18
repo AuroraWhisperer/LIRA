@@ -26,4 +26,5 @@ import './overtime.js';
 import './gift-effects.js';
 import './desktop-lyric-preview.js';
 import './desktop-lyric.js';
+import './games.js';
 import './app.js';

@@ -720,6 +720,72 @@ test('forced playback states bypass throttling and preserve publication order', 
   assert.equal(stateRequests[1].lineText, '跳转后');
 });
 
+test('lyric states carry monotonic generation and sequence discontinuity markers', () => {
+  const first = normalizeLyricState({ lineText: 'first', generation: 3, sequence: 7 });
+  const legacy = normalizeLyricState({ lineText: 'legacy' });
+  assert.equal(first.generation, 3);
+  assert.equal(first.sequence, 7);
+  assert.equal(legacy.generation, 0);
+  assert.equal(legacy.sequence, 0);
+});
+
+test('ordinary lyric publication is latest-wins while one request is in flight', async () => {
+  const requests = [];
+  let releaseFirst;
+  const playback = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
+    {
+      fetch: async (url, options) => {
+        if (url === '/api/playback/lyric-timeline') return { ok: true };
+        requests.push(JSON.parse(options.body));
+        if (requests.length === 1) {
+          return new Promise((resolve) => { releaseFirst = () => resolve({ ok: true }); });
+        }
+        return { ok: true };
+      }
+    }
+  );
+  const service = new playback.LyricService();
+  const track = {
+    id: 'latest-wins', source: 'qq', title: 'Latest', artists: [],
+    lyrics: { lines: [{ startMs: 0, text: 'line' }] }
+  };
+  const audio = { currentTime: 1, duration: 120, paused: false };
+  const first = service.syncWindow(track, audio);
+  audio.currentTime = 2;
+  const second = service.syncWindow(track, audio);
+  audio.currentTime = 3;
+  const third = service.syncWindow(track, audio);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(requests.length, 1);
+  releaseFirst();
+  await Promise.all([first, second, third]);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].currentMs, 3000);
+  assert.ok(requests[1].sequence > requests[0].sequence);
+});
+
+test('lyric scheduler uses rAF time gating and performance profile degrades with hysteresis', async () => {
+  const schedulerSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-frame-scheduler.js'),
+    'utf8'
+  );
+  assert.match(schedulerSource, /requestAnimationFrame/);
+  assert.match(schedulerSource, /1000 \/ this\.targetFps/);
+  assert.doesNotMatch(schedulerSource, /setInterval/);
+
+  const performanceModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-performance.js'),
+    { window: { matchMedia: () => ({ matches: false }) } }
+  );
+  const profile = performanceModule.createLyricPerformanceProfile({});
+  for (let index = 0; index < 4; index += 1) profile.recordFrame(60);
+  assert.equal(profile.profile.targetFps, 30);
+  assert.equal(profile.profile.wordAnimation, 'manual');
+  profile.setVisible(false);
+  assert.equal(profile.profile.targetFps, 30);
+});
+
 test('shared lyric renderer freezes its clock when playback pauses', async () => {
   let currentTime = 1000;
   let nextFrameId = 0;

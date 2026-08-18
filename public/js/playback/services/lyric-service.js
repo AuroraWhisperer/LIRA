@@ -11,9 +11,16 @@ export class LyricService {
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
     this.lastPublishedState = '';
     this.lastPublishedAt = 0;
-    this.statePublishQueue = Promise.resolve();
+    this.statePublishInFlight = null;
+    this.pendingState = null;
+    this.forcedStateQueue = [];
+    this.stateGeneration = 0;
+    this.stateSequence = 0;
+    this.lastStateTrackKey = null;
+    this.lastStateLyrics = null;
     this.lastTimelineTrackKey = null;
     this.lastTimelineLyrics = null;
+    this.timelinePublishInFlight = null;
   }
 
   /**
@@ -97,6 +104,19 @@ export class LyricService {
     const progress = duration > 0 ? currentTime / duration : 0;
     const lyricLine = this.findLyricLine(track, currentTime * 1000);
     const hasLyrics = Boolean(track?.lyrics && Array.isArray(track.lyrics.lines));
+    const trackKey = track
+      ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}`
+      : '';
+    const discontinuity = force
+      || trackKey !== this.lastStateTrackKey
+      || track?.lyrics !== this.lastStateLyrics;
+    if (discontinuity) {
+      this.stateGeneration += 1;
+      this.stateSequence = 0;
+    }
+    this.lastStateTrackKey = trackKey;
+    this.lastStateLyrics = track?.lyrics || null;
+    this.stateSequence += 1;
     const state = {
       trackTitle: track?.title || '',
       artists: Array.isArray(track?.artists) ? track.artists : [],
@@ -108,20 +128,25 @@ export class LyricService {
       progress,
       playing: audio ? !audio.paused : false,
       locked: false,
+      generation: this.stateGeneration,
+      sequence: this.stateSequence,
       status: !track ? 'idle' : !hasLyrics ? 'loading' : track.lyrics.lines.length > 0 ? 'ready' : 'empty'
     };
 
-    await this.publishBrowserTimeline(track);
+    const timelinePublish = this.publishBrowserTimeline(track);
+    if (timelinePublish) await timelinePublish;
     await this.publishBrowserState(state, force);
     return false;
   }
 
-  async publishBrowserTimeline(track) {
+  publishBrowserTimeline(track) {
     const trackKey = track
       ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}`
       : '';
     const lyrics = track?.lyrics || null;
-    if (trackKey === this.lastTimelineTrackKey && lyrics === this.lastTimelineLyrics) return;
+    if (trackKey === this.lastTimelineTrackKey && lyrics === this.lastTimelineLyrics) {
+      return this.timelinePublishInFlight;
+    }
 
     this.lastTimelineTrackKey = trackKey;
     this.lastTimelineLyrics = lyrics;
@@ -133,13 +158,17 @@ export class LyricService {
       lines: hasLyrics ? lyrics.lines : []
     };
 
-    try {
-      await fetch('/api/playback/lyric-timeline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(timeline)
-      });
-    } catch (_) {}
+    this.timelinePublishInFlight = (async () => {
+      try {
+        await fetch('/api/playback/lyric-timeline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(timeline)
+        });
+      } catch (_) {}
+      this.timelinePublishInFlight = null;
+    })();
+    return this.timelinePublishInFlight;
   }
 
   async publishBrowserState(state, force) {
@@ -152,23 +181,42 @@ export class LyricService {
     const serialized = JSON.stringify(roundedState);
     if (!force && serialized === this.lastPublishedState) return;
     if (!force && now - this.lastPublishedAt < 180) return;
-    this.lastPublishedState = serialized;
-    this.lastPublishedAt = now;
+    return new Promise((resolve) => {
+      const request = { serialized, resolve };
+      if (force) {
+        this.forcedStateQueue.push(request);
+      } else {
+        if (this.pendingState) this.pendingState.resolve();
+        this.pendingState = request;
+      }
+      this.flushStateQueue();
+    });
+  }
 
-    const publish = async () => {
+  flushStateQueue() {
+    if (this.statePublishInFlight) return this.statePublishInFlight;
+    const request = this.forcedStateQueue.shift() || this.pendingState;
+    if (!request) return null;
+    if (request === this.pendingState) this.pendingState = null;
+    this.statePublishInFlight = (async () => {
       try {
         const response = await fetch('/api/playback/lyric-state', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: serialized
+          body: request.serialized
         });
-        if (!response.ok && this.lastPublishedState === serialized) this.lastPublishedState = '';
+        this.lastPublishedAt = Date.now();
+        this.lastPublishedState = request.serialized;
+        if (!response.ok && this.lastPublishedState === request.serialized) this.lastPublishedState = '';
       } catch (_) {
-        if (this.lastPublishedState === serialized) this.lastPublishedState = '';
+        if (this.lastPublishedState === request.serialized) this.lastPublishedState = '';
+      } finally {
+        request.resolve();
+        this.statePublishInFlight = null;
+        this.flushStateQueue();
       }
-    };
-    this.statePublishQueue = this.statePublishQueue.then(publish, publish);
-    await this.statePublishQueue;
+    })();
+    return this.statePublishInFlight;
   }
 
   /**

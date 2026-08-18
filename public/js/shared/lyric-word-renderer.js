@@ -1,16 +1,15 @@
 'use strict';
 
+import { LyricClock } from './lyric-clock.js';
+import { LyricFrameScheduler, isDocumentVisible } from './lyric-frame-scheduler.js';
+
+// The scheduler owns requestAnimationFrame and applies the 30fps time gate.
+
 const EMPTY_STATE = {
   lineText: '', words: [], currentMs: 0, durationMs: 0,
   progress: 0, playing: false, status: 'idle'
 };
 
-/**
- * Provider-independent word-level lyric renderer.
- *
- * The caller supplies DOM elements and CSS names, so the WeSing playback page
- * and the desktop-lyric preview can share timing behavior without sharing UI.
- */
 export class LyricWordRenderer {
   constructor(options = {}) {
     this.lineElement = options.lineElement || null;
@@ -19,64 +18,68 @@ export class LyricWordRenderer {
     this.progressProperty = options.progressProperty || '--word-progress';
     this.fallbackText = options.fallbackText || (() => '等待歌词');
     this.onFrame = options.onFrame || (() => {});
+    this.onFrameBudget = options.onFrameBudget || (() => {});
+    this.renderWords = options.renderWords !== false;
     this.state = { ...EMPTY_STATE };
-    this.anchor = {
-      currentMs: 0,
-      durationMs: 0,
-      progress: 0,
-      updatedAt: clockNow()
-    };
+    this.clock = options.clock || new LyricClock();
+    this.scheduler = options.scheduler || new LyricFrameScheduler({ targetFps: 30 });
     this.signature = '';
     this.renderedWords = [];
     this.wordElements = [];
-    this.animationFrame = 0;
+    this.visibilityHandler = () => {
+      if (isDocumentVisible() && this.state.playing && !isReducedMotion()) {
+        this.scheduler.start(this.renderFrame);
+      } else if (!isDocumentVisible()) {
+        this.scheduler.stop();
+      }
+    };
+    if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange', this.visibilityHandler);
   }
 
   setState(nextState = {}) {
-    const now = clockNow();
-    const estimated = this.getPosition(now);
-    const playing = nextState.playing === true;
-    const incomingCurrentMs = numberValue(nextState.currentMs, estimated.currentMs);
+    const previousPlaying = this.state.playing === true;
     this.state = { ...this.state, ...nextState };
-    this.anchor = {
-      currentMs: incomingCurrentMs,
-      durationMs: numberValue(nextState.durationMs, this.anchor.durationMs),
-      progress: numberValue(nextState.progress, estimated.progress),
-      updatedAt: now
-    };
+    this.clock.setState(this.state, {
+      force: true,
+      discontinuity: this.state.discontinuity === true
+    });
     this.renderContent();
+    if (this.state.playing && !isReducedMotion() && isDocumentVisible()) {
+      this.scheduler.start(this.renderFrame);
+    } else {
+      this.scheduler.stop();
+    }
+    if (previousPlaying && !this.state.playing) this.clock.pause();
   }
 
   renderContent() {
     if (!this.lineElement) return;
     const words = Array.isArray(this.state.words) ? this.state.words : [];
     const fallback = this.fallbackText(this.state);
-    const signature = JSON.stringify([this.state.lineText || fallback, words]);
-    if (signature !== this.signature) {
-      clearElement(this.lineElement);
-      if (words.length > 0) {
-        this.renderedWords = words;
-        this.wordElements = words.map((word) => {
-          const element = document.createElement('span');
-          element.className = this.wordClass;
-          element.textContent = word.text || '';
-          this.lineElement.appendChild(element);
-          return element;
-        });
-      } else {
-        this.renderedWords = [];
-        this.wordElements = [];
-        this.lineElement.textContent = this.state.lineText || fallback;
-      }
-      this.signature = signature;
+    const signature = JSON.stringify([this.state.lineText || fallback, words, this.renderWords]);
+    if (signature === this.signature) {
+      this.renderFrame(clockNow());
+      return;
     }
-    cancelFrame(this.animationFrame);
+    clearElement(this.lineElement);
+    this.renderedWords = this.renderWords ? words : [];
+    this.wordElements = this.renderWords && words.length > 0
+      ? words.map((word) => {
+        const element = document.createElement('span');
+        element.className = this.wordClass;
+        element.textContent = word.text || '';
+        this.lineElement.appendChild(element);
+        return element;
+      })
+      : [];
+    if (!this.wordElements.length) this.lineElement.textContent = this.state.lineText || fallback;
+    this.signature = signature;
     this.renderFrame(clockNow());
   }
 
-  renderFrame = (now) => {
-    this.animationFrame = 0;
-    const position = this.getPosition(now);
+  renderFrame = (now, elapsed = 0) => {
+    this.onFrameBudget(elapsed);
+    const position = this.clock.getPosition(now);
     if (this.progressElement) this.progressElement.style.transform = `scaleX(${position.progress})`;
     this.onFrame(position);
 
@@ -89,27 +92,16 @@ export class LyricWordRenderer {
         : position.currentMs >= endMs ? 1 : 0;
       element.style.setProperty(this.progressProperty, `${progress * 100}%`);
     });
-
-    const reducedMotion = typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (this.state.playing && !reducedMotion) {
-      this.animationFrame = requestFrame(this.renderFrame);
-    }
   };
 
   getPosition(now) {
-    const elapsed = this.state.playing ? Math.max(0, now - this.anchor.updatedAt) : 0;
-    const durationMs = Math.max(0, this.anchor.durationMs);
-    const currentMs = durationMs > 0
-      ? Math.min(durationMs, this.anchor.currentMs + elapsed)
-      : Math.max(0, this.anchor.currentMs + elapsed);
-    const progress = durationMs > 0 ? currentMs / durationMs : this.anchor.progress;
-    return { currentMs, progress: clamp(progress, 0, 1) };
+    return this.clock.getPosition(now);
   }
 
   dispose() {
-    cancelFrame(this.animationFrame);
-    this.animationFrame = 0;
+    this.scheduler.stop();
+    this.clock.dispose();
+    if (typeof document !== 'undefined') document.removeEventListener?.('visibilitychange', this.visibilityHandler);
   }
 }
 
@@ -122,20 +114,15 @@ function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
-// Tests and non-browser consumers may not provide the high-resolution browser clock.
 function clockNow() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
     : Date.now();
 }
 
-// Electron always supplies animation frames; returning zero keeps static renderers usable elsewhere.
-function requestFrame(callback) {
-  return typeof requestAnimationFrame === 'function' ? requestAnimationFrame(callback) : 0;
-}
-
-function cancelFrame(frame) {
-  if (frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame);
+function isReducedMotion() {
+  return typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 function clearElement(element) {

@@ -18,6 +18,7 @@ function createApiContext(options) {
     weSingCapture,
     bilibili,
     ai,
+    games,
     settings,
     system,
     music
@@ -108,6 +109,7 @@ function createApiContext(options) {
       test: () => ai.service.testConfiguration(),
       testProvider: (provider) => ai.service.testProvider(provider)
     },
+    games: createGamesContext(games),
     settings: {
       defaults: settings.defaults,
       get: settings.store.getSettings,
@@ -139,6 +141,42 @@ function createApiContext(options) {
       clearCache: () => clearMusicCache(music.apiCacheDir, music.lyricCacheDir)
     }
   };
+}
+
+function createGamesContext(games = {}) {
+  const service = games.service || {
+    getSession: () => null,
+    start: () => null,
+    stop: () => null,
+    move: () => ({ accepted: false, reason: '小游戏服务未启用。' }),
+    listViewers: () => []
+  };
+  const listOnlineViewers = typeof games.listOnlineViewers === 'function'
+    ? games.listOnlineViewers
+    : () => [];
+  return {
+    getSession: service.getSession,
+    start: service.start,
+    stop: service.stop,
+    move: service.move,
+    listViewers: () => mergeViewerCandidates(service.listViewers(), listOnlineViewers())
+  };
+}
+
+function mergeViewerCandidates(...groups) {
+  const byKey = new Map();
+  for (const viewer of groups.flat()) {
+    const uid = String(viewer?.uid || '').trim();
+    const name = String(viewer?.name || viewer?.userName || '观众').trim() || '观众';
+    const key = uid || `name:${name}`;
+    const previous = byKey.get(key);
+    byKey.set(key, {
+      uid,
+      name,
+      lastSeenAt: Math.max(Number(previous?.lastSeenAt) || 0, Number(viewer?.lastSeenAt || viewer?.seenAt) || 0)
+    });
+  }
+  return [...byKey.values()].filter(viewer => viewer.uid).sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 }
 
 module.exports = { createApiContext };

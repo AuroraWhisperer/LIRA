@@ -331,7 +331,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 模块 | 特有规则 | 出处 |
 |---|---|---|
-| `normalizeLyricState` | 单行语义:`currentMs`/`durationMs`/`progress`/`playing`/`locked`/`words[]` | [lyric-state.js:5-28](../../../../src/music/lyric-state.js#L5-L28) |
+| `normalizeLyricState` | 单行语义:`currentMs`/`durationMs`/`progress`/`playing`/`locked`/`words[]`;兼容版本字段 `generation`/`sequence` 用于客户端拒绝旧状态回灌 | [lyric-state.js:5-30](../../../../src/music/lyric-state.js#L5-L30) |
 | `normalizeLyricTimeline` | 全曲语义:**`MAX_LINES = 500` 行上限 + `MAX_TEXT_BUDGET = 48 KB` 文本预算**(按 `text+translation+roma` 长度累计,超预算即截断后续行);输入行按 `startMs` 稳定排序 | [lyric-timeline.js:3-5,7-37](../../../../src/music/lyric-timeline.js#L3-L37) |
 
 ### 13.3 生产者

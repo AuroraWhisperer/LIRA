@@ -10,7 +10,7 @@
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 模块注册 | `ROUTE_MODULES` 数组按序 require **15 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler) | [api-routes.js:8-24](../../../src/server/api-routes.js#L8-L24) |
+| 模块注册 | `ROUTE_MODULES` 数组按序 require **16 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler) | [api-routes.js:8-25](../../../src/server/api-routes.js#L8-L25) |
 | 匹配顺序 | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404** | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取 | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body) | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
@@ -130,7 +130,7 @@ Provider 未接入或抛错的端点统一经 `sendProviderResult` 回 **501** `
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `POST /api/playback/lyric-state` | body(歌词行状态,经 `normalizeLyricState`) | 归一化后的 state;同时经 WS 广播 `lyric-state` | 400 |
+| `POST /api/playback/lyric-state` | body(歌词行状态,经 `normalizeLyricState`;可选兼容 `generation`/`sequence`) | 归一化并版本化后的 state;同时经 WS 广播 `lyric-state` | 400 |
 | `POST /api/playback/lyric-timeline` | body(歌词时间轴,经 `normalizeLyricTimeline`) | 归一化后的 timeline;同时广播 `lyric-timeline` | 400 |
 | `GET /api/playback/history` | 查询参数 `clientId?`、`limit?`(默认 500) | `{tracks}` | 400 |
 | `POST /api/playback/history` | `{track, clientId?, origin?, requesterName?, playedAt?}` | `recordPlay` 结果 | 400 |
@@ -398,3 +398,9 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/bilibili/danmaku/send` | `{message`(**必填**,去空格后非空,否则 400 `弹幕内容不能为空。`), `mentionRequester?`(`true` 时@点歌观众)} | 发送结果 | 400、**502**(`{ok:false, error, detail}`,error 为 `publicDanmakuSendErrorMessage` 的人话文案:频率限制/未登录/房间号不对/风控 code=-352/拦截 code=-412/参数 code=-400/网络异常等) |
 
 行为文档:[bilibili/danmaku.md](bilibili/danmaku.md)。
+# 小游戏 API
+
+`GET /api/games/viewers` 返回最近捕捉到的直播间观众候选；
+`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置）；
+`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，或接受 `{action:"stop"}` 结束会话；
+`POST /api/games/session/move` 接受主播的 `{value}` 落子。所有端点沿用现有 session token 与 `{ok,data}` 信封。

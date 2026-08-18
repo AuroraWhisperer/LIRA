@@ -26,8 +26,7 @@ function clientIdOf(request, body) {
 const routes = {
   'POST /api/playback/lyric-state': storeRoute(async (context, request) => {
     const state = normalizeLyricState(await request.body());
-    context.playbackLyrics.publish(state);
-    return state;
+    return context.playbackLyrics.publish(state) || state;
   }),
 
   'POST /api/playback/lyric-timeline': storeRoute(async (context, request) => {

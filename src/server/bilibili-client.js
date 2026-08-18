@@ -16,13 +16,15 @@ function createBilibiliClient(roomId, context) {
     runtimeGiftCommandPrefixes,
     messageBuffer,
     bilibiliAuthCache,
-    logGiftDelivery
+    logGiftDelivery,
+    games
   } = context;
   return new BilibiliDanmakuClient(roomId, {
     onMessage: (danmaku) => {
       if (isShuttingDown()) return;
       try {
         aiDanmakuDeliveryVerifier.observe(danmaku);
+        games?.handleDanmaku?.(danmaku);
         const result = domainServices.messages.handleDanmaku({
           message: danmaku.message,
           userName: danmaku.userName,

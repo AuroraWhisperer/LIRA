@@ -20,6 +20,7 @@ const ROUTE_MODULES = [
   require('./routes/debug-routes'),
   require('./routes/data-routes'),
   require('./routes/ai-routes'),
+  require('./routes/game-routes'),
   require('./routes/bilibili-routes')
 ];
 

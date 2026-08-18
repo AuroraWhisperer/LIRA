@@ -21,6 +21,7 @@ export class StateService {
     this.songArtists = new Set();
     this.songTags = new Set();
     this.ws = null;
+    this.lyricVersion = { generation: null, sequence: 0 };
   }
 
   /**
@@ -42,9 +43,16 @@ export class StateService {
     this.ws.addEventListener('message', (event) => {
       const payload = JSON.parse(event.data);
       if (payload.type === 'snapshot') {
+        const previousLyricState = this.appState?.lyricState;
         this.appState = payload.state;
+        const lyricAccepted = this.acceptLyricState(this.appState?.lyricState);
+        if (!lyricAccepted && previousLyricState) {
+          this.appState.lyricState = previousLyricState;
+        }
         dispatchRealtimeState('app:wesing-state', this.appState?.weSing);
-        dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+        if (lyricAccepted) {
+          dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+        }
         dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
         dispatchRealtimeState('app:settings-state', this.appState?.settings);
         // 发布事件而非直接调用其他模块
@@ -68,6 +76,7 @@ export class StateService {
         this.appState.weSing = payload.state;
         dispatchRealtimeState('app:wesing-state', payload.state);
       } else if (payload.type === 'lyric-state') {
+        if (!this.acceptLyricState(payload.state)) return;
         this.appState = this.appState || {};
         this.appState.lyricState = payload.state;
         dispatchRealtimeState('app:lyric-state', payload.state);
@@ -75,6 +84,8 @@ export class StateService {
         this.appState = this.appState || {};
         this.appState.lyricTimeline = payload.timeline;
         dispatchRealtimeState('app:lyric-timeline', payload.timeline);
+      } else if (payload.type === 'game:update') {
+        dispatchRealtimeState('app:game-update', payload.session, true);
       }
     });
 
@@ -108,9 +119,15 @@ export class StateService {
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || '读取状态失败');
 
+    const previousLyricState = this.appState?.lyricState;
     this.appState = payload.data;
+    if (!this.acceptLyricState(this.appState?.lyricState) && previousLyricState) {
+      this.appState.lyricState = previousLyricState;
+    }
     dispatchRealtimeState('app:settings-state', this.appState?.settings);
-    dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+    if (this.acceptLyricState(this.appState?.lyricState)) {
+      dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
+    }
     dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
     this.categories = this.appState.categories || [];
     this.songTags = new Set(this.appState.tags || []);
@@ -205,10 +222,26 @@ export class StateService {
   setShuttingDown(value) {
     this.shuttingDown = value;
   }
+
+  acceptLyricState(state) {
+    if (!state || typeof state !== 'object') return false;
+    const generation = Number(state.generation);
+    const sequence = Number(state.sequence);
+    if (!Number.isFinite(generation) || !Number.isFinite(sequence)) {
+      return this.lyricVersion.generation === null;
+    }
+    if (this.lyricVersion.generation === null || generation > this.lyricVersion.generation) {
+      this.lyricVersion = { generation, sequence };
+      return true;
+    }
+    if (generation < this.lyricVersion.generation || sequence <= this.lyricVersion.sequence) return false;
+    this.lyricVersion.sequence = sequence;
+    return true;
+  }
 }
 
-function dispatchRealtimeState(eventName, state) {
-  if (!state || typeof CustomEvent === 'undefined') return;
+function dispatchRealtimeState(eventName, state, allowEmpty = false) {
+  if ((!state && !allowEmpty) || typeof CustomEvent === 'undefined') return;
   window.dispatchEvent(new CustomEvent(eventName, { detail: state }));
 }
 

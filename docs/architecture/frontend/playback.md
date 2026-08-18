@@ -76,8 +76,8 @@ PlayerController.setAudio → audio.load()/play()
 |---|---|
 | 获取 | `LyricService.loadLyrics(track)` → `POST /api/music/lyrics`(按 source 走 QQ/网易云解析,本地与已缓存跳过) |
 | 行定位 | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88)) |
-| 逐字进度 | `shared/lyric-word-renderer.js` 的 `LyricWordRenderer`(rAF 驱动,`--word-progress` 百分比注入,respect prefers-reduced-motion) |
-| **上报** | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + 内容指纹去重 + 串行队列);`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
+| 逐字进度 | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal,按性能档位回退到 30fps 手动 reveal/静态高亮 |
+| **上报** | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
 | 桌面歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染 |
 
 ## 4. 服务层(services/)
@@ -123,6 +123,12 @@ PlayerController.setAudio → audio.load()/play()
 - `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),控制器显式注入其所需回调;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
 - 播放器状态变化统一走 `onStateChange → renderPlayback() + savePlaybackState()`;MediaSession(系统媒体控制)由 `updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext)` 更新([controller.js:531-533](../../../public/js/playback/controller.js#L531-L533))。
 - 音频事件链([initializer.js:67-113](../../../public/js/playback/core/initializer.js#L67-L113)):`loadedmetadata` 回写 `durationMs` → `timeupdate` 推进进度条并落盘 → `play/pause` 同步 MediaSession 与歌词窗口 → `seeking/seeked` 强刷歌词与状态 → `ended` 触发 `playbackNext(true)` → `error` 走流刷新重试;`pagehide` 时 `flushPlaybackStateOnUnload`(sendBeacon/IPC 双通道,见 §6)。
+
+### 8.1 歌词动画性能边界
+
+- WAAPI 只代表动画调度方式，不保证 reveal 属性由 GPU 合成；运行时以 `LyricPerformanceProfile` 记录长帧，必要时按 WAAPI → 30fps 手动 reveal → 静态高亮降级。
+- 正常播放期间不在 30fps tick 写 `animation.currentTime`;tick 只读取 `LyricClock` 并检测 drift。仅 pause/resume、seek、切歌/时间线变化、明显回跳或超阈值 drift 允许重锚。
+- 调度器只使用 `requestAnimationFrame` + 约 33.3ms 时间门控，不使用 `setInterval`；页面隐藏、暂停或 reduced-motion 时停止/暂停循环。
 
 ## 9. 与点歌业务的关系
 

@@ -17,6 +17,7 @@ class IdentityCache {
   constructor() {
     this.identityByUid = new Map();
     this.identityByName = new Map();
+    this.recentByUid = new Map();
   }
 
   resolve(input) {
@@ -33,6 +34,14 @@ class IdentityCache {
       source: input && input.identitySource
     }, cached);
     this.remember(merged);
+    if (uid) {
+      this.recentByUid.set(uid, {
+        ...publicRequesterIdentity(merged),
+        uid,
+        userName,
+        seenAt: Date.now()
+      });
+    }
     return publicRequesterIdentity(merged);
   }
 
@@ -81,6 +90,26 @@ class IdentityCache {
     for (const [name, identity] of this.identityByName) {
       if (!identity || identity.seenAt < cutoff) this.identityByName.delete(name);
     }
+    for (const [uid, identity] of this.recentByUid) {
+      if (!identity || identity.seenAt < cutoff) this.recentByUid.delete(uid);
+    }
+  }
+
+  listRecent() {
+    this.cleanup();
+    const seen = new Set();
+    const candidates = new Map(this.recentByUid);
+    for (const [uid, identity] of this.identityByUid) {
+      if (!candidates.has(uid)) candidates.set(uid, publicRequesterIdentity(identity));
+    }
+    return [...candidates.values()]
+      .filter(identity => {
+        if (!identity?.uid || seen.has(identity.uid)) return false;
+        seen.add(identity.uid);
+        return true;
+      })
+      .map(publicRequesterIdentity)
+      .sort((left, right) => right.seenAt - left.seenAt);
   }
 }
 

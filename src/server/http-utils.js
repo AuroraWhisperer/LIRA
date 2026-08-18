@@ -86,7 +86,8 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
     ['/blindbox', 'pages/overlays/blindbox.html'],
     ['/overtime', 'pages/overlays/overtime.html'],
     ['/gift-effects', 'pages/overlays/gift-effects.html'],
-    ['/lyrics', 'pages/overlays/lyric-window.html']
+    ['/lyrics', 'pages/overlays/lyric-window.html'],
+    ['/games', 'pages/overlays/games.html']
   ]);
   const assetPath = pageMap.get(requestUrl.pathname)
     || requestUrl.pathname.replace(/^\/+/, '');
@@ -211,7 +212,7 @@ function validateOrigin(req, allowedOrigins) {
 
 function addFrameProtectionHeaders(res, pathname) {
   // Exclude overlay pages - they need to be frameable for OBS
-  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics'];
+  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics', '/games'];
   const isOverlay = overlayPaths.includes(pathname);
 
   if (!isOverlay) {

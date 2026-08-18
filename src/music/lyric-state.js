@@ -23,6 +23,8 @@ function normalizeLyricState(input) {
     progress: clampNumber(state.progress, 0, 1),
     playing: state.playing === true,
     locked: state.locked === true,
+    generation: clampInteger(state.generation, 0),
+    sequence: clampInteger(state.sequence, 0),
     status
   };
 }
@@ -48,6 +50,11 @@ function cleanText(value, maxLength) {
 function clampNumber(value, minimum, maximum) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(minimum, Math.min(maximum, number)) : minimum;
+}
+
+function clampInteger(value, minimum) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) ? Math.max(minimum, number) : minimum;
 }
 
 module.exports = { normalizeLyricState };

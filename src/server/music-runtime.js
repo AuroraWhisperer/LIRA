@@ -3,6 +3,7 @@
 const { createMusicProviderRegistry } = require('../music/provider-registry');
 const { createLyricsService } = require('../music/lyrics-service');
 const { normalizeLyricTimeline } = require('../music/lyric-timeline');
+const { normalizeLyricState } = require('../music/lyric-state');
 const { createWeSingCapture } = require('../music/wesing-capture');
 const { createWeSingOnlineLyricResolver } = require('../music/wesing-online-lyrics');
 
@@ -14,11 +15,33 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   let musicRegistry = createMusicProviderRegistry();
   let lyricState = {
     trackTitle: '', artists: [], lineText: '', translation: '', words: [],
-    currentMs: 0, progress: 0, playing: false, locked: false, status: 'idle'
+    currentMs: 0, progress: 0, playing: false, locked: false,
+    generation: 0, sequence: 0, status: 'idle'
   };
   let lyricTimeline = {
     trackTitle: '', artists: [], status: 'idle', lines: []
   };
+  let lyricGeneration = 0;
+  let lyricSequence = 0;
+  let lyricTimelineKey = JSON.stringify(lyricTimeline);
+
+  function versionLyricState(input) {
+    const state = normalizeLyricState(input);
+    const incomingGeneration = state.generation;
+    const incomingSequence = state.sequence;
+    const hasClientVersion = incomingGeneration > 0 || incomingSequence > 0;
+    if (hasClientVersion) {
+      if (incomingGeneration < lyricGeneration
+          || (incomingGeneration === lyricGeneration && incomingSequence <= lyricSequence)) {
+        return null;
+      }
+      lyricGeneration = incomingGeneration;
+      lyricSequence = incomingSequence;
+    } else {
+      lyricSequence += 1;
+    }
+    return { ...state, generation: lyricGeneration, sequence: lyricSequence };
+  }
   const resolveWeSingOnlineLyrics = createWeSingOnlineLyricResolver({
     getRegistry: () => musicRegistry,
     lyricsService,
@@ -31,7 +54,14 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     }
   });
   const publishLyricTimeline = (input) => {
-    lyricTimeline = normalizeLyricTimeline(input);
+    const nextTimeline = normalizeLyricTimeline(input);
+    const nextKey = JSON.stringify(nextTimeline);
+    if (nextKey !== lyricTimelineKey) {
+      lyricGeneration += 1;
+      lyricSequence = 0;
+      lyricTimelineKey = nextKey;
+    }
+    lyricTimeline = nextTimeline;
     webSocketHub.broadcast({ type: 'lyric-timeline', timeline: lyricTimeline });
     return lyricTimeline;
   };
@@ -50,7 +80,9 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     onState(state) {
       webSocketHub.broadcast({ type: 'wesing-state', state });
       if (!state.active || !state.lyricState) return;
-      lyricState = state.lyricState;
+      const nextState = versionLyricState(state.lyricState);
+      if (!nextState) return;
+      lyricState = nextState;
       webSocketHub.broadcast({ type: 'lyric-state', state: lyricState });
     },
     onTimeline(timeline) {
@@ -68,8 +100,11 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     getLyricState: () => lyricState,
     getLyricTimeline: () => lyricTimeline,
     publishLyricState(nextState) {
-      lyricState = nextState;
-      webSocketHub.broadcast({ type: 'lyric-state', state: nextState });
+      const versionedState = versionLyricState(nextState);
+      if (!versionedState) return lyricState;
+      lyricState = versionedState;
+      webSocketHub.broadcast({ type: 'lyric-state', state: versionedState });
+      return lyricState;
     },
     publishLyricTimeline
   };

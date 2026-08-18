@@ -2,6 +2,8 @@
 'use strict';
 
 import { LyricWordRenderer } from '../shared/lyric-word-renderer.js';
+import { LyricWordAnimator } from '../shared/lyric-word-animator.js';
+import { createLyricPerformanceProfile } from '../shared/lyric-performance.js';
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
 
 const DEFAULTS = {
@@ -78,9 +80,11 @@ let rowElements = [];
 let activeIndex = -1;
 let activeWordIndex = -1;
 let activeWordSignature = '';
-let activeWordElements = [];
+let activeWordAnimator = null;
 let latestWordSignature = '';
-let lastWordProgress = [];
+let performanceProfile = null;
+let lastLyricGeneration = null;
+let lastLyricSequence = 0;
 let manualFollowUntil = 0;
 let followResumeTimer = 0;
 let followAnimationFrame = 0;
@@ -102,11 +106,25 @@ function init(form) {
   renderer = new LyricWordRenderer({
     lineElement: playback,
     progressElement: document.getElementById('desktopLyricPreviewProgress'),
+    renderWords: false,
     wordClass: 'desktop-lyric-preview-live-word',
     progressProperty: '--preview-word-progress',
     fallbackText: previewFallback,
+    onFrameBudget: (duration) => performanceProfile?.recordFrame(duration),
     onFrame: (position) => renderTimelineFrame(position.currentMs)
   });
+  performanceProfile = createLyricPerformanceProfile({
+    onChange: (profile) => {
+      activeWordAnimator?.setMode(profile.wordAnimation);
+      stage.classList.toggle('is-low-power', profile.effects === 'low');
+    }
+  });
+  activeWordAnimator = new LyricWordAnimator({
+    mode: performanceProfile.profile.wordAnimation,
+    wordClass: 'desktop-lyric-preview-word',
+    highlightClass: 'desktop-lyric-preview-word-highlight'
+  });
+  stage.classList.toggle('is-low-power', performanceProfile.profile.effects === 'low');
 
   form?.addEventListener('input', applyStylesFromForm);
   form?.addEventListener('change', applyStylesFromForm);
@@ -126,6 +144,7 @@ function init(form) {
     }
   });
   window.addEventListener('resize', followActiveLyric);
+  document.fonts?.addEventListener?.('loadingdone', followActiveLyric);
 
   const appState = window.AdminApp.state?.getAppState?.();
   if (appState?.lyricTimeline) updateLyricTimeline(appState.lyricTimeline);
@@ -135,6 +154,7 @@ function init(form) {
 
 function updateLyricState(state) {
   if (!state || typeof state !== 'object') return;
+  if (!acceptLyricVersion(state)) return;
   latestState = { ...(latestState || {}), ...state };
   latestWordSignature = JSON.stringify([latestState.lineText || '', latestState.words || []]);
   renderer?.setState(latestState);
@@ -263,42 +283,41 @@ function renderActiveWords() {
     return;
   }
 
-  textElement.replaceChildren();
-  activeWordElements = words.map((word) => {
-    const element = document.createElement('span');
-    element.className = 'desktop-lyric-preview-word';
-    element.textContent = word.text || '';
-    textElement.appendChild(element);
-    return { element, word };
+  activeWordAnimator?.mount(textElement, words, {
+    mode: performanceProfile?.profile.wordAnimation || 'waapi'
   });
   activeWordIndex = activeIndex;
   activeWordSignature = signature;
-  lastWordProgress = activeWordElements.map(() => '');
 }
 
 function resetActiveWords() {
-  if (activeWordIndex >= 0 && rowElements[activeWordIndex]) {
-    const textElement = rowElements[activeWordIndex].querySelector('.desktop-lyric-preview-row-text');
-    if (textElement) textElement.textContent = latestTimeline.lines[activeWordIndex]?.text || '';
+  const previousIndex = activeWordIndex;
+  activeWordAnimator?.clear({ commit: false });
+  if (previousIndex >= 0 && rowElements[previousIndex]) {
+    const textElement = rowElements[previousIndex].querySelector('.desktop-lyric-preview-row-text');
+    if (textElement) textElement.textContent = latestTimeline.lines[previousIndex]?.text || '';
   }
   activeWordIndex = -1;
   activeWordSignature = '';
-  activeWordElements = [];
-  lastWordProgress = [];
 }
 
 function updateActiveWordProgress(currentMs) {
-  activeWordElements.forEach(({ element, word }, index) => {
-    const startMs = finiteNumber(word.startMs, 0);
-    const endMs = Math.max(startMs, finiteNumber(word.endMs, startMs));
-    const progress = endMs > startMs
-      ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1)
-      : currentMs >= endMs ? 1 : 0;
-    const value = `${progress * 100}%`;
-    if (lastWordProgress[index] === value) return;
-    lastWordProgress[index] = value;
-    element.style.setProperty('--preview-word-progress', value);
-  });
+  activeWordAnimator?.sync({ currentMs }, { playing: latestState?.playing === true });
+}
+
+function acceptLyricVersion(state) {
+  const hasVersion = Number.isFinite(Number(state.generation)) && Number.isFinite(Number(state.sequence));
+  if (!hasVersion) return lastLyricGeneration === null;
+  const generation = Number(state.generation);
+  const sequence = Number(state.sequence);
+  if (lastLyricGeneration === null || generation > lastLyricGeneration) {
+    lastLyricGeneration = generation;
+    lastLyricSequence = sequence;
+    return true;
+  }
+  if (generation < lastLyricGeneration || sequence <= lastLyricSequence) return false;
+  lastLyricSequence = sequence;
+  return true;
 }
 
 function applyVisibleLineWindow() {

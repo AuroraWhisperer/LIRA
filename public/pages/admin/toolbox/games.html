@@ -1,0 +1,92 @@
+            <section
+              id="otherGamesFeature"
+              class="other-feature-panel"
+              role="tabpanel"
+              aria-labelledby="otherGamesFeatureTab"
+              data-other-feature-panel
+              hidden
+            >
+              <div id="gamesAdminPanel" class="other-feature-panel-body games-admin">
+                <header class="games-admin-header">
+                  <div>
+                    <p class="games-eyebrow">LIVE ARCADE</p>
+                    <h2>小游戏直播台</h2>
+                    <p>主播在游戏网页操作，观众通过直播间弹幕轮流出招。</p>
+                  </div>
+                  <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
+                </header>
+
+                <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
+                  <div>
+                    <span class="games-link-label">OBS / 直播姬浏览器源</span>
+                    <strong id="gamesLinkTitle">一个页面承载两款游戏</strong>
+                    <p>推荐尺寸 1280 × 720；在链接后选择对应游戏。</p>
+                  </div>
+                  <label class="games-link-field">
+                    <span>网页链接</span>
+                    <input id="gamesOverlayUrl" type="text" readonly>
+                  </label>
+                  <div class="games-link-actions">
+                    <button id="gamesCopyBaseUrlBtn" class="primary" type="button">复制网页链接</button>
+                    <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开网页</button>
+                  </div>
+                </section>
+
+                <section class="games-catalog" aria-label="小游戏列表">
+                  <article class="game-admin-card is-bomb" data-game-card="number-bomb">
+                    <div class="game-card-poster" aria-hidden="true"><span>01</span><strong>1—100</strong><i></i></div>
+                    <div class="game-card-content">
+                      <div class="game-card-heading">
+                        <div><span>轮流猜数</span><h3>数字炸弹</h3></div>
+                        <span class="game-card-chip">1 人 / 多人</span>
+                      </div>
+                      <p>系统在 1–100 中埋下炸弹。双方轮流猜数字，安全数字会缩小范围，猜中炸弹的一方落败。</p>
+                      <div class="game-config-grid">
+                        <label>观众模式
+                          <select id="numberBombMode">
+                            <option value="single">指定 1 位观众</option>
+                            <option value="multi">不限观众数量</option>
+                          </select>
+                        </label>
+                        <label data-viewer-picker="number-bomb">对战观众
+                          <select id="numberBombViewer"><option value="">等待刷新在线观众</option></select>
+                        </label>
+                      </div>
+                      <div class="game-card-actions">
+                        <button class="primary" type="button" data-start-game="number-bomb">开始数字炸弹</button>
+                        <button class="secondary" type="button" data-copy-game="number-bomb">复制专用链接</button>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article class="game-admin-card is-gomoku" data-game-card="gomoku">
+                    <div class="game-card-poster" aria-hidden="true"><span>02</span><strong>A1—O15</strong><i></i></div>
+                    <div class="game-card-content">
+                      <div class="game-card-heading">
+                        <div><span>弹幕坐标落子</span><h3>五子棋</h3></div>
+                        <span class="game-card-chip">主播 VS 观众</span>
+                      </div>
+                      <p>主播执黑先行并直接点击棋盘；指定观众执白，在弹幕输入 B2 这类坐标落子，先连成五子者获胜。</p>
+                      <div class="game-config-grid is-single">
+                        <label>观众输入示例<input type="text" value="B2" readonly></label>
+                        <label>对战观众
+                          <select id="gomokuViewer"><option value="">等待刷新在线观众</option></select>
+                        </label>
+                      </div>
+                      <div class="game-card-actions">
+                        <button class="primary" type="button" data-start-game="gomoku">开始五子棋</button>
+                        <button class="secondary" type="button" data-copy-game="gomoku">复制专用链接</button>
+                      </div>
+                    </div>
+                  </article>
+                </section>
+
+                <footer class="games-admin-footer">
+                  <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
+                  <div>
+                    <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新在线观众</button>
+                    <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
+                  </div>
+                </footer>
+              </div>
+            </section>

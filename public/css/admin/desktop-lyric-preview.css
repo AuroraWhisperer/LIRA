@@ -898,7 +898,8 @@
     transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
     background-color 220ms ease,
     box-shadow 260ms ease;
-  will-change: opacity, filter, transform;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 76px;
 }
 
 .desktop-lyric-preview-row.is-past {
@@ -971,11 +972,24 @@
 }
 
 .desktop-lyric-preview-word {
-  background: linear-gradient(90deg, #ffcf4a var(--preview-word-progress), var(--preview-color) var(--preview-word-progress));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  position: relative;
+  display: inline-block;
+  --preview-word-progress: 0%;
+  color: var(--preview-color);
+}
+
+.desktop-lyric-preview-word-base,
+.desktop-lyric-preview-word-highlight {
+  display: inline-block;
+}
+
+.desktop-lyric-preview-word-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: #ffcf4a;
+  clip-path: inset(0 100% 0 0);
+  pointer-events: none;
 }
 
 .desktop-lyric-preview-row-translation,
@@ -1066,6 +1080,20 @@
   height: 3px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.16);
+}
+
+.desktop-lyric-preview-stage.is-low-power .desktop-lyric-preview-viewport {
+  mask-image: none;
+  -webkit-mask-image: none;
+  filter: opacity(var(--preview-global-opacity));
+}
+
+.desktop-lyric-preview-stage.is-low-power .desktop-lyric-preview-row,
+.desktop-lyric-preview-stage.is-low-power .desktop-lyric-preview-row.is-active,
+.desktop-lyric-preview-stage.is-low-power .desktop-lyric-preview-row.is-near {
+  filter: none;
+  transform: none;
+  transition: opacity 160ms ease, background-color 160ms ease;
 }
 
 .desktop-lyric-preview-progress span {

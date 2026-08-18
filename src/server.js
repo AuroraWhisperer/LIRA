@@ -25,6 +25,7 @@ const settingsStoreModule = require('./storage/settings-store');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
+const { createGameSessionService } = require('./games/game-session-service');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -80,6 +81,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let messageBuffer = null;
   let danmakuSender = null;
   let aiRuntime = null;
+  let gameSessionService = null;
   let applicationInitialized = false;
   let publishOvertimeUpdate = () => {};
   let isShuttingDown = false;
@@ -97,6 +99,9 @@ function createServerRuntime(runtimeOptions = {}) {
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb, settingsStoreModule);
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
+      gameSessionService = createGameSessionService({
+        broadcast: payload => webSocketHub.broadcast(payload)
+      });
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
       domainServices = createDomainServices({
         db,
@@ -141,7 +146,8 @@ function createServerRuntime(runtimeOptions = {}) {
             domainServices,
             aiAssistant: aiRuntime.service,
             broadcastSnapshot,
-            logGiftDelivery
+            logGiftDelivery,
+            games: gameSessionService
           });
         }
       });
@@ -283,6 +289,10 @@ function createServerRuntime(runtimeOptions = {}) {
         danmakuSender
       },
       ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
+      games: {
+        service: gameSessionService,
+        listOnlineViewers: bilibiliRuntime.getViewerCandidates
+      },
       settings: { defaults: DEFAULT_SETTINGS, store: settingsStore },
       system: {
         rootDir: ROOT_DIR,
@@ -501,6 +511,7 @@ function createServerRuntime(runtimeOptions = {}) {
     messageBuffer = null;
     danmakuSender = null;
     aiRuntime = null;
+    gameSessionService = null;
     applicationInitialized = false;
     publishOvertimeUpdate = () => {};
   }

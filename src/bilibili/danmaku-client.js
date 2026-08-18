@@ -151,6 +151,10 @@ class BilibiliDanmakuClient {
     return this.apiClient.sendDanmaku(this.resolvedRoomId || this.roomId, message, reply);
   }
 
+  getViewerCandidates() {
+    return this.identityCache.listRecent();
+  }
+
   async connect(options = {}, generation = this.connectionGeneration) {
     if (!this.isConnectionCurrent(generation)) return;
     const connectionAttempt = ++this.connectionAttempt;

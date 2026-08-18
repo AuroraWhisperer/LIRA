@@ -53,11 +53,12 @@
 | 类型 | 载荷 | 触发点 |
 |---|---|---|
 | `snapshot` | `{type, reason, state}`(15 字段全量) | 连接建立(`reason:'connect'`);业务变更广播 |
-| `lyric-state` | `{type:'lyric-state', state}` | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187)) |
+| `lyric-state` | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence` | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187)) |
 | `lyric-timeline` | `{type:'lyric-timeline', timeline}` | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163)) |
 | `wesing-state` | `{type:'wesing-state', state}` | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184)) |
 | `overtime:update` | `{type, reason, state, adjustment?}` | 加班机状态变更([server.js:148-153](../../../src/server.js#L148-L153)),`adjustment` 仅礼物结算时携带 |
 | `shutdown` | `{type:'shutdown', reason:'manual'}` | 服务关闭前(`webSocketHub.stop` 的 `shutdownPayload`,见 §1) |
+| `game:update` | `{type:'game:update', session}` | 小游戏会话开始、停止或落子；Admin 与 `/games` 浏览器源消费 |
 
 ### 3.1 `snapshot` 的 reason 枚举
 

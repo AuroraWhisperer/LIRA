@@ -88,7 +88,7 @@
 | **桌面层** | | 见各列 |
 | [bilibili-login-window.test.js](../../../test/bilibili-login-window.test.js) | `electron/bilibili-login-window`(登录窗口) | [desktop/auth.md](../desktop/auth.md) |
 | [bilibili-startup-wiring.test.js](../../../test/bilibili-startup-wiring.test.js) | `server.js`+`electron/main.js`(启动装配断言) | [backend/server-core.md](../backend/server-core.md) + [desktop/main.md](../desktop/main.md) |
-| [desktop-lyrics.test.js](../../../test/desktop-lyrics.test.js) | `music/lyric-state`(歌词窗口状态) | [frontend/playback.md](../frontend/playback.md) |
+| [desktop-lyrics.test.js](../../../test/desktop-lyrics.test.js) | `music/lyric-state`、共享 `LyricClock`/30fps scheduler、播放端 latest-wins 与桌面歌词当前行动画 | [frontend/playback.md](../frontend/playback.md) + [frontend/overlays.md](../frontend/overlays.md) |
 | [desktop-state.test.js](../../../test/desktop-state.test.js) | Electron 主进程运行时状态隔离 | [desktop/main.md](../desktop/main.md) |
 | [electron-main-modules.test.js](../../../test/electron-main-modules.test.js) | Electron server runtime 适配与 `local-media://` 协议 | [desktop/main.md](../desktop/main.md) |
 | [local-media-access.test.js](../../../test/local-media-access.test.js) | `electron/local-media-access`(local-media:// 协议) | [desktop/main.md](../desktop/main.md) |
