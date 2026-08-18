@@ -28,7 +28,7 @@
                   <a href="#ug-gifts" data-usage-guide-link>礼物页</a>
                   <a href="#ug-toolbox" data-usage-guide-link>百宝箱</a>
                   <a href="#ug-deepseek" data-usage-guide-link>配置 DeepSeek</a>
-                  <a href="#ug-obs" data-usage-guide-link>OBS 投屏</a>
+                  <a href="#ug-obs" data-usage-guide-link>直播姬 / OBS 投屏</a>
                   <a href="#ug-cheatsheet" data-usage-guide-link>设置速查</a>
                   <a href="#ug-faq" data-usage-guide-link>常见问题</a>
                 </nav>
@@ -100,7 +100,7 @@
                   <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">04</span>主流程：一次完整的开播操作</h3>
                   <ol class="usage-guide-steps">
                     <li><strong>登录 Bilibili 账号，确认直播间已连接。</strong> 在「点歌 → 设置」标签页扫码登录并填写直播间号。账号没登录或房间号不对，弹幕和礼物数据都无法正常获取；登录后点一下右上角「刷新直播」，让连接用上新账号。</li>
-                    <li><strong>在「点歌」页管理歌曲库和队列。</strong> 导入你的歌曲库后，观众通过弹幕发的点歌会自动排队。你也可以手动加歌、调整顺序、切歌或清空队列。标签页里还有主题美化、展示板设置和 OBS 直播画面地址。</li>
+                    <li><strong>在「点歌」页管理歌曲库和队列。</strong> 导入你的歌曲库后，观众通过弹幕发的点歌会自动排队。你也可以手动加歌、调整顺序、切歌或清空队列。标签页里还有主题美化、展示板设置和直播姬 / OBS 直播画面地址。</li>
                     <li><strong>在「播放」页控制音乐播放。</strong> 在 QQ 音乐、网易云音乐和全民 K 歌三个音源之间切换：前两个支持推荐歌单、在线搜索和队列管理；全民 K 歌可以直接读取本机客户端的当前歌曲和逐字歌词。底部播放器可以切歌、暂停、调整进度，也可以打开全屏歌词。</li>
                     <li><strong>在「礼物」页和「百宝箱」监控互动。</strong> 礼物页看送礼流水、盲盒盈亏和月底冲刺进度；百宝箱里，弹幕姬发弹幕、管自动回复和 AI 互动助手，加班机把礼物换算成直播时长，礼物特效投全屏动画，主播计划安排日程，性能检测看电脑资源占用。</li>
                   </ol>
@@ -147,7 +147,7 @@
                       <p>歌库表格下方有一排子标签页，用于配置各项参数：</p>
                       <ul>
                         <li><strong>设置</strong>：Bilibili 账号登录、直播间号、弹幕监听开关、暂停接收点歌、队列上限、用户冷却秒数、是否允许重复点歌、是否只允许歌库歌曲。</li>
-                        <li><strong>点歌板</strong>：OBS 投屏队列的视觉主题——颜色、字号、毛玻璃、发光、滚动模式和滚动速度等。</li>
+                        <li><strong>点歌板</strong>：直播姬 / OBS 投屏队列的视觉主题——颜色、字号、毛玻璃、发光、滚动模式和滚动速度等。</li>
                         <li><strong>展示板</strong>：歌单展示板的滚动速率、歌曲排序方式和主题配色。</li>
                         <li><strong>直播画面</strong>：复制队列、歌单、歌词三个投屏链接（盲盒盈亏榜的链接在礼物页配置）。</li>
                         <li><strong>导入导出</strong>：CSV/XLSX 格式的歌曲批量导入导出。</li>
@@ -190,10 +190,10 @@
                       <p>播放页面内有全屏歌词视图。歌词支持逐字高亮进度显示，还有独立的「罗」（罗马音）和「译」（中文翻译）按钮各自开关。切歌时歌词模式自动重置。</p>
                     </article>
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>桌面歌词浏览器源</strong><span class="usage-guide-chip">OBS</span></div>
-                      <p>在「点歌 → 桌面歌词设置」中调整样式并实时预览，点击「复制桌面歌词」获取浏览器源地址。将地址添加到 OBS 浏览器源后，会按预览样式显示完整歌词时间轴、翻译、罗马音、逐字高亮和播放进度。</p>
+                      <div class="usage-guide-feature-head"><strong>桌面歌词浏览器源</strong><span class="usage-guide-chip">投屏</span></div>
+                      <p>在「点歌 → 桌面歌词设置」中调整样式并实时预览，点击「复制桌面歌词」获取浏览器源地址。将地址添加到直播姬的「浏览器」或 OBS 的「浏览器源」后，会按预览样式显示完整歌词时间轴、翻译、罗马音、逐字高亮和播放进度。</p>
                       <ul>
-                        <li>浏览器源背景透明，尺寸由浏览器或 OBS 的源宽高决定。</li>
+                        <li>浏览器源背景透明，尺寸由直播姬或 OBS 中设置的源宽高决定。</li>
                         <li>歌词区域可独立滚动；手动查看其他歌词后会暂停跟随，稍后自动回到当前行。</li>
                       </ul>
                     </article>
@@ -272,13 +272,13 @@
                       <p>把观众送的礼物换算成直播加时。为每种礼物设置时间规则（按连击组或按具体数量结算），点「启用加班机」后按「开始」启动倒计时，收到礼物自动加时。</p>
                       <ul>
                         <li>支持手动设置初始时长；「最近结算」保留最近 20 组已完成或忽略的礼物记录。</li>
-                        <li>「直播画面」区域可复制投屏地址、打开实时预览；背景可透明或选内置样式，透明背景适合直接叠加到 OBS。</li>
+                        <li>「直播画面」区域可复制投屏地址、打开实时预览；背景可透明或选内置样式，透明背景适合直接叠加到直播姬或 OBS。</li>
                         <li>顶部状态灯显示共享收礼核心、礼物统计和加班机的运行情况；「待结算」计数不为 0 说明有礼物正在等待结算。</li>
                       </ul>
                     </article>
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>礼物特效</strong><span class="usage-guide-chip">特效</span></div>
-                      <p>收到指定礼物时在直播画面上播放全屏动画。输入礼物 ID 点「播放特效」即可测试效果；「直播投屏」卡片里的地址固定不变，复制到 OBS 浏览器源后，收到对应礼物会自动播放，平时画面透明不占位置。也可以点「打开预览」直接在浏览器里查看。</p>
+                      <p>收到指定礼物时在直播画面上播放全屏动画。输入礼物 ID 点「播放特效」即可测试效果；「直播投屏」卡片里的地址固定不变，复制到直播姬的「浏览器」或 OBS 的「浏览器源」后，收到对应礼物会自动播放，平时画面透明不占位置。也可以点「打开预览」直接在浏览器里查看。</p>
                     </article>
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>主播计划</strong><span class="usage-guide-chip">计划</span></div>
@@ -353,8 +353,8 @@
 
                 <!-- ============ 投屏设置 ============ -->
                 <section class="usage-guide-section" id="ug-obs">
-                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">10</span>OBS 投屏设置</h3>
-                  <p class="usage-guide-section-intro">LIRA 提供了多个直播画面链接，添加到 OBS 的「浏览器源」中即可在直播画面上显示：</p>
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">10</span>直播姬 / OBS 投屏设置</h3>
+                  <p class="usage-guide-section-intro">LIRA 提供了多个直播画面链接，添加到直播姬的「浏览器」或 OBS 的「浏览器源」中即可在直播画面上显示：</p>
                   <div class="usage-guide-grid">
                     <article class="usage-guide-card">
                       <strong>点歌队列画面</strong>
@@ -378,7 +378,7 @@
                     </article>
                     <article class="usage-guide-card">
                       <strong>礼物特效画面</strong>
-                      <p>全屏礼物动画的固定地址，在「百宝箱 → 礼物特效」复制。加入 OBS 后收到对应礼物会自动播放特效，无内容时画面透明。</p>
+                      <p>全屏礼物动画的固定地址，在「百宝箱 → 礼物特效」复制。加入直播姬或 OBS 后，收到对应礼物会自动播放特效，无内容时画面透明。</p>
                     </article>
                   </div>
                 </section>
@@ -469,10 +469,10 @@
                     </details>
                     <details class="usage-guide-faq">
                       <summary>
-                        <strong>OBS 投屏画面不显示或尺寸不对</strong>
+                        <strong>直播姬 / OBS 投屏画面不显示或尺寸不对</strong>
                         <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       </summary>
-                      <p>先确认投屏地址是从「点歌页 → 直播画面」标签页复制的正确链接（以 127.0.0.1 开头）。OBS 浏览器源的宽度建议至少 400px。窗口第一次缩放后画面会自动适配全宽，所以刚添加时可能偏窄，拖动 OBS 源边框即可触发自适应。</p>
+                      <p>先确认投屏地址是从「点歌页 → 直播画面」标签页复制的正确链接（以 127.0.0.1 开头）。直播姬或 OBS 中的浏览器源宽度建议至少 400px。窗口第一次缩放后画面会自动适配全宽，所以刚添加时可能偏窄，调整浏览器源边框即可触发自适应。</p>
                     </details>
                     <details class="usage-guide-faq">
                       <summary>

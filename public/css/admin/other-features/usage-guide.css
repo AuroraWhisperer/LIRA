@@ -230,11 +230,8 @@
 
 .usage-guide-steps li {
   counter-increment: usage-guide-step;
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 11px 2px;
+  position: relative;
+  padding: 11px 2px 11px 40px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
@@ -246,11 +243,13 @@
 
 .usage-guide-steps li::before {
   content: counter(usage-guide-step);
+  position: absolute;
+  top: 12px;
+  left: 2px;
   display: grid;
   place-items: center;
   width: 24px;
   height: 24px;
-  margin-top: 1px;
   border: 1px solid var(--color-border-primary);
   border-radius: 50%;
   color: var(--primary-strong);

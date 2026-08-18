@@ -75,6 +75,29 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   );
 });
 
+test('usage guide main-flow steps keep body text out of the number gutter', () => {
+  const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];
+  const markerRule = source.match(/\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(stepRule, 'usage guide step layout should remain defined');
+  assert.ok(markerRule, 'usage guide step marker should remain defined');
+  assert.match(stepRule, /position:\s*relative/);
+  assert.match(stepRule, /padding:\s*11px 2px 11px 40px/);
+  assert.doesNotMatch(stepRule, /grid-template-columns/);
+  assert.match(markerRule, /position:\s*absolute/);
+  assert.match(markerRule, /left:\s*2px/);
+});
+
+test('usage guide presents overlays for both live companion and OBS users', () => {
+  const html = readAdminHtml();
+
+  assert.match(html, />直播姬 \/ OBS 投屏<\/a>/);
+  assert.match(html, />直播姬 \/ OBS 投屏设置<\/h3>/);
+  assert.match(html, /添加到直播姬的「浏览器」或 OBS 的「浏览器源」/);
+  assert.match(html, />直播姬 \/ OBS 投屏画面不显示或尺寸不对<\/strong>/);
+});
+
 test('other feature navigation selects panels without feature-specific dependencies', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8');
   const createNode = ({ id = '', feature = '', hidden = false } = {}) => {
