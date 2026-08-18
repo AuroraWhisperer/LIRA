@@ -101,8 +101,7 @@
     ['desktopLyricGlobalOpacity', 0, 1, 1],
     ['desktopLyricBrightness', 0.2, 2, 1],
     ['desktopLyricContrast', 0.2, 2, 1],
-    ['desktopLyricSaturation', 0, 2, 1],
-    ['desktopLyricVisibleLines', 0, 99, 0]
+    ['desktopLyricSaturation', 0, 2, 1]
   ];
 
   function quoteCssFontFamily(family) {

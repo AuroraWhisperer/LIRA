@@ -176,6 +176,10 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
     'utf8'
   );
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
+    'utf8'
+  );
   const styles = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
     'utf8'
@@ -188,6 +192,8 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   assert.match(html, /id="desktopLyricSpringAnimation" type="checkbox">/);
   assert.match(html, /id="desktopLyricBlurEffect" type="checkbox">/);
   assert.match(html, /id="desktopLyricScaleEffect" type="checkbox">/);
+  assert.match(html, /id="desktopLyricVisibleLines" type="number"/);
+  assert.doesNotMatch(source, /\['desktopLyricVisibleLines', 0, 99, 0\]/);
   assert.match(html, /id="desktopLyricSpringHint" role="tooltip"/);
   assert.match(html, /id="desktopLyricBlurHint" role="tooltip"/);
   assert.match(styles, /\.desktop-lyric-align-options\s*\{/);
