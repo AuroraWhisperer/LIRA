@@ -8,6 +8,7 @@ const { BilibiliApiClient } = require('./danmaku/api-client');
 const { WebSocketConnection } = require('./danmaku/websocket-connection');
 const { HistoryPoller } = require('./danmaku/history-poller');
 const { OnlineRankPoller } = require('./danmaku/online-rank-poller');
+const { FansMedalPoller } = require('./danmaku/fans-medal-poller');
 const { LiveStatusMonitor } = require('./danmaku/live-status-monitor');
 const { IdentityCache } = require('./danmaku/identity-cache');
 const { MessageDeduplicator } = require('./danmaku/message-deduplicator');
@@ -55,10 +56,12 @@ class BilibiliDanmakuClient {
       (messageData) => this.handleHistoryMessage(messageData),
       {
         startedAtMs: this.startedAtMs,
+        roomOwnerUid: '',
         isCommandText: options.isCommandText
       }
     );
     this.onlineRankPoller = new OnlineRankPoller(this.apiClient, this.identityCache);
+    this.fansMedalPoller = new FansMedalPoller(this.apiClient, this.identityCache);
     this.liveStatusMonitor = new LiveStatusMonitor(
       this.apiClient,
       (roomId) => this.reconnectAfterLiveStarted(roomId),
@@ -127,6 +130,7 @@ class BilibiliDanmakuClient {
     this.wsConnection.close();
     this.historyPoller.stop();
     this.onlineRankPoller.stop();
+    this.fansMedalPoller.stop();
     this.liveStatusMonitor.stop();
     if (this.messageHandlers && typeof this.messageHandlers.destroy === 'function') {
       this.messageHandlers.destroy();
@@ -164,11 +168,13 @@ class BilibiliDanmakuClient {
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.ownerName = roomInfo.ownerName || '';
     this.messageHandlers.updateRoomOwnerUid(roomInfo.uid);
+    this.historyPoller.updateRoomOwnerUid(roomInfo.uid);
 
     if (!isLive || options.alwaysHistory) {
       this.historyPoller.start(roomInfo.roomId);
     }
     this.onlineRankPoller.start(roomInfo.roomId, roomInfo.uid);
+    this.fansMedalPoller.start(roomInfo.roomId, roomInfo.uid);
     this.liveStatusMonitor.start(roomInfo);
 
     const danmuInfo = await this.apiClient.resolveDanmuInfo(roomInfo.roomId);
@@ -295,7 +301,9 @@ class BilibiliDanmakuClient {
         userName: messageData.userName,
         requesterGuardLevel: messageData.requesterGuardLevel,
         requesterMedalName: messageData.requesterMedalName,
-        requesterMedalLevel: messageData.requesterMedalLevel
+        requesterMedalLevel: messageData.requesterMedalLevel,
+        currentRoomVerified: messageData.currentRoomVerified,
+        identitySource: 'history'
       });
       this.handlers.onMessage({
         message: messageData.message,

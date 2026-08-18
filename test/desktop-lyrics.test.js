@@ -162,10 +162,37 @@ test('desktop lyric settings define the merged presentation defaults', () => {
   assert.equal(DEFAULT_SETTINGS.desktopLyricKaraokeEnabled, 'true');
   assert.equal(DEFAULT_SETTINGS.desktopLyricHideOnPause, 'false');
   assert.equal(DEFAULT_SETTINGS.desktopLyricTimeOffsetMs, '0');
-  assert.equal(DEFAULT_SETTINGS.desktopLyricSpringAnimation, 'true');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricSpringAnimation, 'false');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricBlurEffect, 'false');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricScaleEffect, 'false');
   assert.equal(DEFAULT_SETTINGS.desktopLyricAlignPosition, '0.5');
   assert.equal(DEFAULT_SETTINGS.desktopLyricBackgroundEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.desktopLyricBrightness, '1');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricVisibleLines, '0');
+});
+
+test('desktop lyric settings use icon alignment controls and performance-safe motion defaults', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    'utf8'
+  );
+
+  assert.match(html, /id="desktopLyricTextAlign"[^>]*role="radiogroup"/);
+  for (const value of ['left', 'center', 'right', 'justify']) {
+    assert.match(html, new RegExp(`name="desktopLyricTextAlign" value="${value}"`));
+  }
+  assert.match(html, /id="desktopLyricSpringAnimation" type="checkbox">/);
+  assert.match(html, /id="desktopLyricBlurEffect" type="checkbox">/);
+  assert.match(html, /id="desktopLyricScaleEffect" type="checkbox">/);
+  assert.match(html, /id="desktopLyricSpringHint" role="tooltip"/);
+  assert.match(html, /id="desktopLyricBlurHint" role="tooltip"/);
+  assert.match(styles, /\.desktop-lyric-align-options\s*\{/);
+  assert.match(styles, /label:has\(input:focus-visible\)/);
+  assert.match(styles, /\.desktop-lyric-performance-hint:focus-visible \[role="tooltip"\]/);
 });
 
 test('desktop lyric settings organize the merged controls below lyric matching', () => {
@@ -382,7 +409,9 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(source, /`歌词已载入 · \$\{lineCount\} 行`/);
   assert.match(source, /textContent\s*=/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
-  assert.match(source, /navigator\.clipboard\.writeText\(desktopLyricUrl\)/);
+  assert.match(source, /import \{ copyText, localOverlayOrigin \} from '\.\.\/shared\/utils\.js';/);
+  assert.match(source, /await copyText\(desktopLyricUrl\)/);
+  assert.doesNotMatch(source, /navigator\.clipboard\.writeText\(desktopLyricUrl\)/);
   assert.match(source, /`\$\{localOverlayOrigin\(location\)\}\/lyrics`/);
   assert.match(source, /桌面歌词地址已复制/);
   assert.doesNotMatch(source, /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/);
@@ -458,12 +487,19 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricScale: '1',
     desktopLyricLineHeight: '1.4',
     desktopLyricShadowIntensity: '0.35',
-    desktopLyricTranslationScale: '0.65'
+    desktopLyricTranslationScale: '0.65',
+    desktopLyricTextAlign: 'justify'
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
   const lyricSourceInputs = [
     { value: 'netease', checked: true },
     { value: 'qq', checked: false }
+  ];
+  const textAlignInputs = [
+    { value: 'left', checked: false },
+    { value: 'center', checked: false },
+    { value: 'right', checked: false },
+    { value: 'justify', checked: true }
   ];
   const smartLyricMatch = { checked: true };
   elements.set('desktopLyricForm', form);
@@ -485,10 +521,15 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
         if (selector === 'input[name="weSingLyricSource"]:checked') {
           return lyricSourceInputs.find((input) => input.checked) || null;
         }
+        if (selector === 'input[name="desktopLyricTextAlign"]:checked') {
+          return textAlignInputs.find((input) => input.checked) || null;
+        }
         return null;
       },
       querySelectorAll(selector) {
-        return selector === 'input[name="weSingLyricSource"]' ? lyricSourceInputs : [];
+        if (selector === 'input[name="weSingLyricSource"]') return lyricSourceInputs;
+        if (selector === 'input[name="desktopLyricTextAlign"]') return textAlignInputs;
+        return [];
       }
     },
     setTimeout(callback, delay) {
@@ -542,6 +583,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls.length, 1);
   assert.equal(apiCalls[0].body.weSingLyricSource, 'netease');
   assert.equal(apiCalls[0].body.weSingSmartLyricMatch, 'true');
+  assert.equal(apiCalls[0].body.desktopLyricTextAlign, 'justify');
 
   windowListeners.get('app:settings-state')({
     detail: {
@@ -836,6 +878,26 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
     desktopLyricNoLyricText: '纯音乐'
   });
   assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, fallbackSettings), '纯音乐');
+});
+
+test('desktop lyric visible-line window keeps full timeline semantics', async () => {
+  const preview = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js')
+  );
+
+  const range = (activeLine, visibleLines, lineCount) => JSON.parse(JSON.stringify(
+    preview.getVisibleLyricRange(activeLine, visibleLines, lineCount)
+  ));
+  assert.deepEqual(range(4, 0, 9), { first: 0, last: 8 });
+  assert.deepEqual(range(4, 1, 9), { first: 4, last: 4 });
+  assert.deepEqual(range(4, 2, 9), { first: 4, last: 5 });
+  assert.deepEqual(range(4, 3, 9), { first: 3, last: 5 });
+  assert.deepEqual(range(4, 4, 9), { first: 3, last: 6 });
+  assert.deepEqual(range(0, 5, 3), { first: 0, last: 2 });
+  assert.deepEqual(range(8, 5, 9), { first: 6, last: 8 });
+
+  const settings = preview.resolveDesktopLyricSettings({ desktopLyricVisibleLines: '-2' });
+  assert.equal(settings.visibleLines, 0);
 });
 
 async function loadModuleExports(entryPath, globals = {}) {

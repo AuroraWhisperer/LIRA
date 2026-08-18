@@ -5,6 +5,13 @@
 const { cleanText, normalizeGuardLevel, normalizePositiveInteger } = require('../../shared/utils');
 
 const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
+const IDENTITY_SOURCE_PRIORITY = {
+  fans_rank: 10,
+  online_rank: 5,
+  history: 20,
+  superchat: 30,
+  danmaku: 30
+};
 
 class IdentityCache {
   constructor() {
@@ -21,7 +28,9 @@ class IdentityCache {
       userName,
       guardLevel: normalizeGuardLevel(input && input.requesterGuardLevel),
       medalName: cleanText(input && input.requesterMedalName),
-      medalLevel: normalizePositiveInteger(input && input.requesterMedalLevel)
+      medalLevel: normalizePositiveInteger(input && input.requesterMedalLevel),
+      currentRoom: Boolean(input && input.currentRoomVerified),
+      source: input && input.identitySource
     }, cached);
     this.remember(merged);
     return publicRequesterIdentity(merged);
@@ -46,7 +55,8 @@ class IdentityCache {
   remember(input, options = {}) {
     const identity = normalizeRequesterIdentity({
       ...input,
-      currentRoom: options.currentRoom === true || Boolean(input && input.currentRoom)
+      currentRoom: options.currentRoom === true || Boolean(input && input.currentRoom),
+      source: options.source || (input && (input.source || input.identitySource))
     });
     if (!identity.uid && !identity.userName) return false;
     if (!identity.currentRoom && !identity.guardLevel && !identity.medalLevel && !identity.medalName) return false;
@@ -82,7 +92,8 @@ function normalizeRequesterIdentity(input) {
     medalName: cleanText(input && input.medalName),
     medalLevel: normalizePositiveInteger(input && input.medalLevel),
     seenAt: normalizePositiveInteger(input && input.seenAt),
-    currentRoom: Boolean(input && input.currentRoom)
+    currentRoom: Boolean(input && input.currentRoom),
+    source: cleanText(input && (input.source || input.identitySource))
   };
 }
 
@@ -103,15 +114,28 @@ function mergeRequesterIdentity(primary, fallback) {
 }
 
 function mergeCurrentRoomIdentity(currentRoom, fallback) {
+  const selected = chooseCurrentRoomEvidence(currentRoom, fallback);
   return {
-    uid: currentRoom.uid || fallback.uid,
-    userName: chooseRequesterUserName(currentRoom.userName, fallback.userName),
-    guardLevel: currentRoom.guardLevel,
-    medalName: currentRoom.medalName,
-    medalLevel: currentRoom.medalLevel,
-    seenAt: Math.max(currentRoom.seenAt, fallback.seenAt),
+    uid: selected.uid || fallback.uid || currentRoom.uid,
+    userName: chooseRequesterUserName(selected.userName, fallback.userName || currentRoom.userName),
+    guardLevel: selected.guardLevel,
+    medalName: selected.medalName,
+    medalLevel: selected.medalLevel,
+    seenAt: Math.max(selected.seenAt, fallback.seenAt, currentRoom.seenAt),
+    source: selected.source,
     currentRoom: true
   };
+}
+
+function chooseCurrentRoomEvidence(primary, fallback) {
+  const primaryPriority = identitySourcePriority(primary.source);
+  const fallbackPriority = identitySourcePriority(fallback.source);
+  if (fallback.currentRoom && fallbackPriority > primaryPriority) return fallback;
+  return primary;
+}
+
+function identitySourcePriority(source) {
+  return IDENTITY_SOURCE_PRIORITY[cleanText(source)] || 0;
 }
 
 function publicRequesterIdentity(input) {

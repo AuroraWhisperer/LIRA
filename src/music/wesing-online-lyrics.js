@@ -35,6 +35,7 @@ function createWeSingOnlineLyricResolver(options = {}) {
 
   return async function resolveWeSingOnlineLyrics(input = {}) {
     const title = String(input.title || '').trim().slice(0, 120);
+    const artist = String(input.artist || input.artists?.[0] || '').trim().slice(0, 80);
     const durationMs = Math.max(0, Number(input.durationMs) || 0);
     if (!title) return null;
 
@@ -47,7 +48,7 @@ function createWeSingOnlineLyricResolver(options = {}) {
 
     // allSettled keeps one unavailable provider from suppressing the other.
     const settled = await Promise.allSettled(requestedPlatforms.map((platform) => (
-      resolveProviderLyrics({ registry, lyricsService, platform, title, durationMs })
+      resolveProviderLyrics({ registry, lyricsService, platform, title, artist, durationMs })
     )));
     const candidates = settled
       .filter((item) => item.status === 'fulfilled' && item.value)
@@ -64,13 +65,14 @@ function createWeSingOnlineLyricResolver(options = {}) {
 }
 
 async function resolveProviderLyrics(options) {
-  const { registry, lyricsService, platform, title, durationMs } = options;
+  const { registry, lyricsService, platform, title, artist, durationMs } = options;
+  const keyword = [title, artist].filter(Boolean).join(' ');
   const searchResult = await lyricsService.searchMusicTracks(registry, {
     platform,
-    keyword: title,
+    keyword,
     limit: 20
   });
-  const match = rankWeSingLyricTracks(title, durationMs, searchResult.tracks)[0];
+  const match = rankWeSingLyricTracks(title, durationMs, searchResult.tracks, artist)[0];
   if (!match || match.score < MIN_TITLE_MATCH_SCORE) return null;
 
   const lyricResult = await lyricsService.getMusicTrackLyrics(registry, { track: match.track });
@@ -98,14 +100,14 @@ async function resolveProviderLyrics(options) {
  * Now Playing only has title/artist similarity here; the duration improves the
  * ambiguous no-artist case without weakening its strict title requirement.
  */
-function selectWeSingLyricTrack(title, durationMs, tracks) {
-  return rankWeSingLyricTracks(title, durationMs, tracks)[0]?.track || null;
+function selectWeSingLyricTrack(title, durationMs, tracks, artist = '') {
+  return rankWeSingLyricTracks(title, durationMs, tracks, artist)[0]?.track || null;
 }
 
-function rankWeSingLyricTracks(title, durationMs, tracks) {
+function rankWeSingLyricTracks(title, durationMs, tracks, artist = '') {
   const candidates = Array.isArray(tracks) ? tracks : [];
   return candidates.map((track, index) => {
-    const result = scoreTrackMatch({ songName: title, durationMs }, track);
+    const result = scoreTrackMatch({ songName: title, artist, durationMs }, track);
     const candidateDuration = Math.max(0, Number(track?.durationMs) || 0);
     return {
       track,

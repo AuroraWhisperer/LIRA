@@ -31,7 +31,7 @@ function createFixture() {
   fs.writeFileSync(path.join(logDir, 'WeSing-1.log'), Buffer.from([
     'ignored line',
     'event "StartKSong" payload {"mid":"older","songname":"旧歌"}',
-    `event "StartKSong" payload {"mid":"${mid}","songname":"测试歌曲"}`
+    `event "StartKSong" payload {"mid":"${mid}","songname":"测试歌曲","singer":"测试歌手"}`
   ].join('\r\n'), 'utf16le'));
 
   const content = '[ti:测试歌曲]\n[ar:测试歌手]\n[1000,1800]你(1000,800)好(1800,1000)\n[4000,1200]世(4000,600)界(4600,600)';
@@ -59,7 +59,7 @@ test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-ti
   t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
 
   const entry = await findLatestSongEntry(fixture.cachePath, '测试歌曲');
-  assert.deepEqual(entry, { mid: fixture.mid, songName: '测试歌曲' });
+  assert.deepEqual(entry, { mid: fixture.mid, songName: '测试歌曲', artist: '测试歌手' });
 
   const result = await loadWeSingLyrics({
     cachePath: fixture.cachePath,
@@ -441,6 +441,12 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-online-'));
   const cachePath = path.join(root, 'WeSingCache');
   fs.mkdirSync(cachePath, { recursive: true });
+  const logDir = path.join(cachePath, 'Log', 'WeSing');
+  fs.mkdirSync(logDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(logDir, 'WeSing-online.log'),
+    Buffer.from('event "StartKSong" payload {"mid":"online-mid","songname":"失控","artist":"井迪"}', 'utf16le')
+  );
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
   let onSample = null;
@@ -483,7 +489,12 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   assert.equal(state.qrcReady, true);
   assert.equal(state.lyricSource, 'qq');
   assert.equal(state.lyricState.lineText, '请原谅我的词穷');
-  assert.deepEqual(requested, [{ title: '失控', durationMs: 255000 }]);
+  assert.deepEqual(requested, [{
+    title: '失控',
+    artist: '井迪',
+    artists: ['井迪'],
+    durationMs: 255000
+  }]);
   assert.equal(timelines.filter((timeline) => timeline.lines.length > 0).length, 1);
   assert.equal(timelines.at(-1).trackTitle, '失控');
   assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');

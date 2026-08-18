@@ -10,6 +10,7 @@ const {
   formatLyricSource,
   isDirectory,
   loadWeSingLyrics,
+  findLatestSongEntry,
   normalizeWeSingLyricOffsetMs,
   safeInitialCachePath,
   safeInitialLyricOffsetMs,
@@ -394,6 +395,13 @@ function createWeSingCapture(options = {}) {
     emit();
     let result = null;
     let fallbackError = null;
+    let detectedArtist = '';
+    try {
+      const logEntry = await findLatestSongEntry(cachePath, title);
+      detectedArtist = String(logEntry?.artist || '').trim();
+    } catch (_) {
+      detectedArtist = '';
+    }
     if (state.cacheReady) {
       try {
         result = await loadWeSingLyrics({ cachePath, title });
@@ -402,7 +410,12 @@ function createWeSingCapture(options = {}) {
     }
     if (!result && resolveFallbackLyrics) {
       try {
-        result = await resolveFallbackLyrics({ title, durationMs: state.durationMs });
+        const fallbackInput = { title, durationMs: state.durationMs };
+        if (detectedArtist) {
+          fallbackInput.artist = detectedArtist;
+          fallbackInput.artists = [detectedArtist];
+        }
+        result = await resolveFallbackLyrics(fallbackInput);
       } catch (error) {
         fallbackError = error;
       }

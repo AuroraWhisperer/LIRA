@@ -12,6 +12,7 @@ class HistoryPoller {
     this.apiClient = apiClient;
     this.onMessage = onMessage;
     this.startedAtMs = options.startedAtMs || Date.now();
+    this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.isCommandText = typeof options.isCommandText === 'function'
       ? options.isCommandText
       : isBilibiliCommandText;
@@ -39,6 +40,10 @@ class HistoryPoller {
     this.startedAtMs = startedAtMs;
   }
 
+  updateRoomOwnerUid(roomOwnerUid) {
+    this.roomOwnerUid = cleanText(roomOwnerUid);
+  }
+
   async pollHistory(roomId) {
     const data = await this.apiClient.fetchHistory(roomId);
     const messages = []
@@ -55,7 +60,7 @@ class HistoryPoller {
       if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) continue;
 
       processed += 1;
-      const userMeta = packetParser.extractBilibiliHistoryUserMeta(item);
+      const userMeta = packetParser.extractBilibiliHistoryUserMeta(item, this.roomOwnerUid);
       this.onMessage({
         uid: item.uid,
         userName: String(item.nickname || item.uname || '观众'),
@@ -63,6 +68,8 @@ class HistoryPoller {
         requesterGuardLevel: userMeta.guardLevel,
         requesterMedalName: userMeta.medalName,
         requesterMedalLevel: userMeta.medalLevel,
+        currentRoomVerified: userMeta.currentRoomVerified,
+        identitySource: 'history',
         source: 'history',
         messageTimestamp: timelineMs
       });

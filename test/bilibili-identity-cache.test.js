@@ -52,3 +52,53 @@ test('verified absence of a current room medal suppresses another room medal', (
   assert.equal(identity.medalName, '');
   assert.equal(identity.medalLevel, 0);
 });
+
+test('verified current-room absence does not inherit an unverified cached medal', () => {
+  const cache = new IdentityCache();
+  cache.remember({
+    uid: 123,
+    userName: '点歌人',
+    guardLevel: 0,
+    medalName: '别家牌子',
+    medalLevel: 30
+  });
+
+  const identity = cache.resolve({
+    uid: 123,
+    userName: '点歌人',
+    requesterGuardLevel: 0,
+    requesterMedalName: '',
+    requesterMedalLevel: 0,
+    currentRoomVerified: true
+  });
+
+  assert.equal(identity.guardLevel, 0);
+  assert.equal(identity.medalName, '');
+  assert.equal(identity.medalLevel, 0);
+});
+
+test('fans snapshot does not override identity captured from the point-song danmaku', () => {
+  const cache = new IdentityCache();
+  cache.resolve({
+    uid: 123,
+    userName: '点歌人',
+    requesterGuardLevel: 0,
+    requesterMedalName: 'imilly',
+    requesterMedalLevel: 28,
+    currentRoomVerified: true,
+    identitySource: 'danmaku'
+  });
+
+  cache.remember({
+    uid: 123,
+    userName: '点歌人',
+    guardLevel: 2,
+    medalName: '旧快照',
+    medalLevel: 27
+  }, { currentRoom: true, source: 'fans_rank' });
+
+  const identity = cache.resolve({ uid: 123, userName: '点歌人' });
+  assert.equal(identity.guardLevel, 0);
+  assert.equal(identity.medalName, 'imilly');
+  assert.equal(identity.medalLevel, 28);
+});

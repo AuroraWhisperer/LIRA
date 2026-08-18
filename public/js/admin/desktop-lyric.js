@@ -40,9 +40,9 @@
     desktopLyricTimeOffsetMs: '0',
     desktopLyricShowTitleWhenNoLyric: 'false',
     desktopLyricNoLyricText: '纯音乐，请欣赏',
-    desktopLyricSpringAnimation: 'true',
-    desktopLyricBlurEffect: 'true',
-    desktopLyricScaleEffect: 'true',
+    desktopLyricSpringAnimation: 'false',
+    desktopLyricBlurEffect: 'false',
+    desktopLyricScaleEffect: 'false',
     desktopLyricScale: '1',
     desktopLyricAlignPosition: '0.5',
     desktopLyricAlignAnchor: 'center',
@@ -57,7 +57,8 @@
     desktopLyricGlobalOpacity: '1',
     desktopLyricBrightness: '1',
     desktopLyricContrast: '1',
-    desktopLyricSaturation: '1'
+    desktopLyricSaturation: '1',
+    desktopLyricVisibleLines: '0'
   });
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
@@ -100,7 +101,8 @@
     ['desktopLyricGlobalOpacity', 0, 1, 1],
     ['desktopLyricBrightness', 0.2, 2, 1],
     ['desktopLyricContrast', 0.2, 2, 1],
-    ['desktopLyricSaturation', 0, 2, 1]
+    ['desktopLyricSaturation', 0, 2, 1],
+    ['desktopLyricVisibleLines', 0, 99, 0]
   ];
 
   function quoteCssFontFamily(family) {
@@ -297,6 +299,10 @@
       weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch')
     };
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
+      if (key === 'desktopLyricTextAlign') {
+        settings[key] = selectedTextAlign();
+        return;
+      }
       const input = document.getElementById(key);
       settings[key] = input
         ? CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value
@@ -305,12 +311,23 @@
     return settings;
   }
 
+  function selectedTextAlign() {
+    return document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value || 'left';
+  }
+
   function loadDesktopLyricSettings(settings, options = {}) {
     if (!settings) return;
 
     if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       const nextValue = settings[key] ?? fallback;
+      if (key === 'desktopLyricTextAlign') {
+        const textAlign = ['left', 'center', 'right', 'justify'].includes(nextValue) ? nextValue : fallback;
+        document.querySelectorAll('input[name="desktopLyricTextAlign"]').forEach((input) => {
+          input.checked = input.value === textAlign;
+        });
+        return;
+      }
       const input = document.getElementById(key);
       if (CHECKBOX_KEYS.has(key)) {
         if (input) input.checked = nextValue !== 'false';

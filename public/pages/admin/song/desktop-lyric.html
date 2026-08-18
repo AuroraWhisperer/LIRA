@@ -83,10 +83,15 @@
                       <span class="desktop-lyric-control-copy"><strong>文字颜色</strong><small>歌词主体颜色</small></span>
                       <input id="desktopLyricTextColor" class="desktop-lyric-color" type="color" value="#000000">
                     </label>
-                    <label class="desktop-lyric-control">
+                    <div class="desktop-lyric-control">
                       <span class="desktop-lyric-control-copy"><strong>对齐方式</strong><small>歌词在行内的对齐方式</small></span>
-                      <select id="desktopLyricTextAlign"><option value="left" selected>左对齐</option><option value="center">居中</option><option value="right">右对齐</option></select>
-                    </label>
+                      <div id="desktopLyricTextAlign" class="desktop-lyric-align-options" role="radiogroup" aria-label="歌词对齐方式">
+                        <label title="左对齐"><input type="radio" name="desktopLyricTextAlign" value="left" checked><span class="desktop-lyric-align-icon is-left" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">左对齐</span></label>
+                        <label title="居中"><input type="radio" name="desktopLyricTextAlign" value="center"><span class="desktop-lyric-align-icon is-center" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">居中</span></label>
+                        <label title="右对齐"><input type="radio" name="desktopLyricTextAlign" value="right"><span class="desktop-lyric-align-icon is-right" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">右对齐</span></label>
+                        <label title="两端对齐"><input type="radio" name="desktopLyricTextAlign" value="justify"><span class="desktop-lyric-align-icon is-justify" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">两端对齐</span></label>
+                      </div>
+                    </div>
                     <label class="desktop-lyric-control desktop-lyric-range-control">
                       <span class="desktop-lyric-control-copy"><strong>字间距</strong><small>字符之间的间距大小</small></span>
                       <span class="range-row"><input id="desktopLyricLetterSpacing" class="parameter-range" type="range" min="-0.1" max="0.3" step="0.01" value="0"><input id="desktopLyricLetterSpacingNumber" type="number" min="-0.1" max="0.3" step="0.01" value="0"><span class="desktop-lyric-unit">em</span></span>
@@ -140,11 +145,12 @@
                 </details>
 
                 <details class="desktop-lyric-settings-group is-layout">
-                  <summary><span><strong>动画与布局</strong><small>跟随动画、锚点与三维空间位置</small></span><span class="desktop-lyric-group-count">11 项</span></summary>
+                  <summary><span><strong>动画与布局</strong><small>跟随动画、锚点与三维空间位置</small></span><span class="desktop-lyric-group-count">12 项</span></summary>
                   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>弹性动画</strong><small>歌词切换时的回弹动画效果</small></span><label class="switch-control"><input id="desktopLyricSpringAnimation" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>模糊效果</strong><small>非当前歌词行的模糊处理</small></span><label class="switch-control"><input id="desktopLyricBlurEffect" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>缩放效果</strong><small>当前歌词行的放大强调效果</small></span><label class="switch-control"><input id="desktopLyricScaleEffect" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
+                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>弹性动画 <span class="desktop-lyric-performance-hint" tabindex="0" aria-describedby="desktopLyricSpringHint">i<span id="desktopLyricSpringHint" role="tooltip">切换歌词时会持续计算滚动位置，电脑性能充足时再开启。</span></span></strong><small>歌词切换时的回弹动画效果</small></span><label class="switch-control"><input id="desktopLyricSpringAnimation" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
+                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>模糊效果 <span class="desktop-lyric-performance-hint" tabindex="0" aria-describedby="desktopLyricBlurHint">i<span id="desktopLyricBlurHint" role="tooltip">模糊会增加浏览器合成压力，电脑性能充足时再开启。</span></span></strong><small>非当前歌词行的模糊处理</small></span><label class="switch-control"><input id="desktopLyricBlurEffect" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
+                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>缩放效果</strong><small>当前歌词行的放大强调效果</small></span><label class="switch-control"><input id="desktopLyricScaleEffect" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
+                    <label class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>显示歌词行数</strong><small>0 为整首；1 为当前句；偶数向下多显示，奇数上下均匀显示</small></span><input id="desktopLyricVisibleLines" type="number" min="0" max="99" step="1" value="0" inputmode="numeric"></label>
                     <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>整体缩放</strong><small>全部歌词内容的大小比例</small></span><span class="range-row"><input id="desktopLyricScale" class="parameter-range" type="range" min="0.5" max="2" step="0.1" value="1"><input id="desktopLyricScaleNumber" type="number" min="0.5" max="2" step="0.1" value="1"><span class="desktop-lyric-unit">倍</span></span></label>
                     <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>基准对齐位置</strong><small>当前歌词行在垂直方向的参考位置</small></span><span class="range-row"><input id="desktopLyricAlignPosition" class="parameter-range" type="range" min="0" max="1" step="0.05" value="0.5"><input id="desktopLyricAlignPositionNumber" type="number" min="0" max="1" step="0.05" value="0.5"><span class="desktop-lyric-unit">比</span></span></label>
                     <label class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>基准对齐方式</strong><small>当前歌词行的对齐锚点</small></span><select id="desktopLyricAlignAnchor"><option value="start">行首</option><option value="center" selected>行中</option><option value="end">行尾</option></select></label>

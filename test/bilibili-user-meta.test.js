@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const {
   extractBilibiliDanmakuUserMeta,
+  extractBilibiliHistoryUserMeta,
   extractBilibiliOnlineRankUserMeta
 } = require('../src/bilibili/utils/user-meta-extractor');
 
@@ -64,7 +65,8 @@ test('online rank metadata uses the current room guard instead of the worn medal
     userName: '点歌人',
     guardLevel: 3,
     medalName: '',
-    medalLevel: 0
+    medalLevel: 0,
+    currentRoomVerified: true
   });
 });
 
@@ -90,6 +92,48 @@ test('danmaku metadata ignores a worn medal that belongs to another room', () =>
   assert.deepEqual(extractBilibiliDanmakuUserMeta(info, 456), {
     guardLevel: 3,
     medalName: '',
-    medalLevel: 0
+    medalLevel: 0,
+    currentRoomVerified: true
+  });
+});
+
+test('danmaku metadata keeps the current-room medal when nested worn medal belongs elsewhere', () => {
+  const info = [];
+  info[0] = Array(16).fill(null);
+  info[0][15] = {
+    user: {
+      medal: {
+        name: '别家牌子',
+        level: 30,
+        ruid: 999
+      },
+      guard: {
+        level: 0
+      }
+    }
+  };
+  info[3] = [28, 'imilly', '当前主播', 123, 0, '', 0, 0, 0, 0, 0, 1, 456];
+
+  assert.deepEqual(extractBilibiliDanmakuUserMeta(info, 456), {
+    guardLevel: 0,
+    medalName: 'imilly',
+    medalLevel: 28,
+    currentRoomVerified: true
+  });
+});
+
+test('history metadata drops a medal explicitly belonging to another room', () => {
+  assert.deepEqual(extractBilibiliHistoryUserMeta({
+    guard_level: 2,
+    medal: {
+      medal_name: '别家牌子',
+      medal_level: 30,
+      target_id: 999
+    }
+  }, 456), {
+    guardLevel: 2,
+    medalName: '',
+    medalLevel: 0,
+    currentRoomVerified: true
   });
 });

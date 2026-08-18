@@ -41,31 +41,37 @@ function extractBilibiliDanmakuUserMeta(info, roomOwnerUid = '') {
   const userInfo = readFirstObject(danmakuOptions, ['user']);
   const userMedalInfo = readFirstObject(userInfo, ['medal']);
   const userGuardInfo = readFirstObject(userInfo, ['guard']);
-  const medalTargetId = readMedalTargetId(userMedalInfo) || readMedalTargetId(medalInfo);
-  const isCurrentRoomMedal = isTargetRoom(medalTargetId, roomOwnerUid);
-  const arrayGuardLevel = Array.isArray(medalInfo) && medalInfo.length > 10
+  const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo, userMedalInfo], roomOwnerUid);
+  const arrayGuardLevel = currentMedalInfo === medalInfo && Array.isArray(medalInfo) && medalInfo.length > 10
     ? medalInfo[10]
-    : (Array.isArray(info) ? info[7] : 0);
-  const currentMedalInfo = isCurrentRoomMedal ? (medalInfo || userMedalInfo) : null;
-  return {
+    : (!cleanText(roomOwnerUid) && Array.isArray(info) ? info[7] : 0);
+  const currentRoomVerified = Boolean(
+    cleanText(roomOwnerUid)
+    && [medalInfo, userMedalInfo].some((candidate) => readMedalTargetId(candidate))
+  );
+  return addCurrentRoomVerification({
     guardLevel: normalizeGuardLevel(
       readObjectValue(userGuardInfo, ['level', 'guard_level', 'guardLevel'])
-      || (isCurrentRoomMedal
-        ? readObjectValue(userMedalInfo, ['guard_level', 'guardLevel']) || arrayGuardLevel
-        : 0)
+      || readObjectValue(currentMedalInfo, ['guard_level', 'guardLevel'])
+      || arrayGuardLevel
     ),
     medalName: readMedalName(currentMedalInfo),
-    medalLevel: readMedalLevel(currentMedalInfo)
-  };
+    medalLevel: readMedalLevel(currentMedalInfo),
+  }, currentRoomVerified);
 }
 
-function extractBilibiliHistoryUserMeta(item) {
+function extractBilibiliHistoryUserMeta(item, roomOwnerUid = '') {
   const medalInfo = item && (item.medal || item.fans_medal || item.fansMedal || item.medal_info || item.medalInfo);
-  return {
-    guardLevel: normalizeGuardLevel(readObjectValue(item, ['guard_level', 'guardLevel', 'guard_level_v2'])),
-    medalName: readMedalName(medalInfo),
-    medalLevel: readMedalLevel(medalInfo)
-  };
+  const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo], roomOwnerUid);
+  const currentRoomVerified = Boolean(cleanText(roomOwnerUid) && medalInfo);
+  return addCurrentRoomVerification({
+    guardLevel: normalizeGuardLevel(
+      readObjectValue(item, ['guard_level', 'guardLevel', 'guard_level_v2'])
+      || readObjectValue(currentMedalInfo, ['guard_level', 'guardLevel'])
+    ),
+    medalName: readMedalName(currentMedalInfo),
+    medalLevel: readMedalLevel(currentMedalInfo),
+  }, currentRoomVerified);
 }
 
 function extractBilibiliOnlineRankUserMeta(item, roomOwnerUid = '') {
@@ -80,9 +86,8 @@ function extractBilibiliOnlineRankUserMeta(item, roomOwnerUid = '') {
     || (uinfo && uinfo.medal)
   );
   const guardInfo = item && (item.guard || item.guard_info || item.guardInfo || (uinfo && uinfo.guard));
-  const medalTargetId = readMedalTargetId(medalInfo);
-  const isCurrentRoomMedal = isTargetRoom(medalTargetId, roomOwnerUid);
-  return {
+  const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo], roomOwnerUid, { allowUnattributed: true });
+  return addCurrentRoomVerification({
     uid: cleanText(readObjectValue(item, ['uid', 'mid']) || readObjectValue(uinfo, ['uid', 'mid'])),
     userName: cleanText(
       readObjectValue(item, ['name', 'uname', 'nickname'])
@@ -91,11 +96,11 @@ function extractBilibiliOnlineRankUserMeta(item, roomOwnerUid = '') {
     guardLevel: normalizeGuardLevel(
       readObjectValue(item, ['guard_level', 'guardLevel'])
       || readObjectValue(guardInfo, ['level', 'guardLevel', 'guard_level'])
-      || (isCurrentRoomMedal ? readObjectValue(medalInfo, ['guardLevel', 'guard_level']) : 0)
+      || readObjectValue(currentMedalInfo, ['guardLevel', 'guard_level'])
     ),
-    medalName: isCurrentRoomMedal ? readMedalName(medalInfo) : '',
-    medalLevel: isCurrentRoomMedal ? readMedalLevel(medalInfo) : 0
-  };
+    medalName: readMedalName(currentMedalInfo),
+    medalLevel: readMedalLevel(currentMedalInfo),
+  }, Boolean(cleanText(roomOwnerUid) && medalInfo));
 }
 
 function readMedalTargetId(medalInfo) {
@@ -105,16 +110,34 @@ function readMedalTargetId(medalInfo) {
   return cleanText(readObjectValue(medalInfo, ['target_id', 'targetId', 'ruid']));
 }
 
-function isTargetRoom(targetId, roomOwnerUid) {
+function selectCurrentRoomMedalInfo(candidates, roomOwnerUid, options = {}) {
+  const medalCandidates = (Array.isArray(candidates) ? candidates : []).filter(Boolean);
+  if (medalCandidates.length === 0) return null;
+
   const expectedUid = cleanText(roomOwnerUid);
-  const actualUid = cleanText(targetId);
-  return !expectedUid || !actualUid || actualUid === expectedUid;
+  if (!expectedUid) return medalCandidates[0];
+
+  let hasTargetId = false;
+  for (const candidate of medalCandidates) {
+    const targetId = readMedalTargetId(candidate);
+    if (!targetId) continue;
+    hasTargetId = true;
+    if (targetId === expectedUid) return candidate;
+  }
+
+  return options.allowUnattributed && !hasTargetId ? medalCandidates[0] : null;
+}
+
+function addCurrentRoomVerification(identity, currentRoomVerified) {
+  if (currentRoomVerified) identity.currentRoomVerified = true;
+  return identity;
 }
 
 module.exports = {
   readMedalName,
   readMedalLevel,
   readFirstObject,
+  selectCurrentRoomMedalInfo,
   extractBilibiliDanmakuUserMeta,
   extractBilibiliHistoryUserMeta,
   extractBilibiliOnlineRankUserMeta

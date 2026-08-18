@@ -87,12 +87,14 @@ async function findLatestSongEntry(cachePath, expectedTitle = '') {
     if (!row.includes('"StartKSong"')) continue;
     const midMatch = row.match(/"mid"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
     const songMatch = row.match(/"songname"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+    const artistMatch = row.match(/"(?:artist|artistName|artistname|singer|singerName|singername|歌手|演唱者)"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i);
     if (!midMatch) continue;
     const mid = decodeJsonString(midMatch[1]);
     const songName = songMatch ? decodeJsonString(songMatch[1]).trim() : '';
+    const artist = artistMatch ? decodeJsonString(artistMatch[1]).trim() : '';
     if (!SAFE_SONG_MID.test(mid)) return null;
     if (wantedTitle && normalizeTitle(songName) !== wantedTitle) continue;
-    return { mid, songName };
+    return { mid, songName, ...(artist ? { artist } : {}) };
   }
   return null;
 }

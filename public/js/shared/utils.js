@@ -32,6 +32,30 @@ export function localOverlayOrigin(locationLike = location) {
   return `${protocol}//127.0.0.1${port}`;
 }
 
+export async function copyText(text) {
+  const valueToCopy = String(text ?? '');
+  if (!valueToCopy) throw new Error('没有可复制的地址。');
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(valueToCopy);
+      return;
+    } catch (clipboardError) {
+      // Fall through to the DOM fallback for Electron and non-secure pages.
+      void clipboardError;
+    }
+  }
+  const input = document.createElement('textarea');
+  input.value = valueToCopy;
+  input.setAttribute('readonly', '');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand('copy');
+  input.remove();
+  if (!copied) throw new Error('复制失败，请手动复制地址。');
+}
+
 export function formatTime(v) {
   if (!v) return '';
   return new Date(v).toLocaleTimeString('zh-CN', { hour12: false });
@@ -359,6 +383,7 @@ export const utils = {
   value,
   setValue,
   localOverlayOrigin,
+  copyText,
   formatTime,
   formatDateTime,
   formatBytes,

@@ -8,7 +8,7 @@
 
 ```
 BilibiliDanmakuClient (顶层编排, 见 danmaku.md)
-├─ BilibiliApiClient        HTTP API 层 (7 个端点, 见 §2)
+├─ BilibiliApiClient        HTTP API 层 (8 个端点, 见 §2)
 ├─ WBI 签名 (wbi-signer)     getDanmuInfo / nav 的签名与密钥缓存
 ├─ WebSocketConnection       二进制帧封装 + 心跳 (30s, 见 §4)
 ├─ parseBilibiliPackets      帧解码 + Brotli/zlib 解压 (见 §4.4)
@@ -56,6 +56,7 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 | `getDanmuInfo` | `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{WBI签名}` | 参数 `{id: roomId, type: 0}` 经 WBI 签名;返回 `data.host_list[0].host` / `wss_port`(默认 443)/ `data.token` | [api-client.js:72-82](../../../../src/bilibili/danmaku/api-client.js#L72-L82) |
 | `gethistory` | `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid={roomId}` | 历史弹幕降级监听:`data.admin[]` + `data.room[]`,每条约 `uid/nickname/text/timeline`;间隔 2.5s 见 [danmaku.md](danmaku.md) §3 | [api-client.js:93-102](../../../../src/bilibili/danmaku/api-client.js#L93-L102) |
 | `online_gold_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId&ruid&page&pageSize` | 高能榜身份补全;参数/停止条件见 [danmaku.md](danmaku.md) §3 | [api-client.js:84-91](../../../../src/bilibili/danmaku/api-client.js#L84-L91) |
+| `fans_members_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId&ruid&page&page_size` | 全量本房粉丝牌成员快照;响应 `data.item[]`、`data.num`;分页/轮询策略见 [danmaku.md](danmaku.md) §3 | [api-client.js:93-103](../../../../src/bilibili/danmaku/api-client.js#L93-L103) |
 | `send_danmaku` | `POST https://api.live.bilibili.com/msg/send` | 机器人回弹幕(见 [danmaku.md](danmaku.md) §7):表单 `msg/csrf/bubble/fontsize/mode/color/rnd/roomid/room_type`;`reply_mid/reply_attr/reply_uname` 仅在回复目标存在时附带 | [api-client.js:104-147](../../../../src/bilibili/danmaku/api-client.js#L104-L147) |
 
 `send_danmaku` 细节:`bili_jct` 从 Cookie 提取([api-client.js:107-108](../../../../src/bilibili/danmaku/api-client.js#L107-L108)),消息上限 **1000 字符**([api-client.js:109](../../../../src/bilibili/danmaku/api-client.js#L109)),回复目标经 `normalizeMentionTarget` 校验(见 [danmaku.md](danmaku.md) §6)。

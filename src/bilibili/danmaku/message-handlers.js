@@ -94,7 +94,9 @@ class MessageHandlers {
       userName: String(userInfo[1] || '观众'),
       requesterGuardLevel: userMeta.guardLevel,
       requesterMedalName: userMeta.medalName,
-      requesterMedalLevel: userMeta.medalLevel
+      requesterMedalLevel: userMeta.medalLevel,
+      currentRoomVerified: userMeta.currentRoomVerified,
+      identitySource: 'danmaku'
     });
 
     this.handlers.onMessage({
@@ -113,14 +115,16 @@ class MessageHandlers {
   }
 
   handleSuperChat(message) {
-    const superChat = packetParser.extractBilibiliSuperChatMessage(message);
+    const superChat = packetParser.extractBilibiliSuperChatMessage(message, this.roomOwnerUid);
     const text = superChat.message;
     const requester = this.identityCache.resolve({
       uid: superChat.uid,
       userName: superChat.userName,
       requesterGuardLevel: superChat.guardLevel,
       requesterMedalName: superChat.medalName,
-      requesterMedalLevel: superChat.medalLevel
+      requesterMedalLevel: superChat.medalLevel,
+      currentRoomVerified: superChat.currentRoomVerified,
+      identitySource: 'superchat'
     });
     const trace = {
       connectionGeneration: this.connectionGeneration,
@@ -143,6 +147,7 @@ class MessageHandlers {
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
+      currentRoomVerified: superChat.currentRoomVerified,
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,
       ...trace
@@ -168,6 +173,7 @@ class MessageHandlers {
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
+      currentRoomVerified: superChat.currentRoomVerified,
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,
       isPinned: superChat.price >= SUPER_CHAT_PIN_THRESHOLD,

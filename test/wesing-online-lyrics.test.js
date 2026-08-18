@@ -19,6 +19,35 @@ test('WeSing online lyric matching uses duration to disambiguate same-title song
   assert.equal(selected.id, 'qq:original');
 });
 
+test('WeSing online lyric matching uses the WeSing artist to disambiguate covers', async () => {
+  const requests = [];
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: {},
+    platforms: ['qq'],
+    lyricsService: {
+      async searchMusicTracks(_registry, body) {
+        requests.push(body);
+        return {
+          tracks: [
+            createTrack('qq:cover', '翻唱歌手', 255000, 'qq', '同名歌曲'),
+            createTrack('qq:original', '正确歌手', 255000, 'qq', '同名歌曲')
+          ]
+        };
+      },
+      async getMusicTrackLyrics() {
+        return { source: 'qq', lines: [{ startMs: 0, endMs: 1000, text: '歌词' }] };
+      }
+    },
+    smartMatch: false,
+    preferredPlatform: 'qq'
+  });
+
+  const result = await resolve({ title: '同名歌曲', artist: '正确歌手', durationMs: 255000 });
+
+  assert.equal(requests[0].keyword, '同名歌曲 正确歌手');
+  assert.equal(result.songMid, 'qq:original');
+});
+
 test('WeSing online fallback queries both providers and prefers complete word lyrics', async () => {
   const requestedLyrics = [];
   const lyricsService = {
@@ -184,13 +213,13 @@ function createTrackingLyricsService(requestedPlatforms, options = {}) {
   };
 }
 
-function createTrack(id, artist, durationMs, source = 'qq') {
+function createTrack(id, artist, durationMs, source = 'qq', title = '失控') {
   return {
     id,
     sourceTrackId: id,
     sourceSongId: source === 'qq' ? 123 : 0,
     source,
-    title: '失控',
+    title,
     artists: [artist],
     album: '失控',
     durationMs

@@ -103,6 +103,9 @@ test('extracted danmaku client keeps runtime dependencies and diagnostics', asyn
     if (url.pathname.endsWith('/getOnlineGoldRank')) {
       return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
     }
+    if (url.pathname.endsWith('/getFansMembersRank')) {
+      return jsonResponse({ code: 0, data: { item: [], num: 0 } });
+    }
     return Promise.reject(new Error(`Unexpected URL: ${url}`));
   };
 
@@ -153,7 +156,7 @@ test('stopped danmaku client does not resume startup after room lookup resolves'
   const roomInfoPromise = new Promise((resolve) => {
     resolveRoomInfo = resolve;
   });
-  const starts = { history: 0, rank: 0, status: 0, websocket: 0 };
+  const starts = { history: 0, rank: 0, fans: 0, status: 0, websocket: 0 };
   const client = new BilibiliDanmakuClient('123', {
     onMessage() {},
     onSuperChat() {},
@@ -164,6 +167,7 @@ test('stopped danmaku client does not resume startup after room lookup resolves'
   client.apiClient.resolveRoomInfo = () => roomInfoPromise;
   client.historyPoller.start = () => { starts.history += 1; };
   client.onlineRankPoller.start = () => { starts.rank += 1; };
+  client.fansMedalPoller.start = () => { starts.fans += 1; };
   client.liveStatusMonitor.start = () => { starts.status += 1; };
   client.wsConnection.connect = async () => { starts.websocket += 1; };
 
@@ -173,7 +177,7 @@ test('stopped danmaku client does not resume startup after room lookup resolves'
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(client.stopped, true);
-  assert.deepEqual(starts, { history: 0, rank: 0, status: 0, websocket: 0 });
+  assert.deepEqual(starts, { history: 0, rank: 0, fans: 0, status: 0, websocket: 0 });
 });
 
 test('socket errors use history only during immediate reconnect recovery', async () => {
@@ -207,6 +211,9 @@ test('socket errors use history only during immediate reconnect recovery', async
     }
     if (url.pathname.endsWith('/getOnlineGoldRank')) {
       return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
+    }
+    if (url.pathname.endsWith('/getFansMembersRank')) {
+      return jsonResponse({ code: 0, data: { item: [], num: 0 } });
     }
     return Promise.reject(new Error(`Unexpected URL: ${url}`));
   };

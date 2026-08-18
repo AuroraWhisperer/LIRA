@@ -90,6 +90,15 @@ class BilibiliApiClient {
     return payload.data;
   }
 
+  async fetchFansMembersRank(roomId, ruid, page, pageSize) {
+    const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId=${encodeURIComponent(roomId)}&ruid=${encodeURIComponent(ruid)}&page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`;
+    const { payload, response } = await this.fetchJson('fans_members_rank', url);
+    if (payload.code !== 0 || !payload.data) {
+      throw new Error(formatBilibiliApiError('fans_members_rank', response, payload, '全量粉丝牌身份缓存获取失败。'));
+    }
+    return payload.data;
+  }
+
   async fetchHistory(roomId) {
     const { payload, response } = await this.fetchJson(
       'gethistory',
@@ -147,7 +156,9 @@ class BilibiliApiClient {
   }
 
   async fetchJson(endpointName, url) {
-    const quiet = endpointName === 'gethistory' || endpointName === 'online_gold_rank';
+    const quiet = endpointName === 'gethistory'
+      || endpointName === 'online_gold_rank'
+      || endpointName === 'fans_members_rank';
     if (!quiet) {
       console.log(`[Bilibili] request ${endpointName}: ${redactUrl(url)}`);
     }

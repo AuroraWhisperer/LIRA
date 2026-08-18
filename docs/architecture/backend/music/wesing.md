@@ -175,7 +175,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 ## 8. 在线兜底(wesing-online-lyrics.js)
 
-`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, preferredPlatform })`([wesing-online-lyrics.js:15-56](../../../../src/music/wesing-online-lyrics.js#L15-L56))返回 `resolveWeSingOnlineLyrics({title, durationMs})`,由 [server.js:167-170](../../../../src/server.js#L167-L170) 注入 weSingCapture 的 `resolveFallbackLyrics`。
+`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, preferredPlatform })`([wesing-online-lyrics.js:15-56](../../../../src/music/wesing-online-lyrics.js#L15-L56))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs})`,由 [server.js:167-170](../../../../src/server.js#L167-L170) 注入 weSingCapture 的 `resolveFallbackLyrics`。采集器会从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；歌手存在时在线搜索关键词为“歌名 歌手”，并将歌手一致性纳入候选打分。
 
 | 常量 | 值 | 出处 |
 |---|---|---|

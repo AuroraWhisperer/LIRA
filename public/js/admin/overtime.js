@@ -1,7 +1,7 @@
 'use strict';
 
 import { eventBus, Events } from '../shared/event-bus.js';
-import { api, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
@@ -21,6 +21,8 @@ let anchorRemainingMs = 0;
 let localAnchorMs = 0;
 let rulesDirty = false;
 let rulesSaving = false;
+let backgroundDirty = false;
+let backgroundSaving = false;
 let catalogRefreshing = false;
 let giftCatalogSnapshot = null;
 let catalogLiveStatus = null;
@@ -73,10 +75,13 @@ function bindControls() {
   byId('overtimeRules').addEventListener('change', markRulesDirty);
   byId('overtimeSaveRulesBtn').addEventListener('click', saveRules);
   byId('overtimeSaveBackgroundBtn').addEventListener('click', saveBackground);
+  byId('overtimeBackgroundPath').addEventListener('change', markBackgroundDirty);
+  byId('overtimeBackgroundFit').addEventListener('change', markBackgroundDirty);
   byId('overtimeOpenOverlayBtn').addEventListener('click', () => window.open(overlayUrl(), '_blank', 'noopener'));
   byId('overtimeCopyOverlayBtn').addEventListener('click', copyOverlayUrl);
   byId('overtimePreview').src = '/overtime?quality=low';
   syncRulesSaveButton();
+  syncBackgroundSaveButton();
 }
 
 async function runAction(action) {
@@ -98,15 +103,25 @@ async function applyTime() {
 }
 
 async function saveBackground() {
+  if (backgroundSaving || !backgroundDirty) return;
+  backgroundSaving = true;
+  syncBackgroundSaveButton();
   try {
     const result = await api('/api/overtime/config', {
       path: byId('overtimeBackgroundPath').value,
       fit: byId('overtimeBackgroundFit').value
     });
     renderState(result.data);
+    backgroundDirty = false;
+    syncBackgroundSaveButton();
     byId('overtimePreview').src = `/overtime?quality=low&t=${Date.now()}`;
     toast('直播画面已保存');
-  } catch (_) {}
+  } catch (error) {
+    showError(error);
+  } finally {
+    backgroundSaving = false;
+    syncBackgroundSaveButton();
+  }
 }
 
 async function saveRules() {
@@ -147,6 +162,25 @@ function syncRulesSaveButton() {
   button.classList.toggle('is-dirty', state.dirty);
 }
 
+function markBackgroundDirty() {
+  backgroundDirty = true;
+  syncBackgroundSaveButton();
+}
+
+function getBackgroundSaveButtonState(dirty, saving) {
+  if (saving) return { label: '保存中…', disabled: true };
+  if (dirty) return { label: '保存画面', disabled: false };
+  return { label: '已保存', disabled: true };
+}
+
+function syncBackgroundSaveButton() {
+  const button = byId('overtimeSaveBackgroundBtn');
+  if (!button) return;
+  const state = getBackgroundSaveButtonState(backgroundDirty, backgroundSaving);
+  button.textContent = state.label;
+  button.disabled = state.disabled;
+}
+
 function renderState(nextState) {
   if (!nextState) return;
   if (nextState.limits) serverLimits = nextState.limits;
@@ -161,8 +195,10 @@ function renderState(nextState) {
   byId('overtimePauseBtn').disabled = !enabled || overtimeState.status !== 'running';
   byId('overtimeResetBtn').disabled = !enabled;
   renderInitialDuration(Number(overtimeState.initialSeconds) || 0);
-  setValueUnlessFocused('overtimeBackgroundPath', overtimeState.background?.path || '');
-  setValueUnlessFocused('overtimeBackgroundFit', overtimeState.background?.fit || 'cover');
+  if (!backgroundDirty) {
+    setValueUnlessFocused('overtimeBackgroundPath', overtimeState.background?.path || '');
+    setValueUnlessFocused('overtimeBackgroundFit', overtimeState.background?.fit || 'cover');
+  }
   byId('overtimePendingCount').textContent = `待结算 ${Number(overtimeState.pendingCount) || 0}`;
   renderConsumerStatus();
   if (Array.isArray(nextState.rules) && !rulesDirty) {
@@ -487,8 +523,8 @@ function overlayUrl() {
 
 async function copyOverlayUrl() {
   try {
-    await navigator.clipboard.writeText(overlayUrl());
-    toast('OBS 地址已复制');
+    await copyText(overlayUrl());
+    toast('地址已复制');
   } catch (error) {
     showError(error);
   }

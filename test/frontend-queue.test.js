@@ -267,6 +267,24 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });
 
+test('overtime screen controls expose save state, visible errors, and a plain address copy action', () => {
+  const html = readAdminHtml();
+  const source = readOvertimeAdminSource();
+  const utilitySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'), 'utf8');
+
+  assert.match(html, /id="overtimeSaveBackgroundBtn"[^>]*>保存画面<\/button>/);
+  assert.match(html, /id="overtimeCopyOverlayBtn"[^>]*>复制地址<\/button>/);
+  assert.match(source, /overtimeBackgroundPath.*addEventListener\('change', markBackgroundDirty\)/s);
+  assert.match(source, /overtimeBackgroundFit.*addEventListener\('change', markBackgroundDirty\)/s);
+  assert.match(source, /showError\(error\)/);
+  assert.match(source, /保存中…/);
+  assert.match(source, /copyText\(overlayUrl\(\)\)/);
+  assert.match(source, /地址已复制/);
+  assert.match(utilitySource, /export async function copyText\(text\)/);
+  assert.match(utilitySource, /navigator\.clipboard\?\.writeText/);
+  assert.match(utilitySource, /execCommand\('copy'\)/);
+});
+
 test('overtime controller delegates rule editing through a narrow module boundary', () => {
   const controller = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
   const editor = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime-rule-editor.js'), 'utf8');

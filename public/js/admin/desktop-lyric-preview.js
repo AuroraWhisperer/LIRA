@@ -2,7 +2,7 @@
 'use strict';
 
 import { LyricWordRenderer } from '../shared/lyric-word-renderer.js';
-import { localOverlayOrigin } from '../shared/utils.js';
+import { copyText, localOverlayOrigin } from '../shared/utils.js';
 
 const DEFAULTS = {
   desktopLyricFontFamily: 'Microsoft YaHei',
@@ -38,9 +38,9 @@ const DEFAULTS = {
   desktopLyricTimeOffsetMs: '0',
   desktopLyricShowTitleWhenNoLyric: 'false',
   desktopLyricNoLyricText: '纯音乐，请欣赏',
-  desktopLyricSpringAnimation: 'true',
-  desktopLyricBlurEffect: 'true',
-  desktopLyricScaleEffect: 'true',
+  desktopLyricSpringAnimation: 'false',
+  desktopLyricBlurEffect: 'false',
+  desktopLyricScaleEffect: 'false',
   desktopLyricAlignPosition: '0.5',
   desktopLyricAlignAnchor: 'center',
   desktopLyricTranslateX: '0',
@@ -53,7 +53,8 @@ const DEFAULTS = {
   desktopLyricGlobalOpacity: '1',
   desktopLyricBrightness: '1',
   desktopLyricContrast: '1',
-  desktopLyricSaturation: '1'
+  desktopLyricSaturation: '1',
+  desktopLyricVisibleLines: '0'
 };
 const EMPTY_TIMELINE = {
   trackTitle: '', artists: [], status: 'idle', lines: []
@@ -78,6 +79,8 @@ let activeIndex = -1;
 let activeWordIndex = -1;
 let activeWordSignature = '';
 let activeWordElements = [];
+let latestWordSignature = '';
+let lastWordProgress = [];
 let manualFollowUntil = 0;
 let followResumeTimer = 0;
 let followAnimationFrame = 0;
@@ -133,7 +136,9 @@ function init(form) {
 function updateLyricState(state) {
   if (!state || typeof state !== 'object') return;
   latestState = { ...(latestState || {}), ...state };
+  latestWordSignature = JSON.stringify([latestState.lineText || '', latestState.words || []]);
   renderer?.setState(latestState);
+  renderActiveWords();
   applyPlaybackVisibility();
   updatePreviewStatus();
 }
@@ -229,11 +234,10 @@ function renderTimelineFrame(currentMs) {
       row.classList.toggle('is-near', activeIndex >= 0 && Math.abs(index - activeIndex) <= 1);
       row.classList.toggle('is-active', index === activeIndex);
     });
+    applyVisibleLineWindow();
     if (previousIndex !== activeIndex) resetActiveWords();
     renderActiveWords();
     followActiveLyric();
-  } else {
-    renderActiveWords();
   }
 
   updateActiveWordProgress(lyricTime);
@@ -249,7 +253,7 @@ function renderActiveWords() {
   const line = latestTimeline.lines[activeIndex] || {};
   const words = Array.isArray(latestState?.words) ? latestState.words : [];
   const matchesCurrentLine = latestState?.lineText === line.text;
-  const signature = JSON.stringify([activeIndex, matchesCurrentLine ? words : []]);
+  const signature = `${activeIndex}:${matchesCurrentLine ? latestWordSignature : ''}`;
   if (signature === activeWordSignature) return;
 
   resetActiveWords();
@@ -269,6 +273,7 @@ function renderActiveWords() {
   });
   activeWordIndex = activeIndex;
   activeWordSignature = signature;
+  lastWordProgress = activeWordElements.map(() => '');
 }
 
 function resetActiveWords() {
@@ -279,16 +284,27 @@ function resetActiveWords() {
   activeWordIndex = -1;
   activeWordSignature = '';
   activeWordElements = [];
+  lastWordProgress = [];
 }
 
 function updateActiveWordProgress(currentMs) {
-  activeWordElements.forEach(({ element, word }) => {
+  activeWordElements.forEach(({ element, word }, index) => {
     const startMs = finiteNumber(word.startMs, 0);
     const endMs = Math.max(startMs, finiteNumber(word.endMs, startMs));
     const progress = endMs > startMs
       ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1)
       : currentMs >= endMs ? 1 : 0;
-    element.style.setProperty('--preview-word-progress', `${progress * 100}%`);
+    const value = `${progress * 100}%`;
+    if (lastWordProgress[index] === value) return;
+    lastWordProgress[index] = value;
+    element.style.setProperty('--preview-word-progress', value);
+  });
+}
+
+function applyVisibleLineWindow() {
+  const range = getVisibleLyricRange(activeIndex, currentDisplaySettings.visibleLines, rowElements.length);
+  rowElements.forEach((row, index) => {
+    row.classList.toggle('is-line-hidden', index < range.first || index > range.last);
   });
 }
 
@@ -497,6 +513,7 @@ function applySettings(settings = {}) {
   card.style.setProperty('--preview-contrast', String(values.contrast));
   card.style.setProperty('--preview-saturation', String(values.saturation));
   card.classList.toggle('is-translation-hidden', !values.showTranslation);
+  card.classList.toggle('is-text-justify', values.textAlign === 'justify');
   card.classList.toggle('is-hide-passed', values.hidePassedLines);
   card.classList.toggle('is-traditional', values.traditionalMode);
   card.classList.toggle('is-current-enhanced', values.currentLineEnhanced);
@@ -513,13 +530,21 @@ function applySettings(settings = {}) {
     renderActiveWords();
   }
   if (!latestTimeline.lines.length) renderTimeline();
-  else renderTimelineFrame(currentPreviewPosition());
+  else {
+    applyVisibleLineWindow();
+    renderTimelineFrame(currentPreviewPosition());
+  }
   followActiveLyric();
 }
 
 function readFormSettings() {
   const values = {};
   for (const key of Object.keys(DEFAULTS)) {
+    if (key === 'desktopLyricTextAlign') {
+      values[key] = document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value
+        || DEFAULTS.desktopLyricTextAlign;
+      continue;
+    }
     const input = document.getElementById(key);
     if (input) values[key] = input.type === 'checkbox' ? String(input.checked) : input.value;
   }
@@ -539,7 +564,7 @@ function setBackground(background) {
 async function copyDesktopLyricUrl() {
   const desktopLyricUrl = `${localOverlayOrigin(location)}/lyrics`;
   try {
-    await navigator.clipboard.writeText(desktopLyricUrl);
+    await copyText(desktopLyricUrl);
     window.AdminApp.utils?.toast?.('桌面歌词地址已复制');
   } catch (error) {
     prompt('复制以下桌面歌词地址：', desktopLyricUrl);
@@ -607,7 +632,7 @@ export function resolveDesktopLyricSettings(settings = {}) {
     fallbackFontFamily: String(values.desktopLyricFallbackFontFamily || DEFAULTS.desktopLyricFallbackFontFamily),
     fontWeight: String(values.desktopLyricFontWeight || DEFAULTS.desktopLyricFontWeight),
     textColor: String(values.desktopLyricTextColor || DEFAULTS.desktopLyricTextColor),
-    textAlign: enumSetting(values.desktopLyricTextAlign, ['left', 'center', 'right'], 'left'),
+    textAlign: enumSetting(values.desktopLyricTextAlign, ['left', 'center', 'right', 'justify'], 'left'),
     letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 0.3),
     fontSize: clamp(numberSetting(values.desktopLyricFontSize, 56), 24, 72),
     lineHeight: clamp(numberSetting(values.desktopLyricLineHeight, 1.4), 1, 2),
@@ -634,9 +659,9 @@ export function resolveDesktopLyricSettings(settings = {}) {
     timeOffsetMs: clamp(numberSetting(values.desktopLyricTimeOffsetMs, 0), -5000, 5000),
     showTitleWhenNoLyric: boolSetting(values.desktopLyricShowTitleWhenNoLyric, false),
     noLyricText: String(values.desktopLyricNoLyricText || DEFAULTS.desktopLyricNoLyricText).slice(0, 80),
-    springAnimation: boolSetting(values.desktopLyricSpringAnimation, true),
-    blurEffect: boolSetting(values.desktopLyricBlurEffect, true),
-    scaleEffect: boolSetting(values.desktopLyricScaleEffect, true),
+    springAnimation: boolSetting(values.desktopLyricSpringAnimation, false),
+    blurEffect: boolSetting(values.desktopLyricBlurEffect, false),
+    scaleEffect: boolSetting(values.desktopLyricScaleEffect, false),
     scale: clamp(numberSetting(values.desktopLyricScale, 1), 0.5, 2),
     alignPosition: clamp(numberSetting(values.desktopLyricAlignPosition, 0.5), 0, 1),
     alignAnchor: enumSetting(values.desktopLyricAlignAnchor, ['start', 'center', 'end'], 'center'),
@@ -651,7 +676,22 @@ export function resolveDesktopLyricSettings(settings = {}) {
     globalOpacity: clamp(numberSetting(values.desktopLyricGlobalOpacity, 1), 0, 1),
     brightness: clamp(numberSetting(values.desktopLyricBrightness, 1), 0.2, 2),
     contrast: clamp(numberSetting(values.desktopLyricContrast, 1), 0.2, 2),
-    saturation: clamp(numberSetting(values.desktopLyricSaturation, 1), 0, 2)
+    saturation: clamp(numberSetting(values.desktopLyricSaturation, 1), 0, 2),
+    visibleLines: Math.max(0, Math.min(99, Math.round(numberSetting(values.desktopLyricVisibleLines, 0))))
+  };
+}
+
+export function getVisibleLyricRange(activeLine, visibleLines, lineCount) {
+  const count = Math.max(0, Math.floor(finiteNumber(lineCount, 0)));
+  const lines = Math.max(0, Math.min(99, Math.round(finiteNumber(visibleLines, 0))));
+  if (!count) return { first: 0, last: -1 };
+  if (lines === 0) return { first: 0, last: count - 1 };
+  if (activeLine < 0) return { first: 0, last: -1 };
+  const before = Math.floor((lines - 1) / 2);
+  const after = lines - 1 - before;
+  return {
+    first: Math.max(0, Math.floor(activeLine) - before),
+    last: Math.min(count - 1, Math.floor(activeLine) + after)
   };
 }
 
@@ -677,6 +717,7 @@ export function calculateFollowTarget(rowTop, rowHeight, viewportHeight, scrollH
 function textAlignToFlex(textAlign) {
   if (textAlign === 'center') return 'center';
   if (textAlign === 'right') return 'flex-end';
+  if (textAlign === 'justify') return 'stretch';
   return 'flex-start';
 }
 

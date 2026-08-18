@@ -127,11 +127,18 @@ function readBilibiliOnlineRankItems(data) {
   return [];
 }
 
+function readBilibiliFansMembersRankItems(data) {
+  if (!data || typeof data !== 'object') return [];
+  const candidates = [data.item, data.items, data.list, data.fans_members, data.fansMembers];
+  for (const candidate of candidates) { if (Array.isArray(candidate)) return candidate; }
+  return [];
+}
+
 module.exports = {
   normalizeBilibiliCoinRmb, parseBooleanLike,
   recordBilibiliCommandDiagnostic, recordBilibiliGiftDiagnostic,
   isCapturableBilibiliTimestamp, buildBilibiliCommandKey,
   buildBilibiliFallbackGiftId, logUnparsedGiftLikeCommand, formatUnparsedGiftLikeCommandLog,
   normalizeRequesterIdentity, guardLevelName,
-  readMedalName, readMedalLevel, readBilibiliOnlineRankItems
+  readMedalName, readMedalLevel, readBilibiliOnlineRankItems, readBilibiliFansMembersRankItems
 };
