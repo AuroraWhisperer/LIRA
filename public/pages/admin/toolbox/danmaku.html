@@ -22,7 +22,7 @@
                 <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
                   <div class="danmaku-bot-switch-grid">
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p id="danmakuReplyTarget">条件不匹配时，自动回复点歌人</p></div>
+                      <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p>条件不匹配时，自动回复点歌人</p></div>
                       <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用回复</span></label>
                     </div>
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
@@ -48,7 +48,7 @@
                   </div>
                   <form id="danmakuSendForm" class="stack">
                     <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
+                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">自动钓鱼/打劫</button><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
                   </form>
                   <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
                 </section>

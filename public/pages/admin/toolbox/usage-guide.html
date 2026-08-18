@@ -8,15 +8,35 @@
             >
               <div class="other-feature-panel-body stack usage-guide-panel">
                 <div class="usage-guide-hero">
-                  <div>
-                    <h2>使用文档</h2>
-                    <p>欢迎使用LIRA！这份文档覆盖了从入门到日常使用的全部内容。建议先通读「快速上手」和「主流程」，再根据自己的需要跳到对应章节。</p>
+                  <span class="usage-guide-kicker">LIRA 直播助手</span>
+                  <h2>使用文档</h2>
+                  <p class="usage-guide-hero-lead">第一次用 LIRA，先在「账号登录」连上自己的直播间，再跟着「快速上手」和「主流程」十分钟跑通一次完整的点歌。之后用到哪个功能，从目录直接跳过去；遇到故障，先翻最后的「常见问题」。</p>
+                  <div class="usage-guide-hero-actions">
+                    <a href="#ug-quick" data-usage-guide-link>第一次用？从头开始</a>
+                    <a href="#ug-faq" data-usage-guide-link>出问题了？看常见问题</a>
                   </div>
                 </div>
 
+                <div class="usage-guide-layout">
+                <nav class="usage-guide-toc" aria-label="文档目录">
+                  <a href="#ug-quick" data-usage-guide-link>快速上手</a>
+                  <a href="#ug-accounts" data-usage-guide-link>账号登录</a>
+                  <a href="#ug-reinstall" data-usage-guide-link>覆盖安装</a>
+                  <a href="#ug-flow" data-usage-guide-link>主流程</a>
+                  <a href="#ug-song" data-usage-guide-link>点歌页</a>
+                  <a href="#ug-playback" data-usage-guide-link>播放页</a>
+                  <a href="#ug-gifts" data-usage-guide-link>礼物页</a>
+                  <a href="#ug-toolbox" data-usage-guide-link>百宝箱</a>
+                  <a href="#ug-deepseek" data-usage-guide-link>配置 DeepSeek</a>
+                  <a href="#ug-obs" data-usage-guide-link>OBS 投屏</a>
+                  <a href="#ug-cheatsheet" data-usage-guide-link>设置速查</a>
+                  <a href="#ug-faq" data-usage-guide-link>常见问题</a>
+                </nav>
+                <div class="usage-guide-main">
+
                 <!-- ============ 快速上手 ============ -->
-                <section class="usage-guide-section">
-                  <h3>快速上手</h3>
+                <section class="usage-guide-section" id="ug-quick">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">01</span>快速上手</h3>
                   <div class="usage-guide-grid">
                     <article class="usage-guide-card">
                       <strong>先确认连接状态</strong>
@@ -33,13 +53,37 @@
                   </div>
                 </section>
 
+                <!-- ============ 账号登录 ============ -->
+                <section class="usage-guide-section" id="ug-accounts">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">02</span>账号登录：先连直播间，再登音乐平台</h3>
+                  <p class="usage-guide-section-intro">LIRA 里要登录的账号分两层：Bilibili 账号和直播间号是一切互动功能的基础，必须最先配置；音乐平台账号只影响听歌体验，可以之后再补。</p>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>第一步：登录 Bilibili，填写本直播间号</strong><span class="usage-guide-chip">必做</span></div>
+                      <p>在「点歌 → 设置」标签页点「扫码登录 Bilibili」，再把自己直播间的房间号填进「Bilibili 直播间号或链接」（直接粘贴直播间网址也可以）。这两步是之后点歌、礼物、弹幕姬等所有互动功能的基础——账号没登录或房间号填错，弹幕和礼物数据进不来，其他功能都无从谈起。</p>
+                      <ul>
+                        <li>配置完成后点右上角「刷新直播」，让连接用上新账号和新房间号。</li>
+                        <li>以后换账号或换直播间，同样要再点一次「刷新直播」。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>第二步：登录音乐平台，解锁完整听歌</strong><span class="usage-guide-chip">按需</span></div>
+                      <p>想要完整的听歌功能，还要登录音乐平台账号，三个平台的登录位置不一样：</p>
+                      <ul>
+                        <li><strong>QQ 音乐、网易云音乐</strong>：在 LIRA 里登录——播放页顶部切换到对应平台，点右上角的「登录」按钮按提示操作。</li>
+                        <li><strong>全民 K 歌</strong>：在全民 K 歌自己的电脑客户端里登录，不在 LIRA 里操作；LIRA 只读取本机客户端正在播放的歌曲和逐字歌词。</li>
+                      </ul>
+                    </article>
+                  </div>
+                </section>
+
                 <!-- ============ 已安装旧版本 ============ -->
-                <section class="usage-guide-section">
-                  <h3>电脑上已经安装过LIRA</h3>
+                <section class="usage-guide-section" id="ug-reinstall">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">03</span>电脑上已经安装过 LIRA</h3>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>1. 直接点击“下一步”</strong><span class="usage-guide-chip">无需卸载</span></div>
-                      <p>如果安装程序提示当前用户已经安装过LIRA，保持“仅为我安装”选中，直接点击“下一步”。</p>
+                      <p>如果安装程序提示当前用户已经安装过 LIRA，保持“仅为我安装”选中，直接点击“下一步”。</p>
                       <img class="usage-guide-image" src="/img/usage-guide/install-existing-user.png" alt="安装程序提示当前用户已经安装过LIRA，下一步按钮位于窗口底部">
                     </article>
                     <article class="usage-guide-feature">
@@ -52,19 +96,19 @@
                 </section>
 
                 <!-- ============ 主流程 ============ -->
-                <section class="usage-guide-section">
-                  <h3>主流程：一次完整的开播操作</h3>
+                <section class="usage-guide-section" id="ug-flow">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">04</span>主流程：一次完整的开播操作</h3>
                   <ol class="usage-guide-steps">
-                    <li><strong>登录 Bilibili 账号，确认直播间已连接。</strong> 账号没登录或房间号不对，弹幕和礼物数据都无法正常获取。桌面版支持扫码登录，登录后建议点一下「刷新直播」让连接用上新账号。</li>
+                    <li><strong>登录 Bilibili 账号，确认直播间已连接。</strong> 在「点歌 → 设置」标签页扫码登录并填写直播间号。账号没登录或房间号不对，弹幕和礼物数据都无法正常获取；登录后点一下右上角「刷新直播」，让连接用上新账号。</li>
                     <li><strong>在「点歌」页管理歌曲库和队列。</strong> 导入你的歌曲库后，观众通过弹幕发的点歌会自动排队。你也可以手动加歌、调整顺序、切歌或清空队列。标签页里还有主题美化、展示板设置和 OBS 直播画面地址。</li>
-                    <li><strong>在「播放」页控制音乐播放。</strong> 查看当前播放的歌曲、队列列表和歌词。播放器面板可以切歌、暂停、调整进度，也可以打开全屏歌词。</li>
-                    <li><strong>在「礼物」页和「百宝箱」监控互动。</strong> 礼物页看送礼流水、盲盒盈亏和月底冲刺进度；百宝箱的弹幕姬用来手动发弹幕和管理自动回复（签到机器人、点歌提醒），性能检测帮你看电脑资源占用。</li>
+                    <li><strong>在「播放」页控制音乐播放。</strong> 在 QQ 音乐、网易云音乐和全民 K 歌三个音源之间切换：前两个支持推荐歌单、在线搜索和队列管理；全民 K 歌可以直接读取本机客户端的当前歌曲和逐字歌词。底部播放器可以切歌、暂停、调整进度，也可以打开全屏歌词。</li>
+                    <li><strong>在「礼物」页和「百宝箱」监控互动。</strong> 礼物页看送礼流水、盲盒盈亏和月底冲刺进度；百宝箱里，弹幕姬发弹幕、管自动回复和 AI 互动助手，加班机把礼物换算成直播时长，礼物特效投全屏动画，主播计划安排日程，性能检测看电脑资源占用。</li>
                   </ol>
                 </section>
 
                 <!-- ============ 点歌页详解 ============ -->
-                <section class="usage-guide-section">
-                  <h3>点歌页详解</h3>
+                <section class="usage-guide-section" id="ug-song">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">05</span>点歌页详解</h3>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>SC 队列 + 点歌队列</strong><span class="usage-guide-chip">核心</span></div>
@@ -81,7 +125,7 @@
                     </article>
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>歌库管理</strong><span class="usage-guide-chip">数据库</span></div>
-                      <p>歌库是所有可点歌曲的数据库。你可以添加、编辑、删除歌曲，设置歌曲的分类、标签和是否可点。支持按分类和标签多选筛选，快速定位目标歌曲。表格新增「语言」列方便核对。</p>
+                      <p>歌库是所有可点歌曲的数据库。你可以添加、编辑、删除歌曲，设置歌曲的分类、标签和是否可点。支持按分类和标签多选筛选，快速定位目标歌曲。表格带「语言」列方便核对。</p>
                       <ul>
                         <li>删除歌曲使用确认弹窗而非浏览器原生弹窗，避免误删。</li>
                         <li>不可点的歌曲（isEnabled = false）不会出现在随机点歌的候选池中。</li>
@@ -102,10 +146,10 @@
                       <div class="usage-guide-feature-head"><strong>子标签页</strong><span class="usage-guide-chip">配置</span></div>
                       <p>歌库表格下方有一排子标签页，用于配置各项参数：</p>
                       <ul>
-                        <li><strong>设置</strong>：队列上限、冷却时间、是否允许重复点歌、礼物检测开关等基础参数。</li>
-                        <li><strong>点歌板</strong>：OBS 投屏队列的视觉主题——颜色、字号、毛玻璃效果、滚动速度等。</li>
-                        <li><strong>展示板</strong>：歌单展示板的滚动速度和独立主题配色。</li>
-                        <li><strong>直播画面</strong>：复制各投屏链接（队列、歌单、歌词、盲盒盈亏榜）。</li>
+                        <li><strong>设置</strong>：Bilibili 账号登录、直播间号、弹幕监听开关、暂停接收点歌、队列上限、用户冷却秒数、是否允许重复点歌、是否只允许歌库歌曲。</li>
+                        <li><strong>点歌板</strong>：OBS 投屏队列的视觉主题——颜色、字号、毛玻璃、发光、滚动模式和滚动速度等。</li>
+                        <li><strong>展示板</strong>：歌单展示板的滚动速率、歌曲排序方式和主题配色。</li>
+                        <li><strong>直播画面</strong>：复制队列、歌单、歌词三个投屏链接（盲盒盈亏榜的链接在礼物页配置）。</li>
                         <li><strong>导入导出</strong>：CSV/XLSX 格式的歌曲批量导入导出。</li>
                         <li><strong>桌面歌词设置</strong>：配置歌词浏览器源的字体、颜色、字号、描边和透明度，并实时预览最终效果。</li>
                       </ul>
@@ -114,16 +158,32 @@
                 </section>
 
                 <!-- ============ 播放页详解 ============ -->
-                <section class="usage-guide-section">
-                  <h3>播放页详解</h3>
+                <section class="usage-guide-section" id="ug-playback">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">06</span>播放页详解</h3>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>播放器控制栏</strong><span class="usage-guide-chip">停靠栏</span></div>
-                      <p>播放器固定在页面底部，左侧显示当前歌曲信息（歌名跑马灯滚动）、右侧为播放控制按钮。支持切歌、播放/暂停、打开队列弹窗。播放器可以折叠——点击折叠按钮后面板收起，再次点击恢复。</p>
+                      <div class="usage-guide-feature-head"><strong>三平台音源</strong><span class="usage-guide-chip">平台</span></div>
+                      <p>页面顶部在 QQ 音乐、网易云音乐和全民 K 歌之间切换。QQ 音乐和网易云音乐需要分别登录（右上角按钮），并提供「检查接口」和「清理缓存」排查连接问题；全民 K 歌在全民自己的客户端登录账号，LIRA 内无需登录，直接读取本机客户端的播放状态。</p>
                     </article>
                     <article class="usage-guide-feature">
-                      <div class="usage-guide-feature-head"><strong>搜索与队列</strong><span class="usage-guide-chip">播放</span></div>
-                      <p>搜索框支持从已连接的平台（QQ 音乐 / 网易云音乐）搜索歌曲，找到后一键加入播放队列。队列弹窗显示当前播放列表，支持拖拽排序和移除。播放进度条可以拖拽跳转。</p>
+                      <div class="usage-guide-feature-head"><strong>快捷入口</strong><span class="usage-guide-chip">发现</span></div>
+                      <p>为你推荐、每日推荐、心动 / 电台、我喜欢、我的歌单、收藏歌单、最近播放——点击卡片直接浏览对应歌曲列表，找到想放的一键加入队列。「心动 / 电台」会在队列低于阈值时自动补充 10 首，适合长时间直播挂着放。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>在线搜索</strong><span class="usage-guide-chip">搜索</span></div>
+                      <p>跟随当前选中的平台搜索歌曲，返回数量可在 1–30 条之间调整。搜索结果一键加入播放队列，点「清除」快速开始下一次搜索。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>全民 K 歌歌词现场</strong><span class="usage-guide-chip">全民K歌</span></div>
+                      <p>选择本机全民 K 歌的 WeSingCache 缓存目录后开始检测，页面实时显示客户端正在播放的歌曲、进度和逐字 QRC 歌词。歌词对不上伴奏时，用「歌词时间偏移」滑块（±3 秒）微调校准。适合用全民 K 歌开伴奏直播的场景。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>点歌匹配诊断</strong><span class="usage-guide-chip">工具</span></div>
+                      <p>默认折叠的低频工具。输入歌名（可带歌手和时长）测试本地歌库的匹配结果，用来排查“观众点了歌却没匹配上”的问题。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>播放器控制栏</strong><span class="usage-guide-chip">停靠栏</span></div>
+                      <p>播放器固定在页面底部，显示封面、歌名歌手（超长自动跑马灯）和可拖拽的进度条。支持上一首 / 下一首、播放暂停、播放模式（顺序 / 随机 / 单曲循环）切换，也可以把当前歌曲加入音乐平台歌单。不用时点顶部按钮折叠收起，再次点击恢复。</p>
                     </article>
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>全屏歌词</strong><span class="usage-guide-chip">歌词</span></div>
@@ -131,7 +191,7 @@
                     </article>
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>桌面歌词浏览器源</strong><span class="usage-guide-chip">OBS</span></div>
-                      <p>在「点歌 → 桌面歌词」中调整样式并实时预览，点击「复制桌面歌词」获取浏览器源地址。将地址添加到 OBS 浏览器源后，会按预览样式显示完整歌词时间轴、翻译、罗马音、逐字高亮和播放进度。</p>
+                      <p>在「点歌 → 桌面歌词设置」中调整样式并实时预览，点击「复制桌面歌词」获取浏览器源地址。将地址添加到 OBS 浏览器源后，会按预览样式显示完整歌词时间轴、翻译、罗马音、逐字高亮和播放进度。</p>
                       <ul>
                         <li>浏览器源背景透明，尺寸由浏览器或 OBS 的源宽高决定。</li>
                         <li>歌词区域可独立滚动；手动查看其他歌词后会暂停跟随，稍后自动回到当前行。</li>
@@ -141,8 +201,8 @@
                 </section>
 
                 <!-- ============ 礼物页详解 ============ -->
-                <section class="usage-guide-section">
-                  <h3>礼物页详解</h3>
+                <section class="usage-guide-section" id="ug-gifts">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">07</span>礼物页详解</h3>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>礼物检测</strong><span class="usage-guide-chip">开关</span></div>
@@ -168,13 +228,21 @@
                         <li>支持筛选、排序和分页，收到新礼物时自动刷新（500ms 防抖）。</li>
                       </ul>
                     </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>盲盒盈亏榜投屏</strong><span class="usage-guide-chip">OBS</span></div>
+                      <p>给观众看的盲盒盈亏排行榜画面，在礼物页直接配置：自定义投屏标题、排行人数（-1 显示全部、0 仅显示汇总、1–10 显示对应人数）、仅显示盈利、仅显示心动盲盒。复制链接可用于直播姬或 OBS，画面跟随捕捉窗口自动调整布局。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>盲盒映射</strong><span class="usage-guide-chip">配置</span></div>
+                      <p>页面底部的「盲盒映射」面板管理每种盲盒的成本，以及可开出的礼物和对应价格——直接填表添加即可，也可以展开「高级」编辑完整 JSON。映射决定了盲盒盈亏的计算口径，新增盲盒类型记得在这里补上。</p>
+                    </article>
                   </div>
                 </section>
 
                 <!-- ============ 百宝箱详解 ============ -->
-                <section class="usage-guide-section">
-                  <h3>百宝箱详解</h3>
-                  <p style="margin-bottom:14px;">百宝箱是辅助工具的集合地。左侧侧边栏可以折叠（点击顶部的折叠按钮），折叠后只显示图标节省空间。上方有弹幕姬和礼物姬的快捷入口，下方标签页切换不同工具。</p>
+                <section class="usage-guide-section" id="ug-toolbox">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">08</span>百宝箱详解</h3>
+                  <p class="usage-guide-section-intro">百宝箱是辅助工具的集合地。点左侧顶部的折叠按钮可以收起侧边栏，只留图标；侧边栏收起后，这份文档会自动变成双栏——目录固定在左边，正文保持适合阅读的宽度。上方有弹幕姬和礼物姬的快捷入口，下方依次是加班机、礼物特效、主播计划、性能、使用文档和桌面更新。</p>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>弹幕姬</strong><span class="usage-guide-chip">弹幕</span></div>
@@ -186,8 +254,35 @@
                       </ul>
                     </article>
                     <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>AI 互动助手</strong><span class="usage-guide-chip">AI</span></div>
+                      <p>弹幕姬面板里的智能回复区域。观众弹幕包含触发关键词（默认「小米」）时，助手调用你配置的模型服务生成回复并发送到直播间。</p>
+                      <ul>
+                        <li><strong>模型服务</strong>：供应商预设支持 DeepSeek、OpenAI、Claude、Gemini 或自定义 OpenAI 兼容地址；接口协议可自动识别。API Key 加密保存、不会回显。</li>
+                        <li><strong>回复规则</strong>：触发关键词、回复长度偏好、联网搜索和模型推理（支持的服务可调推理强度）。</li>
+                        <li><strong>扩展能力</strong>：按需接入和风天气、高德地图，让助手能回答天气、地点和路线问题。</li>
+                        <li><strong>高级设置</strong>：并行查询数、单用户冷却、全房间每分钟上限和小猫人格预设。配置完先点「测试模型服务」确认可用。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>礼物姬</strong><span class="usage-guide-chip">礼物</span></div>
                       <p>礼物相关工具的集中展示入口，功能陆续上线中。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>加班机</strong><span class="usage-guide-chip">倒计时</span></div>
+                      <p>把观众送的礼物换算成直播加时。为每种礼物设置时间规则（按连击组或按具体数量结算），点「启用加班机」后按「开始」启动倒计时，收到礼物自动加时。</p>
+                      <ul>
+                        <li>支持手动设置初始时长；「最近结算」保留最近 20 组已完成或忽略的礼物记录。</li>
+                        <li>「直播画面」区域可复制投屏地址、打开实时预览；背景可透明或选内置样式，透明背景适合直接叠加到 OBS。</li>
+                        <li>顶部状态灯显示共享收礼核心、礼物统计和加班机的运行情况；「待结算」计数不为 0 说明有礼物正在等待结算。</li>
+                      </ul>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>礼物特效</strong><span class="usage-guide-chip">特效</span></div>
+                      <p>收到指定礼物时在直播画面上播放全屏动画。输入礼物 ID 点「播放特效」即可测试效果；「直播投屏」卡片里的地址固定不变，复制到 OBS 浏览器源后，收到对应礼物会自动播放，平时画面透明不占位置。也可以点「打开预览」直接在浏览器里查看。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>主播计划</strong><span class="usage-guide-chip">计划</span></div>
+                      <p>主播自己的日程清单。记下要做的事，选择「今天 / 本周 / 本月」和分类（学歌、开播准备、内容发布、直播复盘），内容只保存在这台电脑。不会写可以点下方的示例模板（学一首歌、开播前检查等）再改成自己的。</p>
                     </article>
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>性能检测</strong><span class="usage-guide-chip">诊断</span></div>
@@ -205,10 +300,61 @@
                   </div>
                 </section>
 
+                <!-- ============ AI 助手：配置 DeepSeek ============ -->
+                <section class="usage-guide-section" id="ug-deepseek">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">09</span>AI 助手：配置 DeepSeek</h3>
+                  <p class="usage-guide-section-intro">AI 互动助手需要接入一个模型服务才能工作，推荐 DeepSeek 官方：注册简单、价格低、中文效果好。整个流程分两步——先去 DeepSeek 开放平台拿到 API Key，再回到 LIRA 的弹幕姬面板里粘贴配置，几分钟就能完成。</p>
+                  <div class="usage-guide-feature-list">
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>1. 登录 DeepSeek 开放平台</strong><span class="usage-guide-chip">官网</span></div>
+                      <p>浏览器打开 platform.deepseek.com，用微信扫码或手机号验证码登录。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-login.png" alt="DeepSeek开放平台登录页，左侧微信扫码二维码，右侧手机号验证码登录表单">
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>2. 邮箱绑定可以跳过</strong><span class="usage-guide-chip">官网</span></div>
+                      <p>新账号登录后如果弹出绑定邮箱的提示，点「稍后再说」即可，不影响创建和使用 API Key。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-email-later.png" alt="绑定邮箱提示弹窗，底部有稍后再说和立即绑定两个按钮">
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>3. 进入 API keys 页面</strong><span class="usage-guide-chip">官网</span></div>
+                      <p>在左侧菜单点击「API keys」，然后点击「创建 API key」按钮。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-api-keys.png" alt="DeepSeek开放平台API keys页面，左下角显示首次充值赠送余额，右侧有创建API key按钮">
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>4. 命名并创建</strong><span class="usage-guide-chip">官网</span></div>
+                      <p>给 Key 起一个能认出来的名字（比如 LIRA），点击「创建」。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-create-key.png" alt="创建API key弹窗，名称输入框中填写LIRA，底部有取消和创建按钮">
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>5. 复制并妥善保存 Key</strong><span class="usage-guide-chip">官网</span></div>
+                      <p>创建成功后会弹出完整的 API Key，点「复制」。Key 只会完整显示这一次，关掉弹窗后列表里只能看到首尾几位，请务必先复制保存好。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-copy-key.png" alt="API key创建成功弹窗，显示完整密钥，提示请妥善保存，底部有复制按钮">
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>6. 选择「DeepSeek 官方」</strong><span class="usage-guide-chip">LIRA</span></div>
+                      <p>回到 LIRA，打开「百宝箱 → 弹幕姬」，找到「AI 互动助手」区域。模型供应商下拉框选择「DeepSeek 官方」，API 请求地址会自动锁定为官方地址，不用手动填写。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>7. 粘贴 API Key</strong><span class="usage-guide-chip">LIRA</span></div>
+                      <p>把刚复制的 Key 粘贴到「API Key」输入框。内容会自动保存（状态栏会提示「等待自动保存 / 已保存」），也可以点保存按钮立即保存。Key 加密存储，界面上只显示掩码，不会明文回显。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>8. 获取并选择模型</strong><span class="usage-guide-chip">LIRA</span></div>
+                      <p>点击「获取模型」，从返回的列表中选择想用的模型，建议 deepseek-v4-flash（速度快、价格低，日常互动完全够用）。其余选项保持默认即可，配置完可以点「测试模型服务」确认可用。</p>
+                    </article>
+                    <article class="usage-guide-feature">
+                      <div class="usage-guide-feature-head"><strong>9. 查看用量、余额不足时充值</strong><span class="usage-guide-chip">官网</span></div>
+                      <p>API 调用量、Token 数和消费金额都在 DeepSeek 开放平台的「用量信息」页面查看（数据约有 5 分钟延迟）。余额不足时在「充值」页面扫码充值，支持支付宝和微信，10 元起充。</p>
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-usage.png" alt="DeepSeek开放平台用量信息页面，显示充值余额、累计消费金额、API请求次数和Tokens统计">
+                      <img class="usage-guide-image" src="/img/usage-guide/deepseek-recharge.png" alt="DeepSeek开放平台充值页面，可选充值金额，支持支付宝和微信支付">
+                    </article>
+                  </div>
+                </section>
+
                 <!-- ============ 投屏设置 ============ -->
-                <section class="usage-guide-section">
-                  <h3>OBS 投屏设置</h3>
-                  <p style="margin-bottom:10px;">LIRA提供了多个直播画面链接，添加到 OBS 的「浏览器源」中即可在直播画面上显示：</p>
+                <section class="usage-guide-section" id="ug-obs">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">10</span>OBS 投屏设置</h3>
+                  <p class="usage-guide-section-intro">LIRA 提供了多个直播画面链接，添加到 OBS 的「浏览器源」中即可在直播画面上显示：</p>
                   <div class="usage-guide-grid">
                     <article class="usage-guide-card">
                       <strong>点歌队列画面</strong>
@@ -224,22 +370,30 @@
                     </article>
                     <article class="usage-guide-card">
                       <strong>盲盒盈亏榜</strong>
-                      <p>实时展示观众的盲盒开盒盈亏排名。支持按盲盒类型筛选（如仅显示心动盲盒），排行人数可调。在礼物页的盲盒投屏面板中配置。</p>
+                      <p>实时展示观众的盲盒开盒盈亏排名。标题、排行人数、仅显示盈利和仅显示心动盲盒都在礼物页的「盲盒盈亏榜」卡片配置。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>加班机画面</strong>
+                      <p>显示直播加时倒计时。地址在「百宝箱 → 加班机 → 直播画面」复制；背景可透明或选内置样式，透明背景适合直接叠加在直播画面上。</p>
+                    </article>
+                    <article class="usage-guide-card">
+                      <strong>礼物特效画面</strong>
+                      <p>全屏礼物动画的固定地址，在「百宝箱 → 礼物特效」复制。加入 OBS 后收到对应礼物会自动播放特效，无内容时画面透明。</p>
                     </article>
                   </div>
                 </section>
 
                 <!-- ============ 常用设置速查 ============ -->
-                <section class="usage-guide-section">
-                  <h3>常用设置速查</h3>
+                <section class="usage-guide-section" id="ug-cheatsheet">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">11</span>常用设置速查</h3>
                   <div class="usage-guide-grid">
                     <article class="usage-guide-card">
                       <strong>点歌规则</strong>
-                      <p>队列上限（默认 50 首）、用户冷却时间、是否允许重复点歌、是否只允许歌库内歌曲、是否允许精简格式点歌——这些都在点歌页的「设置」标签页调整。</p>
+                      <p>直播间号、弹幕监听开关、暂停接收点歌、队列上限、用户冷却秒数、是否允许重复点歌、是否只允许歌库歌曲——都在点歌页的「设置」标签页调整。</p>
                     </article>
                     <article class="usage-guide-card">
                       <strong>主题美化</strong>
-                      <p>点歌板的颜色主题、背景透明度、毛玻璃模糊程度、发光强度、渐变色——在「点歌板」标签页。支持一键预设和「一键美化」按钮快速出效果。</p>
+                      <p>点歌板的颜色主题、背景透明度、毛玻璃模糊程度、发光强度、渐变色——在「点歌板」标签页。支持一键预设和「一键毛玻璃美化」按钮快速出效果。</p>
                     </article>
                     <article class="usage-guide-card">
                       <strong>投屏文字</strong>
@@ -247,56 +401,96 @@
                     </article>
                     <article class="usage-guide-card">
                       <strong>礼物与盲盒</strong>
-                      <p>礼物检测开关、通知开关、冲刺目标在礼物页直接操作。盲盒配置（成本、可开出的礼物及价格）在「设置」标签页管理。</p>
+                      <p>礼物检测开关、通知开关、冲刺目标在礼物页直接操作。盲盒的成本和开出物配置在礼物页底部的「盲盒映射」面板，盈亏榜投屏在同页的「盲盒盈亏榜」卡片。</p>
                     </article>
                     <article class="usage-guide-card">
                       <strong>签到与回复</strong>
-                      <p>签到机器人、抽签机器人、随机点歌回复和 DIY 关键词回复的开关都在百宝箱 → 弹幕姬面板。DIY 规则、签到祝福语和抽签词库也在同一面板的折叠区域编辑。</p>
+                      <p>签到机器人、抽签机器人、随机点歌回复和 DIY 关键词回复的开关都在百宝箱 → 弹幕姬面板，规则和词库在同一面板的折叠区域编辑；AI 互动助手的触发词、模型和密钥也在弹幕姬面板配置。</p>
                     </article>
                     <article class="usage-guide-card">
                       <strong>歌单展示板</strong>
-                      <p>滚动速度（1-100 秒/屏）、排序方式、字号以及是否同步点歌板主题——在「展示板」标签页配置。</p>
+                      <p>滚动速率（1 最慢、100 最快）、歌曲排序方式、字号以及是否同步点歌板主题——在「展示板」标签页配置。</p>
                     </article>
                   </div>
                 </section>
 
                 <!-- ============ 常见问题 ============ -->
-                <section class="usage-guide-section">
-                  <h3>常见问题</h3>
+                <section class="usage-guide-section" id="ug-faq">
+                  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">12</span>常见问题</h3>
                   <div class="usage-guide-faq-grid">
-                    <article class="usage-guide-faq">
-                      <strong>页面空白或点了按钮没反应</strong>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>页面空白或点了按钮没反应</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
                       <p>先确认没有停在别的功能页，检查页面是否加载完整。最简单的办法是刷新浏览器后重新进入对应功能区。如果持续出现，检查浏览器控制台是否有红色报错。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>弹幕发不出去</strong>
-                      <p>确认三件事：① Bilibili 账号已登录（设置页可查看）；② 直播间已连接（右上角状态指示灯）；③ 弹幕姬面板的发送状态不是断线或暂停。都正常的话，重连一次直播间通常能恢复。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>签到机器人没有自动回复</strong>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>弹幕发不出去</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
+                      <p>确认三件事：① Bilibili 账号已登录（点歌 → 设置标签页可查看）；② 直播间已连接（右上角状态指示灯）；③ 弹幕姬面板的发送状态不是断线或暂停。都正常的话，重连一次直播间通常能恢复。</p>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>签到机器人没有自动回复</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
                       <p>去百宝箱 → 弹幕姬面板，检查「签到机器人」开关是否打开。开关关闭时观众发「签到」弹幕不会触发回复。也确认一下祝福语列表是否为空。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>随机点歌条件没反应或匹配不到歌</strong>
-                      <p>确认歌库中有符合条件的歌曲。如果开了「随机点歌回复」，条件不匹配时弹幕姬会自动发弹幕提醒点歌人。检查百宝箱 → 弹幕姬的「随机点歌回复」开关状态。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>礼物列表不更新</strong>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>AI 互动助手不回复</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
+                      <p>按顺序排查：① 弹幕姬面板里「启用 AI」开关已打开；② 模型供应商、API Key 和模型 ID 已填写，点「测试模型服务」能通过；③ 观众弹幕里包含触发关键词（默认「小米」）；④ 没有触发单用户冷却或全房间每分钟上限。状态区的「等待队列」可以看到排队中的回复数。</p>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>随机点歌条件没反应或匹配不到歌</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
+                      <p>确认歌库中有符合条件的歌曲（可用播放页的「点歌匹配诊断」实测）。如果开了「随机点歌回复」，条件不匹配时弹幕姬会自动发弹幕提醒点歌人。检查百宝箱 → 弹幕姬的「随机点歌回复」开关状态。</p>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>礼物列表不更新</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
                       <p>确认礼物页的「礼物检测」开关已开启、直播连接正常。如果最近礼物和礼物流水都没有变化，点一下右上角的「刷新直播」即可。不需要手动重启程序。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>OBS 投屏画面不显示或尺寸不对</strong>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>加班机时间不增加</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
+                      <p>确认面板顶部已「启用加班机」且倒计时处于开始状态；再检查收到的礼物是否已添加进「礼物时间规则」。顶部状态灯能看到共享收礼核心、礼物统计和加班机是否都在运行，「待结算」计数不为 0 说明礼物已收到、正在等待结算。</p>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>OBS 投屏画面不显示或尺寸不对</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
                       <p>先确认投屏地址是从「点歌页 → 直播画面」标签页复制的正确链接（以 127.0.0.1 开头）。OBS 浏览器源的宽度建议至少 400px。窗口第一次缩放后画面会自动适配全宽，所以刚添加时可能偏窄，拖动 OBS 源边框即可触发自适应。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>桌面版更新卡住</strong>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>桌面版更新卡住</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
                       <p>仅影响桌面版。确认电脑能正常上网后，重新点击「检查更新」。如果下载中断，关闭百宝箱的更新面板再重新打开即可，通常比一直等着更快。</p>
-                    </article>
-                    <article class="usage-guide-faq">
-                      <strong>歌曲导入失败（XLSX 格式）</strong>
+                    </details>
+                    <details class="usage-guide-faq">
+                      <summary>
+                        <strong>歌曲导入失败（XLSX 格式）</strong>
+                        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </summary>
                       <p>部分 Excel 版本导出的 XLSX 文件格式可能不兼容。尝试用 Excel 重新保存为标准的 .xlsx 格式，或者改用 CSV 格式导入。确保文件包含「歌曲名字」列。</p>
-                    </article>
+                    </details>
                   </div>
                 </section>
+                </div>
+                </div>
               </div>
             </section>

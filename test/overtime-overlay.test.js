@@ -22,6 +22,7 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(html, /id="overtimeAdjustmentStage"/);
   assert.match(css, /container-type:\s*size/);
   assert.match(css, /cqmin/);
+  assert.match(css, /\.overtime-machine\s*\{[^}]*height:\s*100vh;\s*height:\s*100dvh;/);
   assert.match(css, /@container[^\{]*\(max-height:\s*239px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /overflow:\s*hidden/);

@@ -98,6 +98,7 @@
 | `@container (max-aspect-ratio: 1.45)` | 竖屏(高 > 宽/1.45)收紧纵向间距 | [overtime.css:274-276](../../../public/css/overlays/overtime.css#L274-L276) |
 | `@container (max-height: 239px)` | 超矮场景隐藏送礼表头、压缩间距 | [overtime.css:277-281](../../../public/css/overlays/overtime.css#L277-L281) |
 | `@supports not (font-size: 1cqmin)` | 无 cq 支持时回退 `2vmin` | [overtime.css:297-299](../../../public/css/overlays/overtime.css#L297-L299) |
+| `height: 100vh` → `100dvh` | 先声明 `100vh` 兜底：内核支持 `container-type: size`（Chrome 105+）但不认 `100dvh`（Chrome 108+）时，高度声明失效会被尺寸包含（size containment）塌成 0，整个画面不可见（如直播姬浏览器源） | [overtime.css:17-18](../../../public/css/overlays/overtime.css#L17-L18) |
 
 ### 4.3 时钟与数字呈现
 

@@ -185,10 +185,10 @@ export function renderIdentityRow(item, index, showIndex = true) {
         <span class="identity-content">
           <span class="identity-song">${fullSongText}</span>
           <span class="identity-requester">${escapeHtml(item.requester_name || '观众')}</span>
-          ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
-          ${medalLevel > 0 ? `<span class="identity-medal">${medalLevel}</span>` : ''}
         </span>
       </span>
+      ${identityText ? `<span class="identity-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
+      ${medalLevel > 0 ? `<span class="identity-medal">${medalLevel}</span>` : ''}
     </div>
   `;
 }

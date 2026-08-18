@@ -8,6 +8,7 @@ import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { getLegacyAdminModules, publishNavigation } from './legacy-admin-bridge.js';
+import { initUsageGuide } from './usage-guide.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -58,6 +59,7 @@ async function initApp() {
   modules.overtime?.init?.();
   modules.giftEffects?.init?.();
   modules.todo?.init?.();
+  initUsageGuide();
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.();
   modules.gifts?.initGiftHistoryDrawer?.();

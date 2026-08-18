@@ -24,7 +24,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 │           / desktopLyricPage(桌面歌词设置)
 ├── #playbackAssistantPage 播放助手(#playback)
 ├── #giftAssistantPage     礼物面板(#gifts):礼物检测/提示/最近/月底冲刺/今日盲盒盈亏/盈亏榜/盲盒映射
-└── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/主播计划/性能检测/使用文档/桌面更新)
+└── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/礼物特效/主播计划/性能检测/使用文档/桌面更新)
 ```
 
 六个内部 Tab 的内容由 [pages/admin/song/](../../../public/pages/admin/song/) 下的分片组成:
@@ -152,7 +152,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 主播计划 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 规划器**(`admin.streamerPlanner.v1`):今天/本周/本月三栏,学歌/开播准备/内容发布/直播复盘四类,进度 0-100% 五档(学歌类用"还没听熟/能跟伴奏唱/可以上播"文案),首次启动播种 6 条示例任务;模板按钮一键填充表单;不经过后端 |
 | 性能检测 | metrics.js(见 §4.6) | |
-| 使用文档 / 桌面更新 | — / [desktop.js](../../../public/js/desktop.js) | 文档链接;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |
+| 使用文档 / 桌面更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [desktop.js](../../../public/js/desktop.js) | 目录锚点平滑滚动与章节高亮、侧栏收缩时切换双栏目录;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |
 
 桌面歌词设置页(点歌主页面 Tab):[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 收集 `desktopLyric*` 12 个键 → `/api/settings`,500ms 自动保存(带"等待自动保存/已保存/失败"状态条);客户端用户点击“获取本地字体”后通过 Chromium `queryLocalFonts()` 读取、去重字体族名称并追加到主字体下拉框,权限边界与原生确认见 [desktop/main.md](../desktop/main.md) §4;[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 用 `LyricWordRenderer` + 弹簧动画控制器(`SPRING_STIFFNESS=170, SPRING_DAMPING=26`,[desktop-lyric-preview.js:26-29](../../../public/js/admin/desktop-lyric-preview.js#L26-L29))渲染完整时间轴预览,滚轮缩放、暂停 6 秒手动跟随。
 
