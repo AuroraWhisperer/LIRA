@@ -2,16 +2,18 @@
 * { box-sizing: border-box; }
 html, body { width: 100%; min-height: 100%; margin: 0; }
 body { overflow: hidden; color: var(--ink); font-family: Bahnschrift, 'Microsoft YaHei', sans-serif; background: #141327; }
-.game-stage { position: relative; display: grid; grid-template-rows: auto 1fr; gap: 6px; min-height: 100vh; padding: var(--overlay-edge); overflow: hidden; background: #141327; }
+.game-stage { position: relative; display: grid; grid-template-columns: clamp(118px, 12vw, 170px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(12px, 1.5vw, 22px); align-items: start; min-height: 100vh; padding: var(--overlay-edge); overflow: hidden; background: #141327; }
 .game-stage-header, .game-view, .game-empty { position: relative; z-index: 1; }
-.game-stage-header { display: flex; justify-content: flex-end; align-items: flex-start; gap: 20px; }
-.game-stage-meta { display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
+.game-stage-header { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+.game-title { display: none; margin: 0; font-size: clamp(18px, 2.4vw, 28px); letter-spacing: -.04em; }
+body[data-game='number-bomb'] .bomb-title, body[data-game='gomoku'] .gomoku-title { display: block; }
+.game-stage-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
 .game-turn { padding: 4px 8px; border: 1px solid var(--amber); border-radius: 999px; color: #1d1830; background: var(--amber); font-size: 10px; font-weight: 800; }
-.game-view { display: grid; grid-template-rows: auto 1fr auto; gap: 7px; min-height: 0; }
+.bomb-status { color: var(--muted); font-size: 10px; line-height: 1.45; }
+body:not([data-game='number-bomb']) .bomb-status { display: none; }
+.game-view { grid-column: 2; grid-row: 1; display: grid; align-content: start; justify-items: start; min-width: 0; min-height: 0; }
 .game-view[hidden], .game-empty[hidden] { display: none; }
-.bomb-hero { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.game-view h2 { margin: 0; font-size: clamp(18px, 2.4vw, 28px); letter-spacing: -.04em; }
-.bomb-numbers { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: clamp(3px, .45vw, 6px); align-content: center; max-width: min(760px, calc(100vw - (2 * var(--overlay-edge)))); width: 100%; margin: auto; }
+.bomb-numbers { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: clamp(3px, .45vw, 6px); align-content: start; max-width: min(760px, 100%); width: 100%; margin: 0; }
 .bomb-number { min-height: clamp(16px, 3.4vw, 40px); border: 1px solid rgba(255,255,255,.12); border-radius: 6px; color: #efedff; background: rgba(255,255,255,.07); font: 700 clamp(10px, 1.25vw, 16px)/1 Consolas, monospace; cursor: pointer; transition: transform 140ms ease, background 140ms ease, border-color 140ms ease; }
 .bomb-number:hover:not(:disabled), .bomb-number:focus-visible { border-color: var(--amber); background: rgba(255,200,87,.18); transform: translateY(-3px); outline: none; }
 .bomb-number:disabled { color: #5e5b74; background: rgba(255,255,255,.025); cursor: not-allowed; }
@@ -19,10 +21,9 @@ body { overflow: hidden; color: var(--ink); font-family: Bahnschrift, 'Microsoft
 .bomb-number.is-safe:disabled { color: #d8d3ff; background: rgba(128,116,232,.14); }
 .bomb-number.is-unsafe { border-style: dashed; color: #6f6b86; background: rgba(255,255,255,.025); opacity: .72; }
 .bomb-number.last { border-color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); }
-.game-view-footer { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 10px; }
 .gomoku-view { width: 100%; margin: 0; grid-template-rows: 1fr; gap: 0; }
-.gomoku-board-wrap { --gomoku-size: min(56vh, 520px, calc(100vw - 56px)); align-self: center; justify-self: center; display: grid; grid-template-columns: clamp(14px, 1.6vw, 20px) var(--gomoku-size); grid-template-rows: clamp(14px, 1.6vw, 20px) var(--gomoku-size); gap: 3px 4px; min-width: 0; min-height: 0; }
-.gomoku-column-labels, .gomoku-row-labels { color: var(--muted); font: 700 clamp(8px, .9vw, 11px)/1 Consolas, monospace; }
+.gomoku-board-wrap { --gomoku-size: min(56vh, 520px, calc(100vw - 56px)); align-self: start; justify-self: start; display: grid; grid-template-columns: clamp(18px, 2vw, 26px) var(--gomoku-size); grid-template-rows: clamp(18px, 2vw, 26px) var(--gomoku-size); gap: 5px 6px; min-width: 0; min-height: 0; }
+.gomoku-column-labels, .gomoku-row-labels { color: var(--muted); font: 700 clamp(11px, 1.1vw, 15px)/1 Consolas, monospace; }
 .gomoku-column-labels { grid-column: 2; grid-row: 1; display: grid; grid-template-columns: repeat(15, 1fr); align-items: center; text-align: center; }
 .gomoku-row-labels { grid-column: 1; grid-row: 2; display: grid; grid-template-rows: repeat(15, 1fr); align-items: center; text-align: right; }
 .gomoku-board { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr); width: var(--gomoku-size); aspect-ratio: 1; overflow: hidden; border-radius: 2px; background: #c89251; box-shadow: 0 0 0 2px #80532c, 0 10px 28px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.16); }
@@ -38,7 +39,14 @@ body { overflow: hidden; color: var(--ink); font-family: Bahnschrift, 'Microsoft
 .gomoku-cell:hover:not(:disabled)::after { border: 2px solid var(--amber); transform: scale(.72); }
 .gomoku-cell:focus-visible { z-index: 2; outline: 2px solid var(--amber); outline-offset: -2px; }
 .gomoku-cell:disabled { cursor: default; }
-.game-empty { align-self: center; justify-self: center; display: grid; text-align: center; }
+.game-empty { grid-column: 2; grid-row: 1; align-self: start; justify-self: start; display: grid; text-align: left; }
 .game-empty strong { font-size: clamp(22px, 3vw, 40px); letter-spacing: -.04em; }
-@media (max-width: 700px) { .bomb-numbers { gap: 3px; } .bomb-number { min-height: 16px; border-radius: 5px; } .game-stage-meta { padding: 0; } }
+@media (max-width: 700px) {
+  .game-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+  .game-stage-header { grid-column: 1; grid-row: 1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .game-stage-meta { flex: 1 1 auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .game-view, .game-empty { grid-column: 1; grid-row: 2; }
+  .bomb-numbers { gap: 3px; }
+  .bomb-number { min-height: 16px; border-radius: 5px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }

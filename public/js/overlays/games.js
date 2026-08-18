@@ -4,19 +4,42 @@ let session = null;
 let socket = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
+let snapshotRetryTimer = null;
+let initialSnapshotLoaded = false;
+
+const INITIAL_SNAPSHOT_RETRIES = 4;
+const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderGame(session);
   loadSnapshot();
   connectSocket();
 });
 
-async function loadSnapshot() {
+async function loadSnapshot(attempt = 0) {
   try {
-    const response = await fetch('/api/games/session');
+    const token = window.__API_TOKEN__;
+    const response = await fetch('/api/games/session', {
+      cache: 'no-store',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    });
     const payload = await response.json();
-    if (payload.ok) renderGame(payload.data);
-  } catch (_) { byId('gameTurn').textContent = '等待连接'; }
+    if (!payload.ok) throw new Error(payload.error || '读取游戏状态失败');
+    if (payload.data || attempt >= INITIAL_SNAPSHOT_RETRIES) {
+      initialSnapshotLoaded = true;
+      clearTimeout(snapshotRetryTimer);
+      renderGame(payload.data);
+      return;
+    }
+    scheduleSnapshotRetry(attempt + 1);
+  } catch (_) {
+    if (attempt >= INITIAL_SNAPSHOT_RETRIES) byId('gameTurn').textContent = '等待连接';
+    else scheduleSnapshotRetry(attempt + 1);
+  }
+}
+
+function scheduleSnapshotRetry(attempt) {
+  clearTimeout(snapshotRetryTimer);
+  snapshotRetryTimer = setTimeout(() => loadSnapshot(attempt), INITIAL_SNAPSHOT_RETRY_DELAY_MS);
 }
 
 function connectSocket() {
@@ -26,8 +49,21 @@ function connectSocket() {
   socket.addEventListener('open', () => { reconnectAttempts = 0; });
   socket.addEventListener('message', event => {
     const payload = JSON.parse(event.data);
-    if (payload.type === 'game:update') renderGame(payload.session);
-    if (payload.type === 'snapshot') renderGame(payload.state?.games || null);
+    if (payload.type === 'game:update') {
+      if (payload.session) {
+        initialSnapshotLoaded = true;
+        clearTimeout(snapshotRetryTimer);
+      }
+      renderGame(payload.session);
+    }
+    if (payload.type === 'snapshot') {
+      const nextSession = payload.state?.games || null;
+      if (nextSession) {
+        initialSnapshotLoaded = true;
+        clearTimeout(snapshotRetryTimer);
+      }
+      if (nextSession || initialSnapshotLoaded) renderGame(nextSession);
+    }
   });
   socket.addEventListener('close', () => {
     const delay = Math.min(30000, 800 * (2 ** Math.min(reconnectAttempts, 6)));

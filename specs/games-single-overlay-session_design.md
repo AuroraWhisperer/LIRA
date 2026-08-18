@@ -42,6 +42,8 @@
 4. While a session exists, starting either game returns HTTP 409 and leaves the original session unchanged.
 5. The Admin disables both start controls while a session exists and re-enables them after the explicit end action succeeds.
 6. Existing query-string Overlay URLs remain reachable and follow the same current-session behavior.
+7. The Admin presents opening the fixed `/games` page as step one and starting a game as step two.
+8. The Overlay resolves its initial session snapshot before showing the empty state and retries transient empty/error responses briefly.
 
 ## Done When
 

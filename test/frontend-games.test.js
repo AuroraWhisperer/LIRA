@@ -25,6 +25,10 @@ test('games admin keeps the overlay link and current session above game one', ()
   assert.ok(gomokuPosition > bombPosition, 'game two should follow game one');
   assert.match(html, /id="gamesOverlayUrl"/);
   assert.match(html, /id="gamesCopyBaseUrlBtn"/);
+  assert.match(html, /第一步/);
+  assert.match(html, /1\. 打开固定游戏网页/);
+  assert.match(html, /2\. 开始数字炸弹/);
+  assert.match(html, /2\. 开始五子棋/);
   assert.doesNotMatch(html, /data-copy-game/);
 });
 

@@ -22,6 +22,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="gomokuRowLabels"/);
   assert.doesNotMatch(html, /gomoku-legend|gomokuHint|gomokuLastMove/);
   assert.match(script, /renderGomokuCoordinates\(state\.size\)/);
+  assert.match(script, /cache:\s*['"]no-store['"]/);
+  assert.match(script, /Authorization:\s*`Bearer \$\{token\}`/);
+  assert.match(script, /INITIAL_SNAPSHOT_RETRIES/);
+  assert.match(script, /scheduleSnapshotRetry/);
   assert.match(styles, /--gomoku-size:\s*min\(56vh, 520px/);
   assert.match(styles, /\.gomoku-cell::before/);
   assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);
