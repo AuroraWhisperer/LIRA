@@ -132,6 +132,11 @@ html.lira-tour-active .other-feature-panel {
   transition: all 160ms ease;
 }
 
+.lira-tour-close-mark {
+  display: block;
+  transform: translateY(-1px);
+}
+
 .lira-tour-close:hover {
   border-color: var(--color-accent, #ff5555);
   background: var(--color-accent-light, #fff5f5);

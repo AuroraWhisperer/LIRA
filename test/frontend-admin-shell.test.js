@@ -89,17 +89,36 @@ test('first-run onboarding fragment is hidden by default and wired into the admi
   assert.match(app, /initOnboarding\(/);
 });
 
-test('interactive tour close control centers its exit mark', () => {
+test('wheel expand control optically centers its plus mark', () => {
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const iconRule = styles.match(/\.wheel-expand-icon\s*\{[^}]*\}/)?.[0];
+  const markRule = styles.match(/\.wheel-expand-mark\s*\{[^}]*\}/)?.[0];
+
+  assert.match(html, /<span class="wheel-expand-icon" aria-hidden="true"><span class="wheel-expand-mark">＋<\/span><\/span>/);
+  assert.ok(iconRule, 'wheel expand icon styles should remain defined');
+  assert.match(iconRule, /display:\s*grid/);
+  assert.match(iconRule, /place-items:\s*center/);
+  assert.ok(markRule, 'wheel expand mark should have an optical alignment rule');
+  assert.match(markRule, /transform:\s*translateY\(-1px\)/);
+});
+
+test('interactive tour close control optically centers its exit mark', () => {
   const styles = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
     'utf8'
   );
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
   const closeRule = styles.match(/\.lira-tour-close\s*\{[\s\S]*?\n\}/)?.[0];
+  const closeMarkRule = styles.match(/\.lira-tour-close-mark\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(closeRule, 'interactive tour close control styles should remain defined');
   assert.match(closeRule, /display:\s*inline-flex/);
   assert.match(closeRule, /align-items:\s*center/);
   assert.match(closeRule, /justify-content:\s*center/);
+  assert.ok(closeMarkRule, 'interactive tour close mark should have an optical alignment rule');
+  assert.match(closeMarkRule, /transform:\s*translateY\(-1px\)/);
+  assert.match(script, /<span class="lira-tour-close-mark" aria-hidden="true">×<\/span>/);
 });
 
 test('usage guide main-flow steps keep body text out of the number gutter', () => {

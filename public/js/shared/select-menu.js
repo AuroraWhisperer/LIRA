@@ -201,7 +201,6 @@ function enhanceSelect(select) {
   const chevron = document.createElement('span');
   chevron.className = 'lira-select-chevron';
   chevron.setAttribute('aria-hidden', 'true');
-  chevron.textContent = '⌄';
   trigger.append(valueNode, chevron);
 
   const menu = document.createElement('div');
@@ -257,9 +256,9 @@ function enhanceSelect(select) {
     }
   });
   menu.addEventListener('focusout', () => {
-    queueMicrotask(() => {
-      if (state.open && !menu.contains(document.activeElement)) closeMenu(state, { restoreFocus: false });
-    });
+    setTimeout(() => {
+      if (state.open && !wrapper.contains(document.activeElement)) closeMenu(state, { restoreFocus: false });
+    }, 0);
   });
   document.addEventListener('pointerdown', (event) => {
     if (state.open && !wrapper.contains(event.target)) closeMenu(state, { restoreFocus: false });

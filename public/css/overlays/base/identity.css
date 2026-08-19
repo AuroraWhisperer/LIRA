@@ -68,12 +68,20 @@
   display: inline-flex;
   align-items: center;
   border-radius: 3px;
-  background: #4f8df7;
+  background: #2a60b2;
   color: var(--color-bg-primary);
   padding: 0 4px;
   font-size: calc(10px * var(--overlay-font-scale, 1));
   font-weight: 900;
   text-shadow: none;
+}
+
+.identity-sc-price-yellow {
+  background: #e7a23a;
+}
+
+.identity-sc-price-red {
+  background: #e62117;
 }
 
 .identity-sc-message {
@@ -192,12 +200,20 @@
   display: inline-flex;
   align-items: center;
   border-radius: 6px;
-  background: #4f8df7;
+  background: #2a60b2;
   color: var(--color-bg-primary);
   padding: 0 8px;
   font-size: calc(20px * var(--overlay-font-scale, 1));
   font-weight: 900;
   text-shadow: none;
+}
+
+.identity-row.identity-sc .identity-sc-price-yellow {
+  background: #e7a23a;
+}
+
+.identity-row.identity-sc .identity-sc-price-red {
+  background: #e62117;
 }
 
 .identity-row.identity-sc .identity-sc-content {

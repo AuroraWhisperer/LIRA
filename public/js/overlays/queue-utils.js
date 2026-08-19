@@ -134,6 +134,13 @@ export function formatSuperChatPrice(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
+export function superChatPriceClass(value) {
+  const number = Number(value);
+  if (Number.isFinite(number) && number >= 1000) return 'identity-sc-price-red';
+  if (Number.isFinite(number) && number >= 100) return 'identity-sc-price-yellow';
+  return 'identity-sc-price-blue';
+}
+
 export function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')

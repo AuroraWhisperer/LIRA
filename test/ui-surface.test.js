@@ -73,6 +73,17 @@ test('native select options are rendered through contextual listbox panels', () 
   assert.match(onboarding, /select:not\(\[disabled\]\):not\(\.lira-select-native\)/);
 });
 
+test('shared select toggles closed from its trigger and uses a centered CSS chevron', () => {
+  const source = read('public', 'js', 'shared', 'select-menu.js');
+  const styles = read('public', 'css', 'components', 'select-menu.css');
+
+  assert.match(source, /setTimeout\(\(\) => \{[\s\S]*state\.open && !wrapper\.contains\(document\.activeElement\)/);
+  assert.doesNotMatch(source, /chevron\.textContent/);
+  assert.match(styles, /\.lira-select-chevron\s*\{[\s\S]*display:\s*grid[\s\S]*place-items:\s*center/);
+  assert.match(styles, /\.lira-select-chevron::before\s*\{[\s\S]*border-right:[\s\S]*border-bottom:/);
+  assert.match(styles, /\.lira-select\.is-open \.lira-select-chevron\s*\{[\s\S]*transform:\s*rotate\(180deg\)/);
+});
+
 test('admin runtime no longer composes the obsolete restart confirmation fragment', () => {
   const adminPage = read('src', 'server', 'admin-page.js');
   const desktop = read('public', 'js', 'desktop.js');

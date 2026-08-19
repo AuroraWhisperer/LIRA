@@ -2,7 +2,7 @@
 'use strict';
 
 import { scheduleClassicVerticalScroll, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleIdentityVerticalScroll } from './queue-scroll.js';
-import { escapeHtml, formatSuperChatPrice, hexToRgb, hexToRgba, identityQueueFontSize, medalLevelClass, normalizeFontSize, normalizeGuardLevel, overlayLowPowerEnabled, queueScrollSeconds, queueSongFontSize, requesterIdentityClass, requesterIdentityLabel, scaleToFontSize, withMultilingualFallback } from './queue-utils.js';
+import { escapeHtml, formatSuperChatPrice, hexToRgb, hexToRgba, identityQueueFontSize, medalLevelClass, normalizeFontSize, normalizeGuardLevel, overlayLowPowerEnabled, queueScrollSeconds, queueSongFontSize, requesterIdentityClass, requesterIdentityLabel, scaleToFontSize, superChatPriceClass, withMultilingualFallback } from './queue-utils.js';
 
 export function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
@@ -145,9 +145,10 @@ export function renderIdentitySuperChats(superChats) {
 export function renderIdentitySuperChat(item) {
   const message = String(item.message || '').trim();
   const shouldScroll = Array.from(message).length > 24;
+  const priceClass = superChatPriceClass(item.price);
   return `
     <div class="identity-sc-row">
-      <span class="identity-sc-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
+      <span class="identity-sc-price ${priceClass}">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
       <span class="identity-sc-message ${shouldScroll ? 'is-scrolling' : ''}">
         <span>${escapeHtml(message || '醒目留言')}</span>
       </span>
@@ -157,9 +158,10 @@ export function renderIdentitySuperChat(item) {
 
 export function renderIdentitySuperChatRow(item) {
   const message = String(item.message || '').trim();
+  const priceClass = superChatPriceClass(item.price);
   return `
     <div class="identity-row identity-sc">
-      <span class="identity-sc-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
+      <span class="identity-sc-price ${priceClass}">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
       <span class="identity-sc-content">
         <span class="identity-sc-text">${escapeHtml(message || '醒目留言')}</span>
       </span>

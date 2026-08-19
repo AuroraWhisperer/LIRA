@@ -110,17 +110,29 @@
 }
 
 .lira-select-chevron {
+  display: grid;
   flex: 0 0 auto;
+  place-items: center;
+  width: 18px;
+  height: 18px;
   color: var(--select-muted);
-  font-size: 18px;
-  line-height: 12px;
-  transform: translateY(-1px);
+  transform: rotate(0deg);
+  transform-origin: center;
   transition: transform 140ms ease, color 140ms ease;
+}
+
+.lira-select-chevron::before {
+  width: 7px;
+  height: 7px;
+  border-right: 1.75px solid currentColor;
+  border-bottom: 1.75px solid currentColor;
+  content: '';
+  transform: translateY(-2px) rotate(45deg);
 }
 
 .lira-select.is-open .lira-select-chevron {
   color: var(--select-accent);
-  transform: rotate(180deg) translateY(1px);
+  transform: rotate(180deg);
 }
 
 .lira-select-menu {

@@ -235,7 +235,7 @@ export function createInteractiveTourController(deps = {}) {
           <span class="lira-tour-kicker"></span>
           <h3 class="lira-tour-title"></h3>
         </div>
-        <button class="lira-tour-close" type="button" aria-label="退出引导">×</button>
+        <button class="lira-tour-close" type="button" aria-label="退出引导"><span class="lira-tour-close-mark" aria-hidden="true">×</span></button>
       </div>
       <div class="lira-tour-body"></div>
       <div class="lira-tour-footer">

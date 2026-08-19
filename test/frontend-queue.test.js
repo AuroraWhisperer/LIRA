@@ -75,6 +75,22 @@ test('queue overlay applies rule sizing and scrolls only overflowing super chats
   assert.ok(Math.abs(verticalPauseSeconds - 1.5) < 0.000001);
 });
 
+test('identity queue colors Super Chats by price tier', () => {
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue-render.js');
+  const sandbox = {};
+  vm.runInNewContext(`${source}\nthis.renderIdentitySuperChat = renderIdentitySuperChat;\nthis.renderIdentitySuperChatRow = renderIdentitySuperChatRow;`, sandbox);
+
+  assert.match(sandbox.renderIdentitySuperChat({ price: 99, message: '蓝色' }), /identity-sc-price identity-sc-price-blue/);
+  assert.match(sandbox.renderIdentitySuperChat({ price: 100, message: '黄色' }), /identity-sc-price identity-sc-price-yellow/);
+  assert.match(sandbox.renderIdentitySuperChat({ price: 999, message: '黄色' }), /identity-sc-price identity-sc-price-yellow/);
+  assert.match(sandbox.renderIdentitySuperChatRow({ price: 1000, message: '红色' }), /identity-sc-price identity-sc-price-red/);
+
+  const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  assert.match(styles, /\.identity-sc-price\s*\{[\s\S]*?background:\s*#2a60b2/);
+  assert.match(styles, /\.identity-sc-price-yellow\s*\{[\s\S]*?background:\s*#e7a23a/);
+  assert.match(styles, /\.identity-sc-price-red\s*\{[\s\S]*?background:\s*#e62117/);
+});
+
 test('identity queue has an independent scroll speed setting', () => {
   const html = readAdminHtml();
   const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
