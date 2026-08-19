@@ -3,25 +3,31 @@
 .lira-tour { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
 .lira-tour[hidden] { display: none; }
 
-/* 遮罩层 - 让非目标区域变暗 */
+/* 无目标时淡化界面；有目标时由聚光灯的外阴影划出透明操作区。 */
 .lira-tour-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(246, 247, 251, 0.92);
-  backdrop-filter: blur(2px);
+  background: rgba(16, 29, 46, 0.38);
+  backdrop-filter: blur(0.5px);
   transition: opacity 280ms ease;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
-/* 聚光灯高亮区域 - 透明圆角矩形，让目标元素可见 */
+.lira-tour.has-target .lira-tour-backdrop {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+/* 聚光灯内部保持透明，目标控件可见且能接收真实操作。 */
 .lira-tour-spotlight {
   position: absolute;
-  border: 2px solid var(--color-accent, #ff5555);
-  border-radius: 10px;
+  border: 2px solid var(--color-accent, #18b8b0);
+  border-radius: 9px;
   box-shadow:
-    0 0 0 4px rgba(255, 85, 85, 0.15),
-    0 0 0 9999px rgba(246, 247, 251, 0.92);
-  transition: all 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    0 0 0 4px rgba(24, 184, 176, 0.2),
+    0 12px 28px rgba(8, 118, 108, 0.22),
+    0 0 0 9999px rgba(16, 29, 46, 0.38);
+  transition: top 220ms ease, left 220ms ease, width 220ms ease, height 220ms ease;
   pointer-events: none;
 }
 
@@ -49,26 +55,30 @@
   transform: rotate(45deg);
 }
 
-/* 箭头位置 - 根据提示框在目标上下左右的位置调整 */
+/* 箭头按目标中心动态偏移，而不是固定在卡片边缘。 */
 .lira-tour-tooltip[data-position="bottom"]::before {
   top: -8px;
-  left: 24px;
+  left: calc(var(--tour-arrow-offset) - 7px);
   border-width: 1px 0 0 1px;
 }
 .lira-tour-tooltip[data-position="top"]::before {
   bottom: -8px;
-  left: 24px;
+  left: calc(var(--tour-arrow-offset) - 7px);
   border-width: 0 1px 1px 0;
 }
 .lira-tour-tooltip[data-position="right"]::before {
   left: -8px;
-  top: 24px;
+  top: calc(var(--tour-arrow-offset) - 7px);
   border-width: 0 0 1px 1px;
 }
 .lira-tour-tooltip[data-position="left"]::before {
   right: -8px;
-  top: 24px;
+  top: calc(var(--tour-arrow-offset) - 7px);
   border-width: 1px 1px 0 0;
+}
+
+.lira-tour-tooltip[data-position="center"]::before {
+  display: none;
 }
 
 .lira-tour-header {
@@ -287,13 +297,13 @@
 /* 动画 */
 @media (prefers-reduced-motion: no-preference) {
   .lira-tour-tooltip {
-    animation: tour-tooltip-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: tour-tooltip-in 220ms ease-out;
   }
 
   @keyframes tour-tooltip-in {
     from {
       opacity: 0;
-      transform: translateY(12px) scale(0.95);
+      transform: translateY(8px) scale(0.98);
     }
     to {
       opacity: 1;

@@ -128,77 +128,88 @@ function getById(document, id) {
   return document.getElementById(id);
 }
 
-function calculateTooltipPosition(targetRect, tooltipWidth, tooltipHeight, preferredPosition) {
-  const viewport = { width: window.innerWidth, height: window.innerHeight };
-  const padding = 16;
-  let position = preferredPosition;
-  let top, left;
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
-  // 居中显示（无目标元素时）
-  if (position === 'center') {
+export function calculateTooltipPosition(
+  targetRect,
+  tooltipWidth,
+  tooltipHeight,
+  preferredPosition,
+  viewport = {
+    width: globalThis.window?.innerWidth || 0,
+    height: globalThis.window?.innerHeight || 0,
+  }
+) {
+  const padding = 16;
+  const gap = 12;
+  const arrowPadding = 24;
+
+  // 只有没有目标的开始和结束步骤才居中显示。
+  if (!targetRect || preferredPosition === 'center') {
     return {
       position: 'center',
       top: (viewport.height - tooltipHeight) / 2,
       left: (viewport.width - tooltipWidth) / 2,
+      arrowOffset: null,
     };
   }
 
-  // 计算各个方向的位置
+  const availableSpace = {
+    bottom: viewport.height - targetRect.bottom - gap - padding,
+    top: targetRect.top - gap - padding,
+    right: viewport.width - targetRect.right - gap - padding,
+    left: targetRect.left - gap - padding,
+  };
+  const requiredSpace = {
+    bottom: tooltipHeight,
+    top: tooltipHeight,
+    right: tooltipWidth,
+    left: tooltipWidth,
+  };
+  const fallbackOrder = {
+    bottom: ['bottom', 'top', 'right', 'left'],
+    top: ['top', 'bottom', 'right', 'left'],
+    right: ['right', 'left', 'bottom', 'top'],
+    left: ['left', 'right', 'bottom', 'top'],
+  };
+  const candidates = fallbackOrder[preferredPosition] || fallbackOrder.bottom;
+  const position = candidates.find(side => availableSpace[side] >= requiredSpace[side])
+    || candidates.reduce((best, side) => (
+      availableSpace[side] > availableSpace[best] ? side : best
+    ));
   const positions = {
     bottom: {
-      top: targetRect.bottom + 12,
-      left: targetRect.left,
+      top: targetRect.bottom + gap,
+      left: targetRect.left + (targetRect.width - tooltipWidth) / 2,
     },
     top: {
-      top: targetRect.top - tooltipHeight - 12,
-      left: targetRect.left,
+      top: targetRect.top - tooltipHeight - gap,
+      left: targetRect.left + (targetRect.width - tooltipWidth) / 2,
     },
     right: {
-      top: targetRect.top,
-      left: targetRect.right + 12,
+      top: targetRect.top + (targetRect.height - tooltipHeight) / 2,
+      left: targetRect.right + gap,
     },
     left: {
-      top: targetRect.top,
-      left: targetRect.left - tooltipWidth - 12,
+      top: targetRect.top + (targetRect.height - tooltipHeight) / 2,
+      left: targetRect.left - tooltipWidth - gap,
     },
   };
+  const placement = positions[position];
+  const top = clamp(placement.top, padding, Math.max(padding, viewport.height - tooltipHeight - padding));
+  const left = clamp(placement.left, padding, Math.max(padding, viewport.width - tooltipWidth - padding));
+  const targetCenter = position === 'top' || position === 'bottom'
+    ? targetRect.left + targetRect.width / 2 - left
+    : targetRect.top + targetRect.height / 2 - top;
+  const arrowLimit = position === 'top' || position === 'bottom' ? tooltipWidth : tooltipHeight;
 
-  // 检查首选位置是否可放置
-  const preferred = positions[position];
-  if (
-    preferred.top >= padding &&
-    preferred.top + tooltipHeight <= viewport.height - padding &&
-    preferred.left >= padding &&
-    preferred.left + tooltipWidth <= viewport.width - padding
-  ) {
-    return { position, ...preferred };
-  }
-
-  // 尝试其他方向
-  const fallbackOrder = {
-    bottom: ['top', 'right', 'left'],
-    top: ['bottom', 'right', 'left'],
-    right: ['left', 'bottom', 'top'],
-    left: ['right', 'bottom', 'top'],
-  };
-
-  for (const fallback of fallbackOrder[position] || []) {
-    const candidate = positions[fallback];
-    if (
-      candidate.top >= padding &&
-      candidate.top + tooltipHeight <= viewport.height - padding &&
-      candidate.left >= padding &&
-      candidate.left + tooltipWidth <= viewport.width - padding
-    ) {
-      return { position: fallback, ...candidate };
-    }
-  }
-
-  // 兜底：居中显示
   return {
-    position: 'center',
-    top: (viewport.height - tooltipHeight) / 2,
-    left: (viewport.width - tooltipWidth) / 2,
+    position,
+    top,
+    left,
+    arrowOffset: clamp(targetCenter, arrowPadding, Math.max(arrowPadding, arrowLimit - arrowPadding)),
   };
 }
 
@@ -270,38 +281,55 @@ export function createInteractiveTourController(deps = {}) {
     }
   }
 
+  function getTarget(selector) {
+    return selector ? document.querySelector(selector) : null;
+  }
+
+  function updateSpotlight(targetRect) {
+    if (!targetRect) {
+      container.classList.remove('has-target');
+      elements.spotlight.style.display = 'none';
+      return;
+    }
+
+    container.classList.add('has-target');
+    elements.spotlight.style.display = 'block';
+    elements.spotlight.style.top = `${targetRect.top - 8}px`;
+    elements.spotlight.style.left = `${targetRect.left - 8}px`;
+    elements.spotlight.style.width = `${targetRect.width + 16}px`;
+    elements.spotlight.style.height = `${targetRect.height + 16}px`;
+  }
+
+  function refreshPosition(step = TOUR_STEPS[currentStepIndex]) {
+    const target = getTarget(step?.targetSelector);
+    const targetRect = target?.getBoundingClientRect?.() || null;
+    updateSpotlight(targetRect);
+    positionTooltip(targetRect, step?.position || 'center');
+  }
+
   function highlightElement(selector) {
     if (!selector) {
-      elements.spotlight.style.display = 'none';
+      updateSpotlight(null);
       return null;
     }
 
-    const target = document.querySelector(selector);
+    const target = getTarget(selector);
     if (!target) {
-      elements.spotlight.style.display = 'none';
+      updateSpotlight(null);
       return null;
     }
 
-    const rect = target.getBoundingClientRect();
-    elements.spotlight.style.display = 'block';
-    elements.spotlight.style.top = `${rect.top - 8}px`;
-    elements.spotlight.style.left = `${rect.left - 8}px`;
-    elements.spotlight.style.width = `${rect.width + 16}px`;
-    elements.spotlight.style.height = `${rect.height + 16}px`;
-
-    // 滚动到目标元素
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    return rect;
+    return target;
   }
 
   function positionTooltip(targetRect, position) {
     if (!targetRect) {
-      // 居中显示
       elements.tooltip.style.top = '50%';
       elements.tooltip.style.left = '50%';
       elements.tooltip.style.transform = 'translate(-50%, -50%)';
       elements.tooltip.dataset.position = 'center';
+      elements.tooltip.style.removeProperty('--tour-arrow-offset');
       return;
     }
 
@@ -310,13 +338,15 @@ export function createInteractiveTourController(deps = {}) {
       targetRect,
       tooltipRect.width,
       tooltipRect.height,
-      position
+      position,
+      { width: window.innerWidth, height: window.innerHeight }
     );
 
     elements.tooltip.style.top = `${calculated.top}px`;
     elements.tooltip.style.left = `${calculated.left}px`;
     elements.tooltip.style.transform = 'none';
     elements.tooltip.dataset.position = calculated.position;
+    elements.tooltip.style.setProperty('--tour-arrow-offset', `${calculated.arrowOffset}px`);
   }
 
   function renderProgressDots() {
@@ -351,13 +381,10 @@ export function createInteractiveTourController(deps = {}) {
 
     elements.body.innerHTML = bodyHTML;
 
-    // 高亮目标元素
-    const targetRect = highlightElement(step.targetSelector);
+    // 先滚动到目标，再在滚动事件中持续刷新聚光灯和浮卡位置。
+    highlightElement(step.targetSelector);
 
-    // 定位提示框
-    setTimeout(() => {
-      positionTooltip(targetRect, step.position || 'bottom');
-    }, 50);
+    setTimeout(() => refreshPosition(step), 50);
 
     // 更新进度点
     renderProgressDots();
@@ -422,6 +449,7 @@ export function createInteractiveTourController(deps = {}) {
     isOpen = false;
     container.hidden = true;
     stopCheckingCompletion();
+    container.classList.remove('has-target');
 
     if (completed) {
       toast('引导已完成');
@@ -443,21 +471,11 @@ export function createInteractiveTourController(deps = {}) {
       close(false);
     }
   });
-  elements.backdrop.addEventListener('click', () => elements.close.click());
-
-  // 窗口大小变化时重新定位
-  window.addEventListener('resize', () => {
-    if (isOpen) {
-      const step = TOUR_STEPS[currentStepIndex];
-      const targetRect = step.targetSelector
-        ? document.querySelector(step.targetSelector)?.getBoundingClientRect()
-        : null;
-      if (targetRect) {
-        highlightElement(step.targetSelector);
-        positionTooltip(targetRect, step.position || 'bottom');
-      }
-    }
-  });
+  const refreshOnViewportChange = () => {
+    if (isOpen) refreshPosition();
+  };
+  window.addEventListener('resize', refreshOnViewportChange);
+  window.addEventListener('scroll', refreshOnViewportChange, true);
 
   return {
     open,
