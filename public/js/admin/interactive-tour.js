@@ -7,7 +7,7 @@
 
 import { toast as defaultToast } from '../shared/utils.js';
 
-export const TOUR_VERSION = 4;
+export const TOUR_VERSION = 5;
 export const TOUR_COMPLETION_CHECK_INTERVAL_MS = 1500;
 
 // 引导步骤定义
@@ -15,8 +15,8 @@ export const TOUR_STEPS = [
   {
     id: 'welcome',
     title: '欢迎使用 LIRA',
-    kicker: '开始配置',
-    content: '接下来会带你完成基础配置：登录 Bilibili、连接直播间、导入歌单、选择音乐平台。<br><strong>引导会自动切换到对应功能位置</strong>，你只需跟着提示完成操作即可。',
+    kicker: '第一次使用',
+    content: '第一次使用也不用担心。接下来只要跟着提示，依次完成登录 Bilibili、填写直播间、导入歌单和选择音乐平台。<br><strong>页面会自动跳到要操作的位置</strong>，看到高亮区域后照着做即可。',
     targetPage: null, // 不切换页面
     targetSelector: null, // 不高亮元素
     position: 'center', // 居中显示
@@ -24,10 +24,10 @@ export const TOUR_STEPS = [
   },
   {
     id: 'bilibili-login',
-    title: '登录 Bilibili 账号',
-    kicker: '第 1 步 · 账号登录',
-    content: '点击这个按钮扫码登录你的 Bilibili 账号。登录后才能接收弹幕和礼物数据。',
-    note: '需要桌面版才能扫码；网页模式可以先了解流程。',
+    title: '登录你的 Bilibili 账号',
+    kicker: '第 1 步 · 登录账号',
+    content: '点击高亮区域里的<strong>「扫码登录 Bilibili」</strong>，再用手机 Bilibili 扫描弹出的二维码。登录成功后，LIRA 才能稳定收到你直播间里的弹幕和礼物。',
+    note: '二维码会在新窗口中打开；请在这台电脑上的 LIRA 桌面版完成。',
     targetPage: 'songAssistantPage', // 切换到点歌页
     targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
     targetSelector: '.bilibili-auth-row', // 高亮账号登录状态行
@@ -45,9 +45,10 @@ export const TOUR_STEPS = [
   },
   {
     id: 'room-id',
-    title: '填写直播间号',
-    kicker: '第 2 步 · 连接直播间',
-    content: '在这里填写你的直播间号或直播间链接，然后点击右上角的<strong>「刷新直播」</strong>按钮让连接生效。',
+    title: '填写你的直播间',
+    kicker: '第 2 步 · 填写直播间',
+    content: '点击高亮的输入框，填写你正在直播的房间号；也可以直接粘贴直播间网址。填好后，这一步会自动显示为已完成。',
+    note: '例如：房间号「123456」，或网址「https://live.bilibili.com/123456」。',
     targetPage: 'songAssistantPage',
     targetTab: '[data-tab="settingsPage"]',
     targetSelector: '#roomId',
@@ -60,9 +61,10 @@ export const TOUR_STEPS = [
   },
   {
     id: 'refresh-live',
-    title: '刷新直播连接',
-    kicker: '第 2 步 · 连接直播间',
-    content: '点击这个按钮让刚才填的直播间号生效。刷新后右上角的状态指示灯会变成绿色。',
+    title: '让 LIRA 连接直播间',
+    kicker: '第 3 步 · 刷新连接',
+    content: '点击页面右上角高亮的<strong>「刷新直播」</strong>按钮。看到旁边的状态变为绿色，说明 LIRA 已经连上你的直播间。',
+    note: '如果没有变绿，请先检查上一步的房间号，再点击一次「刷新直播」。',
     targetPage: 'songAssistantPage',
     targetTab: null,
     targetSelector: '#reconnectBtn',
@@ -76,10 +78,10 @@ export const TOUR_STEPS = [
   },
   {
     id: 'import-songs',
-    title: '导入你的歌单',
-    kicker: '第 3 步 · 歌库准备',
-    content: '已自动打开「导入导出」标签。你可以在这里选择 Excel、CSV 或 TSV 文件，也可以在下方粘贴表格内容，最后点击「导入歌库」。',
-    note: '先选择文件或粘贴表格，再点击页面下方的「导入歌库」按钮。',
+    title: '把歌单导入 LIRA',
+    kicker: '第 4 步 · 导入歌单',
+    content: '现在已打开「导入导出」。把你准备好的歌单选进来：可以选择 Excel（.xlsx）、CSV 或 TSV 文件，也可以把表格内容粘贴到下方，然后点击<strong>「导入歌库」</strong>。',
+    note: '暂时没有歌单也没关系，可以先点「下一步」，以后再从「点歌 → 导入导出」回来添加。',
     targetPage: 'songAssistantPage',
     targetTab: '[data-tab="importPage"]',
     targetSelector: '#importFile',
@@ -88,10 +90,10 @@ export const TOUR_STEPS = [
   },
   {
     id: 'music-platform',
-    title: '选择音乐平台',
-    kicker: '第 4 步 · 音乐登录',
-    content: '已自动打开播放页。先在左上方选择你要使用的平台：QQ音乐、网易云音乐或全民 K 歌。选择 QQ/网易云后，在右侧的登录按钮完成账号登录；全民 K 歌需要在客户端登录。',
-    note: '平台切换在播放页顶部左侧；登录按钮紧挨着平台区域右侧。',
+    title: '选择平时听歌的平台',
+    kicker: '第 5 步 · 选择音乐',
+    content: '现在已打开「播放」页。先在左上方选择你平时使用的平台：QQ音乐、网易云音乐或全民 K 歌。使用 QQ音乐或网易云音乐时，点击右上方的「登录」；使用全民 K 歌时，请先在全民 K 歌客户端登录。',
+    note: '这一步只告诉你登录入口，不要求现在登录；选好后可以继续。',
     targetPage: 'playbackAssistantPage',
     targetTab: null,
     targetSelector: '.source-tabs',
@@ -100,10 +102,10 @@ export const TOUR_STEPS = [
   },
   {
     id: 'usage-guide',
-    title: '随时查看完整文档',
-    kicker: '第 5 步 · 后续帮助',
-    content: '已自动打开「百宝箱」里的「使用文档」。以后遇到问题，先从左侧点击这里，再从文档目录跳到对应章节。',
-    note: '文档包含登录、导入、播放、投屏、AI 设置和常见问题说明。',
+    title: '不会用时，从这里找帮助',
+    kicker: '第 6 步 · 查看帮助',
+    content: '这里是「百宝箱 → 使用文档」。以后忘记怎么登录、导入歌单或设置其他功能，就点击左侧的<strong>「使用文档」</strong>，再按目录查找。',
+    note: '使用文档顶部还有「重新打开交互式引导」按钮，随时可以从头再看一遍。',
     targetPage: 'otherAssistantPage',
     targetTab: '[data-other-feature="otherUsageGuideFeature"]',
     targetSelector: '[data-other-feature="otherUsageGuideFeature"]',
@@ -112,9 +114,9 @@ export const TOUR_STEPS = [
   },
   {
     id: 'complete',
-    title: '配置完成！',
-    kicker: '全部完成',
-    content: '基础配置已经走完了。现在可以开始用 LIRA 管理点歌、播放音乐、查看礼物了。<br><br>需要的话可以随时从使用文档重新打开这个引导。',
+    title: '新手引导已完成',
+    kicker: '可以开始使用了',
+    content: '你已经看完最常用的设置。现在可以开始接收点歌、播放音乐和查看礼物。<br><br>还有功能不会用时，打开「百宝箱 → 使用文档」即可。',
     targetPage: null,
     targetTab: null,
     targetSelector: null,
@@ -481,7 +483,7 @@ export function createInteractiveTourController(deps = {}) {
     }
 
     if (step.waitForAction) {
-      bodyHTML += `<div class="lira-tour-status waiting">等待你完成这一步...</div>`;
+      bodyHTML += `<div class="lira-tour-status waiting">请按上面的提示完成这一步</div>`;
     }
 
     elements.body.innerHTML = bodyHTML;
@@ -521,7 +523,7 @@ export function createInteractiveTourController(deps = {}) {
         const statusEl = elements.body.querySelector('.lira-tour-status');
         if (statusEl) {
           statusEl.className = 'lira-tour-status completed';
-          statusEl.textContent = '✓ 完成！可以继续下一步了';
+          statusEl.textContent = '这一步已完成，可以点击「下一步」';
           tooltipSize = null;
           lastLayoutKey = '';
           scheduleRefresh();

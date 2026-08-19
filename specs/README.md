@@ -10,6 +10,7 @@ implementation, but it cannot redefine an accepted specification.
 | Document | Type | Status | Runtime Evidence | Last Reviewed |
 |---|---|---|---|---|
 | `specs/desktop-lyric-preview_reverse_spec.md` | Reverse specification | Reference | `src/music/lyric-state.js`<br>`public/js/admin/desktop-lyric-preview.js`<br>`test/desktop-lyrics.test.js` | 2026-08-16 |
+| `specs/desktop-hardware-summary_design.md` | Design specification | Implemented | `src/server/system-metrics.js`<br>`public/js/admin/metrics.js`<br>`test/system-metrics.test.js` | 2026-08-19 |
 | `specs/desktop-lyric-timeline_design.md` | Design specification | Implemented | `src/music/lyric-timeline.js`<br>`public/js/admin/desktop-lyric-preview.js`<br>`test/desktop-lyrics.test.js` | 2026-08-16 |
 | `specs/games-single-overlay-session_design.md` | Design specification | Implemented | `src/games/game-session-service.js`<br>`public/js/overlays/games.js`<br>`public/js/admin/games.js`<br>`test/game-routes.test.js`<br>`test/games-overlay.test.js` | 2026-08-18 |
 | `specs/model-provider-capabilities_design.md` | Design specification | Implemented | `src/ai/deepseek-client.js`<br>`public/js/admin/ai-assistant-settings.js`<br>`test/ai-provider-adapters.test.js` | 2026-08-17 |

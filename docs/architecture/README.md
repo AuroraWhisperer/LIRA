@@ -123,7 +123,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | 事实族 | 归属文件 |
 |---|---|
 | 端口/环境变量/启动与关闭时序/token 注入机制 | [backend/server-core.md](backend/server-core.md) |
-| HTTP 端点(90 个)与方法/请求/响应/错误码契约 | [backend/api.md](backend/api.md) |
+| HTTP 端点(91 个)与方法/请求/响应/错误码契约 | [backend/api.md](backend/api.md) |
 | `roomId` 规范化算法/`customReplyRules` 解析规则 | [backend/api.md](backend/api.md) §2.1–§2.2 |
 | WS 传输参数/快照 15 字段/消息类型/reason 枚举 | [backend/ws.md](backend/ws.md) |
 | 数据目录树/数据库文件/表 DDL/迁移版本/保留策略/settings 键 | [backend/storage.md](backend/storage.md) |

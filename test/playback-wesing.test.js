@@ -34,6 +34,10 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   assert.match(html, /id="weSingRefreshBtn"/);
   assert.match(html, /id="weSingLyricLine"/);
   assert.match(html, /data-online-source-view/);
+  assert.doesNotMatch(html, /SOURCE \/ LIVE|NOW SINGING|CONTROL DESK|从全民 K 歌客户端读取实时歌词|配置本地歌词缓存/);
+  assert.match(html, />缓存目录<\/label>/);
+  assert.match(html, />时间偏移<\/span>/);
+  assert.match(html, />状态<\/div>/);
   assert.match(headerStyles, /source-tab\[data-source="wesing"\]/);
   assert.match(panelStyles, /\.playback-wesing-panel/);
   assert.match(panelStyles, /--wesing-word-progress/);
@@ -59,6 +63,8 @@ test('WeSing browser client activates capture and renders WebSocket lyrics safel
   assert.match(source, /new LyricWordRenderer/);
   assert.match(source, /textContent\s*=/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
+  assert.match(source, /status\.trackTitle \|\| '等待播放'/);
+  assert.match(source, /\? '同步中'/);
   assert.match(providerOps, /platform === 'wesing'/);
   assert.match(adminState, /payload\.type === 'wesing-state'/);
   assert.match(adminState, /app:lyric-state/);

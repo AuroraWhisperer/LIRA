@@ -150,3 +150,5 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 ## 8. 系统指标
 
 [src/server/system-metrics.js](../../../src/server/system-metrics.js) 的 `getSystemMetrics(rawWindowMs = 5000)`:5 秒采样窗口内的 CPU/内存/GPU(Windows 下 PowerShell 采样 GPU 引擎)指标,由 `/api/system/metrics` 暴露(见 [api.md](api.md))。
+
+同模块的 `getHardwareSummary(includeTemperatures)` 读取 CPU/GPU/内存型号与容量并在进程内缓存静态结果。只有 `/api/system/hardware?includeTemperatures=true` 明确请求时，才会为 NVIDIA GPU 短暂调用 `nvidia-smi`;不支持的传感器返回不可用状态，不启动常驻监控进程，也不返回序列号。

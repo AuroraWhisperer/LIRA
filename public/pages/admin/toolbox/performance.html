@@ -83,6 +83,35 @@
                   </section>
                 </div>
 
+                <section class="hardware-summary" aria-labelledby="hardwareSummaryTitle">
+                  <div class="hardware-summary-head">
+                    <div>
+                      <h4 id="hardwareSummaryTitle">本机硬件</h4>
+                      <p id="hardwareSummaryStatus">打开性能页后读取型号和容量；温度仅在检测时读取</p>
+                    </div>
+                  </div>
+                  <div class="hardware-grid">
+                    <article class="hardware-card">
+                      <span>CPU</span>
+                      <strong id="hardwareCpuModel">等待读取</strong>
+                      <small id="hardwareCpuDetail">--</small>
+                      <small id="hardwareCpuTemperature">温度：--</small>
+                    </article>
+                    <article class="hardware-card">
+                      <span>GPU</span>
+                      <strong id="hardwareGpuModel">等待读取</strong>
+                      <small id="hardwareGpuDetail">--</small>
+                      <small id="hardwareGpuTemperature">温度：--</small>
+                    </article>
+                    <article class="hardware-card">
+                      <span>内存</span>
+                      <strong id="hardwareMemoryModel">等待读取</strong>
+                      <small id="hardwareMemoryDetail">--</small>
+                      <small id="hardwareMemoryTemperature">温度：--</small>
+                    </article>
+                  </div>
+                </section>
+
                 <div class="monitor-footer">
                   <span id="metricsSampleWindow">采样窗口：--</span>
                   <span id="metricsSampleTime">检测时间：--</span>

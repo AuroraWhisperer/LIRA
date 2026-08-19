@@ -509,6 +509,52 @@
   font-size: 28px;
 }
 
+.hardware-summary {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+}
+
+.hardware-summary-head h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.hardware-summary-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hardware-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hardware-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: #f7fbfb;
+}
+
+.hardware-card > span,
+.hardware-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hardware-card strong,
+.hardware-card small {
+  overflow-wrap: anywhere;
+}
+
 /* ---- 礼物检测 ---- */
 .gift-detection-panel legend {
   margin-bottom: 8px;

@@ -20,6 +20,11 @@ const routes = {
     sendJson(res, 200, { ok: true, data: await context.system.getMetrics(windowMs) });
   },
 
+  async 'GET /api/system/hardware'(context, request, res) {
+    const includeTemperatures = request.query.get('includeTemperatures') === 'true';
+    sendJson(res, 200, { ok: true, data: await context.system.getHardware(includeTemperatures) });
+  },
+
   async 'POST /api/system/shutdown'(context, request, res) {
     const body = await request.body();
     if (body.confirm !== true) {

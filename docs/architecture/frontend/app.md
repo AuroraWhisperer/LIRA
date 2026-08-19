@@ -125,6 +125,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 - 手动触发:`/api/system/metrics?windowMs=5000`(系统 + 服务进程 CPU/GPU/内存),5 秒采样,阈值 70%/85% 分 warn/danger 色阶([metrics.js:113-118](../../../public/js/admin/metrics.js#L113-L118))。
 - 采样期间按钮进入 busy 态(显示"检测 5 秒"),结果展示采样窗口/时间/服务 PID/运行时长,不可用指标(如 GPU 缺失)置灰显示。
+- 硬件概览在进入性能页时请求 `/api/system/hardware`，显示 CPU/GPU/内存型号与容量；温度只随用户发起的 5 秒检测请求 `includeTemperatures=true`，不设置后台定时器。
 
 ## 5. 礼物主页面(gifts/)
 

@@ -132,6 +132,7 @@ function createApiContext(options) {
       }),
       getState: system.getState,
       getMetrics: systemMetrics.getSystemMetrics,
+      getHardware: systemMetrics.getHardwareSummary,
       shutdown: system.shutdown
     },
     music: {

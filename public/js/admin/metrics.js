@@ -12,11 +12,19 @@
   } = window.AdminApp.utils;
 
   let metricsRunning = false;
+  let hardwareLoaded = false;
+  let hardwareLoading = false;
 
   function initPerformanceMonitor() {
     const toggle = document.getElementById('metricsToggle');
     const button = document.getElementById('metricsRefreshBtn');
     if (!toggle || !button) return;
+
+    const loadHardware = () => {
+      loadHardwareSummary(false);
+    };
+    document.getElementById('otherPerformanceFeatureTab')?.addEventListener('click', loadHardware);
+    document.querySelector('[data-main-page="otherAssistantPage"]')?.addEventListener('click', loadHardware);
 
     toggle.addEventListener('change', () => {
       if (toggle.checked) {
@@ -32,10 +40,15 @@
     setMetricsBusy(true);
 
     try {
-      const response = await fetch('/api/system/metrics?windowMs=5000');
-      const payload = await response.json();
+      const [response, hardwareResponse] = await Promise.all([
+        fetch('/api/system/metrics?windowMs=5000'),
+        fetch('/api/system/hardware?includeTemperatures=true')
+      ]);
+      const [payload, hardwarePayload] = await Promise.all([response.json(), hardwareResponse.json()]);
       if (!payload.ok) throw new Error(payload.error || '性能检测失败');
       renderMetrics(payload.data);
+      if (hardwarePayload.ok) renderHardwareSummary(hardwarePayload.data, true);
+      else document.getElementById('hardwareSummaryStatus').textContent = '硬件温度暂不可用，不影响性能检测';
       toast('性能检测完成');
     } catch (error) {
       showError(error);
@@ -97,6 +110,81 @@
     document.getElementById('metricsStatus').textContent = error.message || '检测失败';
   }
 
+  async function loadHardwareSummary(includeTemperatures) {
+    if (hardwareLoading || (hardwareLoaded && !includeTemperatures)) return;
+    hardwareLoading = true;
+    document.getElementById('hardwareSummaryStatus').textContent = '正在读取本机硬件信息';
+
+    try {
+      const response = await fetch(`/api/system/hardware?includeTemperatures=${includeTemperatures}`);
+      const payload = await response.json();
+      if (!payload.ok) throw new Error(payload.error || '硬件信息读取失败');
+      renderHardwareSummary(payload.data, includeTemperatures);
+      hardwareLoaded = true;
+    } catch (_) {
+      document.getElementById('hardwareSummaryStatus').textContent = '硬件信息暂不可用，不影响性能检测';
+    } finally {
+      hardwareLoading = false;
+    }
+  }
+
+  function renderHardwareSummary(summary, includesTemperatures) {
+    const cpu = summary.cpu || {};
+    const memory = summary.memory || {};
+    const gpus = Array.isArray(summary.gpus) ? summary.gpus : [];
+    const memoryModules = Array.isArray(memory.modules) ? memory.modules : [];
+
+    setHardwareText('hardwareCpuModel', cpu.model || '未知 CPU');
+    setHardwareText('hardwareCpuDetail', `物理 ${cpu.physicalCores || '--'} 核 / 逻辑 ${cpu.logicalCores || '--'} 线程`);
+    setHardwareText('hardwareCpuTemperature', `温度：${formatTemperature(cpu)}`);
+
+    setHardwareText('hardwareGpuModel', gpus.length ? gpus.map((gpu) => gpu.name || '未知 GPU').join(' / ') : '未读取到 GPU');
+    setHardwareText(
+      'hardwareGpuDetail',
+      gpus.length
+        ? gpus.map((gpu) => `${gpu.vendor || '未知厂商'}，显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`).join('；')
+        : 'Windows 未返回显卡信息'
+    );
+    setHardwareText(
+      'hardwareGpuTemperature',
+      `温度：${gpus.length ? gpus.map((gpu) => `${gpu.name || 'GPU'} ${formatTemperature(gpu)}`).join('；') : '不可用'}`
+    );
+
+    setHardwareText(
+      'hardwareMemoryModel',
+      `${formatHardwareBytes(memory.totalBytes)} 内存${memoryModules.length ? `，${memoryModules.length} 条` : ''}`
+    );
+    setHardwareText(
+      'hardwareMemoryDetail',
+      memoryModules.length
+        ? memoryModules.map((module) => [
+          module.manufacturer,
+          module.model,
+          formatHardwareBytes(module.capacityBytes),
+          module.speedMhz ? `${module.speedMhz} MHz` : ''
+        ].filter(Boolean).join(' ')).join('；')
+        : 'Windows 未返回内存条型号'
+    );
+    setHardwareText('hardwareMemoryTemperature', `温度：${formatTemperature(memory)}`);
+    document.getElementById('hardwareSummaryStatus').textContent = includesTemperatures
+      ? '型号和容量已缓存；温度为本次检测时临时读取'
+      : '型号和容量已读取；温度仅在检测时读取';
+  }
+
+  function setHardwareText(id, value) {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value;
+  }
+
+  function formatHardwareBytes(value) {
+    return Number.isFinite(Number(value)) && Number(value) > 0 ? formatBytes(Number(value)) : '容量未知';
+  }
+
+  function formatTemperature(device) {
+    const temperature = Number(device.temperatureCelsius);
+    return Number.isFinite(temperature) ? `${temperature.toFixed(0)}°C` : (device.temperatureMessage || '不可用');
+  }
+
   function setMetric(id, percent, detail) {
     const valueNode = document.getElementById(id);
     const barNode = document.getElementById(`${id}Bar`);
@@ -124,6 +212,8 @@
     setMetricsBusy,
     renderMetrics,
     renderMetricsError,
+    loadHardwareSummary,
+    renderHardwareSummary,
     setMetric,
     metricLevel
   };

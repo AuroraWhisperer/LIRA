@@ -38,6 +38,7 @@
 | `GET /api/health` | 无(**唯一免 token 端点**,`PUBLIC_API_PATHS` [api-routes.js:27](../../../src/server/api-routes.js#L27)) | 健康信息:`serviceId/rootDir/dataDir/各库路径/schemaVersions/desktop/pid/liveStatus`(详见 [server-core.md](server-core.md) §7) | — |
 | `GET /api/state` | 无 | 全量状态快照,与 WS 快照 `state` 的 **15 字段一致**(见 [ws.md](ws.md) §2) | — |
 | `GET /api/system/metrics` | 查询参数 `windowMs`(可选,默认 5000) | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8) | — |
+| `GET /api/system/hardware` | 查询参数 `includeTemperatures=true`(可选) | 本机 CPU/GPU/内存型号与容量；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号 | — |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须) | `{shuttingDown: true}`,随后延迟 250ms 关闭服务 | 400 `缺少退出确认。` |
 
 行为文档:[server-core.md](server-core.md) §6(启动/关闭时序)。

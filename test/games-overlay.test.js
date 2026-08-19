@@ -26,6 +26,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /INITIAL_SNAPSHOT_RETRIES/);
   assert.match(script, /scheduleSnapshotRetry/);
+  assert.match(styles, /\.game-result\[hidden\]\s*\{\s*display:\s*none;/);
   assert.match(styles, /--gomoku-size:\s*min\(56vh, 520px/);
   assert.match(styles, /\.gomoku-cell::before/);
   assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);

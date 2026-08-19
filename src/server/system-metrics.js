@@ -6,6 +6,8 @@ const childProcess = require('node:child_process');
 const os = require('node:os');
 const { cleanText, clampPercent, now, sleep } = require('../shared/utils');
 
+const hardwareSummaryService = createHardwareSummaryService();
+
 async function getSystemMetrics(rawWindowMs = 5000) {
   const windowMs = Math.min(Math.max(Number(rawWindowMs) || 5000, 1000), 10000);
   const startedAt = Date.now();
@@ -69,6 +71,192 @@ function calculateSystemCpuPercent(start, end) {
   const totalDelta = end.total - start.total;
   if (totalDelta <= 0) return null;
   return clampPercent((1 - idleDelta / totalDelta) * 100);
+}
+
+function getHardwareSummary(includeTemperatures = false) {
+  return hardwareSummaryService.getHardwareSummary(includeTemperatures);
+}
+
+function createHardwareSummaryService(options = {}) {
+  let staticSummaryPromise = null;
+  const readStatic = options.readStatic || readStaticHardwareSummary;
+  const readTemperatures = options.readTemperatures || readHardwareTemperatures;
+
+  async function getStaticSummary() {
+    if (!staticSummaryPromise) staticSummaryPromise = Promise.resolve().then(readStatic);
+    return staticSummaryPromise;
+  }
+
+  return {
+    async getHardwareSummary(includeTemperatures = false) {
+      const summary = await getStaticSummary();
+      const result = cloneHardwareSummary(summary);
+      if (!includeTemperatures) return result;
+
+      const temperatures = await readTemperatures(result.gpus);
+      let temperatureIndex = 0;
+      result.gpus = result.gpus.map((gpu) => {
+        if (!isNvidiaGpu(gpu)) return gpu;
+        const temperature = temperatures.gpuTemperatures[temperatureIndex];
+        temperatureIndex += 1;
+        return {
+          ...gpu,
+          temperatureCelsius: Number.isFinite(temperature) ? temperature : null,
+          temperatureMessage: Number.isFinite(temperature)
+            ? ''
+            : (temperatures.gpuMessage || 'NVIDIA GPU 温度不可用')
+        };
+      });
+      return result;
+    }
+  };
+}
+
+async function readStaticHardwareSummary() {
+  const osSnapshot = {
+    cpuModel: os.cpus()[0]?.model || '',
+    logicalCpuCount: os.cpus().length,
+    totalMemoryBytes: os.totalmem()
+  };
+  if (process.platform !== 'win32') {
+    return buildHardwareSummary({}, osSnapshot);
+  }
+
+  try {
+    return buildHardwareSummary(await readWindowsDeviceDetails(), osSnapshot);
+  } catch (_) {
+    return buildHardwareSummary({}, osSnapshot);
+  }
+}
+
+function readWindowsDeviceDetails() {
+  const command = `
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[pscustomobject]@{
+  cpus = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors)
+  memoryModules = @(Get-CimInstance Win32_PhysicalMemory | Select-Object Manufacturer, PartNumber, Capacity, Speed)
+  gpus = @(Get-CimInstance Win32_VideoController | Select-Object Name, AdapterCompatibility, AdapterRAM)
+} | ConvertTo-Json -Depth 3 -Compress
+`;
+
+  return runCommand('powershell.exe', [
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-Command',
+    command
+  ], { timeout: 5000 }).then((stdout) => parseCommandJson(stdout));
+}
+
+async function readHardwareTemperatures(gpus) {
+  const nvidiaGpus = gpus.filter(isNvidiaGpu);
+  if (!nvidiaGpus.length) return { gpuTemperatures: [], gpuMessage: '' };
+
+  try {
+    const stdout = await runCommand('nvidia-smi.exe', [
+      '--query-gpu=name,temperature.gpu',
+      '--format=csv,noheader,nounits'
+    ], { timeout: 3000 });
+    return { gpuTemperatures: parseNvidiaSmiOutput(stdout), gpuMessage: '' };
+  } catch (_) {
+    return { gpuTemperatures: [], gpuMessage: 'NVIDIA GPU 温度不可用' };
+  }
+}
+
+function buildHardwareSummary(details = {}, osSnapshot = {}) {
+  const cpus = toArray(details.cpus);
+  const memoryModules = toArray(details.memoryModules);
+  const gpus = toArray(details.gpus);
+  const primaryCpu = cpus[0] || {};
+  const logicalCpuCount = positiveInteger(primaryCpu.NumberOfLogicalProcessors)
+    || positiveInteger(osSnapshot.logicalCpuCount)
+    || null;
+  const physicalCores = cpus.reduce((total, cpu) => total + positiveInteger(cpu.NumberOfCores), 0) || null;
+
+  return {
+    cpu: {
+      model: hardwareText(primaryCpu.Name) || hardwareText(osSnapshot.cpuModel) || '未知 CPU',
+      physicalCores,
+      logicalCores: logicalCpuCount,
+      temperatureCelsius: null,
+      temperatureMessage: 'Windows 未提供可靠的 CPU 温度'
+    },
+    memory: {
+      totalBytes: positiveInteger(osSnapshot.totalMemoryBytes) || null,
+      modules: memoryModules.map((module) => ({
+        manufacturer: hardwareText(module.Manufacturer) || '未知厂商',
+        model: hardwareText(module.PartNumber) || '未知型号',
+        capacityBytes: positiveInteger(module.Capacity) || null,
+        speedMhz: positiveInteger(module.Speed) || null
+      })),
+      temperatureCelsius: null,
+      temperatureMessage: 'Windows 未提供可靠的内存温度'
+    },
+    gpus: gpus.map((gpu) => ({
+      name: hardwareText(gpu.Name) || '未知 GPU',
+      vendor: hardwareText(gpu.AdapterCompatibility),
+      videoMemoryBytes: positiveInteger(gpu.AdapterRAM) || null,
+      temperatureCelsius: null,
+      temperatureMessage: isNvidiaGpu(gpu)
+        ? '点击检测时读取温度'
+        : 'Windows/驱动未提供可靠的 GPU 温度'
+    }))
+  };
+}
+
+function cloneHardwareSummary(summary) {
+  return {
+    cpu: { ...summary.cpu },
+    memory: { ...summary.memory, modules: summary.memory.modules.map((module) => ({ ...module })) },
+    gpus: summary.gpus.map((gpu) => ({ ...gpu }))
+  };
+}
+
+function parseCommandJson(stdout) {
+  const line = String(stdout || '').trim().split(/\r?\n/).filter(Boolean).pop();
+  const parsed = JSON.parse(line || '{}');
+  return parsed && typeof parsed === 'object' ? parsed : {};
+}
+
+function parseNvidiaSmiOutput(stdout) {
+  return String(stdout || '').split(/\r?\n/).filter(Boolean).flatMap((line) => {
+    const parts = line.split(',', 2);
+    if (parts.length < 2) return [];
+    const rawTemperature = parts[1];
+    const temperature = Number(String(rawTemperature).trim());
+    return [Number.isFinite(temperature) ? temperature : null];
+  });
+}
+
+function runCommand(file, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    childProcess.execFile(file, args, {
+      windowsHide: true,
+      timeout: options.timeout || 5000,
+      maxBuffer: 1024 * 1024
+    }, (error, stdout) => {
+      if (error) reject(error);
+      else resolve(stdout);
+    });
+  });
+}
+
+function toArray(value) {
+  return Array.isArray(value) ? value : (value && typeof value === 'object' ? [value] : []);
+}
+
+function positiveInteger(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
+}
+
+function hardwareText(value) {
+  return cleanText(value).slice(0, 200);
+}
+
+function isNvidiaGpu(gpu) {
+  return /nvidia/i.test(hardwareText(gpu.vendor || gpu.AdapterCompatibility));
 }
 
 function sampleWindowsGpuMetrics(windowMs) {
@@ -162,6 +350,10 @@ if ($count -lt 1) { $count = 1 }
 
 module.exports = {
   getSystemMetrics,
+  getHardwareSummary,
+  createHardwareSummaryService,
+  buildHardwareSummary,
+  parseNvidiaSmiOutput,
   readSystemCpuSnapshot,
   calculateSystemCpuPercent,
   sampleWindowsGpuMetrics

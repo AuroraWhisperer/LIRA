@@ -256,12 +256,31 @@ html.lira-tour-active .other-feature-panel {
 
 .lira-tour-status::before {
   content: "";
-  width: 16px;
-  height: 16px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
   flex-shrink: 0;
+  place-items: center;
+  border: 2px solid currentColor;
   border-radius: 999px;
-  background: currentColor;
-  opacity: 0.3;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.lira-tour-status.waiting::before {
+  content: "…";
+  padding-bottom: 5px;
+}
+
+.lira-tour-status.completed::before {
+  content: "✓";
+  border: 0;
+  background: var(--color-success-dark, #08766c);
+  color: #fff;
+  opacity: 1;
 }
 
 /* 退出确认保持为普通色层和静态卡片，不使用模糊或进场动画。 */
