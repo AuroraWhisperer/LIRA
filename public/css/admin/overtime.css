@@ -12,6 +12,11 @@
   color: var(--text);
 }
 
+.overtime-admin > .overtime-admin-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
 .overtime-admin-header,
 .overtime-section-heading,
 .overtime-console,

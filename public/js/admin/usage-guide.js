@@ -3,6 +3,7 @@
 'use strict';
 
 let initialized = false;
+let navigationCorrectionTimer = null;
 
 export function initUsageGuide() {
   if (initialized) return;
@@ -59,9 +60,19 @@ export function initUsageGuide() {
       const target = document.getElementById(link.hash.slice(1));
       if (!target) return;
       setActiveLink(target.id);
-      target.scrollIntoView({
-        behavior: reduceMotionQuery?.matches ? 'auto' : 'smooth',
-        block: 'start'
+      panel.classList.add('usage-guide-render-all');
+      window.requestAnimationFrame(() => {
+        const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
+        target.scrollIntoView({
+          behavior,
+          block: 'start'
+        });
+        window.clearTimeout(navigationCorrectionTimer);
+        navigationCorrectionTimer = window.setTimeout(() => {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' });
+          panel.classList.remove('usage-guide-render-all');
+          navigationCorrectionTimer = null;
+        }, behavior === 'smooth' ? 700 : 0);
       });
     });
   });

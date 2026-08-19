@@ -7,7 +7,8 @@
 
 import { toast as defaultToast } from '../shared/utils.js';
 
-export const TOUR_VERSION = 1;
+export const TOUR_VERSION = 4;
+export const TOUR_COMPLETION_CHECK_INTERVAL_MS = 1500;
 
 // 引导步骤定义
 export const TOUR_STEPS = [
@@ -28,7 +29,7 @@ export const TOUR_STEPS = [
     content: '点击这个按钮扫码登录你的 Bilibili 账号。登录后才能接收弹幕和礼物数据。',
     note: '需要桌面版才能扫码；网页模式可以先了解流程。',
     targetPage: 'songAssistantPage', // 切换到点歌页
-    targetTab: 'settingsTab', // 切换到设置子标签
+    targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
     targetSelector: '#bilibiliLoginBtn', // 高亮登录按钮
     position: 'bottom',
     waitForAction: true, // 等待用户登录
@@ -48,12 +49,12 @@ export const TOUR_STEPS = [
     kicker: '第 2 步 · 连接直播间',
     content: '在这里填写你的直播间号或直播间链接，然后点击右上角的<strong>「刷新直播」</strong>按钮让连接生效。',
     targetPage: 'songAssistantPage',
-    targetTab: 'settingsTab',
-    targetSelector: '#roomIdInput',
+    targetTab: '[data-tab="settingsPage"]',
+    targetSelector: '#roomId',
     position: 'bottom',
     waitForAction: true,
     checkCompleted: () => {
-      const input = document.getElementById('roomIdInput');
+      const input = document.getElementById('roomId');
       return input && input.value.trim().length > 0;
     },
   },
@@ -77,26 +78,23 @@ export const TOUR_STEPS = [
     id: 'import-songs',
     title: '导入你的歌单',
     kicker: '第 3 步 · 歌库准备',
-    content: '点击这个标签，打开导入导出功能。你可以上传 XLSX、CSV 文件，或直接粘贴表格内容来导入歌曲。',
-    note: '引导不会帮你导入歌曲，你需要自己准备好歌单文件。',
+    content: '已自动打开「导入导出」标签。你可以在这里选择 Excel、CSV 或 TSV 文件，也可以在下方粘贴表格内容，最后点击「导入歌库」。',
+    note: '先选择文件或粘贴表格，再点击页面下方的「导入歌库」按钮。',
     targetPage: 'songAssistantPage',
-    targetTab: null,
-    targetSelector: '[data-tab="importPage"]',
-    position: 'bottom',
-    waitForAction: true,
-    checkCompleted: () => {
-      const tab = document.querySelector('[data-tab="importPage"]');
-      return tab && tab.classList.contains('active');
-    },
+    targetTab: '[data-tab="importPage"]',
+    targetSelector: '#importFile',
+    position: 'top',
+    waitForAction: false,
   },
   {
     id: 'music-platform',
     title: '选择音乐平台',
     kicker: '第 4 步 · 音乐登录',
-    content: '切换到播放页，选择你要用的音乐平台（QQ音乐、网易云或全民K歌）。前两个在播放页顶部登录，全民K歌需要在它自己的客户端登录。',
+    content: '已自动打开播放页。先在左上方选择你要使用的平台：QQ音乐、网易云音乐或全民 K 歌。选择 QQ/网易云后，在右侧的登录按钮完成账号登录；全民 K 歌需要在客户端登录。',
+    note: '平台切换在播放页顶部左侧；登录按钮紧挨着平台区域右侧。',
     targetPage: 'playbackAssistantPage',
     targetTab: null,
-    targetSelector: '.playback-platform-tabs',
+    targetSelector: '.source-tabs',
     position: 'bottom',
     waitForAction: false, // 只是告知，不强制等待
   },
@@ -104,10 +102,11 @@ export const TOUR_STEPS = [
     id: 'usage-guide',
     title: '随时查看完整文档',
     kicker: '第 5 步 · 后续帮助',
-    content: '遇到问题时，可以从这里打开使用文档。文档里有详细的功能说明和常见问题解答。',
+    content: '已自动打开「百宝箱」里的「使用文档」。以后遇到问题，先从左侧点击这里，再从文档目录跳到对应章节。',
+    note: '文档包含登录、导入、播放、投屏、AI 设置和常见问题说明。',
     targetPage: 'otherAssistantPage',
-    targetTab: null,
-    targetSelector: '[data-other-feature-tab="otherUsageGuideFeature"]',
+    targetTab: '[data-other-feature="otherUsageGuideFeature"]',
+    targetSelector: '[data-other-feature="otherUsageGuideFeature"]',
     position: 'right',
     waitForAction: false,
   },
@@ -223,6 +222,10 @@ export function createInteractiveTourController(deps = {}) {
   container.hidden = true;
   container.innerHTML = `
     <div class="lira-tour-backdrop"></div>
+    <div class="lira-tour-shade lira-tour-shade-top"></div>
+    <div class="lira-tour-shade lira-tour-shade-bottom"></div>
+    <div class="lira-tour-shade lira-tour-shade-left"></div>
+    <div class="lira-tour-shade lira-tour-shade-right"></div>
     <div class="lira-tour-spotlight"></div>
     <div class="lira-tour-tooltip" data-position="bottom">
       <div class="lira-tour-header">
@@ -241,12 +244,37 @@ export function createInteractiveTourController(deps = {}) {
         </div>
       </div>
     </div>
+    <div class="lira-tour-exit-confirmation" hidden>
+      <section
+        class="lira-tour-exit-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="liraTourExitTitle"
+        aria-describedby="liraTourExitDescription"
+      >
+        <div class="lira-tour-exit-header">
+          <span class="lira-tour-exit-icon" aria-hidden="true">!</span>
+          <div>
+            <span class="lira-tour-exit-kicker">退出确认</span>
+            <h3 id="liraTourExitTitle">退出当前引导？</h3>
+          </div>
+        </div>
+        <p id="liraTourExitDescription">
+          退出后可以从「百宝箱 → 使用文档」重新打开，已经完成的设置不会改变。
+        </p>
+        <div class="lira-tour-exit-actions">
+          <button class="lira-tour-exit-stay" type="button">继续引导</button>
+          <button class="lira-tour-exit-leave" type="button">退出引导</button>
+        </div>
+      </section>
+    </div>
   `;
 
   document.body.appendChild(container);
 
   const elements = {
     backdrop: container.querySelector('.lira-tour-backdrop'),
+    shades: Array.from(container.querySelectorAll('.lira-tour-shade')),
     spotlight: container.querySelector('.lira-tour-spotlight'),
     tooltip: container.querySelector('.lira-tour-tooltip'),
     kicker: container.querySelector('.lira-tour-kicker'),
@@ -256,11 +284,19 @@ export function createInteractiveTourController(deps = {}) {
     prev: container.querySelector('.lira-tour-prev'),
     next: container.querySelector('.lira-tour-next'),
     close: container.querySelector('.lira-tour-close'),
+    exitConfirmation: container.querySelector('.lira-tour-exit-confirmation'),
+    exitStay: container.querySelector('.lira-tour-exit-stay'),
+    exitLeave: container.querySelector('.lira-tour-exit-leave'),
   };
 
   let currentStepIndex = 0;
   let isOpen = false;
-  let checkInterval = null;
+  let checkTimeout = null;
+  let completionCheckId = 0;
+  let cancelScheduledRefresh = null;
+  let tooltipSize = null;
+  let lastLayoutKey = '';
+  let exitConfirmationReturnFocus = null;
 
   function switchToPage(pageId) {
     if (!pageId) return;
@@ -289,10 +325,32 @@ export function createInteractiveTourController(deps = {}) {
     if (!targetRect) {
       container.classList.remove('has-target');
       elements.spotlight.style.display = 'none';
+      elements.shades.forEach((shade) => { shade.style.display = 'none'; });
       return;
     }
 
     container.classList.add('has-target');
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const holeTop = clamp(targetRect.top - 8, 0, viewportHeight);
+    const holeLeft = clamp(targetRect.left - 8, 0, viewportWidth);
+    const holeRight = clamp(targetRect.right + 8, 0, viewportWidth);
+    const holeBottom = clamp(targetRect.bottom + 8, 0, viewportHeight);
+    const shadeRects = [
+      { top: 0, left: 0, width: viewportWidth, height: holeTop },
+      { top: holeBottom, left: 0, width: viewportWidth, height: viewportHeight - holeBottom },
+      { top: holeTop, left: 0, width: holeLeft, height: holeBottom - holeTop },
+      { top: holeTop, left: holeRight, width: viewportWidth - holeRight, height: holeBottom - holeTop },
+    ];
+
+    elements.shades.forEach((shade, index) => {
+      const rect = shadeRects[index];
+      shade.style.display = rect.width > 0 && rect.height > 0 ? 'block' : 'none';
+      shade.style.top = `${rect.top}px`;
+      shade.style.left = `${rect.left}px`;
+      shade.style.width = `${Math.max(0, rect.width)}px`;
+      shade.style.height = `${Math.max(0, rect.height)}px`;
+    });
     elements.spotlight.style.display = 'block';
     elements.spotlight.style.top = `${targetRect.top - 8}px`;
     elements.spotlight.style.left = `${targetRect.left - 8}px`;
@@ -303,8 +361,43 @@ export function createInteractiveTourController(deps = {}) {
   function refreshPosition(step = TOUR_STEPS[currentStepIndex]) {
     const target = getTarget(step?.targetSelector);
     const targetRect = target?.getBoundingClientRect?.() || null;
+    const layoutKey = targetRect
+      ? [
+        targetRect.top,
+        targetRect.left,
+        targetRect.right,
+        targetRect.bottom,
+        window.innerWidth,
+        window.innerHeight,
+      ].join(':')
+      : `center:${window.innerWidth}:${window.innerHeight}`;
+    if (layoutKey === lastLayoutKey) return;
+    lastLayoutKey = layoutKey;
     updateSpotlight(targetRect);
     positionTooltip(targetRect, step?.position || 'center');
+  }
+
+  function scheduleRefresh() {
+    if (!isOpen || cancelScheduledRefresh) return;
+    const runRefresh = () => {
+      cancelScheduledRefresh = null;
+      if (!isOpen) return;
+      refreshPosition();
+    };
+
+    if (typeof window.requestAnimationFrame === 'function') {
+      const frameId = window.requestAnimationFrame(runRefresh);
+      cancelScheduledRefresh = () => window.cancelAnimationFrame?.(frameId);
+      return;
+    }
+
+    const timeoutId = setTimeout(runRefresh, 16);
+    cancelScheduledRefresh = () => clearTimeout(timeoutId);
+  }
+
+  function stopScheduledRefresh() {
+    cancelScheduledRefresh?.();
+    cancelScheduledRefresh = null;
   }
 
   function highlightElement(selector) {
@@ -319,7 +412,7 @@ export function createInteractiveTourController(deps = {}) {
       return null;
     }
 
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.scrollIntoView({ behavior: 'auto', block: 'center' });
     return target;
   }
 
@@ -333,11 +426,14 @@ export function createInteractiveTourController(deps = {}) {
       return;
     }
 
-    const tooltipRect = elements.tooltip.getBoundingClientRect();
+    if (!tooltipSize) {
+      const tooltipRect = elements.tooltip.getBoundingClientRect();
+      tooltipSize = { width: tooltipRect.width, height: tooltipRect.height };
+    }
     const calculated = calculateTooltipPosition(
       targetRect,
-      tooltipRect.width,
-      tooltipRect.height,
+      tooltipSize.width,
+      tooltipSize.height,
       position,
       { width: window.innerWidth, height: window.innerHeight }
     );
@@ -380,11 +476,12 @@ export function createInteractiveTourController(deps = {}) {
     }
 
     elements.body.innerHTML = bodyHTML;
+    tooltipSize = null;
+    lastLayoutKey = '';
 
-    // 先滚动到目标，再在滚动事件中持续刷新聚光灯和浮卡位置。
+    // 先滚动到目标，再合并到下一帧统一测量和定位。
     highlightElement(step.targetSelector);
-
-    setTimeout(() => refreshPosition(step), 50);
+    scheduleRefresh();
 
     // 更新进度点
     renderProgressDots();
@@ -403,24 +500,36 @@ export function createInteractiveTourController(deps = {}) {
 
   function startCheckingCompletion(step) {
     stopCheckingCompletion();
+    const checkId = completionCheckId;
 
-    checkInterval = setInterval(async () => {
+    const checkCompletion = async () => {
       const completed = await step.checkCompleted();
+      if (!isOpen || checkId !== completionCheckId) return;
+
       if (completed) {
         const statusEl = elements.body.querySelector('.lira-tour-status');
         if (statusEl) {
           statusEl.className = 'lira-tour-status completed';
           statusEl.textContent = '✓ 完成！可以继续下一步了';
+          tooltipSize = null;
+          lastLayoutKey = '';
+          scheduleRefresh();
         }
         stopCheckingCompletion();
+        return;
       }
-    }, 500);
+
+      checkTimeout = setTimeout(checkCompletion, TOUR_COMPLETION_CHECK_INTERVAL_MS);
+    };
+
+    void checkCompletion();
   }
 
   function stopCheckingCompletion() {
-    if (checkInterval) {
-      clearInterval(checkInterval);
-      checkInterval = null;
+    completionCheckId += 1;
+    if (checkTimeout !== null) {
+      clearTimeout(checkTimeout);
+      checkTimeout = null;
     }
   }
 
@@ -438,6 +547,26 @@ export function createInteractiveTourController(deps = {}) {
     }
   }
 
+  function showExitConfirmation() {
+    if (!isOpen || !elements.exitConfirmation.hidden) return;
+    exitConfirmationReturnFocus = document.activeElement;
+    elements.exitConfirmation.hidden = false;
+    container.classList.add('is-exit-confirming');
+    elements.tooltip.setAttribute('aria-hidden', 'true');
+    elements.exitStay.focus();
+  }
+
+  function hideExitConfirmation(restoreFocus = true) {
+    const returnFocus = exitConfirmationReturnFocus;
+    exitConfirmationReturnFocus = null;
+    if (elements.exitConfirmation.hidden) return;
+
+    elements.exitConfirmation.hidden = true;
+    container.classList.remove('is-exit-confirming');
+    elements.tooltip.removeAttribute('aria-hidden');
+    if (restoreFocus && isOpen) returnFocus?.focus?.();
+  }
+
   function open() {
     isOpen = true;
     container.hidden = false;
@@ -446,9 +575,13 @@ export function createInteractiveTourController(deps = {}) {
   }
 
   function close(completed = false) {
+    hideExitConfirmation(false);
     isOpen = false;
     container.hidden = true;
     stopCheckingCompletion();
+    stopScheduledRefresh();
+    tooltipSize = null;
+    lastLayoutKey = '';
     container.classList.remove('has-target');
 
     if (completed) {
@@ -466,16 +599,36 @@ export function createInteractiveTourController(deps = {}) {
   // 绑定事件
   elements.next.addEventListener('click', next);
   elements.prev.addEventListener('click', prev);
-  elements.close.addEventListener('click', () => {
-    if (confirm('确定要退出引导吗？你可以随时从使用文档重新打开。')) {
-      close(false);
-    }
+  elements.close.addEventListener('click', showExitConfirmation);
+  elements.exitStay.addEventListener('click', () => hideExitConfirmation());
+  elements.exitLeave.addEventListener('click', () => close(false));
+  elements.exitConfirmation.addEventListener('click', (event) => {
+    if (event.target === elements.exitConfirmation) hideExitConfirmation();
   });
-  const refreshOnViewportChange = () => {
-    if (isOpen) refreshPosition();
+  elements.exitConfirmation.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      hideExitConfirmation();
+      return;
+    }
+
+    if (event.key !== 'Tab') return;
+    const buttons = [elements.exitStay, elements.exitLeave];
+    const currentIndex = buttons.indexOf(document.activeElement);
+    const direction = event.shiftKey ? -1 : 1;
+    const nextIndex = currentIndex === -1
+      ? 0
+      : (currentIndex + direction + buttons.length) % buttons.length;
+    event.preventDefault();
+    buttons[nextIndex].focus();
+  });
+  const refreshOnResize = () => {
+    tooltipSize = null;
+    lastLayoutKey = '';
+    scheduleRefresh();
   };
-  window.addEventListener('resize', refreshOnViewportChange);
-  window.addEventListener('scroll', refreshOnViewportChange, true);
+  window.addEventListener('resize', refreshOnResize);
+  window.addEventListener('scroll', scheduleRefresh, { capture: true, passive: true });
 
   return {
     open,

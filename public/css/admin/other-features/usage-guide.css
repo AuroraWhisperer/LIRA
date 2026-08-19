@@ -1,7 +1,7 @@
 /* ===== 使用文档 ===== */
 .usage-guide-panel {
   width: 100%;
-  max-width: 940px;
+  max-width: 1180px;
   margin: 0 auto;
   gap: 26px;
 }
@@ -38,27 +38,38 @@
 .usage-guide-hero-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
   margin-top: 14px;
 }
 
-.usage-guide-hero-actions a {
+.usage-guide-hero-actions a,
+.usage-guide-hero-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
   padding: 6px 13px;
   border: 1px solid var(--color-border-primary);
   border-radius: 999px;
+  background: transparent;
   color: var(--primary-strong);
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.4;
   text-decoration: none;
   transition: background 0.15s ease;
 }
 
 .usage-guide-hero-actions a:hover,
-.usage-guide-hero-actions a.active {
+.usage-guide-hero-actions a.active,
+.usage-guide-hero-actions button:hover {
   background: var(--color-primary-light);
 }
 
-.usage-guide-hero-actions a:focus-visible {
+.usage-guide-hero-actions a:focus-visible,
+.usage-guide-hero-actions button:focus-visible {
   outline: 2px solid var(--primary-strong);
   outline-offset: 1px;
 }
@@ -90,9 +101,7 @@
   scrollbar-width: none;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--surface);
   box-shadow: var(--shadow-sm);
   counter-reset: usage-guide-toc;
 }
@@ -143,7 +152,13 @@
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
   scroll-margin-top: 64px;
+}
+
+.usage-guide-render-all .usage-guide-section {
+  content-visibility: visible;
 }
 
 .usage-guide-section-title {
@@ -493,6 +508,7 @@
   .usage-guide-faq,
   .usage-guide-faq-chevron,
   .usage-guide-hero-actions a,
+  .usage-guide-hero-actions button,
   .usage-guide-toc a {
     transition: none;
   }

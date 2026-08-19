@@ -103,6 +103,17 @@ test('usage guide main-flow steps keep body text out of the number gutter', () =
   assert.match(markerRule, /left:\s*2px/);
 });
 
+test('usage guide fills the available width with expanded sidebar navigation', () => {
+  const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const panelRule = source.match(/\.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
+  const collapsedRule = source.match(/\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(panelRule, 'usage guide panel sizing should remain defined');
+  assert.ok(collapsedRule, 'collapsed sidebar sizing should remain defined');
+  assert.match(panelRule, /max-width:\s*1180px/);
+  assert.match(collapsedRule, /max-width:\s*1180px/);
+});
+
 test('usage guide presents overlays for both live companion and OBS users', () => {
   const html = readAdminHtml();
 
@@ -110,6 +121,28 @@ test('usage guide presents overlays for both live companion and OBS users', () =
   assert.match(html, />直播姬 \/ OBS 投屏设置<\/h3>/);
   assert.match(html, /添加到直播姬的「浏览器」或 OBS 的「浏览器源」/);
   assert.match(html, />直播姬 \/ OBS 投屏画面不显示或尺寸不对<\/strong>/);
+});
+
+test('usage guide defers image loading and avoids sticky backdrop blur', () => {
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const images = html.match(/<img[^>]+class="usage-guide-image"[^>]+>/g) || [];
+  const tocRule = styles.match(/\.usage-guide-toc\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.equal(images.length, 9);
+  assert.equal(images.every((image) => /loading="lazy"/.test(image)), true);
+  assert.equal(images.every((image) => /decoding="async"/.test(image)), true);
+  assert.equal(images.every((image) => /width="\d+" height="\d+"/.test(image)), true);
+  assert.ok(tocRule, 'usage guide table of contents should remain defined');
+  assert.match(tocRule, /background:\s*var\(--surface\)/);
+  assert.doesNotMatch(tocRule, /backdrop-filter/);
+});
+
+test('usage guide names the AI assistant section without removing the DeepSeek anchor', () => {
+  const html = readAdminHtml();
+
+  assert.match(html, /href="#ug-deepseek"[^>]*>配置 AI 助手<\/a>/);
+  assert.match(html, /id="ug-deepseek"[^>]*>[\s\S]*?>配置 AI 助手<\/h3>/);
 });
 
 test('other feature navigation selects panels without feature-specific dependencies', () => {

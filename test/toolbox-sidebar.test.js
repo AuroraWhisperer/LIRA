@@ -20,6 +20,28 @@ test('toolbox styles load feature-owned stylesheets in order', () => {
   assert.match(entry, /@import url\('\.\/other-features\/streamer-planner\.css'\);/);
 });
 
+test('toolbox defers offscreen rendering in its heaviest panels', () => {
+  const usageGuideStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'usage-guide.css'),
+    'utf8'
+  );
+  const overtimeStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'overtime.css'),
+    'utf8'
+  );
+  const usageGuideScript = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'usage-guide.js'),
+    'utf8'
+  );
+
+  assert.match(usageGuideStyles, /\.usage-guide-section\s*\{[^}]*content-visibility:\s*auto/);
+  assert.match(usageGuideStyles, /\.usage-guide-section\s*\{[^}]*contain-intrinsic-size:\s*auto 720px/);
+  assert.match(usageGuideStyles, /\.usage-guide-render-all \.usage-guide-section\s*\{[^}]*content-visibility:\s*visible/);
+  assert.match(usageGuideScript, /panel\.classList\.add\('usage-guide-render-all'\)/);
+  assert.match(overtimeStyles, /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*content-visibility:\s*auto/);
+  assert.match(overtimeStyles, /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*contain-intrinsic-size:\s*auto 260px/);
+});
+
 test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');

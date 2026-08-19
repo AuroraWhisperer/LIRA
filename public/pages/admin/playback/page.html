@@ -77,27 +77,31 @@
 
         <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
           <div class="panel-header wesing-panel-heading">
-            <div>
-              <span class="wesing-eyebrow">LIVE</span>
+            <div class="wesing-heading-copy">
+              <span class="wesing-eyebrow">SOURCE / LIVE</span>
               <h2>全民 K歌歌词</h2>
+              <p>从全民 K 歌客户端读取实时歌词并同步到桌面歌词</p>
             </div>
             <div class="actions">
               <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
-              <button id="weSingRefreshBtn" type="button">重新检测</button>
+              <button id="weSingRefreshBtn" class="secondary" type="button">重新检测</button>
             </div>
           </div>
           <div class="panel-body wesing-capture-layout">
             <article class="wesing-live-stage" aria-labelledby="weSingTrackTitle">
               <div class="wesing-stage-topline">
-                <span class="wesing-live-mark"><i aria-hidden="true"></i> LIVE</span>
+                <span class="wesing-live-mark"><i aria-hidden="true"></i> 实时捕捉</span>
                 <span id="weSingPlaybackState"></span>
               </div>
               <div class="wesing-track-copy">
+                <span class="wesing-track-kicker">NOW SINGING</span>
                 <h3 id="weSingTrackTitle">等待播放</h3>
                 <p id="weSingTrackMeta"></p>
               </div>
               <div class="wesing-lyric-stage" aria-live="polite">
+                <span class="wesing-lyric-kicker">当前歌词</span>
                 <p id="weSingLyricLine" class="wesing-lyric-line">—</p>
+                <span id="weSingLyricHint" class="wesing-lyric-hint">启动全民 K 歌后，逐字歌词会在这里同步</span>
               </div>
               <div class="wesing-progress-row">
                 <time id="weSingCurrentTime">00:00</time>
@@ -107,7 +111,14 @@
             </article>
 
             <aside class="wesing-capture-console">
+              <div class="wesing-console-intro">
+                <span class="wesing-console-kicker">CONTROL DESK</span>
+                <h3>捕捉设置</h3>
+                <p>配置本地歌词缓存，并微调同步节奏。</p>
+              </div>
               <div class="wesing-path-field">
+                <label for="weSingCachePath">歌词缓存目录</label>
+                <small>选择全民 K 歌的 WeSingCache 文件夹</small>
                 <div class="wesing-path-control">
                   <input id="weSingCachePath" type="text" spellcheck="false" autocomplete="off" placeholder="WeSingCache 目录路径">
                   <button id="weSingSelectCacheBtn" type="button" title="选择缓存目录" aria-label="选择全民 K 歌缓存目录">
@@ -117,6 +128,10 @@
                 <button id="weSingSaveCacheBtn" class="primary wesing-save-path" type="button">保存并检测</button>
               </div>
               <div class="wesing-offset-field">
+                <div class="wesing-field-heading">
+                  <span>歌词时间偏移</span>
+                  <small>负值延后，正值提前</small>
+                </div>
                 <div class="wesing-offset-control">
                   <input id="weSingLyricOffsetMs" class="parameter-range" type="range" min="-3000" max="3000" step="50" value="0">
                   <input id="weSingLyricOffsetMsNumber" type="number" min="-3000" max="3000" step="50" value="0" aria-label="歌词偏移" placeholder="0">
@@ -124,11 +139,13 @@
                   <span>ms</span>
                 </div>
               </div>
+              <div class="wesing-signal-heading">连接状态</div>
               <div class="wesing-signal-list" aria-label="状态">
                 <div><i id="weSingClientSignal" aria-hidden="true"></i><span>客户端</span><strong id="weSingClientStatus">未检测</strong></div>
                 <div><i id="weSingCacheSignal" aria-hidden="true"></i><span>缓存</span><strong id="weSingCacheStatus">待检查</strong></div>
                 <div><i id="weSingLyricSignal" aria-hidden="true"></i><span>歌词</span><strong id="weSingLyricStatus">待同步</strong></div>
               </div>
+              <p id="weSingStatusMessage" class="wesing-status-message">请选择 WeSingCache 目录后开始检测。</p>
             </aside>
           </div>
         </section>

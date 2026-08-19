@@ -11,6 +11,29 @@ This file defines project-wide rules for human and AI-assisted changes. More
 specific rules apply under [storage](src/storage/AGENTS.md),
 [Electron](src/electron/AGENTS.md), and [Admin](public/js/admin/AGENTS.md).
 
+## Product And UI Priority
+
+LIRA is developed and supported primarily as an **Electron desktop client**.
+The desktop runtime is the source of truth for user-facing behavior, visual
+hierarchy, color choices, window sizing, interaction patterns, and privileged
+integration. Direct browser access to the HTTP pages is a deprecated or
+supporting surface: it may be used for inspection, debugging, compatibility,
+or a narrowly scoped fix, but it must not become the design baseline.
+
+When a change affects a user-facing page or workflow:
+
+- inspect and validate the Electron window and desktop flow first;
+- choose layout, spacing, typography, colors, and states for the desktop
+  client before considering browser responsiveness;
+- treat files under `public/` as renderer assets loaded by Electron unless they
+  are explicitly documented as OBS browser-source overlays; and
+- do not add browser-only behavior, responsive compromises, or web-first
+  abstractions unless the task explicitly requires them.
+
+If browser behavior and the desktop experience appear to conflict, preserve
+public contracts and security invariants, then prioritize the stated desktop
+client requirement and document any compatibility consequence.
+
 ## Priorities
 
 Use this fixed engineering priority:

@@ -10,7 +10,11 @@
 - **桌面壳**(Electron 43):main 进程**同进程**内嵌后端服务,提供窗口、登录 Cookie 分区、`local-media://` 协议、自动更新。详见 [desktop/main.md](desktop/main.md)。
 - **前端**(无框架 Vanilla JS ES 模块):由后端同源服务的静态页面,含管理后台、播放助手与 5 个 OBS 悬浮层。详见 [frontend/pages.md](frontend/pages.md)。
 
-三种运行形态:`npm start`(独立服务)、`npm run desktop`(Electron 桌面)、OBS 浏览器源直连悬浮层页面(见 [engineering/build.md](engineering/build.md))。
+### 产品形态与优先级
+
+LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管理后台和播放页面通常是桌面客户端加载的 renderer 资源，不代表一个需要优先适配的独立网页版；直接浏览器访问主要用于调试、兼容性检查或局部维护。用户可见的布局、色彩、窗口尺寸、交互状态和桌面能力以 Electron 运行时为准。OBS 浏览器源悬浮层是明确的例外，按其独立的 OBS 消费场景维护。
+
+三种运行形态:`npm run desktop`(主要产品)、`npm start`(独立服务/调试与兼容性检查)、OBS 浏览器源直连悬浮层页面(见 [engineering/build.md](engineering/build.md))。
 
 ## 架构图表
 
