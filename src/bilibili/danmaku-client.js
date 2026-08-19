@@ -29,6 +29,7 @@ class BilibiliDanmakuClient {
     this.reconnecting = false;
     this.startedAtMs = Date.now();
     this.ownerName = '';
+    this.ownerUid = '';
 
     // 初始化子模块
     const bilibiliAuth = options.bilibiliAuth || {};
@@ -172,6 +173,7 @@ class BilibiliDanmakuClient {
     if (!this.isConnectionCurrent(generation)) return;
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.ownerName = roomInfo.ownerName || '';
+    this.ownerUid = String(roomInfo.uid || '');
     this.messageHandlers.updateRoomOwnerUid(roomInfo.uid);
     this.historyPoller.updateRoomOwnerUid(roomInfo.uid);
 

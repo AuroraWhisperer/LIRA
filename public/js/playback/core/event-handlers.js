@@ -124,7 +124,8 @@ export function createEventHandlers(deps) {
     });
 
     // 抽屉内点击事件委托
-    document.getElementById('playbackDrawerBody')?.addEventListener('click', (event) => {
+    const drawerBody = document.getElementById('playbackDrawerBody');
+    drawerBody?.addEventListener('click', (event) => {
       const bulkButton = event.target.closest('[data-playback-home-bulk]');
       if (bulkButton) {
         handlePlaybackHomeBulkAction(bulkButton.dataset.playbackHomeBulk);
@@ -157,6 +158,29 @@ export function createEventHandlers(deps) {
       const trackRow = event.target.closest('[data-playback-home-track-row-index]');
       if (!trackRow) return;
       handlePlaybackHomeTrackAction('play-context', Number(trackRow.dataset.playbackHomeTrackRowIndex));
+    });
+
+    drawerBody?.addEventListener('keydown', (event) => {
+      const menu = event.target.closest('.track-menu');
+      if (!menu) return;
+      const items = [...menu.querySelectorAll('[role="menuitem"]')];
+      const currentIndex = items.indexOf(document.activeElement);
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const nextIndex = event.key === 'Home' ? 0
+          : event.key === 'End' ? items.length - 1
+            : event.key === 'ArrowUp' ? Math.max(0, currentIndex - 1)
+              : Math.min(items.length - 1, currentIndex + 1);
+        items[nextIndex]?.focus();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        menu.hidden = true;
+        document.querySelector(`[aria-controls="${menu.id}"]`)?.focus();
+        document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+      } else if (event.key === 'Tab') {
+        menu.hidden = true;
+        document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+      }
     });
   }
 
@@ -300,15 +324,59 @@ export function createEventHandlers(deps) {
     const qualityPanel = document.getElementById('playbackQualityPanel');
     const qualityButton = document.getElementById('playbackQualityBtn');
 
-    const setQualityPanelOpen = (open) => {
+    const focusQualityOption = (option) => {
+      const options = [...(qualityPanel?.querySelectorAll('[data-playback-quality]') || [])];
+      if (!options.length) return;
+      const target = option || options.find(item => item.getAttribute('aria-checked') === 'true') || options[0];
+      target.focus({ preventScroll: true });
+      target.scrollIntoView?.({ block: 'nearest' });
+    };
+
+    const setQualityPanelOpen = (open, focusOption = false) => {
       qualityWrap?.classList.toggle('open', open);
       qualityPanel?.setAttribute('aria-hidden', String(!open));
       qualityButton?.setAttribute('aria-expanded', String(open));
+      if (open && focusOption) requestAnimationFrame(() => focusQualityOption());
     };
 
     qualityButton?.addEventListener('click', (event) => {
       event.stopPropagation();
-      setQualityPanelOpen(!qualityWrap?.classList.contains('open'));
+      const open = !qualityWrap?.classList.contains('open');
+      setQualityPanelOpen(open, open);
+    });
+
+    qualityButton?.addEventListener('keydown', (event) => {
+      if (!['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
+      event.preventDefault();
+      const open = !qualityWrap?.classList.contains('open');
+      setQualityPanelOpen(true, open);
+      if (!open) {
+        const options = [...(qualityPanel?.querySelectorAll('[data-playback-quality]') || [])];
+        const selectedIndex = options.findIndex(item => item.getAttribute('aria-checked') === 'true');
+        const nextIndex = event.key === 'ArrowUp'
+          ? Math.max(0, selectedIndex - 1)
+          : Math.min(options.length - 1, selectedIndex + 1);
+        focusQualityOption(options[nextIndex]);
+      }
+    });
+
+    qualityPanel?.addEventListener('keydown', (event) => {
+      const options = [...qualityPanel.querySelectorAll('[data-playback-quality]')];
+      const currentIndex = options.indexOf(document.activeElement);
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        const nextIndex = event.key === 'Home' ? 0
+          : event.key === 'End' ? options.length - 1
+            : event.key === 'ArrowUp' ? Math.max(0, currentIndex - 1)
+              : Math.min(options.length - 1, currentIndex + 1);
+        focusQualityOption(options[nextIndex]);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        setQualityPanelOpen(false);
+        qualityButton?.focus();
+      } else if (event.key === 'Tab') {
+        setQualityPanelOpen(false);
+      }
     });
 
     qualityPanel?.addEventListener('click', async (event) => {

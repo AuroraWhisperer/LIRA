@@ -23,6 +23,7 @@
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
   cursor: pointer;
   list-style: none;
 }
@@ -43,7 +44,13 @@
 }
 
 .category-filter[open] summary {
-  border-color: var(--accent);
+  border-color: var(--color-control-accent);
+  background: var(--color-bg-tertiary);
+}
+
+.category-filter summary:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
 }
 
 .category-filter[open] summary::after {
@@ -74,8 +81,8 @@
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--color-bg-primary);
-  box-shadow: var(--shadow);
+  background: var(--color-floating-surface, var(--color-bg-primary));
+  box-shadow: var(--shadow-floating, var(--shadow));
 }
 
 .category-filter-options {
@@ -96,7 +103,13 @@
 }
 
 .category-filter-option:hover {
-  background: var(--color-accent-light);
+  background: var(--color-control-accent-light);
+}
+
+.category-filter-option:focus-within {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: -2px;
+  background: var(--color-control-accent-light);
 }
 
 .category-filter-option input {
@@ -104,7 +117,7 @@
   width: 15px;
   min-height: 15px;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--color-control-accent);
 }
 
 .category-filter-empty {

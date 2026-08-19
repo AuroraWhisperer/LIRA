@@ -271,18 +271,26 @@ export function createHomeHandler(deps) {
     const menu = document.querySelector(`[data-playback-home-track-menu-for="${index}"]`);
     if (!menu) return;
 
+    const menuButton = document.querySelector(`[data-playback-home-track-menu-index="${index}"]`);
+
     const isHidden = menu.hasAttribute('hidden');
 
     document.querySelectorAll('.track-menu').forEach((m) => {
-      if (m !== menu) m.setAttribute('hidden', '');
+      if (m !== menu) {
+        m.setAttribute('hidden', '');
+        document.querySelector(`[aria-controls="${m.id}"]`)?.setAttribute('aria-expanded', 'false');
+      }
     });
 
     if (isHidden) {
       menu.removeAttribute('hidden');
+      menuButton?.setAttribute('aria-expanded', 'true');
+      menu.querySelector('[role="menuitem"]')?.focus();
       setTimeout(() => {
         const closeMenu = (event) => {
           if (!event.target.closest('.track-menu-wrapper')) {
             menu.setAttribute('hidden', '');
+            menuButton?.setAttribute('aria-expanded', 'false');
             document.removeEventListener('click', closeMenu);
           }
         };
@@ -290,6 +298,8 @@ export function createHomeHandler(deps) {
       }, 0);
     } else {
       menu.setAttribute('hidden', '');
+      menuButton?.setAttribute('aria-expanded', 'false');
+      menuButton?.focus();
     }
   }
 

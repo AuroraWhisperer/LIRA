@@ -1,6 +1,6 @@
 'use strict';
 
-import { api as defaultApi, readJsonResponse, showError as defaultShowError, toast as defaultToast } from '../shared/utils.js';
+import { api as defaultApi, readJsonResponse, showError as defaultShowError, toast as defaultToast, showConfirmationDialog } from '../shared/utils.js';
 
 export const ONBOARDING_VERSION = 1;
 export const ONBOARDING_STEPS = Object.freeze(['welcome', 'bilibili', 'import', 'music', 'ai', 'docs', 'complete']);
@@ -213,7 +213,21 @@ export function createOnboardingController(deps = {}) {
   }
 
   function open(options = {}) { if (options.reset) { state = normalizeOnboardingState({}); stepId = 'welcome'; } previousFocus = document.activeElement; openState = true; root.hidden = false; document.body.classList.add('onboarding-open'); void refresh(); requestAnimationFrame(() => elements.close.focus()); }
-  function close(options = {}) { if (!openState) return; if (!options.confirmed && !window.confirm?.('确定退出首次启动引导吗？完成状态不会被保存。')) return; openState = false; root.hidden = true; document.body.classList.remove('onboarding-open'); previousFocus?.focus?.(); }
+  async function close(options = {}) {
+    if (!openState) return;
+    if (!options.confirmed) {
+      const confirmed = await showConfirmationDialog({
+        variant: 'caution',
+        title: '退出首次使用引导？',
+        description: '退出后可以从「百宝箱 → 使用文档」重新打开，尚未完成的设置不会保存。',
+        confirmLabel: '退出引导',
+        cancelLabel: '继续设置',
+        initialFocus: 'cancel'
+      });
+      if (!confirmed) return;
+    }
+    openState = false; root.hidden = true; document.body.classList.remove('onboarding-open'); previousFocus?.focus?.();
+  }
   async function reset() { await api('/api/settings', { onboardingVersion: '', onboardingCompletedAt: '', onboardingSkippedOptional: '' }); open({ reset: true }); }
   function maybeAutoOpen() { const settings = getAppState()?.settings || {}; if (!isOnboardingComplete(settings)) open(); }
 

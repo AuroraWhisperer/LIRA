@@ -38,7 +38,6 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/gifts/blindbox-analysis.html',
   'pages/admin/gifts/history.html',
   'pages/admin/main-end.html',
-  'pages/admin/shared/restart-confirm.html',
   'pages/admin/shared/song-confirmation.html',
   'pages/admin/document-end.html'
 ]);

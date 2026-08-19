@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createNumberBombState, guessNumber, publicNumberBombState } = require('../src/games/number-bomb');
 const { createGomokuState, parseCoordinate, placeStone } = require('../src/games/gomoku');
+const { createGameSessionService } = require('../src/games/game-session-service');
 
 test('number bomb narrows range and alternates players without exposing bomb', () => {
   const state = createNumberBombState(() => 0.69);
@@ -28,4 +29,16 @@ test('gomoku parses viewer coordinates and detects five stones', () => {
     if (i < 4) state = placeStone(state, `B${i + 1}`, 'viewer').state;
   }
   assert.equal(state.winner, 'host');
+});
+
+test('game session retains the viewer identity that wins', () => {
+  const service = createGameSessionService();
+  service.start({ game: 'gomoku', mode: 'multi' });
+  const hostMoves = ['A1', 'C1', 'E1', 'G1', 'I1'];
+  for (let index = 0; index < 5; index += 1) {
+    service.move({ value: hostMoves[index] }, 'host');
+    service.handleDanmaku({ uid: '42', userName: 'Alice', message: `B${index + 1}` });
+  }
+
+  assert.deepEqual(service.getSession().winner, { role: 'viewer', uid: '42', name: 'Alice' });
 });

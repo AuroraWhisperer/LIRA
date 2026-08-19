@@ -1,0 +1,258 @@
+/* Shared confirmation dialog surface used by Admin and Playback. */
+.lira-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-bg-overlay-light);
+  animation: lira-confirm-fade-in var(--motion-ui-duration, 180ms) ease-out;
+}
+
+.lira-confirm-backdrop.is-closing {
+  animation: lira-confirm-fade-out 140ms ease-in forwards;
+}
+
+.lira-confirm-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 32px));
+  overflow: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-floating-surface, var(--surface));
+  box-shadow: var(--shadow-dialog, var(--shadow-lg));
+  color: var(--text);
+  animation: lira-confirm-rise var(--motion-ui-duration, 180ms) ease-out;
+}
+
+.lira-confirm-backdrop.is-closing .lira-confirm-dialog {
+  animation: lira-confirm-drop 140ms ease-in forwards;
+}
+
+.lira-confirm-dialog:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 3px;
+}
+
+.lira-confirm-backdrop.is-caution .lira-confirm-dialog {
+  border-top: 3px solid var(--color-warning-medium);
+}
+
+.lira-confirm-backdrop.is-destructive .lira-confirm-dialog {
+  border-top: 3px solid var(--color-danger);
+}
+
+.lira-confirm-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px 0;
+}
+
+.lira-confirm-heading {
+  min-width: 0;
+}
+
+.lira-confirm-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.lira-confirm-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.lira-confirm-backdrop.is-caution .lira-confirm-kicker {
+  color: var(--color-warning);
+}
+
+.lira-confirm-backdrop.is-destructive .lira-confirm-kicker {
+  color: var(--color-danger);
+}
+
+.lira-confirm-context {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.lira-confirm-indicator {
+  display: inline-grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: var(--color-control-accent-light);
+  color: var(--color-control-accent);
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.lira-confirm-backdrop.is-caution .lira-confirm-indicator {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.lira-confirm-backdrop.is-destructive .lira-confirm-indicator {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.lira-confirm-content {
+  display: grid;
+  gap: 12px;
+  padding: 16px 24px 22px;
+}
+
+.lira-confirm-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.lira-confirm-details {
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lira-confirm-details strong {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.lira-confirm-details ul {
+  display: grid;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  margin: 7px 0 0;
+  padding-left: 18px;
+}
+
+.lira-confirm-details.is-destructive {
+  border-color: color-mix(in srgb, var(--color-danger) 20%, var(--border));
+  background: var(--color-danger-light);
+}
+
+.lira-confirm-details.is-kept {
+  border-color: color-mix(in srgb, var(--color-control-accent) 20%, var(--border));
+  background: var(--color-control-accent-light);
+}
+
+.lira-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 24px 22px;
+}
+
+.lira-confirm-actions button {
+  min-width: 96px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lira-confirm-cancel {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.lira-confirm-cancel:hover {
+  border-color: var(--color-control-accent);
+  background: var(--color-control-accent-light);
+  color: var(--color-success-dark);
+}
+
+.lira-confirm-confirm {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-text-white);
+}
+
+.lira-confirm-confirm:hover {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-strong);
+}
+
+.lira-confirm-backdrop.is-caution .lira-confirm-confirm {
+  border-color: var(--color-warning-medium);
+  background: var(--color-warning-medium);
+}
+
+.lira-confirm-backdrop.is-caution .lira-confirm-confirm:hover {
+  border-color: var(--color-warning);
+  background: var(--color-warning);
+}
+
+.lira-confirm-backdrop.is-destructive .lira-confirm-confirm {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+}
+
+.lira-confirm-backdrop.is-destructive .lira-confirm-confirm:hover {
+  border-color: color-mix(in srgb, var(--color-danger) 82%, #000);
+  background: color-mix(in srgb, var(--color-danger) 82%, #000);
+}
+
+.lira-confirm-actions button:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+@keyframes lira-confirm-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes lira-confirm-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes lira-confirm-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lira-confirm-drop {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lira-confirm-backdrop,
+  .lira-confirm-dialog,
+  .lira-confirm-backdrop.is-closing,
+  .lira-confirm-backdrop.is-closing .lira-confirm-dialog {
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .lira-confirm-backdrop { padding: 16px; }
+  .lira-confirm-header { padding-inline: 18px; }
+  .lira-confirm-content { padding-inline: 18px; }
+  .lira-confirm-actions { padding-inline: 18px; }
+  .lira-confirm-actions button { flex: 1; }
+}

@@ -150,8 +150,8 @@
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:hover,
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:focus-visible { background: var(--surface-2); }
 .xiaomi-ai-model-menu .xiaomi-ai-model-option[aria-selected="true"] {
-  background: var(--color-primary-light);
-  color: var(--primary);
+  background: var(--color-control-accent-light);
+  color: var(--color-control-accent);
 }
 .xiaomi-ai-field-grid small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
 .xiaomi-ai-capability-rail {

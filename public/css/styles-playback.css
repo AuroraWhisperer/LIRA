@@ -5,6 +5,9 @@
 /* 播放页整体布局 */
 @import url('./playback/layout.css');
 
+/* Shared confirmation surface */
+@import url('./components/confirmation-dialog.css');
+
 /* 头部区域和信源切换 */
 @import url('./playback/header.css');
 

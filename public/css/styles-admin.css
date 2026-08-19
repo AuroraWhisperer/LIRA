@@ -5,6 +5,9 @@
 /* 基础布局和面板 */
 @import url('./admin/layout.css');
 
+/* Shared confirmation surface */
+@import url('./components/confirmation-dialog.css');
+
 /* 参数调节滑块 */
 @import url('./components/parameter-range.css');
 
@@ -37,9 +40,6 @@
 
 /* 桌面歌词设置实时预览 */
 @import url('./admin/desktop-lyric-preview.css?v=20260818-01');
-
-/* 确认弹窗 */
-@import url('./admin/modals.css');
 
 /* 响应式样式 */
 @import url('./admin/responsive.css');

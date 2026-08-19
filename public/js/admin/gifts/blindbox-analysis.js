@@ -165,6 +165,19 @@ import { eventBus, Events } from '../../shared/event-bus.js';
       if (willOpen) openSelect(button, menu);
     });
     button.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !menu.hidden) {
+        event.preventDefault();
+        closeSelects();
+        button.focus();
+        return;
+      }
+      if (['Enter', ' '].includes(event.key)) {
+        event.preventDefault();
+        const willOpen = menu.hidden;
+        closeSelects();
+        if (willOpen) openSelect(button, menu);
+        return;
+      }
       if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       if (menu.hidden) openSelect(button, menu);
@@ -184,6 +197,10 @@ import { eventBus, Events } from '../../shared/event-bus.js';
         if (option) selectOption(id, stateKey, option.dataset.value || '');
       } else if (event.key === 'Tab') {
         closeSelects();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSelects();
+        button.focus();
       }
     });
   }

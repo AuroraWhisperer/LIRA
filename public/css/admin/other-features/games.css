@@ -33,5 +33,37 @@
 .game-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .games-admin-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
 .games-admin-footer > div { display: flex; gap: 8px; }
+.is-wheel .game-card-poster { color: #25193c; background: linear-gradient(145deg, #f6c8e6, #a7d7e8); }
+.is-wheel .game-card-poster i { right: -20px; top: 28px; border-color: rgba(37,25,60,.3); box-shadow: 0 0 0 20px rgba(255,255,255,.22), 0 0 0 42px rgba(255,255,255,.14); }
+.is-wheel .game-card-poster i::after { position: absolute; inset: 48px; border-radius: 50%; background: #fff5a8; content: ''; box-shadow: 0 0 22px rgba(255,245,168,.9); }
+.wheel-card-trigger { display: grid; grid-column: 1 / -1; grid-template-columns: 210px minmax(0, 1fr); width: 100%; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.wheel-card-trigger:hover .wheel-card-summary { background: #fcfaff; }
+.wheel-card-trigger:focus-visible { outline: 3px solid rgba(112,98,191,.35); outline-offset: -3px; }
+.wheel-card-summary { display: grid; align-content: center; gap: 14px; min-height: 230px; padding: 22px; transition: background 180ms ease; }
+.wheel-card-summary .game-card-heading { display: flex; }
+.wheel-card-summary .game-card-heading strong { display: block; margin-top: 3px; font-size: 23px; }
+.wheel-card-description { color: var(--muted); line-height: 1.7; }
+.wheel-expand-hint { display: inline-flex; align-items: center; gap: 7px; color: #5d519e; font-size: 12px; font-weight: 800; }
+.wheel-expand-icon { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #cfc7ef; border-radius: 50%; background: #f0edff; font-size: 18px; line-height: 1; transition: transform 180ms ease; }
+.is-wheel:not(.is-collapsed) .wheel-expand-icon { transform: rotate(45deg); }
+.wheel-card-details { grid-column: 1 / -1; border-top: 1px solid #e4dfef; background: #fdfcff; }
+.wheel-card-details[hidden] { display: none; }
+.wheel-detail-intro { margin: 0; color: var(--muted); line-height: 1.6; }
+.wheel-link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.wheel-link-row label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; }
+.wheel-link-row input { min-width: 0; font-family: Consolas, monospace; }
+.wheel-link-row > div { display: flex; gap: 8px; }
+.wheel-editor { display: grid; gap: 10px; padding: 14px; border: 1px solid #e1ddec; border-radius: 12px; background: #fbfaff; }
+.wheel-editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #4e4677; font-size: 12px; }
+.wheel-editor-heading span { color: var(--muted); font: 700 12px Consolas, monospace; }
+.wheel-entry-list { display: grid; gap: 8px; }
+.wheel-entry-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px auto; gap: 8px; align-items: center; }
+.wheel-entry-row label { display: grid; gap: 4px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.wheel-entry-row input { width: 100%; }
+.wheel-remove-entry { min-width: 34px; padding-inline: 8px; }
+.wheel-add-entry { justify-self: start; }
+.wheel-actions { align-items: center; }
+.wheel-status { color: var(--muted); font-size: 12px; }
+@media (max-width: 760px) { .wheel-card-trigger { grid-template-columns: 1fr; } .wheel-card-trigger .game-card-poster { min-height: 118px; } .wheel-card-summary { min-height: 0; } .wheel-link-row, .wheel-entry-row { grid-template-columns: 1fr; } .wheel-link-row > div { justify-content: flex-start; } .wheel-remove-entry { justify-self: start; } }
 @media (max-width: 1050px) { .games-link-deck { grid-template-columns: 1fr; align-items: stretch; } .games-link-actions { justify-content: flex-start; } }
 @media (max-width: 760px) { .game-admin-card { grid-template-columns: 1fr; } .game-card-poster { min-height: 100px; } .game-config-grid { grid-template-columns: 1fr; } .games-admin-footer { align-items: stretch; flex-direction: column; } }

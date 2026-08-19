@@ -272,6 +272,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
   const showMenuButton = action === 'liked' || action === 'playlist-tracks';
 
   if (showMenuButton) {
+    const menuId = `${dataPrefix}-menu-${index}`;
     return `
       <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
         <div class="playback-row-main">
@@ -283,18 +284,18 @@ export function renderHomeTrackRow(track, index, context, action = '') {
         </div>
         <div class="queue-actions">
           <div class="track-menu-wrapper">
-            <button type="button" class="track-menu-btn" data-${dataPrefix}-menu-index="${index}" title="更多操作" aria-label="更多操作">
+            <button type="button" class="track-menu-btn" data-${dataPrefix}-menu-index="${index}" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}">
               <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
                 <circle cx="12" cy="5" r="2"/>
                 <circle cx="12" cy="12" r="2"/>
                 <circle cx="12" cy="19" r="2"/>
               </svg>
             </button>
-            <div class="track-menu" data-${dataPrefix}-menu-for="${index}" hidden>
-              <button type="button" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}">入队</button>
-              <button type="button" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}">插队</button>
-              <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}">播放</button>
-              <button type="button" data-${dataPrefix}-action="remove" data-${dataPrefix}-index="${index}" class="danger">删除</button>
+            <div class="track-menu" id="${menuId}" data-${dataPrefix}-menu-for="${index}" role="menu" aria-label="歌曲操作" hidden>
+              <button type="button" role="menuitem" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}">入队</button>
+              <button type="button" role="menuitem" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}">插队</button>
+              <button type="button" role="menuitem" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}">播放</button>
+              <button type="button" role="menuitem" data-${dataPrefix}-action="remove" data-${dataPrefix}-index="${index}" class="danger">删除</button>
             </div>
           </div>
         </div>
@@ -357,82 +358,24 @@ export function renderPlaylistCard(playlist, index) {
  * @returns {Promise<boolean>} 用户是否确认
  */
 export function showConfirmDialog(options = {}) {
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
   const {
     title = '确认操作',
     message = '',
     confirmText = '确定',
-    cancelText = '取消'
+    cancelText = '取消',
+    variant = 'normal',
+    trackName = ''
   } = options;
-
-  return new Promise((resolve) => {
-    // 创建遮罩层
-    const overlay = document.createElement('div');
-    overlay.className = 'playback-confirm-overlay';
-
-    // 创建对话框
-    const dialog = document.createElement('div');
-    dialog.className = 'playback-confirm-dialog';
-    dialog.innerHTML = `
-      <div class="playback-confirm-header">
-        <h3 class="playback-confirm-title">${escapeHtml(title)}</h3>
-        <button type="button" class="playback-confirm-close" aria-label="关闭">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-      <div class="playback-confirm-body">
-        <p class="playback-confirm-message">${escapeHtml(message)}</p>
-      </div>
-      <div class="playback-confirm-footer">
-        <button type="button" class="playback-confirm-btn playback-confirm-btn-cancel">${escapeHtml(cancelText)}</button>
-        <button type="button" class="playback-confirm-btn playback-confirm-btn-confirm">${escapeHtml(confirmText)}</button>
-      </div>
-    `;
-
-    overlay.appendChild(dialog);
-    document.body.appendChild(overlay);
-
-    // 触发动画
-    requestAnimationFrame(() => {
-      overlay.classList.add('show');
-      dialog.classList.add('show');
-    });
-
-    // 关闭对话框的函数
-    const closeDialog = (confirmed) => {
-      overlay.classList.remove('show');
-      dialog.classList.remove('show');
-      setTimeout(() => {
-        overlay.remove();
-        resolve(confirmed);
-      }, 200);
-    };
-
-    // 绑定事件
-    const confirmBtn = dialog.querySelector('.playback-confirm-btn-confirm');
-    const cancelBtn = dialog.querySelector('.playback-confirm-btn-cancel');
-    const closeBtn = dialog.querySelector('.playback-confirm-close');
-
-    confirmBtn.addEventListener('click', () => closeDialog(true));
-    cancelBtn.addEventListener('click', () => closeDialog(false));
-    closeBtn.addEventListener('click', () => closeDialog(false));
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) closeDialog(false);
-    });
-
-    // ESC 键关闭
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        closeDialog(false);
-        document.removeEventListener('keydown', handleKeyDown);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-
-    // 聚焦确认按钮
-    setTimeout(() => confirmBtn.focus(), 100);
+  const showConfirmationDialog = window.AdminApp?.utils?.showConfirmationDialog;
+  if (typeof showConfirmationDialog !== 'function') return Promise.resolve(false);
+  return showConfirmationDialog({
+    title,
+    description: message,
+    confirmLabel: confirmText,
+    cancelLabel: cancelText,
+    variant,
+    closeOnBackdrop: variant !== 'destructive',
+    initialFocus: 'cancel',
+    deletes: trackName ? [trackName] : []
   });
 }

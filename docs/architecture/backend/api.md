@@ -402,6 +402,11 @@ handler 未包 try/catch:抛错走顶层 **500**。
 # 小游戏 API
 
 `GET /api/games/viewers` 返回当前在线快照中的直播间观众候选；
-`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置）；
+`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
+`GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；
 `POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
 `POST /api/games/session/move` 接受主播的 `{value}` 落子。所有端点沿用现有 session token 与 `{ok,data}` 信封。
+
+## 独立转盘 API
+
+`GET /api/wheel` 返回当前内存中的转盘配置、总份数、最近结果和活动抽取动画；`POST /api/wheel/config` 接受 `{entries:[{label,weight}]}`，服务端限制 2–12 个不重复内容、每项 1–100 份、总份数不超过 300；`POST /api/wheel/spin` 按服务端权重抽取并广播 `wheel:update`。转盘 service 与 `/api/games/session` 独立，不参与数字炸弹/五子棋的单会话互斥。所有端点沿用现有 session token 与 `{ok,data}` 信封。

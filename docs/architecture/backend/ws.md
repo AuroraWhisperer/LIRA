@@ -59,6 +59,7 @@
 | `overtime:update` | `{type, reason, state, adjustment?}` | 加班机状态变更([server.js:148-153](../../../src/server.js#L148-L153)),`adjustment` 仅礼物结算时携带 |
 | `shutdown` | `{type:'shutdown', reason:'manual'}` | 服务关闭前(`webSocketHub.stop` 的 `shutdownPayload`,见 §1) |
 | `game:update` | `{type:'game:update', session}` | 小游戏会话开始、停止或落子；Admin 与固定 `/games` 浏览器源消费，浏览器源按 `session.game` 切换画面 |
+| `wheel:update` | `{type:'wheel:update', state}` | 独立转盘配置或抽取状态变更；管理页与 `/wheel` 透明浏览器源消费，不受 `game:update` 会话互斥影响 |
 
 ### 3.1 `snapshot` 的 reason 枚举
 

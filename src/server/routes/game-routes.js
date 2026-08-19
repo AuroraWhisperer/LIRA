@@ -2,7 +2,7 @@
 
 const { sendJson } = require('../http-utils');
 
-const prefixes = ['/api/games'];
+const prefixes = ['/api/games', '/api/wheel'];
 
 const routes = {
   'GET /api/games/viewers'(context, request, res) {
@@ -10,6 +10,9 @@ const routes = {
   },
   'GET /api/games/session'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.games.getSession() });
+  },
+  async 'GET /api/games/winner-profile'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: await context.games.getWinnerProfile() });
   },
   async 'POST /api/games/session'(context, request, res) {
     try {
@@ -32,6 +35,26 @@ const routes = {
       ok: result.accepted,
       ...(result.accepted ? { data: result.session } : { error: result.reason || '落子无效。' })
     });
+  },
+  'GET /api/wheel'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.wheel.getState() });
+  },
+  async 'POST /api/wheel/config'(context, request, res) {
+    try {
+      const body = await request.body();
+      sendJson(res, 200, { ok: true, data: context.wheel.configure(normalizeWheelConfigInput(body)) });
+    } catch (error) {
+      const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;
+      sendJson(res, status, { ok: false, error: error.message || '转盘配置无效。' });
+    }
+  },
+  async 'POST /api/wheel/spin'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: context.wheel.spin() });
+    } catch (error) {
+      const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;
+      sendJson(res, status, { ok: false, error: error.message || '转盘暂时无法抽取。' });
+    }
   }
 };
 
@@ -45,4 +68,12 @@ function normalizeSessionInput(input = {}) {
   return { game, mode, targetUid, targetName };
 }
 
-module.exports = { prefixes, routes, normalizeSessionInput };
+function normalizeWheelConfigInput(input = {}) {
+  if (!Array.isArray(input.entries)) throw new Error('请至少配置两个转盘选项。');
+  return input.entries.map(entry => ({
+    label: String(entry?.label || '').trim(),
+    weight: entry?.weight
+  }));
+}
+
+module.exports = { prefixes, routes, normalizeSessionInput, normalizeWheelConfigInput };

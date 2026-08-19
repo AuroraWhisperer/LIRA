@@ -235,6 +235,7 @@ function init() {
         item.type = 'button';
         item.className = 'xiaomi-ai-model-option';
         item.setAttribute('role', 'option');
+        item.tabIndex = -1;
         item.setAttribute('aria-selected', String(model === modelInput.value));
         item.textContent = model;
         item.addEventListener('click', () => {
@@ -259,8 +260,63 @@ function init() {
   });
 
   modelInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeModelMenu();
+    if (event.key === 'Escape') {
+      closeModelMenu();
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key) || !modelMenu.children.length) return;
+    event.preventDefault();
+    const options = [...modelMenu.querySelectorAll('[role="option"]')];
+    const selectedIndex = options.findIndex(item => item.getAttribute('aria-selected') === 'true');
+    const nextIndex = modelMenu.hidden
+      ? (event.key === 'ArrowUp' ? options.length - 1 : (selectedIndex < 0 ? 0 : selectedIndex))
+      : event.key === 'ArrowUp'
+        ? Math.max(0, selectedIndex < 0 ? options.length - 1 : selectedIndex - 1)
+        : Math.min(options.length - 1, selectedIndex < 0 ? 0 : selectedIndex + 1);
+    openModelMenu();
+    focusModelOption(options[nextIndex]);
   });
+
+  if (typeof modelMenu?.addEventListener === 'function') modelMenu.addEventListener('keydown', (event) => {
+    const options = [...modelMenu.querySelectorAll('[role="option"]')];
+    const currentIndex = options.indexOf(document.activeElement);
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const nextIndex = event.key === 'Home' ? 0
+        : event.key === 'End' ? options.length - 1
+          : event.key === 'ArrowUp' ? Math.max(0, currentIndex - 1)
+            : Math.min(options.length - 1, currentIndex + 1);
+      focusModelOption(options[nextIndex]);
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      options[currentIndex >= 0 ? currentIndex : 0]?.click();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModelMenu();
+      modelInput.focus();
+    } else if (event.key === 'Tab') {
+      closeModelMenu();
+    }
+  });
+
+  if (typeof document?.addEventListener === 'function') {
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.xiaomi-ai-model-picker')) closeModelMenu();
+    });
+  }
+
+  function openModelMenu() {
+    if (!modelMenu.children.length) return;
+    modelMenu.hidden = false;
+    modelInput.setAttribute('aria-expanded', 'true');
+    fetchModelsButton.setAttribute('aria-expanded', 'true');
+  }
+
+  function focusModelOption(option) {
+    if (!option) return;
+    option.focus({ preventScroll: true });
+    option.scrollIntoView?.({ block: 'nearest' });
+  }
 
   function closeModelMenu() {
     modelMenu.hidden = true;

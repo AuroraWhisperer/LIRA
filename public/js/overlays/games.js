@@ -6,6 +6,7 @@ let reconnectTimer = null;
 let reconnectAttempts = 0;
 let snapshotRetryTimer = null;
 let initialSnapshotLoaded = false;
+let resultProfileRequest = 0;
 
 const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
@@ -13,6 +14,8 @@ const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 document.addEventListener('DOMContentLoaded', () => {
   loadSnapshot();
   connectSocket();
+  byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
+  window.addEventListener('resize', positionGameResult);
 });
 
 async function loadSnapshot(attempt = 0) {
@@ -85,7 +88,7 @@ function renderGame(nextSession) {
   byId('gameTurn').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}的回合`;
   if (game === 'number-bomb') renderBomb(state);
   else renderGomoku(state);
-  if (state.winner) showGameResult(state.winner);
+  if (state.winner) showGameResult(state.winner, session.winner);
   else hideGameResult();
 }
 
@@ -152,14 +155,69 @@ function turnLabel(turn) { return turn === 'viewer' ? '观众' : '主播'; }
 function winnerLabel(winner) { return winner === 'draw' ? '和棋' : `${winner === 'viewer' ? '观众' : '主播'}获胜`; }
 function byId(id) { return document.getElementById(id); }
 
-function showGameResult(winner) {
+function showGameResult(winner, winnerIdentity = {}) {
   const resultEl = byId('gameResult');
   const textEl = byId('gameResultText');
+  const winnerUid = String(winnerIdentity.uid || '').trim();
+  if (!resultEl.hidden && resultEl.dataset.winner === winner && resultEl.dataset.winnerUid === winnerUid) return;
+  const requestId = ++resultProfileRequest;
   resultEl.dataset.winner = winner;
+  resultEl.dataset.winnerUid = winnerUid;
   textEl.textContent = winnerLabel(winner);
   resultEl.hidden = false;
+  positionGameResult();
+  hideGameResultAvatar();
+  if (winner !== 'draw') void loadWinnerProfile(requestId, winner);
+}
+
+function positionGameResult() {
+  const resultEl = byId('gameResult');
+  if (!resultEl || resultEl.hidden) return;
+  const target = document.body.dataset.game === 'gomoku'
+    ? byId('gomokuBoard')
+    : byId('bombNumbers');
+  const stage = byId('gameStage');
+  if (!target || !stage) return;
+  const targetRect = target.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  if (targetRect.width <= 0 || targetRect.height <= 0) return;
+  resultEl.style.left = `${targetRect.left - stageRect.left}px`;
+  resultEl.style.top = `${targetRect.top - stageRect.top}px`;
+  resultEl.style.width = `${targetRect.width}px`;
+  resultEl.style.height = `${targetRect.height}px`;
+}
+
+async function loadWinnerProfile(requestId, winner) {
+  try {
+    const response = await fetch('/api/games/winner-profile', { cache: 'no-store' });
+    const payload = await response.json();
+    if (!payload.ok || requestId !== resultProfileRequest) return;
+    const profile = payload.data || {};
+    const resultEl = byId('gameResult');
+    if (resultEl.hidden || resultEl.dataset.winner !== winner) return;
+    if (!profile.avatarUrl) return;
+    const avatar = byId('gameResultAvatar');
+    avatar.alt = `${turnLabel(winner)}头像`;
+    avatar.src = profile.avatarUrl;
+    avatar.hidden = false;
+  } catch (_) {
+    hideGameResultAvatar();
+  }
 }
 
 function hideGameResult() {
-  byId('gameResult').hidden = true;
+  resultProfileRequest += 1;
+  const resultEl = byId('gameResult');
+  resultEl.hidden = true;
+  resultEl.removeAttribute('style');
+  delete resultEl.dataset.winner;
+  delete resultEl.dataset.winnerUid;
+  hideGameResultAvatar();
+}
+
+function hideGameResultAvatar() {
+  const avatar = byId('gameResultAvatar');
+  avatar.hidden = true;
+  avatar.alt = '';
+  avatar.removeAttribute('src');
 }

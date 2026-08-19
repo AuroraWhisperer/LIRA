@@ -26,6 +26,7 @@ const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
 const { createGameSessionService } = require('./games/game-session-service');
+const { createWheelSessionService } = require('./games/wheel-session-service');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -82,6 +83,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let danmakuSender = null;
   let aiRuntime = null;
   let gameSessionService = null;
+  let wheelSessionService = null;
   let applicationInitialized = false;
   let publishOvertimeUpdate = () => {};
   let isShuttingDown = false;
@@ -100,6 +102,9 @@ function createServerRuntime(runtimeOptions = {}) {
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
       gameSessionService = createGameSessionService({
+        broadcast: payload => webSocketHub.broadcast(payload)
+      });
+      wheelSessionService = createWheelSessionService({
         broadcast: payload => webSocketHub.broadcast(payload)
       });
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
@@ -291,8 +296,10 @@ function createServerRuntime(runtimeOptions = {}) {
       ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
       games: {
         service: gameSessionService,
-        listOnlineViewers: bilibiliRuntime.getViewerCandidates
+        listOnlineViewers: bilibiliRuntime.getViewerCandidates,
+        getWinnerProfile: bilibiliRuntime.getGameWinnerProfile
       },
+      wheel: { service: wheelSessionService },
       settings: { defaults: DEFAULT_SETTINGS, store: settingsStore },
       system: {
         rootDir: ROOT_DIR,
@@ -512,6 +519,7 @@ function createServerRuntime(runtimeOptions = {}) {
     danmakuSender = null;
     aiRuntime = null;
     gameSessionService = null;
+    wheelSessionService = null;
     applicationInitialized = false;
     publishOvertimeUpdate = () => {};
   }

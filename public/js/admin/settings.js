@@ -10,6 +10,7 @@
     api,
     readJsonResponse,
     dangerConfirm,
+    showConfirmationDialog,
     localOverlayOrigin
   } = window.AdminApp.utils;
 
@@ -162,7 +163,14 @@
     });
 
     document.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
-      if (!confirm('确认重置本轮已收金额？礼物流水会保留。')) return;
+      const confirmed = await showConfirmationDialog({
+        variant: 'caution',
+        title: '重置本轮礼物进度？',
+        description: '本轮已收金额会归零，但礼物流水仍会保留，之后可以继续统计。',
+        confirmLabel: '重置进度',
+        initialFocus: 'cancel'
+      });
+      if (!confirmed) return;
       await api('/api/gifts/sprint/reset', {});
       toast('本轮冲刺已重置');
       if (window.AdminApp.state && window.AdminApp.state.reloadState) {
@@ -516,7 +524,14 @@
   }
 
   async function shutdownServer() {
-    if (!confirm('确认退出 LIRA？退出后会关闭本地服务并释放端口。')) {
+    const confirmed = await showConfirmationDialog({
+      variant: 'caution',
+      title: '退出 LIRA？',
+      description: '应用会关闭本地服务、断开弹幕连接并释放端口。已保存的数据不会受到影响。',
+      confirmLabel: '退出 LIRA',
+      initialFocus: 'cancel'
+    });
+    if (!confirmed) {
       return;
     }
     if (window.AdminApp.state && window.AdminApp.state.setShuttingDown) {

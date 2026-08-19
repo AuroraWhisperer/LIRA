@@ -20,7 +20,7 @@
 
 .track-menu-btn:hover {
   background: var(--surface-2);
-  border-color: var(--primary);
+  border-color: var(--color-control-accent, var(--primary));
 }
 
 .track-menu-btn:active {
@@ -36,7 +36,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(22, 31, 43, 0.15);
+  box-shadow: var(--shadow-floating, 0 4px 12px rgba(22, 31, 43, 0.15));
   z-index: 100;
 }
 
@@ -62,6 +62,12 @@
   background: var(--surface-2);
 }
 
+.track-menu button:focus-visible,
+.track-menu-btn:focus-visible {
+  outline: 2px solid var(--color-control-focus, var(--accent));
+  outline-offset: 2px;
+}
+
 .track-menu button.danger {
   color: var(--danger);
 }
@@ -69,4 +75,3 @@
 .track-menu button.danger:hover {
   background: rgba(239, 68, 68, 0.1);
 }
-

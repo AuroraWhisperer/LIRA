@@ -212,6 +212,8 @@ body.blind-analysis-open .playback-player-panel {
   font-size: 13px;
   font-weight: 700;
   text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
 }
 
 .blind-analysis-select:hover {
@@ -222,6 +224,11 @@ body.blind-analysis-open .playback-player-panel {
 .blind-analysis-select[aria-expanded="true"] {
   border-color: var(--analysis-green);
   box-shadow: 0 0 0 3px rgba(21, 155, 143, 0.12);
+}
+
+.blind-analysis-select:focus-visible {
+  outline: 2px solid rgba(21, 155, 143, 0.32);
+  outline-offset: 2px;
 }
 
 .blind-analysis-select > span {
@@ -299,6 +306,11 @@ body.blind-analysis-open .playback-player-panel {
 .blind-analysis-option:hover,
 .blind-analysis-option.focused {
   background: #f0f6f5;
+}
+
+.blind-analysis-option:focus-visible {
+  outline: 2px solid rgba(21, 155, 143, 0.32);
+  outline-offset: -2px;
 }
 
 .blind-analysis-option[aria-selected="true"] {

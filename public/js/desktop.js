@@ -265,25 +265,12 @@ function desktopUpdateStatusText(state) {
 }
 
 function showRestartConfirmModal() {
-  return new Promise((resolve) => {
-    const overlay = document.getElementById('restartConfirmModal');
-    if (!overlay) { resolve(window.confirm('确认重启并更新到新版本？')); return; }
-    const okBtn = document.getElementById('restartConfirmOkBtn');
-    const cancelBtn = document.getElementById('restartConfirmCancelBtn');
-    overlay.hidden = false;
-    function close(result) {
-      overlay.hidden = true;
-      okBtn.removeEventListener('click', onOk);
-      cancelBtn.removeEventListener('click', onCancel);
-      overlay.removeEventListener('click', onBackdrop);
-      resolve(result);
-    }
-    function onOk() { close(true); }
-    function onCancel() { close(false); }
-    function onBackdrop(e) { if (e.target === overlay) close(false); }
-    okBtn.addEventListener('click', onOk);
-    cancelBtn.addEventListener('click', onCancel);
-    overlay.addEventListener('click', onBackdrop);
+  return U.showConfirmationDialog({
+    variant: 'caution',
+    title: '现在重启并安装更新？',
+    description: '应用会退出并安装已下载的新版本。建议确认直播间暂时不需要操作后再继续。',
+    confirmLabel: '重启并更新',
+    initialFocus: 'cancel'
   });
 }
 

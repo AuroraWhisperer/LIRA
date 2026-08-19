@@ -7,6 +7,8 @@ function createGameSessionService(options = {}) {
   const broadcast = typeof options.broadcast === 'function' ? options.broadcast : () => {};
   const viewers = new Map();
   let session = null;
+  let viewer = null;
+  let winner = null;
 
   function touchViewer(danmaku = {}) {
     const uid = String(danmaku.uid || '').trim();
@@ -32,6 +34,8 @@ function createGameSessionService(options = {}) {
     const mode = input.mode === 'multi' ? 'multi' : 'single';
     const targetUid = String(input.targetUid || '').trim();
     const targetName = String(input.targetName || '').trim();
+    viewer = targetUid ? { uid: targetUid, name: targetName || '观众' } : null;
+    winner = null;
     session = {
       game,
       mode,
@@ -46,17 +50,25 @@ function createGameSessionService(options = {}) {
 
   function stop() {
     session = null;
+    viewer = null;
+    winner = null;
     publish();
     return null;
   }
 
-  function move(input = {}, player = 'host') {
+  function move(input = {}, player = 'host', playerIdentity = {}) {
     if (!session) return { accepted: false, reason: '当前没有进行中的游戏。' };
     const result = session.game === 'gomoku'
       ? gomoku.placeStone(session.state, input.value, player)
       : numberBomb.guessNumber(session.state, input.value, player);
     if (!result.accepted) return result;
     session.state = result.state;
+    if (player === 'viewer') viewer = normalizeViewer(playerIdentity, viewer);
+    if (result.state.winner) {
+      winner = result.state.winner === 'viewer'
+        ? { role: 'viewer', ...(viewer || {}) }
+        : { role: 'host', uid: '', name: '' };
+    }
     publish();
     return { ...result, session: publicSession() };
   }
@@ -71,7 +83,7 @@ function createGameSessionService(options = {}) {
       ? extractCoordinate(danmaku.message)
       : extractNumber(danmaku.message);
     if (value === null) return { accepted: false };
-    return move({ value }, 'viewer');
+    return move({ value }, 'viewer', { uid, name: danmaku.userName });
   }
 
   function getSession() { return publicSession(); }
@@ -84,6 +96,7 @@ function createGameSessionService(options = {}) {
       targetUid: session.targetUid,
       targetName: session.targetName,
       startedAt: session.startedAt,
+      ...(winner ? { winner } : {}),
       state: session.game === 'number-bomb'
         ? numberBomb.publicNumberBombState(session.state)
         : session.state
@@ -100,6 +113,12 @@ function createGameSessionService(options = {}) {
   }
 
   return { start, stop, move, handleDanmaku, getSession, listViewers };
+}
+
+function normalizeViewer(input = {}, fallback = null) {
+  const uid = String(input.uid || fallback?.uid || '').trim();
+  const name = String(input.name || fallback?.name || '观众').trim() || '观众';
+  return uid ? { uid, name } : fallback;
 }
 
 function extractNumber(message) {

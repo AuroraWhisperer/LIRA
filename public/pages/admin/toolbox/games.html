@@ -85,6 +85,42 @@
                       </div>
                     </div>
                   </article>
+
+                  <article class="game-admin-card is-wheel is-collapsed" data-wheel-card>
+                    <button id="wheelCardTrigger" class="wheel-card-trigger" type="button" aria-expanded="false" aria-controls="wheelCardDetails">
+                      <span class="game-card-poster" aria-hidden="true"><span>03</span><strong>WEIGHTED<br>WHEEL</strong><i></i></span>
+                      <span class="wheel-card-summary">
+                        <span class="game-card-heading">
+                          <span><span>主播自定义内容</span><strong>转转盘</strong></span>
+                          <span class="game-card-chip">独立运行</span>
+                        </span>
+                        <span class="wheel-card-description">每一份就是一次抽取机会。内容占总份数的比例，就是它被抽中的概率。</span>
+                        <span class="wheel-expand-hint"><span class="wheel-expand-icon" aria-hidden="true">＋</span><span>点击展开配置转盘</span></span>
+                      </span>
+                    </button>
+                    <div id="wheelCardDetails" class="wheel-card-details" hidden>
+                      <div class="game-card-content">
+                        <p class="wheel-detail-intro">转盘独立于数字炸弹和五子棋运行，保存后即可在单独网页中展示。</p>
+                      <div class="wheel-link-row">
+                        <label>转盘网页<input id="wheelOverlayUrl" type="text" readonly></label>
+                        <div>
+                          <button id="wheelCopyUrlBtn" class="secondary" type="button">复制地址</button>
+                          <button id="wheelOpenUrlBtn" class="secondary" type="button">打开网页</button>
+                        </div>
+                      </div>
+                      <div class="wheel-editor" aria-labelledby="wheelEditorTitle">
+                        <div class="wheel-editor-heading"><strong id="wheelEditorTitle">转盘内容与份数</strong><span id="wheelTotalWeight">总份数 0</span></div>
+                        <div id="wheelEntries" class="wheel-entry-list"></div>
+                        <button id="wheelAddEntryBtn" class="secondary wheel-add-entry" type="button">+ 添加一项</button>
+                      </div>
+                      <div class="game-card-actions wheel-actions">
+                        <button id="wheelSaveBtn" class="secondary" type="button">保存转盘设置</button>
+                        <button id="wheelSpinBtn" class="primary" type="button" disabled>开始转动</button>
+                        <span id="wheelStatus" class="wheel-status" role="status" aria-live="polite">至少配置两个选项后开始</span>
+                      </div>
+                      </div>
+                    </div>
+                  </article>
                 </section>
               </div>
             </section>

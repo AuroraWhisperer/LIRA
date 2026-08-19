@@ -19,6 +19,7 @@ function createApiContext(options) {
     bilibili,
     ai,
     games,
+    wheel,
     settings,
     system,
     music
@@ -110,6 +111,7 @@ function createApiContext(options) {
       testProvider: (provider) => ai.service.testProvider(provider)
     },
     games: createGamesContext(games),
+    wheel: createWheelContext(wheel),
     settings: {
       defaults: settings.defaults,
       get: settings.store.getSettings,
@@ -144,6 +146,19 @@ function createApiContext(options) {
   };
 }
 
+function createWheelContext(wheel = {}) {
+  const service = wheel.service || {
+    getState: () => ({ entries: [], totalWeight: 0, lastResult: null, spin: null }),
+    configure: () => null,
+    spin: () => null
+  };
+  return {
+    getState: service.getState,
+    configure: service.configure,
+    spin: service.spin
+  };
+}
+
 function createGamesContext(games = {}) {
   const service = games.service || {
     getSession: () => null,
@@ -155,12 +170,16 @@ function createGamesContext(games = {}) {
   const listOnlineViewers = typeof games.listOnlineViewers === 'function'
     ? games.listOnlineViewers
     : () => [];
+  const getWinnerProfile = typeof games.getWinnerProfile === 'function'
+    ? games.getWinnerProfile
+    : async () => ({ avatarUrl: '', name: '' });
   return {
     getSession: service.getSession,
     start: service.start,
     stop: service.stop,
     move: service.move,
-    listViewers: () => mergeViewerCandidates(listOnlineViewers())
+    listViewers: () => mergeViewerCandidates(listOnlineViewers()),
+    getWinnerProfile: () => getWinnerProfile(service.getSession()?.winner)
   };
 }
 

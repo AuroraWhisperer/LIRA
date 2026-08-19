@@ -32,6 +32,7 @@
 | `/overtime` | [overlays/overtime.html](../../../public/pages/overlays/overtime.html) | OBS 浏览器源、管理页预览 `<iframe>` | 加班机叠加层,支持 `?quality=low`(降帧/降动画) |
 | `/lyrics` | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | OBS 浏览器源、独立浏览器窗口 | 桌面歌词完整时间轴;地址由管理页「复制桌面歌词」提供 |
 | `/games` | [overlays/games.html](../../../public/pages/overlays/games.html) | OBS 浏览器源、独立浏览器窗口 | 直播小游戏浏览器源；管理页先打开固定地址再开始游戏，页面按当前会话自动显示数字炸弹或五子棋，旧 `?game=` 地址仍可访问但参数不再决定游戏 |
+| `/wheel` | [overlays/wheel.html](../../../public/pages/overlays/wheel.html) | OBS 浏览器源、独立浏览器窗口 | 独立转盘浏览器源；圆形外透明，按主播配置的内容份数绘制多色扇形，抽取时旋转并突出最终结果；不参与 `/games` 会话互斥 |
 
 调试页面(无 URL 映射,只能按文件路径访问):
 

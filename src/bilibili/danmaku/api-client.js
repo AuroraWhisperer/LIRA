@@ -69,6 +69,20 @@ class BilibiliApiClient {
     return cleanText(payload && payload.data && (payload.data.uname || payload.data.name));
   }
 
+  async fetchUserProfile(uid) {
+    const userId = String(uid || '').trim();
+    if (!/^\d{1,20}$/.test(userId)) return { avatarUrl: '', name: '' };
+    const { payload } = await this.fetchJson(
+      'user_card',
+      `https://api.bilibili.com/x/web-interface/card?mid=${encodeURIComponent(userId)}`
+    );
+    const card = payload && payload.data && payload.data.card;
+    return {
+      avatarUrl: normalizeBilibiliAvatarUrl(card && card.face),
+      name: cleanText(card && card.name)
+    };
+  }
+
   async resolveDanmuInfo(roomId) {
     const query = await wbiSigner.signBilibiliWbiParams({ id: roomId, type: 0 }, this.requestHeaders());
     const { payload, response } = await this.fetchJson(
@@ -227,6 +241,16 @@ function bilibiliErrorHint(code) {
 
 function redactUrl(url) {
   return String(url).replace(/(w_rid=)[^&]+/g, '$1<redacted>');
+}
+
+function normalizeBilibiliAvatarUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) return '';
+    return url.toString();
+  } catch (_) {
+    return '';
+  }
 }
 
 module.exports = { BilibiliApiClient };

@@ -35,59 +35,13 @@ export function createPlaylistOperations(deps) {
    * 显示确认对话框
    */
   function showConfirmDialog(title, message, trackName, confirmText = '确认', cancelText = '取消') {
-    return new Promise((resolve) => {
-      const backdrop = document.createElement('div');
-      backdrop.className = 'confirm-dialog-backdrop';
-      backdrop.setAttribute('role', 'dialog');
-      backdrop.setAttribute('aria-modal', 'true');
-
-      backdrop.innerHTML = `
-        <div class="confirm-dialog">
-          <div class="confirm-dialog-header">
-            <h3>${escapeHtml(title)}</h3>
-          </div>
-          <div class="confirm-dialog-body">
-            ${escapeHtml(message)}
-            ${trackName ? `<div class="confirm-dialog-track">${escapeHtml(trackName)}</div>` : ''}
-          </div>
-          <div class="confirm-dialog-footer">
-            <button type="button" class="confirm-cancel">${escapeHtml(cancelText)}</button>
-            <button type="button" class="confirm-delete">${escapeHtml(confirmText)}</button>
-          </div>
-        </div>
-      `;
-
-      let settled = false;
-      const close = (confirmed = false) => {
-        if (settled) return;
-        settled = true;
-        document.removeEventListener('keydown', handleKeydown);
-        backdrop.remove();
-        resolve(confirmed);
-      };
-
-      const handleKeydown = (event) => {
-        if (event.key === 'Escape') close(false);
-        if (event.key === 'Enter') close(true);
-      };
-
-      backdrop.addEventListener('click', (event) => {
-        if (event.target === backdrop) {
-          close(false);
-          return;
-        }
-        if (event.target.closest('.confirm-cancel')) {
-          close(false);
-          return;
-        }
-        if (event.target.closest('.confirm-delete')) {
-          close(true);
-        }
-      });
-
-      document.addEventListener('keydown', handleKeydown);
-      document.body.appendChild(backdrop);
-      backdrop.querySelector('.confirm-delete')?.focus();
+    return PlaybackComponents.showConfirmDialog({
+      title,
+      message,
+      trackName,
+      confirmText,
+      cancelText,
+      variant: confirmText === '删除' ? 'destructive' : 'normal'
     });
   }
 

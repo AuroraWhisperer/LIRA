@@ -72,6 +72,27 @@ function createBilibiliRuntime(options) {
     return sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId);
   }
 
+  async function getGameWinnerProfile(winner = {}) {
+    const role = winner.role === 'viewer' ? 'viewer' : winner.role === 'host' ? 'host' : '';
+    if (!role) return { avatarUrl: '', name: '' };
+
+    const apiClient = client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
+    let uid = role === 'viewer' ? String(winner.uid || '').trim() : String(client?.ownerUid || '').trim();
+    let name = String(winner.name || '').trim();
+    try {
+      if (role === 'host' && !uid) {
+        const roomInfo = await apiClient.resolveRoomInfo();
+        uid = String(roomInfo.uid || '').trim();
+        name = String(roomInfo.ownerName || '').trim();
+      }
+      if (!uid) return { avatarUrl: '', name };
+      const profile = await apiClient.fetchUserProfile(uid);
+      return { avatarUrl: profile.avatarUrl, name: profile.name || name };
+    } catch (_) {
+      return { avatarUrl: '', name };
+    }
+  }
+
   function setAuthProvider(nextAuthProvider) {
     authProvider = nextAuthProvider || null;
   }
@@ -201,7 +222,8 @@ function createBilibiliRuntime(options) {
     getDiagnostics: () => diagnostics,
     getLiveStatus: () => liveStatus,
     getMessageBuffer: () => messageBuffer,
-    getViewerCandidates: () => client?.getViewerCandidates?.() || []
+    getViewerCandidates: () => client?.getViewerCandidates?.() || [],
+    getGameWinnerProfile
   };
 }
 

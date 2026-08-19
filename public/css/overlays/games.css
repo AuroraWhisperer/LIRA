@@ -42,15 +42,18 @@ body:not([data-game='number-bomb']) .bomb-status { display: none; }
 .game-empty { grid-column: 2; grid-row: 1; align-self: start; justify-self: start; display: grid; text-align: left; }
 .game-empty strong { font-size: clamp(22px, 3vw, 40px); letter-spacing: -.04em; }
 .game-result[hidden] { display: none; }
-.game-result { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(20, 19, 39, .85); backdrop-filter: blur(8px); animation: resultFadeIn 320ms ease forwards; }
-.game-result-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 2vw, 20px); padding: clamp(24px, 3.5vw, 40px) clamp(32px, 4.5vw, 56px); border-radius: 16px; background: linear-gradient(135deg, rgba(128, 116, 232, .12), rgba(255, 200, 87, .08)); box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 24px 60px rgba(0, 0, 0, .4); animation: resultCardIn 420ms cubic-bezier(.34, 1.56, .64, 1) .15s backwards; }
-.game-result-icon { width: clamp(64px, 9vw, 96px); height: clamp(64px, 9vw, 96px); display: grid; place-items: center; animation: resultIconPulse 800ms ease-in-out infinite alternate; }
+.game-result { position: absolute; left: 0; top: 0; z-index: 100; display: grid; place-items: center; background: rgba(20, 19, 39, .85); backdrop-filter: blur(8px); animation: resultFadeIn 320ms ease forwards; }
+.game-result-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.2vw, 12px); max-width: 90%; padding: clamp(14px, 2vw, 22px) clamp(18px, 2.8vw, 30px); border-radius: 12px; background: linear-gradient(135deg, rgba(128, 116, 232, .12), rgba(255, 200, 87, .08)); box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 14px 36px rgba(0, 0, 0, .4); animation: resultCardIn 420ms cubic-bezier(.34, 1.56, .64, 1) .15s backwards; }
+.game-result-icon { width: clamp(44px, 6vw, 68px); height: clamp(44px, 6vw, 68px); display: grid; place-items: center; animation: resultIconPulse 800ms ease-in-out infinite alternate; }
 .game-result-icon svg { width: 100%; height: 100%; display: none; }
 .game-result-icon .icon-bomb { display: block; filter: drop-shadow(0 6px 20px rgba(255, 107, 53, .5)); }
 body[data-game='gomoku'] .game-result-icon .icon-bomb { display: none; }
 body[data-game='gomoku'] .game-result-icon .icon-gomoku { display: block; filter: drop-shadow(0 6px 20px rgba(228, 216, 182, .5)); }
 .game-result[data-winner='draw'] .game-result-icon svg { filter: drop-shadow(0 6px 20px rgba(180, 160, 220, .4)); }
-.game-result-text { color: var(--ink); font-size: clamp(20px, 2.8vw, 32px); font-weight: 700; letter-spacing: -.02em; text-align: center; animation: resultTextIn 400ms ease .3s backwards; }
+.game-result-winner { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.game-result-avatar { width: clamp(26px, 3vw, 34px); height: clamp(26px, 3vw, 34px); border: 2px solid rgba(255, 255, 255, .82); border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); object-fit: cover; }
+.game-result-avatar[hidden] { display: none; }
+.game-result-text { color: var(--ink); font-size: clamp(16px, 2.2vw, 24px); font-weight: 700; letter-spacing: -.02em; text-align: center; animation: resultTextIn 400ms ease .3s backwards; }
 @keyframes resultFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes resultCardIn { from { opacity: 0; transform: scale(.88) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes resultIconPulse { from { transform: scale(1); } to { transform: scale(1.08); } }

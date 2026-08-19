@@ -54,3 +54,22 @@ test('game session route returns conflict for a second start request', async () 
   assert.match(payload.error, /请先结束当前游戏/);
   assert.equal(service.getSession().game, 'number-bomb');
 });
+
+test('game winner profile route returns transient avatar data', async () => {
+  let status;
+  let payload;
+  await routes['GET /api/games/winner-profile'](
+    { games: { getWinnerProfile: async () => ({ avatarUrl: 'https://i0.hdslb.com/bfs/face/test.jpg', name: 'Alice' }) } },
+    {},
+    {
+      writeHead(nextStatus) { status = nextStatus; },
+      end(body) { payload = JSON.parse(body); }
+    }
+  );
+
+  assert.equal(status, 200);
+  assert.deepEqual(payload, {
+    ok: true,
+    data: { avatarUrl: 'https://i0.hdslb.com/bfs/face/test.jpg', name: 'Alice' }
+  });
+});
