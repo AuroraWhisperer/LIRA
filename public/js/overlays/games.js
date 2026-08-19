@@ -80,11 +80,13 @@ function renderGame(nextSession) {
   byId('gameEmptyView').hidden = Boolean(session);
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
-  if (!session) { byId('gameTurn').textContent = '等待开局'; return; }
+  if (!session) { byId('gameTurn').textContent = '等待开局'; hideGameResult(); return; }
   const state = session.state;
   byId('gameTurn').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}的回合`;
   if (game === 'number-bomb') renderBomb(state);
   else renderGomoku(state);
+  if (state.winner) showGameResult(state.winner);
+  else hideGameResult();
 }
 
 function renderBomb(state) {
@@ -149,3 +151,15 @@ function coordinateLabel(move) { return `${String.fromCharCode(65 + Number(move.
 function turnLabel(turn) { return turn === 'viewer' ? '观众' : '主播'; }
 function winnerLabel(winner) { return winner === 'draw' ? '和棋' : `${winner === 'viewer' ? '观众' : '主播'}获胜`; }
 function byId(id) { return document.getElementById(id); }
+
+function showGameResult(winner) {
+  const resultEl = byId('gameResult');
+  const textEl = byId('gameResultText');
+  resultEl.dataset.winner = winner;
+  textEl.textContent = winnerLabel(winner);
+  resultEl.hidden = false;
+}
+
+function hideGameResult() {
+  byId('gameResult').hidden = true;
+}

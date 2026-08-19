@@ -412,10 +412,15 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
 
     const settingsState = await postJson(app.baseUrl, '/api/settings', {
       enableBilibili: false,
-      queueLimit: 3
+      queueLimit: 3,
+      onboardingVersion: '1',
+      onboardingCompletedAt: '2026-08-19T00:00:00.000Z',
+      onboardingSkippedOptional: 'ai'
     });
     assert.equal(settingsState.settings.enableBilibili, 'false');
     assert.equal(settingsState.settings.queueLimit, '3');
+    assert.equal(settingsState.settings.onboardingVersion, '1');
+    assert.equal(settingsState.settings.onboardingSkippedOptional, 'ai');
 
     const savedSong = await postJson(app.baseUrl, '/api/songs/save', {
       name: 'Smoke Song',
@@ -484,6 +489,8 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(finalState.songCount, 0);
     assert.equal(finalState.queue.waiting.length, 0);
     assert.equal(finalState.settings.queueLimit, '3');
+    assert.equal(finalState.settings.onboardingVersion, '1');
+    assert.equal(finalState.settings.onboardingCompletedAt, '2026-08-19T00:00:00.000Z');
     assert.equal(finalState.categories.some((category) => category.name === '默认'), true);
   } finally {
     if (shutdownApplication) {

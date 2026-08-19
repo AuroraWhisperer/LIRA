@@ -78,9 +78,8 @@
         <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
           <div class="panel-header wesing-panel-heading">
             <div>
-              <span class="wesing-eyebrow">WE SING LIVE CAPTURE</span>
-              <h2>全民 K歌歌词现场</h2>
-              <span class="panel-subtitle">从本机全民 K 歌客户端读取当前歌曲、进度和逐字 QRC 歌词</span>
+              <span class="wesing-eyebrow">LIVE</span>
+              <h2>全民 K歌歌词</h2>
             </div>
             <div class="actions">
               <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
@@ -90,17 +89,15 @@
           <div class="panel-body wesing-capture-layout">
             <article class="wesing-live-stage" aria-labelledby="weSingTrackTitle">
               <div class="wesing-stage-topline">
-                <span class="wesing-live-mark"><i aria-hidden="true"></i> LIVE LYRIC</span>
-                <span id="weSingPlaybackState">等待全民 K 歌播放</span>
+                <span class="wesing-live-mark"><i aria-hidden="true"></i> LIVE</span>
+                <span id="weSingPlaybackState"></span>
               </div>
               <div class="wesing-track-copy">
-                <span class="wesing-track-label">正在捕捉</span>
-                <h3 id="weSingTrackTitle">尚未检测到歌曲</h3>
-                <p id="weSingTrackMeta">启动全民 K 歌并开始播放后，这里会自动跟随。</p>
+                <h3 id="weSingTrackTitle">等待播放</h3>
+                <p id="weSingTrackMeta"></p>
               </div>
               <div class="wesing-lyric-stage" aria-live="polite">
-                <p id="weSingLyricLine" class="wesing-lyric-line">等待歌词</p>
-                <p id="weSingLyricHint" class="wesing-lyric-hint">逐字进度会同步发送到桌面歌词</p>
+                <p id="weSingLyricLine" class="wesing-lyric-line">—</p>
               </div>
               <div class="wesing-progress-row">
                 <time id="weSingCurrentTime">00:00</time>
@@ -110,31 +107,28 @@
             </article>
 
             <aside class="wesing-capture-console">
-              <label class="wesing-path-field" for="weSingCachePath">
-                <span>全民 K 歌缓存目录</span>
+              <div class="wesing-path-field">
                 <div class="wesing-path-control">
-                  <input id="weSingCachePath" type="text" spellcheck="false" autocomplete="off" placeholder="C:\Users\你\AppData\Roaming\Tencent\WeSing\WeSingCache">
-                  <button id="weSingSelectCacheBtn" type="button" title="选择目录" aria-label="选择全民 K 歌缓存目录">
+                  <input id="weSingCachePath" type="text" spellcheck="false" autocomplete="off" placeholder="WeSingCache 目录路径">
+                  <button id="weSingSelectCacheBtn" type="button" title="选择缓存目录" aria-label="选择全民 K 歌缓存目录">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10h-17v-12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
                   </button>
                 </div>
-              </label>
-              <button id="weSingSaveCacheBtn" class="primary wesing-save-path" type="button">保存目录并检测</button>
-              <label class="wesing-offset-field" for="weSingLyricOffsetMs">
-                <span>歌词时间偏移</span>
+                <button id="weSingSaveCacheBtn" class="primary wesing-save-path" type="button">保存并检测</button>
+              </div>
+              <div class="wesing-offset-field">
                 <div class="wesing-offset-control">
                   <input id="weSingLyricOffsetMs" class="parameter-range" type="range" min="-3000" max="3000" step="50" value="0">
-                  <input id="weSingLyricOffsetMsNumber" type="number" min="-3000" max="3000" step="50" value="0" aria-label="全民歌词时间偏移毫秒数">
+                  <input id="weSingLyricOffsetMsNumber" type="number" min="-3000" max="3000" step="50" value="0" aria-label="歌词偏移" placeholder="0">
                   <button id="weSingResetLyricOffsetBtn" type="button">重置</button>
                   <span>ms</span>
                 </div>
-              </label>
-              <div class="wesing-signal-list" aria-label="捕捉状态">
-                <div><i id="weSingClientSignal" aria-hidden="true"></i><span>全民客户端</span><strong id="weSingClientStatus">未检测</strong></div>
-                <div><i id="weSingCacheSignal" aria-hidden="true"></i><span>歌词缓存</span><strong id="weSingCacheStatus">待检查</strong></div>
-                <div><i id="weSingLyricSignal" aria-hidden="true"></i><span>逐字歌词</span><strong id="weSingLyricStatus">等待歌曲</strong></div>
               </div>
-              <p id="weSingStatusMessage" class="wesing-status-message">请选择 WeSingCache 目录后开始检测。</p>
+              <div class="wesing-signal-list" aria-label="状态">
+                <div><i id="weSingClientSignal" aria-hidden="true"></i><span>客户端</span><strong id="weSingClientStatus">未检测</strong></div>
+                <div><i id="weSingCacheSignal" aria-hidden="true"></i><span>缓存</span><strong id="weSingCacheStatus">待检查</strong></div>
+                <div><i id="weSingLyricSignal" aria-hidden="true"></i><span>歌词</span><strong id="weSingLyricStatus">待同步</strong></div>
+              </div>
             </aside>
           </div>
         </section>

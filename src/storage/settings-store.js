@@ -13,6 +13,9 @@ const DEFAULT_WESING_CACHE_PATH = process.platform === 'win32' && process.env.AP
 
 const DEFAULT_SETTINGS = {
   roomId: '',
+  onboardingVersion: '',
+  onboardingCompletedAt: '',
+  onboardingSkippedOptional: '',
   enableBilibili: 'true',
   enableAutoUpdate: 'false',
   enableGiftSprint: 'true',

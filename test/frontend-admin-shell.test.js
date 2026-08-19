@@ -75,6 +75,20 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   );
 });
 
+test('first-run onboarding fragment is hidden by default and wired into the admin shell', () => {
+  const page = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'admin-page.js'), 'utf8');
+  const onboarding = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'onboarding.html'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'), 'utf8');
+  const app = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  assert.match(page, /pages\/admin\/toolbox\/onboarding\.html/);
+  assert.match(onboarding, /id="liraOnboarding"[^>]*role="dialog"[^>]*hidden/);
+  for (const id of ['onboardingStepContent', 'onboardingProgress', 'onboardingNextBtn', 'onboardingFinishBtn', 'onboardingAiTest']) {
+    assert.match(onboarding, new RegExp(`id="${id}"`));
+  }
+  assert.match(css, /other-features\/onboarding\.css/);
+  assert.match(app, /initOnboarding\(/);
+});
+
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];

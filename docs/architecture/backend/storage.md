@@ -182,6 +182,7 @@ data/
 | 分组 | 键(代表) |
 |---|---|
 | 直播间 | `roomId`、`enableBilibili`、`paused`、`queueLimit`、`userCooldownSeconds` |
+| 首次启动引导 | `onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional`；仅保存完成契约版本、完成时间和可选步骤跳过记录 |
 | 点歌行为 | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest` |
 | 弹幕机器人 | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules` |
 | 礼物 | `enableGiftSprint`、`giftSprintTargetRmb`、`giftBlindBoxConfig`、`enableGiftNotification` |

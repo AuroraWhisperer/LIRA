@@ -7,9 +7,10 @@ import { logger } from '../shared/logger.js';
 import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
-import { getLegacyAdminModules, publishNavigation } from './legacy-admin-bridge.js';
+import { getLegacyAdminModules, publishNavigation, publishOnboarding } from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
 import { initGames } from './games.js';
+import { initOnboarding } from './onboarding.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -62,6 +63,15 @@ async function initApp() {
   modules.todo?.init?.();
   initGames();
   initUsageGuide();
+  const onboarding = initOnboarding({
+    getAppState: () => stateService.getAppState(),
+    reconnectBilibili: () => modules.settings?.reconnectBilibili?.(),
+    openUsageGuide: () => {
+      modules.navigation?.setMainPage?.('otherAssistantPage');
+      modules.other?.selectFeatureById?.('otherUsageGuideFeature');
+    }
+  });
+  publishOnboarding(onboarding);
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.();
   modules.gifts?.initGiftHistoryDrawer?.();
@@ -76,6 +86,7 @@ async function initApp() {
   // 连接WebSocket和加载数据
   stateService.connectSocket();
   await stateService.reloadAll();
+  onboarding.maybeAutoOpen?.();
 
   // 渲染主题预设
   if (modules.theme?.renderPresetCards) {

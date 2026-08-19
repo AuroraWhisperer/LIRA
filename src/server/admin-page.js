@@ -20,6 +20,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/song/shell-end.html',
   'pages/admin/gifts/page.html',
   'pages/admin/toolbox/shell-start.html',
+  'pages/admin/toolbox/onboarding.html',
   'pages/admin/toolbox/danmaku.html',
   'pages/admin/toolbox/gift.html',
   'pages/admin/toolbox/games.html',
