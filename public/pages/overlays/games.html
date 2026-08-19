@@ -30,7 +30,45 @@
       <section id="gameEmptyView" class="game-empty" hidden><strong>等待主播开局</strong></section>
       <div id="gameResult" class="game-result" hidden>
         <div class="game-result-card">
-          <div class="game-result-icon"></div>
+          <div class="game-result-icon">
+            <!-- 数字炸弹：爆炸图标 -->
+            <svg class="icon-bomb" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <!-- 爆炸外层光晕 -->
+              <circle cx="50" cy="50" r="42" fill="url(#explosion-glow)" opacity="0.6"/>
+              <!-- 爆炸主体星形 -->
+              <path d="M 50 10 L 55 40 L 85 35 L 60 55 L 90 80 L 58 65 L 50 95 L 42 65 L 10 80 L 40 55 L 15 35 L 45 40 Z" fill="url(#explosion-gradient)" stroke="#ff6b35" stroke-width="1.5"/>
+              <!-- 中心亮点 -->
+              <circle cx="50" cy="50" r="18" fill="#fff4e6"/>
+              <circle cx="50" cy="50" r="12" fill="#ffe89f"/>
+              <!-- 数字碎片 -->
+              <text x="35" y="35" font-family="Bahnschrift, sans-serif" font-size="14" font-weight="700" fill="#ff8c5a" opacity="0.8">7</text>
+              <text x="60" y="32" font-family="Bahnschrift, sans-serif" font-size="12" font-weight="700" fill="#ffb380" opacity="0.7">3</text>
+              <text x="68" y="62" font-family="Bahnschrift, sans-serif" font-size="13" font-weight="700" fill="#ff6b35" opacity="0.75">9</text>
+              <text x="28" y="68" font-family="Bahnschrift, sans-serif" font-size="11" font-weight="700" fill="#ffa366" opacity="0.7">5</text>
+              <defs>
+                <radialGradient id="explosion-glow">
+                  <stop offset="0%" stop-color="#ffcc80" stop-opacity="0.8"/>
+                  <stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="explosion-gradient" cx="50%" cy="50%">
+                  <stop offset="0%" stop-color="#ffe89f"/>
+                  <stop offset="50%" stop-color="#ffb380"/>
+                  <stop offset="100%" stop-color="#ff8c5a"/>
+                </radialGradient>
+              </defs>
+            </svg>
+            <!-- 五子棋：棋子图标 -->
+            <svg class="icon-gomoku" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="35" fill="url(#stone-gradient)" stroke="#3a3a3a" stroke-width="2"/>
+              <ellipse cx="42" cy="42" rx="8" ry="6" fill="#ffffff" opacity="0.4"/>
+              <defs>
+                <radialGradient id="stone-gradient" cx="40%" cy="40%">
+                  <stop offset="0%" stop-color="#f0ead2"/>
+                  <stop offset="100%" stop-color="#ddb892"/>
+                </radialGradient>
+              </defs>
+            </svg>
+          </div>
           <div id="gameResultText" class="game-result-text"></div>
         </div>
       </div>

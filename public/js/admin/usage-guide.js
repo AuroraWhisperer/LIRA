@@ -70,5 +70,15 @@ export function initUsageGuide() {
   window.addEventListener('scroll', onScroll, { passive: true });
   setActiveLink(sections[0].id);
 
+  // 绑定重新打开交互式引导按钮
+  const reopenTourBtn = document.getElementById('reopenInteractiveTourBtn');
+  if (reopenTourBtn) {
+    reopenTourBtn.addEventListener('click', () => {
+      if (window.liraTour) {
+        window.liraTour.reset();
+      }
+    });
+  }
+
   initialized = true;
 }

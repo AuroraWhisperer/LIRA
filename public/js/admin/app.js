@@ -11,6 +11,7 @@ import { getLegacyAdminModules, publishNavigation, publishOnboarding } from './l
 import { initUsageGuide } from './usage-guide.js';
 import { initGames } from './games.js';
 import { initOnboarding } from './onboarding.js';
+import { initInteractiveTour } from './interactive-tour.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -72,6 +73,11 @@ async function initApp() {
     }
   });
   publishOnboarding(onboarding);
+
+  // 初始化交互式引导（替代旧的对话框引导）
+  const interactiveTour = initInteractiveTour({ toast: Utils.toast });
+  window.liraTour = interactiveTour;
+
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.();
   modules.gifts?.initGiftHistoryDrawer?.();
@@ -86,7 +92,11 @@ async function initApp() {
   // 连接WebSocket和加载数据
   stateService.connectSocket();
   await stateService.reloadAll();
-  onboarding.maybeAutoOpen?.();
+
+  // 首次启动时自动打开交互式引导（替代旧的对话框引导）
+  if (interactiveTour.shouldAutoOpen()) {
+    interactiveTour.open();
+  }
 
   // 渲染主题预设
   if (modules.theme?.renderPresetCards) {
