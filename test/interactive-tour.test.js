@@ -87,6 +87,10 @@ test('tour avoids continuously expensive rendering effects and polling', () => {
   assert.doesNotMatch(css, /animation\s*:/i);
   assert.equal((js.match(/lira-tour-shade lira-tour-shade-/g) || []).length, 4);
   assert.doesNotMatch(js, /setInterval\s*\(/);
+  assert.doesNotMatch(js, /setTimeout\(resolve, 300\)/);
+  assert.doesNotMatch(js, /setTimeout\(resolve, 200\)/);
+  assert.match(js, /window\.requestAnimationFrame\(resolve\)/);
+  assert.match(js, /renderSequence/);
   assert.match(js, /addEventListener\('scroll', scheduleRefresh, \{ capture: true, passive: true \}\)/);
 });
 
@@ -123,7 +127,8 @@ test('Bilibili setup steps target the real settings tab', () => {
 
   assert.equal(loginStep.targetTab, '[data-tab="settingsPage"]');
   assert.equal(roomStep.targetTab, '[data-tab="settingsPage"]');
-  assert.equal(loginStep.targetSelector, '#bilibiliLoginBtn');
+  assert.equal(loginStep.targetSelector, '.bilibili-auth-row');
+  assert.match(settingsPage, /class="bilibili-auth-row"/);
   assert.equal(roomStep.targetSelector, '#roomId');
   assert.match(settingsPage, /id="roomId"/);
 });

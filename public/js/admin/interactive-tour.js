@@ -30,7 +30,7 @@ export const TOUR_STEPS = [
     note: '需要桌面版才能扫码；网页模式可以先了解流程。',
     targetPage: 'songAssistantPage', // 切换到点歌页
     targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
-    targetSelector: '#bilibiliLoginBtn', // 高亮登录按钮
+    targetSelector: '.bilibili-auth-row', // 高亮账号登录状态行
     position: 'bottom',
     waitForAction: true, // 等待用户登录
     checkCompleted: async () => {
@@ -297,24 +297,33 @@ export function createInteractiveTourController(deps = {}) {
   let tooltipSize = null;
   let lastLayoutKey = '';
   let exitConfirmationReturnFocus = null;
+  let renderSequence = 0;
+  let isRenderingStep = false;
+
+  function waitForPaint() {
+    return new Promise((resolve) => {
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(resolve);
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+  }
 
   function switchToPage(pageId) {
     if (!pageId) return;
     const tab = document.querySelector(`[data-main-page="${pageId}"]`);
-    if (tab) {
-      tab.click();
-      // 等待页面切换动画
-      return new Promise(resolve => setTimeout(resolve, 300));
-    }
+    if (!tab || tab.classList.contains('active')) return false;
+    tab.click();
+    return true;
   }
 
   function switchToTab(tabSelector) {
     if (!tabSelector) return;
     const tab = document.querySelector(tabSelector);
-    if (tab) {
-      tab.click();
-      return new Promise(resolve => setTimeout(resolve, 200));
-    }
+    if (!tab || tab.classList.contains('active')) return false;
+    tab.click();
+    return true;
   }
 
   function getTarget(selector) {
@@ -361,6 +370,7 @@ export function createInteractiveTourController(deps = {}) {
   function refreshPosition(step = TOUR_STEPS[currentStepIndex]) {
     const target = getTarget(step?.targetSelector);
     const targetRect = target?.getBoundingClientRect?.() || null;
+    if (target && targetRect && targetRect.width === 0 && targetRect.height === 0) return;
     const layoutKey = targetRect
       ? [
         targetRect.top,
@@ -455,13 +465,13 @@ export function createInteractiveTourController(deps = {}) {
     const step = TOUR_STEPS[stepIndex];
     if (!step) return;
 
+    const sequence = ++renderSequence;
+    isRenderingStep = true;
     currentStepIndex = stepIndex;
+    stopScheduledRefresh();
+    stopCheckingCompletion();
 
-    // 切换到目标页面和标签
-    await switchToPage(step.targetPage);
-    await switchToTab(step.targetTab);
-
-    // 更新内容
+    // 先更新提示内容，再切换底层页面，让点击后的反馈立即可见。
     elements.kicker.textContent = step.kicker || '';
     elements.title.textContent = step.title || '';
 
@@ -470,7 +480,6 @@ export function createInteractiveTourController(deps = {}) {
       bodyHTML += `<p class="lira-tour-note">${step.note}</p>`;
     }
 
-    // 如果需要等待操作，添加状态提示
     if (step.waitForAction) {
       bodyHTML += `<div class="lira-tour-status waiting">等待你完成这一步...</div>`;
     }
@@ -478,24 +487,26 @@ export function createInteractiveTourController(deps = {}) {
     elements.body.innerHTML = bodyHTML;
     tooltipSize = null;
     lastLayoutKey = '';
-
-    // 先滚动到目标，再合并到下一帧统一测量和定位。
-    highlightElement(step.targetSelector);
-    scheduleRefresh();
-
-    // 更新进度点
     renderProgressDots();
-
-    // 更新按钮状态
     elements.prev.disabled = stepIndex === 0;
     elements.next.textContent = stepIndex === TOUR_STEPS.length - 1 ? '完成' : '下一步';
 
-    // 如果需要等待操作，开始检查
+    // 切换到目标页面和标签
+    const pageChanged = switchToPage(step.targetPage);
+    const tabChanged = switchToTab(step.targetTab);
+    if (pageChanged || tabChanged) await waitForPaint();
+
+    if (sequence !== renderSequence || !isOpen) return;
+
+    // 页面/标签已经稳定后再滚动和测量，避免用隐藏目标的零坐标定位。
+    highlightElement(step.targetSelector);
+    scheduleRefresh();
+
     if (step.waitForAction && step.checkCompleted) {
       startCheckingCompletion(step);
-    } else {
-      stopCheckingCompletion();
     }
+
+    isRenderingStep = false;
   }
 
   function startCheckingCompletion(step) {
@@ -534,6 +545,7 @@ export function createInteractiveTourController(deps = {}) {
   }
 
   function next() {
+    if (isRenderingStep) return;
     if (currentStepIndex < TOUR_STEPS.length - 1) {
       renderStep(currentStepIndex + 1);
     } else {
@@ -542,6 +554,7 @@ export function createInteractiveTourController(deps = {}) {
   }
 
   function prev() {
+    if (isRenderingStep) return;
     if (currentStepIndex > 0) {
       renderStep(currentStepIndex - 1);
     }
@@ -568,15 +581,20 @@ export function createInteractiveTourController(deps = {}) {
   }
 
   function open() {
+    renderSequence += 1;
     isOpen = true;
+    document.documentElement.classList.add('lira-tour-active');
     container.hidden = false;
     currentStepIndex = 0;
     renderStep(0);
   }
 
   function close(completed = false) {
+    renderSequence += 1;
+    isRenderingStep = false;
     hideExitConfirmation(false);
     isOpen = false;
+    document.documentElement.classList.remove('lira-tour-active');
     container.hidden = true;
     stopCheckingCompletion();
     stopScheduledRefresh();

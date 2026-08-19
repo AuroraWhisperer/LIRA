@@ -66,18 +66,15 @@ function createWebSocketHub(options = {}) {
     socket._wsFragmentOpcode = 0;
     socket._wsFragmentBytes = 0;
     socket._lastPongAt = Date.now();
+    socket._wsCleanedUp = false;
 
     sockets.add(socket);
     if (context.state && context.state.sockets) context.state.sockets.add(socket);
     socket._wsContext = context;
     socket.on('close', () => cleanupSocket(socket));
     socket.on('error', () => cleanupSocket(socket));
-    socket.on('data', (chunk) => {
-      socket._wsBuffer = socket._wsBuffer.length === 0
-        ? chunk
-        : Buffer.concat([socket._wsBuffer, chunk]);
-      processBufferedFrames(socket);
-    });
+    socket._wsDataHandler = (chunk) => handleSocketData(socket, chunk);
+    socket.on('data', socket._wsDataHandler);
 
     ensureHeartbeat();
 
@@ -89,6 +86,11 @@ function createWebSocketHub(options = {}) {
   }
 
   function cleanupSocket(socket) {
+    if (socket._wsCleanedUp) return;
+
+    socket._wsCleanedUp = true;
+    if (socket._wsDataHandler) socket.off('data', socket._wsDataHandler);
+    socket._wsDataHandler = null;
     sockets.delete(socket);
     if (socket._wsContext && socket._wsContext.state && socket._wsContext.state.sockets) {
       socket._wsContext.state.sockets.delete(socket);
@@ -97,6 +99,15 @@ function createWebSocketHub(options = {}) {
     socket._wsBuffer = null;
     socket._wsFragment = null;
     socket._wsFragmentBytes = 0;
+  }
+
+  function handleSocketData(socket, chunk) {
+    if (socket._wsCleanedUp || !sockets.has(socket) || socket._wsBuffer === null) return;
+
+    socket._wsBuffer = socket._wsBuffer.length === 0
+      ? chunk
+      : Buffer.concat([socket._wsBuffer, chunk]);
+    processBufferedFrames(socket);
   }
 
   function processBufferedFrames(socket) {

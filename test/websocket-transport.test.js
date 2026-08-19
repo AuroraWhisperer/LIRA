@@ -15,6 +15,7 @@ class FakeSocket extends EventEmitter {
     this.writes = [];
     this.ended = false;
     this.destroyed = false;
+    this.dataHandlerRemovals = 0;
   }
 
   write(chunk) {
@@ -28,6 +29,11 @@ class FakeSocket extends EventEmitter {
 
   destroy() {
     this.destroyed = true;
+  }
+
+  off(eventName, listener) {
+    if (eventName === 'data') this.dataHandlerRemovals += 1;
+    return super.off(eventName, listener);
   }
 }
 
@@ -81,6 +87,36 @@ test('fragmented WebSocket messages are capped across frames', () => {
   assert.equal(closeFrame.readUInt16BE(2), 1009);
   assert.equal(socket.ended, true);
   assert.equal(context.state.sockets.has(socket), false);
+});
+
+test('ignores data events that arrive after WebSocket cleanup', () => {
+  const socket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    state: { sockets: new Set() },
+    getState: () => ({ ok: true })
+  };
+
+  handleWebSocketUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+    }
+  }, socket);
+  socket.writes = [];
+
+  socket.emit('close');
+  socket.emit('error', new Error('late socket error'));
+
+  assert.equal(socket._wsBuffer, null);
+  assert.equal(context.state.sockets.has(socket), false);
+  assert.equal(socket.listenerCount('data'), 0);
+  assert.equal(socket.dataHandlerRemovals, 1);
+  assert.doesNotThrow(() => socket.emit('data', maskedFrame('late', { opcode: 0x1, fin: true })));
+  assert.equal(socket._wsBuffer, null);
+  assert.equal(context.state.sockets.has(socket), false);
+  assert.equal(socket.writes.length, 0);
 });
 
 test('WebSocket hub starts heartbeat on upgrade and releases resources on stop', async () => {

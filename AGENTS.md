@@ -7,6 +7,15 @@ desktop shell, browser UI, and OBS overlays share one repository and preserve
 their existing public contracts unless an accepted specification or ADR says
 otherwise.
 
+## Quick Technical Profile
+
+LIRA is an Electron 43 desktop application with an in-process Node.js 24+
+backend. The frontend uses framework-free Vanilla JavaScript ES modules and
+native CSS without a bundler, TypeScript, or CSS preprocessor. UI pages live
+under `public/pages/`, frontend modules under `public/js/`, and the shared
+design tokens are CSS custom properties defined in
+`public/css/styles-base.css`. The desktop client is the primary UI target.
+
 This file defines project-wide rules for human and AI-assisted changes. More
 specific rules apply under [storage](src/storage/AGENTS.md),
 [Electron](src/electron/AGENTS.md), and [Admin](public/js/admin/AGENTS.md).

@@ -3,6 +3,14 @@
 .lira-tour { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
 .lira-tour[hidden] { display: none; }
 
+/* 引导切换由脚本在下一帧完成定位，避免导航过渡制造额外等待。 */
+html.lira-tour-active .main-page-tab,
+html.lira-tour-active .other-workspace,
+html.lira-tour-active .other-feature-button,
+html.lira-tour-active .other-feature-panel {
+  transition: none !important;
+}
+
 /* 无目标步骤只用普通半透明色层，不触发全屏模糊合成。 */
 .lira-tour-backdrop {
   position: absolute;
