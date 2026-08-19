@@ -81,7 +81,8 @@ test('HTTP admin routes inject the token into the composed document', () => {
     assert.equal(headers['Content-Type'], 'text/html; charset=utf-8');
     assert.ok(html.indexOf('window.__API_TOKEN__') < html.indexOf('</head>'));
     assert.match(html, /var t="test-token"/);
-    assert.match(html, /<script type="module" src="\/js\/admin\/index\.js/);
+  assert.match(html, /<script type="module" src="\/js\/admin\/index\.js/);
+  assert.match(html, /id="wheelCardResult"/);
   }
 });
 

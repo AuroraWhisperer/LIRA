@@ -115,6 +115,9 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 28px;
   height: 28px;

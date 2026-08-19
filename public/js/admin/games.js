@@ -106,6 +106,11 @@ function renderWheelState(state, options = {}) {
     : wheelState.lastResult?.label
       ? `上次抽中：${wheelState.lastResult.label}`
       : canSpin ? '设置已就绪，可以开始转动' : '至少配置两个选项后开始';
+  byId('wheelCardResult').textContent = spinning
+    ? '转盘转动中…'
+    : wheelState.lastResult?.label
+      ? `抽中：${wheelState.lastResult.label}`
+      : '尚未抽取';
   byId('wheelTotalWeight').textContent = `总份数 ${Number(wheelState.totalWeight) || 0}`;
   document.querySelector('[data-wheel-card]').classList.toggle('is-running', spinning);
 }

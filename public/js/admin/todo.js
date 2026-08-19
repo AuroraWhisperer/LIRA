@@ -198,6 +198,7 @@
     const progressCaption = createElement('span', '', task.category === 'song' ? '学歌进度' : '完成进度');
     const select = createElement('select');
     select.dataset.taskProgress = task.id;
+    select.dataset.dropdownVariant = 'toolbox';
     select.setAttribute('aria-label', `${task.title}的进度`);
     renderProgressOptions(select, task);
 

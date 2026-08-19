@@ -51,13 +51,13 @@
                       <p>系统在 1–100 中埋下炸弹。双方轮流猜数字，安全数字会缩小范围，猜中炸弹的一方落败。</p>
                       <div class="game-config-grid">
                         <label>观众模式
-                          <select id="numberBombMode">
+                          <select id="numberBombMode" data-dropdown-variant="game">
                             <option value="single">指定 1 位观众</option>
                             <option value="multi">不限观众数量</option>
                           </select>
                         </label>
                         <label data-viewer-picker="number-bomb">对战观众
-                          <select id="numberBombViewer"><option value="">等待刷新当前在线观众</option></select>
+                          <select id="numberBombViewer" data-dropdown-variant="game"><option value="">等待刷新当前在线观众</option></select>
                         </label>
                       </div>
                       <div class="game-card-actions">
@@ -77,7 +77,7 @@
                       <div class="game-config-grid is-single">
                         <label>观众输入示例<input type="text" value="B2" readonly></label>
                         <label>对战观众
-                          <select id="gomokuViewer"><option value="">等待刷新当前在线观众</option></select>
+                          <select id="gomokuViewer" data-dropdown-variant="game"><option value="">等待刷新当前在线观众</option></select>
                         </label>
                       </div>
                       <div class="game-card-actions">
@@ -95,6 +95,7 @@
                           <span class="game-card-chip">独立运行</span>
                         </span>
                         <span class="wheel-card-description">每一份就是一次抽取机会。内容占总份数的比例，就是它被抽中的概率。</span>
+                        <span id="wheelCardResult" class="wheel-card-result">尚未抽取</span>
                         <span class="wheel-expand-hint"><span class="wheel-expand-icon" aria-hidden="true">＋</span><span>点击展开配置转盘</span></span>
                       </span>
                     </button>

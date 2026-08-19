@@ -20,7 +20,7 @@
               </label>
               <label>
                 是否可点
-                <select id="songIsEnabled">
+                <select id="songIsEnabled" data-dropdown-variant="settings">
                   <option value="true">是</option>
                   <option value="false">否</option>
                 </select>
@@ -65,13 +65,13 @@
               </div>
               <label>
                 语言
-                <select id="languageFilter"></select>
+                <select id="languageFilter" data-dropdown-variant="filter"></select>
               </label>
             </div>
             <div class="grid-3">
               <label>
                 歌手
-                <select id="artistFilter"></select>
+                <select id="artistFilter" data-dropdown-variant="filter"></select>
               </label>
               <div class="category-filter-field">
                 <span>标签</span>
@@ -88,7 +88,7 @@
               </div>
               <label>
                 只看可点
-                <select id="enabledFilter">
+                <select id="enabledFilter" data-dropdown-variant="filter">
                   <option value="false">全部歌曲</option>
                   <option value="true">只看可点</option>
                 </select>
@@ -115,4 +115,3 @@
             </div>
           </div>
         </div>
-

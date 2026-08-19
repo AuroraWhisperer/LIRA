@@ -46,6 +46,33 @@ test('native selects and custom menus use the control accent without replacing s
   assert.match(aiJs, /modelMenu\.addEventListener\('keydown'/);
 });
 
+test('native select options are rendered through contextual listbox panels', () => {
+  const source = read('public', 'js', 'shared', 'select-menu.js');
+  const styles = read('public', 'css', 'components', 'select-menu.css');
+  const adminEntry = read('public', 'js', 'admin', 'app.js');
+  const adminCss = read('public', 'css', 'styles-admin.css');
+  const settings = read('public', 'pages', 'admin', 'song', 'queue-theme.html');
+  const filters = read('public', 'pages', 'admin', 'song', 'library.html');
+  const games = read('public', 'pages', 'admin', 'toolbox', 'games.html');
+  const onboarding = read('public', 'js', 'admin', 'onboarding.js');
+
+  assert.match(source, /role', 'listbox'/);
+  assert.match(source, /role', 'option'/);
+  assert.match(source, /event\.key === 'ArrowDown'/);
+  assert.match(source, /event\.key === 'Escape'/);
+  assert.match(source, /dispatchEvent\(new Event\('change'/);
+  assert.match(source, /MutationObserver/);
+  assert.match(styles, /\.lira-select-option\.is-selected/);
+  assert.match(styles, /data-select-variant/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(adminEntry, /enhanceSelects\(\)/);
+  assert.match(adminCss, /components\/select-menu\.css/);
+  assert.match(settings, /data-dropdown-variant="settings"/);
+  assert.match(filters, /data-dropdown-variant="filter"/);
+  assert.match(games, /data-dropdown-variant="game"/);
+  assert.match(onboarding, /select:not\(\[disabled\]\):not\(\.lira-select-native\)/);
+});
+
 test('admin runtime no longer composes the obsolete restart confirmation fragment', () => {
   const adminPage = read('src', 'server', 'admin-page.js');
   const desktop = read('public', 'js', 'desktop.js');

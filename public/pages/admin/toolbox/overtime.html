@@ -45,8 +45,8 @@
                   </label>
                   <fieldset class="overtime-duration-selectors">
                     <legend>选择时长</legend>
-                    <label>小时<select id="overtimeInitialHours" aria-label="初始时长的小时数"></select></label>
-                    <label>分钟<select id="overtimeInitialMinutes" aria-label="初始时长的分钟数"></select></label>
+                    <label>小时<select id="overtimeInitialHours" aria-label="初始时长的小时数" data-dropdown-variant="overtime"></select></label>
+                    <label>分钟<select id="overtimeInitialMinutes" aria-label="初始时长的分钟数" data-dropdown-variant="overtime"></select></label>
                   </fieldset>
                   <button id="overtimeApplyTimeBtn" type="button">设置初始时间</button>
                 </section>
@@ -70,13 +70,13 @@
                 <section class="overtime-admin-section overtime-screen-section">
                   <div class="overtime-section-heading"><div><h3>直播画面</h3><p>背景与前景独立；透明背景适合直接叠加到 OBS。</p></div></div>
                   <label>背景
-                    <select id="overtimeBackgroundPath">
+                    <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
                       <option value="">透明</option>
                       <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
                     </select>
                   </label>
                   <label>适配
-                    <select id="overtimeBackgroundFit">
+                    <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
                       <option value="cover">铺满</option>
                       <option value="contain">完整显示</option>
                       <option value="fill">拉伸</option>

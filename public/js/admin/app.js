@@ -7,6 +7,7 @@ import { logger } from '../shared/logger.js';
 import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
+import { enhanceSelects } from '../shared/select-menu.js';
 import { getLegacyAdminModules, publishNavigation, publishOnboarding } from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
 import { initGames } from './games.js';
@@ -21,6 +22,8 @@ import { formsService } from './forms.js';
  */
 async function initApp() {
   logger.debug('正在初始化...');
+
+  enhanceSelects();
 
   initParameterRanges();
 

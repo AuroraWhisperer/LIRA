@@ -43,6 +43,7 @@
 .wheel-card-summary .game-card-heading { display: flex; }
 .wheel-card-summary .game-card-heading strong { display: block; margin-top: 3px; font-size: 23px; }
 .wheel-card-description { color: var(--muted); line-height: 1.7; }
+.wheel-card-result { color: #6a579e; font-size: 13px; font-weight: 800; }
 .wheel-expand-hint { display: inline-flex; align-items: center; gap: 7px; color: #5d519e; font-size: 12px; font-weight: 800; }
 .wheel-expand-icon { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #cfc7ef; border-radius: 50%; background: #f0edff; font-size: 18px; line-height: 1; transition: transform 180ms ease; }
 .is-wheel:not(.is-collapsed) .wheel-expand-icon { transform: rotate(45deg); }

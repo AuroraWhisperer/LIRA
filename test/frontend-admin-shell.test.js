@@ -89,6 +89,19 @@ test('first-run onboarding fragment is hidden by default and wired into the admi
   assert.match(app, /initOnboarding\(/);
 });
 
+test('interactive tour close control centers its exit mark', () => {
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
+    'utf8'
+  );
+  const closeRule = styles.match(/\.lira-tour-close\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(closeRule, 'interactive tour close control styles should remain defined');
+  assert.match(closeRule, /display:\s*inline-flex/);
+  assert.match(closeRule, /align-items:\s*center/);
+  assert.match(closeRule, /justify-content:\s*center/);
+});
+
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];

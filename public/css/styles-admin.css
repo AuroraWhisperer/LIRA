@@ -8,6 +8,9 @@
 /* Shared confirmation surface */
 @import url('./components/confirmation-dialog.css');
 
+/* Context-aware select option panels */
+@import url('./components/select-menu.css');
+
 /* 参数调节滑块 */
 @import url('./components/parameter-range.css');
 

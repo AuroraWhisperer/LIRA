@@ -6,8 +6,17 @@ let reconnectAttempts = 0;
 let currentState = null;
 let renderedSpinId = '';
 let rotation = 0;
+let animationToken = 0;
+let spinRequestPending = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  const centerButton = byId('wheelCenterButton');
+  centerButton.addEventListener('click', spinFromWheel);
+  centerButton.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    spinFromWheel();
+  });
   loadState();
   connectSocket();
 });
@@ -47,6 +56,7 @@ function renderState(state) {
   currentState = state || { entries: [], totalWeight: 0, spin: null, lastResult: null };
   drawSegments(currentState.entries || []);
   const spin = currentState.spin;
+  setCenterBusy(Boolean(spin));
   if (spin && spin.id !== renderedSpinId) {
     renderedSpinId = spin.id;
     animateSpin(spin, currentState.entries || []);
@@ -54,6 +64,7 @@ function renderState(state) {
   }
   if (!spin && currentState.lastResult) highlightResult(currentState.lastResult.index);
   if (!(currentState.entries || []).length) setMessage('等待主播配置转盘');
+  else if (!spin && !currentState.lastResult) setMessage('点击中心 GO 开始');
 }
 
 function drawSegments(entries) {
@@ -70,18 +81,33 @@ function drawSegments(entries) {
     path.style.fill = palette[index % palette.length];
     path.setAttribute('d', segmentPath(cursor, cursor + angle));
     root.append(path);
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.classList.add('wheel-label');
-    label.dataset.index = String(index);
     const middle = cursor + angle / 2;
-    const point = polar(300, 300, 188, middle);
-    label.setAttribute('x', String(point.x));
-    label.setAttribute('y', String(point.y));
-    label.setAttribute('transform', `rotate(${middle * 180 / Math.PI + 90} ${point.x} ${point.y})`);
-    label.textContent = String(entry.label || '').slice(0, 20);
-    root.append(label);
+    root.append(createRadialLabel(entry.label, index, middle));
     cursor += angle;
   });
+}
+
+function createRadialLabel(value, index, middle) {
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const chars = Array.from(String(value || '')).slice(0, 12);
+  const fontSize = Math.min(22, Math.max(12, 156 / Math.max(chars.length, 1)));
+  const point = polar(300, 300, 205, middle);
+  label.classList.add('wheel-label');
+  label.dataset.index = String(index);
+  label.setAttribute('x', String(point.x));
+  label.setAttribute('y', String(point.y));
+  label.style.fontSize = `${fontSize}px`;
+  label.setAttribute('transform', `rotate(${middle * 180 / Math.PI + 90} ${point.x} ${point.y})`);
+  chars.forEach((char, charIndex) => {
+    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    tspan.setAttribute('x', String(point.x));
+    tspan.setAttribute('dy', String(charIndex === 0
+      ? -((chars.length - 1) * fontSize) / 2
+      : fontSize));
+    tspan.textContent = char === ' ' ? '·' : char;
+    label.append(tspan);
+  });
+  return label;
 }
 
 function animateSpin(spin, entries) {
@@ -100,7 +126,11 @@ function animateSpin(spin, entries) {
   group.style.transform = `rotate(${target}deg)`;
   rotation = target;
   setMessage('转盘转动中…');
-  window.setTimeout(() => highlightResult(spin.index), remaining || 40);
+  const token = ++animationToken;
+  window.setTimeout(() => {
+    if (token !== animationToken) return;
+    highlightResult(spin.index);
+  }, remaining || 40);
 }
 
 function highlightResult(index) {
@@ -123,5 +153,41 @@ function segmentPath(start, end) {
 function polar(cx, cy, radius, angle) { return { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) }; }
 function setMessage(message) { byId('wheelMessage').textContent = message; }
 function byId(id) { return document.getElementById(id); }
+
+async function spinFromWheel() {
+  if (spinRequestPending || currentState?.spin) return;
+  if ((currentState?.entries || []).length < 2) {
+    setMessage('请先等待主播配置至少两个选项');
+    return;
+  }
+  spinRequestPending = true;
+  setCenterBusy(true);
+  try {
+    const token = window.__API_TOKEN__;
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch('/api/wheel/spin', {
+      method: 'POST',
+      headers,
+      body: '{}'
+    });
+    const payload = await response.json();
+    if (!payload.ok) throw new Error(payload.error || '转盘暂时无法抽取');
+    renderState(payload.data);
+  } catch (error) {
+    setCenterBusy(false);
+    setMessage(error.message || '转盘暂时无法抽取');
+  } finally {
+    spinRequestPending = false;
+  }
+}
+
+function setCenterBusy(busy) {
+  const button = byId('wheelCenterButton');
+  const hasEntries = (currentState?.entries || []).length >= 2;
+  button.classList.toggle('is-busy', busy);
+  button.setAttribute('aria-disabled', String(busy || !hasEntries));
+  button.setAttribute('aria-busy', String(busy));
+}
 
 const palette = ['#e65f91', '#f1a04b', '#58b9c8', '#7568ca', '#c45aa8', '#56a878', '#efcf68', '#db6c63', '#6c9ee8', '#a875d0', '#4db3a4', '#dd7ab1'];

@@ -74,7 +74,7 @@
                       </div>
                       <div class="xiaomi-ai-field-grid">
                         <label>模型供应商
-                          <select id="xiaomiAiModelProvider">
+                          <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
                             <option value="auto">自动识别（兼容旧设置）</option>
                             <option value="deepseek">DeepSeek 官方</option>
                             <option value="openai">OpenAI 官方</option>
@@ -87,7 +87,7 @@
                         <label>API Key<input id="xiaomiAiDeepSeekKey" type="text" autocomplete="off" spellcheck="false" placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
                         <label id="xiaomiAiEndpointControl" class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"><small id="xiaomiAiEndpointHelp">可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。</small></label>
                         <label id="xiaomiAiProtocolControl">接口协议
-                          <select id="xiaomiAiModelApiProtocol">
+                          <select id="xiaomiAiModelApiProtocol" data-dropdown-variant="toolbox">
                             <option value="auto">自动识别</option>
                             <option value="responses">Responses API</option>
                             <option value="chat_completions">Chat Completions</option>
@@ -121,7 +121,7 @@
                         <label class="xiaomi-ai-capability-control"><span><input id="xiaomiAiWebSearch" type="checkbox" checked> <b id="xiaomiAiWebSearchLabel">启用 Web Search</b></span><small id="xiaomiAiWebSearchHelp">根据当前接口协议选择联网方式。</small></label>
                         <label id="xiaomiAiReasoningControl" class="xiaomi-ai-capability-control" hidden><span><input id="xiaomiAiReasoning" type="checkbox"> <b id="xiaomiAiReasoningLabel">启用模型推理</b></span><small id="xiaomiAiReasoningHelp"></small></label>
                         <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control" hidden>推理强度
-                          <select id="xiaomiAiReasoningEffort">
+                          <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
                             <option value="auto">服务默认</option>
                             <option value="minimal">Minimal</option>
                             <option value="low">Low</option>
