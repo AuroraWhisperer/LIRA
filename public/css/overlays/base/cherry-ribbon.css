@@ -14,7 +14,7 @@
 }
 
 .queue-cherry-ribbon .overlay-content {
-  inset: 15.5% 10% 9.5%;
+  inset: 19.5% 10% 9.5%;
 }
 
 .cherry-ribbon-row {
@@ -22,8 +22,8 @@
   --identity-text: #fffafd;
   --medal-bg: #d79253;
   --medal-text: #fffafd;
-  height: clamp(76px, 19.5cqw, 104px);
-  min-height: clamp(76px, 19.5cqw, 104px);
+  height: clamp(70px, 17.5cqw, 94px);
+  min-height: clamp(70px, 17.5cqw, 94px);
   background-image: url('/img/overlays/song-board-style-5/entry.png');
   background-size: 94% auto;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.69), 26px);
@@ -42,9 +42,9 @@
 
 .cherry-ribbon-info-viewport {
   top: 33%;
-  right: 8.5%;
+  right: 10.5%;
   bottom: 33%;
-  left: 18%;
+  left: 20%;
   color: #60417f;
 }
 

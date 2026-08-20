@@ -219,19 +219,26 @@ test('storybook queue keeps illustrated rows fixed while identity content stays 
   assert.doesNotMatch(row, /<img src=x|<b>点歌人/);
 
   const viewportRule = overlayStyles.match(/\.storybook-info-viewport\s*\{[^}]*\}/)?.[0];
+  const rankRule = overlayStyles.match(/\.storybook-rank\s*\{[^}]*\}/)?.[0];
   const rowRule = overlayStyles.match(/\.storybook-row\s*\{[^}]*\}/)?.[0];
   const contentRule = overlayStyles.match(/\.queue-storybook \.overlay-content\s*\{[^}]*\}/)?.[0];
   assert.ok(viewportRule);
+  assert.ok(rankRule);
   assert.ok(rowRule);
   assert.ok(contentRule);
   assert.match(viewportRule, /overflow:\s*hidden/);
   assert.match(viewportRule, /min-width:\s*0/);
+  assert.match(viewportRule, /right:\s*20\.5%/);
+  assert.match(viewportRule, /left:\s*21%/);
+  assert.match(viewportRule, /padding:\s*0\s+2\.5%/);
   assert.doesNotMatch(viewportRule, /background:/);
-  assert.match(contentRule, /inset:\s*24\.5%\s+9\.5%\s+17%\s+14\.5%/);
+  assert.match(rankRule, /left:\s*5\.5%/);
+  assert.match(contentRule, /inset:\s*24\.5%\s+7\.5%\s+17%\s+12\.5%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
   assert.match(rowRule, /background-size:\s*108%\s+auto/);
   assert.match(rowRule, /height:\s*clamp\(68px,\s*20cqw,\s*104px\)/);
   assert.match(rowRule, /font-size:\s*clamp\(12px,\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\),\s*28px\)/);
+  assert.equal(fs.readFileSync(entryPath)[25], 6, 'storybook entry asset should preserve RGBA transparency');
 });
 
 test('styles 4 and 5 use supplied art, omit queue ranks, and render all four requested fields', () => {
@@ -302,6 +309,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   const ribbonContentRule = overlayStyles.match(/\.queue-cherry-ribbon \.overlay-content\s*\{[^}]*\}/)?.[0];
   const ribbonRowRule = overlayStyles.match(/\.cherry-ribbon-row\s*\{[^}]*\}/)?.[0];
   const ribbonInfoRule = overlayStyles.match(/\.cherry-ribbon-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  const ribbonViewportRule = overlayStyles.match(/\.cherry-ribbon-info-viewport\s*\{[^}]*\}/)?.[0];
   assert.ok(neonContentRule);
   assert.ok(neonRowRule);
   assert.ok(neonInfoRule);
@@ -309,15 +317,22 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonContentRule);
   assert.ok(ribbonRowRule);
   assert.ok(ribbonInfoRule);
+  assert.ok(ribbonViewportRule);
   assert.match(neonContentRule, /inset:\s*23%\s+9\.5%\s+8\.5%/);
-  assert.match(neonRowRule, /height:\s*clamp\(78px,\s*20cqw,\s*108px\)/);
-  assert.match(neonRowRule, /background-size:\s*96%\s+auto/);
-  assert.match(neonInfoRule, /margin-inline:\s*auto/);
+  assert.match(neonRowRule, /height:\s*clamp\(70px,\s*18cqw,\s*96px\)/);
+  assert.match(neonRowRule, /min-height:\s*clamp\(70px,\s*18cqw,\s*96px\)/);
+  assert.match(neonRowRule, /background-size:\s*92%\s+auto/);
+  assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /color:\s*#54152f/);
-  assert.match(ribbonContentRule, /inset:\s*15\.5%\s+10%\s+9\.5%/);
-  assert.match(ribbonRowRule, /height:\s*clamp\(76px,\s*19\.5cqw,\s*104px\)/);
+  assert.match(neonViewportRule, /right:\s*12%/);
+  assert.match(neonViewportRule, /justify-content:\s*safe center/);
+  assert.match(ribbonContentRule, /inset:\s*19\.5%\s+10%\s+9\.5%/);
+  assert.match(ribbonRowRule, /height:\s*clamp\(70px,\s*17\.5cqw,\s*94px\)/);
+  assert.match(ribbonRowRule, /min-height:\s*clamp\(70px,\s*17\.5cqw,\s*94px\)/);
   assert.match(ribbonRowRule, /background-size:\s*94%\s+auto/);
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
+  assert.match(ribbonViewportRule, /right:\s*10\.5%/);
+  assert.match(ribbonViewportRule, /left:\s*20%/);
 });
 
 test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
@@ -371,11 +386,27 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
 
   const goldenRowRule = overlayStyles.match(/\.golden-lily-row\s*\{[^}]*\}/)?.[0];
+  const goldenContentRule = overlayStyles.match(/\.queue-golden-lily \.overlay-content\s*\{(?=[^}]*inset:)[^}]*\}/)?.[0];
+  const goldenRankRule = overlayStyles.match(/\.golden-lily-rank\s*\{[^}]*\}/)?.[0];
+  const goldenViewportRule = overlayStyles.match(/\.golden-lily-info-viewport\s*\{[^}]*\}/)?.[0];
   const goldenInfoRule = overlayStyles.match(/\.golden-lily-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  assert.ok(goldenContentRule);
   assert.ok(goldenRowRule);
+  assert.ok(goldenRankRule);
+  assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
+  assert.match(goldenContentRule, /inset:\s*19%\s+8\.5%\s+8\.5%/);
+  assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 6, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*80%/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
+  assert.match(goldenRankRule, /top:\s*13%/);
+  assert.match(goldenRankRule, /bottom:\s*21%/);
+  assert.match(goldenRankRule, /left:\s*5\.5%/);
+  assert.match(goldenRankRule, /width:\s*18\.5%/);
+  assert.match(goldenRankRule, /place-items:\s*center/);
+  assert.match(goldenViewportRule, /right:\s*7%/);
+  assert.match(goldenViewportRule, /left:\s*29%/);
+  assert.match(overlayStyles, /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*6px/);
   assert.match(goldenInfoRule, /margin-inline:\s*auto/);
 });
 

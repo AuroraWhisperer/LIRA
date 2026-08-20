@@ -52,9 +52,12 @@
 }
 
 .neon-vinyl-list.identity-list,
-.cherry-ribbon-list.identity-list,
-.golden-lily-list.identity-list {
+.cherry-ribbon-list.identity-list {
   gap: 8px;
+}
+
+.golden-lily-list.identity-list {
+  gap: 6px;
 }
 
 .illustrated-queue-row {

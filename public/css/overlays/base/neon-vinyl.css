@@ -22,10 +22,10 @@
   --identity-text: #fff9fc;
   --medal-bg: #b12d66;
   --medal-text: #fff9fc;
-  height: clamp(78px, 20cqw, 108px);
-  min-height: clamp(78px, 20cqw, 108px);
+  height: clamp(70px, 18cqw, 96px);
+  min-height: clamp(70px, 18cqw, 96px);
   background-image: url('/img/overlays/song-board-style-4/entry.png');
-  background-size: 96% auto;
+  background-size: 92% auto;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.7), 26px);
   font-weight: 760;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -42,14 +42,15 @@
 
 .neon-vinyl-info-viewport {
   top: 31%;
-  right: 10%;
+  right: 12%;
   bottom: 31%;
   left: 23.5%;
+  justify-content: safe center;
   color: #54152f;
 }
 
 .neon-vinyl-info.identity-content {
-  margin-inline: auto;
+  margin-inline: 0;
 }
 
 .neon-vinyl-song {

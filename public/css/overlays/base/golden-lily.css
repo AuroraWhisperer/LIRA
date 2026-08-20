@@ -14,7 +14,7 @@
 }
 
 .queue-golden-lily .overlay-content {
-  inset: 20% 8.5% 8.5%;
+  inset: 19% 8.5% 8.5%;
 }
 
 .golden-lily-row {
@@ -45,9 +45,9 @@
 .golden-lily-rank {
   position: absolute;
   z-index: 2;
-  top: 15%;
-  bottom: 19%;
-  left: 7.5%;
+  top: 13%;
+  bottom: 21%;
+  left: 5.5%;
   width: 18.5%;
   display: grid;
   place-items: center;
@@ -62,9 +62,9 @@
 
 .golden-lily-info-viewport {
   top: 31%;
-  right: 5.5%;
+  right: 7%;
   bottom: 29%;
-  left: 27.5%;
+  left: 29%;
   overflow: hidden;
   color: #6f4a24;
 }
