@@ -160,7 +160,7 @@
 | `sourceUrl` | string | 图标来源 CDN URL（用于更新图标） |
 | `category` | string | 分类标签：`blind-box`（盲盒）/ `guard`（大航海）/ `special`（特殊）/ 其他值为普通礼物 |
 
-消费方逻辑：加班机礼物规则选择器按 `id` 匹配规则的 `giftId`，并展示 `image`；礼物面板展示 `name`/`rmb`；`category` 用于在 UI 中做分组展示。
+消费方逻辑：加班机礼物规则选择器按 `id` 匹配规则的 `giftId`，并展示 `image`；最近礼物卡片按 `id` 匹配收到的 `gift_id`，为单价至少 1000 元的普通礼物展示 `image`；礼物面板展示 `name`/`rmb`；`category` 用于在 UI 中做分组展示。
 
 ### 6.2 data/theme-presets.json 格式(唯一成文处)
 

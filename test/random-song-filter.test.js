@@ -201,6 +201,12 @@ test('danmaku bridge passes combined terms through unchanged', () => {
   });
 });
 
+test('danmaku song requests accept the song name with or without a separating space', () => {
+  const expected = { type: 'request', songName: '123' };
+  assert.deepEqual(parseDanmakuCommand('点歌123', {}), expected);
+  assert.deepEqual(parseDanmakuCommand('点歌 123', {}), expected);
+});
+
 test('ignores a random danmaku when no library song satisfies every term', () => {
   let added = false;
   let persistedCooldown = false;

@@ -4,6 +4,10 @@
 import { scheduleClassicVerticalScroll, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleIdentityVerticalScroll, scheduleIllustratedVerticalScroll, scheduleStorybookVerticalScroll } from './queue-scroll.js';
 import { escapeHtml, formatSuperChatPrice, guardLabel, hexToRgb, hexToRgba, identityQueueFontSize, medalLevelClass, normalizeFontSize, normalizeGuardLevel, overlayLowPowerEnabled, queueScrollSeconds, queueSongFontSize, requesterIdentityClass, requesterIdentityLabel, scaleToFontSize, superChatPriceClass, withMultilingualFallback } from './queue-utils.js';
 
+function displaySongName(value) {
+  return String(value ?? '').trimStart();
+}
+
 export function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
   const baseFontSize = Math.max(10, normalizeFontSize(
@@ -30,7 +34,7 @@ export function renderClassicQueue(settings, current, waiting, content) {
       ${shouldShowIndex ? `<div class="index">${index + 1}</div>` : ''}
       <div>
         <div class="song overlay-song-line">
-          <span class="overlay-song-name">${item.is_pinned ? '📌 ' : ''}${escapeHtml(item.song_name)}</span>
+          <span class="overlay-song-name">${item.is_pinned ? '📌 ' : ''}${escapeHtml(displaySongName(item.song_name))}</span>
           <span class="overlay-requester">${escapeHtml(item.requester_name || '观众')}</span>
         </div>
       </div>
@@ -176,7 +180,7 @@ export function renderIdentityRow(item, index, showIndex = true) {
   const identityText = requesterIdentityLabel(guardLevel, medalName);
   const identityClass = requesterIdentityClass(guardLevel, medalLevel);
   const medalClass = medalLevelClass(medalLevel);
-  const songName = escapeHtml(item.song_name);
+  const songName = escapeHtml(displaySongName(item.song_name));
   const songPrefix = item.is_pinned ? '📌 ' : '';
   const fullSongText = songPrefix + songName;
 
@@ -235,7 +239,7 @@ export function renderStorybookRow(item, index) {
       <span class="storybook-rank">${index + 1}</span>
       <span class="storybook-info-viewport identity-content-wrapper">
         <span class="storybook-info identity-content">
-          <span class="storybook-song">${songPrefix}${escapeHtml(item.song_name)}</span>
+          <span class="storybook-song">${songPrefix}${escapeHtml(displaySongName(item.song_name))}</span>
           <span class="storybook-requester">${escapeHtml(item.requester_name || '观众')}</span>
           ${identityText ? `<span class="storybook-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
           ${medalLevel > 0 ? `<span class="storybook-medal">${medalLevel}</span>` : ''}
@@ -302,7 +306,7 @@ function renderIllustratedAssetRow(item, style, rank = null) {
   const medalClass = medalLevelClass(medalLevel);
   const songPrefix = item.is_pinned ? '📌 ' : '';
   const guardText = guardLevel > 0 ? guardLabel(guardLevel) : '无';
-  const medalText = `${medalName ? `${medalName} · ` : ''}${medalLevel}级`;
+  const medalText = `${medalName ? `${medalName} · ` : ''}${medalLevel}`;
 
   return `
     <div class="${style}-row illustrated-queue-row guard-${guardLevel} medal-${medalClass}">
@@ -310,7 +314,7 @@ function renderIllustratedAssetRow(item, style, rank = null) {
       <span class="${style}-info-viewport illustrated-info-viewport identity-content-wrapper">
         <span class="${style}-info illustrated-info identity-content">
           <span class="${style}-song illustrated-field illustrated-song">
-            <span class="illustrated-song-value">${songPrefix}${escapeHtml(item.song_name)}</span>
+            <span class="illustrated-song-value">${songPrefix}${escapeHtml(displaySongName(item.song_name))}</span>
           </span>
           <span class="${style}-requester illustrated-field illustrated-requester">
             <span>${escapeHtml(item.requester_name || '观众')}</span>

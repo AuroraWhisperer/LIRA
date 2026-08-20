@@ -398,7 +398,7 @@ test('七夕鹊匣 gift card uses the box artwork and pink-purple theme', () => 
   assert.match(list.innerHTML, /\/img\/bilibili-gifts\/blind-box\/35786\.webp/);
 });
 
-test('recent gift totals worth at least 1000 RMB use gold while artwork requires that unit value', () => {
+test('recent gift totals worth at least 1000 RMB use gold while unit-value artwork comes from the catalog', async () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
   const list = {
@@ -415,20 +415,33 @@ test('recent gift totals worth at least 1000 RMB use gold while artwork requires
           formatMoney: value => String(value)
         }
       },
+      fetch: async url => {
+        assert.equal(url, '/img/bilibili-gifts.json');
+        return {
+          ok: true,
+          json: async () => ({
+            gifts: [
+              { id: 35792, image: 'bilibili-gifts/1200-1300/35792.webp' }
+            ]
+          })
+        };
+      },
       getComputedStyle: () => ({ gridTemplateColumns: '270px' })
     },
     document: { getElementById: () => list }
   };
 
   vm.runInNewContext(script, sandbox);
+  await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
-    { gift_id: '35541', gift_name: 'bilibili星跃', user_name: 'Alice', num: 1, unit_price: 1000, total_price: 1000 },
-    { gift_id: '35541', gift_name: 'bilibili星跃', user_name: 'Bob', num: 2, unit_price: 500, total_price: 1000 }
+    { gift_id: '35792', gift_name: '宸星定情', user_name: 'Alice', num: 1, unit_price: 1200, total_price: 1200 },
+    { gift_id: '35792', gift_name: '宸星定情', user_name: 'Bob', num: 2, unit_price: 600, total_price: 1200 }
   ]);
 
   assert.equal((list.innerHTML.match(/high-value-gift-card/g) || []).length, 2);
   assert.equal((list.innerHTML.match(/gift-high-value-icon/g) || []).length, 1);
-  assert.equal((list.innerHTML.match(/\/img\/bilibili-gifts\/1000-1100\/35541\.webp/g) || []).length, 1);
+  assert.equal((list.innerHTML.match(/\/img\/bilibili-gifts\/1200-1300\/35792\.webp/g) || []).length, 1);
+  assert.doesNotMatch(script, /HIGH_VALUE_GIFT_ARTWORK/);
   assert.match(styles, /\.gift-card\.high-value-gift-card\s*\{[\s\S]*?background:\s*linear-gradient\(90deg/);
   assert.match(styles, /\.gift-card \.gift-high-value-icon\s*\{[\s\S]*?object-fit:\s*contain/);
 });

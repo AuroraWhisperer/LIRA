@@ -1,8 +1,10 @@
 .queue-storybook {
   container-type: inline-size;
   position: relative;
-  width: min(560px, calc(100vw - (2 * var(--overlay-edge))));
+  width: 560px;
   aspect-ratio: 2 / 3;
+  transform: scale(var(--illustrated-queue-scale, 1));
+  transform-origin: top left;
   overflow: hidden;
   border: 0;
   border-radius: 0;
@@ -10,10 +12,6 @@
   box-shadow: none;
   color: #315d7d;
   font-family: YouYuan, "Microsoft YaHei", "PingFang SC", sans-serif;
-}
-
-.overlay-body.queue-viewport-resized .queue-storybook {
-  width: min(560px, calc(100vw - (2 * var(--overlay-edge))));
 }
 
 .queue-storybook::before {
@@ -72,9 +70,10 @@
 }
 
 .queue-storybook .overlay-content {
+  --storybook-list-offset-y: 10px;
   position: absolute;
   z-index: 2;
-  inset: 24.5% 7.5% 17% 12.5%;
+  inset: calc(24.5% - var(--storybook-list-offset-y)) 7.5% calc(17% + var(--storybook-list-offset-y)) 12.5%;
   overflow: hidden;
   padding: 0;
 }
@@ -100,7 +99,7 @@
   min-height: clamp(68px, 20cqw, 104px);
   overflow: hidden;
   background-image: url('/img/overlays/song-board-style-3/entry.png');
-  background-position: center 43%;
+  background-position: center 47%;
   background-size: 108% auto;
   background-repeat: no-repeat;
   color: #315d7d;
@@ -121,7 +120,7 @@
 
 .storybook-rank {
   position: absolute;
-  top: 50%;
+  top: 47%;
   left: 5.5%;
   width: 17%;
   transform: translateY(-50%);
@@ -136,16 +135,16 @@
 
 .storybook-info-viewport {
   position: absolute;
-  top: 28%;
-  right: 20.5%;
+  top: 21%;
+  right: 11.5%;
   bottom: 28%;
-  left: 21%;
+  left: 25%;
   min-width: 0;
   display: flex;
   align-items: center;
   overflow: hidden;
   border-radius: 999px;
-  padding: 0 2.5%;
+  padding: 0;
 }
 
 .storybook-info.identity-content {

@@ -136,7 +136,7 @@
 
     setHardwareText('hardwareCpuModel', cpu.model || '未知 CPU');
     setHardwareText('hardwareCpuDetail', `物理 ${cpu.physicalCores || '--'} 核 / 逻辑 ${cpu.logicalCores || '--'} 线程`);
-    setHardwareText('hardwareCpuTemperature', `温度：${formatTemperature(cpu)}`);
+    setHardwareText('hardwareCpuTemperature', `温度：${formatTemperature(cpu, '未知')}`);
 
     setHardwareText('hardwareGpuModel', gpus.length ? gpus.map((gpu) => gpu.name || '未知 GPU').join(' / ') : '未读取到 GPU');
     setHardwareText(
@@ -165,10 +165,9 @@
         ].filter(Boolean).join(' ')).join('；')
         : 'Windows 未返回内存条型号'
     );
-    setHardwareText('hardwareMemoryTemperature', `温度：${formatTemperature(memory)}`);
     document.getElementById('hardwareSummaryStatus').textContent = includesTemperatures
-      ? '型号和容量已缓存；温度为本次检测时临时读取'
-      : '型号和容量已读取；温度仅在检测时读取';
+      ? '型号和容量已缓存；GPU 温度为本次检测时临时读取'
+      : '型号和容量已读取；GPU 温度仅在检测时读取';
   }
 
   function setHardwareText(id, value) {
@@ -180,8 +179,12 @@
     return Number.isFinite(Number(value)) && Number(value) > 0 ? formatBytes(Number(value)) : '容量未知';
   }
 
-  function formatTemperature(device) {
-    const temperature = Number(device.temperatureCelsius);
+  function formatTemperature(device, unavailableText) {
+    const rawTemperature = device.temperatureCelsius;
+    if (rawTemperature === null || rawTemperature === undefined || String(rawTemperature).trim() === '') {
+      return unavailableText || device.temperatureMessage || '不可用';
+    }
+    const temperature = Number(rawTemperature);
     return Number.isFinite(temperature) ? `${temperature.toFixed(0)}°C` : (device.temperatureMessage || '不可用');
   }
 

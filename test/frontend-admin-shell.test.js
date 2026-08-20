@@ -91,6 +91,46 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   );
 });
 
+test('hardware summary hides memory temperature and renders missing CPU temperature as unknown', () => {
+  const html = readAdminHtml();
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'metrics.js'), 'utf8');
+  const elements = new Map();
+  const getElementById = (id) => {
+    if (!elements.has(id)) elements.set(id, { textContent: '' });
+    return elements.get(id);
+  };
+  const sandbox = {
+    document: { getElementById },
+    window: {
+      AdminApp: {
+        utils: {
+          formatDateTime: String,
+          formatBytes: (value) => `${value} B`,
+          formatDuration: String,
+          toast() {},
+          showError() {}
+        }
+      }
+    }
+  };
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.metrics.renderHardwareSummary({
+    cpu: {
+      model: 'Example CPU',
+      physicalCores: 8,
+      logicalCores: 16,
+      temperatureCelsius: null,
+      temperatureMessage: 'Windows 未提供可靠的 CPU 温度'
+    },
+    memory: { totalBytes: 16, modules: [] },
+    gpus: []
+  }, false);
+
+  assert.equal(elements.get('hardwareCpuTemperature').textContent, '温度：未知');
+  assert.doesNotMatch(html, /id="hardwareMemoryTemperature"/);
+});
+
 test('first-run onboarding fragment is hidden by default and wired into the admin shell', () => {
   const page = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'admin-page.js'), 'utf8');
   const onboarding = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'onboarding.html'), 'utf8');

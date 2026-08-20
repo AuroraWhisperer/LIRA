@@ -4,7 +4,8 @@
 
 While the performance panel is opened, when the client requests its initial
 hardware summary, the system shall show the current CPU model, installed memory
-capacity and module details, and GPU model and reported video-memory capacity.
+capacity and module details, and physical GPU model and reported video-memory
+capacity. Virtual display adapters shall not be presented as GPUs.
 
 While the user starts a five-second performance sample, when the sample runs,
 the system shall refresh any supported hardware temperatures without creating a
@@ -12,7 +13,8 @@ resident monitoring process.
 
 While Windows, a driver, or a sensor does not expose a temperature, when the
 summary is rendered, the system shall identify that value as unavailable rather
-than reporting a guessed temperature.
+than reporting a guessed temperature. An unavailable CPU temperature shall be
+shown as `未知`, and the memory card shall not show a temperature row.
 
 ## Architecture
 

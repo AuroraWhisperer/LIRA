@@ -5,21 +5,10 @@
 (function () {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
-  const HIGH_VALUE_GIFT_ARTWORK = Object.freeze({
-    '35541': '1000-1100/35541.webp',
-    '31115': '1000-1100/31115.webp',
-    '31087': '1200-1300/31087.webp',
-    '30847': '1200-1300/30847.webp',
-    '35724': '1300-1400/35724.webp',
-    '34638': '1900-2000/34638.webp',
-    '31028': '2000-2499/31028.webp',
-    '32313': '2500-2999/32313.webp',
-    '34383': '3000-above/34383.webp',
-    '34639': '3000-above/34639.webp',
-    '34998': '2500-2999/34998.webp',
-    '35502': '3000-above/35502.webp'
-  });
   let recentGiftResizeObserver = null;
+  let giftArtworkById = null;
+  let giftArtworkLoadPromise = null;
+  let latestRecentGiftItems = [];
 
   const {
     escapeHtml,
@@ -44,6 +33,41 @@
     recentGiftResizeObserver.observe(list);
   }
 
+  async function loadGiftArtworkCatalog() {
+    if (giftArtworkById) return giftArtworkById;
+    if (giftArtworkLoadPromise) return giftArtworkLoadPromise;
+
+    giftArtworkLoadPromise = (async () => {
+      const artworkById = new Map();
+      if (typeof window.fetch !== 'function') return artworkById;
+
+      try {
+        const response = await window.fetch('/img/bilibili-gifts.json');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        for (const gift of Array.isArray(payload?.gifts) ? payload.gifts : []) {
+          const giftId = String(gift?.id ?? '').trim();
+          const imagePath = normalizeGiftArtworkPath(gift?.image);
+          if (giftId && imagePath) artworkById.set(giftId, imagePath);
+        }
+      } catch (error) {
+        console.warn('读取礼物图片目录失败：', error);
+      }
+      return artworkById;
+    })();
+
+    giftArtworkById = await giftArtworkLoadPromise;
+    giftArtworkLoadPromise = null;
+    if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
+    return giftArtworkById;
+  }
+
+  function normalizeGiftArtworkPath(value) {
+    const imagePath = String(value ?? '').trim().replace(/^\/+/, '');
+    if (!/^bilibili-gifts\/[a-z0-9-]+\/[a-z0-9._-]+\.(?:webp|png|jpe?g)$/i.test(imagePath)) return '';
+    return `/img/${imagePath}`;
+  }
+
   // ── 最近礼物列表 ──
 
   /**
@@ -53,6 +77,7 @@
   function renderGiftRecentList(items) {
     const list = document.getElementById('giftRecentList');
     if (!list) return;
+    latestRecentGiftItems = items;
     const isEmpty = items.length === 0;
     list.classList.toggle('is-empty', isEmpty);
     if (isEmpty) {
@@ -163,11 +188,11 @@
   }
 
   function getHighValueGiftArtwork(item) {
-    const unitPrice = Number(item && item.unit_price);
-    const giftId = String(item && item.gift_id || '').trim();
-    const artworkPath = HIGH_VALUE_GIFT_ARTWORK[giftId];
+    const unitPrice = Number(item?.unit_price);
+    const giftId = String(item?.gift_id ?? '').trim();
+    const artworkPath = giftArtworkById?.get(giftId);
     if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB || !artworkPath) return null;
-    return { src: `/img/bilibili-gifts/${artworkPath}` };
+    return { src: artworkPath };
   }
 
   // 导出
@@ -177,6 +202,11 @@
     renderGiftRecentList,
     getGuardBadge,
     getBlindBoxIcon,
-    getHighValueGiftArtwork
+    getHighValueGiftArtwork,
+    loadGiftArtworkCatalog
   };
+
+  loadGiftArtworkCatalog().catch(error => {
+    console.warn('初始化礼物图片目录失败：', error);
+  });
 })();

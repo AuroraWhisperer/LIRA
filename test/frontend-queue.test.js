@@ -228,12 +228,13 @@ test('storybook queue keeps illustrated rows fixed while identity content stays 
   assert.ok(contentRule);
   assert.match(viewportRule, /overflow:\s*hidden/);
   assert.match(viewportRule, /min-width:\s*0/);
-  assert.match(viewportRule, /right:\s*20\.5%/);
-  assert.match(viewportRule, /left:\s*21%/);
-  assert.match(viewportRule, /padding:\s*0\s+2\.5%/);
+  assert.match(viewportRule, /right:\s*11\.5%/);
+  assert.match(viewportRule, /left:\s*25%/);
+  assert.match(viewportRule, /padding:\s*0/);
   assert.doesNotMatch(viewportRule, /background:/);
   assert.match(rankRule, /left:\s*5\.5%/);
-  assert.match(contentRule, /inset:\s*24\.5%\s+7\.5%\s+17%\s+12\.5%/);
+  assert.match(contentRule, /--storybook-list-offset-y:\s*10px/);
+  assert.match(contentRule, /inset:\s*calc\(24\.5% - var\(--storybook-list-offset-y\)\)\s+7\.5%\s+calc\(17% \+ var\(--storybook-list-offset-y\)\)\s+12\.5%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
   assert.match(rowRule, /background-size:\s*108%\s+auto/);
   assert.match(rowRule, /height:\s*clamp\(68px,\s*20cqw,\s*104px\)/);
@@ -295,7 +296,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
     assert.match(row, /提督/);
     assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
     assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
-    assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26级/);
+    assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26/);
     assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
   });
 
@@ -382,7 +383,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(row, /提督/);
   assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
   assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
-  assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26级/);
+  assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26/);
   assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
 
   const goldenRowRule = overlayStyles.match(/\.golden-lily-row\s*\{[^}]*\}/)?.[0];

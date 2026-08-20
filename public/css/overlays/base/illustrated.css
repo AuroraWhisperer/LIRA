@@ -3,19 +3,15 @@
 .queue-golden-lily {
   container-type: inline-size;
   position: relative;
-  width: min(560px, calc(100vw - (2 * var(--overlay-edge))));
+  width: 560px;
   aspect-ratio: 2 / 3;
+  transform: scale(var(--illustrated-queue-scale, 1));
+  transform-origin: top left;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.overlay-body.queue-viewport-resized .queue-neon-vinyl,
-.overlay-body.queue-viewport-resized .queue-cherry-ribbon,
-.overlay-body.queue-viewport-resized .queue-golden-lily {
-  width: min(560px, calc(100vw - (2 * var(--overlay-edge))));
 }
 
 .queue-neon-vinyl.gradient-bg,

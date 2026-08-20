@@ -11,9 +11,15 @@
 对比总结上一版更新了什么，用于提交github和release的时候说明并且写进去
 
 # 2. 验证 + 提交
-注意提交不要带claude为co-auther
+Claude Code 默认会给提交添加署名。提交前确认 `.claude/settings.json` 含有：
+`"attribution": { "commit": "", "pr": "" }`
 npm test
 git add . && git commit -m "vX.Y.Z"
+
+# 推送前检查；命中 Claude Co-Authored-By 时会中止
+if (git log -1 --format=%B | Select-String -Quiet -Pattern '(?i)^Co-Authored-By:.*Claude') {
+  throw 'Latest commit contains a Claude Co-Authored-By trailer.'
+}
 git push
 
 # 3. 一键发布

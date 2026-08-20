@@ -54,6 +54,27 @@ test('hardware summary exposes useful device data without serial numbers', () =>
   assert.doesNotMatch(JSON.stringify(summary), /must-not-leak/);
 });
 
+test('hardware summary excludes virtual display adapters from the GPU list', () => {
+  const summary = buildHardwareSummary({
+    gpus: [
+      {
+        Name: 'MuMu Virtual Display Adapter',
+        AdapterCompatibility: 'NetEase',
+        AdapterRAM: null
+      },
+      {
+        Name: 'NVIDIA GeForce RTX 4060 Laptop GPU',
+        AdapterCompatibility: 'NVIDIA',
+        AdapterRAM: '4294967296'
+      }
+    ]
+  });
+
+  assert.deepEqual(summary.gpus.map((gpu) => gpu.name), [
+    'NVIDIA GeForce RTX 4060 Laptop GPU'
+  ]);
+});
+
 test('hardware service caches static reads and refreshes temperatures only on request', async () => {
   let staticCalls = 0;
   let temperatureCalls = 0;

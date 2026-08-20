@@ -167,7 +167,7 @@ async function readHardwareTemperatures(gpus) {
 function buildHardwareSummary(details = {}, osSnapshot = {}) {
   const cpus = toArray(details.cpus);
   const memoryModules = toArray(details.memoryModules);
-  const gpus = toArray(details.gpus);
+  const gpus = toArray(details.gpus).filter((gpu) => !isVirtualDisplayAdapter(gpu));
   const primaryCpu = cpus[0] || {};
   const logicalCpuCount = positiveInteger(primaryCpu.NumberOfLogicalProcessors)
     || positiveInteger(osSnapshot.logicalCpuCount)
@@ -257,6 +257,10 @@ function hardwareText(value) {
 
 function isNvidiaGpu(gpu) {
   return /nvidia/i.test(hardwareText(gpu.vendor || gpu.AdapterCompatibility));
+}
+
+function isVirtualDisplayAdapter(gpu) {
+  return /\bvirtual\s+(?:display|graphics|video)(?:\s+adapter)?\b/i.test(hardwareText(gpu.name || gpu.Name));
 }
 
 function sampleWindowsGpuMetrics(windowMs) {

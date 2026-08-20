@@ -36,6 +36,67 @@ test('queue overlay loads one focused module entrypoint', () => {
   assert.match(entrySource, /from '\.\/queue-scroll\.js';/);
 });
 
+test('illustrated queues use one contain scale for width- and height-limited browser sources', () => {
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(source, sandbox);
+
+  assert.equal(sandbox.calculateIllustratedQueueScale(1920, 1080, 560, 840, 16), 1);
+  assert.equal(
+    sandbox.calculateIllustratedQueueScale(400, 900, 560, 840, 16),
+    368 / 560
+  );
+  assert.equal(
+    sandbox.calculateIllustratedQueueScale(900, 457, 560, 840, 16),
+    425 / 840
+  );
+
+  const appliedStyles = new Map();
+  const panel = {
+    offsetWidth: 560,
+    offsetHeight: 840,
+    ownerDocument: {
+      documentElement: { clientWidth: 400, clientHeight: 900 },
+      defaultView: {
+        innerWidth: 400,
+        innerHeight: 900,
+        getComputedStyle() {
+          return { marginLeft: '8px', marginTop: '8px' };
+        }
+      }
+    },
+    style: {
+      setProperty(name, value) { appliedStyles.set(name, value); },
+      removeProperty(name) { appliedStyles.delete(name); }
+    }
+  };
+  assert.equal(sandbox.syncIllustratedQueueViewport(panel, true), 384 / 560);
+  assert.equal(appliedStyles.get('--illustrated-queue-scale'), String(384 / 560));
+  sandbox.syncIllustratedQueueViewport(panel, false);
+  assert.equal(appliedStyles.has('--illustrated-queue-scale'), false);
+
+  const storybookRule = overlayCss.match(/\.queue-storybook\s*\{[^}]*\}/)?.[0];
+  const illustratedRule = overlayCss.match(/\.queue-neon-vinyl,\s*\.queue-cherry-ribbon,\s*\.queue-golden-lily\s*\{[^}]*\}/)?.[0];
+  assert.ok(storybookRule);
+  assert.ok(illustratedRule);
+  [storybookRule, illustratedRule].forEach((rule) => {
+    assert.match(rule, /width:\s*560px/);
+    assert.match(rule, /transform:\s*scale\(var\(--illustrated-queue-scale,\s*1\)\)/);
+    assert.match(rule, /transform-origin:\s*top left/);
+    assert.doesNotMatch(rule, /100vw/);
+  });
+  assert.match(source, /syncIllustratedQueueViewport\(panel,\s*ILLUSTRATED_QUEUE_STYLES\.has\(style\)\)/);
+  assert.match(source, /function handleQueueViewportResize\(\)[\s\S]*syncQueueViewport\(normalizeQueueStyle/);
+});
+
 test('classic queue starts at its fixed size and follows a resized browser source', () => {
   const adminHtml = readAdminHtml();
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
