@@ -22,8 +22,10 @@
   --identity-text: #fff8df;
   --medal-bg: #65773b;
   --medal-text: #fffdf2;
+  width: 80%;
   height: clamp(88px, 22cqw, 124px);
   min-height: clamp(88px, 22cqw, 124px);
+  margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-6/entry.png');
   background-size: 100% auto;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.68), 25px);
@@ -67,17 +69,16 @@
   color: #6f4a24;
 }
 
+.golden-lily-info.identity-content {
+  margin-inline: auto;
+}
+
 .golden-lily-song {
   color: #5a3719;
 }
 
 .golden-lily-requester {
   color: #76512b;
-}
-
-.golden-lily-guard .illustrated-label,
-.golden-lily-medal .illustrated-label {
-  color: #8d611d;
 }
 
 .golden-lily-empty {

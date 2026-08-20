@@ -190,13 +190,15 @@
 
 ### 首次启动
 - 用户第一次打开软件
-- 自动检测 `localStorage.liraTourCompleted`
-- 未完成时自动打开引导
+- 自动检测 `localStorage.liraTourFirstRunShown`，并兼容旧的 `localStorage.liraTourCompleted`
+- 两个标记都不存在时自动打开引导，同时立即记录已经展示
+- 覆盖安装、后续启动和引导版本升级都不会再次自动打开
 
 ### 手动打开
 - 从"使用文档"页面的按钮触发
+- 只重置当前可见步骤，不清除自动展示记录
 - 调用 `window.liraTour.reset()`
-- 清除完成状态，从头开始
+- 保留自动展示状态，从头开始
 
 ### 跳过引导
 - 点击关闭按钮（×）

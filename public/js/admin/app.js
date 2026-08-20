@@ -97,7 +97,7 @@ async function initApp() {
   await stateService.reloadAll();
 
   // 首次启动时自动打开交互式引导（替代旧的对话框引导）
-  if (interactiveTour.shouldAutoOpen()) {
+  if (interactiveTour.claimAutoOpen()) {
     interactiveTour.open();
   }
 

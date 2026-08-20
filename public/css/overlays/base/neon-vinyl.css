@@ -14,51 +14,50 @@
 }
 
 .queue-neon-vinyl .overlay-content {
-  inset: 20% 9.5% 8.5%;
+  inset: 23% 9.5% 8.5%;
 }
 
 .neon-vinyl-row {
-  --identity-bg: #d44a82;
+  --identity-bg: #a52b5f;
   --identity-text: #fff9fc;
-  --medal-bg: #f181aa;
+  --medal-bg: #b12d66;
   --medal-text: #fff9fc;
   height: clamp(78px, 20cqw, 108px);
   min-height: clamp(78px, 20cqw, 108px);
   background-image: url('/img/overlays/song-board-style-4/entry.png');
-  background-size: 100% auto;
+  background-size: 96% auto;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.7), 26px);
   font-weight: 760;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.neon-vinyl-row.guard-1 { --identity-bg: #a32f62; }
-.neon-vinyl-row.guard-2 { --identity-bg: #c83f78; }
-.neon-vinyl-row.guard-3 { --identity-bg: #ed6c9c; }
-.neon-vinyl-row.medal-blue-purple { --medal-bg: #b94b83; }
-.neon-vinyl-row.medal-light-blue { --medal-bg: #d85c91; }
-.neon-vinyl-row.medal-deep-blue { --medal-bg: #9e3b70; }
-.neon-vinyl-row.medal-purple { --medal-bg: #c94882; }
-.neon-vinyl-row.medal-red { --medal-bg: #e05178; }
+.neon-vinyl-row.guard-1 { --identity-bg: #84204b; }
+.neon-vinyl-row.guard-2 { --identity-bg: #a52b5f; }
+.neon-vinyl-row.guard-3 { --identity-bg: #b9376d; }
+.neon-vinyl-row.medal-blue-purple { --medal-bg: #91305f; }
+.neon-vinyl-row.medal-light-blue { --medal-bg: #a93669; }
+.neon-vinyl-row.medal-deep-blue { --medal-bg: #77234f; }
+.neon-vinyl-row.medal-purple { --medal-bg: #96295e; }
+.neon-vinyl-row.medal-red { --medal-bg: #a92d51; }
 
 .neon-vinyl-info-viewport {
   top: 31%;
-  right: 8.5%;
+  right: 10%;
   bottom: 31%;
-  left: 22.5%;
-  color: #7a2850;
+  left: 23.5%;
+  color: #54152f;
+}
+
+.neon-vinyl-info.identity-content {
+  margin-inline: auto;
 }
 
 .neon-vinyl-song {
-  color: #5c1739;
+  color: #421023;
 }
 
 .neon-vinyl-requester {
-  color: #8b315b;
-}
-
-.neon-vinyl-guard .illustrated-label,
-.neon-vinyl-medal .illustrated-label {
-  color: #b52f6c;
+  color: #58162f;
 }
 
 .neon-vinyl-empty {

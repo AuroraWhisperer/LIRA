@@ -132,33 +132,60 @@ test('all six queue render paths run without cross-module reference errors', asy
   const namespace = await loadQueueOverlay(dom);
 
   const current = { song_name: '当前歌曲', requester_name: '观众A', is_pinned: false };
-  const waiting = [{ song_name: '下一首', requester_name: '观众B', is_pinned: false }];
+  const waiting = [
+    { song_name: '下一首', requester_name: '观众B', is_pinned: false },
+    { song_name: '第三首', requester_name: '观众C', is_pinned: false },
+    { song_name: '第四首', requester_name: '观众D', is_pinned: false }
+  ];
+  const expectedSongs = [current, ...waiting].map((item) => item.song_name);
+  const assertSharedQueue = (rowClass) => {
+    expectedSongs.forEach((songName) => assert.match(dom.content.innerHTML, new RegExp(songName)));
+    assert.equal((dom.content.innerHTML.match(new RegExp(`class=\"[^\"]*${rowClass}[^\"]*\"`, 'g')) || []).length, expectedSongs.length);
+  };
 
   assert.doesNotThrow(() => namespace.renderClassicQueue(BASE_SETTINGS, current, waiting, dom.content));
   assert.match(dom.content.innerHTML, /classic-list-window/);
+  assertSharedQueue('overlay-waiting-row');
 
   const identitySettings = { ...BASE_SETTINGS, overlayQueueStyle: 'identity' };
   assert.doesNotThrow(() => namespace.renderIdentityQueue(identitySettings, current, waiting, dom.content, []));
   assert.match(dom.content.innerHTML, /identity-list-window/);
   assert.equal(dom.viewport.style.height, '364px');
+  assertSharedQueue('identity-row');
 
   const storybookSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'storybook' };
   assert.doesNotThrow(() => namespace.renderStorybookQueue(storybookSettings, current, waiting, dom.content));
   assert.match(dom.content.innerHTML, /storybook-list-window/);
+  assertSharedQueue('storybook-row');
 
   const neonSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'neon-vinyl' };
   assert.doesNotThrow(() => namespace.renderNeonVinylQueue(neonSettings, current, waiting, dom.content));
   assert.match(dom.content.innerHTML, /neon-vinyl-list-window/);
+  assertSharedQueue('neon-vinyl-row');
 
   const ribbonSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'cherry-ribbon' };
   assert.doesNotThrow(() => namespace.renderCherryRibbonQueue(ribbonSettings, current, waiting, dom.content));
   assert.match(dom.content.innerHTML, /cherry-ribbon-list-window/);
+  assertSharedQueue('cherry-ribbon-row');
 
   const goldenLilySettings = { ...BASE_SETTINGS, overlayQueueStyle: 'golden-lily' };
   assert.doesNotThrow(() => namespace.renderGoldenLilyQueue(goldenLilySettings, current, waiting, dom.content));
   assert.match(dom.content.innerHTML, /golden-lily-list-window/);
+  assertSharedQueue('golden-lily-row');
   assert.doesNotThrow(() => namespace.renderGoldenLilyQueue(goldenLilySettings, null, [], dom.content));
   assert.match(dom.content.innerHTML, /golden-lily-empty/);
+});
+
+test('queue style changes are detected so the overlay can reload the authoritative queue', async () => {
+  const dom = createQueueDom();
+  const namespace = await loadQueueOverlay(dom, QUEUE_ENTRY);
+  const state = (style) => ({ settings: { overlayQueueStyle: style } });
+
+  assert.equal(namespace.queueStyleChanged(state('classic'), state('identity')), true);
+  assert.equal(namespace.queueStyleChanged(state('identity'), state('storybook')), true);
+  assert.equal(namespace.queueStyleChanged(state('festival'), state('identity')), false);
+  assert.equal(namespace.queueStyleChanged(state('storybook'), state('storybook')), false);
+  assert.equal(namespace.queueStyleChanged(null, state('classic')), false);
 });
 
 test('queue viewport resize state is shared across overlay modules', async () => {

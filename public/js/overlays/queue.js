@@ -78,6 +78,10 @@ function connectSocket() {
       if (payload.reason && payload.reason.startsWith('songs:')) {
         return;
       }
+      if (queueStyleChanged(state, payload.state)) {
+        scheduleStateRefresh();
+        return;
+      }
       if (isSongRequestSnapshotReason(payload.reason)) {
         scheduleStateRefresh();
         return;
@@ -209,4 +213,10 @@ export function normalizeQueueStyle(style) {
   if (ILLUSTRATED_QUEUE_STYLES.has(style)) return style;
   if (style === 'identity' || style === 'festival') return 'identity';
   return 'classic';
+}
+
+export function queueStyleChanged(currentState, nextState) {
+  if (!currentState || !nextState) return false;
+  return normalizeQueueStyle(currentState.settings?.overlayQueueStyle)
+    !== normalizeQueueStyle(nextState.settings?.overlayQueueStyle);
 }

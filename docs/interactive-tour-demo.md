@@ -67,7 +67,7 @@
 
 ### 集成方式
 
-1. **自动启动**：首次使用时自动打开（检查 `localStorage.liraTourCompleted`）
+1. **自动启动**：全新用户配置首次使用时自动打开，并立即写入 `localStorage.liraTourFirstRunShown`；已有任意 `liraTourCompleted` 标记的旧版本用户也视为已经展示过，覆盖安装和引导版本升级均不会再次自动打开
 2. **手动触发**：使用文档中的"重新打开交互式引导"按钮
 3. **全局访问**：`window.liraTour.open()` / `.reset()` / `.close()`
 

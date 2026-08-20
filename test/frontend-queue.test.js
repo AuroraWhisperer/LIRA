@@ -24,6 +24,35 @@ function readOvertimeAdminSource() {
   ].map(file => fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', file), 'utf8')).join('\n');
 }
 
+test('admin queue style cards use distinct theme palettes', () => {
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'gifts.css'),
+    'utf8'
+  );
+  const queueStyles = [
+    'classic',
+    'identity',
+    'storybook',
+    'neon-vinyl',
+    'cherry-ribbon',
+    'golden-lily'
+  ];
+  const backgrounds = queueStyles.map((style) => {
+    const rule = styles.match(
+      new RegExp(`\\.style-option\\[data-overlay-style="${style}"\\]\\s*\\{[\\s\\S]*?\\n\\}`)
+    )?.[0];
+
+    assert.ok(rule, `${style} should have a themed style card`);
+    assert.match(rule, /--style-option-border:\s*#[0-9a-f]{6}/i);
+    assert.match(rule, /--style-option-title:\s*#[0-9a-f]{6}/i);
+    return rule.match(/--style-option-bg:\s*([^;]+);/)?.[1];
+  });
+
+  assert.equal(new Set(backgrounds).size, queueStyles.length);
+  assert.match(styles, /\.style-option\.active\s*\{[\s\S]*?var\(--style-option-ring\)/);
+  assert.match(styles, /\.style-option:focus-visible\s*\{[\s\S]*?var\(--style-option-accent\)/);
+});
+
 test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const styleValues = new Map();
@@ -138,7 +167,7 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.doesNotMatch(medalRule, /max-width/);
 });
 
-test('storybook queue keeps illustrated rows fixed while identity content stays inside the blue viewport', () => {
+test('storybook queue keeps illustrated rows fixed while identity content stays inside the artwork viewport', () => {
   const html = readAdminHtml();
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
@@ -197,7 +226,8 @@ test('storybook queue keeps illustrated rows fixed while identity content stays 
   assert.ok(contentRule);
   assert.match(viewportRule, /overflow:\s*hidden/);
   assert.match(viewportRule, /min-width:\s*0/);
-  assert.match(contentRule, /inset:\s*25\.5%\s+15%\s+17%/);
+  assert.doesNotMatch(viewportRule, /background:/);
+  assert.match(contentRule, /inset:\s*24\.5%\s+9\.5%\s+17%\s+14\.5%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
   assert.match(rowRule, /background-size:\s*108%\s+auto/);
   assert.match(rowRule, /height:\s*clamp\(68px,\s*20cqw,\s*104px\)/);
@@ -255,16 +285,39 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
 
   [neonRow, ribbonRow].forEach((row) => {
     assert.doesNotMatch(row, /illustrated-rank/);
-    assert.match(row, />歌名</);
-    assert.match(row, />点歌人</);
-    assert.match(row, />大航海</);
-    assert.match(row, />灯牌等级</);
     assert.match(row, /提督/);
     assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
     assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
     assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26级/);
     assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
   });
+
+  assert.doesNotMatch(neonRow, /illustrated-label/);
+  assert.doesNotMatch(ribbonRow, /illustrated-label/);
+
+  const neonContentRule = overlayStyles.match(/\.queue-neon-vinyl \.overlay-content\s*\{[^}]*\}/)?.[0];
+  const neonRowRule = overlayStyles.match(/\.neon-vinyl-row\s*\{[^}]*\}/)?.[0];
+  const neonInfoRule = overlayStyles.match(/\.neon-vinyl-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  const neonViewportRule = overlayStyles.match(/\.neon-vinyl-info-viewport\s*\{[^}]*\}/)?.[0];
+  const ribbonContentRule = overlayStyles.match(/\.queue-cherry-ribbon \.overlay-content\s*\{[^}]*\}/)?.[0];
+  const ribbonRowRule = overlayStyles.match(/\.cherry-ribbon-row\s*\{[^}]*\}/)?.[0];
+  const ribbonInfoRule = overlayStyles.match(/\.cherry-ribbon-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  assert.ok(neonContentRule);
+  assert.ok(neonRowRule);
+  assert.ok(neonInfoRule);
+  assert.ok(neonViewportRule);
+  assert.ok(ribbonContentRule);
+  assert.ok(ribbonRowRule);
+  assert.ok(ribbonInfoRule);
+  assert.match(neonContentRule, /inset:\s*23%\s+9\.5%\s+8\.5%/);
+  assert.match(neonRowRule, /height:\s*clamp\(78px,\s*20cqw,\s*108px\)/);
+  assert.match(neonRowRule, /background-size:\s*96%\s+auto/);
+  assert.match(neonInfoRule, /margin-inline:\s*auto/);
+  assert.match(neonViewportRule, /color:\s*#54152f/);
+  assert.match(ribbonContentRule, /inset:\s*15\.5%\s+10%\s+9\.5%/);
+  assert.match(ribbonRowRule, /height:\s*clamp\(76px,\s*19\.5cqw,\s*104px\)/);
+  assert.match(ribbonRowRule, /background-size:\s*94%\s+auto/);
+  assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
 });
 
 test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
@@ -310,15 +363,20 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   }, 5);
 
   assert.match(row, /golden-lily-rank illustrated-rank">6<\/span>/);
-  assert.match(row, />歌名</);
-  assert.match(row, />点歌人</);
-  assert.match(row, />大航海</);
-  assert.match(row, />灯牌等级</);
+  assert.doesNotMatch(row, /illustrated-label/);
   assert.match(row, /提督/);
   assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
   assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
   assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26级/);
   assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
+
+  const goldenRowRule = overlayStyles.match(/\.golden-lily-row\s*\{[^}]*\}/)?.[0];
+  const goldenInfoRule = overlayStyles.match(/\.golden-lily-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  assert.ok(goldenRowRule);
+  assert.ok(goldenInfoRule);
+  assert.match(goldenRowRule, /width:\s*80%/);
+  assert.match(goldenRowRule, /margin-inline:\s*auto/);
+  assert.match(goldenInfoRule, /margin-inline:\s*auto/);
 });
 
 test('identity content scrolls as one stream only when its rendered width overflows', () => {

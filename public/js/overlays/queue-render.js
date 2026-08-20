@@ -310,19 +310,15 @@ function renderIllustratedAssetRow(item, style, rank = null) {
       <span class="${style}-info-viewport illustrated-info-viewport identity-content-wrapper">
         <span class="${style}-info illustrated-info identity-content">
           <span class="${style}-song illustrated-field illustrated-song">
-            <span class="illustrated-label">歌名</span>
             <span class="illustrated-song-value">${songPrefix}${escapeHtml(item.song_name)}</span>
           </span>
           <span class="${style}-requester illustrated-field illustrated-requester">
-            <span class="illustrated-label">点歌人</span>
             <span>${escapeHtml(item.requester_name || '观众')}</span>
           </span>
           <span class="${style}-guard illustrated-field illustrated-guard ${identityClass}">
-            <span class="illustrated-label">大航海</span>
             <span class="illustrated-guard-value">${escapeHtml(guardText)}</span>
           </span>
           <span class="${style}-medal illustrated-field illustrated-medal">
-            <span class="illustrated-label">灯牌等级</span>
             <span class="illustrated-medal-value">${escapeHtml(medalText)}</span>
           </span>
         </span>

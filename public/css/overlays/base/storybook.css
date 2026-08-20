@@ -74,7 +74,7 @@
 .queue-storybook .overlay-content {
   position: absolute;
   z-index: 2;
-  inset: 25.5% 15% 17%;
+  inset: 24.5% 9.5% 17% 14.5%;
   overflow: hidden;
   padding: 0;
 }
@@ -145,7 +145,6 @@
   align-items: center;
   overflow: hidden;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(228, 247, 255, 0.18), rgba(205, 238, 255, 0.64));
   padding: 0 3%;
 }
 

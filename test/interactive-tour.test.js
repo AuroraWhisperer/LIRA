@@ -14,6 +14,51 @@ test.before(async () => {
   );
 });
 
+function createStorage(initial = {}) {
+  const values = new Map(Object.entries(initial));
+  return {
+    getItem(key) {
+      return values.has(key) ? values.get(key) : null;
+    },
+    setItem(key, value) {
+      values.set(key, String(value));
+    },
+  };
+}
+
+test('tour auto-opens only once for a fresh installation profile', () => {
+  const freshStorage = createStorage();
+
+  assert.equal(tour.claimFirstRunTour(freshStorage), true);
+  assert.equal(
+    freshStorage.getItem(tour.TOUR_FIRST_RUN_SHOWN_KEY),
+    '1'
+  );
+  assert.equal(tour.claimFirstRunTour(freshStorage), false);
+});
+
+test('tour version changes do not reopen it for existing installations', () => {
+  const legacyCompletion = createStorage({ liraTourCompleted: '' });
+  const oldCompletion = createStorage({ liraTourCompleted: '1' });
+  const currentCompletion = createStorage({ liraTourCompleted: String(tour.TOUR_VERSION) });
+
+  assert.equal(tour.claimFirstRunTour(legacyCompletion), false);
+  assert.equal(tour.claimFirstRunTour(oldCompletion), false);
+  assert.equal(tour.claimFirstRunTour(currentCompletion), false);
+});
+
+test('manual tour reset does not clear first-run display history', () => {
+  const js = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
+    'utf8'
+  );
+  const resetBody = js.match(/reset:\s*\(\)\s*=>\s*\{([\s\S]*?)\n\s*\},/)?.[1];
+
+  assert.ok(resetBody, 'tour reset implementation should remain defined');
+  assert.doesNotMatch(resetBody, /removeItem\s*\(/);
+  assert.match(resetBody, /open\(\)/);
+});
+
 test('tour tooltip stays beside a right-edge target by clamping its horizontal position', () => {
   const position = tour.calculateTooltipPosition(
     { top: 20, left: 1480, right: 1560, bottom: 60, width: 80, height: 40 },

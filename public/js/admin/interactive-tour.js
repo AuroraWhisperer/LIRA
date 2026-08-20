@@ -9,6 +9,17 @@ import { toast as defaultToast } from '../shared/utils.js';
 
 export const TOUR_VERSION = 6;
 export const TOUR_COMPLETION_CHECK_INTERVAL_MS = 1500;
+export const TOUR_FIRST_RUN_SHOWN_KEY = 'liraTourFirstRunShown';
+const TOUR_COMPLETED_KEY = 'liraTourCompleted';
+
+export function claimFirstRunTour(storage) {
+  if (storage.getItem(TOUR_FIRST_RUN_SHOWN_KEY) !== null
+      || storage.getItem(TOUR_COMPLETED_KEY) !== null) {
+    return false;
+  }
+  storage.setItem(TOUR_FIRST_RUN_SHOWN_KEY, '1');
+  return true;
+}
 
 // 引导步骤定义
 export const TOUR_STEPS = [
@@ -631,14 +642,8 @@ export function createInteractiveTourController(deps = {}) {
 
     if (completed) {
       toast('引导已完成');
-      // 可以在这里保存完成状态到 localStorage 或服务器
-      localStorage.setItem('liraTourCompleted', String(TOUR_VERSION));
+      localStorage.setItem(TOUR_COMPLETED_KEY, String(TOUR_VERSION));
     }
-  }
-
-  function shouldAutoOpen() {
-    const completed = localStorage.getItem('liraTourCompleted');
-    return !completed || completed !== String(TOUR_VERSION);
   }
 
   // 绑定事件
@@ -680,9 +685,8 @@ export function createInteractiveTourController(deps = {}) {
     close,
     next,
     prev,
-    shouldAutoOpen,
+    claimAutoOpen: () => claimFirstRunTour(localStorage),
     reset: () => {
-      localStorage.removeItem('liraTourCompleted');
       open();
     },
   };

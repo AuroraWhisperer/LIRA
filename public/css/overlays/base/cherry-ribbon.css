@@ -14,7 +14,7 @@
 }
 
 .queue-cherry-ribbon .overlay-content {
-  inset: 10.5% 10% 9.5%;
+  inset: 15.5% 10% 9.5%;
 }
 
 .cherry-ribbon-row {
@@ -22,10 +22,10 @@
   --identity-text: #fffafd;
   --medal-bg: #d79253;
   --medal-text: #fffafd;
-  height: clamp(80px, 21cqw, 112px);
-  min-height: clamp(80px, 21cqw, 112px);
+  height: clamp(76px, 19.5cqw, 104px);
+  min-height: clamp(76px, 19.5cqw, 104px);
   background-image: url('/img/overlays/song-board-style-5/entry.png');
-  background-size: 100% auto;
+  background-size: 94% auto;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.69), 26px);
   font-weight: 760;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
@@ -48,17 +48,16 @@
   color: #60417f;
 }
 
+.cherry-ribbon-info.identity-content {
+  margin-inline: auto;
+}
+
 .cherry-ribbon-song {
   color: #4d2c70;
 }
 
 .cherry-ribbon-requester {
   color: #765494;
-}
-
-.cherry-ribbon-guard .illustrated-label,
-.cherry-ribbon-medal .illustrated-label {
-  color: #7852a1;
 }
 
 .cherry-ribbon-empty {

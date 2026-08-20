@@ -93,24 +93,6 @@
   white-space: nowrap;
 }
 
-.illustrated-label {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 1.45em;
-  box-sizing: border-box;
-  border: 1px solid currentColor;
-  border-radius: 0.28em;
-  padding: 0 0.38em;
-  font-family: Bahnschrift, "Microsoft YaHei", sans-serif;
-  font-size: 62%;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  opacity: 0.86;
-}
-
 .illustrated-song-value {
   font-weight: 900;
 }
