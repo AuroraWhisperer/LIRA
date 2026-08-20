@@ -189,9 +189,15 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
   assert.equal(started.game, 'draw-guess');
   assert.equal(JSON.stringify(started).includes('苹果'), false);
   assert.equal(service.getHostState().word, '苹果');
-  const guess = service.handleDanmaku({ uid: '42', userName: 'Alice', message: '苹果' });
+  const guess = service.handleDanmaku({
+    uid: '42',
+    userName: 'Alice',
+    message: '苹果',
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg'
+  });
   assert.equal(guess.accepted, true);
   assert.equal(service.getSession().state.scores[0].score, 10);
+  assert.equal(service.getSession().danmaku[0].avatarUrl, 'https://i0.hdslb.com/bfs/face/alice.jpg');
 
   const draw = service.draw({
     action: 'append',

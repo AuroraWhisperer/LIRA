@@ -118,43 +118,61 @@ body[data-game='gomoku'] .game-result-icon .icon-gomoku { display: block; filter
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
 
-/* Draw-and-guess desktop composition: drawing stays in the broad left field;
-   the narrower right rail is reserved for the live message stream. */
-body[data-game='draw-guess'] .game-stage { grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 390px); gap: clamp(16px, 1.8vw, 28px); }
-body[data-game='draw-guess'] .game-stage-header { position: absolute; inset: var(--overlay-edge) auto auto var(--overlay-edge); z-index: 3; }
-body[data-game='draw-guess'] .game-title { font-size: clamp(30px, 3.3vw, 48px); }
-body[data-game='draw-guess'] .game-turn { padding: 8px 14px; font-size: clamp(15px, 1.25vw, 20px); }
-body[data-game='draw-guess'] .draw-status { font-size: clamp(14px, 1.1vw, 18px); }
-body[data-game='draw-guess'] .draw-guess-view { grid-column: 1 / -1; grid-row: 1; padding-top: clamp(90px, 9vh, 130px); }
-body[data-game='draw-guess'] .draw-layout { grid-template-columns: minmax(0, 1fr) clamp(280px, 26vw, 390px); gap: clamp(16px, 1.8vw, 28px); align-items: start; }
-body[data-game='draw-guess'] .draw-main-column { display: grid; gap: 12px; min-width: 0; }
-body[data-game='draw-guess'] .draw-left-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-body[data-game='draw-guess'] .draw-clue-card, body[data-game='draw-guess'] .draw-score-section, body[data-game='draw-guess'] .draw-correct-section { min-height: 92px; padding: 14px; }
-body[data-game='draw-guess'] .draw-clue-card strong { font-size: clamp(19px, 1.8vw, 28px); }
-body[data-game='draw-guess'] .draw-panel-heading strong { font-size: clamp(14px, 1.15vw, 18px); }
-body[data-game='draw-guess'] .draw-panel-heading span, body[data-game='draw-guess'] .draw-scoreboard li, body[data-game='draw-guess'] .draw-correct-feed li { font-size: clamp(12px, .95vw, 15px); }
-body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: min(78vh, 760px); overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 16px; background: linear-gradient(180deg, rgba(40,36,67,.96), rgba(25,23,47,.94)); box-shadow: 0 16px 40px rgba(0,0,0,.25); }
-.draw-danmaku-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; padding: 18px 18px 14px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.draw-danmaku-heading span { display: block; color: var(--amber); font: 800 11px/1 Consolas, monospace; letter-spacing: .14em; }
-.draw-danmaku-heading strong { display: block; margin-top: 6px; font-size: clamp(20px, 1.8vw, 28px); }
-.draw-danmaku-heading small { color: var(--muted); font-size: 14px; }
-.draw-danmaku-feed { display: grid; align-content: start; gap: 8px; overflow: auto; padding: 12px; scrollbar-width: thin; }
-.draw-danmaku-item { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px; border-radius: 11px; background: rgba(255,255,255,.065); }
-.draw-danmaku-avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: #211d3a; background: linear-gradient(135deg, #ffc857, #ef476f); background-position: center; background-size: cover; font-size: 16px; font-weight: 900; }
-.draw-danmaku-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
-.draw-danmaku-body { min-width: 0; }
-.draw-danmaku-body strong { display: block; overflow: hidden; color: #d9d3ff; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.draw-danmaku-body p { margin: 4px 0 0; color: #fff; font-size: clamp(15px, 1.15vw, 19px); line-height: 1.38; overflow-wrap: anywhere; }
-.draw-danmaku-empty { padding: 30px 12px; color: var(--muted); font-size: 15px; text-align: center; }
-.draw-eraser-button { padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; color: #f3efff; background: rgba(255,255,255,.08); font: 700 12px Bahnschrift, sans-serif; cursor: pointer; }
-.draw-eraser-button[aria-pressed='true'] { border-color: var(--amber); color: #211d3a; background: var(--amber); }
-body[data-game='draw-guess'] .draw-canvas { min-height: 48vh; }
+/* Keep the four live regions (canvas, tools, info and chat) inside one viewport. */
+body[data-game='draw-guess'] .game-stage {
+  height: 100vh;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 20vw, 300px);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(8px, 1vw, 14px);
+}
+body[data-game='draw-guess'] .game-stage-header {
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+body[data-game='draw-guess'] .game-title { font-size: clamp(24px, 2.8vw, 38px); }
+body[data-game='draw-guess'] .game-stage-meta { flex-direction: row; align-items: center; gap: 8px; }
+body[data-game='draw-guess'] .game-turn { padding: 6px 10px; font-size: clamp(11px, 1vw, 15px); }
+body[data-game='draw-guess'] .draw-status { font-size: clamp(11px, .9vw, 14px); }
+body[data-game='draw-guess'] .draw-guess-view { display: block; grid-column: 1 / -1; grid-row: 2; height: 100%; min-height: 0; overflow: hidden; }
+body[data-game='draw-guess'] .draw-layout { grid-template-columns: minmax(0, 1fr) clamp(220px, 20vw, 300px); gap: clamp(8px, 1vw, 14px); height: 100%; min-height: 0; }
+body[data-game='draw-guess'] .draw-main-column { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; min-width: 0; min-height: 0; }
+body[data-game='draw-guess'] .draw-canvas-panel { grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+body[data-game='draw-guess'] .draw-canvas-wrap { display: grid; place-items: center; min-height: 0; }
+body[data-game='draw-guess'] .draw-canvas { width: min(100%, calc((100vh - 220px) * 16 / 9)); max-width: 100%; max-height: 100%; height: auto; min-height: 0; }
+body[data-game='draw-guess'] .draw-toolbar { gap: 5px 8px; padding: 5px 7px; }
+body[data-game='draw-guess'] .draw-color-tools button, body[data-game='draw-guess'] .draw-width-tools button { width: 21px; height: 21px; }
+body[data-game='draw-guess'] .draw-left-stats { display: grid; grid-template-columns: minmax(150px, 1.2fr) repeat(2, minmax(150px, 1fr)); gap: 8px; min-height: 0; }
+body[data-game='draw-guess'] .draw-clue-card, body[data-game='draw-guess'] .draw-score-section, body[data-game='draw-guess'] .draw-correct-section { min-height: 0; padding: 8px 10px; }
+body[data-game='draw-guess'] .draw-clue-card strong { font-size: clamp(15px, 1.4vw, 21px); }
+body[data-game='draw-guess'] .draw-panel-heading { margin-bottom: 4px; }
+body[data-game='draw-guess'] .draw-panel-heading strong { font-size: clamp(11px, .9vw, 14px); }
+body[data-game='draw-guess'] .draw-panel-heading span, body[data-game='draw-guess'] .draw-scoreboard li, body[data-game='draw-guess'] .draw-correct-feed li { font-size: clamp(10px, .75vw, 12px); }
+body[data-game='draw-guess'] .draw-scoreboard, body[data-game='draw-guess'] .draw-correct-feed { gap: 3px; }
+body[data-game='draw-guess'] .draw-scoreboard li, body[data-game='draw-guess'] .draw-correct-feed li { padding: 3px 5px; }
+body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; height: 100%; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: linear-gradient(180deg, rgba(40,36,67,.96), rgba(25,23,47,.94)); box-shadow: 0 12px 26px rgba(0,0,0,.22); }
+.draw-danmaku-heading { display: flex; align-items: center; justify-content: flex-end; min-height: 22px; padding: 5px 8px 4px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.draw-danmaku-heading small { color: var(--muted); font-size: 10px; }
+.draw-danmaku-feed { display: grid; align-content: start; gap: 5px; min-height: 0; overflow: auto; padding: 7px; scrollbar-width: none; }
+.draw-danmaku-feed::-webkit-scrollbar { display: none; }
+.draw-danmaku-item { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 7px; align-items: start; padding: 7px; border-radius: 8px; background: rgba(255,255,255,.065); }
+.draw-danmaku-avatar { width: 28px; height: 28px; font-size: 12px; }
+.draw-danmaku-body strong { font-size: 11px; }
+.draw-danmaku-body p { margin: 2px 0 0; font-size: clamp(11px, .85vw, 14px); line-height: 1.3; }
+.draw-danmaku-empty { padding: 18px 8px; font-size: 11px; }
+.draw-eraser-button { padding: 5px 8px; font-size: 10px; }
+body[data-game='draw-guess'] .draw-clear-button { padding: 5px 8px; }
 @media (max-width: 700px) {
-  body[data-game='draw-guess'] .game-stage { grid-template-columns: minmax(0, 1fr); }
-  body[data-game='draw-guess'] .game-stage-header { position: relative; inset: auto; }
-  body[data-game='draw-guess'] .draw-guess-view { grid-column: 1; padding-top: 0; }
+  body[data-game='draw-guess'] .game-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  body[data-game='draw-guess'] .game-stage-header { grid-column: 1; }
+  body[data-game='draw-guess'] .draw-guess-view { grid-column: 1; }
   body[data-game='draw-guess'] .draw-layout { grid-template-columns: minmax(0, 1fr); }
   body[data-game='draw-guess'] .draw-left-stats { grid-template-columns: 1fr; }
-  body[data-game='draw-guess'] .draw-danmaku-panel { min-height: 42vh; }
+  body[data-game='draw-guess'] .draw-danmaku-panel { height: 32vh; }
   body[data-game='draw-guess'] .draw-canvas { min-height: 0; }
 }

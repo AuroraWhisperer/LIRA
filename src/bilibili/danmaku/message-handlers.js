@@ -78,6 +78,7 @@ class MessageHandlers {
     const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid);
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
+    const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
 
     if (this.isCommandText(text) && !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)) {
       return;
@@ -108,6 +109,7 @@ class MessageHandlers {
       requesterMedalLevel: requester.medalLevel,
       source: 'danmaku',
       messageTimestamp,
+      avatarUrl,
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
       cmd: normalizeBilibiliCommandName(message.cmd)

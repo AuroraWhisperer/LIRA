@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260820-01">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260820-03">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
@@ -64,7 +64,7 @@
               <div class="draw-clue-card">
                 <span>直播间线索</span>
                 <strong id="drawClue">等待开局</strong>
-                <small>直接发送答案弹幕，无需命令前缀</small>
+                <small>输入答案即可抢答</small>
               </div>
               <section class="draw-score-section" aria-labelledby="drawScoreTitle">
                 <div class="draw-panel-heading"><strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span></div>
@@ -76,8 +76,8 @@
               </section>
             </div>
           </div>
-          <aside class="draw-danmaku-panel" aria-label="本局弹幕">
-            <div class="draw-danmaku-heading"><div><span>LIVE CHAT</span><strong>本局弹幕</strong></div><small id="drawDanmakuCount">0 条</small></div>
+          <aside class="draw-danmaku-panel" aria-label="直播消息">
+            <div class="draw-danmaku-heading"><small id="drawDanmakuCount">0 条</small></div>
             <div id="drawDanmakuFeed" class="draw-danmaku-feed"><div class="draw-danmaku-empty">等待直播间弹幕…</div></div>
           </aside>
         </div>

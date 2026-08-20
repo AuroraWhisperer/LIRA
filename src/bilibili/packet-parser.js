@@ -9,7 +9,10 @@
 const { parseBilibiliPackets } = require('./parsers/packet-decoder');
 
 // Danmaku parsing
-const { extractBilibiliDanmakuTimestamp } = require('./parsers/danmaku-parser');
+const {
+  extractBilibiliDanmakuTimestamp,
+  extractBilibiliDanmakuAvatarUrl
+} = require('./parsers/danmaku-parser');
 
 // User metadata extraction
 const {
@@ -46,6 +49,7 @@ const {
 module.exports = {
   parseBilibiliPackets,
   extractBilibiliDanmakuTimestamp,
+  extractBilibiliDanmakuAvatarUrl,
   extractBilibiliDanmakuUserMeta,
   extractBilibiliHistoryUserMeta,
   extractBilibiliSuperChatMessage,
