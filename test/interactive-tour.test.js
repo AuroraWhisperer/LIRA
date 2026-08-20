@@ -94,25 +94,56 @@ test('tour avoids continuously expensive rendering effects and polling', () => {
   assert.match(js, /addEventListener\('scroll', scheduleRefresh, \{ capture: true, passive: true \}\)/);
 });
 
-test('tour copy gives first-time streamers six clear sequential actions', () => {
+test('tour introduces LIRA and the four primary buttons before seven sequential actions', () => {
   const actionSteps = tour.TOUR_STEPS.filter(step => !['welcome', 'complete'].includes(step.id));
 
-  assert.equal(tour.TOUR_VERSION, 5);
+  assert.equal(tour.TOUR_VERSION, 6);
+  assert.equal(tour.TOUR_STEPS[0].kicker, '第 0 步 · 认识 LIRA');
+  assert.match(tour.TOUR_STEPS[0].content, /Live Interactive Request Assistant/);
+  assert.match(tour.TOUR_STEPS[0].content, /直播互动点歌助手/);
   assert.deepEqual(Array.from(actionSteps, step => step.kicker), [
-    '第 1 步 · 登录账号',
-    '第 2 步 · 填写直播间',
-    '第 3 步 · 刷新连接',
-    '第 4 步 · 导入歌单',
-    '第 5 步 · 选择音乐',
-    '第 6 步 · 查看帮助',
+    '第 1 步 · 认识主功能',
+    '第 2 步 · 登录账号',
+    '第 3 步 · 填写直播间',
+    '第 4 步 · 刷新连接',
+    '第 5 步 · 导入歌单',
+    '第 6 步 · 选择音乐',
+    '第 7 步 · 查看帮助',
   ]);
-  assert.match(tour.TOUR_STEPS[0].content, /第一次使用也不用担心/);
-  assert.match(actionSteps[0].content, /用手机 Bilibili 扫描/);
-  assert.match(actionSteps[1].note, /live\.bilibili\.com\/123456/);
-  assert.match(actionSteps[2].content, /页面右上角/);
-  assert.match(actionSteps[3].note, /暂时没有歌单也没关系/);
-  assert.match(actionSteps[4].content, /全民 K 歌客户端/);
-  assert.match(actionSteps[5].note, /重新打开交互式引导/);
+  assert.match(actionSteps[0].content, /点歌/);
+  assert.match(actionSteps[0].content, /播放/);
+  assert.match(actionSteps[0].content, /礼物/);
+  assert.match(actionSteps[0].content, /百宝箱/);
+  assert.equal(actionSteps[0].targetSelector, '.main-page-tabs');
+  assert.match(actionSteps[1].content, /用手机 Bilibili 扫描/);
+  assert.match(actionSteps[2].note, /live\.bilibili\.com\/123456/);
+  assert.match(actionSteps[3].content, /页面右上角/);
+  assert.match(actionSteps[4].note, /暂时没有歌单也没关系/);
+  assert.match(actionSteps[5].content, /全民 K 歌客户端/);
+  assert.match(actionSteps[6].note, /重新打开交互式引导/);
+});
+
+test('refresh step spotlights the live-room status together with the refresh button', () => {
+  const refreshStep = tour.TOUR_STEPS.find(step => step.id === 'refresh-live');
+  const js = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
+    'utf8'
+  );
+
+  assert.equal(refreshStep.targetSelector, '#liveStatus, #reconnectBtn');
+  assert.match(refreshStep.content, /一起框选/);
+  assert.match(js, /document\.querySelectorAll\(selector\)/);
+});
+
+test('disabled tour actions use an unavailable cursor instead of a busy cursor', () => {
+  const css = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
+    'utf8'
+  );
+  const disabledRule = css.match(/\.lira-tour-actions button:disabled\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.match(disabledRule, /cursor:\s*not-allowed/);
+  assert.doesNotMatch(disabledRule, /cursor:\s*wait/);
 });
 
 test('tour status circles carry waiting and completed meanings without an image asset', () => {

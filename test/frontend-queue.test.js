@@ -172,6 +172,8 @@ test('storybook queue keeps illustrated rows fixed while identity content stays 
   assert.match(overlayStyles, /\.queue-storybook::before\s*\{[\s\S]*?background:\s*#fff/);
   assert.match(overlayStyles, /song-board-style-3\/frame\.png/);
   assert.match(overlayStyles, /song-board-style-3\/entry\.png/);
+  assert.match(overlayStyles, /\.queue-storybook \.overlay-header\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(overlayStyles, /\.queue-storybook \.overlay-title\s*\{[\s\S]*?width:\s*100%/);
 
   const row = sandbox.renderStorybookRow({
     song_name: '<img src=x onerror=alert(1)>超长歌名',
@@ -189,11 +191,16 @@ test('storybook queue keeps illustrated rows fixed while identity content stays 
 
   const viewportRule = overlayStyles.match(/\.storybook-info-viewport\s*\{[^}]*\}/)?.[0];
   const rowRule = overlayStyles.match(/\.storybook-row\s*\{[^}]*\}/)?.[0];
+  const contentRule = overlayStyles.match(/\.queue-storybook \.overlay-content\s*\{[^}]*\}/)?.[0];
   assert.ok(viewportRule);
   assert.ok(rowRule);
+  assert.ok(contentRule);
   assert.match(viewportRule, /overflow:\s*hidden/);
   assert.match(viewportRule, /min-width:\s*0/);
+  assert.match(contentRule, /inset:\s*25\.5%\s+15%\s+17%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
+  assert.match(rowRule, /background-size:\s*108%\s+auto/);
+  assert.match(rowRule, /height:\s*clamp\(68px,\s*20cqw,\s*104px\)/);
   assert.match(rowRule, /font-size:\s*clamp\(12px,\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\),\s*28px\)/);
 });
 

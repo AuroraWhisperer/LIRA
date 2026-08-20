@@ -236,7 +236,7 @@ html.lira-tour-active .other-feature-panel {
 
 .lira-tour-actions button:disabled {
   opacity: 0.45;
-  cursor: wait;
+  cursor: not-allowed;
 }
 
 /* 状态提示 - 等待用户完成操作 */

@@ -49,6 +49,7 @@
   height: 6%;
   box-sizing: border-box;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   overflow: hidden;
   border: 0;
@@ -59,6 +60,7 @@
 }
 
 .queue-storybook .overlay-title {
+  width: 100%;
   max-width: 100%;
   overflow: hidden;
   font-family: YouYuan, "Microsoft YaHei", "PingFang SC", sans-serif;
@@ -72,7 +74,7 @@
 .queue-storybook .overlay-content {
   position: absolute;
   z-index: 2;
-  inset: 23% 10.5% 15%;
+  inset: 25.5% 15% 17%;
   overflow: hidden;
   padding: 0;
 }
@@ -94,12 +96,12 @@
   --medal-text: #fff;
   position: relative;
   box-sizing: border-box;
-  height: clamp(64px, 18cqw, 96px);
-  min-height: clamp(64px, 18cqw, 96px);
+  height: clamp(68px, 20cqw, 104px);
+  min-height: clamp(68px, 20cqw, 104px);
   overflow: hidden;
   background-image: url('/img/overlays/song-board-style-3/entry.png');
   background-position: center 43%;
-  background-size: 118% auto;
+  background-size: 108% auto;
   background-repeat: no-repeat;
   color: #315d7d;
   font-family: YouYuan, "Microsoft YaHei", "PingFang SC", sans-serif;
