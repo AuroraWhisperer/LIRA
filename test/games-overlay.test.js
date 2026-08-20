@@ -26,6 +26,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawScoreboard"/);
   assert.match(html, /id="drawCorrectFeed"/);
   assert.match(html, /id="drawClearBtn"/);
+  assert.match(html, /id="drawPenBtn"[^>]+aria-label="画笔"/);
+  assert.match(html, /id="drawEraserBtn"[^>]+aria-label="橡皮擦"/);
+  assert.doesNotMatch(html, />橡皮擦</);
+  assert.doesNotMatch(html, /drawDanmakuCount|\d+ 条/);
   assert.doesNotMatch(html, /gomoku-legend|gomokuHint|gomokuLastMove/);
   assert.match(script, /renderGomokuCoordinates\(state\.size\)/);
   assert.match(script, /cache:\s*['"]no-store['"]/);
@@ -33,6 +37,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /INITIAL_SNAPSHOT_RETRIES/);
   assert.match(script, /scheduleSnapshotRetry/);
   assert.match(script, /api\/games\/winner-profile/);
+  assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /getBoundingClientRect/);
   assert.match(script, /positionGameResult/);
   assert.match(script, /game:draw/);
@@ -42,6 +47,8 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /api\/games\/session\/draw/);
   assert.match(script, /getContext\(['"]2d['"]\)/);
   assert.match(script, /renderDrawGuess/);
+  assert.match(script, /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/);
+  assert.doesNotMatch(script, /payload\.state\?\.games \|\| null/);
   assert.match(script, /revealedAnswer/);
   assert.match(script, /drawClientId/);
   assert.match(styles, /\.game-result\[hidden\]\s*\{\s*display:\s*none;/);
@@ -51,4 +58,5 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);
   assert.match(styles, /\.draw-canvas/);
   assert.match(styles, /\.draw-scoreboard/);
+  assert.match(styles, /\.draw-tool-button\[aria-pressed=['"]true['"]\]/);
 });

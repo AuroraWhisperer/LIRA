@@ -20,13 +20,29 @@ function extractBilibiliDanmakuTimestamp(info) {
 }
 
 function extractBilibiliDanmakuAvatarUrl(info) {
-  const options = Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
+  const rawOptions = Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
+  const options = parseDanmakuOptions(rawOptions);
   const user = options && typeof options === 'object' ? options.user : null;
   const base = user && typeof user.base === 'object' ? user.base : null;
   const face = (user && (user.face || user.face_url || user.faceUrl))
     || (base && (base.face || base.face_url || base.faceUrl));
+  return normalizeBilibiliAvatarUrl(face);
+}
+
+function parseDanmakuOptions(value) {
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string') return null;
   try {
-    const url = new URL(String(face || ''));
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function normalizeBilibiliAvatarUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) return '';
     return url.toString();
   } catch (_) {
@@ -36,5 +52,6 @@ function extractBilibiliDanmakuAvatarUrl(info) {
 
 module.exports = {
   extractBilibiliDanmakuTimestamp,
-  extractBilibiliDanmakuAvatarUrl
+  extractBilibiliDanmakuAvatarUrl,
+  normalizeBilibiliAvatarUrl
 };

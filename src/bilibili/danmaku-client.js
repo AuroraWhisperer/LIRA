@@ -306,6 +306,7 @@ class BilibiliDanmakuClient {
       const requester = this.identityCache.resolve({
         uid: messageData.uid,
         userName: messageData.userName,
+        avatarUrl: messageData.avatarUrl,
         requesterGuardLevel: messageData.requesterGuardLevel,
         requesterMedalName: messageData.requesterMedalName,
         requesterMedalLevel: messageData.requesterMedalLevel,
@@ -316,6 +317,7 @@ class BilibiliDanmakuClient {
         message: messageData.message,
         uid: requester.uid,
         userName: requester.userName,
+        avatarUrl: requester.avatarUrl,
         requesterGuardLevel: requester.guardLevel,
         requesterMedalName: requester.medalName,
         requesterMedalLevel: requester.medalLevel,

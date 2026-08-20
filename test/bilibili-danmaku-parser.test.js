@@ -24,6 +24,15 @@ test('danmaku avatar parser supports the nested base face field', () => {
   assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ base: { face: avatarUrl } })), avatarUrl);
 });
 
+test('danmaku avatar parser supports JSON encoded user metadata', () => {
+  const avatarUrl = 'https://i2.hdslb.com/bfs/face/encoded.jpg';
+  const info = [];
+  info[0] = Array(16).fill(null);
+  info[0][15] = JSON.stringify({ user: { base: { face: avatarUrl } } });
+
+  assert.equal(extractBilibiliDanmakuAvatarUrl(info), avatarUrl);
+});
+
 test('danmaku avatar parser rejects non-Bilibili or insecure image URLs', () => {
   assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' })), '');
   assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://example.com/avatar.jpg' })), '');

@@ -41,22 +41,28 @@
                 </div>
               </div>
               <div class="draw-toolbar" aria-label="画笔工具">
-              <div class="draw-color-tools" aria-label="画笔颜色">
-                <button type="button" data-draw-color="#222034" aria-label="墨黑" aria-pressed="true"></button>
-                <button type="button" data-draw-color="#6c5ce7" aria-label="紫色" aria-pressed="false"></button>
-                <button type="button" data-draw-color="#ef476f" aria-label="红色" aria-pressed="false"></button>
-                <button type="button" data-draw-color="#118ab2" aria-label="蓝色" aria-pressed="false"></button>
-                <button type="button" data-draw-color="#06d6a0" aria-label="绿色" aria-pressed="false"></button>
-                <button type="button" data-draw-color="#f6bd60" aria-label="黄色" aria-pressed="false"></button>
-                <button type="button" data-draw-color="#ffffff" aria-label="白色橡皮" aria-pressed="false"></button>
-              </div>
-              <div class="draw-width-tools" aria-label="画笔粗细">
-                <button type="button" data-draw-width="2" aria-label="细笔" aria-pressed="false"><span></span></button>
-                <button type="button" data-draw-width="4" aria-label="中笔" aria-pressed="true"><span></span></button>
-                <button type="button" data-draw-width="8" aria-label="粗笔" aria-pressed="false"><span></span></button>
-                <button type="button" data-draw-width="12" aria-label="特粗笔" aria-pressed="false"><span></span></button>
-              </div>
-                <button id="drawEraserBtn" class="draw-eraser-button" type="button" aria-pressed="false">橡皮擦</button>
+                <div class="draw-mode-tools" aria-label="绘画工具">
+                  <button id="drawPenBtn" class="draw-tool-button draw-pen-button" type="button" aria-label="画笔" aria-pressed="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20zm9.8-12.6 3 3"/></svg>
+                  </button>
+                  <button id="drawEraserBtn" class="draw-tool-button draw-eraser-button" type="button" aria-label="橡皮擦" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 18.5 3.9 15.2a2 2 0 0 1 0-2.8l7.8-7.8a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8l-6.1 6.1H7.2zM9 17l7.5-7.5M13.4 18.5H21"/></svg>
+                  </button>
+                </div>
+                <div class="draw-color-tools" aria-label="画笔颜色">
+                  <button type="button" data-draw-color="#222034" aria-label="墨黑" aria-pressed="true"></button>
+                  <button type="button" data-draw-color="#6c5ce7" aria-label="紫色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#ef476f" aria-label="红色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#118ab2" aria-label="蓝色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#06d6a0" aria-label="绿色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#f6bd60" aria-label="黄色" aria-pressed="false"></button>
+                </div>
+                <div class="draw-width-tools" aria-label="工具大小">
+                  <button type="button" data-draw-width="2" aria-label="小号" aria-pressed="false"><span></span></button>
+                  <button type="button" data-draw-width="4" aria-label="中号" aria-pressed="true"><span></span></button>
+                  <button type="button" data-draw-width="8" aria-label="大号" aria-pressed="false"><span></span></button>
+                  <button type="button" data-draw-width="12" aria-label="特大号" aria-pressed="false"><span></span></button>
+                </div>
                 <button id="drawClearBtn" class="draw-clear-button" type="button">清空画布</button>
               </div>
             </div>
@@ -77,8 +83,7 @@
             </div>
           </div>
           <aside class="draw-danmaku-panel" aria-label="直播消息">
-            <div class="draw-danmaku-heading"><small id="drawDanmakuCount">0 条</small></div>
-            <div id="drawDanmakuFeed" class="draw-danmaku-feed"><div class="draw-danmaku-empty">等待直播间弹幕…</div></div>
+            <div id="drawDanmakuFeed" class="draw-danmaku-feed"><div class="draw-danmaku-empty">等待直播消息…</div></div>
           </aside>
         </div>
       </section>
@@ -131,6 +136,6 @@
         </div>
       </div>
     </main>
-    <script src="/js/overlays/games.js?v=20260820-01"></script>
+    <script src="/js/overlays/games.js?v=20260820-03"></script>
   </body>
 </html>

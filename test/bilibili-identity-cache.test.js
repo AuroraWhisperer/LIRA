@@ -112,3 +112,15 @@ test('online viewer candidates only include the latest online snapshot', () => {
   cache.markOnlineSnapshot([]);
   assert.deepEqual(cache.listOnline(), []);
 });
+
+test('cached online viewer avatar is reused by a later danmaku identity', () => {
+  const cache = new IdentityCache();
+  cache.remember({
+    uid: '1',
+    userName: 'Online',
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/online.jpg'
+  }, { currentRoom: true, source: 'online_rank' });
+
+  assert.equal(cache.resolve({ uid: '1', userName: 'Online' }).avatarUrl,
+    'https://i0.hdslb.com/bfs/face/online.jpg');
+});

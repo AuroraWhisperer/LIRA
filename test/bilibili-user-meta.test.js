@@ -70,6 +70,25 @@ test('online rank metadata uses the current room guard instead of the worn medal
   });
 });
 
+test('online rank metadata carries the viewer avatar into the identity cache input', () => {
+  assert.deepEqual(extractBilibiliOnlineRankUserMeta({
+    uid: 123,
+    name: '点歌人',
+    uinfo: {
+      base: {
+        face: 'https://i0.hdslb.com/bfs/face/viewer.jpg'
+      }
+    }
+  }), {
+    uid: '123',
+    userName: '点歌人',
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
+    guardLevel: 0,
+    medalName: '',
+    medalLevel: 0
+  });
+});
+
 test('danmaku metadata ignores a worn medal that belongs to another room', () => {
   const info = [];
   info[0] = Array(16).fill(null);

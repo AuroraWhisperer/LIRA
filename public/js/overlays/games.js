@@ -66,20 +66,17 @@ function connectSocket() {
   socket.addEventListener('message', event => {
     const payload = JSON.parse(event.data);
     if (payload.type === 'game:update') {
-      if (payload.session) {
-        initialSnapshotLoaded = true;
-        clearTimeout(snapshotRetryTimer);
-      }
+      initialSnapshotLoaded = true;
+      clearTimeout(snapshotRetryTimer);
       renderGame(payload.session);
     }
     if (payload.type === 'game:draw') applyDrawBroadcast(payload.operation);
     if (payload.type === 'snapshot') {
-      const nextSession = payload.state?.games || null;
-      if (nextSession) {
-        initialSnapshotLoaded = true;
-        clearTimeout(snapshotRetryTimer);
-      }
-      if (nextSession || initialSnapshotLoaded) renderGame(nextSession);
+      if (!payload.state || typeof payload.state !== 'object'
+        || !Object.prototype.hasOwnProperty.call(payload.state, 'games')) return;
+      initialSnapshotLoaded = true;
+      clearTimeout(snapshotRetryTimer);
+      renderGame(payload.state.games || null);
     }
   });
   socket.addEventListener('close', () => {
@@ -189,9 +186,8 @@ function renderDrawDanmaku(items) {
   if (!root) return;
   root.replaceChildren();
   const messages = Array.isArray(items) ? items : [];
-  byId('drawDanmakuCount').textContent = `${messages.length} 条`;
   if (!messages.length) {
-    root.append(createEmptyDrawItem('等待直播间弹幕…'));
+    root.append(createEmptyDrawItem('等待直播消息…'));
     return;
   }
   messages.slice(-120).forEach(item => {
@@ -277,15 +273,11 @@ function initDrawCanvas() {
   redrawCanvas({ strokes: [] });
   document.querySelectorAll('[data-draw-color]').forEach(button => button.addEventListener('click', () => {
     drawColor = button.dataset.drawColor;
-    drawEraser = false;
-    byId('drawEraserBtn').setAttribute('aria-pressed', 'false');
+    setActiveDrawTool(false);
     document.querySelectorAll('[data-draw-color]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
   }));
-  byId('drawEraserBtn').addEventListener('click', () => {
-    drawEraser = !drawEraser;
-    if (drawEraser) drawColor = '#ffffff';
-    byId('drawEraserBtn').setAttribute('aria-pressed', String(drawEraser));
-  });
+  byId('drawPenBtn').addEventListener('click', () => setActiveDrawTool(false));
+  byId('drawEraserBtn').addEventListener('click', () => setActiveDrawTool(true));
   document.querySelectorAll('[data-draw-width]').forEach(button => button.addEventListener('click', () => {
     drawWidth = Number(button.dataset.drawWidth);
     document.querySelectorAll('[data-draw-width]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
@@ -297,6 +289,12 @@ function initDrawCanvas() {
   canvas.addEventListener('pointercancel', stopDrawing);
 }
 
+function setActiveDrawTool(useEraser) {
+  drawEraser = Boolean(useEraser);
+  byId('drawPenBtn').setAttribute('aria-pressed', String(!drawEraser));
+  byId('drawEraserBtn').setAttribute('aria-pressed', String(drawEraser));
+}
+
 function startDrawing(event) {
   if (!canDraw() || (event.pointerType === 'mouse' && event.button !== 0)) return;
   event.preventDefault();
@@ -306,12 +304,12 @@ function startDrawing(event) {
   activeStroke = {
     pointerId: event.pointerId,
     strokeId: `stroke-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
-    color: drawColor,
+    color: drawEraser ? '#ffffff' : drawColor,
     width: drawWidth,
     lastPoint: point,
     pendingPoints: [point]
   };
-  drawCanvasPoints([point], drawColor, drawWidth);
+  drawCanvasPoints([point], activeStroke.color, drawWidth);
   scheduleDrawFlush();
 }
 
@@ -460,7 +458,7 @@ function setDrawToolsEnabled(enabled) {
     activeStroke = null;
   }
   byId('drawCanvas').classList.toggle('is-disabled', !enabled);
-  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawEraserBtn').forEach(button => {
+  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawPenBtn, #drawEraserBtn').forEach(button => {
     button.disabled = !enabled;
   });
 }
@@ -516,7 +514,11 @@ function positionGameResult() {
 
 async function loadWinnerProfile(requestId, winner) {
   try {
-    const response = await fetch('/api/games/winner-profile', { cache: 'no-store' });
+    const token = window.__API_TOKEN__;
+    const response = await fetch('/api/games/winner-profile', {
+      cache: 'no-store',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    });
     const payload = await response.json();
     if (!payload.ok || requestId !== resultProfileRequest) return;
     const profile = payload.data || {};

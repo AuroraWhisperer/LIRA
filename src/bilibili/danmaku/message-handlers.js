@@ -93,6 +93,7 @@ class MessageHandlers {
     const requester = this.identityCache.resolve({
       uid: userInfo[0],
       userName: String(userInfo[1] || '观众'),
+      avatarUrl,
       requesterGuardLevel: userMeta.guardLevel,
       requesterMedalName: userMeta.medalName,
       requesterMedalLevel: userMeta.medalLevel,
@@ -109,7 +110,7 @@ class MessageHandlers {
       requesterMedalLevel: requester.medalLevel,
       source: 'danmaku',
       messageTimestamp,
-      avatarUrl,
+      avatarUrl: requester.avatarUrl,
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
       cmd: normalizeBilibiliCommandName(message.cmd)

@@ -230,8 +230,10 @@ while (offset + 16 <= buffer.length):
 info[1]           → 弹幕文本
 info[2][0]/[2][1] → uid / userName
 info[3]           → 粉丝牌数组 (数组或对象)
-info[0][15]       → danmakuOptions, 内含 user 对象
+info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 user 对象
 ```
+
+发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段会进入同一身份缓存用于按 uid 回填。
 
 用户元数据(勋章/大航海)由 `extractBilibiliDanmakuUserMeta`([user-meta-extractor.js:38-60](../../../../src/bilibili/utils/user-meta-extractor.js#L38-L60))提取:
 

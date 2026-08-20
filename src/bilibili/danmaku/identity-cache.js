@@ -3,6 +3,7 @@
 'use strict';
 
 const { cleanText, normalizeGuardLevel, normalizePositiveInteger } = require('../../shared/utils');
+const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
 
 const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
 const IDENTITY_SOURCE_PRIORITY = {
@@ -28,6 +29,7 @@ class IdentityCache {
     const merged = mergeRequesterIdentity({
       uid,
       userName,
+      avatarUrl: normalizeBilibiliAvatarUrl(input && input.avatarUrl),
       guardLevel: normalizeGuardLevel(input && input.requesterGuardLevel),
       medalName: cleanText(input && input.requesterMedalName),
       medalLevel: normalizePositiveInteger(input && input.requesterMedalLevel),
@@ -69,7 +71,7 @@ class IdentityCache {
       source: options.source || (input && (input.source || input.identitySource))
     });
     if (!identity.uid && !identity.userName) return false;
-    if (!identity.currentRoom && !identity.guardLevel && !identity.medalLevel && !identity.medalName) return false;
+    if (!identity.currentRoom && !identity.avatarUrl && !identity.guardLevel && !identity.medalLevel && !identity.medalName) return false;
 
     const previous = this.lookup(identity.uid, identity.userName);
     const merged = {
@@ -127,7 +129,7 @@ class IdentityCache {
 }
 
 function normalizeRequesterIdentity(input) {
-  return {
+  const identity = {
     uid: cleanText(input && input.uid),
     userName: cleanText(input && input.userName),
     guardLevel: normalizeGuardLevel(input && input.guardLevel),
@@ -137,6 +139,7 @@ function normalizeRequesterIdentity(input) {
     currentRoom: Boolean(input && input.currentRoom),
     source: cleanText(input && (input.source || input.identitySource))
   };
+  return addAvatarUrl(identity, input && input.avatarUrl);
 }
 
 function mergeRequesterIdentity(primary, fallback) {
@@ -144,7 +147,7 @@ function mergeRequesterIdentity(primary, fallback) {
   const extra = normalizeRequesterIdentity(fallback);
   if (base.currentRoom) return mergeCurrentRoomIdentity(base, extra);
   if (extra.currentRoom) return mergeCurrentRoomIdentity(extra, base);
-  return {
+  return addAvatarUrl({
     uid: base.uid || extra.uid,
     userName: chooseRequesterUserName(base.userName, extra.userName),
     guardLevel: base.guardLevel || extra.guardLevel,
@@ -152,12 +155,12 @@ function mergeRequesterIdentity(primary, fallback) {
     medalLevel: base.medalLevel || extra.medalLevel,
     seenAt: Math.max(base.seenAt, extra.seenAt),
     currentRoom: false
-  };
+  }, base.avatarUrl || extra.avatarUrl);
 }
 
 function mergeCurrentRoomIdentity(currentRoom, fallback) {
   const selected = chooseCurrentRoomEvidence(currentRoom, fallback);
-  return {
+  return addAvatarUrl({
     uid: selected.uid || fallback.uid || currentRoom.uid,
     userName: chooseRequesterUserName(selected.userName, fallback.userName || currentRoom.userName),
     guardLevel: selected.guardLevel,
@@ -166,7 +169,7 @@ function mergeCurrentRoomIdentity(currentRoom, fallback) {
     seenAt: Math.max(selected.seenAt, fallback.seenAt, currentRoom.seenAt),
     source: selected.source,
     currentRoom: true
-  };
+  }, selected.avatarUrl || fallback.avatarUrl || currentRoom.avatarUrl);
 }
 
 function chooseCurrentRoomEvidence(primary, fallback) {
@@ -182,14 +185,20 @@ function identitySourcePriority(source) {
 
 function publicRequesterIdentity(input) {
   const identity = normalizeRequesterIdentity(input);
-  return {
+  return addAvatarUrl({
     uid: identity.uid,
     userName: identity.userName,
     guardLevel: identity.guardLevel,
     medalName: identity.medalName,
     medalLevel: identity.medalLevel,
     seenAt: identity.seenAt
-  };
+  }, identity.avatarUrl);
+}
+
+function addAvatarUrl(identity, value) {
+  const avatarUrl = normalizeBilibiliAvatarUrl(value);
+  if (avatarUrl) identity.avatarUrl = avatarUrl;
+  return identity;
 }
 
 function chooseRequesterUserName(primary, fallback) {

@@ -64,6 +64,7 @@ class HistoryPoller {
       this.onMessage({
         uid: item.uid,
         userName: String(item.nickname || item.uname || '观众'),
+        avatarUrl: userMeta.avatarUrl,
         message: text,
         requesterGuardLevel: userMeta.guardLevel,
         requesterMedalName: userMeta.medalName,
