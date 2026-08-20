@@ -226,6 +226,10 @@
   opacity: 0.78;
 }
 
+.sc-row.assisted:hover::before {
+  opacity: 0;
+}
+
 .sc-row.assisted .song {
   text-decoration: line-through;
   text-decoration-color: rgba(0, 0, 0, 0.18);

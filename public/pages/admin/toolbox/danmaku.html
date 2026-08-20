@@ -84,7 +84,7 @@
                           </select>
                           <small>官方预设会锁定正确地址和推荐协议。</small>
                         </label>
-                        <label>API Key<input id="xiaomiAiDeepSeekKey" type="text" autocomplete="off" spellcheck="false" placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
+                        <label>API Key<input id="xiaomiAiDeepSeekKey" type="text" autocomplete="off" spellcheck="false" data-ai-secret placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
                         <label id="xiaomiAiEndpointControl" class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"><small id="xiaomiAiEndpointHelp">可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。</small></label>
                         <label id="xiaomiAiProtocolControl">接口协议
                           <select id="xiaomiAiModelApiProtocol" data-dropdown-variant="toolbox">
@@ -144,14 +144,14 @@
                           <div class="xiaomi-ai-subheading"><h4 id="xiaomiAiWeatherTitle">和风天气</h4><span>天气</span></div>
                           <div class="xiaomi-ai-field-grid">
                             <label class="wide">专属 API Host（无需 https://）<input id="xiaomiAiQWeatherHost" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="nn7mdbwku9.re.qweatherapi.com"></label>
-                            <label class="wide">API Key<input id="xiaomiAiQWeatherKey" type="text" autocomplete="off" spellcheck="false" placeholder="直接粘贴和风天气 API Key"><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label>
+                            <label class="wide">API Key<input id="xiaomiAiQWeatherKey" type="text" autocomplete="off" spellcheck="false" data-ai-secret placeholder="直接粘贴和风天气 API Key"><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label>
                           </div>
                         </section>
                         <section aria-labelledby="xiaomiAiAmapTitle">
                           <div class="xiaomi-ai-subheading"><h4 id="xiaomiAiAmapTitle">高德地图</h4><span>地点 · 路线</span></div>
                           <div class="xiaomi-ai-field-grid">
                             <label class="wide">Web 服务 API Host<input id="xiaomiAiAmapHost" type="url" autocomplete="off" placeholder="留空，填写你的高德 API Host"></label>
-                            <label class="wide">Web 服务 Key<input id="xiaomiAiAmapKey" type="text" autocomplete="off" spellcheck="false" placeholder="留空，填写高德 Web 服务 Key"><small id="xiaomiAiAmapKeyHint">尚未保存</small></label>
+                            <label class="wide">Web 服务 Key<input id="xiaomiAiAmapKey" type="text" autocomplete="off" spellcheck="false" data-ai-secret placeholder="留空，填写高德 Web 服务 Key"><small id="xiaomiAiAmapKeyHint">尚未保存</small></label>
                           </div>
                         </section>
                       </div>

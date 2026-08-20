@@ -7,6 +7,14 @@ const MAX_WEIGHT = 100;
 const MAX_TOTAL_WEIGHT = 300;
 const SPIN_DURATION_MS = 4800;
 const SPIN_TURNS = 5;
+const WHEEL_LIMITS = Object.freeze({
+  minEntries: MIN_ENTRIES,
+  maxEntries: MAX_ENTRIES,
+  maxLabelLength: MAX_LABEL_LENGTH,
+  minWeight: 1,
+  maxWeight: MAX_WEIGHT,
+  maxTotalWeight: MAX_TOTAL_WEIGHT
+});
 
 function normalizeWheelEntries(input) {
   if (!Array.isArray(input) || input.length < MIN_ENTRIES || input.length > MAX_ENTRIES) {
@@ -60,7 +68,8 @@ function createWheelSessionService(options = {}) {
       entries: entries.map(entry => ({ ...entry })),
       totalWeight,
       lastResult: lastResult ? { ...lastResult } : null,
-      spin
+      spin,
+      limits: { ...WHEEL_LIMITS }
     };
   }
 
@@ -121,6 +130,7 @@ module.exports = {
   MAX_TOTAL_WEIGHT,
   SPIN_DURATION_MS,
   SPIN_TURNS,
+  WHEEL_LIMITS,
   normalizeWheelEntries,
   chooseWeightedEntry,
   createWheelSessionService

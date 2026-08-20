@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const { parseLyricResult } = require('../lyrics');
 const { QQMusicClient } = require('./qq-provider-client');
 const {
@@ -19,6 +20,7 @@ const {
   mapRecommendCard,
   normalizeQQPlaylistSongInfo,
   normalizeQQPlaylistWriteTarget,
+  normalizeQQSongType,
   readQQModuleData,
   sanitizeAuthState
 } = require('./qq-provider-utils');
@@ -39,6 +41,10 @@ const QQ_STREAM_FALLBACKS = {
   high: ['high', 'standard'],
   lossless: ['lossless', 'high', 'standard']
 };
+const QQ_ENCRYPTED_QUALITIES = {
+  premium: { family: 'Q0', extension: 'mflac', contentType: 'audio/flac' },
+  immersive: { family: 'O8', extension: 'mgg', contentType: 'audio/ogg' }
+};
 
 function identifyQQStreamQuality(value, fallback) {
   const text = String(value || '');
@@ -52,6 +58,7 @@ class QQMusicProvider extends QQMusicClient {
   constructor(options = {}) {
     super(options);
     this.name = 'QQ音乐';
+    this.encryptedStreams = new Map();
   }
 
   async healthCheck() {
@@ -210,9 +217,15 @@ class QQMusicProvider extends QQMusicClient {
   async resolvePlayableUrl(track, options = {}) {
     const sourceTrackId = extractSourceTrackId(track);
     const sourceMediaId = String(track && track.sourceMediaId || sourceTrackId).trim();
-    const requestedQuality = Object.hasOwn(QQ_STREAM_QUALITIES, options.quality)
+    const requestedQuality = Object.hasOwn(QQ_ENCRYPTED_QUALITIES, options.quality)
+      ? options.quality
+      : Object.hasOwn(QQ_STREAM_QUALITIES, options.quality)
       ? options.quality
       : 'standard';
+    if (Object.hasOwn(QQ_ENCRYPTED_QUALITIES, requestedQuality)) {
+      return this.resolveEncryptedPlayableUrl(track, requestedQuality);
+    }
+    const sourceSongType = normalizeQQSongType(track && track.sourceSongType);
     const qualityCandidates = QQ_STREAM_FALLBACKS[requestedQuality];
     const filenames = qualityCandidates.map((quality) => {
       const format = QQ_STREAM_QUALITIES[quality];
@@ -233,7 +246,7 @@ class QQMusicProvider extends QQMusicClient {
         param: {
           guid,
           songmid: qualityCandidates.map(() => sourceTrackId),
-          songtype: qualityCandidates.map(() => 0),
+          songtype: qualityCandidates.map(() => sourceSongType),
           filename: filenames,
           uin,
           loginflag: cookieHeader ? 1 : 0,
@@ -271,6 +284,83 @@ class QQMusicProvider extends QQMusicClient {
       requestedQuality,
       quality: actualQuality
     };
+  }
+
+  async resolveEncryptedPlayableUrl(track, requestedQuality) {
+    await this.requireLogin('QQ 音乐臻品音质需要先登录 QQ 音乐。');
+    const sourceTrackId = extractSourceTrackId(track);
+    const sourceMediaId = String(track && track.sourceMediaId || sourceTrackId).trim();
+    const sourceSongType = normalizeQQSongType(track && track.sourceSongType);
+    const format = QQ_ENCRYPTED_QUALITIES[requestedQuality];
+    const filename = `${format.family}${sourceMediaId}.${format.extension}`;
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader) || '0';
+    const guid = buildGuid();
+    const data = await this.requestQQEncryptedVkey({
+      queryvkey: {
+        module: 'music.vkey.GetEVkey',
+        method: 'CgiGetEVkey',
+        param: {
+          checklimit: 0,
+          ctx: 1,
+          downloadfrom: 0,
+          filename: [filename],
+          musicfile: [filename],
+          nettype: '',
+          referer: 'y.qq.com',
+          scene: 0,
+          songmid: [sourceTrackId],
+          songtype: [sourceSongType],
+          uin: String(uin),
+          guid
+        }
+      }
+    });
+    const info = data && data.queryvkey && data.queryvkey.data
+      && Array.isArray(data.queryvkey.data.midurlinfo)
+      ? data.queryvkey.data.midurlinfo.find((item) => item && item.purl && item.ekey)
+      : null;
+    const purl = info && String(info.purl || '');
+    const ekey = info && String(info.ekey || '');
+    if (!purl || !ekey) throw new Error('QQ 音乐未返回可解密的臻品媒体。');
+    const sip = data.queryvkey.data && Array.isArray(data.queryvkey.data.sip)
+      ? data.queryvkey.data.sip
+      : [];
+    const baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/';
+    const id = crypto.randomUUID();
+    const expiresAt = Date.now() + STREAM_TTL_MS;
+    this.encryptedStreams.set(id, {
+      url: new URL(purl, baseUrl).toString(),
+      ekey,
+      family: format.family,
+      contentType: format.contentType,
+      expiresAt
+    });
+    this.pruneEncryptedStreams();
+    return {
+      source: this.source,
+      sourceTrackId,
+      url: `/api/music/qq-encrypted-stream?id=${encodeURIComponent(id)}`,
+      expireAt: expiresAt,
+      playUrlExpireAt: expiresAt,
+      requestedQuality,
+      quality: requestedQuality,
+      encrypted: true,
+      spatialAudio: format.family === 'Q0' ? 'metadata-only' : 'unsupported'
+    };
+  }
+
+  async serveEncryptedStream(id, request, response) {
+    const record = this.encryptedStreams.get(String(id || ''));
+    const { serveQQEncryptedStream } = require('../qq-encrypted-stream');
+    return serveQQEncryptedStream(record, request, response);
+  }
+
+  pruneEncryptedStreams() {
+    const now = Date.now();
+    for (const [id, record] of this.encryptedStreams) {
+      if (record.expiresAt <= now) this.encryptedStreams.delete(id);
+    }
   }
 
   async getPersonalizedPlaylists(options = {}) {

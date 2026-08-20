@@ -38,14 +38,17 @@ test('QQ provider tells logged-out users to sign in when no stream is available'
     getAuthState: () => ({ loggedIn: false }),
     getCookieHeader: () => ''
   });
-  provider.requestMusicu = async () => ({
-    req_0: { data: { midurlinfo: [{ purl: '' }], sip: [] } }
-  });
+  let requestBody;
+  provider.requestMusicu = async (body) => {
+    requestBody = body;
+    return { req_0: { data: { midurlinfo: [{ purl: '' }], sip: [] } } };
+  };
 
   await assert.rejects(
     provider.resolvePlayableUrl({ sourceTrackId: 'paid-song-mid' }),
     /请先登录 QQ 音乐/
   );
+  assert.deepEqual(requestBody.req_0.param.songtype, [0]);
 });
 
 test('QQ provider distinguishes logged-in playback rights from login failure', async () => {
@@ -81,7 +84,8 @@ test('QQ provider requests the selected quality and falls back to the best playa
 
   const stream = await provider.resolvePlayableUrl({
     sourceTrackId: 'song-mid',
-    sourceMediaId: 'media-mid'
+    sourceMediaId: 'media-mid',
+    sourceSongType: 1
   }, { quality: 'lossless' });
 
   const params = requestBody.req_0.param;
@@ -91,6 +95,7 @@ test('QQ provider requests the selected quality and falls back to the best playa
     'M500media-mid.mp3'
   ]);
   assert.deepEqual(params.songmid, ['song-mid', 'song-mid', 'song-mid']);
+  assert.deepEqual(params.songtype, [1, 1, 1]);
   assert.equal(stream.url, 'https://isure.test/M800media-mid.mp3?vkey=test');
   assert.equal(stream.requestedQuality, 'lossless');
   assert.equal(stream.quality, 'high');
@@ -150,6 +155,42 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('QQ provider creates an authenticated local session for EVkey Q0 media', async () => {
+  const provider = createProvider();
+  let requestBody;
+  provider.requestQQEncryptedVkey = async (body) => {
+    requestBody = body;
+    return {
+      queryvkey: {
+        data: {
+          sip: ['https://isure.stream.qqmusic.qq.com/'],
+          midurlinfo: [{
+            filename: 'Q0media-mid.mflac',
+            purl: 'Q0media-mid.mflac?guid=test',
+            ekey: 'encoded-ekey'
+          }]
+        }
+      }
+    };
+  };
+
+  const stream = await provider.resolvePlayableUrl({
+    sourceTrackId: 'song-mid',
+    sourceMediaId: 'media-mid',
+    sourceSongType: 1
+  }, { quality: 'premium' });
+
+  assert.equal(requestBody.queryvkey.module, 'music.vkey.GetEVkey');
+  assert.equal(requestBody.queryvkey.method, 'CgiGetEVkey');
+  assert.deepEqual(requestBody.queryvkey.param.filename, ['Q0media-mid.mflac']);
+  assert.deepEqual(requestBody.queryvkey.param.songtype, [1]);
+  assert.match(stream.url, /^\/api\/music\/qq-encrypted-stream\?id=/);
+  assert.equal(stream.encrypted, true);
+  assert.equal(provider.encryptedStreams.size, 1);
+  const record = [...provider.encryptedStreams.values()][0];
+  assert.equal(record.ekey, 'encoded-ekey');
 });
 
 test('QQ provider treats numeric qrc as a flag and keeps rich lyric translations', async () => {
@@ -333,7 +374,7 @@ test('QQ provider maps sourceSongId and playlist tid/dirId', async () => {
         code: 0,
         data: {
           song: {
-            list: [{ id: 563728446, mid: 'song-mid', title: '测试歌曲', singer: [] }]
+            list: [{ id: 563728446, mid: 'song-mid', type: 1, title: '测试歌曲', singer: [] }]
           }
         }
       }), { status: 200 });
@@ -358,6 +399,7 @@ test('QQ provider maps sourceSongId and playlist tid/dirId', async () => {
     const tracks = await provider.searchTracks('测试');
     const playlists = await provider.getCreatedPlaylists({ includeLiked: false });
     assert.equal(tracks[0].sourceSongId, 563728446);
+    assert.equal(tracks[0].sourceSongType, 1);
     assert.equal(playlists[0].tid, '7527135346');
     assert.equal(playlists[0].dirId, '21');
     assert.equal(playlists[0].trackCount, 31);

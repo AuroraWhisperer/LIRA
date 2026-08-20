@@ -194,6 +194,51 @@ class QQMusicClient {
     }
   }
 
+  async requestQQEncryptedVkey(modules = {}) {
+    const cookieHeader = await this.getSafeCookieHeader();
+    const uin = extractUin(cookieHeader) || '0';
+    const comm = {
+      _channelid: '20',
+      _os_version: '6.2.9200-2',
+      ct: '19',
+      cv: '2241',
+      guid: extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid(),
+      patch: '118',
+      tmeAppID: 'qqmusic',
+      tmeLoginType: Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
+      uin
+    };
+    for (const [field, cookieName] of [
+      ['authst', 'qm_keyst'],
+      ['psrf_access_token_expiresAt', 'psrf_access_token_expiresAt'],
+      ['psrf_qqaccess_token', 'psrf_qqaccess_token'],
+      ['psrf_qqopenid', 'psrf_qqopenid'],
+      ['psrf_qqunionid', 'psrf_qqunionid']
+    ]) {
+      const value = extractCookieValue(cookieHeader, cookieName);
+      if (value) comm[field] = value;
+    }
+    if (!comm.authst) comm.authst = extractCookieValue(cookieHeader, 'qqmusic_key');
+    const url = new URL(QQ_MUSICS_URL);
+    url.searchParams.set('pcachetime', String(Math.floor(Date.now() / 1000)));
+    const headers = await this.buildHeaders();
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ comm, ...modules }),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    try {
+      return JSON.parse(stripJsonp(text));
+    } catch (error) {
+      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
+    }
+  }
+
   async requestText(rawUrl, params = {}) {
     const url = new URL(rawUrl);
     for (const [key, value] of Object.entries(params)) {

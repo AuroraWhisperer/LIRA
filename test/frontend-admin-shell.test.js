@@ -9,6 +9,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
+const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 const {
   createLyricToggleButton,
   loadModuleExports,
@@ -368,9 +369,8 @@ test('song board defaults to a clear frosted glass theme', () => {
   assert.match(defaultsSource, /themeOpacity: '0\.48'/);
   assert.match(defaultsSource, /backdropBlur: '14'/);
   assert.match(defaultsSource, /glowIntensity: '2'/);
-  assert.match(themeSource, /themeOpacity: '0\.48'/);
-  assert.match(themeSource, /backdropBlur: '14'/);
-  assert.match(themeSource, /glowIntensity: '2'/);
+  assert.match(themeSource, /if \(!Object\.keys\(defaultThemeLook\)\.length\)/);
+  assert.match(themeSource, /const resetValues = \{ \.\.\.defaultThemeLook \};/);
   assert.match(themeSource, /bindRangePair\('backdropBlur', 'backdropBlurNumber', 0, 30, 14\)/);
   assert.match(themeSource, /bindRangePair\('glowIntensity', 'glowIntensityNumber', 0, 20, 2\)/);
 });
@@ -554,6 +554,14 @@ test('admin queue cards have enough height for their text and metadata', () => {
   assert.match(queueItemRule, /min-height:\s*0/);
   assert.match(queueItemRule, /overflow:\s*hidden/);
   assert.match(scRowRule, /align-items:\s*center/);
+});
+
+test('assisted super chat cards keep a single status color on hover', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
+  const assistedHoverRule = source.match(/\.sc-row\.assisted:hover::before\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(assistedHoverRule, 'assisted SC hover override should remain defined');
+  assert.match(assistedHoverRule, /opacity:\s*0/);
 });
 
 test('admin queue wheel scrolls overflowing lists and releases the page at their edges', () => {
@@ -790,6 +798,17 @@ test('early theme preset references receive asynchronously loaded data', async (
   assert.equal(themeModule.getAllSongBoardPresets(), earlySongBoardPresets);
   assert.equal(Object.keys(earlyClassicPresets).length, 14);
   assert.equal(Object.keys(earlySongBoardPresets).length, 14);
+});
+
+test('tracked theme defaults match first-run storage defaults', () => {
+  const config = JSON.parse(fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'),
+    'utf8'
+  ));
+
+  for (const key of ['themePrimary', 'themeAccent', 'themeText', 'themeBackground', 'themeOpacity', 'themeRadius']) {
+    assert.equal(config.default[key], DEFAULT_SETTINGS[key], `${key} should have one default value`);
+  }
 });
 
 test('shared theme compatibility keeps admin theme form methods', async () => {

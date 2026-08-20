@@ -65,7 +65,8 @@ test('pagehide beacon includes the injected API token', async () => {
 test('playback persistence retains the numeric QQ song ID', async () => {
   const current = {
     ...track('000w1gfs48CBnw', '해볼래 (试试看)'),
-    sourceSongId: 107402287
+    sourceSongId: 107402287,
+    sourceSongType: 1
   };
   const app = await createPlaybackApp({
     current,
@@ -88,7 +89,9 @@ test('playback persistence retains the numeric QQ song ID', async () => {
 
   const persisted = app.ipcSavedState();
   assert.equal(persisted.current.sourceSongId, 107402287);
+  assert.equal(persisted.current.sourceSongType, 1);
   assert.equal(persisted.normalQueueTracks[0].sourceSongId, 107402287);
+  assert.equal(persisted.normalQueueTracks[0].sourceSongType, 1);
 });
 
 test('cold start restores the server queue and playback progress without local storage', async () => {

@@ -4,17 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260819-02">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260820-01">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
       <header class="game-stage-header">
         <h2 class="game-title bomb-title">数字炸弹</h2>
         <h2 class="game-title gomoku-title">五子棋</h2>
+        <h2 class="game-title draw-title">你画我猜</h2>
         <div class="game-stage-meta">
           <span id="gameTurn" class="game-turn">等待开局</span>
           <span id="bombHint" class="bomb-status">主播先手 · 点击一个数字</span>
           <span id="bombHistory" class="bomb-status"></span>
+          <span id="drawMeta" class="draw-status"></span>
         </div>
       </header>
       <section id="numberBombView" class="game-view" hidden>
@@ -25,6 +27,52 @@
           <div id="gomokuColumnLabels" class="gomoku-column-labels" aria-hidden="true"></div>
           <div id="gomokuRowLabels" class="gomoku-row-labels" aria-hidden="true"></div>
           <div id="gomokuBoard" class="gomoku-board" aria-label="五子棋棋盘"></div>
+        </div>
+      </section>
+      <section id="drawGuessView" class="game-view draw-guess-view" hidden>
+        <div class="draw-layout">
+          <div class="draw-canvas-panel">
+            <div class="draw-canvas-wrap">
+              <canvas id="drawCanvas" class="draw-canvas" width="1280" height="720" aria-label="主播绘画画布"></canvas>
+              <div id="drawRoundResult" class="draw-round-result" hidden>
+                <span>本局答案</span>
+                <strong id="drawRevealedAnswer"></strong>
+              </div>
+            </div>
+            <div class="draw-toolbar" aria-label="画笔工具">
+              <div class="draw-color-tools" aria-label="画笔颜色">
+                <button type="button" data-draw-color="#222034" aria-label="墨黑" aria-pressed="true"></button>
+                <button type="button" data-draw-color="#6c5ce7" aria-label="紫色" aria-pressed="false"></button>
+                <button type="button" data-draw-color="#ef476f" aria-label="红色" aria-pressed="false"></button>
+                <button type="button" data-draw-color="#118ab2" aria-label="蓝色" aria-pressed="false"></button>
+                <button type="button" data-draw-color="#06d6a0" aria-label="绿色" aria-pressed="false"></button>
+                <button type="button" data-draw-color="#f6bd60" aria-label="黄色" aria-pressed="false"></button>
+                <button type="button" data-draw-color="#ffffff" aria-label="白色橡皮" aria-pressed="false"></button>
+              </div>
+              <div class="draw-width-tools" aria-label="画笔粗细">
+                <button type="button" data-draw-width="2" aria-label="细笔" aria-pressed="false"><span></span></button>
+                <button type="button" data-draw-width="4" aria-label="中笔" aria-pressed="true"><span></span></button>
+                <button type="button" data-draw-width="8" aria-label="粗笔" aria-pressed="false"><span></span></button>
+                <button type="button" data-draw-width="12" aria-label="特粗笔" aria-pressed="false"><span></span></button>
+              </div>
+              <button id="drawClearBtn" class="draw-clear-button" type="button">清空画布</button>
+            </div>
+          </div>
+          <aside class="draw-audience-panel" aria-label="猜词排行">
+            <div class="draw-clue-card">
+              <span>直播间线索</span>
+              <strong id="drawClue">等待开局</strong>
+              <small>直接发送答案弹幕，无需命令前缀</small>
+            </div>
+            <section class="draw-score-section" aria-labelledby="drawScoreTitle">
+              <div class="draw-panel-heading"><strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span></div>
+              <ol id="drawScoreboard" class="draw-scoreboard"></ol>
+            </section>
+            <section class="draw-correct-section" aria-labelledby="drawCorrectTitle">
+              <div class="draw-panel-heading"><strong id="drawCorrectTitle">本局抢答</strong><span>10 / 7 / 5 / 3</span></div>
+              <ol id="drawCorrectFeed" class="draw-correct-feed"></ol>
+            </section>
+          </aside>
         </div>
       </section>
       <section id="gameEmptyView" class="game-empty" hidden><strong>等待主播开局</strong></section>
@@ -76,6 +124,6 @@
         </div>
       </div>
     </main>
-    <script src="/js/overlays/games.js?v=20260819-02"></script>
+    <script src="/js/overlays/games.js?v=20260820-01"></script>
   </body>
 </html>

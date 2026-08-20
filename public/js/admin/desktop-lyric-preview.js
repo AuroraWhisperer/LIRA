@@ -5,59 +5,8 @@ import { LyricWordRenderer } from '../shared/lyric-word-renderer.js';
 import { LyricWordAnimator } from '../shared/lyric-word-animator.js';
 import { createLyricPerformanceProfile } from '../shared/lyric-performance.js';
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
+import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
 
-const DEFAULTS = {
-  desktopLyricFontFamily: 'Microsoft YaHei',
-  desktopLyricFallbackFontFamily: 'Microsoft JhengHei',
-  desktopLyricFontWeight: '800',
-  desktopLyricTextColor: '#000000',
-  desktopLyricTextAlign: 'left',
-  desktopLyricLetterSpacing: '0',
-  desktopLyricStrokeEnabled: 'true',
-  desktopLyricStrokeColor: '#ffffff',
-  desktopLyricFontSize: '56',
-  desktopLyricStrokeWidth: '3',
-  desktopLyricShadowEnabled: 'true',
-  desktopLyricShadowColor: '#000000',
-  desktopLyricShadowBlur: '8',
-  desktopLyricShadowOffsetX: '0',
-  desktopLyricShadowOffsetY: '3',
-  desktopLyricOpacity: '0.95',
-  desktopLyricBaseOpacity: '0.38',
-  desktopLyricTranslationOpacity: '0.72',
-  desktopLyricBgOpacity: '0.15',
-  desktopLyricScale: '1',
-  desktopLyricLineHeight: '1.4',
-  desktopLyricShadowIntensity: '0.35',
-  desktopLyricTranslationScale: '0.65',
-  desktopLyricShowTranslation: 'true',
-  desktopLyricKaraokeEnabled: 'true',
-  desktopLyricHidePassedLines: 'false',
-  desktopLyricTraditionalMode: 'false',
-  desktopLyricInterludeOffsetEm: '0',
-  desktopLyricHideOnPause: 'false',
-  desktopLyricCurrentLineEnhanced: 'true',
-  desktopLyricTimeOffsetMs: '0',
-  desktopLyricShowTitleWhenNoLyric: 'false',
-  desktopLyricNoLyricText: '纯音乐，请欣赏',
-  desktopLyricSpringAnimation: 'false',
-  desktopLyricBlurEffect: 'false',
-  desktopLyricScaleEffect: 'false',
-  desktopLyricAlignPosition: '0.5',
-  desktopLyricAlignAnchor: 'center',
-  desktopLyricTranslateX: '0',
-  desktopLyricTranslateY: '0',
-  desktopLyricPerspective: '800',
-  desktopLyricRotateX: '0',
-  desktopLyricRotateY: '0',
-  desktopLyricBackgroundEnabled: 'false',
-  desktopLyricBackgroundRenderer: 'mesh',
-  desktopLyricGlobalOpacity: '1',
-  desktopLyricBrightness: '1',
-  desktopLyricContrast: '1',
-  desktopLyricSaturation: '1',
-  desktopLyricVisibleLines: '0'
-};
 const EMPTY_TIMELINE = {
   trackTitle: '', artists: [], status: 'idle', lines: []
 };
@@ -92,7 +41,7 @@ let followPosition = 0;
 let followVelocity = 0;
 let followTarget = 0;
 let followFrameAt = 0;
-let currentDisplaySettings = resolveDesktopLyricSettings(DEFAULTS);
+let currentDisplaySettings = resolveDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS);
 
 function init(form) {
   if (initialized) return;
@@ -558,10 +507,10 @@ function applySettings(settings = {}) {
 
 function readFormSettings() {
   const values = {};
-  for (const key of Object.keys(DEFAULTS)) {
+  for (const key of Object.keys(DESKTOP_LYRIC_DEFAULTS)) {
     if (key === 'desktopLyricTextAlign') {
       values[key] = document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value
-        || DEFAULTS.desktopLyricTextAlign;
+        || DESKTOP_LYRIC_DEFAULTS.desktopLyricTextAlign;
       continue;
     }
     const input = document.getElementById(key);
@@ -645,21 +594,21 @@ function enumSetting(value, allowed, fallback) {
 }
 
 export function resolveDesktopLyricSettings(settings = {}) {
-  const values = { ...DEFAULTS, ...settings };
+  const values = { ...DESKTOP_LYRIC_DEFAULTS, ...settings };
   return {
-    fontFamily: String(values.desktopLyricFontFamily || DEFAULTS.desktopLyricFontFamily),
-    fallbackFontFamily: String(values.desktopLyricFallbackFontFamily || DEFAULTS.desktopLyricFallbackFontFamily),
-    fontWeight: String(values.desktopLyricFontWeight || DEFAULTS.desktopLyricFontWeight),
-    textColor: String(values.desktopLyricTextColor || DEFAULTS.desktopLyricTextColor),
+    fontFamily: String(values.desktopLyricFontFamily || DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily),
+    fallbackFontFamily: String(values.desktopLyricFallbackFontFamily || DESKTOP_LYRIC_DEFAULTS.desktopLyricFallbackFontFamily),
+    fontWeight: String(values.desktopLyricFontWeight || DESKTOP_LYRIC_DEFAULTS.desktopLyricFontWeight),
+    textColor: String(values.desktopLyricTextColor || DESKTOP_LYRIC_DEFAULTS.desktopLyricTextColor),
     textAlign: enumSetting(values.desktopLyricTextAlign, ['left', 'center', 'right', 'justify'], 'left'),
     letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 0.3),
     fontSize: clamp(numberSetting(values.desktopLyricFontSize, 56), 24, 72),
     lineHeight: clamp(numberSetting(values.desktopLyricLineHeight, 1.4), 1, 2),
     strokeEnabled: boolSetting(values.desktopLyricStrokeEnabled, true),
-    strokeColor: String(values.desktopLyricStrokeColor || DEFAULTS.desktopLyricStrokeColor),
+    strokeColor: String(values.desktopLyricStrokeColor || DESKTOP_LYRIC_DEFAULTS.desktopLyricStrokeColor),
     strokeWidth: clamp(numberSetting(values.desktopLyricStrokeWidth, 3), 0, 6),
     shadowEnabled: boolSetting(values.desktopLyricShadowEnabled, true),
-    shadowColor: String(values.desktopLyricShadowColor || DEFAULTS.desktopLyricShadowColor),
+    shadowColor: String(values.desktopLyricShadowColor || DESKTOP_LYRIC_DEFAULTS.desktopLyricShadowColor),
     shadowIntensity: clamp(numberSetting(values.desktopLyricShadowIntensity, 0.35), 0, 1),
     shadowBlur: clamp(numberSetting(values.desktopLyricShadowBlur, 8), 0, 30),
     shadowOffsetX: clamp(numberSetting(values.desktopLyricShadowOffsetX, 0), -20, 20),
@@ -677,7 +626,7 @@ export function resolveDesktopLyricSettings(settings = {}) {
     translationOpacity: clamp(numberSetting(values.desktopLyricTranslationOpacity, 0.72), 0, 1),
     timeOffsetMs: clamp(numberSetting(values.desktopLyricTimeOffsetMs, 0), -5000, 5000),
     showTitleWhenNoLyric: boolSetting(values.desktopLyricShowTitleWhenNoLyric, false),
-    noLyricText: String(values.desktopLyricNoLyricText || DEFAULTS.desktopLyricNoLyricText).slice(0, 80),
+    noLyricText: String(values.desktopLyricNoLyricText || DESKTOP_LYRIC_DEFAULTS.desktopLyricNoLyricText).slice(0, 80),
     springAnimation: boolSetting(values.desktopLyricSpringAnimation, false),
     blurEffect: boolSetting(values.desktopLyricBlurEffect, false),
     scaleEffect: boolSetting(values.desktopLyricScaleEffect, false),
@@ -721,8 +670,8 @@ export function resolveLyricTime(currentMs, settings) {
 export function resolveNoLyricText(timeline, settings) {
   const title = String(timeline?.trackTitle || '').trim();
   if (settings?.showTitleWhenNoLyric && title) return title;
-  return String(settings?.noLyricText || DEFAULTS.desktopLyricNoLyricText).trim()
-    || DEFAULTS.desktopLyricNoLyricText;
+  return String(settings?.noLyricText || DESKTOP_LYRIC_DEFAULTS.desktopLyricNoLyricText).trim()
+    || DESKTOP_LYRIC_DEFAULTS.desktopLyricNoLyricText;
 }
 
 export function calculateFollowTarget(rowTop, rowHeight, viewportHeight, scrollHeight, alignPosition, alignAnchor) {

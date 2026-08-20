@@ -7,15 +7,27 @@ let reconnectAttempts = 0;
 let snapshotRetryTimer = null;
 let initialSnapshotLoaded = false;
 let resultProfileRequest = 0;
+let drawColor = '#222034';
+let drawWidth = 4;
+let drawClock = null;
+let activeStroke = null;
+let drawFlushTimer = null;
+let drawSendChain = Promise.resolve();
+
+const drawClientId = `draw-${typeof crypto.randomUUID === 'function'
+  ? crypto.randomUUID()
+  : Math.random().toString(36).slice(2)}`;
 
 const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 
 document.addEventListener('DOMContentLoaded', () => {
+  initDrawCanvas();
   loadSnapshot();
   connectSocket();
   byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
   window.addEventListener('resize', positionGameResult);
+  setInterval(updateDrawCountdown, 250);
 });
 
 async function loadSnapshot(attempt = 0) {
@@ -59,6 +71,7 @@ function connectSocket() {
       }
       renderGame(payload.session);
     }
+    if (payload.type === 'game:draw') applyDrawBroadcast(payload.operation);
     if (payload.type === 'snapshot') {
       const nextSession = payload.state?.games || null;
       if (nextSession) {
@@ -83,8 +96,14 @@ function renderGame(nextSession) {
   byId('gameEmptyView').hidden = Boolean(session);
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
+  byId('drawGuessView').hidden = game !== 'draw-guess' || !session;
   if (!session) { byId('gameTurn').textContent = '等待开局'; hideGameResult(); return; }
   const state = session.state;
+  if (game === 'draw-guess') {
+    renderDrawGuess(state);
+    hideGameResult();
+    return;
+  }
   byId('gameTurn').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}的回合`;
   if (game === 'number-bomb') renderBomb(state);
   else renderGomoku(state);
@@ -140,6 +159,270 @@ function renderGomokuCoordinates(size) {
     row.textContent = String(index + 1);
     rows.append(row);
   }
+}
+
+function renderDrawGuess(state) {
+  drawClock = state.phase === 'drawing'
+    ? { remainingMs: Number(state.remainingMs) || 0, receivedAt: performance.now() }
+    : null;
+  byId('drawMeta').textContent = `第 ${state.round} / ${state.totalRounds} 局 · ${state.category}`;
+  byId('drawClue').textContent = state.phase === 'drawing'
+    ? `${state.category} · ${state.wordLength} 个字`
+    : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
+  byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
+  renderDrawScoreboard(state.scores || []);
+  renderDrawCorrectFeed(state.correct || []);
+  redrawCanvas(state.canvas);
+  const result = byId('drawRoundResult');
+  result.hidden = state.phase === 'drawing';
+  byId('drawRevealedAnswer').textContent = state.revealedAnswer || '';
+  setDrawToolsEnabled(state.phase === 'drawing');
+  if (state.phase === 'round-result') byId('gameTurn').textContent = '本局结束 · 等待下一题';
+  else if (state.phase === 'finished') byId('gameTurn').textContent = '五局结束 · 最终排行';
+  else updateDrawCountdown();
+}
+
+function renderDrawScoreboard(scores) {
+  const root = byId('drawScoreboard');
+  root.replaceChildren();
+  if (!scores.length) {
+    root.append(createEmptyDrawItem('还没有观众得分'));
+    return;
+  }
+  scores.slice(0, 6).forEach((player, index) => {
+    root.append(createDrawListItem(index + 1, player.name, `${player.score} 分`));
+  });
+}
+
+function renderDrawCorrectFeed(correct) {
+  const root = byId('drawCorrectFeed');
+  root.replaceChildren();
+  if (!correct.length) {
+    root.append(createEmptyDrawItem('等待第一条正确弹幕'));
+    return;
+  }
+  correct.slice(0, 6).forEach(item => {
+    root.append(createDrawListItem(item.rank, item.name, `+${item.points}`));
+  });
+}
+
+function createDrawListItem(rank, name, score) {
+  const item = document.createElement('li');
+  const rankEl = document.createElement('span');
+  rankEl.className = 'draw-rank';
+  rankEl.textContent = `#${rank}`;
+  const nameEl = document.createElement('span');
+  nameEl.className = 'draw-player-name';
+  nameEl.textContent = name;
+  const scoreEl = document.createElement('strong');
+  scoreEl.className = 'draw-player-score';
+  scoreEl.textContent = score;
+  item.append(rankEl, nameEl, scoreEl);
+  return item;
+}
+
+function createEmptyDrawItem(message) {
+  const item = document.createElement('li');
+  item.className = 'draw-list-empty';
+  item.textContent = message;
+  return item;
+}
+
+function updateDrawCountdown() {
+  if (session?.game !== 'draw-guess' || session.state?.phase !== 'drawing' || !drawClock) return;
+  const remaining = Math.max(0, drawClock.remainingMs - (performance.now() - drawClock.receivedAt));
+  const seconds = Math.ceil(remaining / 1000);
+  byId('gameTurn').textContent = `第 ${session.state.round} / ${session.state.totalRounds} 局 · ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function initDrawCanvas() {
+  const canvas = byId('drawCanvas');
+  redrawCanvas({ strokes: [] });
+  document.querySelectorAll('[data-draw-color]').forEach(button => button.addEventListener('click', () => {
+    drawColor = button.dataset.drawColor;
+    document.querySelectorAll('[data-draw-color]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+  }));
+  document.querySelectorAll('[data-draw-width]').forEach(button => button.addEventListener('click', () => {
+    drawWidth = Number(button.dataset.drawWidth);
+    document.querySelectorAll('[data-draw-width]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+  }));
+  byId('drawClearBtn').addEventListener('click', clearDrawCanvas);
+  canvas.addEventListener('pointerdown', startDrawing);
+  canvas.addEventListener('pointermove', continueDrawing);
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
+}
+
+function startDrawing(event) {
+  if (!canDraw() || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  event.preventDefault();
+  const canvas = byId('drawCanvas');
+  canvas.setPointerCapture(event.pointerId);
+  const point = drawPointFromEvent(event);
+  activeStroke = {
+    pointerId: event.pointerId,
+    strokeId: `stroke-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
+    color: drawColor,
+    width: drawWidth,
+    lastPoint: point,
+    pendingPoints: [point]
+  };
+  drawCanvasPoints([point], drawColor, drawWidth);
+  scheduleDrawFlush();
+}
+
+function continueDrawing(event) {
+  if (!activeStroke || activeStroke.pointerId !== event.pointerId || !canDraw()) return;
+  event.preventDefault();
+  const point = drawPointFromEvent(event);
+  if (Math.abs(point.x - activeStroke.lastPoint.x) + Math.abs(point.y - activeStroke.lastPoint.y) < 0.001) return;
+  drawCanvasPoints([activeStroke.lastPoint, point], activeStroke.color, activeStroke.width);
+  activeStroke.lastPoint = point;
+  activeStroke.pendingPoints.push(point);
+  if (activeStroke.pendingPoints.length >= 16) flushActiveStroke();
+  else scheduleDrawFlush();
+}
+
+function stopDrawing(event) {
+  if (!activeStroke || activeStroke.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  flushActiveStroke();
+  clearTimeout(drawFlushTimer);
+  drawFlushTimer = null;
+  activeStroke = null;
+}
+
+function scheduleDrawFlush() {
+  clearTimeout(drawFlushTimer);
+  drawFlushTimer = setTimeout(flushActiveStroke, 40);
+}
+
+function flushActiveStroke() {
+  if (!activeStroke?.pendingPoints.length) return;
+  clearTimeout(drawFlushTimer);
+  drawFlushTimer = null;
+  while (activeStroke?.pendingPoints.length) {
+    const operation = {
+      action: 'append',
+      clientId: drawClientId,
+      strokeId: activeStroke.strokeId,
+      color: activeStroke.color,
+      width: activeStroke.width,
+      points: activeStroke.pendingPoints.splice(0, 32)
+    };
+    mergeDrawOperation(operation, false);
+    queueDrawOperation(operation);
+  }
+}
+
+function clearDrawCanvas() {
+  if (!canDraw()) return;
+  const operation = { action: 'clear', clientId: drawClientId };
+  mergeDrawOperation(operation, true);
+  queueDrawOperation(operation);
+}
+
+function queueDrawOperation(operation) {
+  drawSendChain = drawSendChain.then(async () => {
+    const response = await fetch('/api/games/session/draw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(operation)
+    });
+    const payload = await response.json();
+    if (!payload.ok) throw new Error(payload.error || '画笔同步失败');
+  }).catch(() => {
+    byId('gameTurn').textContent = '画笔同步失败 · 正在恢复';
+    loadSnapshot();
+  });
+}
+
+function applyDrawBroadcast(operation) {
+  if (!operation || session?.game !== 'draw-guess') return;
+  if (operation.clientId === drawClientId) {
+    if (session.state?.canvas) session.state.canvas.revision = operation.revision;
+    return;
+  }
+  mergeDrawOperation(operation, true);
+}
+
+function mergeDrawOperation(operation, drawIncrement) {
+  if (!session?.state?.canvas) return;
+  const canvasState = session.state.canvas;
+  if (operation.action === 'clear') {
+    canvasState.strokes = [];
+    canvasState.totalPoints = 0;
+    canvasState.revision = Number(operation.revision) || canvasState.revision;
+    redrawCanvas(canvasState);
+    return;
+  }
+  if (operation.action !== 'append' || !Array.isArray(operation.points)) return;
+  let stroke = canvasState.strokes.find(item => item.id === operation.strokeId);
+  const previous = stroke?.points.at(-1) || null;
+  if (!stroke) {
+    stroke = { id: operation.strokeId, color: operation.color, width: operation.width, points: [] };
+    canvasState.strokes.push(stroke);
+  }
+  stroke.points.push(...operation.points.map(point => ({ x: Number(point.x), y: Number(point.y) })));
+  canvasState.totalPoints = (Number(canvasState.totalPoints) || 0) + operation.points.length;
+  canvasState.revision = Number(operation.revision) || canvasState.revision;
+  if (drawIncrement) drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
+}
+
+function redrawCanvas(canvasState = {}) {
+  const canvas = byId('drawCanvas');
+  if (!canvas) return;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  for (const stroke of canvasState.strokes || []) drawCanvasPoints(stroke.points, stroke.color, stroke.width);
+}
+
+function drawCanvasPoints(points, color, width) {
+  if (!Array.isArray(points) || !points.length) return;
+  const canvas = byId('drawCanvas');
+  const context = canvas.getContext('2d');
+  context.strokeStyle = color;
+  context.fillStyle = color;
+  context.lineWidth = Number(width) * 2;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+  if (points.length === 1) {
+    context.beginPath();
+    context.arc(points[0].x * canvas.width, points[0].y * canvas.height, Number(width), 0, Math.PI * 2);
+    context.fill();
+    return;
+  }
+  context.beginPath();
+  context.moveTo(points[0].x * canvas.width, points[0].y * canvas.height);
+  for (let index = 1; index < points.length; index += 1) {
+    context.lineTo(points[index].x * canvas.width, points[index].y * canvas.height);
+  }
+  context.stroke();
+}
+
+function drawPointFromEvent(event) {
+  const rect = byId('drawCanvas').getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+  };
+}
+
+function setDrawToolsEnabled(enabled) {
+  if (!enabled) {
+    clearTimeout(drawFlushTimer);
+    drawFlushTimer = null;
+    activeStroke = null;
+  }
+  byId('drawCanvas').classList.toggle('is-disabled', !enabled);
+  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn').forEach(button => {
+    button.disabled = !enabled;
+  });
+}
+
+function canDraw() {
+  return session?.game === 'draw-guess' && session.state?.phase === 'drawing';
 }
 
 async function submitMove(value) {

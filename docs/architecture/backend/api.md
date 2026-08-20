@@ -109,6 +109,7 @@ Provider 未接入或抛错的端点统一经 `sendProviderResult` 回 **501** `
 | `GET /api/music/health` | 查询参数 `platform`(可选,空则全部) | 各音源 Provider 健康状态([provider-health.js](../../../src/music/provider-health.js)) | — |
 | `GET /api/music/cache` | 无 | 音乐 API/歌词缓存统计 | — |
 | `POST /api/music/resolve-stream` | `{track, forceRefresh?}`(`forceRefresh: true` 跳过缓存) | 解析后播放流信息 | 501 |
+| `GET /api/music/qq-encrypted-stream` | `id` + session token;支持浏览器 `Range` | 服务端短期 QMC2 解密的 FLAC/Ogg 播放流 | 404/416/502 |
 | `POST /api/music/search` | `{platform?`(默认 `netease`), `keyword|query|songName`(必填,截断 120 字符), `limit`(1–30,默认 20)} | `{source, keyword, tracks}` | 501、400(缺关键词) |
 | `POST /api/music/home` | `{platform?`, `action?`(`personalized`(默认)/`playlist-tracks`/`daily`/`radio`/`liked`/`created-playlists`/`collected-playlists`/`recent`), `limit`(1–5000,默认 100), `offset`, `page`(1–50), `playlistId?`, `refresh?`, `track?`(仅 `created-playlists` 附带时标注歌单归属)} | 首页/歌单内容(`personalized`/`playlist-tracks` 走 5 分钟 API 缓存,`daily`/`radio` 不缓存) | 501、400 |
 | `POST /api/music/playlists/tracks/add` | `{platform|source?`(默认 `qq`), `playlist: {id|tid, dirId?, title|dirName?(截断 200)}`, `tracks[]`(**≤ 100 条**,空数组报错)} | `{source, operation:'add', playlist, result}` | 501、400(`缺少要修改的音乐歌曲。`) |
@@ -247,7 +248,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/overtime` | 无 | 加班机总览(`getSnapshot()`:`enabled/status/initialSeconds/effectiveRemainingMs/serverNowMs/revision/background/rules`) + `limits:{maxSeconds, maxEffectFactor, maxRandomWeight, maxEnabledRules}` | 400 |
+| `GET /api/overtime` | 无 | 加班机总览(`getSnapshot()`:`enabled/status/initialSeconds/effectiveRemainingMs/serverNowMs/revision/background/rules`) + `limits:{maxSeconds, maxEffectFactor, maxRandomWeight, maxEnabledRules, minRandomOutcomes, maxRandomOutcomes}` | 400 |
 | `POST /api/overtime/time` | `{initialSeconds?}` 与 `{remainingSeconds?}` **至少一个**,取值范围 **0–315,328,464,000**;`remainingSeconds` 设置后状态置为 `paused`(归零时 `finished`) | 更新后的快照 | 400(`initialSeconds or remainingSeconds is required.`/越界报错) |
 | `POST /api/overtime/action` | `{action}` ∈ `start`/`pause`/`reset`/`enable`/`disable` | 更新后的快照 | 400(`action must be start, pause, reset, enable, or disable.`) |
 | `POST /api/overtime/config` | `{path?, fit?}`:`fit` ∈ `cover`/`contain`/`fill`(默认 `cover`);`path` 若非空必须是内置图片路径(正则 `/img/overtime-machine/…`,拒绝 `..`/反斜杠/协议头) | 更新后的快照 | 400 |
@@ -402,11 +403,15 @@ handler 未包 try/catch:抛错走顶层 **500**。
 # 小游戏 API
 
 `GET /api/games/viewers` 返回当前在线快照中的直播间观众候选；
-`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
+`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置；你画我猜在作画阶段不会返回题词或别名）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
+`GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,phase,round,totalRounds}`，供 Admin 私下显示题词；它沿用 session token，但不得由 `/games` 直播画面渲染；
 `GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；
-`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
-`POST /api/games/session/move` 接受主播的 `{value}` 落子。所有端点沿用现有 session token 与 `{ok,data}` 信封。
+`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，`game` 为 `number-bomb|gomoku|draw-guess`，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
+`POST /api/games/session/move` 接受主播的 `{value}` 落子；你画我猜使用 `{value:{action:'finish-round'|'next-round'}}` 结束本局或开始下一题；
+`POST /api/games/session/draw` 接受 `{action:'append',clientId,strokeId,color,width,points:[{x,y}]}` 或 `{action:'clear',clientId}`。服务端只允许固定颜色/笔宽、1–32 个归一化坐标、最多 160 笔和每局 6000 个坐标，成功返回 `{revision}` 并广播 `game:draw`。所有端点沿用现有 session token 与 `{ok,data}` 信封。
+
+你画我猜为固定五局、每局 90 秒的内存会话；服务端单计时器到时结束本局。观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分。
 
 ## 独立转盘 API
 
-`GET /api/wheel` 返回当前内存中的转盘配置、总份数、最近结果和活动抽取动画；`POST /api/wheel/config` 接受 `{entries:[{label,weight}]}`，服务端限制 2–12 个不重复内容、每项 1–100 份、总份数不超过 300；`POST /api/wheel/spin` 按服务端权重抽取并广播 `wheel:update`。转盘 service 与 `/api/games/session` 独立，不参与数字炸弹/五子棋的单会话互斥。所有端点沿用现有 session token 与 `{ok,data}` 信封。
+`GET /api/wheel` 返回当前内存中的转盘配置、总份数、最近结果、活动抽取动画和服务端 `limits:{minEntries,maxEntries,maxLabelLength,minWeight,maxWeight,maxTotalWeight}`；`POST /api/wheel/config` 接受 `{entries:[{label,weight}]}`，服务端限制 2–12 个不重复内容、每项 1–100 份、总份数不超过 300；`POST /api/wheel/spin` 按服务端权重抽取并广播 `wheel:update`。转盘 service 与 `/api/games/session` 独立，不参与数字炸弹、五子棋或你画我猜的单会话互斥。所有端点沿用现有 session token 与 `{ok,data}` 信封。

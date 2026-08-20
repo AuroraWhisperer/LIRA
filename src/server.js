@@ -1,5 +1,4 @@
 // 编写人：Aurora
-// 当前项目版本：1.4.6
 'use strict';
 
 const http = require('node:http');
@@ -485,6 +484,7 @@ function createServerRuntime(runtimeOptions = {}) {
   async function disposeApplication(options = {}) {
     bilibiliRuntime?.stop();
     webSocketHub?.stop({ shutdownPayload: { type: 'shutdown', reason: 'manual' } });
+    gameSessionService?.dispose();
     if (aiRuntime) {
       try {
         await aiRuntime.shutdown();

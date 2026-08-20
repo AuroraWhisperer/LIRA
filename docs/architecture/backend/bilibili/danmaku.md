@@ -10,7 +10,7 @@
 
 | 回调 | 触发 | server.js 消费 |
 |---|---|---|
-| `onMessage(danmaku)` | 弹幕命令文本、SC 命令文本、历史轮询命令 | `messages.handleDanmaku` 点歌桥接 + 机器人链,`accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([server.js:611-670](../../../../src/server.js#L611-L670)) |
+| `onMessage(danmaku)` | 弹幕命令文本、SC 命令文本、历史轮询命令 | 先交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
 | `onSuperChat(superChat)` | 每条 SC 到达 | `superChats.add` 入库,成功则广播 `bilibili:superchat`([server.js:671-690](../../../../src/server.js#L671-L690),入库见 [gift.md](gift.md) §7) |
 | `onGift(gift)` | 解析有效的礼物事件 | `gifts.add` → 礼物检测管道([server.js:692-700](../../../../src/server.js#L692-L700),见 [gift.md](gift.md) §2) |
 | `onStatus(liveStatus)` | 连接状态变化 | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720)) |
@@ -170,7 +170,7 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 单条弹幕上限 | `DANMAKU_MESSAGE_LIMIT = 40` 字符(按 grapheme 切分) | [sender-service.js:5](../../../../src/bilibili/danmaku/sender-service.js#L5) |
+| 单条弹幕上限 | `DANMAKU_MESSAGE_LIMIT = 40` 字符(按 grapheme 切分)，由 `danmaku/contract.js` 统一提供给发送器与 AI 回复预算 | [contract.js](../../../../src/bilibili/danmaku/contract.js) |
 | 限速 | `minIntervalMs = 1500`(可注入);未到间隔再发:默认抛 `发送过于频繁`;`waitForRateLimit=true` 时等待 | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:110-113](../../../../src/bilibili/danmaku/sender-service.js#L110-L113) |
 | 切分 | 超长按 40 字符切块;有提及目标时首块预留 `@名字 ` 长度;`mentionEveryChunk` 每块都提及;块间可选 `intervalMs` 间隔;自然断句优先(标点 `。！？!?；;，,、～~` 与括号表情) | [sender-service.js:163-219](../../../../src/bilibili/danmaku/sender-service.js#L163-L219) |
 | 显示名缓存 | 账号名/房间名 `DISPLAY_CACHE_TTL_MS = 10min` | [sender-service.js:6](../../../../src/bilibili/danmaku/sender-service.js#L6)、[sender-service.js:64-99](../../../../src/bilibili/danmaku/sender-service.js#L64-L99) |

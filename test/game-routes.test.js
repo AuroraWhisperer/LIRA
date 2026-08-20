@@ -10,6 +10,9 @@ test('single-player game requires a selected numeric viewer uid', () => {
   assert.deepEqual(normalizeSessionInput({
     game: 'number-bomb', mode: 'single', targetUid: '123', targetName: 'Alice'
   }), { game: 'number-bomb', mode: 'single', targetUid: '123', targetName: 'Alice' });
+  assert.deepEqual(normalizeSessionInput({ game: 'draw-guess' }), {
+    game: 'draw-guess', mode: 'multi', targetUid: '', targetName: '直播间观众'
+  });
 });
 
 test('game session accepts only selected viewer danmaku in single mode', () => {
@@ -72,4 +75,36 @@ test('game winner profile route returns transient avatar data', async () => {
     ok: true,
     data: { avatarUrl: 'https://i0.hdslb.com/bfs/face/test.jpg', name: 'Alice' }
   });
+});
+
+test('draw guess host state route returns the private clue behind the existing game context', () => {
+  let status;
+  let payload;
+  routes['GET /api/games/host-state'](
+    { games: { getHostState: () => ({ game: 'draw-guess', word: '苹果', round: 1 }) } },
+    {},
+    {
+      writeHead(nextStatus) { status = nextStatus; },
+      end(body) { payload = JSON.parse(body); }
+    }
+  );
+
+  assert.equal(status, 200);
+  assert.deepEqual(payload.data, { game: 'draw-guess', word: '苹果', round: 1 });
+});
+
+test('draw guess drawing route validates through the game service and returns revision', async () => {
+  let status;
+  let payload;
+  await routes['POST /api/games/session/draw'](
+    { games: { draw: () => ({ accepted: true, revision: 4 }) } },
+    { body: async () => ({ action: 'clear', clientId: 'page-1' }) },
+    {
+      writeHead(nextStatus) { status = nextStatus; },
+      end(body) { payload = JSON.parse(body); }
+    }
+  );
+
+  assert.equal(status, 200);
+  assert.deepEqual(payload, { ok: true, data: { revision: 4 } });
 });

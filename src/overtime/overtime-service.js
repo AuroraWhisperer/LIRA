@@ -8,6 +8,8 @@ const {
   MAX_EFFECT_FACTOR,
   MAX_RANDOM_WEIGHT,
   MAX_ENABLED_RULES,
+  MIN_RANDOM_OUTCOMES,
+  MAX_RANDOM_OUTCOMES,
   validateTimeInput,
   validateAction,
   validateBackground,
@@ -16,6 +18,14 @@ const {
 
 const MAX_OVERTIME_MS = MAX_OVERTIME_SECONDS * 1000;
 const MAX_TIMER_CHUNK_MS = 24 * 60 * 60 * 1000;
+const OVERTIME_LIMITS = Object.freeze({
+  maxSeconds: MAX_OVERTIME_SECONDS,
+  maxEffectFactor: MAX_EFFECT_FACTOR,
+  maxRandomWeight: MAX_RANDOM_WEIGHT,
+  maxEnabledRules: MAX_ENABLED_RULES,
+  minRandomOutcomes: MIN_RANDOM_OUTCOMES,
+  maxRandomOutcomes: MAX_RANDOM_OUTCOMES
+});
 
 function createOvertimeService(options = {}) {
   const now = typeof options.now === 'function' ? options.now : Date.now;
@@ -48,7 +58,8 @@ function createOvertimeService(options = {}) {
       serverNowMs,
       revision: state.revision,
       background: { path: state.backgroundPath, fit: state.backgroundFit },
-      rules: store.listRules()
+      rules: store.listRules(),
+      limits: { ...OVERTIME_LIMITS }
     };
   }
 
@@ -60,13 +71,7 @@ function createOvertimeService(options = {}) {
     return {
       ...getSnapshot(),
       pendingCount: store.countPending(),
-      settlements: store.listRecent(20),
-      limits: {
-        maxSeconds: MAX_OVERTIME_SECONDS,
-        maxEffectFactor: MAX_EFFECT_FACTOR,
-        maxRandomWeight: MAX_RANDOM_WEIGHT,
-        maxEnabledRules: MAX_ENABLED_RULES
-      }
+      settlements: store.listRecent(20)
     };
   }
 

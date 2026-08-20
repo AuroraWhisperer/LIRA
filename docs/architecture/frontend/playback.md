@@ -85,7 +85,7 @@ PlayerController.setAudio → audio.load()/play()
 | 服务 | 职责与端点(定义见 [api.md](../backend/api.md)) |
 |---|---|
 | search-service | 在线搜索 `POST /api/music/search`(platform/keyword/limit,默认 9 条),`searchGeneration` 防串号(旧请求结果丢弃) |
-| stream-service | 播放流解析 `POST /api/music/resolve-stream`(forceRefresh),URL 缓存 + 30s 刷新边距 + 1 次重试 |
+| stream-service | 播放流解析 `POST /api/music/resolve-stream`(`forceRefresh` + `quality`),URL 缓存 + 30s 刷新边距 + 1 次重试;Provider 返回的实际 `quality` 回写 track,用于展示权益降级 |
 | lyric-service | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3) |
 | match-service | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗) |
 | import-service | 点歌队列导入:读 `/api/state` 的 queue 快照 → 按 track 结构转换后插入播放队列 |
@@ -110,6 +110,8 @@ PlayerController.setAudio → audio.load()/play()
 
 **恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移([state/storage.js:97-120](../../../public/js/playback/state/storage.js#L97-L120))。`currentTime` 恢复为 `restoredTime`(不保存播放位置,见 [state/storage.js:81](../../../public/js/playback/state/storage.js#L81))。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
 
+QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最后一项必须跨重启送回 Provider,否则 HAR 中 `songtype: 1` 的付费歌曲会被错误降为类型 `0`。`qualityPreferences` 按 Provider 保存:QQ 为 `standard/high/lossless/premium/immersive`,网易云为 `standard/higher/exhigh/lossless/hires`;后两项通过本地 QMC2 Range 代理，不能承诺 QQ 客户端的 Dolby/空间 DSP 效果。
+
 ## 7. 本地文件与桌面集成
 
 - 选择文件:`LocalFileManager.selectLocalFiles()` 走 `musicAPI.selectLocalFiles`(桌面文件对话框,取消返回空);最近历史 `musicAPI.getRecentLocalFiles`。
@@ -119,6 +121,7 @@ PlayerController.setAudio → audio.load()/play()
 ## 8. UI 与事件
 
 - `ui/index.js` `UIRenderer` 渲染整页;`ui/playback-bar.js` 底部控制栏(进度/播放暂停/上下首/音量/模式/队列弹出/歌词);`ui/fullscreen.js` 全屏播放器(点击面板切换,ESC 退出,空格播放暂停,封面背景按 `pickBackgroundTheme` 30 套轮换,[forms.js:74-92](../../../public/js/admin/forms.js#L74-L92));`ui/drawer.js` 首页抽屉(歌单内页与返回栈);`ui/queue-popup.js` 队列弹出窗(收起播放器时联动关闭)。
+- **音质菜单**:`ui/playback-bar.js` 对 QQ 显示标准(128kbps)/HQ(最高 320kbps)/SQ(FLAC)/臻品(Q0 本地解密)/全景声(O8 本地解密),对网易云显示五档;`features/playback-controls.js:changePlaybackQuality` 保存默认档位、强制刷新当前流并在 `loadedmetadata` 后恢复切换前进度。服务端若降级,按钮显示实际档位并 toast 提示。Q0/O8 不承诺 QQ 客户端专属杜比或空间 DSP 效果,边界见 [qq-provider.md](../backend/music/qq-provider.md) §7.2。
 - **工作区集成**:播放器 dock 默认收起(`player-dock-collapsed`,避免遮挡点歌工作区),由 `forms.js` 的 `setPlayerDockCollapsed` 统一管理,收起时联动关闭全屏播放器/队列弹窗/音量面板([forms.js:133-169](../../../public/js/admin/forms.js#L133-L169))。
 - `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),控制器显式注入其所需回调;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
 - 播放器状态变化统一走 `onStateChange → renderPlayback() + savePlaybackState()`;MediaSession(系统媒体控制)由 `updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext)` 更新([controller.js:531-533](../../../public/js/playback/controller.js#L531-L533))。

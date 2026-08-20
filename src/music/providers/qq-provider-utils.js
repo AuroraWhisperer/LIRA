@@ -22,12 +22,16 @@ function mapQQSong(song) {
       || sourceTrackId
   ).trim();
   const numericSongId = Number(song.id || song.songid || song.songId || song.song_id || song.SongId || song.SongID || 0);
+  const sourceSongType = normalizeQQSongType(
+    song.type ?? song.songtype ?? song.songType ?? song.SongType
+  );
   return {
     id: `qq:${sourceTrackId}`,
     source: 'qq',
     sourceTrackId,
     sourceMediaId,
     sourceSongId: Number.isSafeInteger(numericSongId) && numericSongId > 0 ? numericSongId : 0,
+    sourceSongType,
     sourceAlbumId: album && (album.mid || album.id) ? String(album.mid || album.id) : albumMid,
     title,
     artists: singers.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean)
@@ -38,6 +42,11 @@ function mapQQSong(song) {
     playable: true,
     vip: Number(song.pay && song.pay.pay_play || song.Vip || 0) > 0
   };
+}
+
+function normalizeQQSongType(value) {
+  const songType = Number(value);
+  return Number.isSafeInteger(songType) && songType >= 0 ? songType : 0;
 }
 
 function mapQQPlaylist(playlist) {
@@ -353,6 +362,7 @@ module.exports = {
   mapRecommendCard,
   normalizeQQPlaylistSongInfo,
   normalizeQQPlaylistWriteTarget,
+  normalizeQQSongType,
   readQQModuleData,
   sanitizeAuthState,
   stripJsonp

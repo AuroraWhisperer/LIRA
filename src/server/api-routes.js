@@ -73,6 +73,7 @@ async function handleApi(context, req, res, requestUrl) {
     method,
     pathName,
     query: requestUrl.searchParams,
+    req,
     body: createBodyReader(req, context.maxBodyBytes)
   }, res);
 }

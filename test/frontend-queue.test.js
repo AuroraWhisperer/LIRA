@@ -325,15 +325,22 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonRowRule, /background-size:\s*92%\s+auto/);
   assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /color:\s*#54152f/);
-  assert.match(neonViewportRule, /right:\s*12%/);
+  assert.match(neonViewportRule, /top:\s*19%/);
+  assert.match(neonViewportRule, /right:\s*15%/);
+  assert.match(neonViewportRule, /bottom:\s*31%/);
+  assert.match(neonViewportRule, /left:\s*25\.5%/);
   assert.match(neonViewportRule, /justify-content:\s*safe center/);
-  assert.match(ribbonContentRule, /inset:\s*19\.5%\s+10%\s+9\.5%/);
+  assert.match(ribbonContentRule, /--cherry-ribbon-top-trim:\s*5px/);
+  assert.match(ribbonContentRule, /--cherry-ribbon-bottom-trim:\s*30px/);
+  assert.match(ribbonContentRule, /inset:\s*calc\(19\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
   assert.match(ribbonRowRule, /height:\s*clamp\(70px,\s*17\.5cqw,\s*94px\)/);
   assert.match(ribbonRowRule, /min-height:\s*clamp\(70px,\s*17\.5cqw,\s*94px\)/);
   assert.match(ribbonRowRule, /background-size:\s*94%\s+auto/);
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
-  assert.match(ribbonViewportRule, /right:\s*10\.5%/);
-  assert.match(ribbonViewportRule, /left:\s*20%/);
+  assert.match(ribbonViewportRule, /top:\s*33%/);
+  assert.match(ribbonViewportRule, /right:\s*14\.5%/);
+  assert.match(ribbonViewportRule, /bottom:\s*33%/);
+  assert.match(ribbonViewportRule, /left:\s*22%/);
 });
 
 test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
@@ -396,18 +403,21 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*19%\s+8\.5%\s+8\.5%/);
-  assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 6, renderGoldenLilyRow\)/);
-  assert.match(goldenRowRule, /width:\s*80%/);
+  assert.match(goldenContentRule, /inset:\s*19%\s+8\.5%\s+17%/);
+  assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', -6, renderGoldenLilyRow\)/);
+  assert.match(goldenRowRule, /width:\s*76%/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
   assert.match(goldenRankRule, /top:\s*13%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);
   assert.match(goldenRankRule, /left:\s*5\.5%/);
   assert.match(goldenRankRule, /width:\s*18\.5%/);
   assert.match(goldenRankRule, /place-items:\s*center/);
-  assert.match(goldenViewportRule, /right:\s*7%/);
-  assert.match(goldenViewportRule, /left:\s*29%/);
-  assert.match(overlayStyles, /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*6px/);
+  assert.match(goldenViewportRule, /top:\s*31%/);
+  assert.match(goldenViewportRule, /right:\s*11%/);
+  assert.match(goldenViewportRule, /bottom:\s*29%/);
+  assert.match(goldenViewportRule, /left:\s*32%/);
+  assert.match(overlayStyles, /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*0/);
+  assert.match(overlayStyles, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-6px/);
   assert.match(goldenInfoRule, /margin-inline:\s*auto/);
 });
 
@@ -555,11 +565,11 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(source, /catalogRoomLabel\(giftCatalogSnapshot, catalogLiveStatus\)/);
   assert.match(source, /liveStatus\?\.ownerName/);
   assert.match(source, /当前未在售/);
-  assert.match(source, /\.sort\(\(left, right\) => left\.rmb - right\.rmb\)/);
+  assert.match(source, /left\.catalogGroup - right\.catalogGroup[\s\S]*left\.catalogOrder - right\.catalogOrder[\s\S]*left\.rmb - right\.rmb/);
   assert.match(source, /if \(!gift\.id\.startsWith\('guard-'\)\) \{[\s\S]*meta\.textContent = `¥\$\{gift\.rmb\.toFixed\(2\)\}`/);
   assert.doesNotMatch(source, /`ID \$\{gift\.id\}[^`]*`/);
   assert.match(source, /\/api\/overtime\/rules/);
-  assert.match(source, /MAX_ENABLED_RULES\s*=\s*8/);
+  assert.match(source, /ruleEditor\.setLimits\(serverLimits\)/);
   assert.match(source, /该下播了/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });
@@ -590,7 +600,7 @@ test('overtime controller delegates rule editing through a narrow module boundar
   assert.match(controller, /ruleEditor\.readRules\(\)/);
   assert.match(controller, /ruleEditor\.renderRules\(nextState\.rules\)/);
   assert.doesNotMatch(controller, /function createRuleRow/);
-  assert.match(editor, /return \{ readRules, renderRules, createRule \};/);
+  assert.match(editor, /return \{ readRules, renderRules, createRule, setLimits \};/);
 });
 
 test('overtime gift rule actions keep adding obvious and saving stateful', () => {

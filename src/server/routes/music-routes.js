@@ -29,14 +29,27 @@ const routes = {
 
   async 'POST /api/music/resolve-stream'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '在线音源 Provider 尚未接入。', () => resolveMusicStream(
+    await sendProviderResult(res, '在线音源 Provider 尚未接入。', async () => {
+      const stream = await resolveMusicStream(
       context.music.registry,
       body.track,
       {
         forceRefresh: body.forceRefresh === true,
         quality: String(body.quality || '')
       }
-    ));
+      );
+      if (stream && stream.encrypted && stream.url && context.sessionToken) {
+        const url = new URL(stream.url, 'http://lira.local');
+        url.searchParams.set('token', context.sessionToken);
+        stream.url = `${url.pathname}${url.search}`;
+      }
+      return stream;
+    });
+  },
+
+  async 'GET /api/music/qq-encrypted-stream'(context, request, res) {
+    const provider = context.music.registry.get('qq');
+    await provider.serveEncryptedStream(request.query.get('id'), request.req, res);
   },
 
   async 'POST /api/music/search'(context, request, res) {

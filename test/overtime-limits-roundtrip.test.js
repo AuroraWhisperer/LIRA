@@ -5,7 +5,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { MAX_OVERTIME_SECONDS, MAX_EFFECT_FACTOR, MAX_RANDOM_WEIGHT } = require('../src/overtime/overtime-contract');
+const {
+  MAX_OVERTIME_SECONDS,
+  MAX_EFFECT_FACTOR,
+  MAX_RANDOM_WEIGHT,
+  MAX_ENABLED_RULES,
+  MIN_RANDOM_OUTCOMES,
+  MAX_RANDOM_OUTCOMES
+} = require('../src/overtime/overtime-contract');
 const { createOvertimeService } = require('../src/overtime/overtime-service');
 const { createDatabases, closeDatabases } = require('../src/storage/database');
 
@@ -19,7 +26,9 @@ test('overtime service getOverview includes limits from contract', () => {
     assert.equal(overview.limits.maxSeconds, MAX_OVERTIME_SECONDS);
     assert.equal(overview.limits.maxEffectFactor, MAX_EFFECT_FACTOR);
     assert.equal(overview.limits.maxRandomWeight, MAX_RANDOM_WEIGHT);
-    assert.equal(overview.limits.maxEnabledRules, 8);
+    assert.equal(overview.limits.maxEnabledRules, MAX_ENABLED_RULES);
+    assert.equal(overview.limits.minRandomOutcomes, MIN_RANDOM_OUTCOMES);
+    assert.equal(overview.limits.maxRandomOutcomes, MAX_RANDOM_OUTCOMES);
     assert.equal(overview.limits.maxSeconds, 315_328_464_000);
     assert.equal(overview.limits.maxEffectFactor, 1_000);
     assert.equal(overview.limits.maxRandomWeight, 100_000);

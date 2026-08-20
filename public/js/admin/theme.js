@@ -108,13 +108,11 @@
     });
 
     document.getElementById('resetClassicTheme').addEventListener('click', async () => {
-      const resetValues = {
-        ...defaultThemeLook,
-        themeOpacity: '0.48',
-        themeRadius: '12',
-        backdropBlur: '14',
-        glowIntensity: '2'
-      };
+      if (!Object.keys(defaultThemeLook).length) {
+        toast('默认主题配置加载失败，请重启后重试');
+        return;
+      }
+      const resetValues = { ...defaultThemeLook };
       if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
         window.AdminApp.forms.fillForm(resetValues);
       }

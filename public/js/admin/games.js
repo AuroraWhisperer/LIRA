@@ -4,6 +4,9 @@ import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast }
 
 let initialized = false;
 let wheelState = null;
+let wheelLimits = null;
+let activeGameSession = null;
+let drawClock = null;
 
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
@@ -14,6 +17,9 @@ export function initGames() {
   byId('gamesRefreshViewersBtn').addEventListener('click', () => refreshViewers().catch(showError));
   byId('gamesStopBtn').addEventListener('click', () => stopGame().catch(showError));
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
+  byId('drawCardTrigger').addEventListener('click', toggleDrawDetails);
+  byId('drawFinishRoundBtn').addEventListener('click', () => controlDrawRound('finish-round').catch(showError));
+  byId('drawNextRoundBtn').addEventListener('click', () => controlDrawRound('next-round').catch(showError));
   byId('wheelCopyUrlBtn').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()));
   byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
@@ -25,12 +31,15 @@ export function initGames() {
       await refreshSession().catch(() => {});
     });
   }));
-  window.addEventListener('app:game-update', event => renderSession(event.detail));
+  window.addEventListener('app:game-update', event => {
+    renderSession(event.detail);
+    refreshHostState().catch(() => {});
+  });
   window.addEventListener('app:wheel-update', event => renderWheelState(event.detail));
   byId('wheelOverlayUrl').value = wheelOverlayUrl();
-  renderWheelEntries([]);
   syncViewerMode();
-  Promise.all([refreshViewers(), refreshSession(), refreshWheel()]).catch(showError);
+  setInterval(updateDrawClock, 250);
+  Promise.all([refreshViewers(), refreshSession(), refreshHostState(), refreshWheel()]).catch(showError);
 }
 
 async function refreshViewers() {
@@ -65,6 +74,13 @@ async function refreshSession() {
   renderSession(payload.data);
 }
 
+async function refreshHostState() {
+  const response = await fetch('/api/games/host-state', { cache: 'no-store' });
+  const payload = await readJsonResponse(response, '读取你画我猜题词失败');
+  if (!payload.ok) throw new Error(payload.error || '读取你画我猜题词失败');
+  renderHostState(payload.data);
+}
+
 async function refreshWheel() {
   const response = await fetch('/api/wheel');
   const payload = await readJsonResponse(response, '读取转盘设置失败');
@@ -73,6 +89,14 @@ async function refreshWheel() {
 }
 
 async function startGame(game) {
+  if (game === 'draw-guess') {
+    const result = await api('/api/games/session', { game });
+    renderSession(result.data);
+    await refreshHostState();
+    setDrawDetails(true);
+    toast('你画我猜已开始');
+    return;
+  }
   const isBomb = game === 'number-bomb';
   const mode = isBomb ? byId('numberBombMode').value : 'single';
   const select = byId(isBomb ? 'numberBombViewer' : 'gomokuViewer');
@@ -90,17 +114,27 @@ async function startGame(game) {
 async function stopGame() {
   await api('/api/games/session', { action: 'stop' });
   renderSession(null);
+  renderHostState(null);
   toast('游戏已结束');
+}
+
+async function controlDrawRound(action) {
+  const result = await api('/api/games/session/move', { value: { action } });
+  renderSession(result.data);
+  await refreshHostState();
+  toast(action === 'finish-round' ? '本局已结束并揭晓答案' : '下一题已开始');
 }
 
 function renderWheelState(state, options = {}) {
   wheelState = state || { entries: [], totalWeight: 0, spin: null, lastResult: null };
+  if (state?.limits) wheelLimits = state.limits;
   if (options.syncEntries) renderWheelEntries(wheelState.entries || []);
   const spinning = Boolean(wheelState.spin);
-  const canSpin = (wheelState.entries || []).length >= 2 && !spinning;
+  const entryCount = (wheelState.entries || []).length;
+  const canSpin = Boolean(wheelLimits) && entryCount >= wheelLimits.minEntries && !spinning;
   byId('wheelSpinBtn').disabled = !canSpin;
   byId('wheelSaveBtn').disabled = spinning;
-  byId('wheelAddEntryBtn').disabled = spinning;
+  byId('wheelAddEntryBtn').disabled = spinning || !wheelLimits || entryCount >= wheelLimits.maxEntries;
   byId('wheelStatus').textContent = spinning
     ? '转盘正在转动…'
     : wheelState.lastResult?.label
@@ -126,10 +160,25 @@ function toggleWheelDetails() {
   if (expanded) byId('wheelEntries').querySelector('.wheel-label-input')?.focus();
 }
 
+function toggleDrawDetails() {
+  setDrawDetails(byId('drawCardDetails').hidden);
+}
+
+function setDrawDetails(expanded) {
+  const card = document.querySelector('[data-draw-card]');
+  const details = byId('drawCardDetails');
+  details.hidden = !expanded;
+  card.classList.toggle('is-collapsed', !expanded);
+  byId('drawCardTrigger').setAttribute('aria-expanded', String(expanded));
+}
+
 function renderWheelEntries(entries) {
+  if (!wheelLimits) return;
   const root = byId('wheelEntries');
   root.replaceChildren();
-  const values = entries.length ? entries : [{ label: '', weight: 1 }, { label: '', weight: 1 }];
+  const values = entries.length
+    ? entries
+    : Array.from({ length: wheelLimits.minEntries }, () => ({ label: '', weight: wheelLimits.minWeight }));
   values.forEach((entry, index) => {
     const row = document.createElement('div');
     row.className = 'wheel-entry-row';
@@ -137,7 +186,7 @@ function renderWheelEntries(entries) {
     label.textContent = `内容 ${index + 1}`;
     const labelInput = document.createElement('input');
     labelInput.type = 'text';
-    labelInput.maxLength = 40;
+    labelInput.maxLength = wheelLimits.maxLabelLength;
     labelInput.className = 'wheel-label-input';
     labelInput.value = String(entry.label || '');
     labelInput.placeholder = '例如：唱一首歌';
@@ -146,17 +195,17 @@ function renderWheelEntries(entries) {
     weight.textContent = '份数';
     const weightInput = document.createElement('input');
     weightInput.type = 'number';
-    weightInput.min = '1';
-    weightInput.max = '100';
+    weightInput.min = String(wheelLimits.minWeight);
+    weightInput.max = String(wheelLimits.maxWeight);
     weightInput.step = '1';
     weightInput.className = 'wheel-weight-input';
-    weightInput.value = String(Number(entry.weight) || 1);
+    weightInput.value = String(Number(entry.weight) || wheelLimits.minWeight);
     weight.append(weightInput);
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.className = 'secondary wheel-remove-entry';
     remove.textContent = '删除';
-    remove.disabled = values.length <= 2;
+    remove.disabled = values.length <= wheelLimits.minEntries;
     remove.addEventListener('click', () => {
       row.remove();
       renumberWheelEntries();
@@ -171,17 +220,20 @@ function renderWheelEntries(entries) {
 }
 
 function addWheelEntry() {
+  if (!wheelLimits) return;
   const rows = byId('wheelEntries').children;
-  if (rows.length >= 12) return;
+  if (rows.length >= wheelLimits.maxEntries) return;
   const entries = readWheelEntries();
-  entries.push({ label: '', weight: 1 });
+  entries.push({ label: '', weight: wheelLimits.minWeight });
   renderWheelEntries(entries);
 }
 
 function renumberWheelEntries() {
   [...byId('wheelEntries').children].forEach((row, index) => {
     row.querySelector('label').firstChild.textContent = `内容 ${index + 1}`;
-    row.querySelectorAll('button').forEach(button => { button.disabled = byId('wheelEntries').children.length <= 2; });
+    row.querySelectorAll('button').forEach(button => {
+      button.disabled = byId('wheelEntries').children.length <= wheelLimits.minEntries;
+    });
   });
 }
 
@@ -210,6 +262,7 @@ async function spinWheel() {
 }
 
 function renderSession(session) {
+  activeGameSession = session || null;
   const status = byId('gamesSessionStatus');
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
@@ -220,13 +273,61 @@ function renderSession(session) {
   document.querySelectorAll('[data-game-card]').forEach(card => {
     card.classList.toggle('is-running', card.dataset.gameCard === session?.game);
   });
+  renderDrawSession(session);
   if (!session) {
     status.textContent = '当前没有进行中的游戏';
     return;
   }
-  const gameName = session.game === 'gomoku' ? '五子棋' : '数字炸弹';
+  const gameName = session.game === 'gomoku'
+    ? '五子棋'
+    : session.game === 'draw-guess' ? '你画我猜' : '数字炸弹';
   const opponent = session.mode === 'multi' ? '不限观众' : (session.targetName || '指定观众');
   status.textContent = `${gameName}进行中 · ${opponent}`;
+}
+
+function renderDrawSession(session) {
+  const drawSession = session?.game === 'draw-guess' ? session : null;
+  const state = drawSession?.state;
+  byId('drawFinishRoundBtn').disabled = state?.phase !== 'drawing';
+  byId('drawNextRoundBtn').disabled = state?.phase !== 'round-result';
+  if (!state) {
+    drawClock = null;
+    byId('drawCardStatus').textContent = '5 局积分赛 · 每局 90 秒';
+    byId('drawHostRound').textContent = '等待开局';
+    byId('drawHostStatus').textContent = '打开上方固定游戏网页后即可开局';
+    byId('drawHostClock').textContent = '01:30';
+    return;
+  }
+  setDrawDetails(true);
+  drawClock = { remainingMs: Number(state.remainingMs) || 0, receivedAt: performance.now() };
+  byId('drawHostRound').textContent = `第 ${state.round} / ${state.totalRounds} 局 · ${state.category} · ${state.wordLength} 个字`;
+  if (state.phase === 'drawing') {
+    byId('drawCardStatus').textContent = `第 ${state.round} 局进行中 · ${state.correct.length} 人答对`;
+    byId('drawHostStatus').textContent = '请在固定游戏网页作画，题词仅在这里显示';
+  } else if (state.phase === 'round-result') {
+    byId('drawHostClock').textContent = '--:--';
+    byId('drawCardStatus').textContent = `第 ${state.round} 局结束 · 答案 ${state.revealedAnswer}`;
+    byId('drawHostStatus').textContent = '确认直播画面后开始下一题';
+  } else {
+    byId('drawHostClock').textContent = '--:--';
+    const champion = state.scores[0];
+    byId('drawCardStatus').textContent = champion ? `比赛结束 · ${champion.name} ${champion.score} 分` : '比赛结束 · 本场无人得分';
+    byId('drawHostStatus').textContent = '最终排行已显示在游戏网页，可结束当前游戏';
+  }
+  updateDrawClock();
+}
+
+function renderHostState(state) {
+  const visible = state?.game === 'draw-guess' && activeGameSession?.game === 'draw-guess';
+  byId('drawHostWord').textContent = visible ? state.word : '开始游戏后显示题词';
+}
+
+function updateDrawClock() {
+  if (activeGameSession?.game !== 'draw-guess' || activeGameSession.state?.phase !== 'drawing' || !drawClock) return;
+  const elapsed = performance.now() - drawClock.receivedAt;
+  const remaining = Math.max(0, drawClock.remainingMs - elapsed);
+  const totalSeconds = Math.ceil(remaining / 1000);
+  byId('drawHostClock').textContent = `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
 function syncViewerMode() {

@@ -2,64 +2,14 @@
 // 桌面歌词设置
 'use strict';
 
+import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
+
 (function () {
   const AUTOSAVE_DELAY_MS = 500;
   const {
     setValue,
     api
   } = window.AdminApp.utils;
-  const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
-    desktopLyricFontFamily: 'Microsoft YaHei',
-    desktopLyricFallbackFontFamily: 'Microsoft JhengHei',
-    desktopLyricFontWeight: '800',
-    desktopLyricTextColor: '#000000',
-    desktopLyricTextAlign: 'left',
-    desktopLyricLetterSpacing: '0',
-    desktopLyricFontSize: '56',
-    desktopLyricLineHeight: '1.4',
-    desktopLyricStrokeEnabled: 'true',
-    desktopLyricStrokeColor: '#ffffff',
-    desktopLyricStrokeWidth: '3',
-    desktopLyricShadowEnabled: 'true',
-    desktopLyricShadowColor: '#000000',
-    desktopLyricShadowIntensity: '0.35',
-    desktopLyricShadowBlur: '8',
-    desktopLyricShadowOffsetX: '0',
-    desktopLyricShadowOffsetY: '3',
-    desktopLyricShowTranslation: 'true',
-    desktopLyricTranslationScale: '0.65',
-    desktopLyricKaraokeEnabled: 'true',
-    desktopLyricHidePassedLines: 'false',
-    desktopLyricTraditionalMode: 'false',
-    desktopLyricInterludeOffsetEm: '0',
-    desktopLyricHideOnPause: 'false',
-    desktopLyricCurrentLineEnhanced: 'true',
-    desktopLyricOpacity: '0.95',
-    desktopLyricBaseOpacity: '0.38',
-    desktopLyricTranslationOpacity: '0.72',
-    desktopLyricTimeOffsetMs: '0',
-    desktopLyricShowTitleWhenNoLyric: 'false',
-    desktopLyricNoLyricText: '纯音乐，请欣赏',
-    desktopLyricSpringAnimation: 'false',
-    desktopLyricBlurEffect: 'false',
-    desktopLyricScaleEffect: 'false',
-    desktopLyricScale: '1',
-    desktopLyricAlignPosition: '0.5',
-    desktopLyricAlignAnchor: 'center',
-    desktopLyricTranslateX: '0',
-    desktopLyricTranslateY: '0',
-    desktopLyricPerspective: '800',
-    desktopLyricRotateX: '0',
-    desktopLyricRotateY: '0',
-    desktopLyricBackgroundEnabled: 'false',
-    desktopLyricBackgroundRenderer: 'mesh',
-    desktopLyricBgOpacity: '0.15',
-    desktopLyricGlobalOpacity: '1',
-    desktopLyricBrightness: '1',
-    desktopLyricContrast: '1',
-    desktopLyricSaturation: '1',
-    desktopLyricVisibleLines: '0'
-  });
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',

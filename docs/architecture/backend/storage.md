@@ -185,7 +185,7 @@ data/
 | 首次启动引导 | `onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional`；仅保存完成契约版本、完成时间和可选步骤跳过记录 |
 | 点歌行为 | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest` |
 | 弹幕机器人 | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules` |
-| 礼物 | `enableGiftSprint`、`giftSprintTargetRmb`、`giftBlindBoxConfig`、`enableGiftNotification` |
+| 礼物 | `enableGiftSprint`、`giftSprintTargetRmb`、`giftBlindBoxConfig`、`enableGiftNotification`；新安装的盲盒目录来自 `src/storage/default-blind-box-config.json`，旧字符串格式迁移使用 `settings-store.js` 内冻结的历史价格快照 |
 | 滚动/字号 | `scrollSeconds`、`queueScrollMode`、`queueScrollSpeed`、`songBoardFontSize` 及各 `*RangeVersion` 迁移版本键 |
 | 主题 | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套 |
 | 悬浮层 | `overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号 |

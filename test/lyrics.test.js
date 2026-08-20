@@ -40,7 +40,7 @@ test('parseLyricResult derives base lines from QRC and aligns alternates within 
   ]);
 });
 
-test('lyric and stream provider calls retain the QQ numeric sourceSongId', async (t) => {
+test('lyric and stream provider calls retain QQ numeric source identifiers', async (t) => {
   const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-service-'));
   t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));
 
@@ -67,6 +67,7 @@ test('lyric and stream provider calls retain the QQ numeric sourceSongId', async
     source: 'qq',
     sourceTrackId: 'song-mid',
     sourceSongId: 563728446,
+    sourceSongType: 1,
     title: 'Example Song'
   };
   const lyricsService = createLyricsService({
@@ -78,7 +79,9 @@ test('lyric and stream provider calls retain the QQ numeric sourceSongId', async
   await resolveMusicStream(registry, track);
 
   assert.equal(lyricTrack.sourceSongId, 563728446);
+  assert.equal(lyricTrack.sourceSongType, 1);
   assert.equal(streamTrack.sourceSongId, 563728446);
+  assert.equal(streamTrack.sourceSongType, 1);
 });
 
 test('stream resolver forwards the selected quality to the provider', async () => {

@@ -1,5 +1,4 @@
 // 编写人：Aurora
-// 当前项目版本：1.4.6
 'use strict';
 
 import { applyTheme, renderCherryRibbonQueue, renderClassicQueue, renderGoldenLilyQueue, renderIdentityQueue, renderNeonVinylQueue, renderStorybookQueue } from './queue-render.js';
@@ -13,6 +12,12 @@ const ILLUSTRATED_QUEUE_RENDERERS = {
   'golden-lily': renderGoldenLilyQueue
 };
 const ILLUSTRATED_QUEUE_STYLES = new Set(Object.keys(ILLUSTRATED_QUEUE_RENDERERS));
+const ILLUSTRATED_QUEUE_ROW_GAPS = {
+  storybook: 7,
+  'neon-vinyl': 8,
+  'cherry-ribbon': 8,
+  'golden-lily': -6
+};
 
 let state = null;
 let reconnectTimer = null;
@@ -200,7 +205,7 @@ function relayoutQueue() {
   if (ILLUSTRATED_QUEUE_STYLES.has(style)) {
     const viewport = content.querySelector(`.${style}-list-window`);
     const list = viewport && viewport.querySelector(`.${style}-list`);
-    const rowGap = style === 'storybook' ? 7 : 8;
+    const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS[style] ?? 8;
     if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), rowGap, true);
   } else if (style === 'identity') {
     const viewport = content.querySelector('.identity-list-window');

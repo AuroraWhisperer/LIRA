@@ -112,7 +112,7 @@ export function normalizeState(state) {
     ? normalized.qualityPreferences
     : {};
   normalized.qualityPreferences = {
-    qq: ['standard', 'high', 'lossless'].includes(qualityPreferences.qq) ? qualityPreferences.qq : 'standard',
+    qq: ['standard', 'high', 'lossless', 'premium', 'immersive'].includes(qualityPreferences.qq) ? qualityPreferences.qq : 'standard',
     netease: ['standard', 'higher', 'exhigh', 'lossless', 'hires'].includes(qualityPreferences.netease)
       ? qualityPreferences.netease
       : 'standard'

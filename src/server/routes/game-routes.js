@@ -11,6 +11,9 @@ const routes = {
   'GET /api/games/session'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.games.getSession() });
   },
+  'GET /api/games/host-state'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.games.getHostState() });
+  },
   async 'GET /api/games/winner-profile'(context, request, res) {
     sendJson(res, 200, { ok: true, data: await context.games.getWinnerProfile() });
   },
@@ -34,6 +37,13 @@ const routes = {
     sendJson(res, result.accepted ? 200 : 400, {
       ok: result.accepted,
       ...(result.accepted ? { data: result.session } : { error: result.reason || '落子无效。' })
+    });
+  },
+  async 'POST /api/games/session/draw'(context, request, res) {
+    const result = context.games.draw(await request.body());
+    sendJson(res, result.accepted ? 200 : 400, {
+      ok: result.accepted,
+      ...(result.accepted ? { data: { revision: result.revision } } : { error: result.reason || '绘画操作无效。' })
     });
   },
   'GET /api/wheel'(context, request, res) {
@@ -60,7 +70,10 @@ const routes = {
 
 function normalizeSessionInput(input = {}) {
   const game = String(input.game || '');
-  if (!['number-bomb', 'gomoku'].includes(game)) throw new Error('不支持这个游戏。');
+  if (!['number-bomb', 'gomoku', 'draw-guess'].includes(game)) throw new Error('不支持这个游戏。');
+  if (game === 'draw-guess') {
+    return { game, mode: 'multi', targetUid: '', targetName: '直播间观众' };
+  }
   const mode = input.mode === 'multi' ? 'multi' : 'single';
   const targetUid = String(input.targetUid || '').trim();
   const targetName = String(input.targetName || '').trim().slice(0, 80);

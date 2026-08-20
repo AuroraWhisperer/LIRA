@@ -171,6 +171,20 @@ test('desktop lyric settings define the merged presentation defaults', () => {
   assert.equal(DEFAULT_SETTINGS.desktopLyricVisibleLines, '0');
 });
 
+test('desktop lyric frontend defaults match storage defaults', async () => {
+  const { DESKTOP_LYRIC_DEFAULTS } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-defaults.js')
+  );
+  const storageDefaults = Object.fromEntries(
+    Object.entries(DEFAULT_SETTINGS).filter(([key]) => key.startsWith('desktopLyric'))
+  );
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(DESKTOP_LYRIC_DEFAULTS)),
+    storageDefaults
+  );
+});
+
 test('desktop lyric settings use icon alignment controls and performance-safe motion defaults', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
@@ -265,7 +279,6 @@ test('desktop lyric settings organize the merged controls below lyric matching',
 });
 
 test('desktop lyric settings list unique local font families and preserve denial state', async () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const listeners = new Map();
   const form = { addEventListener() {} };
   const status = { textContent: '', className: '' };
@@ -362,7 +375,7 @@ test('desktop lyric settings list unique local font families and preserve denial
     }
   };
 
-  vm.runInNewContext(source, sandbox);
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), sandbox);
   sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
   await listeners.get('click')();
 
@@ -470,7 +483,6 @@ test('desktop lyric settings include a live word-timed preview', () => {
 });
 
 test('desktop lyric settings debounce input and serialize the latest automatic save', async () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
   const listeners = new Map();
   const windowListeners = new Map();
   const apiCalls = [];
@@ -570,7 +582,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     }
   };
 
-  vm.runInNewContext(source, sandbox);
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), sandbox);
   sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
 
   listeners.get('input')();

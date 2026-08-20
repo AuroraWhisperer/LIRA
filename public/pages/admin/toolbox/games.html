@@ -122,6 +122,48 @@
                       </div>
                     </div>
                   </article>
+
+                  <article class="game-admin-card is-draw is-collapsed" data-game-card="draw-guess" data-draw-card>
+                    <button id="drawCardTrigger" class="draw-card-trigger" type="button" aria-expanded="false" aria-controls="drawCardDetails">
+                      <span class="game-card-poster" aria-hidden="true"><span>04</span><strong>LIVE<br>CANVAS</strong><i></i></span>
+                      <span class="draw-card-summary">
+                        <span class="game-card-heading">
+                          <span><span>主播画 · 弹幕猜</span><strong>你画我猜</strong></span>
+                          <span class="game-card-chip">全直播间</span>
+                        </span>
+                        <span class="draw-card-description">主播在固定游戏网页作画，观众直接发送答案弹幕，系统自动判定并累计积分。</span>
+                        <span id="drawCardStatus" class="draw-card-status">5 局积分赛 · 每局 90 秒</span>
+                        <span class="draw-expand-hint"><span class="draw-expand-icon" aria-hidden="true"><span class="draw-expand-mark">＋</span></span><span>点击展开规则与主持区</span></span>
+                      </span>
+                    </button>
+                    <div id="drawCardDetails" class="draw-card-details" hidden>
+                      <div class="game-card-content">
+                        <div class="draw-rules" aria-label="你画我猜规则">
+                          <div><span>赛制</span><strong>5 局</strong><small>总分决定冠军</small></div>
+                          <div><span>每局</span><strong>90 秒</strong><small>到时自动揭晓</small></div>
+                          <div><span>前三名</span><strong>10 · 7 · 5</strong><small>按答对顺序计分</small></div>
+                          <div><span>其余答对</span><strong>3 分</strong><small>每人每局一次</small></div>
+                        </div>
+                        <section class="draw-host-panel" aria-labelledby="drawHostTitle">
+                          <div class="draw-host-copy">
+                            <span>仅主播可见 · 不会出现在游戏网页</span>
+                            <strong id="drawHostTitle">本局题词</strong>
+                            <p id="drawHostWord">开始游戏后显示题词</p>
+                          </div>
+                          <div class="draw-host-meta">
+                            <span id="drawHostRound">等待开局</span>
+                            <strong id="drawHostClock">01:30</strong>
+                          </div>
+                        </section>
+                        <div class="game-card-actions draw-actions">
+                          <button class="primary" type="button" data-start-game="draw-guess">2. 开始你画我猜</button>
+                          <button id="drawFinishRoundBtn" class="secondary" type="button" disabled>结束本局并揭晓</button>
+                          <button id="drawNextRoundBtn" class="secondary" type="button" disabled>开始下一题</button>
+                          <span id="drawHostStatus" class="draw-host-status" role="status" aria-live="polite">打开上方固定游戏网页后即可开局</span>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
                 </section>
               </div>
             </section>

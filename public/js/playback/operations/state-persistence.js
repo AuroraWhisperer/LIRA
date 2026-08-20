@@ -25,6 +25,7 @@ export function createStatePersistence(deps) {
    */
   function serializeTrack(track) {
     if (!track) return null;
+    const sourceSongType = Number(track.sourceSongType);
     return {
       id: track.id,
       source: track.source,
@@ -38,6 +39,9 @@ export function createStatePersistence(deps) {
       sourceTrackId: track.sourceTrackId,
       sourceMediaId: track.sourceMediaId || '',
       sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
+      sourceSongType: Number.isSafeInteger(sourceSongType) && sourceSongType >= 0
+        ? sourceSongType
+        : 0,
       sourceAlbumId: track.sourceAlbumId,
       playable: track.playable,
       vip: track.vip,

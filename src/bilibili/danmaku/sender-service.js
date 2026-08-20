@@ -1,8 +1,8 @@
 'use strict';
 
 const { cleanText, splitTextIntoCharacters } = require('../../shared/utils');
+const { DANMAKU_MESSAGE_LIMIT } = require('./contract');
 
-const DANMAKU_MESSAGE_LIMIT = 40;
 const DISPLAY_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function createDanmakuSenderService(dependencies) {

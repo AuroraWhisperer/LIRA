@@ -6,11 +6,13 @@ body { overflow: hidden; color: var(--ink); font-family: Bahnschrift, 'Microsoft
 .game-stage-header, .game-view, .game-empty { position: relative; z-index: 1; }
 .game-stage-header { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
 .game-title { display: none; margin: 0; font-size: clamp(18px, 2.4vw, 28px); letter-spacing: -.04em; }
-body[data-game='number-bomb'] .bomb-title, body[data-game='gomoku'] .gomoku-title { display: block; }
+body[data-game='number-bomb'] .bomb-title, body[data-game='gomoku'] .gomoku-title, body[data-game='draw-guess'] .draw-title { display: block; }
 .game-stage-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
 .game-turn { padding: 4px 8px; border: 1px solid var(--amber); border-radius: 999px; color: #1d1830; background: var(--amber); font-size: 10px; font-weight: 800; }
 .bomb-status { color: var(--muted); font-size: 10px; line-height: 1.45; }
 body:not([data-game='number-bomb']) .bomb-status { display: none; }
+.draw-status { color: var(--muted); font-size: 10px; line-height: 1.45; }
+body:not([data-game='draw-guess']) .draw-status { display: none; }
 .game-view { grid-column: 2; grid-row: 1; display: grid; align-content: start; justify-items: start; min-width: 0; min-height: 0; }
 .game-view[hidden], .game-empty[hidden] { display: none; }
 .bomb-numbers { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: clamp(3px, .45vw, 6px); align-content: start; max-width: min(760px, 100%); width: 100%; margin: 0; }
@@ -39,6 +41,51 @@ body:not([data-game='number-bomb']) .bomb-status { display: none; }
 .gomoku-cell:hover:not(:disabled)::after { border: 2px solid var(--amber); transform: scale(.72); }
 .gomoku-cell:focus-visible { z-index: 2; outline: 2px solid var(--amber); outline-offset: -2px; }
 .gomoku-cell:disabled { cursor: default; }
+.draw-guess-view { width: 100%; }
+.draw-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(190px, 19vw, 260px); gap: clamp(10px, 1.2vw, 18px); width: 100%; min-width: 0; }
+.draw-canvas-panel { display: grid; gap: 8px; min-width: 0; }
+.draw-canvas-wrap { position: relative; width: 100%; overflow: hidden; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; background: #fff; box-shadow: 0 14px 34px rgba(0,0,0,.34); }
+.draw-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #fff; cursor: crosshair; touch-action: none; }
+.draw-canvas.is-disabled { cursor: default; }
+.draw-round-result[hidden] { display: none; }
+.draw-round-result { position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; color: #282441; background: rgba(255,255,255,.88); backdrop-filter: blur(7px); text-align: center; animation: resultFadeIn 220ms ease; }
+.draw-round-result span { color: #716b8d; font-size: clamp(11px, 1.2vw, 14px); font-weight: 800; letter-spacing: .12em; }
+.draw-round-result strong { font-size: clamp(28px, 5vw, 62px); letter-spacing: .08em; }
+.draw-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.07); }
+.draw-color-tools, .draw-width-tools { display: flex; align-items: center; gap: 5px; }
+.draw-color-tools button, .draw-width-tools button { display: grid; place-items: center; width: 25px; height: 25px; padding: 0; border: 2px solid rgba(255,255,255,.24); border-radius: 50%; background: transparent; cursor: pointer; }
+.draw-color-tools button[aria-pressed='true'], .draw-width-tools button[aria-pressed='true'] { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(255,200,87,.2); }
+.draw-color-tools button[data-draw-color='#222034'] { background: #222034; }
+.draw-color-tools button[data-draw-color='#6c5ce7'] { background: #6c5ce7; }
+.draw-color-tools button[data-draw-color='#ef476f'] { background: #ef476f; }
+.draw-color-tools button[data-draw-color='#118ab2'] { background: #118ab2; }
+.draw-color-tools button[data-draw-color='#06d6a0'] { background: #06d6a0; }
+.draw-color-tools button[data-draw-color='#f6bd60'] { background: #f6bd60; }
+.draw-color-tools button[data-draw-color='#ffffff'] { background: #fff; }
+.draw-width-tools button span { display: block; border-radius: 50%; background: #efedff; }
+.draw-width-tools button[data-draw-width='2'] span { width: 3px; height: 3px; }
+.draw-width-tools button[data-draw-width='4'] span { width: 6px; height: 6px; }
+.draw-width-tools button[data-draw-width='8'] span { width: 10px; height: 10px; }
+.draw-width-tools button[data-draw-width='12'] span { width: 14px; height: 14px; }
+.draw-toolbar button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.draw-toolbar button:disabled { opacity: .42; cursor: not-allowed; }
+.draw-clear-button { margin-left: auto; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; color: #f3efff; background: rgba(255,255,255,.08); font: 700 10px Bahnschrift, sans-serif; cursor: pointer; }
+.draw-audience-panel { display: grid; align-content: start; gap: 9px; min-width: 0; }
+.draw-clue-card, .draw-score-section, .draw-correct-section { border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.06); }
+.draw-clue-card { display: grid; gap: 5px; padding: 12px; background: linear-gradient(145deg, rgba(108,92,231,.24), rgba(255,200,87,.1)); }
+.draw-clue-card span, .draw-clue-card small { color: var(--muted); font-size: 9px; }
+.draw-clue-card strong { color: #fff2a8; font-size: clamp(15px, 1.7vw, 21px); letter-spacing: .02em; }
+.draw-score-section, .draw-correct-section { padding: 10px; }
+.draw-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.draw-panel-heading strong { font-size: 11px; }
+.draw-panel-heading span { color: var(--muted); font: 700 9px Consolas, monospace; }
+.draw-scoreboard, .draw-correct-feed { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.draw-scoreboard li, .draw-correct-feed li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 6px; align-items: center; min-width: 0; padding: 5px 6px; border-radius: 7px; background: rgba(255,255,255,.055); font-size: 10px; }
+.draw-scoreboard li:first-child { color: #fff2a8; background: rgba(255,200,87,.13); }
+.draw-rank { color: var(--muted); font: 800 9px Consolas, monospace; }
+.draw-player-name { overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.draw-player-score { color: #fff2a8; font: 800 10px Consolas, monospace; }
+.draw-list-empty { grid-template-columns: 1fr !important; color: var(--muted); text-align: center; }
 .game-empty { grid-column: 2; grid-row: 1; align-self: start; justify-self: start; display: grid; text-align: left; }
 .game-empty strong { font-size: clamp(22px, 3vw, 40px); letter-spacing: -.04em; }
 .game-result[hidden] { display: none; }
@@ -65,5 +112,8 @@ body[data-game='gomoku'] .game-result-icon .icon-gomoku { display: block; filter
   .game-view, .game-empty { grid-column: 1; grid-row: 2; }
   .bomb-numbers { gap: 3px; }
   .bomb-number { min-height: 16px; border-radius: 5px; }
+  .draw-layout { grid-template-columns: minmax(0, 1fr); }
+  .draw-audience-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .draw-clue-card { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }

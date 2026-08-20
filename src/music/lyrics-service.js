@@ -5,15 +5,13 @@
 const { cleanText, cleanTextPreserveLines } = require('../shared/utils');
 const {
   musicCacheKey, readMusicJsonCache, writeMusicJsonCache,
+  MUSIC_API_CACHE_TTL_MS, MUSIC_LYRIC_CACHE_TTL_MS,
   MUSIC_API_CACHE_MAX_BYTES, MUSIC_LYRIC_CACHE_MAX_BYTES
 } = require('./music-cache');
 const { parseLyricResult } = require('./lyrics');
 const { rankTrackCandidates } = require('./song-matcher');
 const { normalizeMusicPlatform } = require('./provider-registry');
 const { normalizeMusicTrackForProvider } = require('./track-contract');
-
-const MUSIC_API_CACHE_TTL_MS = 5 * 60 * 1000;
-const MUSIC_LYRIC_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 let compatibilityService = createLyricsService();
 

@@ -10,7 +10,10 @@ const {
 } = require('./helpers/playback-app');
 
 test('quality selection refreshes the current stream and persists the provider preference', async () => {
-  const current = track('quality-song', '音质测试');
+  const current = {
+    ...track('quality-song', '音质测试'),
+    sourceSongType: 1
+  };
   let requestBody;
   const app = await createPlaybackApp({
     current,
@@ -51,6 +54,7 @@ test('quality selection refreshes the current stream and persists the provider p
 
   assert.equal(requestBody.quality, 'lossless');
   assert.equal(requestBody.track.sourceTrackId, 'quality-song');
+  assert.equal(requestBody.track.sourceSongType, 1);
   assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
   assert.equal(app.element('music-player').currentTime, 47);
   assert.equal(app.element('playbackQualityLabel').textContent, 'HQ');

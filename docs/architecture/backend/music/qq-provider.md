@@ -134,31 +134,39 @@ GET https://c.y.qq.com/soso/fcgi-bin/client_search_cp
 
 响应路径 `data.data.song.list[]` → `mapQQSong`(见 §8.1)。关键词长度由 lyrics-service 层限制(见 [services.md](services.md) §6)。
 
-### 7.2 播放 URL 解析([qq-provider.js:177-226](../../../../src/music/providers/qq-provider.js#L177-L226))
+### 7.2 播放 URL 解析([qq-provider.js:211](../../../../src/music/providers/qq-provider.js#L211))
 
 ```
 GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>
 ```
 
-双模块请求体:
+双模块请求体(SQ 请求示例):
 
 ```json
 {
   "req":  { "module": "CDN.SrfCdnDispatchServer", "method": "GetCdnDispatch",
             "param": { "guid": "<10位随机>", "calltype": 0, "userip": "" } },
   "req_0": { "module": "vkey.GetVkeyServer", "method": "CgiGetVkey",
-            "param": { "guid": "<10位随机>", "songmid": ["<mid>"], "songtype": [0],
+            "param": { "guid": "<10位随机>",
+                       "songmid": ["<mid>", "<mid>", "<mid>"],
+                       "songtype": [1, 1, 1],
+                       "filename": ["F000<mediaMid>.flac", "M800<mediaMid>.mp3", "M500<mediaMid>.mp3"],
                        "uin": "<QQ号或0>", "loginflag": 1, "platform": "20" } },
   "comm": { "uin": "<QQ号或0>", "format": "json", "ct": 24, "cv": 0 }
 }
 ```
 
+- 音质 ID:`standard=M500/mp3`、`high=M800/mp3`、`lossless=F000/flac`;请求 HQ 时按 `high → standard`,请求 SQ 时按 `lossless → high → standard` 批量询价,返回第一个非空 `purl`
+- 文件名优先用 track 的 `sourceMediaId`,缺失回退 `sourceTrackId`;`songtype[]` 使用 track 的 `sourceSongType`,缺失或非法回退 `0`。2026-08-20 桌面客户端 HAR 中目标歌曲的付费请求为 `songtype: 1`,因此该字段必须贯穿搜索映射、播放状态与 Provider 入参
 - `loginflag` = Cookie 非空 ? 1 : 0(`getSafeCookieHeader` 吞掉读取异常返回 `''` → 0)
 - `guid` 每次调用 `buildGuid()` 新生成
-- 响应:`req_0.data.midurlinfo[0].purl`(路径片段)+ `req_0.data.sip[]`(CDN 前缀)
+- 响应:按候选顺序寻找 `req_0.data.midurlinfo[].purl`(路径片段)+ `req_0.data.sip[]`(CDN 前缀)
 - 拼接 `baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/'`,最终 `url = baseUrl + purl`
-- `purl` 为空 → 抛"当前 QQ 音乐账号无法播放该歌曲。"
+- 全部 `purl` 为空:无登录 Cookie 抛"请先登录 QQ 音乐后再播放该歌曲";有登录 Cookie 抛"当前 QQ 音乐账号没有该歌曲的完整播放或试听权益"
+- 返回 `{ requestedQuality, quality }`;`quality` 按实际文件名前缀识别,使前端能提示 SQ 降级 HQ/标准
 - TTL:`STREAM_TTL_MS = 5 * 60 * 1000`([qq-provider.js:15](../../../../src/music/providers/qq-provider.js#L15)),`expireAt`/`playUrlExpireAt` 同值;忽略调用方 `forceRefresh`(由 music-cache 层控制)
+
+**桌面专属音效边界**:同一份 HAR 还出现 `music.vkey.GetEVkey/CgiGetEVkey` 返回的 `Q0...mflac` 与 `O8...mgg`。Provider 现在对 QQ 登录用户提供实验性的 `premium`/`immersive` 档位：服务端短期保存 EVkey 的 `ekey`,通过本地 Range 代理使用 QMC2 解密后返回普通 FLAC/Ogg,不把密钥暴露给 renderer。Q0 的 `Atmos` 只作为媒体元数据标记,不等于空间渲染；O8、杜比、臻品母带 4.0 和臻品全景声 3.0 仍依赖 QQ 客户端 DSP/空间音频能力,Electron 无法保证效果,解析失败时应回退到浏览器可解码的标准/HQ/SQ。
 
 ### 7.3 歌词获取(双路径,[qq-provider.js:82-175](../../../../src/music/providers/qq-provider.js#L82-L175))
 
@@ -311,13 +319,15 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 
 ## 8. 映射与工具函数
 
-### 8.1 mapQQSong([qq-provider.js:881-910](../../../../src/music/providers/qq-provider.js#L881-L910))
+### 8.1 mapQQSong([qq-provider-utils.js:5](../../../../src/music/providers/qq-provider-utils.js#L5))
 
 | 输出字段 | 取值顺序(首个非空) |
 |---|---|
 | `sourceTrackId` | `mid`/`songmid`/`song_mid`/`SongMid`/`songMid`(**必填**,空则整条丢弃) |
 | `title` | `title`/`name`/`songname`/`SongName`/`SongTitle`(必填) |
+| `sourceMediaId` | `file.media_mid`/`file.mediaMid`/`media_mid`/`mediaMid`,回退 `sourceTrackId`;构造标准/HQ/SQ 文件名 |
 | `sourceSongId` | `id`/`songid`/`songId`/`song_id`/`SongId`/`SongID` 数值化,非安全整数或 ≤0 → 0 |
+| `sourceSongType` | `type`/`songtype`/`songType`/`SongType` 数值化,非安全整数或 <0 → 0;播放 vkey 请求原样复用 |
 | `sourceAlbumId` | `album.mid`/`album.id`,回退 `albummid`/`AlbumMid` |
 | `artists` | `singer[].name` 或 `singers[].name`,拼接 `SingerName`/`SingerTitle` |
 | `album` | `album.title`/`album.name`/`albumname`/`albumdesc`/`AlbumName`/`AlbumTitle` |

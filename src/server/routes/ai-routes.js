@@ -1,19 +1,15 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const { ENUM_VALUES } = require('../../ai/config');
+const {
+  AI_CONFIG_DEFAULTS,
+  AI_SECRET_KEYS,
+  ENUM_VALUES
+} = require('../../ai/config');
 
 const prefixes = ['/api/ai'];
-const SECRET_KEYS = new Set(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
-const ALLOWED_KEYS = new Set([
-  'enabled', 'trigger', 'modelProvider', 'deepseekResponsesUrl', 'deepseekApiKey', 'model',
-  'modelApiProtocol', 'webSearchEnabled', 'reasoningEnabled', 'reasoningEffort',
-  'qweatherApiHost', 'qweatherApiKey',
-  'amapApiHost', 'amapApiKey', 'weatherEnabled', 'placesEnabled', 'routesEnabled',
-  'replyMaxChars', 'generationConcurrency', 'queueLimit', 'sendIntervalMs',
-  'userCooldownSeconds', 'roomLimitPerMinute', 'requestTimeoutMs', 'maxToolCalls',
-  'cacheTtlSeconds', 'contextTtlSeconds', 'systemPrompt'
-]);
+const SECRET_KEYS = new Set(AI_SECRET_KEYS);
+const ALLOWED_KEYS = new Set(Object.keys(AI_CONFIG_DEFAULTS));
 
 function createProviderTestRoute(provider) {
   return async (context, request, res) => {

@@ -1,14 +1,33 @@
 'use strict';
 
-const MAX_ENABLED_RULES = 8;
-const MAX_RANDOM_OUTCOMES = 10;
-const MIN_RANDOM_OUTCOMES = 2;
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 
 export function createOvertimeRuleEditor(root, markDirty) {
   let ruleControlSequence = 0;
+  let limits = null;
+
+  function setLimits(nextLimits) {
+    const normalized = {
+      maxEnabledRules: Number(nextLimits?.maxEnabledRules),
+      minRandomOutcomes: Number(nextLimits?.minRandomOutcomes),
+      maxRandomOutcomes: Number(nextLimits?.maxRandomOutcomes)
+    };
+    if (!Object.values(normalized).every(Number.isSafeInteger)
+      || normalized.maxEnabledRules < 1
+      || normalized.minRandomOutcomes < 1
+      || normalized.maxRandomOutcomes < normalized.minRandomOutcomes) {
+      throw new Error('加班机规则限制加载失败。');
+    }
+    limits = normalized;
+  }
+
+  function getLimits() {
+    if (!limits) throw new Error('加班机规则限制尚未加载。');
+    return limits;
+  }
 
   function readRules() {
+    const { maxEnabledRules, minRandomOutcomes, maxRandomOutcomes } = getLimits();
     const rows = Array.from(root.querySelectorAll('[data-overtime-rule]'));
     const rules = rows.map((row, index) => {
       const mode = row.querySelector('[data-rule-mode]:checked')?.value;
@@ -31,8 +50,8 @@ export function createOvertimeRuleEditor(root, markDirty) {
         return { ...base, fixedEffect: readEffect(row.querySelector('[data-effect-mode="fixed"]')) };
       }
       const outcomeCards = Array.from(row.querySelectorAll('[data-random-outcome]'));
-      if (outcomeCards.length < MIN_RANDOM_OUTCOMES || outcomeCards.length > MAX_RANDOM_OUTCOMES) {
-        throw new Error(`时间盲盒需要 ${MIN_RANDOM_OUTCOMES}–${MAX_RANDOM_OUTCOMES} 个可能结果。`);
+      if (outcomeCards.length < minRandomOutcomes || outcomeCards.length > maxRandomOutcomes) {
+        throw new Error(`时间盲盒需要 ${minRandomOutcomes}–${maxRandomOutcomes} 个可能结果。`);
       }
       const outcomes = outcomeCards.map((card, outcomeIndex) => {
         const weight = Number(card.querySelector('[data-outcome-weight]').value);
@@ -43,8 +62,8 @@ export function createOvertimeRuleEditor(root, markDirty) {
       });
       return { ...base, outcomes };
     });
-    if (rules.filter(rule => rule.enabled).length > MAX_ENABLED_RULES) {
-      throw new Error(`最多启用 ${MAX_ENABLED_RULES} 条礼物规则。`);
+    if (rules.filter(rule => rule.enabled).length > maxEnabledRules) {
+      throw new Error(`最多启用 ${maxEnabledRules} 条礼物规则。`);
     }
     return rules;
   }
@@ -60,6 +79,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
   }
 
   function createRule(gift) {
+    const { maxEnabledRules } = getLimits();
     root.querySelector('.overtime-rule-empty')?.remove();
     markDirty();
     const count = root.querySelectorAll('[data-overtime-rule]').length;
@@ -71,7 +91,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
       quantityMode: String(gift.id).startsWith('guard-') ? 'item' : 'group',
       fixedEffect: { operation: 'add', value: 300 },
       outcomes: [],
-      enabled: count < MAX_ENABLED_RULES,
+      enabled: count < maxEnabledRules,
       sortOrder: count
     }, count, count + 1, true);
     root.append(row);
@@ -191,6 +211,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
   }
 
   function renderEffectEditor(root, rule) {
+    const { minRandomOutcomes, maxRandomOutcomes } = getLimits();
     root.replaceChildren();
     const fixedPanel = document.createElement('section');
     fixedPanel.className = 'overtime-fixed-editor';
@@ -211,12 +232,9 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const outcomeList = document.createElement('div');
     outcomeList.className = 'overtime-outcome-list';
     outcomeList.dataset.outcomeList = 'true';
-    const outcomes = Array.isArray(rule.outcomes) && rule.outcomes.length >= MIN_RANDOM_OUTCOMES
+    const outcomes = Array.isArray(rule.outcomes) && rule.outcomes.length >= minRandomOutcomes
       ? rule.outcomes
-      : [
-          { operation: 'add', value: 300, weight: 50 },
-          { operation: 'subtract', value: 180, weight: 50 }
-        ];
+      : createDefaultOutcomes(minRandomOutcomes);
     outcomes.forEach((outcome, outcomeIndex) => outcomeList.append(createOutcomeCard(outcome, outcomeIndex)));
     randomPanel.append(outcomeList);
 
@@ -230,7 +248,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
     addOutcome.dataset.addOutcome = 'true';
     addOutcome.textContent = '＋ 添加结果';
     addOutcome.addEventListener('click', () => {
-      if (outcomeList.children.length >= MAX_RANDOM_OUTCOMES) return;
+      if (outcomeList.children.length >= maxRandomOutcomes) return;
       outcomeList.append(createOutcomeCard({ operation: 'add', value: 60, weight: 10 }, outcomeList.children.length));
       refreshOutcomeCards(randomPanel);
       updateRuleSummary(randomPanel.closest('[data-overtime-rule]'));
@@ -450,7 +468,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
     remove.textContent = '删除结果';
     remove.addEventListener('click', () => {
       const editor = card.closest('.overtime-random-editor');
-      if (!editor || editor.querySelectorAll('[data-random-outcome]').length <= MIN_RANDOM_OUTCOMES) return;
+      if (!editor || editor.querySelectorAll('[data-random-outcome]').length <= getLimits().minRandomOutcomes) return;
       const row = card.closest('[data-overtime-rule]');
       card.remove();
       refreshOutcomeCards(editor);
@@ -460,19 +478,29 @@ export function createOvertimeRuleEditor(root, markDirty) {
     return card;
   }
 
+  function createDefaultOutcomes(count) {
+    const outcomes = [
+      { operation: 'add', value: 300, weight: 50 },
+      { operation: 'subtract', value: 180, weight: 50 }
+    ];
+    while (outcomes.length < count) outcomes.push({ operation: 'add', value: 60, weight: 10 });
+    return outcomes.slice(0, count);
+  }
+
   function refreshOutcomeCards(root) {
+    const { minRandomOutcomes, maxRandomOutcomes } = getLimits();
     const cards = Array.from(root.querySelectorAll('[data-random-outcome]'));
     cards.forEach((card, index) => {
       card.querySelector('[data-outcome-title]').textContent = `可能结果 ${index + 1}`;
       card.querySelector('[data-outcome-weight]').setAttribute('aria-label', `可能结果 ${index + 1} 的抽中机会`);
       const remove = card.querySelector('[data-remove-outcome]');
-      remove.disabled = cards.length <= MIN_RANDOM_OUTCOMES;
-      remove.textContent = remove.disabled ? '至少保留 2 个结果' : '删除结果';
+      remove.disabled = cards.length <= minRandomOutcomes;
+      remove.textContent = remove.disabled ? `至少保留 ${minRandomOutcomes} 个结果` : '删除结果';
     });
     const count = root.querySelector('[data-outcome-count]');
-    if (count) count.textContent = `${cards.length} 个结果（最多 ${MAX_RANDOM_OUTCOMES} 个）`;
+    if (count) count.textContent = `${cards.length} 个结果（最多 ${maxRandomOutcomes} 个）`;
     const add = root.querySelector('[data-add-outcome]');
-    if (add) add.disabled = cards.length >= MAX_RANDOM_OUTCOMES;
+    if (add) add.disabled = cards.length >= maxRandomOutcomes;
     updateOutcomeProbabilities(root);
   }
 
@@ -534,9 +562,10 @@ export function createOvertimeRuleEditor(root, markDirty) {
 
   function describeRule(rule) {
     if (rule.mode === 'random') {
-      const count = Array.isArray(rule.outcomes) && rule.outcomes.length >= MIN_RANDOM_OUTCOMES
+      const minRandomOutcomes = getLimits().minRandomOutcomes;
+      const count = Array.isArray(rule.outcomes) && rule.outcomes.length >= minRandomOutcomes
         ? rule.outcomes.length
-        : MIN_RANDOM_OUTCOMES;
+        : minRandomOutcomes;
       return `随机抽取 · ${count} 个结果 · ${describeQuantityMode(rule.quantityMode)}`;
     }
     return `${describeEffect(normalizeEffect(rule.fixedEffect, rule.fixedSeconds))} · ${describeQuantityMode(rule.quantityMode)}`;
@@ -619,5 +648,5 @@ export function createOvertimeRuleEditor(root, markDirty) {
     return node;
   }
 
-  return { readRules, renderRules, createRule };
+  return { readRules, renderRules, createRule, setLimits };
 }

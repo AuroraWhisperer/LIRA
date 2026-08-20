@@ -8,6 +8,7 @@ const test = require('node:test');
 const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const settingsStoreModule = require('../src/storage/settings-store');
+const defaultBlindBoxConfig = require('../src/storage/default-blind-box-config.json');
 const {
   DEFAULT_SETTINGS,
   migrateBlindBoxConfig
@@ -26,6 +27,7 @@ const qixiOutputs = [
 
 test('default blind-box config keeps 七夕鹊匣 as the fourth box', () => {
   const config = JSON.parse(DEFAULT_SETTINGS.giftBlindBoxConfig);
+  assert.deepEqual(config, defaultBlindBoxConfig);
   assert.equal(config.length, 4);
   assert.equal(config[3].name, '七夕鹊匣');
   assert.equal(config[3].price, 25);

@@ -4,17 +4,20 @@
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
-.queue-cherry-ribbon::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  inset: 0;
+.queue-cherry-ribbon::before {
   background: url('/img/overlays/song-board-style-5/frame.png') center / 100% 100% no-repeat;
-  pointer-events: none;
+}
+
+.queue-cherry-ribbon::after {
+  border-width: 150px 56px 120px;
+  border-image-source: url('/img/overlays/song-board-style-5/frame.png');
+  border-image-slice: 20% 10% 16%;
 }
 
 .queue-cherry-ribbon .overlay-content {
-  inset: 19.5% 10% 9.5%;
+  --cherry-ribbon-top-trim: 5px;
+  --cherry-ribbon-bottom-trim: 30px;
+  inset: calc(19.5% + var(--cherry-ribbon-top-trim)) 10% calc(9.5% + var(--cherry-ribbon-bottom-trim));
 }
 
 .cherry-ribbon-row {
@@ -42,9 +45,9 @@
 
 .cherry-ribbon-info-viewport {
   top: 33%;
-  right: 10.5%;
+  right: 14.5%;
   bottom: 33%;
-  left: 20%;
+  left: 22%;
   color: #60417f;
 }
 

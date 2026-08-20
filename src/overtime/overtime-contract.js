@@ -5,6 +5,8 @@ const MAX_OVERTIME_SECONDS = MAX_OVERTIME_YEARS * 365 * 24 * 60 * 60;
 const MAX_EFFECT_FACTOR = 1_000;
 const MAX_RANDOM_WEIGHT = 100_000;
 const MAX_ENABLED_RULES = 8;
+const MIN_RANDOM_OUTCOMES = 2;
+const MAX_RANDOM_OUTCOMES = 10;
 
 function validateTimeInput(input) {
   if (!input || typeof input !== 'object') throw new Error('time input is required.');
@@ -89,8 +91,10 @@ function validateRule(input, index) {
   }
 
   const outcomesInput = input.outcomes ?? parseOutcomes(input.outcomes_json);
-  if (!Array.isArray(outcomesInput) || outcomesInput.length < 2 || outcomesInput.length > 10) {
-    throw new Error(`rule ${index + 1} outcomes must contain 2 to 10 items.`);
+  if (!Array.isArray(outcomesInput)
+    || outcomesInput.length < MIN_RANDOM_OUTCOMES
+    || outcomesInput.length > MAX_RANDOM_OUTCOMES) {
+    throw new Error(`rule ${index + 1} outcomes must contain ${MIN_RANDOM_OUTCOMES} to ${MAX_RANDOM_OUTCOMES} items.`);
   }
   const outcomes = outcomesInput.map((outcome, outcomeIndex) => ({
     ...validateEffect(
@@ -183,6 +187,8 @@ module.exports = {
   MAX_EFFECT_FACTOR,
   MAX_RANDOM_WEIGHT,
   MAX_ENABLED_RULES,
+  MIN_RANDOM_OUTCOMES,
+  MAX_RANDOM_OUTCOMES,
   validateTimeInput,
   validateAction,
   validateBackground,

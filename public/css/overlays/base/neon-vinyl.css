@@ -4,13 +4,14 @@
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
-.queue-neon-vinyl::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  inset: 0;
+.queue-neon-vinyl::before {
   background: url('/img/overlays/song-board-style-4/frame.png') center / 100% 100% no-repeat;
-  pointer-events: none;
+}
+
+.queue-neon-vinyl::after {
+  border-width: 168px 56px 84px;
+  border-image-source: url('/img/overlays/song-board-style-4/frame.png');
+  border-image-slice: 24% 10% 12%;
 }
 
 .queue-neon-vinyl .overlay-content {
@@ -41,10 +42,10 @@
 .neon-vinyl-row.medal-red { --medal-bg: #a92d51; }
 
 .neon-vinyl-info-viewport {
-  top: 31%;
-  right: 12%;
+  top: 19%;
+  right: 15%;
   bottom: 31%;
-  left: 23.5%;
+  left: 25.5%;
   justify-content: safe center;
   color: #54152f;
 }

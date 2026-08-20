@@ -3,7 +3,6 @@
 let initialized = false;
 let refreshConfig = null;
 const AUTOSAVE_DELAY_MS = 700;
-const SECRET_CONFIG_KEYS = new Set(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
@@ -11,15 +10,15 @@ const FIELD_MAP = Object.freeze({
   modelProvider: ['xiaomiAiModelProvider', 'value'],
   deepseekResponsesUrl: ['xiaomiAiDeepSeekUrl', 'value'],
   modelApiProtocol: ['xiaomiAiModelApiProtocol', 'value'],
-  deepseekApiKey: ['xiaomiAiDeepSeekKey', 'value'],
+  deepseekApiKey: ['xiaomiAiDeepSeekKey', 'secret', 'hasDeepSeekApiKey'],
   model: ['xiaomiAiModel', 'value'],
   webSearchEnabled: ['xiaomiAiWebSearch', 'checked'],
   reasoningEnabled: ['xiaomiAiReasoning', 'checked'],
   reasoningEffort: ['xiaomiAiReasoningEffort', 'value'],
   qweatherApiHost: ['xiaomiAiQWeatherHost', 'value'],
-  qweatherApiKey: ['xiaomiAiQWeatherKey', 'value'],
+  qweatherApiKey: ['xiaomiAiQWeatherKey', 'secret', 'hasQWeatherApiKey'],
   amapApiHost: ['xiaomiAiAmapHost', 'value'],
-  amapApiKey: ['xiaomiAiAmapKey', 'value'],
+  amapApiKey: ['xiaomiAiAmapKey', 'secret', 'hasAmapApiKey'],
   replyMaxChars: ['xiaomiAiReplyMaxChars', 'number'],
   generationConcurrency: ['xiaomiAiConcurrency', 'number'],
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
@@ -353,7 +352,7 @@ function collectConfig() {
       config[key] = Number(element.value);
     } else {
       const value = element.value.trim();
-      if (value !== '********' && (value || !SECRET_CONFIG_KEYS.has(key))) {
+      if (value !== '********' && (value || kind !== 'secret')) {
         config[key] = value;
       }
     }
@@ -362,19 +361,13 @@ function collectConfig() {
 }
 
 function renderConfig(config, preservedFieldIds = new Set()) {
-  const secretFields = {
-    deepseekApiKey: ['xiaomiAiDeepSeekKey', config.hasDeepSeekApiKey],
-    qweatherApiKey: ['xiaomiAiQWeatherKey', config.hasQWeatherApiKey],
-    amapApiKey: ['xiaomiAiAmapKey', config.hasAmapApiKey]
-  };
-  for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
+  for (const [key, [id, kind, hasKeyField]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element || preservedFieldIds.has(id)) continue;
     if (kind === 'checked') {
       if (config[key] !== undefined) element.checked = config[key] === true;
-    } else if (secretFields[key]) {
-      const [, hasKey] = secretFields[key];
-      element.value = hasKey ? '********' : '';
+    } else if (kind === 'secret') {
+      element.value = config[hasKeyField] === true ? '********' : '';
       element.type = 'password';
     } else if (config[key] !== undefined) {
       element.value = String(config[key]);

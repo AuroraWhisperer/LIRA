@@ -79,10 +79,12 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   const dirtyCalls = [];
   const root = createFakeElement();
   const editor = namespace.createOvertimeRuleEditor(root, () => dirtyCalls.push(true));
+  editor.setLimits({ maxEnabledRules: 8, minRandomOutcomes: 2, maxRandomOutcomes: 10 });
 
   assert.equal(typeof editor.createRule, 'function');
   assert.equal(typeof editor.readRules, 'function');
   assert.equal(typeof editor.renderRules, 'function');
+  assert.equal(typeof editor.setLimits, 'function');
 
   const row = editor.createRule({ id: 'guard-1', name: '总督', imagePath: 'guard.png' });
   assert.ok(row);

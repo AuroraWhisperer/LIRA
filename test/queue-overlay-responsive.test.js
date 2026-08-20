@@ -97,6 +97,44 @@ test('illustrated queues use one contain scale for width- and height-limited bro
   assert.match(source, /function handleQueueViewportResize\(\)[\s\S]*syncQueueViewport\(normalizeQueueStyle/);
 });
 
+test('illustrated frame decorations sandwich queue cards above the center fill', () => {
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const backgroundRule = [...overlayCss.matchAll(/\.queue-neon-vinyl::before,[\s\S]*?\.queue-golden-lily::before\s*\{[^}]*\}/g)]
+    .map((match) => match[0])
+    .find((rule) => /z-index:\s*0/.test(rule));
+  const foregroundRule = [...overlayCss.matchAll(/\.queue-neon-vinyl::after,[\s\S]*?\.queue-golden-lily::after\s*\{[^}]*\}/g)]
+    .map((match) => match[0])
+    .find((rule) => /z-index:\s*3/.test(rule));
+  const contentRule = overlayCss.match(/\.queue-neon-vinyl \.overlay-content,[\s\S]*?\.queue-golden-lily \.overlay-content\s*\{[^}]*\}/)?.[0];
+
+  assert.ok(backgroundRule);
+  assert.ok(foregroundRule);
+  assert.ok(contentRule);
+  assert.match(backgroundRule, /z-index:\s*0/);
+  assert.match(contentRule, /z-index:\s*2/);
+  assert.match(foregroundRule, /z-index:\s*3/);
+  assert.match(foregroundRule, /border-style:\s*solid/);
+
+  for (const style of ['neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
+    const background = [...overlayCss.matchAll(new RegExp(`\\.queue-${style}::before\\s*\\{[^}]*\\}`, 'g'))]
+      .map((match) => match[0])
+      .find((rule) => /background:/.test(rule));
+    const foreground = [...overlayCss.matchAll(new RegExp(`\\.queue-${style}::after\\s*\\{[^}]*\\}`, 'g'))]
+      .map((match) => match[0])
+      .find((rule) => /border-image-source:/.test(rule));
+    assert.ok(background, `${style} needs a full-frame background layer`);
+    assert.ok(foreground, `${style} needs a decorative foreground layer`);
+    assert.match(background, /background:\s*url\('[^']+\/frame\.png'\) center \/ 100% 100% no-repeat/);
+    assert.match(foreground, /border-image-source:\s*url\('[^']+\/frame\.png'\)/);
+    assert.match(foreground, /border-image-slice:\s*[\d.% ]+/);
+    assert.doesNotMatch(foreground, /\bfill\b/);
+  }
+
+  assert.match(source, /ILLUSTRATED_QUEUE_ROW_GAPS\s*=\s*\{[\s\S]*'golden-lily':\s*-6/);
+  assert.match(source, /const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS\[style\]/);
+});
+
 test('classic queue starts at its fixed size and follows a resized browser source', () => {
   const adminHtml = readAdminHtml();
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');

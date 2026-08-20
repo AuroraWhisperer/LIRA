@@ -88,6 +88,8 @@ function getMusicCacheStats(apiDir, lyricDir) {
 }
 
 module.exports = {
+  MUSIC_API_CACHE_TTL_MS,
+  MUSIC_LYRIC_CACHE_TTL_MS,
   MUSIC_API_CACHE_MAX_BYTES,
   MUSIC_LYRIC_CACHE_MAX_BYTES,
   musicCacheKey,

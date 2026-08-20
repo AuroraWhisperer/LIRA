@@ -1,6 +1,7 @@
 'use strict';
 
 const { cleanText, splitTextIntoCharacters } = require('../shared/utils');
+const { DANMAKU_MESSAGE_LIMIT } = require('../bilibili/danmaku/contract');
 const { ANSWER_QUALITY_POLICY, buildTools } = require('./prompt');
 const {
   SAFE_REFUSAL,
@@ -22,7 +23,6 @@ const MAX_CHUNK_INTERVAL_MS = 600;
 const MODEL_OUTPUT_TOKENS = 3072;
 const REASONING_OUTPUT_TOKENS = 4096;
 const REVIEW_OUTPUT_TOKENS = 384;
-const DANMAKU_MESSAGE_LIMIT = 40;
 const MAX_REPLY_MESSAGES = 3;
 
 function createAiAssistantService(dependencies) {

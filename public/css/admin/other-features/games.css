@@ -66,6 +66,40 @@
 .wheel-add-entry { justify-self: start; }
 .wheel-actions { align-items: center; }
 .wheel-status { color: var(--muted); font-size: 12px; }
+.is-draw .game-card-poster { color: #28263a; background: repeating-linear-gradient(0deg, rgba(79,70,111,.07) 0 1px, transparent 1px 24px), linear-gradient(145deg, #fffdf7, #ece8ff); }
+.is-draw .game-card-poster i { width: 176px; height: 116px; right: -20px; top: 50px; border: 4px solid #ef6c75; border-radius: 48% 52% 43% 57% / 56% 42% 58% 44%; box-shadow: none; transform: rotate(-9deg); }
+.is-draw .game-card-poster i::before, .is-draw .game-card-poster i::after { position: absolute; border-radius: 999px; content: ''; }
+.is-draw .game-card-poster i::before { width: 112px; height: 5px; left: 20px; top: 48px; background: #5d52b5; box-shadow: 18px 25px 0 #2ba9a4; transform: rotate(17deg); }
+.is-draw .game-card-poster i::after { width: 42px; height: 42px; right: 18px; top: 10px; border: 4px solid #f0b84b; }
+.draw-card-trigger { display: grid; grid-column: 1 / -1; grid-template-columns: 210px minmax(0, 1fr); width: 100%; padding: 0; border: 0; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.draw-card-trigger:hover .draw-card-summary { background: #fffdf9; }
+.draw-card-trigger:focus-visible { outline: 3px solid rgba(112,98,191,.35); outline-offset: -3px; }
+.draw-card-summary { display: grid; align-content: center; gap: 14px; min-height: 230px; padding: 22px; transition: background 180ms ease; }
+.draw-card-summary .game-card-heading { display: flex; }
+.draw-card-summary .game-card-heading strong { display: block; margin-top: 3px; font-size: 23px; }
+.draw-card-description { color: var(--muted); line-height: 1.7; }
+.draw-card-status { color: #6a579e; font-size: 13px; font-weight: 800; }
+.draw-expand-hint { display: inline-flex; align-items: center; gap: 7px; color: #5d519e; font-size: 12px; font-weight: 800; }
+.draw-expand-icon { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #cfc7ef; border-radius: 50%; background: #f0edff; font-size: 18px; line-height: 1; transition: transform 180ms ease; }
+.draw-expand-mark { display: block; transform: translateY(-1px); }
+.is-draw:not(.is-collapsed) .draw-expand-icon { transform: rotate(45deg); }
+.draw-card-details { grid-column: 1 / -1; border-top: 1px solid #e4dfef; background: #fdfcff; }
+.draw-card-details[hidden] { display: none; }
+.draw-rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.draw-rules > div { display: grid; gap: 3px; padding: 13px; border: 1px solid #e0dced; border-radius: 12px; background: #fff; }
+.draw-rules span, .draw-rules small { color: var(--muted); font-size: 10px; }
+.draw-rules strong { color: #494264; font: 800 18px/1.2 Bahnschrift, sans-serif; }
+.draw-host-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 18px; border-radius: 14px; color: #fff; background: linear-gradient(135deg, #282441, #3d3564); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.draw-host-copy { display: grid; gap: 5px; min-width: 0; }
+.draw-host-copy span { color: #bdb7df; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.draw-host-copy strong { font-size: 12px; }
+.draw-host-copy p { margin: 0; overflow-wrap: anywhere; color: #fff2a8; font: 800 28px/1.2 'Microsoft YaHei', sans-serif; letter-spacing: .08em; }
+.draw-host-meta { display: grid; justify-items: end; gap: 5px; }
+.draw-host-meta span { color: #c8c2e6; font-size: 11px; }
+.draw-host-meta strong { color: #fff2a8; font: 800 26px/1 Consolas, monospace; }
+.draw-actions { align-items: center; }
+.draw-host-status { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) { .wheel-card-trigger { grid-template-columns: 1fr; } .wheel-card-trigger .game-card-poster { min-height: 118px; } .wheel-card-summary { min-height: 0; } .wheel-link-row, .wheel-entry-row { grid-template-columns: 1fr; } .wheel-link-row > div { justify-content: flex-start; } .wheel-remove-entry { justify-self: start; } }
+@media (max-width: 760px) { .draw-card-trigger { grid-template-columns: 1fr; } .draw-card-trigger .game-card-poster { min-height: 118px; } .draw-card-summary { min-height: 0; } .draw-rules { grid-template-columns: repeat(2, minmax(0, 1fr)); } .draw-host-panel { grid-template-columns: 1fr; } .draw-host-meta { justify-items: start; } }
 @media (max-width: 1050px) { .games-link-deck { grid-template-columns: 1fr; align-items: stretch; } .games-link-actions { justify-content: flex-start; } }
 @media (max-width: 760px) { .game-admin-card { grid-template-columns: 1fr; } .game-card-poster { min-height: 100px; } .game-config-grid { grid-template-columns: 1fr; } .games-admin-footer { align-items: stretch; flex-direction: column; } }

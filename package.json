@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "3.6.5",
+  "version": "3.6.6",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -26,6 +26,7 @@
     "node": ">=24"
   },
   "dependencies": {
+    "@clamber_l/crypto": "0.1.12",
     "@jixun/qmweb-sign": "2.0.3",
     "electron-updater": "^6.8.4",
     "playwright": "^1.62.1",

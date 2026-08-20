@@ -165,6 +165,8 @@ function createGamesContext(games = {}) {
     start: () => null,
     stop: () => null,
     move: () => ({ accepted: false, reason: '小游戏服务未启用。' }),
+    draw: () => ({ accepted: false, reason: '小游戏服务未启用。' }),
+    getHostState: () => null,
     listViewers: () => []
   };
   const listOnlineViewers = typeof games.listOnlineViewers === 'function'
@@ -178,6 +180,8 @@ function createGamesContext(games = {}) {
     start: service.start,
     stop: service.stop,
     move: service.move,
+    draw: service.draw,
+    getHostState: service.getHostState,
     listViewers: () => mergeViewerCandidates(listOnlineViewers()),
     getWinnerProfile: () => getWinnerProfile(service.getSession()?.winner)
   };

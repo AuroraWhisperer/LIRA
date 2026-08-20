@@ -75,8 +75,9 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `source` | `normalizeMusicPlatform` 归一 |
 | `artists` | 清洗过滤后 **`slice(0, 8)` 最多 8 位** |
 | `sourceSongId` | `max(0, Number(sourceSongId || songId))` — 非数值置 0 |
+| `sourceSongType` | 安全非负整数;兼容读取 `songType`,缺失或非法置 0 |
 | `playable` / `vip` | 仅显式 `false` / `true` 生效 |
-| 其余(`album`/`durationMs`/`coverUrl`/`sourceAlbumId`) | 归一化容错 |
+| 其余(`album`/`durationMs`/`coverUrl`/`sourceMediaId`/`sourceAlbumId`) | 归一化容错 |
 
 ### 4.2 resolveMusicStream(stream-resolver.js)
 
@@ -85,7 +86,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 ```
 1. normalizedTrack = normalizeMusicTrackForProvider(track)
 2. provider = registry.get(normalizedTrack.source)
-3. return provider.resolvePlayableUrl(normalizedTrack, { forceRefresh })
+3. return provider.resolvePlayableUrl(normalizedTrack, { forceRefresh, quality })
 ```
 
 - **TTL**:两个 Provider 各自 `STREAM_TTL_MS = 5 分钟`([qq-provider.js:15](../../../../src/music/providers/qq-provider.js#L15)、[netease-provider.js:8](../../../../src/music/providers/netease-provider.js#L8)),返回值带 `expireAt`/`playUrlExpireAt`;当前两个 Provider 均**忽略 `forceRefresh`**(QQ 由 vkey 缓存、网易云是纯字符串构造),刷新语义实际由播放器调用方与 §5 缓存层决定
@@ -426,7 +427,9 @@ CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩�
 | `id` | `qq:<mid>` 或 `netease:<数字id>`(前端展示与去重主键) |
 | `source` | `'qq'` / `'netease'` |
 | `sourceTrackId` | QQ 为 mid(写入/流解析用),网易云为数字 id |
+| `sourceMediaId` | QQ 音频文件 media mid,缺失回退 track mid;网易云缺省空串 |
 | `sourceSongId` | **仅 QQ 有意义**:数值 songId(歌词新版接口与歌单写入必填);网易云恒缺省 0 |
+| `sourceSongType` | **仅 QQ 有意义**:上游 song type,用于付费音质 vkey 请求;缺失或非法为 0 |
 | `sourceAlbumId` | 专辑 mid/id,缺失空串 |
 | `title` / `artists[]` / `album` | 清洗后的文本;artists 由 track-contract 限 8 个 |
 | `durationMs` | 毫秒,≥ 0(QQ 来自秒字段 ×1000) |

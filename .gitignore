@@ -1,4 +1,6 @@
 data/
+!public/data/
+!public/data/theme-presets.json
 node_modules/
 release/
 tmp/

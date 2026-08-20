@@ -2,7 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { routes } = require('../src/server/routes/ai-routes');
+const { AI_CONFIG_DEFAULTS } = require('../src/ai/config');
+const { ALLOWED_KEYS, routes } = require('../src/server/routes/ai-routes');
 
 function createResponseRecorder() {
   return {
@@ -11,6 +12,10 @@ function createResponseRecorder() {
     end(body) { this.body = body; }
   };
 }
+
+test('AI route allowed keys come from the config contract', () => {
+  assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
+});
 
 test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys', async () => {
   let saved;

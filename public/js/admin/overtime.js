@@ -6,14 +6,14 @@ import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const GUARD_GIFTS = [
-  { id: 'guard-1', name: '总督', rmb: 19998, image: 'bilibili-guard-governor.png' },
-  { id: 'guard-2', name: '提督', rmb: 1998, image: 'bilibili-guard-prefect.png' },
-  { id: 'guard-3', name: '舰长', rmb: 138, image: 'bilibili-guard-captain.png' }
+  { id: 'guard-1', name: '总督', image: 'bilibili-guard-governor.png' },
+  { id: 'guard-2', name: '提督', image: 'bilibili-guard-prefect.png' },
+  { id: 'guard-3', name: '舰长', image: 'bilibili-guard-captain.png' }
 ];
 
 let initialized = false;
 let overtimeState = null;
-let serverLimits = { maxSeconds: 315328464000, maxEffectFactor: 1000, maxRandomWeight: 100000, maxEnabledRules: 8 };
+let serverLimits = null;
 let giftDetection = null;
 let catalog = [];
 let settlements = [];
@@ -183,7 +183,10 @@ function syncBackgroundSaveButton() {
 
 function renderState(nextState) {
   if (!nextState) return;
-  if (nextState.limits) serverLimits = nextState.limits;
+  if (nextState.limits) {
+    serverLimits = nextState.limits;
+    ruleEditor.setLimits(serverLimits);
+  }
   overtimeState = { ...overtimeState, ...nextState };
   anchorRemainingMs = Number(overtimeState.effectiveRemainingMs) || 0;
   localAnchorMs = performance.now();
@@ -262,12 +265,19 @@ function applyGiftCatalog(snapshot) {
   giftCatalogSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
   const saleGifts = Array.isArray(giftCatalogSnapshot.gifts) ? giftCatalogSnapshot.gifts : [];
   saleGiftIds = new Set(saleGifts.map(gift => String(gift.id)));
-  catalog = [...GUARD_GIFTS, ...saleGifts].map(gift => ({
+  catalog = [
+    ...GUARD_GIFTS.map((gift, index) => ({ ...gift, catalogGroup: 0, catalogOrder: index })),
+    ...saleGifts.map(gift => ({ ...gift, catalogGroup: 1, catalogOrder: 0 }))
+  ].map(gift => ({
     id: String(gift.id),
     name: String(gift.name || gift.id),
     rmb: Number(gift.rmb) || 0,
+    catalogGroup: gift.catalogGroup,
+    catalogOrder: gift.catalogOrder,
     imagePath: String(gift.imagePath || (gift.image ? `/img/${String(gift.image).replace(/^\/+/, '')}` : ''))
-  })).sort((left, right) => left.rmb - right.rmb);
+  })).sort((left, right) => left.catalogGroup - right.catalogGroup
+    || left.catalogOrder - right.catalogOrder
+    || left.rmb - right.rmb);
   renderGiftCatalogStatus();
   syncRuleAvailability();
 }

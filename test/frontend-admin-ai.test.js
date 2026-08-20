@@ -9,6 +9,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
+const { NUMBER_LIMITS } = require('../src/ai/config');
 const {
   createLyricToggleButton,
   loadModuleExports,
@@ -16,6 +17,24 @@ const {
 } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
+
+test('AI form number constraints match the server contract', () => {
+  const html = readAdminHtml();
+  const fieldIds = {
+    replyMaxChars: 'xiaomiAiReplyMaxChars',
+    generationConcurrency: 'xiaomiAiConcurrency',
+    userCooldownSeconds: 'xiaomiAiUserCooldown',
+    roomLimitPerMinute: 'xiaomiAiRoomLimit'
+  };
+
+  for (const [key, id] of Object.entries(fieldIds)) {
+    const input = html.match(new RegExp(`<input id="${id}"[^>]*>`))?.[0];
+    assert.ok(input, `${id} should exist`);
+    assert.equal(Number(input.match(/\bmin="([^"]+)"/)?.[1]), NUMBER_LIMITS[key][0]);
+    assert.equal(Number(input.match(/\bmax="([^"]+)"/)?.[1]), NUMBER_LIMITS[key][1]);
+  }
+  assert.equal((html.match(/\bdata-ai-secret\b/g) || []).length, 3);
+});
 
 test('admin page uses one ordered module entrypoint', () => {
   const html = readAdminHtml();
@@ -222,7 +241,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(source, /form\.addEventListener\('input'/);
   assert.match(source, /form\.addEventListener\('change'/);
   assert.match(source, /enabledInput\.addEventListener\('change'/);
-  assert.match(source, /deepseekApiKey: \['xiaomiAiDeepSeekKey', 'value'\]/);
+  assert.match(source, /deepseekApiKey: \['xiaomiAiDeepSeekKey', 'secret', 'hasDeepSeekApiKey'\]/);
   assert.match(source, /modelProvider: \['xiaomiAiModelProvider', 'value'\]/);
   assert.match(source, /Claude 官方兼容/);
   assert.match(source, /Gemini 官方兼容/);
@@ -230,11 +249,12 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(source, /reasoningEffort: \['xiaomiAiReasoningEffort', 'value'\]/);
   assert.match(source, /provider_managed: '供应商管理'/);
   assert.match(source, /当前模型必须支持 Chat Completions tool_calls/);
-  assert.match(source, /qweatherApiKey: \['xiaomiAiQWeatherKey', 'value'\]/);
-  assert.match(source, /amapApiKey: \['xiaomiAiAmapKey', 'value'\]/);
+  assert.match(source, /qweatherApiKey: \['xiaomiAiQWeatherKey', 'secret', 'hasQWeatherApiKey'\]/);
+  assert.match(source, /amapApiKey: \['xiaomiAiAmapKey', 'secret', 'hasAmapApiKey'\]/);
+  assert.doesNotMatch(source, /const secretFields/);
   assert.match(source, /config\.model \|\| '未配置'/);
   assert.match(source, /if \(saving\) \{[\s\S]*?pendingSave = true/);
-  assert.match(source, /value !== '\*\*\*\*\*\*\*\*' && \(value \|\| !SECRET_CONFIG_KEYS\.has\(key\)\)/);
+  assert.match(source, /value !== '\*\*\*\*\*\*\*\*' && \(value \|\| kind !== 'secret'\)/);
   assert.match(source, /element\.type = 'password'/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.doesNotMatch(source, /modelOptions/);

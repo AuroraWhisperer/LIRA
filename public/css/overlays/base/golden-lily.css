@@ -4,17 +4,18 @@
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
-.queue-golden-lily::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  inset: 0;
+.queue-golden-lily::before {
   background: url('/img/overlays/song-board-style-6/frame.png') center / 100% 100% no-repeat;
-  pointer-events: none;
+}
+
+.queue-golden-lily::after {
+  border-width: 154px 112px;
+  border-image-source: url('/img/overlays/song-board-style-6/frame.png');
+  border-image-slice: 22% 20%;
 }
 
 .queue-golden-lily .overlay-content {
-  inset: 19% 8.5% 8.5%;
+  inset: 19% 8.5% 17%;
 }
 
 .golden-lily-row {
@@ -22,7 +23,7 @@
   --identity-text: #fff8df;
   --medal-bg: #65773b;
   --medal-text: #fffdf2;
-  width: 80%;
+  width: 76%;
   height: clamp(88px, 22cqw, 124px);
   min-height: clamp(88px, 22cqw, 124px);
   margin-inline: auto;
@@ -62,9 +63,9 @@
 
 .golden-lily-info-viewport {
   top: 31%;
-  right: 7%;
+  right: 11%;
   bottom: 29%;
-  left: 29%;
+  left: 32%;
   overflow: hidden;
   color: #6f4a24;
 }

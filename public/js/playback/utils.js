@@ -6,7 +6,9 @@ const QUALITY_OPTIONS = {
   qq: [
     { id: 'standard', label: '标准', detail: '128kbps' },
     { id: 'high', label: 'HQ', detail: '最高 320kbps' },
-    { id: 'lossless', label: 'SQ', detail: '无损 FLAC' }
+    { id: 'lossless', label: 'SQ', detail: '无损 FLAC' },
+    { id: 'premium', label: '臻品', detail: 'Q0 无损（本地解密）' },
+    { id: 'immersive', label: '全景声', detail: 'O8 Ogg（不含专有 DSP）' }
   ],
   netease: [
     { id: 'standard', label: '标准', detail: '128kbps' },
@@ -30,6 +32,11 @@ export function getQualityLabel(source, quality) {
   return getQualityOptions(source).find((item) => item.id === quality)?.label || '标准';
 }
 
+function normalizeSourceSongType(value) {
+  const songType = Number(value);
+  return Number.isSafeInteger(songType) && songType >= 0 ? songType : 0;
+}
+
 /**
  * 标准化在线音乐轨道数据
  * @param {Object} track - 原始轨道数据
@@ -49,6 +56,7 @@ export function normalizeOnlineTrack(track) {
     sourceTrackId,
     sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
+    sourceSongType: normalizeSourceSongType(track.sourceSongType ?? track.songType),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
     vip: track.vip === true
@@ -72,6 +80,7 @@ export function serializeTrackForProvider(track) {
     sourceTrackId: track.sourceTrackId || track.id,
     sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
+    sourceSongType: normalizeSourceSongType(track.sourceSongType ?? track.songType),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
     vip: track.vip === true
