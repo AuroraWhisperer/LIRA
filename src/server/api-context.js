@@ -99,6 +99,7 @@ function createApiContext(options) {
       reconnect: bilibili.reconnect,
       updateStatus: bilibili.updateStatus,
       auth: bilibili.auth,
+      fetchAvatarImage: bilibili.fetchAvatarImage,
       getDanmakuSenderState: () => bilibili.danmakuSender.getState(),
       sendDanmaku: (input) => bilibili.danmakuSender.send(input)
     },

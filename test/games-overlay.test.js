@@ -38,6 +38,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /scheduleSnapshotRetry/);
   assert.match(script, /api\/games\/winner-profile/);
   assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
+  assert.match(script, /function avatarSource\(/);
+  assert.match(script, /api\/bilibili\/avatar\?url=/);
+  assert.match(script, /image\.src\s*=\s*avatarSource\(item\.avatarUrl\)/);
+  assert.match(script, /avatar\.src\s*=\s*avatarSource\(profile\.avatarUrl\)/);
   assert.match(script, /getBoundingClientRect/);
   assert.match(script, /positionGameResult/);
   assert.match(script, /game:draw/);

@@ -394,6 +394,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
+| `GET /api/bilibili/avatar?url={https头像地址}` | 仅接受 `https://*.hdslb.com/*`，沿用 session token | Node 后端代取并以内联图片返回，浏览器缓存 1 小时；用于绕过桌面 Chromium 对 CDN TLS 的加载失败 | 400、502 |
 | `GET /api/bilibili/auth/state` | 无 | 登录状态 `{loggedIn, uid, message}`;非 Electron 环境返回 `{loggedIn:false, uid:0, message:'Bilibili 登录仅在 Electron 桌面环境中可用。'}` | 500 |
 | `POST /api/bilibili/reconnect` | 无 | 手动重连结果;失败时同步更新 `liveStatus` | **500** `{ok:false, error, detail, data:{liveStatus}}` |
 | `GET /api/bilibili/danmaku/state` | 无 | 弹幕发送器状态 + 设置 `checkinBlessings/fortunePool/customReplyRules` | 500 |
@@ -405,7 +406,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 `GET /api/games/viewers` 返回当前在线快照中的直播间观众候选；
 `GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置；你画我猜在作画阶段不会返回题词或别名）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
 `GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,phase,round,totalRounds}`，供 Admin 私下显示题词；它沿用 session token，但不得由 `/games` 直播画面渲染；
-`GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；
+`GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；`/games` 把该地址和你画我猜弹幕头像统一交给 `GET /api/bilibili/avatar` 代取，因此数字炸弹、五子棋结算与画猜消息不直接加载 CDN HTTPS；
 `POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话；`draw-guess` 还可接受整数 `totalRounds`（1–12）和 `roundDurationSeconds`（15–300），缺失或越界时分别回退为 5 和 90。`game` 为 `number-bomb|gomoku|draw-guess`，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
 `POST /api/games/session/move` 接受主播的 `{value}` 落子；你画我猜使用 `{value:{action:'finish-round'|'reveal-answer'|'next-round'}}` 结束作画、公布答案或开始下一题。时间到后会进入待公布状态，`reveal-answer` 前公开状态不含答案且弹幕仍会被收集但不计分；
 `POST /api/games/session/draw` 接受 `{action:'append',clientId,strokeId,color,width,points:[{x,y}]}` 或 `{action:'clear',clientId}`。服务端只允许固定颜色/笔宽、1–32 个归一化坐标、最多 160 笔和每局 6000 个坐标，成功返回 `{revision}` 并广播 `game:draw`。所有端点沿用现有 session token 与 `{ok,data}` 信封。

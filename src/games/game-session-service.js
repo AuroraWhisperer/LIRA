@@ -134,6 +134,22 @@ function createGameSessionService(options = {}) {
     return { accepted: true, revision: result.operation.revision };
   }
 
+  function updateDanmakuAvatar(input = {}) {
+    if (session?.game !== 'draw-guess') return false;
+    const uid = String(input.uid || '').trim();
+    const avatarUrl = String(input.avatarUrl || '').trim().slice(0, 500);
+    if (!uid || !avatarUrl) return false;
+    let changed = false;
+    for (const item of session.danmaku || []) {
+      if (item.uid === uid && !item.avatarUrl) {
+        item.avatarUrl = avatarUrl;
+        changed = true;
+      }
+    }
+    if (changed) publish();
+    return changed;
+  }
+
   function getSession() {
     materializeDrawGuessDeadline();
     return publicSessionRaw();
@@ -242,7 +258,7 @@ function createGameSessionService(options = {}) {
     for (const [key, viewer] of viewers) if (viewer.lastSeenAt < cutoff) viewers.delete(key);
   }
 
-  return { start, stop, move, draw, handleDanmaku, getSession, getHostState, listViewers, dispose };
+  return { start, stop, move, draw, handleDanmaku, updateDanmakuAvatar, getSession, getHostState, listViewers, dispose };
 }
 
 function normalizeGameDanmaku(danmaku = {}) {

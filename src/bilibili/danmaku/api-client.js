@@ -6,6 +6,8 @@ const wbiSigner = require('../wbi-signer');
 const { cleanText } = require('../../shared/utils');
 const { normalizeMentionTarget } = require('./mention-policy');
 
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
 class BilibiliApiClient {
   constructor(roomId, options = {}) {
     this.roomId = roomId;
@@ -81,6 +83,32 @@ class BilibiliApiClient {
       avatarUrl: normalizeBilibiliAvatarUrl(card && card.face),
       name: cleanText(card && card.name)
     };
+  }
+
+  async fetchAvatarImage(value) {
+    const avatarUrl = normalizeBilibiliAvatarUrl(value);
+    if (!avatarUrl) {
+      const error = new Error('Bilibili 头像地址无效。');
+      error.statusCode = 400;
+      throw error;
+    }
+    const response = await fetch(avatarUrl, {
+      headers: {
+        ...this.requestHeaders(),
+        Accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif,image/*;q=0.8'
+      },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) throw new Error(`Bilibili 头像读取失败。HTTP ${response.status}`);
+    const contentType = String(response.headers.get('content-type') || '').split(';', 1)[0].toLowerCase();
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(contentType)) {
+      throw new Error('Bilibili 头像返回了非图片内容。');
+    }
+    const contentLength = Number(response.headers.get('content-length')) || 0;
+    if (contentLength > MAX_AVATAR_BYTES) throw new Error('Bilibili 头像文件过大。');
+    const data = Buffer.from(await response.arrayBuffer());
+    if (data.length > MAX_AVATAR_BYTES) throw new Error('Bilibili 头像文件过大。');
+    return { contentType, data };
   }
 
   async resolveDanmuInfo(roomId) {

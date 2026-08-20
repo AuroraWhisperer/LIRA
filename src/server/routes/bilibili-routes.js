@@ -6,6 +6,25 @@ const { normalizeRoomInput, publicBilibiliErrorMessage } = require('../../shared
 const prefixes = ['/api/bilibili/'];
 
 const routes = {
+  async 'GET /api/bilibili/avatar'(context, request, res) {
+    try {
+      const image = await context.bilibili.fetchAvatarImage(request.query.get('url'));
+      res.writeHead(200, {
+        'Content-Type': image.contentType,
+        'Content-Length': image.data.length,
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'private, max-age=3600',
+        'X-Content-Type-Options': 'nosniff'
+      });
+      res.end(image.data);
+    } catch (error) {
+      sendJson(res, Number(error.statusCode) === 400 ? 400 : 502, {
+        ok: false,
+        error: error.message || 'Bilibili 头像读取失败。'
+      });
+    }
+  },
+
   async 'GET /api/bilibili/auth/state'(context, _request, res) {
     try {
       const authState = context.bilibili.auth

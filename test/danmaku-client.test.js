@@ -250,3 +250,55 @@ test('socket errors use history only during immediate reconnect recovery', async
     global.WebSocket = originalWebSocket;
   }
 });
+
+test('draw guess resolves a missing danmaku avatar once and reuses it for later messages', async () => {
+  const delivered = [];
+  const resolved = [];
+  const client = new BilibiliDanmakuClient('123', {
+    onMessage(message) {
+      delivered.push(message);
+      return true;
+    },
+    onAvatarResolved(profile) {
+      resolved.push(profile);
+    },
+    onSuperChat() {},
+    onGift() {},
+    onStatus() {}
+  });
+  let profileRequests = 0;
+  client.apiClient.fetchUserProfile = async (uid) => {
+    profileRequests += 1;
+    assert.equal(uid, '64281213');
+    return {
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
+      name: '叶上泓'
+    };
+  };
+  client.stopped = false;
+
+  try {
+    client.messageHandlers.handleDanmaku({
+      cmd: 'DANMU_MSG',
+      info: [Array(16).fill(null), '第一条', [64281213, '叶上泓']]
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(delivered[0].avatarUrl || '', '');
+    assert.deepEqual(resolved, [{
+      uid: '64281213',
+      userName: '叶上泓',
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.jpg'
+    }]);
+
+    client.messageHandlers.handleDanmaku({
+      cmd: 'DANMU_MSG',
+      info: [Array(16).fill(null), '第二条', [64281213, '叶上泓']]
+    });
+
+    assert.equal(delivered[1].avatarUrl, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
+    assert.equal(profileRequests, 1);
+  } finally {
+    client.stop();
+  }
+});

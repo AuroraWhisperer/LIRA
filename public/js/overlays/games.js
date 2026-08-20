@@ -198,7 +198,7 @@ function renderDrawDanmaku(items) {
     if (item.avatarUrl) {
       const image = document.createElement('img');
       image.alt = '';
-      image.src = item.avatarUrl;
+      image.src = avatarSource(item.avatarUrl);
       image.addEventListener('error', () => { image.remove(); avatar.textContent = String(item.name || '观').slice(0, 1); });
       avatar.append(image);
     } else avatar.textContent = String(item.name || '观').slice(0, 1);
@@ -527,7 +527,7 @@ async function loadWinnerProfile(requestId, winner) {
     if (!profile.avatarUrl) return;
     const avatar = byId('gameResultAvatar');
     avatar.alt = `${turnLabel(winner)}头像`;
-    avatar.src = profile.avatarUrl;
+    avatar.src = avatarSource(profile.avatarUrl);
     avatar.hidden = false;
   } catch (_) {
     hideGameResultAvatar();
@@ -549,4 +549,11 @@ function hideGameResultAvatar() {
   avatar.hidden = true;
   avatar.alt = '';
   avatar.removeAttribute('src');
+}
+
+function avatarSource(value) {
+  const source = String(value || '').trim();
+  if (!source) return '';
+  const token = String(window.__API_TOKEN__ || '');
+  return `/api/bilibili/avatar?url=${encodeURIComponent(source)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 }

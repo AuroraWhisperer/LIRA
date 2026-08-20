@@ -93,6 +93,11 @@ function createBilibiliRuntime(options) {
     }
   }
 
+  function fetchAvatarImage(value) {
+    const apiClient = client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
+    return apiClient.fetchAvatarImage(value);
+  }
+
   function setAuthProvider(nextAuthProvider) {
     authProvider = nextAuthProvider || null;
   }
@@ -223,7 +228,8 @@ function createBilibiliRuntime(options) {
     getLiveStatus: () => liveStatus,
     getMessageBuffer: () => messageBuffer,
     getViewerCandidates: () => client?.getViewerCandidates?.() || [],
-    getGameWinnerProfile
+    getGameWinnerProfile,
+    fetchAvatarImage
   };
 }
 

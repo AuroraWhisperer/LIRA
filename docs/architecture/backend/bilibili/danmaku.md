@@ -11,6 +11,7 @@
 | 回调 | 触发 | server.js 消费 |
 |---|---|---|
 | `onMessage(danmaku)` | 弹幕命令文本、SC 命令文本、历史轮询命令 | 先交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
+| `onAvatarResolved(profile)` | 你画我猜收到无头像 URL 的普通弹幕后，按数字 UID 异步查询用户卡片；同 UID 在途请求合并，原弹幕处理不等待查询 | `games.updateDanmakuAvatar` 回填当前画猜会话中该 UID 的无头像消息并广播一次 `game:update`；后续消息直接复用 `IdentityCache` |
 | `onSuperChat(superChat)` | 每条 SC 到达 | `superChats.add` 入库,成功则广播 `bilibili:superchat`([server.js:671-690](../../../../src/server.js#L671-L690),入库见 [gift.md](gift.md) §7) |
 | `onGift(gift)` | 解析有效的礼物事件 | `gifts.add` → 礼物检测管道([server.js:692-700](../../../../src/server.js#L692-L700),见 [gift.md](gift.md) §2) |
 | `onStatus(liveStatus)` | 连接状态变化 | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720)) |

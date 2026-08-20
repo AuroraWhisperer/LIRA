@@ -213,6 +213,31 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
   service.dispose();
 });
 
+test('game session hydrates missing avatars for existing draw guess messages', () => {
+  const published = [];
+  const service = createGameSessionService({
+    broadcast: payload => published.push(payload),
+    drawGuessWords: [{ word: '苹果', category: '食物' }],
+    random: () => 0,
+    monotonicNow: () => 0
+  });
+  service.start({ game: 'draw-guess' });
+  service.handleDanmaku({ uid: '42', userName: 'Alice', message: '还没头像' });
+  const publishedBeforeHydration = published.length;
+
+  assert.equal(service.updateDanmakuAvatar({
+    uid: '42',
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg'
+  }), true);
+  assert.equal(service.getSession().danmaku[0].avatarUrl, 'https://i0.hdslb.com/bfs/face/alice.jpg');
+  assert.equal(published.length, publishedBeforeHydration + 1);
+  assert.equal(service.updateDanmakuAvatar({
+    uid: '42',
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg'
+  }), false);
+  service.dispose();
+});
+
 test('game session ends draw guess rounds on one server-owned timer and disposes it', () => {
   let nowMs = 100;
   let timerCallback = null;

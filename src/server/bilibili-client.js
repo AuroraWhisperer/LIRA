@@ -21,10 +21,10 @@ function createBilibiliClient(roomId, context) {
   } = context;
   return new BilibiliDanmakuClient(roomId, {
     onMessage: (danmaku) => {
-      if (isShuttingDown()) return;
+      if (isShuttingDown()) return false;
       try {
         aiDanmakuDeliveryVerifier.observe(danmaku);
-        games?.handleDanmaku?.(danmaku);
+        const gameResult = games?.handleDanmaku?.(danmaku);
         const result = domainServices.messages.handleDanmaku({
           message: danmaku.message,
           userName: danmaku.userName,
@@ -77,9 +77,15 @@ function createBilibiliClient(roomId, context) {
         if (result.accepted) {
           broadcastSnapshot(danmaku.source === 'superchat' ? 'bilibili:superchat' : 'bilibili:danmaku');
         }
+        return gameResult?.session?.game === 'draw-guess';
       } catch (error) {
         console.warn(`[Bilibili] danmaku command failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} message=${JSON.stringify(danmaku.message)} error=${error.message}`);
+        return false;
       }
+    },
+    onAvatarResolved: (profile) => {
+      if (isShuttingDown()) return;
+      games?.updateDanmakuAvatar?.(profile);
     },
     onSuperChat: (superChat) => {
       if (isShuttingDown()) return;

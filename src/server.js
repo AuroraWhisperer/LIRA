@@ -290,7 +290,8 @@ function createServerRuntime(runtimeOptions = {}) {
         reconnect: bilibiliRuntime.reconnect,
         updateStatus: bilibiliRuntime.updateStatus,
         auth: bilibiliRuntime.getAuthProvider(),
-        danmakuSender
+        danmakuSender,
+        fetchAvatarImage: bilibiliRuntime.fetchAvatarImage
       },
       ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
       games: {

@@ -30,6 +30,7 @@ class BilibiliDanmakuClient {
     this.startedAtMs = Date.now();
     this.ownerName = '';
     this.ownerUid = '';
+    this.avatarProfileRequests = new Map();
 
     // 初始化子模块
     const bilibiliAuth = options.bilibiliAuth || {};
@@ -41,7 +42,10 @@ class BilibiliDanmakuClient {
     this.identityCache = new IdentityCache();
     this.deduplicator = new MessageDeduplicator();
     this.messageHandlers = new MessageHandlers(
-      this.handlers,
+      {
+        ...this.handlers,
+        onMessage: (danmaku) => this.deliverDanmaku(danmaku)
+      },
       this.identityCache,
       this.deduplicator,
       this.diagnostics,
@@ -133,6 +137,7 @@ class BilibiliDanmakuClient {
     this.onlineRankPoller.stop();
     this.fansMedalPoller.stop();
     this.identityCache.markOnlineSnapshot([]);
+    this.avatarProfileRequests.clear();
     this.liveStatusMonitor.stop();
     if (this.messageHandlers && typeof this.messageHandlers.destroy === 'function') {
       this.messageHandlers.destroy();
@@ -155,6 +160,37 @@ class BilibiliDanmakuClient {
 
   getViewerCandidates() {
     return this.identityCache.listOnline();
+  }
+
+  deliverDanmaku(danmaku) {
+    const shouldResolveAvatar = this.handlers.onMessage(danmaku) === true;
+    if (shouldResolveAvatar && !danmaku.avatarUrl) this.resolveDanmakuAvatar(danmaku);
+    return shouldResolveAvatar;
+  }
+
+  resolveDanmakuAvatar(danmaku) {
+    const uid = String(danmaku.uid || '').trim();
+    if (!/^\d{1,20}$/.test(uid) || this.avatarProfileRequests.has(uid)) return;
+    const request = this.apiClient.fetchUserProfile(uid);
+    this.avatarProfileRequests.set(uid, request);
+    void request.then((profile) => {
+      if (this.stopped || !profile.avatarUrl) return;
+      const requester = this.identityCache.resolve({
+        uid,
+        userName: profile.name || danmaku.userName,
+        avatarUrl: profile.avatarUrl,
+        identitySource: 'profile'
+      });
+      this.handlers.onAvatarResolved?.({
+        uid: requester.uid,
+        userName: requester.userName,
+        avatarUrl: requester.avatarUrl
+      });
+    }).catch((error) => {
+      console.warn(`[Bilibili] viewer avatar lookup failed: uid=${uid} error=${error.message}`);
+    }).finally(() => {
+      this.avatarProfileRequests.delete(uid);
+    });
   }
 
   async connect(options = {}, generation = this.connectionGeneration) {
@@ -313,7 +349,7 @@ class BilibiliDanmakuClient {
         currentRoomVerified: messageData.currentRoomVerified,
         identitySource: 'history'
       });
-      this.handlers.onMessage({
+      this.deliverDanmaku({
         message: messageData.message,
         uid: requester.uid,
         userName: requester.userName,
