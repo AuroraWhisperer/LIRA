@@ -3,6 +3,8 @@
 'use strict';
 
 (function () {
+  const ILLUSTRATED_QUEUE_STYLES = new Set(['storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']);
+
   const {
     value,
     setValue,
@@ -225,16 +227,21 @@
   }
 
   function setOverlayStyle(style) {
-    const nextStyle = (style === 'identity' || style === 'festival') ? 'identity' : 'classic';
+    const nextStyle = ILLUSTRATED_QUEUE_STYLES.has(style)
+      ? style
+      : ((style === 'identity' || style === 'festival') ? 'identity' : 'classic');
     setValue('overlayQueueStyle', nextStyle);
     document.querySelectorAll('[data-overlay-style]').forEach((button) => {
       button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
     });
     const classicArea = document.getElementById('classicThemeArea');
     const identityArea = document.getElementById('identityThemeArea');
-    if (nextStyle === 'identity') {
+    if (nextStyle !== 'classic') {
       if (classicArea) classicArea.hidden = true;
       if (identityArea) identityArea.hidden = false;
+      identityArea?.querySelectorAll('[data-identity-only]').forEach((section) => {
+        section.hidden = nextStyle !== 'identity';
+      });
     } else {
       if (classicArea) classicArea.hidden = false;
       if (identityArea) identityArea.hidden = true;

@@ -1,0 +1,67 @@
+.queue-cherry-ribbon {
+  aspect-ratio: 1086 / 1448;
+  color: #5d397e;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.queue-cherry-ribbon::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: url('/img/overlays/song-board-style-5/frame.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.queue-cherry-ribbon .overlay-content {
+  inset: 10.5% 10% 9.5%;
+}
+
+.cherry-ribbon-row {
+  --identity-bg: #8a61b7;
+  --identity-text: #fffafd;
+  --medal-bg: #d79253;
+  --medal-text: #fffafd;
+  height: clamp(80px, 21cqw, 112px);
+  min-height: clamp(80px, 21cqw, 112px);
+  background-image: url('/img/overlays/song-board-style-5/entry.png');
+  background-size: 100% auto;
+  font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.69), 26px);
+  font-weight: 760;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.cherry-ribbon-row.guard-1 { --identity-bg: #6f4a9a; }
+.cherry-ribbon-row.guard-2 { --identity-bg: #8b62b8; }
+.cherry-ribbon-row.guard-3 { --identity-bg: #a982cf; }
+.cherry-ribbon-row.medal-blue-purple { --medal-bg: #7955a4; }
+.cherry-ribbon-row.medal-light-blue { --medal-bg: #9572be; }
+.cherry-ribbon-row.medal-deep-blue { --medal-bg: #68488e; }
+.cherry-ribbon-row.medal-purple { --medal-bg: #8a61b7; }
+.cherry-ribbon-row.medal-red { --medal-bg: #c06b87; }
+
+.cherry-ribbon-info-viewport {
+  top: 33%;
+  right: 8.5%;
+  bottom: 33%;
+  left: 18%;
+  color: #60417f;
+}
+
+.cherry-ribbon-song {
+  color: #4d2c70;
+}
+
+.cherry-ribbon-requester {
+  color: #765494;
+}
+
+.cherry-ribbon-guard .illustrated-label,
+.cherry-ribbon-medal .illustrated-label {
+  color: #7852a1;
+}
+
+.cherry-ribbon-empty {
+  color: #7852a1;
+  font-size: clamp(18px, 5cqw, 28px);
+}

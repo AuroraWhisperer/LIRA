@@ -2,9 +2,17 @@
 // 当前项目版本：1.4.6
 'use strict';
 
-import { applyTheme, renderClassicQueue, renderIdentityQueue } from './queue-render.js';
+import { applyTheme, renderCherryRibbonQueue, renderClassicQueue, renderGoldenLilyQueue, renderIdentityQueue, renderNeonVinylQueue, renderStorybookQueue } from './queue-render.js';
 import { captureScrollAnimation, configureClassicVerticalScroll, configureIdentityVerticalScroll, originalQueueRowsHtml, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleScrollAnimationRestore } from './queue-scroll.js';
 import { isQueueViewportResized, markQueueViewportResized } from './queue-viewport.js';
+
+const ILLUSTRATED_QUEUE_RENDERERS = {
+  storybook: renderStorybookQueue,
+  'neon-vinyl': renderNeonVinylQueue,
+  'cherry-ribbon': renderCherryRibbonQueue,
+  'golden-lily': renderGoldenLilyQueue
+};
+const ILLUSTRATED_QUEUE_STYLES = new Set(Object.keys(ILLUSTRATED_QUEUE_RENDERERS));
 
 let state = null;
 let reconnectTimer = null;
@@ -144,13 +152,20 @@ function render() {
   if (!state) return;
   const scrollState = captureScrollAnimation();
   const settings = state.settings || {};
-  const style = (settings.overlayQueueStyle === 'identity' || settings.overlayQueueStyle === 'festival') ? 'identity' : 'classic';
+  const style = normalizeQueueStyle(settings.overlayQueueStyle);
   applyTheme(settings, style);
 
   const queue = state.queue || {};
   const current = queue.current;
   const waiting = queue.waiting || [];
   const content = document.getElementById('queueContent');
+
+  const illustratedRenderer = ILLUSTRATED_QUEUE_RENDERERS[style];
+  if (illustratedRenderer) {
+    illustratedRenderer(settings, current, waiting, content);
+    scheduleScrollAnimationRestore(scrollState);
+    return;
+  }
 
   if (style === 'identity') {
     renderIdentityQueue(settings, current, waiting, content, state.superChats || []);
@@ -165,11 +180,16 @@ function render() {
 function relayoutQueue() {
   if (!state) return;
   const settings = state.settings || {};
-  const style = (settings.overlayQueueStyle === 'identity' || settings.overlayQueueStyle === 'festival') ? 'identity' : 'classic';
+  const style = normalizeQueueStyle(settings.overlayQueueStyle);
   const content = document.getElementById('queueContent');
   const scrollState = captureScrollAnimation();
 
-  if (style === 'identity') {
+  if (ILLUSTRATED_QUEUE_STYLES.has(style)) {
+    const viewport = content.querySelector(`.${style}-list-window`);
+    const list = viewport && viewport.querySelector(`.${style}-list`);
+    const rowGap = style === 'storybook' ? 7 : 8;
+    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), rowGap, true);
+  } else if (style === 'identity') {
     const viewport = content.querySelector('.identity-list-window');
     const list = viewport && viewport.querySelector('.identity-list');
     if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 4);
@@ -183,4 +203,10 @@ function relayoutQueue() {
   scheduleIdentitySuperChatScroll(content);
   scheduleIdentityRuleScroll(content);
   scheduleScrollAnimationRestore(scrollState);
+}
+
+export function normalizeQueueStyle(style) {
+  if (ILLUSTRATED_QUEUE_STYLES.has(style)) return style;
+  if (style === 'identity' || style === 'festival') return 'identity';
+  return 'classic';
 }

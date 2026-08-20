@@ -188,7 +188,7 @@ data/
 | 礼物 | `enableGiftSprint`、`giftSprintTargetRmb`、`giftBlindBoxConfig`、`enableGiftNotification` |
 | 滚动/字号 | `scrollSeconds`、`queueScrollMode`、`queueScrollSpeed`、`songBoardFontSize` 及各 `*RangeVersion` 迁移版本键 |
 | 主题 | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套 |
-| 悬浮层 | `overlayQueueStyle`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号 |
+| 悬浮层 | `overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号 |
 | 桌面歌词 | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放) |
 | WeSing | `weSingCachePath`、`weSingLyricOffsetMs` |
 | 保留期 | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup` |

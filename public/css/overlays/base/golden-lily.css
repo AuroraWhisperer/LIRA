@@ -1,0 +1,87 @@
+.queue-golden-lily {
+  aspect-ratio: 1122 / 1402;
+  color: #6f4a24;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.queue-golden-lily::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: url('/img/overlays/song-board-style-6/frame.png') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.queue-golden-lily .overlay-content {
+  inset: 20% 8.5% 8.5%;
+}
+
+.golden-lily-row {
+  --identity-bg: #b97916;
+  --identity-text: #fff8df;
+  --medal-bg: #65773b;
+  --medal-text: #fffdf2;
+  height: clamp(88px, 22cqw, 124px);
+  min-height: clamp(88px, 22cqw, 124px);
+  background-image: url('/img/overlays/song-board-style-6/entry.png');
+  background-size: 100% auto;
+  font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.68), 25px);
+  font-weight: 760;
+  text-shadow: 0 1px 0 rgba(255, 253, 236, 0.9);
+}
+
+.golden-lily-row.guard-1 { --identity-bg: #8f5a10; }
+.golden-lily-row.guard-2 { --identity-bg: #b97916; }
+.golden-lily-row.guard-3 { --identity-bg: #d39b37; }
+.golden-lily-row.medal-blue-purple { --medal-bg: #596b34; }
+.golden-lily-row.medal-light-blue { --medal-bg: #708444; }
+.golden-lily-row.medal-deep-blue { --medal-bg: #46582a; }
+.golden-lily-row.medal-purple { --medal-bg: #65773b; }
+.golden-lily-row.medal-red { --medal-bg: #9a6730; }
+
+.golden-lily-rank {
+  position: absolute;
+  z-index: 2;
+  top: 15%;
+  bottom: 19%;
+  left: 7.5%;
+  width: 18.5%;
+  display: grid;
+  place-items: center;
+  color: #6f4a24;
+  font-family: Bahnschrift, "Microsoft YaHei", sans-serif;
+  font-size: 1.18em;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: 0 1px 0 #fff8df, 0 0 6px rgba(216, 170, 85, 0.32);
+}
+
+.golden-lily-info-viewport {
+  top: 31%;
+  right: 5.5%;
+  bottom: 29%;
+  left: 27.5%;
+  overflow: hidden;
+  color: #6f4a24;
+}
+
+.golden-lily-song {
+  color: #5a3719;
+}
+
+.golden-lily-requester {
+  color: #76512b;
+}
+
+.golden-lily-guard .illustrated-label,
+.golden-lily-medal .illustrated-label {
+  color: #8d611d;
+}
+
+.golden-lily-empty {
+  color: #8d611d;
+  font-size: clamp(18px, 5cqw, 28px);
+  text-shadow: 0 1px 0 #fff8df;
+}

@@ -1,8 +1,8 @@
 // Queue overlay markup and theme rendering.
 'use strict';
 
-import { scheduleClassicVerticalScroll, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleIdentityVerticalScroll } from './queue-scroll.js';
-import { escapeHtml, formatSuperChatPrice, hexToRgb, hexToRgba, identityQueueFontSize, medalLevelClass, normalizeFontSize, normalizeGuardLevel, overlayLowPowerEnabled, queueScrollSeconds, queueSongFontSize, requesterIdentityClass, requesterIdentityLabel, scaleToFontSize, superChatPriceClass, withMultilingualFallback } from './queue-utils.js';
+import { scheduleClassicVerticalScroll, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleIdentityVerticalScroll, scheduleIllustratedVerticalScroll, scheduleStorybookVerticalScroll } from './queue-scroll.js';
+import { escapeHtml, formatSuperChatPrice, guardLabel, hexToRgb, hexToRgba, identityQueueFontSize, medalLevelClass, normalizeFontSize, normalizeGuardLevel, overlayLowPowerEnabled, queueScrollSeconds, queueSongFontSize, requesterIdentityClass, requesterIdentityLabel, scaleToFontSize, superChatPriceClass, withMultilingualFallback } from './queue-utils.js';
 
 export function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
@@ -195,6 +195,142 @@ export function renderIdentityRow(item, index, showIndex = true) {
   `;
 }
 
+export function renderStorybookQueue(settings, current, waiting, content) {
+  const items = [current].concat(waiting).filter(Boolean);
+  const rowGap = 7;
+
+  if (items.length === 0) {
+    content.innerHTML = `
+      <div class="storybook-list-window">
+        <div class="storybook-empty">当前还没有点歌</div>
+      </div>
+    `;
+    return;
+  }
+
+  const rowsHtml = items.map((item, index) => renderStorybookRow(item, index)).join('');
+  content.innerHTML = `
+    <div class="storybook-list-window">
+      <div class="identity-list storybook-list paused">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+
+  scheduleStorybookVerticalScroll(content, settings, rowsHtml, rowGap);
+  scheduleIdentityContentScroll(content);
+}
+
+export function renderStorybookRow(item, index) {
+  const guardLevel = normalizeGuardLevel(item.requester_guard_level);
+  const medalLevel = Number(item.requester_medal_level || 0);
+  const medalName = String(item.requester_medal_name || '').trim();
+  const identityText = requesterIdentityLabel(guardLevel, medalName);
+  const identityClass = requesterIdentityClass(guardLevel, medalLevel);
+  const medalClass = medalLevelClass(medalLevel);
+  const songPrefix = item.is_pinned ? '📌 ' : '';
+
+  return `
+    <div class="storybook-row guard-${guardLevel} medal-${medalClass}">
+      <span class="storybook-rank">${index + 1}</span>
+      <span class="storybook-info-viewport identity-content-wrapper">
+        <span class="storybook-info identity-content">
+          <span class="storybook-song">${songPrefix}${escapeHtml(item.song_name)}</span>
+          <span class="storybook-requester">${escapeHtml(item.requester_name || '观众')}</span>
+          ${identityText ? `<span class="storybook-badge ${identityClass}">${escapeHtml(identityText)}</span>` : ''}
+          ${medalLevel > 0 ? `<span class="storybook-medal">${medalLevel}</span>` : ''}
+        </span>
+      </span>
+    </div>
+  `;
+}
+
+export function renderNeonVinylQueue(settings, current, waiting, content) {
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'neon-vinyl', 8, renderNeonVinylRow);
+}
+
+export function renderCherryRibbonQueue(settings, current, waiting, content) {
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'cherry-ribbon', 8, renderCherryRibbonRow);
+}
+
+export function renderGoldenLilyQueue(settings, current, waiting, content) {
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'golden-lily', 8, renderGoldenLilyRow);
+}
+
+function renderIllustratedAssetQueue(settings, current, waiting, content, style, rowGap, renderRow) {
+  const items = [current].concat(waiting).filter(Boolean);
+
+  if (items.length === 0) {
+    content.innerHTML = `
+      <div class="${style}-list-window">
+        <div class="${style}-empty illustrated-empty">当前还没有点歌</div>
+      </div>
+    `;
+    return;
+  }
+
+  const rowsHtml = items.map((item, index) => renderRow(item, index)).join('');
+  content.innerHTML = `
+    <div class="${style}-list-window">
+      <div class="identity-list ${style}-list paused">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+
+  scheduleIllustratedVerticalScroll(content, settings, rowsHtml, rowGap, style);
+  scheduleIdentityContentScroll(content);
+}
+
+export function renderNeonVinylRow(item) {
+  return renderIllustratedAssetRow(item, 'neon-vinyl');
+}
+
+export function renderCherryRibbonRow(item) {
+  return renderIllustratedAssetRow(item, 'cherry-ribbon');
+}
+
+export function renderGoldenLilyRow(item, index = 0) {
+  return renderIllustratedAssetRow(item, 'golden-lily', index + 1);
+}
+
+function renderIllustratedAssetRow(item, style, rank = null) {
+  const guardLevel = normalizeGuardLevel(item.requester_guard_level);
+  const medalLevel = Math.max(0, Number(item.requester_medal_level || 0));
+  const medalName = String(item.requester_medal_name || '').trim();
+  const identityClass = requesterIdentityClass(guardLevel, medalLevel);
+  const medalClass = medalLevelClass(medalLevel);
+  const songPrefix = item.is_pinned ? '📌 ' : '';
+  const guardText = guardLevel > 0 ? guardLabel(guardLevel) : '无';
+  const medalText = `${medalName ? `${medalName} · ` : ''}${medalLevel}级`;
+
+  return `
+    <div class="${style}-row illustrated-queue-row guard-${guardLevel} medal-${medalClass}">
+      ${rank === null ? '' : `<span class="${style}-rank illustrated-rank">${rank}</span>`}
+      <span class="${style}-info-viewport illustrated-info-viewport identity-content-wrapper">
+        <span class="${style}-info illustrated-info identity-content">
+          <span class="${style}-song illustrated-field illustrated-song">
+            <span class="illustrated-label">歌名</span>
+            <span class="illustrated-song-value">${songPrefix}${escapeHtml(item.song_name)}</span>
+          </span>
+          <span class="${style}-requester illustrated-field illustrated-requester">
+            <span class="illustrated-label">点歌人</span>
+            <span>${escapeHtml(item.requester_name || '观众')}</span>
+          </span>
+          <span class="${style}-guard illustrated-field illustrated-guard ${identityClass}">
+            <span class="illustrated-label">大航海</span>
+            <span class="illustrated-guard-value">${escapeHtml(guardText)}</span>
+          </span>
+          <span class="${style}-medal illustrated-field illustrated-medal">
+            <span class="illustrated-label">灯牌等级</span>
+            <span class="illustrated-medal-value">${escapeHtml(medalText)}</span>
+          </span>
+        </span>
+      </span>
+    </div>
+  `;
+}
+
 export function applyTheme(settings, style) {
   const panel = document.querySelector('.overlay-panel');
   panel.className = `overlay-panel queue-${style}`;
@@ -273,9 +409,9 @@ export function applyTheme(settings, style) {
   )}px`);
   root.style.setProperty('--scroll-seconds', `${queueScrollSeconds(settings)}s`);
 
-  panel.style.backgroundColor = style === 'identity'
-    ? ''
-    : hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity || 0.76);
+  panel.style.backgroundColor = style === 'classic'
+    ? hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity || 0.76)
+    : '';
 }
 
 export function setIdentityRuleThemeVars(root, settings) {

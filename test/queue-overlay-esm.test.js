@@ -62,7 +62,14 @@ function createQueueDom() {
     innerHTML: '',
     style: {},
     querySelector(selector) {
-      return (selector === '.classic-list-window' || selector === '.identity-list-window')
+      return (
+        selector === '.classic-list-window'
+        || selector === '.identity-list-window'
+        || selector === '.storybook-list-window'
+        || selector === '.neon-vinyl-list-window'
+        || selector === '.cherry-ribbon-list-window'
+        || selector === '.golden-lily-list-window'
+      )
         ? viewport
         : null;
     },
@@ -120,7 +127,7 @@ test('queue overlay applies its theme through the real module graph', async () =
   assert.ok(Number.isFinite(scrollSeconds) && scrollSeconds > 0);
 });
 
-test('classic and identity queue render paths run without cross-module reference errors', async () => {
+test('all six queue render paths run without cross-module reference errors', async () => {
   const dom = createQueueDom();
   const namespace = await loadQueueOverlay(dom);
 
@@ -134,6 +141,24 @@ test('classic and identity queue render paths run without cross-module reference
   assert.doesNotThrow(() => namespace.renderIdentityQueue(identitySettings, current, waiting, dom.content, []));
   assert.match(dom.content.innerHTML, /identity-list-window/);
   assert.equal(dom.viewport.style.height, '364px');
+
+  const storybookSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'storybook' };
+  assert.doesNotThrow(() => namespace.renderStorybookQueue(storybookSettings, current, waiting, dom.content));
+  assert.match(dom.content.innerHTML, /storybook-list-window/);
+
+  const neonSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'neon-vinyl' };
+  assert.doesNotThrow(() => namespace.renderNeonVinylQueue(neonSettings, current, waiting, dom.content));
+  assert.match(dom.content.innerHTML, /neon-vinyl-list-window/);
+
+  const ribbonSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'cherry-ribbon' };
+  assert.doesNotThrow(() => namespace.renderCherryRibbonQueue(ribbonSettings, current, waiting, dom.content));
+  assert.match(dom.content.innerHTML, /cherry-ribbon-list-window/);
+
+  const goldenLilySettings = { ...BASE_SETTINGS, overlayQueueStyle: 'golden-lily' };
+  assert.doesNotThrow(() => namespace.renderGoldenLilyQueue(goldenLilySettings, current, waiting, dom.content));
+  assert.match(dom.content.innerHTML, /golden-lily-list-window/);
+  assert.doesNotThrow(() => namespace.renderGoldenLilyQueue(goldenLilySettings, null, [], dom.content));
+  assert.match(dom.content.innerHTML, /golden-lily-empty/);
 });
 
 test('queue viewport resize state is shared across overlay modules', async () => {

@@ -1,4 +1,9 @@
 /* Overlay styles - ordered compatibility entrypoint. */
 @import url('./base/foundation-and-classic.css');
 @import url('./base/identity.css');
+@import url('./base/storybook.css');
+@import url('./base/illustrated.css');
+@import url('./base/neon-vinyl.css');
+@import url('./base/cherry-ribbon.css');
+@import url('./base/golden-lily.css');
 @import url('./base/songs.css');

@@ -138,6 +138,182 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.doesNotMatch(medalRule, /max-width/);
 });
 
+test('storybook queue keeps illustrated rows fixed while identity content stays inside the blue viewport', () => {
+  const html = readAdminHtml();
+  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'gifts.css'), 'utf8');
+  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'frame.png');
+  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'entry.png');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(overlaySource, sandbox);
+
+  assert.match(html, /data-overlay-style="storybook"[\s\S]*点歌板风格 3/);
+  assert.match(html, /data-identity-only/);
+  assert.match(adminThemeSource, /ILLUSTRATED_QUEUE_STYLES[\s\S]*'storybook'/);
+  assert.match(adminThemeSource, /if \(nextStyle !== 'classic'\)/);
+  assert.match(adminStyles, /\.style-picker\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
+  assert.equal(sandbox.normalizeQueueStyle('storybook'), 'storybook');
+  assert.equal(sandbox.normalizeQueueStyle('festival'), 'identity');
+  assert.equal(sandbox.normalizeQueueStyle('unknown'), 'classic');
+  assert.ok(fs.statSync(framePath).size > 0);
+  assert.ok(fs.statSync(entryPath).size > 0);
+  assert.match(entryCss, /@import url\('\.\/base\/storybook\.css'\);/);
+  assert.match(overlayStyles, /\.queue-storybook\s*\{[\s\S]*?aspect-ratio:\s*2\s*\/\s*3/);
+  assert.match(overlayStyles, /\.queue-storybook::before\s*\{[\s\S]*?background:\s*#fff/);
+  assert.match(overlayStyles, /song-board-style-3\/frame\.png/);
+  assert.match(overlayStyles, /song-board-style-3\/entry\.png/);
+
+  const row = sandbox.renderStorybookRow({
+    song_name: '<img src=x onerror=alert(1)>超长歌名',
+    requester_name: '<b>点歌人</b>',
+    requester_guard_level: 2,
+    requester_medal_name: '云朵团',
+    requester_medal_level: 26
+  }, 0);
+  assert.match(row, /storybook-rank">1<\/span>/);
+  assert.match(row, /storybook-info-viewport[\s\S]*storybook-info/);
+  assert.match(row, /storybook-song[\s\S]*storybook-requester[\s\S]*storybook-badge[\s\S]*storybook-medal/);
+  assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
+  assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
+  assert.doesNotMatch(row, /<img src=x|<b>点歌人/);
+
+  const viewportRule = overlayStyles.match(/\.storybook-info-viewport\s*\{[^}]*\}/)?.[0];
+  const rowRule = overlayStyles.match(/\.storybook-row\s*\{[^}]*\}/)?.[0];
+  assert.ok(viewportRule);
+  assert.ok(rowRule);
+  assert.match(viewportRule, /overflow:\s*hidden/);
+  assert.match(viewportRule, /min-width:\s*0/);
+  assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
+  assert.match(rowRule, /font-size:\s*clamp\(12px,\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\),\s*28px\)/);
+});
+
+test('styles 4 and 5 use supplied art, omit queue ranks, and render all four requested fields', () => {
+  const html = readAdminHtml();
+  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const assetPaths = [
+    ['song-board-style-4', 'frame.png'],
+    ['song-board-style-4', 'entry.png'],
+    ['song-board-style-5', 'frame.png'],
+    ['song-board-style-5', 'entry.png']
+  ].map((parts) => path.join(ROOT_DIR, 'public', 'img', 'overlays', ...parts));
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(overlaySource, sandbox);
+
+  assert.match(html, /data-overlay-style="neon-vinyl"[\s\S]*点歌板风格 4/);
+  assert.match(html, /data-overlay-style="cherry-ribbon"[\s\S]*点歌板风格 5/);
+  assert.match(adminThemeSource, /neon-vinyl/);
+  assert.match(adminThemeSource, /cherry-ribbon/);
+  assert.equal(sandbox.normalizeQueueStyle('neon-vinyl'), 'neon-vinyl');
+  assert.equal(sandbox.normalizeQueueStyle('cherry-ribbon'), 'cherry-ribbon');
+  assetPaths.forEach((assetPath) => assert.ok(fs.statSync(assetPath).size > 0));
+
+  assert.match(entryCss, /@import url\('\.\/base\/neon-vinyl\.css'\);/);
+  assert.match(entryCss, /@import url\('\.\/base\/cherry-ribbon\.css'\);/);
+  assert.match(overlayStyles, /song-board-style-4\/frame\.png/);
+  assert.match(overlayStyles, /song-board-style-4\/entry\.png/);
+  assert.match(overlayStyles, /song-board-style-5\/frame\.png/);
+  assert.match(overlayStyles, /song-board-style-5\/entry\.png/);
+  assert.match(overlayStyles, /\.queue-neon-vinyl \.overlay-header,[\s\S]*\.queue-cherry-ribbon \.overlay-header,[\s\S]*\.queue-golden-lily \.overlay-header\s*\{[\s\S]*display:\s*none/);
+  assert.match(overlayStyles, /\.illustrated-info-viewport\s*\{[\s\S]*overflow:\s*hidden/);
+
+  const unsafeItem = {
+    song_name: '<img src=x onerror=alert(1)>超长歌名',
+    requester_name: '<b>点歌人</b>',
+    requester_guard_level: 2,
+    requester_medal_name: '<i>灯牌</i>',
+    requester_medal_level: 26
+  };
+  const neonRow = sandbox.renderNeonVinylRow(unsafeItem, 0);
+  const ribbonRow = sandbox.renderCherryRibbonRow(unsafeItem, 1);
+
+  [neonRow, ribbonRow].forEach((row) => {
+    assert.doesNotMatch(row, /illustrated-rank/);
+    assert.match(row, />歌名</);
+    assert.match(row, />点歌人</);
+    assert.match(row, />大航海</);
+    assert.match(row, />灯牌等级</);
+    assert.match(row, /提督/);
+    assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
+    assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
+    assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26级/);
+    assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
+  });
+});
+
+test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
+  const html = readAdminHtml();
+  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const adminStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'gifts.css'), 'utf8');
+  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'frame.png');
+  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'entry.png');
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {}
+  };
+  vm.runInNewContext(overlaySource, sandbox);
+
+  assert.match(html, /data-overlay-style="golden-lily"[\s\S]*点歌板风格 6/);
+  assert.match(html, /点歌板风格 2 \/ 3 \/ 4 \/ 5 \/ 6/);
+  assert.match(adminThemeSource, /golden-lily/);
+  assert.match(adminStyles, /\.style-picker\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
+  assert.equal(sandbox.normalizeQueueStyle('golden-lily'), 'golden-lily');
+  assert.ok(fs.statSync(framePath).size > 0);
+  assert.ok(fs.statSync(entryPath).size > 0);
+
+  assert.match(entryCss, /@import url\('\.\/base\/golden-lily\.css'\);/);
+  assert.match(overlayStyles, /song-board-style-6\/frame\.png/);
+  assert.match(overlayStyles, /song-board-style-6\/entry\.png/);
+  assert.match(overlayStyles, /\.golden-lily-rank\s*\{[\s\S]*place-items:\s*center/);
+  assert.match(overlayStyles, /\.golden-lily-info-viewport\s*\{[\s\S]*overflow:\s*hidden/);
+  assert.match(overlayStyles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.golden-lily-list\.scrolling[\s\S]*animation:\s*none/);
+
+  const row = sandbox.renderGoldenLilyRow({
+    song_name: '<img src=x onerror=alert(1)>超长歌名',
+    requester_name: '<b>点歌人</b>',
+    requester_guard_level: 2,
+    requester_medal_name: '<i>灯牌</i>',
+    requester_medal_level: 26
+  }, 5);
+
+  assert.match(row, /golden-lily-rank illustrated-rank">6<\/span>/);
+  assert.match(row, />歌名</);
+  assert.match(row, />点歌人</);
+  assert.match(row, />大航海</);
+  assert.match(row, />灯牌等级</);
+  assert.match(row, /提督/);
+  assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
+  assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
+  assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26级/);
+  assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
+});
+
 test('identity content scrolls as one stream only when its rendered width overflows', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const sandbox = {
@@ -181,6 +357,8 @@ test('identity content scrolls as one stream only when its rendered width overfl
     1000
   );
   assert.doesNotMatch(sandbox.renderIdentityRow({ song_name: '1' }, 0), / • /);
+  assert.match(source, /\.identity-content-wrapper, \.storybook-info-viewport/);
+  assert.match(source, /\.identity-content, \.storybook-info/);
 });
 
 test('identity queue keeps song and requester fields in one continuous stream', () => {

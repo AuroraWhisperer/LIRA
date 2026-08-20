@@ -12,6 +12,22 @@
                   <strong>点歌板风格 2</strong>
                   <span>透明榜单身份样式</span>
                 </button>
+                <button class="style-option" type="button" data-overlay-style="storybook">
+                  <strong>点歌板风格 3</strong>
+                  <span>奶油蓝甜点画框</span>
+                </button>
+                <button class="style-option" type="button" data-overlay-style="neon-vinyl">
+                  <strong>点歌板风格 4</strong>
+                  <span>甜粉麦克风舞台</span>
+                </button>
+                <button class="style-option" type="button" data-overlay-style="cherry-ribbon">
+                  <strong>点歌板风格 5</strong>
+                  <span>紫金星月梦境</span>
+                </button>
+                <button class="style-option" type="button" data-overlay-style="golden-lily">
+                  <strong>点歌板风格 6</strong>
+                  <span>奶油金唱片铃兰</span>
+                </button>
               </div>
 
               <!-- ====== 点歌板风格 1 专属设置 ====== -->
@@ -213,7 +229,7 @@
                 </div>
               </div>
 
-              <!-- ====== 点歌板风格 2 专属设置 ====== -->
+              <!-- ====== 点歌板风格 2 / 3 / 4 / 5 / 6 共用设置 ====== -->
               <div id="identityThemeArea" class="theme-area" hidden>
                 <fieldset class="theme-section">
                   <legend>文字设置</legend>
@@ -235,11 +251,11 @@
                       <input id="identityQueueScrollSpeedRange" class="parameter-range" type="range" min="1" max="100" step="1">
                       <input id="identityQueueScrollSpeed" type="number" min="1" max="100" step="1">
                     </span>
-                    <span class="hint">1-100，仅控制点歌板风格 2</span>
+                    <span class="hint">1-100，仅控制点歌板风格 2 / 3 / 4 / 5 / 6</span>
                   </label>
                 </fieldset>
 
-                <fieldset class="theme-section">
+                <fieldset class="theme-section" data-identity-only>
                   <legend>置顶公告</legend>
                   <div class="grid-1">
                     <label>
@@ -257,7 +273,7 @@
                   </div>
                 </fieldset>
 
-                <fieldset class="theme-section">
+                <fieldset class="theme-section" data-identity-only>
                   <legend>规则展示</legend>
                   <div class="identity-rule-panel">
                     <label class="identity-rule-font">

@@ -137,7 +137,24 @@ export function scheduleIdentityVerticalScroll(content, settings, combinedRows, 
   }
 }
 
-export function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4) {
+export function scheduleStorybookVerticalScroll(content, settings, rowsHtml, rowGap) {
+  scheduleIllustratedVerticalScroll(content, settings, rowsHtml, rowGap, 'storybook');
+}
+
+export function scheduleIllustratedVerticalScroll(content, settings, rowsHtml, rowGap, style) {
+  const viewport = content.querySelector(`.${style}-list-window`);
+  const list = viewport && viewport.querySelector(`.${style}-list`);
+  if (!viewport || !list) return;
+
+  const setup = () => configureIdentityVerticalScroll(viewport, list, settings, rowsHtml, rowGap, true);
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(setup);
+  } else {
+    setup();
+  }
+}
+
+export function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4, preserveViewportHeight = false) {
   const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   const documentHeight = document.documentElement ? document.documentElement.clientHeight : 0;
   const sourceHeight = Number(windowHeight || documentHeight) || Math.max(1, viewport.clientHeight);
@@ -154,7 +171,7 @@ export function configureIdentityVerticalScroll(viewport, list, settings, combin
   }
   resetQueueScrollClasses(list);
   const contentHeight = Math.max(1, Math.ceil(list.scrollHeight));
-  if (viewport.style) {
+  if (viewport.style && !preserveViewportHeight) {
     const targetHeight = isQueueViewportResized()
       ? Math.min(contentHeight, availableHeight)
       : Math.min(364, availableHeight);
@@ -224,8 +241,8 @@ export function scheduleIdentityContentScroll(content) {
   const setup = () => {
     if (prefersReducedMotion()) return;
 
-    content.querySelectorAll('.identity-content-wrapper').forEach((container) => {
-      const text = container.querySelector('.identity-content');
+    content.querySelectorAll('.identity-content-wrapper, .storybook-info-viewport').forEach((container) => {
+      const text = container.querySelector('.identity-content, .storybook-info');
       cancelElementAnimations(text);
       const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
       if (!text || distance <= 1 || typeof text.animate !== 'function') return;

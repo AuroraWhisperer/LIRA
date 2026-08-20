@@ -7,7 +7,7 @@
 .toast-stack {
   position: fixed;
   right: 24px;
-  top: 26px;
+  top: 70px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -668,4 +668,3 @@
   font-size: 14px;
   line-height: 1.5;
 }
-

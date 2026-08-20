@@ -17,6 +17,22 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('toast stack stays below the top application bar', () => {
+  const layoutStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'),
+    'utf8'
+  );
+  const toastStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'system.css'),
+    'utf8'
+  );
+  const topbarHeight = Number(layoutStyles.match(/\.topbar\s*\{[\s\S]*?min-height:\s*(\d+)px/)?.[1]);
+  const toastOffset = Number(toastStyles.match(/\.toast-stack\s*\{[\s\S]*?top:\s*(\d+)px/)?.[1]);
+
+  assert.ok(topbarHeight > 0, 'top application bar height should remain defined');
+  assert.ok(toastOffset >= topbarHeight + 8, 'toast stack should clear the top application bar');
+});
+
 test('queue headers share a fixed minimum height and song queue controls stay compact', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const headerRule = source.match(/\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/)?.[0];

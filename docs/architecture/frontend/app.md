@@ -33,7 +33,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 |---|---|
 | 歌库 | 歌曲表格 + 搜索/分类/语言/歌手/标签/启停筛选 + 编辑表单 |
 | 设置 | 直播间(roomId/开关)、点歌行为、队列上限/冷却、清库按钮、Bilibili 登录、退出程序 |
-| 点歌板 | 经典/身份版样式切换、预设卡片、规则与置顶文案、主题色/字号/滚动/字体 |
+| 点歌板 | 经典/身份/奶油画框三种样式切换、预设卡片、规则与置顶文案、主题色/字号/滚动/字体 |
 | 展示板 | 歌单板独立主题(可同步主主题)、滚动秒数、字号、预设卡片 |
 | 直播画面 | `/queue`、`/songlist`、`/lyrics` OBS 地址 + 盲盒投屏链接生成 |
 | 导入导出 | 文本/文件导入、导入结果统计 |
@@ -112,7 +112,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 ### 4.4 theme.js(点歌板)与 display.js(展示板)
 
 - 两者共用 `fillForm` 把预设/快照值写回表单,`input/change` 事件 180ms 防抖自动保存到 `/api/settings`(`theme.js` 的 `collectTheme()` 收集约 40 个键;`display.js` 的 `collectDisplay()` 含 `songBoardSyncTheme` 开关——开启时歌单板跟随主主题)。
-- 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic ↔ identity,需要重启时提示)。
+- 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic / identity / storybook / neon-vinyl / cherry-ribbon / golden-lily,遗留 festival 归一为 identity,需要重启时提示)。四种插画样式复用身份版内容字号和纵向滚动设置,不显示仅身份版使用的置顶与规则设置。
 - `display.initOverlayUrls()` 生成 `/queue`、`/songlist`、`/lyrics` 的 OBS 地址文本(以 `127.0.0.1` 规范化)。
 
 ### 4.5 import.js(批量导入)

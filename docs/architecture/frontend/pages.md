@@ -66,7 +66,7 @@
 | `queue.js` | 点歌队列 / SC 队列渲染与操作 | [app.md](app.md) §4 |
 | `songs.js` | 歌库表格、筛选(分类/语言/歌手/标签)、编辑/入队/删除 | [app.md](app.md) §4 |
 | `settings.js` | 设置表单、Bilibili 登录、清库、盲盒映射、退出/刷新直播 | [app.md](app.md) §4 |
-| `theme.js` | 点歌板主题(经典/身份版样式、预设卡片、一键美化) | [app.md](app.md) §4 |
+| `theme.js` | 点歌板主题(经典/身份/奶油画框样式、预设卡片、一键美化) | [app.md](app.md) §4 |
 | `display.js` | 展示板(歌单板)配置与主题 | [app.md](app.md) §4 |
 | `forms.js` | `FormsService`:range↔number 绑定、选项卡、播放器全屏/收起、表单填充 | [app.md](app.md) §2 |
 | `import.js` | 歌曲批量导入(TSV/CSV/Excel),GB18030 编码回退 | [app.md](app.md) §4 |

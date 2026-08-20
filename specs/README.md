@@ -9,6 +9,7 @@ implementation, but it cannot redefine an accepted specification.
 <!-- SPEC_INDEX_START -->
 | Document | Type | Status | Runtime Evidence | Last Reviewed |
 |---|---|---|---|---|
+| `specs/song-request-board-style-3_design.md` | Design specification | Implemented | `public/js/overlays/queue.js`<br>`public/js/overlays/queue-render.js`<br>`public/css/overlays/base/storybook.css`<br>`test/frontend-queue.test.js` | 2026-08-20 |
 | `specs/desktop-lyric-preview_reverse_spec.md` | Reverse specification | Reference | `src/music/lyric-state.js`<br>`public/js/admin/desktop-lyric-preview.js`<br>`test/desktop-lyrics.test.js` | 2026-08-16 |
 | `specs/desktop-hardware-summary_design.md` | Design specification | Implemented | `src/server/system-metrics.js`<br>`public/js/admin/metrics.js`<br>`test/system-metrics.test.js` | 2026-08-19 |
 | `specs/desktop-lyric-timeline_design.md` | Design specification | Implemented | `src/music/lyric-timeline.js`<br>`public/js/admin/desktop-lyric-preview.js`<br>`test/desktop-lyrics.test.js` | 2026-08-16 |
