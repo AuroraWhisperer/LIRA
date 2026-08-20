@@ -10,6 +10,8 @@ const OVERLAY_THEME_KEYS = [
   'themePrimary', 'themeAccent', 'themeText', 'themeBackground',
   'themeOpacity', 'themeRadius', 'themeFontScale',
   'queueSongFontSize', 'queueTitleFontSize', 'identityQueueFontSize',
+  'illustratedQueueFontFamily', 'illustratedQueueFontWeight',
+  'illustratedQueueUseCustomTextColor', 'illustratedQueueTextColor',
   'overlayQueueStyle', 'overlayLowPowerMode',
   'backdropBlur', 'glowIntensity', 'enableGradient', 'gradientEnd',
   'overlayFontFamily', 'overlayFontWeight',

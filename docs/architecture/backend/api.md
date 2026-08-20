@@ -406,11 +406,11 @@ handler 未包 try/catch:抛错走顶层 **500**。
 `GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置；你画我猜在作画阶段不会返回题词或别名）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
 `GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,phase,round,totalRounds}`，供 Admin 私下显示题词；它沿用 session token，但不得由 `/games` 直播画面渲染；
 `GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；
-`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话，`game` 为 `number-bomb|gomoku|draw-guess`，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
-`POST /api/games/session/move` 接受主播的 `{value}` 落子；你画我猜使用 `{value:{action:'finish-round'|'next-round'}}` 结束本局或开始下一题；
+`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话；`draw-guess` 还可接受整数 `totalRounds`（1–12）和 `roundDurationSeconds`（15–300），缺失或越界时分别回退为 5 和 90。`game` 为 `number-bomb|gomoku|draw-guess`，或接受 `{action:"stop"}` 结束会话；已有会话时开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
+`POST /api/games/session/move` 接受主播的 `{value}` 落子；你画我猜使用 `{value:{action:'finish-round'|'reveal-answer'|'next-round'}}` 结束作画、公布答案或开始下一题。时间到后会进入待公布状态，`reveal-answer` 前公开状态不含答案且弹幕仍会被收集但不计分；
 `POST /api/games/session/draw` 接受 `{action:'append',clientId,strokeId,color,width,points:[{x,y}]}` 或 `{action:'clear',clientId}`。服务端只允许固定颜色/笔宽、1–32 个归一化坐标、最多 160 笔和每局 6000 个坐标，成功返回 `{revision}` 并广播 `game:draw`。所有端点沿用现有 session token 与 `{ok,data}` 信封。
 
-你画我猜为固定五局、每局 90 秒的内存会话；服务端单计时器到时结束本局。观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分。
+你画我猜为内存会话，默认五局、每局 90 秒，允许配置 1–12 局和每局 15–300 秒；服务端单计时器到时结束作画并等待主播公布答案。会话公开状态保留本局开始后收到的弹幕（最多 500 条，含 uid、昵称、内容和可选头像地址），直到会话结束；观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分，时间到后不再计分。
 
 ## 独立转盘 API
 

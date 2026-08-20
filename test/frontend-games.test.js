@@ -7,7 +7,7 @@ const test = require('node:test');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('games admin keeps the overlay link and current session above game one', () => {
+test('games admin groups shared games and the independent wheel', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'games.html'),
     'utf8'
@@ -17,6 +17,7 @@ test('games admin keeps the overlay link and current session above game one', ()
   const catalogPosition = html.indexOf('class="games-catalog"');
   const bombPosition = html.indexOf('data-game-card="number-bomb"');
   const gomokuPosition = html.indexOf('data-game-card="gomoku"');
+  const wheelCategoryPosition = html.indexOf('class="games-category games-category-wheel"');
   const wheelPosition = html.indexOf('data-wheel-card');
   const drawPosition = html.indexOf('data-game-card="draw-guess"');
 
@@ -25,22 +26,28 @@ test('games admin keeps the overlay link and current session above game one', ()
   assert.ok(catalogPosition > sessionPosition, 'game cards should follow the current session');
   assert.ok(bombPosition > catalogPosition, 'game one should be inside the catalog');
   assert.ok(gomokuPosition > bombPosition, 'game two should follow game one');
-  assert.ok(wheelPosition > gomokuPosition, 'the independent wheel should remain game three');
-  assert.ok(drawPosition > wheelPosition, 'draw guess should be the fourth card');
+  assert.ok(drawPosition > gomokuPosition, 'draw guess should follow the first two games');
+  assert.ok(wheelCategoryPosition > drawPosition, 'the independent wheel should follow the shared games');
+  assert.ok(wheelPosition > wheelCategoryPosition, 'the wheel card should be inside category two');
   assert.match(html, /id="gamesOverlayUrl"/);
   assert.match(html, /id="gamesCopyBaseUrlBtn"/);
-  assert.match(html, /第一步/);
-  assert.match(html, /1\. 打开固定游戏网页/);
-  assert.match(html, /2\. 开始数字炸弹/);
-  assert.match(html, /2\. 开始五子棋/);
-  assert.match(html, /2\. 开始你画我猜/);
+  assert.match(html, /类别 1/);
+  assert.match(html, /类别 2/);
+  assert.match(html, /id="wheelOverlayUrl"/);
+  assert.match(html, /id="wheelCopyUrlBtn"/);
+  assert.match(html, /开始数字炸弹/);
+  assert.match(html, /开始五子棋/);
+  assert.match(html, /开始你画我猜/);
+  assert.doesNotMatch(html, /第一步|第二步|1\. 打开固定游戏网页|2\. 开始/);
   assert.match(html, /id="drawCardTrigger"/);
   assert.match(html, /id="drawCardDetails"/);
   assert.match(html, /id="drawHostWord"/);
   assert.match(html, /id="drawFinishRoundBtn"/);
   assert.match(html, /id="drawNextRoundBtn"/);
-  assert.match(html, /5 局/);
-  assert.match(html, /90 秒/);
+  assert.match(html, /id="drawTotalRounds"[^>]*min="1"[^>]*max="12"/);
+  assert.match(html, /id="drawRoundDuration"[^>]*min="15"[^>]*max="300"/);
+  assert.match(html, /1–12 局/);
+  assert.match(html, /15–300 秒/);
   assert.match(html, /10.*7.*5.*3/s);
   assert.doesNotMatch(html, /data-copy-game/);
 });
@@ -65,6 +72,8 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
   assert.match(script, /card\.classList\.toggle\('is-running'/);
   assert.match(script, /api\/games\/host-state/);
   assert.match(script, /draw-guess/);
+  assert.match(script, /totalRounds: Number\(byId\('drawTotalRounds'\)\.value\)/);
+  assert.match(script, /roundDurationSeconds: Number\(byId\('drawRoundDuration'\)\.value\)/);
   assert.match(script, /finish-round/);
   assert.match(script, /next-round/);
   assert.match(script, /toggleDrawDetails/);

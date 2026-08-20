@@ -31,15 +31,16 @@
       </section>
       <section id="drawGuessView" class="game-view draw-guess-view" hidden>
         <div class="draw-layout">
-          <div class="draw-canvas-panel">
-            <div class="draw-canvas-wrap">
-              <canvas id="drawCanvas" class="draw-canvas" width="1280" height="720" aria-label="主播绘画画布"></canvas>
-              <div id="drawRoundResult" class="draw-round-result" hidden>
-                <span>本局答案</span>
-                <strong id="drawRevealedAnswer"></strong>
+          <div class="draw-main-column">
+            <div class="draw-canvas-panel">
+              <div class="draw-canvas-wrap">
+                <canvas id="drawCanvas" class="draw-canvas" width="1280" height="720" aria-label="主播绘画画布"></canvas>
+                <div id="drawRoundResult" class="draw-round-result" hidden>
+                  <span>本局答案</span>
+                  <strong id="drawRevealedAnswer"></strong>
+                </div>
               </div>
-            </div>
-            <div class="draw-toolbar" aria-label="画笔工具">
+              <div class="draw-toolbar" aria-label="画笔工具">
               <div class="draw-color-tools" aria-label="画笔颜色">
                 <button type="button" data-draw-color="#222034" aria-label="墨黑" aria-pressed="true"></button>
                 <button type="button" data-draw-color="#6c5ce7" aria-label="紫色" aria-pressed="false"></button>
@@ -55,23 +56,29 @@
                 <button type="button" data-draw-width="8" aria-label="粗笔" aria-pressed="false"><span></span></button>
                 <button type="button" data-draw-width="12" aria-label="特粗笔" aria-pressed="false"><span></span></button>
               </div>
-              <button id="drawClearBtn" class="draw-clear-button" type="button">清空画布</button>
+                <button id="drawEraserBtn" class="draw-eraser-button" type="button" aria-pressed="false">橡皮擦</button>
+                <button id="drawClearBtn" class="draw-clear-button" type="button">清空画布</button>
+              </div>
+            </div>
+            <div class="draw-left-stats">
+              <div class="draw-clue-card">
+                <span>直播间线索</span>
+                <strong id="drawClue">等待开局</strong>
+                <small>直接发送答案弹幕，无需命令前缀</small>
+              </div>
+              <section class="draw-score-section" aria-labelledby="drawScoreTitle">
+                <div class="draw-panel-heading"><strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span></div>
+                <ol id="drawScoreboard" class="draw-scoreboard"></ol>
+              </section>
+              <section class="draw-correct-section" aria-labelledby="drawCorrectTitle">
+                <div class="draw-panel-heading"><strong id="drawCorrectTitle">本局抢答</strong><span>10 / 7 / 5 / 3</span></div>
+                <ol id="drawCorrectFeed" class="draw-correct-feed"></ol>
+              </section>
             </div>
           </div>
-          <aside class="draw-audience-panel" aria-label="猜词排行">
-            <div class="draw-clue-card">
-              <span>直播间线索</span>
-              <strong id="drawClue">等待开局</strong>
-              <small>直接发送答案弹幕，无需命令前缀</small>
-            </div>
-            <section class="draw-score-section" aria-labelledby="drawScoreTitle">
-              <div class="draw-panel-heading"><strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span></div>
-              <ol id="drawScoreboard" class="draw-scoreboard"></ol>
-            </section>
-            <section class="draw-correct-section" aria-labelledby="drawCorrectTitle">
-              <div class="draw-panel-heading"><strong id="drawCorrectTitle">本局抢答</strong><span>10 / 7 / 5 / 3</span></div>
-              <ol id="drawCorrectFeed" class="draw-correct-feed"></ol>
-            </section>
+          <aside class="draw-danmaku-panel" aria-label="本局弹幕">
+            <div class="draw-danmaku-heading"><div><span>LIVE CHAT</span><strong>本局弹幕</strong></div><small id="drawDanmakuCount">0 条</small></div>
+            <div id="drawDanmakuFeed" class="draw-danmaku-feed"><div class="draw-danmaku-empty">等待直播间弹幕…</div></div>
           </aside>
         </div>
       </section>

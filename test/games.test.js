@@ -73,6 +73,31 @@ test('draw guess hides the answer while drawing and reveals it after the round',
   assert.equal(resultView.revealedAnswer, '苹果');
 });
 
+test('draw guess accepts bounded round and duration settings', () => {
+  const state = createDrawGuessState({
+    words: [{ word: '苹果', category: '食物' }],
+    totalRounds: 12,
+    roundDurationSeconds: 300,
+    random: () => 0,
+    nowMs: 1000
+  });
+  const view = publicDrawGuessState(state, { nowMs: 1000, serverNowMs: 5000 });
+
+  assert.equal(view.totalRounds, 12);
+  assert.equal(view.roundDurationMs, 300000);
+  assert.equal(view.remainingMs, 300000);
+
+  const fallback = createDrawGuessState({
+    words: [{ word: '苹果', category: '食物' }],
+    totalRounds: 99,
+    roundDurationSeconds: 1,
+    random: () => 0,
+    nowMs: 0
+  });
+  assert.equal(fallback.totalRounds, 5);
+  assert.equal(fallback.roundDurationMs, 90000);
+});
+
 test('draw guess awards 10, 7, 5, then 3 points and scores each uid once per round', () => {
   let state = createDrawGuessState({
     words: [{ word: '冰淇淋', category: '食物', aliases: ['冰激凌'] }],
@@ -204,8 +229,56 @@ test('game session ends draw guess rounds on one server-owned timer and disposes
   nowMs += 90000;
   timerCallback();
   assert.equal(service.getSession().state.phase, 'round-result');
-  assert.equal(service.getSession().state.revealedAnswer, '苹果');
+  assert.equal(service.getSession().state.revealedAnswer, '');
+  assert.equal(service.getSession().state.answerRevealed, false);
+  const reveal = service.move({ value: { action: 'reveal-answer' } }, 'host');
+  assert.equal(reveal.session.state.revealedAnswer, '苹果');
 
   service.dispose();
   assert.equal(cancelledTimer, 7);
+});
+
+test('draw guess keeps post-timeout danmaku without awarding points until answer publication', () => {
+  let nowMs = 0;
+  let timerCallback = null;
+  const service = createGameSessionService({
+    drawGuessWords: [{ word: '苹果', category: '食物' }],
+    monotonicNow: () => nowMs,
+    setTimeout(callback) { timerCallback = callback; return 1; },
+    clearTimeout() {}
+  });
+  service.start({ game: 'draw-guess' });
+  nowMs = 90000;
+  timerCallback();
+  service.handleDanmaku({ uid: 'late', userName: '晚到观众', message: '苹果' });
+  const state = service.getSession();
+  assert.equal(state.state.scores.length, 0);
+  assert.equal(state.state.revealedAnswer, '');
+  assert.equal(state.danmaku.length, 1);
+});
+
+test('game session schedules draw guess with the selected duration', () => {
+  let scheduledDelay = null;
+  const service = createGameSessionService({
+    drawGuessWords: [{ word: '苹果', category: '食物' }],
+    random: () => 0,
+    monotonicNow: () => 100,
+    setTimeout(callback, delay) {
+      scheduledDelay = delay;
+      return 8;
+    },
+    clearTimeout() {}
+  });
+
+  const session = service.start({
+    game: 'draw-guess',
+    mode: 'multi',
+    totalRounds: 8,
+    roundDurationSeconds: 120
+  });
+
+  assert.equal(session.state.totalRounds, 8);
+  assert.equal(session.state.roundDurationMs, 120000);
+  assert.equal(scheduledDelay, 120000);
+  service.dispose();
 });

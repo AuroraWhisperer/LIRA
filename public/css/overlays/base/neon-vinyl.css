@@ -67,3 +67,10 @@
   font-size: clamp(18px, 5cqw, 28px);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+
+.queue-neon-vinyl.illustrated-custom-text-color .neon-vinyl-info-viewport,
+.queue-neon-vinyl.illustrated-custom-text-color .neon-vinyl-song,
+.queue-neon-vinyl.illustrated-custom-text-color .neon-vinyl-requester,
+.queue-neon-vinyl.illustrated-custom-text-color .neon-vinyl-empty {
+  color: var(--illustrated-queue-text-color);
+}

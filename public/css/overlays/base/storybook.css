@@ -69,6 +69,27 @@
   white-space: nowrap;
 }
 
+.queue-storybook.illustrated-custom-font .storybook-row,
+.queue-storybook.illustrated-custom-font .storybook-rank,
+.queue-storybook.illustrated-custom-font .overlay-title {
+  font-family: var(--illustrated-queue-font-family);
+}
+
+.queue-storybook.illustrated-custom-weight .storybook-row,
+.queue-storybook.illustrated-custom-weight .storybook-rank,
+.queue-storybook.illustrated-custom-weight .storybook-song,
+.queue-storybook.illustrated-custom-weight .overlay-title {
+  font-weight: var(--illustrated-queue-font-weight);
+}
+
+.queue-storybook.illustrated-custom-text-color .storybook-song,
+.queue-storybook.illustrated-custom-text-color .storybook-requester,
+.queue-storybook.illustrated-custom-text-color .storybook-rank,
+.queue-storybook.illustrated-custom-text-color .storybook-empty,
+.queue-storybook.illustrated-custom-text-color .overlay-title {
+  color: var(--illustrated-queue-text-color);
+}
+
 .queue-storybook .overlay-content {
   --storybook-list-offset-y: 10px;
   position: absolute;
@@ -201,6 +222,13 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-align: center;
+}
+
+.queue-storybook.illustrated-custom-text-color .storybook-song,
+.queue-storybook.illustrated-custom-text-color .storybook-requester,
+.queue-storybook.illustrated-custom-text-color .storybook-rank,
+.queue-storybook.illustrated-custom-text-color .storybook-empty {
+  color: var(--illustrated-queue-text-color);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -8,6 +8,7 @@
 
 - **框架**:Node 内置 `node:test` + `node:assert/strict`,**零第三方测试依赖**([package.json](../../../package.json));测试文件全部基于 `node:test`。
 - **全量运行**:`npm test` = `node --experimental-vm-modules --test --test-concurrency=4` — **并发数 4**。
+- **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、外壳和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
 - **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
 - **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算与前端 ESM 边界测试。
 - **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。

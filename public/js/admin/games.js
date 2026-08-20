@@ -19,6 +19,7 @@ export function initGames() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
   byId('drawCardTrigger').addEventListener('click', toggleDrawDetails);
   byId('drawFinishRoundBtn').addEventListener('click', () => controlDrawRound('finish-round').catch(showError));
+  byId('drawRevealAnswerBtn').addEventListener('click', () => controlDrawRound('reveal-answer').catch(showError));
   byId('drawNextRoundBtn').addEventListener('click', () => controlDrawRound('next-round').catch(showError));
   byId('wheelCopyUrlBtn').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()));
   byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
@@ -90,7 +91,11 @@ async function refreshWheel() {
 
 async function startGame(game) {
   if (game === 'draw-guess') {
-    const result = await api('/api/games/session', { game });
+    const result = await api('/api/games/session', {
+      game,
+      totalRounds: Number(byId('drawTotalRounds').value),
+      roundDurationSeconds: Number(byId('drawRoundDuration').value)
+    });
     renderSession(result.data);
     await refreshHostState();
     setDrawDetails(true);
@@ -122,7 +127,7 @@ async function controlDrawRound(action) {
   const result = await api('/api/games/session/move', { value: { action } });
   renderSession(result.data);
   await refreshHostState();
-  toast(action === 'finish-round' ? '本局已结束并揭晓答案' : '下一题已开始');
+  toast(action === 'finish-round' ? '作画已结束，请公布答案' : action === 'reveal-answer' ? '答案已公布' : '下一题已开始');
 }
 
 function renderWheelState(state, options = {}) {
@@ -270,6 +275,10 @@ function renderSession(session) {
     button.disabled = Boolean(session);
     button.setAttribute('aria-disabled', String(Boolean(session)));
   });
+  document.querySelectorAll('[data-draw-setting]').forEach(label => {
+    label.classList.toggle('is-disabled', Boolean(session));
+    label.querySelector('input').disabled = Boolean(session);
+  });
   document.querySelectorAll('[data-game-card]').forEach(card => {
     card.classList.toggle('is-running', card.dataset.gameCard === session?.game);
   });
@@ -289,25 +298,30 @@ function renderDrawSession(session) {
   const drawSession = session?.game === 'draw-guess' ? session : null;
   const state = drawSession?.state;
   byId('drawFinishRoundBtn').disabled = state?.phase !== 'drawing';
-  byId('drawNextRoundBtn').disabled = state?.phase !== 'round-result';
+  byId('drawRevealAnswerBtn').disabled = state?.phase !== 'round-result' || Boolean(state.answerRevealed);
+  byId('drawNextRoundBtn').disabled = state?.phase !== 'round-result' || !state.answerRevealed;
   if (!state) {
     drawClock = null;
-    byId('drawCardStatus').textContent = '5 局积分赛 · 每局 90 秒';
+    byId('drawCardStatus').textContent = '自定义赛制 · 1–12 局 · 15–300 秒';
     byId('drawHostRound').textContent = '等待开局';
-    byId('drawHostStatus').textContent = '打开上方固定游戏网页后即可开局';
+    byId('drawHostStatus').textContent = '开始游戏后即可作画';
     byId('drawHostClock').textContent = '01:30';
     return;
   }
   setDrawDetails(true);
+  byId('drawTotalRounds').value = String(state.totalRounds);
+  byId('drawRoundDuration').value = String(Math.round(state.roundDurationMs / 1000));
   drawClock = { remainingMs: Number(state.remainingMs) || 0, receivedAt: performance.now() };
   byId('drawHostRound').textContent = `第 ${state.round} / ${state.totalRounds} 局 · ${state.category} · ${state.wordLength} 个字`;
   if (state.phase === 'drawing') {
     byId('drawCardStatus').textContent = `第 ${state.round} 局进行中 · ${state.correct.length} 人答对`;
-    byId('drawHostStatus').textContent = '请在固定游戏网页作画，题词仅在这里显示';
+    byId('drawHostStatus').textContent = '请在游戏网页作画，题词仅在这里显示';
   } else if (state.phase === 'round-result') {
     byId('drawHostClock').textContent = '--:--';
-    byId('drawCardStatus').textContent = `第 ${state.round} 局结束 · 答案 ${state.revealedAnswer}`;
-    byId('drawHostStatus').textContent = '确认直播画面后开始下一题';
+    byId('drawCardStatus').textContent = state.answerRevealed
+      ? `第 ${state.round} 局结束 · 答案已公布：${state.revealedAnswer}`
+      : `第 ${state.round} 局结束 · 等待主播公布答案`;
+    byId('drawHostStatus').textContent = state.answerRevealed ? '可以开始下一题' : '时间到，弹幕仍在收集且不计分';
   } else {
     byId('drawHostClock').textContent = '--:--';
     const champion = state.scores[0];

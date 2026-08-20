@@ -315,7 +315,7 @@ class QQMusicProvider extends QQMusicClient {
           guid
         }
       }
-    });
+    }, guid);
     const info = data && data.queryvkey && data.queryvkey.data
       && Array.isArray(data.queryvkey.data.midurlinfo)
       ? data.queryvkey.data.midurlinfo.find((item) => item && item.purl && item.ekey)

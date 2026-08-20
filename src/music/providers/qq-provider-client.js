@@ -194,7 +194,7 @@ class QQMusicClient {
     }
   }
 
-  async requestQQEncryptedVkey(modules = {}) {
+  async requestQQEncryptedVkey(modules = {}, requestGuid = '') {
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
     const comm = {
@@ -202,7 +202,7 @@ class QQMusicClient {
       _os_version: '6.2.9200-2',
       ct: '19',
       cv: '2241',
-      guid: extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid(),
+      guid: String(requestGuid || extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid()),
       patch: '118',
       tmeAppID: 'qqmusic',
       tmeLoginType: Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,

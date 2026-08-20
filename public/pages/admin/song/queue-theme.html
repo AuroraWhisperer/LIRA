@@ -243,6 +243,44 @@
                   </label>
                 </fieldset>
 
+                <fieldset class="theme-section" data-illustrated-only>
+                  <legend>插画文字</legend>
+                  <div class="grid-2">
+                    <label>
+                      字体
+                      <select id="illustratedQueueFontFamily" data-dropdown-variant="settings">
+                        <option value="default">跟随每种风格默认字体</option>
+                        <option value="Microsoft YaHei, PingFang SC, sans-serif">微软雅黑 · 清晰</option>
+                        <option value="YouYuan, Microsoft YaHei, sans-serif">幼圆 · 圆润</option>
+                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代</option>
+                        <option value="KaiTi, STKaiti, serif">楷体 · 手写</option>
+                      </select>
+                    </label>
+                    <label>
+                      字重
+                      <select id="illustratedQueueFontWeight" data-dropdown-variant="settings">
+                        <option value="default">跟随每种风格默认字重</option>
+                        <option value="600">较细</option>
+                        <option value="700">中等</option>
+                        <option value="800">粗体</option>
+                        <option value="900">超粗</option>
+                      </select>
+                    </label>
+                    <label>
+                      自定义文字颜色
+                      <select id="illustratedQueueUseCustomTextColor" data-dropdown-variant="settings">
+                        <option value="false">关闭（使用风格默认颜色）</option>
+                        <option value="true">开启</option>
+                      </select>
+                    </label>
+                    <label>
+                      文字颜色
+                      <input id="illustratedQueueTextColor" type="color" value="#315d7d">
+                      <span class="hint">应用于歌名、点歌人、序号和空状态文字</span>
+                    </label>
+                  </div>
+                </fieldset>
+
                 <fieldset class="theme-section">
                   <legend>队列滚动</legend>
                   <label>

@@ -12,6 +12,7 @@
 | `desktop` | `electron .` | 桌面模式:Electron 壳与 HTTP 服务同进程 |
 | `check` | `node scripts/check-js.js` | 全量 JS 语法检查(见 [test.md](test.md) §3) |
 | `test` | `node --experimental-vm-modules --test --test-concurrency=4` | 单元测试:node:test,并发 4(见 [test.md](test.md)) |
+| `test:admin` | `node --experimental-vm-modules --test --test-concurrency=4 test/admin-page-composition.test.js test/frontend-admin-shell.test.js test/frontend-admin-ai.test.js` | 管理页完整回归测试(显式启用 ESM VM 模块) |
 | `verify:docs` | `node --test test/governance-docs.test.js` | 治理文件、路由表、规格索引和范围内 Markdown 链接检查 |
 | `verify:architecture` | `node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js` | 模块边界、遗留债务预算和前端 ESM 边界检查 |
 | `verify:quick` | `npm run verify:docs && npm run check && npm run verify:architecture` | 日常评审前快速门禁:文档 → 语法 → 架构 |

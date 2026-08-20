@@ -158,6 +158,33 @@
   text-align: center;
 }
 
+.illustrated-custom-font .illustrated-queue-row,
+.illustrated-custom-font .storybook-row,
+.illustrated-custom-font .overlay-title,
+.illustrated-custom-font .illustrated-rank {
+  font-family: var(--illustrated-queue-font-family);
+}
+
+.illustrated-custom-weight .illustrated-queue-row,
+.illustrated-custom-weight .storybook-row,
+.illustrated-custom-weight .overlay-title,
+.illustrated-custom-weight .illustrated-rank,
+.illustrated-custom-weight .illustrated-song-value {
+  font-weight: var(--illustrated-queue-font-weight);
+}
+
+.illustrated-custom-text-color .illustrated-song,
+.illustrated-custom-text-color .illustrated-requester,
+.illustrated-custom-text-color .illustrated-rank,
+.illustrated-custom-text-color .illustrated-empty,
+.illustrated-custom-text-color .storybook-song,
+.illustrated-custom-text-color .storybook-requester,
+.illustrated-custom-text-color .storybook-rank,
+.illustrated-custom-text-color .storybook-empty,
+.illustrated-custom-text-color .overlay-title {
+  color: var(--illustrated-queue-text-color);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .neon-vinyl-list.scrolling,
   .neon-vinyl-list.scrolling-bounce,

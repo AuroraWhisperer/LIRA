@@ -24,20 +24,30 @@ function readOvertimeAdminSource() {
   ].map(file => fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', file), 'utf8')).join('\n');
 }
 
-test('admin queue style cards use distinct theme palettes', () => {
+test('admin queue style cards keep styles 1 and 2 neutral while styles 3-6 use themed palettes', () => {
   const styles = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'gifts.css'),
     'utf8'
   );
-  const queueStyles = [
-    'classic',
-    'identity',
+  const neutralStyles = ['classic', 'identity'];
+  neutralStyles.forEach((style) => {
+    const rule = styles.match(
+      new RegExp(`\\.style-option\\[data-overlay-style="${style}"\\]\\s*\\{[\\s\\S]*?\\n\\}`)
+    )?.[0];
+
+    assert.ok(rule, `${style} should have a style card`);
+    assert.match(rule, /--style-option-bg:\s*var\(--color-bg-primary\)/);
+    assert.match(rule, /--style-option-border:\s*var\(--border\)/);
+    assert.match(rule, /--style-option-title:\s*var\(--text\)/);
+  });
+
+  const illustratedStyles = [
     'storybook',
     'neon-vinyl',
     'cherry-ribbon',
     'golden-lily'
   ];
-  const backgrounds = queueStyles.map((style) => {
+  const backgrounds = illustratedStyles.map((style) => {
     const rule = styles.match(
       new RegExp(`\\.style-option\\[data-overlay-style="${style}"\\]\\s*\\{[\\s\\S]*?\\n\\}`)
     )?.[0];
@@ -48,9 +58,40 @@ test('admin queue style cards use distinct theme palettes', () => {
     return rule.match(/--style-option-bg:\s*([^;]+);/)?.[1];
   });
 
-  assert.equal(new Set(backgrounds).size, queueStyles.length);
+  assert.equal(new Set(backgrounds).size, illustratedStyles.length);
   assert.match(styles, /\.style-option\.active\s*\{[\s\S]*?var\(--style-option-ring\)/);
   assert.match(styles, /\.style-option:focus-visible\s*\{[\s\S]*?var\(--style-option-accent\)/);
+});
+
+test('illustrated queue styles expose persisted typography controls', () => {
+  const html = readAdminHtml();
+  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+  const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
+  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+
+  assert.match(html, /data-illustrated-only/);
+  assert.match(html, /id="illustratedQueueFontFamily"/);
+  assert.match(html, /id="illustratedQueueFontWeight"/);
+  assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
+  assert.match(html, /id="illustratedQueueTextColor"[^>]*type="color"/);
+  assert.match(formSource, /illustratedQueueFontFamily:\s*value\('illustratedQueueFontFamily'\)/);
+  assert.match(formSource, /illustratedQueueFontWeight:\s*value\('illustratedQueueFontWeight'\)/);
+  assert.match(formSource, /illustratedQueueUseCustomTextColor:\s*value\('illustratedQueueUseCustomTextColor'\)/);
+  assert.match(formSource, /illustratedQueueTextColor:\s*value\('illustratedQueueTextColor'\)/);
+  assert.match(defaultsSource, /illustratedQueueFontFamily:\s*'default'/);
+  assert.match(defaultsSource, /illustratedQueueFontWeight:\s*'default'/);
+  assert.match(defaultsSource, /illustratedQueueUseCustomTextColor:\s*'false'/);
+  assert.match(defaultsSource, /illustratedQueueTextColor:\s*'#315d7d'/);
+  assert.match(themeStoreSource, /'illustratedQueueFontFamily',\s*'illustratedQueueFontWeight'/);
+  assert.match(themeStoreSource, /'illustratedQueueUseCustomTextColor',\s*'illustratedQueueTextColor'/);
+  assert.match(overlaySource, /--illustrated-queue-font-family/);
+  assert.match(overlaySource, /--illustrated-queue-font-weight/);
+  assert.match(overlaySource, /--illustrated-queue-text-color/);
+  assert.match(overlayStyles, /\.illustrated-custom-font/);
+  assert.match(overlayStyles, /\.illustrated-custom-weight/);
+  assert.match(overlayStyles, /\.illustrated-custom-text-color/);
 });
 
 test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {

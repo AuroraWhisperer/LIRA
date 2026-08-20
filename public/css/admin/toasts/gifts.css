@@ -338,21 +338,21 @@
 }
 
 .style-option[data-overlay-style="classic"] {
-  --style-option-bg: linear-gradient(135deg, #fff5f2 0%, #ffe8e1 100%);
-  --style-option-border: #f0b6a7;
-  --style-option-title: #933d2d;
-  --style-option-meta: #a86558;
-  --style-option-accent: #d65d45;
-  --style-option-ring: rgba(214, 93, 69, 0.18);
+  --style-option-bg: var(--color-bg-primary);
+  --style-option-border: var(--border);
+  --style-option-title: var(--text);
+  --style-option-meta: var(--muted);
+  --style-option-accent: var(--primary-strong);
+  --style-option-ring: rgba(255, 111, 145, 0.18);
 }
 
 .style-option[data-overlay-style="identity"] {
-  --style-option-bg: linear-gradient(135deg, #f3f5ff 0%, #e8ecff 100%);
-  --style-option-border: #aeb9df;
-  --style-option-title: #3f4e88;
-  --style-option-meta: #6673a0;
-  --style-option-accent: #6979bd;
-  --style-option-ring: rgba(105, 121, 189, 0.18);
+  --style-option-bg: var(--color-bg-primary);
+  --style-option-border: var(--border);
+  --style-option-title: var(--text);
+  --style-option-meta: var(--muted);
+  --style-option-accent: var(--primary-strong);
+  --style-option-ring: rgba(255, 111, 145, 0.18);
 }
 
 .style-option[data-overlay-style="storybook"] {

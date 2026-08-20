@@ -147,6 +147,8 @@ function computeStateKey(nextState) {
     settings.enableGradient, settings.gradientEnd,
     settings.overlayFontFamily, settings.overlayFontWeight,
     settings.overlaySongColor, settings.overlayRequesterColor, settings.overlayIndexColor,
+    settings.illustratedQueueFontFamily, settings.illustratedQueueFontWeight,
+    settings.illustratedQueueUseCustomTextColor, settings.illustratedQueueTextColor,
     settings.queueSongFontSize, settings.queueTitleFontSize, settings.identityQueueFontSize,
     settings.queueScrollMode, settings.queueScrollSpeed, settings.identityQueueScrollSpeed,
     settings.overlayShowIndex, settings.overlayIndexThreshold,

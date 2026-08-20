@@ -10,38 +10,46 @@
                 <header class="games-admin-header">
                   <div>
                     <p class="games-eyebrow">LIVE ARCADE</p>
-                    <h2>小游戏直播台</h2>
-                    <p>主播在游戏网页操作，观众通过直播间弹幕轮流出招。</p>
+                    <h2>小游戏</h2>
+                    <p>选择一款游戏，让直播间一起玩。</p>
                   </div>
                   <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
                 </header>
 
-                <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
-                  <div>
-                    <span class="games-link-label">第一步 · OBS / 直播姬浏览器源</span>
-                    <strong id="gamesLinkTitle">1. 打开固定游戏网页</strong>
-                    <p>先打开这个网页，再开始下面的游戏；直播姬地址无需更换。</p>
-                  </div>
-                  <label class="games-link-field">
-                    <span>网页链接</span>
-                    <input id="gamesOverlayUrl" type="text" readonly>
-                  </label>
-                  <div class="games-link-actions">
-                    <button id="gamesCopyBaseUrlBtn" class="primary" type="button">复制网页链接</button>
-                    <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开网页</button>
-                  </div>
-                </section>
+                <section class="games-category games-category-primary" aria-labelledby="gamesCategoryTitle">
+                  <header class="games-category-header">
+                    <div>
+                      <span class="games-category-kicker">类别 1</span>
+                      <h3 id="gamesCategoryTitle">直播间互动</h3>
+                    </div>
+                    <span class="games-category-note">三款游戏共用一个直播画面</span>
+                  </header>
+                  <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
+                    <div>
+                      <span class="games-link-label">OBS / 直播姬浏览器源</span>
+                      <strong id="gamesLinkTitle">游戏网页</strong>
+                      <p>数字炸弹、五子棋和你画我猜都使用这个地址。</p>
+                    </div>
+                    <label class="games-link-field">
+                      <span>网页链接</span>
+                      <input id="gamesOverlayUrl" type="text" readonly>
+                    </label>
+                    <div class="games-link-actions">
+                      <button id="gamesCopyBaseUrlBtn" class="primary" type="button">复制链接</button>
+                      <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开网页</button>
+                    </div>
+                  </section>
 
-                <footer class="games-admin-footer">
-                  <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
-                  <div>
-                    <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新当前在线观众</button>
-                    <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
-                  </div>
-                </footer>
+                  <footer class="games-admin-footer">
+                    <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
+                    <div>
+                      <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新在线观众</button>
+                      <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
+                    </div>
+                  </footer>
 
-                <section class="games-catalog" aria-label="小游戏列表">
-                  <article class="game-admin-card is-bomb" data-game-card="number-bomb">
+                  <section class="games-catalog" aria-label="直播间互动游戏">
+                    <article class="game-admin-card is-bomb" data-game-card="number-bomb">
                     <div class="game-card-poster" aria-hidden="true"><span>01</span><strong>1—100</strong><i></i></div>
                     <div class="game-card-content">
                       <div class="game-card-heading">
@@ -61,7 +69,7 @@
                         </label>
                       </div>
                       <div class="game-card-actions">
-                        <button class="primary" type="button" data-start-game="number-bomb">2. 开始数字炸弹</button>
+                        <button class="primary" type="button" data-start-game="number-bomb">开始数字炸弹</button>
                       </div>
                     </div>
                   </article>
@@ -81,66 +89,37 @@
                         </label>
                       </div>
                       <div class="game-card-actions">
-                        <button class="primary" type="button" data-start-game="gomoku">2. 开始五子棋</button>
-                      </div>
-                    </div>
-                  </article>
-
-                  <article class="game-admin-card is-wheel is-collapsed" data-wheel-card>
-                    <button id="wheelCardTrigger" class="wheel-card-trigger" type="button" aria-expanded="false" aria-controls="wheelCardDetails">
-                      <span class="game-card-poster" aria-hidden="true"><span>03</span><strong>WEIGHTED<br>WHEEL</strong><i></i></span>
-                      <span class="wheel-card-summary">
-                        <span class="game-card-heading">
-                          <span><span>主播自定义内容</span><strong>转转盘</strong></span>
-                          <span class="game-card-chip">独立运行</span>
-                        </span>
-                        <span class="wheel-card-description">每一份就是一次抽取机会。内容占总份数的比例，就是它被抽中的概率。</span>
-                        <span id="wheelCardResult" class="wheel-card-result">尚未抽取</span>
-                        <span class="wheel-expand-hint"><span class="wheel-expand-icon" aria-hidden="true"><span class="wheel-expand-mark">＋</span></span><span>点击展开配置转盘</span></span>
-                      </span>
-                    </button>
-                    <div id="wheelCardDetails" class="wheel-card-details" hidden>
-                      <div class="game-card-content">
-                        <p class="wheel-detail-intro">转盘独立于数字炸弹和五子棋运行，保存后即可在单独网页中展示。</p>
-                      <div class="wheel-link-row">
-                        <label>转盘网页<input id="wheelOverlayUrl" type="text" readonly></label>
-                        <div>
-                          <button id="wheelCopyUrlBtn" class="secondary" type="button">复制地址</button>
-                          <button id="wheelOpenUrlBtn" class="secondary" type="button">打开网页</button>
-                        </div>
-                      </div>
-                      <div class="wheel-editor" aria-labelledby="wheelEditorTitle">
-                        <div class="wheel-editor-heading"><strong id="wheelEditorTitle">转盘内容与份数</strong><span id="wheelTotalWeight">总份数 0</span></div>
-                        <div id="wheelEntries" class="wheel-entry-list"></div>
-                        <button id="wheelAddEntryBtn" class="secondary wheel-add-entry" type="button">+ 添加一项</button>
-                      </div>
-                      <div class="game-card-actions wheel-actions">
-                        <button id="wheelSaveBtn" class="secondary" type="button">保存转盘设置</button>
-                        <button id="wheelSpinBtn" class="primary" type="button" disabled>开始转动</button>
-                        <span id="wheelStatus" class="wheel-status" role="status" aria-live="polite">至少配置两个选项后开始</span>
-                      </div>
+                        <button class="primary" type="button" data-start-game="gomoku">开始五子棋</button>
                       </div>
                     </div>
                   </article>
 
                   <article class="game-admin-card is-draw is-collapsed" data-game-card="draw-guess" data-draw-card>
                     <button id="drawCardTrigger" class="draw-card-trigger" type="button" aria-expanded="false" aria-controls="drawCardDetails">
-                      <span class="game-card-poster" aria-hidden="true"><span>04</span><strong>LIVE<br>CANVAS</strong><i></i></span>
+                      <span class="game-card-poster" aria-hidden="true"><span>03</span><strong>LIVE<br>CANVAS</strong><i></i></span>
                       <span class="draw-card-summary">
                         <span class="game-card-heading">
                           <span><span>主播画 · 弹幕猜</span><strong>你画我猜</strong></span>
                           <span class="game-card-chip">全直播间</span>
                         </span>
-                        <span class="draw-card-description">主播在固定游戏网页作画，观众直接发送答案弹幕，系统自动判定并累计积分。</span>
-                        <span id="drawCardStatus" class="draw-card-status">5 局积分赛 · 每局 90 秒</span>
+                        <span class="draw-card-description">主播在游戏网页作画，观众发送答案弹幕，系统自动判定并累计积分。</span>
+                        <span id="drawCardStatus" class="draw-card-status">自定义赛制 · 1–12 局 · 15–300 秒</span>
                         <span class="draw-expand-hint"><span class="draw-expand-icon" aria-hidden="true"><span class="draw-expand-mark">＋</span></span><span>点击展开规则与主持区</span></span>
                       </span>
                     </button>
                     <div id="drawCardDetails" class="draw-card-details" hidden>
                       <div class="game-card-content">
-                        <div class="draw-rules" aria-label="你画我猜规则">
-                          <div><span>赛制</span><strong>5 局</strong><small>总分决定冠军</small></div>
-                          <div><span>每局</span><strong>90 秒</strong><small>到时自动揭晓</small></div>
+                        <div class="draw-config" aria-label="你画我猜设置">
+                          <label data-draw-setting>回合数
+                            <input id="drawTotalRounds" type="number" min="1" max="12" step="1" value="5">
+                            <small>1–12 局</small>
+                          </label>
+                          <label data-draw-setting>每局时长
+                            <input id="drawRoundDuration" type="number" min="15" max="300" step="15" value="90">
+                            <small>15–300 秒</small>
+                          </label>
+                        </div>
+                        <div class="draw-rules" aria-label="你画我猜计分规则">
                           <div><span>前三名</span><strong>10 · 7 · 5</strong><small>按答对顺序计分</small></div>
                           <div><span>其余答对</span><strong>3 分</strong><small>每人每局一次</small></div>
                         </div>
@@ -156,10 +135,65 @@
                           </div>
                         </section>
                         <div class="game-card-actions draw-actions">
-                          <button class="primary" type="button" data-start-game="draw-guess">2. 开始你画我猜</button>
-                          <button id="drawFinishRoundBtn" class="secondary" type="button" disabled>结束本局并揭晓</button>
+                          <button class="primary" type="button" data-start-game="draw-guess">开始你画我猜</button>
+                          <button id="drawFinishRoundBtn" class="secondary" type="button" disabled>结束作画</button>
+                          <button id="drawRevealAnswerBtn" class="primary" type="button" disabled>公布答案</button>
                           <button id="drawNextRoundBtn" class="secondary" type="button" disabled>开始下一题</button>
-                          <span id="drawHostStatus" class="draw-host-status" role="status" aria-live="polite">打开上方固定游戏网页后即可开局</span>
+                          <span id="drawHostStatus" class="draw-host-status" role="status" aria-live="polite">开始游戏后即可作画</span>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                  </section>
+                </section>
+
+                <section class="games-category games-category-wheel" aria-labelledby="wheelCategoryTitle">
+                  <header class="games-category-header">
+                    <div>
+                      <span class="games-category-kicker">类别 2</span>
+                      <h3 id="wheelCategoryTitle">转盘</h3>
+                    </div>
+                    <span class="games-category-note">独立运行，不占用游戏画面</span>
+                  </header>
+                  <section class="games-link-deck games-link-deck-wheel" aria-labelledby="wheelLinkTitle">
+                    <div>
+                      <span class="games-link-label">OBS / 直播姬浏览器源</span>
+                      <strong id="wheelLinkTitle">转盘网页</strong>
+                      <p>单独添加为一个浏览器源，地址不会随互动游戏改变。</p>
+                    </div>
+                    <label class="games-link-field">
+                      <span>网页链接</span>
+                      <input id="wheelOverlayUrl" type="text" readonly>
+                    </label>
+                    <div class="games-link-actions">
+                      <button id="wheelCopyUrlBtn" class="secondary" type="button">复制链接</button>
+                      <button id="wheelOpenUrlBtn" class="secondary" type="button">打开网页</button>
+                    </div>
+                  </section>
+                  <article class="game-admin-card is-wheel is-collapsed" data-wheel-card>
+                    <button id="wheelCardTrigger" class="wheel-card-trigger" type="button" aria-expanded="false" aria-controls="wheelCardDetails">
+                      <span class="game-card-poster" aria-hidden="true"><span>01</span><strong>WEIGHTED<br>WHEEL</strong><i></i></span>
+                      <span class="wheel-card-summary">
+                        <span class="game-card-heading">
+                          <span><span>主播自定义内容</span><strong>转转盘</strong></span>
+                          <span class="game-card-chip">独立运行</span>
+                        </span>
+                        <span class="wheel-card-description">每一份就是一次抽取机会，内容占比决定抽中概率。</span>
+                        <span id="wheelCardResult" class="wheel-card-result">尚未抽取</span>
+                        <span class="wheel-expand-hint"><span class="wheel-expand-icon" aria-hidden="true"><span class="wheel-expand-mark">＋</span></span><span>展开配置</span></span>
+                      </span>
+                    </button>
+                    <div id="wheelCardDetails" class="wheel-card-details" hidden>
+                      <div class="game-card-content">
+                        <div class="wheel-editor" aria-labelledby="wheelEditorTitle">
+                          <div class="wheel-editor-heading"><strong id="wheelEditorTitle">转盘内容与份数</strong><span id="wheelTotalWeight">总份数 0</span></div>
+                          <div id="wheelEntries" class="wheel-entry-list"></div>
+                          <button id="wheelAddEntryBtn" class="secondary wheel-add-entry" type="button">+ 添加一项</button>
+                        </div>
+                        <div class="game-card-actions wheel-actions">
+                          <button id="wheelSaveBtn" class="secondary" type="button">保存设置</button>
+                          <button id="wheelSpinBtn" class="primary" type="button" disabled>开始转动</button>
+                          <span id="wheelStatus" class="wheel-status" role="status" aria-live="polite">至少配置两个选项后开始</span>
                         </div>
                       </div>
                     </div>

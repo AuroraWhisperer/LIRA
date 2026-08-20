@@ -15,6 +15,15 @@ test('single-player game requires a selected numeric viewer uid', () => {
   });
 });
 
+test('draw guess route preserves bounded configuration fields', () => {
+  assert.deepEqual(normalizeSessionInput({
+    game: 'draw-guess', totalRounds: 8, roundDurationSeconds: 120
+  }), {
+    game: 'draw-guess', mode: 'multi', targetUid: '', targetName: '直播间观众',
+    totalRounds: 8, roundDurationSeconds: 120
+  });
+});
+
 test('game session accepts only selected viewer danmaku in single mode', () => {
   const service = createGameSessionService();
   service.start({ game: 'number-bomb', mode: 'single', targetUid: '1', targetName: 'Alice' });

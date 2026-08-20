@@ -72,7 +72,7 @@
 - **滚动**:classic 走 CSS 动画滚动(`classic-scroll` 线性 42s 循环 + `scrolling-bounce` 有节奏往返模式,loop clone 双份列表实现无缝循环);identity 走 JS 定时滚动(按 `queueScrollSpeed` 配置);视口 resize 后 `relayoutQueue` 重新配置,重渲染时 `captureScrollAnimation/restoreScrollAnimation` 在 rAF 帧内恢复 CSS 动画进度,不跳帧不闪动([queue.js:186-208](../../../public/js/overlays/queue.js#L186-L208))。
 - **低功耗**:`overlayLowPowerMode` 或 `?quality=low` 时停用毛玻璃/辉光等重特效(`.overlay-panel.low-power` 面板级降级,classic/identity 共用,[base.css:38-47](../../../public/css/overlays/base.css#L38-L47))。
 - **快照消费**:指纹 = 当前歌/等待队列/SC/全部主题与滚动键;`queue:add`/`bilibili:danmaku`/`bilibili:superchat` 等 reason 走 80ms 延迟 `loadState()` 强刷(确保请求者元数据落库后再取,见 [queue.js:96-110](../../../public/js/overlays/queue.js#L96-L110));`live:status` 只更新直播状态不重渲染。
-- 主题:经典/身份版色板、字体、字号、置顶 3 条、规则 6 条均来自快照 `settings`(管理页「点歌板/展示板」配置);风格 3-6 固定使用各自素材色板,复用 `identityQueueFontSize`、`identityQueueScrollSpeed` 与 `queueScrollMode`。
+- 主题:经典/身份版色板、字体、字号、置顶 3 条、规则 6 条均来自快照 `settings`(管理页「点歌板/展示板」配置);风格 3–6 默认使用各自素材字体和色板,复用 `identityQueueFontSize`、`identityQueueScrollSpeed` 与 `queueScrollMode`,并可通过 `illustratedQueueFontFamily`、`illustratedQueueFontWeight`、`illustratedQueueUseCustomTextColor` 和 `illustratedQueueTextColor` 覆盖字体、字重与正文颜色。
 
 ## 3. 歌单叠加层(/songlist)
 

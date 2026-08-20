@@ -72,7 +72,10 @@ function normalizeSessionInput(input = {}) {
   const game = String(input.game || '');
   if (!['number-bomb', 'gomoku', 'draw-guess'].includes(game)) throw new Error('不支持这个游戏。');
   if (game === 'draw-guess') {
-    return { game, mode: 'multi', targetUid: '', targetName: '直播间观众' };
+    const result = { game, mode: 'multi', targetUid: '', targetName: '直播间观众' };
+    if (Object.hasOwn(input, 'totalRounds')) result.totalRounds = Number(input.totalRounds);
+    if (Object.hasOwn(input, 'roundDurationSeconds')) result.roundDurationSeconds = Number(input.roundDurationSeconds);
+    return result;
   }
   const mode = input.mode === 'multi' ? 'multi' : 'single';
   const targetUid = String(input.targetUid || '').trim();

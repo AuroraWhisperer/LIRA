@@ -185,6 +185,10 @@
       overlayFontWeight: value('overlayFontWeight'),
       overlaySongColor: value('overlaySongColor'),
       overlayRequesterColor: value('overlayRequesterColor'),
+      illustratedQueueFontFamily: value('illustratedQueueFontFamily'),
+      illustratedQueueFontWeight: value('illustratedQueueFontWeight'),
+      illustratedQueueUseCustomTextColor: value('illustratedQueueUseCustomTextColor'),
+      illustratedQueueTextColor: value('illustratedQueueTextColor'),
       overlayTitle: value('overlayTitle'),
       overlayShowIndex: value('overlayShowIndex'),
       overlayIndexThreshold: value('overlayIndexThreshold'),
@@ -239,6 +243,9 @@
       if (identityArea) identityArea.hidden = false;
       identityArea?.querySelectorAll('[data-identity-only]').forEach((section) => {
         section.hidden = nextStyle !== 'identity';
+      });
+      identityArea?.querySelectorAll('[data-illustrated-only]').forEach((section) => {
+        section.hidden = !ILLUSTRATED_QUEUE_STYLES.has(nextStyle);
       });
     } else {
       if (classicArea) classicArea.hidden = false;

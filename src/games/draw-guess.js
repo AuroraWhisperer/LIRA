@@ -1,6 +1,11 @@
 'use strict';
 
 const DEFAULT_TOTAL_ROUNDS = 5;
+const MIN_TOTAL_ROUNDS = 1;
+const MAX_TOTAL_ROUNDS = 12;
+const DEFAULT_ROUND_DURATION_SECONDS = 90;
+const MIN_ROUND_DURATION_SECONDS = 15;
+const MAX_ROUND_DURATION_SECONDS = 300;
 const ROUND_DURATION_MS = 90 * 1000;
 const SCORE_BY_RANK = [10, 7, 5];
 const LATER_CORRECT_SCORE = 3;
@@ -70,13 +75,15 @@ function createDrawGuessState(options = {}) {
   const words = normalizeWords(options.words || DEFAULT_WORDS);
   if (!words.length) throw new Error('你画我猜词库不能为空。');
   const totalRounds = normalizeTotalRounds(options.totalRounds);
+  const roundDurationSeconds = normalizeRoundDurationSeconds(options.roundDurationSeconds);
+  const roundDurationMs = roundDurationSeconds * 1000;
   const nowMs = normalizeNow(options.nowMs);
   const selected = selectWord(words, [], options.random);
   return {
     phase: 'drawing',
     round: 1,
     totalRounds,
-    roundDurationMs: ROUND_DURATION_MS,
+    roundDurationMs,
     words,
     usedWords: [selected.word],
     answer: selected.word,
@@ -84,8 +91,9 @@ function createDrawGuessState(options = {}) {
     category: selected.category,
     wordLength: Array.from(selected.word).length,
     revealedAnswer: '',
+    answerRevealed: false,
     roundStartedAtMs: nowMs,
-    roundDeadlineMs: nowMs + ROUND_DURATION_MS,
+    roundDeadlineMs: nowMs + roundDurationMs,
     correct: [],
     scores: [],
     canvas: createCanvasState()
@@ -119,14 +127,27 @@ function submitGuess(state, danmaku = {}, nowMs = 0) {
   };
 }
 
-function finishRound(state, nowMs = 0) {
+function finishRound(state, nowMs = 0, options = {}) {
   if (!state || state.phase !== 'drawing') return state;
+  const reveal = options.reveal !== false;
+  const deferFinal = options.deferFinal === true;
+  return {
+    ...state,
+    phase: state.round >= state.totalRounds && reveal && !deferFinal ? 'finished' : 'round-result',
+    revealedAnswer: reveal ? state.answer : '',
+    answerRevealed: reveal,
+    roundDeadlineMs: null,
+    roundFinishedAtMs: normalizeNow(nowMs)
+  };
+}
+
+function revealAnswer(state) {
+  if (!state || state.phase !== 'round-result' || state.answerRevealed) return state;
   return {
     ...state,
     phase: state.round >= state.totalRounds ? 'finished' : 'round-result',
     revealedAnswer: state.answer,
-    roundDeadlineMs: null,
-    roundFinishedAtMs: normalizeNow(nowMs)
+    answerRevealed: true
   };
 }
 
@@ -144,6 +165,7 @@ function startNextRound(state, options = {}) {
     category: selected.category,
     wordLength: Array.from(selected.word).length,
     revealedAnswer: '',
+    answerRevealed: false,
     roundStartedAtMs: nowMs,
     roundDeadlineMs: nowMs + state.roundDurationMs,
     roundFinishedAtMs: null,
@@ -214,7 +236,8 @@ function publicDrawGuessState(state, timing = {}) {
     wordLength: state.wordLength,
     remainingMs: drawing ? Math.max(0, state.roundDeadlineMs - nowMs) : 0,
     serverNowMs: normalizeNow(timing.serverNowMs),
-    revealedAnswer: drawing ? '' : state.revealedAnswer,
+    revealedAnswer: state.answerRevealed ? state.revealedAnswer : '',
+    answerRevealed: Boolean(state.answerRevealed),
     correct: state.correct.map(item => ({
       uid: item.uid,
       name: item.name,
@@ -324,7 +347,16 @@ function normalizeIdentifier(value) {
 
 function normalizeTotalRounds(value) {
   const rounds = Number(value === undefined ? DEFAULT_TOTAL_ROUNDS : value);
-  return Number.isInteger(rounds) && rounds >= 1 && rounds <= 12 ? rounds : DEFAULT_TOTAL_ROUNDS;
+  return Number.isInteger(rounds) && rounds >= MIN_TOTAL_ROUNDS && rounds <= MAX_TOTAL_ROUNDS
+    ? rounds
+    : DEFAULT_TOTAL_ROUNDS;
+}
+
+function normalizeRoundDurationSeconds(value) {
+  const seconds = Number(value === undefined ? DEFAULT_ROUND_DURATION_SECONDS : value);
+  return Number.isInteger(seconds) && seconds >= MIN_ROUND_DURATION_SECONDS && seconds <= MAX_ROUND_DURATION_SECONDS
+    ? seconds
+    : DEFAULT_ROUND_DURATION_SECONDS;
 }
 
 function normalizeNow(value) {
@@ -338,9 +370,14 @@ function reject(reason, state) {
 
 module.exports = {
   DEFAULT_TOTAL_ROUNDS,
+  DEFAULT_ROUND_DURATION_SECONDS,
   DRAW_COLORS,
   DRAW_WIDTHS,
+  MAX_ROUND_DURATION_SECONDS,
+  MAX_TOTAL_ROUNDS,
   MAX_POINTS_PER_OPERATION,
+  MIN_ROUND_DURATION_SECONDS,
+  MIN_TOTAL_ROUNDS,
   ROUND_DURATION_MS,
   applyDrawOperation,
   createDrawGuessState,
@@ -348,6 +385,7 @@ module.exports = {
   getHostDrawGuessState,
   normalizeGuessText,
   publicDrawGuessState,
+  revealAnswer,
   startNextRound,
   submitGuess
 };

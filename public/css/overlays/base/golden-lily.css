@@ -87,3 +87,11 @@
   font-size: clamp(18px, 5cqw, 28px);
   text-shadow: 0 1px 0 #fff8df;
 }
+
+.queue-golden-lily.illustrated-custom-text-color .golden-lily-info-viewport,
+.queue-golden-lily.illustrated-custom-text-color .golden-lily-song,
+.queue-golden-lily.illustrated-custom-text-color .golden-lily-requester,
+.queue-golden-lily.illustrated-custom-text-color .golden-lily-rank,
+.queue-golden-lily.illustrated-custom-text-color .golden-lily-empty {
+  color: var(--illustrated-queue-text-color);
+}

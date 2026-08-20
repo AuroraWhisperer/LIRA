@@ -9,6 +9,7 @@ let initialSnapshotLoaded = false;
 let resultProfileRequest = 0;
 let drawColor = '#222034';
 let drawWidth = 4;
+let drawEraser = false;
 let drawClock = null;
 let activeStroke = null;
 let drawFlushTimer = null;
@@ -169,17 +170,53 @@ function renderDrawGuess(state) {
   byId('drawClue').textContent = state.phase === 'drawing'
     ? `${state.category} · ${state.wordLength} 个字`
     : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
+  renderDrawDanmaku(session.danmaku || []);
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
   renderDrawCorrectFeed(state.correct || []);
   redrawCanvas(state.canvas);
   const result = byId('drawRoundResult');
-  result.hidden = state.phase === 'drawing';
+  result.hidden = state.phase === 'drawing' || !state.answerRevealed;
   byId('drawRevealedAnswer').textContent = state.revealedAnswer || '';
   setDrawToolsEnabled(state.phase === 'drawing');
-  if (state.phase === 'round-result') byId('gameTurn').textContent = '本局结束 · 等待下一题';
+  if (state.phase === 'round-result') byId('gameTurn').textContent = state.answerRevealed ? '答案已公布 · 等待下一题' : '时间到 · 等待主播公布答案';
   else if (state.phase === 'finished') byId('gameTurn').textContent = '五局结束 · 最终排行';
   else updateDrawCountdown();
+}
+
+function renderDrawDanmaku(items) {
+  const root = byId('drawDanmakuFeed');
+  if (!root) return;
+  root.replaceChildren();
+  const messages = Array.isArray(items) ? items : [];
+  byId('drawDanmakuCount').textContent = `${messages.length} 条`;
+  if (!messages.length) {
+    root.append(createEmptyDrawItem('等待直播间弹幕…'));
+    return;
+  }
+  messages.slice(-120).forEach(item => {
+    const row = document.createElement('article');
+    row.className = 'draw-danmaku-item';
+    const avatar = document.createElement('div');
+    avatar.className = 'draw-danmaku-avatar';
+    if (item.avatarUrl) {
+      const image = document.createElement('img');
+      image.alt = '';
+      image.src = item.avatarUrl;
+      image.addEventListener('error', () => { image.remove(); avatar.textContent = String(item.name || '观').slice(0, 1); });
+      avatar.append(image);
+    } else avatar.textContent = String(item.name || '观').slice(0, 1);
+    const body = document.createElement('div');
+    body.className = 'draw-danmaku-body';
+    const name = document.createElement('strong');
+    name.textContent = item.name || '观众';
+    const message = document.createElement('p');
+    message.textContent = item.message || '';
+    body.append(name, message);
+    row.append(avatar, body);
+    root.append(row);
+  });
+  root.scrollTop = root.scrollHeight;
 }
 
 function renderDrawScoreboard(scores) {
@@ -240,8 +277,15 @@ function initDrawCanvas() {
   redrawCanvas({ strokes: [] });
   document.querySelectorAll('[data-draw-color]').forEach(button => button.addEventListener('click', () => {
     drawColor = button.dataset.drawColor;
+    drawEraser = false;
+    byId('drawEraserBtn').setAttribute('aria-pressed', 'false');
     document.querySelectorAll('[data-draw-color]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
   }));
+  byId('drawEraserBtn').addEventListener('click', () => {
+    drawEraser = !drawEraser;
+    if (drawEraser) drawColor = '#ffffff';
+    byId('drawEraserBtn').setAttribute('aria-pressed', String(drawEraser));
+  });
   document.querySelectorAll('[data-draw-width]').forEach(button => button.addEventListener('click', () => {
     drawWidth = Number(button.dataset.drawWidth);
     document.querySelectorAll('[data-draw-width]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
@@ -416,7 +460,7 @@ function setDrawToolsEnabled(enabled) {
     activeStroke = null;
   }
   byId('drawCanvas').classList.toggle('is-disabled', !enabled);
-  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn').forEach(button => {
+  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawEraserBtn').forEach(button => {
     button.disabled = !enabled;
   });
 }

@@ -160,8 +160,10 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
 test('QQ provider creates an authenticated local session for EVkey Q0 media', async () => {
   const provider = createProvider();
   let requestBody;
-  provider.requestQQEncryptedVkey = async (body) => {
+  let requestGuid;
+  provider.requestQQEncryptedVkey = async (body, guid) => {
     requestBody = body;
+    requestGuid = guid;
     return {
       queryvkey: {
         data: {
@@ -184,6 +186,7 @@ test('QQ provider creates an authenticated local session for EVkey Q0 media', as
 
   assert.equal(requestBody.queryvkey.module, 'music.vkey.GetEVkey');
   assert.equal(requestBody.queryvkey.method, 'CgiGetEVkey');
+  assert.equal(requestBody.queryvkey.param.guid, requestGuid);
   assert.deepEqual(requestBody.queryvkey.param.filename, ['Q0media-mid.mflac']);
   assert.deepEqual(requestBody.queryvkey.param.songtype, [1]);
   assert.match(stream.url, /^\/api\/music\/qq-encrypted-stream\?id=/);

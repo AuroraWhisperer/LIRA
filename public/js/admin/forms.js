@@ -244,6 +244,10 @@ export class FormsService {
     if (document.getElementById('identityQueueFontSizeNumber')) {
       setValue('identityQueueFontSizeNumber', identityFontSize);
     }
+    setValue('illustratedQueueFontFamily', values?.illustratedQueueFontFamily || 'default');
+    setValue('illustratedQueueFontWeight', values?.illustratedQueueFontWeight || 'default');
+    setValue('illustratedQueueUseCustomTextColor', values?.illustratedQueueUseCustomTextColor || 'false');
+    setValue('illustratedQueueTextColor', values?.illustratedQueueTextColor || '#315d7d');
     const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
     if (document.getElementById('overlayRuleFontSize')) {
       setValue('overlayRuleFontSize', ruleFontSize);
