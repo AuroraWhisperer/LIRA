@@ -111,8 +111,9 @@ function listSongs(db, {
     args.push(`%${categoryFilter}%`);
   }
   if (cleanLang) {
-    conditions.push('songs.language = ?');
-    args.push(cleanLang);
+    // Excel 语言列可能包含多种语言；先取候选，再按独立语言名精确匹配。
+    conditions.push('(songs.language = ? OR songs.language LIKE ?)');
+    args.push(cleanLang, `%${cleanLang}%`);
   }
   if (cleanArt) {
     // Excel 歌手列可能包含合作歌手；先取候选，再按独立歌手名精确匹配。
@@ -133,6 +134,9 @@ function listSongs(db, {
   `).all(...args);
 
   return rows.filter((row) => {
+    if (cleanLang && !splitSongLanguages(row.language).some((language) => language === cleanLang)) {
+      return false;
+    }
     if (cleanArt && !splitSongArtists(row.artist).some((artist) => artist === cleanArt)) {
       return false;
     }
@@ -173,6 +177,13 @@ function findSong(db, songName, artist) {
     ORDER BY songs.updated_at DESC
     LIMIT 1
   `).get(cleanName) || null;
+}
+
+function splitSongLanguages(value) {
+  return String(value || '')
+    .split(/\s*(?:\/|／|、|,|，)\s*/)
+    .map((language) => cleanText(language))
+    .filter(Boolean);
 }
 
 function splitSongArtists(value) {

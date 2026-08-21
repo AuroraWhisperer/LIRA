@@ -33,11 +33,22 @@ function qqCookie(name, value, domain = '.qq.com') {
   return { name, value, domain };
 }
 
-test('QQ auth recognizes every non-empty cookie accepted by the provider', async () => {
-  for (const name of ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey']) {
+test('QQ auth recognizes every non-empty QQ Music credential', async () => {
+  for (const name of ['qqmusic_key', 'qm_keyst']) {
     const authManager = loadAuthManager([qqCookie(name, 'token')]);
     const state = await authManager.getMusicAuthState('qq', 'test-data');
     assert.equal(state.loggedIn, true, name);
+  }
+});
+
+test('QQ auth does not treat generic QQ session cookies as music login', async () => {
+  for (const name of ['p_skey', 'skey']) {
+    const authManager = loadAuthManager([
+      qqCookie(name, 'token'),
+      qqCookie('uin', 'o123456')
+    ]);
+    const state = await authManager.getMusicAuthState('qq', 'test-data');
+    assert.equal(state.loggedIn, false, name);
   }
 });
 

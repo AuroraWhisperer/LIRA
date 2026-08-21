@@ -224,9 +224,9 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiReasoningCapability">等待配置</);
   assert.match(html, /id="xiaomiAiReasoningEffort"[\s\S]*?value="high">High<[\s\S]*?value="max">Max</);
   assert.match(html, /id="xiaomiAiProviderManagedReasoning"[^>]*hidden/);
-  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="text"/);
-  assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="text"/);
-  assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="text"/);
+  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
+  assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="password"/);
+  assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="password"/);
   assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="例如：小米"/);
   assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
   assert.match(html, /id="xiaomiAiTestBtn"[^>]*>测试模型服务</);
@@ -727,14 +727,19 @@ test('AI assistant masks saved secrets and omits mask placeholders from submissi
   await new Promise(resolve => setImmediate(resolve));
 
   assert.equal(elements.get('xiaomiAiDeepSeekKey').type, 'password');
-  assert.equal(elements.get('xiaomiAiDeepSeekKey').value, '********');
+  assert.equal(elements.get('xiaomiAiDeepSeekKey').value, '');
   assert.equal(elements.get('xiaomiAiQWeatherKey').type, 'password');
-  assert.equal(elements.get('xiaomiAiQWeatherKey').value, '********');
+  assert.equal(elements.get('xiaomiAiQWeatherKey').value, '');
   assert.equal(elements.get('xiaomiAiAmapKey').type, 'password');
   assert.equal(elements.get('xiaomiAiAmapKey').value, '');
   assert.equal(elements.get('xiaomiAiDeepSeekKeyHint').textContent, '已加密保存；清空或输入新值以更新');
   assert.equal(elements.get('xiaomiAiQWeatherKeyHint').textContent, '已加密保存；清空或输入新值以更新');
   assert.equal(elements.get('xiaomiAiAmapKeyHint').textContent, '尚未保存');
+
+  listeners.get('xiaomiAiFetchModelsBtn:click')();
+  await new Promise(resolve => setImmediate(resolve));
+  const modelRequest = fetchCalls.find(call => call.url === '/api/ai/models');
+  assert.equal(JSON.parse(modelRequest.options.body).apiKey, '');
 
   elements.get('xiaomiAiTrigger').value = '猫猫';
   listeners.get('form:input')({ target: { id: 'xiaomiAiTrigger', matches: () => false } });

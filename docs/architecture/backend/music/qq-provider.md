@@ -45,7 +45,7 @@ Provider 通过构造时注入的 `getCookieHeader(source)` 获取整串 Cookie(
 | `p_skey` | QQ 互联 skey(GTK 源,优先级第三) | [qq-provider.js:1134-1140](../../../../src/music/providers/qq-provider.js#L1134-L1140) |
 | `skey` | QQ 旧版 skey(GTK 源,兜底) | 同上 |
 
-GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQGtkSource`)。登录判定 `hasQQMusicAuthCookie` 检查这 4 个 Cookie 任一存在([qq-provider.js:1151-1153](../../../../src/music/providers/qq-provider.js#L1151-L1153))。
+GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQGtkSource`)。Provider 内部的兼容性判定 `hasQQMusicAuthCookie` 检查这 4 个 Cookie 任一非空,用于决定是否尝试带登录态的播放/网页回退;它不等同于 Electron 的登录完成判定,`requestMusicsClient` 仍要求 `uin` 与 `qm_keyst`/`qqmusic_key`([qq-provider.js:1151-1153](../../../../src/music/providers/qq-provider.js#L1151-L1153))。
 
 ### 3.2 QQ 号提取(`extractUin`,[qq-provider.js:1162-1185](../../../../src/music/providers/qq-provider.js#L1162-L1185))
 
@@ -364,7 +364,7 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 | 操作 | 需要登录 | 判定方式 |
 |---|---|---|
 | 搜索 / 歌词 / 播放 URL / 推荐歌单 / 每日推荐 / 电台 / 歌单详情(公开路径) | ❌ | —(播放 URL 按 Cookie 有无自动置 `loginflag`) |
-| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放 / 歌单写入 | ✅ | `requireLogin`([qq-provider.js:852-859](../../../../src/music/providers/qq-provider.js#L852-L859)):`auth.loggedIn` **或** Cookie 含 4 个登录 Cookie 之一;写入还需 `uin` + GTK 源 + `authst`(qm_keyst/qqmusic_key) |
+| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放 / 歌单写入 | ✅ | `requireLogin`([qq-provider.js:852-859](../../../../src/music/providers/qq-provider.js#L852-L859)) 使用 `auth.loggedIn` 或 Provider 兼容性 Cookie 判定(4 个 Cookie 之一);真正的客户端歌单接口仍需 `uin` + `authst`(`qm_keyst`/`qqmusic_key`),失败后按各操作回退 Web 接口 |
 | 健康检查 | ❌ | 状态按 §7.13 区分 |
 
 Provider 工厂与健康聚合见 [services.md](services.md) §3;本地 HTTP 暴露见 [api.md](../api.md) 的 music-routes 节。

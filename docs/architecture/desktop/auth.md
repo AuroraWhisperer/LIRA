@@ -32,7 +32,7 @@
 
 | 平台 | 允许 Cookie 域名 | 关键 Cookie(keyCookies) | 认证 Cookie(authCookies) |
 |---|---|---|---|
-| QQ音乐 | `.qq.com`、`.y.qq.com`、`y.qq.com` | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst`、`p_skey`、`skey`(任一非空) |
+| QQ音乐 | `.qq.com`、`.y.qq.com`、`y.qq.com` | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst`(任一非空) |
 | 网易云 | `.163.com`、`.music.163.com`、`music.163.com` | `MUSIC_U`、`__csrf` | 缺省 → 回退 keyCookies |
 | Bilibili | `.bilibili.com`、`bilibili.com`、`.live.bilibili.com`、`live.bilibili.com` | `DedeUserID`、`SESSDATA`、`bili_jct` | 三者缺一不可(§4) |
 
@@ -50,7 +50,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 ## 4. 登录态判断
 
-- **音乐平台** `getMusicAuthState(platform, dataDir)`([auth-manager.js:128-154](../../../src/electron/auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 即 `qqmusic_key`、`qm_keyst`、`p_skey`、`skey` 之一;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
+- **音乐平台** `getMusicAuthState(platform, dataDir)`([auth-manager.js:128-154](../../../src/electron/auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 仅 `qqmusic_key`、`qm_keyst` 之一;`p_skey`/`skey` 虽保留在 `keyCookies` 中供 QQ Provider 的 GTK/Web 回退使用,但不单独完成 QQ 音乐登录;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
 - **Bilibili** `getBilibiliAuthState(dataDir)`([bilibili-auth.js:127-163](../../../src/electron/bilibili-auth.js#L127-L163)):**`DedeUserID`、`SESSDATA`、`bili_jct` 三者全部存在**才 `loggedIn`(比音乐平台严格);`uid = Number(DedeUserID.value) || 0`,并单独标记 `hasSessdata`。
 
 返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`、`exportedCookieExists`。
@@ -159,5 +159,5 @@ desktopRuntime.start({
 | 导航限制 | 仅 allowedHosts 内导航,其余交系统浏览器 | §3 |
 | 子域名通配 | 剥离前导点后 `endsWith('.host')` 接受所有子域名 | §3 |
 | 会话 Cookie | 无 expirationDate 的 Cookie 恢复后仍是会话 Cookie,重启可能丢失 | §5.2 |
-| 判定差异 | QQ/网易云:任一认证 Cookie 即已登录;Bilibili:三键全有 | §4 |
+| 判定差异 | QQ: `qqmusic_key`/`qm_keyst` 任一非空;网易云:任一认证 Cookie;Bilibili:三键全有 | §4 |
 | 明文风险 | cookies.txt 存有完整 SESSDATA + bili_jct,设计如此 | §6 |

@@ -142,6 +142,35 @@ test('song library artist filter matches an individual artist in a collaboration
   }
 });
 
+test('song library language filter matches an individual language in a combined field', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-language-filter-'));
+  const databases = createDatabases({ dataDir });
+
+  try {
+    songService.saveSong(databases.songDb, {
+      name: '双语歌曲', artist: '歌手甲', language: '国语/英语'
+    });
+    songService.saveSong(databases.songDb, {
+      name: '国语歌曲', artist: '歌手乙', language: '国语'
+    });
+    songService.saveSong(databases.songDb, {
+      name: '粤语歌曲', artist: '歌手丙', language: '粤语'
+    });
+
+    assert.deepEqual(
+      songService.listSongs(databases.songDb, { language: '国语' }).map((song) => song.name).sort(),
+      ['双语歌曲', '国语歌曲'].sort()
+    );
+    assert.deepEqual(
+      songService.listSongs(databases.songDb, { language: '英语' }).map((song) => song.name),
+      ['双语歌曲']
+    );
+  } finally {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('song library requires every selected complete tag and composes with category filters', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-tag-filter-'));
   const databases = createDatabases({ dataDir });

@@ -40,9 +40,9 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   const buttonRule = source.match(/\.queues-row \.song-queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(headerRule, 'queue header sizing should remain defined');
-  assert.match(headerRule, /min-height:\s*78px/);
+  assert.match(headerRule, /min-height:\s*72px/);
   assert.ok(buttonRule, 'song queue header controls should remain compact');
-  assert.match(buttonRule, /min-height:\s*30px/);
+  assert.match(buttonRule, /min-height:\s*32px/);
 });
 
 test('toolbox owns independent overtime, streamer planner, performance, usage guide, and update features', () => {

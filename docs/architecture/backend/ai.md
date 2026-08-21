@@ -161,7 +161,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 加密实现 | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key" | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31) |
 | 读取降级 | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取 | [config-store.js:20-25](../../../src/ai/config-store.js#L20-L25) |
 | 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js) |
-| 前端遮罩 | 管理页密钥输入框类型为 `password`;已保存密钥渲染为 `'********'` 遮罩(display only);提交时遇 `'********'` 值则跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新" | [ai-assistant-settings.js:266-283](../../../public/js/admin/ai-assistant-settings.js#L266-L283)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
+| 前端遮罩 | 管理页密钥输入框类型为 `password`;已保存密钥不回填到真实 `value`（输入框保持为空，避免把掩码误当成新密钥提交）;提交时空值跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新" | [ai-assistant-settings.js:266-286](../../../public/js/admin/ai-assistant-settings.js#L266-L286)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §14);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 

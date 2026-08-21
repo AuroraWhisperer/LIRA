@@ -42,15 +42,22 @@ function loadTodo(stored = new Map([[STORAGE_KEY, JSON.stringify({
   return { todo: sandbox.window.AdminApp.todo, stored };
 }
 
-test('streamer workbench centers the next show, broadcast stages, and field notes', () => {
+test('streamer workbench keeps broadcast stages and field notes', () => {
   const html = readAdminHtml();
+  const planner = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'planner.html'),
+    'utf8'
+  );
 
   assert.match(html, /<strong>主播工作台<\/strong>\s*<small>直播清单与现场备忘<\/small>/);
   assert.match(html, /id="plannerSessionForm"[\s\S]*id="plannerSessionDate"[\s\S]*id="plannerSessionTime"[\s\S]*id="plannerSessionTitle"[\s\S]*id="plannerSessionGoal"/);
   assert.match(html, /id="plannerTaskForm"[\s\S]*id="plannerTaskTitle"[\s\S]*id="plannerTaskStage"/);
   assert.match(html, /id="plannerBeforeList"[\s\S]*id="plannerLiveList"[\s\S]*id="plannerAfterList"/);
   assert.match(html, /id="plannerNoteForm"[\s\S]*id="plannerNoteBody"[\s\S]*id="plannerNoteType"[\s\S]*id="plannerNoteList"/);
-  assert.match(html, /内容只保存在这台电脑/);
+  assert.doesNotMatch(planner, /NEXT LIVE · 下一场直播/);
+  assert.doesNotMatch(planner, /把下一场播清楚，也把直播里的灵感留下来/);
+  assert.doesNotMatch(planner, /场次信息、直播清单和现场备忘会自动保存，下次打开还在。/);
+  assert.doesNotMatch(planner, /内容只保存在这台电脑/);
 });
 
 test('streamer workbench keeps its split desk readable on narrow windows', () => {

@@ -220,7 +220,11 @@ function init() {
     fetchModelsButton.textContent = '获取中…';
     setState(modelFetchState, '正在从当前模型服务获取可用模型…');
     try {
-      const apiKey = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
+      const apiKeyInput = document.getElementById('xiaomiAiDeepSeekKey');
+      const apiKeyValue = apiKeyInput.value.trim();
+      // A previously saved key is intentionally not populated in the input.
+      // Keep this guard for older renderer state that may still contain the mask.
+      const apiKey = apiKeyValue === '********' ? '' : apiKeyValue;
       const apiUrl = document.getElementById('xiaomiAiDeepSeekUrl').value.trim();
       const modelProvider = document.getElementById('xiaomiAiModelProvider')?.value || 'auto';
       const modelApiProtocol = document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto';
@@ -367,7 +371,9 @@ function renderConfig(config, preservedFieldIds = new Set()) {
     if (kind === 'checked') {
       if (config[key] !== undefined) element.checked = config[key] === true;
     } else if (kind === 'secret') {
-      element.value = config[hasKeyField] === true ? '********' : '';
+      // Never put a mask into the actual input value: users may append to it by
+      // accident, and callers such as the model picker could submit the mask.
+      element.value = '';
       element.type = 'password';
     } else if (config[key] !== undefined) {
       element.value = String(config[key]);

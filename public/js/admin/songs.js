@@ -118,7 +118,7 @@ import {
     songLanguages.clear();
     songArtists.clear();
     for (const song of songs) {
-      if (song.language) songLanguages.add(song.language);
+      for (const language of splitSongLanguages(song.language)) songLanguages.add(language);
       for (const artist of splitSongArtists(song.artist)) songArtists.add(artist);
     }
     renderLanguageFilter(songLanguages);
@@ -229,11 +229,22 @@ import {
   function renderLanguageFilter(songLanguages) {
     const select = document.getElementById('languageFilter');
     const selected = select.value;
-    const sorted = Array.from(songLanguages).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+    const languages = new Set();
+    for (const language of songLanguages) {
+      for (const name of splitSongLanguages(language)) languages.add(name);
+    }
+    const sorted = Array.from(languages).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
     select.innerHTML = '<option value="">全部语言</option>' + sorted.map((lang) => (
       `<option value="${escapeAttr(lang)}">${escapeHtml(lang)}</option>`
     )).join('');
     select.value = selected;
+  }
+
+  function splitSongLanguages(value) {
+    return String(value || '')
+      .split(/\s*(?:\/|／|、|,|，)\s*/)
+      .map((language) => language.trim())
+      .filter(Boolean);
   }
 
   function renderArtistFilter(songArtists) {

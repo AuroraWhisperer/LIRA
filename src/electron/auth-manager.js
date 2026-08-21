@@ -14,7 +14,7 @@ const MUSIC_LOGIN_CONFIG = {
     allowedHosts: ['y.qq.com', 'i.y.qq.com', 'graph.qq.com', 'ssl.ptlogin2.qq.com', 'xui.ptlogin2.qq.com', 'ui.ptlogin2.qq.com', 'ptlogin2.qq.com', 'qq.com'],
     cookieDomains: ['.qq.com', '.y.qq.com', 'y.qq.com'],
     keyCookies: ['uin', 'qqmusic_uin', 'qqmusic_key', 'qm_keyst', 'p_skey', 'skey', 'wxuin', 'p_uin', 'pt2gguin', 'superuin'],
-    authCookies: ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey']
+    authCookies: ['qqmusic_key', 'qm_keyst']
   },
   netease: {
     name: '网易云音乐',
