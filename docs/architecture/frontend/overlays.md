@@ -136,6 +136,14 @@
 - **滚动与跟随**:歌词视口拥有独立纵向滚动;当前行切换时使用弹簧动画居中跟随。用户滚轮、触摸、指针或键盘滚动后暂停自动跟随 6 秒,再恢复到当前行。
 - **状态防回灌**:客户端只接受更大的 `generation`,或同一 generation 下严格递增的 `sequence`;旧客户端缺字段时保持兼容。`content-visibility:auto` 与 `contain-intrinsic-size` 跳过视口外绘制,不改变完整歌词的滚动结构。
 
+## 6.1 游戏叠加层(/games)的弹幕组件
+
+[overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，`danmaku-feed.js` 是可复用的弹幕 DOM 组件。入口只传入会话中的 `session.danmaku`，并注入带 token 的头像解析器与大航海等级映射；组件不读取 WebSocket 或游戏状态。
+
+- `measureDanmakuText(message)` 按中英文混合文本的视觉长度估算行数、宽度百分比和最小高度。
+- `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment` 和 `textContent` 创建头像、昵称、徽标与消息正文，最多保留最近 120 条，并在每条气泡上写入 `--danmaku-width`、`--danmaku-height`、`--danmaku-lines`。
+- `games.css` 将短消息显示为紧凑气泡，长消息按宽度增长并自然换行增高；交错对齐、实时标题栏和 reduced-motion 降级只属于视觉层，不改变弹幕字段或游戏协议。
+
 ## 7. 数据消费一览
 
 | 叠加层 | 首帧 | 实时 | 去重指纹 | 触发重载的 reason |
@@ -145,5 +153,6 @@
 | blindbox | `/api/state` + `/api/gifts/blind-box-stats` | snapshot(仅缓存)+ 轮询 | 统计接口每次重取 | `bilibili:gift`/`gift:sprint:reset`/`connect` |
 | overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
 | lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
+| games | `/api/games/session` | snapshot + `game:update` + `game:draw` | 游戏入口调度器按更新频率合并渲染 | `game:update` / `game:draw` |
 
 消息类型与 reason 的全集定义以 [ws.md](../backend/ws.md) §3 为准;本表只描述各叠加层**消费**哪些。

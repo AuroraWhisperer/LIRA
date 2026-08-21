@@ -75,6 +75,9 @@ test('illustrated queue styles expose persisted typography controls', () => {
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
 
   assert.match(html, /data-illustrated-only/);
+  assert.doesNotMatch(html, /跟随每种风格默认字体|跟随每种风格默认字重/);
+  assert.match(html, /<option value="default">幼圆<\/option>/);
+  assert.match(html, /<option value="default">粗体<\/option>/);
   assert.match(html, /id="illustratedQueueFontFamily"/);
   assert.match(html, /id="illustratedQueueFontWeight"/);
   assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
@@ -85,6 +88,7 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(localFontSource, /group\.label = '本机字体'/);
   assert.match(localFontSource, /window\.queryLocalFonts\(\)/);
   assert.match(formSource, /illustratedQueueFontWeight:\s*value\('illustratedQueueFontWeight'\)/);
+  assert.match(formSource, /ILLUSTRATED_DEFAULT_LABELS[\s\S]*'neon-vinyl'[\s\S]*fontFamily:\s*'微软雅黑'[\s\S]*fontWeight:\s*'较粗'/);
   assert.match(formSource, /illustratedQueueUseCustomTextColor:\s*value\('illustratedQueueUseCustomTextColor'\)/);
   assert.match(formSource, /illustratedQueueTextColor:\s*value\('illustratedQueueTextColor'\)/);
   assert.match(defaultsSource, /illustratedQueueFontFamily:\s*'default'/);

@@ -1,3 +1,5 @@
+import { createDanmakuFeed } from './danmaku-feed.js';
+
 'use strict';
 
 let session = null;
@@ -14,6 +16,12 @@ let drawClock = null;
 let activeStroke = null;
 let drawFlushTimer = null;
 let drawSendChain = Promise.resolve();
+let drawDanmakuRenderTimer = null;
+let pendingDrawDanmakuItems = null;
+let drawDanmakuUpdateTimes = [];
+let drawDanmakuLastRenderedAt = 0;
+let drawDanmakuLastRenderDurationMs = 0;
+let drawDanmakuFeed = null;
 
 const drawClientId = `draw-${typeof crypto.randomUUID === 'function'
   ? crypto.randomUUID()
@@ -23,6 +31,15 @@ const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 
 document.addEventListener('DOMContentLoaded', () => {
+  drawDanmakuFeed = createDanmakuFeed(byId('drawDanmakuFeed'), {
+    resolveAvatarUrl: avatarSource,
+    getGuardLabel: guardLabel,
+    classNames: {
+      identity: 'draw-danmaku-identity',
+      guard: 'draw-danmaku-guard',
+      medal: 'draw-danmaku-medal'
+    }
+  });
   initDrawCanvas();
   loadSnapshot();
   connectSocket();
@@ -91,6 +108,7 @@ function renderGame(nextSession) {
   session = nextSession || null;
   const game = nextSession?.game || '';
   document.body.dataset.game = game;
+  if (!session || game !== 'draw-guess') resetDrawDanmakuRenderScheduler();
   byId('gameEmptyView').hidden = Boolean(session);
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
@@ -163,11 +181,11 @@ function renderDrawGuess(state) {
   drawClock = state.phase === 'drawing'
     ? { remainingMs: Number(state.remainingMs) || 0, receivedAt: performance.now() }
     : null;
-  byId('drawMeta').textContent = `第 ${state.round} / ${state.totalRounds} 局 · ${state.category}`;
+  byId('drawMeta').textContent = '';
   byId('drawClue').textContent = state.phase === 'drawing'
-    ? `${state.category} · ${state.wordLength} 个字`
+    ? `${state.wordLength} 个字`
     : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
-  renderDrawDanmaku(session.danmaku || []);
+  scheduleDrawDanmakuRender(session.danmaku || []);
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
   renderDrawCorrectFeed(state.correct || []);
@@ -181,56 +199,52 @@ function renderDrawGuess(state) {
   else updateDrawCountdown();
 }
 
+function scheduleDrawDanmakuRender(items) {
+  pendingDrawDanmakuItems = Array.isArray(items) ? items : [];
+  const now = performance.now();
+  drawDanmakuUpdateTimes.push(now);
+  drawDanmakuUpdateTimes = drawDanmakuUpdateTimes.filter(timestamp => now - timestamp < 1000);
+  if (drawDanmakuRenderTimer) return;
+  const interval = getDrawDanmakuRenderInterval(now);
+  const elapsed = drawDanmakuLastRenderedAt ? now - drawDanmakuLastRenderedAt : interval;
+  const waitMs = Math.max(0, interval - elapsed);
+  if (waitMs > 0) drawDanmakuRenderTimer = setTimeout(flushDrawDanmakuRender, waitMs);
+  else flushDrawDanmakuRender();
+}
+
+function getDrawDanmakuRenderInterval(now = performance.now()) {
+  const updatesPerSecond = drawDanmakuUpdateTimes.length;
+  const renderWasRecentlySlow = drawDanmakuLastRenderedAt > 0
+    && now - drawDanmakuLastRenderedAt < 1000;
+  if (updatesPerSecond >= 20 || (renderWasRecentlySlow && drawDanmakuLastRenderDurationMs >= 16)) return 500;
+  if (updatesPerSecond >= 8 || (renderWasRecentlySlow && drawDanmakuLastRenderDurationMs >= 8)) return 200;
+  return 0;
+}
+
+function flushDrawDanmakuRender() {
+  clearTimeout(drawDanmakuRenderTimer);
+  drawDanmakuRenderTimer = null;
+  if (!pendingDrawDanmakuItems) return;
+  const items = pendingDrawDanmakuItems;
+  pendingDrawDanmakuItems = null;
+  const startedAt = performance.now();
+  renderDrawDanmaku(items);
+  drawDanmakuLastRenderedAt = performance.now();
+  drawDanmakuLastRenderDurationMs = drawDanmakuLastRenderedAt - startedAt;
+}
+
+function resetDrawDanmakuRenderScheduler() {
+  clearTimeout(drawDanmakuRenderTimer);
+  drawDanmakuRenderTimer = null;
+  pendingDrawDanmakuItems = null;
+  drawDanmakuUpdateTimes = [];
+  drawDanmakuLastRenderedAt = 0;
+  drawDanmakuLastRenderDurationMs = 0;
+}
+
 function renderDrawDanmaku(items) {
-  const root = byId('drawDanmakuFeed');
-  if (!root) return;
-  root.replaceChildren();
-  const messages = Array.isArray(items) ? items : [];
-  if (!messages.length) {
-    root.append(createEmptyDrawItem('等待直播消息…'));
-    return;
-  }
-  messages.slice(-120).forEach(item => {
-    const row = document.createElement('article');
-    row.className = 'draw-danmaku-item';
-    const avatar = document.createElement('div');
-    avatar.className = 'draw-danmaku-avatar';
-    if (item.avatarUrl) {
-      const image = document.createElement('img');
-      image.alt = '';
-      image.src = avatarSource(item.avatarUrl);
-      image.addEventListener('error', () => { image.remove(); avatar.textContent = String(item.name || '观').slice(0, 1); });
-      avatar.append(image);
-    } else avatar.textContent = String(item.name || '观').slice(0, 1);
-    const body = document.createElement('div');
-    body.className = 'draw-danmaku-body';
-    const identity = document.createElement('div');
-    identity.className = 'draw-danmaku-identity';
-    const name = document.createElement('strong');
-    name.textContent = item.name || '观众';
-    identity.append(name);
-    const guard = guardLabel(item.guardLevel);
-    if (guard) {
-      const badge = document.createElement('span');
-      badge.className = 'draw-danmaku-badge draw-danmaku-guard';
-      badge.textContent = guard;
-      identity.append(badge);
-    }
-    const medalName = String(item.medalName || '').trim();
-    if (medalName) {
-      const badge = document.createElement('span');
-      const medalLevel = Math.max(0, Math.trunc(Number(item.medalLevel)) || 0);
-      badge.className = 'draw-danmaku-badge draw-danmaku-medal';
-      badge.textContent = medalLevel > 0 ? `${medalName} ${medalLevel}` : medalName;
-      identity.append(badge);
-    }
-    const message = document.createElement('p');
-    message.textContent = item.message || '';
-    body.append(identity, message);
-    row.append(avatar, body);
-    root.append(row);
-  });
-  root.scrollTop = root.scrollHeight;
+  if (!drawDanmakuFeed) return;
+  drawDanmakuFeed.render(items);
 }
 
 function guardLabel(level) {

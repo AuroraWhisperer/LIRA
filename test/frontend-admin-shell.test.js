@@ -45,7 +45,7 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   assert.match(buttonRule, /min-height:\s*32px/);
 });
 
-test('toolbox owns independent overtime, streamer planner, performance, usage guide, and update features', () => {
+test('toolbox owns independent overtime, streamer planner, start animation, performance, usage guide, and update features', () => {
   const html = readAdminHtml();
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
   const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
@@ -58,6 +58,7 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
   const overtimePosition = html.indexOf('data-other-feature="otherOvertimeMachineFeature"');
   const dailyTodoPosition = html.indexOf('data-other-feature="otherDailyTodoFeature"');
+  const startAnimationPosition = html.indexOf('data-other-feature="otherStartAnimationFeature"');
   const performancePosition = html.indexOf('data-other-feature="otherPerformanceFeature"');
   const usageGuidePosition = html.indexOf('data-other-feature="otherUsageGuideFeature"');
   const updatePosition = html.indexOf('data-other-feature="otherDesktopUpdateFeature"');
@@ -76,6 +77,8 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   assert.match(html, /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherDailyTodoFeature"/);
   assert.match(html, /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[\s\S]*?id="streamerPlanner"[\s\S]*?id="plannerTaskForm"/);
+  assert.match(html, /data-other-feature="otherStartAnimationFeature"/);
+  assert.match(html, /id="otherStartAnimationFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
   assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
@@ -85,6 +88,7 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   assert.ok(overtimePosition < performancePosition, 'overtime machine should be first in the toolbox');
   assert.ok(dailyTodoPosition > overtimePosition, 'daily todo should follow overtime machine in the toolbox');
   assert.ok(dailyTodoPosition < performancePosition, 'daily todo should precede performance in the toolbox');
+  assert.ok(startAnimationPosition < performancePosition, 'start animation should precede performance in the toolbox');
   assert.ok(usageGuidePosition > performancePosition, 'usage guide should follow performance in the toolbox');
   assert.ok(updatePosition > performancePosition, 'desktop update should follow performance in the toolbox');
   assert.equal(performanceHtml.match(/<button/g)?.length, 1);

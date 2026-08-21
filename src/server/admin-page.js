@@ -28,6 +28,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/toolbox/overtime.html',
   'pages/admin/toolbox/gift-effects.html',
   'pages/admin/toolbox/planner.html',
+  'pages/admin/toolbox/start-animation.html',
   'pages/admin/toolbox/performance.html',
   'pages/admin/toolbox/usage-guide.html',
   'pages/admin/toolbox/desktop-update.html',

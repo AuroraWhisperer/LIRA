@@ -6,6 +6,12 @@ import { registerLocalFontSelect } from './local-font-library.js';
 
 (function () {
   const ILLUSTRATED_QUEUE_STYLES = new Set(['storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']);
+  const ILLUSTRATED_DEFAULT_LABELS = {
+    storybook: { fontFamily: '幼圆', fontWeight: '粗体' },
+    'neon-vinyl': { fontFamily: '微软雅黑', fontWeight: '较粗' },
+    'cherry-ribbon': { fontFamily: '微软雅黑', fontWeight: '较粗' },
+    'golden-lily': { fontFamily: '微软雅黑', fontWeight: '较粗' }
+  };
 
   const {
     value,
@@ -236,6 +242,11 @@ import { registerLocalFontSelect } from './local-font-library.js';
       ? style
       : ((style === 'identity' || style === 'festival') ? 'identity' : 'classic');
     setValue('overlayQueueStyle', nextStyle);
+    const illustratedDefaults = ILLUSTRATED_DEFAULT_LABELS[nextStyle] || ILLUSTRATED_DEFAULT_LABELS.storybook;
+    const fontFamilyDefault = document.querySelector('#illustratedQueueFontFamily option[value="default"]');
+    const fontWeightDefault = document.querySelector('#illustratedQueueFontWeight option[value="default"]');
+    if (fontFamilyDefault) fontFamilyDefault.textContent = illustratedDefaults.fontFamily;
+    if (fontWeightDefault) fontWeightDefault.textContent = illustratedDefaults.fontWeight;
     document.querySelectorAll('[data-overlay-style]').forEach((button) => {
       button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
     });

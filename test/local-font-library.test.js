@@ -50,7 +50,7 @@ test('shared local font library queries once and populates both registered selec
   let queryCount = 0;
   const createElement = (tagName) => createNode(tagName);
   const illustratedSelect = createSelect('default', [
-    { value: 'default', label: '跟随每种风格默认字体' },
+    { value: 'default', label: '幼圆' },
     { value: 'Microsoft YaHei, PingFang SC, sans-serif', label: '微软雅黑 · 清晰' }
   ]);
   const lyricSelect = createSelect('Microsoft YaHei', [
@@ -95,7 +95,7 @@ test('shared local font library queries once and populates both registered selec
 
 test('shared local font library preserves a saved option missing from the current machine', async () => {
   const select = createSelect('default', [
-    { value: 'default', label: '跟随每种风格默认字体' }
+    { value: 'default', label: '幼圆' }
   ]);
   const sandbox = {
     console,
@@ -119,7 +119,7 @@ test('shared local font library preserves a saved option missing from the curren
 test('shared local font library retries a security error after the first user gesture', async () => {
   const listeners = new Map();
   const select = createSelect('default', [
-    { value: 'default', label: '跟随每种风格默认字体' }
+    { value: 'default', label: '幼圆' }
   ]);
   let queryCount = 0;
   const sandbox = {
