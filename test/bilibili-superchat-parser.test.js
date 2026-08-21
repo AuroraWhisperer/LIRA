@@ -27,3 +27,17 @@ test('superchat metadata drops a medal explicitly belonging to another room', ()
   assert.equal(result.guardLevel, 0);
   assert.equal(result.currentRoomVerified, true);
 });
+
+test('superchat maps a trusted user face into the identity avatar', () => {
+  const result = extractBilibiliSuperChatMessage({
+    data: {
+      uid: 123,
+      user_info: {
+        uname: '点歌人',
+        face: 'https://i0.hdslb.com/bfs/face/superchat.jpg'
+      }
+    }
+  });
+
+  assert.equal(result.avatarUrl, 'https://i0.hdslb.com/bfs/face/superchat.jpg');
+});

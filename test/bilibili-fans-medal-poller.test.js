@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { FansMedalPoller } = require('../src/bilibili/danmaku/fans-medal-poller');
-const { IdentityCache } = require('../src/bilibili/danmaku/identity-cache');
+const { UserInfoService } = require('../src/bilibili/users/user-info-service');
 
-test('fans medal poller paginates the current-room member list into identity cache', async () => {
+test('fans medal poller paginates through an injected user-info sink', async () => {
   const calls = [];
   const pages = [
     {
@@ -34,28 +34,32 @@ test('fans medal poller paginates the current-room member list into identity cac
       }]
     }
   ];
-  const cache = new IdentityCache();
+  const service = new UserInfoService();
+  service.setRoom({ roomId: '123', ownerUid: '456' });
+  const context = service.beginRoomRun();
   const poller = new FansMedalPoller({
     async fetchFansMembersRank(roomId, ruid, page, pageSize) {
       calls.push({ roomId, ruid, page, pageSize });
       return pages[page - 1];
     }
-  }, cache);
+  }, {
+    ingestHint: (hint, ingestContext) => service.ingestHint(hint, ingestContext)
+  });
 
-  await poller.pollFansMembers(123, 456);
+  await poller.pollFansMembers(context);
 
   assert.deepEqual(calls, [
-    { roomId: 123, ruid: 456, page: 1, pageSize: 30 },
-    { roomId: 123, ruid: 456, page: 2, pageSize: 30 }
+    { roomId: '123', ruid: '456', page: 1, pageSize: 30 },
+    { roomId: '123', ruid: '456', page: 2, pageSize: 30 }
   ]);
-  assert.deepEqual(cache.lookup(31, '第31人'), {
+  assert.deepEqual(service.peek('31', { fields: ['name', 'guard', 'fansMedal'] }), {
     uid: '31',
-    userName: '第31人',
-    guardLevel: 3,
-    medalName: 'imilly',
-    medalLevel: 12,
-    seenAt: cache.lookup(31, '第31人').seenAt,
-    currentRoom: true,
-    source: 'fans_rank'
+    name: '第31人',
+    room: { roomId: '123', ownerUid: '456' },
+    guard: { known: true, level: 3 },
+    fansMedal: {
+      known: true,
+      value: { name: 'imilly', level: 12, targetUid: '456' }
+    }
   });
 });

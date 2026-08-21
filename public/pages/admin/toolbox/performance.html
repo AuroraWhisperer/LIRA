@@ -12,12 +12,17 @@
                     <p id="metricsStatus">未检测</p>
                   </div>
                   <div class="monitor-actions">
-                    <label class="switch-control" title="检测最近 5 秒的资源使用率">
-                      <input id="metricsToggle" type="checkbox">
-                      <span class="switch-track"></span>
-                      <span id="metricsToggleText">开始检测</span>
-                    </label>
-                    <button id="metricsRefreshBtn" class="primary" type="button">检测 5 秒</button>
+                    <div id="metricsCountdown" class="metrics-countdown" role="timer" aria-label="每次检测采样 5 秒">
+                      <svg class="metrics-countdown-ring" viewBox="0 0 44 44" aria-hidden="true">
+                        <circle class="metrics-countdown-track" cx="22" cy="22" r="19" pathLength="100"></circle>
+                        <circle class="metrics-countdown-progress" cx="22" cy="22" r="19" pathLength="100"></circle>
+                      </svg>
+                      <span class="metrics-countdown-copy">
+                        <strong id="metricsCountdownValue">5</strong>
+                        <small>秒采样</small>
+                      </span>
+                    </div>
+                    <button id="metricsRefreshBtn" class="primary" type="button">开始检测</button>
                   </div>
                 </div>
 
@@ -91,20 +96,54 @@
                     </div>
                   </div>
                   <div class="hardware-grid">
-                    <article class="hardware-card">
-                      <span>CPU</span>
+                    <article class="hardware-card hardware-card--cpu">
+                      <div class="hardware-card-top">
+                        <span class="hardware-card-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M9 3.5v3M12 3.5v3M15 3.5v3M9 17.5v3M12 17.5v3M15 17.5v3M3.5 9h3M3.5 12h3M3.5 15h3M17.5 9h3M17.5 12h3M17.5 15h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          </svg>
+                        </span>
+                        <div class="hardware-card-heading">
+                          <span class="hardware-card-label">CPU</span>
+                          <small class="hardware-card-eyebrow">PROCESSOR</small>
+                        </div>
+                      </div>
                       <strong id="hardwareCpuModel">等待读取</strong>
                       <small id="hardwareCpuDetail">--</small>
                       <small id="hardwareCpuTemperature">温度：--</small>
                     </article>
-                    <article class="hardware-card">
-                      <span>GPU</span>
+                    <article class="hardware-card hardware-card--gpu">
+                      <div class="hardware-card-top">
+                        <span class="hardware-card-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="3.5" y="6" width="17" height="12" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M7 10.5h4M7 13.5h2M16.5 10.5h.01M16.5 13.5h.01M3.5 10H2v4h1.5M20.5 10H22v4h-1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          </svg>
+                        </span>
+                        <div class="hardware-card-heading">
+                          <span class="hardware-card-label">GPU</span>
+                          <small class="hardware-card-eyebrow">GRAPHICS</small>
+                        </div>
+                      </div>
                       <strong id="hardwareGpuModel">等待读取</strong>
                       <small id="hardwareGpuDetail">--</small>
                       <small id="hardwareGpuTemperature">温度：--</small>
                     </article>
-                    <article class="hardware-card">
-                      <span>内存</span>
+                    <article class="hardware-card hardware-card--memory">
+                      <div class="hardware-card-top">
+                        <span class="hardware-card-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="4" y="5" width="16" height="5" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+                            <rect x="4" y="14" width="16" height="5" rx="1.5" stroke="currentColor" stroke-width="1.8"/>
+                            <path d="M8 7.5h.01M11 7.5h.01M14 7.5h.01M8 16.5h.01M11 16.5h.01M14 16.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                          </svg>
+                        </span>
+                        <div class="hardware-card-heading">
+                          <span class="hardware-card-label">内存</span>
+                          <small class="hardware-card-eyebrow">MEMORY</small>
+                        </div>
+                      </div>
                       <strong id="hardwareMemoryModel">等待读取</strong>
                       <small id="hardwareMemoryDetail">--</small>
                     </article>

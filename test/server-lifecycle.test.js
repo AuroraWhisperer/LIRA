@@ -282,6 +282,33 @@ test('runtime info records the previous pid and port and removes only its own re
   }
 });
 
+test('cleanup reports bounded phase timings without exposing credentials', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const phases = [];
+  let released = false;
+
+  try {
+    fs.writeFileSync(path.join(dataDir, '.session-token'), 'secret-token\n', 'utf8');
+    const fetchImpl = async (url, options) => {
+      const response = await createPreviousServerFetch(dataDir, [])(url, options);
+      if (String(url).endsWith('/api/system/shutdown')) released = true;
+      return response;
+    };
+    await lifecycle.cleanupOwnPortOccupant({
+      ...cleanupOptions(dataDir, fetchImpl, async () => !released),
+      onPhase: (phase, durationMs, extra) => phases.push({ phase, durationMs, extra })
+    });
+
+    assert.ok(phases.some(entry => entry.phase === 'port-health-check'));
+    assert.ok(phases.some(entry => entry.phase === 'port-graceful-wait'));
+    assert.ok(phases.some(entry => entry.phase === 'port-cleanup'));
+    assert.ok(phases.every(entry => Number.isFinite(entry.durationMs) && entry.durationMs >= 0));
+    assert.doesNotMatch(JSON.stringify(phases), /secret-token/);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('inflight tracker rejects new work and drains already accepted handlers', async () => {
   const tracker = createInflightTracker();
   let release;

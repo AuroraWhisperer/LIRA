@@ -9,9 +9,9 @@ const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 
 class MessageHandlers {
-  constructor(handlers, identityCache, deduplicator, diagnostics, options = {}) {
+  constructor(handlers, userInfoService, deduplicator, diagnostics, options = {}) {
     this.handlers = handlers;
-    this.identityCache = identityCache;
+    this.userInfoService = userInfoService;
     this.deduplicator = deduplicator;
     this.diagnostics = diagnostics;
     this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
@@ -19,16 +19,11 @@ class MessageHandlers {
     this.connectionGeneration = Number(options.connectionGeneration) || 0;
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
+    this.roomRunContext = null;
     this.messageBuffer = options.messageBuffer || null;
     this.isCommandText = typeof options.isCommandText === 'function'
       ? options.isCommandText
       : isBilibiliCommandText;
-    // 每 5 分钟清理一次身份缓存，防止无界增长
-    this._identityCleanupTimer = setInterval(() => {
-      if (this.identityCache && typeof this.identityCache.cleanup === 'function') {
-        this.identityCache.cleanup();
-      }
-    }, 5 * 60 * 1000).unref();
   }
 
   updateStartTime(startedAtMs) {
@@ -47,12 +42,13 @@ class MessageHandlers {
     this.roomOwnerUid = cleanText(roomOwnerUid);
   }
 
+  updateRoomRunContext(roomRunContext) {
+    this.roomRunContext = roomRunContext || null;
+  }
+
   // 销毁定时器，避免泄漏
   destroy() {
-    if (this._identityCleanupTimer) {
-      clearInterval(this._identityCleanupTimer);
-      this._identityCleanupTimer = null;
-    }
+    this.roomRunContext = null;
   }
 
   async handlePackets(buffer) {
@@ -90,16 +86,12 @@ class MessageHandlers {
       return;
     }
 
-    const requester = this.identityCache.resolve({
+    const requester = this.ingestIdentity({
       uid: userInfo[0],
-      userName: String(userInfo[1] || '观众'),
+      name: String(userInfo[1] || '观众'),
       avatarUrl,
-      requesterGuardLevel: userMeta.guardLevel,
-      requesterMedalName: userMeta.medalName,
-      requesterMedalLevel: userMeta.medalLevel,
-      currentRoomVerified: userMeta.currentRoomVerified,
-      identitySource: 'danmaku'
-    });
+      roomIdentity: roomIdentityFromMeta(userMeta)
+    }, 'danmaku', userMeta.currentRoomVerified);
 
     this.handlers.onMessage({
       message: text,
@@ -120,15 +112,12 @@ class MessageHandlers {
   handleSuperChat(message) {
     const superChat = packetParser.extractBilibiliSuperChatMessage(message, this.roomOwnerUid);
     const text = superChat.message;
-    const requester = this.identityCache.resolve({
+    const requester = this.ingestIdentity({
       uid: superChat.uid,
-      userName: superChat.userName,
-      requesterGuardLevel: superChat.guardLevel,
-      requesterMedalName: superChat.medalName,
-      requesterMedalLevel: superChat.medalLevel,
-      currentRoomVerified: superChat.currentRoomVerified,
-      identitySource: 'superchat'
-    });
+      name: superChat.userName,
+      avatarUrl: superChat.avatarUrl,
+      roomIdentity: roomIdentityFromMeta(superChat)
+    }, 'superchat', superChat.currentRoomVerified);
     const trace = {
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
@@ -176,6 +165,7 @@ class MessageHandlers {
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
+      avatarUrl: requester.avatarUrl,
       currentRoomVerified: superChat.currentRoomVerified,
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,
@@ -235,16 +225,80 @@ class MessageHandlers {
         detail: isKnownCmd ? '' : `New/unrecognized CMD parsed successfully via fallback`
       });
     }
-    const requester = this.identityCache.resolve({
+    const isVerifiedGuardPurchase = cleanText(gift.cmd).startsWith('USER_TOAST_MSG')
+      && normalizeGuardLevelFromGift(gift) > 0;
+    const requester = this.ingestIdentity({
       uid: gift.uid,
-      userName: gift.userName
-    });
+      name: gift.userName,
+      avatarUrl: gift.avatarUrl,
+      roomIdentity: isVerifiedGuardPurchase ? {
+        guardKnown: true,
+        guardLevel: normalizeGuardLevelFromGift(gift)
+      } : undefined
+    }, 'gift', isVerifiedGuardPurchase);
     this.handlers.onGift({
       ...gift,
       uid: requester.uid,
       userName: requester.userName
     });
   }
+
+  ingestIdentity(hint, source, roomIdentityVerified) {
+    const fallback = {
+      uid: cleanText(hint && hint.uid),
+      userName: cleanText(hint && hint.name) || '观众',
+      avatarUrl: cleanText(hint && hint.avatarUrl),
+      guardLevel: 0,
+      medalName: '',
+      medalLevel: 0
+    };
+    if (!this.roomRunContext) return fallback;
+    const result = this.userInfoService.ingestHint(hint, {
+      ...this.roomRunContext,
+      source,
+      roomIdentityVerified: roomIdentityVerified === true
+    });
+    return compatibilityRequester(result.snapshot, fallback);
+  }
+}
+
+function roomIdentityFromMeta(meta = {}) {
+  const verified = meta.currentRoomVerified === true;
+  return {
+    guardKnown: verified,
+    guardLevel: meta.guardLevel,
+    medalKnown: verified,
+    fansMedal: meta.medalName ? {
+      name: meta.medalName,
+      level: meta.medalLevel,
+      targetUid: meta.medalTargetUid
+    } : null
+  };
+}
+
+function compatibilityRequester(snapshot, fallback) {
+  if (!snapshot) return fallback;
+  const medal = snapshot.fansMedal && snapshot.fansMedal.known
+    ? snapshot.fansMedal.value
+    : null;
+  return {
+    uid: snapshot.uid,
+    userName: snapshot.name || fallback.userName,
+    avatarUrl: snapshot.avatarUrl || fallback.avatarUrl,
+    guardLevel: snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
+    medalName: medal ? medal.name : '',
+    medalLevel: medal ? medal.level : 0
+  };
+}
+
+function normalizeGuardLevelFromGift(gift) {
+  const match = /^guard-(\d+)$/.exec(cleanText(gift && gift.giftId));
+  if (match) return Number(match[1]);
+  const name = cleanText(gift && gift.giftName);
+  if (name.includes('总督')) return 3;
+  if (name.includes('提督')) return 2;
+  if (name.includes('舰长')) return 1;
+  return 0;
 }
 
 function normalizeBilibiliCommandName(value) {

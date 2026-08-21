@@ -16,16 +16,24 @@ class HistoryPoller {
     this.isCommandText = typeof options.isCommandText === 'function'
       ? options.isCommandText
       : isBilibiliCommandText;
+    this.onIdentityHint = typeof options.onIdentityHint === 'function'
+      ? options.onIdentityHint
+      : null;
+    this.deduplicator = options.deduplicator || null;
     this.timer = null;
+    this.pollInFlight = false;
+    this.localGeneration = 0;
   }
 
-  start(roomId) {
+  start(context) {
     this.stop();
-    this.pollHistory(roomId).catch((error) => {
+    if (!context || !context.roomId || !context.ownerUid) return;
+    const localGeneration = ++this.localGeneration;
+    this.pollHistory(context, localGeneration).catch((error) => {
       console.warn(`[Bilibili] history polling failed: ${error.message}`);
     });
     this.timer = setInterval(() => {
-      this.pollHistory(roomId).catch((error) => {
+      this.pollHistory(context, localGeneration).catch((error) => {
         console.warn(`[Bilibili] history polling failed: ${error.message}`);
       });
     }, 2500);
@@ -34,6 +42,7 @@ class HistoryPoller {
   stop() {
     clearInterval(this.timer);
     this.timer = null;
+    this.localGeneration += 1;
   }
 
   updateStartTime(startedAtMs) {
@@ -44,8 +53,12 @@ class HistoryPoller {
     this.roomOwnerUid = cleanText(roomOwnerUid);
   }
 
-  async pollHistory(roomId) {
-    const data = await this.apiClient.fetchHistory(roomId);
+  async pollHistory(context, localGeneration = this.localGeneration) {
+    if (this.pollInFlight) return;
+    this.pollInFlight = true;
+    try {
+    const data = await this.apiClient.fetchHistory(context.roomId);
+    if (localGeneration !== this.localGeneration) return;
     const messages = []
       .concat(Array.isArray(data.admin) ? data.admin : [])
       .concat(Array.isArray(data.room) ? data.room : []);
@@ -53,14 +66,30 @@ class HistoryPoller {
 
     let processed = 0;
     for (const item of messages) {
+      if (localGeneration !== this.localGeneration) return;
       const text = cleanText(item.text);
       if (!text) continue;
       const timelineMs = parseBilibiliTimeline(item.timeline);
       if (!this.isCommandText(text)) continue;
       if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) continue;
+      if (this.deduplicator && !this.deduplicator.remember(item.uid, text, timelineMs, {
+        userName: item.nickname || item.uname,
+        source: 'history'
+      })) continue;
 
       processed += 1;
       const userMeta = packetParser.extractBilibiliHistoryUserMeta(item, this.roomOwnerUid);
+      let identitySnapshot = null;
+      if (this.onIdentityHint) {
+        if (localGeneration !== this.localGeneration) return;
+        const result = this.onIdentityHint(toIdentityHint(item, userMeta), {
+          ...context,
+          source: 'history',
+          roomIdentityVerified: userMeta.currentRoomVerified === true
+        });
+        identitySnapshot = result && result.snapshot;
+      }
+      if (localGeneration !== this.localGeneration) return;
       this.onMessage({
         uid: item.uid,
         userName: String(item.nickname || item.uname || '观众'),
@@ -72,14 +101,36 @@ class HistoryPoller {
         currentRoomVerified: userMeta.currentRoomVerified,
         identitySource: 'history',
         source: 'history',
-        messageTimestamp: timelineMs
+        messageTimestamp: timelineMs,
+        identitySnapshot
       });
     }
 
     if (processed > 0) {
       console.log(`[Bilibili] history polling processed ${processed} command message(s).`);
     }
+    } finally {
+      this.pollInFlight = false;
+    }
   }
+}
+
+function toIdentityHint(item, userMeta) {
+  return {
+    uid: item.uid,
+    name: String(item.nickname || item.uname || '观众'),
+    avatarUrl: userMeta.avatarUrl,
+    roomIdentity: {
+      guardKnown: userMeta.currentRoomVerified === true,
+      guardLevel: userMeta.guardLevel,
+      medalKnown: userMeta.currentRoomVerified === true,
+      fansMedal: userMeta.medalName ? {
+        name: userMeta.medalName,
+        level: userMeta.medalLevel,
+        targetUid: userMeta.medalTargetUid
+      } : null
+    }
+  };
 }
 
 function parseBilibiliTimeline(value) {

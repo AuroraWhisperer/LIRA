@@ -41,7 +41,7 @@ class IdentityCache {
       this.recentByUid.set(uid, {
         ...publicRequesterIdentity(merged),
         uid,
-        userName,
+        userName: merged.userName,
         seenAt: Date.now()
       });
     }
@@ -71,7 +71,8 @@ class IdentityCache {
       source: options.source || (input && (input.source || input.identitySource))
     });
     if (!identity.uid && !identity.userName) return false;
-    if (!identity.currentRoom && !identity.avatarUrl && !identity.guardLevel && !identity.medalLevel && !identity.medalName) return false;
+    if (!identity.currentRoom && !identity.avatarUrl && !identity.guardLevel && !identity.medalLevel && !identity.medalName
+      && !identity.userName) return false;
 
     const previous = this.lookup(identity.uid, identity.userName);
     const merged = {
@@ -125,6 +126,65 @@ class IdentityCache {
       .filter(Boolean)
       .map(publicRequesterIdentity)
       .sort((left, right) => left.userName.localeCompare(right.userName, 'zh-CN'));
+  }
+
+  storeMerged(input, options = {}) {
+    const identity = publicRequesterIdentity({
+      uid: input && input.uid,
+      userName: input && (input.userName || input.name),
+      avatarUrl: input && input.avatarUrl,
+      guardLevel: input && input.guardLevel,
+      medalName: input && input.medalName,
+      medalLevel: input && input.medalLevel,
+      seenAt: input && input.seenAt
+    });
+    if (!identity.uid) return false;
+
+    const stored = { ...identity };
+    this.identityByUid.set(identity.uid, stored);
+    const nameKey = requesterNameKey(identity.userName);
+    if (nameKey) this.identityByName.set(nameKey, stored);
+    if (options.recent === true) this.recentByUid.set(identity.uid, stored);
+    return true;
+  }
+
+  readMerged(uid) {
+    const identity = this.identityByUid.get(cleanText(uid));
+    return identity ? { ...identity } : null;
+  }
+
+  listRecentUids() {
+    this.cleanup();
+    return [...this.recentByUid.entries()]
+      .sort((left, right) => Number(right[1]?.seenAt || 0) - Number(left[1]?.seenAt || 0))
+      .map(([uid]) => uid);
+  }
+
+  replaceOnlineSnapshot(uids = []) {
+    this.markOnlineSnapshot(uids);
+  }
+
+  listOnlineUids() {
+    return [...this.onlineUids];
+  }
+
+  clearRoomIndexes() {
+    this.recentByUid.clear();
+    this.onlineUids.clear();
+  }
+
+  deleteMerged(uid) {
+    const uidKey = cleanText(uid);
+    const identity = this.identityByUid.get(uidKey);
+    if (identity) {
+      const nameKey = requesterNameKey(identity.userName);
+      if (nameKey && this.identityByName.get(nameKey) === identity) {
+        this.identityByName.delete(nameKey);
+      }
+    }
+    this.identityByUid.delete(uidKey);
+    this.recentByUid.delete(uidKey);
+    this.onlineUids.delete(uidKey);
   }
 }
 

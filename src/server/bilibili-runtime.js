@@ -3,6 +3,8 @@
 const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 const { createDanmakuSenderService } = require('../bilibili/danmaku/sender-service');
 const { createMessageBuffer } = require('../bilibili/diagnostics/message-buffer');
+const { BilibiliUserProfileProvider } = require('../bilibili/users/profile-provider');
+const { UserInfoService } = require('../bilibili/users/user-info-service');
 const sharedUtils = require('../shared/utils');
 
 function createBilibiliRuntime(options) {
@@ -35,6 +37,15 @@ function createBilibiliRuntime(options) {
   let authProvider = null;
   let authCache = { cookieHeader: '', uid: 0 };
   let client = null;
+  const userInfoService = new UserInfoService({
+    profileProvider: {
+      async fetchProfile(uid) {
+        const apiClient = client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
+        return new BilibiliUserProfileProvider(apiClient).fetchProfile(uid);
+      }
+    },
+    diagnostics
+  });
   let stopped = false;
   let replaceClientChain = Promise.resolve();
 
@@ -86,8 +97,11 @@ function createBilibiliRuntime(options) {
         name = String(roomInfo.ownerName || '').trim();
       }
       if (!uid) return { avatarUrl: '', name };
-      const profile = await apiClient.fetchUserProfile(uid);
-      return { avatarUrl: profile.avatarUrl, name: profile.name || name };
+      const profile = await userInfoService.ensure(uid, { fields: ['name', 'avatarUrl'] });
+      return {
+        avatarUrl: profile?.avatarUrl || '',
+        name: profile?.name || name
+      };
     } catch (_) {
       return { avatarUrl: '', name };
     }
@@ -163,7 +177,8 @@ function createBilibiliRuntime(options) {
         bilibiliDiagnostics: diagnostics,
         runtimeGiftCommandPrefixes,
         messageBuffer,
-        bilibiliAuthCache: authCache
+        bilibiliAuthCache: authCache,
+        userInfoService
       });
       client = nextClient;
       if (restart) {
@@ -213,6 +228,7 @@ function createBilibiliRuntime(options) {
     if (stopped) return;
     stopped = true;
     stopClient();
+    userInfoService.dispose();
   }
 
   return {

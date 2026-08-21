@@ -63,16 +63,27 @@ function tryListen(server, port, host) {
 }
 
 async function cleanupOwnPortOccupant(options) {
+  const reportPhase = typeof options.onPhase === 'function' ? options.onPhase : () => {};
+  const phaseStart = Date.now();
+  const markPhase = (phase, extra = {}) => reportPhase(phase, Date.now() - phaseStart, extra);
   const requestedPort = Number(options.port);
   const port = requestedPort;
   const host = options.host;
-  if (!Number.isInteger(port) || port <= 0) return;
+  if (!Number.isInteger(port) || port <= 0) {
+    markPhase('port-cleanup', { result: 'skipped-invalid-port' });
+    return;
+  }
   const runtime = readRuntimeInfo(options.dataDir);
   const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
-  if (runtimeForPort && Number(runtimeForPort.pid) === process.pid) return;
+  if (runtimeForPort && Number(runtimeForPort.pid) === process.pid) {
+    markPhase('port-cleanup', { result: 'skipped-current-process' });
+    return;
+  }
 
   const fetchImpl = options.fetch || globalThis.fetch;
+  const healthStart = Date.now();
   const health = await readLocalHealth(port, host, fetchImpl);
+  reportPhase('port-health-check', Date.now() - healthStart, { ok: Boolean(health && health.ok) });
   const serviceIdIsOwn = health && health.ok && health.data && health.data.serviceId === SERVICE_ID;
   const healthIsOwn = serviceIdIsOwn || (health && health.ok && isOwnServiceHealth(health.data, options));
   const runtimePid = runtimeForPort && Number(runtimeForPort.pid);
@@ -81,33 +92,48 @@ async function cleanupOwnPortOccupant(options) {
   const processIsOwn = isOwnProcessInfo(processInfo, options);
   if (!healthIsOwn && !processIsOwn) {
     if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
+    markPhase('port-cleanup', { result: 'untouched' });
     return;
   }
 
   console.log(`Found previous LIRA service on ${host}:${port}; asking it to shut down...`);
+  const gracefulStart = Date.now();
   await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
-  if (await waitForPortRelease(port, host, options)) {
+  const gracefulReleased = await waitForPortRelease(port, host, options);
+  reportPhase('port-graceful-wait', Date.now() - gracefulStart, { released: gracefulReleased });
+  if (gracefulReleased) {
     if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
+    markPhase('port-cleanup', { result: 'graceful' });
     return;
   }
 
   const pid = healthIsOwn
     ? Number(health.data && health.data.pid)
     : runtimePid;
-  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return;
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) {
+    markPhase('port-cleanup', { result: 'graceful-timeout-no-pid' });
+    return;
+  }
 
   const currentProcessInfo = processInfo || getProcessInfo(pid);
-  if (!serviceIdIsOwn && !isOwnProcessInfo(currentProcessInfo, options)) return;
+  if (!serviceIdIsOwn && !isOwnProcessInfo(currentProcessInfo, options)) {
+    markPhase('port-cleanup', { result: 'graceful-timeout-unverified' });
+    return;
+  }
 
   console.log(`Previous service did not exit cleanly; stopping pid ${pid}.`);
   try {
     process.kill(pid, 'SIGTERM');
   } catch (error) {
     console.warn(`Could not stop previous service pid ${pid}: ${error.message}`);
+    markPhase('port-cleanup', { result: 'terminate-failed' });
     return;
   }
-  await waitForPortRelease(port, host, options);
+  const terminateStart = Date.now();
+  const terminateReleased = await waitForPortRelease(port, host, options);
+  reportPhase('port-terminate-wait', Date.now() - terminateStart, { released: terminateReleased });
   if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
+  markPhase('port-cleanup', { result: terminateReleased ? 'terminated' : 'terminate-timeout' });
 }
 
 async function readLocalHealth(port, host, fetchImpl = globalThis.fetch) {

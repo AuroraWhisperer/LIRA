@@ -124,3 +124,10 @@ test('cached online viewer avatar is reused by a later danmaku identity', () => 
   assert.equal(cache.resolve({ uid: '1', userName: 'Online' }).avatarUrl,
     'https://i0.hdslb.com/bfs/face/online.jpg');
 });
+
+test('recent users do not let a masked name overwrite a cached full name', () => {
+  const cache = new IdentityCache();
+  cache.resolve({ uid: '1', userName: '完整昵称' });
+  cache.resolve({ uid: '1', userName: '**昵称' });
+  assert.equal(cache.listRecent()[0].userName, '完整昵称');
+});

@@ -7,91 +7,155 @@
               hidden
             >
               <div id="streamerPlanner" class="other-feature-panel-body streamer-planner">
-                <header class="planner-hero">
-                  <div class="planner-hero-copy">
-                    <span class="planner-eyebrow">我的直播节奏</span>
-                    <h2>主播计划</h2>
-                    <p>把学歌、开播准备和下播复盘放到合适的时间里，一次只做眼前这件事。</p>
-                  </div>
-                  <div class="planner-hero-status">
-                    <time id="plannerDateLabel">今天</time>
-                    <strong id="plannerSummary">0 / 0 已完成</strong>
-                    <span id="plannerSummaryNote">先安排今天最重要的事</span>
-                  </div>
-                </header>
-
-                <section class="planner-capture" aria-labelledby="plannerCaptureTitle">
-                  <div class="planner-section-heading">
+                <header class="planner-show-card">
+                  <div class="planner-show-heading">
                     <div>
-                      <h3 id="plannerCaptureTitle">记下一件事</h3>
-                      <p>写清楚要做什么，再选什么时候做。内容会自动保存。</p>
+                      <span class="planner-live-kicker"><i aria-hidden="true"></i>NEXT LIVE · 下一场直播</span>
+                      <h2>把下一场播清楚，也把直播里的灵感留下来</h2>
+                      <p>场次信息、直播清单和现场备忘会自动保存，下次打开还在。</p>
                     </div>
                     <span class="planner-local-note">
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      所有安排只保存在这台电脑
+                      内容只保存在这台电脑
                     </span>
                   </div>
-                  <form id="plannerTaskForm" class="planner-quick-add" autocomplete="off">
-                    <label class="planner-title-field">
-                      <span>要做什么</span>
-                      <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="例如：学《晴天》，练到能跟伴奏唱">
-                    </label>
-                    <label>
-                      <span>什么时候</span>
-                      <select id="plannerTaskPeriod" data-dropdown-variant="toolbox">
-                        <option value="today">今天</option>
-                        <option value="week">本周</option>
-                        <option value="month">本月</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>属于哪类</span>
-                      <select id="plannerTaskCategory" data-dropdown-variant="toolbox">
-                        <option value="song">学歌</option>
-                        <option value="prep">开播准备</option>
-                        <option value="content">内容发布</option>
-                        <option value="review">直播复盘</option>
-                      </select>
-                    </label>
-                    <button class="primary planner-add-button" type="submit">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                      添加安排
-                    </button>
-                  </form>
-                  <div class="planner-template-row" aria-label="常用安排示例">
-                    <span>不会写？点一个再改：</span>
-                    <button type="button" data-planner-template data-title="学一首新歌" data-period="week" data-category="song">学一首歌</button>
-                    <button type="button" data-planner-template data-title="检查麦克风、耳返和网络" data-period="today" data-category="prep">开播前检查</button>
-                    <button type="button" data-planner-template data-title="剪出一条直播切片" data-period="week" data-category="content">整理直播切片</button>
-                    <button type="button" data-planner-template data-title="记下本场高光和需要改进的问题" data-period="today" data-category="review">下播后复盘</button>
-                  </div>
-                </section>
 
-                <div class="planner-timeline" aria-label="今天、本周和本月安排">
-                  <section class="planner-period-card planner-period-today" data-planner-period="today">
-                    <header class="planner-period-heading">
-                      <span class="planner-period-marker" aria-hidden="true"></span>
-                      <div><h3>今天</h3><p>开播前后马上处理</p></div>
-                      <strong id="plannerTodayCount">0 项</strong>
-                    </header>
-                    <div id="plannerTodayList" class="planner-task-list" role="list" aria-live="polite"></div>
+                  <form id="plannerSessionForm" class="planner-session-form" autocomplete="off">
+                    <label class="planner-session-date">
+                      <span>直播日期</span>
+                      <input id="plannerSessionDate" type="date" data-session-field="date">
+                    </label>
+                    <label class="planner-session-time">
+                      <span>开播时间</span>
+                      <input id="plannerSessionTime" type="time" data-session-field="time">
+                    </label>
+                    <label class="planner-session-title">
+                      <span>这场播什么</span>
+                      <input id="plannerSessionTitle" type="text" maxlength="60" data-session-field="title" placeholder="例如：周五点歌回 · 新歌首唱">
+                    </label>
+                    <label class="planner-session-goal">
+                      <span>本场最重要的事</span>
+                      <input id="plannerSessionGoal" type="text" maxlength="100" data-session-field="goal" placeholder="例如：把两首新歌唱稳，提醒下周直播时间">
+                    </label>
+                    <span id="plannerSaveState" class="planner-save-state" role="status" aria-live="polite">已自动保存</span>
+                  </form>
+                </header>
+
+                <div class="planner-workspace">
+                  <section class="planner-plan-panel" aria-labelledby="plannerPlanTitle">
+                    <div class="planner-panel-heading">
+                      <div>
+                        <span class="planner-section-label">RUN OF SHOW</span>
+                        <h3 id="plannerPlanTitle">直播计划</h3>
+                        <p>按真正发生的顺序准备，勾掉一项就少惦记一项。</p>
+                      </div>
+                      <div class="planner-plan-progress">
+                        <strong id="plannerPlanSummary">0 / 0</strong>
+                        <span id="plannerPlanStatus">等待安排</span>
+                      </div>
+                    </div>
+
+                    <form id="plannerTaskForm" class="planner-task-form" autocomplete="off">
+                      <label class="planner-task-input">
+                        <span>添加一件要做的事</span>
+                        <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="例如：把本场三段聊天话题写下来">
+                      </label>
+                      <label>
+                        <span>放到哪个阶段</span>
+                        <select id="plannerTaskStage" data-dropdown-variant="toolbox">
+                          <option value="before">开播前</option>
+                          <option value="live">直播中</option>
+                          <option value="after">下播后</option>
+                        </select>
+                      </label>
+                      <button class="primary planner-add-button" type="submit">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        加入清单
+                      </button>
+                    </form>
+
+                    <div class="planner-template-row" aria-label="常用直播清单">
+                      <span>常用：</span>
+                      <button type="button" data-planner-template data-title="检查麦克风、耳返、画面和网络" data-stage="before">设备检查</button>
+                      <button type="button" data-planner-template data-title="确认直播标题、封面和开播公告" data-stage="before">标题与公告</button>
+                      <button type="button" data-planner-template data-title="准备开场、过场和结束前的话题" data-stage="live">流程与话题</button>
+                      <button type="button" data-planner-template data-title="记下高光时间点和观众反馈" data-stage="after">高光记录</button>
+                      <button type="button" data-planner-template data-title="复盘数据并定下一个改进动作" data-stage="after">下播复盘</button>
+                    </div>
+
+                    <div class="planner-stage-track" aria-label="开播前、直播中和下播后清单">
+                      <section class="planner-stage planner-stage-before" data-planner-stage="before">
+                        <header class="planner-stage-heading">
+                          <span class="planner-stage-index">01</span>
+                          <span class="planner-stage-dot" aria-hidden="true"></span>
+                          <div>
+                            <h4>开播前</h4>
+                            <p>设备、内容、公告都准备好</p>
+                          </div>
+                          <strong id="plannerBeforeCount">0 项</strong>
+                        </header>
+                        <div id="plannerBeforeList" class="planner-task-list" role="list" aria-live="polite"></div>
+                      </section>
+
+                      <section class="planner-stage planner-stage-live" data-planner-stage="live">
+                        <header class="planner-stage-heading">
+                          <span class="planner-stage-index">02</span>
+                          <span class="planner-stage-dot" aria-hidden="true"></span>
+                          <div>
+                            <h4>直播中</h4>
+                            <p>流程、互动和要说的话</p>
+                          </div>
+                          <strong id="plannerLiveCount">0 项</strong>
+                        </header>
+                        <div id="plannerLiveList" class="planner-task-list" role="list" aria-live="polite"></div>
+                      </section>
+
+                      <section class="planner-stage planner-stage-after" data-planner-stage="after">
+                        <header class="planner-stage-heading">
+                          <span class="planner-stage-index">03</span>
+                          <span class="planner-stage-dot" aria-hidden="true"></span>
+                          <div>
+                            <h4>下播后</h4>
+                            <p>高光、观众约定和复盘</p>
+                          </div>
+                          <strong id="plannerAfterCount">0 项</strong>
+                        </header>
+                        <div id="plannerAfterList" class="planner-task-list" role="list" aria-live="polite"></div>
+                      </section>
+                    </div>
                   </section>
-                  <section class="planner-period-card planner-period-week" data-planner-period="week">
-                    <header class="planner-period-heading">
-                      <span class="planner-period-marker" aria-hidden="true"></span>
-                      <div><h3>本周</h3><p>练习、发布与固定安排</p></div>
-                      <strong id="plannerWeekCount">0 项</strong>
-                    </header>
-                    <div id="plannerWeekList" class="planner-task-list" role="list" aria-live="polite"></div>
-                  </section>
-                  <section class="planner-period-card planner-period-month" data-planner-period="month">
-                    <header class="planner-period-heading">
-                      <span class="planner-period-marker" aria-hidden="true"></span>
-                      <div><h3>本月</h3><p>歌单、内容和成长目标</p></div>
-                      <strong id="plannerMonthCount">0 项</strong>
-                    </header>
-                    <div id="plannerMonthList" class="planner-task-list" role="list" aria-live="polite"></div>
-                  </section>
+
+                  <aside class="planner-notes-panel" aria-labelledby="plannerNotesTitle">
+                    <div class="planner-panel-heading planner-notes-heading">
+                      <div>
+                        <span class="planner-section-label">FIELD NOTES</span>
+                        <h3 id="plannerNotesTitle">现场备忘</h3>
+                        <p>先记下来，稍后再决定要不要做。</p>
+                      </div>
+                      <span id="plannerNoteCount" class="planner-note-count">0 条</span>
+                    </div>
+
+                    <form id="plannerNoteForm" class="planner-note-form" autocomplete="off">
+                      <label>
+                        <span>记一句</span>
+                        <textarea id="plannerNoteBody" maxlength="300" required placeholder="观众想听的歌、突然想到的梗、本场高光时间点……"></textarea>
+                      </label>
+                      <div class="planner-note-actions">
+                        <label>
+                          <span>这是什么</span>
+                          <select id="plannerNoteType" data-dropdown-variant="toolbox">
+                            <option value="idea">内容灵感</option>
+                            <option value="promise">观众约定</option>
+                            <option value="review">复盘记录</option>
+                          </select>
+                        </label>
+                        <button class="planner-note-submit" type="submit">记下来</button>
+                      </div>
+                    </form>
+
+                    <div id="plannerNoteList" class="planner-note-list" role="list" aria-live="polite"></div>
+                    <p class="planner-notes-tip"><strong>小提示</strong>：备忘右下角可直接“加入计划”，不用再抄一遍。</p>
+                  </aside>
                 </div>
               </div>
             </section>

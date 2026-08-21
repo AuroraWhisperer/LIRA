@@ -50,7 +50,7 @@ function extractBilibiliDanmakuUserMeta(info, roomOwnerUid = '') {
     cleanText(roomOwnerUid)
     && [medalInfo, userMedalInfo].some((candidate) => readMedalTargetId(candidate))
   );
-  return addCurrentRoomVerification({
+  return addCurrentRoomVerification(addMedalTargetUid({
     guardLevel: normalizeGuardLevel(
       readObjectValue(userGuardInfo, ['level', 'guard_level', 'guardLevel'])
       || readObjectValue(currentMedalInfo, ['guard_level', 'guardLevel'])
@@ -58,21 +58,21 @@ function extractBilibiliDanmakuUserMeta(info, roomOwnerUid = '') {
     ),
     medalName: readMedalName(currentMedalInfo),
     medalLevel: readMedalLevel(currentMedalInfo),
-  }, currentRoomVerified);
+  }, readMedalTargetId(currentMedalInfo)), currentRoomVerified);
 }
 
 function extractBilibiliHistoryUserMeta(item, roomOwnerUid = '') {
   const medalInfo = item && (item.medal || item.fans_medal || item.fansMedal || item.medal_info || item.medalInfo);
   const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo], roomOwnerUid);
   const currentRoomVerified = Boolean(cleanText(roomOwnerUid) && medalInfo);
-  return addCurrentRoomVerification(addAvatarUrl({
+  return addCurrentRoomVerification(addMedalTargetUid(addAvatarUrl({
     guardLevel: normalizeGuardLevel(
       readObjectValue(item, ['guard_level', 'guardLevel', 'guard_level_v2'])
       || readObjectValue(currentMedalInfo, ['guard_level', 'guardLevel'])
     ),
     medalName: readMedalName(currentMedalInfo),
     medalLevel: readMedalLevel(currentMedalInfo),
-  }, readObjectValue(item, ['face', 'face_url', 'faceUrl', 'avatar', 'avatar_url'])), currentRoomVerified);
+  }, readObjectValue(item, ['face', 'face_url', 'faceUrl', 'avatar', 'avatar_url'])), readMedalTargetId(currentMedalInfo)), currentRoomVerified);
 }
 
 function extractBilibiliOnlineRankUserMeta(item, roomOwnerUid = '') {
@@ -88,7 +88,7 @@ function extractBilibiliOnlineRankUserMeta(item, roomOwnerUid = '') {
   );
   const guardInfo = item && (item.guard || item.guard_info || item.guardInfo || (uinfo && uinfo.guard));
   const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo], roomOwnerUid, { allowUnattributed: true });
-  return addCurrentRoomVerification(addAvatarUrl({
+  return addCurrentRoomVerification(addMedalTargetUid(addAvatarUrl({
     uid: cleanText(readObjectValue(item, ['uid', 'mid']) || readObjectValue(uinfo, ['uid', 'mid'])),
     userName: cleanText(
       readObjectValue(item, ['name', 'uname', 'nickname'])
@@ -103,7 +103,8 @@ function extractBilibiliOnlineRankUserMeta(item, roomOwnerUid = '') {
     medalLevel: readMedalLevel(currentMedalInfo),
   }, readObjectValue(item, ['face', 'face_url', 'faceUrl', 'avatar', 'avatar_url'])
     || readObjectValue(uinfo && uinfo.base, ['face', 'face_url', 'faceUrl', 'avatar', 'avatar_url'])
-  ), Boolean(cleanText(roomOwnerUid) && medalInfo));
+  ), readMedalTargetId(currentMedalInfo) || cleanText(roomOwnerUid)),
+  Boolean(cleanText(roomOwnerUid) && medalInfo));
 }
 
 function addAvatarUrl(identity, value) {
@@ -142,9 +143,22 @@ function addCurrentRoomVerification(identity, currentRoomVerified) {
   return identity;
 }
 
+function addMedalTargetUid(identity, value) {
+  const targetUid = cleanText(value);
+  if (targetUid) {
+    Object.defineProperty(identity, 'medalTargetUid', {
+      value: targetUid,
+      enumerable: false,
+      configurable: true
+    });
+  }
+  return identity;
+}
+
 module.exports = {
   readMedalName,
   readMedalLevel,
+  readMedalTargetId,
   readFirstObject,
   selectCurrentRoomMedalInfo,
   extractBilibiliDanmakuUserMeta,

@@ -96,7 +96,13 @@ function createServerRuntime(runtimeOptions = {}) {
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
     try {
+      const reportPhase = typeof runtimeOptions.onPhase === 'function'
+        ? runtimeOptions.onPhase
+        : () => {};
+      let phaseStartedAt = Date.now();
       db = createDatabases({ dataDir: DATA_DIR, defaultSettings: DEFAULT_SETTINGS });
+      reportPhase('database-init', Date.now() - phaseStartedAt);
+      phaseStartedAt = Date.now();
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb, settingsStoreModule);
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
@@ -173,6 +179,7 @@ function createServerRuntime(runtimeOptions = {}) {
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.clearOnStartup();
       runStartupRetention();
+      reportPhase('startup-repair', Date.now() - phaseStartedAt);
       applicationInitialized = true;
     } catch (error) {
       await disposeApplication({ optimize: false });
@@ -345,7 +352,8 @@ function createServerRuntime(runtimeOptions = {}) {
       dataDir: DATA_DIR,
       cleanupTimeoutMs: PORT_CLEANUP_TIMEOUT_MS,
       cleanupPollMs: PORT_CLEANUP_POLL_MS,
-      sleep: sharedUtils.sleep
+      sleep: sharedUtils.sleep,
+      onPhase: runtimeOptions.onPhase
     };
   }
 
@@ -360,13 +368,23 @@ function createServerRuntime(runtimeOptions = {}) {
     }
     startPromise = (async () => {
       try {
+        const reportPhase = typeof runtimeOptions.onPhase === 'function'
+          ? runtimeOptions.onPhase
+          : () => {};
+        const markPhase = (name, startedAt, extra = {}) => {
+          reportPhase(name, Date.now() - startedAt, extra);
+        };
         await lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host));
         if (isShuttingDown) throw new Error('Server runtime is shutting down.');
+        let phaseStartedAt = Date.now();
         const port = await lifecycle.listenExactly(server, { port: startPort, host });
+        markPhase('listen', phaseStartedAt, { port });
         startedPort = port;
         phase = 'starting';
         if (isShuttingDown) throw new Error('Server runtime is shutting down.');
+        phaseStartedAt = Date.now();
         await initializeApplication(options);
+        markPhase('application-init', phaseStartedAt);
         if (isShuttingDown) throw new Error('Server runtime is shutting down.');
         sessionToken = crypto.randomUUID();
         lifecycle.writeSessionToken(DATA_DIR, sessionToken);

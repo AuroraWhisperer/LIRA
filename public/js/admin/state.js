@@ -63,7 +63,9 @@ export class StateService {
         if (isGiftSnapshotReason(payload.reason)) {
           eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
         }
-        this.scheduleSongReload();
+        if (isSongsSnapshotReason(payload.reason)) {
+          this.scheduleSongReload();
+        }
       } else if (payload.type === 'overtime:update') {
         const currentRevision = Number(this.appState?.overtime?.revision) || 0;
         const nextRevision = Number(payload.state?.revision) || 0;
@@ -110,7 +112,7 @@ export class StateService {
    */
   async reloadAll() {
     await this.reloadState();
-    await this.reloadSongs();
+    await this.reloadSongs({ reloadState: false });
   }
 
   /**
@@ -144,7 +146,7 @@ export class StateService {
   /**
    * 重新加载歌曲列表
    */
-  async reloadSongs() {
+  async reloadSongs(options = {}) {
     const params = new URLSearchParams();
     if (value('songSearch')) params.set('query', value('songSearch'));
     for (const category of readSelectedCategories()) {
@@ -162,7 +164,9 @@ export class StateService {
     if (!payload.ok) throw new Error(payload.error || '读取歌库失败');
 
     this.songs = payload.data || [];
-    await this.reloadState();
+    if (options.reloadState !== false) {
+      await this.reloadState();
+    }
 
     // 发布歌曲更新事件
     eventBus.emit(Events.SONG_UPDATED, {
@@ -179,7 +183,7 @@ export class StateService {
   scheduleSongReload() {
     clearTimeout(this.songReloadTimer);
     this.songReloadTimer = setTimeout(() => {
-      this.reloadSongs().catch(showError);
+      this.reloadSongs({ reloadState: false }).catch(showError);
     }, 240);
   }
 
@@ -252,6 +256,10 @@ function isGiftSnapshotReason(reason) {
     || reason === 'gift:clear-recent'
     || reason === 'database:clear-gifts'
     || reason === 'database:clear-all';
+}
+
+function isSongsSnapshotReason(reason) {
+  return String(reason || '').startsWith('songs:');
 }
 
 // 创建单例实例

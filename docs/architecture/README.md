@@ -92,7 +92,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 
 ### 决策记录 adr/
 
-[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md) · [0008-ai-assisted-change-governance](adr/0008-ai-assisted-change-governance.md) · [0009-first-run-onboarding](adr/0009-first-run-onboarding.md)
+[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md) · [0008-ai-assisted-change-governance](adr/0008-ai-assisted-change-governance.md) · [0009-first-run-onboarding](adr/0009-first-run-onboarding.md) · [0010-bilibili-user-info-facade](adr/0010-bilibili-user-info-facade.md)
 
 ## 技术栈速查(名称速览,精确版本见 [engineering/build.md](engineering/build.md))
 
@@ -126,6 +126,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | HTTP 端点(91 个)与方法/请求/响应/错误码契约 | [backend/api.md](backend/api.md) |
 | `roomId` 规范化算法/`customReplyRules` 解析规则 | [backend/api.md](backend/api.md) §2.1–§2.2 |
 | WS 传输参数/快照 15 字段/消息类型/reason 枚举 | [backend/ws.md](backend/ws.md) |
+| Bilibili 用户信息合并、字段投影与房间 run 生命周期 | [backend/bilibili/danmaku.md](backend/bilibili/danmaku.md) §10 |
 | 数据目录树/数据库文件/表 DDL/迁移版本/保留策略/settings 键 | [backend/storage.md](backend/storage.md) |
 | IPC 通道(33 个)与 preload 桥 | [desktop/preload.md](desktop/preload.md) |
 | 登录分区/登录 URL/Cookie 快照格式 | [desktop/auth.md](desktop/auth.md) |

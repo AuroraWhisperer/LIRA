@@ -234,13 +234,14 @@ info[3]           → 粉丝牌数组 (数组或对象)
 info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 user 对象
 ```
 
-发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段会进入同一身份缓存用于按 uid 回填。
+发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段经 `UserInfoService` 按 uid 合并。解析器只产出 hint，不访问 cache、profile provider 或头像代理。
 
 用户元数据(勋章/大航海)由 `extractBilibiliDanmakuUserMeta`([user-meta-extractor.js:38-60](../../../../src/bilibili/utils/user-meta-extractor.js#L38-L60))提取:
 
 - 勋章:`info[3]` 数组或 `danmakuOptions.user.medal` 对象;`readMedalName` 取数组 `[1]` 或对象 `.medal_name`([user-meta-extractor.js:14-19](../../../../src/bilibili/utils/user-meta-extractor.js#L14-L19)),`readMedalLevel` 取数组 `[0]` 或 `.medal_level`([user-meta-extractor.js:21-26](../../../../src/bilibili/utils/user-meta-extractor.js#L21-L26))。
 - 大航海等级:优先 `user.guard.level`,其次当前房间勋章内的 `guard_level` 或数组回退 `info[7]` / `medalInfo[10]`([user-meta-extractor.js:46-56](../../../../src/bilibili/utils/user-meta-extractor.js#L46-L56))。
 - **仅当勋章 `target_id`(数组 `[12]`)等于主播 uid 时才计入本房间身份**(`isTargetRoom`,[user-meta-extractor.js:101-112](../../../../src/bilibili/utils/user-meta-extractor.js#L101-L112))。
+- 提取器同时保留匹配的 `targetUid` 供门面校验；旧元数据返回对象中的该值为非枚举兼容属性，不改变既有消息字段形状。
 - `normalizeGuardLevel` 只接受 `1/2/3`([utils.js:73-76](../../../../src/shared/utils.js#L73-L76))。
 
 弹幕产出的 `onMessage` 载荷(含 `source:'danmaku'`、`messageTimestamp`、`connectionGeneration/connectionAttempt`、归一化 cmd)见 [message-handlers.js:100-112](../../../../src/bilibili/danmaku/message-handlers.js#L100-L112),消费方是 [danmaku.md](danmaku.md) §5 的点歌/机器人管线。
@@ -256,8 +257,9 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 | `price` | `data.price \|\| rmb \|\| price_text`(经 `normalizeSuperChatPrice`,[utils.js:58-63](../../../../src/shared/utils.js#L58-L63)) |
 | `uid` | `data.uid \|\| mid \|\| user_info.uid` |
 | `userName` | `user_info.uname/name/user_name \|\| data.uname/nickname`,兜底 `'观众'` |
+| `avatarUrl` | `user_info.face/face_url/faceUrl/avatar/avatar_url`,经 `normalizeBilibiliAvatarUrl` 校验 |
 | `guardLevel` | `medal_info.guard_level \|\| user_info.guard_level \|\| data.guard_level` |
-| `medalName/medalLevel` | `medal_info` 数组或对象 |
+| `medalName/medalLevel` | `medal_info` 数组或对象；匹配当前主播时同时形成 `targetUid` hint |
 | `messageTimestamp` | `data.start_time \|\| startTime \|\| ts \|\| time \|\| timestamp`,兜底 `Date.now()` |
 
 `isPinned = price >= SUPER_CHAT_PIN_THRESHOLD`(`= 2` RMB,[superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)),由分发层计算([message-handlers.js:173](../../../../src/bilibili/danmaku/message-handlers.js#L173))。SC 命令文本会二次触发 `onMessage(source:'superchat')`([message-handlers.js:151-175](../../../../src/bilibili/danmaku/message-handlers.js#L151-L175));入库门槛与状态机见 [gift.md](gift.md) §7。

@@ -23,6 +23,7 @@
   .identity-rule-settings,
   .overlay-address-grid,
   .monitor-grid,
+  .hardware-grid,
   .gift-sprint-grid,
   .gift-cards {
     grid-template-columns: 1fr;

@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ADMIN_PAGE_ROUTES = new Set(['/', '/admin', '/settings', '/songs']);
+const composedHtmlCache = new Map();
 
 const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/shell-start.html',
@@ -47,9 +48,14 @@ function isAdminPageRoute(pathname) {
 }
 
 function composeAdminHtml(publicDir) {
-  return ADMIN_FRAGMENT_PATHS
+  const cacheKey = path.resolve(String(publicDir));
+  const cached = composedHtmlCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const html = ADMIN_FRAGMENT_PATHS
     .map(relativePath => fs.readFileSync(path.join(publicDir, relativePath), 'utf8'))
     .join('');
+  composedHtmlCache.set(cacheKey, html);
+  return html;
 }
 
 module.exports = { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute };

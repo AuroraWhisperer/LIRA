@@ -36,6 +36,7 @@ const mediaState = desktopState.media;
 const pathState = desktopState.paths;
 const loggingState = desktopState.logging;
 const updateRuntime = desktopState.update;
+const startupTiming = { startedAt: 0 };
 
 // ---- app lifecycle ----
 
@@ -105,7 +106,12 @@ app.on('before-quit', function (event) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  const startupStartedAt = Date.now();
+  startupTiming.startedAt = startupStartedAt;
+  logStartupPhase('start', startupStartedAt);
+  var phaseStartedAt = Date.now();
   migrateUserDataFromAppData();
+  logStartupPhase('partition-migration', phaseStartedAt);
   configureMenu();
   configureLocalMediaProtocol();
   registerUpdateIpc({
@@ -154,8 +160,12 @@ async function startDesktopApp() {
   configureMusicMediaRequestHeaders();
   configureBilibiliMediaRequestHeaders();
   updateMgr.configureAutoUpdater({ onStateChange: onUpdateStateChange, writeLog: writeLog });
+  phaseStartedAt = Date.now();
   await restoreMusicCookieSnapshots();
+  logStartupPhase('music-cookie-restore', phaseStartedAt);
+  phaseStartedAt = Date.now();
   await restoreBilibiliCookieSnapshot();
+  logStartupPhase('bilibili-cookie-restore', phaseStartedAt);
 
   var serverOptions = {
     host: process.env.HOST || '127.0.0.1',
@@ -172,14 +182,19 @@ async function startDesktopApp() {
   };
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
-    safeStorage
+    safeStorage,
+    onPhase: (phase, durationMs, extra) => writeLog('lifecycle', {
+      event: 'PHASE', phase, durationMs, ...extra
+    })
   });
   lifecycleState.shutdown = lifecycleState.runtime.stop.bind(lifecycleState.runtime);
 
   // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
   lifecycleState.runtime.setPreShutdownHook(requestPlaybackFlush);
 
+  phaseStartedAt = Date.now();
   var serverInfo = await lifecycleState.runtime.start(serverOptions);
+  logStartupPhase('runtime-ready', phaseStartedAt);
 
   registerLocalFontPermissionHandler({
     desktopSession: session.defaultSession,
@@ -188,7 +203,9 @@ async function startDesktopApp() {
     getMainWindow: () => windowState.main,
     hasExactOrigin
   });
+  phaseStartedAt = Date.now();
   createMainWindow(serverInfo.baseUrl);
+  logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
   if (!app.isPackaged) {
@@ -282,6 +299,7 @@ function createMainWindow(baseUrl) {
 
   windowState.main.once('ready-to-show', function () {
     writeLog('window', { event: 'ready', window: 'main' });
+    logStartupPhase('ready-to-show', startupTiming.startedAt || Date.now());
     windowState.main.show();
     sendUpdateState();
     if (app.isPackaged && readAutoUpdateSetting()) {
@@ -323,6 +341,16 @@ function createMainWindow(baseUrl) {
     if (windowState.main && !windowState.main.isDestroyed()) {
       windowState.main.webContents.send('desktop:window-maximized', false);
     }
+  });
+}
+
+function logStartupPhase(phase, startedAt, extra = {}) {
+  if (!pathState.logFile) return;
+  writeLog('lifecycle', {
+    event: 'PHASE',
+    phase,
+    durationMs: Math.max(0, Date.now() - Number(startedAt || Date.now())),
+    ...extra
   });
 }
 

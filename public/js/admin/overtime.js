@@ -28,6 +28,8 @@ let giftCatalogSnapshot = null;
 let catalogLiveStatus = null;
 let saleGiftIds = new Set();
 let ruleEditor = null;
+let clockRafId = null;
+let lastClockValue = '';
 
 function init() {
   if (initialized || !document.getElementById('overtimePanel')) return;
@@ -44,9 +46,10 @@ function init() {
     renderState(payload.state);
     if (payload.adjustment) refresh().catch(showError);
   });
+  eventBus.on('app:shutdown', stopClockLoop);
+  document.addEventListener('visibilitychange', syncClockLoop);
   loadCatalog().catch(showError);
   refresh().catch(showError);
-  requestAnimationFrame(updateClock);
 }
 
 async function refresh() {
@@ -208,6 +211,7 @@ function renderState(nextState) {
     ruleEditor.renderRules(nextState.rules);
     syncRuleAvailability();
   }
+  syncClockLoop();
 }
 
 function renderConsumerStatus() {
@@ -231,11 +235,34 @@ function updateClock(nowMs) {
     const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
     const value = formatClockDisplay(remainingMs, overtimeState.status);
     const clock = byId('overtimeClockValue');
-    clock.textContent = value;
-    clock.classList.toggle('is-calendar', /[天年]/.test(value));
-    clock.classList.toggle('is-finished', value === '该下播了');
+    if (value !== lastClockValue) {
+      clock.textContent = value;
+      clock.classList.toggle('is-calendar', /[天年]/.test(value));
+      clock.classList.toggle('is-finished', value === '该下播了');
+      lastClockValue = value;
+    }
+    if (overtimeState.status === 'running' && document.visibilityState === 'visible') {
+      clockRafId = requestAnimationFrame(updateClock);
+      return;
+    }
   }
-  requestAnimationFrame(updateClock);
+  clockRafId = null;
+}
+
+function syncClockLoop() {
+  const shouldRun = overtimeState?.status === 'running' && document.visibilityState === 'visible';
+  if (!shouldRun) {
+    if (clockRafId !== null) cancelAnimationFrame(clockRafId);
+    clockRafId = null;
+    updateClock(performance.now());
+    return;
+  }
+  if (clockRafId === null) clockRafId = requestAnimationFrame(updateClock);
+}
+
+function stopClockLoop() {
+  if (clockRafId !== null) cancelAnimationFrame(clockRafId);
+  clockRafId = null;
 }
 
 async function loadCatalog() {

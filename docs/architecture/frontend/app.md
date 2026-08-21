@@ -24,7 +24,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 │           / desktopLyricPage(桌面歌词设置)
 ├── #playbackAssistantPage 播放助手(#playback)
 ├── #giftAssistantPage     礼物面板(#gifts):礼物检测/提示/最近/月底冲刺/今日盲盒盈亏/盈亏榜/盲盒映射
-└── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/礼物特效/主播计划/性能检测/使用文档/桌面更新)
+└── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/礼物特效/主播工作台/性能检测/使用文档/桌面更新)
 ```
 
 六个内部 Tab 的内容由 [pages/admin/song/](../../../public/pages/admin/song/) 下的分片组成:
@@ -124,7 +124,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 ### 4.6 metrics.js(性能检测)
 
 - 手动触发:`/api/system/metrics?windowMs=5000`(系统 + 服务进程 CPU/GPU/内存),5 秒采样,阈值 70%/85% 分 warn/danger 色阶([metrics.js:113-118](../../../public/js/admin/metrics.js#L113-L118))。
-- 采样期间按钮进入 busy 态(显示"检测 5 秒"),结果展示采样窗口/时间/服务 PID/运行时长,不可用指标(如 GPU 缺失)置灰显示。
+- 页面仅保留一个检测按钮；旁侧圆环待机显示 5 秒采样时长，采样期间按秒倒计时并收拢进度环，同时按钮进入 busy 态。结果展示采样窗口/时间/服务 PID/运行时长,不可用指标(如 GPU 缺失)置灰显示。
 - 硬件概览在进入性能页时请求 `/api/system/hardware`，显示 CPU/物理 GPU/内存型号与容量并排除虚拟显示适配器；CPU 温度不可用时显示“未知”，内存不显示温度行，GPU 温度只随用户发起的 5 秒检测请求 `includeTemperatures=true`，不设置后台定时器。
 
 ## 5. 礼物主页面(gifts/)
@@ -152,7 +152,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | AI 互动助手 | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`、`/api/ai/models`；电脑端先选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义，官方预设锁定地址/协议，自动与自定义允许编辑；按服务端 `modelEndpoint` 显示协议、联网方式与可用推理控件；密钥字段使用 password + `'********'` 遮罩且提交时过滤遮罩值；700ms 自动保存 + 保存失败重试队列 |
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 小游戏直播台 | [games.js](../../../public/js/admin/games.js) | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，`GET /api/games/host-state` 私下显示题词，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥 |
-| 主播计划 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 规划器**(`admin.streamerPlanner.v1`):今天/本周/本月三栏,学歌/开播准备/内容发布/直播复盘四类,进度 0-100% 五档(学歌类用"还没听熟/能跟伴奏唱/可以上播"文案),首次启动播种 6 条示例任务;模板按钮一键填充表单;不经过后端 |
+| 主播工作台 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 工作台**(`admin.streamerWorkbench.v2`):保存下一场直播日期/时间/主题/重点,按开播前/直播中/下播后三阶段管理完成态清单,现场备忘分内容灵感/观众约定/复盘记录并可转为计划;首次启动提供 4 条实用备播/复盘清单,读取旧 `admin.streamerPlanner.v1` 时迁移任务但不删除旧键;不经过后端 |
 | 性能检测 | metrics.js(见 §4.6) | |
 | 使用文档 / 桌面更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [desktop.js](../../../public/js/desktop.js) | 目录锚点平滑滚动与章节高亮、侧栏收缩时切换双栏目录;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |
 | 首次启动引导 | [onboarding.js](../../../public/js/admin/onboarding.js) / [interactive-tour.js](../../../public/js/admin/interactive-tour.js) | 配置遮罩通过现有认证、设置、AI 接口验证状态，完成标记写入普通 settings；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示 |

@@ -11,14 +11,15 @@
     showError
   } = window.AdminApp.utils;
 
+  const METRICS_SAMPLE_SECONDS = 5;
   let metricsRunning = false;
+  let metricsCountdownTimer = null;
   let hardwareLoaded = false;
   let hardwareLoading = false;
 
   function initPerformanceMonitor() {
-    const toggle = document.getElementById('metricsToggle');
     const button = document.getElementById('metricsRefreshBtn');
-    if (!toggle || !button) return;
+    if (!button) return;
 
     const loadHardware = () => {
       loadHardwareSummary(false);
@@ -26,11 +27,6 @@
     document.getElementById('otherPerformanceFeatureTab')?.addEventListener('click', loadHardware);
     document.querySelector('[data-main-page="otherAssistantPage"]')?.addEventListener('click', loadHardware);
 
-    toggle.addEventListener('change', () => {
-      if (toggle.checked) {
-        runMetricsSample();
-      }
-    });
     button.addEventListener('click', runMetricsSample);
   }
 
@@ -60,19 +56,47 @@
   }
 
   function setMetricsBusy(isBusy) {
-    const toggle = document.getElementById('metricsToggle');
-    const toggleText = document.getElementById('metricsToggleText');
     const button = document.getElementById('metricsRefreshBtn');
     const status = document.getElementById('metricsStatus');
 
-    toggle.checked = isBusy;
-    toggle.disabled = isBusy;
     button.disabled = isBusy;
-    toggleText.textContent = isBusy ? '检测中' : '开始检测';
-    button.textContent = isBusy ? '正在检测' : '检测 5 秒';
+    button.textContent = isBusy ? '检测中' : '开始检测';
     if (isBusy) {
       status.textContent = '正在采样最近 5 秒';
+      startMetricsCountdown();
+    } else {
+      resetMetricsCountdown();
     }
+  }
+
+  function startMetricsCountdown() {
+    const countdown = document.getElementById('metricsCountdown');
+    const countdownValue = document.getElementById('metricsCountdownValue');
+    if (!countdown || !countdownValue) return;
+
+    resetMetricsCountdown();
+    const startedAt = Date.now();
+    countdown.classList.add('is-running');
+    metricsCountdownTimer = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+      const remainingSeconds = Math.max(0, METRICS_SAMPLE_SECONDS - elapsedSeconds);
+      countdownValue.textContent = String(remainingSeconds);
+      if (remainingSeconds === 0) {
+        clearInterval(metricsCountdownTimer);
+        metricsCountdownTimer = null;
+      }
+    }, 200);
+  }
+
+  function resetMetricsCountdown() {
+    if (metricsCountdownTimer !== null) {
+      clearInterval(metricsCountdownTimer);
+      metricsCountdownTimer = null;
+    }
+    const countdown = document.getElementById('metricsCountdown');
+    const countdownValue = document.getElementById('metricsCountdownValue');
+    countdown?.classList.remove('is-running');
+    if (countdownValue) countdownValue.textContent = String(METRICS_SAMPLE_SECONDS);
   }
 
   function renderMetrics(metrics) {

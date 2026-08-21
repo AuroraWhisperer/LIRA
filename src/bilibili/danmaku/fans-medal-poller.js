@@ -10,23 +10,23 @@ const BILIBILI_FANS_MEDAL_PAGE_SIZE = 30;
 const BILIBILI_FANS_MEDAL_MAX_PAGES = 10000;
 
 class FansMedalPoller {
-  constructor(apiClient, identityCache) {
+  constructor(apiClient, sink) {
     this.apiClient = apiClient;
-    this.identityCache = identityCache;
+    this.sink = sink;
     this.timer = null;
     this.pollInFlight = false;
-    this.generation = 0;
+    this.localGeneration = 0;
   }
 
-  start(roomId, ruid) {
+  start(context) {
     this.stop();
-    if (!roomId || !ruid) return;
-    const generation = this.generation;
-    this.pollFansMembers(roomId, ruid, generation).catch((error) => {
+    if (!context || !context.roomId || !context.ownerUid) return;
+    const localGeneration = ++this.localGeneration;
+    this.pollFansMembers(context, localGeneration).catch((error) => {
       console.warn(`[Bilibili] fans medal polling failed: ${error.message}`);
     });
     this.timer = setInterval(() => {
-      this.pollFansMembers(roomId, ruid, generation).catch((error) => {
+      this.pollFansMembers(context, localGeneration).catch((error) => {
         console.warn(`[Bilibili] fans medal polling failed: ${error.message}`);
       });
     }, BILIBILI_FANS_MEDAL_POLL_MS);
@@ -35,33 +35,37 @@ class FansMedalPoller {
   stop() {
     clearInterval(this.timer);
     this.timer = null;
-    this.generation += 1;
+    this.localGeneration += 1;
   }
 
-  async pollFansMembers(roomId, ruid, generation = this.generation) {
+  async pollFansMembers(context, localGeneration = this.localGeneration) {
     if (this.pollInFlight) return;
     this.pollInFlight = true;
     let cachedCount = 0;
     try {
       let expectedCount = 0;
       for (let page = 1; page <= BILIBILI_FANS_MEDAL_MAX_PAGES; page += 1) {
-        if (generation !== this.generation) return;
+        if (localGeneration !== this.localGeneration) return;
         const data = await this.apiClient.fetchFansMembersRank(
-          roomId,
-          ruid,
+          context.roomId,
+          context.ownerUid,
           page,
           BILIBILI_FANS_MEDAL_PAGE_SIZE
         );
+        if (localGeneration !== this.localGeneration) return;
         expectedCount = normalizePositiveInteger(data.num || data.total || data.total_num);
         const items = bilibiliHelpers.readBilibiliFansMembersRankItems(data);
         if (items.length === 0) break;
 
         for (const item of items) {
-          if (generation !== this.generation) return;
-          const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, ruid);
-          if (this.identityCache.remember(userMeta, { currentRoom: true, source: 'fans_rank' })) {
-            cachedCount += 1;
-          }
+          if (localGeneration !== this.localGeneration) return;
+          const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, context.ownerUid);
+          const result = this.sink.ingestHint(toIdentityHint(userMeta), {
+            ...context,
+            source: 'fans_rank',
+            roomIdentityVerified: userMeta.currentRoomVerified === true
+          });
+          if (result && result.snapshot) cachedCount += 1;
         }
 
         if (items.length < BILIBILI_FANS_MEDAL_PAGE_SIZE) break;
@@ -71,11 +75,28 @@ class FansMedalPoller {
       this.pollInFlight = false;
     }
 
-    this.identityCache.cleanup();
     if (cachedCount > 0) {
       console.log(`[Bilibili] fans medal snapshot cached ${cachedCount} member identity record(s).`);
     }
   }
+}
+
+function toIdentityHint(userMeta) {
+  return {
+    uid: userMeta.uid,
+    name: userMeta.userName,
+    avatarUrl: userMeta.avatarUrl,
+    roomIdentity: {
+      guardKnown: userMeta.currentRoomVerified === true,
+      guardLevel: userMeta.guardLevel,
+      medalKnown: userMeta.currentRoomVerified === true,
+      fansMedal: userMeta.medalName ? {
+        name: userMeta.medalName,
+        level: userMeta.medalLevel,
+        targetUid: userMeta.medalTargetUid
+      } : null
+    }
+  };
 }
 
 module.exports = { FansMedalPoller };

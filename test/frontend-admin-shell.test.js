@@ -50,6 +50,10 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
   const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
   const featureStyles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const performanceHtml = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'performance.html'),
+    'utf8'
+  );
   const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)<\/div>/)?.[1];
   const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
   const overtimePosition = html.indexOf('data-other-feature="otherOvertimeMachineFeature"');
@@ -83,7 +87,11 @@ test('toolbox owns independent overtime, streamer planner, performance, usage gu
   assert.ok(dailyTodoPosition < performancePosition, 'daily todo should precede performance in the toolbox');
   assert.ok(usageGuidePosition > performancePosition, 'usage guide should follow performance in the toolbox');
   assert.ok(updatePosition > performancePosition, 'desktop update should follow performance in the toolbox');
-  assert.equal(html.match(/id="metricsToggle"/g)?.length, 1);
+  assert.equal(performanceHtml.match(/<button/g)?.length, 1);
+  assert.doesNotMatch(performanceHtml, /<input|metricsToggle/);
+  assert.match(performanceHtml, /id="metricsCountdown"[^>]*role="timer"[^>]*aria-label="每次检测采样 5 秒"/);
+  assert.match(performanceHtml, /id="metricsCountdownValue">5<\/strong>/);
+  assert.match(performanceHtml, /id="metricsRefreshBtn"[^>]*>开始检测<\/button>/);
   assert.equal(html.match(/id="desktopCheckUpdateBtn"/g)?.length, 1);
   assert.match(styles, /@import url\('\.\/admin\/other-features\.css'\);/);
   assert.match(
@@ -737,6 +745,31 @@ test('admin initialization waits for sibling module scripts at interactive ready
 
   assert.match(source, /document\.readyState === 'complete'/);
   assert.match(source, /document\.addEventListener\('DOMContentLoaded', initApp, \{ once: true \}\)/);
+});
+
+test('admin state loading avoids duplicate state requests and filters song reloads by snapshot reason', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
+  assert.match(source, /await this\.reloadSongs\(\{ reloadState: false \}\);/);
+  assert.match(source, /if \(options\.reloadState !== false\) \{\s*await this\.reloadState\(\);/);
+  assert.match(source, /if \(isSongsSnapshotReason\(payload\.reason\)\) \{\s*this\.scheduleSongReload\(\);/);
+  assert.match(source, /function isSongsSnapshotReason\(reason\)/);
+});
+
+test('admin idle timers are lifecycle-bound', () => {
+  const overtime = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
+  const games = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
+  assert.match(overtime, /document\.addEventListener\('visibilitychange', syncClockLoop\)/);
+  assert.match(overtime, /cancelAnimationFrame\(clockRafId\)/);
+  assert.match(games, /let drawClockTimer = null;/);
+  assert.match(games, /function syncDrawClockTimer\(\)/);
+  assert.doesNotMatch(games, /setInterval\(updateDrawClock, 250\);\s*Promise\.all/);
+});
+
+test('blind-box statistics are not reloaded for every state render', () => {
+  const queue = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), 'utf8');
+  const blindbox = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
+  assert.doesNotMatch(queue, /loadBlindBoxStats\(\)/);
+  assert.match(blindbox, /if \(!statsInitialized\) \{[\s\S]*?loadBlindBoxStats\(\);/);
 });
 
 test('admin loads theme presets before initializing theme forms', () => {

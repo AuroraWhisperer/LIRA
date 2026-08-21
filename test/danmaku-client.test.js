@@ -251,16 +251,12 @@ test('socket errors use history only during immediate reconnect recovery', async
   }
 });
 
-test('draw guess resolves a missing danmaku avatar once and reuses it for later messages', async () => {
+test('onMessage return values do not fetch profiles and explicit ensure reuses the avatar', async () => {
   const delivered = [];
-  const resolved = [];
   const client = new BilibiliDanmakuClient('123', {
     onMessage(message) {
       delivered.push(message);
       return true;
-    },
-    onAvatarResolved(profile) {
-      resolved.push(profile);
     },
     onSuperChat() {},
     onGift() {},
@@ -276,6 +272,10 @@ test('draw guess resolves a missing danmaku avatar once and reuses it for later 
     };
   };
   client.stopped = false;
+  client.userInfoService.setRoom({ roomId: '123', ownerUid: '456' });
+  client.roomRunContext = client.userInfoService.beginRoomRun();
+  client.messageHandlers.updateRoomOwnerUid('456');
+  client.messageHandlers.updateRoomRunContext(client.roomRunContext);
 
   try {
     client.messageHandlers.handleDanmaku({
@@ -285,11 +285,10 @@ test('draw guess resolves a missing danmaku avatar once and reuses it for later 
     await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(delivered[0].avatarUrl || '', '');
-    assert.deepEqual(resolved, [{
-      uid: '64281213',
-      userName: '叶上泓',
-      avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.jpg'
-    }]);
+    assert.equal(profileRequests, 0);
+
+    const profile = await client.ensureUserInfo('64281213', { fields: ['name', 'avatarUrl'] });
+    assert.equal(profile.avatarUrl, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
 
     client.messageHandlers.handleDanmaku({
       cmd: 'DANMU_MSG',

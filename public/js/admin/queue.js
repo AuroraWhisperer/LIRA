@@ -109,11 +109,6 @@
       window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.bilibiliDiagnostics || {}, settings);
     }
 
-    // 盲盒盈亏统计（独立加载，不阻塞渲染）
-    if (window.AdminApp.gifts && window.AdminApp.gifts.loadBlindBoxStats) {
-      window.AdminApp.gifts.loadBlindBoxStats();
-    }
-
     const live = appState.liveStatus || {};
     const liveStatus = document.getElementById('liveStatus');
     const ownerName = live.ownerName || '';

@@ -7,6 +7,7 @@ let wheelState = null;
 let wheelLimits = null;
 let activeGameSession = null;
 let drawClock = null;
+let drawClockTimer = null;
 
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
@@ -39,7 +40,7 @@ export function initGames() {
   window.addEventListener('app:wheel-update', event => renderWheelState(event.detail));
   byId('wheelOverlayUrl').value = wheelOverlayUrl();
   syncViewerMode();
-  setInterval(updateDrawClock, 250);
+  window.addEventListener('app:shutdown', stopDrawClockTimer, { once: true });
   Promise.all([refreshViewers(), refreshSession(), refreshHostState(), refreshWheel()]).catch(showError);
 }
 
@@ -268,6 +269,7 @@ async function spinWheel() {
 
 function renderSession(session) {
   activeGameSession = session || null;
+  syncDrawClockTimer();
   const status = byId('gamesSessionStatus');
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
@@ -342,6 +344,25 @@ function updateDrawClock() {
   const remaining = Math.max(0, drawClock.remainingMs - elapsed);
   const totalSeconds = Math.ceil(remaining / 1000);
   byId('drawHostClock').textContent = `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
+}
+
+function syncDrawClockTimer() {
+  const active = activeGameSession?.game === 'draw-guess'
+    && activeGameSession.state?.phase === 'drawing';
+  if (!active) {
+    stopDrawClockTimer();
+    return;
+  }
+  if (drawClockTimer === null) {
+    drawClockTimer = setInterval(updateDrawClock, 250);
+  }
+}
+
+function stopDrawClockTimer() {
+  if (drawClockTimer !== null) {
+    clearInterval(drawClockTimer);
+    drawClockTimer = null;
+  }
 }
 
 function syncViewerMode() {

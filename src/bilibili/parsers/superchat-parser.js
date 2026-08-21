@@ -10,8 +10,10 @@ const {
 const {
   readMedalName,
   readMedalLevel,
+  readMedalTargetId,
   selectCurrentRoomMedalInfo
 } = require('../utils/user-meta-extractor');
+const { normalizeBilibiliAvatarUrl } = require('./danmaku-parser');
 
 // ---------------------------------------------------------------------------
 // SuperChat message parsing utilities
@@ -35,6 +37,9 @@ function extractBilibiliSuperChatMessage(packet, roomOwnerUid = '') {
       readObjectValue(userInfo, ['uname', 'name', 'user_name', 'userName'])
       || readObjectValue(data, ['uname', 'name', 'nickname'])
     ) || '观众',
+    avatarUrl: normalizeBilibiliAvatarUrl(
+      readObjectValue(userInfo, ['face', 'face_url', 'faceUrl', 'avatar', 'avatar_url'])
+    ),
     guardLevel: normalizeGuardLevel(
       readObjectValue(currentMedalInfo, ['guard_level', 'guardLevel'])
       || readObjectValue(userInfo, ['guard_level', 'guardLevel'])
@@ -42,6 +47,7 @@ function extractBilibiliSuperChatMessage(packet, roomOwnerUid = '') {
     ),
     medalName: readMedalName(currentMedalInfo),
     medalLevel: readMedalLevel(currentMedalInfo),
+    medalTargetUid: readMedalTargetId(currentMedalInfo),
     messageTimestamp,
     currentRoomVerified: Boolean(cleanText(roomOwnerUid) && medalInfo)
   };

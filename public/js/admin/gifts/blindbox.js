@@ -10,6 +10,7 @@
     formatMoney,
     readJsonResponse
   } = window.AdminApp.utils;
+  let statsInitialized = false;
 
   /**
    * 渲染盲盒映射配置列表
@@ -228,6 +229,11 @@
       event.preventDefault();
       window.AdminApp.gifts.analysis?.open({ viewer: row.dataset.viewer, view: 'records' });
     });
+
+    if (!statsInitialized) {
+      statsInitialized = true;
+      loadBlindBoxStats();
+    }
   }
 
   // 在 DOM 就绪后初始化

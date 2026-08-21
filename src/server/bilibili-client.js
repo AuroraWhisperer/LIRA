@@ -17,14 +17,30 @@ function createBilibiliClient(roomId, context) {
     messageBuffer,
     bilibiliAuthCache,
     logGiftDelivery,
-    games
+    games,
+    userInfoService
   } = context;
-  return new BilibiliDanmakuClient(roomId, {
+  let client = null;
+  client = new BilibiliDanmakuClient(roomId, {
     onMessage: (danmaku) => {
       if (isShuttingDown()) return false;
       try {
         aiDanmakuDeliveryVerifier.observe(danmaku);
         const gameResult = games?.handleDanmaku?.(danmaku);
+        if (gameResult?.session?.game === 'draw-guess' && !danmaku.avatarUrl) {
+          void client.ensureUserInfo(danmaku.uid, { fields: ['name', 'avatarUrl'] })
+            .then((snapshot) => {
+              if (isShuttingDown() || !snapshot?.avatarUrl) return;
+              games?.updateDanmakuAvatar?.({
+                uid: snapshot.uid,
+                userName: snapshot.name || danmaku.userName,
+                avatarUrl: snapshot.avatarUrl
+              });
+            })
+            .catch((error) => {
+              console.warn(`[Bilibili] viewer avatar lookup failed: uid=${danmaku.uid || ''} error=${error.message}`);
+            });
+        }
         const result = domainServices.messages.handleDanmaku({
           message: danmaku.message,
           userName: danmaku.userName,
@@ -83,10 +99,6 @@ function createBilibiliClient(roomId, context) {
         return false;
       }
     },
-    onAvatarResolved: (profile) => {
-      if (isShuttingDown()) return;
-      games?.updateDanmakuAvatar?.(profile);
-    },
     onSuperChat: (superChat) => {
       if (isShuttingDown()) return;
       try {
@@ -126,8 +138,10 @@ function createBilibiliClient(roomId, context) {
       cookieHeader: bilibiliAuthCache.cookieHeader,
       uid: bilibiliAuthCache.uid
     },
+    userInfoService,
     isCommandText: (message) => isBilibiliCommandText(message, domainServices.customReplies.isCommandText)
   });
+  return client;
 }
 
 module.exports = { createBilibiliClient };

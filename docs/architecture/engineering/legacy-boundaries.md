@@ -91,4 +91,24 @@ the named test and test case are the only numeric authority.
   imported identifiers in public ES modules. Classic-script exceptions and
   explicit exports remain review-enforced.
 
+## Bilibili Identity Cache Compatibility
+
+- **Current shape:** `IdentityCache` historically combined UID/name indexing,
+  recent/online audience lists, and field merge policy; message handlers and
+  pollers used those merge methods directly.
+- **New-code rule:** `UserInfoService` is the only production merge owner.
+  Parsers and pollers submit `IdentityHint` values through explicit sinks;
+  games and runtime consumers use the facade or its injected narrow resolver.
+- **Task-scoped migration:** the cache remains in place as an exact storage/index
+  compatibility primitive while all touched producers/consumers move behind the
+  facade. Keep legacy methods only for existing compatibility tests until their
+  direct consumers are gone.
+- **Target architecture:** no production code imports or calls cache merge
+  policy, profile providers, or avatar proxy internals across the facade boundary;
+  implicit `onMessage()` avatar hydration is removed.
+- **Enforcement:** focused tests in
+  `test/bilibili-user-info-service.test.js`,
+  `test/bilibili-user-info-pollers.test.js`, and the existing Bilibili client,
+  parser, and runtime suites, plus architecture review.
+
 Migration Target entries intentionally have no artificial numeric baseline.

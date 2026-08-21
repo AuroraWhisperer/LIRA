@@ -245,8 +245,9 @@ function createWebSocketHub(options = {}) {
       pendingSnapshot = null;
       if (!next || sockets.size === 0) return;
       const payload = { type: 'snapshot', reason: next.reason, state: next.context.getState() };
+      const encodedPayload = Buffer.from(JSON.stringify(payload));
       for (const socket of Array.from(sockets)) {
-        sendWebSocket(socket, payload);
+        sendWebSocketFrame(socket, encodedPayload, 0x1);
       }
     });
   }
@@ -309,10 +310,11 @@ function handleWebSocketUpgrade(context, req, socket) {
 
 function broadcastSnapshot(context, reason) {
   const payload = { type: 'snapshot', reason, state: context.getState() };
+  const encodedPayload = Buffer.from(JSON.stringify(payload));
   const sockets = context && context.state && context.state.sockets;
   if (!sockets) return;
   for (const socket of Array.from(sockets)) {
-    sendWebSocket(socket, payload);
+    sendWebSocketFrame(socket, encodedPayload, 0x1);
   }
 }
 

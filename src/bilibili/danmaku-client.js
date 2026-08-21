@@ -10,9 +10,10 @@ const { HistoryPoller } = require('./danmaku/history-poller');
 const { OnlineRankPoller } = require('./danmaku/online-rank-poller');
 const { FansMedalPoller } = require('./danmaku/fans-medal-poller');
 const { LiveStatusMonitor } = require('./danmaku/live-status-monitor');
-const { IdentityCache } = require('./danmaku/identity-cache');
 const { MessageDeduplicator } = require('./danmaku/message-deduplicator');
 const { MessageHandlers } = require('./danmaku/message-handlers');
+const { BilibiliUserProfileProvider } = require('./users/profile-provider');
+const { UserInfoService } = require('./users/user-info-service');
 
 class BilibiliDanmakuClient {
   constructor(roomId, handlers, options = {}) {
@@ -30,7 +31,7 @@ class BilibiliDanmakuClient {
     this.startedAtMs = Date.now();
     this.ownerName = '';
     this.ownerUid = '';
-    this.avatarProfileRequests = new Map();
+    this.roomRunContext = null;
 
     // 初始化子模块
     const bilibiliAuth = options.bilibiliAuth || {};
@@ -39,14 +40,18 @@ class BilibiliDanmakuClient {
       uid: bilibiliAuth.uid || 0
     });
     this.wsConnection = new WebSocketConnection();
-    this.identityCache = new IdentityCache();
+    this.ownsUserInfoService = !options.userInfoService;
+    this.userInfoService = options.userInfoService || new UserInfoService({
+      profileProvider: new BilibiliUserProfileProvider(this.apiClient),
+      diagnostics: this.diagnostics
+    });
     this.deduplicator = new MessageDeduplicator();
     this.messageHandlers = new MessageHandlers(
       {
         ...this.handlers,
         onMessage: (danmaku) => this.deliverDanmaku(danmaku)
       },
-      this.identityCache,
+      this.userInfoService,
       this.deduplicator,
       this.diagnostics,
       {
@@ -62,11 +67,17 @@ class BilibiliDanmakuClient {
       {
         startedAtMs: this.startedAtMs,
         roomOwnerUid: '',
-        isCommandText: options.isCommandText
+        isCommandText: options.isCommandText,
+        deduplicator: this.deduplicator,
+        onIdentityHint: (hint, context) => this.userInfoService.ingestHint(hint, context)
       }
     );
-    this.onlineRankPoller = new OnlineRankPoller(this.apiClient, this.identityCache);
-    this.fansMedalPoller = new FansMedalPoller(this.apiClient, this.identityCache);
+    const userInfoSink = {
+      ingestHint: (hint, context) => this.userInfoService.ingestHint(hint, context),
+      replaceOnlineSnapshot: (uids, context) => this.userInfoService.replaceOnlineSnapshot(uids, context)
+    };
+    this.onlineRankPoller = new OnlineRankPoller(this.apiClient, userInfoSink);
+    this.fansMedalPoller = new FansMedalPoller(this.apiClient, userInfoSink);
     this.liveStatusMonitor = new LiveStatusMonitor(
       this.apiClient,
       (roomId) => this.reconnectAfterLiveStarted(roomId),
@@ -87,7 +98,7 @@ class BilibiliDanmakuClient {
       if (!this.isConnectionCurrent(generation)) return;
       console.warn(`[Bilibili] connect failed: ${error.message}`);
       this.reconnecting = true;
-      this.historyPoller.start(this.resolvedRoomId || this.roomId);
+      if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
       this.report({
         connected: true,
         enabled: true,
@@ -114,7 +125,7 @@ class BilibiliDanmakuClient {
       if (!this.isConnectionCurrent(generation)) return;
       console.warn(`[Bilibili] reconnect failed: ${error.message}`);
       this.reconnecting = true;
-      this.historyPoller.start(this.resolvedRoomId || this.roomId);
+      if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
       this.report({
         connected: true,
         enabled: true,
@@ -136,8 +147,9 @@ class BilibiliDanmakuClient {
     this.historyPoller.stop();
     this.onlineRankPoller.stop();
     this.fansMedalPoller.stop();
-    this.identityCache.markOnlineSnapshot([]);
-    this.avatarProfileRequests.clear();
+    if (this.roomRunContext) this.userInfoService.endRoomRun(this.roomRunContext);
+    this.roomRunContext = null;
+    if (this.ownsUserInfoService) this.userInfoService.dispose();
     this.liveStatusMonitor.stop();
     if (this.messageHandlers && typeof this.messageHandlers.destroy === 'function') {
       this.messageHandlers.destroy();
@@ -159,38 +171,28 @@ class BilibiliDanmakuClient {
   }
 
   getViewerCandidates() {
-    return this.identityCache.listOnline();
+    return this.userInfoService.listOnline().map((snapshot) => {
+      const medal = snapshot.fansMedal && snapshot.fansMedal.known
+        ? snapshot.fansMedal.value
+        : null;
+      return {
+        uid: snapshot.uid,
+        userName: snapshot.name || '观众',
+        avatarUrl: snapshot.avatarUrl,
+        guardLevel: snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
+        medalName: medal ? medal.name : '',
+        medalLevel: medal ? medal.level : 0,
+        seenAt: snapshot.updatedAt
+      };
+    });
   }
 
   deliverDanmaku(danmaku) {
-    const shouldResolveAvatar = this.handlers.onMessage(danmaku) === true;
-    if (shouldResolveAvatar && !danmaku.avatarUrl) this.resolveDanmakuAvatar(danmaku);
-    return shouldResolveAvatar;
+    return this.handlers.onMessage(danmaku);
   }
 
-  resolveDanmakuAvatar(danmaku) {
-    const uid = String(danmaku.uid || '').trim();
-    if (!/^\d{1,20}$/.test(uid) || this.avatarProfileRequests.has(uid)) return;
-    const request = this.apiClient.fetchUserProfile(uid);
-    this.avatarProfileRequests.set(uid, request);
-    void request.then((profile) => {
-      if (this.stopped || !profile.avatarUrl) return;
-      const requester = this.identityCache.resolve({
-        uid,
-        userName: profile.name || danmaku.userName,
-        avatarUrl: profile.avatarUrl,
-        identitySource: 'profile'
-      });
-      this.handlers.onAvatarResolved?.({
-        uid: requester.uid,
-        userName: requester.userName,
-        avatarUrl: requester.avatarUrl
-      });
-    }).catch((error) => {
-      console.warn(`[Bilibili] viewer avatar lookup failed: uid=${uid} error=${error.message}`);
-    }).finally(() => {
-      this.avatarProfileRequests.delete(uid);
-    });
+  ensureUserInfo(uid, options = {}) {
+    return this.userInfoService.ensure(uid, options);
   }
 
   async connect(options = {}, generation = this.connectionGeneration) {
@@ -210,14 +212,26 @@ class BilibiliDanmakuClient {
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.ownerName = roomInfo.ownerName || '';
     this.ownerUid = String(roomInfo.uid || '');
+    const roomScope = this.userInfoService.setRoom({
+      roomId: roomInfo.roomId,
+      ownerUid: roomInfo.uid
+    });
+    if (!this.roomRunContext
+      || this.roomRunContext.roomId !== roomScope.roomId
+      || this.roomRunContext.ownerUid !== roomScope.ownerUid
+      || this.roomRunContext.generation !== roomScope.generation) {
+      if (this.roomRunContext) this.userInfoService.endRoomRun(this.roomRunContext);
+      this.roomRunContext = this.userInfoService.beginRoomRun();
+    }
     this.messageHandlers.updateRoomOwnerUid(roomInfo.uid);
+    this.messageHandlers.updateRoomRunContext(this.roomRunContext);
     this.historyPoller.updateRoomOwnerUid(roomInfo.uid);
 
     if (!isLive || options.alwaysHistory) {
-      this.historyPoller.start(roomInfo.roomId);
+      this.historyPoller.start(this.roomRunContext);
     }
-    this.onlineRankPoller.start(roomInfo.roomId, roomInfo.uid);
-    this.fansMedalPoller.start(roomInfo.roomId, roomInfo.uid);
+    this.onlineRankPoller.start(this.roomRunContext);
+    this.fansMedalPoller.start(this.roomRunContext);
     this.liveStatusMonitor.start(roomInfo);
 
     const danmuInfo = await this.apiClient.resolveDanmuInfo(roomInfo.roomId);
@@ -298,7 +312,7 @@ class BilibiliDanmakuClient {
         })}`);
         const reconnectDelayMs = this.reconnecting ? 5000 : 0;
         this.reconnecting = true;
-        this.historyPoller.start(this.resolvedRoomId || this.roomId);
+        this.historyPoller.start(this.roomRunContext);
         this.report({
           connected: Boolean(this.historyPoller.timer),
           enabled: true,
@@ -335,35 +349,21 @@ class BilibiliDanmakuClient {
 
   handleHistoryMessage(messageData) {
     if (this.stopped) return;
-    if (this.deduplicator.remember(messageData.uid, messageData.message, messageData.messageTimestamp, {
-      userName: messageData.userName,
-      source: messageData.source
-    })) {
-      const requester = this.identityCache.resolve({
-        uid: messageData.uid,
-        userName: messageData.userName,
-        avatarUrl: messageData.avatarUrl,
-        requesterGuardLevel: messageData.requesterGuardLevel,
-        requesterMedalName: messageData.requesterMedalName,
-        requesterMedalLevel: messageData.requesterMedalLevel,
-        currentRoomVerified: messageData.currentRoomVerified,
-        identitySource: 'history'
-      });
-      this.deliverDanmaku({
-        message: messageData.message,
-        uid: requester.uid,
-        userName: requester.userName,
-        avatarUrl: requester.avatarUrl,
-        requesterGuardLevel: requester.guardLevel,
-        requesterMedalName: requester.medalName,
-        requesterMedalLevel: requester.medalLevel,
-        source: messageData.source,
-        messageTimestamp: messageData.messageTimestamp,
-        connectionGeneration: this.connectionGeneration,
-        connectionAttempt: this.connectionAttempt,
-        cmd: 'HISTORY'
-      });
-    }
+    const requester = compatibilityRequester(messageData.identitySnapshot, messageData);
+    this.deliverDanmaku({
+      message: messageData.message,
+      uid: requester.uid,
+      userName: requester.userName,
+      avatarUrl: requester.avatarUrl,
+      requesterGuardLevel: requester.guardLevel,
+      requesterMedalName: requester.medalName,
+      requesterMedalLevel: requester.medalLevel,
+      source: messageData.source,
+      messageTimestamp: messageData.messageTimestamp,
+      connectionGeneration: this.connectionGeneration,
+      connectionAttempt: this.connectionAttempt,
+      cmd: 'HISTORY'
+    });
   }
 
   handleLiveStatusChange(status) {
@@ -456,6 +456,22 @@ class BilibiliDanmakuClient {
   report(status) {
     this.handlers.onStatus(status);
   }
+}
+
+function compatibilityRequester(snapshot, fallback = {}) {
+  const medal = snapshot && snapshot.fansMedal && snapshot.fansMedal.known
+    ? snapshot.fansMedal.value
+    : null;
+  return {
+    uid: cleanText(snapshot && snapshot.uid) || cleanText(fallback.uid),
+    userName: cleanText(snapshot && snapshot.name) || cleanText(fallback.userName) || '观众',
+    avatarUrl: cleanText(snapshot && snapshot.avatarUrl) || cleanText(fallback.avatarUrl),
+    guardLevel: snapshot && snapshot.guard && snapshot.guard.known
+      ? snapshot.guard.level
+      : Number(fallback.requesterGuardLevel) || 0,
+    medalName: medal ? medal.name : cleanText(fallback.requesterMedalName),
+    medalLevel: medal ? medal.level : Number(fallback.requesterMedalLevel) || 0
+  };
 }
 
 function createEmptyDiagnostics() {
