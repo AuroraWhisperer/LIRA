@@ -140,6 +140,7 @@ async function startDesktopApp() {
     getMusicAuthState,
     loginMusicAccount,
     logoutMusicAccount,
+    clearMusicBrowserCache,
     getMusicProviderRegistry,
     hasExactOrigin,
     isPathAllowedForLocalMedia,
@@ -417,6 +418,10 @@ function getMusicProviderRegistry() {
 
 function logoutMusicAccount(platform) {
   return authMgr.logoutMusicAccount(platform, pathState.dataDir);
+}
+
+function clearMusicBrowserCache() {
+  return authMgr.clearMusicBrowserCache();
 }
 
 function persistMusicCookieSnapshot(platform) {

@@ -220,6 +220,10 @@ test('desktop lyric settings organize the merged controls below lyric matching',
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
     'utf8'
   );
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
+    'utf8'
+  );
   const sourceIndex = html.indexOf('<legend>全民 K 歌在线歌词</legend>');
   const groupNames = [
     '基础样式',
@@ -238,8 +242,6 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   }
 
   for (const id of [
-    'desktopLyricLoadLocalFontsBtn',
-    'desktopLyricLocalFontStatus',
     'desktopLyricFallbackFontFamily',
     'desktopLyricTextAlign',
     'desktopLyricLetterSpacing',
@@ -276,12 +278,12 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+  assert.doesNotMatch(html, /desktopLyricLoadLocalFontsBtn|desktopLyricLocalFontStatus/);
+  assert.doesNotMatch(source, /desktopLyricLoadLocalFontsBtn|desktopLyricLocalFontStatus/);
 });
 
-test('desktop lyric settings list unique local font families and preserve denial state', async () => {
-  const listeners = new Map();
+test('desktop lyric settings automatically list local font families and preserve denial state', async () => {
   const form = { addEventListener() {} };
-  const status = { textContent: '', className: '' };
   const builtInOption = { value: 'Microsoft YaHei', textContent: '微软雅黑（默认）' };
   const select = {
     value: 'Microsoft YaHei',
@@ -299,24 +301,9 @@ test('desktop lyric settings list unique local font families and preserve denial
       return [builtInOption, ...this.children.flatMap((child) => child.children || [])];
     }
   };
-  const button = {
-    disabled: false,
-    attributes: new Map(),
-    addEventListener(type, handler) {
-      listeners.set(type, handler);
-    },
-    setAttribute(name, value) {
-      this.attributes.set(name, value);
-    },
-    removeAttribute(name) {
-      this.attributes.delete(name);
-    }
-  };
   const elements = new Map([
     ['desktopLyricForm', form],
-    ['desktopLyricFontFamily', select],
-    ['desktopLyricLoadLocalFontsBtn', button],
-    ['desktopLyricLocalFontStatus', status]
+    ['desktopLyricFontFamily', select]
   ]);
   function createNode(tagName) {
     return {
@@ -339,7 +326,6 @@ test('desktop lyric settings list unique local font families and preserve denial
   }
 
   let queryCount = 0;
-  let denyPermission = false;
   const sandbox = {
     console: { ...console, warn() {} },
     document: {
@@ -354,11 +340,6 @@ test('desktop lyric settings list unique local font families and preserve denial
       addEventListener() {},
       async queryLocalFonts() {
         queryCount += 1;
-        if (denyPermission) {
-          const error = new Error('Permission denied');
-          error.name = 'NotAllowedError';
-          throw error;
-        }
         return [
           { family: 'Arial' },
           { family: 'Arial' },
@@ -377,7 +358,7 @@ test('desktop lyric settings list unique local font families and preserve denial
 
   await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), sandbox);
   sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
-  await listeners.get('click')();
+  await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 1);
   const localGroup = select.querySelector('optgroup[data-local-fonts="true"]');
@@ -385,19 +366,52 @@ test('desktop lyric settings list unique local font families and preserve denial
   assert.deepEqual(localGroup.children.map((option) => option.textContent), ['Arial', 'Cascadia Code', '宋体']);
   assert.deepEqual(localGroup.children.map((option) => option.value), ['"Arial"', '"Cascadia Code"', '"宋体"']);
   assert.equal(select.value, 'Microsoft YaHei');
-  assert.equal(button.disabled, false);
-  assert.equal(button.attributes.has('aria-busy'), false);
-  assert.equal(status.textContent, '已读取 3 个本机字体');
+});
 
-  await listeners.get('click')();
-  assert.equal(queryCount, 2);
-  assert.equal(select.querySelector('optgroup[data-local-fonts="true"]').children.length, 3);
+test('desktop lyric local font detection keeps built-ins when permission is denied', async () => {
+  const form = { addEventListener() {} };
+  const builtInOption = { value: 'Microsoft YaHei', textContent: '微软雅黑（默认）' };
+  const select = {
+    value: 'Microsoft YaHei',
+    children: [],
+    querySelector() { return null; },
+    get options() { return [builtInOption]; }
+  };
+  const elements = new Map([
+    ['desktopLyricForm', form],
+    ['desktopLyricFontFamily', select]
+  ]);
+  let queryCount = 0;
+  const sandbox = {
+    console: { ...console, warn() {} },
+    document: {
+      getElementById(id) { return elements.get(id) || null; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; }
+    },
+    window: {
+      addEventListener() {},
+      async queryLocalFonts() {
+        queryCount += 1;
+        const error = new Error('Permission denied');
+        error.name = 'NotAllowedError';
+        throw error;
+      },
+      AdminApp: {
+        utils: { setValue() {}, api: async () => ({ ok: true }) },
+        forms: { bindRangePair() {} },
+        desktopLyricPreview: { init() {}, applySettings() {} }
+      }
+    }
+  };
 
-  denyPermission = true;
-  await listeners.get('click')();
-  assert.equal(queryCount, 3);
-  assert.equal(select.querySelector('optgroup[data-local-fonts="true"]').children.length, 3);
-  assert.equal(status.textContent, '未获得本机字体读取权限');
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), sandbox);
+  sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(queryCount, 1);
+  assert.equal(select.value, 'Microsoft YaHei');
+  assert.equal(select.querySelector('optgroup[data-local-fonts="true"]'), null);
 });
 
 test('desktop lyric settings include a live word-timed preview', () => {

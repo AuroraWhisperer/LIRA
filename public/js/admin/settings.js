@@ -435,26 +435,25 @@
   async function clearAll() {
     const ok = await dangerConfirm({
       title: '清空全部数据',
-      message: '此操作将删除以下所有数据：',
-      deletes: [
-        '歌曲', '分类', '点歌队列', '点歌记录', '导入批次',
-        'SC 记录', '礼物记录', '加班机结算记录',
-        '播放历史', '播放队列状态', '签到记录',
-        '用户冷却', 'AI 请求日志', 'AI 使用统计',
-        'AI 观众上下文', 'AI 查询缓存', 'AI 黑名单'
-      ],
-      keeps: [
-        '直播间号', '主题颜色', '所有设置',
-        'AI 配置', '主题预设',
-        '加班机状态', '加班机规则',
-        '收藏', '歌单'
-      ],
+      message: '将清除业务数据，并清理 QQ 音乐、网易云音乐的缓存。',
+      deletes: ['歌曲与点歌数据', 'SC、礼物与加班机记录', '播放、签到与 AI 运行数据', 'QQ 音乐、网易云音乐缓存'],
+      keeps: ['直播间号、主题与其他设置', 'AI 配置、主题预设', '加班机规则、收藏与歌单'],
       confirmLabel: '确认清空全部'
     });
     if (!ok) return;
 
     try {
       const response = await api('/api/database/clear-all', { confirm: true });
+
+      if (typeof window.musicAPI?.clearCache === 'function') {
+        try { await window.musicAPI.clearCache(); } catch (_) { /* browser cache cleanup is best-effort */ }
+      }
+      try {
+        for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+          const key = localStorage.key(index);
+          if (key && key.startsWith('playbackCache:')) localStorage.removeItem(key);
+        }
+      } catch (_) { /* renderer cache cleanup is best-effort */ }
 
       // 检测部分失败
       if (response.partial === true) {

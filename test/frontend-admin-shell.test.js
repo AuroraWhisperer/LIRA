@@ -40,7 +40,7 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   const buttonRule = source.match(/\.queues-row \.song-queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(headerRule, 'queue header sizing should remain defined');
-  assert.match(headerRule, /min-height:\s*60px/);
+  assert.match(headerRule, /min-height:\s*78px/);
   assert.ok(buttonRule, 'song queue header controls should remain compact');
   assert.match(buttonRule, /min-height:\s*30px/);
 });
@@ -556,8 +556,8 @@ test('admin queue cards have enough height for their text and metadata', () => {
   assert.ok(scListRule, 'SC queue list styles should remain defined');
   assert.ok(queueItemRule, 'queue item styles should remain defined');
   assert.ok(scRowRule, 'SC queue item styles should remain defined');
-  assert.match(queueListRule, /grid-auto-rows:\s*84px/);
-  assert.match(scListRule, /grid-auto-rows:\s*88px/);
+  assert.match(queueListRule, /grid-auto-rows:\s*76px/);
+  assert.match(scListRule, /grid-auto-rows:\s*82px/);
   assert.match(queueListRule, /align-content:\s*start/);
   assert.match(queueItemRule, /min-height:\s*0/);
   assert.match(queueItemRule, /overflow:\s*hidden/);

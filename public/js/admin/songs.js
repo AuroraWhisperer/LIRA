@@ -119,7 +119,7 @@ import {
     songArtists.clear();
     for (const song of songs) {
       if (song.language) songLanguages.add(song.language);
-      if (song.artist) songArtists.add(song.artist);
+      for (const artist of splitSongArtists(song.artist)) songArtists.add(artist);
     }
     renderLanguageFilter(songLanguages);
     renderArtistFilter(songArtists);
@@ -239,11 +239,22 @@ import {
   function renderArtistFilter(songArtists) {
     const select = document.getElementById('artistFilter');
     const selected = select.value;
-    const sorted = Array.from(songArtists).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+    const artists = new Set();
+    for (const artist of songArtists) {
+      for (const name of splitSongArtists(artist)) artists.add(name);
+    }
+    const sorted = Array.from(artists).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
     select.innerHTML = '<option value="">全部歌手</option>' + sorted.map((artist) => (
       `<option value="${escapeAttr(artist)}">${escapeHtml(artist)}</option>`
     )).join('');
     select.value = selected;
+  }
+
+  function splitSongArtists(value) {
+    return String(value || '')
+      .split(/\s*(?:\/|／|&|＆|、|,|，)\s*/)
+      .map((artist) => artist.trim())
+      .filter(Boolean);
   }
 
   function renderTagFilter(songTags) {

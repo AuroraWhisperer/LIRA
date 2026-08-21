@@ -30,50 +30,149 @@
 }
 
 .overtime-admin-header {
-  padding: 18px 20px;
-  border: 1px solid rgba(255, 111, 145, 0.42);
-  border-radius: 12px;
-  background: linear-gradient(120deg, #292936 0%, var(--ot-night) 100%);
-  box-shadow: inset 4px 0 0 var(--ot-pink);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 146px;
+  padding: 22px 26px;
+  border: 1px solid rgba(255, 111, 145, 0.46);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 111, 145, 0.18), transparent 25%),
+    linear-gradient(135deg, #28283a 0%, var(--ot-night) 68%);
+  box-shadow: inset 6px 0 0 var(--ot-pink), 0 12px 26px rgba(24, 24, 35, 0.14);
+}
+.overtime-admin-header::before {
+  position: absolute;
+  inset: 10px;
+  z-index: -1;
+  border: 1px solid rgba(255, 247, 251, 0.10);
+  border-radius: 14px;
+  content: '';
+  pointer-events: none;
+}
+.overtime-admin-header::after {
+  position: absolute;
+  top: -118px;
+  right: -54px;
+  z-index: -1;
+  width: 250px;
+  height: 250px;
+  border: 1px solid rgba(255, 111, 145, 0.22);
+  border-radius: 50%;
+  box-shadow: 0 0 0 18px rgba(255, 111, 145, 0.04), 0 0 0 36px rgba(255, 111, 145, 0.03);
+  content: '';
+  pointer-events: none;
+}
+.overtime-admin-header > div {
+  position: relative;
+  z-index: 1;
+  padding-left: 14px;
+}
+.overtime-admin-header > div::before {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--ot-pink), rgba(255, 111, 145, 0.18));
+  content: '';
 }
 
 .overtime-admin h2,
 .overtime-admin h3,
 .overtime-admin p { margin: 0; }
-.overtime-admin h2 { margin-top: 2px; font-size: 24px; color: #fff7fb; }
+.overtime-admin h2 { margin-top: 5px; font-size: clamp(25px, 2.4vw, 30px); color: #fff7fb; letter-spacing: -0.03em; }
 .overtime-admin h3 { font-size: 15px; }
-.overtime-admin p { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.overtime-admin p { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .overtime-admin-header > div > p:not(.overtime-admin-kicker) { color: rgba(255, 247, 251, 0.76); }
 .overtime-admin-kicker {
-  color: var(--ot-pink) !important;
-  font: 700 10px/1.2 Bahnschrift, sans-serif !important;
-  letter-spacing: 0.18em;
+  color: #ff9ab2 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.12em;
 }
 .overtime-admin-header #overtimeEnableBtn {
+  position: relative;
+  z-index: 1;
+  min-width: 132px;
+  min-height: 46px;
   border-color: rgba(255, 247, 251, 0.72);
+  border-radius: 12px;
   background: #fff7fb;
   color: #5f2940;
   font-weight: 700;
+  box-shadow: 0 8px 16px rgba(10, 10, 18, 0.18);
 }
 .overtime-admin-header #overtimeEnableBtn:hover {
   border-color: var(--ot-pink);
   background: #ffe8f0;
   color: #742342;
+  box-shadow: 0 10px 20px rgba(255, 111, 145, 0.18);
 }
 
 .overtime-console {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   align-items: stretch;
-  padding: 16px 20px;
-  border-radius: 12px;
-  background: var(--ot-night);
+  min-height: 168px;
+  padding: 20px 24px;
+  border: 1px solid rgba(255, 247, 251, 0.10);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(33, 182, 168, 0.14), transparent 35%),
+    linear-gradient(135deg, #1b1b2a 0%, #14141e 100%);
   color: #fff7fb;
+  box-shadow: 0 14px 28px rgba(24, 24, 35, 0.18);
 }
-.overtime-clock-block { display: grid; min-width: 230px; }
-.overtime-clock-status { color: var(--ot-teal); font-size: 12px; font-weight: 700; }
+.overtime-console::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(90deg, transparent 0 74px, rgba(255, 247, 251, 0.035) 75px 76px);
+  content: '';
+  pointer-events: none;
+}
+.overtime-console::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 31%;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(255, 111, 145, 0.08));
+  content: '';
+  pointer-events: none;
+}
+.overtime-clock-block { display: grid; align-content: center; min-width: 270px; gap: 7px; padding-left: 4px; }
+.overtime-clock-status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border: 1px solid rgba(33, 182, 168, 0.38);
+  border-radius: 999px;
+  background: rgba(33, 182, 168, 0.11);
+  color: #55d8ca;
+  font-size: 12px;
+  font-weight: 700;
+}
+.overtime-clock-status::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(33, 182, 168, 0.12);
+  content: '';
+}
 .overtime-clock-value {
-  font: 700 clamp(38px, 5vw, 66px)/1 Bahnschrift SemiCondensed, Bahnschrift, "Arial Narrow", sans-serif;
+  font: 700 clamp(42px, 5vw, 70px)/0.95 Bahnschrift SemiCondensed, Bahnschrift, "Arial Narrow", sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.035em;
+  text-shadow: 0 5px 20px rgba(255, 247, 251, 0.10);
 }
 .overtime-clock-value.is-calendar { letter-spacing: -0.015em; }
 .overtime-clock-value.is-finished {
@@ -81,19 +180,38 @@
   font-size: clamp(24px, 3.4vw, 46px);
   letter-spacing: 0.015em;
 }
-.overtime-control-stack { display: grid; align-content: space-between; justify-items: end; gap: 16px; }
+.overtime-control-stack { display: grid; align-content: space-between; justify-items: end; gap: 18px; padding: 2px 0; }
 .overtime-consumer-status { flex-wrap: wrap; justify-content: flex-end; }
+.overtime-consumer-status .pill {
+  border-color: rgba(255, 247, 251, 0.14);
+  background: rgba(255, 247, 251, 0.07);
+  color: rgba(255, 247, 251, 0.78);
+}
+.overtime-consumer-status .pill.good {
+  border-color: rgba(85, 216, 202, 0.38);
+  background: rgba(33, 182, 168, 0.13);
+  color: #8aeee3;
+}
+.overtime-consumer-status .pill.warn {
+  border-color: rgba(245, 183, 47, 0.34);
+  background: rgba(245, 183, 47, 0.10);
+  color: #ffd77a;
+}
 .overtime-actions { justify-content: flex-end; }
 .overtime-actions button {
-  border-color: rgba(255, 255, 255, 0.48);
+  min-height: 40px;
+  border-color: rgba(255, 247, 251, 0.55);
+  border-radius: 10px;
   background: #fff7fb;
   color: #251d25;
   font-weight: 700;
+  box-shadow: 0 6px 12px rgba(10, 10, 18, 0.16);
 }
 .overtime-actions button.secondary {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 247, 251, 0.22);
+  background: rgba(255, 255, 255, 0.07);
   color: #fff7fb;
+  box-shadow: none;
 }
 .overtime-actions button:hover:not(:disabled) { border-color: var(--ot-pink); color: var(--ot-pink); }
 .overtime-actions button:disabled {

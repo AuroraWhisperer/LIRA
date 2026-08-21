@@ -32,7 +32,7 @@
 
 | 平台 | 允许 Cookie 域名 | 关键 Cookie(keyCookies) | 认证 Cookie(authCookies) |
 |---|---|---|---|
-| QQ音乐 | `.qq.com`、`.y.qq.com`、`y.qq.com` | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst` |
+| QQ音乐 | `.qq.com`、`.y.qq.com`、`y.qq.com` | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst`、`p_skey`、`skey`(任一非空) |
 | 网易云 | `.163.com`、`.music.163.com`、`music.163.com` | `MUSIC_U`、`__csrf` | 缺省 → 回退 keyCookies |
 | Bilibili | `.bilibili.com`、`bilibili.com`、`.live.bilibili.com`、`live.bilibili.com` | `DedeUserID`、`SESSDATA`、`bili_jct` | 三者缺一不可(§4) |
 
@@ -50,7 +50,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 ## 4. 登录态判断
 
-- **音乐平台** `getMusicAuthState(platform, dataDir)`([auth-manager.js:126-153](../../../src/electron/auth-manager.js#L126-L153)):`loggedIn = authCookies 中任一存在`(QQ 即 `qqmusic_key` 或 `qm_keyst` 之一;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
+- **音乐平台** `getMusicAuthState(platform, dataDir)`([auth-manager.js:128-154](../../../src/electron/auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 即 `qqmusic_key`、`qm_keyst`、`p_skey`、`skey` 之一;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
 - **Bilibili** `getBilibiliAuthState(dataDir)`([bilibili-auth.js:127-163](../../../src/electron/bilibili-auth.js#L127-L163)):**`DedeUserID`、`SESSDATA`、`bili_jct` 三者全部存在**才 `loggedIn`(比音乐平台严格);`uid = Number(DedeUserID.value) || 0`,并单独标记 `hasSessdata`。
 
 返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`、`exportedCookieExists`。

@@ -44,6 +44,11 @@ const routes = {
 
     const result = context.data.clearAll();
 
+    // 清空全部数据时同步清理音乐 API / 歌词缓存；缓存失败不影响数据库清理结果。
+    if (context.music && typeof context.music.clearCache === 'function') {
+      try { context.music.clearCache(); } catch (_) { /* cache cleanup is best-effort */ }
+    }
+
     // 处理部分失败：某些数据库提交成功，某些失败
     if (result.partial === true) {
       sendJson(res, 500, {

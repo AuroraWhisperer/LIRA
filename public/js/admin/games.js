@@ -1,5 +1,6 @@
 'use strict';
 
+import { eventBus, Events } from '../shared/event-bus.js';
 import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 
 let initialized = false;
@@ -8,6 +9,10 @@ let wheelLimits = null;
 let activeGameSession = null;
 let drawClock = null;
 let drawClockTimer = null;
+let viewerRefreshPromise = null;
+let lastLiveConnectionKey = '';
+
+const VIEWER_REFRESH_RETRY_DELAYS_MS = [250, 500, 1000, 2000];
 
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
@@ -15,7 +20,9 @@ export function initGames() {
   byId('gamesOverlayUrl').value = overlayBaseUrl();
   byId('gamesCopyBaseUrlBtn').addEventListener('click', () => copyUrl(overlayBaseUrl()));
   byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
-  byId('gamesRefreshViewersBtn').addEventListener('click', () => refreshViewers().catch(showError));
+  byId('gamesRefreshViewersBtn').addEventListener('click', () => {
+    requestViewerRefresh({ notify: true }).catch(showError);
+  });
   byId('gamesStopBtn').addEventListener('click', () => stopGame().catch(showError));
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
   byId('drawCardTrigger').addEventListener('click', toggleDrawDetails);
@@ -38,18 +45,53 @@ export function initGames() {
     refreshHostState().catch(() => {});
   });
   window.addEventListener('app:wheel-update', event => renderWheelState(event.detail));
+  eventBus.on(Events.STATE_LOADED, ({ state }) => {
+    const liveStatus = state?.liveStatus || {};
+    const connectionKey = liveStatus.connected === true && liveStatus.roomId
+      ? `${liveStatus.roomId}`
+      : '';
+    const connectionChanged = connectionKey !== lastLiveConnectionKey;
+    lastLiveConnectionKey = connectionKey;
+    if (connectionChanged && connectionKey) {
+      requestViewerRefresh({ notify: false }).catch(() => {});
+    }
+  });
   byId('wheelOverlayUrl').value = wheelOverlayUrl();
   syncViewerMode();
   window.addEventListener('app:shutdown', stopDrawClockTimer, { once: true });
-  Promise.all([refreshViewers(), refreshSession(), refreshHostState(), refreshWheel()]).catch(showError);
+  Promise.all([
+    requestViewerRefresh({ notify: false }),
+    refreshSession(),
+    refreshHostState(),
+    refreshWheel()
+  ]).catch(showError);
 }
 
-async function refreshViewers() {
-  const response = await fetch('/api/games/viewers');
-  const payload = await readJsonResponse(response, '读取在线观众失败');
-  if (!payload.ok) throw new Error(payload.error || '读取在线观众失败');
-  for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), payload.data || []);
-  toast(`已找到 ${(payload.data || []).length} 位当前在线观众`);
+function requestViewerRefresh(options = {}) {
+  if (viewerRefreshPromise) return viewerRefreshPromise;
+  viewerRefreshPromise = refreshViewers(options).finally(() => {
+    viewerRefreshPromise = null;
+  });
+  return viewerRefreshPromise;
+}
+
+async function refreshViewers(options = {}) {
+  const notify = options.notify === true;
+  let viewers = [];
+  for (let attempt = 0; attempt <= VIEWER_REFRESH_RETRY_DELAYS_MS.length; attempt += 1) {
+    if (attempt > 0) await wait(VIEWER_REFRESH_RETRY_DELAYS_MS[attempt - 1]);
+    const response = await fetch('/api/games/viewers');
+    const payload = await readJsonResponse(response, '读取在线观众失败');
+    if (!payload.ok) throw new Error(payload.error || '读取在线观众失败');
+    viewers = payload.data || [];
+    if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length) break;
+  }
+  for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), viewers);
+  if (notify) toast(`已找到 ${viewers.length} 位当前在线观众`);
+}
+
+function wait(delayMs) {
+  return new Promise(resolve => setTimeout(resolve, delayMs));
 }
 
 function renderViewerOptions(select, viewers) {

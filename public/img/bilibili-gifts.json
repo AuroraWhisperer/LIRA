@@ -1,5 +1,5 @@
 {
-  "retrievedAt": "2026-08-19T07:33:29.696Z",
+  "retrievedAt": "2026-08-21T07:00:49.158Z",
   "gifts": [
     {
       "id": 30706,
@@ -650,6 +650,26 @@
       "battery": 30000,
       "rmb": 3000,
       "category": "3000-above"
+    },
+    {
+      "id": 35866,
+      "name": "豹拉",
+      "price": "66电池",
+      "image": "bilibili-gifts/0000-under-0100/35866.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/e3b42789ed92b6693f874182f696396a02d13f10.webp",
+      "battery": 66,
+      "rmb": 6.6,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35867,
+      "name": "牛来",
+      "price": "188电池",
+      "image": "bilibili-gifts/0000-under-0100/35867.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/7db9476529d1c1797ebd0c3861e9dfefa14925ea.webp",
+      "battery": 188,
+      "rmb": 18.8,
+      "category": "0000-under-0100"
     }
   ]
 }

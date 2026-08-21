@@ -113,6 +113,35 @@ test('song library requires every selected category and composes with other filt
   }
 });
 
+test('song library artist filter matches an individual artist in a collaboration field', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-artist-filter-'));
+  const databases = createDatabases({ dataDir });
+
+  try {
+    songService.saveSong(databases.songDb, {
+      name: '合作歌曲', artist: '歌手甲 / 歌手乙', categoryName: '流行'
+    });
+    songService.saveSong(databases.songDb, {
+      name: '歌手甲独唱', artist: '歌手甲', categoryName: '流行'
+    });
+    songService.saveSong(databases.songDb, {
+      name: '其他歌曲', artist: '歌手丙', categoryName: '流行'
+    });
+
+    assert.deepEqual(
+      songService.listSongs(databases.songDb, { artist: '歌手甲' }).map((song) => song.name).sort(),
+      ['合作歌曲', '歌手甲独唱'].sort()
+    );
+    assert.deepEqual(
+      songService.listSongs(databases.songDb, { artist: '歌手乙' }).map((song) => song.name),
+      ['合作歌曲']
+    );
+  } finally {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('song library requires every selected complete tag and composes with category filters', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-tag-filter-'));
   const databases = createDatabases({ dataDir });

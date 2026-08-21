@@ -135,9 +135,9 @@
     if (queueItems.length === 0) {
       list.innerHTML = `
         <div class="empty queue-empty">
-          <div class="empty-icon">🎵</div>
+          <div class="empty-icon" aria-hidden="true">♫</div>
           <div class="empty-text">暂无点歌</div>
-          <div class="empty-hint">观众点歌后会显示在这里</div>
+          <div class="empty-hint">观众点歌后，会按顺序出现在这里</div>
         </div>
       `;
     } else {
@@ -198,9 +198,9 @@
     if (items.length === 0) {
       list.innerHTML = `
         <div class="empty sc-empty">
-          <div class="empty-icon">💬</div>
+          <div class="empty-icon" aria-hidden="true">✦</div>
           <div class="empty-text">暂无醒目留言</div>
-          <div class="empty-hint">SC 消息会显示在这里</div>
+          <div class="empty-hint">收到醒目留言后，会优先显示在这里</div>
         </div>
       `;
       return;

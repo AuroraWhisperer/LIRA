@@ -168,6 +168,7 @@ data/
 清空全部前路由会调用上下文的静默方法([data-routes.js:30-37](../../../src/server/routes/data-routes.js#L30-L37)):
 - `context.gifts.pauseDetection()`:暂停礼物检测写入
 - `context.overtime.pauseRecovery()`:暂停加班机后台恢复写入
+- 路由同时清理音乐 API 与歌词文件缓存；Electron 桌面端在成功响应后还会清理 QQ 音乐、网易云音乐会话缓存（不删除登录 Cookie）。
 
 成功后恢复:
 - `context.gifts.resumeDetection()`

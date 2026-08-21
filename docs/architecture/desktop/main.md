@@ -74,7 +74,7 @@
 
 `ready-to-show` 后:显示窗口、下发当前更新状态,并触发首轮自动更新检查(仅打包版且 `enableAutoUpdate==='true'`,延迟 1s,见 [update.md](update.md) §1)。
 
-本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页随后通过 `window.queryLocalFonts()` 去重列出字体族,不新增 IPC 或文件访问桥。
+本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页打开桌面歌词设置时自动通过 `window.queryLocalFonts()` 去重列出字体族;若 Chromium 首次调用要求瞬时用户激活,管理页在用户首次正常点击/按键时自动重试,不新增 IPC 或文件访问桥。
 
 ## 5. local-media:// 协议(唯一成文处)
 

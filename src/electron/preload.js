@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('musicAPI', {
   getAuthState: (platform) => ipcRenderer.invoke('music:get-auth-state', platform),
   login: (platform) => ipcRenderer.invoke('music:login', platform),
   logout: (platform) => ipcRenderer.invoke('music:logout', platform),
+  clearCache: () => ipcRenderer.invoke('music:clear-cache'),
   providerHealth: (platform) => ipcRenderer.invoke('music:provider-health', platform),
   selectLocalFiles: () => ipcRenderer.invoke('music:select-local-files'),
   getRecentLocalFiles: () => ipcRenderer.invoke('music:get-recent-local-files'),

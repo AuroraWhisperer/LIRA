@@ -36,16 +36,22 @@
     setMetricsBusy(true);
 
     try {
-      const [response, hardwareResponse] = await Promise.all([
-        fetch('/api/system/metrics?windowMs=5000'),
-        fetch('/api/system/hardware?includeTemperatures=true')
-      ]);
-      const [payload, hardwarePayload] = await Promise.all([response.json(), hardwareResponse.json()]);
+      const hardwarePromise = fetch('/api/system/hardware?includeTemperatures=true')
+        .then((response) => response.json())
+        .catch(() => ({ ok: false }));
+      const response = await fetch('/api/system/metrics?windowMs=5000');
+      const payload = await response.json();
       if (!payload.ok) throw new Error(payload.error || '性能检测失败');
       renderMetrics(payload.data);
-      if (hardwarePayload.ok) renderHardwareSummary(hardwarePayload.data, true);
-      else document.getElementById('hardwareSummaryStatus').textContent = '硬件温度暂不可用，不影响性能检测';
       toast('性能检测完成');
+
+      try {
+        const hardwarePayload = await hardwarePromise;
+        if (hardwarePayload.ok) renderHardwareSummary(hardwarePayload.data, true);
+        else document.getElementById('hardwareSummaryStatus').textContent = '硬件温度暂不可用，不影响性能检测';
+      } catch (_) {
+        document.getElementById('hardwareSummaryStatus').textContent = '硬件温度暂不可用，不影响性能检测';
+      }
     } catch (error) {
       showError(error);
       renderMetricsError(error);

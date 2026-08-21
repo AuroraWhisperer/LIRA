@@ -53,6 +53,7 @@ import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
     ['desktopLyricContrast', 0.2, 2, 1],
     ['desktopLyricSaturation', 0, 2, 1]
   ];
+  let localFontDetectionStarted = false;
 
   function quoteCssFontFamily(family) {
     return `"${family.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
@@ -70,13 +71,6 @@ import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
     });
     return Array.from(uniqueFamilies.values())
       .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base', numeric: true }));
-  }
-
-  function setLocalFontStatus(message, state = '') {
-    const status = document.getElementById('desktopLyricLocalFontStatus');
-    if (!status) return;
-    status.textContent = message;
-    status.className = `desktop-lyric-local-font-status${state ? ` ${state}` : ''}`;
   }
 
   function ensureSavedFontOption(value) {
@@ -114,36 +108,32 @@ import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
     }
   }
 
+  async function loadLocalFontOptions(select) {
+    if (localFontDetectionStarted || typeof window.queryLocalFonts !== 'function') return '';
+    localFontDetectionStarted = true;
+
+    try {
+      const families = normalizeLocalFontFamilies(await window.queryLocalFonts());
+      if (families.length > 0) replaceLocalFontOptions(select, families);
+      return 'loaded';
+    } catch (error) {
+      if (error?.name === 'SecurityError') {
+        localFontDetectionStarted = false;
+        return 'needs-gesture';
+      }
+      console.warn('Automatic local font detection failed:', error?.message || error);
+      return 'failed';
+    }
+  }
+
   function initLocalFontLibrary() {
     const select = document.getElementById('desktopLyricFontFamily');
-    const button = document.getElementById('desktopLyricLoadLocalFontsBtn');
-    if (!select || !button) return;
-
-    button.addEventListener('click', async () => {
-      if (typeof window.queryLocalFonts !== 'function') {
-        setLocalFontStatus('当前客户端不支持读取本机字体', 'is-error');
-        return;
-      }
-
-      button.disabled = true;
-      button.setAttribute('aria-busy', 'true');
-      setLocalFontStatus('正在读取本机字体…');
-      try {
-        const families = normalizeLocalFontFamilies(await window.queryLocalFonts());
-        if (families.length === 0) {
-          setLocalFontStatus('没有读取到可用的本机字体', 'is-error');
-          return;
-        }
-        replaceLocalFontOptions(select, families);
-        setLocalFontStatus(`已读取 ${families.length} 个本机字体`, 'is-success');
-      } catch (error) {
-        const denied = error?.name === 'NotAllowedError' || error?.name === 'SecurityError';
-        setLocalFontStatus(denied ? '未获得本机字体读取权限' : '读取本机字体失败，请重试', 'is-error');
-        console.warn('Local font access failed:', error?.message || error);
-      } finally {
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-      }
+    if (!select) return;
+    void loadLocalFontOptions(select).then((result) => {
+      if (result !== 'needs-gesture' || typeof window.addEventListener !== 'function') return;
+      const retry = () => void loadLocalFontOptions(select);
+      window.addEventListener('pointerdown', retry, { once: true, capture: true });
+      window.addEventListener('keydown', retry, { once: true, capture: true });
     });
   }
 

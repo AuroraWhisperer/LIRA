@@ -79,6 +79,20 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
   assert.match(script, /toggleDrawDetails/);
 });
 
+test('games viewer refresh waits for the live connection and retries an empty startup snapshot', () => {
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
+
+  assert.match(script, /import \{ eventBus, Events \} from '\.\.\/shared\/event-bus\.js';/);
+  assert.match(script, /const VIEWER_REFRESH_RETRY_DELAYS_MS = \[/);
+  assert.match(script, /let viewerRefreshPromise = null;/);
+  assert.match(script, /function requestViewerRefresh\(options = \{\}\)/);
+  assert.match(script, /eventBus\.on\(Events\.STATE_LOADED, \(\{ state \}\) =>/);
+  assert.match(script, /liveStatus\.connected === true/);
+  assert.match(script, /requestViewerRefresh\(\{ notify: false \}\)/);
+  assert.match(script, /requestViewerRefresh\(\{ notify: true \}\)/);
+  assert.match(script, /fetch\('\/api\/games\/viewers'\)/);
+});
+
 test('wheel admin consumes limits from server state', () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
 

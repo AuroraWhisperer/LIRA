@@ -14,7 +14,7 @@ const MUSIC_LOGIN_CONFIG = {
     allowedHosts: ['y.qq.com', 'i.y.qq.com', 'graph.qq.com', 'ssl.ptlogin2.qq.com', 'xui.ptlogin2.qq.com', 'ui.ptlogin2.qq.com', 'ptlogin2.qq.com', 'qq.com'],
     cookieDomains: ['.qq.com', '.y.qq.com', 'y.qq.com'],
     keyCookies: ['uin', 'qqmusic_uin', 'qqmusic_key', 'qm_keyst', 'p_skey', 'skey', 'wxuin', 'p_uin', 'pt2gguin', 'superuin'],
-    authCookies: ['qqmusic_key', 'qm_keyst']
+    authCookies: ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey']
   },
   netease: {
     name: '网易云音乐',
@@ -131,7 +131,9 @@ async function getMusicAuthState(platform, dataDir) {
   const cookieNames = new Set(cookies.map((c) => c.name));
   const presentKeyCookies = config.keyCookies.filter((name) => cookieNames.has(name));
   const authCookieNames = Array.isArray(config.authCookies) ? config.authCookies : config.keyCookies;
-  const loggedIn = authCookieNames.some((name) => cookieNames.has(name));
+  const loggedIn = authCookieNames.some((name) => cookies.some((cookie) => (
+    cookie.name === name && typeof cookie.value === 'string' && cookie.value.length > 0
+  )));
 
   let snapshotMeta = { exists: false, savedAt: '' };
   const snapshotPath = getMusicCookieSnapshotPath(dataDir, platform);
@@ -170,6 +172,17 @@ async function logoutMusicAccount(platform, dataDir) {
   return getMusicAuthState(platform, dataDir);
 }
 
+async function clearMusicBrowserCache(platforms = Object.keys(MUSIC_LOGIN_CONFIG)) {
+  const cleared = [];
+  for (const value of platforms) {
+    const platform = normalizeMusicPlatform(value);
+    const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
+    await loginSession.clearStorageData({ storages: ['cache', 'cachestorage'] });
+    cleared.push(platform);
+  }
+  return { cleared };
+}
+
 module.exports = {
   MUSIC_LOGIN_CONFIG,
   normalizeMusicPlatform,
@@ -179,5 +192,6 @@ module.exports = {
   persistMusicCookieSnapshot,
   restoreMusicCookieSnapshot,
   getAllowedMusicCookies,
-  logoutMusicAccount
+  logoutMusicAccount,
+  clearMusicBrowserCache
 };

@@ -6,6 +6,8 @@ const childProcess = require('node:child_process');
 const os = require('node:os');
 const { cleanText, clampPercent, now, sleep } = require('../shared/utils');
 
+const GPU_SAMPLE_GRACE_MS = 250;
+
 const hardwareSummaryService = createHardwareSummaryService();
 
 async function getSystemMetrics(rawWindowMs = 5000) {
@@ -25,7 +27,18 @@ async function getSystemMetrics(rawWindowMs = 5000) {
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
   const processMemory = process.memoryUsage();
-  const gpu = await gpuPromise;
+  // Windows' performance-counter process can finish a little after the exact
+  // sample window. Do not hold the whole metrics response for that tail; the
+  // next sample can retry GPU data without delaying CPU/memory results.
+  const gpu = await Promise.race([
+    gpuPromise,
+    sleep(GPU_SAMPLE_GRACE_MS).then(() => ({
+      available: false,
+      totalPercent: null,
+      processPercent: null,
+      message: 'GPU 计数器采样超时'
+    }))
+  ]);
 
   return {
     sampledAt: now(),

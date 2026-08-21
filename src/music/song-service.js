@@ -115,8 +115,9 @@ function listSongs(db, {
     args.push(cleanLang);
   }
   if (cleanArt) {
-    conditions.push('songs.artist = ?');
-    args.push(cleanArt);
+    // Excel 歌手列可能包含合作歌手；先取候选，再按独立歌手名精确匹配。
+    conditions.push('(songs.artist = ? OR songs.artist LIKE ?)');
+    args.push(cleanArt, `%${cleanArt}%`);
   }
   if (enabledOnly) {
     conditions.push('songs.is_enabled = 1');
@@ -132,6 +133,9 @@ function listSongs(db, {
   `).all(...args);
 
   return rows.filter((row) => {
+    if (cleanArt && !splitSongArtists(row.artist).some((artist) => artist === cleanArt)) {
+      return false;
+    }
     if (tagFilters.length === 0) return true;
     const songTags = new Set(splitSongTags(row.tags).map((tag) => tag.toLocaleLowerCase()));
     return tagFilters.every((tag) => songTags.has(tag.toLocaleLowerCase()));
@@ -169,6 +173,13 @@ function findSong(db, songName, artist) {
     ORDER BY songs.updated_at DESC
     LIMIT 1
   `).get(cleanName) || null;
+}
+
+function splitSongArtists(value) {
+  return String(value || '')
+    .split(/\s*(?:\/|／|&|＆|、|,|，)\s*/)
+    .map((artist) => cleanText(artist))
+    .filter(Boolean);
 }
 
 function findUniqueSongNameMatch(db, songName) {

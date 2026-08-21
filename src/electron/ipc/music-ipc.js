@@ -14,6 +14,7 @@ function registerMusicIpc({
   getMusicAuthState,
   loginMusicAccount,
   logoutMusicAccount,
+  clearMusicBrowserCache,
   getMusicProviderRegistry,
   hasExactOrigin,
   isPathAllowedForLocalMedia,
@@ -23,6 +24,7 @@ function registerMusicIpc({
   ipcMain.handle('music:get-auth-state', function (_event, platform) { return getMusicAuthState(platform); });
   ipcMain.handle('music:login', function (_event, platform) { return loginMusicAccount(platform); });
   ipcMain.handle('music:logout', function (_event, platform) { return logoutMusicAccount(platform); });
+  ipcMain.handle('music:clear-cache', function () { return clearMusicBrowserCache(); });
   ipcMain.handle('music:provider-health', async function (_event, platform) {
     return getMusicProviderRegistry().healthCheck(platform);
   });
