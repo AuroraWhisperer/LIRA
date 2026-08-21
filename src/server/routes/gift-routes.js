@@ -3,6 +3,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
+const { buildGiftFramePreviewEvent } = require('../../bilibili/gift/frame-config');
 
 const prefixes = ['/api/gifts/'];
 
@@ -79,6 +80,19 @@ const routes = {
     }
     context.gifts.previewEffect({ type: 'gift:effect', eventId: 0, giftId, effect, preview: true });
     sendJson(res, 200, { ok: true, data: { giftId, effect } });
+  },
+
+  async 'POST /api/gifts/frame/preview'(context, request, res) {
+    const body = await request.body();
+    let event;
+    try {
+      event = buildGiftFramePreviewEvent(body);
+    } catch (error) {
+      sendJson(res, 400, { ok: false, error: error.message || '礼物边框预览参数无效。' });
+      return;
+    }
+    context.gifts.previewFrame(event);
+    sendJson(res, 200, { ok: true, data: event });
   },
 
   async 'POST /api/gifts/clear-recent'(context, request, res) {

@@ -54,7 +54,8 @@ function createApiContext(options) {
       search: domainServices.gifts.search,
       clearRecent: domainServices.gifts.clearRecent,
       resolveEffect: domainServices.gifts.resolveEffect,
-      previewEffect: broadcastGiftEffectPreview
+      previewEffect: broadcastGiftEffectPreview,
+      previewFrame: broadcastGiftEffectPreview
     },
     overtime: {
       getOverview: domainServices.overtime.getOverview,

@@ -144,6 +144,47 @@
   gap: 10px;
 }
 
+.gift-frame-settings-card {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(248, 243, 232, .88), var(--surface));
+}
+
+.gift-frame-settings-heading,
+.gift-frame-settings-actions,
+.gift-frame-url-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.gift-frame-settings-heading h3 { margin: 3px 0 4px; color: var(--text); font-size: 20px; }
+.gift-frame-settings-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.gift-frame-settings-grid,
+.gift-frame-preview-grid { display: grid; grid-template-columns: minmax(200px, 1.2fr) repeat(3, minmax(140px, 1fr)); gap: 14px; margin-top: 20px; }
+.gift-frame-preview-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); margin-top: 14px; }
+.gift-frame-settings-grid label:not(.switch-control),
+.gift-frame-preview-grid label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.gift-frame-settings-grid label small { color: var(--muted); font-size: 10px; font-weight: 500; }
+.gift-frame-switch { align-self: start; min-height: 42px; }
+.gift-frame-settings-actions { justify-content: flex-start; margin-top: 18px; }
+.gift-frame-settings-actions .hint[data-state="error"] { color: var(--primary-strong); }
+.gift-frame-settings-actions .hint[data-state="success"] { color: #147f75; }
+.gift-frame-url-row { align-items: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.gift-frame-url-row > div:first-child { min-width: 0; flex: 1 1 auto; }
+.gift-frame-url-row > div:first-child > span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.gift-frame-url-row code { display: block; min-height: 32px; padding: 6px 9px; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.68); color: var(--text); font-size: 11px; }
+.gift-frame-url-actions { display: flex; gap: 8px; }
+
+@media (max-width: 900px) {
+  .gift-frame-settings-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+  .gift-frame-preview-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .gift-frame-settings-card { padding: 16px; }
+  .gift-frame-settings-heading, .gift-frame-settings-actions, .gift-frame-url-row { align-items: stretch; flex-direction: column; }
+  .gift-frame-settings-grid, .gift-frame-preview-grid { grid-template-columns: 1fr; }
+  .gift-frame-url-actions { width: 100%; }
+  .gift-frame-url-actions button { flex: 1 1 0; }
+}
+
 @media (max-width: 1200px) {
   .gift-effect-tool-grid {
     grid-template-columns: 1fr;

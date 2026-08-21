@@ -1,5 +1,56 @@
             <section id="otherGiftFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>
               <div class="other-feature-panel-body stack">
                 <div class="other-feature-panel-header-inline"><div><h2>礼物姬</h2><p>礼物相关工具将在这里集中展示。</p></div><span class="pill">准备就绪</span></div>
+                <section class="gift-frame-settings-card" aria-labelledby="giftFrameSettingsTitle">
+                  <header class="gift-frame-settings-heading">
+                    <div>
+                      <span class="panel-kicker">观众画面</span>
+                      <h3 id="giftFrameSettingsTitle">礼物边框</h3>
+                      <p>收到达到金额的礼物时，在投屏画面四周长出一圈林间花信。</p>
+                    </div>
+                    <span id="giftFrameSettingsState" class="pill">未启用</span>
+                  </header>
+                  <div class="gift-frame-settings-grid">
+                    <label class="gift-frame-switch switch-control">
+                      <input id="giftFrameEnabled" type="checkbox">
+                      <span class="switch-track"></span>
+                      <span>启用礼物边框</span>
+                    </label>
+                    <label>
+                      <span>触发金额（元）</span>
+                      <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20">
+                      <small>使用最终礼物金额，0 元表示所有付费礼物</small>
+                    </label>
+                    <label>
+                      <span>边框主题</span>
+                      <select id="giftFrameTheme" data-dropdown-variant="settings">
+                        <option value="woodland-bloom">林间花信</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>动效模式</span>
+                      <select id="giftFrameMotionMode" data-dropdown-variant="settings">
+                        <option value="auto">跟随系统</option>
+                        <option value="full">完整动效</option>
+                        <option value="reduced">简化动效</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="gift-frame-preview-grid">
+                    <label><span>预览观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80"></label>
+                    <label><span>预览礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80"></label>
+                    <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2"></label>
+                    <label><span>金额（元）</span><input id="giftFramePreviewAmount" type="number" min="0.01" step="0.01" value="520"></label>
+                  </div>
+                  <div class="gift-frame-settings-actions">
+                    <button id="giftFrameSaveBtn" class="primary" type="button">保存礼物边框设置</button>
+                    <button id="giftFramePreviewBtn" class="secondary" type="button">播放预览</button>
+                    <span id="giftFrameSaveState" class="hint" role="status" aria-live="polite"></span>
+                  </div>
+                  <div class="gift-frame-url-row">
+                    <div><span>OBS / 直播姬地址</span><code id="giftFrameOverlayUrl"></code></div>
+                    <div class="gift-frame-url-actions"><button id="giftFrameCopyBtn" class="secondary" type="button">复制地址</button><button id="giftFrameOpenBtn" class="secondary" type="button">打开预览</button></div>
+                  </div>
+                </section>
               </div>
             </section>

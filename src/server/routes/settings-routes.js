@@ -5,12 +5,19 @@
 const { sendJson } = require('../http-utils');
 const { normalizeRoomInput } = require('../../shared/utils');
 const { parseCustomReplyRules } = require('../../bilibili/custom-reply-service');
+const { normalizeFrameSettingValue } = require('../../bilibili/gift/frame-config');
 
 const prefixes = ['/api/settings'];
 
 // 这些 key 的默认值本身就是 JSON 字符串；前端若以数组/对象提交，必须显式序列化，
 // 否则 String(rawValue) 会得到 "[object Object]"。
 const JSON_SETTING_KEYS = new Set(['giftBlindBoxConfig', 'checkinBlessings', 'fortunePool']);
+const FRAME_SETTING_KEYS = new Set([
+  'giftFrameEnabled',
+  'giftFrameThresholdRmb',
+  'giftFrameTheme',
+  'giftFrameMotionMode'
+]);
 
 const routes = {
   async 'POST /api/settings'(context, request, res) {
@@ -19,6 +26,10 @@ const routes = {
     for (const [key, rawValue] of Object.entries(body || {})) {
       if (allowedKeys.has(key)) {
         const value = normalizeSettingValue(key, rawValue);
+        if (value === null) {
+          sendJson(res, 400, { ok: false, error: `设置 ${key} 的值无效。` });
+          return;
+        }
         context.settings.set(key, value);
       }
     }
@@ -29,6 +40,7 @@ const routes = {
 };
 
 function normalizeSettingValue(key, rawValue) {
+  if (FRAME_SETTING_KEYS.has(key)) return normalizeFrameSettingValue(key, rawValue);
   if (key === 'roomId') return normalizeRoomInput(rawValue);
   if (key === 'customReplyRules') return JSON.stringify(parseCustomReplyRules(rawValue));
   if (JSON_SETTING_KEYS.has(key)) {

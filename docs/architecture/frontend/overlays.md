@@ -2,7 +2,7 @@
 
 > 涉及文件:[pages/overlays/queue.html](../../../public/pages/overlays/queue.html)、[pages/overlays/songs.html](../../../public/pages/overlays/songs.html)、[pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)、[pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html)、[pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)、[js/overlays/](../../../public/js/overlays/)、[css/overlays/](../../../public/css/overlays/)
 
-本文档描述五个叠加层页面的框架、数据消费与各自 UI。快照字段与消息类型见 [ws.md](../backend/ws.md),客户端通信行为见 [comms.md](comms.md),页面入口 URL 见 [pages.md](pages.md) §2,加班机领域状态见 [backend/overtime.md](../backend/overtime.md)。
+本文档描述各个叠加层页面的框架、数据消费与各自 UI。快照字段与消息类型见 [ws.md](../backend/ws.md),客户端通信行为见 [comms.md](comms.md),页面入口 URL 见 [pages.md](pages.md) §2,加班机领域状态见 [backend/overtime.md](../backend/overtime.md)。
 
 ## 1. 悬浮层框架
 
@@ -58,6 +58,24 @@
 - **工作原理**:以 anchor 记录(当前视口首行 key/index/offset)为起点,向两侧按 `beforeViewports=1 / afterViewports=1.5` 个视口高度增量构建 DOM 节点(`probeOverflow` 先探测内容是否超出一屏,不超出则整表渲染),`wrapIndex` 取模实现环形复用;滚动时 `tick` 按 `pixelsPerSecond(viewportHeight / secondsPerViewport)` 推进 `scrollTop`,超出前缓冲区的顶部节点被回收并追加到尾部(`recycleTopRecords`),始终保持窗口内只有可见 + 缓冲节点。
 - **联动**:`setRecords`/`relayout` 以 anchor 保持视口稳定(歌单刷新/字体加载完成/视口 resize 时不跳位);`secondsPerViewport` 由歌单滚动速度设置换算;页面隐藏时 `pause()` 停止 rAF([songs.js:102-108](../../../public/js/overlays/songs.js#L102-L108))。
 - 浏览器无 `requestAnimationFrame`/`ResizeObserver` 时自动降级(整表渲染 + window resize 监听)。
+
+### 1.4 礼物四方边框(`/gift-effects`)
+
+`gift-effects.html` 保留透明全屏浏览器源地址，但运行路径只消费 `gift:frame`。页面把 inline
+SVG(`viewBox="0 0 1920 1080"`)分为四个 `corner-*`、四个 `edge-*` 和内部 `highlights`，
+礼物名称、观众、数量与最终金额由 DOM `textContent` 写入底边信息座；中间安全区保持透明。
+复杂枝叶使用 SVG path/mask，动画只改 `opacity`、`transform` 和局部 path，高光不循环。
+
+播放由 Overlay 内部 `GiftFrameController` 管理：单个 `PlaybackSession` 按 `900ms` 进入、
+`2600ms` 保持、`650ms` 退场的冻结时序运行，角落、边缘、局部高光和信息座在进入阶段并行重叠；
+队列最多 3 条 pending，事件等待超过 12 秒丢弃，实时事件按稳定 `gift-frame:<id>` 去重，
+金额更高的新事件可替换 pending 中最低且最晚入队的一条。每个会话拥有 `AbortController`、
+WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都从同一 `finally` 清理出口恢复透明。
+
+粒子 Canvas 默认只在进入/退场放置最多 4 个轻量光点，粒子失败不影响 SVG/DOM 生命周期。
+动效解析优先级为 URL `?motion=` > `gift:frame.motionMode`/快照 settings > 系统
+`prefers-reduced-motion`；`reduced` 关闭粒子和大幅位移但保留边框结构与礼物信息。旧
+`gift:effect` MP4 查询接口仍作为兼容入口保留，但新 Overlay 不消费也不加载远程礼物媒体。
 
 ## 2. 队列叠加层(/queue)
 
@@ -152,6 +170,7 @@
 | songs | `/api/state` + `/api/songs` | snapshot | orderKey/layoutKey/motionKey | `songs:*`/`database:clear`(220ms 重载) |
 | blindbox | `/api/state` + `/api/gifts/blind-box-stats` | snapshot(仅缓存)+ 轮询 | 统计接口每次重取 | `bilibili:gift`/`gift:sprint:reset`/`connect` |
 | overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
+| gift-effects | `/gift-effects` 页面内置 SVG | `gift:frame` | `eventId` 稳定去重 + 3 条 pending 队列 | 每个合格 final 礼物一次播放 |
 | lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
 | games | `/api/games/session` | snapshot + `game:update` + `game:draw` | 游戏入口调度器按更新频率合并渲染 | `game:update` / `game:draw` |
 

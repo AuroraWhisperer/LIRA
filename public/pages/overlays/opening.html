@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>开播动画</title>
+    <link rel="stylesheet" href="/css/overlays/opening.css">
+  </head>
+  <body>
+    <main id="openingStage" class="opening-stage" aria-labelledby="openingTitle">
+      <div class="opening-backdrop" aria-hidden="true">
+        <div class="opening-glow"></div>
+        <div class="opening-vinyl"><span></span><span></span><span></span></div>
+        <div class="opening-speckles"></div>
+      </div>
+
+      <div id="openingParticles" class="opening-particles" aria-hidden="true"></div>
+      <div id="openingEq" class="opening-eq" aria-hidden="true"></div>
+
+      <section class="opening-copy">
+        <span class="opening-eyebrow">SINGING LIVE</span>
+        <h1 id="openingTitle">今晚唱给你听</h1>
+        <p id="openingSubtitle">开播准备中</p>
+        <div class="track" aria-hidden="true">
+          <svg class="track-waveform" viewBox="0 0 760 120" preserveAspectRatio="none">
+            <path d="M0 61 C18 61 25 38 42 61 S68 84 84 61 110 28 128 61 154 92 172 61 198 39 216 61 242 75 258 61 282 42 298 61 323 86 340 61 364 34 382 61 408 89 426 61 450 44 468 61 494 78 510 61 536 35 552 61 578 89 596 61 621 42 638 61 666 83 682 61 705 39 724 61 742 74 760 61" />
+          </svg>
+          <span class="track-heart">♡</span>
+        </div>
+        <p class="opening-name"><span aria-hidden="true">@</span><span id="openingName">主播名</span></p>
+      </section>
+
+      <div class="opening-character" aria-hidden="true">
+        <div class="character-anchor">
+          <div class="character-enter">
+            <div class="character-float">
+              <div class="character-sway">
+                <div class="character-breathe">
+                  <img id="openingAvatar" class="character-image" src="/img/overlays/opening/avatar.png" alt="">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="openingNotes" class="opening-notes" aria-hidden="true"></div>
+      <p id="openingFooter" class="opening-footer">SINGING LIVE</p>
+      <p id="openingDebug" class="opening-debug" role="status" aria-live="polite" hidden></p>
+      <audio id="openingAudio" loop preload="metadata" src="/img/overlays/opening/music.ogg"></audio>
+    </main>
+    <script type="module" src="/js/overlays/opening.js"></script>
+  </body>
+</html>

@@ -17,6 +17,7 @@ import './gifts/blindbox.js';
 import './gifts/blindbox-analysis.js';
 import './gifts/history.js';
 import './gifts/index.js';
+import './gift-frame.js';
 import './metrics.js';
 import './danmaku-tool.js';
 import './ai-assistant-settings.js';

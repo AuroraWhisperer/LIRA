@@ -13,6 +13,8 @@ import { initUsageGuide } from './usage-guide.js';
 import { initGames } from './games.js';
 import { initOnboarding } from './onboarding.js';
 import { initInteractiveTour } from './interactive-tour.js';
+import { initStartAnimation } from './start-animation.js';
+import { initGiftFrame } from './gift-frame.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -64,6 +66,7 @@ async function initApp() {
   modules.metrics?.initPerformanceMonitor?.();
   modules.overtime?.init?.();
   modules.giftEffects?.init?.();
+  initGiftFrame();
   modules.todo?.init?.();
   initGames();
   initUsageGuide();
@@ -83,6 +86,7 @@ async function initApp() {
 
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.();
+  initStartAnimation();
   modules.gifts?.initGiftHistoryDrawer?.();
 
   eventBus.on(Events.STATE_LOADED, ({ state, songs }) => {

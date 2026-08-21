@@ -57,16 +57,16 @@ overlay 严格按 `rgbFrame` 取出完整的 `720×1280` 彩色动画，按 `aFr
 alpha = max(r, g, b)
 ```
 
-## 本项目接口与页面
+## 本项目接口与页面（历史兼容能力）
 
 - 查询礼物 ID：`GET /api/gifts/effects/resolve?giftId=31645`
-- 直播监听 overlay：`/gift-effects`
-- 手动预览：在百宝箱输入礼物 ID 后，服务端通过 WebSocket 通知已打开的固定 `/gift-effects` 页面播放
+- 历史直播监听 overlay：`/gift-effects`（旧 `gift:effect` 消费路径已退役）
+- 手动预览：旧工具仍可输入礼物 ID，通过 WebSocket 发送 `gift:effect` 给显式兼容消费者；新的礼物边框预览使用 `POST /api/gifts/frame/preview`
 - 服务端解析：`src/bilibili/gift/effect-config.js`
 - 百宝箱工具：`public/pages/admin/toolbox/gift-effects.html`
-- 透明合成：`public/js/overlays/gift-effects.js`
+- 旧透明合成：`public/js/overlays/gift-effects.js` 中的隔离兼容代码；当前边框渲染只消费 `gift:frame`
 
-收到真实礼物并完成组合礼物结算后，服务端通过现有 WebSocket 广播：
+旧 `gift:effect` 事件形状仍保留给显式兼容 API 和历史消费者，但服务端不再把它作为实时 `/gift-effects` 的自动播放入口；当前实时边框事件在 final 礼物达到配置阈值后发送 `gift:frame`，不携带官方媒体 URL：
 
 ```json
 {
@@ -88,5 +88,21 @@ alpha = max(r, g, b)
       "alphaFrame": [724, 0, 360, 640]
     }
   }
+}
+```
+
+当前边框事件示例：
+
+```json
+{
+  "type": "gift:frame",
+  "eventId": "gift-frame:77",
+  "giftEventId": 77,
+  "giftId": 31645,
+  "giftName": "礼物名称",
+  "num": 2,
+  "totalPriceCents": 52000,
+  "userName": "观众A",
+  "themeId": "woodland-bloom"
 }
 ```

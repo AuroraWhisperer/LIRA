@@ -24,6 +24,77 @@
   inset: 0;
 }
 
+#particleStage,
+#giftFrame {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+#particleStage { z-index: 1; }
+
+#giftFrame {
+  z-index: 2;
+  opacity: 0;
+  visibility: hidden;
+  color: #4B4338;
+  font-family: "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+
+#giftFrame.is-playing { visibility: visible; }
+
+.gift-frame-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gift-frame-part,
+.gift-frame-highlights { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+.gift-frame-edge .edge-base,
+.gift-frame-edge .edge-branch { fill: none; stroke: #6F8F72; stroke-width: 34; }
+.gift-frame-edge .edge-branch { stroke: #A8C49A; stroke-width: 12; }
+.gift-frame-edge .edge-leaf,
+.gift-frame-corner .corner-base,
+.gift-frame-corner .ornament { fill: url(#giftFrameLeafFill); stroke: #6F8F72; stroke-width: 5; }
+.gift-frame-corner .soft-shadow { fill: #4B4338; stroke: none; opacity: .16; filter: url(#giftFrameSoftShadow); }
+.gift-frame-corner .highlight,
+.gift-frame-highlights .highlight-run { fill: none; stroke: #E7CD86; stroke-width: 9; opacity: .85; }
+.gift-frame-highlights .highlight-run { stroke-width: 14; opacity: 0; }
+
+.gift-info {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(38px, 6.1vh, 74px);
+  width: min(720px, 42vw);
+  min-width: 360px;
+  transform: translate(-50%, 12px);
+  padding: 14px 28px 12px;
+  border: 2px solid rgba(111, 143, 114, .86);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(248, 243, 232, .96), rgba(231, 205, 134, .84));
+  box-shadow: 0 8px 20px rgba(75, 67, 56, .16);
+  opacity: 0;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.gift-info-primary,
+.gift-info-secondary { display: flex; align-items: baseline; justify-content: center; min-width: 0; gap: 14px; }
+.gift-info-primary { color: #4B4338; font-size: clamp(18px, 1.48vw, 30px); font-weight: 800; }
+.gift-info-secondary { margin-top: 4px; color: rgba(75, 67, 56, .76); font-size: clamp(12px, .85vw, 17px); font-weight: 650; }
+.gift-info-name,
+.gift-info-user { min-width: 0; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gift-info-amount,
+.gift-info-num,
+.gift-info-separator { flex: 0 0 auto; white-space: nowrap; }
+.gift-info-amount { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
 .gift-effect-layer {
   position: absolute;
   inset: 0;
@@ -46,8 +117,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gift-effect-layer {
+  .gift-effect-layer,
+  #giftFrame {
     animation: none;
   }
 }
-

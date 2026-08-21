@@ -140,6 +140,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | blindbox.js | 今日盲盒盈亏(汇总/盈亏榜/映射列表) | `GET /api/gifts/blind-box-stats` |
 | blindbox-analysis.js | 盲盒分析工作区(观众排行/盲盒汇总/开盒记录三视图,25 条分页,500ms 刷新防抖) | `GET /api/gifts/blind-box-analysis?...` |
 | history.js | 礼物历史抽屉(时间范围/平台筛选) | `GET /api/gifts/history`;清最近/清礼物走 `/api/gifts/clear-recent`、`/api/database/clear-gifts` |
+| [gift-frame.js](../../../public/js/admin/gift-frame.js) | 礼物姬里的四方边框开关、金额阈值、主题/动效、预览和投屏地址 | `/api/settings`、`POST /api/gifts/frame/preview`、`app:settings-state` |
 
 ## 6. 百宝箱(otherAssistantPage)
 
@@ -150,6 +151,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 发送弹幕(`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数)、连接/账号/房间状态(`/api/bilibili/danmaku/state`,断开时可一键重连并回读新状态)、四个机器人开关(`enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`,无发送权限时禁用) |
 | 弹幕库编辑器 | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js) | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键) |
 | AI 互动助手 | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`、`/api/ai/models`；电脑端先选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义，官方预设锁定地址/协议，自动与自定义允许编辑；按服务端 `modelEndpoint` 显示协议、联网方式与可用推理控件；密钥字段使用 password + `'********'` 遮罩且提交时过滤遮罩值；700ms 自动保存 + 保存失败重试队列 |
+| 礼物姬 · 礼物边框 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 保存 `giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；预览只发 `gift:frame` 事件，不影响实时开关与事件去重 |
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 小游戏直播台 | [games.js](../../../public/js/admin/games.js) | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，`GET /api/games/host-state` 私下显示题词，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥 |
 | 主播工作台 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 工作台**(`admin.streamerWorkbench.v2`):保存下一场直播日期/时间/主题/重点,按开播前/直播中/下播后三阶段管理完成态清单,现场备忘分内容灵感/观众约定/复盘记录并可转为计划;首次启动提供 4 条实用备播/复盘清单,读取旧 `admin.streamerPlanner.v1` 时迁移任务但不删除旧键;不经过后端 |

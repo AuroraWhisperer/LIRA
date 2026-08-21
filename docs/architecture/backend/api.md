@@ -235,6 +235,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `GET /api/gifts/blind-box-stats` | 查询参数 `boxName?` | 盲盒统计 | — |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`) | 盲盒开盒分析 | — |
 | `GET /api/gifts/search` | 查询参数:`from?`、`to?`、`limit?`(**1–500**,默认 100) | 时间范围检索结果 | — |
+| `POST /api/gifts/frame/preview` | `{userName?, giftName?, num?, totalPriceRmb, themeId?, motionMode?}` | 广播独立 `gift:frame` 预览事件，不读取实时开关/阈值 | 400(金额、数量、主题或动效模式无效) |
 | `POST /api/gifts/clear-recent` | `{confirm: true}`(必须) | 清空最近礼物;广播 `gift:clear-recent` | 400(`缺少清空确认。`) |
 
 行为文档:[bilibili/gift.md](bilibili/gift.md)(礼物事件、检测账本、冲刺)。

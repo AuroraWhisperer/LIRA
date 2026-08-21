@@ -20,6 +20,13 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
   └─ event-service: repairGiftV2Events / 盲盒元数据 / 平台身份去重
 ```
 
+礼物边框事件由 `src/bilibili/gift/frame-config.js` 作为 final 行之后的具名 Frame Adapter 负责：
+`giftFrameEnabled` 为 `true` 时才读取 final 行权威 `total_price`，按人民币元转换为整数分并与
+`giftFrameThresholdRmb` 比较，合格事件使用稳定的 `gift-frame:<giftEventId>` ID 广播为
+`gift:frame`。Adapter 不使用 `unit_price * num` 重算，也不读取官方媒体映射；关闭开关、非 final、
+零金额或低于阈值的行不广播。管理页预览通过 `/api/gifts/frame/preview` 使用独立的预览 ID，
+不污染实时去重集合。
+
 装配点:`domainServices` 创建 `createGiftService(baseContext, {onGiftFlushed, consumers:[overtimeConsumer], getOvertimeEpoch})`([domain-services.js:89-95](../../../../src/server/domain-services.js#L89-L95));`index.js` 把 `createGiftStatisticsConsumer` 与注入的加班机消费者一起注册([index.js:29-53](../../../../src/bilibili/gift/index.js#L29-L53))。原始礼物**只从 `onGift` 一处进入**,即 `detectionService.detect`(暴露为 `gifts.add`,[index.js:43](../../../../src/bilibili/gift/index.js#L43))。
 
 ## 2. 检测核心(GiftDetectionService)
@@ -78,6 +85,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 | 事实 | 值 | 出处 |
 |---|---|---|
 | 开关/目标 | `enableGiftSprint`(默认 `'true'`)、`giftSprintTargetRmb`(默认 `'0'`,见 [storage.md](../storage.md) §7) | [settings-store.js:19-21](../../../../src/storage/settings-store.js#L19-L21) |
+| 礼物边框 | `giftFrameEnabled`(默认 `'false'`)、`giftFrameThresholdRmb`(默认 `'20'`)、`giftFrameTheme='woodland-bloom'`、`giftFrameMotionMode='auto'` | [frame-config.js](../../../../src/bilibili/gift/frame-config.js)、[settings-store.js](../../../../src/storage/settings-store.js) |
 | 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`(RMB) | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6) |
 | 冲刺快照 | `receivedRmb = SUM(total_price)`(final + 资格 + `counted_in_sprint=1`);`remainingRmb = max(0, target - received)`;**`remainingCrystalBalls = ceil(remaining / 100)`** | [query-service.js:99-122](../../../../src/bilibili/gift/query-service.js#L99-L122) |
 | 列表快照 | `getGiftSnapshot` 最近 **30** 条(final + 资格 + 付费,[query-service.js:21-30](../../../../src/bilibili/gift/query-service.js#L21-L30));`getGiftHistory` 分页 limit ≤ **100**(`sortField: gift_name/price/remarks/created_at`,[query-service.js:32-97](../../../../src/bilibili/gift/query-service.js#L32-L97)) | — |

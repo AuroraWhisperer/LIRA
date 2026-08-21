@@ -24,6 +24,7 @@ const settingsStoreModule = require('./storage/settings-store');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
+const giftFrameModule = require('./bilibili/gift/frame-config');
 const { createGameSessionService } = require('./games/game-session-service');
 const { createWheelSessionService } = require('./games/wheel-session-service');
 
@@ -125,11 +126,8 @@ function createServerRuntime(runtimeOptions = {}) {
         onGiftFlushed: (item) => {
           logGiftDelivery('final', item);
           broadcastSnapshot('bilibili:gift');
-          giftEffectModule.buildGiftEffectEvent(item, giftEffectResolver).then((effectEvent) => {
-            if (effectEvent && webSocketHub) webSocketHub.broadcast(effectEvent);
-          }).catch((error) => {
-            console.warn(`[Bilibili][GiftEffect] 礼物特效事件构造失败：${error.message || error}`);
-          });
+          const frameEvent = giftFrameModule.buildGiftFrameEvent(item, settingsStore.getSettings());
+          if (frameEvent && webSocketHub) webSocketHub.broadcast(frameEvent);
         },
         onOvertimeUpdate: update => publishOvertimeUpdate(update)
       });
@@ -174,7 +172,6 @@ function createServerRuntime(runtimeOptions = {}) {
 
       musicRuntime.setMusicRegistry(options.musicAuth || {});
       bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
-      void giftEffectResolver.getEffectMap();
       giftService.repairGiftV2Events({ db });
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.clearOnStartup();
@@ -570,6 +567,15 @@ function createServerRuntime(runtimeOptions = {}) {
   function broadcastSnapshot(reason) {
     const baseUrl = `http://${HOST}:${startedPort || START_PORT}`;
     if (webSocketHub) webSocketHub.broadcastSnapshot(getWebSocketContext(baseUrl), reason);
+  }
+
+  // Legacy MP4 lookup remains available to its explicit API callers, but is not
+  // part of the finalized-gift broadcast path consumed by /gift-effects.
+  function broadcastLegacyGiftEffect(item) {
+    return giftEffectModule.buildGiftEffectEvent(item, giftEffectResolver).then((effectEvent) => {
+      if (effectEvent && webSocketHub) webSocketHub.broadcast(effectEvent);
+      return effectEvent;
+    });
   }
 
   function logGiftDelivery(trigger, item) {
