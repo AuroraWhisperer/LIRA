@@ -193,11 +193,19 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
     uid: '42',
     userName: 'Alice',
     message: '苹果',
-    avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg'
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg',
+    requesterGuardLevel: 3,
+    requesterMedalName: '凉呆皮',
+    requesterMedalLevel: 22
   });
   assert.equal(guess.accepted, true);
   assert.equal(service.getSession().state.scores[0].score, 10);
   assert.equal(service.getSession().danmaku[0].avatarUrl, 'https://i0.hdslb.com/bfs/face/alice.jpg');
+  assert.deepEqual({
+    guardLevel: service.getSession().danmaku[0].guardLevel,
+    medalName: service.getSession().danmaku[0].medalName,
+    medalLevel: service.getSession().danmaku[0].medalLevel
+  }, { guardLevel: 3, medalName: '凉呆皮', medalLevel: 22 });
 
   const draw = service.draw({
     action: 'append',
@@ -210,6 +218,29 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
   assert.equal(draw.accepted, true);
   assert.equal(published.at(-1).type, 'game:draw');
   assert.equal(published.at(-1).operation.clientId, 'page-1');
+  service.dispose();
+});
+
+test('game session bounds untrusted draw guess identity metadata', () => {
+  const service = createGameSessionService({
+    drawGuessWords: [{ word: '苹果', category: '食物' }],
+    random: () => 0,
+    monotonicNow: () => 0
+  });
+  service.start({ game: 'draw-guess' });
+  service.handleDanmaku({
+    uid: '42',
+    userName: 'Alice',
+    message: '普通消息',
+    requesterGuardLevel: 9,
+    requesterMedalName: '灯'.repeat(50),
+    requesterMedalLevel: -8
+  });
+
+  const item = service.getSession().danmaku[0];
+  assert.equal(item.guardLevel, 0);
+  assert.equal(item.medalName, '灯'.repeat(40));
+  assert.equal(item.medalLevel, 0);
   service.dispose();
 });
 

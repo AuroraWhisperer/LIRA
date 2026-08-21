@@ -262,11 +262,18 @@ function createGameSessionService(options = {}) {
 }
 
 function normalizeGameDanmaku(danmaku = {}) {
+  const requestedGuardLevel = Number(danmaku.requesterGuardLevel);
+  const requestedMedalLevel = Math.trunc(Number(danmaku.requesterMedalLevel));
   return {
     uid: String(danmaku.uid || '').trim().slice(0, 40),
     name: String(danmaku.userName || '观众').trim().slice(0, 80) || '观众',
     message: String(danmaku.message || '').trim().slice(0, 300),
     avatarUrl: String(danmaku.avatarUrl || danmaku.face || '').trim().slice(0, 500),
+    guardLevel: [1, 2, 3].includes(requestedGuardLevel) ? requestedGuardLevel : 0,
+    medalName: String(danmaku.requesterMedalName || '').trim().slice(0, 40),
+    medalLevel: Number.isFinite(requestedMedalLevel)
+      ? Math.max(0, Math.min(999, requestedMedalLevel))
+      : 0,
     timestamp: Number.isFinite(Number(danmaku.messageTimestamp))
       ? Number(danmaku.messageTimestamp)
       : Date.now()

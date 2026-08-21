@@ -1,5 +1,5 @@
 {
-  "retrievedAt": "2026-08-21T07:00:49.158Z",
+  "retrievedAt": "2026-08-21T08:59:47.991Z",
   "gifts": [
     {
       "id": 30706,
@@ -667,6 +667,16 @@
       "price": "188电池",
       "image": "bilibili-gifts/0000-under-0100/35867.webp",
       "sourceUrl": "https://i0.hdslb.com/bfs/live/7db9476529d1c1797ebd0c3861e9dfefa14925ea.webp",
+      "battery": 188,
+      "rmb": 18.8,
+      "category": "0000-under-0100"
+    },
+    {
+      "id": 35868,
+      "name": "涨艇",
+      "price": "188电池",
+      "image": "bilibili-gifts/0000-under-0100/35868.webp",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/44a35e0e7eeacbb21b13c45dce767cf64daf81a9.webp",
       "battery": 188,
       "rmb": 18.8,
       "category": "0000-under-0100"

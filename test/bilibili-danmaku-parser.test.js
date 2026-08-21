@@ -33,8 +33,11 @@ test('danmaku avatar parser supports JSON encoded user metadata', () => {
   assert.equal(extractBilibiliDanmakuAvatarUrl(info), avatarUrl);
 });
 
-test('danmaku avatar parser rejects non-Bilibili or insecure image URLs', () => {
-  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' })), '');
+test('danmaku avatar parser upgrades official HTTP avatars and rejects other hosts', () => {
+  assert.equal(
+    extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' })),
+    'https://i0.hdslb.com/bfs/face/example.jpg'
+  );
   assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://example.com/avatar.jpg' })), '');
   assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://hdslb.com/avatar.jpg' })), '');
 });

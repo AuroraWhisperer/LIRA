@@ -104,30 +104,30 @@ body.player-dock-expanded .song-workspace {
 
 /* SC 队列图标：温暖橙金色 */
 .sc-queue-panel .queue-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  color: #fff;
-  background: linear-gradient(135deg, #d28a22 0%, #e8a547 100%);
-  font-size: 15px;
-  line-height: 1;
-  box-shadow: 0 2px 8px rgba(210, 138, 34, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  overflow: visible;
 }
 
 /* 点歌队列图标：清新青绿色 */
 .song-queue-panel .queue-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  color: #fff;
-  background: linear-gradient(135deg, #168f83 0%, #21b6a8 100%);
-  font-size: 15px;
-  line-height: 1;
-  box-shadow: 0 2px 8px rgba(22, 143, 131, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+}
+
+.queue-mark-image {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .queues-row .song-queue-panel .panel-header button {
@@ -272,9 +272,11 @@ body.player-dock-expanded .song-workspace {
 }
 
 .sc-empty .empty-icon {
-  background: linear-gradient(135deg, #fff8ed 0%, #fffbf5 100%);
-  color: #d28a22;
-  box-shadow: 0 2px 8px rgba(210, 138, 34, 0.1);
+  width: 68px;
+  height: 68px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.72;
 }
 
 .sc-empty {
@@ -289,9 +291,27 @@ body.player-dock-expanded .song-workspace {
 
 /* 点歌队列空状态：青绿色调 */
 .song-queue-panel .empty .empty-icon {
-  background: linear-gradient(135deg, #e8f6f3 0%, #f0faf8 100%);
-  color: #168f83;
-  box-shadow: 0 2px 8px rgba(22, 143, 131, 0.1);
+  width: 68px;
+  height: 68px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.empty-queue-image {
+  display: block;
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  pointer-events: none;
+  opacity: 0.68;
+  filter: saturate(0.9);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.empty:hover .empty-queue-image {
+  opacity: 0.86;
+  transform: scale(1.05);
 }
 
 .song-queue-panel .empty {

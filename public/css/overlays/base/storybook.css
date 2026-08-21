@@ -116,12 +116,14 @@
   --medal-text: #fff;
   position: relative;
   box-sizing: border-box;
-  height: clamp(68px, 20cqw, 104px);
-  min-height: clamp(68px, 20cqw, 104px);
+  width: 76%;
+  aspect-ratio: 1237 / 304;
+  min-height: 0;
+  margin-inline: auto;
   overflow: hidden;
   background-image: url('/img/overlays/song-board-style-3/entry.png');
-  background-position: center 47%;
-  background-size: 108% auto;
+  background-position: 44.482% 45.972%;
+  background-size: 124.171% 336.842%;
   background-repeat: no-repeat;
   color: #315d7d;
   font-family: YouYuan, "Microsoft YaHei", "PingFang SC", sans-serif;

@@ -165,7 +165,11 @@ body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-
 .draw-danmaku-feed::-webkit-scrollbar { display: none; }
 .draw-danmaku-item { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 7px; align-items: start; padding: 7px; border-radius: 8px; background: rgba(255,255,255,.065); }
 .draw-danmaku-avatar { width: 28px; height: 28px; font-size: 12px; }
-.draw-danmaku-body strong { font-size: 11px; }
+.draw-danmaku-identity { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.draw-danmaku-identity strong { flex: 0 1 auto; min-width: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.draw-danmaku-badge { flex: 0 0 auto; max-width: 84px; overflow: hidden; padding: 1px 4px; border: 1px solid; border-radius: 999px; font: 800 8px/1.35 Consolas, 'Microsoft YaHei', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.draw-danmaku-guard { border-color: rgba(255,200,87,.72); color: #fff2a8; background: rgba(133,90,15,.52); }
+.draw-danmaku-medal { border-color: rgba(147,136,255,.62); color: #ddd8ff; background: rgba(80,66,157,.52); }
 .draw-danmaku-body p { margin: 2px 0 0; font-size: clamp(11px, .85vw, 14px); line-height: 1.3; }
 .draw-danmaku-empty { padding: 18px 8px; font-size: 11px; }
 body[data-game='draw-guess'] .draw-clear-button { padding: 5px 8px; }

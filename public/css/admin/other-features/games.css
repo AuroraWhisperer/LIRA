@@ -22,6 +22,8 @@
 .games-link-deck-wheel .games-link-label { color: #91516f; }
 .games-catalog { display: grid; gap: 16px; }
 .game-admin-card { display: grid; grid-template-columns: 210px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); transition: border-color 180ms ease, box-shadow 180ms ease; }
+.game-admin-card:has(.lira-select.is-open) { position: relative; z-index: 1; overflow: visible; }
+.game-admin-card:has(.lira-select.is-open) > .game-card-poster { border-radius: 17px 0 0 17px; }
 .game-admin-card.is-running { border-color: #7062bf; box-shadow: 0 0 0 3px rgba(112, 98, 191, .1), var(--shadow); }
 .game-card-poster { position: relative; display: grid; align-content: space-between; min-height: 230px; padding: 20px; overflow: hidden; color: #fff; background: #272151; }
 .game-card-poster span { font: 700 11px/1 Consolas, monospace; letter-spacing: .2em; opacity: .7; }
@@ -112,4 +114,4 @@
 @media (max-width: 760px) { .wheel-card-trigger { grid-template-columns: 1fr; } .wheel-card-trigger .game-card-poster { min-height: 118px; } .wheel-card-summary { min-height: 0; } .wheel-entry-row { grid-template-columns: 1fr; } .wheel-remove-entry { justify-self: start; } }
 @media (max-width: 760px) { .draw-card-trigger { grid-template-columns: 1fr; } .draw-card-trigger .game-card-poster { min-height: 118px; } .draw-card-summary { min-height: 0; } .draw-config, .draw-rules { grid-template-columns: 1fr; } .draw-host-panel { grid-template-columns: 1fr; } .draw-host-meta { justify-items: start; } }
 @media (max-width: 1050px) { .games-link-deck { grid-template-columns: 1fr; align-items: stretch; } .games-link-actions { justify-content: flex-start; } }
-@media (max-width: 760px) { .games-category { padding: 14px; border-radius: 18px; } .games-category-header { align-items: flex-start; flex-direction: column; gap: 5px; } .game-admin-card { grid-template-columns: 1fr; } .game-card-poster { min-height: 100px; } .game-config-grid { grid-template-columns: 1fr; } .games-admin-footer { align-items: stretch; flex-direction: column; } }
+@media (max-width: 760px) { .games-category { padding: 14px; border-radius: 18px; } .games-category-header { align-items: flex-start; flex-direction: column; gap: 5px; } .game-admin-card { grid-template-columns: 1fr; } .game-admin-card:has(.lira-select.is-open) > .game-card-poster { border-radius: 17px 17px 0 0; } .game-card-poster { min-height: 100px; } .game-config-grid { grid-template-columns: 1fr; } .games-admin-footer { align-items: stretch; flex-direction: column; } }

@@ -3,6 +3,7 @@
 'use strict';
 
 import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
+import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 
 (function () {
   const AUTOSAVE_DELAY_MS = 500;
@@ -53,94 +54,10 @@ import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
     ['desktopLyricContrast', 0.2, 2, 1],
     ['desktopLyricSaturation', 0, 2, 1]
   ];
-  let localFontDetectionStarted = false;
-
-  function quoteCssFontFamily(family) {
-    return `"${family.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
-  }
-
-  function normalizeLocalFontFamilies(fonts) {
-    const uniqueFamilies = new Map();
-    Array.from(fonts || []).forEach((font) => {
-      const family = String(font?.family || '')
-        .replace(/[\u0000-\u001f\u007f]/g, '')
-        .trim()
-        .slice(0, 200);
-      const key = family.toLocaleLowerCase();
-      if (family && !uniqueFamilies.has(key)) uniqueFamilies.set(key, family);
-    });
-    return Array.from(uniqueFamilies.values())
-      .sort((left, right) => left.localeCompare(right, 'en', { sensitivity: 'base', numeric: true }));
-  }
-
-  function ensureSavedFontOption(value) {
-    const select = document.getElementById('desktopLyricFontFamily');
-    if (!select?.options || !value) return;
-    const exists = Array.from(select.options).some((option) => option.value === value);
-    if (exists) return;
-
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = `${String(value).replace(/^"|"$/g, '')}（当前设置）`;
-    option.dataset.savedLocalFont = 'true';
-    select.appendChild(option);
-  }
-
-  function replaceLocalFontOptions(select, families) {
-    const currentValue = select.value;
-    select.querySelector('optgroup[data-local-fonts="true"]')?.remove();
-    const existingValues = new Set(Array.from(select.options).map((option) => option.value));
-    const group = document.createElement('optgroup');
-    group.label = '本机字体';
-    group.dataset.localFonts = 'true';
-    families.forEach((family) => {
-      const value = quoteCssFontFamily(family);
-      if (existingValues.has(value) || existingValues.has(family)) return;
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = family;
-      group.appendChild(option);
-    });
-
-    select.appendChild(group);
-    if (Array.from(select.options).some((option) => option.value === currentValue)) {
-      select.value = currentValue;
-    }
-  }
-
-  async function loadLocalFontOptions(select) {
-    if (localFontDetectionStarted || typeof window.queryLocalFonts !== 'function') return '';
-    localFontDetectionStarted = true;
-
-    try {
-      const families = normalizeLocalFontFamilies(await window.queryLocalFonts());
-      if (families.length > 0) replaceLocalFontOptions(select, families);
-      return 'loaded';
-    } catch (error) {
-      if (error?.name === 'SecurityError') {
-        localFontDetectionStarted = false;
-        return 'needs-gesture';
-      }
-      console.warn('Automatic local font detection failed:', error?.message || error);
-      return 'failed';
-    }
-  }
-
-  function initLocalFontLibrary() {
-    const select = document.getElementById('desktopLyricFontFamily');
-    if (!select) return;
-    void loadLocalFontOptions(select).then((result) => {
-      if (result !== 'needs-gesture' || typeof window.addEventListener !== 'function') return;
-      const retry = () => void loadLocalFontOptions(select);
-      window.addEventListener('pointerdown', retry, { once: true, capture: true });
-      window.addEventListener('keydown', retry, { once: true, capture: true });
-    });
-  }
-
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
-    initLocalFontLibrary();
+    registerLocalFontSelect(document.getElementById('desktopLyricFontFamily'));
     window.AdminApp.desktopLyricPreview?.init(form);
 
     // Range ↔ Number 双向绑定
@@ -272,7 +189,9 @@ import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
         if (input) input.checked = nextValue !== 'false';
         return;
       }
-      if (key === 'desktopLyricFontFamily') ensureSavedFontOption(nextValue);
+      if (key === 'desktopLyricFontFamily') {
+        ensureSavedFontOption(document.getElementById('desktopLyricFontFamily'), nextValue);
+      }
       setValue(key, nextValue);
       if (RANGE_PAIRS.some(([rangeKey]) => rangeKey === key)) {
         setValue(`${key}Number`, nextValue);

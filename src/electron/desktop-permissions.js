@@ -18,7 +18,7 @@ function registerLocalFontPermissionHandler({
       type: 'question',
       title: 'LIRA 本地字体权限',
       message: '允许 LIRA 读取本机字体列表吗？',
-      detail: '只会读取已安装字体的名称，用于桌面歌词字体选择；不会读取字体文件、文件路径或字体内容。',
+      detail: '只会读取已安装字体的名称，用于点歌板风格 3–6 和桌面歌词的字体选择；不会读取字体文件、文件路径或字体内容。',
       buttons: ['允许', '取消'],
       defaultId: 0,
       cancelId: 1,

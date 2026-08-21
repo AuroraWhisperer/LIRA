@@ -182,6 +182,48 @@ test('all six queue render paths run without cross-module reference errors', asy
   assert.match(dom.content.innerHTML, /golden-lily-empty/);
 });
 
+test('illustrated queue rows omit missing guard and medal fields without hiding available ones', async () => {
+  const dom = createQueueDom();
+  const namespace = await loadQueueOverlay(dom);
+  const item = {
+    song_name: '测试歌曲',
+    requester_name: '普通观众',
+    requester_guard_level: 0,
+    requester_medal_name: '',
+    requester_medal_level: 0
+  };
+
+  const rows = [
+    ['storybook', namespace.renderStorybookRow(item, 0), 'storybook-badge', 'storybook-medal'],
+    ['neon-vinyl', namespace.renderNeonVinylRow(item), 'neon-vinyl-guard', 'neon-vinyl-medal'],
+    ['cherry-ribbon', namespace.renderCherryRibbonRow(item), 'cherry-ribbon-guard', 'cherry-ribbon-medal'],
+    ['golden-lily', namespace.renderGoldenLilyRow(item, 0), 'golden-lily-guard', 'golden-lily-medal']
+  ];
+
+  rows.forEach(([style, html, guardClass, medalClass]) => {
+    assert.doesNotMatch(html, new RegExp(`class="${guardClass}\\b`), `${style} should omit a missing guard`);
+    assert.doesNotMatch(html, new RegExp(`class="${medalClass}\\b`), `${style} should omit a missing medal`);
+  });
+
+  const member = {
+    ...item,
+    requester_guard_level: 3,
+    requester_medal_name: '测试灯牌',
+    requester_medal_level: 21
+  };
+  const memberRows = [
+    ['storybook', namespace.renderStorybookRow(member, 0), 'storybook-badge', 'storybook-medal'],
+    ['neon-vinyl', namespace.renderNeonVinylRow(member), 'neon-vinyl-guard', 'neon-vinyl-medal'],
+    ['cherry-ribbon', namespace.renderCherryRibbonRow(member), 'cherry-ribbon-guard', 'cherry-ribbon-medal'],
+    ['golden-lily', namespace.renderGoldenLilyRow(member, 0), 'golden-lily-guard', 'golden-lily-medal']
+  ];
+
+  memberRows.forEach(([style, html, guardClass, medalClass]) => {
+    assert.match(html, new RegExp(`class="${guardClass}\\b`), `${style} should retain an available guard`);
+    assert.match(html, new RegExp(`class="${medalClass}\\b`), `${style} should retain an available medal`);
+  });
+});
+
 test('queue style changes are detected so the overlay can reload the authoritative queue', async () => {
   const dom = createQueueDom();
   const namespace = await loadQueueOverlay(dom, QUEUE_ENTRY);

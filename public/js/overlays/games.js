@@ -204,15 +204,40 @@ function renderDrawDanmaku(items) {
     } else avatar.textContent = String(item.name || '观').slice(0, 1);
     const body = document.createElement('div');
     body.className = 'draw-danmaku-body';
+    const identity = document.createElement('div');
+    identity.className = 'draw-danmaku-identity';
     const name = document.createElement('strong');
     name.textContent = item.name || '观众';
+    identity.append(name);
+    const guard = guardLabel(item.guardLevel);
+    if (guard) {
+      const badge = document.createElement('span');
+      badge.className = 'draw-danmaku-badge draw-danmaku-guard';
+      badge.textContent = guard;
+      identity.append(badge);
+    }
+    const medalName = String(item.medalName || '').trim();
+    if (medalName) {
+      const badge = document.createElement('span');
+      const medalLevel = Math.max(0, Math.trunc(Number(item.medalLevel)) || 0);
+      badge.className = 'draw-danmaku-badge draw-danmaku-medal';
+      badge.textContent = medalLevel > 0 ? `${medalName} ${medalLevel}` : medalName;
+      identity.append(badge);
+    }
     const message = document.createElement('p');
     message.textContent = item.message || '';
-    body.append(name, message);
+    body.append(identity, message);
     row.append(avatar, body);
     root.append(row);
   });
   root.scrollTop = root.scrollHeight;
+}
+
+function guardLabel(level) {
+  if (Number(level) === 3) return '舰长';
+  if (Number(level) === 2) return '提督';
+  if (Number(level) === 1) return '总督';
+  return '';
 }
 
 function renderDrawScoreboard(scores) {

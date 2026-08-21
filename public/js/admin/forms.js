@@ -4,6 +4,7 @@
 
 import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
+import { ensureSavedFontOption } from './local-font-library.js';
 
 /**
  * 表单服务
@@ -178,6 +179,10 @@ export class FormsService {
    * 填充表单
    */
   fillForm(values) {
+    ensureSavedFontOption(
+      document.getElementById('illustratedQueueFontFamily'),
+      values?.illustratedQueueFontFamily
+    );
     for (const [key, inputValue] of Object.entries(values || {})) {
       const element = document.getElementById(key);
       // Keep an in-progress edit intact while a live state snapshot arrives.

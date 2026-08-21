@@ -64,6 +64,16 @@ test('games admin uses the restored single-column card layout', () => {
   assert.doesNotMatch(styles, /\.games-catalog\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
 });
 
+test('games admin dropdowns can escape the first two game cards', () => {
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'games.css'),
+    'utf8'
+  );
+
+  assert.match(styles, /\.game-admin-card:has\(\.lira-select\.is-open\)\s*\{[^}]*z-index:\s*1;[^}]*overflow:\s*visible;/);
+  assert.match(styles, /\.game-admin-card:has\(\.lira-select\.is-open\)\s*>\s*\.game-card-poster\s*\{[^}]*border-radius:\s*17px 0 0 17px;/);
+});
+
 test('games admin uses one base URL and never opens a game-specific URL', () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
   assert.doesNotMatch(script, /data-copy-game|overlayUrl\(game\)/);

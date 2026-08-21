@@ -41,6 +41,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
   assert.match(script, /image\.src\s*=\s*avatarSource\(item\.avatarUrl\)/);
+  assert.match(script, /function guardLabel\(/);
+  assert.match(script, /draw-danmaku-identity/);
+  assert.match(script, /draw-danmaku-guard/);
+  assert.match(script, /draw-danmaku-medal/);
   assert.match(script, /avatar\.src\s*=\s*avatarSource\(profile\.avatarUrl\)/);
   assert.match(script, /getBoundingClientRect/);
   assert.match(script, /positionGameResult/);
@@ -62,5 +66,8 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);
   assert.match(styles, /\.draw-canvas/);
   assert.match(styles, /\.draw-scoreboard/);
+  assert.match(styles, /\.draw-danmaku-identity/);
+  assert.match(styles, /\.draw-danmaku-guard/);
+  assert.match(styles, /\.draw-danmaku-medal/);
   assert.match(styles, /\.draw-tool-button\[aria-pressed=['"]true['"]\]/);
 });

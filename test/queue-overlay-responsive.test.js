@@ -135,6 +135,46 @@ test('illustrated frame decorations sandwich queue cards above the center fill',
   assert.match(source, /const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS\[style\]/);
 });
 
+test('illustrated queue cards preserve their source proportions without clipping decorations', () => {
+  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const expectedRows = {
+    storybook: {
+      aspectRatio: /aspect-ratio:\s*1237\s*\/\s*304/,
+      backgroundSize: /background-size:\s*124\.171%\s+336\.842%/,
+      backgroundPosition: /background-position:\s*44\.482%\s+45\.972%/
+    },
+    'neon-vinyl': {
+      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*576/,
+      width: /width:\s*94%/,
+      backgroundSize: /background-size:\s*100%\s+100%/
+    },
+    'cherry-ribbon': {
+      aspectRatio: /aspect-ratio:\s*1623\s*\/\s*464/,
+      width: /width:\s*94%/,
+      backgroundSize: /background-size:\s*100%\s+100%/
+    },
+    'golden-lily': {
+      aspectRatio: /aspect-ratio:\s*2139\s*\/\s*569/,
+      width: /width:\s*72%/,
+      backgroundSize: /background-size:\s*100%\s+100%/
+    }
+  };
+
+  for (const [style, expected] of Object.entries(expectedRows)) {
+    const rowRule = overlayCss.match(new RegExp(`\\.${style}-row\\s*\\{[^}]*\\}`))?.[0];
+    assert.ok(rowRule, `${style} needs a card layout rule`);
+    assert.match(rowRule, expected.aspectRatio);
+    if (expected.width) assert.match(rowRule, expected.width);
+    assert.match(rowRule, expected.backgroundSize);
+    assert.match(rowRule, /min-height:\s*0/);
+    assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
+    assert.doesNotMatch(rowRule, /background-size:\s*[^;]*\bauto\b/);
+    if (expected.backgroundPosition) {
+      assert.match(rowRule, expected.backgroundPosition);
+    }
+  }
+});
+
 test('classic queue starts at its fixed size and follows a resized browser source', () => {
   const adminHtml = readAdminHtml();
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');

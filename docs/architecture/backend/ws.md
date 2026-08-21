@@ -58,7 +58,7 @@
 | `wesing-state` | `{type:'wesing-state', state}` | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184)) |
 | `overtime:update` | `{type, reason, state, adjustment?}` | 加班机状态变更([server.js:148-153](../../../src/server.js#L148-L153)),`adjustment` 仅礼物结算时携带 |
 | `shutdown` | `{type:'shutdown', reason:'manual'}` | 服务关闭前(`webSocketHub.stop` 的 `shutdownPayload`,见 §1) |
-| `game:update` | `{type:'game:update', session}` | 小游戏会话开始、停止、落子、弹幕答对或画猜回合变化；Admin 与固定 `/games` 浏览器源消费，浏览器源按 `session.game` 切换画面；画猜公开状态不含题词或别名，且在答案公布前 `revealedAnswer` 为空；活动会话附带本局弹幕流供右侧面板展示 |
+| `game:update` | `{type:'game:update', session}` | 小游戏会话开始、停止、落子、弹幕答对或画猜回合变化；Admin 与固定 `/games` 浏览器源消费，浏览器源按 `session.game` 切换画面；画猜公开状态不含题词或别名，且在答案公布前 `revealedAnswer` 为空；活动会话附带本局弹幕流，消息项为有界的 `{uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp}`，其中大航海等级限定为 `0..3`、灯牌为当前房间公开身份 |
 | `game:draw` | `{type:'game:draw', operation, revision}` | 你画我猜已经校验的增量笔画或清空操作；所有 `/games` 实例消费，发起页按 `operation.clientId` 忽略自己的回声，刷新/重连通过 `GET /api/games/session` 的完整画布恢复 |
 | `wheel:update` | `{type:'wheel:update', state}` | 独立转盘配置或抽取状态变更；管理页与 `/wheel` 透明浏览器源消费，不受 `game:update` 会话互斥影响 |
 

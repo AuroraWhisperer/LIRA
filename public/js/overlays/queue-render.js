@@ -305,8 +305,10 @@ function renderIllustratedAssetRow(item, style, rank = null) {
   const identityClass = requesterIdentityClass(guardLevel, medalLevel);
   const medalClass = medalLevelClass(medalLevel);
   const songPrefix = item.is_pinned ? '📌 ' : '';
-  const guardText = guardLevel > 0 ? guardLabel(guardLevel) : '无';
-  const medalText = `${medalName ? `${medalName} · ` : ''}${medalLevel}`;
+  const hasMedal = medalName.length > 0 || medalLevel > 0;
+  const medalText = medalName
+    ? `${medalName}${medalLevel > 0 ? ` · ${medalLevel}` : ''}`
+    : String(medalLevel);
 
   return `
     <div class="${style}-row illustrated-queue-row guard-${guardLevel} medal-${medalClass}">
@@ -319,12 +321,12 @@ function renderIllustratedAssetRow(item, style, rank = null) {
           <span class="${style}-requester illustrated-field illustrated-requester">
             <span>${escapeHtml(item.requester_name || '观众')}</span>
           </span>
-          <span class="${style}-guard illustrated-field illustrated-guard ${identityClass}">
-            <span class="illustrated-guard-value">${escapeHtml(guardText)}</span>
-          </span>
-          <span class="${style}-medal illustrated-field illustrated-medal">
+          ${guardLevel > 0 ? `<span class="${style}-guard illustrated-field illustrated-guard ${identityClass}">
+            <span class="illustrated-guard-value">${escapeHtml(guardLabel(guardLevel))}</span>
+          </span>` : ''}
+          ${hasMedal ? `<span class="${style}-medal illustrated-field illustrated-medal">
             <span class="illustrated-medal-value">${escapeHtml(medalText)}</span>
-          </span>
+          </span>` : ''}
         </span>
       </span>
     </div>

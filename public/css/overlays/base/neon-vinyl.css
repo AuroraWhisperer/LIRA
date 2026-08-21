@@ -15,7 +15,7 @@
 }
 
 .queue-neon-vinyl .overlay-content {
-  inset: 23% 9.5% 8.5%;
+  inset: 25% 9.5% 8.5%;
 }
 
 .neon-vinyl-row {
@@ -23,10 +23,12 @@
   --identity-text: #fff9fc;
   --medal-bg: #b12d66;
   --medal-text: #fff9fc;
-  height: clamp(70px, 18cqw, 96px);
-  min-height: clamp(70px, 18cqw, 96px);
+  width: 94%;
+  aspect-ratio: 2172 / 576;
+  min-height: 0;
+  margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-4/entry.png');
-  background-size: 92% auto;
+  background-size: 100% 100%;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.7), 26px);
   font-weight: 760;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);

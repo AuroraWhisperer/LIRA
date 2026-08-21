@@ -66,9 +66,12 @@ test('admin queue style cards keep styles 1 and 2 neutral while styles 3-6 use t
 test('illustrated queue styles expose persisted typography controls', () => {
   const html = readAdminHtml();
   const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
+  const localFontSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'), 'utf8');
   const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
   const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayUtilsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-utils.js'), 'utf8');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
 
   assert.match(html, /data-illustrated-only/);
@@ -77,6 +80,10 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
   assert.match(html, /id="illustratedQueueTextColor"[^>]*type="color"/);
   assert.match(formSource, /illustratedQueueFontFamily:\s*value\('illustratedQueueFontFamily'\)/);
+  assert.match(formSource, /registerLocalFontSelect\(document\.getElementById\('illustratedQueueFontFamily'\)\)/);
+  assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
+  assert.match(localFontSource, /group\.label = '本机字体'/);
+  assert.match(localFontSource, /window\.queryLocalFonts\(\)/);
   assert.match(formSource, /illustratedQueueFontWeight:\s*value\('illustratedQueueFontWeight'\)/);
   assert.match(formSource, /illustratedQueueUseCustomTextColor:\s*value\('illustratedQueueUseCustomTextColor'\)/);
   assert.match(formSource, /illustratedQueueTextColor:\s*value\('illustratedQueueTextColor'\)/);
@@ -87,6 +94,7 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(themeStoreSource, /'illustratedQueueFontFamily',\s*'illustratedQueueFontWeight'/);
   assert.match(themeStoreSource, /'illustratedQueueUseCustomTextColor',\s*'illustratedQueueTextColor'/);
   assert.match(overlaySource, /--illustrated-queue-font-family/);
+  assert.match(overlayUtilsSource, /const multilingualFontFallback = '"Microsoft YaHei"/);
   assert.match(overlaySource, /--illustrated-queue-font-weight/);
   assert.match(overlaySource, /--illustrated-queue-text-color/);
   assert.match(overlayStyles, /\.illustrated-custom-font/);
@@ -208,7 +216,7 @@ test('identity queue has an independent shared content font size setting', () =>
   assert.doesNotMatch(medalRule, /max-width/);
 });
 
-test('storybook queue keeps illustrated rows fixed while identity content stays inside the artwork viewport', () => {
+test('storybook queue scales complete illustrated rows while identity content stays inside the artwork viewport', () => {
   const html = readAdminHtml();
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
@@ -277,8 +285,12 @@ test('storybook queue keeps illustrated rows fixed while identity content stays 
   assert.match(contentRule, /--storybook-list-offset-y:\s*10px/);
   assert.match(contentRule, /inset:\s*calc\(24\.5% - var\(--storybook-list-offset-y\)\)\s+7\.5%\s+calc\(17% \+ var\(--storybook-list-offset-y\)\)\s+12\.5%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
-  assert.match(rowRule, /background-size:\s*108%\s+auto/);
-  assert.match(rowRule, /height:\s*clamp\(68px,\s*20cqw,\s*104px\)/);
+  assert.match(rowRule, /width:\s*76%/);
+  assert.match(rowRule, /aspect-ratio:\s*1237\s*\/\s*304/);
+  assert.match(rowRule, /background-position:\s*44\.482%\s+45\.972%/);
+  assert.match(rowRule, /background-size:\s*124\.171%\s+336\.842%/);
+  assert.match(rowRule, /min-height:\s*0/);
+  assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
   assert.match(rowRule, /font-size:\s*clamp\(12px,\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\),\s*28px\)/);
   assert.equal(fs.readFileSync(entryPath)[25], 6, 'storybook entry asset should preserve RGBA transparency');
 });
@@ -360,10 +372,12 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonRowRule);
   assert.ok(ribbonInfoRule);
   assert.ok(ribbonViewportRule);
-  assert.match(neonContentRule, /inset:\s*23%\s+9\.5%\s+8\.5%/);
-  assert.match(neonRowRule, /height:\s*clamp\(70px,\s*18cqw,\s*96px\)/);
-  assert.match(neonRowRule, /min-height:\s*clamp\(70px,\s*18cqw,\s*96px\)/);
-  assert.match(neonRowRule, /background-size:\s*92%\s+auto/);
+  assert.match(neonContentRule, /inset:\s*25%\s+9\.5%\s+8\.5%/);
+  assert.match(neonRowRule, /width:\s*94%/);
+  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*576/);
+  assert.match(neonRowRule, /min-height:\s*0/);
+  assert.match(neonRowRule, /margin-inline:\s*auto/);
+  assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /color:\s*#54152f/);
   assert.match(neonViewportRule, /top:\s*19%/);
@@ -373,10 +387,12 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonViewportRule, /justify-content:\s*safe center/);
   assert.match(ribbonContentRule, /--cherry-ribbon-top-trim:\s*5px/);
   assert.match(ribbonContentRule, /--cherry-ribbon-bottom-trim:\s*30px/);
-  assert.match(ribbonContentRule, /inset:\s*calc\(19\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
-  assert.match(ribbonRowRule, /height:\s*clamp\(70px,\s*17\.5cqw,\s*94px\)/);
-  assert.match(ribbonRowRule, /min-height:\s*clamp\(70px,\s*17\.5cqw,\s*94px\)/);
-  assert.match(ribbonRowRule, /background-size:\s*94%\s+auto/);
+  assert.match(ribbonContentRule, /inset:\s*calc\(20\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
+  assert.match(ribbonRowRule, /width:\s*94%/);
+  assert.match(ribbonRowRule, /aspect-ratio:\s*1623\s*\/\s*464/);
+  assert.match(ribbonRowRule, /min-height:\s*0/);
+  assert.match(ribbonRowRule, /margin-inline:\s*auto/);
+  assert.match(ribbonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
   assert.match(ribbonViewportRule, /top:\s*33%/);
   assert.match(ribbonViewportRule, /right:\s*14\.5%/);
@@ -444,9 +460,10 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*19%\s+8\.5%\s+17%/);
+  assert.match(goldenContentRule, /inset:\s*23%\s+8\.5%\s+17%/);
   assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', -6, renderGoldenLilyRow\)/);
-  assert.match(goldenRowRule, /width:\s*76%/);
+  assert.match(goldenRowRule, /width:\s*72%/);
+  assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*569/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
   assert.match(goldenRankRule, /top:\s*13%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);

@@ -35,10 +35,13 @@
 }
 
 .main-page-tab .tab-icon {
+  display: block;
+  flex: 0 0 auto;
   width: 17px;
   height: 17px;
   font-size: inherit;
   line-height: 1;
+  object-fit: contain;
 }
 
 .main-page {
@@ -139,4 +142,3 @@
   gap: 10px;
   flex-wrap: wrap;
 }
-

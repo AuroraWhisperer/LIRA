@@ -43,7 +43,9 @@ function parseDanmakuOptions(value) {
 function normalizeBilibiliAvatarUrl(value) {
   try {
     const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) return '';
+    if (!url.hostname.endsWith('.hdslb.com')) return '';
+    if (url.protocol === 'http:') url.protocol = 'https:';
+    else if (url.protocol !== 'https:') return '';
     return url.toString();
   } catch (_) {
     return '';

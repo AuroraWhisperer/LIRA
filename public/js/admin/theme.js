@@ -2,6 +2,8 @@
 // 点歌板主题配置
 'use strict';
 
+import { registerLocalFontSelect } from './local-font-library.js';
+
 (function () {
   const ILLUSTRATED_QUEUE_STYLES = new Set(['storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']);
 
@@ -22,6 +24,7 @@
 
   function initThemeForm() {
     const themeForm = document.getElementById('themeForm');
+    registerLocalFontSelect(document.getElementById('illustratedQueueFontFamily'));
     const saveTheme = async () => {
       await api('/api/settings', collectTheme());
     };

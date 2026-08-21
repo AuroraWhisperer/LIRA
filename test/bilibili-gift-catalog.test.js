@@ -8,11 +8,12 @@ const test = require('node:test');
 const ROOT_DIR = path.join(__dirname, '..');
 const GIFT_ROOT = path.join(ROOT_DIR, 'public', 'img');
 
-test('牛来 and 豹拉 use local Bilibili gift artwork', () => {
+test('latest 牛来、豹拉 and 涨艇 gifts use local Bilibili artwork', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(GIFT_ROOT, 'bilibili-gifts.json'), 'utf8'));
   const expectedGifts = [
     { id: 35866, name: '豹拉', battery: 66, rmb: 6.6 },
-    { id: 35867, name: '牛来', battery: 188, rmb: 18.8 }
+    { id: 35867, name: '牛来', battery: 188, rmb: 18.8 },
+    { id: 35868, name: '涨艇', battery: 188, rmb: 18.8 }
   ];
 
   for (const expected of expectedGifts) {
