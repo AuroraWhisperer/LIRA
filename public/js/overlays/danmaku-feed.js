@@ -13,6 +13,8 @@ const DEFAULT_CLASSES = Object.freeze({
 });
 
 const DEFAULT_MAX_ITEMS = 120;
+const DEFAULT_OFFSCREEN_VIEWPORTS = 5;
+const DANMAKU_ITEM_SPACING_PX = 11;
 const DANMAKU_LINE_CAPACITY = 13;
 
 /**
@@ -39,7 +41,7 @@ export function measureDanmakuText(message) {
  * this component owns the DOM shape and adaptive bubble sizing.
  *
  * @param {HTMLElement} root
- * @param {{maxItems?: number, resolveAvatarUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
+ * @param {{maxItems?: number, offscreenViewports?: number, resolveAvatarUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
  * @returns {{render: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
@@ -47,6 +49,10 @@ export function createDanmakuFeed(root, options = {}) {
     throw new TypeError('弹幕组件需要一个可渲染的根节点。');
   }
   const maxItems = Math.max(1, Math.trunc(Number(options.maxItems)) || DEFAULT_MAX_ITEMS);
+  const requestedOffscreenViewports = Number(options.offscreenViewports);
+  const offscreenViewports = Number.isFinite(requestedOffscreenViewports)
+    ? Math.max(0, requestedOffscreenViewports)
+    : DEFAULT_OFFSCREEN_VIEWPORTS;
   const resolveAvatarUrl = typeof options.resolveAvatarUrl === 'function'
     ? options.resolveAvatarUrl
     : value => value;
@@ -57,7 +63,7 @@ export function createDanmakuFeed(root, options = {}) {
 
   function render(items) {
     root.replaceChildren();
-    const messages = Array.isArray(items) ? items.slice(-maxItems) : [];
+    const messages = selectMessages(items);
     if (!messages.length) {
       const empty = document.createElement('div');
       empty.className = classNames.empty;
@@ -70,6 +76,25 @@ export function createDanmakuFeed(root, options = {}) {
     messages.forEach((item, index) => fragment.append(createBubble(item, index)));
     root.append(fragment);
     root.scrollTop = root.scrollHeight;
+  }
+
+  function selectMessages(items) {
+    const bounded = Array.isArray(items) ? items.slice(-maxItems) : [];
+    const viewportHeight = Number(root.clientHeight);
+    if (!Number.isFinite(viewportHeight) || viewportHeight <= 0 || bounded.length <= 1) return bounded;
+
+    // Keep the visible viewport plus the configured buffer above it. The
+    // estimate avoids creating DOM nodes that are guaranteed to be discarded.
+    const maxContentHeight = viewportHeight * (offscreenViewports + 1);
+    let contentHeight = 0;
+    const retained = [];
+    for (let index = bounded.length - 1; index >= 0; index -= 1) {
+      const itemHeight = measureDanmakuText(bounded[index]?.message).height + DANMAKU_ITEM_SPACING_PX;
+      if (retained.length && contentHeight + itemHeight > maxContentHeight) break;
+      retained.unshift(bounded[index]);
+      contentHeight += itemHeight;
+    }
+    return retained;
   }
 
   function createBubble(item = {}, index = 0) {

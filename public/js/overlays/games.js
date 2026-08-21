@@ -32,6 +32,7 @@ const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 
 document.addEventListener('DOMContentLoaded', () => {
   drawDanmakuFeed = createDanmakuFeed(byId('drawDanmakuFeed'), {
+    offscreenViewports: 5,
     resolveAvatarUrl: avatarSource,
     getGuardLabel: guardLabel,
     classNames: {

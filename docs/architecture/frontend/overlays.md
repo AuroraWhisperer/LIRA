@@ -141,7 +141,7 @@
 [overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，`danmaku-feed.js` 是可复用的弹幕 DOM 组件。入口只传入会话中的 `session.danmaku`，并注入带 token 的头像解析器与大航海等级映射；组件不读取 WebSocket 或游戏状态。
 
 - `measureDanmakuText(message)` 按中英文混合文本的视觉长度估算行数、宽度百分比和最小高度。
-- `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment` 和 `textContent` 创建头像、昵称、徽标与消息正文，最多保留最近 120 条，并在每条气泡上写入 `--danmaku-width`、`--danmaku-height`、`--danmaku-lines`。
+- `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment` 和 `textContent` 创建头像、昵称、徽标与消息正文，最多保留最近 120 条；按容器高度保留当前可见区及上方约 5 个视口的缓冲，超出缓冲的旧消息不再创建 DOM 节点；每条气泡写入 `--danmaku-width`、`--danmaku-height`、`--danmaku-lines`。
 - `games.css` 将短消息显示为紧凑气泡，长消息按宽度增长并自然换行增高；交错对齐、实时标题栏和 reduced-motion 降级只属于视觉层，不改变弹幕字段或游戏协议。
 
 ## 7. 数据消费一览

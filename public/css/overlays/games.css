@@ -103,7 +103,7 @@ body[data-game='gomoku'] .game-result-icon .icon-bomb { display: none; }
 body[data-game='gomoku'] .game-result-icon .icon-gomoku { display: block; filter: drop-shadow(0 6px 20px rgba(228, 216, 182, .5)); }
 .game-result[data-winner='draw'] .game-result-icon svg { filter: drop-shadow(0 6px 20px rgba(180, 160, 220, .4)); }
 .game-result-winner { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.game-result-avatar { width: clamp(26px, 3vw, 34px); height: clamp(26px, 3vw, 34px); border: 2px solid rgba(255, 255, 255, .82); border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); object-fit: cover; }
+.game-result-avatar { width: clamp(36px, 4.6vw, 56px); height: clamp(36px, 4.6vw, 56px); flex: 0 0 auto; aspect-ratio: 1; border: 2px solid rgba(255, 255, 255, .82); border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); object-fit: cover; }
 .game-result-avatar[hidden] { display: none; }
 .game-result-text { color: var(--ink); font-size: clamp(16px, 2.2vw, 24px); font-weight: 700; letter-spacing: -.02em; text-align: center; animation: resultTextIn 400ms ease .3s backwards; }
 @keyframes resultFadeIn { from { opacity: 0; } to { opacity: 1; } }
