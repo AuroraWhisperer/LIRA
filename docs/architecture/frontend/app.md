@@ -148,7 +148,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 | 功能 | 模块 | 内容与数据源 |
 |---|---|---|
-| 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 发送弹幕(`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数)、连接/账号/房间状态(`/api/bilibili/danmaku/state`,断开时可一键重连并回读新状态)、四个机器人开关(`enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`,无发送权限时禁用) |
+| 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 面板按连接状态、气泡样式预览与发送、点歌回复、AI 回复、固定回复归类；发送弹幕(`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数)、连接/账号/房间状态(`/api/bilibili/danmaku/state`,断开时可一键重连并回读新状态)、四个机器人开关(`enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`,无发送权限时禁用)。样式预览与 `/games` 通过 `overlays/danmaku-feed.js` 共用弹幕组件 |
 | 弹幕库编辑器 | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js) | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键) |
 | AI 互动助手 | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`、`/api/ai/models`；电脑端先选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义，官方预设锁定地址/协议，自动与自定义允许编辑；按服务端 `modelEndpoint` 显示协议、联网方式与可用推理控件；密钥字段使用 password + `'********'` 遮罩且提交时过滤遮罩值；700ms 自动保存 + 保存失败重试队列 |
 | 礼物姬 · 礼物边框 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 保存 `giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；预览只发 `gift:frame` 事件，不影响实时开关与事件去重 |

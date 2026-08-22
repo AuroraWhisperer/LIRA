@@ -118,14 +118,6 @@ body {
   text-shadow: 0 .42cqw 1.25cqw var(--opening-shadow);
 }
 
-.opening-eyebrow {
-  display: block;
-  color: var(--opening-gold);
-  font-size: 1.2cqw;
-  font-weight: 700;
-  letter-spacing: .35em;
-}
-
 .opening-copy h1 {
   width: 100%;
   max-width: none;
@@ -220,8 +212,8 @@ body {
 .opening-eq span { position: absolute; display: block; pointer-events: none; }
 .opening-notes span { left: var(--note-x); top: var(--note-y); color: var(--opening-pink-soft); font-size: 1.77cqw; opacity: .55; animation: note-drift var(--note-duration) ease-in-out var(--note-delay) infinite; }
 .opening-particles span { left: var(--particle-x); top: var(--particle-y); width: var(--particle-size); height: var(--particle-size); border-radius: 50%; background: var(--opening-pink-soft); opacity: .28; animation: particle-drift var(--particle-duration) ease-in-out var(--particle-delay) infinite; }
-.opening-eq { z-index: 2; inset: auto auto 9% 9%; width: 40%; height: 8%; display: flex; align-items: flex-end; gap: .26cqw; opacity: .18; }
-.opening-eq span { position: relative; inset: auto; flex: 1; height: calc(var(--eq-height) * 100%); min-height: .1cqw; border-radius: 99px 99px 0 0; background: var(--opening-pink); transition: height .35s ease; }
+.opening-eq { z-index: 2; inset: auto auto 9% 9%; width: 40%; height: 8%; display: flex; align-items: flex-end; gap: .26cqw; opacity: .22; }
+.opening-eq span { position: relative; inset: auto; flex: 1; height: calc(var(--eq-height) * 100%); min-height: .1cqw; border-radius: 99px 99px 0 0; background: var(--opening-pink); transform-origin: 50% 100%; animation: eq-smooth var(--eq-duration, 3s) ease-in-out var(--eq-delay, 0s) infinite alternate; will-change: transform, opacity; }
 .opening-footer { position: absolute; z-index: 6; right: 5%; bottom: 4%; color: rgba(255, 226, 168, .7); font-size: .94cqw; letter-spacing: .38em; }
 .opening-debug { position: absolute; z-index: 9; left: 2%; bottom: 2%; margin: 0; color: var(--opening-gold); font: .625cqw ui-monospace, monospace; }
 
@@ -238,7 +230,8 @@ body {
 .opening-stage.is-reduced-motion .track-heart-motion,
 .opening-stage.is-reduced-motion .track-heart-pulse,
 .opening-stage.is-reduced-motion .opening-notes span,
-.opening-stage.is-reduced-motion .opening-particles span { animation: none; }
+.opening-stage.is-reduced-motion .opening-particles span,
+.opening-stage.is-reduced-motion .opening-eq span { animation: none; transform: scaleY(.72); }
 .opening-stage.is-reduced-motion .character-enter { opacity: 1; transform: none; }
 .opening-stage.quality-low .opening-notes,
 .opening-stage.quality-low .opening-particles,
@@ -263,9 +256,9 @@ body.opening-disabled,
 
 @keyframes character-enter { to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes opening-stage-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes character-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.52cqw); } }
-@keyframes character-sway { 0%, 100% { transform: rotate(-.28deg); } 50% { transform: rotate(.28deg); } }
-@keyframes character-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.018); } }
+@keyframes character-float { 0%, 100% { transform: translate3d(0, .2cqw, 0); } 50% { transform: translate3d(0, -1.25cqw, 0); } }
+@keyframes character-sway { 0%, 100% { transform: translate3d(-.18cqw, 0, 0) rotate(-.65deg); } 50% { transform: translate3d(.18cqw, 0, 0) rotate(.65deg); } }
+@keyframes character-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
 @keyframes character-aura { 0%, 100% { opacity: .32; transform: scale(.96); } 50% { opacity: .66; transform: scale(1.04); } }
 @keyframes mic-glint { 0%, 63%, 100% { opacity: 0; } 68%, 74% { opacity: .78; } }
 @keyframes opening-vinyl { to { transform: rotate(360deg); } }
@@ -275,6 +268,7 @@ body.opening-disabled,
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.12); } 18% { transform: scale(1); } }
 @keyframes note-drift { 0%, 100% { opacity: .1; transform: translate3d(0, .625cqw, 0) rotate(var(--note-rotation)); } 45% { opacity: .58; } 75% { opacity: .2; transform: translate3d(var(--note-drift), -1.98cqw, 0) rotate(calc(var(--note-rotation) + 8deg)); } }
 @keyframes particle-drift { 0%, 100% { opacity: 0; transform: translate3d(0, .52cqw, 0); } 40% { opacity: .3; } 70% { opacity: .05; transform: translate3d(.73cqw, -1.35cqw, 0); } }
+@keyframes eq-smooth { 0% { opacity: .56; transform: scaleY(.42); } 48% { opacity: .92; transform: scaleY(1.26); } 100% { opacity: .68; transform: scaleY(.7); } }
 
 @media (prefers-reduced-motion: reduce) {
   .opening-stage:not(.is-reduced-motion) { animation-duration: 180ms; }
@@ -289,5 +283,6 @@ body.opening-disabled,
   .opening-stage:not(.is-reduced-motion) .track-heart-motion,
   .opening-stage:not(.is-reduced-motion) .track-heart-pulse,
   .opening-stage:not(.is-reduced-motion) .opening-notes span,
-  .opening-stage:not(.is-reduced-motion) .opening-particles span { animation: none; }
+  .opening-stage:not(.is-reduced-motion) .opening-particles span,
+  .opening-stage:not(.is-reduced-motion) .opening-eq span { animation: none; transform: scaleY(.72); }
 }

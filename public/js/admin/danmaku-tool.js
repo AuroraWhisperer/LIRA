@@ -1,6 +1,7 @@
 'use strict';
 
 import { createBlessingEditor, createCustomReplyEditor, createFortuneEditor } from './danmaku-libraries.js';
+import { createDanmakuFeed } from '../overlays/danmaku-feed.js';
 
 let initialized = false;
 let refreshState = null;
@@ -27,6 +28,16 @@ function init() {
   const fortuneEditor = createFortuneEditor({ document, saveSetting, toast });
   const customReplyEditor = createCustomReplyEditor({ document, saveSetting, toast });
   if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
+  const stylePreview = createDanmakuFeed(elements.styleFeed, {
+    maxItems: 4,
+    offscreenViewports: 0,
+    getGuardLabel: guardLabel
+  });
+  stylePreview.render([
+    { name: '小米', message: '这首歌的前奏好有氛围感', guardLevel: 3, medalName: '米粒', medalLevel: 16 },
+    { name: '晚风', message: '可以来一首轻快的歌吗', medalName: '小风车', medalLevel: 8 },
+    { name: '观众', message: '弹幕样式预览', guardLevel: 1 }
+  ]);
   initialized = true;
 
   const updateCounter = () => {
@@ -187,6 +198,7 @@ function getElements() {
     accountState: document.getElementById('danmakuAccountState'),
     roomState: document.getElementById('danmakuRoomState'),
     refreshButton: document.getElementById('danmakuRefreshBtn'),
+    styleFeed: document.getElementById('danmakuStyleFeed'),
     resultState: document.getElementById('danmakuSendResult')
   };
   return Object.values(elements).some((element) => !element) ? null : elements;
@@ -229,6 +241,13 @@ function bindSettingToggle(element, options) {
       options.toast(error.message || '保存设置失败');
     }
   });
+}
+
+function guardLabel(level) {
+  if (Number(level) === 3) return '舰长';
+  if (Number(level) === 2) return '提督';
+  if (Number(level) === 1) return '总督';
+  return '';
 }
 
 function refresh(options) {

@@ -1,5 +1,6 @@
 .queue-neon-vinyl {
-  aspect-ratio: 1122 / 1402;
+  /* Keep the full frame visible while displaying it at 85% of its original height. */
+  aspect-ratio: 1122 / 1192;
   color: #6f2449;
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }

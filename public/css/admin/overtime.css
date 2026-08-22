@@ -241,7 +241,6 @@
   text-align: right;
 }
 .overtime-rules-heading-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.overtime-rules-help { max-width: 560px; }
 .overtime-refresh-gifts-action,
 .overtime-add-gift-action,
 .overtime-save-rules-action {

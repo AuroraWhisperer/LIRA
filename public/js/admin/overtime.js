@@ -318,8 +318,15 @@ function renderGiftCatalogStatus() {
   const refreshedAt = new Date(giftCatalogSnapshot.refreshedAt);
   const timeLabel = Number.isNaN(refreshedAt.getTime())
     ? ''
-    : refreshedAt.toLocaleString('zh-CN', { hour12: false });
-  status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · 房间 ${catalogRoomLabel(giftCatalogSnapshot, catalogLiveStatus)}${timeLabel ? ` · ${timeLabel}` : ''}`;
+    : refreshedAt.toLocaleString('zh-CN', {
+      hour12: false,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · ${catalogRoomLabel(giftCatalogSnapshot, catalogLiveStatus)}${timeLabel ? ` · ${timeLabel}` : ''}`;
 }
 
 function catalogRoomLabel(snapshot, liveStatus) {

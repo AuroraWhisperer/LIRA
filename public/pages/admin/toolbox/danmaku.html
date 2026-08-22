@@ -1,17 +1,14 @@
             <section id="otherDanmakuFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>
               <div class="other-feature-panel-body stack danmaku-tool-panel">
-                <div class="danmaku-tool-heading">
-                  <div><h2>弹幕姬</h2><p>使用当前登录账号向配置的直播间发言。</p></div>
-                  <button id="danmakuRefreshBtn" class="icon" type="button" title="刷新发送状态" aria-label="刷新发送状态">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                </div>
                 <section class="danmaku-feature-section danmaku-connection-section" aria-labelledby="danmakuConnectionTitle">
                   <div class="danmaku-section-heading">
                     <div>
                       <h3 id="danmakuConnectionTitle">连接状态</h3>
                       <p>查看当前账号连接到了哪个直播间，以及是否可以发送。</p>
                     </div>
+                    <button id="danmakuRefreshBtn" class="icon" type="button" title="刷新发送状态" aria-label="刷新发送状态">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
                   </div>
                   <div class="danmaku-status-grid">
                     <div><span>发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
@@ -19,38 +16,44 @@
                     <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
                   </div>
                 </section>
-                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
+                <section class="danmaku-feature-section danmaku-style-section" aria-labelledby="danmakuStyleTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuStyleTitle">弹幕姬</h3>
+                      <p>直播画面使用的弹幕样式；你画我猜会调用同一套弹幕组件。</p>
+                    </div>
+                    <span class="danmaku-style-chip">当前样式 · 气泡</span>
+                  </div>
+                  <div id="danmakuStylePreview" class="danmaku-style-preview" aria-label="弹幕样式预览">
+                    <div id="danmakuStyleFeed" class="draw-danmaku-feed" role="log" aria-live="polite"></div>
+                  </div>
+                  <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
+                    <div class="danmaku-section-heading">
+                      <div>
+                        <h3 id="danmakuComposeTitle">发送弹幕</h3>
+                        <p>发送内容和发送结果会保留在同一个操作区。</p>
+                      </div>
+                    </div>
+                    <form id="danmakuSendForm" class="stack">
+                      <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
+                      <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">自动钓鱼/打劫</button><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
+                    </form>
+                    <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
+                  </section>
+                </section>
+                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuSongReplySectionTitle danmakuReplyTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuSongReplySectionTitle">点歌回复</h3>
+                      <p>管理观众点歌没有匹配结果时的自动回复。</p>
+                    </div>
+                  </div>
                   <div class="danmaku-bot-switch-grid">
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
                       <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p>条件不匹配时，自动回复点歌人</p></div>
                       <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用回复</span></label>
                     </div>
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuCheckinTitle">签到机器人</strong><p id="danmakuCheckinTarget">收到“签到”弹幕后回复累计天数</p></div>
-                      <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox"><span class="switch-track"></span><span>启用签到</span></label>
-                    </div>
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuFortuneTitle">抽签机器人</strong><p>收到“抽签”弹幕后回复每日一签</p></div>
-                      <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox"><span class="switch-track"></span><span>启用抽签</span></label>
-                    </div>
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><p>收到自定义关键词后回复固定文案</p></div>
-                      <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用 DIY</span></label>
-                    </div>
                   </div>
-                </section>
-                <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
-                  <div class="danmaku-section-heading">
-                    <div>
-                      <h3 id="danmakuComposeTitle">发送弹幕</h3>
-                      <p>发送内容和发送结果会保留在同一个操作区。</p>
-                    </div>
-                  </div>
-                  <form id="danmakuSendForm" class="stack">
-                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">自动钓鱼/打劫</button><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
-                  </form>
-                  <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
                 </section>
                 <section id="xiaomiAiSection" class="danmaku-feature-section xiaomi-ai-section" aria-labelledby="xiaomiAiTitle">
                   <div class="xiaomi-ai-heading">
@@ -180,6 +183,27 @@
                     </div>
                   </form>
                 </section>
+                <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuFixedReplyTitle">固定回复</h3>
+                      <p>管理签到、抽签和自定义关键词回复。</p>
+                    </div>
+                  </div>
+                  <div class="danmaku-bot-switch-grid">
+                    <div class="danmaku-reply-target danmaku-bot-switch-card">
+                      <div><strong id="danmakuCheckinTitle">签到机器人</strong><p id="danmakuCheckinTarget">收到“签到”弹幕后回复累计天数</p></div>
+                      <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox"><span class="switch-track"></span><span>启用签到</span></label>
+                    </div>
+                    <div class="danmaku-reply-target danmaku-bot-switch-card">
+                      <div><strong id="danmakuFortuneTitle">抽签机器人</strong><p>收到“抽签”弹幕后回复每日一签</p></div>
+                      <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox"><span class="switch-track"></span><span>启用抽签</span></label>
+                    </div>
+                    <div class="danmaku-reply-target danmaku-bot-switch-card">
+                      <div><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><p>收到自定义关键词后回复固定文案</p></div>
+                      <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用 DIY</span></label>
+                    </div>
+                  </div>
                 <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
                   <summary>
                     <div>
@@ -246,5 +270,6 @@
                     </div>
                   </div>
                 </details>
+                </section>
               </div>
             </section>

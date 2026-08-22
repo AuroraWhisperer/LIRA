@@ -175,6 +175,18 @@ test('illustrated queue cards preserve their source proportions without clipping
   }
 });
 
+test('style 4 displays the full frame at 85% of its original height', () => {
+  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const frameRule = overlayCss.match(/\.queue-neon-vinyl\s*\{[^}]*\}/)?.[0];
+  const backgroundRule = overlayCss.match(/\.queue-neon-vinyl::before\s*\{[^}]*\}/)?.[0];
+
+  assert.ok(frameRule);
+  assert.ok(backgroundRule);
+  assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1192/);
+  assert.match(backgroundRule, /background:\s*url\('[^']+\/frame\.webp'\) center \/ 100% 100% no-repeat/);
+  assert.doesNotMatch(backgroundRule, /\bcover\b|\bcontain\b/);
+});
+
 test('classic queue starts at its fixed size and follows a resized browser source', () => {
   const adminHtml = readAdminHtml();
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');

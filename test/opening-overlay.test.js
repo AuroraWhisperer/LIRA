@@ -50,7 +50,7 @@ test('opening overlay is frameable and keeps the required character transform la
   assert.doesNotMatch(html, /id="openingAudio"[^>]+autoplay/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+src=/);
   assert.doesNotMatch(html, /SINGING LIVE/);
-  assert.match(html, /class="opening-eyebrow">歌声即将开始<\/span>/);
+  assert.doesNotMatch(html, /歌声即将开始/);
   assert.match(html, /id="openingFooter"[^>]*>欢迎来到直播间<\/p>/);
   assert.doesNotMatch(html, /<span class="track-heart"/);
   assert.doesNotMatch(html, />@<\/span>/);
@@ -72,6 +72,9 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /cqw/);
   assert.match(css, /\.track::before/);
   assert.match(css, /\.track-heart-motion/);
+  assert.match(css, /animation:\s*eq-smooth/);
+  assert.match(css, /@keyframes\s+eq-smooth/);
+  assert.match(css, /character-float[^\n]*-1\.25cqw/);
   assert.match(css, /translate3d\(/);
   assert.match(css, /\.opening-stage\.is-disabled[^\n]*display:\s*none/);
   assert.match(css, /\.opening-stage\.is-disabled[^\n]*animation:\s*none/);

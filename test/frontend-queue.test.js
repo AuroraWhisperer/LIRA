@@ -392,7 +392,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonViewportRule, /bottom:\s*31%/);
   assert.match(neonViewportRule, /left:\s*25\.5%/);
   assert.match(neonViewportRule, /justify-content:\s*safe center/);
-  assert.match(ribbonContentRule, /--cherry-ribbon-top-trim:\s*5px/);
+  assert.match(ribbonContentRule, /--cherry-ribbon-top-trim:\s*0px/);
   assert.match(ribbonContentRule, /--cherry-ribbon-bottom-trim:\s*30px/);
   assert.match(ribbonContentRule, /inset:\s*calc\(17\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
   assert.match(ribbonRowRule, /width:\s*94%/);
@@ -467,7 +467,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*15%\s+8\.5%\s+17%/);
+  assert.match(goldenContentRule, /inset:\s*19\.5%\s+8\.5%\s+17%/);
   assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', -6, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*72%/);
   assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*569/);
@@ -629,6 +629,9 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(source, /\/api\/overtime\/gifts\/refresh/);
   assert.match(source, /catalogRoomLabel\(giftCatalogSnapshot, catalogLiveStatus\)/);
   assert.match(source, /liveStatus\?\.ownerName/);
+  assert.doesNotMatch(html, /选择“文字展板”可让礼物只展示自定义文字/);
+  assert.doesNotMatch(source, /· 房间 /);
+  assert.match(source, /minute:\s*'2-digit'/);
   assert.match(source, /当前未在售/);
   assert.match(source, /left\.catalogGroup - right\.catalogGroup[\s\S]*left\.catalogOrder - right\.catalogOrder[\s\S]*left\.rmb - right\.rmb/);
   assert.match(source, /if \(!gift\.id\.startsWith\('guard-'\)\) \{[\s\S]*meta\.textContent = `¥\$\{gift\.rmb\.toFixed\(2\)\}`/);

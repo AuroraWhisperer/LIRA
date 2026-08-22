@@ -148,6 +148,28 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(libraries, /export function createCustomReplyEditor/);
 });
 
+test('danmaku tool groups the shared style, song reply, AI and fixed replies', () => {
+  const html = readAdminHtml();
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const connectionSection = html.match(/<section class="danmaku-feature-section danmaku-connection-section"[\s\S]*?<\/section>/)?.[0] || '';
+
+  assert.doesNotMatch(html, /class="danmaku-tool-heading"/);
+  assert.match(connectionSection, /id="danmakuConnectionTitle"/);
+  assert.match(connectionSection, /id="danmakuRefreshBtn"/);
+  assert.match(html, /id="danmakuStyleTitle">弹幕姬</);
+  assert.match(html, /id="danmakuStyleFeed" class="draw-danmaku-feed"/);
+  assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="danmakuSongReplySectionTitle"'));
+  assert.ok(html.indexOf('id="danmakuSongReplySectionTitle"') < html.indexOf('id="xiaomiAiSection"'));
+  assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuFixedReplyTitle"'));
+  assert.match(html, /id="danmakuFixedReplyTitle">固定回复</);
+  assert.match(source, /import \{ createDanmakuFeed \} from '\.\.\/overlays\/danmaku-feed\.js';/);
+  assert.match(source, /createDanmakuFeed\(elements\.styleFeed/);
+  assert.match(source, /stylePreview\.render\(\[/);
+  assert.match(styles, /\.danmaku-style-preview/);
+  assert.match(styles, /\.danmaku-style-preview \.draw-danmaku-item/);
+});
+
 test('admin danmaku status prefers account and room display names', () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
 

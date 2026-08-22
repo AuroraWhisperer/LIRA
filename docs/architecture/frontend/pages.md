@@ -72,7 +72,7 @@
 | `forms.js` | `FormsService`:range↔number 绑定、选项卡、播放器全屏/收起、表单填充 | [app.md](app.md) §2 |
 | `import.js` | 歌曲批量导入(TSV/CSV/Excel),GB18030 编码回退 | [app.md](app.md) §4 |
 | `metrics.js` | 系统性能检测(`/api/system/metrics` 5 秒采样) | [app.md](app.md) §4 |
-| `danmaku-tool.js` | 弹幕姬:发送弹幕、机器人开关 | [app.md](app.md) §6 |
+| `danmaku-tool.js` | 弹幕姬:连接状态刷新、气泡样式预览、发送弹幕、点歌/固定回复开关；通过 `overlays/danmaku-feed.js` 复用画猜弹幕组件 | [app.md](app.md) §6 |
 | `danmaku-libraries.js` | 签到祝福语/抽签词库/DIY 关键词回复三个编辑器 | [app.md](app.md) §6 |
 | `ai-assistant-settings.js` | AI 互动助手配置:模型拉取、供应商测试、限流参数 | [app.md](app.md) §6 |
 | `overtime.js` | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景 | [app.md](app.md) §6 |

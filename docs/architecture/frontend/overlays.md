@@ -83,7 +83,7 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 
 - **六种风格**:`classic`(默认,经典卡片列表)、`identity`(身份版,观众名突出,含 SC 置顶区)、`storybook`(奶油蓝插画画框)、`neon-vinyl`(甜粉麦克风舞台)、`cherry-ribbon`(紫金星月梦境)与 `golden-lily`(奶油金唱片铃兰);由设置 `overlayQueueStyle` 决定,遗留 `festival` 归一为 `identity`,未知值回退 `classic`。样式由 `overlays/base.css` 导入的 `.queue-*` 主题类承载。
 - **风格 3**:框体与词条素材位于 `public/img/overlays/song-board-style-3/`;原始框体保留 alpha,`.queue-storybook::before` 在框内开口后叠加不透明白层,框外仍透明。词条黄色端点恒显示队列序号,浅蓝固定宽度区域复用身份版的歌名、点歌人、大航海/灯牌名与灯牌等级格式;没有大航海或灯牌时省略对应字段。内容实际宽度溢出时由 `scheduleIdentityContentScroll` 在该区域内左右往返,不会扩张词条素材。纵向超出画框时复用身份版的循环/往返滚动测量。
-- **风格 4 / 5**:各自的框体与词条素材位于 `public/img/overlays/song-board-style-4/` 和 `song-board-style-5/`;框体和词条素材自带粉色或紫金渐变底色。两种风格隐藏通用顶部标题和点歌顺序数字,省略四组字段的说明标签并将短内容居中。每条记录输出歌名、点歌人,并在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。整组内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量。风格 5 的列表窗口在设计画布内从顶部收进 5px、从底部收进 30px。`prefers-reduced-motion` 下停用横纵动画。
+- **风格 4 / 5**:各自的框体与词条素材位于 `public/img/overlays/song-board-style-4/` 和 `song-board-style-5/`;框体和词条素材自带粉色或紫金渐变底色。两种风格隐藏通用顶部标题和点歌顺序数字,省略四组字段的说明标签并将短内容居中。每条记录输出歌名、点歌人,并在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。整组内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量。风格 5 的列表窗口顶部与首条词条上边缘对齐、底部收进 30px。`prefers-reduced-motion` 下停用横纵动画。
 - **风格 6**:奶油金唱片铃兰框体与横向词条素材位于 `public/img/overlays/song-board-style-6/`;词条以内容窗宽度的 72% 居中,完整收进画框的左右前景边框之间,相邻卡片以 `-6px` 视觉间距轻微重叠,左侧花形圆圈显示从 1 开始的队列序号,右侧固定信息窗省略说明标签并输出歌名、点歌人,在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。信息窗内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量,列表下边界停在第 4 个序号附近;`prefers-reduced-motion` 下停用横纵动画。
 - **风格 4–6 的画框层级**:完整框图作为底层保留中间色块,卡片与文字位于中层,同一框图去掉中心填充后以 `border-image` 作为顶层装饰。卡片滚动时会从丝带、花朵、唱片等边框装饰下方经过,但始终显示在框内中间色块上方。
 - **风格 3–6 的浏览器源缩放**:四款插画板都以 560px 宽的固定设计画布排版,内部框体、词条、文字、徽章和裁切窗口只使用这一套坐标。`queue-viewport.js` 按浏览器源可用宽度与高度分别计算比例并取较小值(且不超过 1),再整体缩放画布;因此直播姬或 OBS 改变源的长宽比时不会分别重排背景和文字。源比例与素材不一致时保留透明空白,不拉伸图片。风格 3 的列表窗口还在设计画布内整体上移 10px,为最底部可见词条保留安全距离。
@@ -156,7 +156,7 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 
 ## 6.1 游戏叠加层(/games)的弹幕组件
 
-[overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，`danmaku-feed.js` 是可复用的弹幕 DOM 组件。入口只传入会话中的 `session.danmaku`，并注入带 token 的头像解析器与大航海等级映射；组件不读取 WebSocket 或游戏状态。
+[overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，`danmaku-feed.js` 是可复用的弹幕 DOM 组件。游戏入口只传入会话中的 `session.danmaku`，管理页弹幕姬则传入受限的预览样本；两者都通过同一显式 ESM 接口渲染，组件不读取 WebSocket 或游戏状态。
 
 - `measureDanmakuText(message)` 按中英文混合文本的视觉长度估算行数、宽度百分比和最小高度。
 - `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment` 和 `textContent` 创建头像、昵称、徽标与消息正文，最多保留最近 120 条；按容器高度保留当前可见区及上方约 5 个视口的缓冲，超出缓冲的旧消息不再创建 DOM 节点；每条气泡写入 `--danmaku-width`、`--danmaku-height`、`--danmaku-lines`。

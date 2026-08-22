@@ -115,41 +115,25 @@ function createNodes(config) {
   for (let index = 0; index < limits.eq; index += 1) {
     const bar = document.createElement('span');
     bar.style.setProperty('--eq-height', `${0.2 + ((index * 13) % 7) / 10}`);
+    bar.style.setProperty('--eq-duration', `${2.4 + (index % 5) * .34}s`);
+    bar.style.setProperty('--eq-delay', `${-(index * .22)}s`);
     eq?.append(bar);
   }
 }
 
-function updateEq(eq) {
-  if (!eq) return;
-  eq.querySelectorAll('span').forEach((bar, index) => {
-    const height = 0.16 + (((Date.now() / 1000 + index * 1.7) % 7) / 10);
-    bar.style.setProperty('--eq-height', String(Math.min(.9, height)));
-  });
-}
-
 function startRuntime(config) {
   const stage = document.getElementById('openingStage');
-  const eq = document.getElementById('openingEq');
   const audio = document.getElementById('openingAudio');
   const debug = document.getElementById('openingDebug');
   const trackSvg = document.getElementById('openingTrackSvg');
   if (!stage) return;
 
-  let eqTimer = null;
   let particleTimer = null;
   let lastPhase = 0;
 
   const clearSchedulers = () => {
-    if (eqTimer) clearTimeout(eqTimer);
     if (particleTimer) clearTimeout(particleTimer);
-    eqTimer = null;
     particleTimer = null;
-  };
-  const scheduleEq = () => {
-    if (!config.showEq || config.quality === 'low' || document.hidden || !stage.isConnected) return;
-    updateEq(eq);
-    const pause = Math.random() > .7 ? 1500 + Math.random() * 1500 : 600 + Math.random() * 600;
-    eqTimer = setTimeout(scheduleEq, pause);
   };
   const scheduleParticles = () => {
     if (config.quality === 'low' || document.hidden || !stage.isConnected) return;
@@ -167,14 +151,12 @@ function startRuntime(config) {
     stage.classList.remove('is-paused');
     if (!stage.classList.contains('is-reduced-motion')) {
       trackSvg?.unpauseAnimations?.();
-      scheduleEq();
       scheduleParticles();
     }
   };
 
   if (config.enabled) {
     stage.classList.remove('is-disabled', 'is-paused');
-    scheduleEq();
     scheduleParticles();
   } else {
     stage.classList.add('is-disabled', 'is-paused');
@@ -215,7 +197,6 @@ function startRuntime(config) {
       trackSvg?.pauseAnimations?.();
     } else if (!document.hidden && config.enabled) {
       trackSvg?.unpauseAnimations?.();
-      if (!eqTimer) scheduleEq();
       if (!particleTimer) scheduleParticles();
     }
   };

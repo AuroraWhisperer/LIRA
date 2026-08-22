@@ -127,6 +127,22 @@ test('lyric timeline normalization preserves all 64 renderable lines from 失控
   assert.equal(timeline.lines.at(-1).startMs, 247519);
 });
 
+test('desktop lyric settings use Chinese-only section headings', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    'utf8'
+  );
+
+  assert.match(html, /<h3 id="desktopLyricSettingsTitle">歌词样式<\/h3>/);
+  assert.match(html, /<h3 id="desktopLyricPreviewTitle">桌面歌词实时预览<\/h3>/);
+  assert.doesNotMatch(html, /STYLE CONTROLS|LIVE PREVIEW|desktop-lyric-preview-kicker/);
+  assert.doesNotMatch(styles, /desktop-lyric-preview-kicker/);
+});
+
 test('desktop lyric settings expose WeSing-only lyric source preferences', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
