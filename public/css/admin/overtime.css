@@ -241,6 +241,7 @@
   text-align: right;
 }
 .overtime-rules-heading-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.overtime-rules-help { max-width: 560px; }
 .overtime-refresh-gifts-action,
 .overtime-add-gift-action,
 .overtime-save-rules-action {
@@ -427,7 +428,8 @@
 .overtime-rule-body[hidden] { display: none; }
 .overtime-rule-mode,
 .overtime-fixed-editor,
-.overtime-random-editor {
+.overtime-random-editor,
+.overtime-display-editor {
   display: grid;
   gap: 10px;
   padding: 12px;
@@ -485,6 +487,12 @@
   box-shadow: inset 3px 0 0 var(--ot-gold);
 }
 .overtime-mode-option.is-random input { accent-color: var(--ot-gold); }
+.overtime-mode-option.is-display:has(input:checked) {
+  border-color: var(--ot-pink);
+  background: color-mix(in srgb, var(--ot-pink) 12%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--ot-pink);
+}
+.overtime-mode-option.is-display input { accent-color: var(--ot-pink); }
 .overtime-mode-option:has(input:focus-visible),
 .overtime-operation-option:has(input:focus-visible) {
   outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
@@ -494,6 +502,17 @@
 .overtime-rule-effect { min-width: 0; }
 .overtime-rule-effect [hidden] { display: none !important; }
 .overtime-rule-effect.is-random { background: color-mix(in srgb, var(--ot-gold) 3%, var(--surface)); }
+.overtime-rule-effect.is-display { background: color-mix(in srgb, var(--ot-pink) 3%, var(--surface)); }
+.overtime-display-hint {
+  margin: 0 !important;
+  padding: 10px 12px;
+  border-left: 3px solid var(--ot-pink);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--ot-pink) 10%, var(--surface));
+  color: var(--text) !important;
+}
+.overtime-display-input { max-width: 360px; color: var(--text) !important; font-weight: 700; }
+.overtime-display-input input { max-width: 240px; font-size: 18px; letter-spacing: 0.08em; }
 .overtime-effect-sentence {
   min-width: 0;
 }
@@ -654,6 +673,7 @@
 }
 .overtime-settlement-row .is-positive { color: var(--ot-teal); }
 .overtime-settlement-row .is-negative { color: var(--ot-coral); }
+.overtime-settlement-row .is-display { color: var(--ot-pink); }
 
 .overtime-gift-picker {
   width: min(680px, calc(100vw - 32px));
@@ -727,7 +747,8 @@
   .overtime-duration-selectors { grid-template-columns: 1fr; }
   .overtime-rule-mode,
   .overtime-fixed-editor,
-  .overtime-random-editor { padding-inline: 12px; }
+  .overtime-random-editor,
+  .overtime-display-editor { padding-inline: 12px; }
   .overtime-rule-mode-options { grid-template-columns: 1fr; }
   .overtime-effect-sentence { align-items: stretch; flex-direction: column; }
   .overtime-operation-control,

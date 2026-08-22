@@ -174,6 +174,9 @@ function createGamesContext(games = {}) {
   const listOnlineViewers = typeof games.listOnlineViewers === 'function'
     ? games.listOnlineViewers
     : () => [];
+  const refreshViewers = typeof games.refreshViewers === 'function'
+    ? games.refreshViewers
+    : async () => {};
   const getWinnerProfile = typeof games.getWinnerProfile === 'function'
     ? games.getWinnerProfile
     : async () => ({ avatarUrl: '', name: '' });
@@ -184,6 +187,7 @@ function createGamesContext(games = {}) {
     move: service.move,
     draw: service.draw,
     getHostState: service.getHostState,
+    refreshViewers: () => refreshViewers(),
     listViewers: () => mergeViewerCandidates(listOnlineViewers()),
     getWinnerProfile: () => getWinnerProfile(service.getSession()?.winner)
   };

@@ -17,6 +17,7 @@ const SPRING_STIFFNESS = 170;
 const SPRING_DAMPING = 26;
 const SPRING_SETTLE_DISTANCE = 0.5;
 const SPRING_SETTLE_SPEED = 2;
+const KARAOKE_MODES = ['off', 'continuous', 'discrete'];
 
 let initialized = false;
 let renderer = null;
@@ -64,12 +65,12 @@ function init(form) {
   });
   performanceProfile = createLyricPerformanceProfile({
     onChange: (profile) => {
-      activeWordAnimator?.setMode(profile.wordAnimation);
+      activeWordAnimator?.setMode(resolveWordAnimationMode(profile));
       stage.classList.toggle('is-low-power', profile.effects === 'low');
     }
   });
   activeWordAnimator = new LyricWordAnimator({
-    mode: performanceProfile.profile.wordAnimation,
+    mode: resolveWordAnimationMode(),
     wordClass: 'desktop-lyric-preview-word',
     highlightClass: 'desktop-lyric-preview-word-highlight'
   });
@@ -233,7 +234,7 @@ function renderActiveWords() {
   }
 
   activeWordAnimator?.mount(textElement, words, {
-    mode: performanceProfile?.profile.wordAnimation || 'waapi'
+    mode: resolveWordAnimationMode()
   });
   activeWordIndex = activeIndex;
   activeWordSignature = signature;
@@ -252,6 +253,11 @@ function resetActiveWords() {
 
 function updateActiveWordProgress(currentMs) {
   activeWordAnimator?.sync({ currentMs }, { playing: latestState?.playing === true });
+}
+
+function resolveWordAnimationMode(profile = performanceProfile?.profile) {
+  if (currentDisplaySettings.karaokeMode === 'discrete') return 'discrete';
+  return profile?.wordAnimation || 'waapi';
 }
 
 function acceptLyricVersion(state) {
@@ -485,6 +491,7 @@ function applySettings(settings = {}) {
   card.classList.toggle('is-hide-passed', values.hidePassedLines);
   card.classList.toggle('is-traditional', values.traditionalMode);
   card.classList.toggle('is-current-enhanced', values.currentLineEnhanced);
+  card.classList.toggle('is-karaoke-discrete', values.karaokeMode === 'discrete');
   card.classList.toggle('is-spring-enabled', values.springAnimation);
   card.classList.toggle('is-blur-enabled', values.blurEffect);
   card.classList.toggle('is-scale-enabled', values.scaleEffect);
@@ -493,7 +500,8 @@ function applySettings(settings = {}) {
     card.classList.toggle(`is-background-${rendererName}`, values.backgroundRenderer === rendererName);
   }
   applyPlaybackVisibility();
-  if (previousSettings.karaokeEnabled !== values.karaokeEnabled) {
+  if (previousSettings.karaokeEnabled !== values.karaokeEnabled
+      || previousSettings.karaokeMode !== values.karaokeMode) {
     resetActiveWords();
     renderActiveWords();
   }
@@ -511,6 +519,17 @@ function readFormSettings() {
     if (key === 'desktopLyricTextAlign') {
       values[key] = document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value
         || DESKTOP_LYRIC_DEFAULTS.desktopLyricTextAlign;
+      continue;
+    }
+    if (key === 'desktopLyricKaraokeMode') {
+      values[key] = document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')?.value
+        || DESKTOP_LYRIC_DEFAULTS.desktopLyricKaraokeMode;
+      continue;
+    }
+    if (key === 'desktopLyricKaraokeEnabled') {
+      values[key] = document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')?.value === 'off'
+        ? 'false'
+        : 'true';
       continue;
     }
     const input = document.getElementById(key);
@@ -595,6 +614,11 @@ function enumSetting(value, allowed, fallback) {
 
 export function resolveDesktopLyricSettings(settings = {}) {
   const values = { ...DESKTOP_LYRIC_DEFAULTS, ...settings };
+  const explicitKaraokeMode = KARAOKE_MODES.includes(settings.desktopLyricKaraokeMode)
+    ? settings.desktopLyricKaraokeMode
+    : null;
+  const karaokeMode = explicitKaraokeMode
+    || (boolSetting(settings.desktopLyricKaraokeEnabled, true) ? 'continuous' : 'off');
   return {
     fontFamily: String(values.desktopLyricFontFamily || DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily),
     fallbackFontFamily: String(values.desktopLyricFallbackFontFamily || DESKTOP_LYRIC_DEFAULTS.desktopLyricFallbackFontFamily),
@@ -615,7 +639,8 @@ export function resolveDesktopLyricSettings(settings = {}) {
     shadowOffsetY: clamp(numberSetting(values.desktopLyricShadowOffsetY, 3), -20, 20),
     showTranslation: boolSetting(values.desktopLyricShowTranslation, true),
     translationScale: clamp(numberSetting(values.desktopLyricTranslationScale, 0.65), 0.4, 1),
-    karaokeEnabled: boolSetting(values.desktopLyricKaraokeEnabled, true),
+    karaokeEnabled: karaokeMode !== 'off',
+    karaokeMode,
     hidePassedLines: boolSetting(values.desktopLyricHidePassedLines, false),
     traditionalMode: boolSetting(values.desktopLyricTraditionalMode, false),
     interludeOffsetEm: clamp(numberSetting(values.desktopLyricInterludeOffsetEm, 0), -10, 10),

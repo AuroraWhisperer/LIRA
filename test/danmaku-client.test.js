@@ -301,3 +301,25 @@ test('onMessage return values do not fetch profiles and explicit ensure reuses t
     client.stop();
   }
 });
+
+test('manual viewer refresh delegates to the active online-rank poller', async () => {
+  const client = new BilibiliDanmakuClient('123', {
+    onMessage() {},
+    onSuperChat() {},
+    onGift() {},
+    onStatus() {}
+  });
+  const roomRunContext = { roomId: '123', ownerUid: '456', runToken: 1 };
+  let receivedContext = null;
+  client.roomRunContext = roomRunContext;
+  client.onlineRankPoller.pollOnlineRank = async (context) => {
+    receivedContext = context;
+  };
+
+  try {
+    await client.refreshViewerCandidates();
+    assert.equal(receivedContext, roomRunContext);
+  } finally {
+    client.stop();
+  }
+});

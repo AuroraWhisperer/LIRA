@@ -192,6 +192,7 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 .overtime-ticket.is-divide { --ticket-accent: var(--ot-pink); }
 .overtime-ticket.is-clear { --ticket-accent: #a8a5b3; }
 .overtime-ticket.is-neutral { --ticket-accent: #a8a5b3; }
+.overtime-ticket.is-display { --ticket-accent: var(--ot-pink); }
 .overtime-ticket.is-hit { animation: overtime-ticket-hit 900ms ease-out; }
 .overtime-ticket-image {
   grid-area: icon;

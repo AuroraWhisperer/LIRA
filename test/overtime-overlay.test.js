@@ -31,6 +31,7 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(css, /\.overtime-ticket\.is-positive/);
   assert.match(css, /\.overtime-ticket\.is-negative/);
   assert.match(css, /\.overtime-ticket\.is-random/);
+  assert.match(css, /\.overtime-ticket\.is-display/);
   assert.match(css, /\.overtime-machine\s*\{[\s\S]*?font-size:\s*2cqmin/);
   assert.match(css, /\.overtime-live-label\s*\{[\s\S]*?font-size:\s*1\.43em/);
   assert.match(css, /\.overtime-ticket-name\s*\{[\s\S]*?font-size:\s*1\.55em/);
@@ -69,6 +70,8 @@ test('overtime overlay explains configured gift effects to viewers', () => {
   assert.match(html, /class="overtime-live-label">LIVE<\/strong>/);
   assert.match(html, /id="overtimeStatusText"/);
   assert.match(source, /time\.textContent = presentation\.value/);
+  assert.match(source, /rule\?\.mode === 'display'/);
+  assert.match(source, /adjustment\?\.mode === 'display'/);
   assert.match(source, /running:\s*''/);
   assert.match(source, /labels\[currentState\?\.status\]\s*\?\?\s*'连接中'/);
   assert.match(source, /Math\.min\(3, ticketCount\)/);
@@ -83,6 +86,7 @@ test('overtime overlay explains configured gift effects to viewers', () => {
     sandbox
   );
   assert.equal(sandbox.describeRuleEffect({ mode: 'random' }).value, '盲盒');
+  assert.equal(sandbox.describeRuleEffect({ mode: 'display', displayText: '谢谢支持' }).value, '谢谢支持');
   assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: 300 }).verb, '加时');
   assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: -90 }).value, '1分30秒');
   assert.equal(

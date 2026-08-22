@@ -187,6 +187,11 @@ class BilibiliDanmakuClient {
     });
   }
 
+  async refreshViewerCandidates() {
+    if (!this.roomRunContext) return;
+    await this.onlineRankPoller.pollOnlineRank(this.roomRunContext);
+  }
+
   deliverDanmaku(danmaku) {
     return this.handlers.onMessage(danmaku);
   }

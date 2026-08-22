@@ -5,12 +5,12 @@
 }
 
 .queue-cherry-ribbon::before {
-  background: url('/img/overlays/song-board-style-5/frame.png') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-5/frame.webp') center / 100% 100% no-repeat;
 }
 
 .queue-cherry-ribbon::after {
   border-width: 150px 56px 120px;
-  border-image-source: url('/img/overlays/song-board-style-5/frame.png');
+  border-image-source: url('/img/overlays/song-board-style-5/frame.webp');
   border-image-slice: 20% 10% 16%;
 }
 
@@ -29,7 +29,7 @@
   aspect-ratio: 1623 / 464;
   min-height: 0;
   margin-inline: auto;
-  background-image: url('/img/overlays/song-board-style-5/entry.png');
+  background-image: url('/img/overlays/song-board-style-5/entry.webp');
   background-size: 100% 100%;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.69), 26px);
   font-weight: 760;

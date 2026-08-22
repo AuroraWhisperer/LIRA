@@ -354,6 +354,155 @@
   border-top: 1px solid var(--border);
 }
 
+.desktop-lyric-karaoke-card {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 2px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 58%),
+    var(--surface-2);
+}
+
+.desktop-lyric-karaoke-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.desktop-lyric-karaoke-badge {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.desktop-lyric-karaoke-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 72%, var(--surface-2));
+}
+
+.desktop-lyric-karaoke-option {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.desktop-lyric-karaoke-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.desktop-lyric-karaoke-choice {
+  display: grid;
+  min-height: 48px;
+  align-content: center;
+  gap: 3px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  text-align: center;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.desktop-lyric-karaoke-choice strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-lyric-karaoke-choice small {
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  opacity: 0.78;
+}
+
+.desktop-lyric-karaoke-option:hover .desktop-lyric-karaoke-choice {
+  color: var(--text);
+}
+
+.desktop-lyric-karaoke-option input:checked + .desktop-lyric-karaoke-choice {
+  border-color: color-mix(in srgb, var(--primary) 62%, var(--border));
+  background: color-mix(in srgb, var(--primary) 11%, var(--surface));
+  color: var(--primary-strong);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--primary) 13%, transparent);
+}
+
+.desktop-lyric-karaoke-option:last-child input:checked + .desktop-lyric-karaoke-choice {
+  border-color: color-mix(in srgb, #d2921d 62%, var(--border));
+  background: color-mix(in srgb, #d2921d 11%, var(--surface));
+  color: #a66b00;
+  box-shadow: 0 3px 10px rgba(210, 146, 29, 0.13);
+}
+
+.desktop-lyric-karaoke-option input:focus-visible + .desktop-lyric-karaoke-choice {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.desktop-lyric-karaoke-hint {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.desktop-lyric-karaoke-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.desktop-lyric-karaoke-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.desktop-lyric-karaoke-legend i {
+  display: inline-grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border-radius: 6px;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.desktop-lyric-karaoke-legend i.is-complete {
+  background: rgba(255, 207, 74, 0.16);
+  color: #c79000;
+}
+
+.desktop-lyric-karaoke-legend i.is-upcoming {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--muted);
+}
+
 .desktop-lyric-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(144px, 200px);
@@ -956,6 +1105,16 @@
   pointer-events: none;
 }
 
+.desktop-lyric-preview-card.is-karaoke-discrete .desktop-lyric-preview-word-highlight {
+  clip-path: none;
+  opacity: 0;
+  transition: none;
+}
+
+.desktop-lyric-preview-card.is-karaoke-discrete .desktop-lyric-preview-word.is-complete .desktop-lyric-preview-word-highlight {
+  opacity: 1;
+}
+
 .desktop-lyric-preview-row-translation,
 .desktop-lyric-preview-row-roma {
   margin-top: 3px;
@@ -1101,6 +1260,10 @@
     padding: 5px 8px;
   }
 
+  .desktop-lyric-karaoke-options {
+    grid-template-columns: 1fr;
+  }
+
 }
 
 @media (max-width: 980px) {
@@ -1146,5 +1309,11 @@
   .desktop-lyric-settings-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .desktop-lyric-karaoke-options {
+    grid-template-columns: 1fr;
   }
 }

@@ -10,12 +10,16 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const normalized = {
       maxEnabledRules: Number(nextLimits?.maxEnabledRules),
       minRandomOutcomes: Number(nextLimits?.minRandomOutcomes),
-      maxRandomOutcomes: Number(nextLimits?.maxRandomOutcomes)
+      maxRandomOutcomes: Number(nextLimits?.maxRandomOutcomes),
+      maxDisplayTextLength: nextLimits?.maxDisplayTextLength === undefined
+        ? 6
+        : Number(nextLimits.maxDisplayTextLength)
     };
     if (!Object.values(normalized).every(Number.isSafeInteger)
       || normalized.maxEnabledRules < 1
       || normalized.minRandomOutcomes < 1
-      || normalized.maxRandomOutcomes < normalized.minRandomOutcomes) {
+      || normalized.maxRandomOutcomes < normalized.minRandomOutcomes
+      || normalized.maxDisplayTextLength < 1) {
       throw new Error('加班机规则限制加载失败。');
     }
     limits = normalized;
@@ -27,7 +31,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
   }
 
   function readRules() {
-    const { maxEnabledRules, minRandomOutcomes, maxRandomOutcomes } = getLimits();
+    const { maxEnabledRules, minRandomOutcomes, maxRandomOutcomes, maxDisplayTextLength } = getLimits();
     const rows = Array.from(root.querySelectorAll('[data-overtime-rule]'));
     const rules = rows.map((row, index) => {
       const mode = row.querySelector('[data-rule-mode]:checked')?.value;
@@ -46,6 +50,13 @@ export function createOvertimeRuleEditor(root, markDirty) {
         enabled,
         sortOrder: index
       };
+      if (mode === 'display') {
+        const displayText = String(row.querySelector('[data-display-text]')?.value || '').trim();
+        if (!displayText || Array.from(displayText).length > maxDisplayTextLength) {
+          throw new Error(`第 ${index + 1} 条文字展板需要填写 1–${maxDisplayTextLength} 个字符。`);
+        }
+        return { ...base, displayText };
+      }
       if (mode === 'fixed') {
         return { ...base, fixedEffect: readEffect(row.querySelector('[data-effect-mode="fixed"]')) };
       }
@@ -180,8 +191,9 @@ export function createOvertimeRuleEditor(root, markDirty) {
     modeOptions.append(modeLegend);
     const modeName = `overtime-rule-mode-${++ruleControlSequence}`;
     modeOptions.append(
-      createModeOption(modeName, 'fixed', '直接改时间', rule.mode !== 'random'),
-      createModeOption(modeName, 'random', '随机抽结果', rule.mode === 'random')
+      createModeOption(modeName, 'fixed', '直接改时间', rule.mode !== 'random' && rule.mode !== 'display'),
+      createModeOption(modeName, 'random', '随机抽结果', rule.mode === 'random'),
+      createModeOption(modeName, 'display', '文字展板', rule.mode === 'display')
     );
     const quantityOptions = document.createElement('fieldset');
     quantityOptions.className = 'overtime-rule-quantity-options';
@@ -260,9 +272,31 @@ export function createOvertimeRuleEditor(root, markDirty) {
       if (event.target.matches('[data-outcome-weight]')) updateOutcomeProbabilities(randomPanel);
     });
 
-    root.append(fixedPanel, randomPanel);
+    const displayPanel = document.createElement('section');
+    displayPanel.className = 'overtime-display-editor';
+    displayPanel.dataset.effectMode = 'display';
+    const displayHint = document.createElement('p');
+    displayHint.className = 'overtime-display-hint';
+    displayHint.textContent = '收到这个礼物时只展示文字，不增加或减少加班时间。';
+    const displayLabel = document.createElement('label');
+    displayLabel.className = 'overtime-display-input';
+    const displayCaption = document.createElement('span');
+    displayCaption.textContent = '展示文字';
+    const displayInput = document.createElement('input');
+    const maxDisplayTextLength = getLimits().maxDisplayTextLength;
+    displayInput.type = 'text';
+    displayInput.maxLength = maxDisplayTextLength;
+    displayInput.value = String(rule.displayText || '');
+    displayInput.placeholder = `最多 ${maxDisplayTextLength} 个字符`;
+    displayInput.autocomplete = 'off';
+    displayInput.dataset.displayText = 'true';
+    displayInput.setAttribute('aria-label', `文字展板内容，最多 ${maxDisplayTextLength} 个字符`);
+    displayLabel.append(displayCaption, displayInput);
+    displayPanel.append(displayHint, displayLabel);
+
+    root.append(fixedPanel, randomPanel, displayPanel);
     refreshOutcomeCards(randomPanel);
-    setEffectMode(root, rule.mode === 'random' ? 'random' : 'fixed');
+    setEffectMode(root, ['random', 'display'].includes(rule.mode) ? rule.mode : 'fixed');
   }
 
   function createModeOption(name, value, title, checked) {
@@ -528,6 +562,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
       panel.hidden = panel.dataset.effectMode !== mode;
     });
     root.classList.toggle('is-random', mode === 'random');
+    root.classList.toggle('is-display', mode === 'display');
   }
 
   function updateRuleSummary(row) {
@@ -537,6 +572,11 @@ export function createOvertimeRuleEditor(root, markDirty) {
     if (!summary || !mode) return;
     const quantityMode = row.querySelector('[data-rule-quantity-mode]:checked')?.value;
     const quantityLabel = describeQuantityMode(quantityMode);
+    if (mode === 'display') {
+      const displayText = String(row.querySelector('[data-display-text]')?.value || '').trim();
+      summary.textContent = `文字展板 · ${displayText || '未填写'} · ${quantityLabel}`;
+      return;
+    }
     if (mode === 'random') {
       const count = row.querySelectorAll('[data-random-outcome]').length;
       summary.textContent = `随机抽取 · ${count} 个结果 · ${quantityLabel}`;
@@ -561,6 +601,9 @@ export function createOvertimeRuleEditor(root, markDirty) {
   }
 
   function describeRule(rule) {
+    if (rule.mode === 'display') {
+      return `文字展板 · ${rule.displayText || '未填写'} · ${describeQuantityMode(rule.quantityMode)}`;
+    }
     if (rule.mode === 'random') {
       const minRandomOutcomes = getLimits().minRandomOutcomes;
       const count = Array.isArray(rule.outcomes) && rule.outcomes.length >= minRandomOutcomes

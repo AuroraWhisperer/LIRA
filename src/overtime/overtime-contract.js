@@ -7,6 +7,7 @@ const MAX_RANDOM_WEIGHT = 100_000;
 const MAX_ENABLED_RULES = 8;
 const MIN_RANDOM_OUTCOMES = 2;
 const MAX_RANDOM_OUTCOMES = 10;
+const MAX_DISPLAY_TEXT_LENGTH = 6;
 
 function validateTimeInput(input) {
   if (!input || typeof input !== 'object') throw new Error('time input is required.');
@@ -68,13 +69,21 @@ function validateRule(input, index) {
     throw new Error(`rule ${index + 1} imagePath is invalid.`);
   }
   const mode = String(input.mode || '').trim();
-  if (!['fixed', 'random'].includes(mode)) throw new Error(`rule ${index + 1} mode is invalid.`);
+  if (!['fixed', 'random', 'display'].includes(mode)) throw new Error(`rule ${index + 1} mode is invalid.`);
   const quantityMode = String(input.quantityMode ?? input.quantity_mode ?? 'group').trim();
   if (!['group', 'item'].includes(quantityMode)) {
     throw new Error(`rule ${index + 1} quantityMode is invalid.`);
   }
   const enabled = input.enabled !== false && Number(input.enabled) !== 0;
   const sortOrder = normalizeInteger(input.sortOrder ?? input.sort_order ?? index, `rule ${index + 1} sortOrder`);
+
+  if (mode === 'display') {
+    const displayText = validateDisplayText(input.displayText ?? input.display_text, `rule ${index + 1} displayText`);
+    return {
+      giftId, giftName, imagePath, mode, quantityMode, displayText,
+      fixedSeconds: null, fixedEffect: null, outcomes: [], enabled, sortOrder
+    };
+  }
 
   if (mode === 'fixed') {
     const fixedEffect = validateEffect(
@@ -160,6 +169,19 @@ function validateWeight(value, field) {
   return number;
 }
 
+function validateDisplayText(value, field) {
+  const rawText = String(value ?? '');
+  if (/[\u0000-\u001F\u007F]/u.test(rawText)) {
+    throw new Error(`${field} must contain 1-${MAX_DISPLAY_TEXT_LENGTH} characters without control characters.`);
+  }
+  const text = rawText.trim();
+  const length = Array.from(text).length;
+  if (!text || length > MAX_DISPLAY_TEXT_LENGTH) {
+    throw new Error(`${field} must contain 1-${MAX_DISPLAY_TEXT_LENGTH} characters without control characters.`);
+  }
+  return text;
+}
+
 function normalizeInteger(value, field) {
   const number = Number(value);
   if (!Number.isSafeInteger(number)) throw new Error(`${field} must be an integer.`);
@@ -189,6 +211,7 @@ module.exports = {
   MAX_ENABLED_RULES,
   MIN_RANDOM_OUTCOMES,
   MAX_RANDOM_OUTCOMES,
+  MAX_DISPLAY_TEXT_LENGTH,
   validateTimeInput,
   validateAction,
   validateBackground,

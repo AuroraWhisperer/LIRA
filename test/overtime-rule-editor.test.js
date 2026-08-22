@@ -119,4 +119,18 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   assert.equal(summary.textContent, '增加 5 分钟 · 按连击组');
   const savedQuantityOptions = findAllByDataset(root.children[0], 'ruleQuantityMode');
   assert.equal(savedQuantityOptions.find(option => option.value === 'group').checked, true);
+
+  editor.renderRules([{
+    giftId: 'display-gift',
+    giftName: '展示礼物',
+    mode: 'display',
+    displayText: '谢谢支持',
+    enabled: true,
+    quantityMode: 'group'
+  }]);
+  const displayRow = root.children[0];
+  const displayOptions = findAllByDataset(displayRow, 'ruleMode');
+  assert.equal(displayOptions.find(option => option.value === 'display').checked, true);
+  assert.equal(findAllByDataset(displayRow, 'displayText')[0].value, '谢谢支持');
+  assert.match(findByClass(displayRow, 'overtime-rule-summary').textContent, /文字展板/);
 });

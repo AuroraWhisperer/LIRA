@@ -316,7 +316,7 @@ Refresh browser when scene becomes active: Off
 
 | 参数 | 默认值 | 约束 | 作用 |
 |---|---|---|---|
-| `title` | `今晚唱给你听` | 最多 40 个字符 | 主标题 |
+| `title` | `今晚唱给你听` | 最多 20 个字符 | 主标题 |
 | `subtitle` | `开播准备中` | 最多 40 个字符 | 副标题 |
 | `name` | `主播名` | 最多 32 个字符 | 主播名 |
 | `footer` | `SINGING LIVE` | 最多 48 个字符 | 底部辅助文字 |

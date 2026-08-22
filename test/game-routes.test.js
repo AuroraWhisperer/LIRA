@@ -15,6 +15,32 @@ test('single-player game requires a selected numeric viewer uid', () => {
   });
 });
 
+test('games viewers route refreshes the online snapshot before listing candidates', async () => {
+  const events = [];
+  let status;
+  let payload;
+  await routes['GET /api/games/viewers'](
+    {
+      games: {
+        refreshViewers: async () => { events.push('refresh'); },
+        listViewers: () => {
+          events.push('list');
+          return [{ uid: '123', name: 'Alice' }];
+        }
+      }
+    },
+    {},
+    {
+      writeHead(nextStatus) { status = nextStatus; },
+      end(body) { payload = JSON.parse(body); }
+    }
+  );
+
+  assert.deepEqual(events, ['refresh', 'list']);
+  assert.equal(status, 200);
+  assert.deepEqual(payload, { ok: true, data: [{ uid: '123', name: 'Alice' }] });
+});
+
 test('draw guess route preserves bounded configuration fields', () => {
   assert.deepEqual(normalizeSessionInput({
     game: 'draw-guess', totalRounds: 8, roundDurationSeconds: 120

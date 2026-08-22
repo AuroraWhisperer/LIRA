@@ -1,6 +1,6 @@
 'use strict';
 
-import '../admin/desktop-lyric-preview.js?v=20260816-02';
+import '../admin/desktop-lyric-preview.js?v=20260822-01';
 
 let reconnectTimer = 0;
 let reconnectAttempts = 0;

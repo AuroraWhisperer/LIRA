@@ -12,6 +12,8 @@ export class LyricWordAnimator {
     this.elements = [];
     this.container = null;
     this.signature = '';
+    this.discreteCursor = 0;
+    this.discreteLastMs = null;
   }
 
   mount(lineElement, words, options = {}) {
@@ -34,7 +36,9 @@ export class LyricWordAnimator {
       highlight.setAttribute('aria-hidden', 'true');
       wrapper.append(base, highlight);
       this.container.appendChild(wrapper);
-      this.elements.push({ wrapper, highlight, word });
+      const entry = { wrapper, highlight, word, state: null };
+      this.elements.push(entry);
+      if (this.mode === 'discrete') setDiscreteState(entry, false);
     });
   }
 
@@ -42,6 +46,10 @@ export class LyricWordAnimator {
     const currentMs = Number(position.currentMs) || 0;
     const playing = options.playing === true;
     const force = options.force === true;
+    if (this.mode === 'discrete') {
+      this.syncDiscrete(currentMs);
+      return;
+    }
     this.elements.forEach((entry, index) => {
       const startMs = numberValue(entry.word.startMs, 0);
       const endMs = Math.max(startMs, numberValue(entry.word.endMs, startMs));
@@ -72,6 +80,22 @@ export class LyricWordAnimator {
     });
   }
 
+  syncDiscrete(currentMs) {
+    const targetMs = Number.isFinite(Number(currentMs)) ? Number(currentMs) : 0;
+    if (this.discreteLastMs !== null && targetMs < this.discreteLastMs) {
+      this.discreteCursor = 0;
+      this.elements.forEach((entry) => setDiscreteState(entry, false));
+    }
+    while (this.discreteCursor < this.elements.length) {
+      const entry = this.elements[this.discreteCursor];
+      const startMs = numberValue(entry.word.startMs, 0);
+      if (startMs > targetMs) break;
+      setDiscreteState(entry, true);
+      this.discreteCursor += 1;
+    }
+    this.discreteLastMs = targetMs;
+  }
+
   clear(options = {}) {
     this.animations.forEach((animation) => animation?.cancel?.());
     this.animations = [];
@@ -80,10 +104,21 @@ export class LyricWordAnimator {
     this.elements = [];
     this.words = [];
     this.signature = '';
+    this.discreteCursor = 0;
+    this.discreteLastMs = null;
   }
 
   setMode(mode) {
-    if (['waapi', 'manual', 'static'].includes(mode)) this.mode = mode;
+    if (!['waapi', 'manual', 'static', 'discrete'].includes(mode)) return;
+    if (this.mode === 'discrete' && mode !== 'discrete') {
+      this.elements.forEach((entry) => setDiscreteState(entry, false));
+    }
+    if (mode === 'discrete' && this.mode !== 'discrete') {
+      this.discreteCursor = 0;
+      this.discreteLastMs = null;
+      this.elements.forEach((entry) => setDiscreteState(entry, false));
+    }
+    this.mode = mode;
   }
 
   dispose() {
@@ -100,6 +135,16 @@ export class LyricWordAnimator {
       || cssApi.supports('clip-path', 'inset(0 100% 0 0)');
     return hasAnimation && hasClipPath;
   }
+}
+
+function setDiscreteState(entry, complete) {
+  if (!entry || !entry.wrapper) return;
+  const state = complete ? 'complete' : 'upcoming';
+  if (entry.state === state) return;
+  entry.state = state;
+  entry.wrapper.dataset.wordState = state;
+  entry.wrapper.classList.toggle('is-complete', complete);
+  entry.wrapper.classList.toggle('is-upcoming', !complete);
 }
 
 function numberValue(value, fallback) {

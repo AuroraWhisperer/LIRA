@@ -229,6 +229,7 @@ function createBilibiliRuntime(options) {
     getLiveStatus: () => liveStatus,
     getMessageBuffer: () => messageBuffer,
     getViewerCandidates: () => client?.getViewerCandidates?.() || [],
+    refreshViewerCandidates: () => client?.refreshViewerCandidates?.() || Promise.resolve(),
     getGameWinnerProfile: resolveGameWinnerProfile,
     fetchAvatarImage
   };

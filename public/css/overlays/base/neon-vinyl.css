@@ -5,12 +5,12 @@
 }
 
 .queue-neon-vinyl::before {
-  background: url('/img/overlays/song-board-style-4/frame.png') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-4/frame.webp') center / 100% 100% no-repeat;
 }
 
 .queue-neon-vinyl::after {
   border-width: 168px 56px 84px;
-  border-image-source: url('/img/overlays/song-board-style-4/frame.png');
+  border-image-source: url('/img/overlays/song-board-style-4/frame.webp');
   border-image-slice: 24% 10% 12%;
 }
 
@@ -27,7 +27,7 @@
   aspect-ratio: 2172 / 576;
   min-height: 0;
   margin-inline: auto;
-  background-image: url('/img/overlays/song-board-style-4/entry.png');
+  background-image: url('/img/overlays/song-board-style-4/entry.webp');
   background-size: 100% 100%;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.7), 26px);
   font-weight: 760;

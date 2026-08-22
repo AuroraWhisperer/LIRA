@@ -25,7 +25,7 @@
                     <label class="desktop-lyric-source-option">
                       <input type="radio" name="weSingLyricSource" value="qq">
                       <span class="desktop-lyric-source-choice">
-                        <img src="/img/qqmusic-icon.png" alt="" draggable="false">
+                        <img src="/img/qqmusic-icon.webp" alt="" draggable="false">
                         QQ 音乐
                       </span>
                     </label>
@@ -117,11 +117,39 @@
                 </details>
 
                 <details class="desktop-lyric-settings-group is-content" open>
-                  <summary><span><strong>内容与显示</strong><small>翻译、逐字歌词与间奏提示</small></span><span class="desktop-lyric-group-count">6 项</span></summary>
+                  <summary><span><strong>显示策略</strong><small>逐字高亮、翻译与间奏提示</small></span><span class="desktop-lyric-group-count">6 项</span></summary>
                   <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+                    <section class="desktop-lyric-karaoke-card" aria-labelledby="desktopLyricKaraokeTitle">
+                      <div class="desktop-lyric-karaoke-heading">
+                        <div class="desktop-lyric-control-copy">
+                          <strong id="desktopLyricKaraokeTitle">逐字高亮方式</strong>
+                          <small>连续填充更细腻，逐字点亮更省资源</small>
+                        </div>
+                        <span class="desktop-lyric-karaoke-badge">高亮</span>
+                      </div>
+                      <div id="desktopLyricKaraokeMode" class="desktop-lyric-karaoke-options" role="radiogroup" aria-labelledby="desktopLyricKaraokeTitle" aria-describedby="desktopLyricKaraokeHint">
+                        <label class="desktop-lyric-karaoke-option">
+                          <input type="radio" name="desktopLyricKaraokeMode" value="off">
+                          <span class="desktop-lyric-karaoke-choice"><strong>关闭</strong><small>整句显示</small></span>
+                        </label>
+                        <label class="desktop-lyric-karaoke-option">
+                          <input type="radio" name="desktopLyricKaraokeMode" value="continuous" checked>
+                          <span class="desktop-lyric-karaoke-choice"><strong>连续填充</strong><small>细腻跟随</small></span>
+                        </label>
+                        <label class="desktop-lyric-karaoke-option">
+                          <input type="radio" name="desktopLyricKaraokeMode" value="discrete">
+                          <span class="desktop-lyric-karaoke-choice"><strong>逐字点亮</strong><small>低功耗</small></span>
+                        </label>
+                      </div>
+                      <p id="desktopLyricKaraokeHint" class="desktop-lyric-karaoke-hint">逐字点亮只在歌词时间点切换“已唱 / 未唱”，不持续计算填充动画。</p>
+                      <div class="desktop-lyric-karaoke-legend" aria-label="逐字高亮状态示例">
+                        <span><i class="is-complete" aria-hidden="true">唱</i>已唱</span>
+                        <span><i class="is-upcoming" aria-hidden="true">词</i>未唱</span>
+                      </div>
+                    </section>
+                    <input id="desktopLyricKaraokeEnabled" type="checkbox" hidden>
                     <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>显示翻译歌词</strong><small>外文歌词显示翻译内容</small></span><label class="switch-control"><input id="desktopLyricShowTranslation" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
                     <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>翻译行缩放比例</strong><small>翻译歌词相对于主歌词的字体比例</small></span><span class="range-row"><input id="desktopLyricTranslationScale" class="parameter-range" type="range" min="0.4" max="1" step="0.05" value="0.65"><input id="desktopLyricTranslationScaleNumber" type="number" min="0.4" max="1" step="0.05" value="0.65"><span class="desktop-lyric-unit">倍</span></span></label>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>逐字歌词模式</strong><small>按照字词时间逐字高亮</small></span><label class="switch-control"><input id="desktopLyricKaraokeEnabled" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
                     <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>隐藏已唱歌词</strong><small>已播放歌词自动隐藏</small></span><label class="switch-control"><input id="desktopLyricHidePassedLines" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
                     <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>繁体中文模式</strong><small>优先使用字体的繁体字形</small></span><label class="switch-control"><input id="desktopLyricTraditionalMode" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
                     <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>间奏提示点位置</strong><small>间奏状态下提示点的水平位置</small></span><span class="range-row"><input id="desktopLyricInterludeOffsetEm" class="parameter-range" type="range" min="-10" max="10" step="0.5" value="0"><input id="desktopLyricInterludeOffsetEmNumber" type="number" min="-10" max="10" step="0.5" value="0"><span class="desktop-lyric-unit">em</span></span></label>

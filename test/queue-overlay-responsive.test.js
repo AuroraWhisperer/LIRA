@@ -125,8 +125,8 @@ test('illustrated frame decorations sandwich queue cards above the center fill',
       .find((rule) => /border-image-source:/.test(rule));
     assert.ok(background, `${style} needs a full-frame background layer`);
     assert.ok(foreground, `${style} needs a decorative foreground layer`);
-    assert.match(background, /background:\s*url\('[^']+\/frame\.png'\) center \/ 100% 100% no-repeat/);
-    assert.match(foreground, /border-image-source:\s*url\('[^']+\/frame\.png'\)/);
+    assert.match(background, /background:\s*url\('[^']+\/frame\.webp'\) center \/ 100% 100% no-repeat/);
+    assert.match(foreground, /border-image-source:\s*url\('[^']+\/frame\.webp'\)/);
     assert.match(foreground, /border-image-slice:\s*[\d.% ]+/);
     assert.doesNotMatch(foreground, /\bfill\b/);
   }

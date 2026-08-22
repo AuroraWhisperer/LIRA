@@ -186,6 +186,23 @@ function applyDrawOperation(state, input = {}) {
       state: { ...state, canvas: { revision, totalPoints: 0, strokes: [] } }
     };
   }
+  if (input.action === 'undo') {
+    const stroke = state.canvas.strokes.at(-1);
+    if (!stroke) return reject('没有可撤销的笔画。', state);
+    const revision = state.canvas.revision + 1;
+    return {
+      accepted: true,
+      operation: { action: 'undo', clientId, strokeId: stroke.id, revision },
+      state: {
+        ...state,
+        canvas: {
+          revision,
+          totalPoints: Math.max(0, state.canvas.totalPoints - stroke.points.length),
+          strokes: state.canvas.strokes.slice(0, -1)
+        }
+      }
+    };
+  }
   if (input.action !== 'append') return reject('不支持这个绘画操作。', state);
 
   const strokeId = normalizeIdentifier(input.strokeId);

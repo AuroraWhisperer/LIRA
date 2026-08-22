@@ -263,7 +263,7 @@ test('gift database v3 identity migration remains intact after later migrations'
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 6);
+    assert.equal(getSchemaVersions(db).giftDb, 7);
     const rows = db.giftDb.prepare(`
       SELECT * FROM gift_events WHERE platform_id = ? ORDER BY uid
     `).all('duplicate-platform');

@@ -28,7 +28,7 @@
   position: absolute;
   z-index: 3;
   inset: 0;
-  background: url('/img/overlays/song-board-style-3/frame.png') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-3/frame.webp') center / 100% 100% no-repeat;
   pointer-events: none;
 }
 
@@ -121,7 +121,7 @@
   min-height: 0;
   margin-inline: auto;
   overflow: hidden;
-  background-image: url('/img/overlays/song-board-style-3/entry.png');
+  background-image: url('/img/overlays/song-board-style-3/entry.webp');
   background-position: 44.482% 45.972%;
   background-size: 124.171% 336.842%;
   background-repeat: no-repeat;

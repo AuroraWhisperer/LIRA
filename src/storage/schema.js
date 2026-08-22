@@ -332,7 +332,7 @@ const GIFT_TABLE_SCHEMA = `
     gift_id TEXT PRIMARY KEY,
     gift_name TEXT NOT NULL DEFAULT '',
     image_path TEXT NOT NULL DEFAULT '',
-    mode TEXT NOT NULL CHECK (mode IN ('fixed', 'random')),
+    mode TEXT NOT NULL CHECK (mode IN ('fixed', 'random', 'display')),
     fixed_seconds INTEGER,
     outcomes_json TEXT NOT NULL DEFAULT '',
     enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),

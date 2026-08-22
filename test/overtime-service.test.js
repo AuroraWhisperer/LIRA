@@ -20,10 +20,10 @@ const {
   getSchemaVersions
 } = require('../src/storage/database');
 
-test('gift database v6 creates overtime tables and safe singleton defaults', () => {
+test('gift database v7 creates overtime tables and safe singleton defaults', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.db).giftDb, 6);
+    assert.equal(getSchemaVersions(fixture.db).giftDb, 7);
     const tables = new Set(
       fixture.db.giftDb.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all()
         .map(row => row.name)
@@ -46,7 +46,7 @@ test('gift database v6 creates overtime tables and safe singleton defaults', () 
   }
 });
 
-test('gift database v6 preserves v5 overtime state while widening its bounds', () => {
+test('gift database v7 preserves v5 overtime state while widening its bounds', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-migration-'));
   let db = createDatabases({ dataDir });
   try {
@@ -75,7 +75,7 @@ test('gift database v6 preserves v5 overtime state while widening its bounds', (
 
     db = createDatabases({ dataDir });
     const state = db.giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
-    assert.equal(getSchemaVersions(db).giftDb, 6);
+    assert.equal(getSchemaVersions(db).giftDb, 7);
     assert.equal(state.enabled, 1);
     assert.equal(state.enable_epoch, 7);
     assert.equal(state.remaining_ms, 2_700_000);
@@ -230,6 +230,18 @@ test('time, background, and rules validation enforce server limits', () => {
     giftId: 'quantity-item', mode: 'fixed', quantityMode: 'item', fixedSeconds: 1
   }]);
   assert.equal(itemRule[0].quantityMode, 'item');
+  const displayRule = validateRules([{
+    giftId: 'display-gift', mode: 'display', displayText: '谢谢支持', enabled: true
+  }]);
+  assert.equal(displayRule[0].displayText, '谢谢支持');
+  assert.throws(
+    () => validateRules([{ giftId: 'too-long', mode: 'display', displayText: '七个文字超长度' }]),
+    /displayText/
+  );
+  assert.throws(
+    () => validateRules([{ giftId: 'control', mode: 'display', displayText: '好\n' }]),
+    /displayText/
+  );
   assert.throws(
     () => validateRules([{
       giftId: 'bad-quantity-mode', mode: 'fixed', quantityMode: 'price', fixedSeconds: 1
@@ -299,6 +311,39 @@ test('item quantity mode applies a fixed rule once per gift in the finalized com
     assert.equal(settlement.requested_delta_seconds, 30_000);
     assert.equal(settlement.applied_delta_seconds, 30_000);
     assert.equal(fixture.countSettlements(event.giftEventId), 1);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('display gift settlement keeps time unchanged and remains idempotent', () => {
+  const fixture = createFixture();
+  const updates = [];
+  const service = fixture.createService({ onUpdate: update => updates.push(update) });
+  const consumer = createOvertimeConsumer({ service });
+
+  try {
+    service.act('enable');
+    service.setTime({ remainingSeconds: 120 });
+    service.replaceRules([{
+      giftId: 'display-gift', giftName: '展示礼物', imagePath: '', mode: 'display',
+      displayText: '谢谢支持', quantityMode: 'item', enabled: true, sortOrder: 0
+    }]);
+    const event = fixture.insertFinalGift({ giftId: 'display-gift', num: 100, overtimeEpoch: 1 });
+
+    consumer.handle(event);
+    consumer.handle(event);
+
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 120_000);
+    assert.equal(service.getSnapshot().rules[0].displayText, '谢谢支持');
+    const settlement = fixture.getSettlement(event.giftEventId);
+    assert.equal(settlement.status, 'applied');
+    assert.equal(settlement.requested_delta_seconds, 0);
+    assert.equal(settlement.applied_delta_seconds, 0);
+    assert.equal(fixture.countSettlements(event.giftEventId), 1);
+    assert.equal(updates.filter(update => update.reason === 'gift').length, 1);
+    assert.equal(updates.at(-1).adjustment.displayText, '谢谢支持');
   } finally {
     service.dispose();
     fixture.close();
@@ -653,7 +698,6 @@ function createFixture() {
     }
   };
 }
-
 function fixedRule(giftId, fixedSeconds, sortOrder = 0, quantityMode = 'group') {
   return {
     giftId, giftName: giftId, imagePath: '', mode: 'fixed', fixedSeconds,

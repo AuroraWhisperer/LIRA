@@ -301,6 +301,7 @@ function createServerRuntime(runtimeOptions = {}) {
       games: {
         service: gameSessionService,
         listOnlineViewers: bilibiliRuntime.getViewerCandidates,
+        refreshViewers: bilibiliRuntime.refreshViewerCandidates,
         getWinnerProfile: bilibiliRuntime.getGameWinnerProfile
       },
       wheel: { service: wheelSessionService },

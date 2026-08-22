@@ -27,8 +27,8 @@
 ## Architecture
 
 - Backend owner: `src/games/draw-guess.js` 负责词库、答案规范化、回合、计分、公开状态和绘画输入限制；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
-- HTTP contract: `GET /api/games/host-state` 返回主持人私有题词；`POST /api/games/session/draw` 接收受限的增量绘画操作；现有 `POST /api/games/session/move` 接收结束作画、公布答案和开始下一题操作。
-- WebSocket contract: `game:update` 继续广播公开会话；新增 `game:draw` 只广播已经校验的增量画笔操作。
+- HTTP contract: `GET /api/games/host-state` 返回主持人私有题词；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收结束作画、公布答案和开始下一题操作。
+- WebSocket contract: `game:update` 继续广播公开会话；`game:draw` 广播已经校验的增量画笔、清空或撤销操作，撤销操作包含服务端选定的 `strokeId`。
 - Frontend owner: `public/js/admin/games.js` 管理第四张卡片、私有题词和回合控制；`public/js/overlays/games.js` 在 `/games` 上提供主播画布并同步给其它浏览器源实例。
 - Timer authority: 服务端维护单个回合截止计时器；客户端只根据 `remainingMs` 和 `serverNowMs` 插值显示。回合时长来自主播的开局配置，非法值回退为 90 秒。
 
@@ -59,6 +59,7 @@
 8. 清空画布和增量笔画均经过服务端验证与上限保护，非法请求返回稳定的 400 错误。
 9. 桌面端小游戏面板和 `/games` 页面在正常窗口尺寸下可操作，键盘焦点和 reduced-motion 行为保持可用。
 10. 画猜弹幕流保留并显示头像、昵称、消息正文、大航海等级和当前直播间灯牌名称/等级；没有对应身份时字段为空，不伪造徽标，缺失头像沿用现有用户资料补全。
+11. 主播画布支持服务端一致的撤销上一笔；清空画布前需要确认；作画阶段支持 `B` 画笔、`E` 橡皮擦、`Ctrl/Cmd+Z` 撤销和 `[`/`]` 调整粗细，Admin 主持区展示这组快捷操作说明。
 
 ## Done When
 

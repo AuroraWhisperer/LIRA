@@ -79,7 +79,9 @@ function createOvertimeStore(giftDb) {
           rule.fixedSeconds,
           rule.mode === 'random'
             ? JSON.stringify({ version: 2, quantityMode: rule.quantityMode, outcomes: rule.outcomes })
-            : JSON.stringify({ version: 2, quantityMode: rule.quantityMode, effect: rule.fixedEffect }),
+            : rule.mode === 'display'
+              ? JSON.stringify({ version: 3, quantityMode: rule.quantityMode, displayText: rule.displayText })
+              : JSON.stringify({ version: 2, quantityMode: rule.quantityMode, effect: rule.fixedEffect }),
           rule.enabled ? 1 : 0,
           rule.sortOrder,
           updatedAt
@@ -309,19 +311,26 @@ function createOvertimeStore(giftDb) {
 
 function normalizeRule(row) {
   const stored = parseStoredJson(row.outcomes_json);
-  const fixedSeconds = row.fixed_seconds === null ? null : Number(row.fixed_seconds);
-  const fixedEffect = stored?.version === 2 && stored.effect
-    ? stored.effect
-    : effectFromLegacySeconds(fixedSeconds);
+  const fixedSeconds = row.mode === 'display'
+    ? null
+    : row.fixed_seconds === null ? null : Number(row.fixed_seconds);
+  const displayText = row.mode === 'display' && stored?.version === 3
+    ? String(stored.displayText || '')
+    : '';
+  const fixedEffect = row.mode === 'display'
+    ? null
+    : stored?.version === 2 && stored.effect
+      ? stored.effect
+      : effectFromLegacySeconds(fixedSeconds);
   const outcomes = stored?.version === 2 && Array.isArray(stored.outcomes)
     ? stored.outcomes
     : parseLegacyOutcomes(stored);
-  return {
+  const normalized = {
     giftId: row.gift_id,
     giftName: row.gift_name,
     imagePath: row.image_path,
     mode: row.mode,
-    quantityMode: stored?.quantityMode === 'item' ? 'item' : 'group',
+    quantityMode: [2, 3].includes(stored?.version) && stored?.quantityMode === 'item' ? 'item' : 'group',
     fixedSeconds,
     fixedEffect,
     outcomes,
@@ -329,6 +338,8 @@ function normalizeRule(row) {
     sortOrder: Number(row.sort_order),
     updatedAt: row.updated_at
   };
+  if (row.mode === 'display') normalized.displayText = displayText;
+  return normalized;
 }
 
 function parseLegacyOutcomes(stored) {

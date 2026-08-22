@@ -109,6 +109,8 @@
 .draw-host-meta { display: grid; justify-items: end; gap: 5px; }
 .draw-host-meta span { color: #c8c2e6; font-size: 11px; }
 .draw-host-meta strong { color: #fff2a8; font: 800 26px/1 Consolas, monospace; }
+.draw-host-help { margin: -4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.draw-host-help kbd { display: inline-block; min-width: 20px; padding: 1px 5px; border: 1px solid #d7d0eb; border-radius: 4px; color: #534987; background: #f4f1ff; font: 800 10px/1.4 Consolas, monospace; text-align: center; }
 .draw-actions { align-items: center; }
 .draw-host-status { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) { .wheel-card-trigger { grid-template-columns: 1fr; } .wheel-card-trigger .game-card-poster { min-height: 118px; } .wheel-card-summary { min-height: 0; } .wheel-entry-row { grid-template-columns: 1fr; } .wheel-remove-entry { justify-self: start; } }

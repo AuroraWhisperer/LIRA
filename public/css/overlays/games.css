@@ -23,6 +23,8 @@ body:not([data-game='draw-guess']) .draw-status { display: none; }
 .bomb-number.is-safe:disabled { color: #d8d3ff; background: rgba(128,116,232,.14); }
 .bomb-number.is-unsafe { border-style: dashed; color: #6f6b86; background: rgba(255,255,255,.025); opacity: .72; }
 .bomb-number.last { border-color: var(--violet); box-shadow: inset 0 0 0 1px var(--violet); }
+.bomb-number.is-picked { border-style: solid; border-color: rgba(255,200,87,.88); color: #ffe8ad; background: linear-gradient(145deg, rgba(255,200,87,.22), rgba(255,200,87,.08)); opacity: 1; box-shadow: 0 0 0 1px rgba(255,200,87,.16), inset 0 0 0 1px rgba(255,239,180,.12); }
+.bomb-number.is-picked:disabled { color: #ffe8ad; background: linear-gradient(145deg, rgba(255,200,87,.22), rgba(255,200,87,.08)); }
 .gomoku-view { width: 100%; margin: 0; grid-template-rows: 1fr; gap: 0; }
 .gomoku-board-wrap { --gomoku-size: min(56vh, 520px, calc(100vw - 56px)); align-self: start; justify-self: start; display: grid; grid-template-columns: clamp(18px, 2vw, 26px) var(--gomoku-size); grid-template-rows: clamp(18px, 2vw, 26px) var(--gomoku-size); gap: 5px 6px; min-width: 0; min-height: 0; }
 .gomoku-column-labels, .gomoku-row-labels { color: var(--muted); font: 700 clamp(11px, 1.1vw, 15px)/1 Consolas, monospace; }
@@ -45,7 +47,8 @@ body:not([data-game='draw-guess']) .draw-status { display: none; }
 .draw-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(190px, 19vw, 260px); gap: clamp(10px, 1.2vw, 18px); width: 100%; min-width: 0; }
 .draw-canvas-panel { display: grid; gap: 8px; min-width: 0; }
 .draw-canvas-wrap { position: relative; width: 100%; overflow: hidden; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; background: #fff; box-shadow: 0 14px 34px rgba(0,0,0,.34); }
-.draw-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #fff; cursor: crosshair; touch-action: none; }
+.draw-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; background: #fff; cursor: url('/img/overlays/draw-pen-cursor.svg') 5 27, auto; touch-action: none; }
+.draw-canvas.is-eraser { cursor: url('/img/overlays/draw-eraser-cursor.svg') 5 21, auto; }
 .draw-canvas.is-disabled { cursor: default; }
 .draw-round-result[hidden] { display: none; }
 .draw-round-result { position: absolute; inset: 0; display: grid; place-content: center; gap: 8px; color: #282441; background: rgba(255,255,255,.88); backdrop-filter: blur(7px); text-align: center; animation: resultFadeIn 220ms ease; }
@@ -74,7 +77,8 @@ body:not([data-game='draw-guess']) .draw-status { display: none; }
 .draw-width-tools button[data-draw-width='12'] span { width: 14px; height: 14px; }
 .draw-toolbar button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .draw-toolbar button:disabled { opacity: .42; cursor: not-allowed; }
-.draw-clear-button { margin-left: auto; padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; color: #f3efff; background: rgba(255,255,255,.08); font: 700 10px Bahnschrift, sans-serif; cursor: pointer; }
+.draw-undo-button, .draw-clear-button { padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; color: #f3efff; background: rgba(255,255,255,.08); font: 700 10px Bahnschrift, sans-serif; cursor: pointer; }
+.draw-clear-button { margin-left: auto; }
 .draw-audience-panel { display: grid; align-content: start; gap: 9px; min-width: 0; }
 .draw-clue-card, .draw-score-section, .draw-correct-section { border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.06); }
 .draw-clue-card { display: grid; gap: 5px; padding: 12px; background: linear-gradient(145deg, rgba(108,92,231,.24), rgba(255,200,87,.1)); }
@@ -182,7 +186,7 @@ body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-
 .draw-danmaku-body p { margin: 3px 0 0; color: #f8f5ff; font-size: clamp(11px, .85vw, 14px); line-height: 1.42; overflow-wrap: anywhere; word-break: break-word; }
 .draw-danmaku-empty { width: 100%; padding: 22px 8px; color: var(--muted); font-size: 11px; text-align: center; }
 @keyframes danmakuBubbleIn { from { opacity: 0; transform: translateY(7px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-body[data-game='draw-guess'] .draw-clear-button { padding: 5px 8px; }
+body[data-game='draw-guess'] .draw-undo-button, body[data-game='draw-guess'] .draw-clear-button { padding: 5px 8px; }
 @media (max-width: 700px) {
   body[data-game='draw-guess'] .game-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   body[data-game='draw-guess'] .game-stage-header { grid-column: 1; }

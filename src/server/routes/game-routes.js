@@ -5,7 +5,8 @@ const { sendJson } = require('../http-utils');
 const prefixes = ['/api/games', '/api/wheel'];
 
 const routes = {
-  'GET /api/games/viewers'(context, request, res) {
+  async 'GET /api/games/viewers'(context, request, res) {
+    await context.games.refreshViewers();
     sendJson(res, 200, { ok: true, data: context.games.listViewers() });
   },
   'GET /api/games/session'(context, request, res) {

@@ -159,6 +159,14 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
         settings[key] = selectedTextAlign();
         return;
       }
+      if (key === 'desktopLyricKaraokeMode') {
+        settings[key] = selectedKaraokeMode();
+        return;
+      }
+      if (key === 'desktopLyricKaraokeEnabled') {
+        settings[key] = selectedKaraokeMode() === 'off' ? 'false' : 'true';
+        return;
+      }
       const input = document.getElementById(key);
       settings[key] = input
         ? CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value
@@ -171,10 +179,18 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
     return document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value || 'left';
   }
 
+  function selectedKaraokeMode() {
+    return document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')?.value
+      || DESKTOP_LYRIC_DEFAULTS.desktopLyricKaraokeMode;
+  }
+
   function loadDesktopLyricSettings(settings, options = {}) {
     if (!settings) return;
 
     if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
+    const karaokeMode = ['off', 'continuous', 'discrete'].includes(settings.desktopLyricKaraokeMode)
+      ? settings.desktopLyricKaraokeMode
+      : settings.desktopLyricKaraokeEnabled === 'false' ? 'off' : 'continuous';
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       const nextValue = settings[key] ?? fallback;
       if (key === 'desktopLyricTextAlign') {
@@ -184,7 +200,17 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
         });
         return;
       }
+      if (key === 'desktopLyricKaraokeMode') {
+        document.querySelectorAll('input[name="desktopLyricKaraokeMode"]').forEach((input) => {
+          input.checked = input.value === karaokeMode;
+        });
+        return;
+      }
       const input = document.getElementById(key);
+      if (key === 'desktopLyricKaraokeEnabled') {
+        if (input) input.checked = karaokeMode !== 'off';
+        return;
+      }
       if (CHECKBOX_KEYS.has(key)) {
         if (input) input.checked = nextValue !== 'false';
         return;
@@ -198,7 +224,7 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
       }
     });
     window.AdminApp.forms?.refreshParameterRanges?.();
-    window.AdminApp.desktopLyricPreview?.applySettings({ ...DESKTOP_LYRIC_DEFAULTS, ...settings });
+    window.AdminApp.desktopLyricPreview?.applySettings(settings);
   }
 
   function loadWeSingLyricSettings(settings) {

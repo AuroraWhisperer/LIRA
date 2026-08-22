@@ -175,6 +175,48 @@ test('draw guess validates incremental canvas operations and supports clearing',
   assert.equal(cleared.state.canvas.revision, 2);
 });
 
+test('draw guess undoes the latest stroke and rejects an empty undo', () => {
+  let state = createDrawGuessState({
+    words: [{ word: '苹果', category: '食物' }],
+    random: () => 0,
+    nowMs: 0
+  });
+  state = applyDrawOperation(state, {
+    action: 'append',
+    clientId: 'page-1',
+    strokeId: 'stroke-1',
+    color: '#222034',
+    width: 4,
+    points: [{ x: 0.1, y: 0.2 }]
+  }).state;
+  state = applyDrawOperation(state, {
+    action: 'append',
+    clientId: 'page-1',
+    strokeId: 'stroke-2',
+    color: '#ef476f',
+    width: 8,
+    points: [{ x: 0.3, y: 0.4 }, { x: 0.35, y: 0.45 }]
+  }).state;
+
+  const undone = applyDrawOperation(state, { action: 'undo', clientId: 'page-1' });
+  assert.equal(undone.accepted, true);
+  assert.deepEqual(undone.operation, {
+    action: 'undo',
+    clientId: 'page-1',
+    strokeId: 'stroke-2',
+    revision: 3
+  });
+  assert.deepEqual(undone.state.canvas.strokes.map(stroke => stroke.id), ['stroke-1']);
+  assert.equal(undone.state.canvas.totalPoints, 1);
+
+  const undoneAgain = applyDrawOperation(undone.state, { action: 'undo', clientId: 'page-1' });
+  assert.equal(undoneAgain.accepted, true);
+  assert.deepEqual(undoneAgain.state.canvas.strokes, []);
+  const empty = applyDrawOperation(undoneAgain.state, { action: 'undo', clientId: 'page-1' });
+  assert.equal(empty.accepted, false);
+  assert.match(empty.reason, /没有可撤销的笔画/);
+});
+
 test('game session keeps draw guess secret, scores danmaku and publishes drawing operations', () => {
   const published = [];
   const service = createGameSessionService({
@@ -218,6 +260,37 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
   assert.equal(draw.accepted, true);
   assert.equal(published.at(-1).type, 'game:draw');
   assert.equal(published.at(-1).operation.clientId, 'page-1');
+  service.dispose();
+});
+
+test('game session publishes an undo operation for the latest draw stroke', () => {
+  const published = [];
+  const service = createGameSessionService({
+    broadcast: payload => published.push(payload),
+    drawGuessWords: [{ word: '苹果', category: '食物' }],
+    random: () => 0,
+    monotonicNow: () => 0
+  });
+  service.start({ game: 'draw-guess' });
+  service.draw({
+    action: 'append',
+    clientId: 'page-1',
+    strokeId: 'stroke-1',
+    color: '#222034',
+    width: 4,
+    points: [{ x: 0.1, y: 0.2 }]
+  });
+
+  const undo = service.draw({ action: 'undo', clientId: 'page-1' });
+  assert.equal(undo.accepted, true);
+  assert.equal(published.at(-1).type, 'game:draw');
+  assert.deepEqual(published.at(-1).operation, {
+    action: 'undo',
+    clientId: 'page-1',
+    strokeId: 'stroke-1',
+    revision: 2
+  });
+  assert.deepEqual(service.getSession().state.canvas.strokes, []);
   service.dispose();
 });
 

@@ -10,6 +10,7 @@ const {
   MAX_ENABLED_RULES,
   MIN_RANDOM_OUTCOMES,
   MAX_RANDOM_OUTCOMES,
+  MAX_DISPLAY_TEXT_LENGTH,
   validateTimeInput,
   validateAction,
   validateBackground,
@@ -24,7 +25,8 @@ const OVERTIME_LIMITS = Object.freeze({
   maxRandomWeight: MAX_RANDOM_WEIGHT,
   maxEnabledRules: MAX_ENABLED_RULES,
   minRandomOutcomes: MIN_RANDOM_OUTCOMES,
-  maxRandomOutcomes: MAX_RANDOM_OUTCOMES
+  maxRandomOutcomes: MAX_RANDOM_OUTCOMES,
+  maxDisplayTextLength: MAX_DISPLAY_TEXT_LENGTH
 });
 
 function createOvertimeService(options = {}) {
@@ -253,6 +255,10 @@ function createOvertimeService(options = {}) {
       resultSeconds: appliedDeltaSeconds,
       result: resolution.outcome
     };
+    if (rule.mode === 'display') {
+      ruleSnapshot.displayText = rule.displayText;
+      adjustment.displayText = rule.displayText;
+    }
 
     return {
       state: nextState,
@@ -266,6 +272,14 @@ function createOvertimeService(options = {}) {
   }
 
   function applyRule(rule, applicationCount, beforeMs) {
+    if (rule.mode === 'display') {
+      return {
+        afterMs: beforeMs,
+        requestedDeltaSeconds: 0,
+        effect: null,
+        outcome: null
+      };
+    }
     if (rule.mode === 'fixed') {
       const afterMs = applyFixedEffectRepeatedly(beforeMs, rule.fixedEffect, applicationCount);
       const appliedDeltaSeconds = Math.trunc((afterMs - beforeMs) / 1000);

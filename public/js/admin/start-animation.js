@@ -4,9 +4,9 @@ import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 
 const OPENING_DEFAULTS = Object.freeze({
   enabled: true,
-  title: '今晚唱给你听',
+  title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
-  name: '主播名',
+  name: '',
   footer: 'SINGING LIVE',
   quality: 'normal',
   showNotes: true,
@@ -36,12 +36,12 @@ function buildOpeningUrl(origin, config) {
   params.set('enabled', config.enabled ? '1' : '0');
   params.set('title', config.title || OPENING_DEFAULTS.title);
   params.set('subtitle', config.subtitle || OPENING_DEFAULTS.subtitle);
-  params.set('name', config.name || OPENING_DEFAULTS.name);
+  params.set('name', config.name);
   params.set('footer', config.footer || OPENING_DEFAULTS.footer);
   params.set('quality', QUALITY_VALUES.has(config.quality) ? config.quality : OPENING_DEFAULTS.quality);
   params.set('showNotes', config.showNotes ? '1' : '0');
   params.set('showEq', config.showEq ? '1' : '0');
-  params.set('audio', 'none');
+  params.set('audio', 'browser');
   url.search = params.toString();
   return url.toString();
 }
@@ -58,11 +58,13 @@ function initStartAnimation() {
   const preview = document.getElementById('openingPreview');
   const previewState = document.getElementById('openingPreviewState');
   const status = document.getElementById('openingAnimationStatus');
+  const titleCount = document.getElementById('openingTitleCount');
   const origin = localOverlayOrigin(location);
 
   const render = () => {
     const config = readStartAnimationConfig();
     const nextUrl = buildOpeningUrl(origin, config);
+    if (titleCount) titleCount.textContent = `${Array.from(config.title).length}/20`;
     if (urlNode) urlNode.textContent = nextUrl;
     if (preview) {
       preview.hidden = !config.enabled;

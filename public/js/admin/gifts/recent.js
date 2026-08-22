@@ -84,7 +84,7 @@
       list.innerHTML = `
         <div class="empty gift-recent-empty">
           <span class="gift-recent-empty-icon" aria-hidden="true">
-            <img src="/img/gift-section-icon.png?v=20260801-01" alt="">
+            <img src="/img/gift-section-icon.webp?v=20260801-01" alt="">
           </span>
           <strong>暂无礼物记录</strong>
           <span>收到的礼物会显示在这里</span>
@@ -154,13 +154,13 @@
     const giftId = String(item && item.gift_id || '').trim().toLowerCase();
 
     if (giftName.includes('总督') || giftName.includes('governor') || giftId === 'guard-1') {
-      return { name: '总督', level: 1, src: '/img/bilibili-guard-governor.png' };
+      return { name: '总督', level: 1, src: '/img/bilibili-guard-governor.webp' };
     }
     if (giftName.includes('提督') || giftName.includes('prefect') || giftName.includes('admiral') || giftId === 'guard-2') {
-      return { name: '提督', level: 2, src: '/img/bilibili-guard-prefect.png' };
+      return { name: '提督', level: 2, src: '/img/bilibili-guard-prefect.webp' };
     }
     if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
-      return { name: '舰长', level: 3, src: '/img/bilibili-guard-captain.png' };
+      return { name: '舰长', level: 3, src: '/img/bilibili-guard-captain.webp' };
     }
     return null;
   }

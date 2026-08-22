@@ -170,6 +170,7 @@ function renderTickets() {
 }
 
 function enqueueAdjustment(adjustment) {
+  if (adjustment?.mode === 'display') return;
   if (animationQueue.length >= MAX_ANIMATION_QUEUE) {
     const lastIndex = animationQueue.length - 1;
     const previous = animationQueue[lastIndex];
@@ -265,6 +266,9 @@ function formatClockSeconds(seconds) {
 }
 
 function describeRuleEffect(rule) {
+  if (rule?.mode === 'display') {
+    return { modifier: 'is-display', verb: '', value: String(rule.displayText || '展示') };
+  }
   if (rule?.mode === 'random') {
     return { modifier: 'is-random', verb: '', value: '盲盒' };
   }

@@ -72,7 +72,7 @@ data/
 |---|---|---|
 | `gift_events` | 礼物事件 + **共享检测账本**(见 [bilibili/gift.md](bilibili/gift.md)) | 业务列 + 检测列 `detection_status/first_detected_at_ms/last_platform_at_ms/finalized_at_ms/gift_stats_eligible/gift_stats_delivered/overtime_epoch`;idx status/sprint/created_at/platform_id,唯一索引 `(platform_id, uid)`(迁移 v3) |
 | `overtime_machine_state` | 加班机单例状态 | **id=1 CHECK 单行**;enabled/enable_epoch/initial_seconds/remaining_ms/anchor_at_ms/status(paused\|running\|finished)/background_path/background_fit(cover\|contain\|fill)/revision,见 [overtime.md](overtime.md) |
-| `overtime_gift_rules` | 加班机礼物规则 | gift_id PK、mode(fixed\|random)、fixed_seconds、outcomes_json、enabled、sort_order |
+| `overtime_gift_rules` | 加班机礼物规则 | gift_id PK、mode(fixed\|random\|display)、fixed_seconds、outcomes_json、enabled、sort_order；display 文字与数量模式存于 outcomes_json |
 | `overtime_settlements` | 结算流水(幂等) | gift_event_id **UNIQUE**、status(pending\|applied\|ignored)、rule_snapshot_json、requested/applied_delta_seconds、settle_after_ms、retry_count;idx(status, settle_after_ms)、idx(status, id DESC) |
 
 ### 3.4 music-data.db(播放器库,5 表)
@@ -101,7 +101,7 @@ data/
 |---|---|---|---|
 | songDb | `song_db` | v1-v3 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引 |
 | superChatDb | `super_chat_db` | v1 | 基线 |
-| giftDb | `gift_db` | v1-v6 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限 |
+| giftDb | `gift_db` | v1-v7 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式 |
 | musicDb | `music_db` | v1 | 基线 |
 | checkinDb | `checkin_db` | v1 | 基线 |
 
@@ -190,7 +190,7 @@ data/
 | 滚动/字号 | `scrollSeconds`、`queueScrollMode`、`queueScrollSpeed`、`songBoardFontSize` 及各 `*RangeVersion` 迁移版本键 |
 | 主题 | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套 |
 | 悬浮层 | `overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号 |
-| 桌面歌词 | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放) |
+| 桌面歌词 | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式) |
 | WeSing | `weSingCachePath`、`weSingLyricOffsetMs` |
 | 保留期 | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup` |
 | 更新 | `enableAutoUpdate` |

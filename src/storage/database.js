@@ -206,6 +206,33 @@ function runAllMigrations(databases, options = {}) {
         FROM overtime_machine_state_v5;
         DROP TABLE overtime_machine_state_v5;
       `);
+    },
+    (db) => {
+      // v7: 允许礼物规则只展示文字而不改动加班时间。
+      db.exec(`
+        ALTER TABLE overtime_gift_rules RENAME TO overtime_gift_rules_v6;
+        CREATE TABLE overtime_gift_rules (
+          gift_id TEXT PRIMARY KEY,
+          gift_name TEXT NOT NULL DEFAULT '',
+          image_path TEXT NOT NULL DEFAULT '',
+          mode TEXT NOT NULL CHECK (mode IN ('fixed', 'random', 'display')),
+          fixed_seconds INTEGER,
+          outcomes_json TEXT NOT NULL DEFAULT '',
+          enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO overtime_gift_rules (
+          gift_id, gift_name, image_path, mode, fixed_seconds,
+          outcomes_json, enabled, sort_order, updated_at
+        )
+        SELECT gift_id, gift_name, image_path, mode, fixed_seconds,
+               outcomes_json, enabled, sort_order, updated_at
+        FROM overtime_gift_rules_v6;
+        DROP TABLE overtime_gift_rules_v6;
+        CREATE INDEX IF NOT EXISTS idx_overtime_gift_rules_order
+          ON overtime_gift_rules(enabled DESC, sort_order, gift_id);
+      `);
     }
   ]));
 

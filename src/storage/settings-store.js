@@ -135,6 +135,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricShadowOffsetY: '3',
   desktopLyricShowTranslation: 'true',
   desktopLyricKaraokeEnabled: 'true',
+  desktopLyricKaraokeMode: 'continuous',
   desktopLyricHidePassedLines: 'false',
   desktopLyricTraditionalMode: 'false',
   desktopLyricInterludeOffsetEm: '0',
@@ -178,6 +179,19 @@ function createSettingsStore(db) {
   // Initialize defaults into DB on first call
   const defaultKeys = Object.keys(DEFAULT_SETTINGS);
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    if (key === 'desktopLyricKaraokeMode') {
+      const existingMode = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+      if (!existingMode) {
+        const legacyEnabled = db.prepare('SELECT value FROM settings WHERE key = ?')
+          .get('desktopLyricKaraokeEnabled');
+        const initialMode = legacyEnabled?.value === 'false' ? 'off' : value;
+        db.prepare(`
+          INSERT INTO settings (key, value, updated_at)
+          VALUES (?, ?, ?)
+        `).run(key, initialMode, now());
+      }
+      continue;
+    }
     db.prepare(`
       INSERT OR IGNORE INTO settings (key, value, updated_at)
       VALUES (?, ?, ?)

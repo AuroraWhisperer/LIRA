@@ -135,7 +135,7 @@
     if (queueItems.length === 0) {
       list.innerHTML = `
         <div class="empty queue-empty">
-          <div class="empty-icon" aria-hidden="true"><img class="empty-queue-image" src="/img/admin-queue-song.png" alt="" draggable="false"></div>
+          <div class="empty-icon" aria-hidden="true"><img class="empty-queue-image" src="/img/admin-queue-song.webp" alt="" draggable="false"></div>
           <div class="empty-text">暂无点歌</div>
           <div class="empty-hint">观众点歌后，会按顺序出现在这里</div>
         </div>
@@ -198,7 +198,7 @@
     if (items.length === 0) {
       list.innerHTML = `
         <div class="empty sc-empty">
-          <div class="empty-icon" aria-hidden="true"><img class="empty-queue-image" src="/img/admin-queue-sc.png" alt="" draggable="false"></div>
+          <div class="empty-icon" aria-hidden="true"><img class="empty-queue-image" src="/img/admin-queue-sc.webp" alt="" draggable="false"></div>
           <div class="empty-text">暂无醒目留言</div>
           <div class="empty-hint">收到醒目留言后，会优先显示在这里</div>
         </div>

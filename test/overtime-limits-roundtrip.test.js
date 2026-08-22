@@ -11,7 +11,8 @@ const {
   MAX_RANDOM_WEIGHT,
   MAX_ENABLED_RULES,
   MIN_RANDOM_OUTCOMES,
-  MAX_RANDOM_OUTCOMES
+  MAX_RANDOM_OUTCOMES,
+  MAX_DISPLAY_TEXT_LENGTH
 } = require('../src/overtime/overtime-contract');
 const { createOvertimeService } = require('../src/overtime/overtime-service');
 const { createDatabases, closeDatabases } = require('../src/storage/database');
@@ -29,6 +30,7 @@ test('overtime service getOverview includes limits from contract', () => {
     assert.equal(overview.limits.maxEnabledRules, MAX_ENABLED_RULES);
     assert.equal(overview.limits.minRandomOutcomes, MIN_RANDOM_OUTCOMES);
     assert.equal(overview.limits.maxRandomOutcomes, MAX_RANDOM_OUTCOMES);
+    assert.equal(overview.limits.maxDisplayTextLength, MAX_DISPLAY_TEXT_LENGTH);
     assert.equal(overview.limits.maxSeconds, 315_328_464_000);
     assert.equal(overview.limits.maxEffectFactor, 1_000);
     assert.equal(overview.limits.maxRandomWeight, 100_000);

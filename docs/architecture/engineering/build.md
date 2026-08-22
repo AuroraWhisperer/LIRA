@@ -51,7 +51,7 @@
 | `productName` | LIRA | [package.json:34](../../../package.json#L34) | 安装/卸载显示名 |
 | `artifactName` | `lira-setup-${version}.${ext}` | [package.json:35](../../../package.json#L35) | 安装包命名 |
 | `directories.output` | `release` | [package.json:37](../../../package.json#L37) | 产物目录(见 §4) |
-| `files` | `src/**/*` + `public/**/*` + `package.json` | [package.json:40-44](../../../package.json#L40-L44) | 白名单打包,排除 `data/`、`release/`、`node_modules/` 等 |
+| `files` | `src/**/*` + `public/**/*` + `package.json` + 静态 PNG 排除项 | [package.json:40-64](../../../package.json#L40-L64) | 白名单打包;静态界面 PNG 保留在源码但由 WebP 兄弟文件替代进入安装包;礼物目录 PNG 不排除 |
 | `asar` | `true` | [package.json:45](../../../package.json#L45) | 源码打成 asar 归档 |
 | `npmRebuild` | `false` | [package.json:46](../../../package.json#L46) | 无原生模块,跳过重编译 |
 | `win.icon` | `build/icon.ico` | [package.json:48](../../../package.json#L48) | 由 make:icon 生成 |

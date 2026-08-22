@@ -79,7 +79,7 @@
 | `todo.js` | 主播工作台:localStorage 场次信息、三阶段直播清单与现场备忘 | [app.md](app.md) §6 |
 | `other.js` | 百宝箱侧边导航(功能面板切换,不承载业务) | [app.md](app.md) §6 |
 | `desktop-lyric.js` | 桌面歌词设置表单(自动保存) | [app.md](app.md) §6 |
-| `desktop-lyric-preview.js` | 桌面歌词实时预览(完整时间轴 + 逐字进度 + 弹簧跟随动画) | [app.md](app.md) §6 |
+| `desktop-lyric-preview.js` | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画) | [app.md](app.md) §6 |
 | `song-category-filter.js` | 分类/标签筛选工具(拆分、选中态读取) | [app.md](app.md) §4 |
 | `gifts/index.js` | 礼物面板统一渲染入口 | [app.md](app.md) §5 |
 | `gifts/notification.js` / `detection.js` / `sprint.js` / `recent.js` | 礼物通知 / 检测状态 / 月底冲刺 / 最近礼物 | [app.md](app.md) §5 |

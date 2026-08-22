@@ -5,12 +5,12 @@
 }
 
 .queue-golden-lily::before {
-  background: url('/img/overlays/song-board-style-6/frame.png') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-6/frame.webp') center / 100% 100% no-repeat;
 }
 
 .queue-golden-lily::after {
   border-width: 154px 112px;
-  border-image-source: url('/img/overlays/song-board-style-6/frame.png');
+  border-image-source: url('/img/overlays/song-board-style-6/frame.webp');
   border-image-slice: 22% 20%;
 }
 
@@ -27,7 +27,7 @@
   aspect-ratio: 2139 / 569;
   min-height: 0;
   margin-inline: auto;
-  background-image: url('/img/overlays/song-board-style-6/entry.png');
+  background-image: url('/img/overlays/song-board-style-6/entry.webp');
   background-size: 100% 100%;
   font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.68), 25px);
   font-weight: 760;

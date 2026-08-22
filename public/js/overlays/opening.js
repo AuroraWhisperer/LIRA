@@ -2,18 +2,18 @@
 
 const DEFAULTS = Object.freeze({
   enabled: true,
-  title: '今晚唱给你听',
+  title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
-  name: '主播名',
+  name: '',
   footer: 'SINGING LIVE',
   quality: 'normal',
   showNotes: true,
   showEq: true,
-  audio: 'none',
+  audio: 'browser',
   debug: false
 });
 
-const MAX_LENGTHS = Object.freeze({ title: 40, subtitle: 40, name: 32, footer: 48 });
+const MAX_LENGTHS = Object.freeze({ title: 20, subtitle: 40, name: 32, footer: 48 });
 const QUALITY_LIMITS = Object.freeze({
   high: Object.freeze({ notes: 6, particles: 24, eq: 16 }),
   normal: Object.freeze({ notes: 4, particles: 12, eq: 10 }),
@@ -46,14 +46,19 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
     enabled: parseBoolean(params.get('enabled'), DEFAULTS.enabled),
     title: title || DEFAULTS.title,
     subtitle: subtitle || DEFAULTS.subtitle,
-    name: name || DEFAULTS.name,
+    name,
     footer: footer || DEFAULTS.footer,
     quality: Object.hasOwn(QUALITY_LIMITS, quality) ? quality : DEFAULTS.quality,
     showNotes: parseBoolean(params.get('showNotes'), DEFAULTS.showNotes),
     showEq: parseBoolean(params.get('showEq'), DEFAULTS.showEq),
-    audio: audio === 'browser' ? 'browser' : DEFAULTS.audio,
+    audio: audio === 'browser' || audio === 'none' ? audio : DEFAULTS.audio,
     debug: parseBoolean(params.get('debug'), DEFAULTS.debug)
   };
+}
+
+function titleSizeForLength(length) {
+  const safeLength = Math.max(1, Number(length) || 1);
+  return Math.max(.92, Math.min(5.4, 39 / Math.max(safeLength, 7)));
 }
 
 function setText(id, value) {
@@ -77,7 +82,7 @@ function createNodes(config) {
     note.style.setProperty('--note-y', `${18 + ((index * 23) % 57)}%`);
     note.style.setProperty('--note-delay', `${-(index * 1.1)}s`);
     note.style.setProperty('--note-duration', `${NOTE_DURATIONS[index % NOTE_DURATIONS.length]}s`);
-    note.style.setProperty('--note-drift', `${index % 2 ? -16 : 16}px`);
+    note.style.setProperty('--note-drift', `${index % 2 ? -.83 : .83}cqw`);
     note.style.setProperty('--note-rotation', `${index % 2 ? -8 : 8}deg`);
     notes?.append(note);
   }
@@ -86,7 +91,7 @@ function createNodes(config) {
     const particle = document.createElement('span');
     particle.style.setProperty('--particle-x', `${8 + ((index * 29) % 84)}%`);
     particle.style.setProperty('--particle-y', `${12 + ((index * 31) % 72)}%`);
-    particle.style.setProperty('--particle-size', `${2 + (index % 3)}px`);
+    particle.style.setProperty('--particle-size', `${.1 + (index % 3) * .05}cqw`);
     particle.style.setProperty('--particle-delay', `${-(index % 9)}s`);
     particle.style.setProperty('--particle-duration', `${6 + (index % 5)}s`);
     particles?.append(particle);
@@ -112,6 +117,7 @@ function startRuntime(config) {
   const eq = document.getElementById('openingEq');
   const audio = document.getElementById('openingAudio');
   const debug = document.getElementById('openingDebug');
+  const trackSvg = document.getElementById('openingTrackSvg');
   if (!stage) return;
 
   let eqTimer = null;
@@ -138,11 +144,13 @@ function startRuntime(config) {
   const pause = () => {
     clearSchedulers();
     stage.classList.add('is-paused');
+    trackSvg?.pauseAnimations?.();
     lastPhase = performance.now();
   };
   const resume = () => {
     stage.classList.remove('is-paused');
-    if (!stage.classList.contains('is-disabled')) {
+    if (!stage.classList.contains('is-disabled') && !stage.classList.contains('is-reduced-motion')) {
+      trackSvg?.unpauseAnimations?.();
       scheduleEq();
       scheduleParticles();
     }
@@ -153,6 +161,7 @@ function startRuntime(config) {
     scheduleParticles();
   } else {
     stage.classList.add('is-disabled');
+    trackSvg?.pauseAnimations?.();
     clearSchedulers();
   }
 
@@ -176,7 +185,18 @@ function startRuntime(config) {
 
   const reducedMotion = typeof matchMedia === 'function'
     ? matchMedia('(prefers-reduced-motion: reduce)') : null;
-  const updateReducedMotion = () => stage.classList.toggle('is-reduced-motion', Boolean(reducedMotion?.matches));
+  const updateReducedMotion = () => {
+    const shouldReduce = Boolean(reducedMotion?.matches);
+    stage.classList.toggle('is-reduced-motion', shouldReduce);
+    if (shouldReduce || config.quality === 'low') {
+      clearSchedulers();
+      trackSvg?.pauseAnimations?.();
+    } else if (!document.hidden && config.enabled) {
+      trackSvg?.unpauseAnimations?.();
+      if (!eqTimer) scheduleEq();
+      if (!particleTimer) scheduleParticles();
+    }
+  };
   updateReducedMotion();
   reducedMotion?.addEventListener?.('change', updateReducedMotion);
 }
@@ -188,16 +208,20 @@ function initOpeningOverlay() {
   setText('openingName', config.name);
   setText('openingFooter', config.footer);
   const stage = document.getElementById('openingStage');
+  const nameRow = document.getElementById('openingNameRow');
+  const titleLength = Array.from(config.title).length;
+  stage?.style.setProperty('--opening-title-size', `${titleSizeForLength(titleLength)}cqw`);
   stage?.classList.add(`quality-${config.quality}`);
   stage?.classList.toggle('show-notes', config.showNotes);
   stage?.classList.toggle('show-eq', config.showEq);
   stage?.classList.toggle('is-disabled', !config.enabled);
   document.documentElement.classList.toggle('opening-disabled', !config.enabled);
   document.body.classList.toggle('opening-disabled', !config.enabled);
+  if (nameRow) nameRow.hidden = config.name.length === 0;
   createNodes(config);
   startRuntime(config);
 }
 
 if (typeof document !== 'undefined') initOpeningOverlay();
 
-export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, parseConfig };
+export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, parseConfig, titleSizeForLength };

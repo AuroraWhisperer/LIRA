@@ -227,8 +227,8 @@ test('storybook queue scales complete illustrated rows while identity content st
   const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const adminStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'gifts.css'), 'utf8');
-  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'frame.png');
-  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'entry.png');
+  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'frame.webp');
+  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'entry.webp');
   const sandbox = {
     console,
     URLSearchParams,
@@ -252,8 +252,8 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.match(entryCss, /@import url\('\.\/base\/storybook\.css'\);/);
   assert.match(overlayStyles, /\.queue-storybook\s*\{[\s\S]*?aspect-ratio:\s*2\s*\/\s*3/);
   assert.match(overlayStyles, /\.queue-storybook::before\s*\{[\s\S]*?background:\s*#fff/);
-  assert.match(overlayStyles, /song-board-style-3\/frame\.png/);
-  assert.match(overlayStyles, /song-board-style-3\/entry\.png/);
+  assert.match(overlayStyles, /song-board-style-3\/frame\.webp/);
+  assert.match(overlayStyles, /song-board-style-3\/entry\.webp/);
   assert.match(overlayStyles, /\.queue-storybook \.overlay-header\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(overlayStyles, /\.queue-storybook \.overlay-title\s*\{[\s\S]*?width:\s*100%/);
 
@@ -288,7 +288,7 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.match(rankRule, /left:\s*5\.5%/);
   assert.match(contentRule, /--storybook-list-offset-y:\s*10px/);
   assert.match(contentRule, /inset:\s*calc\(24\.5% - var\(--storybook-list-offset-y\)\)\s+7\.5%\s+calc\(17% \+ var\(--storybook-list-offset-y\)\)\s+12\.5%/);
-  assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.png'\)/);
+  assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.webp'\)/);
   assert.match(rowRule, /width:\s*76%/);
   assert.match(rowRule, /aspect-ratio:\s*1237\s*\/\s*304/);
   assert.match(rowRule, /background-position:\s*44\.482%\s+45\.972%/);
@@ -296,7 +296,9 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.match(rowRule, /min-height:\s*0/);
   assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
   assert.match(rowRule, /font-size:\s*clamp\(12px,\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\),\s*28px\)/);
-  assert.equal(fs.readFileSync(entryPath)[25], 6, 'storybook entry asset should preserve RGBA transparency');
+  const entryBuffer = fs.readFileSync(entryPath);
+  assert.equal(entryBuffer.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(entryBuffer.subarray(8, 16).toString('ascii'), 'WEBPVP8L', 'storybook entry asset should use lossless WebP');
 });
 
 test('styles 4 and 5 use supplied art, omit queue ranks, and render all four requested fields', () => {
@@ -306,10 +308,10 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const assetPaths = [
-    ['song-board-style-4', 'frame.png'],
-    ['song-board-style-4', 'entry.png'],
-    ['song-board-style-5', 'frame.png'],
-    ['song-board-style-5', 'entry.png']
+    ['song-board-style-4', 'frame.webp'],
+    ['song-board-style-4', 'entry.webp'],
+    ['song-board-style-5', 'frame.webp'],
+    ['song-board-style-5', 'entry.webp']
   ].map((parts) => path.join(ROOT_DIR, 'public', 'img', 'overlays', ...parts));
   const sandbox = {
     console,
@@ -331,10 +333,10 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
 
   assert.match(entryCss, /@import url\('\.\/base\/neon-vinyl\.css'\);/);
   assert.match(entryCss, /@import url\('\.\/base\/cherry-ribbon\.css'\);/);
-  assert.match(overlayStyles, /song-board-style-4\/frame\.png/);
-  assert.match(overlayStyles, /song-board-style-4\/entry\.png/);
-  assert.match(overlayStyles, /song-board-style-5\/frame\.png/);
-  assert.match(overlayStyles, /song-board-style-5\/entry\.png/);
+  assert.match(overlayStyles, /song-board-style-4\/frame\.webp/);
+  assert.match(overlayStyles, /song-board-style-4\/entry\.webp/);
+  assert.match(overlayStyles, /song-board-style-5\/frame\.webp/);
+  assert.match(overlayStyles, /song-board-style-5\/entry\.webp/);
   assert.match(overlayStyles, /\.queue-neon-vinyl \.overlay-header,[\s\S]*\.queue-cherry-ribbon \.overlay-header,[\s\S]*\.queue-golden-lily \.overlay-header\s*\{[\s\S]*display:\s*none/);
   assert.match(overlayStyles, /\.illustrated-info-viewport\s*\{[\s\S]*overflow:\s*hidden/);
 
@@ -411,8 +413,8 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
   const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const adminStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'gifts.css'), 'utf8');
-  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'frame.png');
-  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'entry.png');
+  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'frame.webp');
+  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'entry.webp');
   const sandbox = {
     console,
     URLSearchParams,
@@ -432,8 +434,8 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(fs.statSync(entryPath).size > 0);
 
   assert.match(entryCss, /@import url\('\.\/base\/golden-lily\.css'\);/);
-  assert.match(overlayStyles, /song-board-style-6\/frame\.png/);
-  assert.match(overlayStyles, /song-board-style-6\/entry\.png/);
+  assert.match(overlayStyles, /song-board-style-6\/frame\.webp/);
+  assert.match(overlayStyles, /song-board-style-6\/entry\.webp/);
   assert.match(overlayStyles, /\.golden-lily-rank\s*\{[\s\S]*place-items:\s*center/);
   assert.match(overlayStyles, /\.golden-lily-info-viewport\s*\{[\s\S]*overflow:\s*hidden/);
   assert.match(overlayStyles, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.golden-lily-list\.scrolling[\s\S]*animation:\s*none/);

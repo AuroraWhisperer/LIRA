@@ -54,7 +54,7 @@ test('lyrics browser source reuses the full live timeline preview', () => {
   assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
   assert.match(html, /id="desktopLyricPreviewProgress"/);
   assert.match(html, /script type="module"[^>]*js\/overlays\/lyric-window\.js/);
-  assert.match(source, /import '\.\.\/admin\/desktop-lyric-preview\.js\?v=20260816-02';/);
+  assert.match(source, /import '\.\.\/admin\/desktop-lyric-preview\.js\?v=20260822-01';/);
   assert.match(source, /desktopLyricPreview\.init\(null\)/);
   assert.match(source, /new WebSocket\(`/);
   assert.match(source, /payload\.type === 'lyric-state'/);
@@ -160,6 +160,7 @@ test('desktop lyric settings define the merged presentation defaults', () => {
   assert.equal(DEFAULT_SETTINGS.desktopLyricTextAlign, 'left');
   assert.equal(DEFAULT_SETTINGS.desktopLyricShowTranslation, 'true');
   assert.equal(DEFAULT_SETTINGS.desktopLyricKaraokeEnabled, 'true');
+  assert.equal(DEFAULT_SETTINGS.desktopLyricKaraokeMode, 'continuous');
   assert.equal(DEFAULT_SETTINGS.desktopLyricHideOnPause, 'false');
   assert.equal(DEFAULT_SETTINGS.desktopLyricTimeOffsetMs, '0');
   assert.equal(DEFAULT_SETTINGS.desktopLyricSpringAnimation, 'false');
@@ -228,7 +229,7 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   const groupNames = [
     '基础样式',
     '描边与阴影',
-    '内容与显示',
+    '显示策略',
     '可见性与同步',
     '动画与布局',
     '背景与渲染',
@@ -250,6 +251,7 @@ test('desktop lyric settings organize the merged controls below lyric matching',
     'desktopLyricShadowColor',
     'desktopLyricShowTranslation',
     'desktopLyricKaraokeEnabled',
+    'desktopLyricKaraokeMode',
     'desktopLyricHidePassedLines',
     'desktopLyricTraditionalMode',
     'desktopLyricHideOnPause',
@@ -280,6 +282,32 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   }
   assert.doesNotMatch(html, /desktopLyricLoadLocalFontsBtn|desktopLyricLocalFontStatus/);
   assert.doesNotMatch(source, /desktopLyricLoadLocalFontsBtn|desktopLyricLocalFontStatus/);
+});
+
+test('desktop lyric display strategy presents continuous and discrete highlighting clearly', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
+    'utf8'
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    'utf8'
+  );
+
+  assert.match(html, /<strong id="desktopLyricKaraokeTitle">逐字高亮方式<\/strong>/);
+  for (const value of ['off', 'continuous', 'discrete']) {
+    assert.match(html, new RegExp(`name="desktopLyricKaraokeMode" value="${value}"`));
+  }
+  assert.match(html, /逐字点亮<\/strong><small>低功耗<\/small>/);
+  assert.match(html, /逐字高亮状态示例/);
+  assert.match(source, /function selectedKaraokeMode\(\)/);
+  assert.match(source, /desktopLyricKaraokeMode/);
+  assert.match(styles, /\.desktop-lyric-karaoke-card\s*\{/);
+  assert.match(styles, /\.desktop-lyric-preview-card\.is-karaoke-discrete/);
 });
 
 test('desktop lyric settings automatically list local font families and preserve denial state', async () => {
@@ -976,6 +1004,81 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
     desktopLyricNoLyricText: '纯音乐'
   });
   assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, fallbackSettings), '纯音乐');
+});
+
+test('desktop lyric renderer resolves explicit and legacy karaoke modes', async () => {
+  const preview = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js')
+  );
+
+  assert.equal(
+    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeMode: 'discrete' }).karaokeMode,
+    'discrete'
+  );
+  assert.equal(
+    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeMode: 'off' }).karaokeEnabled,
+    false
+  );
+  assert.equal(
+    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'false' }).karaokeMode,
+    'off'
+  );
+  assert.equal(
+    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'true' }).karaokeMode,
+    'continuous'
+  );
+});
+
+test('desktop lyric discrete animator toggles timed words without continuous fill', async () => {
+  const classList = () => {
+    const values = new Set();
+    return {
+      add(...names) { names.forEach((name) => values.add(name)); },
+      remove(...names) { names.forEach((name) => values.delete(name)); },
+      toggle(name, force) {
+        const next = force === undefined ? !values.has(name) : force;
+        if (next) values.add(name);
+        else values.delete(name);
+        return next;
+      },
+      contains(name) { return values.has(name); }
+    };
+  };
+  const makeElement = () => ({
+    classList: classList(),
+    dataset: {},
+    style: {},
+    textContent: '',
+    setAttribute() {},
+    append() {}
+  });
+  const animatorModule = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-animator.js'),
+    { document: { createElement: makeElement } }
+  );
+  const container = {
+    append() {},
+    appendChild() {},
+    replaceChildren() {},
+    textContent: ''
+  };
+  const animator = new animatorModule.LyricWordAnimator({ mode: 'discrete' });
+  animator.mount(container, [
+    { text: '你', startMs: 100, endMs: 300 },
+    { text: '好', startMs: 300, endMs: 500 }
+  ], { mode: 'discrete' });
+
+  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'upcoming');
+  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'upcoming');
+  animator.sync({ currentMs: 120 }, { playing: true });
+  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'complete');
+  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'upcoming');
+  assert.equal(animator.elements[0].highlight.style.clipPath, undefined);
+  animator.sync({ currentMs: 350 }, { playing: true });
+  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'complete');
+  animator.sync({ currentMs: 150 }, { playing: false });
+  assert.equal(animator.elements[0].wrapper.dataset.wordState, 'complete');
+  assert.equal(animator.elements[1].wrapper.dataset.wordState, 'upcoming');
 });
 
 test('desktop lyric visible-line window keeps full timeline semantics', async () => {

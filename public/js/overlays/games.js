@@ -1,4 +1,5 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
 'use strict';
 
@@ -114,7 +115,12 @@ function renderGame(nextSession) {
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
   byId('drawGuessView').hidden = game !== 'draw-guess' || !session;
-  if (!session) { byId('gameTurn').textContent = '等待开局'; hideGameResult(); return; }
+  if (!session) {
+    setDrawToolsEnabled(false);
+    byId('gameTurn').textContent = '等待开局';
+    hideGameResult();
+    return;
+  }
   const state = session.state;
   if (game === 'draw-guess') {
     renderDrawGuess(state);
@@ -137,10 +143,11 @@ function renderBomb(state) {
     const button = document.createElement('button');
     button.type = 'button';
     const isSafe = value >= state.min && value <= state.max;
-    button.className = `bomb-number ${isSafe ? 'is-safe' : 'is-unsafe'}`;
+    const isPicked = value === state.lastGuess;
+    button.className = `bomb-number ${isSafe ? 'is-safe' : 'is-unsafe'}${isPicked ? ' is-picked' : ''}`;
     button.textContent = String(value);
     button.disabled = value < state.min || value > state.max || Boolean(state.winner) || state.turn !== 'host';
-    if (value === state.lastGuess) button.classList.add('last');
+    if (isPicked) button.classList.add('last');
     button.addEventListener('click', () => submitMove(value));
     root.append(button);
   }
@@ -319,10 +326,11 @@ function initDrawCanvas() {
   byId('drawPenBtn').addEventListener('click', () => setActiveDrawTool(false));
   byId('drawEraserBtn').addEventListener('click', () => setActiveDrawTool(true));
   document.querySelectorAll('[data-draw-width]').forEach(button => button.addEventListener('click', () => {
-    drawWidth = Number(button.dataset.drawWidth);
-    document.querySelectorAll('[data-draw-width]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    setDrawWidth(Number(button.dataset.drawWidth));
   }));
+  byId('drawUndoBtn').addEventListener('click', undoLastDrawStroke);
   byId('drawClearBtn').addEventListener('click', clearDrawCanvas);
+  document.addEventListener('keydown', handleDrawShortcut);
   canvas.addEventListener('pointerdown', startDrawing);
   canvas.addEventListener('pointermove', continueDrawing);
   canvas.addEventListener('pointerup', stopDrawing);
@@ -331,8 +339,56 @@ function initDrawCanvas() {
 
 function setActiveDrawTool(useEraser) {
   drawEraser = Boolean(useEraser);
+  byId('drawCanvas').classList.toggle('is-eraser', drawEraser);
   byId('drawPenBtn').setAttribute('aria-pressed', String(!drawEraser));
   byId('drawEraserBtn').setAttribute('aria-pressed', String(drawEraser));
+}
+
+function setDrawWidth(width) {
+  const nextWidth = Number(width);
+  if (![2, 4, 8, 12].includes(nextWidth)) return;
+  drawWidth = nextWidth;
+  document.querySelectorAll('[data-draw-width]').forEach(item => {
+    item.setAttribute('aria-pressed', String(Number(item.dataset.drawWidth) === drawWidth));
+  });
+}
+
+function stepDrawWidth(direction) {
+  const widths = [...document.querySelectorAll('[data-draw-width]')]
+    .map(button => Number(button.dataset.drawWidth))
+    .filter(width => Number.isFinite(width));
+  const currentIndex = Math.max(0, widths.indexOf(drawWidth));
+  const nextIndex = Math.max(0, Math.min(widths.length - 1, currentIndex + direction));
+  setDrawWidth(widths[nextIndex]);
+}
+
+function handleDrawShortcut(event) {
+  if (!canDraw() || isDrawTextInput(event.target) || event.target?.closest?.('.lira-confirm-backdrop')) return;
+  const key = String(event.key || '').toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && key === 'z') {
+    event.preventDefault();
+    undoLastDrawStroke();
+    return;
+  }
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (key === 'b') {
+    event.preventDefault();
+    setActiveDrawTool(false);
+  } else if (key === 'e') {
+    event.preventDefault();
+    setActiveDrawTool(true);
+  } else if (key === '[') {
+    event.preventDefault();
+    stepDrawWidth(-1);
+  } else if (key === ']') {
+    event.preventDefault();
+    stepDrawWidth(1);
+  }
+}
+
+function isDrawTextInput(target) {
+  const tagName = String(target?.tagName || '').toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || Boolean(target?.isContentEditable);
 }
 
 function startDrawing(event) {
@@ -368,6 +424,11 @@ function continueDrawing(event) {
 function stopDrawing(event) {
   if (!activeStroke || activeStroke.pointerId !== event.pointerId) return;
   event.preventDefault();
+  finalizeActiveStroke();
+}
+
+function finalizeActiveStroke() {
+  if (!activeStroke) return;
   flushActiveStroke();
   clearTimeout(drawFlushTimer);
   drawFlushTimer = null;
@@ -397,9 +458,28 @@ function flushActiveStroke() {
   }
 }
 
-function clearDrawCanvas() {
+async function clearDrawCanvas() {
   if (!canDraw()) return;
+  finalizeActiveStroke();
+  if (!session.state.canvas.strokes.length) return;
+  const confirmed = await showConfirmationDialog({
+    variant: 'caution',
+    title: '清空当前画布？',
+    description: '当前画布上的所有笔画都会被移除，且会同步到其他游戏网页。',
+    confirmLabel: '清空画布',
+    cancelLabel: '取消'
+  });
+  if (!confirmed || !canDraw()) return;
   const operation = { action: 'clear', clientId: drawClientId };
+  mergeDrawOperation(operation, true);
+  queueDrawOperation(operation);
+}
+
+function undoLastDrawStroke() {
+  if (!canDraw()) return;
+  finalizeActiveStroke();
+  if (!session.state.canvas.strokes.length) return;
+  const operation = { action: 'undo', clientId: drawClientId };
   mergeDrawOperation(operation, true);
   queueDrawOperation(operation);
 }
@@ -436,6 +516,18 @@ function mergeDrawOperation(operation, drawIncrement) {
     canvasState.totalPoints = 0;
     canvasState.revision = Number(operation.revision) || canvasState.revision;
     redrawCanvas(canvasState);
+    syncDrawUndoState();
+    return;
+  }
+  if (operation.action === 'undo') {
+    const strokeIndex = canvasState.strokes.findIndex(stroke => stroke.id === operation.strokeId);
+    if (strokeIndex >= 0) {
+      canvasState.totalPoints = Math.max(0, canvasState.totalPoints - canvasState.strokes[strokeIndex].points.length);
+      canvasState.strokes.splice(strokeIndex, 1);
+      redrawCanvas(canvasState);
+    }
+    canvasState.revision = Number(operation.revision) || canvasState.revision;
+    syncDrawUndoState();
     return;
   }
   if (operation.action !== 'append' || !Array.isArray(operation.points)) return;
@@ -449,6 +541,7 @@ function mergeDrawOperation(operation, drawIncrement) {
   canvasState.totalPoints = (Number(canvasState.totalPoints) || 0) + operation.points.length;
   canvasState.revision = Number(operation.revision) || canvasState.revision;
   if (drawIncrement) drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
+  syncDrawUndoState();
 }
 
 function redrawCanvas(canvasState = {}) {
@@ -498,9 +591,16 @@ function setDrawToolsEnabled(enabled) {
     activeStroke = null;
   }
   byId('drawCanvas').classList.toggle('is-disabled', !enabled);
-  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawPenBtn, #drawEraserBtn').forEach(button => {
+  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawUndoBtn, #drawPenBtn, #drawEraserBtn').forEach(button => {
     button.disabled = !enabled;
   });
+  syncDrawUndoState();
+}
+
+function syncDrawUndoState() {
+  const button = byId('drawUndoBtn');
+  if (!button) return;
+  button.disabled = !canDraw() || !session?.state?.canvas?.strokes?.length;
 }
 
 function canDraw() {

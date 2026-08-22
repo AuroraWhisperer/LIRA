@@ -6,9 +6,9 @@ import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const GUARD_GIFTS = [
-  { id: 'guard-1', name: '总督', image: 'bilibili-guard-governor.png' },
-  { id: 'guard-2', name: '提督', image: 'bilibili-guard-prefect.png' },
-  { id: 'guard-3', name: '舰长', image: 'bilibili-guard-captain.png' }
+  { id: 'guard-1', name: '总督', image: 'bilibili-guard-governor.webp' },
+  { id: 'guard-2', name: '提督', image: 'bilibili-guard-prefect.webp' },
+  { id: 'guard-3', name: '舰长', image: 'bilibili-guard-captain.webp' }
 ];
 
 let initialized = false;
@@ -417,10 +417,20 @@ function renderSettlements() {
     const identity = document.createElement('strong');
     identity.textContent = `${item.giftName || item.giftId} ×${item.quantity}`;
     const mode = document.createElement('span');
-    mode.textContent = item.ruleMode === 'random' ? '时间盲盒' : item.ruleMode === 'fixed' ? '固定时间' : '已忽略';
+    mode.textContent = item.ruleMode === 'random'
+      ? '时间盲盒'
+      : item.ruleMode === 'fixed'
+        ? '固定时间'
+        : item.ruleMode === 'display'
+          ? '文字展板'
+          : '已忽略';
     const delta = document.createElement('span');
-    delta.textContent = item.appliedDeltaSeconds === null ? '—' : formatSettlementEffect(item);
-    delta.className = Number(item.appliedDeltaSeconds) >= 0 ? 'is-positive' : 'is-negative';
+    delta.textContent = item.ruleMode === 'display'
+      ? item.ruleSnapshot?.displayText || '不改时间'
+      : item.appliedDeltaSeconds === null ? '—' : formatSettlementEffect(item);
+    delta.className = item.ruleMode === 'display'
+      ? 'is-display'
+      : Number(item.appliedDeltaSeconds) >= 0 ? 'is-positive' : 'is-negative';
     const time = document.createElement('time');
     time.textContent = item.updatedAt ? new Date(item.updatedAt).toLocaleTimeString('zh-CN', { hour12: false }) : '';
     row.append(identity, mode, delta, time);
