@@ -7,7 +7,7 @@ const OPENING_DEFAULTS = Object.freeze({
   title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
   name: '',
-  footer: 'SINGING LIVE',
+  footer: '欢迎来到直播间',
   quality: 'normal',
   showNotes: true,
   showEq: true,
@@ -84,16 +84,22 @@ function setFormConfig(root, config) {
   setValue('openingTitle', config.title);
   setValue('openingSubtitle', config.subtitle);
   setValue('openingName', config.name);
-  setValue('openingFooter', config.footer);
+  setValue('openingFooter', config.footer === 'SINGING LIVE' ? OPENING_DEFAULTS.footer : config.footer);
   setValue('openingQuality', config.quality);
   setChecked('openingShowNotes', config.showNotes);
   setChecked('openingShowEq', config.showEq);
-  setValue('openingAudioVolume', Math.round(Number(config.volume) * 100));
+  setValue('openingAudioVolume', volumePercent(config.volume));
+}
+
+function volumePercent(value) {
+  const normalized = Number(value);
+  if (!Number.isFinite(normalized)) return Math.round(OPENING_DEFAULTS.volume * 100);
+  return Math.round(Math.max(0, Math.min(1, normalized)) * 100);
 }
 
 function updateVolumeOutput(root, config) {
   const output = root.getElementById('openingAudioVolumeValue');
-  if (output) output.textContent = `${Math.round(config.volume * 100)}%`;
+  if (output) output.textContent = `${volumePercent(config.volume)}%`;
 }
 
 let initialized = false;
@@ -107,8 +113,6 @@ function initStartAnimation() {
   const root = document;
   const urlNode = document.getElementById('openingUrl');
   const preview = document.getElementById('openingPreview');
-  const previewState = document.getElementById('openingPreviewState');
-  const status = document.getElementById('openingAnimationStatus');
   const titleCount = document.getElementById('openingTitleCount');
   const audioName = document.getElementById('openingAudioName');
   const audioStatus = document.getElementById('openingAudioStatus');
@@ -135,39 +139,19 @@ function initStartAnimation() {
         if (preview.src !== nextPreviewUrl) preview.src = nextPreviewUrl;
       }
     }
-    if (previewState) {
-      previewState.textContent = config.enabled ? '已开启' : '已关闭';
-      previewState.dataset.state = config.enabled ? 'enabled' : 'disabled';
-    }
-    if (status && !status.dataset.busy) status.textContent = config.enabled
-      ? '配置会自动保存，Browser Source 刷新后会读取最新设置。'
-      : '整套特效已关闭：Browser Source 透明，动画与音乐均已停止。';
     return config;
   };
 
   const persist = () => {
     if (!hydrated) return;
     const config = readStartAnimationConfig(root);
-    if (status) {
-      status.dataset.busy = 'true';
-      status.textContent = '正在保存开播动画配置…';
-    }
     fetch(SETTINGS_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(openingSettingsPayload(config))
     }).then((response) => {
       if (!response.ok) throw new Error('配置保存失败');
-      if (status) {
-        delete status.dataset.busy;
-        status.textContent = '配置已保存，固定地址刷新后会读取最新设置。';
-      }
-    }).catch((error) => {
-      if (status) {
-        delete status.dataset.busy;
-        status.textContent = error.message || '配置保存失败，请重试。';
-      }
-    });
+    }).catch((error) => toast(error.message || '配置保存失败，请重试。'));
   };
 
   const schedulePersist = () => {
@@ -197,12 +181,14 @@ function initStartAnimation() {
     }
   };
 
-  form.addEventListener('input', () => {
+  const handleConfigChange = () => {
     render();
     schedulePersist();
-  });
-  form.addEventListener('change', () => {
-    render();
+  };
+  form.addEventListener('input', handleConfigChange);
+  form.addEventListener('change', handleConfigChange);
+  document.getElementById('openingEnabled')?.addEventListener('change', () => {
+    render(true);
     schedulePersist();
   });
 
@@ -257,5 +243,6 @@ export {
   buildOpeningSourceUrl,
   initStartAnimation,
   readStartAnimationConfig,
-  openingSettingsPayload
+  openingSettingsPayload,
+  volumePercent
 };

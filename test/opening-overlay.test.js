@@ -49,6 +49,9 @@ test('opening overlay is frameable and keeps the required character transform la
   assert.match(html, /<audio id="openingAudio" loop preload="metadata"><\/audio>/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+autoplay/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+src=/);
+  assert.doesNotMatch(html, /SINGING LIVE/);
+  assert.match(html, /class="opening-eyebrow">歌声即将开始<\/span>/);
+  assert.match(html, /id="openingFooter"[^>]*>欢迎来到直播间<\/p>/);
   assert.doesNotMatch(html, /<span class="track-heart"/);
   assert.doesNotMatch(html, />@<\/span>/);
   assert.doesNotMatch(html, /track-flow/);
@@ -61,7 +64,9 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /height:\s*100vh/);
   assert.match(css, /height:\s*100dvh/);
   assert.match(css, /container-type:\s*size/);
-  assert.match(css, /width:\s*min\(100vw,\s*177\.7778dvh\)/);
+  assert.match(css, /width:\s*min\(100vw,\s*177\.7778vh\)/);
+  assert.match(css, /height:\s*min\(100vh,\s*56\.25vw\)/);
+  assert.match(css, /aspect-ratio:\s*16\s*\/\s*9/);
   assert.match(css, /font-size:\s*var\(--opening-title-size(?:,[^)]+)?\)/);
   assert.match(css, /white-space:\s*nowrap/);
   assert.match(css, /cqw/);
@@ -94,13 +99,21 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   const html = read('public', 'pages', 'admin', 'toolbox', 'start-animation.html');
   const script = read('public', 'js', 'admin', 'start-animation.js');
   const overlayScript = read('public', 'js', 'overlays', 'opening.js');
-  const openingRoutes = read('src', 'server', 'routes', 'opening-routes.js');
+  const openingRoutesSource = read('src', 'server', 'routes', 'opening-routes.js');
+  const formsScript = read('public', 'js', 'admin', 'forms.js');
   const styles = read('public', 'css', 'admin', 'other-features', 'start-animation.css');
   assert.match(html, /class="[^"]*other-feature-panel-body[^"]*opening-animation-panel/);
   assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
   assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
   assert.match(html, /id="openingPreview"[^>]+hidden/);
-  assert.match(html, /id="openingPreviewState">已关闭<\/span>/);
+  assert.doesNotMatch(html, /STARTING SOON/);
+  assert.doesNotMatch(html, /SINGING LIVE/);
+  assert.doesNotMatch(html, /关闭总开关后，Browser Source 会变透明/);
+  assert.doesNotMatch(html, /URL 即时预览/);
+  assert.match(html, /<span>开场文案<\/span>/);
+  assert.match(html, /<strong>设置开播画面上的文字<\/strong>/);
+  assert.match(html, /class="opening-switch-label">漂浮音符<\/span>/);
+  assert.match(html, /class="opening-switch-label">音乐律动<\/span>/);
   for (const id of ['openingTitle', 'openingTitleCount', 'openingSubtitle', 'openingName', 'openingFooter', 'openingQuality', 'openingShowNotes', 'openingShowEq', 'openingAudioFile', 'openingAudioVolume', 'openingUrl', 'openingPreview']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
@@ -117,14 +130,24 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /openingSettingsPayload/);
   assert.match(script, /about:blank/);
   assert.match(script, /enabled:\s*false/);
+  assert.match(script, /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/);
+  assert.match(script, /volumePercent/);
+  assert.doesNotMatch(script, /固定地址刷新后会读取最新设置/);
   assert.match(overlayScript, /enabled:\s*false/);
-  assert.match(openingRoutes, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
+  assert.match(openingRoutesSource, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
+  assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
+  assert.equal(openingRoutes.getOpeningConfig({
+    settings: { get() { return { openingFooter: 'SINGING LIVE' }; } },
+    system: { dataDir: os.tmpdir() }
+  }).footer, '欢迎来到直播间');
   assert.match(script, /openingTitleCount/);
   assert.match(script, /Array\.from\(config\.title\)\.length}\/20/);
   assert.doesNotMatch(script, /localStorage/);
   assert.match(styles, /aspect-ratio:\s*16 \/ 9/);
   assert.match(styles, /overflow-y:\s*auto/);
+  assert.match(styles, /opening-editor-checks input:checked \+ \.opening-switch-ui/);
+  assert.match(formsScript, /element\?\.closest\('#openingAnimationForm'\)/);
   assert.match(read('public', 'js', 'admin', 'app.js'), /initStartAnimation\(\)/);
 });
 

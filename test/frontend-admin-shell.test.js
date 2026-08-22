@@ -56,6 +56,22 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   assert.match(buttonRule, /min-height:\s*32px/);
 });
 
+test('SuperChat clear control lives in the SC queue header', () => {
+  const queueShell = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'shell-start.html'),
+    'utf8'
+  );
+  const importPage = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'import-export.html'),
+    'utf8'
+  );
+  const scPanel = queueShell.match(/<section class="panel queue-panel sc-queue-panel">[\s\S]*?<\/section>/)?.[0];
+
+  assert.ok(scPanel, 'SC queue panel should remain present');
+  assert.match(scPanel, /id="clearSuperChatsBtn"[^>]*>清空 SC 记录<\/button>/);
+  assert.doesNotMatch(importPage, /id="clearSuperChatsBtn"/);
+});
+
 test('toolbox owns independent overtime, streamer planner, start animation, performance, usage guide, and update features', () => {
   const html = readAdminHtml();
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');

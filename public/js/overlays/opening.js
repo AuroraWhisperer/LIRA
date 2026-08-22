@@ -5,7 +5,7 @@ const DEFAULTS = Object.freeze({
   title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
   name: '',
-  footer: 'SINGING LIVE',
+  footer: '欢迎来到直播间',
   quality: 'normal',
   showNotes: true,
   showEq: true,
@@ -42,6 +42,11 @@ function parseVolume(value, fallback = DEFAULTS.volume) {
   return Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : fallback;
 }
 
+function normalizeFooter(value) {
+  const footer = cleanText(value, MAX_LENGTHS.footer);
+  return footer && footer !== 'SINGING LIVE' ? footer : DEFAULTS.footer;
+}
+
 function parseConfig(search = typeof location === 'undefined' ? '' : location.search) {
   const params = new URLSearchParams(search);
   const quality = params.get('quality');
@@ -49,13 +54,12 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
   const title = cleanText(params.get('title'), MAX_LENGTHS.title);
   const subtitle = cleanText(params.get('subtitle'), MAX_LENGTHS.subtitle);
   const name = cleanText(params.get('name'), MAX_LENGTHS.name);
-  const footer = cleanText(params.get('footer'), MAX_LENGTHS.footer);
   return {
     enabled: parseBoolean(params.get('enabled'), DEFAULTS.enabled),
     title: title || DEFAULTS.title,
     subtitle: subtitle || DEFAULTS.subtitle,
     name,
-    footer: footer || DEFAULTS.footer,
+    footer: normalizeFooter(params.get('footer')),
     quality: Object.hasOwn(QUALITY_LIMITS, quality) ? quality : DEFAULTS.quality,
     showNotes: parseBoolean(params.get('showNotes'), DEFAULTS.showNotes),
     showEq: parseBoolean(params.get('showEq'), DEFAULTS.showEq),
@@ -266,7 +270,7 @@ function mergeConfig(remote, query) {
   if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
   if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || DEFAULTS.subtitle;
   if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
-  if (!params.has('footer')) merged.footer = cleanText(source.footer, MAX_LENGTHS.footer) || DEFAULTS.footer;
+  if (!params.has('footer')) merged.footer = normalizeFooter(source.footer);
   if (!params.has('quality')) merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
   if (!params.has('showNotes')) merged.showNotes = source.showNotes !== false;
   if (!params.has('showEq')) merged.showEq = source.showEq !== false;
@@ -285,4 +289,4 @@ async function initOpeningOverlay() {
 
 if (typeof document !== 'undefined') initOpeningOverlay();
 
-export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, mergeConfig };
+export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, normalizeFooter, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, mergeConfig };

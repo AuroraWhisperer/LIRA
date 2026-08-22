@@ -39,8 +39,12 @@ body {
 
 .opening-stage {
   position: relative;
+  width: min(100vw, 177.7778vh);
   width: min(100vw, 177.7778dvh);
-  height: auto;
+  height: min(100vh, 56.25vw);
+  height: min(100dvh, 56.25vw);
+  max-width: 100%;
+  max-height: 100%;
   aspect-ratio: 16 / 9;
   container-type: size;
   overflow: hidden;

@@ -57,12 +57,13 @@ function getOpeningConfig(context) {
   const audioFile = normalizeStoredFileName(settings.openingAudioFile);
   const hasUploadedAudio = Boolean(audioFile && fs.existsSync(path.join(getMusicDir(context.system.dataDir), audioFile)));
   const volume = Number(settings.openingAudioVolume);
+  const footer = cleanText(settings.openingFooter, MAX_TEXT_LENGTHS.footer);
   return {
     enabled: parseBoolean(settings.openingEnabled, false),
     title: cleanText(settings.openingTitle, MAX_TEXT_LENGTHS.title) || '唱一首，在一首，给你的歌',
     subtitle: cleanText(settings.openingSubtitle, MAX_TEXT_LENGTHS.subtitle) || '开播准备中',
     name: cleanText(settings.openingName, MAX_TEXT_LENGTHS.name),
-    footer: cleanText(settings.openingFooter, MAX_TEXT_LENGTHS.footer) || 'SINGING LIVE',
+    footer: footer && footer !== 'SINGING LIVE' ? footer : '欢迎来到直播间',
     quality: QUALITY_VALUES.has(settings.openingQuality) ? settings.openingQuality : 'normal',
     showNotes: parseBoolean(settings.openingShowNotes, true),
     showEq: parseBoolean(settings.openingShowEq, true),

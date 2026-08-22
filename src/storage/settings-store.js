@@ -177,7 +177,7 @@ const DEFAULT_SETTINGS = {
   openingTitle: '唱一首，在一首，给你的歌',
   openingSubtitle: '开播准备中',
   openingName: '',
-  openingFooter: 'SINGING LIVE',
+  openingFooter: '欢迎来到直播间',
   openingQuality: 'normal',
   openingShowNotes: 'true',
   openingShowEq: 'true',

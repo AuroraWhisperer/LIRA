@@ -186,6 +186,7 @@ export class FormsService {
     for (const [key, inputValue] of Object.entries(values || {})) {
       const element = document.getElementById(key);
       // Keep an in-progress edit intact while a live state snapshot arrives.
+      if (element?.closest('#openingAnimationForm')) continue;
       if (element && element !== document.activeElement) element.value = inputValue;
     }
     const overlayStyle = value('overlayQueueStyle') || 'classic';

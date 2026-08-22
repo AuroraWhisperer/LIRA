@@ -160,6 +160,25 @@ body.player-dock-expanded .song-workspace {
   background: linear-gradient(135deg, #fff8ed 0%, #fff3e0 100%);
 }
 
+.queues-row .sc-queue-panel .panel-header button {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 13px;
+  border-radius: 7px;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.queues-row .sc-queue-panel .panel-header button.danger {
+  border: 1px solid rgba(210, 138, 34, 0.25);
+  color: #a56810;
+  background: linear-gradient(135deg, #fffbf5 0%, #fff8ed 100%);
+}
+
+.queues-row .sc-queue-panel .panel-header button.danger:hover {
+  border-color: rgba(210, 138, 34, 0.4);
+  background: linear-gradient(135deg, #fff8ed 0%, #fff3e0 100%);
+}
+
 .queues-row .queue-panel .panel-header h2 {
   font-size: 16px;
   font-weight: 700;
