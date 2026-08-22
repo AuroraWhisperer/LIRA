@@ -1,6 +1,5 @@
 .queue-neon-vinyl {
-  /* Keep the full frame visible while displaying it at 85% of its original height. */
-  aspect-ratio: 1122 / 1192;
+  aspect-ratio: 1122 / 1402;
   color: #6f2449;
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
@@ -16,7 +15,7 @@
 }
 
 .queue-neon-vinyl .overlay-content {
-  inset: 25% 9.5% 8.5%;
+  inset: 23.5% 9.5% 8.5%;
 }
 
 .neon-vinyl-row {
@@ -25,7 +24,8 @@
   --medal-bg: #b12d66;
   --medal-text: #fff9fc;
   width: 94%;
-  aspect-ratio: 2172 / 576;
+  /* Keep the full entry artwork and compress only its displayed height to 85%. */
+  aspect-ratio: 2172 / 489.6;
   min-height: 0;
   margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-4/entry.webp');

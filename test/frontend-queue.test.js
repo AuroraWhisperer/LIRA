@@ -281,7 +281,7 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.ok(contentRule);
   assert.match(viewportRule, /overflow:\s*hidden/);
   assert.match(viewportRule, /min-width:\s*0/);
-  assert.match(viewportRule, /right:\s*11\.5%/);
+  assert.match(viewportRule, /right:\s*5\.5%/);
   assert.match(viewportRule, /left:\s*25%/);
   assert.match(viewportRule, /padding:\s*0/);
   assert.doesNotMatch(viewportRule, /background:/);
@@ -379,9 +379,9 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonRowRule);
   assert.ok(ribbonInfoRule);
   assert.ok(ribbonViewportRule);
-  assert.match(neonContentRule, /inset:\s*25%\s+9\.5%\s+8\.5%/);
+  assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+8\.5%/);
   assert.match(neonRowRule, /width:\s*94%/);
-  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*576/);
+  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*489\.6/);
   assert.match(neonRowRule, /min-height:\s*0/);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
@@ -396,7 +396,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(ribbonContentRule, /--cherry-ribbon-bottom-trim:\s*30px/);
   assert.match(ribbonContentRule, /inset:\s*calc\(17\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
   assert.match(ribbonRowRule, /width:\s*94%/);
-  assert.match(ribbonRowRule, /aspect-ratio:\s*1623\s*\/\s*464/);
+  assert.match(ribbonRowRule, /aspect-ratio:\s*1623\s*\/\s*371\.2/);
   assert.match(ribbonRowRule, /min-height:\s*0/);
   assert.match(ribbonRowRule, /margin-inline:\s*auto/);
   assert.match(ribbonRowRule, /background-size:\s*100%\s+100%/);
@@ -467,12 +467,12 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*19\.5%\s+8\.5%\s+17%/);
-  assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', -6, renderGoldenLilyRow\)/);
+  assert.match(goldenContentRule, /inset:\s*18%\s+8\.5%\s+17%/);
+  assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*72%/);
   assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*569/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
-  assert.match(goldenRankRule, /top:\s*13%/);
+  assert.match(goldenRankRule, /top:\s*25%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);
   assert.match(goldenRankRule, /left:\s*5\.5%/);
   assert.match(goldenRankRule, /width:\s*18\.5%/);
@@ -481,8 +481,8 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(goldenViewportRule, /right:\s*11%/);
   assert.match(goldenViewportRule, /bottom:\s*29%/);
   assert.match(goldenViewportRule, /left:\s*32%/);
-  assert.match(overlayStyles, /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*0/);
-  assert.match(overlayStyles, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-6px/);
+  assert.match(overlayStyles, /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*4px/);
+  assert.doesNotMatch(overlayStyles, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-[\d.]+px/);
   assert.match(goldenInfoRule, /margin-inline:\s*auto/);
 });
 

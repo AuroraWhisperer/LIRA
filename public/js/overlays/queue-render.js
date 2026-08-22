@@ -258,7 +258,7 @@ export function renderCherryRibbonQueue(settings, current, waiting, content) {
 }
 
 export function renderGoldenLilyQueue(settings, current, waiting, content) {
-  renderIllustratedAssetQueue(settings, current, waiting, content, 'golden-lily', -6, renderGoldenLilyRow);
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow);
 }
 
 function renderIllustratedAssetQueue(settings, current, waiting, content, style, rowGap, renderRow) {

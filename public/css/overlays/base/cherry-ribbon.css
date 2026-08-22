@@ -26,7 +26,8 @@
   --medal-bg: #d79253;
   --medal-text: #fffafd;
   width: 94%;
-  aspect-ratio: 1623 / 464;
+  /* Keep the full entry artwork and compress only its displayed height to 80%. */
+  aspect-ratio: 1623 / 371.2;
   min-height: 0;
   margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-5/entry.webp');

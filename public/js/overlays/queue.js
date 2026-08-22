@@ -16,7 +16,7 @@ const ILLUSTRATED_QUEUE_ROW_GAPS = {
   storybook: 7,
   'neon-vinyl': 8,
   'cherry-ribbon': 8,
-  'golden-lily': -6
+  'golden-lily': 4
 };
 
 let state = null;

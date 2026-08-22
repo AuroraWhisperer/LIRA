@@ -15,7 +15,7 @@
 }
 
 .queue-golden-lily .overlay-content {
-  inset: 19.5% 8.5% 17%;
+  inset: 18% 8.5% 17%;
 }
 
 .golden-lily-row {
@@ -46,7 +46,7 @@
 .golden-lily-rank {
   position: absolute;
   z-index: 2;
-  top: 13%;
+  top: 25%;
   bottom: 21%;
   left: 5.5%;
   width: 18.5%;
@@ -54,7 +54,7 @@
   place-items: center;
   color: #6f4a24;
   font-family: Bahnschrift, "Microsoft YaHei", sans-serif;
-  font-size: 1.18em;
+  font-size: 15em;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   line-height: 1;

@@ -82,11 +82,7 @@
 }
 
 .golden-lily-list.identity-list {
-  gap: 0;
-}
-
-.golden-lily-row:not(:first-child) {
-  margin-top: -6px;
+  gap: 4px;
 }
 
 .illustrated-queue-row {
