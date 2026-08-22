@@ -381,7 +381,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonViewportRule);
   assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+8\.5%/);
   assert.match(neonRowRule, /width:\s*94%/);
-  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*400/);
+  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*450/);
   assert.match(neonRowRule, /min-height:\s*0/);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
@@ -394,7 +394,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonViewportRule, /justify-content:\s*safe center/);
   assert.match(ribbonContentRule, /--cherry-ribbon-top-trim:\s*0px/);
   assert.match(ribbonContentRule, /--cherry-ribbon-bottom-trim:\s*30px/);
-  assert.match(ribbonContentRule, /inset:\s*calc\(17\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
+  assert.match(ribbonContentRule, /inset:\s*calc\(15% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
   assert.match(ribbonRowRule, /width:\s*94%/);
   assert.match(ribbonRowRule, /aspect-ratio:\s*1623\s*\/\s*371\.2/);
   assert.match(ribbonRowRule, /min-height:\s*0/);
@@ -467,7 +467,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*15%\s+8\.5%\s+13\.5%/);
+  assert.match(goldenContentRule, /inset:\s*16\.5%\s+8\.5%\s+13\.5%/);
   assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*72%/);
   assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*490/);
@@ -485,6 +485,27 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(overlayStyles, /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*4px/);
   assert.doesNotMatch(overlayStyles, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-[\d.]+px/);
   assert.match(goldenInfoRule, /margin-inline:\s*auto/);
+});
+
+test('styles 5 and 6 expand vertical visibility above their foreground frames', () => {
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+
+  ['cherry-ribbon', 'golden-lily'].forEach((style) => {
+    const contentRule = [...overlayStyles.matchAll(new RegExp(`\\.queue-${style} \\.overlay-content\\s*\\{[^}]*\\}`, 'g'))]
+      .map((match) => match[0])
+      .find((rule) => /inset:/.test(rule));
+    const windowRule = [...overlayStyles.matchAll(new RegExp(`\\.${style}-list-window\\s*\\{[^}]*\\}`, 'g'))]
+      .map((match) => match[0])
+      .find((rule) => /overflow:\s*visible/.test(rule));
+
+    assert.ok(contentRule);
+    assert.ok(windowRule);
+    assert.match(contentRule, /inset:/);
+    assert.match(contentRule, /z-index:\s*4/);
+    assert.match(contentRule, /overflow:\s*visible/);
+    assert.match(contentRule, /clip-path:\s*inset\(-5%\s+0\)/);
+    assert.match(windowRule, /overflow:\s*visible/);
+  });
 });
 
 test('identity content scrolls as one stream only when its rendered width overflows', () => {

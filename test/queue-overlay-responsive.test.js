@@ -144,7 +144,7 @@ test('illustrated queue cards display their full artwork without clipping decora
       backgroundPosition: /background-position:\s*44\.482%\s+45\.972%/
     },
     'neon-vinyl': {
-      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*400/,
+      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*450/,
       width: /width:\s*94%/,
       backgroundSize: /background-size:\s*100%\s+100%/
     },
@@ -184,7 +184,7 @@ test('style 4 keeps its frame height and displays compressed full entries', () =
   assert.ok(rowRule);
   assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1402/);
   assert.match(rowRule, /width:\s*94%/);
-  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*400/);
+  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*450/);
   assert.match(rowRule, /background-size:\s*100%\s+100%/);
   assert.doesNotMatch(rowRule, /\bcover\b|\bcontain\b/);
 });
@@ -208,7 +208,7 @@ test('style 6 reveals the first entry decoration and separates adjacent entries'
 
   assert.ok(contentRule);
   assert.ok(listRule);
-  assert.match(contentRule, /inset:\s*15%\s+8\.5%\s+13\.5%/);
+  assert.match(contentRule, /inset:\s*16\.5%\s+8\.5%\s+13\.5%/);
   assert.match(listRule, /gap:\s*4px/);
   assert.doesNotMatch(overlayCss, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-[\d.]+px/);
   assert.match(source, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow\)/);

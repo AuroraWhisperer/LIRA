@@ -15,7 +15,14 @@
 }
 
 .queue-golden-lily .overlay-content {
-  inset: 15% 8.5% 13.5%;
+  inset: 16.5% 8.5% 13.5%;
+  z-index: 4;
+  overflow: visible;
+  clip-path: inset(-5% 0);
+}
+
+.golden-lily-list-window {
+  overflow: visible;
 }
 
 .golden-lily-row {
