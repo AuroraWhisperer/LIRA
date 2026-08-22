@@ -115,8 +115,9 @@
   --medal-bg: #7d91c9;
   --medal-text: #fff;
   position: relative;
+  left: -2%;
   box-sizing: border-box;
-  width: 76%;
+  width: 88%;
   aspect-ratio: 1237 / 304;
   min-height: 0;
   margin-inline: auto;

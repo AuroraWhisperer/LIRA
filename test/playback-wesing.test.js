@@ -22,7 +22,7 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   const panelStyles = readCssBundle('public', 'css', 'playback', 'panels.css');
 
   assert.match(html, /data-source="wesing"[\s\S]*全民 K歌/);
-  assert.match(html, /data-source="wesing"[\s\S]*src="\/img\/wesing-icon\.jpg"/);
+  assert.match(html, /data-source="wesing"[\s\S]*src="\/img\/playback\/wesing-icon\.jpg"/);
   assert.match(html, /id="playbackWeSingView"/);
   assert.match(html, /id="weSingCachePath"/);
   assert.match(html, /id="weSingSelectCacheBtn"/);

@@ -34,6 +34,7 @@ body {
   height: 100dvh;
   place-items: center;
   overflow: hidden;
+  background: transparent;
 }
 
 .opening-stage {
@@ -200,8 +201,10 @@ body {
 .character-float,
 .character-sway,
 .character-breathe { width: 100%; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.character-anchor { position: relative; }
+.character-anchor::after { position: absolute; right: 16%; bottom: 8%; width: 66%; height: 58%; border-radius: 50%; background: radial-gradient(ellipse, rgba(255, 111, 165, .22), transparent 68%); content: ''; opacity: .46; pointer-events: none; animation: character-aura 7.4s ease-in-out .9s infinite; }
 .character-breathe { position: relative; }
-.character-enter { opacity: 0; transform: translate3d(0, .625cqw, 0) scale(.985); animation: character-enter .9s cubic-bezier(.2, .7, .2, 1) forwards; }
+.character-enter { position: relative; z-index: 1; opacity: 0; transform: translate3d(0, .625cqw, 0) scale(.985); animation: character-enter .9s cubic-bezier(.2, .7, .2, 1) forwards; }
 .character-float { animation: character-float 8.7s ease-in-out .9s infinite; }
 .character-sway { animation: character-sway 11.2s ease-in-out .9s infinite; }
 .character-breathe { animation: character-breathe 6.3s ease-in-out .9s infinite; }
@@ -225,6 +228,7 @@ body {
 .opening-stage.is-reduced-motion .character-sway,
 .opening-stage.is-reduced-motion .character-breathe,
 .opening-stage.is-reduced-motion .character-breathe::after,
+.opening-stage.is-reduced-motion .character-anchor::after,
 .opening-stage.is-reduced-motion .opening-vinyl,
 .opening-stage.is-reduced-motion .track::before,
 .opening-stage.is-reduced-motion .track-heart-motion,
@@ -243,15 +247,22 @@ body {
 .opening-stage.quality-low .opening-vinyl,
 .opening-stage.quality-low .track::before,
 .opening-stage.quality-low .track-heart-motion,
-.opening-stage.quality-low .character-breathe::after { animation: none; }
-.opening-stage.is-disabled { display: none; }
-html.opening-disabled, body.opening-disabled { background: transparent; }
+.opening-stage.quality-low .character-breathe::after,
+.opening-stage.quality-low .character-anchor::after { animation: none; }
+.opening-stage.is-disabled { display: none !important; animation: none !important; }
+.opening-stage.is-disabled *,
+.opening-stage.is-disabled *::before,
+.opening-stage.is-disabled *::after { animation: none !important; transition: none !important; }
+html.opening-disabled,
+body.opening-disabled,
+.opening-viewport.opening-disabled { background: transparent !important; }
 
 @keyframes character-enter { to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes opening-stage-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes character-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.26cqw); } }
-@keyframes character-sway { 0%, 100% { transform: rotate(-.15deg); } 50% { transform: rotate(.15deg); } }
-@keyframes character-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+@keyframes character-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.52cqw); } }
+@keyframes character-sway { 0%, 100% { transform: rotate(-.28deg); } 50% { transform: rotate(.28deg); } }
+@keyframes character-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.018); } }
+@keyframes character-aura { 0%, 100% { opacity: .32; transform: scale(.96); } 50% { opacity: .66; transform: scale(1.04); } }
 @keyframes mic-glint { 0%, 63%, 100% { opacity: 0; } 68%, 74% { opacity: .78; } }
 @keyframes opening-vinyl { to { transform: rotate(360deg); } }
 @keyframes opening-glow { 0%, 100% { opacity: .6; transform: scale(.96); } 50% { opacity: .95; transform: scale(1.04); } }
@@ -268,6 +279,7 @@ html.opening-disabled, body.opening-disabled { background: transparent; }
   .opening-stage:not(.is-reduced-motion) .character-sway,
   .opening-stage:not(.is-reduced-motion) .character-breathe,
   .opening-stage:not(.is-reduced-motion) .character-breathe::after,
+  .opening-stage:not(.is-reduced-motion) .character-anchor::after,
   .opening-stage:not(.is-reduced-motion) .opening-vinyl,
   .opening-stage:not(.is-reduced-motion) .track::before,
   .opening-stage:not(.is-reduced-motion) .track-heart-motion,

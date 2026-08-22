@@ -1,7 +1,7 @@
 'use strict';
 
 const DEFAULTS = Object.freeze({
-  enabled: true,
+  enabled: false,
   title: '唱一首，在一首，给你的歌',
   subtitle: '开播准备中',
   name: '',
@@ -10,6 +10,9 @@ const DEFAULTS = Object.freeze({
   showNotes: true,
   showEq: true,
   audio: 'browser',
+  volume: 0.35,
+  audioUrl: '/img/overlays/opening/music.ogg',
+  audioName: '默认音乐：果实',
   debug: false
 });
 
@@ -34,6 +37,11 @@ function parseBoolean(value, fallback) {
   return fallback;
 }
 
+function parseVolume(value, fallback = DEFAULTS.volume) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : fallback;
+}
+
 function parseConfig(search = typeof location === 'undefined' ? '' : location.search) {
   const params = new URLSearchParams(search);
   const quality = params.get('quality');
@@ -52,6 +60,9 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
     showNotes: parseBoolean(params.get('showNotes'), DEFAULTS.showNotes),
     showEq: parseBoolean(params.get('showEq'), DEFAULTS.showEq),
     audio: audio === 'browser' || audio === 'none' ? audio : DEFAULTS.audio,
+    volume: parseVolume(params.get('volume'), DEFAULTS.volume),
+    audioUrl: DEFAULTS.audioUrl,
+    audioName: DEFAULTS.audioName,
     debug: parseBoolean(params.get('debug'), DEFAULTS.debug)
   };
 }
@@ -148,8 +159,9 @@ function startRuntime(config) {
     lastPhase = performance.now();
   };
   const resume = () => {
+    if (stage.classList.contains('is-disabled')) return;
     stage.classList.remove('is-paused');
-    if (!stage.classList.contains('is-disabled') && !stage.classList.contains('is-reduced-motion')) {
+    if (!stage.classList.contains('is-reduced-motion')) {
       trackSvg?.unpauseAnimations?.();
       scheduleEq();
       scheduleParticles();
@@ -157,15 +169,19 @@ function startRuntime(config) {
   };
 
   if (config.enabled) {
+    stage.classList.remove('is-disabled', 'is-paused');
     scheduleEq();
     scheduleParticles();
   } else {
-    stage.classList.add('is-disabled');
+    stage.classList.add('is-disabled', 'is-paused');
     trackSvg?.pauseAnimations?.();
     clearSchedulers();
   }
 
   if (config.audio === 'browser' && config.enabled && audio) {
+    audio.src = safeAudioUrl(config.audioUrl);
+    audio.volume = parseVolume(config.volume);
+    audio.load();
     audio.play().catch((error) => {
       console.warn('[opening-overlay] audio playback unavailable', error);
       if (config.debug && debug) {
@@ -176,6 +192,8 @@ function startRuntime(config) {
   } else if (audio) {
     audio.pause();
     audio.currentTime = 0;
+    audio.removeAttribute('src');
+    audio.load();
   }
 
   document.addEventListener('visibilitychange', () => {
@@ -201,13 +219,19 @@ function startRuntime(config) {
   reducedMotion?.addEventListener?.('change', updateReducedMotion);
 }
 
-function initOpeningOverlay() {
-  const config = parseConfig();
+function safeAudioUrl(value) {
+  const candidate = String(value || '');
+  if (candidate === DEFAULTS.audioUrl || candidate.startsWith('/opening-media/')) return candidate;
+  return DEFAULTS.audioUrl;
+}
+
+function applyOpeningConfig(config) {
   setText('openingTitle', config.title);
   setText('openingSubtitle', config.subtitle);
   setText('openingName', config.name);
   setText('openingFooter', config.footer);
   const stage = document.getElementById('openingStage');
+  const viewport = document.querySelector('.opening-viewport');
   const nameRow = document.getElementById('openingNameRow');
   const titleLength = Array.from(config.title).length;
   stage?.style.setProperty('--opening-title-size', `${titleSizeForLength(titleLength)}cqw`);
@@ -215,6 +239,7 @@ function initOpeningOverlay() {
   stage?.classList.toggle('show-notes', config.showNotes);
   stage?.classList.toggle('show-eq', config.showEq);
   stage?.classList.toggle('is-disabled', !config.enabled);
+  viewport?.classList.toggle('opening-disabled', !config.enabled);
   document.documentElement.classList.toggle('opening-disabled', !config.enabled);
   document.body.classList.toggle('opening-disabled', !config.enabled);
   if (nameRow) nameRow.hidden = config.name.length === 0;
@@ -222,6 +247,42 @@ function initOpeningOverlay() {
   startRuntime(config);
 }
 
+async function loadSavedConfig() {
+  try {
+    const response = await fetch('/api/opening/config', { cache: 'no-store' });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload && payload.ok && payload.data ? payload.data : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function mergeConfig(remote, query) {
+  const source = remote && typeof remote === 'object' ? remote : {};
+  const params = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
+  const merged = { ...DEFAULTS, ...source, ...query };
+  if (!params.has('enabled')) merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
+  if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
+  if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || DEFAULTS.subtitle;
+  if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
+  if (!params.has('footer')) merged.footer = cleanText(source.footer, MAX_LENGTHS.footer) || DEFAULTS.footer;
+  if (!params.has('quality')) merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
+  if (!params.has('showNotes')) merged.showNotes = source.showNotes !== false;
+  if (!params.has('showEq')) merged.showEq = source.showEq !== false;
+  if (!params.has('audio')) merged.audio = source.audio === 'none' ? 'none' : DEFAULTS.audio;
+  if (!params.has('volume')) merged.volume = parseVolume(source.volume);
+  merged.audioUrl = safeAudioUrl(source.audioUrl || DEFAULTS.audioUrl);
+  merged.audioName = cleanText(source.audioName, 160) || DEFAULTS.audioName;
+  return merged;
+}
+
+async function initOpeningOverlay() {
+  const queryConfig = parseConfig();
+  const remoteConfig = await loadSavedConfig();
+  applyOpeningConfig(mergeConfig(remoteConfig, queryConfig));
+}
+
 if (typeof document !== 'undefined') initOpeningOverlay();
 
-export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, parseConfig, titleSizeForLength };
+export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, mergeConfig };

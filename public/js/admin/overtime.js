@@ -6,9 +6,9 @@ import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const GUARD_GIFTS = [
-  { id: 'guard-1', name: '总督', image: 'bilibili-guard-governor.webp' },
-  { id: 'guard-2', name: '提督', image: 'bilibili-guard-prefect.webp' },
-  { id: 'guard-3', name: '舰长', image: 'bilibili-guard-captain.webp' }
+  { id: 'guard-1', name: '总督', image: 'admin/gifts/bilibili-guard-governor.webp' },
+  { id: 'guard-2', name: '提督', image: 'admin/gifts/bilibili-guard-prefect.webp' },
+  { id: 'guard-3', name: '舰长', image: 'admin/gifts/bilibili-guard-captain.webp' }
 ];
 
 let initialized = false;

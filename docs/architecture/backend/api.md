@@ -1,6 +1,6 @@
 # HTTP API 端点注册表
 
-> 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/debug-routes.js](../../../src/server/routes/debug-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
+> 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/debug-routes.js](../../../src/server/routes/debug-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
 
 本文档是全部 HTTP API 端点的**唯一事实源**:每个端点的方法、路径、请求体、响应形态与错误码只在此成表。其他文档一律链接此处,不自行罗列端点。服务进程的端口、token 机制、请求管线详见 [server-core.md](server-core.md);WebSocket 消息与快照见 [ws.md](ws.md);数据库与设置见 [storage.md](storage.md)。
 
@@ -10,12 +10,12 @@
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 模块注册 | `ROUTE_MODULES` 数组按序 require **16 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler) | [api-routes.js:8-25](../../../src/server/api-routes.js#L8-L25) |
+| 模块注册 | `ROUTE_MODULES` 数组按序 require **17 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler) | [api-routes.js:8-26](../../../src/server/api-routes.js#L8-L26) |
 | 匹配顺序 | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404** | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取 | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body) | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
 
-**认证**:**除 `/api/health` 外全部端点要求 Bearer 头(`Authorization: Bearer <sessionToken>`)或查询参数 `?token=<sessionToken>`**,校验失败回 401。token 生成/落盘/前端注入的完整机制由 [server-core.md](server-core.md) §4 与 §7 负责,此处只记录契约形态:
+**认证**:**除 `/api/health` 与只读开播配置 `/api/opening/config` 外全部端点要求 Bearer 头(`Authorization: Bearer <sessionToken>`)或查询参数 `?token=<sessionToken>`**,校验失败回 401。token 生成/落盘/前端注入的完整机制由 [server-core.md](server-core.md) §4 与 §7 负责,此处只记录契约形态:
 
 - 401:`{ok:false, error:'未授权访问。请在启动日志中查看 session token。'}`
 - 405:`{ok:false, error:'请求方法不支持', details:'该接口不支持 <METHOD> 请求'}`
@@ -54,7 +54,20 @@
 
 行为文档:[storage.md](storage.md) §7(设置键全表)。
 
-### 2.1 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
+## 2.1 开播动画域(opening)
+
+> 模块文件:[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)
+> 前缀:`/api/opening`
+
+| 端点 | 请求 | 响应(data) | 错误码 |
+|---|---|---|---|
+| `GET /api/opening/config` | 无；为 Browser Source 读取当前开播设置，免 session token | 已清洗的文案、画质、开关、音量和当前音频 URL；未上传时 `audioUrl` 为内置“果实”音乐 | — |
+| `POST /api/opening/music` | `multipart/form-data`，字段 `file`；≤ 64 MB，扩展名限 `.mp3/.flac/.wav/.aac/.ogg/.m4a/.wma` | 保存至 data 目录下 `opening-music/` 并将其设为当前音频 | 400(缺少/不支持音频文件)、413(超限) |
+| `DELETE /api/opening/music` | 无 | 清除当前上传音乐，恢复内置音乐 | — |
+
+上传文件使用随机文件名并只允许当前设置指向的文件通过 `/opening-media/` 播放，原始文件名仅作为界面显示文本。
+
+### 2.2 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
 
 `roomId` 值经此函数规范化后再写库，规则按优先级：
 
@@ -69,7 +82,7 @@
 
 在精确模式匹配之前先对输入做 `decodeURIComponent`，因此直接粘贴浏览器地址栏的编码 URL 也能正确解析。
 
-### 2.2 parseCustomReplyRules 实现细节([bilibili/custom-reply-service.js](../../../src/bilibili/custom-reply-service.js))
+### 2.3 parseCustomReplyRules 实现细节([bilibili/custom-reply-service.js](../../../src/bilibili/custom-reply-service.js))
 
 `customReplyRules` 设置值存为 JSON 字符串，写入前经此函数校验并清洗：
 
@@ -261,7 +274,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 |---|---|
 | `giftId`(必填) | 字符串,≤ 100 字符,**数组内不可重复** |
 | `giftName` | ≤ 100 字符 |
-| `imagePath` | 非空时必须是 `/img/bilibili-gifts/` 或 `/img/overtime-machine/` 内置路径 |
+| `imagePath` | 非空时必须是 `/img/admin/gifts/`、`/img/bilibili-gifts/` 或 `/img/overtime-machine/` 内置路径 |
 | `mode`(必填) | `fixed`、`random` 或 `display` |
 | `quantityMode` | `group`(默认,按连击组)或 `item`(按具体数量) |
 | `enabled` | 默认 true;**启用的规则 ≤ 8 条** |

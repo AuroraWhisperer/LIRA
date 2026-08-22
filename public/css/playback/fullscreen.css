@@ -239,7 +239,7 @@
   overflow: visible;
   border: 1px solid rgba(255, 255, 255, 0.86);
   border-radius: 11%;
-  background: #fff url('/img/player-turntable-chassis.webp') center / cover no-repeat;
+  background: #fff url('/img/playback/player-turntable-chassis.webp') center / cover no-repeat;
   box-shadow:
     0 34px 55px rgba(67, 75, 105, 0.22),
     0 8px 18px rgba(67, 75, 105, 0.1),

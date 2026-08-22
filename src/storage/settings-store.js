@@ -172,7 +172,18 @@ const DEFAULT_SETTINGS = {
   giftEventRetentionDays: '0',
   requestRetentionDays: '0',
   superChatRetentionDays: '0',
-  autoRetentionOnStartup: 'true'
+  autoRetentionOnStartup: 'true',
+  openingEnabled: 'false',
+  openingTitle: '唱一首，在一首，给你的歌',
+  openingSubtitle: '开播准备中',
+  openingName: '',
+  openingFooter: 'SINGING LIVE',
+  openingQuality: 'normal',
+  openingShowNotes: 'true',
+  openingShowEq: 'true',
+  openingAudioFile: '',
+  openingAudioName: '',
+  openingAudioVolume: '0.35'
 };
 
 function createSettingsStore(db) {

@@ -22,8 +22,28 @@
 .opening-editor-heading span:first-child, .opening-preview-heading span { color: #a84876; font: 800 10px/1 Consolas, monospace; letter-spacing: .12em; }
 .opening-editor-heading strong, .opening-preview-heading strong { color: #4b3040; font-size: 15px; }
 .opening-editor-chip, #openingPreviewState { padding: 5px 8px; border-radius: 999px; color: #a84876; background: #ffedf5; font-size: 10px; font-weight: 800; white-space: nowrap; }
-.opening-editor-checks { display: flex; flex-wrap: wrap; gap: 12px; min-height: 28px; align-items: center; }
-.opening-editor-checks label { display: inline-flex; align-items: center; gap: 7px; color: #765768; font-size: 12px; font-weight: 700; }
+.opening-editor-checks { display: flex; flex-wrap: wrap; gap: 10px; min-height: 32px; align-items: center; }
+.opening-editor-checks label { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 5px 10px 5px 6px; border: 1px solid #ead6e0; border-radius: 10px; color: #765768; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; transition: border-color 160ms ease, background 160ms ease, color 160ms ease; }
+.opening-editor-checks label:has(input:checked) { border-color: #e993b4; color: #9d3f68; background: #fff4f8; }
+.opening-editor-checks input { position: relative; width: 22px; height: 22px; margin: 0; border: 1.5px solid #d8c1cc; border-radius: 7px; appearance: none; background: #fff; cursor: pointer; transition: border-color 160ms ease, background 160ms ease, transform 160ms ease; }
+.opening-editor-checks input::after { position: absolute; top: 50%; left: 50%; color: #fff; content: '✓'; font: 900 15px/1 Arial, sans-serif; opacity: 0; transform: translate(-50%, -54%) scale(.55); transition: opacity 140ms ease, transform 140ms ease; }
+.opening-editor-checks input:checked { border-color: #db5d91; background: linear-gradient(145deg, #f18bb1, #d94f88); box-shadow: 0 3px 8px rgba(199, 64, 119, .2); }
+.opening-editor-checks input:checked::after { opacity: 1; transform: translate(-50%, -54%) scale(1); }
+.opening-editor-checks input:focus-visible { outline: 3px solid rgba(219, 93, 145, .24); outline-offset: 2px; }
+.opening-music-card { display: grid; gap: 9px; padding: 11px 12px; border: 1px solid #edd8e2; border-radius: 12px; background: linear-gradient(135deg, #fffafd, #fff5f9); }
+.opening-music-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #765768; font-size: 11px; font-weight: 800; }
+.opening-music-heading strong { overflow: hidden; max-width: 62%; color: #a84876; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.opening-music-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.opening-upload-button, .button-quiet { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 6px 10px; border: 1px solid #e4b7cb; border-radius: 8px; color: #a84876; background: #fff; font-size: 11px; font-weight: 800; cursor: pointer; transition: background 160ms ease, border-color 160ms ease, transform 160ms ease; }
+.opening-upload-button:hover, .button-quiet:hover { border-color: #d96b99; background: #fff0f6; }
+.opening-upload-button:active, .button-quiet:active { transform: translateY(1px); }
+.opening-animation-editor .opening-upload-button input[type='file'] { position: absolute; width: 1px; min-height: 1px; height: 1px; overflow: hidden; opacity: 0; }
+.button-quiet { border-color: #ead9e1; color: #806375; background: #fffafd; }
+.opening-volume-field { display: grid; gap: 5px; color: #765768; font-size: 11px; font-weight: 800; }
+.opening-volume-field > span { display: flex; justify-content: space-between; gap: 8px; }
+.opening-volume-field output { color: #a84876; font: 700 10px/1 Consolas, monospace; }
+.opening-animation-editor .opening-volume-field input[type='range'] { width: 100%; min-height: 5px; height: 5px; accent-color: #d95d91; cursor: pointer; }
+.opening-audio-status { margin: 0; color: #9b7587; font-size: 10px; line-height: 1.45; }
 .opening-editor-note { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
 .opening-animation-preview { min-width: 0; align-content: start; background: #f9f0f5; }
 .opening-animation-preview iframe { width: 100%; min-height: 0; height: auto; aspect-ratio: 16 / 9; border: 0; border-radius: 11px; background: #1d151c; box-shadow: inset 0 0 0 1px rgba(88, 37, 62, .12); }

@@ -120,6 +120,7 @@ function createApiContext(options) {
       set: settings.store.setSetting
     },
     system: {
+      dataDir: system.dataDir,
       getHealth: () => ({
         serviceId: lifecycle.SERVICE_ID,
         rootDir: system.rootDir,

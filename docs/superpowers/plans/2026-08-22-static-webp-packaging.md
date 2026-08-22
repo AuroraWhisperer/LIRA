@@ -52,7 +52,7 @@
 
 - [ ] **Step 2: Add explicit electron-builder exclusions**
 
-  Add exclusion patterns for the converted static PNG groups (`admin-queue-*`, guard icons, gift/refresh/nav icons, opening avatar, song-board frames/entries, turntable chassis, QQ icon, and usage-guide screenshots). Keep `public/img/bilibili-gifts/**/*.png` included.
+  Add exclusion patterns for the converted static PNG groups (`admin/queue/*`, `admin/gifts/bilibili-guard-*`, `admin/gifts/gift-section-icon`, `shared/live-refresh-icon`, `admin/nav-icons/*`, opening avatar, song-board frames/entries, `playback/player-turntable-chassis`, `playback/qqmusic-icon`, and usage-guide screenshots). Keep `public/img/bilibili-gifts/**/*.png` included.
 
 - [ ] **Step 3: Verify source/package path parity**
 

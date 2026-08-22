@@ -80,6 +80,7 @@
 | `other.js` | 百宝箱侧边导航(功能面板切换,不承载业务) | [app.md](app.md) §6 |
 | `desktop-lyric.js` | 桌面歌词设置表单(自动保存) | [app.md](app.md) §6 |
 | `desktop-lyric-preview.js` | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画) | [app.md](app.md) §6 |
+| `start-animation.js` | 开播动画编辑、固定 Browser Source 地址、音乐上传与音量控制 | [app.md](app.md) §6 |
 | `song-category-filter.js` | 分类/标签筛选工具(拆分、选中态读取) | [app.md](app.md) §4 |
 | `gifts/index.js` | 礼物面板统一渲染入口 | [app.md](app.md) §5 |
 | `gifts/notification.js` / `detection.js` / `sprint.js` / `recent.js` | 礼物通知 / 检测状态 / 月底冲刺 / 最近礼物 | [app.md](app.md) §5 |
@@ -97,6 +98,7 @@
 | `song-virtual-scroller.js` | 歌单虚拟滚动器(环形 DOM 窗口) |
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md) |
 | `games.js` | 直播小游戏入口与会话渲染；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
+| `opening.js` | 开播动画 Browser Source：读取本地配置、播放内置/上传音乐并驱动人物待机动画 |
 | `danmaku-feed.js` | 可复用弹幕气泡组件：安全构建身份/消息 DOM，并根据文本视觉长度写入气泡宽高 CSS 变量 |
 
 ### 4.4 共享与入口 `public/js/`
@@ -132,8 +134,8 @@
 | `img/bilibili-gifts.json` | 礼物目录，字段 schema 见 §6.1 |
 | `img/bilibili-gifts/` | 礼物图标(按价格区间分目录:`0000-under-0100/` ~ `3000-above/`、`blind-box/`、`special/`),映射说明见 `gift-mapping.md` |
 | `img/overtime-machine/` | 加班机内置背景:`midnight-grid.svg`、`gift-placeholder.svg`(占位图),选型见 ADR [0005-built-in-overtime-backgrounds](../adr/0005-built-in-overtime-backgrounds.md) |
-| `img/bilibili-guard-*.png` | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物 |
-| `img/qqmusic-icon.png` / `player-turntable-chassis.png` / `gift-section-icon.png` / `live-refresh-icon.png` | 播放器/礼物面板图标 |
+| `img/admin/gifts/bilibili-guard-*.png` | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物 |
+| `img/playback/qqmusic-icon.png` / `img/playback/player-turntable-chassis.png` / `img/admin/gifts/gift-section-icon.png` / `img/shared/live-refresh-icon.png` | 播放器/礼物面板图标 |
 | `data/theme-presets.json` | 点歌板/歌单板主题预设，字段 schema 见 §6.2 |
 | 字体 | **无内置字体文件**(无 `@font-face`):全部走系统字体栈(Bahnschrift SemiCondensed 用于加班机数字,Bahnschrift 用于 LIVE 标签,Microsoft YaHei/PingFang SC 中文字体栈),见 [utils.js:5](../../../public/js/shared/utils.js#L5) 的 `multilingualFontFallback` |
 

@@ -7,13 +7,27 @@ const path = require('node:path');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 
 function readJsonBody(req, maxBodyBytes = 0) {
+  return readRawBody(req, maxBodyBytes).then((body) => {
+    if (body.length === 0) return {};
+    try {
+      return JSON.parse(body.toString('utf8'));
+    } catch (_) {
+      throw new Error('Invalid JSON body.');
+    }
+  });
+}
+
+function readRawBody(req, maxBodyBytes = 0) {
   return new Promise((resolve, reject) => {
     let total = 0;
     const chunks = [];
     const maxBytes = Number(maxBodyBytes || 0);
+    let settled = false;
     req.on('data', (chunk) => {
+      if (settled) return;
       total += chunk.length;
       if (maxBytes > 0 && total > maxBytes) {
+        settled = true;
         reject(new Error('Request body is too large.'));
         req.destroy();
         return;
@@ -21,17 +35,15 @@ function readJsonBody(req, maxBodyBytes = 0) {
       chunks.push(chunk);
     });
     req.on('end', () => {
-      if (chunks.length === 0) {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-      } catch (_) {
-        reject(new Error('Invalid JSON body.'));
-      }
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks));
     });
-    req.on('error', reject);
+    req.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
   });
 }
 
@@ -174,6 +186,39 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
   fs.readFile(resolvedPath, sendContent);
 }
 
+function serveOpeningMedia(dataDir, req, res, requestUrl, getCurrentFileName) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '开播音乐仅支持 GET 请求' });
+    return;
+  }
+  const encodedName = requestUrl.pathname.slice('/opening-media/'.length);
+  let fileName = '';
+  try { fileName = decodeURIComponent(encodedName); } catch (_) { fileName = ''; }
+  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
+    sendJson(res, 404, { ok: false, error: 'Not found.' });
+    return;
+  }
+  const extension = path.extname(fileName).toLowerCase();
+  if (!new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']).has(extension)) {
+    sendJson(res, 404, { ok: false, error: 'Not found.' });
+    return;
+  }
+  const filePath = path.join(path.resolve(String(dataDir || '')), 'opening-music', fileName);
+  fs.stat(filePath, (statError, stats) => {
+    if (statError || !stats.isFile()) {
+      sendJson(res, 404, { ok: false, error: 'Not found.' });
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': contentType(filePath),
+      'Content-Length': stats.size,
+      'Cache-Control': 'no-store'
+    });
+    if (req.method === 'HEAD') res.end();
+    else fs.createReadStream(filePath).pipe(res);
+  });
+}
+
 function contentType(filePath) {
   const ext = require('node:path').extname(filePath).toLowerCase();
   const mimeTypes = {
@@ -188,6 +233,12 @@ function contentType(filePath) {
     '.gif': 'image/gif',
     '.webp': 'image/webp',
     '.ogg': 'audio/ogg',
+    '.mp3': 'audio/mpeg',
+    '.flac': 'audio/flac',
+    '.wav': 'audio/wav',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
+    '.wma': 'audio/x-ms-wma',
     '.ico': 'image/x-icon'
   };
   return mimeTypes[ext] || 'application/octet-stream';
@@ -250,10 +301,12 @@ function sendStableError(res, error) {
 
 module.exports = {
   readJsonBody,
+  readRawBody,
   sendJson,
   sendCsv,
   sendBuffer,
   servePageOrAsset,
+  serveOpeningMedia,
   contentType,
   verifyToken,
   validateRequestHost,

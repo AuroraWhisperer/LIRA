@@ -82,7 +82,7 @@ test('only audio extensions are allowed in the whitelist', (t) => {
   assert.equal(access.isAllowed(jsFile), false);
 });
 
-test('symlinks are canonicalized to prevent escape', (t) => {
+test('linked paths are canonicalized to prevent escape', (t) => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
@@ -93,21 +93,31 @@ test('symlinks are canonicalized to prevent escape', (t) => {
 
   const realFile = path.join(musicDir, 'track.mp3');
   const symlinkFile = path.join(tempRoot, 'link-to-track.mp3');
+  const junctionDir = path.join(tempRoot, 'link-to-music');
   fs.writeFileSync(realFile, 'fake-audio', 'utf8');
 
+  const linkedFile = process.platform === 'win32'
+    ? path.join(junctionDir, 'track.mp3')
+    : symlinkFile;
   try {
-    fs.symlinkSync(realFile, symlinkFile);
-  } catch (_) {
-    // Symlink creation might fail on Windows without admin rights
-    // Skip test if symlink creation fails
-    t.skip();
-    return;
+    if (process.platform === 'win32') {
+      // Directory junctions exercise the same realpath behavior without requiring elevation.
+      fs.symlinkSync(musicDir, junctionDir, 'junction');
+    } else {
+      fs.symlinkSync(realFile, symlinkFile);
+    }
+  } catch (error) {
+    if (['EPERM', 'EACCES', 'ENOSYS'].includes(error?.code)) {
+      t.skip(`linked path unavailable: ${error.code}`);
+      return;
+    }
+    throw error;
   }
 
   const access = createLocalMediaAccess(dataDir);
-  access.allowPaths([symlinkFile]);
+  access.allowPaths([linkedFile]);
 
-  // Both symlink and real path should resolve to the same canonical path
-  assert.equal(access.isAllowed(symlinkFile), true);
+  // Both linked and real paths should resolve to the same canonical path.
+  assert.equal(access.isAllowed(linkedFile), true);
   assert.equal(access.isAllowed(realFile), true);
 });

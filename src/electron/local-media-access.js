@@ -12,10 +12,14 @@ function createLocalMediaAccess(dataDir) {
   const allowedPaths = loadAllowedPaths(accessFilePath);
 
   function isAllowed(filePath) {
-    const resolved = path.resolve(filePath);
-    if (!allowedPaths.has(resolved)) return false;
-    const ext = path.extname(resolved).toLowerCase();
-    return ALLOWED_AUDIO_EXTENSIONS.has(ext);
+    try {
+      const canonical = fs.realpathSync(filePath);
+      if (!allowedPaths.has(canonical)) return false;
+      const ext = path.extname(canonical).toLowerCase();
+      return ALLOWED_AUDIO_EXTENSIONS.has(ext);
+    } catch (_) {
+      return false;
+    }
   }
 
   function allowPath(filePath) {

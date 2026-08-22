@@ -65,7 +65,7 @@ function validateRule(input, index) {
   if (!giftId || giftId.length > 100) throw new Error(`rule ${index + 1} giftId is invalid.`);
   const giftName = String(input.giftName ?? input.gift_name ?? '').trim().slice(0, 100);
   const imagePath = String(input.imagePath ?? input.image_path ?? '').trim();
-  if (imagePath && !isAllowedImagePath(imagePath, ['bilibili-gifts', 'overtime-machine'])) {
+  if (imagePath && !isAllowedImagePath(imagePath, ['admin/gifts', 'bilibili-gifts', 'overtime-machine'])) {
     throw new Error(`rule ${index + 1} imagePath is invalid.`);
   }
   const mode = String(input.mode || '').trim();

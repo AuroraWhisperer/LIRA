@@ -226,6 +226,10 @@ test('time, background, and rules validation enforce server limits', () => {
   assert.deepEqual(rules[2].fixedEffect, { operation: 'multiply', value: 8 });
   assert.equal(rules[2].fixedSeconds, null);
   assert.deepEqual(rules.map(rule => rule.quantityMode), ['group', 'group', 'group']);
+  const guardRule = validateRules([{
+    giftId: 'guard-1', mode: 'fixed', imagePath: '/img/admin/gifts/bilibili-guard-governor.webp', fixedSeconds: 300
+  }]);
+  assert.equal(guardRule[0].imagePath, '/img/admin/gifts/bilibili-guard-governor.webp');
   const itemRule = validateRules([{
     giftId: 'quantity-item', mode: 'fixed', quantityMode: 'item', fixedSeconds: 1
   }]);

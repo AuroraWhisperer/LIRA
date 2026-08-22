@@ -247,6 +247,11 @@
   background: var(--surface);
 }
 
+.desktop-lyric-settings-group:has(.lira-select.is-open) {
+  z-index: 1;
+  overflow: visible;
+}
+
 .desktop-lyric-settings-group::before {
   position: absolute;
   top: 0;

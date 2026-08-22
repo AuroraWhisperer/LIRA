@@ -2,6 +2,7 @@
 'use strict';
 
 const http = require('node:http');
+const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
 const crypto = require('node:crypto');
@@ -68,6 +69,7 @@ function createServerRuntime(runtimeOptions = {}) {
   const CHECKIN_DB_PATH = path.join(DATA_DIR, 'checkin-data.db');
   const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
   const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
+  const OPENING_MUSIC_DIR = path.join(DATA_DIR, 'opening-music');
   const AI_LOG_PATH = path.join(path.dirname(DATA_DIR), 'logs', 'ai.log');
 
   let db = null;
@@ -102,6 +104,7 @@ function createServerRuntime(runtimeOptions = {}) {
         : () => {};
       let phaseStartedAt = Date.now();
       db = createDatabases({ dataDir: DATA_DIR, defaultSettings: DEFAULT_SETTINGS });
+      fs.mkdirSync(OPENING_MUSIC_DIR, { recursive: true });
       reportPhase('database-init', Date.now() - phaseStartedAt);
       phaseStartedAt = Date.now();
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb, settingsStoreModule);
@@ -230,6 +233,17 @@ function createServerRuntime(runtimeOptions = {}) {
 
       if (requestUrl.pathname.startsWith('/api/')) {
         await inflightTracker.run(() => apiRoutes.handleApi(createApiContext(), req, res, requestUrl));
+        return;
+      }
+
+      if (requestUrl.pathname.startsWith('/opening-media/')) {
+        httpUtils.serveOpeningMedia(
+          DATA_DIR,
+          req,
+          res,
+          requestUrl,
+          () => settingsStore?.getSettings().openingAudioFile || ''
+        );
         return;
       }
 

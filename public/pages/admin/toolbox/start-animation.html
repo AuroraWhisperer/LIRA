@@ -14,9 +14,9 @@
                     <p>把粉黑甜心歌房放进浏览器源，编辑后即可预览整套开场特效。</p>
                   </div>
                   <label class="opening-master-toggle">
-                    <input id="openingEnabled" type="checkbox" checked>
+                    <input id="openingEnabled" type="checkbox">
                     <span class="opening-master-toggle-ui" aria-hidden="true"></span>
-                    <span>显示整套特效</span>
+                    <span>显示整套特效（动画 + 音乐）</span>
                   </label>
                 </header>
 
@@ -42,25 +42,43 @@
                       <label><input id="openingShowNotes" type="checkbox" checked>漂浮音符</label>
                       <label><input id="openingShowEq" type="checkbox" checked>音乐 EQ</label>
                     </div>
-                    <p class="opening-editor-note">关闭总开关时仍会保留你的文案配置；复制新地址到 Browser Source 后才会应用。</p>
+                    <div class="opening-music-card">
+                      <div class="opening-music-heading">
+                        <span>开场音乐</span>
+                        <strong id="openingAudioName">默认音乐：果实</strong>
+                      </div>
+                      <div class="opening-music-actions">
+                        <label class="opening-upload-button">
+                          <input id="openingAudioFile" type="file" accept="audio/*,.mp3,.flac,.wav,.aac,.ogg,.m4a,.wma">
+                          <span>上传歌曲</span>
+                        </label>
+                        <button id="openingResetAudio" class="button-quiet" type="button">恢复默认</button>
+                      </div>
+                      <label class="opening-volume-field" for="openingAudioVolume">
+                        <span>音乐音量 <output id="openingAudioVolumeValue" for="openingAudioVolume">35%</output></span>
+                        <input id="openingAudioVolume" type="range" min="0" max="100" step="1" value="35">
+                      </label>
+                      <p id="openingAudioStatus" class="opening-audio-status">支持 MP3、OGG、WAV 等格式，上传后会保存到开播音乐文件夹。</p>
+                    </div>
+                    <p class="opening-editor-note">关闭总开关后，Browser Source 会变透明，预览、动画和音乐都会停止；配置会自动保存。</p>
                   </form>
 
                   <section class="opening-animation-preview" aria-labelledby="openingPreviewHeading">
                     <div class="opening-preview-heading">
                       <div><span>LIVE PREVIEW</span><strong id="openingPreviewHeading">开播动画预览</strong></div>
-                      <span id="openingPreviewState">已开启</span>
+                      <span id="openingPreviewState">已关闭</span>
                     </div>
-                    <iframe id="openingPreview" title="开播动画预览" loading="lazy"></iframe>
+                    <iframe id="openingPreview" title="开播动画预览" loading="lazy" hidden></iframe>
                   </section>
                 </div>
 
                 <div class="opening-animation-address">
                   <div>
-                    <span>浏览器源地址</span>
+                    <span>固定浏览器源地址</span>
                     <code id="openingUrl"></code>
                   </div>
                   <button id="openingCopyUrl" class="button-secondary" type="button">复制地址</button>
                 </div>
-                <p id="openingAnimationStatus" class="opening-animation-status" role="status" aria-live="polite">编辑文案或开关即可刷新预览。</p>
+                <p id="openingAnimationStatus" class="opening-animation-status" role="status" aria-live="polite">默认关闭；开启总开关后才会预览动画与音乐。</p>
               </div>
             </section>

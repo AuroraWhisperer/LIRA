@@ -289,7 +289,8 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.match(contentRule, /--storybook-list-offset-y:\s*10px/);
   assert.match(contentRule, /inset:\s*calc\(24\.5% - var\(--storybook-list-offset-y\)\)\s+7\.5%\s+calc\(17% \+ var\(--storybook-list-offset-y\)\)\s+12\.5%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.webp'\)/);
-  assert.match(rowRule, /width:\s*76%/);
+  assert.match(rowRule, /left:\s*-2%/);
+  assert.match(rowRule, /width:\s*88%/);
   assert.match(rowRule, /aspect-ratio:\s*1237\s*\/\s*304/);
   assert.match(rowRule, /background-position:\s*44\.482%\s+45\.972%/);
   assert.match(rowRule, /background-size:\s*124\.171%\s+336\.842%/);
@@ -393,7 +394,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonViewportRule, /justify-content:\s*safe center/);
   assert.match(ribbonContentRule, /--cherry-ribbon-top-trim:\s*5px/);
   assert.match(ribbonContentRule, /--cherry-ribbon-bottom-trim:\s*30px/);
-  assert.match(ribbonContentRule, /inset:\s*calc\(20\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
+  assert.match(ribbonContentRule, /inset:\s*calc\(17\.5% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/);
   assert.match(ribbonRowRule, /width:\s*94%/);
   assert.match(ribbonRowRule, /aspect-ratio:\s*1623\s*\/\s*464/);
   assert.match(ribbonRowRule, /min-height:\s*0/);
@@ -466,7 +467,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*23%\s+8\.5%\s+17%/);
+  assert.match(goldenContentRule, /inset:\s*15%\s+8\.5%\s+17%/);
   assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', -6, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*72%/);
   assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*569/);

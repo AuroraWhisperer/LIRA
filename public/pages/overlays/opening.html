@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="opening-disabled">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>开播动画</title>
     <link rel="stylesheet" href="/css/overlays/opening.css">
   </head>
-  <body>
-    <div class="opening-viewport">
-      <main id="openingStage" class="opening-stage" aria-labelledby="openingTitle">
+  <body class="opening-disabled">
+    <div class="opening-viewport opening-disabled">
+      <main id="openingStage" class="opening-stage is-disabled" aria-labelledby="openingTitle">
       <div class="opening-backdrop" aria-hidden="true">
         <div class="opening-glow"></div>
         <div class="opening-vinyl"><span></span><span></span><span></span></div>
@@ -55,7 +55,7 @@
       <div id="openingNotes" class="opening-notes" aria-hidden="true"></div>
       <p id="openingFooter" class="opening-footer">SINGING LIVE</p>
       <p id="openingDebug" class="opening-debug" role="status" aria-live="polite" hidden></p>
-      <audio id="openingAudio" autoplay loop preload="metadata" src="/img/overlays/opening/music.ogg"></audio>
+      <audio id="openingAudio" loop preload="metadata"></audio>
       </main>
     </div>
     <script type="module" src="/js/overlays/opening.js"></script>

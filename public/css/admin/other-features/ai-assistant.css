@@ -4,6 +4,12 @@
   border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
   background: linear-gradient(120deg, color-mix(in srgb, var(--primary) 5%, var(--surface)) 0%, var(--surface) 38%);
 }
+
+.xiaomi-ai-section:has(.lira-select.is-open) {
+  z-index: 1;
+  overflow: visible;
+}
+
 .xiaomi-ai-section::before {
   content: '';
   position: absolute;

@@ -479,6 +479,11 @@
   overflow: hidden;
 }
 
+.planner-notes-panel:has(.lira-select.is-open) {
+  z-index: 1;
+  overflow: visible;
+}
+
 .planner-notes-heading {
   padding: 18px 18px 14px;
   border-bottom: 1px solid #ebe5da;

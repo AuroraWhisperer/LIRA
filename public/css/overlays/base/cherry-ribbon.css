@@ -17,7 +17,7 @@
 .queue-cherry-ribbon .overlay-content {
   --cherry-ribbon-top-trim: 5px;
   --cherry-ribbon-bottom-trim: 30px;
-  inset: calc(20.5% + var(--cherry-ribbon-top-trim)) 10% calc(9.5% + var(--cherry-ribbon-bottom-trim));
+  inset: calc(17.5% + var(--cherry-ribbon-top-trim)) 10% calc(9.5% + var(--cherry-ribbon-bottom-trim));
 }
 
 .cherry-ribbon-row {

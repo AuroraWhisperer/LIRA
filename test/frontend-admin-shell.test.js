@@ -34,6 +34,17 @@ test('toast stack stays below the top application bar', () => {
   assert.ok(toastOffset >= topbarHeight + 8, 'toast stack should clear the top application bar');
 });
 
+test('live refresh toast resolves its migrated image from the nested stylesheet', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'system.css'),
+    'utf8'
+  );
+  const imagePath = path.join(ROOT_DIR, 'public', 'img', 'shared', 'live-refresh-icon.webp');
+
+  assert.match(source, /url\('\.\.\/\.\.\/\.\.\/img\/shared\/live-refresh-icon\.webp'\)/);
+  assert.equal(fs.existsSync(imagePath), true);
+});
+
 test('queue headers share a fixed minimum height and song queue controls stay compact', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const headerRule = source.match(/\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/)?.[0];
