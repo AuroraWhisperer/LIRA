@@ -15,7 +15,7 @@
 }
 
 .queue-neon-vinyl .overlay-content {
-  inset: 23.5% 9.5% 8.5%;
+  inset: 23.5% 9.5% 12%;
 }
 
 .neon-vinyl-row {
@@ -45,7 +45,7 @@
 .neon-vinyl-row.medal-red { --medal-bg: #a92d51; }
 
 .neon-vinyl-info-viewport {
-  top: 19%;
+  top: 30%;
   right: 15%;
   bottom: 31%;
   left: 25.5%;

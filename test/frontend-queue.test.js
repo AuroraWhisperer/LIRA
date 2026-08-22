@@ -379,7 +379,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonRowRule);
   assert.ok(ribbonInfoRule);
   assert.ok(ribbonViewportRule);
-  assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+8\.5%/);
+  assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+12%/);
   assert.match(neonRowRule, /width:\s*94%/);
   assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*450/);
   assert.match(neonRowRule, /min-height:\s*0/);
@@ -387,7 +387,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /color:\s*#54152f/);
-  assert.match(neonViewportRule, /top:\s*19%/);
+  assert.match(neonViewportRule, /top:\s*30%/);
   assert.match(neonViewportRule, /right:\s*15%/);
   assert.match(neonViewportRule, /bottom:\s*31%/);
   assert.match(neonViewportRule, /left:\s*25\.5%/);
@@ -401,10 +401,21 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(ribbonRowRule, /margin-inline:\s*auto/);
   assert.match(ribbonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
-  assert.match(ribbonViewportRule, /top:\s*33%/);
+  assert.match(ribbonViewportRule, /top:\s*41%/);
   assert.match(ribbonViewportRule, /right:\s*14\.5%/);
   assert.match(ribbonViewportRule, /bottom:\s*33%/);
   assert.match(ribbonViewportRule, /left:\s*22%/);
+});
+
+test('style 4 scroll endpoint clears the foreground bottom frame', () => {
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const contentRule = overlayStyles.match(/\.queue-neon-vinyl \.overlay-content\s*\{[^}]*\}/)?.[0];
+  const frameRule = overlayStyles.match(/\.queue-neon-vinyl::after\s*\{[^}]*\}/)?.[0];
+
+  assert.ok(contentRule);
+  assert.ok(frameRule);
+  assert.match(contentRule, /inset:\s*23\.5%\s+9\.5%\s+12%/);
+  assert.match(frameRule, /border-width:\s*168px\s+56px\s+84px/);
 });
 
 test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
@@ -478,7 +489,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(goldenRankRule, /width:\s*18\.5%/);
   assert.match(goldenRankRule, /font-size:\s*1\.5em/);
   assert.match(goldenRankRule, /place-items:\s*center/);
-  assert.match(goldenViewportRule, /top:\s*31%/);
+  assert.match(goldenViewportRule, /top:\s*41%/);
   assert.match(goldenViewportRule, /right:\s*11%/);
   assert.match(goldenViewportRule, /bottom:\s*29%/);
   assert.match(goldenViewportRule, /left:\s*32%/);
@@ -489,6 +500,10 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
 
 test('styles 5 and 6 expand vertical visibility above their foreground frames', () => {
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const clipPaths = {
+    'cherry-ribbon': /clip-path:\s*inset\(0%\s+0\s+-1%\)/,
+    'golden-lily': /clip-path:\s*inset\(-5%\s+0\s+0\)/
+  };
 
   ['cherry-ribbon', 'golden-lily'].forEach((style) => {
     const contentRule = [...overlayStyles.matchAll(new RegExp(`\\.queue-${style} \\.overlay-content\\s*\\{[^}]*\\}`, 'g'))]
@@ -503,7 +518,7 @@ test('styles 5 and 6 expand vertical visibility above their foreground frames', 
     assert.match(contentRule, /inset:/);
     assert.match(contentRule, /z-index:\s*4/);
     assert.match(contentRule, /overflow:\s*visible/);
-    assert.match(contentRule, /clip-path:\s*inset\(-5%\s+0\)/);
+    assert.match(contentRule, clipPaths[style]);
     assert.match(windowRule, /overflow:\s*visible/);
   });
 });
