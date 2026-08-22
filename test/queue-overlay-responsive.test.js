@@ -144,7 +144,7 @@ test('illustrated queue cards display their full artwork without clipping decora
       backgroundPosition: /background-position:\s*44\.482%\s+45\.972%/
     },
     'neon-vinyl': {
-      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*489\.6/,
+      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*400/,
       width: /width:\s*94%/,
       backgroundSize: /background-size:\s*100%\s+100%/
     },
@@ -154,7 +154,7 @@ test('illustrated queue cards display their full artwork without clipping decora
       backgroundSize: /background-size:\s*100%\s+100%/
     },
     'golden-lily': {
-      aspectRatio: /aspect-ratio:\s*2139\s*\/\s*569/,
+      aspectRatio: /aspect-ratio:\s*2139\s*\/\s*490/,
       width: /width:\s*72%/,
       backgroundSize: /background-size:\s*100%\s+100%/
     }
@@ -175,7 +175,7 @@ test('illustrated queue cards display their full artwork without clipping decora
   }
 });
 
-test('style 4 keeps its frame height and displays full entries at 85% height', () => {
+test('style 4 keeps its frame height and displays compressed full entries', () => {
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const frameRule = overlayCss.match(/\.queue-neon-vinyl\s*\{[^}]*\}/)?.[0];
   const rowRule = overlayCss.match(/\.neon-vinyl-row\s*\{[^}]*\}/)?.[0];
@@ -184,7 +184,7 @@ test('style 4 keeps its frame height and displays full entries at 85% height', (
   assert.ok(rowRule);
   assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1402/);
   assert.match(rowRule, /width:\s*94%/);
-  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*489\.6/);
+  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*400/);
   assert.match(rowRule, /background-size:\s*100%\s+100%/);
   assert.doesNotMatch(rowRule, /\bcover\b|\bcontain\b/);
 });
@@ -208,7 +208,7 @@ test('style 6 reveals the first entry decoration and separates adjacent entries'
 
   assert.ok(contentRule);
   assert.ok(listRule);
-  assert.match(contentRule, /inset:\s*18%\s+8\.5%\s+17%/);
+  assert.match(contentRule, /inset:\s*15%\s+8\.5%\s+13\.5%/);
   assert.match(listRule, /gap:\s*4px/);
   assert.doesNotMatch(overlayCss, /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-[\d.]+px/);
   assert.match(source, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow\)/);

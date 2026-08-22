@@ -15,7 +15,7 @@
 }
 
 .queue-golden-lily .overlay-content {
-  inset: 18% 8.5% 17%;
+  inset: 15% 8.5% 13.5%;
 }
 
 .golden-lily-row {
@@ -24,7 +24,7 @@
   --medal-bg: #65773b;
   --medal-text: #fffdf2;
   width: 72%;
-  aspect-ratio: 2139 / 569;
+  aspect-ratio: 2139 / 490;
   min-height: 0;
   margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-6/entry.webp');
@@ -54,7 +54,7 @@
   place-items: center;
   color: #6f4a24;
   font-family: Bahnschrift, "Microsoft YaHei", sans-serif;
-  font-size: 15em;
+  font-size: 1.5em;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   line-height: 1;

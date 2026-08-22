@@ -285,7 +285,7 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.match(viewportRule, /left:\s*25%/);
   assert.match(viewportRule, /padding:\s*0/);
   assert.doesNotMatch(viewportRule, /background:/);
-  assert.match(rankRule, /left:\s*5\.5%/);
+  assert.match(rankRule, /left:\s*2\.5%/);
   assert.match(contentRule, /--storybook-list-offset-y:\s*10px/);
   assert.match(contentRule, /inset:\s*calc\(24\.5% - var\(--storybook-list-offset-y\)\)\s+7\.5%\s+calc\(17% \+ var\(--storybook-list-offset-y\)\)\s+12\.5%/);
   assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.webp'\)/);
@@ -381,7 +381,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonViewportRule);
   assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+8\.5%/);
   assert.match(neonRowRule, /width:\s*94%/);
-  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*489\.6/);
+  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*400/);
   assert.match(neonRowRule, /min-height:\s*0/);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
@@ -467,15 +467,16 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*18%\s+8\.5%\s+17%/);
+  assert.match(goldenContentRule, /inset:\s*15%\s+8\.5%\s+13\.5%/);
   assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*72%/);
-  assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*569/);
+  assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*490/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
   assert.match(goldenRankRule, /top:\s*25%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);
   assert.match(goldenRankRule, /left:\s*5\.5%/);
   assert.match(goldenRankRule, /width:\s*18\.5%/);
+  assert.match(goldenRankRule, /font-size:\s*1\.5em/);
   assert.match(goldenRankRule, /place-items:\s*center/);
   assert.match(goldenViewportRule, /top:\s*31%/);
   assert.match(goldenViewportRule, /right:\s*11%/);
