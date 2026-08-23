@@ -13,7 +13,8 @@ function createBilibiliRuntime(options) {
     settingsStore,
     domainServices,
     broadcastSnapshot,
-    buildClient
+    buildClient,
+    setActiveDanmakuRoom = () => {}
   } = options;
   const liveStatus = {
     connected: false,
@@ -106,6 +107,7 @@ function createBilibiliRuntime(options) {
     const settings = settingsStore.getSettings();
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
     const enabled = settings.enableBilibili === 'true' && roomId;
+    setActiveDanmakuRoom(enabled ? roomId : '');
 
     if (!enabled) {
       stopClient();
@@ -139,6 +141,7 @@ function createBilibiliRuntime(options) {
     const settings = settingsStore.getSettings();
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
     const enabled = settings.enableBilibili === 'true' && roomId;
+    setActiveDanmakuRoom(enabled ? roomId : '');
 
     if (!enabled) {
       configure(true);

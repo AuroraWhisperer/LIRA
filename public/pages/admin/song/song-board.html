@@ -4,7 +4,7 @@
               <label>
                 歌单滚动速率
                 <span class="range-row">
-                  <input id="scrollSecondsRange" class="parameter-range" type="range" min="1" max="100" step="1">
+                  <input id="scrollSecondsRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
                   <input id="scrollSeconds" type="number" min="1" max="100" step="1">
                 </span>
                 <span class="hint">数值越大滚动越快，1 最慢，100 最快</span>
@@ -25,7 +25,7 @@
                 <label>
                   字体大小
                   <span class="range-row">
-                    <input id="songBoardFontSize" class="parameter-range" type="range" min="10" max="80" step="1" value="40">
+                    <input id="songBoardFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="80" step="1" value="40">
                     <input id="songBoardFontSizeNumber" type="number" min="10" max="80" step="1" value="40">
                   </span>
                   <span class="hint">控制歌单展示板所有文字大小，默认 40px</span>
@@ -119,14 +119,14 @@
                     <label>
                       歌名字号
                       <span class="range-row">
-                        <input id="songBoardSongFontSize" class="parameter-range" type="range" min="10" max="40" step="1">
+                        <input id="songBoardSongFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="40" step="1">
                         <input id="songBoardSongFontSizeNumber" type="number" min="10" max="40" step="1">
                       </span>
                     </label>
                     <label>
                       标题字号
                       <span class="range-row">
-                        <input id="songBoardTitleFontSize" class="parameter-range" type="range" min="10" max="28" step="1">
+                        <input id="songBoardTitleFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="28" step="1">
                         <input id="songBoardTitleFontSizeNumber" type="number" min="10" max="28" step="1">
                       </span>
                     </label>
@@ -139,7 +139,7 @@
                     <label>
                       背景模糊
                       <span class="range-row">
-                        <input id="songBoardBackdropBlur" class="parameter-range" type="range" min="0" max="30" step="1">
+                        <input id="songBoardBackdropBlur" class="parameter-range parameter-range--intensity" type="range" min="0" max="30" step="1">
                         <input id="songBoardBackdropBlurNumber" type="number" min="0" max="30" step="1">
                       </span>
                       <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
@@ -147,7 +147,7 @@
                     <label>
                       发光强度
                       <span class="range-row">
-                        <input id="songBoardGlowIntensity" class="parameter-range" type="range" min="0" max="20" step="1">
+                        <input id="songBoardGlowIntensity" class="parameter-range parameter-range--intensity" type="range" min="0" max="20" step="1">
                         <input id="songBoardGlowIntensityNumber" type="number" min="0" max="20" step="1">
                       </span>
                       <span class="hint">辅助色的发光强度，0 为关闭</span>
@@ -179,7 +179,7 @@
                     <label>
                       背景透明度
                       <span class="range-row">
-                        <input id="songBoardThemeOpacity" class="parameter-range" type="range" min="0" max="1" step="0.01">
+                        <input id="songBoardThemeOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.01">
                         <input id="songBoardThemeOpacityNumber" type="number" min="0" max="1" step="0.01">
                       </span>
                     </label>

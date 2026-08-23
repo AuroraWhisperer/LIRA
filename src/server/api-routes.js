@@ -53,7 +53,7 @@ async function handleApi(context, req, res, requestUrl) {
   const method = req.method || 'GET';
   const pathName = requestUrl.pathname;
 
-  // Token 校验 — /api/health 豁免
+  // Token 校验 — 健康检查与只读开播配置豁免
   if (!PUBLIC_API_PATHS.has(pathName) && !verifyToken(context, req, requestUrl)) {
     sendJson(res, 401, { ok: false, error: '未授权访问。请在启动日志中查看 session token。' });
     return;

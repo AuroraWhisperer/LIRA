@@ -39,7 +39,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | 文档 | 内容 |
 |---|---|
 | [server-core.md](backend/server-core.md) | HTTP 服务核心与进程生命周期:端口、环境变量、请求管线、token 注入、启动/关闭时序 |
-| [ws.md](backend/ws.md) | WebSocket 传输(手写 RFC 6455)、快照 15 字段、消息类型与广播原因全集 |
+| [ws.md](backend/ws.md) | WebSocket 传输(手写 RFC 6455)、快照 16 字段、消息类型与广播原因全集 |
 | [api.md](backend/api.md) | **HTTP API 端点全量注册表**:15 路由模块 × 90 端点 |
 | [storage.md](backend/storage.md) | 存储层:数据目录、SQLite 五库 26 表、迁移系统、保留策略、settings 全表 |
 | [ai.md](backend/ai.md) | AI 互动助手:模型服务、6 工具、配额与审计、密钥加密 |
@@ -125,7 +125,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | 端口/环境变量/启动与关闭时序/token 注入机制 | [backend/server-core.md](backend/server-core.md) |
 | HTTP 端点(91 个)与方法/请求/响应/错误码契约 | [backend/api.md](backend/api.md) |
 | `roomId` 规范化算法/`customReplyRules` 解析规则 | [backend/api.md](backend/api.md) §2.1–§2.2 |
-| WS 传输参数/快照 15 字段/消息类型/reason 枚举 | [backend/ws.md](backend/ws.md) |
+| WS 传输参数/快照 16 字段/消息类型/reason 枚举 | [backend/ws.md](backend/ws.md) |
 | Bilibili 用户信息合并、字段投影与房间 run 生命周期 | [backend/bilibili/danmaku.md](backend/bilibili/danmaku.md) §10 |
 | 数据目录树/数据库文件/表 DDL/迁移版本/保留策略/settings 键 | [backend/storage.md](backend/storage.md) |
 | IPC 通道(33 个)与 preload 桥 | [desktop/preload.md](desktop/preload.md) |

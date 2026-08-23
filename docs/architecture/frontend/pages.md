@@ -31,6 +31,7 @@
 | `/blindbox` | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | OBS 浏览器源 | 盲盒盈亏投屏,支持 `?top=/winners=/heartBox=/title=` 等参数(管理页「直播画面」生成链接) |
 | `/overtime` | [overlays/overtime.html](../../../public/pages/overlays/overtime.html) | OBS 浏览器源、管理页预览 `<iframe>` | 加班机叠加层,支持 `?quality=low`(降帧/降动画) |
 | `/lyrics` | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | OBS 浏览器源、独立浏览器窗口 | 桌面歌词完整时间轴;地址由管理页「复制桌面歌词」提供 |
+| `/danmaku` | [overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定弹幕姬地址；按设置自由切换聊天气泡/直播信号带/极简字幕并实时显示普通文字和 B 站表情，`?preview=1&style=…` 只用于 Admin 的确定性样本预览 |
 | `/games` | [overlays/games.html](../../../public/pages/overlays/games.html) | OBS 浏览器源、独立浏览器窗口 | 直播小游戏浏览器源；管理页先打开固定地址再开始游戏，页面按当前会话自动显示数字炸弹、五子棋或你画我猜；画猜页面由主播直接作画并显示弹幕抢答/总积分，弹幕画廊按消息视觉长度动态调整气泡宽度与高度，展示头像、昵称、消息、大航海与当前房间灯牌，头像统一经带 token 的 `/api/bilibili/avatar` 本地代理加载并补全；题词只在 Admin 私有主持区显示；旧 `?game=` 地址仍可访问但参数不再决定游戏 |
 | `/wheel` | [overlays/wheel.html](../../../public/pages/overlays/wheel.html) | OBS 浏览器源、独立浏览器窗口 | 独立转盘浏览器源；圆形外透明，按主播配置的内容份数绘制多色扇形，抽取时旋转并突出最终结果；不参与 `/games` 会话互斥 |
 
@@ -53,6 +54,7 @@
 | 盲盒叠加层 | [pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | Classic(`js/overlays/blindbox.js`) | 盲盒盈亏汇总 + 排行榜 + 冲刺模式 |
 | 加班机叠加层 | [pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html) | Classic(`js/overlays/overtime.js`) | 直播加班倒计时 + 送礼加班表 + 结算动画 |
 | 桌面歌词页 | [pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | ES Module(`js/overlays/lyric-window.js`) | 复用管理页实时预览的完整时间轴、当前行高亮、逐字进度、翻译/罗马音与自动跟随 |
+| 弹幕姬叠加层 | [pages/overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | ES Module(`js/overlays/danmaku.js`) | 固定 `/danmaku` 多样式页面；快照恢复并实时同步 `danmakuOverlayStyle`，通过 `danmaku:message` 追加消息，复用 `danmaku-feed.js` 安全渲染 B 站表情 |
 | 游戏叠加层 | [pages/overlays/games.html](../../../public/pages/overlays/games.html) | ES Module(`js/overlays/games.js`) | 数字炸弹/五子棋/你画我猜共享会话；你画我猜使用 `danmaku-feed.js` 渲染动态宽高弹幕气泡 |
 
 ## 4. JS 模块地图
@@ -72,7 +74,7 @@
 | `forms.js` | `FormsService`:range↔number 绑定、选项卡、播放器全屏/收起、表单填充 | [app.md](app.md) §2 |
 | `import.js` | 歌曲批量导入(TSV/CSV/Excel),GB18030 编码回退 | [app.md](app.md) §4 |
 | `metrics.js` | 系统性能检测(`/api/system/metrics` 5 秒采样) | [app.md](app.md) §4 |
-| `danmaku-tool.js` | 弹幕姬:连接状态刷新、气泡样式预览、发送弹幕、点歌/固定回复开关；通过 `overlays/danmaku-feed.js` 复用画猜弹幕组件 | [app.md](app.md) §6 |
+| `danmaku-tool.js` | 弹幕工具:连接状态刷新、固定 `/danmaku` 地址复制/打开、iframe 预览、Admin 内发送弹幕、点歌/固定回复开关；发送功能不另设网页地址 | [app.md](app.md) §6 |
 | `danmaku-libraries.js` | 签到祝福语/抽签词库/DIY 关键词回复三个编辑器 | [app.md](app.md) §6 |
 | `ai-assistant-settings.js` | AI 互动助手配置:模型拉取、供应商测试、限流参数 | [app.md](app.md) §6 |
 | `overtime.js` | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景 | [app.md](app.md) §6 |
@@ -80,7 +82,7 @@
 | `other.js` | 百宝箱侧边导航(功能面板切换,不承载业务) | [app.md](app.md) §6 |
 | `desktop-lyric.js` | 桌面歌词设置表单(自动保存) | [app.md](app.md) §6 |
 | `desktop-lyric-preview.js` | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画) | [app.md](app.md) §6 |
-| `start-animation.js` | 开播动画编辑、固定 Browser Source 地址、音乐上传与音量控制 | [app.md](app.md) §6 |
+| `start-animation.js` | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、音乐上传与音量控制 | [app.md](app.md) §6 |
 | `song-category-filter.js` | 分类/标签筛选工具(拆分、选中态读取) | [app.md](app.md) §4 |
 | `gifts/index.js` | 礼物面板统一渲染入口 | [app.md](app.md) §5 |
 | `gifts/notification.js` / `detection.js` / `sprint.js` / `recent.js` | 礼物通知 / 检测状态 / 月底冲刺 / 最近礼物 | [app.md](app.md) §5 |
@@ -98,7 +100,7 @@
 | `song-virtual-scroller.js` | 歌单虚拟滚动器(环形 DOM 窗口) |
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md) |
 | `games.js` | 直播小游戏入口与会话渲染；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
-| `opening.js` | 开播动画 Browser Source：读取本地配置、播放内置/上传音乐并驱动人物待机动画 |
+| `opening.js` | 开播动画 Browser Source：读取本地配置、播放内置/上传音乐，并驱动人物待机与心形/灯带/流光轨道动画 |
 | `danmaku-feed.js` | 可复用弹幕气泡组件：安全构建身份/消息 DOM，并根据文本视觉长度写入气泡宽高 CSS 变量 |
 
 ### 4.4 共享与入口 `public/js/`
@@ -110,6 +112,7 @@
 | `shared/logger.js` | `Logger` 单例(挂 `window.AdminApp.logger`) |
 | `shared/theme.js` | 主题配置加载(`/data/theme-presets.json`)与预设访问器 |
 | `shared/lyric-word-renderer.js` | 逐字歌词渲染器(rAF 驱动,WeSing 面板/桌面歌词预览/歌词窗口共用) |
+| `shared/parameter-range.js` | Admin 参数滑块进度与零点区段同步；扫描显式 `parameter-range` 控件并维护轨道 CSS 变量 |
 | `desktop.js` | 桌面外壳:更新检查/下载/安装、打开数据目录、`window.songAssistantDesktop` 检测 |
 | `playback.js` | 播放助手兼容入口(`import './playback/index.js'`) |
 
@@ -120,6 +123,7 @@
 | `css/styles-base.css` | 设计系统:CSS 变量、重置、按钮/表单基类、spacing/radius/shadow 令牌 |
 | `css/styles-admin.css` | 管理后台顶层样式(引用 admin/ 子目录) |
 | `css/styles-playback.css` | 播放助手顶层样式(引用 playback/ 子目录) |
+| `css/components/parameter-range.css` | 可复用参数滑块：`parameter-range` 为克制的天蓝默认款，按语义追加 `--tempo`（圆角方块）/`--scale`（圆环）/`--intensity`（短胶囊）/`--centered`（纵向椭圆）修饰类；不接管播放 seek/音量 |
 | `css/admin/*.css` | 管理后台分模块:workspace/layout/tabs/toasts/modals/collapsible/gifts/blindbox-analysis/overtime/other-features/song-filters/desktop-lyric-preview/responsive |
 | `css/playback/*.css` | 播放助手分模块:player/layout/panels/header/drawer/fullscreen/dialogs/queue-modal/song-row/desktop-lyric/responsive |
 | `css/overlays/base.css` | 叠加层框架(classic/identity 队列主题、滚动动画、歌单板) |

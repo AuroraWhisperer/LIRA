@@ -1,0 +1,255 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const { loadModuleExports } = require('./helpers/frontend-modules');
+
+const ROOT_DIR = path.join(__dirname, '..');
+
+test('fixed danmaku overlay consumes snapshot and incremental feed events safely', () => {
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'danmaku.html'), 'utf8');
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'danmaku.css'), 'utf8');
+  const server = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8');
+
+  assert.match(html, /id="danmakuFeed"/);
+  assert.match(html, /body class="danmaku-overlay-body" data-style="signal"/);
+  assert.match(html, /type="module" src="\/js\/overlays\/danmaku\.js/);
+  assert.match(script, /createDanmakuFeed/);
+  assert.match(script, /const MAX_ITEMS = 50;/);
+  assert.match(script, /payload\.state\.danmakuFeed/);
+  assert.match(script, /payload\.type === 'danmaku:message'/);
+  assert.match(script, /window\.__API_TOKEN__/);
+  assert.match(script, /encodeURIComponent\(token\)/);
+  assert.match(script, /api\/bilibili\/avatar\?url=/);
+  assert.match(script, /&token=\$\{encodeURIComponent\(token\)\}/);
+  assert.match(script, /params\.get\('preview'\) === '1'/);
+  assert.match(script, /params\.get\('style'\)/);
+  assert.match(script, /guardLevel:\s*1/);
+  assert.match(script, /guardLevel:\s*2/);
+  assert.match(script, /guardLevel:\s*3/);
+  assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
+  assert.match(script, /payload\.state\.liveStatus/);
+  assert.match(script, /topic=danmaku/);
+  assert.match(script, /feed\.append/);
+  assert.match(script, /requestAnimationFrame\(flushPendingItems\)/);
+  assert.match(script, /autoScroll:\s*false/);
+  assert.match(server, /webSocketHub\.broadcast\(\{ type: 'danmaku:message', item \}, \{ topic: 'danmaku' \}\)/);
+  assert.match(script, /document\.body\.dataset\.style/);
+  assert.doesNotMatch(script, /innerHTML/);
+  assert.match(styles, /clip-path:/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(styles, /background:\s*transparent/);
+  assert.match(styles, /body\[data-style='signal'\]/);
+  assert.match(styles, /body\[data-style='bubble'\]/);
+  assert.match(styles, /body\[data-style='minimal'\]/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*height:\s*calc\(100vh - clamp/);
+  for (const style of ['signal', 'bubble', 'minimal']) {
+    for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
+      assert.match(
+        styles,
+        new RegExp(`body\\[data-style='${style}'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`)
+      );
+    }
+  }
+});
+
+test('shared danmaku renderer replaces whole and inline emote triggers with safe images', async () => {
+  class FakeNode {
+    constructor(tagName = '') {
+      this.tagName = tagName.toUpperCase();
+      this.children = [];
+      this.dataset = {};
+      this.style = { setProperty() {} };
+      this.listeners = {};
+      this.textContent = '';
+      this.className = '';
+    }
+
+    append(...nodes) {
+      for (const node of nodes) {
+        if (node.isFragment) {
+          node.children.forEach(child => { child.parentNode = this; });
+          this.children.push(...node.children);
+        } else {
+          node.parentNode = this;
+          this.children.push(node);
+        }
+      }
+    }
+
+    replaceChildren(...nodes) {
+      this.children = [];
+      this.append(...nodes);
+    }
+
+    addEventListener(type, listener) { this.listeners[type] = listener; }
+    removeChild(node) {
+      this.children = this.children.filter(child => child !== node);
+      node.parentNode = null;
+    }
+    setAttribute() {}
+    replaceWith(node) { this.replacement = node; }
+  }
+
+  const root = new FakeNode('div');
+  const module = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
+    {
+      document: {
+        createElement: tagName => new FakeNode(tagName),
+        createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true })
+      }
+    }
+  );
+  const feed = module.createDanmakuFeed(root, {
+    maxItems: 2,
+    autoScroll: false,
+    resolveEmoteUrl: url => `/proxy?url=${encodeURIComponent(url)}`
+  });
+
+  feed.render([{
+    name: '观众',
+    message: '你好[妙][打call]',
+    emotes: [
+      { text: '[妙]', url: 'https://i0.hdslb.com/bfs/emote/miao.png', width: 64, height: 64 },
+      { text: '[打call]', url: 'https://i0.hdslb.com/bfs/emote/call.gif', width: 180, height: 90 }
+    ]
+  }]);
+
+  const message = root.children[0].children[1].children[1];
+  assert.equal(message.children[0].textContent, '你好');
+  assert.equal(message.children[1].tagName, 'IMG');
+  assert.equal(message.children[1].alt, '[妙]');
+  assert.match(message.children[1].src, /^\/proxy\?url=/);
+  assert.equal(message.children[2].tagName, 'IMG');
+  assert.equal(message.children[2].alt, '[打call]');
+
+  const firstBubble = root.children[0];
+  feed.append({ name: '第二位', message: '第二条' });
+  assert.equal(root.children.length, 2);
+  assert.equal(root.children[0], firstBubble, 'incremental append must preserve existing message nodes');
+  feed.append({ name: '第三位', message: '第三条' });
+  assert.equal(root.children.length, 2);
+  assert.notEqual(root.children[0], firstBubble, 'incremental append must trim only the oldest node');
+
+  const identityRoot = new FakeNode('div');
+  identityRoot.clientHeight = 40;
+  const emptyState = new FakeNode('div');
+  emptyState.className = 'draw-danmaku-empty';
+  identityRoot.append(emptyState);
+  const identityFeed = module.createDanmakuFeed(identityRoot, {
+    maxItems: 5,
+    autoScroll: false,
+    getGuardLabel: level => ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || ''
+  });
+  identityFeed.render([
+    { message: '普通' },
+    { message: '粉丝', medalName: '夜航', medalLevel: 8 },
+    { message: '舰长', guardLevel: 3 },
+    { message: '提督', guardLevel: 2 },
+    { message: '总督', guardLevel: 1, medalName: '夜航' }
+  ]);
+  assert.deepEqual(
+    identityRoot.children.map(item => item.dataset.identity),
+    ['viewer', 'fan', 'captain', 'admiral', 'governor']
+  );
+});
+
+test('fixed danmaku feed prunes incremental nodes outside its visible viewport', async () => {
+  class FakeNode {
+    constructor(tagName = '') {
+      this.tagName = tagName.toUpperCase();
+      this.children = [];
+      this.dataset = {};
+      this.style = { setProperty() {} };
+      this.className = '';
+      this.textContent = '';
+    }
+
+    append(...nodes) {
+      nodes.forEach(node => {
+        if (node.isFragment) {
+          node.children.forEach(child => { child.parentNode = this; });
+          this.children.push(...node.children);
+        } else {
+          node.parentNode = this;
+          this.children.push(node);
+        }
+      });
+    }
+
+    replaceChildren(...nodes) {
+      this.children = [];
+      this.append(...nodes);
+    }
+
+    removeChild(node) {
+      this.children = this.children.filter(child => child !== node);
+      node.parentNode = null;
+    }
+
+    addEventListener() {}
+    setAttribute() {}
+  }
+
+  const root = new FakeNode('div');
+  root.clientHeight = 130;
+  const module = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
+    {
+      document: {
+        createElement: tagName => new FakeNode(tagName),
+        createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true })
+      }
+    }
+  );
+  const feed = module.createDanmakuFeed(root, {
+    maxItems: 50,
+    offscreenViewports: 0,
+    autoScroll: false
+  });
+
+  feed.render([
+    { name: '第一位', message: '第一条' },
+    { name: '第二位', message: '第二条' }
+  ]);
+  const firstBubble = root.children[0];
+  feed.append({ name: '第三位', message: '第三条' });
+
+  assert.equal(root.children.length, 2);
+  assert.notEqual(root.children[0], firstBubble);
+});
+
+test('fixed danmaku overlay derives its label from Bilibili live status', async () => {
+  const module = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
+    {
+      document: { addEventListener() {} },
+      location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
+      URL,
+      URLSearchParams
+    }
+  );
+
+  assert.equal(JSON.stringify(module.describeDanmakuConnection({
+    connected: true,
+    enabled: true,
+    roomId: '123',
+    message: '已开播'
+  }, true)), JSON.stringify({ text: '已开播', connected: true }));
+  assert.equal(JSON.stringify(module.describeDanmakuConnection({
+    connected: false,
+    enabled: true,
+    roomId: '123',
+    message: '弹幕连接出现错误'
+  }, true)), JSON.stringify({ text: '弹幕连接出现错误', connected: false }));
+  assert.equal(JSON.stringify(module.describeDanmakuConnection({
+    connected: true,
+    enabled: true,
+    roomId: '123',
+    message: '已开播'
+  }, false)), JSON.stringify({ text: '连接中断 · 重试中', connected: false }));
+});

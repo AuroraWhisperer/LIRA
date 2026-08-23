@@ -36,7 +36,7 @@ test('queue overlay loads one focused module entrypoint', () => {
   assert.match(entrySource, /from '\.\/queue-scroll\.js';/);
 });
 
-test('illustrated queues use one contain scale for width- and height-limited browser sources', () => {
+test('all six queues use one contain scale for freely resized browser sources', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const sandbox = {
@@ -49,13 +49,13 @@ test('illustrated queues use one contain scale for width- and height-limited bro
   };
   vm.runInNewContext(source, sandbox);
 
-  assert.equal(sandbox.calculateIllustratedQueueScale(1920, 1080, 560, 840, 16), 1);
+  assert.equal(sandbox.calculateQueuePanelScale(1920, 1080, 560, 840, 16), 1048 / 840);
   assert.equal(
-    sandbox.calculateIllustratedQueueScale(400, 900, 560, 840, 16),
+    sandbox.calculateQueuePanelScale(400, 900, 560, 840, 16),
     368 / 560
   );
   assert.equal(
-    sandbox.calculateIllustratedQueueScale(900, 457, 560, 840, 16),
+    sandbox.calculateQueuePanelScale(900, 457, 560, 840, 16),
     425 / 840
   );
 
@@ -78,23 +78,28 @@ test('illustrated queues use one contain scale for width- and height-limited bro
       removeProperty(name) { appliedStyles.delete(name); }
     }
   };
-  assert.equal(sandbox.syncIllustratedQueueViewport(panel, true), 384 / 560);
-  assert.equal(appliedStyles.get('--illustrated-queue-scale'), String(384 / 560));
-  sandbox.syncIllustratedQueueViewport(panel, false);
-  assert.equal(appliedStyles.has('--illustrated-queue-scale'), false);
+  assert.equal(sandbox.syncQueuePanelViewport(panel), 384 / 560);
+  assert.equal(appliedStyles.get('--queue-panel-scale'), String(384 / 560));
 
+  const classicRule = overlayCss.match(/\.queue-classic\s*\{[^}]*\}/)?.[0];
+  const identityRule = overlayCss.match(/\.queue-identity\s*\{[^}]*\}/)?.[0];
   const storybookRule = overlayCss.match(/\.queue-storybook\s*\{[^}]*\}/)?.[0];
   const illustratedRule = overlayCss.match(/\.queue-neon-vinyl,\s*\.queue-cherry-ribbon,\s*\.queue-golden-lily\s*\{[^}]*\}/)?.[0];
+  assert.ok(classicRule);
+  assert.ok(identityRule);
   assert.ok(storybookRule);
   assert.ok(illustratedRule);
-  [storybookRule, illustratedRule].forEach((rule) => {
-    assert.match(rule, /width:\s*560px/);
-    assert.match(rule, /transform:\s*scale\(var\(--illustrated-queue-scale,\s*1\)\)/);
+  assert.match(classicRule, /width:\s*405px/);
+  assert.match(identityRule, /width:\s*430px/);
+  [classicRule, identityRule, storybookRule, illustratedRule].forEach((rule) => {
+    assert.match(rule, /transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
     assert.match(rule, /transform-origin:\s*top left/);
     assert.doesNotMatch(rule, /100vw/);
   });
-  assert.match(source, /syncIllustratedQueueViewport\(panel,\s*ILLUSTRATED_QUEUE_STYLES\.has\(style\)\)/);
-  assert.match(source, /function handleQueueViewportResize\(\)[\s\S]*syncQueueViewport\(normalizeQueueStyle/);
+  assert.match(storybookRule, /width:\s*560px/);
+  assert.match(illustratedRule, /width:\s*560px/);
+  assert.match(source, /syncQueuePanelViewport\(panel\)/);
+  assert.match(source, /function handleQueueViewportResize\(\)[\s\S]*syncQueueViewport\(\)/);
 });
 
 test('illustrated frame decorations sandwich queue cards above the center fill', () => {
@@ -154,7 +159,7 @@ test('illustrated queue cards display their full artwork without clipping decora
       backgroundSize: /background-size:\s*100%\s+100%/
     },
     'golden-lily': {
-      aspectRatio: /aspect-ratio:\s*2139\s*\/\s*490/,
+      aspectRatio: /aspect-ratio:\s*2139\s*\/\s*539/,
       width: /width:\s*72%/,
       backgroundSize: /background-size:\s*100%\s+100%/
     }
@@ -215,7 +220,7 @@ test('style 6 reveals the first entry decoration and separates adjacent entries'
   assert.match(source, /ILLUSTRATED_QUEUE_ROW_GAPS\s*=\s*\{[\s\S]*'golden-lily':\s*4/);
 });
 
-test('classic queue starts at its fixed size and follows a resized browser source', () => {
+test('classic queue keeps fixed design coordinates while the whole panel scales', () => {
   const adminHtml = readAdminHtml();
   const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const queueSource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
@@ -228,14 +233,14 @@ test('classic queue starts at its fixed size and follows a resized browser sourc
   assert.doesNotMatch(settingsSource, /queueFixedSixRows/);
   assert.doesNotMatch(themeStoreSource, /queueFixedSixRows/);
   assert.doesNotMatch(queueSource, /visibleRows\s*=\s*6|queueFixedSixRows|--classic-window-height/);
-  assert.match(overlayCss, /\.queue-classic\s*\{[^}]*width:\s*min\(405px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/s);
-  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.queue-classic\s*\{[^}]*width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/s);
-  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*height:\s*min\(235px,\s*calc\(100vh - 32px\)\)/s);
-  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.classic-list-window\s*\{[^}]*height:\s*auto/s);
+  assert.match(overlayCss, /\.queue-classic\s*\{[^}]*width:\s*405px/s);
+  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*height:\s*235px/s);
+  assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*max-height:\s*235px/s);
+  assert.doesNotMatch(overlayCss, /queue-viewport-resized/);
   assert.doesNotMatch(overlayCss, /--classic-window-height/);
   assert.doesNotMatch(queueSource, /Math\.min\(6,/);
   assert.match(queueSource, /window\.addEventListener\('resize', handleQueueViewportResize\)/);
-  assert.match(queueSource, /document\.body\.classList\.add\('queue-viewport-resized'\)/);
+  assert.doesNotMatch(queueSource, /queue-viewport-resized/);
 });
 
 test('classic queue animates only when its rendered rows overflow available height', () => {
@@ -260,12 +265,12 @@ test('classic queue animates only when its rendered rows overflow available heig
 
   const shortClasses = new Set(['classic-list', 'paused']);
   const shortViewport = {
-    clientHeight: 250,
+    clientHeight: 235,
     style: {},
     getBoundingClientRect: () => ({ top: 100 })
   };
   const shortList = {
-    scrollHeight: 240,
+    scrollHeight: 230,
     classList: {
       add(name) { shortClasses.add(name); },
       remove(name) { shortClasses.delete(name); }
@@ -277,13 +282,14 @@ test('classic queue animates only when its rendered rows overflow available heig
     sandbox.configureClassicVerticalScroll(shortViewport, shortList, {}, '', 5),
     false
   );
-  assert.ok(Number.parseInt(shortViewport.style.maxHeight, 10) >= 580);
+  assert.equal(shortViewport.style.height, undefined);
+  assert.equal(shortViewport.style.maxHeight, undefined);
   assert.equal(shortClasses.has('scrolling'), false);
 
   const longClasses = new Set(['classic-list', 'paused']);
   let duplicatedHtml = '';
   const longViewport = {
-    clientHeight: 586,
+    clientHeight: 235,
     style: {},
     getBoundingClientRect: () => ({ top: 100 })
   };
@@ -304,17 +310,16 @@ test('classic queue animates only when its rendered rows overflow available heig
   assert.equal(styleValues.get('--classic-loop-distance'), '905px');
   assert.equal(
     styleValues.get('--scroll-seconds'),
-    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds(settings), 905, 586)}s`
+    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds(settings), 905, 235)}s`
   );
   assert.equal(duplicatedHtml, '<div>rows</div>');
   assert.equal(longClasses.has('paused'), false);
   assert.equal(longClasses.has('scrolling'), true);
 });
 
-test('identity queue starts at its fixed size and follows a resized browser source', () => {
+test('identity queue keeps fixed design coordinates while the whole panel scales', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const styleValues = new Map();
   const sandbox = {
     console,
     URLSearchParams,
@@ -325,29 +330,27 @@ test('identity queue starts at its fixed size and follows a resized browser sour
       getElementById() { return { textContent: '' }; },
       documentElement: {
         clientHeight: 500,
-        style: { setProperty(name, value) { styleValues.set(name, value); } }
+        style: { setProperty() {} }
       }
     }
   };
   sandbox.window = { innerHeight: 500 };
   vm.runInNewContext(source, sandbox);
 
-  assert.match(overlayCss, /\.queue-identity\s*\{[^}]*width:\s*min\(430px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/s);
-  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.queue-identity\s*\{[^}]*width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/s);
+  assert.match(overlayCss, /\.queue-identity\s*\{[^}]*width:\s*430px/s);
   const identityWindowRule = overlayCss.match(/\.identity-list-window\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(identityWindowRule);
-  assert.match(identityWindowRule, /height:\s*min\(364px,\s*calc\(100vh - \(2 \* var\(--overlay-edge\)\)\)\)/);
-  assert.match(overlayCss, /\.overlay-body\.queue-viewport-resized \.identity-list-window\s*\{[^}]*height:\s*auto/s);
+  assert.match(identityWindowRule, /height:\s*364px/);
+  assert.match(identityWindowRule, /max-height:\s*364px/);
+  assert.doesNotMatch(overlayCss, /queue-viewport-resized/);
 
   const classes = new Set(['identity-list', 'paused']);
   const viewport = {
+    clientHeight: 364,
     style: {},
     parentElement: null,
     getBoundingClientRect: () => ({ top: 40 })
   };
-  Object.defineProperty(viewport, 'clientHeight', {
-    get() { return Number.parseInt(viewport.style.height, 10) || 0; }
-  });
   const list = {
     scrollHeight: 240,
     classList: {
@@ -358,20 +361,11 @@ test('identity queue starts at its fixed size and follows a resized browser sour
   };
   const settings = { queueScrollMode: 'bounce', identityQueueScrollSpeed: '42' };
 
-  sandbox.window.innerHeight = 200;
-  assert.equal(
-    sandbox.configureIdentityVerticalScroll(viewport, list, settings, '<div>rows</div>', 4),
-    true
-  );
-  assert.equal(viewport.style.height, '156px');
-  assert.equal(styleValues.get('--identity-bounce-distance'), '84px');
-  assert.equal(classes.has('scrolling-bounce'), true);
-
-  sandbox.window.innerHeight = 500;
   assert.equal(
     sandbox.configureIdentityVerticalScroll(viewport, list, settings, '<div>rows</div>', 4),
     false
   );
-  assert.equal(viewport.style.height, '364px');
+  assert.equal(viewport.style.height, undefined);
+  assert.equal(viewport.style.maxHeight, undefined);
   assert.equal(classes.has('scrolling-bounce'), false);
 });

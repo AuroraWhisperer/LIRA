@@ -121,6 +121,30 @@ test('overtime clock uses bounded calendar tiers for large durations', () => {
   assert.equal(sandbox.helpers.formatClockDisplay(0, 'finished'), '该下播了');
 });
 
+test('overtime clock updates on display boundaries only while active and visible', () => {
+  const source = read('public/js/overlays/overtime.js');
+
+  assert.doesNotMatch(source, /requestAnimationFrame\(renderClockFrame\)/);
+  assert.match(source, /clockTimer = setTimeout\(renderClock, nextClockDelay\(remainingMs\)\)/);
+  assert.match(source, /currentState\.status !== 'running' \|\| remainingMs <= 0 \|\| document\.hidden/);
+  assert.match(source, /if \(value !== lastClockValue\)/);
+  assert.match(source, /document\.addEventListener\('visibilitychange', syncClock\)/);
+
+  const helperStart = source.indexOf('function nextClockDelay(remainingMs)');
+  const helperEnd = source.indexOf('\nfunction formatClockDisplay', helperStart);
+  const sandbox = {};
+  vm.runInNewContext(
+    `${source.slice(helperStart, helperEnd)}\nthis.nextClockDelay = nextClockDelay;`,
+    sandbox
+  );
+  assert.equal(sandbox.nextClockDelay(5_001), 25);
+  assert.equal(sandbox.nextClockDelay(5_500), 500);
+  assert.equal(sandbox.nextClockDelay(24 * 60 * 60 * 1000), 1000);
+  assert.equal(sandbox.nextClockDelay(24 * 60 * 60 * 1000 + 30_000), 30_000);
+  assert.equal(sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000), 1000);
+  assert.equal(sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000 + 90_000), 90_000);
+});
+
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
 }

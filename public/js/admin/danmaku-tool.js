@@ -1,11 +1,17 @@
 'use strict';
 
 import { createBlessingEditor, createCustomReplyEditor, createFortuneEditor } from './danmaku-libraries.js';
-import { createDanmakuFeed } from '../overlays/danmaku-feed.js';
+import { copyText, localOverlayOrigin } from '../shared/utils.js';
 
 let initialized = false;
 let refreshState = null;
 let autoBotRunning = false;
+
+const DANMAKU_OVERLAY_STYLES = Object.freeze({
+  bubble: '聊天气泡',
+  signal: '直播信号带',
+  minimal: '极简字幕'
+});
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -28,16 +34,42 @@ function init() {
   const fortuneEditor = createFortuneEditor({ document, saveSetting, toast });
   const customReplyEditor = createCustomReplyEditor({ document, saveSetting, toast });
   if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
-  const stylePreview = createDanmakuFeed(elements.styleFeed, {
-    maxItems: 4,
-    offscreenViewports: 0,
-    getGuardLabel: guardLabel
+  const overlayUrl = `${localOverlayOrigin()}/danmaku`;
+  elements.overlayUrl.value = overlayUrl;
+  let currentOverlayStyle = renderOverlayStyle(elements, 'signal');
+  window.addEventListener('app:settings-state', (event) => {
+    currentOverlayStyle = renderOverlayStyle(elements, event.detail?.danmakuOverlayStyle);
   });
-  stylePreview.render([
-    { name: '小米', message: '这首歌的前奏好有氛围感', guardLevel: 3, medalName: '米粒', medalLevel: 16 },
-    { name: '晚风', message: '可以来一首轻快的歌吗', medalName: '小风车', medalLevel: 8 },
-    { name: '观众', message: '弹幕样式预览', guardLevel: 1 }
-  ]);
+  elements.styleButtons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const previousStyle = currentOverlayStyle;
+      const nextStyle = normalizeOverlayStyle(button.dataset.danmakuStyle);
+      if (nextStyle === currentOverlayStyle) return;
+      currentOverlayStyle = renderOverlayStyle(elements, nextStyle);
+      elements.styleSaveState.textContent = '正在保存并同步到弹幕姬…';
+      elements.styleButtons.forEach((item) => { item.disabled = true; });
+      try {
+        await saveSetting('danmakuOverlayStyle', nextStyle);
+        elements.styleSaveState.textContent = `已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}，打开中的弹幕姬会同步更新。`;
+        toast(`弹幕姬已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}`);
+      } catch (error) {
+        currentOverlayStyle = renderOverlayStyle(elements, previousStyle);
+        elements.styleSaveState.textContent = error.message || '样式保存失败，请重试。';
+        toast(error.message || '弹幕姬样式保存失败');
+      } finally {
+        elements.styleButtons.forEach((item) => { item.disabled = false; });
+      }
+    });
+  });
+  elements.copyOverlayUrlButton.addEventListener('click', async () => {
+    try {
+      await copyText(overlayUrl);
+      toast('弹幕姬网页链接已复制');
+    } catch (error) {
+      toast(error.message || '复制链接失败');
+    }
+  });
+  elements.openOverlayButton.addEventListener('click', () => window.open(overlayUrl, '_blank', 'noopener'));
   initialized = true;
 
   const updateCounter = () => {
@@ -198,10 +230,35 @@ function getElements() {
     accountState: document.getElementById('danmakuAccountState'),
     roomState: document.getElementById('danmakuRoomState'),
     refreshButton: document.getElementById('danmakuRefreshBtn'),
-    styleFeed: document.getElementById('danmakuStyleFeed'),
+    overlayUrl: document.getElementById('danmakuOverlayUrl'),
+    copyOverlayUrlButton: document.getElementById('danmakuCopyOverlayUrlBtn'),
+    openOverlayButton: document.getElementById('danmakuOpenOverlayBtn'),
+    styleChip: document.getElementById('danmakuStyleChip'),
+    styleSaveState: document.getElementById('danmakuStyleSaveState'),
+    stylePreviewFrame: document.getElementById('danmakuStylePreviewFrame'),
     resultState: document.getElementById('danmakuSendResult')
   };
-  return Object.values(elements).some((element) => !element) ? null : elements;
+  elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
+  return Object.values(elements).some((element) => !element) || elements.styleButtons.length !== 3 ? null : elements;
+}
+
+function normalizeOverlayStyle(value) {
+  return Object.hasOwn(DANMAKU_OVERLAY_STYLES, value) ? value : 'signal';
+}
+
+function renderOverlayStyle(elements, value) {
+  const style = normalizeOverlayStyle(value);
+  const label = DANMAKU_OVERLAY_STYLES[style];
+  elements.styleButtons.forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === style));
+  });
+  elements.styleChip.textContent = `当前样式 · ${label}`;
+  const previewUrl = `/danmaku?preview=1&style=${style}`;
+  if (elements.stylePreviewFrame.getAttribute('src') !== previewUrl) {
+    elements.stylePreviewFrame.setAttribute('src', previewUrl);
+  }
+  elements.stylePreviewFrame.title = `弹幕姬${label}样式预览`;
+  return style;
 }
 
 function renderState(elements, state, editors) {
@@ -241,13 +298,6 @@ function bindSettingToggle(element, options) {
       options.toast(error.message || '保存设置失败');
     }
   });
-}
-
-function guardLabel(level) {
-  if (Number(level) === 3) return '舰长';
-  if (Number(level) === 2) return '提督';
-  if (Number(level) === 1) return '总督';
-  return '';
 }
 
 function refresh(options) {

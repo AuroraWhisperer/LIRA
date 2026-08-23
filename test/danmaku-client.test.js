@@ -278,13 +278,31 @@ test('onMessage return values do not fetch profiles and explicit ensure reuses t
   client.messageHandlers.updateRoomRunContext(client.roomRunContext);
 
   try {
+    const metadata = Array(16).fill(null);
+    metadata[15] = {
+      extra: JSON.stringify({
+        emots: {
+          '[妙]': {
+            url: 'https://i0.hdslb.com/bfs/emote/miao.png',
+            width: 64,
+            height: 64
+          }
+        }
+      })
+    };
     client.messageHandlers.handleDanmaku({
       cmd: 'DANMU_MSG',
-      info: [Array(16).fill(null), '第一条', [64281213, '叶上泓']]
+      info: [metadata, '第一条[妙]', [64281213, '叶上泓']]
     });
     await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(delivered[0].avatarUrl || '', '');
+    assert.deepEqual(delivered[0].emotes, [{
+      text: '[妙]',
+      url: 'https://i0.hdslb.com/bfs/emote/miao.png',
+      width: 64,
+      height: 64
+    }]);
     assert.equal(profileRequests, 0);
 
     const profile = await client.ensureUserInfo('64281213', { fields: ['name', 'avatarUrl'] });

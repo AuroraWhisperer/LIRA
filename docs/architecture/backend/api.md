@@ -35,8 +35,8 @@
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/health` | 无(**唯一免 token 端点**,`PUBLIC_API_PATHS` [api-routes.js:27](../../../src/server/api-routes.js#L27)) | 健康信息:`serviceId/rootDir/dataDir/各库路径/schemaVersions/desktop/pid/liveStatus`(详见 [server-core.md](server-core.md) §7) | — |
-| `GET /api/state` | 无 | 全量状态快照,与 WS 快照 `state` 的 **15 字段一致**(见 [ws.md](ws.md) §2) | — |
+| `GET /api/health` | 无(**免 token 端点之一**；另一个是只读 `GET /api/opening/config`，见 `PUBLIC_API_PATHS` [api-routes.js:29](../../../src/server/api-routes.js#L29)) | 健康信息:`serviceId/rootDir/dataDir/各库路径/schemaVersions/desktop/pid/liveStatus`(详见 [server-core.md](server-core.md) §7) | — |
+| `GET /api/state` | 无 | 全量状态快照,与 WS 快照 `state` 的 **16 字段一致**(见 [ws.md](ws.md) §2) | — |
 | `GET /api/system/metrics` | 查询参数 `windowMs`(可选,默认 5000) | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8) | — |
 | `GET /api/system/hardware` | 查询参数 `includeTemperatures=true`(可选) | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器）；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号 | — |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须) | `{shuttingDown: true}`,随后延迟 250ms 关闭服务 | 400 `缺少退出确认。` |
@@ -50,7 +50,7 @@
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `POST /api/settings` | body:设置键值对(**白名单**:仅 `settings.defaults` 中的键生效,未知键静默忽略;`roomId` 经 `normalizeRoomInput` 规范化,`customReplyRules` 经 `parseCustomReplyRules` 解析后 `JSON.stringify`,其余值一律 `String()`;每次调用后重建 Bilibili 监听并广播快照 `settings`) | 全量状态快照(`system.getState()`,同 §1 `GET /api/state`) | 规范化异常走顶层 500 |
+| `POST /api/settings` | body:设置键值对(**白名单**:仅 `settings.defaults` 中的键生效,未知键静默忽略;`roomId` 经 `normalizeRoomInput` 规范化,`customReplyRules` 经 `parseCustomReplyRules` 解析后 `JSON.stringify`,`openingTrackMotion` 仅接受 `heart`/`barber`/`progress`,`danmakuOverlayStyle` 仅接受 `bubble`/`signal`/`minimal`,其余值一律 `String()`;每次调用后重建 Bilibili 监听并广播快照 `settings`) | 全量状态快照(`system.getState()`,同 §1 `GET /api/state`) | 枚举值无效为 400;规范化异常走顶层 500 |
 
 行为文档:[storage.md](storage.md) §7(设置键全表)。
 
@@ -61,7 +61,7 @@
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/opening/config` | 无；为 Browser Source 读取当前开播设置，免 session token | 已清洗的文案、画质、开关、音量和当前音频 URL；未上传时 `audioUrl` 为内置“果实”音乐 | — |
+| `GET /api/opening/config` | 无；为 Browser Source 读取当前开播设置，免 session token | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)和当前音频 URL；未上传时 `audioUrl` 为内置“果实”音乐，非法轨道值回退 `heart` | — |
 | `POST /api/opening/music` | `multipart/form-data`，字段 `file`；≤ 64 MB，扩展名限 `.mp3/.flac/.wav/.aac/.ogg/.m4a/.wma` | 保存至 data 目录下 `opening-music/` 并将其设为当前音频 | 400(缺少/不支持音频文件)、413(超限) |
 | `DELETE /api/opening/music` | 无 | 清除当前上传音乐，恢复内置音乐 | — |
 
@@ -409,7 +409,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/bilibili/avatar?url={https头像地址}` | 仅接受 `https://*.hdslb.com/*`，沿用 session token | Node 后端代取并以内联图片返回，浏览器缓存 1 小时；用于绕过桌面 Chromium 对 CDN TLS 的加载失败 | 400、502 |
+| `GET /api/bilibili/avatar?url={https图片地址}` | 仅接受 `https://*.hdslb.com/*`，沿用 session token | Node 后端代取头像或弹幕表情并以内联图片返回，浏览器缓存 1 小时；保留既有 `avatar` 路径名以兼容旧消费者 | 400、502 |
 | `GET /api/bilibili/auth/state` | 无 | 登录状态 `{loggedIn, uid, message}`;非 Electron 环境返回 `{loggedIn:false, uid:0, message:'Bilibili 登录仅在 Electron 桌面环境中可用。'}` | 500 |
 | `POST /api/bilibili/reconnect` | 无 | 手动重连结果;失败时同步更新 `liveStatus` | **500** `{ok:false, error, detail, data:{liveStatus}}` |
 | `GET /api/bilibili/danmaku/state` | 无 | 弹幕发送器状态 + 设置 `checkinBlessings/fortunePool/customReplyRules` | 500 |

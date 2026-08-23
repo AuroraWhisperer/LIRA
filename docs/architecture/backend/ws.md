@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/server/ws.js](../../../src/server/ws.js)、[src/server.js](../../../src/server.js)(getState/广播点)
 
-本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 15 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
+本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 16 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
 
 ## 1. 传输层(手写 RFC 6455)
 
@@ -10,23 +10,24 @@
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 连接路径 | `/ws`,升级请求经 `server.on('upgrade')` 分发(其他路径直接 destroy) | [server.js:285-292](../../../src/server.js#L285-L292) |
+| 连接路径 | `/ws`,升级请求经 `server.on('upgrade')` 分发(其他路径直接 destroy)；固定弹幕层额外传 `topic=danmaku` | [server.js:285-292](../../../src/server.js#L285-L292) |
 | 握手 | `Sec-WebSocket-Key` + 魔数 `258EAFA5-E914-47DA-95CA-C5AB0DC85B11` 做 SHA1 → Base64 `Sec-WebSocket-Accept` | [ws.js:38-48](../../../src/server/ws.js#L38-L48) |
 | **Origin 验证**(H06) | **检查 `req.headers.origin` 是否在 `context.allowedOrigins` 白名单内。无 Origin 头(非浏览器客户端)放行。不匹配回写 `403 Forbidden` 后销毁连接** | [ws.js:21-29](../../../src/server/ws.js#L21-L29) |
 | 鉴权 | `?token=` 查询参数必须等于会话令牌,否则回写 `401 Unauthorized` 后销毁连接 | [ws.js:31-39](../../../src/server/ws.js#L31-L39) |
 | 帧上限 | 单帧 `MAX_FRAME_BYTES = 256 KB`,跨分片消息 `MAX_MESSAGE_BYTES = 256 KB`,超限回 close code 1009 | [ws.js:8-9](../../../src/server/ws.js#L8-L9) |
+| 待发送上限 | 每个 socket 的 Node 待发送字节数 + 新帧不得超过 `MAX_PENDING_BYTES = 2 MB`；超过时立即销毁并清理该慢客户端，由客户端重连后通过 snapshot 恢复 | [ws.js](../../../src/server/ws.js) |
 | 心跳 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()` | [ws.js:10-11](../../../src/server/ws.js#L10-L11) |
 | 客户端消息 | **服务端不消费任何客户端消息**:文本/二进制帧与分片会被正确解析/重组(防止内存泄漏)后丢弃;close 帧回显后关闭;ping 回 pong | [ws.js:143-193](../../../src/server/ws.js#L143-L193) |
-| 发送 | 服务端→客户端全部为文本帧(JSON),长度按 <126 / <65536 / 64 位三档编码 | [ws.js:245-266](../../../src/server/ws.js#L245-L266) |
+| 发送 | 服务端→客户端全部为文本帧(JSON),长度按 <126 / <65536 / 64 位三档编码；普通 `broadcast(payload)` 发给全部 socket，`broadcast(payload,{topic})` 只发给握手查询参数订阅该 topic 的 socket | [ws.js](../../../src/server/ws.js) |
 | 停止 | `webSocketHub.stop({shutdownPayload})` 先广播 shutdown 消息再逐连接 `end()` | [ws.js:226-240](../../../src/server/ws.js#L226-L240) |
 
 文件底部另有一套模块级兼容导出(`handleWebSocketUpgrade`/`broadcastSnapshot` 走模块级 `compatibilityHub`),运行时不使用。
 
 **WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [server.js](../../../src/server.js) 中构造。
 
-## 2. 快照(Snapshot)15 字段
+## 2. 快照(Snapshot)16 字段
 
-每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`,之后每次业务变更触发全量快照重推。`state` 由 [server.js:503-521](../../../src/server.js#L503-L521) 的 `getState()` 组装,共 **15 个字段**:
+每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`,之后每次业务变更触发全量快照重推。`state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装,共 **16 个字段**:
 
 | 字段 | 生产者 | 内容概述 |
 |---|---|---|
@@ -45,6 +46,7 @@
 | `lyricState` | `lyricState` 对象 | 当前歌词行状态(单行),见 [music/services.md](music/services.md) |
 | `lyricTimeline` | `lyricTimeline` 对象 | 歌词时间轴(全曲),经 `normalizeLyricTimeline` 归一化 |
 | `weSing` | `weSingCapture.getStatus()` | 全民K歌采集状态,见 [music/wesing.md](music/wesing.md) |
+| `danmakuFeed` | `danmakuFeedBuffer.getSnapshot()` | 当前直播间最近 50 条实时弹幕的公开投影，含可选 B 站表情元数据，见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1 |
 
 快照全量替换语义与客户端指纹去重见 [frontend/comms.md](../frontend/comms.md)。
 
@@ -52,7 +54,8 @@
 
 | 类型 | 载荷 | 触发点 |
 |---|---|---|
-| `snapshot` | `{type, reason, state}`(15 字段全量) | 连接建立(`reason:'connect'`);业务变更广播 |
+| `snapshot` | `{type, reason, state}`(16 字段全量) | 连接建立(`reason:'connect'`);业务变更广播 |
+| `danmaku:message` | `{type:'danmaku:message', item}` | 每条 `source:'danmaku'` 的实时 B 站弹幕；仅投递给以 `topic=danmaku` 连接的固定 `/danmaku` 浏览器源，重连后由 snapshot 中的 `danmakuFeed` 恢复 |
 | `lyric-state` | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence` | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187)) |
 | `lyric-timeline` | `{type:'lyric-timeline', timeline}` | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163)) |
 | `wesing-state` | `{type:'wesing-state', state}` | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184)) |

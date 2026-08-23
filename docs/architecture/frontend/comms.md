@@ -2,7 +2,7 @@
 
 > 涉及文件:[shared/utils.js](../../../public/js/shared/utils.js)、[shared/event-bus.js](../../../public/js/shared/event-bus.js)、[admin/state.js](../../../public/js/admin/state.js)、[desktop.js](../../../public/js/desktop.js)、[overlays/queue.js](../../../public/js/overlays/queue.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)
 
-本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 15 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
+本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 16 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
 
 ## 1. Token 获取与服务端注入
 
@@ -42,7 +42,7 @@
 
 ### 2.3 状态获取与乐观更新
 
-- 全量状态:`GET /api/state`(快照 15 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
+- 全量状态:`GET /api/state`(快照 16 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
 - 歌库:`GET /api/songs?query=&category=&language=&artist=&tag=&enabledOnly=`([state.js:128-155](../../../public/js/admin/state.js#L128-L155))。
 - **乐观 UI**:管理页所有变更操作(POST 后)立即调用 `reloadState()/reloadAll()` 重取,不等待 WS 广播;快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
 - **错误呈现分工**:表单/操作类错误 → `showError`(toast);`reconnectBilibili` 等直接 fetch 的调用自己解析 `{ok}` 信封并处理 404/网络类错误;静默上报类(歌词状态、队列状态落盘)失败只丢弃不打扰用户。
@@ -53,7 +53,7 @@
 
 | 事实 | 行为 | 出处 |
 |---|---|---|
-| 连接 URL | `(wss\|ws)://<host>/ws?token=<token>`(token 自动追加或手动拼) | [state.js:30-33](../../../public/js/admin/state.js#L30-L33)、[overlays/queue.js:50-53](../../../public/js/overlays/queue.js#L50-L53) |
+| 连接 URL | `(wss\|ws)://<host>/ws?token=<token>`(token 自动追加或手动拼)；固定 `/danmaku` 追加 `topic=danmaku` 订阅高频弹幕事件 | [state.js:30-33](../../../public/js/admin/state.js#L30-L33)、[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) |
 | 首帧 | 连接建立即收 `{type:'snapshot', reason:'connect', state}` 全量快照(契约见 [ws.md](../backend/ws.md) §2) | [ws.md](../backend/ws.md) §2 |
 | 协议选择 | `location.protocol === 'https:' ? 'wss:' : 'ws:'`,与页面同源(`location.host`) | [state.js:30](../../../public/js/admin/state.js#L30) |
 | 只读客户端 | 前端**不发送任何业务消息**给服务端;`shutdown` 消息到达后停止重连 | [ws.md](../backend/ws.md) §1 |
@@ -67,7 +67,7 @@
 
 - **队列层**:`computeStateKey()` 把当前歌曲 + 等待队列 + SC + 全部主题键拼成 JSON 指纹;指纹相同→只更新内存 state,跳过渲染([overlays/queue.js:112-139](../../../public/js/overlays/queue.js#L112-L139))。
 - **歌单层**:`orderKey = songsRevision:sortMode`、`layoutKey`(字体族/字号组)、`motionKey`(滚动速度)三段指纹分别决定是否重建记录/重排/调速([overlays/songs.js:116-160](../../../public/js/overlays/songs.js#L116-L160))。
-- **加班机层**:`revision` 单调比较,`overtime:update` 的 revision ≤ 当前值直接丢弃([overlays/overtime.js:51-56](../../../public/js/overlays/overtime.js#L51-L56))。
+- **加班机层**:`revision` 单调比较,`overtime:update` 的 revision ≤ 当前值直接丢弃；运行中按当前显示精度的下一秒/分钟/小时边界单次调度时钟，暂停、结束或页面隐藏时不保留时钟定时器([overlays/overtime.js](../../../public/js/overlays/overtime.js))。
 - **管理页**:同样做 `overtime.revision` 单调校验([state.js:59-65](../../../public/js/admin/state.js#L59-L65))。
 
 ### 3.3 断线重连与退避

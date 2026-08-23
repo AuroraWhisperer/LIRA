@@ -9,12 +9,14 @@ const OPENING_DEFAULTS = Object.freeze({
   name: '',
   footer: '欢迎来到直播间',
   quality: 'normal',
+  trackMotion: 'heart',
   showNotes: true,
   showEq: true,
   volume: 0.35
 });
 
 const QUALITY_VALUES = new Set(['high', 'normal', 'low']);
+const TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);
 const SETTINGS_ENDPOINT = '/api/' + 'settings';
 const OPENING_CONFIG_ENDPOINT = '/api/opening/config';
 const OPENING_AUDIO_ENDPOINT = '/api/opening/music';
@@ -22,6 +24,7 @@ const OPENING_AUDIO_ENDPOINT = '/api/opening/music';
 function readStartAnimationConfig(root = document) {
   const value = (id, fallback) => root.getElementById(id)?.value ?? fallback;
   const volume = Number(value('openingAudioVolume', String(Math.round(OPENING_DEFAULTS.volume * 100))));
+  const trackMotion = value('openingTrackMotion', OPENING_DEFAULTS.trackMotion);
   return {
     enabled: Boolean(root.getElementById('openingEnabled')?.checked),
     title: value('openingTitle', OPENING_DEFAULTS.title).trim(),
@@ -30,6 +33,7 @@ function readStartAnimationConfig(root = document) {
     footer: value('openingFooter', OPENING_DEFAULTS.footer).trim(),
     quality: QUALITY_VALUES.has(value('openingQuality', OPENING_DEFAULTS.quality))
       ? value('openingQuality', OPENING_DEFAULTS.quality) : OPENING_DEFAULTS.quality,
+    trackMotion: TRACK_MOTION_VALUES.has(trackMotion) ? trackMotion : OPENING_DEFAULTS.trackMotion,
     showNotes: Boolean(root.getElementById('openingShowNotes')?.checked),
     showEq: Boolean(root.getElementById('openingShowEq')?.checked),
     volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume / 100)) : OPENING_DEFAULTS.volume
@@ -45,6 +49,7 @@ function buildOpeningUrl(origin, config) {
   params.set('name', config.name);
   params.set('footer', config.footer || OPENING_DEFAULTS.footer);
   params.set('quality', QUALITY_VALUES.has(config.quality) ? config.quality : OPENING_DEFAULTS.quality);
+  params.set('trackMotion', TRACK_MOTION_VALUES.has(config.trackMotion) ? config.trackMotion : OPENING_DEFAULTS.trackMotion);
   params.set('showNotes', config.showNotes ? '1' : '0');
   params.set('showEq', config.showEq ? '1' : '0');
   params.set('volume', String(Number.isFinite(config.volume) ? config.volume : OPENING_DEFAULTS.volume));
@@ -65,6 +70,7 @@ function openingSettingsPayload(config) {
     openingName: config.name,
     openingFooter: config.footer,
     openingQuality: config.quality,
+    openingTrackMotion: config.trackMotion,
     openingShowNotes: config.showNotes ? 'true' : 'false',
     openingShowEq: config.showEq ? 'true' : 'false',
     openingAudioVolume: String(config.volume)
@@ -86,6 +92,7 @@ function setFormConfig(root, config) {
   setValue('openingName', config.name);
   setValue('openingFooter', config.footer === 'SINGING LIVE' ? OPENING_DEFAULTS.footer : config.footer);
   setValue('openingQuality', config.quality);
+  setValue('openingTrackMotion', TRACK_MOTION_VALUES.has(config.trackMotion) ? config.trackMotion : OPENING_DEFAULTS.trackMotion);
   setChecked('openingShowNotes', config.showNotes);
   setChecked('openingShowEq', config.showEq);
   setValue('openingAudioVolume', volumePercent(config.volume));

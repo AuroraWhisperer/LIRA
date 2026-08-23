@@ -27,6 +27,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawCanvas"/);
   assert.match(html, /id="drawScoreboard"/);
   assert.match(html, /id="drawCorrectFeed"/);
+  assert.match(html, /id="drawDanmakuFeed"[^>]+data-style="bubble"/);
   assert.match(html, /id="drawClearBtn"/);
   assert.match(html, /id="drawUndoBtn"/);
   assert.match(html, /id="drawPenBtn"[^>]+aria-label="画笔"/);
@@ -45,7 +46,8 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
-  assert.match(danmakuModule, /image\.src\s*=\s*String\(resolveAvatarUrl\(item\.avatarUrl\)/);
+  assert.match(danmakuModule, /const source = String\(resolveAvatarUrl\(item\.avatarUrl\)/);
+  assert.match(danmakuModule, /image\.src\s*=\s*source/);
   assert.match(script, /function scheduleDrawDanmakuRender\(/);
   assert.match(script, /function getDrawDanmakuRenderInterval\(/);
   assert.match(script, /drawDanmakuLastRenderDurationMs/);
@@ -87,6 +89,12 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(danmakuModule, /textContent/);
   assert.doesNotMatch(danmakuModule, /innerHTML/);
   assert.match(danmakuModule, /draw-danmaku-bubble/);
+  for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
+    assert.match(
+      styles,
+      new RegExp(`\\.draw-danmaku-feed\\[data-style='bubble'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`)
+    );
+  }
   assert.doesNotMatch(html, /draw-danmaku-header|弹幕画廊|>LIVE</);
   assert.doesNotMatch(script, /\$\{state\.category\}/);
   assert.match(styles, /\.game-stage-header\s*\{\s*display:\s*none;/);

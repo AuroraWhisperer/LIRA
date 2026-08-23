@@ -20,26 +20,50 @@
                   <div class="danmaku-section-heading">
                     <div>
                       <h3 id="danmakuStyleTitle">弹幕姬</h3>
-                      <p>直播画面使用的弹幕样式；你画我猜会调用同一套弹幕组件。</p>
+                      <p>独立接收直播间消息；将固定链接添加到 OBS 或直播姬浏览器源。</p>
                     </div>
-                    <span class="danmaku-style-chip">当前样式 · 气泡</span>
+                    <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 直播信号带</span>
                   </div>
-                  <div id="danmakuStylePreview" class="danmaku-style-preview" aria-label="弹幕样式预览">
-                    <div id="danmakuStyleFeed" class="draw-danmaku-feed" role="log" aria-live="polite"></div>
-                  </div>
-                  <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
-                    <div class="danmaku-section-heading">
-                      <div>
-                        <h3 id="danmakuComposeTitle">发送弹幕</h3>
-                        <p>发送内容和发送结果会保留在同一个操作区。</p>
-                      </div>
+                  <div class="danmaku-style-picker">
+                    <div class="danmaku-style-options" role="group" aria-label="选择弹幕姬样式">
+                      <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
+                        <span class="danmaku-style-option-visual is-bubble" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="danmaku-style-option-copy"><strong>聊天气泡</strong><small>轻松圆润，适合聊天互动</small></span>
+                      </button>
+                      <button class="danmaku-style-option" type="button" data-danmaku-style="signal" aria-pressed="true">
+                        <span class="danmaku-style-option-visual is-signal" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="danmaku-style-option-copy"><strong>直播信号带</strong><small>层次清晰，适合信息密集场景</small></span>
+                      </button>
+                      <button class="danmaku-style-option" type="button" data-danmaku-style="minimal" aria-pressed="false">
+                        <span class="danmaku-style-option-visual is-minimal" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="danmaku-style-option-copy"><strong>极简字幕</strong><small>低遮挡，适合游戏和演出画面</small></span>
+                      </button>
                     </div>
-                    <form id="danmakuSendForm" class="stack">
-                      <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                      <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">自动钓鱼/打劫</button><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
-                    </form>
-                    <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
-                  </section>
+                    <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite">选择后自动保存，已打开的弹幕姬会同步切换。</p>
+                  </div>
+                  <div class="danmaku-overlay-link">
+                    <label><span>固定网页链接</span><input id="danmakuOverlayUrl" type="text" readonly></label>
+                    <div class="danmaku-overlay-actions">
+                      <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button">复制链接</button>
+                      <button id="danmakuOpenOverlayBtn" class="secondary" type="button">打开网页</button>
+                    </div>
+                  </div>
+                  <div id="danmakuStylePreview" class="danmaku-style-preview" aria-label="弹幕姬网页预览">
+                    <iframe id="danmakuStylePreviewFrame" src="/danmaku?preview=1&amp;style=signal" title="弹幕姬样式预览" loading="lazy"></iframe>
+                  </div>
+                </section>
+                <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
+                  <div class="danmaku-section-heading">
+                    <div>
+                      <h3 id="danmakuComposeTitle">发送弹幕</h3>
+                      <p>手动发送只在这里操作，不另设网页地址。</p>
+                    </div>
+                  </div>
+                  <form id="danmakuSendForm" class="stack">
+                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
+                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">自动钓鱼/打劫</button><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
+                  </form>
+                  <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
                 </section>
                 <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuSongReplySectionTitle danmakuReplyTitle">
                   <div class="danmaku-section-heading">

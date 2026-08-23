@@ -3,7 +3,7 @@
 
 import { applyTheme, renderCherryRibbonQueue, renderClassicQueue, renderGoldenLilyQueue, renderIdentityQueue, renderNeonVinylQueue, renderStorybookQueue } from './queue-render.js';
 import { captureScrollAnimation, configureClassicVerticalScroll, configureIdentityVerticalScroll, originalQueueRowsHtml, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleScrollAnimationRestore } from './queue-scroll.js';
-import { isQueueViewportResized, markQueueViewportResized, syncIllustratedQueueViewport } from './queue-viewport.js';
+import { syncQueuePanelViewport } from './queue-viewport.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
@@ -25,26 +25,15 @@ let reconnectAttempts = 0;
 let stateRefreshTimer = null;
 let overlayResizeTimer = null;
 let lastRenderKey = null;
-let initialQueueViewportWidth = 0;
-let initialQueueViewportHeight = 0;
-
 document.addEventListener('DOMContentLoaded', () => {
-  initialQueueViewportWidth = window.innerWidth;
-  initialQueueViewportHeight = window.innerHeight;
   loadState();
   connectSocket();
   window.addEventListener('resize', handleQueueViewportResize);
 });
 
 function handleQueueViewportResize() {
-  const widthChanged = window.innerWidth !== initialQueueViewportWidth;
-  const heightChanged = window.innerHeight !== initialQueueViewportHeight;
-  if (!isQueueViewportResized() && !widthChanged && !heightChanged) return;
-
-  markQueueViewportResized();
-  document.body.classList.add('queue-viewport-resized');
   if (state) {
-    syncQueueViewport(normalizeQueueStyle((state.settings || {}).overlayQueueStyle));
+    syncQueueViewport();
   }
   clearTimeout(overlayResizeTimer);
   overlayResizeTimer = setTimeout(relayoutQueue, 100);
@@ -168,7 +157,6 @@ function render() {
   const settings = state.settings || {};
   const style = normalizeQueueStyle(settings.overlayQueueStyle);
   applyTheme(settings, style);
-  syncQueueViewport(style);
 
   const queue = state.queue || {};
   const current = queue.current;
@@ -178,23 +166,19 @@ function render() {
   const illustratedRenderer = ILLUSTRATED_QUEUE_RENDERERS[style];
   if (illustratedRenderer) {
     illustratedRenderer(settings, current, waiting, content);
-    scheduleScrollAnimationRestore(scrollState);
-    return;
-  }
-
-  if (style === 'identity') {
+  } else if (style === 'identity') {
     renderIdentityQueue(settings, current, waiting, content, state.superChats || []);
-    scheduleScrollAnimationRestore(scrollState);
-    return;
+  } else {
+    renderClassicQueue(settings, current, waiting, content);
   }
 
-  renderClassicQueue(settings, current, waiting, content);
+  syncQueueViewport();
   scheduleScrollAnimationRestore(scrollState);
 }
 
-function syncQueueViewport(style) {
+function syncQueueViewport() {
   const panel = document.querySelector('.overlay-panel');
-  return syncIllustratedQueueViewport(panel, ILLUSTRATED_QUEUE_STYLES.has(style));
+  return syncQueuePanelViewport(panel);
 }
 
 function relayoutQueue() {
@@ -208,7 +192,7 @@ function relayoutQueue() {
     const viewport = content.querySelector(`.${style}-list-window`);
     const list = viewport && viewport.querySelector(`.${style}-list`);
     const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS[style] ?? 8;
-    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), rowGap, true);
+    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), rowGap);
   } else if (style === 'identity') {
     const viewport = content.querySelector('.identity-list-window');
     const list = viewport && viewport.querySelector('.identity-list');
@@ -223,6 +207,7 @@ function relayoutQueue() {
   scheduleIdentitySuperChatScroll(content);
   scheduleIdentityRuleScroll(content);
   scheduleScrollAnimationRestore(scrollState);
+  syncQueueViewport();
 }
 
 export function normalizeQueueStyle(style) {

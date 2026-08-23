@@ -1,6 +1,6 @@
 # 弹幕监听管线:BilibiliDanmakuClient 与弹幕机器人
 
-> 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[danmaku/identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[checkin-service.js](../../../../src/bilibili/checkin-service.js)、[checkin-blessings.js](../../../../src/bilibili/checkin-blessings.js)、[fortune-service.js](../../../../src/bilibili/fortune-service.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[diagnostics/message-buffer.js](../../../../src/bilibili/diagnostics/message-buffer.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
+> 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/feed-buffer.js](../../../../src/bilibili/danmaku/feed-buffer.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[danmaku/identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[checkin-service.js](../../../../src/bilibili/checkin-service.js)、[checkin-blessings.js](../../../../src/bilibili/checkin-blessings.js)、[fortune-service.js](../../../../src/bilibili/fortune-service.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[diagnostics/message-buffer.js](../../../../src/bilibili/diagnostics/message-buffer.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
 
 本文档是 **Bilibili 弹幕监听管线与机器人行为**的唯一事实源:客户端回调契约、轮询器/缓存间隔、命令解析、签到/抽签/自定义回复、弹幕发送与诊断快照只在此成表。**服务端侧**的客户端生命周期(configure/reconnect/_replaceClientChain)归 [server-core.md](../server-core.md) §6 所有,本文只描述客户端内部行为。线协议(HTTP/WBI/WS/解析)见 [protocol.md](protocol.md),礼物入库见 [gift.md](gift.md)。
 
@@ -10,7 +10,7 @@
 
 | 回调 | 触发 | server.js 消费 |
 |---|---|---|
-| `onMessage(danmaku)` | 弹幕命令文本、SC 命令文本、历史轮询命令 | 先交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
+| `onMessage(danmaku)` | 每条实时弹幕、SC 命令文本、历史轮询命令 | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
 | `UserInfoService` 更新 | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知 |
 | `onSuperChat(superChat)` | 每条 SC 到达 | `superChats.add` 入库,成功则广播 `bilibili:superchat`([server.js:671-690](../../../../src/server.js#L671-L690),入库见 [gift.md](gift.md) §7) |
 | `onGift(gift)` | 解析有效的礼物事件 | `gifts.add` → 礼物检测管道([server.js:692-700](../../../../src/server.js#L692-L700),见 [gift.md](gift.md) §2) |
@@ -81,6 +81,12 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 **SC**(`handleSuperChat`,[message-handlers.js:115-176](../../../../src/bilibili/danmaku/message-handlers.js#L115-L176)):每条 SC 都先 `onSuperChat`(入库,见 [gift.md](gift.md) §7);若文本是命令,再过窗口 + 去重后二次 `onMessage(source:'superchat', isPinned: price>=2)`,命令拒绝仅发生在 `onMessage` 一路,不影响 SC 入账。
 
 **礼物**(`handleGift`,[message-handlers.js:178-238](../../../../src/bilibili/danmaku/message-handlers.js#L178-L238)):见 [protocol.md](protocol.md) §6.4-6.7,`onGift` 载荷即协议解析结果 + 身份缓存补全的 `uid/userName`([message-handlers.js:229-237](../../../../src/bilibili/danmaku/message-handlers.js#L229-L237))。
+
+### 4.1 实时弹幕流
+
+`createDanmakuFeedBuffer()` 只接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`，内存中最多保留最近 50 条。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
+
+每条新消息由 `server.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。头像和表情地址都只保留可信的 B 站 CDN HTTPS 地址，浏览器端统一通过现有 `/api/bilibili/avatar` 本地图片代理加载。
 
 ## 5. 命令解析与点歌桥接
 

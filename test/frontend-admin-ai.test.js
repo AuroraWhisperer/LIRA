@@ -64,32 +64,75 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.equal(importLines.at(-1), "import './app.js';");
 });
 
-test('parameter ranges use the shared sky-blue component without changing playback controls', async () => {
+test('parameter ranges use shared semantic variants without changing playback controls', async () => {
   const html = readAdminHtml();
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'components', 'parameter-range.css'), 'utf8');
-  const { getParameterRangeProgress } = await loadModuleExports(
+  const { getParameterRangeOrigin, getParameterRangeProgress } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'parameter-range.js')
   );
 
   assert.equal(getParameterRangeProgress({ min: '0', max: '100', value: '25' }), 25);
   assert.equal(getParameterRangeProgress({ min: '-3000', max: '3000', value: '0' }), 50);
-  for (const id of [
-    'queueScrollSpeedRange', 'queueSongFontSize', 'queueTitleFontSize',
-    'themeOpacity', 'backdropBlur', 'glowIntensity', 'identityQueueFontSize',
-    'identityQueueScrollSpeedRange', 'overlayRuleFontSize', 'scrollSecondsRange',
-    'songBoardFontSize', 'songBoardSongFontSize', 'songBoardTitleFontSize',
-    'songBoardBackdropBlur', 'songBoardGlowIntensity', 'songBoardThemeOpacity',
-    'desktopLyricFontSize', 'desktopLyricStrokeWidth', 'desktopLyricOpacity',
-    'desktopLyricBgOpacity', 'desktopLyricScale', 'desktopLyricLineHeight',
-    'desktopLyricShadowIntensity', 'desktopLyricTranslationScale', 'weSingLyricOffsetMs'
-  ]) {
-    assert.match(html, new RegExp(`id="${id}" class="parameter-range" type="range"`));
+  const origin = (input) => JSON.parse(JSON.stringify(getParameterRangeOrigin(input)));
+  assert.deepEqual(
+    origin({ min: '-20', max: '20', value: '-5' }),
+    { zeroProgress: 50, startProgress: 37.5, lengthProgress: 12.5, polarity: 'negative' }
+  );
+  assert.deepEqual(
+    origin({ min: '-20', max: '20', value: '10' }),
+    { zeroProgress: 50, startProgress: 50, lengthProgress: 25, polarity: 'positive' }
+  );
+  assert.deepEqual(
+    origin({ min: '-20', max: '20', value: '0' }),
+    { zeroProgress: 50, startProgress: 50, lengthProgress: 0, polarity: 'neutral' }
+  );
+
+  const expectedVariants = {
+    tempo: [
+      'queueScrollSpeedRange', 'identityQueueScrollSpeedRange', 'scrollSecondsRange'
+    ],
+    scale: [
+      'queueSongFontSize', 'queueTitleFontSize', 'identityQueueFontSize', 'overlayRuleFontSize',
+      'songBoardFontSize', 'songBoardSongFontSize', 'songBoardTitleFontSize',
+      'desktopLyricFontSize', 'desktopLyricLineHeight',
+      'desktopLyricStrokeWidth', 'desktopLyricShadowBlur', 'desktopLyricTranslationScale',
+      'desktopLyricScale', 'desktopLyricAlignPosition', 'desktopLyricPerspective'
+    ],
+    intensity: [
+      'themeOpacity', 'backdropBlur', 'glowIntensity', 'songBoardBackdropBlur',
+      'songBoardGlowIntensity', 'songBoardThemeOpacity', 'desktopLyricShadowIntensity',
+      'desktopLyricOpacity', 'desktopLyricBaseOpacity', 'desktopLyricTranslationOpacity',
+      'desktopLyricBgOpacity', 'desktopLyricGlobalOpacity', 'desktopLyricBrightness',
+      'desktopLyricContrast', 'desktopLyricSaturation'
+    ],
+    centered: [
+      'desktopLyricLetterSpacing', 'desktopLyricShadowOffsetX', 'desktopLyricShadowOffsetY',
+      'desktopLyricInterludeOffsetEm', 'desktopLyricTimeOffsetMs',
+      'desktopLyricTranslateX', 'desktopLyricTranslateY',
+      'desktopLyricRotateX', 'desktopLyricRotateY', 'weSingLyricOffsetMs'
+    ]
+  };
+  for (const [variant, ids] of Object.entries(expectedVariants)) {
+    assert.match(styles, new RegExp(`\\.parameter-range--${variant}\\[type="range"\\]`));
+    for (const id of ids) {
+      assert.match(
+        html,
+        new RegExp(`id="${id}" class="parameter-range parameter-range--${variant}" type="range"`)
+      );
+    }
   }
   assert.doesNotMatch(html, /id="playbackSeek" class="parameter-range"/);
   assert.doesNotMatch(html, /id="playbackVolume" class="[^\"]*parameter-range/);
   assert.match(styles, /\.parameter-range\[type="range"\]/);
-  assert.match(styles, /#43c7ff/);
-  assert.match(styles, /#bdebff/);
+  assert.match(styles, /--parameter-range-thumb-radius: 50%/);
+  assert.match(styles, /--parameter-range-thumb-radius: 6px/);
+  assert.match(styles, /--parameter-range-thumb-radius: 999px/);
+  assert.match(styles, /--parameter-range-thumb-height: 16px/);
+  assert.match(styles, /--parameter-range-thumb-height: 18px/);
+  assert.doesNotMatch(styles, /rotate\(|0 0 0 7px|radial-gradient\(circle at/);
+  for (const color of ['#e77f68', '#707bd9', '#38ad96', '#c97595']) {
+    assert.match(styles, new RegExp(color));
+  }
 });
 
 test('admin form refresh does not overwrite the field currently being edited', () => {
@@ -148,7 +191,7 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(libraries, /export function createCustomReplyEditor/);
 });
 
-test('danmaku tool groups the shared style, song reply, AI and fixed replies', () => {
+test('danmaku tool separates the fixed live overlay from the sender and reply groups', () => {
   const html = readAdminHtml();
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
@@ -158,16 +201,33 @@ test('danmaku tool groups the shared style, song reply, AI and fixed replies', (
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
   assert.match(connectionSection, /id="danmakuRefreshBtn"/);
   assert.match(html, /id="danmakuStyleTitle">弹幕姬</);
-  assert.match(html, /id="danmakuStyleFeed" class="draw-danmaku-feed"/);
+  assert.match(html, /id="danmakuOverlayUrl"/);
+  assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
+  assert.match(html, /id="danmakuOpenOverlayBtn"/);
+  assert.match(html, /data-danmaku-style="bubble"/);
+  assert.match(html, /data-danmaku-style="signal"[^>]+aria-pressed="true"/);
+  assert.match(html, /data-danmaku-style="minimal"/);
+  assert.match(html, /id="danmakuStylePreviewFrame"[^>]+src="\/danmaku\?preview=1&amp;style=signal"/);
+  const styleSectionStart = html.indexOf('class="danmaku-feature-section danmaku-style-section"');
+  const composeSectionStart = html.indexOf('class="danmaku-feature-section danmaku-compose-section"');
+  const styleSectionEnd = html.indexOf('</section>', styleSectionStart);
+  assert.ok(styleSectionStart >= 0 && styleSectionEnd < composeSectionStart);
   assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="danmakuSongReplySectionTitle"'));
   assert.ok(html.indexOf('id="danmakuSongReplySectionTitle"') < html.indexOf('id="xiaomiAiSection"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuFixedReplyTitle"'));
   assert.match(html, /id="danmakuFixedReplyTitle">固定回复</);
-  assert.match(source, /import \{ createDanmakuFeed \} from '\.\.\/overlays\/danmaku-feed\.js';/);
-  assert.match(source, /createDanmakuFeed\(elements\.styleFeed/);
-  assert.match(source, /stylePreview\.render\(\[/);
+  assert.doesNotMatch(source, /createDanmakuFeed/);
+  assert.match(source, /localOverlayOrigin/);
+  assert.match(source, /copyText/);
+  assert.match(source, /`\$\{localOverlayOrigin\(\)\}\/danmaku`/);
+  assert.match(source, /app:settings-state/);
+  assert.match(source, /danmakuOverlayStyle/);
+  assert.match(source, /saveSetting\('danmakuOverlayStyle'/);
+  assert.match(source, /\?preview=1&style=/);
+  assert.match(styles, /\.danmaku-style-options/);
+  assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
   assert.match(styles, /\.danmaku-style-preview/);
-  assert.match(styles, /\.danmaku-style-preview \.draw-danmaku-item/);
+  assert.doesNotMatch(styles, /\.danmaku-style-preview \.draw-danmaku-item/);
 });
 
 test('admin danmaku status prefers account and room display names', () => {

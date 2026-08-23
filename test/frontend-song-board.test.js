@@ -232,7 +232,7 @@ test('song display board keeps one viewport above and one and a half below', asy
 
 test('song board scroll speed stays constant as content grows', async () => {
   const adminHtml = readAdminHtml();
-  assert.match(adminHtml, /id="scrollSecondsRange" class="parameter-range" type="range" min="1" max="100"/);
+  assert.match(adminHtml, /id="scrollSecondsRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100"/);
   assert.match(adminHtml, /id="scrollSeconds" type="number" min="1" max="100"/);
   const songModule = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),

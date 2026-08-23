@@ -231,10 +231,12 @@ while (offset + 16 <= buffer.length):
 info[1]           → 弹幕文本
 info[2][0]/[2][1] → uid / userName
 info[3]           → 粉丝牌数组 (数组或对象)
-info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 user 对象
+info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 user、emoticon、emots、extra
 ```
 
 发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段经 `UserInfoService` 按 uid 合并。解析器只产出 hint，不访问 cache、profile provider 或头像代理。
+
+弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 从 `danmakuOptions` 及其 JSON `extra` 中归一化：`emoticon` 表示整条表情，`emots` 表示正文中的行内表情映射。输出为 `{text,url,width,height}` 数组，触发文本去重；图片地址只接受 B 站 `*.hdslb.com`，并把可信的 HTTP 地址升级为 HTTPS。
 
 用户元数据(勋章/大航海)由 `extractBilibiliDanmakuUserMeta`([user-meta-extractor.js:38-60](../../../../src/bilibili/utils/user-meta-extractor.js#L38-L60))提取:
 
@@ -244,7 +246,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 - 提取器同时保留匹配的 `targetUid` 供门面校验；旧元数据返回对象中的该值为非枚举兼容属性，不改变既有消息字段形状。
 - `normalizeGuardLevel` 只接受 `1/2/3`([utils.js:73-76](../../../../src/shared/utils.js#L73-L76))。
 
-弹幕产出的 `onMessage` 载荷(含 `source:'danmaku'`、`messageTimestamp`、`connectionGeneration/connectionAttempt`、归一化 cmd)见 [message-handlers.js:100-112](../../../../src/bilibili/danmaku/message-handlers.js#L100-L112),消费方是 [danmaku.md](danmaku.md) §5 的点歌/机器人管线。
+弹幕产出的 `onMessage` 载荷(含 `source:'danmaku'`、`messageTimestamp`、`connectionGeneration/connectionAttempt`、归一化 cmd 和可选 `emotes`)见 [message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js),消费方是 [danmaku.md](danmaku.md) §4 的实时弹幕流及 §5 的点歌/机器人管线。
 
 ### 6.2 醒目留言(SUPER_CHAT_MESSAGE)
 

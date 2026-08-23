@@ -175,6 +175,22 @@ body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-
 .draw-danmaku-item[data-tone='1'] { --bubble-accent: #cfc7ff; --bubble-tail: rgba(109,93,224,.38); background: linear-gradient(135deg, rgba(109,93,224,.28), rgba(255,255,255,.055)); }
 .draw-danmaku-item[data-tone='2'] { --bubble-accent: #a9f5d8; --bubble-tail: rgba(25,157,151,.34); background: linear-gradient(135deg, rgba(25,157,151,.22), rgba(255,255,255,.055)); }
 .draw-danmaku-item[data-tone='3'] { --bubble-accent: #ffc3a4; --bubble-tail: rgba(219,125,75,.34); background: linear-gradient(135deg, rgba(219,125,75,.22), rgba(255,255,255,.055)); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='viewer'] { --bubble-accent: #a9f5d8; --bubble-tail: rgba(25,157,151,.3); --bubble-role: '○'; }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] { --bubble-accent: #cfc7ff; --bubble-tail: rgba(109,93,224,.36); --bubble-role: '♥'; }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] { --bubble-accent: #8edfff; --bubble-tail: rgba(43,145,190,.36); --bubble-role: '◆'; }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] { --bubble-accent: #e5adff; --bubble-tail: rgba(151,77,183,.38); --bubble-role: '✦'; }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] { --bubble-accent: #ffd982; --bubble-tail: rgba(174,112,25,.4); --bubble-role: '♛'; }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity] {
+  padding-right: 25px;
+  border-color: color-mix(in srgb, var(--bubble-accent) 34%, rgba(255,255,255,.12));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bubble-accent) 23%, transparent), rgba(255,255,255,.055));
+}
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity]::before { top: 7px; right: 9px; color: var(--bubble-accent); content: var(--bubble-role); font: 800 10px/1 Georgia, serif; opacity: .9; }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='viewer'] { box-shadow: 0 8px 18px rgba(7,6,20,.18), inset 0 1px rgba(255,255,255,.08); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] { box-shadow: 0 9px 20px rgba(74,55,145,.2), inset 0 1px rgba(255,255,255,.09); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] { box-shadow: 0 9px 20px rgba(31,117,155,.21), inset 0 1px rgba(255,255,255,.1); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] { box-shadow: 0 10px 22px rgba(124,58,153,.23), inset 0 1px rgba(255,255,255,.1); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] { box-shadow: 0 11px 24px rgba(145,91,18,.25), inset 0 1px rgba(255,255,255,.11); }
 .draw-danmaku-item:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(7,6,20,.22), 0 0 0 2px color-mix(in srgb, var(--bubble-accent) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.1); }
 .draw-danmaku-avatar { display: grid; place-items: center; width: 30px; height: 30px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--bubble-accent) 54%, rgba(255,255,255,.28)); border-radius: 12px 12px 12px 6px; color: #fff9df; background: linear-gradient(145deg, color-mix(in srgb, var(--bubble-accent) 62%, transparent), rgba(128,116,232,.52)); font-size: 12px; font-weight: 800; }
 .draw-danmaku-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -183,7 +199,13 @@ body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-
 .draw-danmaku-badge { flex: 0 0 auto; max-width: 84px; overflow: hidden; padding: 1px 4px; border: 1px solid; border-radius: 999px; font: 800 8px/1.35 Consolas, 'Microsoft YaHei', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .draw-danmaku-guard { border-color: rgba(255,200,87,.72); color: #fff2a8; background: rgba(133,90,15,.52); }
 .draw-danmaku-medal { border-color: rgba(147,136,255,.62); color: #ddd8ff; background: rgba(80,66,157,.52); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] .draw-danmaku-medal { border-color: rgba(207,199,255,.76); color: #f0edff; background: rgba(94,75,182,.5); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] .draw-danmaku-guard { border-color: rgba(142,223,255,.76); color: #e7f9ff; background: rgba(36,126,165,.52); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] .draw-danmaku-guard { border-color: rgba(229,173,255,.78); color: #f9ebff; background: rgba(123,57,151,.54); }
+.draw-danmaku-feed[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] .draw-danmaku-guard { border-color: rgba(255,217,130,.82); color: #fff5da; background: rgba(139,86,13,.58); }
 .draw-danmaku-body p { margin: 3px 0 0; color: #f8f5ff; font-size: clamp(11px, .85vw, 14px); line-height: 1.42; overflow-wrap: anywhere; word-break: break-word; }
+.draw-danmaku-emote { display: inline-block; width: auto; height: 1.75em; margin: -.25em .08em; aspect-ratio: var(--danmaku-emote-ratio, auto); object-fit: contain; vertical-align: middle; }
+.draw-danmaku-item.is-emote-only .draw-danmaku-emote { height: 3em; margin: 0; }
 .draw-danmaku-empty { width: 100%; padding: 22px 8px; color: var(--muted); font-size: 11px; text-align: center; }
 @keyframes danmakuBubbleIn { from { opacity: 0; transform: translateY(7px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 body[data-game='draw-guess'] .draw-undo-button, body[data-game='draw-guess'] .draw-clear-button { padding: 5px 8px; }

@@ -26,6 +26,7 @@ const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
 const giftFrameModule = require('./bilibili/gift/frame-config');
+const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
 const { createGameSessionService } = require('./games/game-session-service');
 const { createWheelSessionService } = require('./games/wheel-session-service');
 
@@ -83,6 +84,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let bilibiliDiagnostics = null;
   let messageBuffer = null;
   let danmakuSender = null;
+  let danmakuFeedBuffer = null;
   let aiRuntime = null;
   let gameSessionService = null;
   let wheelSessionService = null;
@@ -110,6 +112,7 @@ function createServerRuntime(runtimeOptions = {}) {
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb, settingsStoreModule);
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
+      danmakuFeedBuffer = createDanmakuFeedBuffer();
       gameSessionService = createGameSessionService({
         broadcast: payload => webSocketHub.broadcast(payload)
       });
@@ -150,6 +153,7 @@ function createServerRuntime(runtimeOptions = {}) {
         settingsStore,
         domainServices,
         broadcastSnapshot,
+        setActiveDanmakuRoom: roomId => danmakuFeedBuffer.setRoom(roomId),
         buildClient(roomId, context) {
           return buildBilibiliClient(roomId, {
             ...context,
@@ -157,6 +161,12 @@ function createServerRuntime(runtimeOptions = {}) {
             domainServices,
             aiAssistant: aiRuntime.service,
             broadcastSnapshot,
+            publishDanmaku(danmaku) {
+              const item = danmakuFeedBuffer.push(danmaku);
+              if (item && webSocketHub) {
+                webSocketHub.broadcast({ type: 'danmaku:message', item }, { topic: 'danmaku' });
+              }
+            },
             logGiftDelivery,
             games: gameSessionService
           });
@@ -409,6 +419,7 @@ function createServerRuntime(runtimeOptions = {}) {
         console.log(`Songs overlay: ${baseUrl}/songlist`);
         console.log(`Blindbox overlay: ${baseUrl}/blindbox`);
         console.log(`Overtime overlay: ${baseUrl}/overtime`);
+        console.log(`Danmaku overlay: ${baseUrl}/danmaku`);
         openAdminPageIfNeeded(baseUrl);
         bilibiliRuntime.reconnect().catch((error) => {
           console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
@@ -454,7 +465,8 @@ function createServerRuntime(runtimeOptions = {}) {
       bilibiliDiagnostics,
       lyricState: musicRuntime.getLyricState(),
       lyricTimeline: musicRuntime.getLyricTimeline(),
-      weSing: musicRuntime.weSingCapture.getStatus()
+      weSing: musicRuntime.weSingCapture.getStatus(),
+      danmakuFeed: danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : []
     };
   }
 
@@ -548,6 +560,7 @@ function createServerRuntime(runtimeOptions = {}) {
     bilibiliDiagnostics = null;
     messageBuffer = null;
     danmakuSender = null;
+    danmakuFeedBuffer = null;
     aiRuntime = null;
     gameSessionService = null;
     wheelSessionService = null;

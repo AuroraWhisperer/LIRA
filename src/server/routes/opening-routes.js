@@ -5,6 +5,10 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { readRawBody, sendJson } = require('../http-utils');
+const {
+  DEFAULT_OPENING_TRACK_MOTION,
+  normalizeOpeningTrackMotion
+} = require('../opening-contract');
 
 const prefixes = ['/api/opening'];
 const OPENING_MUSIC_DIR_NAME = 'opening-music';
@@ -65,6 +69,7 @@ function getOpeningConfig(context) {
     name: cleanText(settings.openingName, MAX_TEXT_LENGTHS.name),
     footer: footer && footer !== 'SINGING LIVE' ? footer : '欢迎来到直播间',
     quality: QUALITY_VALUES.has(settings.openingQuality) ? settings.openingQuality : 'normal',
+    trackMotion: normalizeOpeningTrackMotion(settings.openingTrackMotion) || DEFAULT_OPENING_TRACK_MOTION,
     showNotes: parseBoolean(settings.openingShowNotes, true),
     showEq: parseBoolean(settings.openingShowEq, true),
     audio: 'browser',

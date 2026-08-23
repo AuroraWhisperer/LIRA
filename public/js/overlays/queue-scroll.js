@@ -2,7 +2,6 @@
 'use strict';
 
 import { bounceScrollTiming, overlayLowPowerEnabled, queueScrollSeconds, scrollTravelSeconds } from './queue-utils.js';
-import { isQueueViewportResized } from './queue-viewport.js';
 
 export function captureScrollAnimation() {
   const list = document.querySelector('.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce');
@@ -78,17 +77,6 @@ export function scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGa
 }
 
 export function configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap = 5) {
-  const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
-  const documentHeight = document.documentElement ? document.documentElement.clientHeight : 0;
-  const viewportHeight = Number(windowHeight || documentHeight) || Math.max(1, viewport.clientHeight);
-  const viewportTop = Math.max(0, viewport.getBoundingClientRect().top);
-  const edge = Math.min(16, Math.max(0, viewportHeight * 0.02));
-  const availableHeight = Math.max(1, Math.floor(viewportHeight - viewportTop - edge));
-  if (viewport.style) {
-    viewport.style.height = isQueueViewportResized() ? '' : `${Math.min(235, availableHeight)}px`;
-    viewport.style.maxHeight = `${availableHeight}px`;
-  }
-
   removeQueueLoopClones(list);
   if (typeof list.getAnimations === 'function') {
     list.getAnimations().forEach((animation) => animation.cancel());
@@ -146,7 +134,7 @@ export function scheduleIllustratedVerticalScroll(content, settings, rowsHtml, r
   const list = viewport && viewport.querySelector(`.${style}-list`);
   if (!viewport || !list) return;
 
-  const setup = () => configureIdentityVerticalScroll(viewport, list, settings, rowsHtml, rowGap, true);
+  const setup = () => configureIdentityVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(setup);
   } else {
@@ -154,30 +142,13 @@ export function scheduleIllustratedVerticalScroll(content, settings, rowsHtml, r
   }
 }
 
-export function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4, preserveViewportHeight = false) {
-  const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
-  const documentHeight = document.documentElement ? document.documentElement.clientHeight : 0;
-  const sourceHeight = Number(windowHeight || documentHeight) || Math.max(1, viewport.clientHeight);
-  const viewportTop = typeof viewport.getBoundingClientRect === 'function'
-    ? Math.max(0, viewport.getBoundingClientRect().top)
-    : 0;
-  const footer = viewport.parentElement && viewport.parentElement.querySelector('.identity-footer');
-  const footerHeight = footer ? footer.getBoundingClientRect().height + 4 : 0;
-  const edge = Math.min(16, Math.max(0, sourceHeight * 0.02));
-  const availableHeight = Math.max(1, Math.floor(sourceHeight - viewportTop - footerHeight - edge));
+export function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4) {
   removeQueueLoopClones(list);
   if (typeof list.getAnimations === 'function') {
     list.getAnimations().forEach((animation) => animation.cancel());
   }
   resetQueueScrollClasses(list);
   const contentHeight = Math.max(1, Math.ceil(list.scrollHeight));
-  if (viewport.style && !preserveViewportHeight) {
-    const targetHeight = isQueueViewportResized()
-      ? Math.min(contentHeight, availableHeight)
-      : Math.min(364, availableHeight);
-    viewport.style.height = `${targetHeight}px`;
-    viewport.style.maxHeight = `${availableHeight}px`;
-  }
   const viewportHeight = Math.max(1, viewport.clientHeight);
   const overflowDistance = Math.max(0, Math.ceil(contentHeight - viewportHeight));
   if (overflowDistance <= 1) return false;
@@ -239,13 +210,16 @@ export function scheduleIdentitySuperChatScroll(content) {
 
 export function scheduleIdentityContentScroll(content) {
   const setup = () => {
-    if (prefersReducedMotion()) return;
+    const reducedMotion = prefersReducedMotion();
 
     content.querySelectorAll('.identity-content-wrapper, .storybook-info-viewport').forEach((container) => {
       const text = container.querySelector('.identity-content, .storybook-info');
       cancelElementAnimations(text);
       const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
-      if (!text || distance <= 1 || typeof text.animate !== 'function') return;
+      if (container.classList && typeof container.classList.toggle === 'function') {
+        container.classList.toggle('has-horizontal-overflow', distance > 1);
+      }
+      if (!text || distance <= 1 || reducedMotion || typeof text.animate !== 'function') return;
 
       const travelSeconds = Math.max(3, distance / 30);
       const pauseSeconds = 1;

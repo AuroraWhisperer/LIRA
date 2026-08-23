@@ -71,7 +71,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 [src/server/api-routes.js](../../../src/server/api-routes.js) 无状态:业务状态全部通过 context 注入。
 
 - **15 个路由模块**按 `ROUTE_MODULES` 数组顺序前缀匹配(完整端点清单见 [api.md](api.md))。
-- **Token 校验**:除 `PUBLIC_API_PATHS = {'/api/health'}` 外全部要求 Bearer 头或 `?token=` 查询参数,失败回 401(`verifyToken`,[http-utils.js:46-54](../../../src/server/http-utils.js#L46-L54))。
+- **Token 校验**:除 `PUBLIC_API_PATHS = {'/api/health', '/api/opening/config'}` 外全部要求 Bearer 头或 `?token=` 查询参数,失败回 401(`verifyToken`,[http-utils.js:46-54](../../../src/server/http-utils.js#L46-L54))。
 - **405 与 404 区分**:`findRoute` 在模块前缀命中但方法不匹配时标记 `pathExists` → 405;否则 404。
 - **请求体惰性读取**:`createBodyReader` 只在 handler 真正调用时读一次 JSON([api-routes.js:42-47](../../../src/server/api-routes.js#L42-L47)),上限 `MAX_BODY_BYTES = 16 MB`([server.js:35](../../../src/server.js#L35)),超限/非法 JSON 在 `readJsonBody` 中拒绝。
 - 顶层异常兜底:500 + `{ok:false, error}`。
@@ -143,9 +143,9 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 ## 7. 会话令牌(Session Token)
 
 - 每次启动随机生成 UUID,落盘 `data/.session-token`(0600);关闭时删除。
-- 所有 `/api/*`(除 `/api/health`)与 `/ws` 连接要求该令牌(Bearer 头或 `?token=` 查询参数)。
+- 所有 `/api/*`(除 `/api/health` 与只读 `/api/opening/config`)与 `/ws` 连接要求该令牌(Bearer 头或 `?token=` 查询参数)。
 - 前端页面通过 HTML 注入获得令牌(见 §4.3 与 [frontend/comms.md](../frontend/comms.md))。
-- `/api/health` 公开;ready 阶段返回 `serviceId/rootDir/dataDir/5 个数据库路径/schemaVersions/desktop/pid/liveStatus`。starting/quiescing 阶段返回最小 `serviceId/rootDir/dataDir/pid/phase`,供旧实例识别且不触碰未就绪或已关闭的数据库。
+- `/api/health` 与只读 `/api/opening/config` 公开；健康检查在 ready 阶段返回 `serviceId/rootDir/dataDir/5 个数据库路径/schemaVersions/desktop/pid/liveStatus`。starting/quiescing 阶段返回最小 `serviceId/rootDir/dataDir/pid/phase`,供旧实例识别且不触碰未就绪或已关闭的数据库。
 
 ## 8. 系统指标
 

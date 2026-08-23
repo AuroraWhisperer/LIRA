@@ -5,7 +5,7 @@
   position: relative;
   width: 560px;
   aspect-ratio: 2 / 3;
-  transform: scale(var(--illustrated-queue-scale, 1));
+  transform: scale(var(--queue-panel-scale, 1));
   transform-origin: top left;
   overflow: hidden;
   border: 0;
@@ -111,6 +111,14 @@
   gap: max(7px, 0.5em);
   white-space: nowrap;
   will-change: transform;
+}
+
+.identity-content-wrapper.has-horizontal-overflow {
+  justify-content: flex-start;
+}
+
+.identity-content-wrapper.has-horizontal-overflow > .identity-content {
+  margin-inline: 0;
 }
 
 .illustrated-field {

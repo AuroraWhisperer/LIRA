@@ -1,13 +1,11 @@
 .queue-identity {
-  width: min(430px, calc(100vw - (2 * var(--overlay-edge))));
+  width: 430px;
+  transform: scale(var(--queue-panel-scale, 1));
+  transform-origin: top left;
   border: 1px solid rgba(225, 235, 255, 0.08);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.04);
   box-shadow: none;
-}
-
-.overlay-body.queue-viewport-resized .queue-identity {
-  width: calc(100vw - (2 * var(--overlay-edge)));
 }
 
 .queue-identity.gradient-bg {
@@ -27,14 +25,9 @@
 }
 
 .identity-list-window {
-  height: min(364px, calc(100vh - (2 * var(--overlay-edge))));
-  max-height: calc(100vh - (2 * var(--overlay-edge)));
-  max-height: calc(100dvh - (2 * var(--overlay-edge)));
+  height: 364px;
+  max-height: 364px;
   overflow: hidden;
-}
-
-.overlay-body.queue-viewport-resized .identity-list-window {
-  height: auto;
 }
 
 .identity-sc-list {

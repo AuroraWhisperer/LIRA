@@ -1,14 +1,28 @@
 /* 参数调节滑块：只对显式标记为 parameter-range 的控件生效。 */
 input.parameter-range[type="range"] {
   --parameter-range-thumb-size: 18px;
+  --parameter-range-thumb-height: var(--parameter-range-thumb-size);
   --parameter-range-track-height: 6px;
   --parameter-range-track-inset: 9px;
   --parameter-range-track-length: calc(100% - 18px);
   --parameter-range-fill-length: 0px;
+  --parameter-range-origin-start: 9px;
+  --parameter-range-origin-length: 0px;
+  --parameter-range-zero-position: 9px;
   --parameter-range-track: color-mix(in srgb, var(--border, #b9c9d9) 76%, #ffffff);
-  --parameter-range-start: #43c7ff;
-  --parameter-range-mid: #61b4ff;
-  --parameter-range-end: #bdebff;
+  --parameter-range-start: #45afe0;
+  --parameter-range-mid: #45afe0;
+  --parameter-range-end: #76c6e8;
+  --parameter-range-fill-background: linear-gradient(90deg, var(--parameter-range-start), var(--parameter-range-mid) 62%, var(--parameter-range-end));
+  --parameter-range-track-background: linear-gradient(var(--parameter-range-track), var(--parameter-range-track));
+  --parameter-range-thumb-background: #45afe0;
+  --parameter-range-thumb-border: 2px solid #ffffff;
+  --parameter-range-thumb-radius: 50%;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(31, 116, 157, 0.28);
+  --parameter-range-thumb-transform: none;
+  --parameter-range-thumb-hover-transform: scale(1.04);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(31, 116, 157, 0.32);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(31, 116, 157, 0.3), 0 0 0 3px rgba(69, 175, 224, 0.28);
   width: 100%;
   height: 28px;
   margin: 0;
@@ -17,9 +31,9 @@ input.parameter-range[type="range"] {
   appearance: none;
   -webkit-appearance: none;
   background:
-    linear-gradient(90deg, var(--parameter-range-start), var(--parameter-range-mid) 62%, var(--parameter-range-end))
+    var(--parameter-range-fill-background)
       var(--parameter-range-track-inset) center / var(--parameter-range-fill-length) var(--parameter-range-track-height) no-repeat,
-    linear-gradient(var(--parameter-range-track), var(--parameter-range-track))
+    var(--parameter-range-track-background)
       var(--parameter-range-track-inset) center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
   border: 0;
   border-radius: 999px;
@@ -42,53 +56,141 @@ input.parameter-range[type="range"]::-moz-range-track {
 
 input.parameter-range[type="range"]::-webkit-slider-thumb {
   width: var(--parameter-range-thumb-size);
-  height: var(--parameter-range-thumb-size);
-  margin-top: calc((var(--parameter-range-track-height) - var(--parameter-range-thumb-size)) / 2);
+  height: var(--parameter-range-thumb-height);
+  margin-top: calc((var(--parameter-range-track-height) - var(--parameter-range-thumb-height)) / 2);
   appearance: none;
   -webkit-appearance: none;
-  background:
-    radial-gradient(circle at 31% 25%, rgba(255, 255, 255, 0.96) 0 11%, transparent 30%),
-    linear-gradient(145deg, #d7f6ff 2%, #64c9f8 45%, #249eea 100%);
-  border: 2px solid rgba(255, 255, 255, 0.94);
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.32), 0 0 0 1px rgba(31, 151, 220, 0.18);
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  background: var(--parameter-range-thumb-background);
+  border: var(--parameter-range-thumb-border);
+  border-radius: var(--parameter-range-thumb-radius);
+  box-shadow: var(--parameter-range-thumb-shadow);
+  transform: var(--parameter-range-thumb-transform);
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 input.parameter-range[type="range"]::-moz-range-thumb {
-  width: calc(var(--parameter-range-thumb-size) - 4px);
-  height: calc(var(--parameter-range-thumb-size) - 4px);
-  background:
-    radial-gradient(circle at 31% 25%, rgba(255, 255, 255, 0.96) 0 11%, transparent 30%),
-    linear-gradient(145deg, #d7f6ff 2%, #64c9f8 45%, #249eea 100%);
-  border: 2px solid rgba(255, 255, 255, 0.94);
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.32), 0 0 0 1px rgba(31, 151, 220, 0.18);
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  width: var(--parameter-range-thumb-size);
+  height: var(--parameter-range-thumb-height);
+  background: var(--parameter-range-thumb-background);
+  border: var(--parameter-range-thumb-border);
+  border-radius: var(--parameter-range-thumb-radius);
+  box-shadow: var(--parameter-range-thumb-shadow);
+  transform: var(--parameter-range-thumb-transform);
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 input.parameter-range[type="range"]:hover::-webkit-slider-thumb {
-  box-shadow: 0 3px 9px rgba(20, 132, 199, 0.4), 0 0 0 4px rgba(104, 205, 248, 0.18);
-  transform: scale(1.08);
+  box-shadow: var(--parameter-range-thumb-hover-shadow);
+  transform: var(--parameter-range-thumb-hover-transform);
 }
 
 input.parameter-range[type="range"]:hover::-moz-range-thumb {
-  box-shadow: 0 3px 9px rgba(20, 132, 199, 0.4), 0 0 0 4px rgba(104, 205, 248, 0.18);
-  transform: scale(1.08);
+  box-shadow: var(--parameter-range-thumb-hover-shadow);
+  transform: var(--parameter-range-thumb-hover-transform);
 }
 
 input.parameter-range[type="range"]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.36), 0 0 0 4px rgba(255, 255, 255, 0.92), 0 0 0 7px rgba(52, 168, 229, 0.5);
+  box-shadow: var(--parameter-range-thumb-focus-shadow);
 }
 
 input.parameter-range[type="range"]:focus-visible::-moz-range-thumb {
-  box-shadow: 0 2px 6px rgba(20, 132, 199, 0.36), 0 0 0 4px rgba(255, 255, 255, 0.92), 0 0 0 7px rgba(52, 168, 229, 0.5);
+  box-shadow: var(--parameter-range-thumb-focus-shadow);
+}
+
+/* 节奏：用于滚动速度等动态频率，珊瑚色分段轨道与小圆角方块像一条轻量节拍尺。 */
+input.parameter-range--tempo[type="range"] {
+  --parameter-range-thumb-size: 18px;
+  --parameter-range-track-height: 6px;
+  --parameter-range-track: #eadfd5;
+  --parameter-range-start: #e77f68;
+  --parameter-range-mid: #e77f68;
+  --parameter-range-end: #efa06f;
+  --parameter-range-track-background: repeating-linear-gradient(90deg, #e8ddd5 0 28px, #fffaf6 28px 31px);
+  --parameter-range-thumb-background: #e77f68;
+  --parameter-range-thumb-border: 2px solid #fffaf6;
+  --parameter-range-thumb-radius: 6px;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(153, 74, 50, 0.26);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(153, 74, 50, 0.31);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(153, 74, 50, 0.28), 0 0 0 3px rgba(231, 127, 104, 0.25);
+}
+
+/* 尺度：用于字号、间距和尺寸，细刻度与小号圆环强调精确调节。 */
+input.parameter-range--scale[type="range"] {
+  --parameter-range-thumb-size: 16px;
+  --parameter-range-track-height: 4px;
+  --parameter-range-track: #dcd9e8;
+  --parameter-range-start: #707bd9;
+  --parameter-range-mid: #707bd9;
+  --parameter-range-end: #9389dc;
+  --parameter-range-track-background: repeating-linear-gradient(90deg, #dedbe9 0 9%, #bfb8d4 9% 10%);
+  --parameter-range-thumb-background: radial-gradient(circle, #f8f7fb 0 3px, #707bd9 3.5px);
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(72, 68, 137, 0.25);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(72, 68, 137, 0.3);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(72, 68, 137, 0.27), 0 0 0 3px rgba(112, 123, 217, 0.24);
+}
+
+/* 强度：用于透明度和视觉效果，较宽轨道与短胶囊代表作用量。 */
+input.parameter-range--intensity[type="range"] {
+  --parameter-range-thumb-size: 20px;
+  --parameter-range-thumb-height: 16px;
+  --parameter-range-track-height: 7px;
+  --parameter-range-track: #dce9e5;
+  --parameter-range-start: #38ad96;
+  --parameter-range-mid: #38ad96;
+  --parameter-range-end: #75cbb8;
+  --parameter-range-thumb-background: #38ad96;
+  --parameter-range-thumb-border: 2px solid #ffffff;
+  --parameter-range-thumb-radius: 999px;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(34, 118, 101, 0.25);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(34, 118, 101, 0.3);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(34, 118, 101, 0.27), 0 0 0 3px rgba(56, 173, 150, 0.24);
+}
+
+/* 中心轴：用于正负偏移，从零点向当前值延伸，以纵向椭圆和颜色辅助辨向。 */
+input.parameter-range--centered[type="range"] {
+  --parameter-range-thumb-size: 14px;
+  --parameter-range-thumb-height: 18px;
+  --parameter-range-track-height: 4px;
+  --parameter-range-track: #dddbe6;
+  --parameter-range-origin-start-color: #a49bd8;
+  --parameter-range-origin-end-color: #776bc5;
+  --parameter-range-zero-marker: #817c91;
+  --parameter-range-thumb-background: #776bc5;
+  --parameter-range-thumb-radius: 999px;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(76, 64, 143, 0.25);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(76, 64, 143, 0.3);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(76, 64, 143, 0.27), 0 0 0 3px rgba(119, 107, 197, 0.24);
+  background:
+    linear-gradient(90deg, var(--parameter-range-origin-start-color), var(--parameter-range-origin-end-color))
+      var(--parameter-range-origin-start) center / var(--parameter-range-origin-length) var(--parameter-range-track-height) no-repeat,
+    linear-gradient(var(--parameter-range-zero-marker), var(--parameter-range-zero-marker))
+      calc(var(--parameter-range-zero-position) - 1px) center / 2px 10px no-repeat,
+    linear-gradient(var(--parameter-range-track), var(--parameter-range-track))
+      var(--parameter-range-track-inset) center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
+}
+
+input.parameter-range--centered[type="range"][data-range-polarity="negative"] {
+  --parameter-range-origin-start-color: #c97595;
+  --parameter-range-origin-end-color: #e49ab0;
+  --parameter-range-thumb-background: #c97595;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(132, 58, 87, 0.24);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(132, 58, 87, 0.29);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(132, 58, 87, 0.26), 0 0 0 3px rgba(201, 117, 149, 0.23);
+}
+
+input.parameter-range--centered[type="range"][data-range-polarity="neutral"] {
+  --parameter-range-thumb-background: #918d9d;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(72, 68, 83, 0.22);
+  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(72, 68, 83, 0.27);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(72, 68, 83, 0.24), 0 0 0 3px rgba(145, 141, 157, 0.22);
 }
 
 input.parameter-range[type="range"]:disabled {
   --parameter-range-start: #a8c9d9;
+  --parameter-range-mid: #a8c9d9;
   --parameter-range-end: #d8edf6;
   --parameter-range-track: #dbe5ea;
+  --parameter-range-thumb-background: #9fb3bd;
   cursor: not-allowed;
   opacity: 0.68;
 }
@@ -99,6 +201,11 @@ input.parameter-range[type="range"]:disabled::-webkit-slider-thumb {
 
 input.parameter-range[type="range"]:disabled::-moz-range-thumb {
   box-shadow: 0 1px 3px rgba(89, 123, 142, 0.22);
+}
+
+input.parameter-range[type="range"]:disabled:hover::-webkit-slider-thumb,
+input.parameter-range[type="range"]:disabled:hover::-moz-range-thumb {
+  transform: var(--parameter-range-thumb-transform);
 }
 
 @media (prefers-reduced-motion: reduce) {

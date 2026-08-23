@@ -143,6 +143,38 @@ test('desktop lyric settings use Chinese-only section headings', () => {
   assert.doesNotMatch(styles, /desktop-lyric-preview-kicker/);
 });
 
+test('desktop lyric settings give more width to controls and scale down only the admin preview', () => {
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    'utf8'
+  );
+
+  assert.match(
+    styles,
+    /\.desktop-lyric-workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(460px, 1fr\) minmax\(320px, 648px\);/
+  );
+  assert.match(
+    styles,
+    /\.desktop-lyric-preview-card\s*\{[\s\S]*?max-width:\s*648px;/
+  );
+  assert.match(
+    styles,
+    /\.desktop-lyric-workspace \.desktop-lyric-preview-row-text\s*\{\s*font-size:\s*min\(calc\(var\(--preview-size\) \* 0\.9\), 8\.5cqi\);/
+  );
+  assert.match(
+    styles,
+    /\.desktop-lyric-workspace \.desktop-lyric-preview-row-translation\s*\{\s*font-size:\s*min\(calc\(var\(--preview-translation-size\) \* 0\.9\), 7cqi\);/
+  );
+  assert.match(
+    styles,
+    /\.desktop-lyric-workspace \.desktop-lyric-preview-row-roma\s*\{\s*font-size:\s*min\(calc\(var\(--preview-translation-size\) \* 0\.86 \* 0\.9\), 6cqi\);/
+  );
+  assert.match(
+    styles,
+    /\.desktop-lyric-workspace \.desktop-lyric-preview-empty\s*\{\s*font-size:\s*13\.5px;/
+  );
+});
+
 test('desktop lyric settings expose WeSing-only lyric source preferences', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
@@ -528,10 +560,10 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /\.desktop-lyric-preview-card\.is-background-enabled/);
   assert.match(styles, /--preview-global-opacity/);
   assert.match(styles, /scale\(1\.02\)/);
-  assert.match(styles, /grid-template-columns:\s*minmax\(460px, 1fr\) minmax\(320px, 720px\)/);
-  assert.match(styles, /\.desktop-lyric-preview-card\s*\{[^}]*max-width:\s*720px/);
+  assert.match(styles, /grid-template-columns:\s*minmax\(460px, 1fr\) minmax\(320px, 648px\)/);
+  assert.match(styles, /\.desktop-lyric-preview-card\s*\{[^}]*max-width:\s*648px/);
   assert.match(styles, /container-name:\s*admin-lyric-preview/);
-  assert.match(styles, /font-size:\s*min\(var\(--preview-size\), 8\.5cqi\)/);
+  assert.match(styles, /font-size:\s*min\(calc\(var\(--preview-size\) \* 0\.9\), 8\.5cqi\)/);
   assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
   assert.match(settingsSource, /AUTOSAVE_DELAY_MS/);
   assert.match(settingsSource, /form\.addEventListener\('input'/);

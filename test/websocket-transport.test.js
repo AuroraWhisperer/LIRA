@@ -13,6 +13,7 @@ class FakeSocket extends EventEmitter {
   constructor() {
     super();
     this.writes = [];
+    this.writableLength = 0;
     this.ended = false;
     this.destroyed = false;
     this.dataHandlerRemovals = 0;
@@ -176,6 +177,63 @@ test('coalesces same-turn hub snapshots and keeps the latest reason', async () =
   assert.equal(stateReads, 1);
   assert.equal(socket.writes.length, 1);
   assert.match(socket.writes[0].toString('utf8'), /latest:update/);
+  hub.stop();
+});
+
+test('WebSocket hub filters topic broadcasts without changing ordinary broadcasts', () => {
+  const hub = createWebSocketHub();
+  const topicSocket = new FakeSocket();
+  const ordinarySocket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    state: { sockets: new Set() },
+    getState: () => ({ ok: true })
+  };
+  const headers = {
+    host: '127.0.0.1:3000',
+    'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+  };
+
+  hub.handleUpgrade(context, { url: '/ws?topic=danmaku', headers }, topicSocket);
+  hub.handleUpgrade(context, { url: '/ws', headers }, ordinarySocket);
+  topicSocket.writes = [];
+  ordinarySocket.writes = [];
+
+  hub.broadcast({ type: 'danmaku:message', item: { id: 'one' } }, { topic: 'danmaku' });
+  assert.equal(topicSocket.writes.length, 1);
+  assert.equal(ordinarySocket.writes.length, 0);
+
+  hub.broadcast({ type: 'ordinary:update' });
+  assert.equal(topicSocket.writes.length, 2);
+  assert.equal(ordinarySocket.writes.length, 1);
+  hub.stop();
+});
+
+test('WebSocket hub drops a client before its pending write queue exceeds the ceiling', () => {
+  const hub = createWebSocketHub({ maxPendingBytes: 128 });
+  const socket = new FakeSocket();
+  const context = {
+    sessionToken: '',
+    state: { sockets: new Set() },
+    getState: () => ({ ok: true })
+  };
+
+  hub.handleUpgrade(context, {
+    url: '/ws',
+    headers: {
+      host: '127.0.0.1:3000',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+    }
+  }, socket);
+  socket.writes = [];
+  socket.writableLength = 120;
+
+  hub.broadcast({ type: 'ordinary:update', value: 'pending-overflow' });
+
+  assert.equal(socket.destroyed, true);
+  assert.equal(context.state.sockets.has(socket), false);
+  assert.equal(socket.listenerCount('data'), 0);
+  assert.equal(socket.writes.length, 0);
   hub.stop();
 });
 

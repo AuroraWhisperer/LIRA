@@ -246,7 +246,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 | `onState(state)` | `{type:'wesing-state', state}`;且 active 且有 `lyricState` 时同步为全局 `lyricState` 并广播 `{type:'lyric-state', state}`([server.js:183-188](../../../../src/server.js#L183-L188)) |
 | `onTimeline(timeline)` | `timeline.active` 时经 `publishLyricTimeline` 归一化后广播 `{type:'lyric-timeline', timeline}`([server.js:189-191](../../../../src/server.js#L189-L191)) |
 
-消息契约归属 [ws.md](../ws.md) §3;快照 15 字段中的 `weSing` 取 `weSingCapture.getStatus()`([server.js:519](../../../../src/server.js#L519))。
+消息契约归属 [ws.md](../ws.md) §3;快照 16 字段中的 `weSing` 取 `weSingCapture.getStatus()`([server.js:519](../../../../src/server.js#L519))。
 
 本地端点前缀为 `/api/music/wesing/*`(端点清单与请求体见 [api.md](../api.md) 的 wesing-routes 节,此处不枚举):全部路由转发到 `context.weSing` 门面([server.js:354-360](../../../../src/server.js#L354-L360)),统一 `{ok, data}` 包装、业务失败回 400;`configure`/`offset` 在门面内完成设置持久化(§9.1 的 save 回调),`active`/`refresh` 直接透传采集器。
 

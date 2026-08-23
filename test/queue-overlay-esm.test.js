@@ -152,7 +152,7 @@ test('all six queue render paths run without cross-module reference errors', asy
   assert.doesNotThrow(() => namespace.renderIdentityQueue(identitySettings, current, waiting, dom.content, []));
   assert.match(dom.content.innerHTML, /identity-list-window/);
   assert.match(dom.content.innerHTML, /class="identity-song">当前歌曲<\/span>/);
-  assert.equal(dom.viewport.style.height, '364px');
+  assert.equal(dom.viewport.style.height, undefined);
   assertSharedQueue('identity-row');
 
   const storybookSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'storybook' };
@@ -236,9 +236,8 @@ test('queue style changes are detected so the overlay can reload the authoritati
   assert.equal(namespace.queueStyleChanged(null, state('classic')), false);
 });
 
-test('queue viewport resize state is shared across overlay modules', async () => {
+test('queue viewport helper exposes uncapped proportional scaling', async () => {
   const namespace = await loadModuleExports(VIEWPORT_STATE_ENTRY, {});
-  assert.equal(namespace.isQueueViewportResized(), false);
-  namespace.markQueueViewportResized();
-  assert.equal(namespace.isQueueViewportResized(), true);
+  assert.equal(namespace.calculateQueuePanelScale(900, 1000, 405, 320, 16), 868 / 405);
+  assert.equal(namespace.calculateQueuePanelScale(320, 900, 405, 320, 8), 304 / 405);
 });

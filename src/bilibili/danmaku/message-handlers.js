@@ -75,6 +75,7 @@ class MessageHandlers {
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
     const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
+    const emotes = packetParser.extractBilibiliDanmakuEmotes(info);
 
     if (this.isCommandText(text) && !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)) {
       return;
@@ -95,6 +96,7 @@ class MessageHandlers {
 
     this.handlers.onMessage({
       message: text,
+      emotes,
       uid: requester.uid,
       userName: requester.userName,
       requesterGuardLevel: requester.guardLevel,

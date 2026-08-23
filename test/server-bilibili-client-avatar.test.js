@@ -6,6 +6,7 @@ const { createBilibiliClient } = require('../src/server/bilibili-client');
 
 test('server Bilibili client explicitly requests and applies avatar hydration only for draw guess', async () => {
   const hydrated = [];
+  const published = [];
   const client = createBilibiliClient('123', {
     isShuttingDown: () => false,
     aiDanmakuDeliveryVerifier: { observe() {} },
@@ -21,6 +22,7 @@ test('server Bilibili client explicitly requests and applies avatar hydration on
     aiAssistant: { handleDanmaku() {} },
     danmakuSender: { send: async () => {} },
     broadcastSnapshot() {},
+    publishDanmaku: danmaku => published.push(danmaku),
     updateLiveStatus() {},
     bilibiliDiagnostics: {},
     runtimeGiftCommandPrefixes: new Set(),
@@ -44,7 +46,16 @@ test('server Bilibili client explicitly requests and applies avatar hydration on
       message: '苹果',
       source: 'danmaku'
     }), true);
+    client.handlers.onMessage({
+      uid: '42',
+      userName: 'Alice',
+      message: 'SC 命令',
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg',
+      source: 'superchat'
+    });
     await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(published.length, 1);
+    assert.equal(published[0].message, '苹果');
     assert.deepEqual(hydrated, [{
       uid: '42',
       userName: 'Alice',

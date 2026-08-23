@@ -1,7 +1,7 @@
 /* 桌面歌词设置页实时预览；时间轴算法位于 shared/lyric-word-renderer.js。 */
 .desktop-lyric-workspace {
   display: grid;
-  grid-template-columns: minmax(460px, 1fr) minmax(320px, 720px);
+  grid-template-columns: minmax(460px, 1fr) minmax(320px, 648px);
   align-items: start;
   gap: 16px;
 }
@@ -790,7 +790,7 @@
   flex-direction: column;
   width: 100%;
   min-width: 0;
-  max-width: 720px;
+  max-width: 648px;
   justify-self: center;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -973,15 +973,19 @@
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-row-text {
-  font-size: min(var(--preview-size), 8.5cqi);
+  font-size: min(calc(var(--preview-size) * 0.9), 8.5cqi);
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-row-translation {
-  font-size: min(var(--preview-translation-size), 7cqi);
+  font-size: min(calc(var(--preview-translation-size) * 0.9), 7cqi);
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-row-roma {
-  font-size: min(calc(var(--preview-translation-size) * 0.86), 6cqi);
+  font-size: min(calc(var(--preview-translation-size) * 0.86 * 0.9), 6cqi);
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-empty {
+  font-size: 13.5px;
 }
 
 .desktop-lyric-preview-row {

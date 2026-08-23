@@ -11,6 +11,7 @@ function createBilibiliClient(roomId, context) {
     aiAssistant,
     danmakuSender,
     broadcastSnapshot,
+    publishDanmaku,
     updateLiveStatus,
     bilibiliDiagnostics,
     runtimeGiftCommandPrefixes,
@@ -25,6 +26,9 @@ function createBilibiliClient(roomId, context) {
     onMessage: (danmaku) => {
       if (isShuttingDown()) return false;
       try {
+        if (typeof publishDanmaku === 'function' && danmaku.source === 'danmaku') {
+          publishDanmaku(danmaku);
+        }
         aiDanmakuDeliveryVerifier.observe(danmaku);
         const gameResult = games?.handleDanmaku?.(danmaku);
         if (gameResult?.session?.game === 'draw-guess' && !danmaku.avatarUrl) {

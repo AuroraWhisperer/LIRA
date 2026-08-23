@@ -1,6 +1,6 @@
 # OBS 悬浮层(overlays/)
 
-> 涉及文件:[pages/overlays/queue.html](../../../public/pages/overlays/queue.html)、[pages/overlays/songs.html](../../../public/pages/overlays/songs.html)、[pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)、[pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html)、[pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)、[js/overlays/](../../../public/js/overlays/)、[css/overlays/](../../../public/css/overlays/)
+> 涉及文件:[pages/overlays/queue.html](../../../public/pages/overlays/queue.html)、[pages/overlays/songs.html](../../../public/pages/overlays/songs.html)、[pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)、[pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html)、[pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)、[pages/overlays/opening.html](../../../public/pages/overlays/opening.html)、[js/overlays/](../../../public/js/overlays/)、[css/overlays/](../../../public/css/overlays/)
 
 本文档描述各个叠加层页面的框架、数据消费与各自 UI。快照字段与消息类型见 [ws.md](../backend/ws.md),客户端通信行为见 [comms.md](comms.md),页面入口 URL 见 [pages.md](pages.md) §2,加班机领域状态见 [backend/overtime.md](../backend/overtime.md)。
 
@@ -77,6 +77,15 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 `prefers-reduced-motion`；`reduced` 关闭粒子和大幅位移但保留边框结构与礼物信息。旧
 `gift:effect` MP4 查询接口仍作为兼容入口保留，但新 Overlay 不消费也不加载远程礼物媒体。
 
+### 1.5 开播动画(`/opening`)
+
+开播页从免认证只读接口 `GET /api/opening/config` 读取已保存设置；Admin 预览 URL 可用
+查询参数临时覆盖设置。`trackMotion` 仅接受 `heart`、`barber`、`progress`，查询参数优先于
+保存值，非法值回退 `heart`。三种模式复用同一条 SVG waveform：心形走 `animateMotion`，
+灯带用金色短划线连续偏移，流光用单段粉色 dash 沿整条路径循环；任何时刻只显示一种前景
+动效，不创建任意 CSS/SVG 输入面。页面隐藏、低画质或 `prefers-reduced-motion` 时暂停或停用
+连续轨道动画，固定 `/opening` 地址本身不携带配置。
+
 ## 2. 队列叠加层(/queue)
 
 [overlays/queue.js](../../../public/js/overlays/queue.js) 渲染 `state.queue`(current + waiting)与 `state.superChats`:
@@ -86,9 +95,9 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 - **风格 4 / 5**:各自的框体与词条素材位于 `public/img/overlays/song-board-style-4/` 和 `song-board-style-5/`;框体和词条素材自带粉色或紫金渐变底色。两种风格隐藏通用顶部标题和点歌顺序数字,省略四组字段的说明标签并将短内容居中。每条记录输出歌名、点歌人,并在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。整组内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量。风格 4 的列表下边界与前景底边内沿对齐,保证滚动终点的最后一条完整露出;风格 5 的列表窗口顶部与首条词条上边缘对齐、底部收进 30px。`prefers-reduced-motion` 下停用横纵动画。
 - **风格 6**:奶油金唱片铃兰框体与横向词条素材位于 `public/img/overlays/song-board-style-6/`;词条以内容窗宽度的 72% 居中,完整收进画框的左右前景边框之间,列表上边界上移至画框高度的 18% 以完整露出首条顶部装饰,相邻卡片以 `4px` 间距清晰分开,左侧花形圆圈显示从 1 开始的队列序号,右侧固定信息窗省略说明标签并输出歌名、点歌人,在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。信息窗内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量,列表下边界停在第 4 个序号附近;`prefers-reduced-motion` 下停用横纵动画。
 - **风格 4–6 的画框层级**:完整框图作为底层保留中间色块,卡片与文字位于中层,同一框图去掉中心填充后以 `border-image` 作为顶层装饰。卡片滚动时会从丝带、花朵、唱片等边框装饰下方经过,但始终显示在框内中间色块上方。
-- **风格 3–6 的浏览器源缩放**:四款插画板都以 560px 宽的固定设计画布排版,内部框体、词条、文字、徽章和裁切窗口只使用这一套坐标。`queue-viewport.js` 按浏览器源可用宽度与高度分别计算比例并取较小值(且不超过 1),再整体缩放画布;因此直播姬或 OBS 改变源的长宽比时不会分别重排背景和文字。源比例与素材不一致时保留透明空白,不拉伸图片。风格 3 的列表窗口还在设计画布内整体上移 10px,为最底部可见词条保留安全距离。
+- **六种风格的浏览器源缩放**:六款点歌板都在固定设计坐标中完成排版(`classic` 宽 405px、`identity` 宽 430px、插画风格宽 560px),内部背景、框体、词条、文字、徽章、间距和裁切窗口不随浏览器源单独重排。`queue-viewport.js` 在面板完成渲染后按浏览器源可用宽度与高度分别计算比例并取较小值,再整体放大或缩小面板,不限制最大倍率;因此直播姬或 OBS 可自由改变源尺寸,所有可见内容始终使用同一个倍率。源比例与点歌板不一致时在未占满的一轴保留透明空白,不拉伸图片或文字。风格 3 的列表窗口仍在设计画布内整体上移 10px,为最底部可见词条保留安全距离。
 - **风格 3–6 的词条缩放**:词条盒、位图、文字窗口和序号共用同一坐标系,不通过裁剪去掉上下装饰。风格 3 在 CSS 背景坐标中排除原 PNG 顶部和右侧的大块透明留白,不改写原始素材;风格 4/5 的完整 PNG 占内容窗宽度的 94%,并仅将显示高度分别压至原比例的 85%/80%;风格 6 使用完整 PNG 比例占 72%,三款列表起点都避开画框顶部前景装饰。
-- **滚动**:classic 走 CSS 动画滚动(`classic-scroll` 线性 42s 循环 + `scrolling-bounce` 有节奏往返模式,loop clone 双份列表实现无缝循环);identity 走 JS 定时滚动(按 `queueScrollSpeed` 配置);视口 resize 后 `relayoutQueue` 重新配置,重渲染时 `captureScrollAnimation/restoreScrollAnimation` 在 rAF 帧内恢复 CSS 动画进度,不跳帧不闪动([queue.js:186-208](../../../public/js/overlays/queue.js#L186-L208))。
+- **滚动**:classic 走 CSS 动画滚动(`classic-scroll` 线性 42s 循环 + `scrolling-bounce` 有节奏往返模式,loop clone 双份列表实现无缝循环);identity 走 JS 定时滚动(按 `queueScrollSpeed` 配置)。六种风格都在固定设计高度的列表窗内测量真实内容溢出,浏览器源 resize 后 `relayoutQueue` 重新配置并再次同步整板比例;重渲染时 `captureScrollAnimation/restoreScrollAnimation` 在 rAF 帧内恢复 CSS 动画进度,不跳帧不闪动([queue.js:174-202](../../../public/js/overlays/queue.js#L174-L202))。
 - **低功耗**:`overlayLowPowerMode` 或 `?quality=low` 时停用毛玻璃/辉光等重特效(`.overlay-panel.low-power` 面板级降级,classic/identity 共用,[base.css:38-47](../../../public/css/overlays/base.css#L38-L47))。
 - **快照消费**:指纹 = 当前歌/等待队列/SC/全部主题与滚动键;`queue:add`/`bilibili:danmaku`/`bilibili:superchat` 等 reason 走 80ms 延迟 `loadState()` 强刷(确保请求者元数据落库后再取,见 [queue.js:96-110](../../../public/js/overlays/queue.js#L96-L110));`live:status` 只更新直播状态不重渲染。
 - 主题:经典/身份版色板、字体、字号、置顶 3 条、规则 6 条均来自快照 `settings`(管理页「点歌板/展示板」配置);风格 3–6 默认使用各自素材字体和色板,复用 `identityQueueFontSize`、`identityQueueScrollSpeed` 与 `queueScrollMode`,并可通过 `illustratedQueueFontFamily`、`illustratedQueueFontWeight`、`illustratedQueueUseCustomTextColor` 和 `illustratedQueueTextColor` 覆盖字体、字重与正文颜色。
@@ -128,6 +137,7 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 
 - 时钟字号:**8.5em × 2cqmin = 17cqmin** 等比缩放(`font: 700 8.5em/0.9 Bahnschrift SemiCondensed,…` + `tabular-nums`,[overtime.css:94-100](../../../public/css/overlays/overtime.css#L94-L100));管理页预览时钟为 `clamp(38px, 5vw, 66px)`([admin/overtime.css:67](../../../public/css/admin/overtime.css#L67))。
 - 时间格式:`formatClockSeconds` 恒补零到两位 → `02:05:09`,超过 99 小时自然增长为 `120:00:00`([overtime.js:267-273](../../../public/js/overlays/overtime.js#L267-L273))。
+- 时钟调度:运行中按当前显示层级的下一秒/分钟/小时边界使用一次性 timeout 更新，值未变化不写 DOM；暂停、结束或页面隐藏时清除时钟 timer，恢复可见或收到新 revision 时重新锚定。
 - 数量封顶:结算卡片数量 `> 99999` 显示 `99999+`([overtime.js:275-278](../../../public/js/overlays/overtime.js#L275-L278))。
 - 结算动画:每次 `overtime:update` 携带 `adjustment` 时入队(队列上限 5,满则合并为"连续礼物 · 净变化"聚合卡片)依序播放盖章动画 + 门票高亮 + 时钟变色闪动([overtime.js:167-230](../../../public/js/overlays/overtime.js#L167-L230))。
 - **动画降级**:`prefers-reduced-motion: reduce` 媒体查询与 `low-motion` 类都把动画压缩到 180ms;低功耗 `?quality=low` 时动画时长同步缩短。
@@ -154,12 +164,21 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 - **滚动与跟随**:歌词视口拥有独立纵向滚动;当前行切换时使用弹簧动画居中跟随。用户滚轮、触摸、指针或键盘滚动后暂停自动跟随 6 秒,再恢复到当前行。
 - **状态防回灌**:客户端只接受更大的 `generation`,或同一 generation 下严格递增的 `sequence`;旧客户端缺字段时保持兼容。`content-visibility:auto` 与 `contain-intrinsic-size` 跳过视口外绘制,不改变完整歌词的滚动结构。
 
-## 6.1 游戏叠加层(/games)的弹幕组件
+## 6.1 弹幕姬(/danmaku)
 
-[overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，`danmaku-feed.js` 是可复用的弹幕 DOM 组件。游戏入口只传入会话中的 `session.danmaku`，管理页弹幕姬则传入受限的预览样本；两者都通过同一显式 ESM 接口渲染，组件不读取 WebSocket 或游戏状态。
+[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动唯一固定 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在聊天气泡(`bubble`)、直播信号带(`signal`)和极简字幕(`minimal`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。Admin 通过 `/danmaku?preview=1&style=bubble|signal|minimal` iframe 复用同一页面展示确定性样本，预览模式不连接 WebSocket。
+
+页面与 `/games` 的画猜消息共同复用 `danmaku-feed.js` DOM 组件。组件不读取 WebSocket 或领域状态，只接收显式消息数组和图片 URL resolver：
 
 - `measureDanmakuText(message)` 按中英文混合文本的视觉长度估算行数、宽度百分比和最小高度。
-- `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment` 和 `textContent` 创建头像、昵称、徽标与消息正文，最多保留最近 120 条；按容器高度保留当前可见区及上方约 5 个视口的缓冲，超出缓冲的旧消息不再创建 DOM 节点；每条气泡写入 `--danmaku-width`、`--danmaku-height`、`--danmaku-lines`。
+- `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment`、`textContent` 和受控 `<img>` 创建头像、昵称、徽标、文字与 B 站表情，最多保留最近 120 条；`append(item)` 只追加新节点并按条数上限、缓存的容器高度和消息估算高度移除最旧的超限节点，不重建已有 DOM，也不逐消息读取布局。`ResizeObserver` 仅在容器尺寸变化时刷新高度并再次裁剪。表情按精确触发文本切分，加载失败回退原触发文本，不使用 `innerHTML`。游戏层按容器高度保留当前可见区及上方约 5 个视口的缓冲并自动滚到底部；固定 `/danmaku` 配置 `offscreenViewports: 0`，DOM 只保留约一个可见视口，同时关闭强制滚动。页面数据和服务端断线恢复快照仍分别硬限制为最近 50 条，不会无限缓存。
+- 共享组件按当前房间身份为每条消息输出 `data-identity=viewer|fan|captain|admiral|governor`；大航海身份优先，拥有大航海且佩戴当前房间灯牌时仍同时显示两枚徽标。三套固定弹幕姬只共享该语义，不共享身份视觉：`signal` 使用军衔刻度与分级信号色，`bubble` 使用会员胶囊、身份符号和柔和分级光晕，`minimal` 使用单字身份签和低遮挡分级色。
+- `/danmaku` 把头像与表情 CDN 地址交给 `/api/bilibili/avatar` 本地代理；未通过 B 站域名白名单的图片不会进入服务端公开流。
+
+## 6.2 游戏叠加层(/games)的弹幕组件
+
+[overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，只传入会话中的 `session.danmaku`。画我猜的 `#drawDanmakuFeed` 固定声明 `data-style="bubble"`，不读取或跟随弹幕姬的 `danmakuOverlayStyle` 设置；`games.css` 独立实现适合游戏窄栏的五身份气泡视觉，并自动受益于共享组件的安全表情渲染。
+
 - `games.css` 将短消息显示为紧凑气泡，长消息按宽度增长并自然换行增高；交错对齐、实时标题栏和 reduced-motion 降级只属于视觉层，不改变弹幕字段或游戏协议。
 
 ## 7. 数据消费一览
@@ -171,7 +190,9 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 | blindbox | `/api/state` + `/api/gifts/blind-box-stats` | snapshot(仅缓存)+ 轮询 | 统计接口每次重取 | `bilibili:gift`/`gift:sprint:reset`/`connect` |
 | overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
 | gift-effects | `/gift-effects` 页面内置 SVG | `gift:frame` | `eventId` 稳定去重 + 3 条 pending 队列 | 每个合格 final 礼物一次播放 |
+| opening | `/api/opening/config` | 无 | 无；首帧配置经枚举/文本清洗 | 页面加载一次；Admin 预览可由 URL 参数覆盖 |
 | lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
+| danmaku | snapshot 中的 `danmakuFeed` | `danmaku:message` | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复 |
 | games | `/api/games/session` | snapshot + `game:update` + `game:draw` | 游戏入口调度器按更新频率合并渲染 | `game:update` / `game:draw` |
 
 消息类型与 reason 的全集定义以 [ws.md](../backend/ws.md) §3 为准;本表只描述各叠加层**消费**哪些。

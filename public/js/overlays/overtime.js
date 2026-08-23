@@ -11,14 +11,16 @@ let anchorRemainingMs = 0;
 let localAnchorMs = performance.now();
 let reconnectAttempts = 0;
 let reconnectTimer = null;
+let clockTimer = null;
+let lastClockValue = '';
 let animationActive = false;
 const animationQueue = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   byId('overtimeMachine').classList.toggle('low-motion', lowMotion);
+  document.addEventListener('visibilitychange', syncClock);
   loadSnapshot();
   connectSocket();
-  requestAnimationFrame(renderClockFrame);
 });
 
 async function loadSnapshot() {
@@ -80,19 +82,33 @@ function applyState(state, { force }) {
   renderStatus();
   renderBackground();
   renderTickets();
+  syncClock();
 }
 
-function renderClockFrame(nowMs) {
-  if (currentState) {
-    const elapsed = currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
-    const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
-    const value = formatClockDisplay(remainingMs, currentState.status);
+function syncClock() {
+  clearTimeout(clockTimer);
+  clockTimer = null;
+  renderClock();
+}
+
+function renderClock() {
+  clockTimer = null;
+  if (!currentState) return;
+
+  const nowMs = performance.now();
+  const elapsed = currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
+  const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
+  const value = formatClockDisplay(remainingMs, currentState.status);
+  if (value !== lastClockValue) {
     const clock = byId('overtimeClock');
     clock.textContent = value;
     clock.classList.toggle('is-calendar', /[天年]/.test(value));
     clock.classList.toggle('is-finished', value === '该下播了');
+    lastClockValue = value;
   }
-  requestAnimationFrame(renderClockFrame);
+
+  if (currentState.status !== 'running' || remainingMs <= 0 || document.hidden) return;
+  clockTimer = setTimeout(renderClock, nextClockDelay(remainingMs));
 }
 
 function renderStatus() {
@@ -235,6 +251,24 @@ function flashClock(delta) {
   void clock.offsetWidth;
   clock.classList.add(className);
   setTimeout(() => clock.classList.remove(className), lowMotion ? 220 : 920);
+}
+
+function nextClockDelay(remainingMs) {
+  const remaining = Math.max(0, Number(remainingMs) || 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const yearMs = 365 * dayMs;
+  const resolutionMs = remaining >= yearMs
+    ? 60 * 60 * 1000
+    : remaining >= dayMs
+      ? 60 * 1000
+      : 1000;
+  const boundaryDelay = remaining % resolutionMs || resolutionMs;
+  const tierBoundaryDelay = remaining >= yearMs
+    ? remaining - yearMs || 1000
+    : remaining >= dayMs
+      ? remaining - dayMs || 1000
+      : boundaryDelay;
+  return Math.max(25, Math.ceil(Math.min(boundaryDelay, tierBoundaryDelay)));
 }
 
 function formatClockDisplay(milliseconds, status) {

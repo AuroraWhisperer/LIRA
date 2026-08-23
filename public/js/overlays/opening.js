@@ -7,6 +7,7 @@ const DEFAULTS = Object.freeze({
   name: '',
   footer: '欢迎来到直播间',
   quality: 'normal',
+  trackMotion: 'heart',
   showNotes: true,
   showEq: true,
   audio: 'browser',
@@ -22,6 +23,7 @@ const QUALITY_LIMITS = Object.freeze({
   normal: Object.freeze({ notes: 4, particles: 12, eq: 10 }),
   low: Object.freeze({ notes: 0, particles: 0, eq: 0 })
 });
+const TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/gu;
 const NOTE_GLYPHS = ['♪', '♫', '♩', '♬', '♪', '♫'];
 const NOTE_DURATIONS = [7, 9, 11, 13];
@@ -47,6 +49,11 @@ function normalizeFooter(value) {
   return footer && footer !== 'SINGING LIVE' ? footer : DEFAULTS.footer;
 }
 
+function normalizeTrackMotion(value) {
+  const candidate = String(value ?? '').trim();
+  return TRACK_MOTION_VALUES.has(candidate) ? candidate : DEFAULTS.trackMotion;
+}
+
 function parseConfig(search = typeof location === 'undefined' ? '' : location.search) {
   const params = new URLSearchParams(search);
   const quality = params.get('quality');
@@ -61,6 +68,7 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
     name,
     footer: normalizeFooter(params.get('footer')),
     quality: Object.hasOwn(QUALITY_LIMITS, quality) ? quality : DEFAULTS.quality,
+    trackMotion: normalizeTrackMotion(params.get('trackMotion')),
     showNotes: parseBoolean(params.get('showNotes'), DEFAULTS.showNotes),
     showEq: parseBoolean(params.get('showEq'), DEFAULTS.showEq),
     audio: audio === 'browser' || audio === 'none' ? audio : DEFAULTS.audio,
@@ -220,6 +228,7 @@ function applyOpeningConfig(config) {
   const nameRow = document.getElementById('openingNameRow');
   const titleLength = Array.from(config.title).length;
   stage?.style.setProperty('--opening-title-size', `${titleSizeForLength(titleLength)}cqw`);
+  if (stage) stage.dataset.trackMotion = config.trackMotion;
   stage?.classList.add(`quality-${config.quality}`);
   stage?.classList.toggle('show-notes', config.showNotes);
   stage?.classList.toggle('show-eq', config.showEq);
@@ -253,6 +262,7 @@ function mergeConfig(remote, query) {
   if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
   if (!params.has('footer')) merged.footer = normalizeFooter(source.footer);
   if (!params.has('quality')) merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
+  merged.trackMotion = normalizeTrackMotion(params.has('trackMotion') ? query.trackMotion : source.trackMotion);
   if (!params.has('showNotes')) merged.showNotes = source.showNotes !== false;
   if (!params.has('showEq')) merged.showEq = source.showEq !== false;
   if (!params.has('audio')) merged.audio = source.audio === 'none' ? 'none' : DEFAULTS.audio;
@@ -270,4 +280,4 @@ async function initOpeningOverlay() {
 
 if (typeof document !== 'undefined') initOpeningOverlay();
 
-export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, cleanText, normalizeFooter, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, mergeConfig };
+export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, TRACK_MOTION_VALUES, cleanText, normalizeFooter, normalizeTrackMotion, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, mergeConfig };

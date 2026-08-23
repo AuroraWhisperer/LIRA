@@ -7,13 +7,16 @@ const { URL } = require('node:url');
 
 const MAX_FRAME_BYTES = 256 * 1024; // 256 KB
 const MAX_MESSAGE_BYTES = 256 * 1024; // 256 KB across all fragments
+const MAX_PENDING_BYTES = 2 * 1024 * 1024; // 2 MB per outbound socket queue
 const HEARTBEAT_INTERVAL_MS = 30000;
 const SOCKET_TIMEOUT_MS = 90000;
+const SUBSCRIPTION_TOPICS = new Set(['danmaku']);
 
 function createWebSocketHub(options = {}) {
   const sockets = new Set();
   const heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
   const socketTimeoutMs = options.socketTimeoutMs || SOCKET_TIMEOUT_MS;
+  const maxPendingBytes = Math.max(1, Math.trunc(Number(options.maxPendingBytes)) || MAX_PENDING_BYTES);
   let heartbeatTimer = null;
   let snapshotFlushQueued = false;
   let pendingSnapshot = null;
@@ -36,10 +39,11 @@ function createWebSocketHub(options = {}) {
       }
     }
 
+    const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+
     // Token 校验：检查 URL query param 中的 token
     const token = context.sessionToken;
     if (token) {
-      const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
       const queryToken = requestUrl.searchParams.get('token');
       if (queryToken !== token) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -67,6 +71,8 @@ function createWebSocketHub(options = {}) {
     socket._wsFragmentBytes = 0;
     socket._lastPongAt = Date.now();
     socket._wsCleanedUp = false;
+    socket._wsTopics = parseSubscriptionTopics(requestUrl.searchParams);
+    socket._wsMaxPendingBytes = maxPendingBytes;
 
     sockets.add(socket);
     if (context.state && context.state.sockets) context.state.sockets.add(socket);
@@ -78,11 +84,16 @@ function createWebSocketHub(options = {}) {
 
     ensureHeartbeat();
 
-    sendWebSocket(socket, {
+    if (!sendWebSocket(socket, {
       type: 'snapshot',
       reason: 'connect',
       state: context.getState()
-    });
+    })) dropSocket(socket);
+  }
+
+  function dropSocket(socket) {
+    try { socket.destroy(); } catch (_) {}
+    cleanupSocket(socket);
   }
 
   function cleanupSocket(socket) {
@@ -99,6 +110,8 @@ function createWebSocketHub(options = {}) {
     socket._wsBuffer = null;
     socket._wsFragment = null;
     socket._wsFragmentBytes = 0;
+    socket._wsTopics = null;
+    socket._wsMaxPendingBytes = null;
   }
 
   function handleSocketData(socket, chunk) {
@@ -224,10 +237,9 @@ function createWebSocketHub(options = {}) {
       const now = Date.now();
       for (const socket of Array.from(sockets)) {
         if (now - socket._lastPongAt > socketTimeoutMs) {
-          try { socket.destroy(); } catch (_) {}
-          cleanupSocket(socket);
+          dropSocket(socket);
         } else {
-          try { sendWebSocketFrame(socket, Buffer.alloc(0), 0x9); } catch (_) {}
+          if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9)) dropSocket(socket);
         }
       }
     }, heartbeatIntervalMs);
@@ -247,14 +259,17 @@ function createWebSocketHub(options = {}) {
       const payload = { type: 'snapshot', reason: next.reason, state: next.context.getState() };
       const encodedPayload = Buffer.from(JSON.stringify(payload));
       for (const socket of Array.from(sockets)) {
-        sendWebSocketFrame(socket, encodedPayload, 0x1);
+        if (!sendWebSocketFrame(socket, encodedPayload, 0x1)) dropSocket(socket);
       }
     });
   }
 
-  function broadcast(payload) {
+  function broadcast(payload, options = {}) {
+    const topic = String(options.topic || '');
+    const encodedPayload = Buffer.from(JSON.stringify(payload));
     for (const socket of Array.from(sockets)) {
-      sendWebSocket(socket, payload);
+      if (topic && !socket._wsTopics?.has(topic)) continue;
+      if (!sendWebSocketFrame(socket, encodedPayload, 0x1)) dropSocket(socket);
     }
   }
 
@@ -280,7 +295,7 @@ function createWebSocketHub(options = {}) {
 }
 
 function sendWebSocket(socket, payload) {
-  sendWebSocketFrame(socket, Buffer.from(JSON.stringify(payload)), 0x1);
+  return sendWebSocketFrame(socket, Buffer.from(JSON.stringify(payload)), 0x1);
 }
 
 function sendWebSocketFrame(socket, payload, opcode) {
@@ -299,7 +314,27 @@ function sendWebSocketFrame(socket, payload, opcode) {
     header[1] = 127;
     header.writeBigUInt64BE(BigInt(length), 2);
   }
-  socket.write(Buffer.concat([header, payload]));
+  const frame = Buffer.concat([header, payload]);
+  const pendingBytes = Math.max(0, Number(socket.writableLength) || 0);
+  const maxPendingBytes = Math.max(1, Number(socket._wsMaxPendingBytes) || MAX_PENDING_BYTES);
+  if (socket.destroyed || pendingBytes + frame.length > maxPendingBytes) return false;
+  try {
+    socket.write(frame);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function parseSubscriptionTopics(searchParams) {
+  const topics = new Set();
+  for (const value of searchParams.getAll('topic')) {
+    for (const topic of String(value).split(',')) {
+      const normalized = topic.trim().toLowerCase();
+      if (SUBSCRIPTION_TOPICS.has(normalized)) topics.add(normalized);
+    }
+  }
+  return topics;
 }
 
 const compatibilityHub = createWebSocketHub();

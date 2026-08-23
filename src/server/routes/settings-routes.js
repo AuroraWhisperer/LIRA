@@ -6,6 +6,7 @@ const { sendJson } = require('../http-utils');
 const { normalizeRoomInput } = require('../../shared/utils');
 const { parseCustomReplyRules } = require('../../bilibili/custom-reply-service');
 const { normalizeFrameSettingValue } = require('../../bilibili/gift/frame-config');
+const { normalizeOpeningTrackMotion } = require('../opening-contract');
 
 const prefixes = ['/api/settings'];
 
@@ -18,6 +19,7 @@ const FRAME_SETTING_KEYS = new Set([
   'giftFrameTheme',
   'giftFrameMotionMode'
 ]);
+const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal']);
 
 const routes = {
   async 'POST /api/settings'(context, request, res) {
@@ -41,6 +43,11 @@ const routes = {
 
 function normalizeSettingValue(key, rawValue) {
   if (FRAME_SETTING_KEYS.has(key)) return normalizeFrameSettingValue(key, rawValue);
+  if (key === 'danmakuOverlayStyle') {
+    const value = String(rawValue || '').trim();
+    return DANMAKU_OVERLAY_STYLES.has(value) ? value : null;
+  }
+  if (key === 'openingTrackMotion') return normalizeOpeningTrackMotion(rawValue);
   if (key === 'roomId') return normalizeRoomInput(rawValue);
   if (key === 'customReplyRules') return JSON.stringify(parseCustomReplyRules(rawValue));
   if (JSON_SETTING_KEYS.has(key)) {

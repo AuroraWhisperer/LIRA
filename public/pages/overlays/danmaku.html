@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>弹幕姬</title>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css?v=20260823-03">
+  </head>
+  <body class="danmaku-overlay-body" data-style="signal">
+    <main class="danmaku-signal-stage">
+      <header class="danmaku-signal-header" aria-label="弹幕接收状态">
+        <span class="danmaku-signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span class="danmaku-signal-copy">
+          <small>ROOM SIGNAL / CHAT</small>
+          <strong id="danmakuConnectionState">正在连接弹幕</strong>
+        </span>
+        <span id="danmakuMessageCount" class="danmaku-signal-count">00</span>
+      </header>
+      <section id="danmakuFeed" class="draw-danmaku-feed" role="log" aria-live="polite" aria-relevant="additions"></section>
+    </main>
+    <script type="module" src="/js/overlays/danmaku.js?v=20260823-03"></script>
+  </body>
+</html>

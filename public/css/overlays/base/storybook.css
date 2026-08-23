@@ -3,7 +3,7 @@
   position: relative;
   width: 560px;
   aspect-ratio: 2 / 3;
-  transform: scale(var(--illustrated-queue-scale, 1));
+  transform: scale(var(--queue-panel-scale, 1));
   transform-origin: top left;
   overflow: hidden;
   border: 0;
@@ -128,7 +128,7 @@
   background-repeat: no-repeat;
   color: #315d7d;
   font-family: YouYuan, "Microsoft YaHei", "PingFang SC", sans-serif;
-  font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.77), 28px);
+  font-size: var(--identity-queue-font-size, 26px);
   font-weight: 800;
   line-height: 1;
 }

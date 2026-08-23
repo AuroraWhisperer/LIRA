@@ -1,0 +1,320 @@
+:root {
+  color-scheme: dark;
+  --signal-ink: #101522;
+  --signal-ice: #eaf2ff;
+  --signal-cyan: #49d6c8;
+  --signal-gold: #f3c76b;
+  --signal-violet: #8a7dff;
+  --signal-berry: #f17a9a;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+body { color: var(--signal-ice); font-family: 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif; }
+
+.danmaku-signal-stage {
+  display: grid;
+  align-content: end;
+  gap: 8px;
+  width: min(720px, 100vw);
+  height: 100vh;
+  padding: clamp(10px, 2.2vw, 24px);
+}
+
+.danmaku-signal-header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 12px 8px 10px;
+  border-left: 3px solid var(--signal-cyan);
+  color: var(--signal-ice);
+  background: linear-gradient(90deg, rgba(13, 20, 34, .94), rgba(13, 20, 34, .74) 76%, rgba(13, 20, 34, .2));
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.danmaku-signal-mark { display: flex; align-items: end; justify-content: center; gap: 3px; height: 22px; }
+.danmaku-signal-mark i { width: 3px; height: 35%; background: var(--signal-cyan); box-shadow: 0 0 8px rgba(73, 214, 200, .7); animation: signalMeter 900ms ease-in-out infinite alternate; }
+.danmaku-signal-mark i:nth-child(2) { height: 78%; animation-delay: -320ms; }
+.danmaku-signal-mark i:nth-child(3) { height: 55%; animation-delay: -160ms; }
+.danmaku-signal-mark i:nth-child(4) { height: 100%; animation-delay: -480ms; }
+.danmaku-signal-copy { display: grid; gap: 1px; min-width: 0; }
+.danmaku-signal-copy small { color: rgba(234, 242, 255, .58); font: 700 9px/1.2 'Cascadia Mono', Consolas, monospace; letter-spacing: .18em; }
+.danmaku-signal-copy strong { overflow: hidden; font: 700 13px/1.25 'Bahnschrift SemiCondensed', 'Microsoft YaHei UI', sans-serif; letter-spacing: .04em; text-overflow: ellipsis; white-space: nowrap; }
+.danmaku-signal-count { color: var(--signal-cyan); font: 700 21px/1 'Cascadia Mono', Consolas, monospace; font-variant-numeric: tabular-nums; }
+body:not(.is-connected) .danmaku-signal-header { border-left-color: var(--signal-berry); }
+body:not(.is-connected) .danmaku-signal-mark i, body:not(.is-connected) .danmaku-signal-count { color: var(--signal-berry); background: var(--signal-berry); }
+
+.draw-danmaku-feed {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 7px;
+  min-height: 0;
+  max-height: calc(100vh - 78px);
+  overflow: hidden;
+}
+
+.draw-danmaku-item {
+  --signal-accent: var(--signal-cyan);
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: min(100%, 660px);
+  min-height: 62px;
+  padding: 8px 18px 8px 9px;
+  border-left: 3px solid var(--signal-accent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--signal-accent) 13%, transparent), transparent 52%),
+    linear-gradient(90deg, rgba(16, 21, 34, .96), rgba(16, 21, 34, .82));
+  box-shadow: 0 10px 24px rgba(2, 6, 16, .22), inset 0 1px rgba(255, 255, 255, .06);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  animation: signalMessageIn 260ms cubic-bezier(.2, .8, .2, 1) var(--danmaku-delay) both;
+}
+.draw-danmaku-item[data-tone='1'] { --signal-accent: var(--signal-gold); }
+.draw-danmaku-item[data-tone='2'] { --signal-accent: var(--signal-violet); }
+.draw-danmaku-item[data-tone='3'] { --signal-accent: var(--signal-berry); }
+.draw-danmaku-item::after { position: absolute; top: 8px; right: 9px; width: 18px; height: 2px; background: var(--signal-accent); opacity: .72; content: ''; }
+
+.draw-danmaku-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  color: #091015;
+  background: var(--signal-accent);
+  clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+  font: 800 15px/1 'Bahnschrift SemiCondensed', 'Microsoft YaHei UI', sans-serif;
+}
+.draw-danmaku-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.draw-danmaku-body { min-width: 0; }
+.draw-danmaku-identity { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.draw-danmaku-identity strong { min-width: 0; overflow: hidden; color: var(--signal-accent); font: 700 13px/1.25 'Bahnschrift SemiCondensed', 'Microsoft YaHei UI', sans-serif; letter-spacing: .02em; text-overflow: ellipsis; white-space: nowrap; }
+.draw-danmaku-badge { flex: 0 0 auto; max-width: 92px; overflow: hidden; padding: 1px 5px; border: 1px solid currentColor; font: 700 8px/1.35 'Cascadia Mono', Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.draw-danmaku-guard { color: var(--signal-gold); background: rgba(243, 199, 107, .1); }
+.draw-danmaku-medal { color: #b7afff; background: rgba(138, 125, 255, .12); }
+.draw-danmaku-body p { margin: 3px 0 0; color: var(--signal-ice); font-size: clamp(13px, 2.4vw, 18px); line-height: 1.38; overflow-wrap: anywhere; word-break: break-word; }
+.draw-danmaku-emote { display: inline-block; width: auto; height: 1.85em; margin: -.3em .08em; aspect-ratio: var(--danmaku-emote-ratio, auto); object-fit: contain; vertical-align: middle; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .28)); }
+.draw-danmaku-item.is-emote-only .draw-danmaku-emote { height: 3.2em; margin: 0; }
+.draw-danmaku-empty { padding: 24px 16px; color: rgba(234, 242, 255, .54); background: rgba(16, 21, 34, .74); font: 700 11px/1.5 'Cascadia Mono', 'Microsoft YaHei UI', sans-serif; letter-spacing: .08em; text-align: center; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+
+body.is-preview { background: radial-gradient(circle at 85% 10%, rgba(138, 125, 255, .2), transparent 34%), #0b101b; }
+body.is-preview .danmaku-signal-stage { width: 100%; padding: 18px; }
+
+/* 信号带：高密度直播控制台，保留当前默认视觉。 */
+body[data-style='signal'] .danmaku-signal-stage { isolation: isolate; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='viewer'] { --signal-accent: #6f879d; --signal-rank: 'VIEWER'; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='fan'] { --signal-accent: #9d8cff; --signal-rank: 'FAN LINK'; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='captain'] { --signal-accent: #54c8f3; --signal-rank: 'CPT · III'; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='admiral'] { --signal-accent: #d07bff; --signal-rank: 'ADM · II'; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='governor'] { --signal-accent: #ffc857; --signal-rank: 'GOV · I'; }
+body[data-style='signal'] .draw-danmaku-item[data-identity] {
+  border-left-width: 4px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--signal-accent) 19%, transparent), transparent 56%),
+    linear-gradient(90deg, rgba(16, 21, 34, .97), rgba(16, 21, 34, .82));
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity]::before {
+  position: absolute;
+  top: 7px;
+  right: 33px;
+  color: color-mix(in srgb, var(--signal-accent) 80%, white);
+  content: var(--signal-rank);
+  font: 700 7px/1 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: .09em;
+  opacity: .76;
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='viewer']::after { width: 8px; box-shadow: none; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='fan']::after { width: 14px; box-shadow: -5px 4px 0 -1px var(--signal-accent); }
+body[data-style='signal'] .draw-danmaku-item[data-identity='captain']::after { width: 18px; box-shadow: -6px 4px 0 -1px var(--signal-accent); }
+body[data-style='signal'] .draw-danmaku-item[data-identity='admiral']::after { width: 22px; box-shadow: -7px 4px 0 -1px var(--signal-accent), -14px 8px 0 -1px var(--signal-accent); }
+body[data-style='signal'] .draw-danmaku-item[data-identity='governor']::after { width: 28px; box-shadow: -8px 4px 0 -1px var(--signal-accent), -16px 8px 0 -1px var(--signal-accent); }
+body[data-style='signal'] .draw-danmaku-item[data-identity='fan'] .draw-danmaku-medal { color: #c9c0ff; background: rgba(110, 87, 226, .2); clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+body[data-style='signal'] .draw-danmaku-item[data-identity='captain'] .draw-danmaku-guard { color: #9be6ff; background: rgba(31, 132, 177, .22); }
+body[data-style='signal'] .draw-danmaku-item[data-identity='admiral'] .draw-danmaku-guard { color: #e6b4ff; background: rgba(133, 53, 181, .24); box-shadow: inset 3px 0 #d07bff; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='governor'] .draw-danmaku-guard { color: #ffe5a3; background: rgba(160, 97, 16, .28); box-shadow: inset 3px 0 #ff9f43; }
+
+/* 聊天气泡：更松弛的社交聊天感，头像和身份靠近圆角消息卡。 */
+body[data-style='bubble'] {
+  --bubble-cream: #fff4cf;
+  --bubble-mint: #88ead6;
+  --bubble-lilac: #b7adff;
+  --bubble-rose: #ff9eb8;
+}
+body[data-style='bubble'] .danmaku-signal-stage { width: min(760px, 100vw); gap: 10px; }
+body[data-style='bubble'] .danmaku-signal-header {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  width: min(100%, 310px);
+  min-height: 36px;
+  padding: 6px 11px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 999px;
+  background: rgba(28, 25, 48, .78);
+  box-shadow: 0 8px 24px rgba(9, 7, 24, .18), inset 0 1px rgba(255, 255, 255, .08);
+  clip-path: none;
+  backdrop-filter: blur(10px);
+}
+body[data-style='bubble'] .danmaku-signal-mark { gap: 2px; height: 15px; }
+body[data-style='bubble'] .danmaku-signal-mark i { width: 2px; background: var(--bubble-mint); box-shadow: none; }
+body[data-style='bubble'] .danmaku-signal-copy small { display: none; }
+body[data-style='bubble'] .danmaku-signal-copy strong { color: rgba(255, 255, 255, .86); font: 700 11px/1.2 'Microsoft YaHei UI', sans-serif; }
+body[data-style='bubble'] .danmaku-signal-count { color: var(--bubble-mint); font-size: 14px; }
+body[data-style='bubble'] .draw-danmaku-feed { gap: 9px; }
+body[data-style='bubble'] .draw-danmaku-item {
+  --bubble-accent: var(--bubble-mint);
+  grid-template-columns: 42px minmax(0, 1fr);
+  width: min(100%, max(250px, var(--danmaku-width)));
+  min-width: min(100%, 250px);
+  min-height: 58px;
+  padding: 8px 15px 9px 9px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-left: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 18px 18px 18px 7px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bubble-accent) 17%, transparent), transparent 52%),
+    rgba(34, 30, 57, .9);
+  box-shadow: 0 10px 24px rgba(7, 6, 20, .2), inset 0 1px rgba(255, 255, 255, .08);
+  clip-path: none;
+  animation-name: bubbleMessageIn;
+}
+body[data-style='bubble'] .draw-danmaku-item[data-tone='1'] { --bubble-accent: var(--bubble-cream); }
+body[data-style='bubble'] .draw-danmaku-item[data-tone='2'] { --bubble-accent: var(--bubble-lilac); }
+body[data-style='bubble'] .draw-danmaku-item[data-tone='3'] { --bubble-accent: var(--bubble-rose); }
+body[data-style='bubble'] .draw-danmaku-item::after {
+  top: auto;
+  right: auto;
+  bottom: -5px;
+  left: 14px;
+  width: 11px;
+  height: 9px;
+  background: rgba(34, 30, 57, .9);
+  opacity: 1;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+body[data-style='bubble'] .draw-danmaku-avatar {
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--bubble-accent) 72%, white);
+  border-radius: 50%;
+  color: #28233b;
+  background: var(--bubble-accent);
+  clip-path: none;
+}
+body[data-style='bubble'] .draw-danmaku-identity strong { color: var(--bubble-accent); font-family: 'Microsoft YaHei UI', sans-serif; }
+body[data-style='bubble'] .draw-danmaku-badge { border-radius: 999px; }
+body[data-style='bubble'] .draw-danmaku-body p { font-size: clamp(13px, 2.2vw, 17px); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='viewer'] { --bubble-accent: #88ead6; --bubble-role: '○'; }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] { --bubble-accent: #b7adff; --bubble-role: '♥'; }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] { --bubble-accent: #87dcff; --bubble-role: '◆'; }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] { --bubble-accent: #e6a7ff; --bubble-role: '✦'; }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] { --bubble-accent: #ffd77d; --bubble-role: '♛'; }
+body[data-style='bubble'] .draw-danmaku-item[data-identity] { padding-right: 30px; }
+body[data-style='bubble'] .draw-danmaku-item[data-identity]::before {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  color: var(--bubble-accent);
+  content: var(--bubble-role);
+  font: 800 12px/1 Georgia, serif;
+  opacity: .88;
+}
+body[data-style='bubble'] .draw-danmaku-item[data-identity='viewer'] { box-shadow: 0 9px 22px rgba(7, 6, 20, .18), inset 0 1px rgba(255, 255, 255, .08); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] { border-color: rgba(183, 173, 255, .32); box-shadow: 0 10px 24px rgba(75, 55, 151, .2), inset 0 1px rgba(255, 255, 255, .1); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] { border-color: rgba(135, 220, 255, .34); box-shadow: 0 10px 24px rgba(34, 126, 169, .2), inset 0 1px rgba(255, 255, 255, .1); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] { border-color: rgba(230, 167, 255, .38); box-shadow: 0 11px 26px rgba(135, 65, 166, .24), inset 0 1px rgba(255, 255, 255, .11); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] { border-color: rgba(255, 215, 125, .46); box-shadow: 0 12px 28px rgba(151, 99, 23, .26), inset 0 1px rgba(255, 255, 255, .12); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] .draw-danmaku-medal { color: #eeeaff; border-color: rgba(202, 195, 255, .72); background: rgba(112, 91, 206, .36); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] .draw-danmaku-guard { color: #e5f8ff; border-color: rgba(135, 220, 255, .72); background: rgba(38, 135, 177, .36); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] .draw-danmaku-guard { color: #faeaff; border-color: rgba(230, 167, 255, .76); background: rgba(140, 66, 173, .38); }
+body[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] .draw-danmaku-guard { color: #fff5d9; border-color: rgba(255, 215, 125, .8); background: rgba(151, 99, 23, .42); }
+
+/* 极简字幕：压低装饰和遮挡，仅保留头像、身份与一行消息节奏。 */
+body[data-style='minimal'] .danmaku-signal-stage { width: min(900px, 100vw); gap: 0; }
+body[data-style='minimal'] .danmaku-signal-header { display: none; }
+body[data-style='minimal'] .draw-danmaku-feed { gap: 4px; height: calc(100vh - clamp(20px, 4.4vw, 48px)); max-height: 100vh; }
+body[data-style='minimal'] .draw-danmaku-item {
+  --minimal-accent: var(--signal-cyan);
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 7px;
+  width: max-content;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 4px 14px 4px 5px;
+  border: 0;
+  border-left: 2px solid var(--minimal-accent);
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(90deg, rgba(8, 13, 23, .82), rgba(8, 13, 23, .5) 72%, transparent);
+  box-shadow: none;
+  clip-path: none;
+  animation-name: minimalMessageIn;
+}
+body[data-style='minimal'] .draw-danmaku-item[data-tone='1'] { --minimal-accent: var(--signal-gold); }
+body[data-style='minimal'] .draw-danmaku-item[data-tone='2'] { --minimal-accent: var(--signal-violet); }
+body[data-style='minimal'] .draw-danmaku-item[data-tone='3'] { --minimal-accent: var(--signal-berry); }
+body[data-style='minimal'] .draw-danmaku-item::after { display: none; }
+body[data-style='minimal'] .draw-danmaku-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #071015;
+  background: var(--minimal-accent);
+  clip-path: none;
+  font-size: 11px;
+}
+body[data-style='minimal'] .draw-danmaku-body { display: flex; flex-wrap: nowrap; gap: 7px; align-items: baseline; }
+body[data-style='minimal'] .draw-danmaku-identity { flex: 0 0 auto; }
+body[data-style='minimal'] .draw-danmaku-identity strong { color: var(--minimal-accent); font: 700 12px/1.35 'Microsoft YaHei UI', sans-serif; }
+body[data-style='minimal'] .draw-danmaku-badge { padding: 0 4px; border-radius: 3px; font-size: 7px; }
+body[data-style='minimal'] .draw-danmaku-body p { flex: 0 1 auto; margin: 0; font-size: clamp(13px, 2vw, 17px); line-height: 1.35; text-shadow: 0 2px 5px rgba(0, 0, 0, .72); }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='viewer'] { --minimal-accent: #8da0b2; --minimal-role: '普'; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='fan'] { --minimal-accent: #a99cff; --minimal-role: '粉'; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='captain'] { --minimal-accent: #64ccf4; --minimal-role: '舰'; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='admiral'] { --minimal-accent: #d694f5; --minimal-role: '提'; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='governor'] { --minimal-accent: #f4c567; --minimal-role: '总'; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity]::after {
+  position: absolute;
+  top: 1px;
+  right: auto;
+  left: 24px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid color-mix(in srgb, var(--minimal-accent) 76%, white);
+  border-radius: 3px;
+  color: #0a111d;
+  background: var(--minimal-accent);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .34);
+  content: var(--minimal-role);
+  font: 900 8px/1 'Microsoft YaHei UI', sans-serif;
+  opacity: 1;
+}
+body[data-style='minimal'] .draw-danmaku-item[data-identity='viewer'] .draw-danmaku-avatar { filter: saturate(.55); opacity: .9; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='fan'] .draw-danmaku-medal { color: #d8d1ff; border-style: dotted; background: rgba(88, 70, 166, .18); }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='captain'] .draw-danmaku-guard { color: #9be7ff; border-bottom-width: 2px; background: transparent; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='admiral'] .draw-danmaku-guard { color: #ebbaff; border-width: 0 0 2px; background: transparent; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='governor'] .draw-danmaku-guard { color: #ffe4a0; border: 0; background: linear-gradient(90deg, rgba(244, 197, 103, .2), transparent); }
+body.is-preview[data-style='bubble'] { background: radial-gradient(circle at 15% 0%, rgba(136, 234, 214, .16), transparent 34%), #151224; }
+body.is-preview[data-style='minimal'] { background: linear-gradient(135deg, #111827, #1d2333); }
+
+@keyframes signalMessageIn { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes signalMeter { from { transform: scaleY(.45); opacity: .55; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes bubbleMessageIn { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes minimalMessageIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 480px) {
+  .danmaku-signal-stage { padding: 8px; }
+  .draw-danmaku-item { grid-template-columns: 36px minmax(0, 1fr); min-height: 54px; padding-left: 7px; }
+  .draw-danmaku-avatar { width: 36px; height: 36px; }
+  .danmaku-signal-copy small { letter-spacing: .1em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

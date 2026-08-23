@@ -43,6 +43,34 @@ export function getParameterRangeProgress(input) {
 }
 
 /**
+ * 返回滑块零点与当前值之间的区段，供正负值滑块从零点向两侧填充。
+ * 对不跨越零点的区间，零点会收敛到最近的合法端点。
+ *
+ * @param {HTMLInputElement | { min: string, max: string, value: string }} input 参数滑块。
+ * @returns {{ zeroProgress: number, startProgress: number, lengthProgress: number, polarity: string }} 零点区段。
+ */
+export function getParameterRangeOrigin(input) {
+  const min = getFiniteNumber(input.min, 0);
+  const max = getFiniteNumber(input.max, 100);
+  if (max <= min) {
+    return { zeroProgress: 0, startProgress: 0, lengthProgress: 0, polarity: 'neutral' };
+  }
+
+  const value = Math.min(max, Math.max(min, getFiniteNumber(input.value, min)));
+  const zero = Math.min(max, Math.max(min, 0));
+  const interval = max - min;
+  const valueProgress = ((value - min) / interval) * 100;
+  const zeroProgress = ((zero - min) / interval) * 100;
+
+  return {
+    zeroProgress,
+    startProgress: Math.min(valueProgress, zeroProgress),
+    lengthProgress: Math.abs(valueProgress - zeroProgress),
+    polarity: value < zero ? 'negative' : value > zero ? 'positive' : 'neutral'
+  };
+}
+
+/**
  * 同步一个参数滑块的视觉 CSS 变量。
  *
  * 轨道两端各内缩半个拇指直径，故 0% 和 100% 时轨道端点与拇指中心重合。
@@ -53,15 +81,23 @@ export function refreshParameterRange(input) {
   if (!isParameterRange(input)) return;
 
   const progress = getParameterRangeProgress(input);
+  const origin = getParameterRangeOrigin(input);
   const thumbSize = getThumbSize(input);
   const width = getFiniteNumber(input.getBoundingClientRect?.().width, 0);
   const trackLength = Math.max(0, width - thumbSize);
   const fillLength = trackLength * (progress / 100);
+  const originStart = (thumbSize / 2) + (trackLength * (origin.startProgress / 100));
+  const originLength = trackLength * (origin.lengthProgress / 100);
+  const zeroPosition = (thumbSize / 2) + (trackLength * (origin.zeroProgress / 100));
 
   input.style.setProperty('--parameter-range-progress', `${progress}%`);
   input.style.setProperty('--parameter-range-track-inset', `${thumbSize / 2}px`);
   input.style.setProperty('--parameter-range-track-length', `${trackLength}px`);
   input.style.setProperty('--parameter-range-fill-length', `${fillLength}px`);
+  input.style.setProperty('--parameter-range-origin-start', `${originStart}px`);
+  input.style.setProperty('--parameter-range-origin-length', `${originLength}px`);
+  input.style.setProperty('--parameter-range-zero-position', `${zeroPosition}px`);
+  if (input.dataset) input.dataset.rangePolarity = origin.polarity;
 }
 
 function getInputs(root) {

@@ -23,11 +23,9 @@
 }
 
 .queue-classic {
-  width: min(405px, calc(100vw - (2 * var(--overlay-edge))));
-}
-
-.overlay-body.queue-viewport-resized .queue-classic {
-  width: calc(100vw - (2 * var(--overlay-edge)));
+  width: 405px;
+  transform: scale(var(--queue-panel-scale, 1));
+  transform-origin: top left;
 }
 
 .overlay-panel.has-backdrop-blur {
@@ -141,14 +139,10 @@
 
 .classic-list-window {
   --classic-row-gap: 5px;
-  height: min(235px, calc(100vh - 32px));
-  max-height: calc(100vh - 32px);
+  height: 235px;
+  max-height: 235px;
   overflow: hidden;
   margin-top: 8px;
-}
-
-.overlay-body.queue-viewport-resized .classic-list-window {
-  height: auto;
 }
 
 .classic-list {
@@ -242,4 +236,3 @@
   text-align: center;
   font-size: 2.5em;
 }
-

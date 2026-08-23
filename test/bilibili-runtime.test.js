@@ -10,12 +10,14 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
     enableBilibili: 'true'
   };
   const clients = [];
+  const activeRooms = [];
   const runtime = createBilibiliRuntime({
     settingsStore: { getSettings: () => settings },
     domainServices: {
       requesterTargets: { getLatestRandomRequester: () => null }
     },
     broadcastSnapshot() {},
+    setActiveDanmakuRoom: roomId => activeRooms.push(roomId),
     buildClient(roomId, context) {
       const client = {
         roomId,
@@ -46,6 +48,11 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
     cookieHeader: 'SESSDATA=test',
     uid: 42
   });
+  assert.deepEqual(activeRooms, ['123']);
+
+  settings.enableBilibili = 'false';
+  runtime.configure(true);
+  assert.equal(activeRooms.at(-1), '');
 
   runtime.stop();
   assert.equal(clients[0].stopCount, 1);

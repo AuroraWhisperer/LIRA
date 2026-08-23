@@ -65,55 +65,130 @@
   font-size: 11px;
   font-weight: 700;
 }
-.danmaku-style-preview {
-  min-height: 178px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 14px;
-  background: radial-gradient(circle at 90% 0%, rgba(128,116,232,.2), transparent 42%), linear-gradient(180deg, rgba(39,35,66,.98), rgba(22,21,43,.98));
-  box-shadow: 0 12px 24px rgba(7,6,20,.14), inset 0 1px 0 rgba(255,255,255,.08);
-}
-.danmaku-style-preview .draw-danmaku-feed {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  gap: 8px;
-  min-height: 178px;
-  max-height: 260px;
-  overflow: auto;
-  padding: 12px;
-}
-.danmaku-style-preview .draw-danmaku-item {
-  --bubble-accent: #ffe5a2;
-  --bubble-tail: rgba(255,255,255,.11);
-  position: relative;
+.danmaku-style-picker {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
   gap: 8px;
-  align-items: start;
-  width: min(100%, var(--danmaku-width));
-  min-width: min(100%, 156px);
-  min-height: var(--danmaku-height);
-  max-width: 100%;
-  padding: 9px 10px 9px 8px;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 19px 19px 19px 8px;
-  background: rgba(255,255,255,.065);
-  box-shadow: 0 8px 18px rgba(7,6,20,.18), inset 0 1px 0 rgba(255,255,255,.08);
 }
-.danmaku-style-preview .draw-danmaku-item:nth-child(2) { align-self: flex-end; border-radius: 17px 17px 6px 17px; }
-.danmaku-style-preview .draw-danmaku-item:nth-child(2)::after { right: 14px; left: auto; clip-path: polygon(0 0, 100% 100%, 100% 0); }
-.danmaku-style-preview .draw-danmaku-item:nth-child(3) { --bubble-accent: #a9f5d8; --bubble-tail: rgba(25,157,151,.34); background: linear-gradient(135deg, rgba(25,157,151,.22), rgba(255,255,255,.055)); }
-.danmaku-style-preview .draw-danmaku-item::after { position: absolute; bottom: -4px; left: 14px; width: 10px; height: 9px; background: var(--bubble-tail); clip-path: polygon(0 0, 100% 0, 0 100%); content: ''; pointer-events: none; }
-.danmaku-style-preview .draw-danmaku-avatar { display: grid; place-items: center; width: 30px; height: 30px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--bubble-accent) 54%, rgba(255,255,255,.28)); border-radius: 12px 12px 12px 6px; color: #fff9df; background: linear-gradient(145deg, color-mix(in srgb, var(--bubble-accent) 62%, transparent), rgba(128,116,232,.52)); font-size: 12px; font-weight: 800; }
-.danmaku-style-preview .draw-danmaku-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.danmaku-style-preview .draw-danmaku-identity { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
-.danmaku-style-preview .draw-danmaku-identity strong { min-width: 0; overflow: hidden; color: var(--bubble-accent); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.danmaku-style-preview .draw-danmaku-badge { flex: 0 0 auto; max-width: 84px; overflow: hidden; padding: 1px 4px; border: 1px solid; border-radius: 999px; color: #ddd8ff; background: rgba(80,66,157,.52); font: 800 8px/1.35 Consolas, 'Microsoft YaHei', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-.danmaku-style-preview .draw-danmaku-guard { border-color: rgba(255,200,87,.72); color: #fff2a8; background: rgba(133,90,15,.52); }
-.danmaku-style-preview .draw-danmaku-body p { margin: 3px 0 0; color: #f8f5ff; font-size: 12px; line-height: 1.42; overflow-wrap: anywhere; word-break: break-word; }
-.danmaku-style-preview .draw-danmaku-empty { width: 100%; padding: 22px 8px; color: #b7b2d4; font-size: 11px; text-align: center; }
+.danmaku-style-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.danmaku-style-option {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.danmaku-style-option:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 46%, var(--border));
+  transform: translateY(-1px);
+}
+.danmaku-style-option:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.danmaku-style-option[aria-pressed='true'] {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--primary), 0 6px 16px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.danmaku-style-option:disabled { cursor: wait; opacity: .68; }
+.danmaku-style-option-visual {
+  position: relative;
+  display: block;
+  height: 76px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #101628;
+}
+.danmaku-style-option-visual i {
+  position: absolute;
+  display: block;
+}
+.danmaku-style-option-visual.is-bubble {
+  background: linear-gradient(145deg, #fff8ed, #f2ecec 58%, #e8f5ef);
+}
+.danmaku-style-option-visual.is-bubble i {
+  left: 14px;
+  width: 68%;
+  height: 15px;
+  border: 1px solid rgba(72, 64, 92, .12);
+  border-radius: 10px 10px 10px 3px;
+  background: rgba(255,255,255,.86);
+  box-shadow: 0 3px 8px rgba(63,54,76,.08);
+}
+.danmaku-style-option-visual.is-bubble i:nth-child(1) { top: 10px; }
+.danmaku-style-option-visual.is-bubble i:nth-child(2) { top: 31px; left: 28%; width: 62%; background: #dff1ea; }
+.danmaku-style-option-visual.is-bubble i:nth-child(3) { top: 52px; width: 52%; background: #eee6f6; }
+.danmaku-style-option-visual.is-signal {
+  background: radial-gradient(circle at 84% 18%, rgba(112,92,210,.26), transparent 34%), #11152a;
+}
+.danmaku-style-option-visual.is-signal i {
+  left: 12px;
+  height: 14px;
+  border: 1px solid rgba(165,177,232,.22);
+  background: linear-gradient(90deg, rgba(49,59,88,.92), rgba(46,43,79,.78));
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%);
+}
+.danmaku-style-option-visual.is-signal i:nth-child(1) { top: 10px; width: 84%; }
+.danmaku-style-option-visual.is-signal i:nth-child(2) { top: 31px; width: 72%; }
+.danmaku-style-option-visual.is-signal i:nth-child(3) { top: 52px; width: 60%; border-color: rgba(97,223,192,.28); background: rgba(27,78,78,.65); }
+.danmaku-style-option-visual.is-minimal {
+  background: linear-gradient(160deg, #182033, #0e1320);
+}
+.danmaku-style-option-visual.is-minimal i {
+  left: 13px;
+  height: 2px;
+  border-left: 5px solid #67d4b1;
+  background: linear-gradient(90deg, rgba(255,255,255,.9) 0 28%, rgba(255,255,255,.3) 28% 100%);
+  box-shadow: 0 7px 0 rgba(255,255,255,.12);
+}
+.danmaku-style-option-visual.is-minimal i:nth-child(1) { top: 13px; width: 78%; }
+.danmaku-style-option-visual.is-minimal i:nth-child(2) { top: 36px; width: 60%; border-left-color: #f0bb65; }
+.danmaku-style-option-visual.is-minimal i:nth-child(3) { top: 59px; width: 70%; border-left-color: #8a8fde; }
+.danmaku-style-option-copy {
+  display: grid;
+  gap: 3px;
+  padding: 0 2px 2px;
+}
+.danmaku-style-option-copy strong { font-size: 13px; line-height: 1.3; }
+.danmaku-style-option-copy small { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.danmaku-style-save-state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.danmaku-style-preview {
+  height: 310px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 14px;
+  background: #0b101b;
+  box-shadow: 0 12px 24px rgba(7,6,20,.12);
+}
+.danmaku-style-preview iframe { display: block; width: 100%; height: 100%; border: 0; pointer-events: none; }
+.danmaku-overlay-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.danmaku-overlay-link label { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 11px; font-weight: 700; }
+.danmaku-overlay-link input { width: 100%; color: var(--text); font-family: Consolas, monospace; }
+.danmaku-overlay-actions { display: flex; gap: 8px; }
 .danmaku-status-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -234,9 +309,7 @@
 @media (max-width: 600px) {
   .danmaku-style-section > .danmaku-section-heading { align-items: stretch; flex-direction: column; }
   .danmaku-style-chip { align-self: flex-start; }
-  .danmaku-style-preview .draw-danmaku-feed { padding: 10px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .danmaku-style-preview .draw-danmaku-item { animation: none; transition: none; }
+  .danmaku-style-options { grid-template-columns: 1fr; }
+  .danmaku-overlay-link { grid-template-columns: 1fr; }
+  .danmaku-overlay-actions { justify-content: flex-end; }
 }

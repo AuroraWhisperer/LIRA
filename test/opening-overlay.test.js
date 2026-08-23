@@ -8,6 +8,7 @@ const { Readable } = require('node:stream');
 const test = require('node:test');
 const { addFrameProtectionHeaders, contentType } = require('../src/server/http-utils');
 const openingRoutes = require('../src/server/routes/opening-routes');
+const settingsRoutes = require('../src/server/routes/settings-routes');
 const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -43,7 +44,11 @@ test('opening overlay is frameable and keeps the required character transform la
     assert.match(html, new RegExp(`class="[^"]*${className}[^"]*"`));
   }
   assert.match(html, /class="track-waveform"/);
-  assert.match(html, /id="openingTrackPath"/);
+  assert.match(html, /data-track-motion="heart"/);
+  assert.match(html, /id="openingTrackPath"[^>]+pathLength="1"/);
+  for (const className of ['track-base', 'track-barber', 'track-progress']) {
+    assert.match(html, new RegExp(`class="[^"]*${className}[^"]*"`));
+  }
   assert.match(html, /<animateMotion[^>]+repeatCount="indefinite"/);
   assert.match(html, /<mpath href="#openingTrackPath"/);
   assert.match(html, /<audio id="openingAudio" loop preload="metadata"><\/audio>/);
@@ -58,6 +63,7 @@ test('opening overlay is frameable and keeps the required character transform la
 });
 
 test('opening overlay animation honors quality, motion, visibility, and safe text rendering', () => {
+  const html = read('public', 'pages', 'overlays', 'opening.html');
   const css = read('public', 'css', 'overlays', 'opening.css');
   const script = read('public', 'js', 'overlays', 'opening.js');
   assert.match(css, /background-color:\s*var\(--opening-night\)/);
@@ -70,11 +76,26 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /font-size:\s*var\(--opening-title-size(?:,[^)]+)?\)/);
   assert.match(css, /white-space:\s*nowrap/);
   assert.match(css, /cqw/);
-  assert.match(css, /\.track::before/);
+  assert.doesNotMatch(css, /\.track::before\s*\{/);
+  assert.doesNotMatch(css, /@keyframes\s+track-glint/);
+  assert.doesNotMatch(css, /mic-glint/);
   assert.match(css, /\.track-heart-motion/);
+  assert.match(css, /\[data-track-motion='barber'\][^\{]*\.track-barber/);
+  assert.match(css, /\[data-track-motion='progress'\][^\{]*\.track-progress/);
+  assert.match(css, /@keyframes\s+track-barber-flow/);
+  assert.match(css, /@keyframes\s+track-progress-flow/);
+  assert.match(css, /\.opening-stage\.is-reduced-motion[^\{]*\.track-barber/);
+  assert.match(css, /\.opening-stage\.quality-low[^\{]*\.track-progress/);
   assert.match(css, /animation:\s*eq-smooth/);
   assert.match(css, /@keyframes\s+eq-smooth/);
-  assert.match(css, /character-float[^\n]*-1\.25cqw/);
+  assert.match(css, /@keyframes\s+character-float[^\n]*-\.45cqw/);
+  assert.match(css, /@keyframes\s+character-breathe[^\n]*scale\(1\.008\)/);
+  assert.match(css, /@keyframes\s+note-drift[^\n]*0%,\s*100%\s*\{\s*opacity:\s*0/);
+  assert.match(css, /\.opening-stage\.is-paused\s+\*::before/);
+  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/);
+  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow[^\{]*\{[^}]*animation:\s*none/);
+  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow\s*\{[^}]*opacity:\s*\.74/);
+  assert.match(html, /<animateMotion dur="7\.2s"/);
   assert.match(css, /translate3d\(/);
   assert.match(css, /\.opening-stage\.is-disabled[^\n]*display:\s*none/);
   assert.match(css, /\.opening-stage\.is-disabled[^\n]*animation:\s*none/);
@@ -86,6 +107,8 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(script, /Array\.from/);
   assert.match(script, /textContent/);
   assert.match(script, /QUALITY_LIMITS/);
+  assert.match(script, /TRACK_MOTION_VALUES/);
+  assert.match(script, /stage\.dataset\.trackMotion\s*=\s*config\.trackMotion/);
   assert.match(script, /titleSizeForLength/);
   assert.match(script, /title:\s*'唱一首，在一首，给你的歌'/);
   assert.match(script, /MAX_LENGTHS = Object\.freeze\(\{ title: 20/);
@@ -117,20 +140,25 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(html, /<strong>设置开播画面上的文字<\/strong>/);
   assert.match(html, /class="opening-switch-label">漂浮音符<\/span>/);
   assert.match(html, /class="opening-switch-label">音乐律动<\/span>/);
-  for (const id of ['openingTitle', 'openingTitleCount', 'openingSubtitle', 'openingName', 'openingFooter', 'openingQuality', 'openingShowNotes', 'openingShowEq', 'openingAudioFile', 'openingAudioVolume', 'openingUrl', 'openingPreview']) {
+  for (const id of ['openingTitle', 'openingTitleCount', 'openingSubtitle', 'openingName', 'openingFooter', 'openingQuality', 'openingTrackMotion', 'openingShowNotes', 'openingShowEq', 'openingAudioFile', 'openingAudioVolume', 'openingUrl', 'openingPreview']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+  assert.match(html, /id="openingTrackMotion"[^>]*>[\s\S]*value="heart"[^>]*selected[^>]*>心形巡航/);
+  assert.match(html, /value="barber"[^>]*>灯带循环/);
+  assert.match(html, /value="progress"[^>]*>流光进度/);
   assert.match(html, /id="openingTitle"[^>]+value="唱一首，在一首，给你的歌"/);
   assert.match(html, /id="openingTitle"[^>]+maxlength="20"/);
   assert.match(html, /id="openingName"[^>]+value=""/);
   assert.match(script, /URLSearchParams/);
   assert.match(script, /localOverlayOrigin/);
   assert.match(script, /params\.set\('enabled'/);
+  assert.match(script, /params\.set\('trackMotion'/);
   assert.match(script, /params\.set\('audio',\s*'browser'\)/);
   assert.match(script, /buildOpeningSourceUrl/);
   assert.match(script, /openingAudioVolume/);
   assert.match(script, /OPENING_AUDIO_ENDPOINT/);
   assert.match(script, /openingSettingsPayload/);
+  assert.match(script, /openingTrackMotion:\s*config\.trackMotion/);
   assert.match(script, /about:blank/);
   assert.match(script, /enabled:\s*false/);
   assert.match(script, /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/);
@@ -140,10 +168,19 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(openingRoutesSource, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
+  assert.equal(DEFAULT_SETTINGS.openingTrackMotion, 'heart');
   assert.equal(openingRoutes.getOpeningConfig({
     settings: { get() { return { openingFooter: 'SINGING LIVE' }; } },
     system: { dataDir: os.tmpdir() }
   }).footer, '欢迎来到直播间');
+  assert.equal(openingRoutes.getOpeningConfig({
+    settings: { get() { return { openingTrackMotion: 'barber' }; } },
+    system: { dataDir: os.tmpdir() }
+  }).trackMotion, 'barber');
+  assert.equal(openingRoutes.getOpeningConfig({
+    settings: { get() { return { openingTrackMotion: 'sparkle' }; } },
+    system: { dataDir: os.tmpdir() }
+  }).trackMotion, 'heart');
   assert.match(script, /openingTitleCount/);
   assert.match(script, /Array\.from\(config\.title\)\.length}\/20/);
   assert.doesNotMatch(script, /localStorage/);
@@ -154,12 +191,50 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(read('public', 'js', 'admin', 'app.js'), /initStartAnimation\(\)/);
 });
 
+test('opening track motion settings reject values outside the public enum', async () => {
+  const writes = [];
+  let configureCalls = 0;
+  let broadcastReason = '';
+  let responsePayload = null;
+  const response = {
+    writeHead(status) { this.status = status; },
+    end(value) { responsePayload = JSON.parse(value); }
+  };
+  const context = {
+    settings: {
+      defaults: DEFAULT_SETTINGS,
+      set(key, value) { writes.push([key, value]); }
+    },
+    bilibili: { configure() { configureCalls += 1; } },
+    broadcastSnapshot(reason) { broadcastReason = reason; },
+    system: { getState() { return { settings: {} }; } }
+  };
+
+  await settingsRoutes.routes['POST /api/settings'](context, {
+    async body() { return { openingTrackMotion: 'sparkle' }; }
+  }, response);
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(responsePayload, { ok: false, error: '设置 openingTrackMotion 的值无效。' });
+  assert.deepEqual(writes, []);
+  assert.equal(configureCalls, 0);
+
+  await settingsRoutes.routes['POST /api/settings'](context, {
+    async body() { return { openingTrackMotion: ' barber ' }; }
+  }, response);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(writes, [['openingTrackMotion', 'barber']]);
+  assert.equal(configureCalls, 1);
+  assert.equal(broadcastReason, 'settings');
+});
+
 test('opening music uploads stay inside the configured data directory', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-test-'));
   const settings = {
     values: {
       openingEnabled: 'true', openingTitle: '', openingSubtitle: '', openingName: '', openingFooter: '',
-      openingQuality: 'normal', openingShowNotes: 'true', openingShowEq: 'true',
+      openingQuality: 'normal', openingTrackMotion: 'heart', openingShowNotes: 'true', openingShowEq: 'true',
       openingAudioFile: '', openingAudioName: '', openingAudioVolume: '0.35'
     },
     get() { return { ...this.values }; },

@@ -296,7 +296,7 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.match(rowRule, /background-size:\s*124\.171%\s+336\.842%/);
   assert.match(rowRule, /min-height:\s*0/);
   assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
-  assert.match(rowRule, /font-size:\s*clamp\(12px,\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\),\s*28px\)/);
+  assert.match(rowRule, /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   const entryBuffer = fs.readFileSync(entryPath);
   assert.equal(entryBuffer.subarray(0, 4).toString('ascii'), 'RIFF');
   assert.equal(entryBuffer.subarray(8, 16).toString('ascii'), 'WEBPVP8L', 'storybook entry asset should use lossless WebP');
@@ -385,6 +385,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonRowRule, /min-height:\s*0/);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
+  assert.match(neonRowRule, /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /color:\s*#54152f/);
   assert.match(neonViewportRule, /top:\s*30%/);
@@ -400,6 +401,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(ribbonRowRule, /min-height:\s*0/);
   assert.match(ribbonRowRule, /margin-inline:\s*auto/);
   assert.match(ribbonRowRule, /background-size:\s*100%\s+100%/);
+  assert.match(ribbonRowRule, /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
   assert.match(ribbonViewportRule, /top:\s*41%/);
   assert.match(ribbonViewportRule, /right:\s*14\.5%/);
@@ -481,8 +483,9 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(goldenContentRule, /inset:\s*16\.5%\s+8\.5%\s+13\.5%/);
   assert.match(overlaySource, /renderIllustratedAssetQueue\(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow\)/);
   assert.match(goldenRowRule, /width:\s*72%/);
-  assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*490/);
+  assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*539/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
+  assert.match(goldenRowRule, /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
   assert.match(goldenRankRule, /top:\s*25%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);
   assert.match(goldenRankRule, /left:\s*5\.5%/);
@@ -525,6 +528,7 @@ test('styles 5 and 6 expand vertical visibility above their foreground frames', 
 
 test('identity content scrolls as one stream only when its rendered width overflows', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const sandbox = {
     console,
     URLSearchParams,
@@ -537,6 +541,8 @@ test('identity content scrolls as one stream only when its rendered width overfl
   vm.runInNewContext(source, sandbox);
 
   let longAnimation = null;
+  const longClasses = new Set();
+  const shortClasses = new Set(['has-horizontal-overflow']);
   const longText = {
     scrollWidth: 300,
     animate(keyframes, options) { longAnimation = { keyframes, options }; }
@@ -546,8 +552,26 @@ test('identity content scrolls as one stream only when its rendered width overfl
     animate() { assert.fail('fitting song text must not animate'); }
   };
   const containers = [
-    { clientWidth: 100, querySelector: () => longText },
-    { clientWidth: 100, querySelector: () => shortText }
+    {
+      clientWidth: 100,
+      classList: {
+        toggle(name, enabled) {
+          if (enabled) longClasses.add(name);
+          else longClasses.delete(name);
+        }
+      },
+      querySelector: () => longText
+    },
+    {
+      clientWidth: 100,
+      classList: {
+        toggle(name, enabled) {
+          if (enabled) shortClasses.add(name);
+          else shortClasses.delete(name);
+        }
+      },
+      querySelector: () => shortText
+    }
   ];
 
   sandbox.scheduleIdentityContentScroll({ querySelectorAll: () => containers });
@@ -557,6 +581,10 @@ test('identity content scrolls as one stream only when its rendered width overfl
     Array.from(longAnimation.keyframes, (frame) => frame.transform),
     ['translateX(0)', 'translateX(0)', 'translateX(-200px)', 'translateX(-200px)', 'translateX(0)']
   );
+  assert.equal(longClasses.has('has-horizontal-overflow'), true);
+  assert.equal(shortClasses.has('has-horizontal-overflow'), false);
+  assert.match(overlayStyles, /\.identity-content-wrapper\.has-horizontal-overflow\s*\{[^}]*justify-content:\s*flex-start/);
+  assert.match(overlayStyles, /\.identity-content-wrapper\.has-horizontal-overflow > \.identity-content\s*\{[^}]*margin-inline:\s*0/);
   assert.equal(
     Math.round((longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) * longAnimation.options.duration),
     1000
@@ -978,10 +1006,11 @@ test('classic queue uses calculated row height and sizes indexes with song text'
   assert.doesNotMatch(overlaySource, /overlayResizeTimer = setTimeout\(render, 100\)/);
   assert.match(overlaySource, /data-loop-clone/);
   assert.match(styles, /--overlay-edge:\s*clamp\(0px,\s*2vmin,\s*16px\)/);
-  assert.match(styles, /\.queue-classic\s*\{[\s\S]*?width:\s*min\(405px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/);
-  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?width:\s*min\(430px,\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)\)/);
-  assert.match(styles, /\.queue-viewport-resized \.queue-classic\s*\{[\s\S]*?width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/);
-  assert.match(styles, /\.queue-viewport-resized \.queue-identity\s*\{[\s\S]*?width:\s*calc\(100vw - \(2 \* var\(--overlay-edge\)\)\)/);
+  assert.match(styles, /\.queue-classic\s*\{[\s\S]*?width:\s*405px/);
+  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?width:\s*430px/);
+  assert.match(styles, /\.queue-classic\s*\{[\s\S]*?transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
+  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
+  assert.doesNotMatch(styles, /queue-viewport-resized/);
 });
 
 test('queue resize helpers preserve real rows while rebuilding loop copies', () => {

@@ -31,12 +31,12 @@
   --medal-bg: #65773b;
   --medal-text: #fffdf2;
   width: 72%;
-  aspect-ratio: 2139 / 490;
+  aspect-ratio: 2139 / 539;
   min-height: 0;
   margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-6/entry.webp');
   background-size: 100% 100%;
-  font-size: clamp(12px, calc(var(--identity-queue-font-size, 26px) * 0.68), 25px);
+  font-size: var(--identity-queue-font-size, 26px);
   font-weight: 760;
   text-shadow: 0 1px 0 rgba(255, 253, 236, 0.9);
 }

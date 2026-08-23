@@ -339,7 +339,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 载荷 | 生产者 | 广播点 |
 |---|---|---|
-| `lyricState`(快照 15 字段之一 + `lyric-state` 消息) | 播放页上报:API context `playbackLyrics.publish(state)`;WeSing 采集:`weSingCapture.onState` 在 active 且有 `lyricState` 时同步 | [server.js:345-349](../../../../src/server.js#L345-L349)、[server.js:183-188](../../../../src/server.js#L183-L188) |
+| `lyricState`(快照 16 字段之一 + `lyric-state` 消息) | 播放页上报:API context `playbackLyrics.publish(state)`;WeSing 采集:`weSingCapture.onState` 在 active 且有 `lyricState` 时同步 | [server.js:345-349](../../../../src/server.js#L345-L349)、[server.js:183-188](../../../../src/server.js#L183-L188) |
 | `lyricTimeline`(快照字段 + `lyric-timeline` 消息) | `publishLyricTimeline(input)`:归一化后广播;WeSing `onTimeline` 仅 `active` 时发布 | [server.js:161-165](../../../../src/server.js#L161-L165)、[server.js:189-191](../../../../src/server.js#L189-L191) |
 
 歌词内容本身的时序消费在下方 §14 的解析器文档。

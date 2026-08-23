@@ -221,7 +221,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | `rules` | 规则集替换 |
 | `finished` | 倒计时自然归零定时器触发 |
 
-快照侧:`state.overtime`(15 字段之一,生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`giftDetection.getStatus()`:`coreActive/consumers/pendingCount`,[detection-service.js:157-168](../../../src/bilibili/gift/detection-service.js#L157-L168))在每次连接与业务变更时全量下发。
+快照侧:`state.overtime`(16 字段之一,生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`giftDetection.getStatus()`:`coreActive/consumers/pendingCount`,[detection-service.js:157-168](../../../src/bilibili/gift/detection-service.js#L157-L168))在每次连接与业务变更时全量下发。
 
 增量消息形态(逐字契约见 [ws.md](ws.md) §3.2;`state` 含 `effectiveRemainingMs/serverNowMs/status/revision`,配置或规则变化时另带完整 `background/rules`):
 
