@@ -34,6 +34,7 @@
 | `/danmaku` | [overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定弹幕姬地址；按设置自由切换聊天气泡/直播信号带/极简字幕并实时显示普通文字和 B 站表情，`?preview=1&style=…` 只用于 Admin 的确定性样本预览 |
 | `/games` | [overlays/games.html](../../../public/pages/overlays/games.html) | OBS 浏览器源、独立浏览器窗口 | 直播小游戏浏览器源；管理页先打开固定地址再开始游戏，页面按当前会话自动显示数字炸弹、五子棋或你画我猜；画猜页面使用收窄并居中的 16:9 画布，由主播通过画笔、橡皮擦、直线、矩形、圆形和画布取色器作画，并显示弹幕抢答/总积分；图形仍编码为既有 append 笔画同步，不新增 WebSocket 消息形状。弹幕画廊按消息视觉长度动态调整气泡宽度与高度，展示头像、昵称、消息、大航海与当前房间灯牌，头像统一经带 token 的 `/api/bilibili/avatar` 本地代理加载并补全；题词只在 Admin 私有主持区显示；旧 `?game=` 地址仍可访问但参数不再决定游戏 |
 | `/wheel` | [overlays/wheel.html](../../../public/pages/overlays/wheel.html) | OBS 浏览器源、独立浏览器窗口 | 独立转盘浏览器源；圆形外透明，按主播配置的内容份数绘制多色扇形，抽取时旋转并突出最终结果；不参与 `/games` 会话互斥 |
+| `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定萌时钟地址；默认桃桃便签，可用 `style=peach|starlight`、`date=0|1`、`seconds=0|1`、`format=12|24`、`label=` 组合两套风格与显示字段 |
 
 调试页面(无 URL 映射,只能按文件路径访问):
 
@@ -56,6 +57,7 @@
 | 桌面歌词页 | [pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | ES Module(`js/overlays/lyric-window.js`) | 复用管理页实时预览的完整时间轴、当前行高亮、逐字进度、翻译/罗马音与自动跟随 |
 | 弹幕姬叠加层 | [pages/overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | ES Module(`js/overlays/danmaku.js`) | 固定 `/danmaku` 多样式页面；快照恢复并实时同步 `danmakuOverlayStyle`，通过 `danmaku:message` 追加消息，复用 `danmaku-feed.js` 安全渲染 B 站表情 |
 | 游戏叠加层 | [pages/overlays/games.html](../../../public/pages/overlays/games.html) | ES Module(`js/overlays/games.js`) | 数字炸弹/五子棋/你画我猜共享会话；你画我猜使用紧凑画布、六种绘画工具，并通过 `danmaku-feed.js` 渲染动态宽高弹幕气泡 |
+| 萌时钟叠加层 | [pages/overlays/clock.html](../../../public/pages/overlays/clock.html) | ES Module(`js/overlays/clock.js`) | 当前本地时间、日期与星期；桃桃便签/星夜软糖两套 URL 参数风格，卡片外透明 |
 
 ## 4. JS 模块地图
 
@@ -64,6 +66,7 @@
 | 文件 | 职责 | 文档 |
 |---|---|---|
 | `index.js` | 模块加载入口(import 全部 admin 模块,顺序见 [app.md](app.md) §3) | [app.md](app.md) |
+| `contextual-help.js` | 注册 `<lira-help>` 问号说明组件；说明使用顶层 Popover，支持悬浮、键盘和点击。仅承载可选解释，不得隐藏状态、校验、警告或必读操作说明 | 本文 §5 |
 | `app.js` | 应用启动:导航初始化、播放助手桥接、WebSocket 连接 | [app.md](app.md) §3 |
 | `state.js` | `StateService` 单例:状态快照 + WS 客户端 + `/api/state`/`/api/songs` 加载 | [comms.md](comms.md)、[app.md](app.md) §2 |
 | `queue.js` | 点歌队列 / SC 队列渲染与操作 | [app.md](app.md) §4 |
@@ -83,6 +86,7 @@
 | `desktop-lyric.js` | 桌面歌词设置表单(自动保存) | [app.md](app.md) §6 |
 | `desktop-lyric-preview.js` | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画) | [app.md](app.md) §6 |
 | `start-animation.js` | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、音乐上传与音量控制 | [app.md](app.md) §6 |
+| `clock-card.js` | 萌时钟固定/带参数地址、两套风格选择与实时 iframe 预览 | [app.md](app.md) §6 |
 | `song-category-filter.js` | 分类/标签筛选工具(拆分、选中态读取) | [app.md](app.md) §4 |
 | `gifts/index.js` | 礼物面板统一渲染入口 | [app.md](app.md) §5 |
 | `gifts/notification.js` / `detection.js` / `sprint.js` / `recent.js` | 礼物通知 / 检测状态 / 月底冲刺 / 最近礼物 | [app.md](app.md) §5 |
@@ -101,6 +105,7 @@
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md) |
 | `games.js` | 直播小游戏入口与会话渲染；你画我猜在本地预览图形后把直线/矩形/圆形拆为归一化坐标点，取色器只吸附到现有安全色板；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
 | `opening.js` | 开播动画 Browser Source：读取本地配置、播放内置/上传音乐，并驱动人物待机与心形/灯带/流光轨道动画 |
+| `clock.js` | 萌时钟 Browser Source：清洗 URL 参数、按本地秒边界更新时间/日期并在页面隐藏时暂停调度 |
 | `danmaku-feed.js` | 可复用弹幕气泡组件：安全构建身份/消息 DOM，并根据文本视觉长度写入气泡宽高 CSS 变量 |
 
 ### 4.4 共享与入口 `public/js/`
@@ -124,11 +129,13 @@
 | `css/styles-admin.css` | 管理后台顶层样式(引用 admin/ 子目录) |
 | `css/styles-playback.css` | 播放助手顶层样式(引用 playback/ 子目录) |
 | `css/components/parameter-range.css` | 可复用参数滑块：`parameter-range` 为克制的天蓝默认款，按语义追加 `--tempo`（圆角方块）/`--scale`（圆环）/`--intensity`（短胶囊）/`--centered`（纵向椭圆）修饰类；不接管播放 seek/音量 |
+| `css/components/contextual-help.css` | Admin `<lira-help>` 的统一问号与顶层说明样式；只允许按视口空间切换上下位置，不提供页面级视觉变体 |
 | `css/admin/*.css` | 管理后台分模块:workspace/layout/tabs/toasts/modals/collapsible/gifts/blindbox-analysis/overtime/other-features/song-filters/desktop-lyric-preview/responsive |
 | `css/playback/*.css` | 播放助手分模块:player/layout/panels/header/drawer/fullscreen/dialogs/queue-modal/song-row/desktop-lyric/responsive |
 | `css/overlays/base.css` | 叠加层框架(classic/identity 队列主题、滚动动画、歌单板) |
 | `css/overlays/blindbox.css` | 盲盒叠加层动画与布局 |
 | `css/overlays/overtime.css` | 加班机叠加层(cq 单位 + 容器查询,见 [overlays.md](overlays.md) §4) |
+| `css/overlays/clock.css` | 萌时钟桃桃便签/星夜软糖两套代码原生卡片与 reduced-motion 降级 |
 | `css/overlays/desktop.css` | 桌面外壳主题(`html.desktop-shell`,标题栏拖拽区/窗口控件) |
 
 ## 6. 静态资源

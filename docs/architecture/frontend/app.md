@@ -24,7 +24,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 │           / desktopLyricPage(桌面歌词设置)
 ├── #playbackAssistantPage 播放助手(#playback)
 ├── #giftAssistantPage     礼物面板(#gifts):礼物检测/提示/最近/月底冲刺/今日盲盒盈亏/盈亏榜/盲盒映射
-└── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/礼物特效/主播工作台/性能检测/使用文档/桌面更新)
+└── #otherAssistantPage    百宝箱(#other):左侧功能导航 + 面板(弹幕姬/礼物姬/加班机/礼物特效/主播工作台/开播动画/萌时钟/性能检测/使用文档/桌面更新)
 ```
 
 六个内部 Tab 的内容由 [pages/admin/song/](../../../public/pages/admin/song/) 下的分片组成:
@@ -155,6 +155,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 小游戏直播台 | [games.js](../../../public/js/admin/games.js) | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，并从 9 类、每类 100 词的固定题库中全选、清空或组合本场分类，未选分类时禁止开局，开局后锁定选择；`GET /api/games/host-state` 私下显示题词并恢复 `categoryIds`，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥 |
 | 主播工作台 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 工作台**(`admin.streamerWorkbench.v2`):保存下一场直播日期/时间/主题/重点,按开播前/直播中/下播后三阶段管理完成态清单,现场备忘分内容灵感/观众约定/复盘记录并可转为计划;首次启动提供 4 条实用备播/复盘清单,读取旧 `admin.streamerPlanner.v1` 时迁移任务但不删除旧键;不经过后端 |
+| 萌时钟 | [clock-card.js](../../../public/js/admin/clock-card.js) | 固定 `/clock` Browser Source 地址与带参数地址生成器；桃桃便签/星夜软糖两套风格、日期/秒数、12/24 小时制和 16 字角标文案都直接写入 URL，并用同页 iframe 实时预览，不持久化设置 |
 | 性能检测 | metrics.js(见 §4.6) | |
 | 使用文档 / 桌面更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [desktop.js](../../../public/js/desktop.js) | 目录锚点平滑滚动与章节高亮、侧栏收缩时切换双栏目录;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |
 | 首次启动引导 | [onboarding.js](../../../public/js/admin/onboarding.js) / [interactive-tour.js](../../../public/js/admin/interactive-tour.js) | 配置遮罩通过现有认证、设置、AI 接口验证状态，完成标记写入普通 settings；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示 |

@@ -155,13 +155,13 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(source, /enableCustomReplyBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
   assert.match(html, /随机点歌回复/);
-  assert.match(html, /条件不匹配时，自动回复点歌人/);
+  assert.match(html, /条件不匹配时自动回复点歌人/);
   assert.match(html, /启用回复/);
   assert.match(html, /签到机器人/);
-  assert.match(html, /收到“签到”弹幕后回复累计天数/);
+  assert.match(html, /收到“签到”后回复累计天数/);
   assert.match(html, /启用签到/);
   assert.match(html, /抽签机器人/);
-  assert.match(html, /收到“抽签”弹幕后回复每日一签/);
+  assert.match(html, /收到“抽签”后回复每日一签/);
   assert.match(html, /启用抽签/);
   assert.match(html, /DIY 关键词回复/);
   assert.match(html, /收到自定义关键词后回复固定文案/);
@@ -200,7 +200,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.doesNotMatch(html, /class="danmaku-tool-heading"/);
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
   assert.match(connectionSection, /id="danmakuRefreshBtn"/);
-  assert.match(html, /id="danmakuStyleTitle">弹幕姬</);
+  assert.match(html, /id="danmakuStyleTitle">弹幕姬 <lira-help>/);
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
@@ -214,7 +214,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.ok(styleSectionStart >= 0 && styleSectionEnd < composeSectionStart);
   assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="xiaomiAiSection"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuFixedReplyTitle"'));
-  assert.match(html, /id="danmakuFixedReplyTitle">固定回复</);
+  assert.match(html, /id="danmakuFixedReplyTitle">固定回复 <lira-help>/);
   assert.doesNotMatch(html, /id="danmakuSongReplySectionTitle"/);
   const fixedReplySectionStart = html.indexOf('class="danmaku-feature-section danmaku-fixed-reply-section"');
   const fixedReplySectionEnd = html.indexOf('</section>', fixedReplySectionStart);
@@ -279,10 +279,10 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
 
   assert.ok(html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
-  assert.match(html, /id="xiaomiAiTitle">AI 互动助手</);
-  assert.match(html, /按昵称响应直播间弹幕，并通过已配置的模型服务生成回复/);
+  assert.match(html, /id="xiaomiAiTitle">AI 互动助手 <lira-help>/);
+  assert.match(html, /按昵称响应弹幕，并通过已配置的模型生成回复/);
   assert.match(html, /id="xiaomiAiProviderBadge">自动识别</);
-  assert.match(html, /可选择官方供应商预设/);
+  assert.match(html, /可选官方预设/);
   assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
   assert.match(html, /id="xiaomiAiModelState">未配置</);
   assert.match(html, /id="xiaomiAiModel"[^>]*placeholder="填写模型 ID"[^>]*aria-controls="xiaomiAiModelMenu"/);
@@ -297,7 +297,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
   assert.match(html, /回复长度偏好/);
-  assert.match(html, /优先一条，信息较多时两条，确有必要才三条/);
+  assert.match(html, /优先一条；内容较多时两条，必要时三条/);
   assert.match(html, /不同回复随机 500–2000 毫秒；同一回复分段随机 500–1000 毫秒/);
   assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
@@ -334,7 +334,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(source, /modelApiProtocol: \['xiaomiAiModelApiProtocol', 'value'\]/);
   assert.match(source, /reasoningEffort: \['xiaomiAiReasoningEffort', 'value'\]/);
   assert.match(source, /provider_managed: '供应商管理'/);
-  assert.match(source, /当前模型必须支持 Chat Completions tool_calls/);
+  assert.match(source, /由 LIRA 执行，需要模型支持 tool_calls/);
   assert.match(source, /qweatherApiKey: \['xiaomiAiQWeatherKey', 'secret', 'hasQWeatherApiKey'\]/);
   assert.match(source, /amapApiKey: \['xiaomiAiAmapKey', 'secret', 'hasAmapApiKey'\]/);
   assert.doesNotMatch(source, /const secretFields/);

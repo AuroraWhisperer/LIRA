@@ -1,5 +1,5 @@
 
-.main-page-tab {
+.app-shell .main-page-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -10,9 +10,11 @@
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
+  letter-spacing: var(--type-tracking-normal);
   cursor: pointer;
   white-space: nowrap;
   transition: all 220ms cubic-bezier(.2, .8, .2, 1);
@@ -83,11 +85,14 @@
   align-items: start;
 }
 
-.theme-section legend {
-  font-weight: 800;
-  font-size: 12px;
+.app-shell .theme-section legend {
   padding: 0 4px;
   color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
+  letter-spacing: var(--type-tracking-normal);
 }
 
 .preset-grid {
@@ -131,9 +136,13 @@
   min-width: 0;
 }
 
-.preset-card strong {
-  font-size: 13px;
+.app-shell .preset-card strong {
   display: block;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
+  letter-spacing: var(--type-tracking-normal);
 }
 
 .quick-beautify {

@@ -147,7 +147,7 @@ data/
 - 播放器数据:`play_history`、`play_queue_state`
 
 **重建(Recreate)**:业务必需的默认行
-- `song_categories`:插入"默认分类"行(name='默认分类', sort_order=0, is_enabled=1)
+- `song_categories`:插入与启动链一致的"默认"行(name='默认', sort_order=0, is_enabled=1)
 - `overtime_machine_state`:确保 id=1 行存在且为禁用状态(enabled=0, status='paused')
 
 ### 6.2 两阶段提交流程
@@ -159,7 +159,7 @@ data/
 **Phase 2**(提交):
 1. 依次对所有数据库执行 `COMMIT`
 2. 若全部成功:重建默认行,返回 `{ cleared: true, preserved: [...], deletedCounts: {...}, recreated: [...] }`
-3. 若任一 COMMIT 失败:立即停止,返回 `{ ok: false, partial: true, committed: [...], failed: [...], deletedCounts: {...} }`
+3. 若任一 COMMIT 失败:立即停止,回滚失败库及所有尚未提交的库,返回 `{ ok: false, partial: true, committed: [...], failed: [...], rolledBack: [...], rollbackFailed: [...], deletedCounts: {...} }`
 
 部分失败时数据库处于**不一致状态**(部分库已清空、部分未清空),路由返回 HTTP 500 + `partial: true`,前端强制刷新页面并提示用户手动检查。
 
@@ -173,6 +173,8 @@ data/
 成功后恢复:
 - `context.gifts.resumeDetection()`
 - `context.overtime.resumeRecovery()`
+
+Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服务器返回稳定错误。
 
 部分失败时**不恢复**,避免向不一致的数据库写入。
 

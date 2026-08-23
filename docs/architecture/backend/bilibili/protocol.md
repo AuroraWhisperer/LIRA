@@ -287,12 +287,12 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 | 路径 | 触发条件 | 函数 | 说明 |
 |---|---|---|---|
 | 开放平台礼物 | `LIVE_OPEN_PLATFORM_SEND_GIFT` | [gift-parser.js:114-140](../../../../src/bilibili/parsers/gift-parser.js#L114-L140) | `gift_num`、`r_price`/`price` 金瓜子,`paid` 标志决定是否计费;`msg_id` 作平台 ID;`blind_gift/combo_gift` 非空即盲盒 |
-| 开放平台大航海 | `LIVE_OPEN_PLATFORM_GUARD` | [gift-parser.js:142-174](../../../../src/bilibili/parsers/gift-parser.js#L142-L174) | `guard_level` 优先,否则从 `gift_name/role_name` 反推;`giftId = guard-{level}`,价格取 `price/total_price/amount` |
+| 开放平台大航海 | `LIVE_OPEN_PLATFORM_GUARD` | [gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js) | `guard_level` 优先,否则从 `gift_name/role_name` 反推;`giftId = guard-{level}`,价格取 `price/total_price/amount`;`guard_num` 仅在 `guard_unit` 为空或含「月」时作为结算数量,其他单位按 1 次订单处理 |
 | Web 大航海 | `USER_TOAST_MSG` | [gift-parser.js:310-396](../../../../src/bilibili/parsers/gift-parser.js#L310-L396) | 见下 |
 | Protobuf | `SEND_GIFT_V2` 且 `data.pb` 非空 | [gift-parser.js:64-112](../../../../src/bilibili/parsers/gift-parser.js#L64-L112) | 见 §5.3;解析失败**落穿**到 Web 通用路径继续尝试 JSON 字段([gift-parser.js:54-59](../../../../src/bilibili/parsers/gift-parser.js#L54-L59)) |
 | Web 通用 | 以上都不满足的 gift-like 命令 | [gift-parser.js:176-308](../../../../src/bilibili/parsers/gift-parser.js#L176-L308) | 见下 |
 
-**排除项**:`COMBO_END` 直接返回 null([gift-parser.js:36](../../../../src/bilibili/parsers/gift-parser.js#L36));**`GUARD_BUY` 直接返回 null** —— 它只携带标价而非实付金额,实付由随后到达的 `USER_TOAST_MSG` 携带([gift-parser.js:46-47](../../../../src/bilibili/parsers/gift-parser.js#L46-L47));分发层同样提前跳过([message-handlers.js:179-180](../../../../src/bilibili/danmaku/message-handlers.js#L179-L180))。
+**排除项**:`COMBO_END` 直接返回 null;**`GUARD_BUY` 直接返回 null** —— 它只携带标价而非实付金额,实付由随后到达的 `USER_TOAST_MSG` 携带;`USER_TOAST_MSG_V2` 的 `option.source=2` 是付费 `source=0` 后的附带消息,解析器与分发层均提前跳过,不写礼物账本、诊断失败或身份缓存([gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js))。
 
 **Web 通用路径要点**([gift-parser.js:176-308](../../../../src/bilibili/parsers/gift-parser.js#L176-L308)):
 
@@ -306,7 +306,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 - 等级:先 `guard_info/data.guard_level/privilege_type`,再从 `gift_name/role_name` 反推([gift-parser.js:319-334](../../../../src/bilibili/parsers/gift-parser.js#L319-L334))。
 - 金额:**toast 携带实付订单总额**——`total_price/total_coin/pay_amount` 优先,否则 `pay_info.price/amount` 或 `data.price/gift_price/amount`([gift-parser.js:351-359](../../../../src/bilibili/parsers/gift-parser.js#L351-L359))。
-- `num` 是购买**月数**而非同价礼物个数,故 `unitPrice = totalPrice` 不虚构平均月价([gift-parser.js:361-362](../../../../src/bilibili/parsers/gift-parser.js#L361-L362))。
+- `pay_info.unit` 为空或含「月」时,`num` 是购买**月数**而非同价礼物个数;非月单位(例如 `*3天`)不把 `num` 当月数,结算数量保守归一为 1。两种情况均保持 `unitPrice = totalPrice`,不虚构平均月价([gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js))。
 - 平台 ID 优先 `guard-order:{payflowId}`,其次 `guard:{uid}:{giftId}:{startTime}`(见 [gift-parser.js:398-404](../../../../src/bilibili/parsers/gift-parser.js#L398-L404)),再回退 `id/tid/order_id/toast_msg_id/msg_id` 与 SHA1([gift-parser.js:365-376](../../../../src/bilibili/parsers/gift-parser.js#L365-L376))。
 
 **大航海等级与名称**([gift-normalizers.js:27-53](../../../../src/bilibili/utils/gift-normalizers.js#L27-L53)):

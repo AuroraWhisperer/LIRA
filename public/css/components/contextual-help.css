@@ -1,0 +1,90 @@
+/* Admin optional explanations: one compact question-mark treatment. */
+lira-help {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  margin-inline-start: 4px;
+  border-radius: 50%;
+  color: var(--color-success-dark);
+  font: 800 11px/1 var(--font);
+  vertical-align: -2px;
+  cursor: help;
+  user-select: none;
+}
+
+:where(h1, h2, h3, h4, h5, h6, legend, strong, b, label, span):has(> lira-help) {
+  white-space: nowrap;
+}
+
+lira-help:not(:defined) {
+  overflow: hidden;
+  color: transparent;
+}
+
+.lira-help-mark {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-control-accent) 58%, var(--border));
+  border-radius: 50%;
+  background: var(--color-control-accent-light);
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+lira-help:hover .lira-help-mark,
+lira-help:focus-visible .lira-help-mark {
+  border-color: var(--color-control-accent);
+  background: var(--color-control-accent);
+  color: var(--color-text-white);
+}
+
+lira-help:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+.lira-help-tooltip {
+  position: fixed;
+  inset: auto;
+  display: none;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 24px));
+  height: auto !important;
+  max-height: none !important;
+  margin: 0;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  scrollbar-width: none;
+  border: 1px solid #8bc8f2;
+  border-radius: 8px;
+  background: #eaf6ff;
+  color: #174f73;
+  padding: 10px 12px;
+  box-shadow: 0 12px 28px rgba(52, 139, 196, 0.2), 0 2px 8px rgba(29, 87, 126, 0.14);
+  font: 500 12px/1.55 var(--font);
+  letter-spacing: 0;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.lira-help-tooltip::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.lira-help-tooltip:popover-open,
+.lira-help-tooltip[data-open="true"] {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lira-help-mark {
+    transition: none;
+  }
+}

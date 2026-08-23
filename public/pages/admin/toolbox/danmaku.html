@@ -3,8 +3,7 @@
                 <section class="danmaku-feature-section danmaku-connection-section" aria-labelledby="danmakuConnectionTitle">
                   <div class="danmaku-section-heading">
                     <div>
-                      <h3 id="danmakuConnectionTitle">连接状态</h3>
-                      <p>查看当前账号连接到了哪个直播间，以及是否可以发送。</p>
+                      <h3 id="danmakuConnectionTitle">连接状态 <lira-help>查看当前账号、直播间和发送能力。</lira-help></h3>
                     </div>
                     <button id="danmakuRefreshBtn" class="icon" type="button" title="刷新发送状态" aria-label="刷新发送状态">
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -19,8 +18,7 @@
                 <section class="danmaku-feature-section danmaku-style-section" aria-labelledby="danmakuStyleTitle">
                   <div class="danmaku-section-heading">
                     <div>
-                      <h3 id="danmakuStyleTitle">弹幕姬</h3>
-                      <p>独立接收直播间消息；将固定链接添加到 OBS 或直播姬浏览器源。</p>
+                      <h3 id="danmakuStyleTitle">弹幕姬 <lira-help>独立接收直播消息；将固定链接添加到 OBS 或直播姬浏览器源。</lira-help></h3>
                     </div>
                     <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 直播信号带</span>
                   </div>
@@ -55,8 +53,7 @@
                 <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
                   <div class="danmaku-section-heading">
                     <div>
-                      <h3 id="danmakuComposeTitle">发送弹幕</h3>
-                      <p>手动发送只在这里操作，不另设网页地址。</p>
+                      <h3 id="danmakuComposeTitle">发送弹幕 <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help></h3>
                     </div>
                   </div>
                   <form id="danmakuSendForm" class="stack">
@@ -69,7 +66,7 @@
                   <div class="xiaomi-ai-heading">
                     <div class="xiaomi-ai-title-wrap">
                       <span class="xiaomi-ai-cat" aria-hidden="true"><i></i></span>
-                      <div><h3 id="xiaomiAiTitle">AI 互动助手</h3><p>按昵称响应直播间弹幕，并通过已配置的模型服务生成回复。</p></div>
+                      <div><h3 id="xiaomiAiTitle">AI 互动助手 <lira-help>按昵称响应弹幕，并通过已配置的模型生成回复。</lira-help></h3></div>
                     </div>
                     <label class="switch-control"><input id="xiaomiAiEnabled" type="checkbox" checked><span class="switch-track"></span><span>启用 AI</span></label>
                   </div>
@@ -82,11 +79,10 @@
                     <fieldset class="xiaomi-ai-primary-config">
                       <legend>模型服务</legend>
                       <div class="xiaomi-ai-provider-note">
-                        <span id="xiaomiAiProviderBadge">自动识别</span>
-                        <p id="xiaomiAiProviderNote">可选择官方供应商预设，或继续使用自定义 OpenAI 兼容地址。</p>
+                        <span class="xiaomi-ai-provider-label"><span id="xiaomiAiProviderBadge">自动识别</span><lira-help><span id="xiaomiAiProviderNote">可选官方预设，也可使用自定义 OpenAI 兼容地址。</span></lira-help></span>
                       </div>
                       <div class="xiaomi-ai-field-grid">
-                        <label>模型供应商
+                        <label><span>模型供应商 <lira-help>官方预设会锁定正确地址和推荐协议。</lira-help></span>
                           <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
                             <option value="auto">自动识别（兼容旧设置）</option>
                             <option value="deepseek">DeepSeek 官方</option>
@@ -95,17 +91,15 @@
                             <option value="gemini">Gemini 官方兼容</option>
                             <option value="custom">自定义 / 第三方兼容</option>
                           </select>
-                          <small>官方预设会锁定正确地址和推荐协议。</small>
                         </label>
                         <label>API Key<input id="xiaomiAiDeepSeekKey" type="password" autocomplete="off" spellcheck="false" data-ai-secret placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
-                        <label id="xiaomiAiEndpointControl" class="wide">API 请求地址<input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"><small id="xiaomiAiEndpointHelp">可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。</small></label>
-                        <label id="xiaomiAiProtocolControl">接口协议
+                        <label id="xiaomiAiEndpointControl" class="wide"><span>API 请求地址 <lira-help><span id="xiaomiAiEndpointHelp">接受服务根地址、v1 地址或完整接口地址。</span></lira-help></span><input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"></label>
+                        <label id="xiaomiAiProtocolControl"><span>接口协议 <lira-help>文档明确指定 wire_api 时手动选择；否则保持自动。</lira-help></span>
                           <select id="xiaomiAiModelApiProtocol" data-dropdown-variant="toolbox">
                             <option value="auto">自动识别</option>
                             <option value="responses">Responses API</option>
                             <option value="chat_completions">Chat Completions</option>
                           </select>
-                          <small>第三方文档写明 wire_api 时请显式选择；不确定可保持自动。</small>
                         </label>
                         <label class="wide">模型
                           <span class="xiaomi-ai-model-picker">
@@ -122,8 +116,8 @@
                     <fieldset class="xiaomi-ai-reply-config">
                       <legend>回复规则</legend>
                       <div class="xiaomi-ai-field-grid">
-                        <label>触发关键词<input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="例如：小米"><small>观众弹幕包含这个昵称时唤醒助手。</small></label>
-                        <label>回复长度偏好<input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"><small>不是硬截断：优先一条，信息较多时两条，确有必要才三条</small></label>
+                        <label><span>触发关键词 <lira-help>弹幕包含该昵称时唤醒助手。</lira-help></span><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="例如：小米"></label>
+                        <label><span>回复长度偏好 <lira-help>优先一条；内容较多时两条，必要时三条。</lira-help></span><input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"></label>
                       </div>
                       <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
                         <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
@@ -131,8 +125,8 @@
                         <div><span>推理</span><strong id="xiaomiAiReasoningCapability">等待配置</strong></div>
                       </div>
                       <div class="xiaomi-ai-toggle-row">
-                        <label class="xiaomi-ai-capability-control"><span><input id="xiaomiAiWebSearch" type="checkbox" checked> <b id="xiaomiAiWebSearchLabel">启用 Web Search</b></span><small id="xiaomiAiWebSearchHelp">根据当前接口协议选择联网方式。</small></label>
-                        <label id="xiaomiAiReasoningControl" class="xiaomi-ai-capability-control" hidden><span><input id="xiaomiAiReasoning" type="checkbox"> <b id="xiaomiAiReasoningLabel">启用模型推理</b></span><small id="xiaomiAiReasoningHelp"></small></label>
+                        <label class="xiaomi-ai-capability-control"><span><input id="xiaomiAiWebSearch" type="checkbox" checked> <b id="xiaomiAiWebSearchLabel">启用 Web Search</b><lira-help><span id="xiaomiAiWebSearchHelp">根据当前协议选择联网方式。</span></lira-help></span></label>
+                        <label id="xiaomiAiReasoningControl" class="xiaomi-ai-capability-control" hidden><span><input id="xiaomiAiReasoning" type="checkbox"> <b id="xiaomiAiReasoningLabel">启用模型推理</b><lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help></span></label>
                         <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control" hidden>推理强度
                           <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
                             <option value="auto">服务默认</option>
@@ -149,7 +143,7 @@
                     </fieldset>
                     <details class="xiaomi-ai-collapsible">
                       <summary>
-                        <span><strong>扩展能力</strong><small>天气、地点与路线查询，按需配置</small></span>
+                        <span><strong>扩展能力 <lira-help>按需配置天气、地点和路线查询。</lira-help></strong></span>
                         <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       </summary>
                       <div class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid">
@@ -171,7 +165,7 @@
                     </details>
                     <details class="xiaomi-ai-collapsible xiaomi-ai-advanced">
                       <summary>
-                        <span><strong>高级设置</strong><small>并发、限流与小猫人格</small></span>
+                        <span><strong>高级设置 <lira-help>配置并发、限流和小猫人格。</lira-help></strong></span>
                         <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       </summary>
                       <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
@@ -196,33 +190,32 @@
                 <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
                   <div class="danmaku-section-heading">
                     <div>
-                      <h3 id="danmakuFixedReplyTitle">固定回复</h3>
-                      <p>管理点歌未匹配、签到、抽签和自定义关键词回复。</p>
+                      <h3 id="danmakuFixedReplyTitle">固定回复 <lira-help>管理点歌未匹配、签到、抽签和关键词回复。</lira-help></h3>
                     </div>
                   </div>
                   <div class="danmaku-bot-switch-grid">
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p>条件不匹配时，自动回复点歌人</p></div>
+                      <div><strong id="danmakuReplyTitle">随机点歌回复 <lira-help>条件不匹配时自动回复点歌人。</lira-help></strong></div>
                       <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用回复</span></label>
                     </div>
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuCheckinTitle">签到机器人</strong><p id="danmakuCheckinTarget">收到“签到”弹幕后回复累计天数</p></div>
+                      <div><strong id="danmakuCheckinTitle">签到机器人 <lira-help><span id="danmakuCheckinTarget">收到“签到”后回复累计天数。</span></lira-help></strong></div>
                       <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox"><span class="switch-track"></span><span>启用签到</span></label>
                     </div>
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuFortuneTitle">抽签机器人</strong><p>收到“抽签”弹幕后回复每日一签</p></div>
+                      <div><strong id="danmakuFortuneTitle">抽签机器人 <lira-help>收到“抽签”后回复每日一签。</lira-help></strong></div>
                       <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox"><span class="switch-track"></span><span>启用抽签</span></label>
                     </div>
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><p>收到自定义关键词后回复固定文案</p></div>
+                      <div><strong id="danmakuCustomReplyTitle">DIY 关键词回复 <lira-help>收到自定义关键词后回复固定文案。</lira-help></strong></div>
                       <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用 DIY</span></label>
                     </div>
                   </div>
                 <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
                   <summary>
                     <div>
-                      <h3>DIY 关键词回复</h3>
-                      <p>弹幕包含关键词时自动回复 <span id="danmakuCustomReplyCount">0 条</span></p>
+                      <h3>DIY 关键词回复 <lira-help>弹幕包含关键词时自动回复。</lira-help></h3>
+                      <p><span id="danmakuCustomReplyCount">0 条</span></p>
                     </div>
                     <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </summary>
@@ -242,8 +235,8 @@
                 <details id="danmakuBlessingsPanel" class="danmaku-blessings-section">
                   <summary>
                     <div>
-                      <h3>签到祝福语</h3>
-                      <p>签到时随机发送 <span id="danmakuBlessingCount">0 条</span></p>
+                      <h3>签到祝福语 <lira-help>签到时随机发送一条。</lira-help></h3>
+                      <p><span id="danmakuBlessingCount">0 条</span></p>
                     </div>
                     <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </summary>
@@ -264,8 +257,8 @@
                 <details id="danmakuFortunesPanel" class="danmaku-blessings-section">
                   <summary>
                     <div>
-                      <h3>抽签机器人词库</h3>
-                      <p>按观众和日期固定抽取 <span id="danmakuFortuneCount">0 条</span></p>
+                      <h3>抽签机器人词库 <lira-help>同一观众每天固定抽取一条。</lira-help></h3>
+                      <p><span id="danmakuFortuneCount">0 条</span></p>
                     </div>
                     <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </summary>

@@ -56,7 +56,7 @@
 }
 
 .queue-popup-head strong {
-  font-size: 14px;
+  ;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -67,7 +67,7 @@
 
 .queue-popup-head .pill {
   flex-shrink: 0;
-  font-size: 11px;
+  ;
 }
 
 .queue-popup-actions {
@@ -77,7 +77,7 @@
 }
 
 .queue-popup-actions button {
-  font-size: 11px;
+  ;
   padding: 3px 9px;
   height: auto;
   min-height: 26px;
@@ -99,7 +99,7 @@
   text-align: center;
   padding: 36px 0;
   color: var(--muted, #8898aa);
-  font-size: 13px;
+  ;
 }
 
 /* ===== 队列空状态 ===== */
@@ -122,20 +122,20 @@
   background: linear-gradient(145deg, rgba(217, 75, 112, 0.12), rgba(147, 112, 219, 0.12));
   border: 1px solid rgba(217, 75, 112, 0.18);
   color: #d94b70;
-  font-size: 28px;
-  font-weight: 900;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 
 .queue-empty-state p {
   margin: 0;
   color: var(--text);
-  font-size: 15px;
+  ;
   font-weight: 700;
 }
 
 .queue-empty-state span {
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.5;
 }
 

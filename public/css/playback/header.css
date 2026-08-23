@@ -17,7 +17,7 @@
 
 .playback-head h2 {
   margin: 0;
-  font-size: 22px;
+  ;
   line-height: 1.2;
 }
 
@@ -41,7 +41,7 @@
 
 .playback-account-status .pill {
   flex-shrink: 0;
-  font-size: 12px;
+  ;
   padding: 3px 9px;
 }
 
@@ -49,7 +49,7 @@
 .playback-cache-row button {
   min-height: 30px;
   padding: 4px 10px;
-  font-size: 12px;
+  ;
 }
 
 /* ===== 信源切换标签 ===== */
@@ -74,7 +74,7 @@
   background: transparent;
   color: var(--muted);
   font-weight: 700;
-  font-size: 14px;
+  ;
   cursor: pointer;
   transition: all 200ms ease;
 }

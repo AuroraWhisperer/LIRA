@@ -18,16 +18,10 @@
 }
 
 .playback-discovery-panel .panel-header h2 {
-  font-size: 18px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
   color: var(--text);
   margin: 0 0 6px 0;
-}
-
-.playback-discovery-panel .panel-subtitle {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 500;
 }
 
 .playback-discovery-panel > .panel-body {
@@ -63,7 +57,7 @@
 }
 
 .playback-home-card strong {
-  font-size: 14px;
+  ;
   line-height: 1.25;
   font-weight: 700;
   color: var(--text);
@@ -71,7 +65,7 @@
 
 .playback-home-card span {
   color: var(--muted);
-  font-size: 11px;
+  ;
   line-height: 1.35;
   max-width: 100%;
   display: -webkit-box;
@@ -87,7 +81,7 @@
 
 .playback-home-card::before {
   content: "♫";
-  font-size: 20px;
+  ;
   color: var(--primary);
   opacity: 0.3;
   line-height: 1;
@@ -141,4 +135,3 @@
 .playback-home-row:has(.track-menu:not([hidden])) {
   z-index: 1;
 }
-

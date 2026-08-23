@@ -79,14 +79,17 @@
 }
 
 .current-song .name {
-  font-size: 28px;
-  font-weight: 750;
-  line-height: 1.15;
+  font-size: var(--type-size-metric-md);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-display);
   overflow-wrap: anywhere;
 }
 
 .current-song .meta {
   color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .queue-list {
@@ -161,23 +164,24 @@
   font-family: var(--admin-queue-font-family, var(--font));
   font-weight: var(--admin-queue-font-weight, 700);
   overflow-wrap: anywhere;
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: var(--type-size-card-title);
+  line-height: var(--type-leading-card-title);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   color: var(--text);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--type-tracking-normal);
 }
 
 .queue-row .meta {
   margin-top: 4px;
   color: var(--muted);
   font-family: var(--admin-queue-font-family, var(--font));
-  font-size: 12px;
-  line-height: 1.3;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -203,16 +207,16 @@
 
 /* 点歌队列：字体自适应缩小，最多两行 */
 .queue-row:not(.sc-row) .song {
-  font-size: clamp(11px, 14px, 14px);
+  font-size: var(--type-size-body);
 }
 
 /* 长文本自动缩小 - 通过字符数量判断 */
 .queue-row:not(.sc-row) .song[data-length="long"] {
-  font-size: clamp(10px, 12px, 12px);
+  font-size: var(--type-size-caption);
 }
 
 .queue-row:not(.sc-row) .song[data-length="very-long"] {
-  font-size: clamp(9px, 11px, 11px);
+  font-size: var(--type-size-caption);
 }
 
 .sc-list {
@@ -249,8 +253,9 @@
   background: #21b6a8;
   color: #fff;
   padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-micro);
   margin-left: 4px;
   vertical-align: middle;
 }
@@ -268,8 +273,9 @@
   color: var(--color-bg-primary);
   padding: 2px 6px;
   margin-right: 6px;
-  font-size: 12px;
-  font-weight: 900;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-caption);
 }
 
 .sc-row .queue-actions button[data-sc-action="assist"] {
@@ -311,21 +317,24 @@
   background: #e8f6f3;
   color: #168f83;
   font-family: Georgia, serif;
-  font-size: 34px;
+  ;
   line-height: 1;
   opacity: 0.4;
   margin-bottom: 4px;
 }
 
 .empty-text {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
   color: var(--text);
   opacity: 0.6;
 }
 
 .empty-hint {
-  font-size: 12px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   color: var(--muted);
   opacity: 0.5;
   text-align: center;
@@ -355,15 +364,16 @@
               rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.03) 0%,
               rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.01) 100%);
   color: var(--color-text-muted, var(--muted));
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-medium);
+  line-height: var(--type-leading-body);
   text-align: center;
   transition: all 200ms ease;
 }
 
 .gift-cards > .empty::before {
   content: '🎁';
-  font-size: 48px;
+  ;
   line-height: 1;
   opacity: 0.4;
   filter: grayscale(0.3);
@@ -399,12 +409,14 @@ td {
 th {
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-caption);
 }
 
 td {
-  font-size: 13px;
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
 }
 
 tr:last-child td {

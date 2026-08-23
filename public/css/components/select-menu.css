@@ -186,7 +186,7 @@
 .lira-select-option.is-selected {
   background: var(--select-accent-soft);
   color: var(--select-accent);
-  font-weight: 650;
+  font-weight: var(--type-weight-semibold);
 }
 
 .lira-select-option.is-selected::after {

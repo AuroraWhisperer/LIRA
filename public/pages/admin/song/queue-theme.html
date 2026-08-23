@@ -1,5 +1,8 @@
         <div id="themePage" class="tab-page">
           <div class="panel-body stack">
+            <header class="song-subview-header">
+              <h2 class="ui-page-title">点歌板</h2>
+            </header>
             <form id="themeForm" class="stack">
               <!-- 风格选择器 — 始终可见 -->
               <div class="style-picker">
@@ -44,12 +47,11 @@
                       </select>
                     </label>
                     <label>
-                      点歌板滚动速率
+                      <span>点歌板滚动速率 <lira-help>1 最慢，100 最快。</lira-help></span>
                       <span class="range-row">
                         <input id="queueScrollSpeedRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
                         <input id="queueScrollSpeed" type="number" min="1" max="100" step="1">
                       </span>
-                      <span class="hint">1-100</span>
                     </label>
                   </div>
                 </fieldset>
@@ -123,19 +125,16 @@
                       </span>
                     </label>
                     <label>
-                      歌名颜色
+                      <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
                       <input id="overlaySongColor" type="color" value="">
-                      <span class="hint">留空则使用文字色</span>
                     </label>
                     <label>
-                      点歌人颜色
+                      <span>点歌人颜色 <lira-help>留空时使用较淡的文字色。</lira-help></span>
                       <input id="overlayRequesterColor" type="color" value="">
-                      <span class="hint">留空则比文字色略淡</span>
                     </label>
                     <label style="grid-column: 1 / -1;">
-                      面板标题
+                      <span>面板标题 <lira-help>修改点歌板顶部标题；留空时使用默认标题。</lira-help></span>
                       <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列">
-                      <span class="hint">自定义点歌板顶部标题文字</span>
                     </label>
                   </div>
                 </fieldset>
@@ -151,12 +150,11 @@
                       </select>
                     </label>
                     <label>
-                      序号颜色
+                      <span>序号颜色 <lira-help>留空时使用辅助色。</lira-help></span>
                       <input id="overlayIndexColor" type="color" value="">
-                      <span class="hint">留空则使用辅助色</span>
                     </label>
                     <label style="grid-column: 1 / -1;">
-                      仅在歌曲超过此数量时显示
+                      <span>仅在歌曲超过此数量时显示 <lira-help>选择“始终显示”时不受歌曲数量限制。</lira-help></span>
                       <select id="overlayIndexThreshold" data-dropdown-variant="settings">
                         <option value="0">始终显示</option>
                         <option value="2">超过 2 首</option>
@@ -164,7 +162,6 @@
                         <option value="4">超过 4 首</option>
                         <option value="5">超过 5 首</option>
                       </select>
-                      <span class="hint">设为"始终显示"则始终显示序号</span>
                     </label>
                   </div>
                 </fieldset>
@@ -173,12 +170,11 @@
                   <legend>面板外观</legend>
                   <div class="grid-2">
                     <label>
-                      前台低占用模式
+                      <span>前台低占用模式 <lira-help>关闭毛玻璃、发光和重阴影，保留滚动效果。</lira-help></span>
                       <select id="overlayLowPowerMode" data-dropdown-variant="settings">
                         <option value="false">关闭（默认，保留原效果）</option>
                         <option value="true">开启（关闭毛玻璃和发光）</option>
                       </select>
-                      <span class="hint">开启后展示板和点歌板会关闭实时毛玻璃、发光和重阴影，滚动保持原来的顺滑效果。</span>
                     </label>
                     <label>
                       背景透明度
@@ -188,25 +184,22 @@
                       </span>
                     </label>
                     <label>
-                      圆角大小
+                      <span>圆角大小 <lira-help>数值越大越圆，建议 12-16。</lira-help></span>
                       <input id="themeRadius" type="number" min="0" max="24">
-                      <span class="hint">数值越大越圆润，推荐 12-16</span>
                     </label>
                     <label>
-                      背景模糊
+                      <span>背景模糊 <lira-help>数值越大，毛玻璃越明显；0 表示关闭。</lira-help></span>
                       <span class="range-row">
                         <input id="backdropBlur" class="parameter-range parameter-range--intensity" type="range" min="0" max="30" step="1">
                         <input id="backdropBlurNumber" type="number" min="0" max="30" step="1">
                       </span>
-                      <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
                     </label>
                     <label>
-                      发光强度
+                      <span>发光强度 <lira-help>控制辅助色发光；0 表示关闭。</lira-help></span>
                       <span class="range-row">
                         <input id="glowIntensity" class="parameter-range parameter-range--intensity" type="range" min="0" max="20" step="1">
                         <input id="glowIntensityNumber" type="number" min="0" max="20" step="1">
                       </span>
-                      <span class="hint">辅助色的发光强度，0 为关闭</span>
                     </label>
                     <label>
                       启用渐变背景
@@ -216,9 +209,8 @@
                       </select>
                     </label>
                     <label>
-                      渐变结束色
+                      <span>渐变结束色 <lira-help>与背景色组成双色渐变，建议使用相近色。</lira-help></span>
                       <input id="gradientEnd" type="color">
-                      <span class="hint">搭配背景色形成双色渐变，建议选相近色系</span>
                     </label>
                   </div>
                 </fieldset>
@@ -234,12 +226,11 @@
                 <fieldset class="theme-section">
                   <legend>文字设置</legend>
                   <label>
-                    点歌内容字号
+                    <span>点歌内容字号 <lira-help>控制点歌板全部队列文字，默认 26 px。</lira-help></span>
                     <span class="range-row">
                       <input id="identityQueueFontSize" class="parameter-range parameter-range--scale" type="range" min="9" max="78" step="1" value="26">
                       <input id="identityQueueFontSizeNumber" type="number" min="9" max="78" step="1" value="26">
                     </span>
-                    <span class="hint">同时控制序号、歌名、点歌人、SC 和置顶文字，默认 26px</span>
                   </label>
                 </fieldset>
 
@@ -274,9 +265,8 @@
                       </select>
                     </label>
                     <label>
-                      文字颜色
+                      <span>文字颜色 <lira-help>用于歌名、点歌人、序号和空状态文字。</lira-help></span>
                       <input id="illustratedQueueTextColor" type="color" value="#315d7d">
-                      <span class="hint">应用于歌名、点歌人、序号和空状态文字</span>
                     </label>
                   </div>
                 </fieldset>
@@ -292,12 +282,11 @@
                       </select>
                     </label>
                     <label>
-                      上下滚动速率
+                      <span>上下滚动速率 <lira-help>1 最慢，100 最快；仅影响当前风格。</lira-help></span>
                       <span class="range-row">
                         <input id="identityQueueScrollSpeedRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
                         <input id="identityQueueScrollSpeed" type="number" min="1" max="100" step="1">
                       </span>
-                      <span class="hint">1-100，控制当前风格的滚动速度</span>
                     </label>
                   </div>
                 </fieldset>

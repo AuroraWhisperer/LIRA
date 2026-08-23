@@ -1,13 +1,16 @@
         <div id="settingsPage" class="tab-page">
           <div class="panel-body stack">
+            <header class="song-subview-header">
+              <h2 class="ui-page-title">设置</h2>
+            </header>
             <!-- Bilibili 账号登录 -->
             <fieldset class="theme-section" style="border-color: #fb7299;">
-              <legend>🔐 Bilibili 账号登录 <span style="font-weight:400;font-size:0.75em;color:#888;">（推荐登录，提升弹幕和礼物捕获稳定性）</span></legend>
+              <legend>🔐 Bilibili 账号登录 <lira-help>登录后弹幕和礼物接收更稳定。</lira-help></legend>
               <div class="bilibili-auth-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span id="bilibiliAuthStatus" class="pill warn" style="font-size:11px;padding:2px 7px;">未登录</span>
-                <span id="bilibiliAuthUid" style="color:#888;font-size:0.8em;"></span>
-                <button id="bilibiliLoginBtn" class="primary" type="button" style="background:#fb7299;border-color:#fb7299;font-size:0.75em;padding:3px 8px;min-height:26px;">📱 扫码登录 Bilibili</button>
-                <button id="bilibiliLogoutBtn" class="danger" type="button" style="display:none;font-size:0.75em;padding:3px 8px;min-height:26px;">退出登录</button>
+                <span id="bilibiliAuthStatus" class="pill warn" style="padding:2px 7px;">未登录</span>
+                <span id="bilibiliAuthUid" class="ui-caption" style="color:#888;"></span>
+                <button id="bilibiliLoginBtn" class="primary" type="button" style="background:#fb7299;border-color:#fb7299;padding:3px 8px;min-height:26px;">📱 扫码登录 Bilibili</button>
+                <button id="bilibiliLogoutBtn" class="danger" type="button" style="display:none;padding:3px 8px;min-height:26px;">退出登录</button>
               </div>
             </fieldset>
 

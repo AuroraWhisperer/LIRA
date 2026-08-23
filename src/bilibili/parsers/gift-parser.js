@@ -34,6 +34,7 @@ function extractBilibiliGiftMessage(packet) {
 
   const cmd = cleanText(packet && packet.cmd);
   if (cmd.startsWith('COMBO_END')) return null;
+  if (isBilibiliDuplicateGuardToast(packet)) return null;
 
   if (cmd.startsWith('LIVE_OPEN_PLATFORM_SEND_GIFT')) {
     return extractBilibiliOpenLiveGiftMessage(packet, data);
@@ -149,8 +150,11 @@ function extractBilibiliOpenLiveGuardGiftMessage(packet, data) {
     guardLevel = detectGuardLevelFromName(giftName);
   }
 
-  const num = normalizePositiveInteger(readObjectValue(data, ['guard_num', 'guardNum', 'num'])) || 1;
-  // 价格：协议字段优先，找不到则用硬编码回退
+  const num = normalizeBilibiliGuardQuantity(
+    readObjectValue(data, ['guard_num', 'guardNum', 'num']),
+    readObjectValue(data, ['guard_unit', 'guardUnit', 'unit'])
+  );
+  // 价格只取协议字段，不按等级硬编码推算。
   const totalCoin = normalizeBilibiliGiftCoin(readObjectValue(data, ['price', 'total_price', 'totalPrice', 'amount']));
   const totalPrice = normalizeBilibiliCoinRmb(totalCoin);
 
@@ -334,7 +338,11 @@ function extractBilibiliWebGuardGiftMessage(packet, data) {
   }
 
   const giftName = rawGiftName || guardLevelName(guardLevel) || '大航海';
-  const num = normalizePositiveInteger(readObjectValue(payInfo, ['num']) || readObjectValue(data, ['num', 'gift_num', 'giftNum'])) || 1;
+  const num = normalizeBilibiliGuardQuantity(
+    readObjectValue(payInfo, ['num']) || readObjectValue(data, ['num', 'gift_num', 'giftNum']),
+    readObjectValue(payInfo, ['unit', 'guard_unit', 'guardUnit'])
+      || readObjectValue(data, ['unit', 'guard_unit', 'guardUnit'])
+  );
   const giftId = cleanText(readObjectValue(giftInfo, ['gift_id', 'giftId', 'giftid']) || readObjectValue(data, ['gift_id', 'giftId', 'giftid'])) || `guard-${guardLevel || 'unknown'}`;
   const uid = cleanText(readObjectValue(senderInfo, ['uid', 'mid']) || readObjectValue(data, ['uid', 'mid']));
   const payflowId = cleanText(
@@ -403,6 +411,21 @@ function buildBilibiliGuardPurchaseId(uid, giftId, startTime) {
   return `guard:${normalizedUid}:${normalizedGiftId}:${normalizedStartTime}`;
 }
 
+function isBilibiliDuplicateGuardToast(packet) {
+  const cmd = cleanText(packet && packet.cmd);
+  if (!cmd.startsWith('USER_TOAST_MSG_V2')) return false;
+  const data = packet && packet.data && typeof packet.data === 'object' ? packet.data : {};
+  const option = readFirstObject(data, ['option']) || {};
+  const source = readObjectValue(option, ['source']) ?? readObjectValue(data, ['source']);
+  return Number(source) === 2;
+}
+
+function normalizeBilibiliGuardQuantity(value, unitValue) {
+  const quantity = normalizePositiveInteger(value) || 1;
+  const unit = cleanText(unitValue);
+  return unit && !unit.includes('月') ? 1 : quantity;
+}
+
 function isBilibiliGiftCommand(cmd, runtimeGiftPrefixes) {
   const text = String(cmd || '');
   if (runtimeGiftPrefixes.has(text)) return true;
@@ -434,6 +457,7 @@ module.exports = {
   extractBilibiliOpenLiveGuardGiftMessage,
   extractBilibiliWebGiftMessage,
   extractBilibiliWebGuardGiftMessage,
+  isBilibiliDuplicateGuardToast,
   isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand
 };

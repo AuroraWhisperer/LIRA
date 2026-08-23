@@ -16,7 +16,9 @@
 }
 
 .gift-setting-desc {
-  font-size: 0.8rem;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   color: var(--text2);
   margin-left: 48px;
 }
@@ -53,12 +55,16 @@
 
 .gift-stat span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .gift-stat strong {
-  font-size: 24px;
-  line-height: 1.15;
+  font-size: var(--type-size-metric-md);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-display);
+  font-variant-numeric: tabular-nums;
 }
 
 .gift-stat.highlight {
@@ -71,4 +77,3 @@
   align-items: end;
   gap: 8px;
 }
-

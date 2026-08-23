@@ -340,7 +340,7 @@ export function renderPlaylistCard(playlist, index) {
     <div class="playback-drawer-playlist-card" data-playback-playlist-index="${index}">
       ${PlaybackUtils.renderArtwork(playlist, { fallback: '单' })}
       <div style="flex:1 1 auto;min-width:0;">
-        <div class="song" style="font-size:14px;font-weight:700;">${escapeHtml(playlist.title || '')}</div>
+          <div class="song playlist-title">${escapeHtml(playlist.title || '')}</div>
         <div class="meta">${escapeHtml(PlaybackUtils.formatPlaylistMeta(playlist))}</div>
       </div>
       <span class="playlist-card-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;display:block;"><polyline points="9 18 15 12 9 6"/></svg></span>

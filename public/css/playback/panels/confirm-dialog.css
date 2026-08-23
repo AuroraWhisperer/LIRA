@@ -46,7 +46,7 @@
 
 .confirm-dialog-header h3 {
   margin: 0;
-  font-size: 18px;
+  ;
   font-weight: 700;
   color: var(--text);
 }
@@ -54,7 +54,7 @@
 .confirm-dialog-body {
   padding: 20px 24px;
   color: var(--muted);
-  font-size: 14px;
+  ;
   line-height: 1.6;
 }
 
@@ -80,7 +80,7 @@
   min-height: 40px;
   padding: 10px 20px;
   border-radius: 8px;
-  font-size: 14px;
+  ;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -117,7 +117,7 @@
   justify-content: space-between;
   gap: 10px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 

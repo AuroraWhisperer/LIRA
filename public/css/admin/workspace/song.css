@@ -98,9 +98,22 @@ body.player-dock-expanded .song-workspace {
   position: relative;
 }
 
-.queue-heading { display: grid; gap: 5px; }
-.queue-eyebrow { display: none; }
-.queue-panel h2 { gap: 10px; letter-spacing: -.01em; }
+.queue-heading { display: grid; gap: 3px; }
+
+.queue-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-micro);
+  letter-spacing: var(--type-tracking-eyebrow);
+}
+
+.queue-panel h2 {
+  gap: 10px;
+  letter-spacing: var(--type-tracking-tight);
+}
 
 /* SC 队列图标：温暖橙金色 */
 .sc-queue-panel .queue-mark {
@@ -133,14 +146,16 @@ body.player-dock-expanded .song-workspace {
 .queues-row .song-queue-panel .panel-header button {
   min-height: 32px;
   padding: 4px 12px;
-  font-size: 13px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
   border-radius: 7px;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .queues-row .song-queue-panel .panel-header button.primary {
-  border-color: #168f83;
-  background: linear-gradient(135deg, #168f83 0%, #21b6a8 100%);
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--color-success-dark) 0%, #0f8077 100%);
   box-shadow: 0 2px 6px rgba(22, 143, 131, 0.2);
 }
 
@@ -150,38 +165,43 @@ body.player-dock-expanded .song-workspace {
 }
 
 .queues-row .song-queue-panel .panel-header button.danger {
-  border: 1px solid rgba(210, 138, 34, 0.25);
+  border: 0;
   color: #a56810;
-  background: linear-gradient(135deg, #fffbf5 0%, #fff8ed 100%);
+  background: transparent;
 }
 
 .queues-row .song-queue-panel .panel-header button.danger:hover {
-  border-color: rgba(210, 138, 34, 0.4);
+  border-color: transparent;
   background: linear-gradient(135deg, #fff8ed 0%, #fff3e0 100%);
 }
 
 .queues-row .sc-queue-panel .panel-header button {
   min-height: 32px;
   padding: 4px 12px;
-  font-size: 13px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
   border-radius: 7px;
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .queues-row .sc-queue-panel .panel-header button.danger {
-  border: 1px solid rgba(210, 138, 34, 0.25);
+  border: 0;
   color: #a56810;
-  background: linear-gradient(135deg, #fffbf5 0%, #fff8ed 100%);
+  background: transparent;
 }
 
 .queues-row .sc-queue-panel .panel-header button.danger:hover {
-  border-color: rgba(210, 138, 34, 0.4);
+  border-color: transparent;
   background: linear-gradient(135deg, #fff8ed 0%, #fff3e0 100%);
 }
 
 .queues-row .queue-panel .panel-header h2 {
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -193,7 +213,9 @@ body.player-dock-expanded .song-workspace {
   border: 1px solid rgba(210, 138, 34, 0.2);
   background: linear-gradient(135deg, #fffbf5 0%, #fff8ed 100%);
   color: #a56810;
-  font-weight: 700;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-caption);
 }
 
 /* 点歌队列数量标签：青绿色 */
@@ -201,7 +223,9 @@ body.player-dock-expanded .song-workspace {
   border: 1px solid rgba(22, 143, 131, 0.2);
   background: linear-gradient(135deg, #f0faf8 0%, #e8f6f3 100%);
   color: #08766c;
-  font-weight: 700;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-caption);
 }
 
 .queues-row .queue-panel .panel-body {
@@ -288,6 +312,29 @@ body.player-dock-expanded .song-workspace {
 
 .song-management-panel .tab-page > .panel-body {
   min-width: 0;
+}
+
+.song-subview-header {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.app-shell .song-workspace .ui-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-page-title);
+  letter-spacing: var(--type-tracking-tight);
+}
+
+.song-workspace .overlay-address-item code {
+  font-family: var(--font-mono);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
+  letter-spacing: var(--type-tracking-normal);
 }
 
 .sc-empty .empty-icon {

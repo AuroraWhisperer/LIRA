@@ -48,22 +48,22 @@
   left: 35px;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-size: 19px;
+  ;
   line-height: 1;
 }
 
 .gift-notify-toast strong {
   display: block;
   color: #fff;
-  font-size: 15px;
+  ;
   line-height: 1.35;
-  font-weight: 750;
+  font-weight: var(--type-weight-bold);
 }
 
 .gift-notify-toast span {
   display: block;
   color: rgba(235, 220, 195, 0.65);
-  font-size: 12px;
+  ;
   line-height: 1.45;
 }
 
@@ -74,7 +74,7 @@
   background: rgba(251, 191, 36, 0.15);
   padding: 2px 8px;
   color: #fbbf24;
-  font-size: 11px;
+  ;
   font-weight: 700;
   vertical-align: middle;
 }
@@ -195,7 +195,7 @@
 .gift-notify-toast.gift-premium .gift-price-badge {
   background: rgba(251, 191, 36, 0.22);
   color: #fcd34d;
-  font-size: 12px;
+  ;
   padding: 3px 10px;
 }
 
@@ -238,12 +238,12 @@
 }
 
 .overlay-address-item strong {
-  font-size: 17px;
+  ;
 }
 
 .overlay-address-item span {
   color: var(--muted);
-  font-size: 12px;
+  ;
 }
 
 .overlay-address-item code {
@@ -303,8 +303,8 @@
 
 .identity-rule-setting > span {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 
 .identity-rule-setting input[type="color"] {
@@ -393,12 +393,12 @@
 
 .style-option strong {
   color: var(--style-option-title);
-  font-size: 15px;
+  ;
 }
 
 .style-option span {
   color: var(--style-option-meta);
-  font-size: 12px;
+  ;
 }
 
 .style-option:hover,
@@ -432,14 +432,14 @@
 
 .monitor-hero h3 {
   margin: 0;
-  font-size: 20px;
+  ;
   line-height: 1.2;
 }
 
 .monitor-hero p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  ;
 }
 
 .monitor-actions {
@@ -497,14 +497,14 @@
 }
 
 .metrics-countdown-copy strong {
-  font-size: 18px;
+  ;
   font-variant-numeric: tabular-nums;
 }
 
 .metrics-countdown-copy small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 9px;
+  ;
 }
 
 @keyframes metrics-countdown-progress {
@@ -593,18 +593,18 @@
 }
 
 .metric-head span {
-  font-weight: 800;
+  font-weight: var(--type-weight-bold);
 }
 
 .metric-head small {
   color: var(--muted);
-  font-size: 12px;
+  ;
 }
 
 .metric-value {
-  font-size: 34px;
+  ;
   line-height: 1;
-  font-weight: 850;
+  font-weight: var(--type-weight-bold);
 }
 
 .metric-bar {
@@ -626,7 +626,7 @@
 .metric-detail {
   min-height: 18px;
   color: var(--muted);
-  font-size: 12px;
+  ;
   overflow-wrap: anywhere;
 }
 
@@ -644,7 +644,7 @@
 
 .metric-card.muted .metric-value {
   color: var(--muted);
-  font-size: 28px;
+  ;
 }
 
 .hardware-summary {
@@ -658,13 +658,13 @@
 
 .hardware-summary-head h4 {
   margin: 0;
-  font-size: 15px;
+  ;
 }
 
 .hardware-summary-head p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  ;
 }
 
 .hardware-grid {
@@ -779,15 +779,15 @@
 
 .hardware-card-label {
   color: var(--hardware-ink);
-  font-size: 13px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
   letter-spacing: 0.01em;
 }
 
 .hardware-card-eyebrow {
   color: var(--muted);
-  font-size: 9px;
-  font-weight: 750;
+  ;
+  font-weight: var(--type-weight-bold);
   letter-spacing: 0.14em;
   line-height: 1.1;
 }
@@ -799,7 +799,7 @@
 
 .hardware-card small {
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.4;
 }
 
@@ -807,7 +807,7 @@
   align-self: end;
   min-height: 38px;
   color: var(--text);
-  font-size: 16px;
+  ;
   line-height: 1.3;
 }
 

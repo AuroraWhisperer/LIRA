@@ -15,6 +15,7 @@ import { initOnboarding } from './onboarding.js';
 import { initInteractiveTour } from './interactive-tour.js';
 import { initStartAnimation } from './start-animation.js';
 import { initGiftFrame } from './gift-frame.js';
+import { initClockCard } from './clock-card.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -87,6 +88,7 @@ async function initApp() {
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.();
   initStartAnimation();
+  initClockCard();
   modules.gifts?.initGiftHistoryDrawer?.();
 
   eventBus.on(Events.STATE_LOADED, ({ state, songs }) => {

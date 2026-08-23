@@ -3,6 +3,7 @@
 import '../shared/utils.js';
 import '../shared/theme.js';
 import '../desktop.js';
+import './contextual-help.js';
 import './import.js';
 import './queue.js';
 import './songs.js';

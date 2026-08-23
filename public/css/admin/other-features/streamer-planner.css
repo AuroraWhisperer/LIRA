@@ -55,8 +55,8 @@
   gap: 7px;
   color: var(--planner-coral);
   font-family: "Segoe UI", var(--font);
-  font-size: 10px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
   letter-spacing: 0.16em;
 }
 
@@ -80,7 +80,7 @@
 .planner-session-form label > span,
 .planner-task-form label > span,
 .planner-note-form label > span {
-  font-size: 9px;
+  ;
   font-weight: 700;
 }
 
@@ -118,7 +118,7 @@
   min-height: 39px;
   padding: 0 10px;
   color: rgba(235, 240, 246, 0.62);
-  font-size: 9px;
+  ;
   white-space: nowrap;
 }
 
@@ -154,21 +154,14 @@
 .planner-panel-heading h3 {
   margin: 3px 0 0;
   color: var(--planner-ink);
-  font-size: 19px;
+  ;
   line-height: 1.3;
   letter-spacing: -0.025em;
 }
 
-.planner-panel-heading p {
-  margin: 5px 0 0;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
 .planner-section-label {
   color: #8995a5;
-  font-size: 8px;
+  ;
 }
 
 .planner-plan-progress {
@@ -182,7 +175,7 @@
 .planner-plan-progress strong {
   color: var(--planner-ink);
   font-family: "Segoe UI", var(--font);
-  font-size: 18px;
+  ;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
@@ -190,7 +183,7 @@
 .planner-plan-progress span {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 9px;
+  ;
 }
 
 .planner-task-form {
@@ -250,7 +243,7 @@
 .planner-template-row > span {
   margin-right: 2px;
   color: var(--muted);
-  font-size: 9px;
+  ;
 }
 
 .planner-template-row button {
@@ -260,7 +253,7 @@
   border-radius: 999px;
   background: #eef2f6;
   color: #667385;
-  font-size: 9px;
+  ;
 }
 
 .planner-template-row button:hover {
@@ -306,8 +299,8 @@
 .planner-stage-index {
   color: #a0a9b5;
   font-family: "Segoe UI", var(--font);
-  font-size: 9px;
-  font-weight: 750;
+  ;
+  font-weight: var(--type-weight-bold);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
 }
@@ -336,14 +329,14 @@
 .planner-stage-heading h4 {
   margin: 0;
   color: var(--planner-ink);
-  font-size: 13px;
+  ;
   line-height: 1.25;
 }
 
 .planner-stage-heading p {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  ;
 }
 
 .planner-stage-heading > strong {
@@ -352,7 +345,7 @@
   background: #f0f3f6;
   color: #7a8593;
   font-family: "Segoe UI", var(--font);
-  font-size: 9px;
+  ;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -399,8 +392,8 @@
   border: 1.5px solid #bdc7d2;
   border-radius: 50%;
   color: #fff;
-  font-size: 12px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 
 .planner-task-check:hover {
@@ -411,7 +404,7 @@
   border-color: transparent;
   border-radius: 6px;
   color: #a0aab6;
-  font-size: 17px;
+  ;
 }
 
 .planner-task-delete:hover {
@@ -424,8 +417,8 @@
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--planner-ink);
-  font-size: 11px;
-  font-weight: 650;
+  ;
+  font-weight: var(--type-weight-semibold);
   line-height: 1.4;
 }
 
@@ -464,12 +457,12 @@
   border-radius: 50%;
   background: #eef2f6;
   color: #96a1af;
-  font-size: 13px;
+  ;
 }
 
 .planner-empty-state p {
   margin: 0;
-  font-size: 9px;
+  ;
   line-height: 1.45;
 }
 
@@ -497,7 +490,7 @@
   background: rgba(211, 154, 67, 0.08);
   color: #9a6b24;
   font-family: "Segoe UI", var(--font);
-  font-size: 9px;
+  ;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -520,7 +513,7 @@
   background: rgba(255, 255, 255, 0.84);
   color: var(--planner-ink);
   font: inherit;
-  font-size: 11px;
+  ;
   line-height: 1.55;
 }
 
@@ -541,8 +534,8 @@
   border-color: #c98d34;
   background: #d39a43;
   color: #fff;
-  font-size: 10px;
-  font-weight: 750;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 
 .planner-note-submit:hover {
@@ -597,8 +590,8 @@
 
 .planner-note-type {
   color: #a5742d;
-  font-size: 8px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
   letter-spacing: 0.06em;
 }
 
@@ -608,7 +601,7 @@
 .planner-note-card time {
   color: #9aa3ae;
   font-family: "Segoe UI", var(--font);
-  font-size: 8px;
+  ;
   font-variant-numeric: tabular-nums;
 }
 
@@ -616,7 +609,7 @@
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--planner-ink);
-  font-size: 11px;
+  ;
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -631,7 +624,7 @@
   padding: 3px 7px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.6);
-  font-size: 8px;
+  ;
 }
 
 .planner-note-promote {
@@ -675,18 +668,18 @@
 
 .planner-note-empty > span {
   color: var(--planner-amber);
-  font-size: 20px;
+  ;
 }
 
 .planner-note-empty strong {
   color: #6d6354;
-  font-size: 10px;
+  ;
 }
 
 .planner-note-empty p {
   max-width: 230px;
   margin: 0;
-  font-size: 9px;
+  ;
   line-height: 1.5;
 }
 
@@ -694,7 +687,7 @@
   margin: 0;
   padding: 0 16px 15px;
   color: var(--muted);
-  font-size: 8px;
+  ;
   line-height: 1.5;
 }
 

@@ -11,6 +11,15 @@
   // const MAX_PENDING = 10
   const MAX_EVENT_AGE_MS = 12000;
   const TIMELINE = Object.freeze({ enterDuration: 900, holdDuration: 2600, exitDuration: 650, watchdogGraceDuration: 500 });
+  const FIREFLY_LIMIT = 6;
+  const FRAME_PERIMETER_ANCHORS = Object.freeze([
+    { x: .11, y: .14, dx: 8, dy: -18, delay: 80 },
+    { x: .37, y: .09, dx: -7, dy: 13, delay: 430 },
+    { x: .86, y: .14, dx: 9, dy: -14, delay: 780 },
+    { x: .92, y: .55, dx: -10, dy: -17, delay: 1130 },
+    { x: .76, y: .88, dx: 8, dy: -13, delay: 1480 },
+    { x: .12, y: .76, dx: 10, dy: -16, delay: 1830 }
+  ]);
   const ALLOWED_THEMES = new Set(['woodland-bloom']);
   const ALLOWED_MOTION = new Set(['auto', 'full', 'reduced']);
   const frameRoot = document.getElementById('giftFrame');
@@ -30,13 +39,39 @@
   else init();
 
   function init() {
+    initFrameAssets();
     if (PREVIEW_MODE) {
-      document.addEventListener('visibilitychange', playNextFrame);
       window.setTimeout(() => handleFrameEvent(createPreviewPayload()), 80);
     }
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) particleController.stop();
+      else playNextFrame();
+    });
     window.addEventListener('resize', () => particleController.resize(window.innerWidth, window.innerHeight));
     particleController.resize(window.innerWidth, window.innerHeight);
     connectSocket();
+  }
+
+  function initFrameAssets() {
+    const parts = Array.from(document.querySelectorAll('.gift-frame-component'));
+    const accents = Array.from(document.querySelectorAll('[data-frame-accent]'));
+    const fallback = document.getElementById('giftFrameFallback');
+    const useFallback = () => {
+      frameRoot.classList.add('use-composite-fallback');
+      if (!frameRoot.classList.contains('is-playing') || !fallback) return;
+      fallback.style.opacity = '1';
+      fallback.style.transform = 'translate(0, 0)';
+      fallback.style.clipPath = 'inset(0)';
+    };
+    parts.forEach((part) => {
+      part.addEventListener('error', useFallback, { once: true });
+      if (part.complete && part.naturalWidth === 0) useFallback();
+    });
+    accents.forEach((accent) => {
+      const hideAccent = () => { accent.hidden = true; };
+      accent.addEventListener('error', hideAccent, { once: true });
+      if (accent.complete && accent.naturalWidth === 0) hideAccent();
+    });
   }
 
   function connectSocket() {
@@ -100,6 +135,7 @@
       if (motionMode !== 'reduced') particleController.start();
       await raceAbort(session, async () => {
         await frameController.playEnterTimeline(session, motionMode);
+        frameController.playHoldingAccents(session, motionMode);
         await session.wait(TIMELINE.holdDuration);
         await frameController.playExitTimeline(session, motionMode);
       });
@@ -125,7 +161,10 @@
 
   function createFrameController() {
     const parts = Array.from(document.querySelectorAll('[data-frame-part]'));
+    const accents = Array.from(document.querySelectorAll('[data-frame-accent]'));
+    const fallback = document.getElementById('giftFrameFallback');
     const info = { root: frameRoot, plate: document.getElementById('giftInfo'), name: document.getElementById('giftInfoName'), amount: document.getElementById('giftInfoAmount'), user: document.getElementById('giftInfoUser'), num: document.getElementById('giftInfoNum') };
+    const activeParts = () => info.root.classList.contains('use-composite-fallback') ? [fallback] : parts;
     return {
       prepare(payload, motionMode) {
         info.name.textContent = payload.giftName;
@@ -135,18 +174,25 @@
         info.root.dataset.motion = motionMode;
         info.root.classList.add('is-playing');
         info.root.style.opacity = '1';
-        parts.forEach((part) => { part.style.opacity = '0'; part.style.transform = ''; });
+        [...parts, fallback].forEach((part) => {
+          if (!part) return;
+          part.style.opacity = '0';
+          part.style.transform = '';
+          part.style.clipPath = '';
+        });
+        accents.forEach((accent) => {
+          accent.style.opacity = '0';
+          accent.style.transform = '';
+        });
         info.plate.style.opacity = '0';
-        info.plate.style.transform = 'translate(-50%, 12px)';
+        info.plate.style.transform = 'translate(-50%, calc(-50% + 12px))';
       },
       async playEnterTimeline(session, motionMode) {
         const reduced = motionMode === 'reduced';
         const animations = [];
-        parts.filter((part) => part.dataset.framePart?.startsWith('corner-')).forEach((part) => animations.push(animateNode(part, [{ opacity: 0, transform: cornerOffset(part) }, { opacity: 1, transform: 'translate(0, 0)' }], reduced ? 160 : 220, reduced ? 0 : 0)));
-        parts.filter((part) => part.dataset.framePart?.startsWith('edge-')).forEach((part) => animations.push(animateNode(part, [{ opacity: 0, transform: edgeOffset(part) }, { opacity: 1, transform: 'translate(0, 0)' }], reduced ? 160 : 460, reduced ? 0 : 108)));
-        const highlights = document.querySelector('[data-frame-part="highlights"]');
-        if (highlights && !reduced) animations.push(animateNode(highlights, [{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], 240, 405));
-        animations.push(animateNode(info.plate, [{ opacity: 0, transform: 'translate(-50%, 12px)' }, { opacity: 1, transform: 'translate(-50%, 0)' }], reduced ? 180 : 250, reduced ? 0 : 558));
+        activeParts().forEach((part) => animations.push(animateNode(part, frameEnterKeyframes(part, reduced), reduced ? 180 : 620, reduced ? 0 : framePartDelay(part, false))));
+        accents.filter((accent) => !accent.hidden).forEach((accent) => animations.push(animateNode(accent, accentEnterKeyframes(accent, reduced), reduced ? 180 : accentEnterDuration(accent), reduced ? 0 : accentEnterDelay(accent))));
+        animations.push(animateNode(info.plate, [{ opacity: 0, transform: 'translate(-50%, calc(-50% + 12px))' }, { opacity: 1, transform: 'translate(-50%, -50%)' }], reduced ? 180 : 250, reduced ? 0 : 558));
         animations.push(animateNode(info.name, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 180, reduced ? 0 : 738));
         animations.push(animateNode(info.amount, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 180, reduced ? 0 : 738));
         animations.push(animateNode(info.user, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 160, reduced ? 0 : 810));
@@ -154,11 +200,19 @@
         await Promise.all(animations);
         session.throwIfAborted();
       },
+      playHoldingAccents(session, motionMode) {
+        if (motionMode === 'reduced') return;
+        accents.filter((accent) => !accent.hidden).forEach((accent) => {
+          const motion = accentHoldingMotion(accent);
+          animateNode(accent, motion.keyframes, motion.duration, motion.delay);
+        });
+        session.throwIfAborted();
+      },
       async playExitTimeline(session, motionMode) {
         const reduced = motionMode === 'reduced';
-        const animations = [animateNode(info.plate, [{ opacity: 1 }, { opacity: 0, transform: 'translate(-50%, 10px)' }], reduced ? 180 : 260, 0)];
-        parts.filter((part) => part.dataset.framePart?.startsWith('edge-')).forEach((part) => animations.push(animateNode(part, [{ opacity: 1, transform: 'translate(0, 0)' }, { opacity: 0, transform: edgeOffset(part) }], reduced ? 180 : 420, reduced ? 0 : 60)));
-        parts.filter((part) => part.dataset.framePart?.startsWith('corner-')).forEach((part) => animations.push(animateNode(part, [{ opacity: 1, transform: 'translate(0, 0)' }, { opacity: 0, transform: cornerOffset(part) }], reduced ? 180 : 360, reduced ? 0 : 220)));
+        const animations = [animateNode(info.plate, [{ opacity: 1, transform: 'translate(-50%, -50%)' }, { opacity: 0, transform: 'translate(-50%, calc(-50% + 10px))' }], reduced ? 180 : 260, 0)];
+        activeParts().forEach((part) => animations.push(animateNode(part, frameExitKeyframes(part, reduced), reduced ? 180 : 440, reduced ? 0 : framePartDelay(part, true))));
+        accents.filter((accent) => !accent.hidden).forEach((accent) => animations.push(animateNode(accent, [{ opacity: 1, transform: 'translate(0, 0) rotate(0)' }, { opacity: 0, transform: accentExitTransform(accent, reduced) }], reduced ? 180 : 320, reduced ? 0 : accentExitDelay(accent))));
         await Promise.all(animations);
         session.throwIfAborted();
       },
@@ -166,7 +220,16 @@
         info.root.classList.remove('is-playing');
         info.root.removeAttribute('data-motion');
         info.root.style.opacity = '';
-        parts.forEach((part) => { part.style.opacity = ''; part.style.transform = ''; });
+        [...parts, fallback].forEach((part) => {
+          if (!part) return;
+          part.style.opacity = '';
+          part.style.transform = '';
+          part.style.clipPath = '';
+        });
+        accents.forEach((accent) => {
+          accent.style.opacity = '';
+          accent.style.transform = '';
+        });
         info.plate.style.opacity = '';
         info.plate.style.transform = '';
         info.name.textContent = '';
@@ -184,13 +247,112 @@
     return animation.finished.catch(() => {});
   }
 
-  function cornerOffset(part) { return (part.dataset.framePart || '').includes('tr') || (part.dataset.framePart || '').includes('br') ? 'translate(10px, 0)' : 'translate(-10px, 0)'; }
   function edgeOffset(part) {
     const name = part.dataset.framePart || '';
     if (name.includes('top')) return 'translate(0, -36px)';
     if (name.includes('bottom')) return 'translate(0, 36px)';
     if (name.includes('right')) return 'translate(36px, 0)';
     return 'translate(-36px, 0)';
+  }
+
+  function frameHiddenClip(part) {
+    const name = part.dataset.framePart || '';
+    if (name === 'top') return 'inset(0 0 74% 0)';
+    if (name === 'bottom') return 'inset(74% 0 0 0)';
+    if (name === 'right') return 'inset(0 0 0 68%)';
+    if (name === 'left') return 'inset(0 68% 0 0)';
+    return 'inset(0)';
+  }
+
+  function frameEnterKeyframes(part, reduced) {
+    if (reduced) return [{ opacity: 0 }, { opacity: 1 }];
+    return [
+      { opacity: 0, transform: edgeOffset(part), clipPath: frameHiddenClip(part) },
+      { opacity: 1, transform: 'translate(0, 0)', clipPath: 'inset(0)' }
+    ];
+  }
+
+  function frameExitKeyframes(part, reduced) {
+    if (reduced) return [{ opacity: 1 }, { opacity: 0 }];
+    return [
+      { opacity: 1, transform: 'translate(0, 0)', clipPath: 'inset(0)' },
+      { opacity: 0, transform: edgeOffset(part), clipPath: frameHiddenClip(part) }
+    ];
+  }
+
+  function framePartDelay(part, exiting) {
+    const name = part.dataset.framePart || '';
+    const entering = { top: 0, left: 90, right: 90, bottom: 170 };
+    const leaving = { bottom: 20, left: 80, right: 80, top: 150 };
+    return (exiting ? leaving : entering)[name] || 0;
+  }
+
+  function accentEnterKeyframes(accent, reduced) {
+    if (reduced) return [{ opacity: 0 }, { opacity: 1 }];
+    const name = accent.dataset.frameAccent || '';
+    if (name === 'branch') return [{ opacity: 0, transform: 'translate(0, -7px) rotate(-1.8deg)' }, { opacity: 1, transform: 'translate(0, 0) rotate(0)' }];
+    if (name === 'crystal') return [{ opacity: 0, transform: 'translate(0, -6px) rotate(2.4deg)' }, { opacity: 1, transform: 'translate(0, 0) rotate(0)' }];
+    return [{ opacity: 0, transform: 'translate(-4px, 5px) rotate(-2deg)' }, { opacity: 1, transform: 'translate(0, 0) rotate(0)' }];
+  }
+
+  function accentEnterDuration(accent) {
+    return accent.dataset.frameAccent === 'branch' ? 480 : 400;
+  }
+
+  function accentEnterDelay(accent) {
+    const delays = { branch: 260, crystal: 350, floral: 430 };
+    return delays[accent.dataset.frameAccent] || 0;
+  }
+
+  function accentHoldingMotion(accent) {
+    const name = accent.dataset.frameAccent || '';
+    if (name === 'branch') {
+      return {
+        duration: 1040,
+        delay: 120,
+        keyframes: [
+          { transform: 'translate(0, 0) rotate(0)' },
+          { transform: 'translate(2px, 1px) rotate(.9deg)', offset: .34 },
+          { transform: 'translate(-1px, 0) rotate(-.65deg)', offset: .7 },
+          { transform: 'translate(0, 0) rotate(0)' }
+        ]
+      };
+    }
+    if (name === 'crystal') {
+      return {
+        duration: 1080,
+        delay: 360,
+        keyframes: [
+          { transform: 'translate(0, 0) rotate(0)' },
+          { transform: 'translate(1px, 1px) rotate(2.6deg)', offset: .3 },
+          { transform: 'translate(-1px, 1px) rotate(-1.8deg)', offset: .66 },
+          { transform: 'translate(0, 0) rotate(0)' }
+        ]
+      };
+    }
+    return {
+      duration: 820,
+      delay: 660,
+      keyframes: [
+        { transform: 'translate(0, 0) rotate(0)' },
+        { transform: 'translate(2px, -1px) rotate(1.2deg)', offset: .42 },
+        { transform: 'translate(-1px, 0) rotate(-.7deg)', offset: .74 },
+        { transform: 'translate(0, 0) rotate(0)' }
+      ]
+    };
+  }
+
+  function accentExitTransform(accent, reduced) {
+    if (reduced) return 'translate(0, 0) rotate(0)';
+    const name = accent.dataset.frameAccent || '';
+    if (name === 'branch') return 'translate(0, -6px) rotate(-1deg)';
+    if (name === 'crystal') return 'translate(0, -5px) rotate(1.8deg)';
+    return 'translate(-3px, 4px) rotate(-1deg)';
+  }
+
+  function accentExitDelay(accent) {
+    const delays = { floral: 20, crystal: 70, branch: 120 };
+    return delays[accent.dataset.frameAccent] || 0;
   }
 
   function createParticleController(canvas) {
@@ -210,20 +372,41 @@
       },
       start() {
         if (!context || document.hidden) return;
-        particles = Array.from({ length: 4 }, (_, index) => ({ x: 0.18 + index * 0.2, y: 0.17 + (index % 2) * 0.63, life: 700 + index * 70 }));
+        particles = FRAME_PERIMETER_ANCHORS.slice(0, FIREFLY_LIMIT).map((anchor, index) => ({
+          ...anchor,
+          life: 920 + (index % 3) * 120,
+          radius: 1.8 + (index % 2) * .45
+        }));
         const startedAt = performance.now();
+        const finalElapsed = Math.max(...particles.map((particle) => particle.delay + particle.life));
         const draw = (now) => {
           const elapsed = now - startedAt;
-          if (elapsed > 900 || !context || particles.length === 0) return;
+          if (!context || particles.length === 0) return;
           context.clearRect(0, 0, window.innerWidth, window.innerHeight);
           particles.forEach((particle) => {
-            const alpha = Math.max(0, 1 - elapsed / particle.life);
-            context.fillStyle = `rgba(231,205,134,${alpha * .65})`;
+            const localElapsed = elapsed - particle.delay;
+            if (localElapsed < 0 || localElapsed > particle.life) return;
+            const progress = localElapsed / particle.life;
+            const pulse = Math.sin(Math.PI * progress);
+            const x = window.innerWidth * particle.x + particle.dx * progress;
+            const y = window.innerHeight * particle.y + particle.dy * progress;
+            context.save();
+            context.shadowBlur = 18;
+            context.shadowColor = `rgba(255,224,113,${pulse * .9})`;
+            context.fillStyle = `rgba(255,239,165,${pulse * .88})`;
             context.beginPath();
-            context.arc(window.innerWidth * particle.x, window.innerHeight * particle.y - elapsed * .012, 2.4, 0, Math.PI * 2);
+            context.arc(x, y, particle.radius + pulse * 1.2, 0, Math.PI * 2);
             context.fill();
+            context.shadowBlur = 0;
+            context.strokeStyle = `rgba(196,255,184,${pulse * .48})`;
+            context.lineWidth = 1;
+            context.beginPath();
+            context.arc(x, y, 5 + pulse * 3, 0, Math.PI * 2);
+            context.stroke();
+            context.restore();
           });
-          frameId = requestAnimationFrame(draw);
+          if (elapsed < finalElapsed) frameId = requestAnimationFrame(draw);
+          else frameId = 0;
         };
         cancelAnimationFrame(frameId);
         frameId = requestAnimationFrame(draw);

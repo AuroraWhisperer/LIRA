@@ -532,7 +532,7 @@ const CLEAR_ALL_MATRIX = {
   recreate: [
     {
       table: 'song_categories',
-      row: { name: '默认分类', sort_order: 0, is_enabled: 1 }
+      row: { name: '默认', sort_order: 0, is_enabled: 1 }
     },
     {
       table: 'overtime_machine_state',
@@ -826,11 +826,26 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
 
   // 如果有提交失败，返回部分失败状态
   if (failed.length > 0) {
+    const committedSet = new Set(committed);
+    const rolledBack = [];
+    const rollbackFailed = [];
+    for (const { name, db } of databases) {
+      if (!db || committedSet.has(name)) continue;
+      try {
+        db.exec('ROLLBACK');
+        rolledBack.push(name);
+      } catch (error) {
+        rollbackFailed.push(name);
+      }
+    }
+
     return {
       ok: false,
       partial: true,
       committed,
       failed,
+      rolledBack,
+      rollbackFailed,
       error: `Commit failed at ${failed[0]}`,
       deletedCounts: counts,
       results: commitResults
@@ -844,7 +859,7 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
     songDb.prepare(`
       INSERT INTO song_categories (name, sort_order, is_enabled, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
-    `).run('默认分类', 0, 1, timestamp, timestamp);
+    `).run('默认', 0, 1, timestamp, timestamp);
 
     // 确保加班机状态行存在且为禁用状态
     giftDb.prepare(`

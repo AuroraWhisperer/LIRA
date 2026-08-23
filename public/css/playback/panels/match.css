@@ -23,7 +23,7 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 12px;
+  ;
   font-weight: 700;
 }
 
@@ -62,14 +62,14 @@
 
 .match-result-row strong {
   color: var(--text);
-  font-size: 15px;
+  ;
   overflow-wrap: anywhere;
 }
 
 .match-result-row span,
 .match-result-row small {
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }

@@ -45,10 +45,28 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /body\[data-style='signal'\]/);
   assert.match(styles, /body\[data-style='bubble'\]/);
   assert.match(styles, /body\[data-style='minimal'\]/);
+  assert.match(styles, /body\.is-preview \{[^}]*rgba\(248, 251, 255, \.96\)[^}]*rgba\(229, 239, 248, \.9\)/s);
+  assert.match(styles, /body\.is-preview\[data-style='bubble'\] \{[^}]*rgba\(255, 252, 247, \.96\)[^}]*rgba\(237, 246, 243, \.9\)/s);
+  assert.match(styles, /body\.is-preview\[data-style='minimal'\] \{[^}]*rgba\(244, 247, 252, \.94\)[^}]*rgba\(223, 231, 242, \.88\)/s);
+  assert.match(styles, /\.draw-danmaku-feed \{[^}]*align-items:\s*flex-start;/s);
+  assert.match(styles, /\.draw-danmaku-item \{[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*min\(100%, 660px\);/s);
+  assert.doesNotMatch(styles, /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --signal-accent: #7d91a8;/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --signal-accent: #7d91a8;/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --signal-accent: #3ec7ff;/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --signal-accent: #d45cff;/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --signal-accent: #ffb627;/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-identity \{ padding-right: 68px; \}/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --bubble-accent: #70ddc6;/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --bubble-accent: #70ddc6;/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: #55b9ff;/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: #dc78ff;/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: #ffc34f;/);
   assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*height:\s*calc\(100vh - clamp/);
   assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item \{[^}]*border-left:/);
   assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{[^}]*--minimal-role:\s*'普'/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\]::after \{\s*display:\s*none;\s*\}/);
+  assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='fan'\] \{[^}]*--minimal-role:\s*'粉'/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\]::after,\s*body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='fan'\]::after \{\s*display:\s*none;\s*\}/);
   for (const style of ['signal', 'bubble', 'minimal']) {
     for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
       assert.match(

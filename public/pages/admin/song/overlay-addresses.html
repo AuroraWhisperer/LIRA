@@ -1,34 +1,33 @@
         <div id="overlayPage" class="tab-page">
           <div class="panel-body stack">
+            <header class="song-subview-header">
+              <h2 class="ui-page-title">直播画面</h2>
+            </header>
             <div class="overlay-address-grid">
               <section class="overlay-address-item">
                 <div>
-                  <strong>点歌板</strong>
-                  <span>显示当前点歌和等待队列</span>
+                  <strong class="ui-card-title">点歌板 <lira-help>显示当前点歌和等待队列。</lira-help></strong>
                 </div>
-                <code id="queueUrl"></code>
+                <code id="queueUrl" class="ui-caption"></code>
                 <button type="button" data-copy-url="queueUrl">复制</button>
               </section>
 
               <section class="overlay-address-item">
                 <div>
-                  <strong>歌曲展示滚动版</strong>
-                  <span>滚动展示歌库</span>
+                  <strong class="ui-card-title">歌曲展示滚动版 <lira-help>循环滚动展示歌库。</lira-help></strong>
                 </div>
-                <code id="songsUrl"></code>
+                <code id="songsUrl" class="ui-caption"></code>
                 <button type="button" data-copy-url="songsUrl">复制</button>
               </section>
 
               <section class="overlay-address-item">
                 <div>
-                  <strong>桌面歌词</strong>
-                  <span>实时显示当前播放歌词</span>
+                  <strong class="ui-card-title">桌面歌词 <lira-help>实时显示当前播放歌词。</lira-help></strong>
                 </div>
-                <code id="lyricsUrl"></code>
+                <code id="lyricsUrl" class="ui-caption"></code>
                 <button type="button" data-copy-url="lyricsUrl">复制</button>
               </section>
             </div>
 
           </div>
         </div>
-

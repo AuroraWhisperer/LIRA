@@ -411,19 +411,19 @@ function renderProviderSelection(value, options = {}) {
   if (protocolControl) protocolControl.hidden = official;
 
   const labels = {
-    auto: ['自动识别', '保留旧配置的地址识别规则；新配置建议明确选择供应商。'],
-    deepseek: ['DeepSeek 官方', '固定使用 DeepSeek 官方地址和 Chat Completions，支持思考强度。'],
+    auto: ['自动识别', '兼容旧配置；新配置建议明确选择供应商。'],
+    deepseek: ['DeepSeek 官方', '使用官方地址和 Chat Completions，支持思考强度。'],
     openai: ['OpenAI 官方', '固定使用 OpenAI 官方 Responses API。'],
-    anthropic: ['Claude 官方兼容', '使用 Anthropic 官方 OpenAI 兼容入口；部分 Claude 原生能力不可用。'],
-    gemini: ['Gemini 官方兼容', '使用 Google 官方 OpenAI 兼容入口，支持模型相关的推理强度。'],
+    anthropic: ['Claude 官方兼容', '使用官方 OpenAI 兼容入口；部分原生能力不可用。'],
+    gemini: ['Gemini 官方兼容', '使用官方 OpenAI 兼容入口，支持推理强度。'],
     custom: ['自定义兼容', '填写第三方或其他 OpenAI 兼容服务的地址和协议。']
   };
   const [badge, note] = labels[provider] || labels.auto;
   setText('xiaomiAiProviderBadge', badge);
   setText('xiaomiAiProviderNote', note);
   setText('xiaomiAiEndpointHelp', official
-    ? '官方预设地址由 LIRA 固定，切换到自定义供应商后可编辑。'
-    : '可填写服务根地址、/v1 基础地址，或完整的 /responses、/chat/completions 地址。');
+    ? '官方预设地址不可编辑；切换到自定义后可修改。'
+    : '接受服务根地址、v1 地址或完整接口地址。');
 }
 
 function renderModelCapabilities(endpoint = {}) {
@@ -450,13 +450,13 @@ function renderModelCapabilities(endpoint = {}) {
 
   if (webSearchMode === 'hosted') {
     setText('xiaomiAiWebSearchLabel', '启用服务端 Web Search');
-    setText('xiaomiAiWebSearchHelp', '由 Responses API 服务执行，需要上游支持 web_search。');
+    setText('xiaomiAiWebSearchHelp', '由 Responses API 执行，需要上游支持 web_search。');
   } else if (webSearchMode === 'local_function') {
     setText('xiaomiAiWebSearchLabel', '启用 LIRA Web Search');
-    setText('xiaomiAiWebSearchHelp', 'LIRA 执行搜索，当前模型必须支持 Chat Completions tool_calls。');
+    setText('xiaomiAiWebSearchHelp', '由 LIRA 执行，需要模型支持 tool_calls。');
   } else {
     setText('xiaomiAiWebSearchLabel', '启用 Web Search');
-    setText('xiaomiAiWebSearchHelp', '保存模型服务地址和协议后显示实际联网方式。');
+    setText('xiaomiAiWebSearchHelp', '保存地址和协议后显示实际联网方式。');
   }
 
   const reasoningControl = document.getElementById('xiaomiAiReasoningControl');
@@ -468,13 +468,13 @@ function renderModelCapabilities(endpoint = {}) {
   if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed';
   if (reasoningMode === 'effort') {
     setText('xiaomiAiReasoningLabel', '启用模型推理');
-    setText('xiaomiAiReasoningHelp', 'Responses API 可按强度控制；“服务默认”不覆盖上游设置。');
+    setText('xiaomiAiReasoningHelp', '可调推理强度；“服务默认”不覆盖上游设置。');
   } else if (reasoningMode === 'deepseek_effort') {
     setText('xiaomiAiReasoningLabel', '启用 DeepSeek 思考');
-    setText('xiaomiAiReasoningHelp', 'DeepSeek 官方支持 low、high、max；其他档位会映射到最接近的官方强度。');
+    setText('xiaomiAiReasoningHelp', '支持 low、high、max；其他档位自动就近映射。');
   } else if (reasoningMode === 'gemini_effort') {
     setText('xiaomiAiReasoningLabel', '启用 Gemini 思考');
-    setText('xiaomiAiReasoningHelp', 'Gemini 支持 minimal 到 high；能否关闭思考取决于所选模型。');
+    setText('xiaomiAiReasoningHelp', '支持 minimal 到 high；能否关闭取决于模型。');
   }
   syncReasoningEffortAvailability();
 }

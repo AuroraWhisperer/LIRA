@@ -491,7 +491,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(finalState.settings.queueLimit, '3');
     assert.equal(finalState.settings.onboardingVersion, '1');
     assert.equal(finalState.settings.onboardingCompletedAt, '2026-08-19T00:00:00.000Z');
-    assert.equal(finalState.categories.some((category) => category.name === '默认'), true);
+    assert.deepEqual(finalState.categories.map((category) => category.name), ['默认']);
   } finally {
     if (shutdownApplication) {
       await shutdownApplication({ exitProcess: false });

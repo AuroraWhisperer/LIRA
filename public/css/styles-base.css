@@ -98,6 +98,39 @@
   --radius: var(--radius-md);
   --motion-ui-duration: 180ms;
   --font: "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif;
+  --font-ui: var(--font);
+  --font-display: "Segoe UI Variable Display", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, monospace;
+
+  --type-size-display: 28px;
+  --type-size-page-title: 24px;
+  --type-size-section-title: 18px;
+  --type-size-card-title: 15px;
+  --type-size-body: 14px;
+  --type-size-control: 13px;
+  --type-size-caption: 12px;
+  --type-size-micro: 11px;
+  --type-size-metric-sm: 20px;
+  --type-size-metric-md: 28px;
+  --type-size-metric-lg: 36px;
+
+  --type-weight-regular: 400;
+  --type-weight-medium: 500;
+  --type-weight-semibold: 600;
+  --type-weight-bold: 700;
+
+  --type-leading-display: 1.15;
+  --type-leading-page-title: 1.3;
+  --type-leading-section-title: 1.4;
+  --type-leading-card-title: 1.45;
+  --type-leading-body: 1.55;
+  --type-leading-control: 1.45;
+  --type-leading-caption: 1.5;
+  --type-leading-micro: 1.45;
+
+  --type-tracking-tight: -0.01em;
+  --type-tracking-normal: 0;
+  --type-tracking-eyebrow: 0.06em;
 }
 
 * {
@@ -170,14 +203,25 @@ button:hover {
 }
 
 button.primary {
-  border-color: var(--primary);
+  border-color: transparent;
   background: var(--primary);
   color: var(--color-text-white);
 }
 
+button.primary:hover {
+  border-color: transparent;
+  background: var(--primary-strong);
+}
+
 button.danger {
-  border-color: #e8bbb6;
+  border-color: transparent;
+  background: transparent;
   color: var(--danger);
+}
+
+button.danger:hover {
+  border-color: transparent;
+  background: var(--color-danger-light);
 }
 
 button.secondary {

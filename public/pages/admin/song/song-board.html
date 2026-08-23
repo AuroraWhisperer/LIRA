@@ -1,18 +1,20 @@
         <div id="displayPage" class="tab-page">
           <div class="panel-body stack">
+            <header class="song-subview-header">
+              <h2 class="ui-page-title">展示板</h2>
+            </header>
             <form id="displayForm" class="stack">
               <label>
-                歌单滚动速率
+                <span>歌单滚动速率 <lira-help>数值越大滚动越快；1 最慢，100 最快。</lira-help></span>
                 <span class="range-row">
                   <input id="scrollSecondsRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
                   <input id="scrollSeconds" type="number" min="1" max="100" step="1">
                 </span>
-                <span class="hint">数值越大滚动越快，1 最慢，100 最快</span>
               </label>
 
               <div class="grid-2" style="margin-bottom:12px">
                 <label>
-                  歌曲排序方式
+                  <span>歌曲排序方式 <lira-help>决定歌单板的分组和排列方式。</lira-help></span>
                   <select id="songBoardSortMode" data-dropdown-variant="settings">
                     <option value="initial">按首字母</option>
                     <option value="category">按歌曲风格</option>
@@ -20,15 +22,13 @@
                     <option value="language">按语言</option>
                     <option value="length">按歌曲名字长度</option>
                   </select>
-                  <span class="hint">控制歌单展示板的歌曲分组排列方式</span>
                 </label>
                 <label>
-                  字体大小
+                  <span>字体大小 <lira-help>控制歌单板全部文字，默认 40 px。</lira-help></span>
                   <span class="range-row">
                     <input id="songBoardFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="80" step="1" value="40">
                     <input id="songBoardFontSizeNumber" type="number" min="10" max="80" step="1" value="40">
                   </span>
-                  <span class="hint">控制歌单展示板所有文字大小，默认 40px</span>
                 </label>
               </div>
 
@@ -36,9 +36,8 @@
                 <label class="switch-control">
                   <input id="songBoardSyncTheme" type="checkbox" checked>
                   <span class="switch-track"></span>
-                  <span>同步点歌板主题</span>
+                  <span>同步点歌板主题 <lira-help>关闭后可单独设置歌单板的颜色、字体和效果。</lira-help></span>
                 </label>
-                <span class="hint">关闭后可独立自定义歌单展示板颜色、字体和效果</span>
               </div>
 
               <div id="songBoardThemeArea" hidden>
@@ -101,14 +100,12 @@
                       </select>
                     </label>
                     <label>
-                      歌名颜色
+                      <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
                       <input id="songBoardSongColor" type="color" value="">
-                      <span class="hint">留空则使用文字色</span>
                     </label>
                     <label>
-                      面板标题
+                      <span>面板标题 <lira-help>修改歌单板顶部标题；留空时使用默认标题。</lira-help></span>
                       <input id="songBoardTitle" placeholder="留空显示默认：可点歌单">
-                      <span class="hint">自定义歌单展示板顶部标题文字</span>
                     </label>
                   </div>
                 </fieldset>
@@ -137,20 +134,18 @@
                   <legend>玻璃质感效果</legend>
                   <div class="grid-2">
                     <label>
-                      背景模糊
+                      <span>背景模糊 <lira-help>数值越大，毛玻璃越明显；0 表示关闭。</lira-help></span>
                       <span class="range-row">
                         <input id="songBoardBackdropBlur" class="parameter-range parameter-range--intensity" type="range" min="0" max="30" step="1">
                         <input id="songBoardBackdropBlurNumber" type="number" min="0" max="30" step="1">
                       </span>
-                      <span class="hint">数值越大毛玻璃效果越强，0 为关闭</span>
                     </label>
                     <label>
-                      发光强度
+                      <span>发光强度 <lira-help>控制辅助色发光；0 表示关闭。</lira-help></span>
                       <span class="range-row">
                         <input id="songBoardGlowIntensity" class="parameter-range parameter-range--intensity" type="range" min="0" max="20" step="1">
                         <input id="songBoardGlowIntensityNumber" type="number" min="0" max="20" step="1">
                       </span>
-                      <span class="hint">辅助色的发光强度，0 为关闭</span>
                     </label>
                   </div>
                 </fieldset>
@@ -166,9 +161,8 @@
                       </select>
                     </label>
                     <label>
-                      渐变结束色
+                      <span>渐变结束色 <lira-help>与背景色组成双色渐变。</lira-help></span>
                       <input id="songBoardGradientEnd" type="color">
-                      <span class="hint">搭配背景色形成双色渐变</span>
                     </label>
                   </div>
                 </fieldset>
@@ -184,9 +178,8 @@
                       </span>
                     </label>
                     <label>
-                      圆角大小
+                      <span>圆角大小 <lira-help>数值越大越圆，建议 12-16。</lira-help></span>
                       <input id="songBoardThemeRadius" type="number" min="0" max="24">
-                      <span class="hint">数值越大越圆润，推荐 12-16</span>
                     </label>
                   </div>
                 </fieldset>

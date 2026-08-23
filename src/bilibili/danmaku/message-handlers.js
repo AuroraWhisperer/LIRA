@@ -5,6 +5,7 @@
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
+const { detectGuardLevelFromName } = require('../utils/gift-normalizers');
 const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 
@@ -179,6 +180,8 @@ class MessageHandlers {
   handleGift(message) {
     // GUARD_BUY only carries the list price. Wait for USER_TOAST_MSG with the paid total.
     if (cleanText(message && message.cmd).startsWith('GUARD_BUY')) return;
+    // USER_TOAST_MSG_V2 source=2 is a companion of the paid source=0 message.
+    if (packetParser.isBilibiliDuplicateGuardToast(message)) return;
 
     const isKnownCmd = packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes);
     const gift = packetParser.extractBilibiliGiftMessage(message);
@@ -296,11 +299,7 @@ function compatibilityRequester(snapshot, fallback) {
 function normalizeGuardLevelFromGift(gift) {
   const match = /^guard-(\d+)$/.exec(cleanText(gift && gift.giftId));
   if (match) return Number(match[1]);
-  const name = cleanText(gift && gift.giftName);
-  if (name.includes('总督')) return 3;
-  if (name.includes('提督')) return 2;
-  if (name.includes('舰长')) return 1;
-  return 0;
+  return detectGuardLevelFromName(gift && gift.giftName);
 }
 
 function normalizeBilibiliCommandName(value) {

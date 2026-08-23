@@ -4,13 +4,13 @@
 
 Draft
 
-本文是实现前的设计报告，描述在 LIRA 现有礼物 final 链上增加 SVG 边框、动态装饰、礼物信息和可配置金额阈值的方案。它不是已接受的实现承诺；涉及新增 settings 键、WebSocket 事件和旧媒体路径退役的部分，需要在实现前确认。
+本文记录 LIRA 礼物 final 链上的四方边框、动态装饰、礼物信息和可配置金额阈值设计。`Draft` 表示规格仍需正式接受；下文的“当前运行证据”以仓库实现和测试为准。
 
 ## Goal
 
 当直播间收到达到配置金额的礼物时，LIRA 的 OBS/直播姬浏览器源播放一个透明全屏特效：四个角落与四条边从上下左右温和地进入，逐步组装成自然、轻柔、略带可爱感的固定礼物框，底边同时形成礼物信息底座，显示观众、礼物、数量和最终金额；特效保持一段时间后像被风吹散一样淡出退场。
 
-中间直播画面保持可见。整个效果只由本地 SVG、DOM、CSS/WAAPI 和可选的少量 Canvas 粒子组成，不读取、不下载、不播放礼物本身的官方媒体特效。
+中间直播画面保持可见。整个效果只由仓库内透明 PNG、DOM、CSS/WAAPI 和少量 Canvas 粒子组成，不读取、不下载、不播放礼物本身的官方媒体特效。
 
 ## Context
 
@@ -24,7 +24,7 @@ LIRA 已经具备以下基础能力：
 - [`public/js/admin/gift-effects.js`](../public/js/admin/gift-effects.js) 已提供礼物特效工具入口和浏览器源地址复制，可以扩展为金额阈值、主题和测试信息配置。
 - [`test/gift-effects-overlay.test.js`](../test/gift-effects-overlay.test.js) 已覆盖透明 Overlay、队列、预览和管理页入口，可增加边框动画专用断言。
 
-当前能力的边界是：现有 Overlay 还没有渲染四面 SVG/DOM 边框、动态礼物信息，也没有礼物金额阈值和主题选择。现有礼物数据包含礼物名称、数量、单价、观众名和最终总金额。
+当前 Overlay 已渲染上、右、下、左四个透明 PNG 组件、动态礼物信息，并支持礼物金额阈值和内置主题选择。现有礼物数据包含礼物名称、数量、单价、观众名和最终总金额。
 
 LIRA 当前把 `gift_events.total_price` 定义为人民币元：协议解析把付费金瓜子除以 1000，`normalizeMoney()` 将结果归一化到两位小数，SQLite 使用 `REAL` 保存。Frame Event 不重新计算金额；它只读取 final 行的权威 `total_price`，在 Frame Adapter 边界转换成整数分后进行阈值比较和前端传输。
 
@@ -42,10 +42,10 @@ LIRA 当前把 `gift_events.total_price` 定义为人民币元：协议解析把
 
 为了避免实现时又回到“很酷的全屏特效”，V1 增加以下可验收的视觉边界：
 
-- 四边主体使用 24–48 SVG units 的细线/枝条带宽，四角植物簇不超过 150 × 150 units；
+- 上下组件按 16:9 画布等比 contain，左右 9:16 组件保持原始比例贴边；不得用非等比拉伸压扁枝叶、灯笼或蝴蝶；
 - 中间透明安全区至少保持画布宽度的 86%、高度的 78%，安全区按边框主体的 inner contour 计算。四角叶片尖端允许少量伸入，但不得形成大面积覆盖；除底部信息底座外不放置大面积半透明面板；
-- 边框主体不做整体缩放、整体旋转或整体呼吸；Holding 阶段同时运动的元素最多 3 个，单个微动作位移不超过 12px、旋转不超过 2°；
-- Holding 阶段不建立循环动画；每次播放最多安排 1–2 个 one-shot 微动作，且不使用四边同步跑光；没有合适的装饰动画时，允许完全静止；
+- 边框主体不做整体缩放、整体旋转或整体呼吸；Holding 阶段同时运动的独立装饰最多 3 个，单个微动作位移不超过 8px、旋转不超过 3°；
+- Holding 阶段不建立循环动画；每次播放最多安排 3 个错峰 one-shot 微动作，且不使用四边同步跑光；没有合适的装饰动画时，允许完全静止；
 - 四角每处最多 2–3 个主要装饰元素，整屏同时出现的粒子最多 6 个；
 - 固定边框和礼物信息的可见度高于动态高光，任何高光都只能作为局部强调，不能形成白色闪屏或覆盖中间画面的光幕。
 
@@ -56,24 +56,24 @@ LIRA 当前把 `gift_events.total_price` 定义为人民币元：协议解析把
 1. Overlay 页面始终保持透明，无礼物时不产生可见内容。
 2. 礼物最终事件满足金额阈值时，播放一次完整的边框动画。
 3. 连击或 progress 事件不重复触发；使用礼物 final 事件作为播放入口。
-4. 动画由四个 Corner、四个 Edge 和一个 Gift Information 组件组成。
-5. 复杂装饰使用 SVG 分层，局部高光使用 SVG Path，过渡使用 CSS 或 Web Animations API。
-6. 粒子、星屑和少量漂浮光点由独立 Canvas 层绘制；Canvas 不负责边框、文字或复杂 SVG 花纹。粒子层是可选的，V1 默认关闭或限制为进入/退场阶段的 4–6 个轻量光点。
+4. 动画由上、右、下、左四个结构图片组件、三张独立装饰图片和一个 Gift Information 组件组成；完整合成图只用于任一结构组件加载失败时回退。
+5. 复杂花纹保留在用户提供的结构 PNG 与三个本地透明装饰 PNG 中；结构图进入与退场使用位移和 `clipPath` reveal，独立装饰使用短距离位移与旋转。
+6. 少量萤火光点由独立 Canvas 层绘制；Canvas 不负责边框、文字或复杂花纹。单次播放最多创建 6 个沿边框周边错峰出现的轻量光点。
 7. 礼物信息至少展示：观众名、礼物名、数量和总金额。
 8. 整个播放过程不依赖官方 MP4、外部视频或礼物 ID 到媒体资源的映射。
 9. 支持单个特效串行播放、有限队列和重复事件去重。
 10. 支持 `?preview=1` 测试播放和 `?debug=1` 调试背景，不改变直播时的透明效果。
-11. 进入阶段内部的 Corner、Edge、局部收束高光和 Gift Information 动画必须按同一时间线重叠执行，而不是串行等待。
+11. 进入阶段内部的四个结构图片、三个独立装饰、周边萤火光点和 Gift Information 动画必须按同一时间线重叠执行，而不是串行等待。
 12. 每次播放拥有可强制取消的 PlaybackSession；正常完成、超时、异常和页面重置都必须进入同一个清理出口。
-13. V1 核心 SVG 必须 inline 到 Overlay DOM，允许直接操作 path、mask、ornament、soft-shadow 和 highlight。
+13. V1 核心图片必须来自仓库内固定 allowlist，禁止在运行时拼接任意本地路径或远程 URL。
 14. 长昵称、长礼物名、Emoji 和中英文混排不能撑破底座；金额始终完整显示。
 
 ### Non-functional
 
-- **清晰度**：V1 明确保证 16:9 Browser Source；SVG 使用 `viewBox="0 0 1920 1080"`，适配 1080p、2K 和 4K，不依赖位图缩放。竖屏不在本版本支持范围内。
-- **性能**：正常模式优先使用 `transform`、`opacity`、SVG stroke 和 mask 动画；避免 JS 每帧改写布局属性。
+- **清晰度**：V1 明确保证 16:9 Browser Source；透明 PNG 以原始比例 contain 适配 1080p、2K 和 4K，禁止非等比拉伸。竖屏不在本版本支持范围内。
+- **性能**：正常模式优先使用 `transform`、`opacity` 和 `clipPath` 动画；避免 JS 每帧改写布局属性。
 - **帧率**：浏览器源默认以 30 FPS 工作；高性能机器可以测试 60 FPS。
-- **可靠性**：WebSocket 断线沿用现有指数退避重连；SVG、DOM、Canvas 任一视觉层失败时，其余层仍可完成生命周期；watchdog 必须保证队列继续前进。
+- **可靠性**：WebSocket 断线沿用现有指数退避重连；组件 PNG、DOM、Canvas 任一视觉层失败时，其余层仍可完成生命周期；任一组件 PNG 失败时切换到本地完整合成图，watchdog 必须保证队列继续前进。
 - **可维护性**：新增代码保持 Vanilla JavaScript，不引入动画库、渲染框架或构建步骤。
 - **无障碍/舒适性**：支持 `auto`、`full`、`reduced` 三种 motion mode；显式 URL/Admin 配置优先于系统 `prefers-reduced-motion`。
 
@@ -82,8 +82,8 @@ LIRA 当前把 `gift_events.total_price` 定义为人民币元：协议解析把
 - 不在本功能中加载或播放 B 站官方礼物 MP4，也不依赖 `effect-config.js` 的媒体映射。
 - 不把礼物本身的媒体特效转码成 SVG、Canvas 或新的本地媒体格式；本方案只制作独立的金额触发边框。
 - 不新增独立进程、服务、端口、前端框架或第三方运行时依赖。
-- 第一版不做在线主题编辑器，不允许用户从网络加载任意 SVG、JS 或 CSS。
-- 第一版不做运行时 SVG ThemeLoader；只有一个内置主题时直接使用 inline SVG 和冻结的本地时序配置。
+- 第一版不做在线主题编辑器，不允许用户从网络加载任意图片、JS 或 CSS。
+- 第一版不做运行时 ThemeLoader；只有一个内置主题时直接使用固定的本地 PNG allowlist 和冻结的本地时序配置。
 - 第一版不渲染全屏 veil；视觉强调只来自四边、四角、礼物底座和局部高光。
 - 第一版不做竖屏主题；竖屏应在后续使用独立主题，而不是把横屏边框强行压缩。
 - 不修改礼物入库、冲刺统计或加班机的业务含义。
@@ -97,7 +97,7 @@ flowchart LR
   E --> W["WebSocketHub\ngift:frame"]
   W --> O["gift-effects overlay\nqueue + dedupe"]
   O --> G["GiftFrameController\nqueue + playback session"]
-  G --> F["FrameController\nSVG + DOM + WAAPI"]
+  G --> F["FrameController\nPNG + DOM + WAAPI"]
   G --> P["ParticleController\nsmall particle canvas"]
   F --> S["Transparent browser source"]
   P --> S
@@ -106,9 +106,10 @@ flowchart LR
 ### Layer order
 
 ```text
-Layer 3  Gift information bottom plate and text
-Layer 2  Inline SVG frame, corners, edges, ornaments and local highlights
-Layer 1  Particle canvas
+Layer 4  Gift information on the bottom artwork plaque
+Layer 3  Perimeter firefly canvas
+Layer 2  Three independent transparent accent PNGs
+Layer 1  Four transparent PNG frame components or composite fallback
 Layer 0  Transparent page
 ```
 
@@ -122,25 +123,22 @@ V1 中间区域始终透明，不增加全屏 veil。四边的局部柔和阴影
 
 ```text
 giftEffectStage
-├── particleStage
 ├── giftFrame
-│   ├── gift-frame-svg (inline)
-│   │   ├── corner-tl
-│   │   ├── edge-top
-│   │   ├── corner-tr
-│   │   ├── edge-right
-│   │   ├── corner-br
-│   │   ├── edge-bottom
-│   │   ├── corner-bl
-│   │   └── edge-left
+│   ├── gift-frame-artwork
+│   │   ├── frame-top.png
+│   │   ├── frame-right.png
+│   │   ├── frame-bottom.png
+│   │   ├── frame-left.png
+│   │   └── frame-composite.png (load-failure fallback)
+│   ├── particleStage
 │   └── gift-info
 ```
 
-所有新增层使用 `position: fixed; inset: 0; pointer-events: none`。局部高光直接作为 inline SVG 中的 `highlight` 分组，不建立独立的 flash/local-highlight DOM 层。动态文本使用 DOM 节点和 `textContent`，不使用拼接 HTML。V1 的核心 SVG 直接 inline 到 `gift-effects.html`，用稳定的 `data-frame-part` 标识各分组；不使用 `<img src="frame.svg">`，因为它无法直接控制内部 path、mask 和 ornament。
+所有新增层使用 `position: fixed; inset: 0; pointer-events: none`。四张结构图使用稳定的 `data-frame-part="top|right|bottom|left"` 标识并分别进入；完整合成图只在任一结构图加载失败时启用。三张额外装饰使用 `data-frame-accent="branch|crystal|floral"` 标识，独立于四边结构。动态文本使用 DOM 节点和 `textContent`，不使用拼接 HTML。所有图片都是仓库内 RGBA PNG，不根据事件或主题 ID 拼接任意路径，也不加载远程资源。
 
 ### GiftFrameController
 
-`GiftFrameController` 是 Overlay 的运行时入口，负责 WebSocket 事件校验、去重、pending 队列、创建 PlaybackSession 和在当前会话结束后调度下一条。它不直接操作 SVG path 或粒子实例。
+`GiftFrameController` 是 Overlay 的运行时入口，负责 WebSocket 事件校验、去重、pending 队列、创建 PlaybackSession 和在当前会话结束后调度下一条。它不直接操作图片像素或粒子实例。
 
 ### FrameController
 
@@ -154,42 +152,23 @@ prepare(payload, theme)
   → reset()
 ```
 
-`playEnterTimeline()` 同时创建 Corner、Edge、局部收束高光和 Gift Information 的 WAAPI Animation，通过各自动画的 `delay` 形成重叠组装；它不能依次 `await enterCorners()`、`await assembleEdges()`。第一版不必为每个角和每条边创建独立 JavaScript 类。Corner 和 Edge 先作为 `FrameController` 内部 DOM 分组；只有第二套主题出现实质不同时序时，再提取独立控制器。
+`playEnterTimeline()` 同时创建上、右、下、左四个结构图、三个独立装饰和 Gift Information 的 WAAPI Animation，通过各自动画的 `delay` 形成重叠组装；它不能依次等待四边。`playHoldingAccents()` 只启动三段可取消的 one-shot 动画，不建立循环。只有第二套主题出现实质不同时序时，再提取独立控制器。
 
-### Corner
+### Artwork components
 
-每个角落至少分为以下 SVG/DOM 层：
+用户提供的五张图片属于同一个主题：一张完整合成参考以及上、右、下、左四个透明组件，不是四套边框。顶部和底部按 16:9 画布铺入；左右组件保持 9:16 原始比例并贴住对应侧边，禁止横向拉伸。组件通过透明重叠区在角落连接，不在运行时裁切、重绘或逐像素合成。
 
-```text
-corner
-├── base        角落枝条/叶片主体
-├── ornament    一朵小花、果实或圆润叶片
-├── soft-shadow 局部柔和阴影
-└── highlight   连接完成时的短暂亮点
-```
-
-进入动画建议是：主装饰从边缘短距离滑入 → 叶片/花朵从 0.98 缩放回正 → 枝条与相邻边连接 → 连接处短暂亮起。位移控制在 12px 以内，旋转不超过 2°，强调“长出来”而不是“锁定”或持续抖动。
-
-### Edge
-
-四条边必须分别从对应方向进入，但进入距离只略超出安全内缩区，不制造强烈的飞入感。推荐每条 Edge 同时使用“短距离移动 + 结构揭示”两层动画：顶部从上方 `translateY(-36px → 0)`，底部从下方 `translateY(+36px → 0)`，左边从左侧 `translateX(-36px → 0)`，右边从右侧 `translateX(+36px → 0)`；同时通过 mask/clipPath 或 path reveal 让枝条和叶片逐段出现。
-
-复杂边框主体不使用 `width` 或 `scaleX` 拉伸。推荐：
-
-- 复杂花纹使用 SVG `mask` 或 `clipPath` 从两端揭示，避免装饰被拉扁；
-- 细枝和轮廓线使用 `stroke-dasharray` + `stroke-dashoffset`；
-- 高光只在进入完成或退场开始时沿一小段路径移动一次，不建立持续循环的能量轨道；
-- 运行期动画只改 `opacity`、`transform`、SVG stroke 属性和 mask reveal 值。
-
-顶部和底部可以采用水平路径；左右边使用同一组路径旋转 90°，但主题资源需要在 SVG 层面确认旋转后不会破坏叶片生长方向。每条边主体以静态枝条和少量叶片为主，四边不要求同时持续出现移动高光。
+四个组件分别从对应方向进入：顶部 `translateY(-36px → 0)`，底部 `translateY(+36px → 0)`，左边 `translateX(-36px → 0)`，右边 `translateX(+36px → 0)`；位移同时叠加 `clipPath` reveal 和 `opacity`。进入结束后图片保持原始比例和静态像素，不使用 `scaleX` 或循环滤镜。
 
 ### Holding ambient effects
 
-Holding 阶段持续 2600ms，默认不建立循环动画。固定边框稳定存在，每次播放最多安排 1–2 个 one-shot 微动作，例如在 Holding 开始后约 700ms 让一片叶子轻摆一次、约 1800ms 让另一角的小花回弹一次；也允许完全静止。微动作结束后保持最终位置，不重新循环。
+Holding 阶段持续 2600ms，不建立循环动画。固定 PNG 边框稳定存在；最多 6 个萤火点按错峰延迟分别完成一次明暗变化和 10–18px 漂移，同一时刻只出现少量光点，结束后不重新循环。
 
-- 顶边：静态枝条和叶片保持不动，最多播放一次很淡的暖色高光；
-- 左边：如有萤光点，只播放一次缓慢上移，不连续循环；
-- 右边：与左边错开，最多播放一次叶尖 1–2px 的轻摆；
+结构图之外的三张透明装饰仍由 `FrameController` 管理：顶部花藤以右端为轴轻摆一次，右侧绿水晶以顶部挂环为轴钟摆一次，左下花叶结饰围绕中心完成一次落位旋转。单段时长不超过 1100ms，旋转不超过 3°，位移不超过 8px；三段动作错峰开始并在 Holding 前半段归零。`reduced` 保留静态装饰但不调用 `playHoldingAccents()`。
+
+- 顶边：静态枝条和叶片保持不动，萤火点可以错峰经过；
+- 左边：萤火点只播放一次缓慢上移，不连续循环；
+- 右边：与左边错开，保持中央区域无粒子；
 - 底边：信息底座和底部枝条保持稳定，不做整条边呼吸；
 - 四角：主体固定，每次最多选择两个角执行一次性叶尖或花瓣动作。
 
@@ -225,12 +204,12 @@ Holding 阶段持续 2600ms，默认不建立循环动画。固定边框稳定�
 
 ### ParticleController
 
-Canvas 只负责少量可丢弃效果：萤光点、花粉状小点和短促碎光。它不是 V1 的必需层，默认最多同时 4–6 个粒子，而且只在进入和退场阶段出现。Holding 阶段如需要单个萤光点，使用 SVG/DOM ornament 实现；ParticleController 默认不参与 Holding。它应具备：
+Canvas 只负责少量可丢弃的萤火光点。单次播放最多创建 6 个粒子；每个粒子使用冻结的框体周边锚点和错峰延迟，在进入与 Holding 前半段完成一次短距离移动和明暗变化，不跨入中央直播安全区。它应具备：
 
 - 独立的粒子数量上限，默认值为 6；
 - `start(theme)`、`stop()`、`resize(width, height)` 三个最小接口；
 - 页面不可见或 reduced-motion 时自动停止或降级；
-- 粒子渲染失败不影响 FrameController 的 SVG 和文字层。
+- 粒子渲染失败不影响 FrameController 的 PNG 和文字层。
 
 粒子不用于承载必须传达的信息，也不使用大量半透明烟雾、连续爆发或满屏漂浮，避免在直播浏览器源中造成 GPU/CPU 压力。
 
@@ -248,7 +227,7 @@ PlaybackSession
 └── watchdog
 ```
 
-会话必须以 `try/finally` 为唯一收尾路径：正常结束、watchdog 超时、控制器异常、页面重置或主动取消都会执行 `cleanupSession()`。清理内容至少包括：abort 当前信号、cancel 全部 WAAPI Animation、清理 timer/watchdog、停止粒子、移除临时 class/内联样式、恢复 SVG mask/stroke 初始值、把控制器置回 `idle`，最后调度队列下一条。
+会话必须以 `try/finally` 为唯一收尾路径：正常结束、watchdog 超时、控制器异常、页面重置或主动取消都会执行 `cleanupSession()`。清理内容至少包括：abort 当前信号、cancel 全部 WAAPI Animation、清理 timer/watchdog、停止粒子、移除临时 class/图片内联样式、把控制器置回 `idle`，最后调度队列下一条。
 
 ## State Machine
 
@@ -348,12 +327,12 @@ giftFrameMotionMode
 
 ### Theme configuration
 
-V1 只有一个内置主题，不建立运行时 ThemeLoader。核心 SVG inline 在 Overlay HTML 中，时序只引用 State Machine 一节定义的冻结配置；颜色、阴影、局部高光和粒子强度使用同一个本地主题对象或由它注入 CSS custom properties，不在 CSS 中重复声明生命周期时长。
+V1 只有一个内置主题，不建立运行时 ThemeLoader。五张结构 RGBA PNG 与三张独立装饰 RGBA PNG 固定存放在 `public/img/overlays/gift-frame/woodland-bloom/`；时序只引用 State Machine 一节定义的冻结配置，不在 CSS 中重复声明生命周期时长。
 
 `themeId` 仍通过固定 allowlist 校验，为第二套主题保留稳定协议，但 V1 只接受 `woodland-bloom`。出现第二套主题后，才评估以下本地目录和 allowlisted ThemeLoader：
 
 ```text
-public/gift-effects/themes/
+public/img/overlays/gift-frame/
 ├── woodland-bloom/
 └── seasonal-garden/
 ```
@@ -387,13 +366,13 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 
 ## Performance and Rendering
 
-### CSS/SVG
+### CSS/PNG
 
-- 使用 `transform`、`opacity`、`filter` 的有限组合；
-- 复杂 SVG 花纹用 mask reveal，不用 `scaleX` 拉伸；
-- 局部亮点使用短段 path dash 动画，不能持续覆盖四条边；
+- 使用 `transform`、`opacity`、`clipPath` 和 `filter` 的有限组合；
+- 上下组件按 16:9 画布 contain，左右组件保持 9:16 比例贴边，不用 `scaleX` 拉伸；
+- 图片内静态光晕不做逐像素处理；动态亮点由独立 Canvas 绘制；
 - 不在动画过程中修改 `width`、`height`、`top`、`left` 等布局属性；
-- SVG 内容与 viewBox 边界保留 24–48 units 的安全内缩；需要 blur 的 filter region 必须扩大，不能裁掉角落或边缘的柔和阴影；
+- PNG 透明边界和组件重叠区必须保留，不能裁掉角落、灯笼或柔和阴影；
 - 对正在动画的层谨慎使用 `will-change`，只在进入和退场期间启用，避免长期占用内存。
 
 ### Canvas
@@ -401,7 +380,7 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 - 粒子 Canvas 使用设备像素比上限，建议 `Math.min(devicePixelRatio, 2)`；
 - Canvas 尺寸只在 resize 时更新，不在每一个粒子循环里重新设置；
 - 采用粒子上限和生命周期，默认主题保持低数量；
-- 粒子 Canvas 与 SVG/DOM 层分离；边框动画不做逐像素图像合成。
+- 粒子 Canvas 与 PNG/DOM 层分离；边框动画不做逐像素图像合成。
 
 ### Reduced motion
 
@@ -421,9 +400,10 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 | 礼物名称或观众名包含 HTML | 可能注入 Overlay DOM | 只用 `textContent` 创建文本节点 |
 | 长文本、Emoji 或混合文字 | 底座溢出或金额被挤压 | 约束文本列、CSS ellipsis，金额列固定且完整显示 |
 | 主题 ID 被篡改 | 加载任意本地/远程资源 | 只接受内置主题 allowlist |
-| SVG 资源损坏 | 边框缺失 | 回退到内置最小线框和文字信息 |
+| 任一组件 PNG 加载失败 | 边框缺失或断边 | 切换到本地 `frame-composite.png` 完整合成图和文字信息 |
+| 任一独立装饰 PNG 加载失败 | 局部装饰缺失 | 只隐藏该装饰，不影响结构图、信息、粒子和播放生命周期 |
 | WebSocket 断开 | 收不到新事件 | 沿用指数退避重连，清理过期连接定时器 |
-| Canvas context 不可用 | 粒子层缺失 | 不影响 SVG、文字和生命周期 |
+| Canvas context 不可用 | 粒子层缺失 | 不影响 PNG、文字和生命周期 |
 | 礼物事件短时间爆发 | 延迟或内存增长 | 队列上限、去重和可观测的丢弃计数 |
 | 金额无效、为零或单位混用 | 错误触发或漏触发 | 只读取 final RMB 金额，在 Adapter 转整数分并要求 `> 0` |
 | WAAPI/timer 未完成或控制器抛错 | 队列永久卡住 | PlaybackSession watchdog + AbortController + `finally` 强制清理 |
@@ -438,7 +418,7 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 范围：
 
 - 增加 `giftFrame` 的 HTML 层级；
-- inline 一个内置 `woodland-bloom` SVG 主题，不增加 ThemeLoader；
+- 导入内置 `woodland-bloom` 的完整合成图、上右下左四个结构 PNG 与三张独立装饰 PNG，不增加 ThemeLoader；
 - 实现 GiftFrameController、FrameController 和并行 `playEnterTimeline()`；
 - 实现 PlaybackSession、AbortController 和 watchdog 的统一清理；
 - 使用本地调试 payload 预览，不接入真实礼物事件。
@@ -448,7 +428,7 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 - `?debug=1&preview=1` 可以完整播放一轮；
 - 1920×1080 和 2560×1440 下边框比例正确；
 - 无事件时页面透明；
-- 进入阶段的 Corner/Edge/局部高光/礼物信息按 offset 重叠，不被串行执行；
+- 进入阶段的四个图片组件和礼物信息按 offset 重叠，不被串行执行；
 - `motion=reduced` 下无持续位移和粒子；
 - 正常完成、异常和 watchdog 超时都恢复到 `idle`。
 
@@ -506,25 +486,25 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 - 实现前审计旧 `gift:effect`、媒体映射、预览接口和 Alpha Canvas 的消费者；确认只服务于旧 Overlay 时随迁移删除，存在其他消费者时保留但与新 Overlay 隔离；
 - 新增 `gift:frame` 事件和独立预览入口；
 - 不改变礼物入库、统计、加班机结算和 progress/final 语义；
-- 不把任意远程 SVG、CSS、JS 纳入主题系统；
+- 不把任意远程图片、CSS、JS 纳入主题系统；
 - 不修改本地服务默认回环绑定或 token 注入规则。
 
 ## Acceptance Criteria
 
 1. 达到阈值的 final 礼物可以在浏览器源中触发一次完整的四面组装动画。
-2. 四角、四边和底部礼物信息可以独立分层，不依赖整张边框位图。
-3. 四条 Edge 分别从上、下、左、右对应方向短距离进入，并与 mask/path reveal 叠加；不是只有一条路径被画出来。
-4. 进入阶段的 Corner、Edge、局部高光和礼物信息在一个 WAAPI 时间线内按 offset 重叠执行，顶层状态仅为 `entering`。
-5. Holding 阶段固定边框是主要视觉内容；不建立循环动画，每次最多安排 1–2 个 one-shot 微动作，动态元素最多 3 个，粒子最多 6 个，允许完全静止。
+2. 正常播放使用上、右、下、左四个独立透明组件；完整合成图只承担本地加载失败降级。三张独立透明装饰不参与四边拼接，分别使用稳定的 `branch`、`crystal`、`floral` hook，并保持在结构图之上、粒子和信息之下。
+3. 四个组件分别从上、右、下、左对应方向短距离进入，并与 `clipPath` reveal 叠加；不是播放单张整框动画。
+4. 进入阶段的四个组件和礼物信息在一个 WAAPI 时间线内按 offset 重叠执行，顶层状态仅为 `entering`。
+5. Holding 阶段固定边框是主要视觉内容；不建立循环动画，三张独立装饰各完成一次不超过 1100ms 的错峰微动作，粒子总数最多 6 个，同一时刻只出现少量周边光点。
 6. 生命周期只使用一份 `enterDuration/holdDuration/exitDuration` 配置；CSS 和 JS 不维护冲突的绝对总时长。
-7. 复杂花纹通过 mask/clipPath reveal，细线局部亮点通过 SVG path 动画；不存在通过 `scaleX` 拉伸复杂花纹的实现。
+7. 复杂花纹保留在用户提供的透明 PNG 中，通过 `clipPath` reveal；左右 9:16 组件保持原始比例，不通过 `scaleX` 拉伸。
 8. 动态文本显示观众名、礼物名、数量和最终总金额，礼物名与金额为第一层信息，且使用安全文本节点；长文本省略时金额保持完整。
 9. 播放逻辑完全不依赖礼物 ID 对应的官方媒体特效或外部视频，`/gift-effects` 只消费 `gift:frame`。
 10. `giftFrameEnabled=false` 时实时 final 礼物不广播 `gift:frame`；启用后 Frame Adapter 才读取 final 行权威 RMB 金额并转整数分，零金额和低于阈值的事件不广播。
 11. `eventId` 稳定对应一个 final gift group；同一连击的 progress 包和重复广播不会重复播放。
 12. 队列正常 FIFO，最多保留 3 个 pending；dequeue 准备开始 playback 前重新检查 `now - queuedAt`，过期事件不播放，满队列按金额替换 pending 最低项，且不抢占当前播放。
 13. 正常结束、异常、watchdog 和主动取消都通过 PlaybackSession `finally` 清理粒子 Canvas、WAAPI、timer 和 DOM 状态。
-14. V1 使用 inline SVG，局部高光属于 SVG 内部 highlight 分组，不建立独立的高光 DOM 层、运行时 ThemeLoader 或全屏 veil。
+14. V1 使用仓库内五张结构 PNG、三张独立装饰 PNG 和一个周边萤火 Canvas，不建立运行时 ThemeLoader、远程资源或全屏 veil。
 15. 页面在无事件时透明，并能在 16:9 的 1920×1080、2560×1440 下保持正确比例。
 16. `motion=auto/full/reduced` 按 URL > Admin > 系统偏好解析；reduced 模式关闭粒子和大幅运动但保留礼物信息。
 17. 透明 Overlay、新 `gift:frame` 预览、启用开关、阈值边界、队列替换、过期 dequeue 和资源清理测试通过。
@@ -532,7 +512,7 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 ## Done When
 
 - 本规格获得接受，新增 settings、`gift:frame` 事件、整数分边界和旧媒体路径处置被确认；
-- focused tests 覆盖事件构造、金额归一化、阈值、唯一 ID、队列、并行时间线、SVG/DOM 分层和 PlaybackSession 清理；
+- focused tests 覆盖事件构造、金额归一化、阈值、唯一 ID、队列、并行时间线、PNG/DOM 分层、资源回退和 PlaybackSession 清理；
 - `npm run check`、`npm run verify:quick` 和完整相关测试通过；
 - Overlay 在直播姬/OBS 浏览器源中以透明背景播放，且未改变中间直播画面可见性；
 - owner 文档、spec index 和实现保持一致；

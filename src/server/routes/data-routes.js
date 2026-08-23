@@ -20,6 +20,15 @@ function clearRoute(clear, reason) {
   };
 }
 
+function resumeClearAllWriters(context) {
+  if (context.gifts && typeof context.gifts.resumeDetection === 'function') {
+    context.gifts.resumeDetection();
+  }
+  if (context.overtime && typeof context.overtime.resumeRecovery === 'function') {
+    context.overtime.resumeRecovery();
+  }
+}
+
 const routes = {
   'POST /api/database/clear': clearRoute((context) => context.data.clearSongLibrary(), 'database:clear'),
   'POST /api/database/clear-superchats': clearRoute((context) => context.data.clearSuperChats(), 'database:clear-superchats'),
@@ -42,7 +51,13 @@ const routes = {
       context.overtime.pauseRecovery();
     }
 
-    const result = context.data.clearAll();
+    let result;
+    try {
+      result = context.data.clearAll();
+    } catch (error) {
+      resumeClearAllWriters(context);
+      throw error;
+    }
 
     // 清空全部数据时同步清理音乐 API / 歌词缓存；缓存失败不影响数据库清理结果。
     if (context.music && typeof context.music.clearCache === 'function') {
@@ -61,12 +76,7 @@ const routes = {
     }
 
     // 成功后重置内存状态
-    if (result.cleared && context.gifts && typeof context.gifts.resumeDetection === 'function') {
-      context.gifts.resumeDetection();
-    }
-    if (result.cleared && context.overtime && typeof context.overtime.resumeRecovery === 'function') {
-      context.overtime.resumeRecovery();
-    }
+    if (result.cleared) resumeClearAllWriters(context);
 
     context.broadcastSnapshot('database:clear-all');
     sendJson(res, 200, { ok: true, data: result });

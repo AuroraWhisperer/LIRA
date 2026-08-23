@@ -33,6 +33,7 @@ const {
   extractBilibiliOpenLiveGuardGiftMessage,
   extractBilibiliWebGiftMessage,
   extractBilibiliWebGuardGiftMessage,
+  isBilibiliDuplicateGuardToast,
   isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand
 } = require('./parsers/gift-parser');
@@ -62,6 +63,7 @@ module.exports = {
   extractBilibiliWebGiftMessage,
   extractBilibiliWebGuardGiftMessage,
   extractBilibiliOnlineRankUserMeta,
+  isBilibiliDuplicateGuardToast,
   isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand,
   readBilibiliProtoVarint,

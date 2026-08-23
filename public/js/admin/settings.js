@@ -432,6 +432,20 @@
     }
   }
 
+  function reloadAfterPartialClearAll(response) {
+    if (response?.partial !== true) return false;
+    const committed = response.data?.committed || [];
+    const failed = response.data?.failed || [];
+    const message = `数据库清空部分失败：\n\n` +
+      `✓ 已提交：${committed.join(', ')}\n` +
+      `✗ 失败：${failed.join(', ')}\n\n` +
+      `数据库处于不一致状态，页面将重新加载。`;
+
+    alert(message);
+    window.location.reload();
+    return true;
+  }
+
   async function clearAll() {
     const ok = await dangerConfirm({
       title: '清空全部数据',
@@ -455,21 +469,7 @@
         }
       } catch (_) { /* renderer cache cleanup is best-effort */ }
 
-      // 检测部分失败
-      if (response.partial === true) {
-        const committed = response.data?.committed || [];
-        const failed = response.data?.failed || [];
-        const message = `数据库清空部分失败：\n\n` +
-          `✓ 已提交：${committed.join(', ')}\n` +
-          `✗ 失败：${failed.join(', ')}\n\n` +
-          `数据库处于不一致状态，页面将重新加载。`;
-
-        alert(message);
-
-        // 部分失败时强制重新加载页面
-        window.location.reload();
-        return;
-      }
+      if (reloadAfterPartialClearAll(response)) return;
 
       const d = response.data.deletedCounts;
       const total = response.data.totalDeleted || 0;
@@ -484,7 +484,7 @@
         await window.AdminApp.state.reloadAll();
       }
     } catch (error) {
-      // 网络错误或其他异常
+      if (reloadAfterPartialClearAll(error.payload)) return;
       toast('清空失败：' + (error.message || String(error)));
     }
   }

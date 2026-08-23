@@ -3,7 +3,7 @@
 .gift-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: repeat(6, max-content);
+  grid-template-rows: repeat(7, max-content);
   align-content: start;
   gap: 14px;
   height: calc(100vh - 58px - var(--player-dock-height, 96px));
@@ -12,43 +12,68 @@
   overflow-y: auto;
 }
 
+.gift-workspace-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.app-shell .gift-page .gift-workspace-header .ui-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-page-title);
+  letter-spacing: var(--type-tracking-tight);
+}
+
+.app-shell .gift-page .panel-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
+}
+
 body.player-dock-expanded .gift-workspace {
   height: calc(100vh - 58px - var(--player-dock-height, 218px));
 }
 
 .gift-detection-panel {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 2;
 }
 
 .gift-notification-panel {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 2;
 }
 
 .gift-recent-panel {
   grid-column: 1 / -1;
-  grid-row: 2;
+  grid-row: 3;
 }
 
 .gift-sprint-panel {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 4;
 }
 
 .gift-blindbox-panel {
   grid-column: 1 / -1;
-  grid-row: 4;
+  grid-row: 5;
 }
 
 .gift-blindbox-mapping-panel {
   grid-column: 1 / -1;
-  grid-row: 6;
+  grid-row: 7;
 }
 
 .gift-blindbox-broadcast-panel {
   grid-column: 1 / -1;
-  grid-row: 5;
+  grid-row: 6;
 }
 
 .gift-page .panel-body .gift-cards {
@@ -115,11 +140,12 @@ body.player-dock-expanded .gift-workspace {
   border-bottom: 0;
 }
 
-.gift-detection-panel .panel-header h2,
-.gift-notification-panel .panel-header h2 {
+.gift-detection-panel .gift-section-title,
+.gift-notification-panel .gift-section-title {
   color: #253a3a;
-  font-size: 16px;
-  letter-spacing: 0.01em;
+  font-size: var(--type-size-section-title);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
 }
 
 .gift-detection-panel > .panel-body,
@@ -138,8 +164,9 @@ body.player-dock-expanded .gift-workspace {
   min-height: 34px;
   gap: 10px;
   color: #203332;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-body);
 }
 
 .gift-detection-panel #giftStatusLine,
@@ -147,13 +174,30 @@ body.player-dock-expanded .gift-workspace {
   max-width: 52%;
   margin: 0;
   color: #718381;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   text-align: right;
 }
 
 .gift-notification-panel .gift-setting-desc {
   max-width: 48%;
+}
+
+.app-shell .gift-drawer-title .ui-section-title {
+  font-family: var(--font-display);
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
+}
+
+.app-shell .gift-drawer-title .ui-caption {
+  font-family: var(--font-ui);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
+  letter-spacing: var(--type-tracking-normal);
 }
 
 /* 歌库表格行：跳过屏幕外行的渲染，减少折叠面板展开时的布局重计算 */

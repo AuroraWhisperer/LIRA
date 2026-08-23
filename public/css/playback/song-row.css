@@ -19,8 +19,8 @@
   border-radius: 8px;
   background: linear-gradient(135deg, var(--primary), var(--accent));
   color: var(--color-bg-primary);
-  font-size: 16px;
-  font-weight: 900;
+  ;
+  font-weight: var(--type-weight-bold);
   box-shadow: 0 2px 8px rgba(22, 31, 43, 0.15);
 }
 

@@ -21,19 +21,21 @@
 
 .gift-blindbox-broadcast-panel .panel-kicker {
   color: #168f83;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-micro);
+  letter-spacing: var(--type-tracking-eyebrow);
 }
 
-.gift-blindbox-broadcast-panel .panel-header h2 {
+.gift-blindbox-broadcast-panel .gift-section-title {
   margin: 0;
 }
 
 .blindbox-live-link {
   color: #147e74;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-control);
   text-decoration: none;
 }
 
@@ -53,12 +55,16 @@
   align-items: baseline;
   gap: 4px 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .blindbox-builder-intro strong {
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
 }
 
 .blindbox-builder-row {
@@ -74,8 +80,9 @@
 }
 
 .blindbox-builder-label {
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--type-weight-semibold);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
 }
 
 .blindbox-builder-switches {
@@ -118,13 +125,16 @@
 }
 
 .blindbox-switch span:first-of-type {
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--type-weight-semibold);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
 }
 
 .blindbox-switch .hint {
   width: 100%;
-  font-size: 11px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   color: var(--muted);
   margin-left: 24px;
 }
@@ -148,23 +158,25 @@
 }
 
 .blindbox-url-label {
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--type-weight-semibold);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
   white-space: nowrap;
 }
 
 .blindbox-url-bar code {
   display: block;
   min-width: 0;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
   color: var(--color-success-dark);
   background: var(--color-bg-primary);
   padding: 6px 10px;
   border-radius: 5px;
   border: 1px solid var(--border);
   word-break: break-all;
-  line-height: 1.5;
+  line-height: var(--type-leading-body);
 }
 
 .blindbox-url-actions {
@@ -211,7 +223,9 @@
   flex-wrap: wrap;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .monitor-footer span {
@@ -220,4 +234,3 @@
   background: var(--surface-2);
   padding: 5px 10px;
 }
-

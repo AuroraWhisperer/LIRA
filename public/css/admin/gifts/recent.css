@@ -85,13 +85,14 @@
   object-fit: contain;
 }
 
-.gift-recent-heading h3 {
+.gift-recent-heading .gift-section-title {
   flex: 1;
   margin: 0;
   color: #20302e;
-  font-size: 17px;
-  line-height: 1.35;
-  letter-spacing: 0.01em;
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
 }
 
 .gift-recent-heading .gift-history-open-btn {
@@ -151,8 +152,9 @@
   border-radius: 0;
   background: transparent;
   color: #6c817f;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   text-align: center;
 }
 
@@ -191,13 +193,15 @@
 
 .gift-recent-empty strong {
   color: #334b49;
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
 }
 
 .gift-recent-empty > span:last-child {
   color: #819391;
-  line-height: 1.5;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
 }
 
 .gift-recent-panel.is-collapsed .gift-recent-collapsible {
@@ -334,8 +338,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: var(--type-weight-semibold);
+  font-size: var(--type-size-card-title);
+  line-height: var(--type-leading-card-title);
 }
 
 .gift-card-content {
@@ -354,7 +359,9 @@
   gap: 3px 8px;
   min-width: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .gift-card .gift-user {

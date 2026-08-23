@@ -1,10 +1,10 @@
 /* ===== 主页面标签页 (播放助手 / 控制台) ===== */
 .main-page-tabs {
   display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }

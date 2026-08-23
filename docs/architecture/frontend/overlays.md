@@ -61,18 +61,23 @@
 
 ### 1.4 礼物四方边框(`/gift-effects`)
 
-`gift-effects.html` 保留透明全屏浏览器源地址，但运行路径只消费 `gift:frame`。页面把 inline
-SVG(`viewBox="0 0 1920 1080"`)分为四个 `corner-*`、四个 `edge-*` 和内部 `highlights`，
-礼物名称、观众、数量与最终金额由 DOM `textContent` 写入底边信息座；中间安全区保持透明。
-复杂枝叶使用 SVG path/mask，动画只改 `opacity`、`transform` 和局部 path，高光不循环。
+`gift-effects.html` 保留透明全屏浏览器源地址，但运行路径只消费 `gift:frame`。内置
+`woodland-bloom` 主题由一张完整合成 PNG 和上、右、下、左四张透明 PNG 组件组成；正常播放
+分别控制四个组件，任一组件加载失败时切到本地完整合成图，不加载远程美术。礼物名称、观众、
+数量与最终金额由 DOM `textContent` 写入下边组件自带的象牙色铭牌；中间安全区保持透明。
+结构图之上另有 `branch`、`crystal`、`floral` 三张本地透明装饰 PNG；它们不参与四边拼接，
+由 `FrameController` 独立进入、退场，并在 Holding 阶段分别完成一次花藤轻摆、水晶钟摆和花结
+落位动作。三段动作不循环、位移不超过 8px、旋转不超过 3°；`reduced` 只显示静态装饰。
 
 播放由 Overlay 内部 `GiftFrameController` 管理：单个 `PlaybackSession` 按 `900ms` 进入、
-`2600ms` 保持、`650ms` 退场的冻结时序运行，角落、边缘、局部高光和信息座在进入阶段并行重叠；
+`2600ms` 保持、`650ms` 退场的冻结时序运行，四个组件以各自方向的位移和 clip reveal 与信息座
+在进入阶段并行重叠；
 队列最多 3 条 pending，事件等待超过 12 秒丢弃，实时事件按稳定 `gift-frame:<id>` 去重，
 金额更高的新事件可替换 pending 中最低且最晚入队的一条。每个会话拥有 `AbortController`、
 WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都从同一 `finally` 清理出口恢复透明。
 
-粒子 Canvas 默认只在进入/退场放置最多 4 个轻量光点，粒子失败不影响 SVG/DOM 生命周期。
+粒子 Canvas 最多创建 6 个错峰萤火光点，每个只沿框体周边完成一次短距离漂移和明暗变化，
+不进入中央直播安全区；粒子失败不影响 PNG/DOM 生命周期。
 动效解析优先级为 URL `?motion=` > `gift:frame.motionMode`/快照 settings > 系统
 `prefers-reduced-motion`；`reduced` 关闭粒子和大幅位移但保留边框结构与礼物信息。旧
 `gift:effect` MP4 查询接口仍作为兼容入口保留，但新 Overlay 不消费也不加载远程礼物媒体。
@@ -181,6 +186,24 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 
 - `games.css` 将短消息显示为紧凑气泡，长消息按宽度增长并自然换行增高；交错对齐、实时标题栏和 reduced-motion 降级只属于视觉层，不改变弹幕字段或游戏协议。
 
+## 6.3 萌时钟(/clock)
+
+[overlays/clock.js](../../../public/js/overlays/clock.js) 驱动固定 `/clock`
+浏览器源，使用设备本地时区显示当前时间、日期和星期，不读取 API、设置或
+WebSocket。页面外层透明，内部卡片固定以 560×190 为设计比例，并在浏览器源
+不足时按可用宽度缩小。
+
+- 风格参数仅接受 `style=peach|starlight`，非法或缺失值回退桃桃便签
+  (`peach`)；桃桃便签使用奶油蜜桃与兔耳贴纸，星夜软糖使用靛蓝果冻边框与
+  月亮云朵，两套样式共享时间语义但不共享视觉装饰。
+- `date=0|1`、`seconds=0|1`、`format=12|24` 控制日期、秒数和小时制；非法值
+  回退默认显示日期/秒数与 24 小时制。`label` 合并空白并截到 16 个 Unicode
+  字符，始终通过 `textContent` 输出。
+- 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
+  立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
+- Admin 百宝箱的「萌时钟」卡片展示固定地址，同时用这些参数生成带参数地址并
+  复用 `/clock` iframe 实时预览；参数不写入数据库或 localStorage。
+
 ## 7. 数据消费一览
 
 | 叠加层 | 首帧 | 实时 | 去重指纹 | 触发重载的 reason |
@@ -189,8 +212,9 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 | songs | `/api/state` + `/api/songs` | snapshot | orderKey/layoutKey/motionKey | `songs:*`/`database:clear`(220ms 重载) |
 | blindbox | `/api/state` + `/api/gifts/blind-box-stats` | snapshot(仅缓存)+ 轮询 | 统计接口每次重取 | `bilibili:gift`/`gift:sprint:reset`/`connect` |
 | overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
-| gift-effects | `/gift-effects` 页面内置 SVG | `gift:frame` | `eventId` 稳定去重 + 3 条 pending 队列 | 每个合格 final 礼物一次播放 |
+| gift-effects | `/gift-effects` 页面内置完整合成图 + 四方结构 PNG + 三张独立装饰 PNG | `gift:frame` | `eventId` 稳定去重 + 3 条 pending 队列 | 每个合格 final 礼物一次播放 |
 | opening | `/api/opening/config` | 无 | 无；首帧配置经枚举/文本清洗 | 页面加载一次；Admin 预览可由 URL 参数覆盖 |
+| clock | 设备本地时间 + URL 参数 | 本地秒边界定时器 | 无；页面恢复可见时立即校时 | 不消费 WebSocket reason |
 | lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
 | danmaku | snapshot 中的 `danmakuFeed` | `danmaku:message` | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复 |
 | games | `/api/games/session` | snapshot + `game:update` + `game:draw` | 游戏入口调度器按更新频率合并渲染 | `game:update` / `game:draw` |

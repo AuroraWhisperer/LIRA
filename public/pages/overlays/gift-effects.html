@@ -8,33 +8,31 @@
     <meta name="referrer" content="no-referrer">
     <title>礼物特效</title>
     <link rel="stylesheet" href="/css/overlays/base.css?v=20260815-01">
-    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20260821-01">
+    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20260823-02">
   </head>
   <body class="overlay-body gift-effects-overlay-body">
     <main id="giftEffectStage" aria-live="off">
-      <canvas id="particleStage" aria-hidden="true"></canvas>
       <div id="giftFrame" aria-hidden="true">
-        <svg id="giftFrameSvg" class="gift-frame-svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet" role="presentation">
-          <defs>
-            <filter id="giftFrameSoftShadow" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="8"/></filter>
-            <linearGradient id="giftFrameLeafFill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A8C49A"/><stop offset="1" stop-color="#6F8F72"/></linearGradient>
-            <linearGradient id="giftFramePlateFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8F3E8" stop-opacity=".92"/><stop offset="1" stop-color="#E7CD86" stop-opacity=".78"/></linearGradient>
-            <mask id="giftFrameRevealTop" maskUnits="userSpaceOnUse" x="80" y="40" width="1760" height="180"><rect x="80" y="40" width="1760" height="180" fill="white"/></mask>
-          </defs>
-          <g data-frame-part="edge-top" class="gift-frame-part gift-frame-edge edge-top" mask="url(#giftFrameRevealTop)"><path class="edge-base" d="M145 126 C370 84 544 144 768 116 S1188 86 1440 124 S1658 92 1775 128"/><path class="edge-branch" d="M170 151 C402 112 560 166 786 140 S1179 110 1426 147 S1646 119 1765 150"/><path class="edge-leaf" d="M338 106c18-27 48-34 67-16-13 26-38 38-67 16Zm113 25c18-22 45-25 59-7-15 21-36 26-59 7Zm1123-5c-17-24-42-31-59-12 12 24 35 33 59 12Z"/></g>
-          <g data-frame-part="edge-right" class="gift-frame-part gift-frame-edge edge-right"><path class="edge-base" d="M1790 142 C1823 329 1777 478 1812 664 S1789 884 1810 946"/><path class="edge-branch" d="M1768 150 C1802 336 1758 484 1793 662 S1770 864 1794 930"/><path class="edge-leaf" d="M1802 290c30-15 51 2 52 28-28 8-46-3-52-28Zm-3 554c29-11 49 7 47 31-27 5-44-7-47-31Z"/></g>
-          <g data-frame-part="edge-bottom" class="gift-frame-part gift-frame-edge edge-bottom"><path class="edge-base" d="M145 954 C380 996 556 938 768 966 M1150 966 C1376 934 1582 994 1775 952"/><path class="edge-branch" d="M170 930 C386 971 554 913 770 944 M1152 944 C1376 911 1574 970 1764 928"/><path class="edge-leaf" d="M354 963c20 22 47 28 63 9-13-22-36-29-63-9Zm1215-13c17 22 44 25 57 6-13-20-35-25-57-6Z"/></g>
-          <g data-frame-part="edge-left" class="gift-frame-part gift-frame-edge edge-left"><path class="edge-base" d="M130 140 C98 326 143 478 108 656 S131 872 112 946"/><path class="edge-branch" d="M151 150 C118 334 162 484 127 660 S150 862 126 930"/><path class="edge-leaf" d="M118 302c-29-15-49 3-50 27 27 9 44-2 50-27Zm3 548c-29-11-49 7-47 31 27 5 44-7 47-31Z"/></g>
-          <g data-frame-part="corner-tl" class="gift-frame-part gift-frame-corner corner-tl"><path class="soft-shadow" d="M124 144c75-55 147-52 222-30-52 28-81 71-92 132-57-20-101-49-130-102Z"/><path class="corner-base" d="M132 146c71-52 145-49 214-29-54 31-82 76-91 133-55-22-94-55-123-104Z"/><path class="ornament" d="M193 107c16-32 57-34 75-4-20 6-37 20-49 42-17-6-26-18-26-38Zm-42 86c30-19 61-13 78 16-31 15-58 10-78-16Z"/><path class="highlight" d="M170 135c45-29 85-35 125-27"/></g>
-          <g data-frame-part="corner-tr" class="gift-frame-part gift-frame-corner corner-tr"><path class="soft-shadow" d="M1796 144c-75-55-147-52-222-30 52 28 81 71 92 132 57-20 101-49 130-102Z"/><path class="corner-base" d="M1788 146c-71-52-145-49-214-29 54 31 82 76 91 133 55-22 94-55 123-104Z"/><path class="ornament" d="M1727 107c-16-32-57-34-75-4 20 6 37 20 49 42 17-6 26-18 26-38Zm42 86c-30-19-61-13-78 16 31 15 58 10 78-16Z"/><path class="highlight" d="M1750 135c-45-29-85-35-125-27"/></g>
-          <g data-frame-part="corner-br" class="gift-frame-part gift-frame-corner corner-br"><path class="soft-shadow" d="M1796 936c-75 55-147 52-222 30 52-28 81-71 92-132 57 20 101 49 130 102Z"/><path class="corner-base" d="M1788 934c-71 52-145 49-214 29 54-31 82-76 91-133 55 22 94 55 123 104Z"/><path class="ornament" d="M1727 973c-16 32-57 34-75 4 20-6 37-20 49-42 17 6 26 18 26 38Zm42-86c-30 19-61 13-78-16 31-15 58-10 78 16Z"/><path class="highlight" d="M1750 945c-45 29-85 35-125 27"/></g>
-          <g data-frame-part="corner-bl" class="gift-frame-part gift-frame-corner corner-bl"><path class="soft-shadow" d="M124 936c75 55 147 52 222 30-52-28-81-71-92-132-57 20-101 49-130 102Z"/><path class="corner-base" d="M132 934c71 52 145 49 214 29-54-31-82-76-91-133-55 22-94 55-123 104Z"/><path class="ornament" d="M193 973c16 32 57 34 75 4-20-6-37-20-49-42-17 6-26 18-26 38Zm-42-86c30 19 61 13 78-16-31-15-58-10-78 16Z"/><path class="highlight" d="M170 945c45 29 85 35 125 27"/></g>
-          <g data-frame-part="highlights" class="gift-frame-highlights"><path class="highlight-run" d="M148 137h125 M1790 137h-125 M148 943h125 M1774 943h-125"/></g>
-        </svg>
-        <div id="giftInfo" class="gift-info" role="status" aria-live="polite"><div class="gift-info-primary"><span id="giftInfoName" class="gift-info-name"></span><strong id="giftInfoAmount" class="gift-info-amount"></strong></div><div class="gift-info-secondary"><span id="giftInfoUser" class="gift-info-user"></span><span class="gift-info-separator" aria-hidden="true">×</span><span id="giftInfoNum" class="gift-info-num"></span></div></div>
+        <div id="giftFrameArtwork" class="gift-frame-artwork">
+          <img class="gift-frame-component gift-frame-top" data-frame-part="top" src="/img/overlays/gift-frame/woodland-bloom/frame-top.png?v=20260823-01" alt="" draggable="false">
+          <img class="gift-frame-component gift-frame-right" data-frame-part="right" src="/img/overlays/gift-frame/woodland-bloom/frame-right.png?v=20260823-01" alt="" draggable="false">
+          <img class="gift-frame-component gift-frame-bottom" data-frame-part="bottom" src="/img/overlays/gift-frame/woodland-bloom/frame-bottom.png?v=20260823-01" alt="" draggable="false">
+          <img class="gift-frame-component gift-frame-left" data-frame-part="left" src="/img/overlays/gift-frame/woodland-bloom/frame-left.png?v=20260823-01" alt="" draggable="false">
+          <img id="giftFrameFallback" class="gift-frame-composite-fallback" src="/img/overlays/gift-frame/woodland-bloom/frame-composite.png?v=20260823-01" alt="" draggable="false">
+        </div>
+        <div id="giftFrameAccents" class="gift-frame-accents" aria-hidden="true">
+          <img class="gift-frame-accent gift-frame-accent-branch" data-frame-accent="branch" src="/img/overlays/gift-frame/woodland-bloom/accent-branch-sprig.png?v=20260823-02" alt="" draggable="false">
+          <img class="gift-frame-accent gift-frame-accent-crystal" data-frame-accent="crystal" src="/img/overlays/gift-frame/woodland-bloom/accent-crystal-charm.png?v=20260823-02" alt="" draggable="false">
+          <img class="gift-frame-accent gift-frame-accent-floral" data-frame-accent="floral" src="/img/overlays/gift-frame/woodland-bloom/accent-floral-knot.png?v=20260823-02" alt="" draggable="false">
+        </div>
+        <canvas id="particleStage" aria-hidden="true"></canvas>
+        <div id="giftInfo" class="gift-info" role="status" aria-live="polite">
+          <div class="gift-info-primary"><span id="giftInfoName" class="gift-info-name"></span><strong id="giftInfoAmount" class="gift-info-amount"></strong></div>
+          <div class="gift-info-secondary"><span id="giftInfoUser" class="gift-info-user"></span><span class="gift-info-separator" aria-hidden="true">×</span><span id="giftInfoNum" class="gift-info-num"></span></div>
+        </div>
       </div>
     </main>
     <div id="giftEffectStatus" class="gift-effect-status" role="status" aria-live="polite" hidden></div>
-    <script src="/js/overlays/gift-effects.js?v=20260821-01"></script>
+    <script src="/js/overlays/gift-effects.js?v=20260823-02"></script>
   </body>
 </html>

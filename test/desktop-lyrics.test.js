@@ -185,7 +185,7 @@ test('desktop lyric settings expose WeSing-only lyric source preferences', () =>
     'utf8'
   );
   const sourceSettingsIndex = html.indexOf('class="theme-section desktop-lyric-source-settings"');
-  const styleSettingsIndex = html.indexOf('<strong>基础样式</strong>');
+  const styleSettingsIndex = html.indexOf('class="desktop-lyric-settings-group is-basic"');
 
   assert.ok(sourceSettingsIndex >= 0 && sourceSettingsIndex < styleSettingsIndex);
   assert.match(html, /role="radiogroup"[^>]*aria-labelledby="weSingLyricSourceLabel"/);
@@ -193,9 +193,9 @@ test('desktop lyric settings expose WeSing-only lyric source preferences', () =>
   assert.match(html, /<input type="radio" name="weSingLyricSource" value="qq">/);
   assert.doesNotMatch(html, /网易云音乐（默认）/);
   assert.match(html, /<input id="weSingSmartLyricMatch" type="checkbox" checked/);
-  assert.match(html, /<legend>全民 K 歌在线歌词<\/legend>/);
-  assert.match(html, /仅在本地 QRC 不可用时生效/);
-  assert.match(html, /不会改变 QQ 音乐或网易云音乐播放器的歌词来源/);
+  assert.match(html, /<legend>全民 K 歌在线歌词 <lira-help>/);
+  assert.match(html, /仅在本地 QRC 不可用/);
+  assert.match(html, /不影响 QQ 音乐和网易云音乐的歌词来源/);
   assert.doesNotMatch(html, /\bsource-tab\b/);
   assert.match(styles, /\.desktop-lyric-source-options\s*\{/);
   assert.match(styles, /\.desktop-lyric-source-option input:checked \+ \.desktop-lyric-source-choice/);
@@ -257,11 +257,11 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   assert.match(html, /id="desktopLyricScaleEffect" type="checkbox">/);
   assert.match(html, /id="desktopLyricVisibleLines" type="number"/);
   assert.doesNotMatch(source, /\['desktopLyricVisibleLines', 0, 99, 0\]/);
-  assert.match(html, /id="desktopLyricSpringHint" role="tooltip"/);
-  assert.match(html, /id="desktopLyricBlurHint" role="tooltip"/);
+  assert.match(html, /<lira-help><span id="desktopLyricSpringHint">切换歌词时显示回弹；会持续计算位置，性能充足时再开启。<\/span><\/lira-help>/);
+  assert.match(html, /<lira-help><span id="desktopLyricBlurHint">模糊非当前歌词行；会增加合成压力，性能充足时再开启。<\/span><\/lira-help>/);
   assert.match(styles, /\.desktop-lyric-align-options\s*\{/);
   assert.match(styles, /label:has\(input:focus-visible\)/);
-  assert.match(styles, /\.desktop-lyric-performance-hint:focus-visible \[role="tooltip"\]/);
+  assert.doesNotMatch(styles, /\.desktop-lyric-performance-hint/);
 });
 
 test('desktop lyric settings organize the merged controls below lyric matching', () => {
@@ -273,7 +273,7 @@ test('desktop lyric settings organize the merged controls below lyric matching',
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
     'utf8'
   );
-  const sourceIndex = html.indexOf('<legend>全民 K 歌在线歌词</legend>');
+  const sourceIndex = html.indexOf('class="theme-section desktop-lyric-source-settings"');
   const groupNames = [
     '基础样式',
     '描边与阴影',
@@ -285,7 +285,7 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   ];
   let previousIndex = sourceIndex;
   for (const name of groupNames) {
-    const index = html.indexOf(`>${name}<`);
+    const index = html.indexOf(name, previousIndex + 1);
     assert.ok(index > previousIndex, `${name} should follow the previous settings group`);
     previousIndex = index;
   }
@@ -346,7 +346,7 @@ test('desktop lyric display strategy presents continuous and discrete highlighti
     'utf8'
   );
 
-  assert.match(html, /<strong id="desktopLyricKaraokeTitle">逐字高亮方式<\/strong>/);
+  assert.match(html, /<strong id="desktopLyricKaraokeTitle">逐字高亮方式 <lira-help>/);
   for (const value of ['off', 'continuous', 'discrete']) {
     assert.match(html, new RegExp(`name="desktopLyricKaraokeMode" value="${value}"`));
   }

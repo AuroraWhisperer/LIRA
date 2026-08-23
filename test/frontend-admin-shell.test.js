@@ -56,6 +56,86 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   assert.match(buttonRule, /min-height:\s*32px/);
 });
 
+test('point-song subviews expose compact semantic page headings without inline typography', () => {
+  const html = readAdminHtml();
+  const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const settings = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'settings.html'),
+    'utf8'
+  );
+  const views = [
+    ['songsPage', '歌库'],
+    ['settingsPage', '设置'],
+    ['themePage', '点歌板'],
+    ['displayPage', '展示板'],
+    ['overlayPage', '直播画面'],
+    ['importPage', '导入导出'],
+    ['desktopLyricPage', '桌面歌词']
+  ];
+
+  assert.equal((html.match(/class="song-subview-header"/g) || []).length, views.length);
+  for (const [id, title] of views) {
+    assert.match(html, new RegExp(`id="${id}"[\\s\\S]*?<h2 class="ui-page-title">${title}</h2>`));
+  }
+  assert.match(source, /\.app-shell \.song-workspace \.ui-page-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-page-title\)/);
+  assert.doesNotMatch(settings, /style="[^"]*(?:font-size|font-weight|font-family|line-height|letter-spacing)/);
+});
+
+test('colored action buttons use solid or frameless treatments', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-base.css'), 'utf8');
+  const primaryRule = source.match(/button\.primary\s*\{[\s\S]*?\n\}/)?.[0];
+  const primaryHoverRule = source.match(/button\.primary:hover\s*\{[\s\S]*?\n\}/)?.[0];
+  const secondaryRule = source.match(/button\.secondary\s*\{[\s\S]*?\n\}/)?.[0];
+  const dangerRule = source.match(/button\.danger\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(primaryRule, 'primary button styling should remain defined');
+  assert.ok(primaryHoverRule, 'primary button hover styling should remain defined');
+  assert.ok(secondaryRule, 'secondary button styling should remain defined');
+  assert.ok(dangerRule, 'danger button styling should remain defined');
+  assert.match(primaryRule, /border-color:\s*transparent/);
+  assert.match(primaryRule, /background:\s*var\(--primary\)/);
+  assert.match(primaryHoverRule, /border-color:\s*transparent/);
+  assert.match(primaryHoverRule, /background:\s*var\(--primary-strong\)/);
+  assert.match(secondaryRule, /border-color:\s*var\(--border\)/);
+  assert.match(dangerRule, /border-color:\s*transparent/);
+  assert.match(dangerRule, /background:\s*transparent/);
+});
+
+test('accent actions do not add a colored frame around their fill or active state', () => {
+  const mainTabs = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
+    'utf8'
+  );
+  const desktop = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'desktop.css'), 'utf8');
+  const layout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'), 'utf8');
+  const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const lyric = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    'utf8'
+  );
+  const responsive = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
+  const toolbox = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const playback = readCssBundle('public', 'css', 'styles-playback.css');
+  const rules = [
+    mainTabs.match(/\.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0],
+    desktop.match(/body\.desktop-shell \.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0],
+    layout.match(/\.status-strip button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
+    workspace.match(/\.queues-row \.song-queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
+    lyric.match(/\.desktop-lyric-reset-button\s*\{[\s\S]*?\n\}/)?.[0],
+    responsive.match(/\.gift-history-open-btn\s*\{[\s\S]*?\n\}/)?.[0],
+    toolbox.match(/\.other-feature-button\.active\s*\{[\s\S]*?\n\}/)?.[0],
+    toolbox.match(/\.opening-upload-button, \.button-quiet\s*\{[\s\S]*?\n\}/)?.[0],
+    toolbox.match(/\.usage-guide-hero-actions a,\s*\.usage-guide-hero-actions button\s*\{[\s\S]*?\n\}/)?.[0],
+    playback.match(/\.playback-quality-btn\s*\{[\s\S]*?\n\}/)?.[0]
+  ];
+
+  assert.equal(rules.every(Boolean), true, 'all audited accent action rules should remain defined');
+  for (const rule of rules) {
+    assert.match(rule, /border(?:-color)?:\s*(?:0|transparent)/);
+  }
+  assert.match(mainTabs, /background:\s*transparent/);
+});
+
 test('SuperChat clear control lives in the SC queue header', () => {
   const queueShell = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'shell-start.html'),
@@ -419,7 +499,7 @@ test('gift workspace rows keep their content height inside the scroll container'
   const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
-  assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(6, max-content\)/);
+  assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(7, max-content\)/);
 });
 
 test('song workspace scrolls within the viewport above the player dock', () => {

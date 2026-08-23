@@ -10,8 +10,7 @@
                 <header class="overtime-admin-header">
                   <div>
                     <p class="overtime-admin-kicker">直播时间管理</p>
-                    <h2>加班机</h2>
-                    <p>每条礼物规则可选择按连击组或按具体数量结算。</p>
+                    <h2>加班机 <lira-help>每条礼物规则可按连击组或具体数量结算。</lira-help></h2>
                   </div>
                   <button id="overtimeEnableBtn" class="secondary" type="button">启用加班机</button>
                 </header>
@@ -37,10 +36,10 @@
 
                 <section class="overtime-admin-section overtime-time-editor">
                   <div class="overtime-section-heading">
-                    <div><h3>初始时长</h3><p>手动输入或选择小时、分钟。设置后倒计时会回到该时长并暂停。</p></div>
+                    <div><h3>初始时长 <lira-help>可手动输入或选择时间；设置后倒计时会重置并暂停。</lira-help></h3></div>
                   </div>
                   <label class="overtime-manual-duration">
-                    <span>手动输入 <small>时:分</small></span>
+                    <span>手动输入 <lira-help>格式：时:分。</lira-help></span>
                     <input id="overtimeInitialTime" value="00:00" inputmode="numeric" maxlength="6" placeholder="例如 02:30" autocomplete="off">
                   </label>
                   <fieldset class="overtime-duration-selectors">
@@ -70,7 +69,7 @@
                 </section>
 
                 <section class="overtime-admin-section overtime-screen-section">
-                  <div class="overtime-section-heading"><div><h3>直播画面</h3><p>背景与前景独立；透明背景适合直接叠加到 OBS。</p></div></div>
+                  <div class="overtime-section-heading"><div><h3>直播画面 <lira-help>背景与前景独立；透明背景适合叠加到 OBS。</lira-help></h3></div></div>
                   <label>背景
                     <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
                       <option value="">透明</option>
@@ -91,7 +90,7 @@
                 </section>
 
                 <section class="overtime-admin-section">
-                  <div class="overtime-section-heading"><div><h3>最近结算</h3><p>仅展示已完成或忽略的最近 20 组礼物。</p></div></div>
+                  <div class="overtime-section-heading"><div><h3>最近结算 <lira-help>显示最近 20 组已完成或忽略的礼物。</lira-help></h3></div></div>
                   <div id="overtimeSettlements" class="overtime-settlement-list"></div>
                 </section>
               </div>

@@ -89,13 +89,16 @@ body.player-dock-expanded .other-workspace {
 .other-feature-panel-header h2 {
   margin: 0;
   color: var(--text);
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-page-title);
   line-height: 1.2;
 }
 
 .other-feature-panel-header p {
   margin: 7px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.6;
 }
 
@@ -146,7 +149,7 @@ body.player-dock-expanded .other-workspace {
 }
 
 .other-feature-button.active {
-  border-color: rgba(217, 75, 112, 0.2);
+  border-color: transparent;
   background: var(--color-primary-light);
   color: var(--primary-strong);
 }
@@ -178,9 +181,9 @@ body.player-dock-expanded .other-workspace {
 }
 
 .other-feature-button.active .other-feature-icon {
-  background: var(--surface);
+  background: transparent;
   color: var(--primary);
-  box-shadow: 0 3px 10px rgba(217, 75, 112, 0.12);
+  box-shadow: none;
 }
 
 .other-feature-label {
@@ -201,12 +204,12 @@ body.player-dock-expanded .other-workspace {
 
 .other-feature-label strong {
   color: inherit;
-  font-size: 14px;
+  ;
 }
 
 .other-feature-label small {
   color: var(--muted);
-  font-size: 11px;
+  ;
   font-weight: 500;
 }
 
@@ -281,7 +284,15 @@ body.player-dock-expanded .other-workspace {
 }
 
 .other-feature-panel-header h2 {
-  font-size: 23px;
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-page-title);
+}
+
+.app-shell .other-feature-panel-header h2 {
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-page-title);
 }
 
 .other-feature-panel-body {
@@ -300,6 +311,5 @@ body.player-dock-expanded .other-workspace {
   flex-wrap: wrap;
   gap: 8px 18px;
   color: var(--muted);
-  font-size: 12px;
+  ;
 }
-

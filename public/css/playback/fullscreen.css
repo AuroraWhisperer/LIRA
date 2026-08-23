@@ -271,7 +271,7 @@
   background: rgba(255, 255, 255, 0.88);
   color: #13d987;
   font-size: clamp(14px, 2.2vmin, 21px);
-  font-weight: 900;
+  font-weight: var(--type-weight-bold);
   box-shadow: 0 8px 18px rgba(76, 88, 105, 0.12);
   pointer-events: none;
 }
@@ -405,8 +405,8 @@
 
 .player-fs-title {
   margin: 0 0 12px;
-  font-size: 42px;
-  font-weight: 900;
+  ;
+  font-weight: var(--type-weight-bold);
   line-height: 1.2;
   letter-spacing: -0.5px;
   color: var(--text);
@@ -419,7 +419,7 @@
 
 .player-fs-artist {
   margin: 0;
-  font-size: 20px;
+  ;
   font-weight: 600;
   color: var(--muted);
   overflow: hidden;
@@ -511,7 +511,7 @@
 
 .lyric-text {
   display: block;
-  font-size: 32px;
+  ;
   font-weight: 700;
   line-height: 1.4;
   color: rgba(22, 31, 43, 0.35);
@@ -519,7 +519,7 @@
 }
 
 .player-fs-lyric-line.active .lyric-text {
-  font-size: 36px;
+  ;
   color: var(--text);
   text-shadow: 0 2px 12px rgba(217, 75, 112, 0.15);
 }
@@ -533,7 +533,7 @@
 .lyric-trans {
   display: block;
   margin-top: 6px;
-  font-size: 18px;
+  ;
   font-weight: 500;
   line-height: 1.5;
   color: rgba(22, 31, 43, 0.28);
@@ -549,7 +549,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  font-size: 18px;
+  ;
   color: var(--muted);
 }
 
@@ -580,7 +580,7 @@
   transition: all 200ms ease;
   backdrop-filter: blur(8px);
   font-family: inherit;
-  font-size: 15px;
+  ;
   font-weight: 700;
   line-height: 1;
   min-height: auto;
@@ -651,7 +651,7 @@
 
 /* 正在播放小图标 */
 .playlist-now-icon {
-  font-size: 9px;
+  ;
   color: var(--primary, #d94b70);
   vertical-align: middle;
   line-height: 1;

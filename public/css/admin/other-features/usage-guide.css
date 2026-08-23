@@ -23,7 +23,7 @@
   display: inline-block;
   margin-bottom: 8px;
   color: var(--primary-strong);
-  font-size: 11px;
+  ;
   font-weight: 700;
   letter-spacing: 0.18em;
 }
@@ -31,14 +31,14 @@
 .usage-guide-hero h2 {
   margin: 0;
   color: var(--text);
-  font-size: 28px;
+  ;
   line-height: 1.3;
 }
 
 .usage-guide-hero-lead {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 12.5px;
+  ;
   line-height: 1.8;
 }
 
@@ -50,7 +50,7 @@
 
 .usage-guide-hero-route-label {
   color: var(--muted);
-  font-size: 10.5px;
+  ;
   font-weight: 700;
   letter-spacing: 0.14em;
 }
@@ -75,7 +75,7 @@
 .usage-guide-hero-route li::before {
   content: counter(usage-guide-route, decimal-leading-zero);
   color: var(--primary);
-  font-size: 10.5px;
+  ;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -88,14 +88,14 @@
 
 .usage-guide-hero-route strong {
   color: var(--text);
-  font-size: 12px;
+  ;
   line-height: 1.4;
 }
 
 .usage-guide-hero-route li > span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 11px;
+  ;
   line-height: 1.5;
 }
 
@@ -115,11 +115,11 @@
   justify-content: center;
   min-height: 42px;
   padding: 6px 13px;
-  border: 1px solid var(--color-border-primary);
-  border-radius: 999px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--primary-strong);
-  font-size: 12px;
+  ;
   font-weight: 600;
   line-height: 1.4;
   text-decoration: none;
@@ -130,6 +130,16 @@
 .usage-guide-hero-actions a.active,
 .usage-guide-hero-actions button:hover {
   background: var(--color-primary-light);
+}
+
+.usage-guide-hero-actions a:first-child {
+  background: var(--primary);
+  color: var(--color-text-white);
+}
+
+.usage-guide-hero-actions a:first-child:hover,
+.usage-guide-hero-actions a:first-child.active {
+  background: var(--primary-strong);
 }
 
 .usage-guide-hero-actions a:focus-visible,
@@ -179,7 +189,7 @@
   padding: 7px 11px;
   border-radius: 8px;
   color: var(--muted);
-  font-size: 12px;
+  ;
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
@@ -233,14 +243,14 @@
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
-  font-size: 16px;
+  ;
   font-weight: 600;
   line-height: 1.3;
 }
 
 .usage-guide-section-index {
   color: var(--primary);
-  font-size: 12px;
+  ;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.06em;
@@ -249,7 +259,7 @@
 .usage-guide-section-intro {
   margin: -6px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.7;
 }
 
@@ -278,7 +288,7 @@
 .usage-guide-card strong,
 .usage-guide-feature-head strong {
   color: var(--text);
-  font-size: 14px;
+  ;
   line-height: 1.4;
 }
 
@@ -288,7 +298,7 @@
 .usage-guide-faq p {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.7;
 }
 
@@ -312,7 +322,7 @@
   position: relative;
   padding: 11px 2px 11px 40px;
   color: var(--muted);
-  font-size: 12px;
+  ;
   line-height: 1.7;
 }
 
@@ -332,7 +342,7 @@
   border: 1px solid var(--color-border-primary);
   border-radius: 50%;
   color: var(--primary-strong);
-  font-size: 11.5px;
+  ;
   font-weight: 700;
 }
 
@@ -375,7 +385,7 @@
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 10.5px;
+  ;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -446,7 +456,7 @@
 
 .usage-guide-faq summary strong {
   color: var(--text);
-  font-size: 13px;
+  ;
   font-weight: 600;
   line-height: 1.5;
 }
@@ -505,7 +515,7 @@
     content: "本页目录";
     padding: 0 12px 8px;
     color: var(--muted);
-    font-size: 10.5px;
+    ;
     font-weight: 700;
     letter-spacing: 0.14em;
   }
@@ -534,7 +544,7 @@
     display: inline;
     min-width: 26px;
     color: var(--muted);
-    font-size: 10.5px;
+    ;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.04em;
@@ -557,7 +567,7 @@
   }
 
   .usage-guide-hero h2 {
-    font-size: 22px;
+    ;
   }
 
   .usage-guide-hero-route {

@@ -56,7 +56,7 @@ body.desktop-shell .topbar > * {
 }
 
 body.desktop-shell button.primary:hover {
-  border-color: var(--primary-strong);
+  border-color: transparent;
   background: var(--primary-strong);
 }
 
@@ -106,7 +106,7 @@ body.desktop-shell #shutdownBtn {
 }
 
 .desktop-update-hero h3 {
-  font-size: 24px;
+  ;
   line-height: 1.2;
 }
 
@@ -114,7 +114,7 @@ body.desktop-shell #shutdownBtn {
 .desktop-update-card p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  ;
   line-height: 1.55;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -128,8 +128,8 @@ body.desktop-shell #shutdownBtn {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   color: var(--text);
-  font-size: 18px;
-  font-weight: 850;
+  ;
+  font-weight: var(--type-weight-bold);
   white-space: pre-line;
 }
 
@@ -151,8 +151,8 @@ body.desktop-shell #shutdownBtn {
   min-height: 36px;
   padding: 6px 14px;
   color: var(--text);
-  font-size: 15px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
   background: var(--color-bg-primary);
 }
 
@@ -224,8 +224,8 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
 
 .shutdown-title {
   margin: 0;
-  font-size: 26px;
-  font-weight: 850;
+  ;
+  font-weight: var(--type-weight-bold);
   line-height: 1.2;
   color: var(--text);
 }
@@ -233,7 +233,7 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
 .shutdown-subtitle {
   margin: 0;
   color: var(--muted);
-  font-size: 15px;
+  ;
   line-height: 1.4;
 }
 
@@ -255,7 +255,7 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
   align-items: center;
   gap: 10px;
   color: var(--text);
-  font-size: 14px;
+  ;
   line-height: 1.4;
 }
 
@@ -269,8 +269,8 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
   border-radius: 50%;
   background: rgba(33, 182, 168, 0.15);
   color: var(--color-success-dark);
-  font-size: 12px;
-  font-weight: 900;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 
 .shutdown-actions {
@@ -284,21 +284,21 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
 .shutdown-restart-btn {
   min-width: 160px;
   min-height: 44px;
-  font-size: 15px;
-  font-weight: 800;
+  ;
+  font-weight: var(--type-weight-bold);
 }
 
 .shutdown-actions button:not(.primary) {
   min-width: 120px;
   min-height: 44px;
-  font-size: 15px;
+  ;
   font-weight: 700;
 }
 
 .shutdown-hint {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  ;
   line-height: 1.6;
   max-width: 360px;
 }
@@ -309,7 +309,7 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
   border-radius: 4px;
   background: var(--surface-2);
   padding: 1px 6px;
-  font-size: 12px;
+  ;
 }
 
 /* desktop shell overrides for shutdown */
@@ -363,7 +363,7 @@ body.desktop-shell .titlebar-logo {
 }
 
 body.desktop-shell .titlebar-name {
-  font-size: 13px;
+  ;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--text);
@@ -431,8 +431,8 @@ body.desktop-shell .status-strip {
 }
 
 body.desktop-shell .main-page-tabs {
-  border-color: rgba(199, 154, 59, 0.22);
-  background: #f5eee4;
+  border: 0;
+  background: transparent;
 }
 
 body.desktop-shell .main-page-tab.active {

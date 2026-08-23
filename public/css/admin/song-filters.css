@@ -4,7 +4,9 @@
   gap: 6px;
   min-width: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
 }
 
 .category-filter {
@@ -67,7 +69,9 @@
 .category-filter-hint {
   margin-left: auto;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   white-space: nowrap;
 }
 
@@ -123,6 +127,9 @@
 .category-filter-empty {
   padding: 8px;
   color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .category-filter-clear {

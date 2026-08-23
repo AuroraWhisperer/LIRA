@@ -11,21 +11,19 @@
 .gift-effects-overlay-body.is-debug {
   background-color: #11131a;
   background-image:
-    linear-gradient(45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%);
+    linear-gradient(45deg, rgba(255, 255, 255, .045) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, .045) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, .045) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, .045) 75%);
   background-position: 0 0, 0 12px, 12px -12px, -12px 0;
   background-size: 24px 24px;
 }
 
-#giftEffectStage {
-  position: fixed;
-  inset: 0;
-}
-
-#particleStage,
-#giftFrame {
+#giftEffectStage,
+#giftFrame,
+.gift-frame-artwork,
+.gift-frame-accents,
+#particleStage {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -33,67 +31,157 @@
   pointer-events: none;
 }
 
-#particleStage { z-index: 1; }
-
 #giftFrame {
-  z-index: 2;
+  z-index: 1;
   opacity: 0;
   visibility: hidden;
-  color: #4B4338;
+  color: #173b2b;
   font-family: "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
 }
 
 #giftFrame.is-playing { visibility: visible; }
 
-.gift-frame-svg {
+.gift-frame-artwork { z-index: 1; }
+.gift-frame-accents { z-index: 2; }
+#particleStage { z-index: 3; }
+
+.gift-frame-component,
+.gift-frame-composite-fallback {
   position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 7px 14px rgba(6, 26, 15, .2));
+}
+
+.gift-frame-top,
+.gift-frame-bottom,
+.gift-frame-composite-fallback {
   inset: 0;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  object-fit: contain;
 }
 
-.gift-frame-part,
-.gift-frame-highlights { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.gift-frame-top { z-index: 3; }
+.gift-frame-bottom { z-index: 4; }
 
-.gift-frame-edge .edge-base,
-.gift-frame-edge .edge-branch { fill: none; stroke: #6F8F72; stroke-width: 34; }
-.gift-frame-edge .edge-branch { stroke: #A8C49A; stroke-width: 12; }
-.gift-frame-edge .edge-leaf,
-.gift-frame-corner .corner-base,
-.gift-frame-corner .ornament { fill: url(#giftFrameLeafFill); stroke: #6F8F72; stroke-width: 5; }
-.gift-frame-corner .soft-shadow { fill: #4B4338; stroke: none; opacity: .16; filter: url(#giftFrameSoftShadow); }
-.gift-frame-corner .highlight,
-.gift-frame-highlights .highlight-run { fill: none; stroke: #E7CD86; stroke-width: 9; opacity: .85; }
-.gift-frame-highlights .highlight-run { stroke-width: 14; opacity: 0; }
+.gift-frame-left,
+.gift-frame-right {
+  top: 0;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  z-index: 2;
+}
+
+.gift-frame-left { left: 0; }
+.gift-frame-right { right: 0; }
+
+.gift-frame-composite-fallback {
+  display: none;
+  z-index: 5;
+}
+
+#giftFrame.use-composite-fallback .gift-frame-component { display: none; }
+#giftFrame.use-composite-fallback .gift-frame-composite-fallback { display: block; }
+
+.gift-frame-accent {
+  position: absolute;
+  display: block;
+  max-width: none;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 5px 9px rgba(6, 26, 15, .2));
+}
+
+.gift-frame-accent-branch {
+  top: -1.5%;
+  right: 15.5%;
+  width: clamp(300px, 27vw, 540px);
+  height: auto;
+  transform-origin: 94% 42%;
+}
+
+.gift-frame-accent-crystal {
+  top: 29%;
+  right: 3.7%;
+  width: clamp(76px, 5.2vw, 108px);
+  height: auto;
+  transform-origin: 50% 5%;
+}
+
+.gift-frame-accent-floral {
+  left: 14.5%;
+  bottom: -1.5%;
+  width: clamp(165px, 12vw, 250px);
+  height: auto;
+  transform-origin: 50% 52%;
+}
 
 .gift-info {
   position: absolute;
+  z-index: 4;
   left: 50%;
-  bottom: clamp(38px, 6.1vh, 74px);
-  width: min(720px, 42vw);
-  min-width: 360px;
-  transform: translate(-50%, 12px);
-  padding: 14px 28px 12px;
-  border: 2px solid rgba(111, 143, 114, .86);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(248, 243, 232, .96), rgba(231, 205, 134, .84));
-  box-shadow: 0 8px 20px rgba(75, 67, 56, .16);
+  top: 82.5%;
+  width: min(540px, 30vw);
+  min-width: 320px;
+  transform: translate(-50%, calc(-50% + 12px));
+  padding: 8px 20px;
   opacity: 0;
   text-align: center;
   box-sizing: border-box;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .72);
 }
 
 .gift-info-primary,
-.gift-info-secondary { display: flex; align-items: baseline; justify-content: center; min-width: 0; gap: 14px; }
-.gift-info-primary { color: #4B4338; font-size: clamp(18px, 1.48vw, 30px); font-weight: 800; }
-.gift-info-secondary { margin-top: 4px; color: rgba(75, 67, 56, .76); font-size: clamp(12px, .85vw, 17px); font-weight: 650; }
+.gift-info-secondary {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 0;
+  gap: 13px;
+}
+
+.gift-info-primary {
+  color: #173b2b;
+  font-size: clamp(18px, 1.34vw, 27px);
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.gift-info-secondary {
+  margin-top: 3px;
+  color: rgba(31, 67, 48, .76);
+  font-size: clamp(11px, .75vw, 15px);
+  font-weight: 700;
+}
+
 .gift-info-name,
-.gift-info-user { min-width: 0; max-width: 56%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gift-info-user {
+  min-width: 0;
+  max-width: 56%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .gift-info-amount,
 .gift-info-num,
-.gift-info-separator { flex: 0 0 auto; white-space: nowrap; }
-.gift-info-amount { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.gift-info-separator {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.gift-info-amount {
+  color: #7c541d;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
 
 .gift-effect-layer {
   position: absolute;
@@ -108,17 +196,15 @@
   bottom: 18px;
   max-width: min(520px, calc(100vw - 36px));
   padding: 10px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, .18);
   border-radius: 10px;
-  background: rgba(16, 18, 25, 0.82);
+  background: rgba(16, 18, 25, .82);
   color: #f8f9ff;
   font: 600 13px/1.5 "Microsoft YaHei", sans-serif;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .28);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gift-effect-layer,
-  #giftFrame {
-    animation: none;
-  }
+  #giftFrame { animation: none; }
 }

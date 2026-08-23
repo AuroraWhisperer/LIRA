@@ -17,6 +17,24 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('gift workspace exposes one page heading and seven semantic panel titles', () => {
+  const page = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
+    'utf8'
+  );
+  const styles = [
+    readCssBundle('public', 'css', 'admin', 'gifts.css'),
+    readCssBundle('public', 'css', 'admin', 'workspace.css')
+  ].join('\n');
+
+  assert.match(page, /<h1 class="ui-page-title">礼物<\/h1>/);
+  assert.equal((page.match(/class="gift-section-title ui-section-title"/g) || []).length, 7);
+  assert.match(styles, /\.gift-recent-heading \.gift-section-title\s*\{/);
+  assert.match(styles, /\.blind-stats-heading \.gift-section-title\s*\{/);
+  assert.doesNotMatch(styles, /\.(?:gift-recent-heading|blind-stats-heading) h3\s*\{/);
+  assert.match(styles, /\.app-shell \.gift-page \.panel-header h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
+});
+
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
   const html = readAdminHtml();
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
@@ -174,8 +192,8 @@ test('blindbox broadcast settings expose audience filters and one open action', 
   const html = readAdminHtml();
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings.js'), 'utf8');
 
-  assert.match(html, /<span class="panel-kicker">观众画面<\/span>/);
-  assert.match(html, /<h2>盲盒盈亏榜<\/h2>/);
+  assert.match(html, /<span class="panel-kicker ui-eyebrow">观众画面<\/span>/);
+  assert.match(html, /<h2 class="gift-section-title ui-section-title">盲盒盈亏榜<\/h2>/);
   assert.match(html, /id="blindboxWinnersOnly"[^>]*checked/);
   assert.match(html, /id="blindboxHeartBoxOnly"/);
   assert.doesNotMatch(html, /blindboxCompact|blindboxNoScroll|blindboxLowPower|blindboxOpenUrlBtn/);

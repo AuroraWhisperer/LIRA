@@ -193,7 +193,12 @@ export async function api(url, body) {
       body: JSON.stringify(body || {})
     });
     const payload = await readJsonResponse(response, '请求失败');
-    if (!payload.ok) throw new Error(payload.error || '请求失败');
+    if (!payload.ok) {
+      const error = new Error(payload.error || '请求失败');
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
     return payload;
   } catch (error) {
     showError(error);

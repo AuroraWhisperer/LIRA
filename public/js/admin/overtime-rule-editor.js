@@ -236,9 +236,12 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const randomPanel = document.createElement('section');
     randomPanel.className = 'overtime-random-editor';
     randomPanel.dataset.effectMode = 'random';
-    const randomHint = document.createElement('p');
+    const randomHint = document.createElement('div');
     randomHint.className = 'overtime-random-hint';
-    randomHint.textContent = '机会值越大，抽中概率越高，系统会自动换算百分比。';
+    const randomHintTitle = document.createElement('strong');
+    randomHintTitle.textContent = '机会值';
+    randomHintTitle.append(createHelp('数值越大越容易抽中；系统会自动换算百分比。'));
+    randomHint.append(randomHintTitle);
     randomPanel.append(randomHint);
 
     const outcomeList = document.createElement('div');
@@ -275,13 +278,11 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const displayPanel = document.createElement('section');
     displayPanel.className = 'overtime-display-editor';
     displayPanel.dataset.effectMode = 'display';
-    const displayHint = document.createElement('p');
-    displayHint.className = 'overtime-display-hint';
-    displayHint.textContent = '收到这个礼物时只展示文字，不增加或减少加班时间。';
     const displayLabel = document.createElement('label');
     displayLabel.className = 'overtime-display-input';
     const displayCaption = document.createElement('span');
     displayCaption.textContent = '展示文字';
+    displayCaption.append(createHelp('只显示文字，不改变剩余时间。'));
     const displayInput = document.createElement('input');
     const maxDisplayTextLength = getLimits().maxDisplayTextLength;
     displayInput.type = 'text';
@@ -292,7 +293,7 @@ export function createOvertimeRuleEditor(root, markDirty) {
     displayInput.dataset.displayText = 'true';
     displayInput.setAttribute('aria-label', `文字展板内容，最多 ${maxDisplayTextLength} 个字符`);
     displayLabel.append(displayCaption, displayInput);
-    displayPanel.append(displayHint, displayLabel);
+    displayPanel.append(displayLabel);
 
     root.append(fixedPanel, randomPanel, displayPanel);
     refreshOutcomeCards(randomPanel);
@@ -328,9 +329,8 @@ export function createOvertimeRuleEditor(root, markDirty) {
     const copy = document.createElement('span');
     const strong = document.createElement('strong');
     strong.textContent = title;
-    const small = document.createElement('small');
-    small.textContent = description;
-    copy.append(strong, small);
+    strong.append(createHelp(description));
+    copy.append(strong);
     label.append(input, copy);
     return label;
   }
@@ -411,10 +411,15 @@ export function createOvertimeRuleEditor(root, markDirty) {
     input.inputMode = 'numeric';
     input.dataset.effectFactor = 'true';
     input.setAttribute('aria-label', '时间变化倍数，最小 2');
-    const hint = document.createElement('small');
-    hint.textContent = '最小 2 倍';
-    label.append(caption, input, hint);
+    caption.append(createHelp('最小 2 倍。'));
+    label.append(caption, input);
     return label;
+  }
+
+  function createHelp(text) {
+    const help = document.createElement('lira-help');
+    help.textContent = text;
+    return help;
   }
 
   function syncEffectControls(root) {

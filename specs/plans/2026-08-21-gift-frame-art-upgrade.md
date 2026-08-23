@@ -1,10 +1,10 @@
 # Gift Frame Art Upgrade Implementation Plan
 
-**Goal:** Replace the current sparse woodland gift frame with a polished, production-ready four-part illustrated border and a coordinated forest-guardian character while preserving the existing gift event, queue, settings, and OBS URL contracts.
+**Goal:** Replace the current sparse woodland gift frame with the user's finished composite reference and four production border components, then add restrained firefly motion while preserving the existing gift event, queue, settings, and OBS URL contracts.
 
-**Architecture:** Generate one transparent 16:9 master frame and one transparent character illustration, derive four runtime border slices from the master, and keep the existing overlay controller responsible for independent side animation. The change stays inside the gift-frame overlay owner; no new runtime dependency, theme loader, protocol, setting, or backend behavior is introduced.
+**Architecture:** Import the user's transparent composite plus top, right, bottom, and left components without redrawing them. The four components remain independently animated runtime layers; the composite is a local load-failure fallback and alignment reference. A bounded Canvas controller adds firefly points only around the frame perimeter. The change stays inside the gift-frame overlay owner; no new runtime dependency, theme loader, protocol, setting, or backend behavior is introduced.
 
-**Tech Stack:** Built-in image generation, transparent PNG/WebP assets, Vanilla JavaScript, native CSS, HTML, `node:test`, Playwright visual QA.
+**Tech Stack:** User-authored transparent PNG assets, Canvas 2D, Vanilla JavaScript, native CSS, HTML, `node:test`, Playwright visual QA.
 
 ## Global Constraints
 
@@ -12,7 +12,7 @@
 - Preserve `/gift-effects`, `gift:frame`, all settings keys, queue semantics, motion-mode precedence, and transparent idle behavior.
 - Use four independently addressable runtime border assets: top, right, bottom, and left.
 - Keep all artwork local and allowlisted; do not load remote artwork at runtime.
-- Preserve the user's existing `opening-overlay` worktree changes and do not create a commit.
+- Do not create a commit.
 
 ---
 
@@ -25,7 +25,7 @@
 
 ## Current Behavior
 
-The overlay already receives `gift:frame` events and has bounded queueing, reduced-motion handling, watchdog cleanup, and a bottom information plate. The visible frame is an inline SVG made from broad green strokes and a few leaf paths. At 1920×1080 it reads as a basic wire frame, lacks material detail and depth, and has no coordinated character art.
+The overlay already receives `gift:frame` events and has bounded queueing, reduced-motion handling, watchdog cleanup, and a bottom information plate. The visible frame is an inline SVG made from broad green strokes and a few leaf paths. At 1920×1080 it reads as a basic wire frame and lacks the user's completed botanical, lantern, butterfly, crystal, and glow detail.
 
 ## Ownership
 
@@ -39,16 +39,16 @@ The overlay already receives `gift:frame` events and has bounded queueing, reduc
 - Subject: a moonlit forest gift celebration for a Chinese livestream audience.
 - Palette: Deep Pine `#112C26`, Fern `#35634C`, Moss `#718D5A`, Champagne Gold `#D8B86A`, Moon Ivory `#F2E7C8`, Firefly `#BDE7A7`.
 - Materials: carved dark wood, layered fern and lily-of-the-valley foliage, restrained gold filigree, dew crystals, and soft firefly light.
-- Character: an original adult forest guardian in a refined green-and-ivory dress with matching leaf filigree; calm, welcoming pose; no weapon, logo, text, or borrowed character identity.
-- Signature: the guardian overlaps the lower-right join while the four illustrated border sides assemble independently around the transparent center.
+- Motion: preserve the baked lantern and firefly light as a visual base, then add at most six small perimeter fireflies with staggered opacity, scale, and short drift. No particle crosses the central stream-safe area.
+- Signature: four richly illustrated botanical components assemble around the transparent center while the bottom component's ivory plaque becomes the actual gift-information surface.
 
 ## QA Inventory
 
 | Claim or state | Functional check | Visual evidence |
 |---|---|---|
 | Frame is actually four parts | Assert four stable `data-frame-part` side nodes and four local asset URLs | Holding-state screenshot at 1920×1080 |
-| Artwork is intricate and coordinated | Inspect wood, foliage, gold, and firefly detail plus matching character costume | Holding-state screenshot and close visual review |
-| Character art is integrated | Verify guardian node participates in enter/exit/reset | Holding and enter-transition screenshots |
+| Artwork is intricate and coordinated | Inspect the user's wood, foliage, gold, butterfly, lantern, crystal, and firefly detail | Holding-state screenshot and close visual review |
+| Fireflies improve the static image | Verify the bounded controller emits perimeter-only light points in full motion and none in reduced motion | Enter/holding transition screenshots |
 | Stream center stays usable | Verify transparent center and no full-screen veil | 1920×1080 and 2560×1440 screenshots |
 | Existing motion modes remain safe | Exercise `full` and `reduced`; reduced has no particles or large movement | Reduced holding-state screenshot |
 | Lifecycle remains clean | Wait through playback and verify `idle`, hidden frame, empty dynamic text | Post-playback DOM assertions |
@@ -56,24 +56,21 @@ The overlay already receives `gift:frame` events and has bounded queueing, reduc
 
 Exploratory checks: reload during playback and run at a smaller 1280×720 viewport; confirm no stale classes, clipping, or unexpected center obstruction.
 
-## Milestone 1: Generate and prepare the artwork
+## Milestone 1: Import and verify the artwork
 
 **Files:**
 
-- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-master.png`
-- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-top.webp`
-- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-right.webp`
-- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-bottom.webp`
-- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-left.webp`
-- Create: `public/img/overlays/gift-frame/woodland-bloom/forest-guardian.webp`
+- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-composite.png`
+- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-top.png`
+- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-right.png`
+- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-bottom.png`
+- Create: `public/img/overlays/gift-frame/woodland-bloom/frame-left.png`
 
-- [ ] Generate a transparent 16:9 master frame with an empty center, continuous corner joins, and no text or watermark.
-- [ ] Generate a transparent full-body forest guardian that matches the master frame palette and material language.
-- [ ] Inspect alpha, composition, edge safety, character anatomy, and style consistency.
-- [ ] Slice the master into four overlapping alpha-safe sides and convert runtime assets to lossless WebP.
-- [ ] Verify the four slices reconstruct the frame without visible seams at 1920×1080.
+- [x] Import the user's five transparent PNGs without recompressing or redrawing them.
+- [x] Verify RGBA alpha, dimensions, composition, edge safety, and component orientation.
+- [x] Verify the four slices reconstruct the frame without visible seams at 1920×1080.
 
-## Milestone 2: Integrate the four sides and character
+## Milestone 2: Integrate the four components and fireflies
 
 **Files:**
 
@@ -81,11 +78,11 @@ Exploratory checks: reload during playback and run at a smaller 1280×720 viewpo
 - Modify: `public/css/overlays/gift-effects.css`
 - Modify: `public/js/overlays/gift-effects.js`
 
-- [ ] Replace the simple inline frame artwork with four local image nodes while retaining stable `data-frame-part` hooks.
-- [ ] Add the guardian as a separate decorative layer with a stable `data-frame-character` hook.
-- [ ] Position the sides with intentional overlap and viewport-safe scaling; keep the center transparent.
-- [ ] Animate each side from its corresponding direction and coordinate the guardian with the information plate.
-- [ ] Preserve reduced motion, cleanup, queue timing, and safe text rendering.
+- [x] Replace the simple inline frame artwork with four local image nodes while retaining stable `data-frame-part` hooks.
+- [x] Position the sides with intentional overlap and viewport-safe scaling; keep the center transparent.
+- [x] Animate each side from its corresponding direction and use the bottom artwork's ivory plaque for gift information.
+- [x] Add at most six bounded perimeter fireflies in full motion; reduced motion renders no particles.
+- [x] Preserve reduced motion, cleanup, queue timing, and safe text rendering.
 
 ## Milestone 3: Update contracts and regression coverage
 
@@ -95,23 +92,24 @@ Exploratory checks: reload during playback and run at a smaller 1280×720 viewpo
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `specs/gift-effects-frame-overlay_design.md`
 
-- [ ] Replace inline-SVG-specific assertions with four-side local-asset, character-layer, and transparent-center assertions.
-- [ ] Update the owner document and draft design specification to describe the four illustrated assets and coordinated guardian layer.
-- [ ] Run `node --test test/gift-effects-overlay.test.js` and confirm it passes.
-- [ ] Run `npm run check`, `npm run verify:quick`, and the relevant overlay tests.
+- [x] Replace inline-SVG-specific assertions with four-component local-asset, composite-fallback, perimeter-firefly, and transparent-center assertions.
+- [x] Update the owner document and draft design specification to describe the user-authored component assets and bounded firefly layer.
+- [x] Run `node --test test/gift-effects-overlay.test.js` and confirm it passes.
+- [x] Run `npm run check`, `npm run verify:quick`, and the relevant overlay tests.
 
 ## Milestone 4: Visual and interaction verification
 
-- [ ] Capture the full-motion enter transition and holding state at 1920×1080.
-- [ ] Capture the holding state at 2560×1440 and reduced-motion state at 1280×720.
-- [ ] Dispatch a dense long-text payload and verify amount visibility and ellipsis.
-- [ ] Wait for cleanup and verify the overlay returns to a transparent idle state.
-- [ ] Review `git diff`, `git diff --check`, `git status --short`, and any pre-existing staged diff.
+- [x] Capture the full-motion enter transition and holding state at 1920×1080.
+- [x] Capture the holding state at 2560×1440 and reduced-motion state at 1280×720.
+- [x] Dispatch a dense long-text payload and verify amount visibility and ellipsis.
+- [x] Wait for cleanup and verify the overlay returns to a transparent idle state.
+- [x] Review `git diff`, `git diff --check`, `git status --short`, and any pre-existing staged diff.
 
 ## Done When
 
-- The forest frame visibly uses detailed coordinated artwork and a matching original character illustration.
+- The forest frame visibly uses the user's detailed coordinated five-image artwork set.
 - The runtime border is composed from four independently animated local assets with seam-safe joins.
+- Full motion adds restrained firefly activity around the border while reduced motion remains static and particle-free.
 - Stream content remains visible through the transparent center at supported 16:9 sizes.
 - Existing gift-frame event, settings, queue, accessibility, and cleanup contracts still pass focused tests.
 - Final screenshots pass aesthetic, clipping, layering, and readability review.

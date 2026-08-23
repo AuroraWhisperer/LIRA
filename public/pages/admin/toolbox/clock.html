@@ -1,0 +1,106 @@
+            <section
+              id="otherClockFeature"
+              class="other-feature-panel"
+              role="tabpanel"
+              aria-labelledby="otherClockFeatureTab"
+              data-other-feature-panel
+              hidden
+            >
+              <div class="other-feature-panel-body clock-tool-panel">
+                <header class="clock-tool-header">
+                  <div>
+                    <span class="clock-tool-eyebrow">LIVE CLOCK</span>
+                    <h2>萌时钟</h2>
+                    <p>给直播画面添一块会呼吸的日期与时间小卡片。</p>
+                  </div>
+                  <span class="clock-tool-badge">OBS / 直播姬</span>
+                </header>
+
+                <div class="clock-tool-layout">
+                  <section class="clock-preview-card" aria-labelledby="clockPreviewTitle">
+                    <div class="clock-card-heading">
+                      <div>
+                        <span>实时预览</span>
+                        <h3 id="clockPreviewTitle">画面里的实际大小</h3>
+                      </div>
+                      <small>推荐浏览器源：580 × 210</small>
+                    </div>
+                    <div class="clock-preview-canvas">
+                      <iframe id="clockPreview" title="萌时钟实时预览" loading="lazy"></iframe>
+                    </div>
+                    <p class="clock-preview-note">卡片之外保持透明，可以直接叠在人物、游戏或背景画面上。</p>
+                  </section>
+
+                  <aside class="clock-settings-card" aria-label="萌时钟地址与参数">
+                    <section class="clock-address-section" aria-labelledby="clockFixedTitle">
+                      <div class="clock-section-heading">
+                        <div>
+                          <span>固定网址</span>
+                          <h3 id="clockFixedTitle">直接添加即可使用</h3>
+                        </div>
+                      </div>
+                      <div class="clock-url-box">
+                        <code id="clockFixedUrl"></code>
+                        <button id="clockCopyFixed" class="secondary" type="button">复制固定网址</button>
+                      </div>
+                    </section>
+
+                    <section class="clock-parameter-section" aria-labelledby="clockParametersTitle">
+                      <div class="clock-section-heading">
+                        <div>
+                          <span>自定义参数</span>
+                          <h3 id="clockParametersTitle">选一套今天的心情</h3>
+                        </div>
+                      </div>
+
+                      <div class="clock-style-options" role="group" aria-label="萌时钟风格">
+                        <button class="clock-style-option active" type="button" data-clock-style-option="peach" aria-pressed="true">
+                          <span class="clock-style-swatch is-peach" aria-hidden="true"><i></i><b>12:08</b></span>
+                          <span><strong>桃桃便签</strong><small>奶油蜜桃 · 软软兔耳</small></span>
+                        </button>
+                        <button class="clock-style-option" type="button" data-clock-style-option="starlight" aria-pressed="false">
+                          <span class="clock-style-swatch is-starlight" aria-hidden="true"><i></i><b>21:06</b></span>
+                          <span><strong>星夜软糖</strong><small>靛蓝星光 · 月亮云朵</small></span>
+                        </button>
+                      </div>
+
+                      <div class="clock-toggle-grid">
+                        <label class="clock-toggle-field">
+                          <span><strong>显示日期</strong><small>月日与星期</small></span>
+                          <input id="clockShowDate" type="checkbox" checked>
+                          <i aria-hidden="true"></i>
+                        </label>
+                        <label class="clock-toggle-field">
+                          <span><strong>显示秒数</strong><small>小号数字气泡</small></span>
+                          <input id="clockShowSeconds" type="checkbox" checked>
+                          <i aria-hidden="true"></i>
+                        </label>
+                      </div>
+
+                      <label class="clock-form-field" for="clockHourFormat">
+                        <span>小时格式</span>
+                        <select id="clockHourFormat">
+                          <option value="24" selected>24 小时制</option>
+                          <option value="12">12 小时制</option>
+                        </select>
+                      </label>
+
+                      <label class="clock-form-field" for="clockCustomLabel">
+                        <span>角标文案 <small>最多 16 个字</small></span>
+                        <input id="clockCustomLabel" type="text" maxlength="16" value="今天也要闪闪发光" autocomplete="off">
+                      </label>
+
+                      <div class="clock-custom-url">
+                        <span>带参数网址</span>
+                        <code id="clockCustomUrl"></code>
+                      </div>
+                      <div class="clock-url-actions">
+                        <button id="clockCopyCustom" class="secondary" type="button">复制带参数网址</button>
+                        <button id="clockOpenPreview" class="primary" type="button">打开预览</button>
+                      </div>
+                    </section>
+                  </aside>
+                </div>
+              </div>
+            </section>
+
