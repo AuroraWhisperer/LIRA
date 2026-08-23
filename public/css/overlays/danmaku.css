@@ -247,7 +247,6 @@ body[data-style='minimal'] .draw-danmaku-item {
   min-height: 38px;
   padding: 4px 14px 4px 5px;
   border: 0;
-  border-left: 2px solid var(--minimal-accent);
   border-radius: 0 8px 8px 0;
   background: linear-gradient(90deg, rgba(8, 13, 23, .82), rgba(8, 13, 23, .5) 72%, transparent);
   box-shadow: none;
@@ -272,7 +271,7 @@ body[data-style='minimal'] .draw-danmaku-identity { flex: 0 0 auto; }
 body[data-style='minimal'] .draw-danmaku-identity strong { color: var(--minimal-accent); font: 700 12px/1.35 'Microsoft YaHei UI', sans-serif; }
 body[data-style='minimal'] .draw-danmaku-badge { padding: 0 4px; border-radius: 3px; font-size: 7px; }
 body[data-style='minimal'] .draw-danmaku-body p { flex: 0 1 auto; margin: 0; font-size: clamp(13px, 2vw, 17px); line-height: 1.35; text-shadow: 0 2px 5px rgba(0, 0, 0, .72); }
-body[data-style='minimal'] .draw-danmaku-item[data-identity='viewer'] { --minimal-accent: #8da0b2; --minimal-role: '普'; }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='viewer'] { --minimal-accent: #8da0b2; }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='fan'] { --minimal-accent: #a99cff; --minimal-role: '粉'; }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='captain'] { --minimal-accent: #64ccf4; --minimal-role: '舰'; }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='admiral'] { --minimal-accent: #d694f5; --minimal-role: '提'; }
@@ -295,6 +294,7 @@ body[data-style='minimal'] .draw-danmaku-item[data-identity]::after {
   font: 900 8px/1 'Microsoft YaHei UI', sans-serif;
   opacity: 1;
 }
+body[data-style='minimal'] .draw-danmaku-item[data-identity='viewer']::after { display: none; }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='viewer'] .draw-danmaku-avatar { filter: saturate(.55); opacity: .9; }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='fan'] .draw-danmaku-medal { color: #d8d1ff; border-style: dotted; background: rgba(88, 70, 166, .18); }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='captain'] .draw-danmaku-guard { color: #9be7ff; border-bottom-width: 2px; background: transparent; }

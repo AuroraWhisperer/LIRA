@@ -97,36 +97,36 @@ input.parameter-range[type="range"]:focus-visible::-moz-range-thumb {
   box-shadow: var(--parameter-range-thumb-focus-shadow);
 }
 
-/* 节奏：用于滚动速度等动态频率，珊瑚色分段轨道与小圆角方块像一条轻量节拍尺。 */
+/* 节奏：用于滚动速度等动态频率，以暖色连续轨道表达速度变化。 */
 input.parameter-range--tempo[type="range"] {
   --parameter-range-thumb-size: 18px;
-  --parameter-range-track-height: 6px;
-  --parameter-range-track: #eadfd5;
-  --parameter-range-start: #e77f68;
+  --parameter-range-track-height: 5px;
+  --parameter-range-track: #eadfd7;
+  --parameter-range-start: #dc725f;
   --parameter-range-mid: #e77f68;
-  --parameter-range-end: #efa06f;
-  --parameter-range-track-background: repeating-linear-gradient(90deg, #e8ddd5 0 28px, #fffaf6 28px 31px);
-  --parameter-range-thumb-background: #e77f68;
+  --parameter-range-end: #f1a173;
+  --parameter-range-thumb-background: linear-gradient(145deg, #f29a7a, #dc6d5d);
   --parameter-range-thumb-border: 2px solid #fffaf6;
-  --parameter-range-thumb-radius: 6px;
-  --parameter-range-thumb-shadow: 0 1px 3px rgba(153, 74, 50, 0.26);
-  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(153, 74, 50, 0.31);
-  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(153, 74, 50, 0.28), 0 0 0 3px rgba(231, 127, 104, 0.25);
+  --parameter-range-thumb-radius: 50%;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(153, 74, 50, 0.24), 0 0 0 1px rgba(231, 127, 104, 0.1);
+  --parameter-range-thumb-hover-shadow: 0 2px 6px rgba(153, 74, 50, 0.3), 0 0 0 2px rgba(231, 127, 104, 0.12);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(153, 74, 50, 0.28), 0 0 0 4px rgba(231, 127, 104, 0.2);
 }
 
-/* 尺度：用于字号、间距和尺寸，细刻度与小号圆环强调精确调节。 */
+/* 尺度：用于字号、间距和尺寸，以冷色连续轨道保持轻巧、精确的观感。 */
 input.parameter-range--scale[type="range"] {
-  --parameter-range-thumb-size: 16px;
+  --parameter-range-thumb-size: 17px;
   --parameter-range-track-height: 4px;
-  --parameter-range-track: #dcd9e8;
-  --parameter-range-start: #707bd9;
-  --parameter-range-mid: #707bd9;
-  --parameter-range-end: #9389dc;
-  --parameter-range-track-background: repeating-linear-gradient(90deg, #dedbe9 0 9%, #bfb8d4 9% 10%);
-  --parameter-range-thumb-background: radial-gradient(circle, #f8f7fb 0 3px, #707bd9 3.5px);
-  --parameter-range-thumb-shadow: 0 1px 3px rgba(72, 68, 137, 0.25);
-  --parameter-range-thumb-hover-shadow: 0 2px 5px rgba(72, 68, 137, 0.3);
-  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(72, 68, 137, 0.27), 0 0 0 3px rgba(112, 123, 217, 0.24);
+  --parameter-range-track: #deddea;
+  --parameter-range-start: #6674d5;
+  --parameter-range-mid: #7580dd;
+  --parameter-range-end: #9a90df;
+  --parameter-range-thumb-background: linear-gradient(145deg, #929aeb, #6572d2);
+  --parameter-range-thumb-border: 2px solid #fbfaf7;
+  --parameter-range-thumb-radius: 50%;
+  --parameter-range-thumb-shadow: 0 1px 3px rgba(72, 68, 137, 0.22), 0 0 0 1px rgba(112, 123, 217, 0.1);
+  --parameter-range-thumb-hover-shadow: 0 2px 6px rgba(72, 68, 137, 0.28), 0 0 0 2px rgba(112, 123, 217, 0.12);
+  --parameter-range-thumb-focus-shadow: 0 1px 3px rgba(72, 68, 137, 0.26), 0 0 0 4px rgba(112, 123, 217, 0.19);
 }
 
 /* 强度：用于透明度和视觉效果，较宽轨道与短胶囊代表作用量。 */

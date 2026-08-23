@@ -24,8 +24,8 @@
   --medal-bg: #b12d66;
   --medal-text: #fff9fc;
   width: 94%;
-  /* Keep the full entry artwork and compress only its displayed height to fit more rows. */
-  aspect-ratio: 2172 / 450;
+  /* Keep the full entry artwork while displaying it at 115% of the previous height. */
+  aspect-ratio: 2172 / 517.5;
   min-height: 0;
   margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-4/entry.webp');
@@ -35,14 +35,14 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.neon-vinyl-row.guard-1 { --identity-bg: #84204b; }
-.neon-vinyl-row.guard-2 { --identity-bg: #a52b5f; }
-.neon-vinyl-row.guard-3 { --identity-bg: #b9376d; }
 .neon-vinyl-row.medal-blue-purple { --medal-bg: #91305f; }
 .neon-vinyl-row.medal-light-blue { --medal-bg: #a93669; }
 .neon-vinyl-row.medal-deep-blue { --medal-bg: #77234f; }
 .neon-vinyl-row.medal-purple { --medal-bg: #96295e; }
 .neon-vinyl-row.medal-red { --medal-bg: #a92d51; }
+.neon-vinyl-row.guard-1 { --identity-bg: #f25f72; --medal-bg: #f25f72; }
+.neon-vinyl-row.guard-2 { --identity-bg: #8d67e8; --medal-bg: #8d67e8; }
+.neon-vinyl-row.guard-3 { --identity-bg: #4b91e8; --medal-bg: #4b91e8; }
 
 .neon-vinyl-info-viewport {
   top: 30%;

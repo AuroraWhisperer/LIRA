@@ -125,12 +125,12 @@ test('parameter ranges use shared semantic variants without changing playback co
   assert.doesNotMatch(html, /id="playbackVolume" class="[^\"]*parameter-range/);
   assert.match(styles, /\.parameter-range\[type="range"\]/);
   assert.match(styles, /--parameter-range-thumb-radius: 50%/);
-  assert.match(styles, /--parameter-range-thumb-radius: 6px/);
   assert.match(styles, /--parameter-range-thumb-radius: 999px/);
   assert.match(styles, /--parameter-range-thumb-height: 16px/);
   assert.match(styles, /--parameter-range-thumb-height: 18px/);
+  assert.doesNotMatch(styles, /repeating-linear-gradient/);
   assert.doesNotMatch(styles, /rotate\(|0 0 0 7px|radial-gradient\(circle at/);
-  for (const color of ['#e77f68', '#707bd9', '#38ad96', '#c97595']) {
+  for (const color of ['#e77f68', '#6674d5', '#38ad96', '#c97595']) {
     assert.match(styles, new RegExp(color));
   }
 });
@@ -212,10 +212,14 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   const composeSectionStart = html.indexOf('class="danmaku-feature-section danmaku-compose-section"');
   const styleSectionEnd = html.indexOf('</section>', styleSectionStart);
   assert.ok(styleSectionStart >= 0 && styleSectionEnd < composeSectionStart);
-  assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="danmakuSongReplySectionTitle"'));
-  assert.ok(html.indexOf('id="danmakuSongReplySectionTitle"') < html.indexOf('id="xiaomiAiSection"'));
+  assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="xiaomiAiSection"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuFixedReplyTitle"'));
   assert.match(html, /id="danmakuFixedReplyTitle">固定回复</);
+  assert.doesNotMatch(html, /id="danmakuSongReplySectionTitle"/);
+  const fixedReplySectionStart = html.indexOf('class="danmaku-feature-section danmaku-fixed-reply-section"');
+  const fixedReplySectionEnd = html.indexOf('</section>', fixedReplySectionStart);
+  assert.ok(fixedReplySectionStart < html.indexOf('id="danmakuReplyTitle"'));
+  assert.ok(html.indexOf('id="danmakuReplyTitle"') < fixedReplySectionEnd);
   assert.doesNotMatch(source, /createDanmakuFeed/);
   assert.match(source, /localOverlayOrigin/);
   assert.match(source, /copyText/);

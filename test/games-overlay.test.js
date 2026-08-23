@@ -32,6 +32,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawUndoBtn"/);
   assert.match(html, /id="drawPenBtn"[^>]+aria-label="画笔"/);
   assert.match(html, /id="drawEraserBtn"[^>]+aria-label="橡皮擦"/);
+  assert.match(html, /id="drawLineBtn"[^>]+aria-label="直线"/);
+  assert.match(html, /id="drawRectangleBtn"[^>]+aria-label="矩形"/);
+  assert.match(html, /id="drawEllipseBtn"[^>]+aria-label="圆形"/);
+  assert.match(html, /id="drawPickerBtn"[^>]+aria-label="取色器"/);
   assert.doesNotMatch(html, />橡皮擦</);
   assert.doesNotMatch(html, /drawDanmakuCount|\d+ 条/);
   assert.doesNotMatch(html, /gomoku-legend|gomokuHint|gomokuLastMove/);
@@ -71,6 +75,13 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /key === 'e'/);
   assert.match(script, /key === '\['/);
   assert.match(script, /key === '\]'/);
+  assert.match(script, /function createShapePoints\(/);
+  assert.match(script, /tool === 'line'/);
+  assert.match(script, /tool === 'rectangle'/);
+  assert.match(script, /tool === 'ellipse'/);
+  assert.match(script, /function pickDrawColor\(/);
+  assert.match(script, /getImageData/);
+  assert.match(script, /data-draw-color/);
   assert.match(script, /getContext\(['"]2d['"]\)/);
   assert.match(script, /renderDrawGuess/);
   assert.match(script, /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/);
@@ -112,7 +123,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.draw-undo-button/);
   assert.match(styles, /cursor:\s*url\(['"]\/img\/overlays\/draw-pen-cursor\.svg/);
   assert.match(styles, /\.draw-canvas\.is-eraser\s*\{[^}]*cursor:\s*url\(['"]\/img\/overlays\/draw-eraser-cursor\.svg/);
-  assert.match(script, /classList\.toggle\(['"]is-eraser['"],\s*drawEraser\)/);
+  assert.match(script, /classList\.toggle\(['"]is-eraser['"],\s*drawTool === 'eraser'\)/);
+  assert.match(styles, /\.draw-canvas\.is-shape\s*\{[^}]*cursor:\s*crosshair/);
+  assert.match(styles, /body\[data-game='draw-guess'\] \.draw-canvas-wrap\s*\{[^}]*max-width:\s*min\(100%,\s*1040px\)/);
+  assert.match(styles, /calc\(\(100vh - 270px\) \* 16 \/ 9\)/);
   assert.match(styles, /\.draw-scoreboard/);
   assert.match(styles, /\.draw-danmaku-identity/);
   assert.match(styles, /\.draw-danmaku-avatar\s*\{[^}]*overflow:\s*hidden/);

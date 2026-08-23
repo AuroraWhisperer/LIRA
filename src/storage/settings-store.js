@@ -58,10 +58,40 @@ const DEFAULT_SETTINGS = {
   queueSongFontSize: '40',
   queueTitleFontSize: '30',
   identityQueueFontSize: '26',
+  identityQueueScrollMode: 'bounce',
   illustratedQueueFontFamily: 'default',
   illustratedQueueFontWeight: 'default',
   illustratedQueueUseCustomTextColor: 'false',
   illustratedQueueTextColor: '#315d7d',
+  storybookQueueFontSize: '26',
+  storybookQueueFontFamily: 'default',
+  storybookQueueFontWeight: 'default',
+  storybookQueueUseCustomTextColor: 'false',
+  storybookQueueTextColor: '#315d7d',
+  storybookQueueScrollMode: 'bounce',
+  storybookQueueScrollSpeed: '80',
+  neonVinylQueueFontSize: '26',
+  neonVinylQueueFontFamily: 'default',
+  neonVinylQueueFontWeight: 'default',
+  neonVinylQueueUseCustomTextColor: 'false',
+  neonVinylQueueTextColor: '#315d7d',
+  neonVinylQueueScrollMode: 'bounce',
+  neonVinylQueueScrollSpeed: '80',
+  cherryRibbonQueueFontSize: '26',
+  cherryRibbonQueueFontFamily: 'default',
+  cherryRibbonQueueFontWeight: 'default',
+  cherryRibbonQueueUseCustomTextColor: 'false',
+  cherryRibbonQueueTextColor: '#315d7d',
+  cherryRibbonQueueScrollMode: 'bounce',
+  cherryRibbonQueueScrollSpeed: '80',
+  goldenLilyQueueFontSize: '26',
+  goldenLilyQueueFontFamily: 'default',
+  goldenLilyQueueFontWeight: 'default',
+  goldenLilyQueueUseCustomTextColor: 'false',
+  goldenLilyQueueTextColor: '#315d7d',
+  goldenLilyQueueScrollMode: 'bounce',
+  goldenLilyQueueScrollSpeed: '80',
+  queueStyleSettingsVersion: '1',
   queueFontSizeRangeVersion: '2',
   overlayQueueStyle: 'classic',
   overlayLowPowerMode: 'false',
@@ -320,6 +350,57 @@ function migrateQueueFontSizeSettings(db, savedVersion) {
   `).run(updatedAt);
 }
 
+function migrateQueueStyleSettings(db, savedVersion) {
+  if (String(savedVersion || '') === '1') return;
+
+  const readValue = (key) => {
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+    return row ? String(row.value) : String(DEFAULT_SETTINGS[key] ?? '');
+  };
+  const sharedValues = {
+    fontSize: readValue('identityQueueFontSize'),
+    fontFamily: readValue('illustratedQueueFontFamily'),
+    fontWeight: readValue('illustratedQueueFontWeight'),
+    useCustomTextColor: readValue('illustratedQueueUseCustomTextColor'),
+    textColor: readValue('illustratedQueueTextColor'),
+    scrollMode: readValue('queueScrollMode'),
+    scrollSpeed: readValue('identityQueueScrollSpeed')
+  };
+  const values = {
+    identityQueueScrollMode: sharedValues.scrollMode
+  };
+  const prefixes = ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily'];
+  for (const prefix of prefixes) {
+    values[`${prefix}QueueFontSize`] = sharedValues.fontSize;
+    values[`${prefix}QueueFontFamily`] = sharedValues.fontFamily;
+    values[`${prefix}QueueFontWeight`] = sharedValues.fontWeight;
+    values[`${prefix}QueueUseCustomTextColor`] = sharedValues.useCustomTextColor;
+    values[`${prefix}QueueTextColor`] = sharedValues.textColor;
+    values[`${prefix}QueueScrollMode`] = sharedValues.scrollMode;
+    values[`${prefix}QueueScrollSpeed`] = sharedValues.scrollSpeed;
+  }
+  values.queueStyleSettingsVersion = '1';
+
+  const updatedAt = now();
+  const statement = db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `);
+  for (const [key, value] of Object.entries(values)) {
+    statement.run(key, value, updatedAt);
+  }
+}
+
+function getQueueStyleSettingsVersion(db) {
+  const row = db.prepare(`
+    SELECT value
+    FROM settings
+    WHERE key = 'queueStyleSettingsVersion'
+  `).get();
+  return row && row.value;
+}
+
 function migrateSongScrollSpeedSetting(db, savedVersion) {
   if (String(savedVersion || '') === '2') return;
 
@@ -459,6 +540,8 @@ module.exports = {
   migrateQueueScrollSpeedSetting,
   migrateSongScrollSpeedSetting,
   migrateQueueFontSizeSettings,
+  getQueueStyleSettingsVersion,
+  migrateQueueStyleSettings,
   migrateSongBoardFontSizeSetting,
   migrateBlindBoxConfig
 };

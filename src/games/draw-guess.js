@@ -1,5 +1,7 @@
 'use strict';
 
+const { DEFAULT_WORDS, getWordCategorySummaries } = require('./draw-guess-words');
+
 const DEFAULT_TOTAL_ROUNDS = 5;
 const MIN_TOTAL_ROUNDS = 1;
 const MAX_TOTAL_ROUNDS = 12;
@@ -16,63 +18,12 @@ const MAX_POINTS_PER_STROKE = 500;
 const MAX_POINTS_PER_OPERATION = 32;
 const MAX_TOTAL_POINTS = 6000;
 
-const DEFAULT_WORDS = [
-  { word: '苹果', category: '食物' },
-  { word: '冰淇淋', category: '食物', aliases: ['冰激凌'] },
-  { word: '火锅', category: '食物' },
-  { word: '汉堡包', category: '食物', aliases: ['汉堡'] },
-  { word: '生日蛋糕', category: '食物', aliases: ['蛋糕'] },
-  { word: '西瓜', category: '食物' },
-  { word: '奶茶', category: '食物' },
-  { word: '饺子', category: '食物' },
-  { word: '长颈鹿', category: '动物' },
-  { word: '大熊猫', category: '动物', aliases: ['熊猫'] },
-  { word: '企鹅', category: '动物' },
-  { word: '章鱼', category: '动物' },
-  { word: '刺猬', category: '动物' },
-  { word: '袋鼠', category: '动物' },
-  { word: '海豚', category: '动物' },
-  { word: '猫头鹰', category: '动物' },
-  { word: '月亮', category: '自然' },
-  { word: '彩虹', category: '自然' },
-  { word: '火山', category: '自然' },
-  { word: '龙卷风', category: '自然' },
-  { word: '向日葵', category: '自然' },
-  { word: '仙人掌', category: '自然' },
-  { word: '雪人', category: '自然' },
-  { word: '瀑布', category: '自然' },
-  { word: '摩天轮', category: '地点与设施' },
-  { word: '红绿灯', category: '地点与设施' },
-  { word: '游泳池', category: '地点与设施' },
-  { word: '电影院', category: '地点与设施' },
-  { word: '图书馆', category: '地点与设施' },
-  { word: '过山车', category: '地点与设施' },
-  { word: '宇宙飞船', category: '物品', aliases: ['飞船'] },
-  { word: '降落伞', category: '物品' },
-  { word: '灭火器', category: '物品' },
-  { word: '望远镜', category: '物品' },
-  { word: '吉他', category: '物品' },
-  { word: '闹钟', category: '物品' },
-  { word: '雨伞', category: '物品' },
-  { word: '耳机', category: '物品' },
-  { word: '打篮球', category: '动作' },
-  { word: '钓鱼', category: '动作' },
-  { word: '刷牙', category: '动作' },
-  { word: '放风筝', category: '动作' },
-  { word: '滑雪', category: '动作' },
-  { word: '拍照', category: '动作' },
-  { word: '睡懒觉', category: '动作' },
-  { word: '唱歌', category: '动作' },
-  { word: '孙悟空', category: '角色' },
-  { word: '美人鱼', category: '角色' },
-  { word: '圣诞老人', category: '角色' },
-  { word: '宇航员', category: '角色' },
-  { word: '魔术师', category: '角色' },
-  { word: '超级英雄', category: '角色' }
-];
-
 function createDrawGuessState(options = {}) {
-  const words = normalizeWords(options.words || DEFAULT_WORDS);
+  const normalizedWords = normalizeWords(options.words || DEFAULT_WORDS);
+  const requestedCategoryIds = normalizeCategoryIds(options.categoryIds, normalizedWords);
+  const words = requestedCategoryIds === null
+    ? normalizedWords
+    : normalizedWords.filter(entry => requestedCategoryIds.includes(entry.categoryId));
   if (!words.length) throw new Error('你画我猜词库不能为空。');
   const totalRounds = normalizeTotalRounds(options.totalRounds);
   const roundDurationSeconds = normalizeRoundDurationSeconds(options.roundDurationSeconds);
@@ -85,6 +36,7 @@ function createDrawGuessState(options = {}) {
     totalRounds,
     roundDurationMs,
     words,
+    categoryIds: requestedCategoryIds || [...new Set(words.map(entry => entry.categoryId).filter(Boolean))],
     usedWords: [selected.word],
     answer: selected.word,
     answerAliases: selected.aliases,
@@ -283,8 +235,13 @@ function getHostDrawGuessState(state) {
     category: state.category,
     phase: state.phase,
     round: state.round,
-    totalRounds: state.totalRounds
+    totalRounds: state.totalRounds,
+    categoryIds: [...state.categoryIds]
   };
+}
+
+function getDrawGuessCategories() {
+  return getWordCategorySummaries();
 }
 
 function createCanvasState() {
@@ -294,12 +251,24 @@ function createCanvasState() {
 function normalizeWords(words) {
   return words.map(entry => {
     const word = String(entry?.word || '').trim().slice(0, 24);
+    const categoryId = String(entry?.categoryId || '').trim().toLowerCase().slice(0, 32);
     const category = String(entry?.category || '综合').trim().slice(0, 24) || '综合';
     const aliases = [...new Set([word, ...(Array.isArray(entry?.aliases) ? entry.aliases : [])]
       .map(value => String(value || '').trim().slice(0, 24))
       .filter(Boolean))];
-    return { word, category, aliases };
+    return { word, categoryId, category, aliases };
   }).filter(entry => entry.word && entry.aliases.length);
+}
+
+function normalizeCategoryIds(value, words) {
+  if (value === undefined) return null;
+  if (!Array.isArray(value) || value.length < 1) throw new Error('请至少选择一个词库分类。');
+  if (value.length > 16) throw new Error('词库分类数量过多。');
+  const categoryIds = [...new Set(value.map(item => String(item || '').trim().toLowerCase()))];
+  if (categoryIds.some(id => !/^[a-z0-9-]{1,32}$/.test(id))) throw new Error('词库分类无效。');
+  const available = new Set(words.map(entry => entry.categoryId).filter(Boolean));
+  if (categoryIds.some(id => !available.has(id))) throw new Error('词库分类无效。');
+  return categoryIds;
 }
 
 function selectWord(words, usedWords, random = Math.random) {
@@ -399,6 +368,7 @@ module.exports = {
   applyDrawOperation,
   createDrawGuessState,
   finishRound,
+  getDrawGuessCategories,
   getHostDrawGuessState,
   normalizeGuessText,
   publicDrawGuessState,

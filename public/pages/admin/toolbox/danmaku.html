@@ -65,20 +65,6 @@
                   </form>
                   <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
                 </section>
-                <section class="danmaku-feature-section danmaku-reply-section" aria-labelledby="danmakuSongReplySectionTitle danmakuReplyTitle">
-                  <div class="danmaku-section-heading">
-                    <div>
-                      <h3 id="danmakuSongReplySectionTitle">点歌回复</h3>
-                      <p>管理观众点歌没有匹配结果时的自动回复。</p>
-                    </div>
-                  </div>
-                  <div class="danmaku-bot-switch-grid">
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p>条件不匹配时，自动回复点歌人</p></div>
-                      <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用回复</span></label>
-                    </div>
-                  </div>
-                </section>
                 <section id="xiaomiAiSection" class="danmaku-feature-section xiaomi-ai-section" aria-labelledby="xiaomiAiTitle">
                   <div class="xiaomi-ai-heading">
                     <div class="xiaomi-ai-title-wrap">
@@ -207,14 +193,18 @@
                     </div>
                   </form>
                 </section>
-                <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
+                <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
                   <div class="danmaku-section-heading">
                     <div>
                       <h3 id="danmakuFixedReplyTitle">固定回复</h3>
-                      <p>管理签到、抽签和自定义关键词回复。</p>
+                      <p>管理点歌未匹配、签到、抽签和自定义关键词回复。</p>
                     </div>
                   </div>
                   <div class="danmaku-bot-switch-grid">
+                    <div class="danmaku-reply-target danmaku-bot-switch-card">
+                      <div><strong id="danmakuReplyTitle">随机点歌回复</strong><p>条件不匹配时，自动回复点歌人</p></div>
+                      <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用回复</span></label>
+                    </div>
                     <div class="danmaku-reply-target danmaku-bot-switch-card">
                       <div><strong id="danmakuCheckinTitle">签到机器人</strong><p id="danmakuCheckinTarget">收到“签到”弹幕后回复累计天数</p></div>
                       <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox"><span class="switch-track"></span><span>启用签到</span></label>

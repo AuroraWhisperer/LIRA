@@ -14,6 +14,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 const QUEUE_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js');
 const QUEUE_RENDER_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-render.js');
 const VIEWPORT_STATE_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-viewport.js');
+const QUEUE_STYLE_SETTINGS_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'shared', 'queue-style-settings.js');
 
 function createFakeList() {
   const classes = new Set(['paused']);
@@ -234,6 +235,49 @@ test('queue style changes are detected so the overlay can reload the authoritati
   assert.equal(namespace.queueStyleChanged(state('festival'), state('identity')), false);
   assert.equal(namespace.queueStyleChanged(state('storybook'), state('storybook')), false);
   assert.equal(namespace.queueStyleChanged(null, state('classic')), false);
+});
+
+test('queue style settings resolve and persist only the selected style', async () => {
+  const namespace = await loadModuleExports(QUEUE_STYLE_SETTINGS_ENTRY, {});
+  const settings = {
+    identityQueueFontSize: '26',
+    identityQueueScrollMode: 'bounce',
+    identityQueueScrollSpeed: '80',
+    neonVinylQueueFontSize: '41',
+    neonVinylQueueFontFamily: 'KaiTi, serif',
+    neonVinylQueueFontWeight: '700',
+    neonVinylQueueUseCustomTextColor: 'true',
+    neonVinylQueueTextColor: '#123456',
+    neonVinylQueueScrollMode: 'loop',
+    neonVinylQueueScrollSpeed: '64',
+    cherryRibbonQueueFontSize: '22',
+    cherryRibbonQueueScrollMode: 'bounce',
+    cherryRibbonQueueScrollSpeed: '35'
+  };
+
+  const neon = namespace.resolveQueueStyleSettings(settings, 'neon-vinyl');
+  const ribbon = namespace.resolveQueueStyleSettings(settings, 'cherry-ribbon');
+  assert.equal(neon.identityQueueFontSize, '41');
+  assert.equal(neon.illustratedQueueFontFamily, 'KaiTi, serif');
+  assert.equal(neon.queueScrollMode, 'loop');
+  assert.equal(neon.identityQueueScrollSpeed, '64');
+  assert.equal(ribbon.identityQueueFontSize, '22');
+  assert.equal(ribbon.queueScrollMode, 'bounce');
+  assert.equal(ribbon.identityQueueScrollSpeed, '35');
+
+  const payload = namespace.queueStyleSettingsPayload('neon-vinyl', {
+    fontSize: '44',
+    fontFamily: 'YouYuan',
+    fontWeight: '900',
+    useCustomTextColor: 'false',
+    textColor: '#654321',
+    scrollMode: 'bounce',
+    scrollSpeed: '71'
+  });
+  assert.equal(payload.neonVinylQueueFontSize, '44');
+  assert.equal(payload.neonVinylQueueScrollSpeed, '71');
+  assert.equal(Object.prototype.hasOwnProperty.call(payload, 'cherryRibbonQueueFontSize'), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(payload, 'identityQueueFontSize'), false);
 });
 
 test('queue viewport helper exposes uncapped proportional scaling', async () => {

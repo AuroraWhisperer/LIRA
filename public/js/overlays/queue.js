@@ -4,6 +4,7 @@
 import { applyTheme, renderCherryRibbonQueue, renderClassicQueue, renderGoldenLilyQueue, renderIdentityQueue, renderNeonVinylQueue, renderStorybookQueue } from './queue-render.js';
 import { captureScrollAnimation, configureClassicVerticalScroll, configureIdentityVerticalScroll, originalQueueRowsHtml, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleScrollAnimationRestore } from './queue-scroll.js';
 import { syncQueuePanelViewport } from './queue-viewport.js';
+import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
@@ -122,7 +123,8 @@ function scheduleStateRefresh() {
 
 function computeStateKey(nextState) {
   var queue = nextState.queue || {};
-  var settings = nextState.settings || {};
+  var rawSettings = nextState.settings || {};
+  var settings = resolveQueueStyleSettings(rawSettings, normalizeQueueStyle(rawSettings.overlayQueueStyle));
   var current = queue.current;
   var waiting = queue.waiting || [];
   var superChats = nextState.superChats || [];
@@ -154,8 +156,9 @@ function computeStateKey(nextState) {
 function render() {
   if (!state) return;
   const scrollState = captureScrollAnimation();
-  const settings = state.settings || {};
-  const style = normalizeQueueStyle(settings.overlayQueueStyle);
+  const rawSettings = state.settings || {};
+  const style = normalizeQueueStyle(rawSettings.overlayQueueStyle);
+  const settings = resolveQueueStyleSettings(rawSettings, style);
   applyTheme(settings, style);
 
   const queue = state.queue || {};
@@ -183,8 +186,9 @@ function syncQueueViewport() {
 
 function relayoutQueue() {
   if (!state) return;
-  const settings = state.settings || {};
-  const style = normalizeQueueStyle(settings.overlayQueueStyle);
+  const rawSettings = state.settings || {};
+  const style = normalizeQueueStyle(rawSettings.overlayQueueStyle);
+  const settings = resolveQueueStyleSettings(rawSettings, style);
   const content = document.getElementById('queueContent');
   const scrollState = captureScrollAnimation();
 
@@ -211,9 +215,7 @@ function relayoutQueue() {
 }
 
 export function normalizeQueueStyle(style) {
-  if (ILLUSTRATED_QUEUE_STYLES.has(style)) return style;
-  if (style === 'identity' || style === 'festival') return 'identity';
-  return 'classic';
+  return normalizePersistedQueueStyle(style);
 }
 
 export function queueStyleChanged(currentState, nextState) {

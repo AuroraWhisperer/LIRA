@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { DatabaseSync } = require('node:sqlite');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 const {
@@ -16,6 +17,7 @@ const {
 } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
+const settingsStoreModule = require('../src/storage/settings-store');
 
 function readOvertimeAdminSource() {
   return [
@@ -82,15 +84,15 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(html, /id="illustratedQueueFontWeight"/);
   assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
   assert.match(html, /id="illustratedQueueTextColor"[^>]*type="color"/);
-  assert.match(formSource, /illustratedQueueFontFamily:\s*value\('illustratedQueueFontFamily'\)/);
+  assert.match(formSource, /fontFamily:\s*value\('illustratedQueueFontFamily'\)/);
   assert.match(formSource, /registerLocalFontSelect\(document\.getElementById\('illustratedQueueFontFamily'\)\)/);
   assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
   assert.match(localFontSource, /group\.label = '本机字体'/);
   assert.match(localFontSource, /window\.queryLocalFonts\(\)/);
-  assert.match(formSource, /illustratedQueueFontWeight:\s*value\('illustratedQueueFontWeight'\)/);
+  assert.match(formSource, /fontWeight:\s*value\('illustratedQueueFontWeight'\)/);
   assert.match(formSource, /ILLUSTRATED_DEFAULT_LABELS[\s\S]*'neon-vinyl'[\s\S]*fontFamily:\s*'微软雅黑'[\s\S]*fontWeight:\s*'较粗'/);
-  assert.match(formSource, /illustratedQueueUseCustomTextColor:\s*value\('illustratedQueueUseCustomTextColor'\)/);
-  assert.match(formSource, /illustratedQueueTextColor:\s*value\('illustratedQueueTextColor'\)/);
+  assert.match(formSource, /useCustomTextColor:\s*value\('illustratedQueueUseCustomTextColor'\)/);
+  assert.match(formSource, /textColor:\s*value\('illustratedQueueTextColor'\)/);
   assert.match(defaultsSource, /illustratedQueueFontFamily:\s*'default'/);
   assert.match(defaultsSource, /illustratedQueueFontWeight:\s*'default'/);
   assert.match(defaultsSource, /illustratedQueueUseCustomTextColor:\s*'false'/);
@@ -104,6 +106,71 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(overlayStyles, /\.illustrated-custom-font/);
   assert.match(overlayStyles, /\.illustrated-custom-weight/);
   assert.match(overlayStyles, /\.illustrated-custom-text-color/);
+});
+
+test('queue styles migrate shared typography and scrolling into independent persisted values', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`
+    CREATE TABLE settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  const insert = db.prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)');
+  const legacyValues = {
+    identityQueueFontSize: '37',
+    illustratedQueueFontFamily: 'KaiTi, serif',
+    illustratedQueueFontWeight: '700',
+    illustratedQueueUseCustomTextColor: 'true',
+    illustratedQueueTextColor: '#123456',
+    queueScrollMode: 'loop',
+    identityQueueScrollSpeed: '63'
+  };
+  for (const [key, value] of Object.entries(legacyValues)) {
+    insert.run(key, value, '2026-08-23 00:00:00');
+  }
+
+  try {
+    const store = settingsStoreModule.createSettingsStore(db);
+    settingsStoreModule.migrateQueueStyleSettings(db, '');
+    const settings = store.getSettings();
+
+    assert.equal(settings.identityQueueScrollMode, 'loop');
+    for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
+      assert.equal(settings[`${prefix}QueueFontSize`], '37');
+      assert.equal(settings[`${prefix}QueueFontFamily`], 'KaiTi, serif');
+      assert.equal(settings[`${prefix}QueueFontWeight`], '700');
+      assert.equal(settings[`${prefix}QueueUseCustomTextColor`], 'true');
+      assert.equal(settings[`${prefix}QueueTextColor`], '#123456');
+      assert.equal(settings[`${prefix}QueueScrollMode`], 'loop');
+      assert.equal(settings[`${prefix}QueueScrollSpeed`], '63');
+    }
+    assert.equal(settings.queueStyleSettingsVersion, '1');
+  } finally {
+    db.close();
+  }
+});
+
+test('admin queue form exposes and persists controls for only the selected style', () => {
+  const html = readAdminHtml();
+  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+  const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+  const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
+
+  assert.match(html, /id="identityQueueScrollMode"/);
+  assert.match(formSource, /queueStyleSettingsPayload\(/);
+  assert.match(formSource, /normalizePersistedQueueStyle\(value\('overlayQueueStyle'\)\)\s*!==\s*styleAtEdit/);
+  assert.match(formSource, /if \(currentStyle !== nextStyle\) await saveTheme\(\);[\s\S]*setOverlayStyle\(nextStyle\)/);
+  assert.match(formsSource, /readQueueStyleSettings\(/);
+  for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
+    assert.match(defaultsSource, new RegExp(`${prefix}QueueFontSize:\\s*'26'`));
+    assert.match(defaultsSource, new RegExp(`${prefix}QueueScrollMode:\\s*'bounce'`));
+    assert.match(defaultsSource, new RegExp(`${prefix}QueueScrollSpeed:\\s*'80'`));
+    assert.match(themeStoreSource, new RegExp(`'${prefix}QueueFontSize'`));
+  }
+  assert.match(defaultsSource, /identityQueueScrollMode:\s*'bounce'/);
 });
 
 test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {
@@ -180,11 +247,12 @@ test('identity queue has an independent scroll speed setting', () => {
 
   assert.match(html, /id="identityQueueScrollSpeedRange"/);
   assert.match(html, /id="identityQueueScrollSpeed"/);
-  assert.match(formSource, /identityQueueScrollSpeed:/);
+  assert.match(formSource, /scrollSpeed:\s*window\.AdminApp\.forms\.normalizeQueueScrollSpeedForDisplay\(value\('identityQueueScrollSpeed'\)\)/);
   assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
+  assert.match(defaultsSource, /identityQueueScrollMode: 'bounce'/);
 });
 
-test('identity queue has an independent shared content font size setting', () => {
+test('styles 2-6 hydrate the active style content font size setting', () => {
   const html = readAdminHtml();
   const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
@@ -194,8 +262,8 @@ test('identity queue has an independent shared content font size setting', () =>
 
   assert.match(html, /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"[^>]*value="26"/);
   assert.match(html, /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"[^>]*value="26"/);
-  assert.match(formSource, /identityQueueFontSize: value\('identityQueueFontSize'\)/);
-  assert.match(formsSource, /identityQueueFontSize, 26, 78, 9/);
+  assert.match(formSource, /fontSize:\s*value\('identityQueueFontSize'\)/);
+  assert.match(formsSource, /readQueueStyleSettings\(values, overlayStyle\)/);
   assert.match(defaultsSource, /identityQueueFontSize: '26'/);
   assert.match(overlaySource, /--identity-queue-font-size.*identityQueueFontSize\(settings\)/);
   assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/);
@@ -381,7 +449,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonViewportRule);
   assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+12%/);
   assert.match(neonRowRule, /width:\s*94%/);
-  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*450/);
+  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*517\.5/);
   assert.match(neonRowRule, /min-height:\s*0/);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
@@ -418,6 +486,24 @@ test('style 4 scroll endpoint clears the foreground bottom frame', () => {
   assert.ok(frameRule);
   assert.match(contentRule, /inset:\s*23\.5%\s+9\.5%\s+12%/);
   assert.match(frameRule, /border-width:\s*168px\s+56px\s+84px/);
+});
+
+test('styles 4-6 give each guard tier one shared guard and medal color', () => {
+  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
+  const guardColors = {
+    1: '#f25f72',
+    2: '#8d67e8',
+    3: '#4b91e8'
+  };
+
+  for (const style of ['neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
+    for (const [level, color] of Object.entries(guardColors)) {
+      const rule = overlayStyles.match(new RegExp(`\\.${style}-row\\.guard-${level}\\s*\\{[^}]*\\}`))?.[0];
+      assert.ok(rule, `${style} guard ${level} rule should exist`);
+      assert.match(rule, new RegExp(`--identity-bg:\\s*${color}`));
+      assert.match(rule, new RegExp(`--medal-bg:\\s*${color}`));
+    }
+  }
 });
 
 test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
@@ -1009,7 +1095,7 @@ test('classic queue uses calculated row height and sizes indexes with song text'
   assert.match(styles, /\.queue-classic\s*\{[\s\S]*?width:\s*405px/);
   assert.match(styles, /\.queue-identity\s*\{[\s\S]*?width:\s*430px/);
   assert.match(styles, /\.queue-classic\s*\{[\s\S]*?transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
-  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
+  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/);
   assert.doesNotMatch(styles, /queue-viewport-resized/);
 });
 

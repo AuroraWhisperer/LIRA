@@ -232,11 +232,6 @@
 .other-feature-panel-header-inline h2 { margin: 0; font-size: 22px; }
 .other-feature-panel-header-inline p,
 .danmaku-reply-target p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
-.danmaku-reply-section {
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
 .danmaku-reply-target {
   min-height: 96px;
   padding: 18px;

@@ -283,14 +283,23 @@
 
                 <fieldset class="theme-section">
                   <legend>队列滚动</legend>
-                  <label>
-                    上下滚动速率
-                    <span class="range-row">
-                      <input id="identityQueueScrollSpeedRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
-                      <input id="identityQueueScrollSpeed" type="number" min="1" max="100" step="1">
-                    </span>
-                    <span class="hint">1-100，控制点歌板滚动速度</span>
-                  </label>
+                  <div class="grid-2">
+                    <label>
+                      队列滚动模式
+                      <select id="identityQueueScrollMode" data-dropdown-variant="settings">
+                        <option value="loop">循环滚动（首尾相接）</option>
+                        <option value="bounce">往返滚动（到底后返回）</option>
+                      </select>
+                    </label>
+                    <label>
+                      上下滚动速率
+                      <span class="range-row">
+                        <input id="identityQueueScrollSpeedRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
+                        <input id="identityQueueScrollSpeed" type="number" min="1" max="100" step="1">
+                      </span>
+                      <span class="hint">1-100，控制当前风格的滚动速度</span>
+                    </label>
+                  </div>
                 </fieldset>
 
                 <fieldset class="theme-section" data-identity-only>

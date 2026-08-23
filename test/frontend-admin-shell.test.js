@@ -824,8 +824,9 @@ test('song request and display board forms autosave every parameter change', () 
     'utf8'
   );
 
-  assert.match(themeSource, /themeForm\.addEventListener\('input', autosaveTheme\)/);
-  assert.match(themeSource, /themeForm\.addEventListener\('change', autosaveTheme\)/);
+  assert.match(themeSource, /themeForm\.addEventListener\('input', scheduleThemeAutosave\)/);
+  assert.match(themeSource, /themeForm\.addEventListener\('change', scheduleThemeAutosave\)/);
+  assert.match(themeSource, /autosaveTheme\(normalizePersistedQueueStyle\(value\('overlayQueueStyle'\)\)\)/);
   assert.match(displaySource, /displayForm\.addEventListener\('input', autosaveDisplay\)/);
   assert.match(displaySource, /displayForm\.addEventListener\('change', autosaveDisplay\)/);
   assert.match(displaySource, /await copyText\(url\)/);

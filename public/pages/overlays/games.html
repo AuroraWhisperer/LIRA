@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260823-01">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260823-02">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
@@ -47,6 +47,18 @@
                   </button>
                   <button id="drawEraserBtn" class="draw-tool-button draw-eraser-button" type="button" aria-label="橡皮擦" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 18.5 3.9 15.2a2 2 0 0 1 0-2.8l7.8-7.8a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8l-6.1 6.1H7.2zM9 17l7.5-7.5M13.4 18.5H21"/></svg>
+                  </button>
+                  <button id="drawLineBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="直线" title="直线 (L)" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg>
+                  </button>
+                  <button id="drawRectangleBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="矩形" title="矩形 (R)" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="5" width="15" height="14" rx="1.5"/></svg>
+                  </button>
+                  <button id="drawEllipseBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="圆形" title="圆形 (O)" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="7.5" ry="7"/></svg>
+                  </button>
+                  <button id="drawPickerBtn" class="draw-tool-button draw-picker-button" type="button" aria-label="取色器" title="取色器 (I)" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.8 5.2 4 4M6.5 17.5l8.8-8.8 2 2-8.8 8.8H5v-3.5l8.8-8.8M5 21h5"/></svg>
                   </button>
                 </div>
                 <div class="draw-color-tools" aria-label="画笔颜色">
@@ -137,6 +149,6 @@
         </div>
       </div>
     </main>
-    <script type="module" src="/js/overlays/games.js?v=20260822-02"></script>
+    <script type="module" src="/js/overlays/games.js?v=20260823-03"></script>
   </body>
 </html>

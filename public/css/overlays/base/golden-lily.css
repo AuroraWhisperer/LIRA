@@ -41,14 +41,14 @@
   text-shadow: 0 1px 0 rgba(255, 253, 236, 0.9);
 }
 
-.golden-lily-row.guard-1 { --identity-bg: #8f5a10; }
-.golden-lily-row.guard-2 { --identity-bg: #b97916; }
-.golden-lily-row.guard-3 { --identity-bg: #d39b37; }
 .golden-lily-row.medal-blue-purple { --medal-bg: #596b34; }
 .golden-lily-row.medal-light-blue { --medal-bg: #708444; }
 .golden-lily-row.medal-deep-blue { --medal-bg: #46582a; }
 .golden-lily-row.medal-purple { --medal-bg: #65773b; }
 .golden-lily-row.medal-red { --medal-bg: #9a6730; }
+.golden-lily-row.guard-1 { --identity-bg: #f25f72; --medal-bg: #f25f72; }
+.golden-lily-row.guard-2 { --identity-bg: #8d67e8; --medal-bg: #8d67e8; }
+.golden-lily-row.guard-3 { --identity-bg: #4b91e8; --medal-bg: #4b91e8; }
 
 .golden-lily-rank {
   position: absolute;

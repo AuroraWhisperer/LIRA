@@ -11,6 +11,7 @@ function prepareSettingsBootstrap(songDb, settingsStoreModule) {
     FROM settings
     WHERE key = 'queueFontSizeRangeVersion'
   `).get();
+  const queueStyleSettingsVersion = settingsStoreModule.getQueueStyleSettingsVersion(songDb);
   const songScrollSpeedRow = songDb.prepare(`
     SELECT value
     FROM settings
@@ -37,6 +38,10 @@ function prepareSettingsBootstrap(songDb, settingsStoreModule) {
     settingsStoreModule.migrateQueueFontSizeSettings(
       songDb,
       queueFontSizeRangeVersion && queueFontSizeRangeVersion.value
+    );
+    settingsStoreModule.migrateQueueStyleSettings(
+      songDb,
+      queueStyleSettingsVersion
     );
     settingsStoreModule.migrateSongBoardFontSizeSetting(songDb);
     settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);

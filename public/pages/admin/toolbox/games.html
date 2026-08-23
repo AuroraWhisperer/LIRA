@@ -119,6 +119,21 @@
                             <small>15–300 秒</small>
                           </label>
                         </div>
+                        <section class="draw-word-library" aria-labelledby="drawWordLibraryTitle">
+                          <div class="draw-word-library-heading">
+                            <div>
+                              <span>题目范围</span>
+                              <strong id="drawWordLibraryTitle">本场词库</strong>
+                              <small id="drawWordCategoryStatus" role="status" aria-live="polite">正在读取分类…</small>
+                            </div>
+                            <div class="draw-word-library-actions">
+                              <button id="drawSelectAllCategoriesBtn" class="secondary" type="button">全选</button>
+                              <button id="drawClearCategoriesBtn" class="secondary" type="button">清空</button>
+                            </div>
+                          </div>
+                          <div id="drawWordCategories" class="draw-word-categories" aria-label="你画我猜词库分类"></div>
+                          <p>每类 100 个可画词条；可组合多个分类，开局后本场不再变更。</p>
+                        </section>
                         <div class="draw-rules" aria-label="你画我猜计分规则">
                           <div><span>前三名</span><strong>10 · 7 · 5</strong><small>按答对顺序计分</small></div>
                           <div><span>其余答对</span><strong>3 分</strong><small>每人每局一次</small></div>
@@ -134,7 +149,7 @@
                             <strong id="drawHostClock">01:30</strong>
                           </div>
                         </section>
-                        <p class="draw-host-help">画板快捷操作：<kbd>B</kbd> 画笔 · <kbd>E</kbd> 橡皮擦 · <kbd>Ctrl+Z</kbd> 撤销 · <kbd>[</kbd>/<kbd>]</kbd> 调整粗细；清空画布前会二次确认。</p>
+                        <p class="draw-host-help">画板快捷操作：<kbd>B</kbd> 画笔 · <kbd>E</kbd> 橡皮擦 · <kbd>L</kbd> 直线 · <kbd>R</kbd> 矩形 · <kbd>O</kbd> 圆形 · <kbd>I</kbd> 取色 · <kbd>Ctrl+Z</kbd> 撤销 · <kbd>[</kbd>/<kbd>]</kbd> 调整粗细；清空画布前会二次确认。</p>
                         <div class="game-card-actions draw-actions">
                           <button class="primary" type="button" data-start-game="draw-guess">开始你画我猜</button>
                           <button id="drawFinishRoundBtn" class="secondary" type="button" disabled>结束作画</button>

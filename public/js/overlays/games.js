@@ -12,7 +12,7 @@ let initialSnapshotLoaded = false;
 let resultProfileRequest = 0;
 let drawColor = '#222034';
 let drawWidth = 4;
-let drawEraser = false;
+let drawTool = 'pen';
 let drawClock = null;
 let activeStroke = null;
 let drawFlushTimer = null;
@@ -320,11 +320,15 @@ function initDrawCanvas() {
   redrawCanvas({ strokes: [] });
   document.querySelectorAll('[data-draw-color]').forEach(button => button.addEventListener('click', () => {
     drawColor = button.dataset.drawColor;
-    setActiveDrawTool(false);
-    document.querySelectorAll('[data-draw-color]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    setActiveDrawTool('pen');
+    updateDrawColorButtons();
   }));
-  byId('drawPenBtn').addEventListener('click', () => setActiveDrawTool(false));
-  byId('drawEraserBtn').addEventListener('click', () => setActiveDrawTool(true));
+  byId('drawPenBtn').addEventListener('click', () => setActiveDrawTool('pen'));
+  byId('drawEraserBtn').addEventListener('click', () => setActiveDrawTool('eraser'));
+  byId('drawLineBtn').addEventListener('click', () => setActiveDrawTool('line'));
+  byId('drawRectangleBtn').addEventListener('click', () => setActiveDrawTool('rectangle'));
+  byId('drawEllipseBtn').addEventListener('click', () => setActiveDrawTool('ellipse'));
+  byId('drawPickerBtn').addEventListener('click', () => setActiveDrawTool('picker'));
   document.querySelectorAll('[data-draw-width]').forEach(button => button.addEventListener('click', () => {
     setDrawWidth(Number(button.dataset.drawWidth));
   }));
@@ -337,11 +341,30 @@ function initDrawCanvas() {
   canvas.addEventListener('pointercancel', stopDrawing);
 }
 
-function setActiveDrawTool(useEraser) {
-  drawEraser = Boolean(useEraser);
-  byId('drawCanvas').classList.toggle('is-eraser', drawEraser);
-  byId('drawPenBtn').setAttribute('aria-pressed', String(!drawEraser));
-  byId('drawEraserBtn').setAttribute('aria-pressed', String(drawEraser));
+function setActiveDrawTool(tool) {
+  const tools = ['pen', 'eraser', 'line', 'rectangle', 'ellipse', 'picker'];
+  drawTool = tools.includes(tool) ? tool : 'pen';
+  const canvas = byId('drawCanvas');
+  canvas.classList.toggle('is-eraser', drawTool === 'eraser');
+  canvas.classList.toggle('is-shape', ['line', 'rectangle', 'ellipse'].includes(drawTool));
+  canvas.classList.toggle('is-picker', drawTool === 'picker');
+  const buttons = {
+    pen: 'drawPenBtn',
+    eraser: 'drawEraserBtn',
+    line: 'drawLineBtn',
+    rectangle: 'drawRectangleBtn',
+    ellipse: 'drawEllipseBtn',
+    picker: 'drawPickerBtn'
+  };
+  Object.entries(buttons).forEach(([name, id]) => {
+    byId(id).setAttribute('aria-pressed', String(drawTool === name));
+  });
+}
+
+function updateDrawColorButtons() {
+  document.querySelectorAll('[data-draw-color]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.drawColor === drawColor));
+  });
 }
 
 function setDrawWidth(width) {
@@ -373,10 +396,22 @@ function handleDrawShortcut(event) {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (key === 'b') {
     event.preventDefault();
-    setActiveDrawTool(false);
+    setActiveDrawTool('pen');
   } else if (key === 'e') {
     event.preventDefault();
-    setActiveDrawTool(true);
+    setActiveDrawTool('eraser');
+  } else if (key === 'l') {
+    event.preventDefault();
+    setActiveDrawTool('line');
+  } else if (key === 'r') {
+    event.preventDefault();
+    setActiveDrawTool('rectangle');
+  } else if (key === 'o') {
+    event.preventDefault();
+    setActiveDrawTool('ellipse');
+  } else if (key === 'i') {
+    event.preventDefault();
+    setActiveDrawTool('picker');
   } else if (key === '[') {
     event.preventDefault();
     stepDrawWidth(-1);
@@ -394,17 +429,27 @@ function isDrawTextInput(target) {
 function startDrawing(event) {
   if (!canDraw() || (event.pointerType === 'mouse' && event.button !== 0)) return;
   event.preventDefault();
+  if (drawTool === 'picker') {
+    pickDrawColor(event);
+    return;
+  }
   const canvas = byId('drawCanvas');
   canvas.setPointerCapture(event.pointerId);
   const point = drawPointFromEvent(event);
   activeStroke = {
     pointerId: event.pointerId,
+    tool: drawTool,
     strokeId: `stroke-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
-    color: drawEraser ? '#ffffff' : drawColor,
+    color: drawTool === 'eraser' ? '#ffffff' : drawColor,
     width: drawWidth,
+    startPoint: point,
     lastPoint: point,
-    pendingPoints: [point]
+    pendingPoints: isShapeTool(drawTool) ? [] : [point]
   };
+  if (isShapeTool(drawTool)) {
+    previewActiveShape();
+    return;
+  }
   drawCanvasPoints([point], activeStroke.color, drawWidth);
   scheduleDrawFlush();
 }
@@ -413,6 +458,11 @@ function continueDrawing(event) {
   if (!activeStroke || activeStroke.pointerId !== event.pointerId || !canDraw()) return;
   event.preventDefault();
   const point = drawPointFromEvent(event);
+  if (isShapeTool(activeStroke.tool)) {
+    activeStroke.lastPoint = point;
+    previewActiveShape();
+    return;
+  }
   if (Math.abs(point.x - activeStroke.lastPoint.x) + Math.abs(point.y - activeStroke.lastPoint.y) < 0.001) return;
   drawCanvasPoints([activeStroke.lastPoint, point], activeStroke.color, activeStroke.width);
   activeStroke.lastPoint = point;
@@ -429,10 +479,83 @@ function stopDrawing(event) {
 
 function finalizeActiveStroke() {
   if (!activeStroke) return;
+  if (isShapeTool(activeStroke.tool)) {
+    const points = createShapePoints(activeStroke.tool, activeStroke.startPoint, activeStroke.lastPoint);
+    activeStroke.pendingPoints = points;
+    redrawCanvas(session?.state?.canvas);
+    drawCanvasPoints(points, activeStroke.color, activeStroke.width);
+  }
   flushActiveStroke();
   clearTimeout(drawFlushTimer);
   drawFlushTimer = null;
   activeStroke = null;
+}
+
+function previewActiveShape() {
+  if (!activeStroke || !isShapeTool(activeStroke.tool)) return;
+  const points = createShapePoints(activeStroke.tool, activeStroke.startPoint, activeStroke.lastPoint);
+  redrawCanvas(session?.state?.canvas);
+  drawCanvasPoints(points, activeStroke.color, activeStroke.width);
+}
+
+function isShapeTool(tool) {
+  return tool === 'line' || tool === 'rectangle' || tool === 'ellipse';
+}
+
+function createShapePoints(tool, start, end) {
+  if (!start || !end) return [];
+  if (Math.abs(end.x - start.x) + Math.abs(end.y - start.y) < 0.002) return [start];
+  if (tool === 'line') return [start, end];
+  if (tool === 'rectangle') {
+    return [
+      start,
+      { x: end.x, y: start.y },
+      end,
+      { x: start.x, y: end.y },
+      start
+    ];
+  }
+  if (tool === 'ellipse') {
+    const centerX = (start.x + end.x) / 2;
+    const centerY = (start.y + end.y) / 2;
+    const radiusX = Math.abs(end.x - start.x) / 2;
+    const radiusY = Math.abs(end.y - start.y) / 2;
+    return Array.from({ length: 41 }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / 40;
+      return {
+        x: centerX + Math.cos(angle) * radiusX,
+        y: centerY + Math.sin(angle) * radiusY
+      };
+    });
+  }
+  return [start];
+}
+
+function pickDrawColor(event) {
+  const canvas = byId('drawCanvas');
+  const point = drawPointFromEvent(event);
+  const context = canvas.getContext('2d');
+  const pixel = context.getImageData(
+    Math.min(canvas.width - 1, Math.max(0, Math.floor(point.x * canvas.width))),
+    Math.min(canvas.height - 1, Math.max(0, Math.floor(point.y * canvas.height))),
+    1,
+    1
+  ).data;
+  if (pixel[0] > 245 && pixel[1] > 245 && pixel[2] > 245) return;
+  const palette = [...document.querySelectorAll('[data-draw-color]')].map(button => button.dataset.drawColor);
+  drawColor = palette.reduce((nearest, color) => (
+    colorDistance(color, pixel) < colorDistance(nearest, pixel) ? color : nearest
+  ), palette[0] || drawColor);
+  updateDrawColorButtons();
+  setActiveDrawTool('pen');
+}
+
+function colorDistance(color, pixel) {
+  const value = Number.parseInt(String(color).slice(1), 16);
+  const red = (value >> 16) & 255;
+  const green = (value >> 8) & 255;
+  const blue = value & 255;
+  return ((red - pixel[0]) ** 2) + ((green - pixel[1]) ** 2) + ((blue - pixel[2]) ** 2);
 }
 
 function scheduleDrawFlush() {
@@ -589,9 +712,10 @@ function setDrawToolsEnabled(enabled) {
     clearTimeout(drawFlushTimer);
     drawFlushTimer = null;
     activeStroke = null;
+    redrawCanvas(session?.state?.canvas);
   }
   byId('drawCanvas').classList.toggle('is-disabled', !enabled);
-  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawUndoBtn, #drawPenBtn, #drawEraserBtn').forEach(button => {
+  document.querySelectorAll('[data-draw-color], [data-draw-width], #drawClearBtn, #drawUndoBtn, #drawPenBtn, #drawEraserBtn, #drawLineBtn, #drawRectangleBtn, #drawEllipseBtn, #drawPickerBtn').forEach(button => {
     button.disabled = !enabled;
   });
   syncDrawUndoState();

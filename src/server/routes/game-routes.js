@@ -9,6 +9,9 @@ const routes = {
     await context.games.refreshViewers();
     sendJson(res, 200, { ok: true, data: context.games.listViewers() });
   },
+  'GET /api/games/draw-guess/categories'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.games.listDrawGuessCategories() });
+  },
   'GET /api/games/session'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.games.getSession() });
   },
@@ -76,6 +79,7 @@ function normalizeSessionInput(input = {}) {
     const result = { game, mode: 'multi', targetUid: '', targetName: '直播间观众' };
     if (Object.hasOwn(input, 'totalRounds')) result.totalRounds = Number(input.totalRounds);
     if (Object.hasOwn(input, 'roundDurationSeconds')) result.roundDurationSeconds = Number(input.roundDurationSeconds);
+    if (Object.hasOwn(input, 'categoryIds')) result.categoryIds = normalizeDrawGuessCategoryIds(input.categoryIds);
     return result;
   }
   const mode = input.mode === 'multi' ? 'multi' : 'single';
@@ -83,6 +87,14 @@ function normalizeSessionInput(input = {}) {
   const targetName = String(input.targetName || '').trim().slice(0, 80);
   if (mode === 'single' && !/^\d{1,20}$/.test(targetUid)) throw new Error('请选择一位在线观众。');
   return { game, mode, targetUid, targetName };
+}
+
+function normalizeDrawGuessCategoryIds(value) {
+  if (!Array.isArray(value) || value.length < 1) throw new Error('请至少选择一个词库分类。');
+  if (value.length > 16) throw new Error('词库分类数量过多。');
+  const categoryIds = [...new Set(value.map(item => String(item || '').trim().toLowerCase()))];
+  if (categoryIds.some(id => !/^[a-z0-9-]{1,32}$/.test(id))) throw new Error('词库分类无效。');
+  return categoryIds;
 }
 
 function normalizeWheelConfigInput(input = {}) {

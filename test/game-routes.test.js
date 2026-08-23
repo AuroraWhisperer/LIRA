@@ -50,6 +50,44 @@ test('draw guess route preserves bounded configuration fields', () => {
   });
 });
 
+test('draw guess session input normalizes category ids and rejects empty selections', () => {
+  assert.deepEqual(normalizeSessionInput({
+    game: 'draw-guess',
+    categoryIds: ['animals', 'animals', 'food-drink']
+  }), {
+    game: 'draw-guess',
+    mode: 'multi',
+    targetUid: '',
+    targetName: '直播间观众',
+    categoryIds: ['animals', 'food-drink']
+  });
+  assert.throws(
+    () => normalizeSessionInput({ game: 'draw-guess', categoryIds: [] }),
+    /至少选择一个词库分类/
+  );
+  assert.throws(
+    () => normalizeSessionInput({ game: 'draw-guess', categoryIds: ['animals', '../secret'] }),
+    /词库分类无效/
+  );
+});
+
+test('draw guess category route returns summaries without exposing words', () => {
+  let status;
+  let payload;
+  routes['GET /api/games/draw-guess/categories'](
+    { games: { listDrawGuessCategories: () => [{ id: 'animals', label: '动物世界', count: 100 }] } },
+    {},
+    {
+      writeHead(nextStatus) { status = nextStatus; },
+      end(body) { payload = JSON.parse(body); }
+    }
+  );
+
+  assert.equal(status, 200);
+  assert.deepEqual(payload, { ok: true, data: [{ id: 'animals', label: '动物世界', count: 100 }] });
+  assert.equal(JSON.stringify(payload).includes('熊猫'), false);
+});
+
 test('game session accepts only selected viewer danmaku in single mode', () => {
   const service = createGameSessionService();
   service.start({ game: 'number-bomb', mode: 'single', targetUid: '1', targetName: 'Alice' });

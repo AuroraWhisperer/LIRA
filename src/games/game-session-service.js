@@ -58,6 +58,7 @@ function createGameSessionService(options = {}) {
         : game === 'draw-guess'
           ? drawGuess.createDrawGuessState({
             words: options.drawGuessWords,
+            categoryIds: input.categoryIds,
             totalRounds: input.totalRounds,
             roundDurationSeconds: input.roundDurationSeconds,
             random,
@@ -160,6 +161,10 @@ function createGameSessionService(options = {}) {
     return session?.game === 'draw-guess' ? drawGuess.getHostDrawGuessState(session.state) : null;
   }
 
+  function listDrawGuessCategories() {
+    return drawGuess.getDrawGuessCategories();
+  }
+
   function publicSessionRaw() {
     if (!session) return null;
     return {
@@ -258,7 +263,19 @@ function createGameSessionService(options = {}) {
     for (const [key, viewer] of viewers) if (viewer.lastSeenAt < cutoff) viewers.delete(key);
   }
 
-  return { start, stop, move, draw, handleDanmaku, updateDanmakuAvatar, getSession, getHostState, listViewers, dispose };
+  return {
+    start,
+    stop,
+    move,
+    draw,
+    handleDanmaku,
+    updateDanmakuAvatar,
+    getSession,
+    getHostState,
+    listDrawGuessCategories,
+    listViewers,
+    dispose
+  };
 }
 
 function normalizeGameDanmaku(danmaku = {}) {

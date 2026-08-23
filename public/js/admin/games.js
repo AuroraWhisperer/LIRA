@@ -9,6 +9,8 @@ let wheelLimits = null;
 let activeGameSession = null;
 let drawClock = null;
 let drawClockTimer = null;
+let drawWordCategories = [];
+let activeDrawCategoryIds = null;
 let viewerRefreshPromise = null;
 let lastLiveConnectionKey = '';
 
@@ -29,6 +31,8 @@ export function initGames() {
   byId('drawFinishRoundBtn').addEventListener('click', () => controlDrawRound('finish-round').catch(showError));
   byId('drawRevealAnswerBtn').addEventListener('click', () => controlDrawRound('reveal-answer').catch(showError));
   byId('drawNextRoundBtn').addEventListener('click', () => controlDrawRound('next-round').catch(showError));
+  byId('drawSelectAllCategoriesBtn').addEventListener('click', () => setAllDrawCategories(true));
+  byId('drawClearCategoriesBtn').addEventListener('click', () => setAllDrawCategories(false));
   byId('wheelCopyUrlBtn').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()));
   byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
@@ -63,6 +67,7 @@ export function initGames() {
     requestViewerRefresh({ notify: false }),
     refreshSession(),
     refreshHostState(),
+    refreshDrawCategories(),
     refreshWheel()
   ]).catch(showError);
 }
@@ -125,6 +130,75 @@ async function refreshHostState() {
   renderHostState(payload.data);
 }
 
+async function refreshDrawCategories() {
+  const response = await fetch('/api/games/draw-guess/categories', { cache: 'no-store' });
+  const payload = await readJsonResponse(response, '读取你画我猜词库失败');
+  if (!payload.ok) throw new Error(payload.error || '读取你画我猜词库失败');
+  renderDrawCategories(payload.data || []);
+}
+
+function renderDrawCategories(categories) {
+  drawWordCategories = categories.filter(category => category?.id && category?.label && Number(category.count) > 0);
+  const root = byId('drawWordCategories');
+  root.replaceChildren();
+  const selected = activeDrawCategoryIds ? new Set(activeDrawCategoryIds) : null;
+  for (const category of drawWordCategories) {
+    const label = document.createElement('label');
+    label.className = 'draw-word-category';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = String(category.id);
+    input.checked = selected ? selected.has(input.value) : true;
+    input.dataset.drawCategory = '';
+    input.addEventListener('change', updateDrawCategoryStatus);
+    const name = document.createElement('strong');
+    name.textContent = String(category.label);
+    const count = document.createElement('span');
+    count.textContent = `${Number(category.count)} 词`;
+    label.append(input, name, count);
+    root.append(label);
+  }
+  setDrawCategoryControlsDisabled(Boolean(activeGameSession));
+  updateDrawCategoryStatus();
+}
+
+function readSelectedDrawCategoryIds() {
+  return [...document.querySelectorAll('[data-draw-category]:checked')].map(input => input.value);
+}
+
+function setAllDrawCategories(selected) {
+  document.querySelectorAll('[data-draw-category]').forEach(input => { input.checked = selected; });
+  updateDrawCategoryStatus();
+}
+
+function updateDrawCategoryStatus() {
+  const selectedIds = new Set(readSelectedDrawCategoryIds());
+  const wordCount = drawWordCategories.reduce((total, category) => (
+    selectedIds.has(String(category.id)) ? total + Number(category.count) : total
+  ), 0);
+  byId('drawWordCategoryStatus').textContent = drawWordCategories.length
+    ? `已选 ${selectedIds.size} / ${drawWordCategories.length} 类 · ${wordCount} 词`
+    : '暂时没有可用分类';
+  syncDrawStartAvailability();
+}
+
+function setDrawCategoryControlsDisabled(disabled) {
+  document.querySelectorAll('[data-draw-category]').forEach(input => {
+    input.disabled = disabled;
+    input.closest('.draw-word-category')?.classList.toggle('is-disabled', disabled);
+  });
+  byId('drawSelectAllCategoriesBtn').disabled = disabled;
+  byId('drawClearCategoriesBtn').disabled = disabled;
+}
+
+function syncDrawStartAvailability() {
+  const button = document.querySelector('[data-start-game="draw-guess"]');
+  if (!button) return;
+  const disabled = Boolean(activeGameSession) || !drawWordCategories.length || !readSelectedDrawCategoryIds().length;
+  button.disabled = disabled;
+  button.setAttribute('aria-disabled', String(disabled));
+}
+
 async function refreshWheel() {
   const response = await fetch('/api/wheel');
   const payload = await readJsonResponse(response, '读取转盘设置失败');
@@ -134,10 +208,13 @@ async function refreshWheel() {
 
 async function startGame(game) {
   if (game === 'draw-guess') {
+    const categoryIds = readSelectedDrawCategoryIds();
+    if (!categoryIds.length) throw new Error('请至少选择一个词库分类。');
     const result = await api('/api/games/session', {
       game,
       totalRounds: Number(byId('drawTotalRounds').value),
-      roundDurationSeconds: Number(byId('drawRoundDuration').value)
+      roundDurationSeconds: Number(byId('drawRoundDuration').value),
+      categoryIds
     });
     renderSession(result.data);
     await refreshHostState();
@@ -323,9 +400,11 @@ function renderSession(session) {
     label.classList.toggle('is-disabled', Boolean(session));
     label.querySelector('input').disabled = Boolean(session);
   });
+  setDrawCategoryControlsDisabled(Boolean(session));
   document.querySelectorAll('[data-game-card]').forEach(card => {
     card.classList.toggle('is-running', card.dataset.gameCard === session?.game);
   });
+  syncDrawStartAvailability();
   renderDrawSession(session);
   if (!session) {
     status.textContent = '当前没有进行中的游戏';
@@ -377,6 +456,13 @@ function renderDrawSession(session) {
 
 function renderHostState(state) {
   const visible = state?.game === 'draw-guess' && activeGameSession?.game === 'draw-guess';
+  if (visible && Array.isArray(state.categoryIds) && state.categoryIds.length) {
+    activeDrawCategoryIds = state.categoryIds.map(String);
+    document.querySelectorAll('[data-draw-category]').forEach(input => {
+      input.checked = activeDrawCategoryIds.includes(input.value);
+    });
+    updateDrawCategoryStatus();
+  }
   byId('drawHostWord').textContent = visible ? state.word : '开始游戏后显示题词';
 }
 

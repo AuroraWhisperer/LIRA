@@ -112,7 +112,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 ### 4.4 theme.js(点歌板)与 display.js(展示板)
 
 - 两者共用 `fillForm` 把预设/快照值写回表单,`input/change` 事件 180ms 防抖自动保存到 `/api/settings`(`theme.js` 的 `collectTheme()` 收集约 40 个键;`display.js` 的 `collectDisplay()` 含 `songBoardSyncTheme` 开关——开启时歌单板跟随主主题)。`local-font-library.js` 统一查询、净化、去重并分发本机字体族;点歌板风格 3–6 与桌面歌词选择器共用一次查询,各自保留内置选项和已保存值。
-- 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic / identity / storybook / neon-vinyl / cherry-ribbon / golden-lily,遗留 festival 归一为 identity,需要重启时提示)。风格 1、2 的选择卡片使用中性底色,风格 3–6 保留素材主题色。四种插画样式复用身份版内容字号和纵向滚动设置,另可独立覆盖字体、字重和正文颜色,不显示仅身份版使用的置顶与规则设置。
+- 预设卡片点击套用(`classicPresets`/`songBoardPresets`);`quickBeautifyBtn` 一键美化;点歌板样式切换(`overlayQueueStyle`:classic / identity / storybook / neon-vinyl / cherry-ribbon / golden-lily,遗留 festival 归一为 identity,需要重启时提示)。风格 1、2 的选择卡片使用中性底色,风格 3–6 保留素材主题色。管理页复用一组风格 2–6 控件,但通过 `queue-style-settings.js` 只填充并提交当前风格拥有的内容字号与纵向滚动设置;风格 3–6 的字体、字重、自定义正文颜色也分别持久化,切换或自动保存不会覆盖其他风格。风格 2 专属的置顶与规则设置不向插画风格显示或提交。
 - `display.initOverlayUrls()` 生成 `/queue`、`/songlist`、`/lyrics` 的 OBS 地址文本(以 `127.0.0.1` 规范化)。
 
 ### 4.5 import.js(批量导入)
@@ -148,12 +148,12 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 | 功能 | 模块 | 内容与数据源 |
 |---|---|---|
-| 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 面板按连接状态、弹幕姬、发送弹幕、点歌回复、AI 回复、固定回复归类；弹幕姬区域提供固定 `/danmaku` 地址的复制/打开按钮、聊天气泡/直播信号带/极简字幕三张可视化主题卡，并用 `/danmaku?preview=1&style=…` iframe 复用同一页面即时预览；选择保存到 `danmakuOverlayStyle`，由后续 snapshot 同步到已打开页面。发送弹幕只保留在 Admin（`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数），不另设网页地址。连接/账号/房间状态来自 `/api/bilibili/danmaku/state`，断开时可一键重连并回读新状态；四个机器人开关为 `enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`，无发送权限时禁用 |
+| 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 面板按连接状态、弹幕姬、发送弹幕、AI 回复和固定回复归类；固定回复组统一放置点歌未匹配、签到、抽签和 DIY 关键词回复开关及词库编辑器。弹幕姬区域提供固定 `/danmaku` 地址的复制/打开按钮、聊天气泡/直播信号带/极简字幕三张可视化主题卡，并用 `/danmaku?preview=1&style=…` iframe 复用同一页面即时预览；选择保存到 `danmakuOverlayStyle`，由后续 snapshot 同步到已打开页面。发送弹幕只保留在 Admin（`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数），不另设网页地址。连接/账号/房间状态来自 `/api/bilibili/danmaku/state`，断开时可一键重连并回读新状态；四个机器人开关为 `enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`，无发送权限时禁用 |
 | 弹幕库编辑器 | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js) | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键) |
 | AI 互动助手 | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`、`/api/ai/models`；电脑端先选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义，官方预设锁定地址/协议，自动与自定义允许编辑；按服务端 `modelEndpoint` 显示协议、联网方式与可用推理控件；密钥字段使用 password + `'********'` 遮罩且提交时过滤遮罩值；700ms 自动保存 + 保存失败重试队列 |
 | 礼物姬 · 礼物边框 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 保存 `giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；预览只发 `gift:frame` 事件，不影响实时开关与事件去重 |
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
-| 小游戏直播台 | [games.js](../../../public/js/admin/games.js) | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，`GET /api/games/host-state` 私下显示题词，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥 |
+| 小游戏直播台 | [games.js](../../../public/js/admin/games.js) | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，并从 9 类、每类 100 词的固定题库中全选、清空或组合本场分类，未选分类时禁止开局，开局后锁定选择；`GET /api/games/host-state` 私下显示题词并恢复 `categoryIds`，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥 |
 | 主播工作台 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 工作台**(`admin.streamerWorkbench.v2`):保存下一场直播日期/时间/主题/重点,按开播前/直播中/下播后三阶段管理完成态清单,现场备忘分内容灵感/观众约定/复盘记录并可转为计划;首次启动提供 4 条实用备播/复盘清单,读取旧 `admin.streamerPlanner.v1` 时迁移任务但不删除旧键;不经过后端 |
 | 性能检测 | metrics.js(见 §4.6) | |
 | 使用文档 / 桌面更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [desktop.js](../../../public/js/desktop.js) | 目录锚点平滑滚动与章节高亮、侧栏收缩时切换双栏目录;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |

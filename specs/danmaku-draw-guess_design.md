@@ -16,18 +16,19 @@
 - 默认一场五局、每局 90 秒；主播可在开始前设置 1–12 局、每局 15–300 秒。第 1、2、3 位答对者分别获得 10、7、5 分，之后每位答对者获得 3 分。
 - 同一观众每局只能得分一次；五局结束后按总分、首猜次数、最后得分时间排序。
 - 不新增数据库、设置键、进程、端口、运行时依赖或页面入口。
+- 内置词库按 9 个可画主题分类，每类 100 词；主播在 Admin 开局前至少选择一类，未显式传递分类的旧调用保持全选行为。
 
 ## Non-goals
 
 - 不允许观众作画或多人轮换画手。
-- 不提供自定义词库、持久化历史战绩、礼物加分、模糊语义识别或 AI 判题。
+- 不提供在线编辑/上传自定义词库、持久化历史战绩、礼物加分、模糊语义识别或 AI 判题。
 - 作画阶段不把答案显示在 `/games` 直播画面中；本局结束后正常揭晓。
 - 不改变数字炸弹、五子棋或独立转盘的规则。
 
 ## Architecture
 
-- Backend owner: `src/games/draw-guess.js` 负责词库、答案规范化、回合、计分、公开状态和绘画输入限制；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
-- HTTP contract: `GET /api/games/host-state` 返回主持人私有题词；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收结束作画、公布答案和开始下一题操作。
+- Backend owner: `src/games/draw-guess-words.js` 负责分类词库内容，`src/games/draw-guess.js` 负责分类筛选、答案规范化、回合、计分、公开状态和绘画输入限制；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
+- HTTP contract: `GET /api/games/draw-guess/categories` 只返回分类 ID、名称和词数；`GET /api/games/host-state` 返回主持人私有题词与本场分类选择；`POST /api/games/session` 可接收分类 ID 数组；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收结束作画、公布答案和开始下一题操作。
 - WebSocket contract: `game:update` 继续广播公开会话；`game:draw` 广播已经校验的增量画笔、清空或撤销操作，撤销操作包含服务端选定的 `strokeId`。
 - Frontend owner: `public/js/admin/games.js` 管理第四张卡片、私有题词和回合控制；`public/js/overlays/games.js` 在 `/games` 上提供主播画布并同步给其它浏览器源实例。
 - Timer authority: 服务端维护单个回合截止计时器；客户端只根据 `remainingMs` 和 `serverNowMs` 插值显示。回合时长来自主播的开局配置，非法值回退为 90 秒。
@@ -38,6 +39,7 @@
 - 弹幕在答案公布前的活动作画阶段按规范化后的完整答案匹配；UID 为空、重复答对、时间到后或非活动回合均不计分。
 - 绘画接口仅接受白名单颜色、固定笔宽、有限长度 ID、归一化坐标、有限单批点数、有限笔画数和有限整局点数。
 - 前端使用 DOM API 和 `textContent` 渲染昵称、答案和排行，不插入不可信 HTML。
+- Admin 传入的分类 ID 由服务端按内置白名单校验；显式空数组、未知 ID 和超量数组拒绝开局，分类摘要端点不返回题词。
 - 所有状态变更继续受现有 Host、Origin 和 Bearer token 校验保护。
 
 ## Compatibility
@@ -60,6 +62,9 @@
 9. 桌面端小游戏面板和 `/games` 页面在正常窗口尺寸下可操作，键盘焦点和 reduced-motion 行为保持可用。
 10. 画猜弹幕流保留并显示头像、昵称、消息正文、大航海等级和当前直播间灯牌名称/等级；没有对应身份时字段为空，不伪造徽标，缺失头像沿用现有用户资料补全。
 11. 主播画布支持服务端一致的撤销上一笔；清空画布前需要确认；作画阶段支持 `B` 画笔、`E` 橡皮擦、`Ctrl/Cmd+Z` 撤销和 `[`/`]` 调整粗细，Admin 主持区展示这组快捷操作说明。
+12. Admin 展示 9 个各 100 词的内置分类与已选词数，支持全选、清空和任意组合；至少选择一类才能开局，题目只来自本场所选分类。
+13. `/games` 增加直线、矩形、圆形和取色器；图形转换为现有受限折线笔画后同步，取色只落在服务端允许的可见调色板中。
+14. Electron 桌面正常窗口下画板的宽高占比比现状更小，新增工具、积分与弹幕仍保持一个视口内可用。
 
 ## Done When
 

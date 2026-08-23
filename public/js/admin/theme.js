@@ -3,6 +3,7 @@
 'use strict';
 
 import { registerLocalFontSelect } from './local-font-library.js';
+import { normalizePersistedQueueStyle, queueStyleSettingsPayload } from '../shared/queue-style-settings.js';
 
 (function () {
   const ILLUSTRATED_QUEUE_STYLES = new Set(['storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']);
@@ -34,16 +35,20 @@ import { registerLocalFontSelect } from './local-font-library.js';
     const saveTheme = async () => {
       await api('/api/settings', collectTheme());
     };
-    const autosaveTheme = debounce(async () => {
+    const autosaveTheme = debounce(async (styleAtEdit) => {
+      if (normalizePersistedQueueStyle(value('overlayQueueStyle')) !== styleAtEdit) return;
       try {
         await saveTheme();
       } catch (_) {
         // api() already shows the save error to the user.
       }
     }, 180);
+    const scheduleThemeAutosave = () => {
+      autosaveTheme(normalizePersistedQueueStyle(value('overlayQueueStyle')));
+    };
 
-    themeForm.addEventListener('input', autosaveTheme);
-    themeForm.addEventListener('change', autosaveTheme);
+    themeForm.addEventListener('input', scheduleThemeAutosave);
+    themeForm.addEventListener('change', scheduleThemeAutosave);
     themeForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       await saveTheme();
@@ -88,7 +93,9 @@ import { registerLocalFontSelect } from './local-font-library.js';
 
     document.querySelectorAll('[data-overlay-style]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const nextStyle = button.dataset.overlayStyle;
+        const currentStyle = normalizePersistedQueueStyle(value('overlayQueueStyle'));
+        const nextStyle = normalizePersistedQueueStyle(button.dataset.overlayStyle);
+        if (currentStyle !== nextStyle) await saveTheme();
         setOverlayStyle(nextStyle);
         const response = await api('/api/settings', { overlayQueueStyle: nextStyle });
         if (response.data && response.data.settings && response.data.settings.overlayQueueStyle !== nextStyle) {
@@ -158,8 +165,50 @@ import { registerLocalFontSelect } from './local-font-library.js';
   }
 
   function collectTheme() {
-    return {
-      overlayQueueStyle: value('overlayQueueStyle'),
+    const style = normalizePersistedQueueStyle(value('overlayQueueStyle'));
+    const payload = { overlayQueueStyle: style };
+    if (style === 'classic') {
+      return {
+        ...payload,
+        themePrimary: value('themePrimary'),
+        themeAccent: value('themeAccent'),
+        themeText: value('themeText'),
+        themeBackground: value('themeBackground'),
+        themeOpacity: value('themeOpacity'),
+        themeRadius: value('themeRadius'),
+        queueSongFontSize: value('queueSongFontSize'),
+        queueTitleFontSize: value('queueTitleFontSize'),
+        backdropBlur: value('backdropBlur'),
+        glowIntensity: value('glowIntensity'),
+        overlayLowPowerMode: value('overlayLowPowerMode'),
+        enableGradient: value('enableGradient'),
+        gradientEnd: value('gradientEnd'),
+        overlayFontFamily: value('overlayFontFamily'),
+        overlayFontWeight: value('overlayFontWeight'),
+        overlaySongColor: value('overlaySongColor'),
+        overlayRequesterColor: value('overlayRequesterColor'),
+        overlayTitle: value('overlayTitle'),
+        overlayShowIndex: value('overlayShowIndex'),
+        overlayIndexThreshold: value('overlayIndexThreshold'),
+        overlayIndexColor: value('overlayIndexColor'),
+        ...queueStyleSettingsPayload(style, {
+          scrollMode: value('queueScrollMode'),
+          scrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed'))
+        })
+      };
+    }
+
+    Object.assign(payload, queueStyleSettingsPayload(style, {
+      fontSize: value('identityQueueFontSize'),
+      fontFamily: value('illustratedQueueFontFamily'),
+      fontWeight: value('illustratedQueueFontWeight'),
+      useCustomTextColor: value('illustratedQueueUseCustomTextColor'),
+      textColor: value('illustratedQueueTextColor'),
+      scrollMode: value('identityQueueScrollMode'),
+      scrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('identityQueueScrollSpeed'))
+    }));
+
+    if (style === 'identity') Object.assign(payload, {
       overlayPin1: value('overlayPin1'),
       overlayPin2: value('overlayPin2'),
       overlayPin3: value('overlayPin3'),
@@ -175,37 +224,9 @@ import { registerLocalFontSelect } from './local-font-library.js';
       overlayRuleColor4: value('overlayRuleColor4'),
       overlayRuleColor5: value('overlayRuleColor5'),
       overlayRuleColor6: value('overlayRuleColor6'),
-      overlayRuleFontSize: value('overlayRuleFontSize'),
-      themePrimary: value('themePrimary'),
-      themeAccent: value('themeAccent'),
-      themeText: value('themeText'),
-      themeBackground: value('themeBackground'),
-      themeOpacity: value('themeOpacity'),
-      themeRadius: value('themeRadius'),
-      queueSongFontSize: value('queueSongFontSize'),
-      queueTitleFontSize: value('queueTitleFontSize'),
-      identityQueueFontSize: value('identityQueueFontSize'),
-      backdropBlur: value('backdropBlur'),
-      glowIntensity: value('glowIntensity'),
-      overlayLowPowerMode: value('overlayLowPowerMode'),
-      enableGradient: value('enableGradient'),
-      gradientEnd: value('gradientEnd'),
-      overlayFontFamily: value('overlayFontFamily'),
-      overlayFontWeight: value('overlayFontWeight'),
-      overlaySongColor: value('overlaySongColor'),
-      overlayRequesterColor: value('overlayRequesterColor'),
-      illustratedQueueFontFamily: value('illustratedQueueFontFamily'),
-      illustratedQueueFontWeight: value('illustratedQueueFontWeight'),
-      illustratedQueueUseCustomTextColor: value('illustratedQueueUseCustomTextColor'),
-      illustratedQueueTextColor: value('illustratedQueueTextColor'),
-      overlayTitle: value('overlayTitle'),
-      overlayShowIndex: value('overlayShowIndex'),
-      overlayIndexThreshold: value('overlayIndexThreshold'),
-      overlayIndexColor: value('overlayIndexColor'),
-      queueScrollMode: value('queueScrollMode'),
-      queueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('queueScrollSpeed')),
-      identityQueueScrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(value('identityQueueScrollSpeed'))
-    };
+      overlayRuleFontSize: value('overlayRuleFontSize')
+    });
+    return payload;
   }
 
   function syncAllRangeInputs(values) {
@@ -238,9 +259,7 @@ import { registerLocalFontSelect } from './local-font-library.js';
   }
 
   function setOverlayStyle(style) {
-    const nextStyle = ILLUSTRATED_QUEUE_STYLES.has(style)
-      ? style
-      : ((style === 'identity' || style === 'festival') ? 'identity' : 'classic');
+    const nextStyle = normalizePersistedQueueStyle(style);
     setValue('overlayQueueStyle', nextStyle);
     const illustratedDefaults = ILLUSTRATED_DEFAULT_LABELS[nextStyle] || ILLUSTRATED_DEFAULT_LABELS.storybook;
     const fontFamilyDefault = document.querySelector('#illustratedQueueFontFamily option[value="default"]');

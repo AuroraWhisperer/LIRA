@@ -46,6 +46,11 @@ test('games admin groups shared games and the independent wheel', () => {
   assert.match(html, /id="drawNextRoundBtn"/);
   assert.match(html, /id="drawTotalRounds"[^>]*min="1"[^>]*max="12"/);
   assert.match(html, /id="drawRoundDuration"[^>]*min="15"[^>]*max="300"/);
+  assert.match(html, /id="drawWordCategories"/);
+  assert.match(html, /id="drawWordCategoryStatus"/);
+  assert.match(html, /id="drawSelectAllCategoriesBtn"/);
+  assert.match(html, /id="drawClearCategoriesBtn"/);
+  assert.match(html, /本场词库/);
   assert.match(html, /1–12 局/);
   assert.match(html, /15–300 秒/);
   assert.match(html, /10.*7.*5.*3/s);
@@ -86,9 +91,27 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
   assert.match(script, /draw-guess/);
   assert.match(script, /totalRounds: Number\(byId\('drawTotalRounds'\)\.value\)/);
   assert.match(script, /roundDurationSeconds: Number\(byId\('drawRoundDuration'\)\.value\)/);
+  assert.match(script, /api\/games\/draw-guess\/categories/);
+  assert.match(script, /const categoryIds = readSelectedDrawCategoryIds\(\)/);
+  assert.match(script, /categoryIds\s*\n/);
+  assert.match(script, /function renderDrawCategories\(/);
+  assert.match(script, /createElement\('input'\)/);
+  assert.match(script, /textContent/);
   assert.match(script, /finish-round/);
   assert.match(script, /next-round/);
   assert.match(script, /toggleDrawDetails/);
+});
+
+test('games admin gives the word library a compact selectable shelf', () => {
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'games.css'),
+    'utf8'
+  );
+
+  assert.match(styles, /\.draw-word-library\s*\{/);
+  assert.match(styles, /\.draw-word-categories\s*\{[^}]*grid-template-columns:\s*repeat\(3/);
+  assert.match(styles, /\.draw-word-category:has\(input:checked\)/);
+  assert.match(styles, /\.draw-word-category input:focus-visible/);
 });
 
 test('games viewer refresh waits for the live connection and retries an empty startup snapshot', () => {

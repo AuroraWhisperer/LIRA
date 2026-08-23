@@ -4,6 +4,7 @@
 
 import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
+import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { ensureSavedFontOption } from './local-font-library.js';
 
 /**
@@ -179,9 +180,11 @@ export class FormsService {
    * 填充表单
    */
   fillForm(values) {
+    const overlayStyle = values?.overlayQueueStyle || value('overlayQueueStyle') || 'classic';
+    const activeQueueSettings = readQueueStyleSettings(values, overlayStyle);
     ensureSavedFontOption(
       document.getElementById('illustratedQueueFontFamily'),
-      values?.illustratedQueueFontFamily
+      activeQueueSettings.fontFamily
     );
     for (const [key, inputValue] of Object.entries(values || {})) {
       const element = document.getElementById(key);
@@ -189,7 +192,6 @@ export class FormsService {
       if (element?.closest('#openingAnimationForm')) continue;
       if (element && element !== document.activeElement) element.value = inputValue;
     }
-    const overlayStyle = value('overlayQueueStyle') || 'classic';
     if (window.AdminApp.theme && window.AdminApp.theme.setOverlayStyle) {
       window.AdminApp.theme.setOverlayStyle(overlayStyle);
     }
@@ -243,17 +245,18 @@ export class FormsService {
     if (document.getElementById('queueTitleFontSizeNumber')) {
       setValue('queueTitleFontSizeNumber', titleFontSize);
     }
-    const identityFontSize = this.normalizeFontSize(values && values.identityQueueFontSize, 26, 78, 9);
+    const identityFontSize = this.normalizeFontSize(activeQueueSettings.fontSize, 26, 78, 9);
     if (document.getElementById('identityQueueFontSize')) {
       setValue('identityQueueFontSize', identityFontSize);
     }
     if (document.getElementById('identityQueueFontSizeNumber')) {
       setValue('identityQueueFontSizeNumber', identityFontSize);
     }
-    setValue('illustratedQueueFontFamily', values?.illustratedQueueFontFamily || 'default');
-    setValue('illustratedQueueFontWeight', values?.illustratedQueueFontWeight || 'default');
-    setValue('illustratedQueueUseCustomTextColor', values?.illustratedQueueUseCustomTextColor || 'false');
-    setValue('illustratedQueueTextColor', values?.illustratedQueueTextColor || '#315d7d');
+    setValue('illustratedQueueFontFamily', activeQueueSettings.fontFamily);
+    setValue('illustratedQueueFontWeight', activeQueueSettings.fontWeight);
+    setValue('illustratedQueueUseCustomTextColor', activeQueueSettings.useCustomTextColor);
+    setValue('illustratedQueueTextColor', activeQueueSettings.textColor);
+    setValue('identityQueueScrollMode', activeQueueSettings.scrollMode);
     const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
     if (document.getElementById('overlayRuleFontSize')) {
       setValue('overlayRuleFontSize', ruleFontSize);
@@ -286,7 +289,7 @@ export class FormsService {
       setValue('queueScrollSpeedRange', queueScrollSpeed);
     }
     if (document.getElementById('identityQueueScrollSpeedRange')) {
-      const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.identityQueueScrollSpeed);
+      const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(activeQueueSettings.scrollSpeed);
       setValue('identityQueueScrollSpeed', identityScrollSpeed);
       setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }

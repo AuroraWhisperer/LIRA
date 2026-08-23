@@ -1,6 +1,6 @@
 .queue-identity {
   width: 430px;
-  transform: scale(var(--queue-panel-scale, 1));
+  transform: scale(min(var(--queue-panel-scale, 1), 1));
   transform-origin: top left;
   border: 1px solid rgba(225, 235, 255, 0.08);
   border-radius: 8px;

@@ -97,6 +97,24 @@
 .draw-config input { width: 100%; }
 .draw-config small { grid-column: 1 / -1; color: var(--muted); font-size: 10px; font-weight: 500; }
 .draw-config label.is-disabled { opacity: .55; }
+.draw-word-library { display: grid; gap: 11px; padding: 14px; border: 1px solid #ded9ee; border-radius: 14px; background: linear-gradient(135deg, #fbfaff, #fff 58%, #fffaf0); }
+.draw-word-library-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.draw-word-library-heading > div:first-child { display: grid; gap: 2px; }
+.draw-word-library-heading span { color: #6a5dab; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.draw-word-library-heading strong { color: #3f385c; font: 800 17px/1.2 Bahnschrift, 'Microsoft YaHei', sans-serif; }
+.draw-word-library-heading small { color: var(--muted); font-size: 10px; }
+.draw-word-library-actions { display: flex; gap: 6px; }
+.draw-word-library-actions button { min-width: 52px; padding: 6px 10px; }
+.draw-word-categories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.draw-word-category { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; min-width: 0; padding: 9px 10px; border: 1px solid #e2deed; border-radius: 10px; color: #4b4564; background: rgba(255,255,255,.78); cursor: pointer; transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease; }
+.draw-word-category:hover { border-color: #bdb4e2; }
+.draw-word-category:has(input:checked) { border-color: #9286cf; background: #f2efff; box-shadow: inset 3px 0 0 #6c5ce7; }
+.draw-word-category input { width: 15px; height: 15px; margin: 0; accent-color: #6c5ce7; }
+.draw-word-category input:focus-visible { outline: 2px solid #6c5ce7; outline-offset: 3px; }
+.draw-word-category strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.draw-word-category span { color: #7b7398; font: 700 10px/1 Consolas, monospace; }
+.draw-word-category.is-disabled { opacity: .58; cursor: not-allowed; }
+.draw-word-library > p { margin: 0; color: var(--muted); font-size: 10px; }
 .draw-rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .draw-rules > div { display: grid; gap: 3px; padding: 13px; border: 1px solid #e0dced; border-radius: 12px; background: #fff; }
 .draw-rules span, .draw-rules small { color: var(--muted); font-size: 10px; }
@@ -114,6 +132,6 @@
 .draw-actions { align-items: center; }
 .draw-host-status { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) { .wheel-card-trigger { grid-template-columns: 1fr; } .wheel-card-trigger .game-card-poster { min-height: 118px; } .wheel-card-summary { min-height: 0; } .wheel-entry-row { grid-template-columns: 1fr; } .wheel-remove-entry { justify-self: start; } }
-@media (max-width: 760px) { .draw-card-trigger { grid-template-columns: 1fr; } .draw-card-trigger .game-card-poster { min-height: 118px; } .draw-card-summary { min-height: 0; } .draw-config, .draw-rules { grid-template-columns: 1fr; } .draw-host-panel { grid-template-columns: 1fr; } .draw-host-meta { justify-items: start; } }
+@media (max-width: 760px) { .draw-card-trigger { grid-template-columns: 1fr; } .draw-card-trigger .game-card-poster { min-height: 118px; } .draw-card-summary { min-height: 0; } .draw-config, .draw-rules, .draw-word-categories { grid-template-columns: 1fr; } .draw-word-library-heading { align-items: flex-start; flex-direction: column; } .draw-host-panel { grid-template-columns: 1fr; } .draw-host-meta { justify-items: start; } }
 @media (max-width: 1050px) { .games-link-deck { grid-template-columns: 1fr; align-items: stretch; } .games-link-actions { justify-content: flex-start; } }
 @media (max-width: 760px) { .games-category { padding: 14px; border-radius: 18px; } .games-category-header { align-items: flex-start; flex-direction: column; gap: 5px; } .game-admin-card { grid-template-columns: 1fr; } .game-admin-card:has(.lira-select.is-open) > .game-card-poster { border-radius: 17px 17px 0 0; } .game-card-poster { min-height: 100px; } .game-config-grid { grid-template-columns: 1fr; } .games-admin-footer { align-items: stretch; flex-direction: column; } }

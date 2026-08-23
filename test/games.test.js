@@ -8,6 +8,7 @@ const {
   applyDrawOperation,
   createDrawGuessState,
   finishRound,
+  getDrawGuessCategories,
   publicDrawGuessState,
   startNextRound,
   submitGuess
@@ -96,6 +97,32 @@ test('draw guess accepts bounded round and duration settings', () => {
   });
   assert.equal(fallback.totalRounds, 5);
   assert.equal(fallback.roundDurationMs, 90000);
+});
+
+test('draw guess provides nine unique 100-word categories', () => {
+  const categories = getDrawGuessCategories();
+
+  assert.equal(categories.length, 9);
+  assert.deepEqual(categories.map(category => category.count), Array(9).fill(100));
+  assert.equal(new Set(categories.map(category => category.id)).size, 9);
+
+  const state = createDrawGuessState({ random: () => 0, nowMs: 0 });
+  assert.equal(state.words.length, 900);
+  assert.equal(new Set(state.words.map(entry => entry.word)).size, 900);
+});
+
+test('draw guess only selects words from requested categories and rejects invalid selections', () => {
+  const state = createDrawGuessState({
+    categoryIds: ['animals', 'food-drink'],
+    random: () => 0,
+    nowMs: 0
+  });
+
+  assert.deepEqual(state.categoryIds, ['animals', 'food-drink']);
+  assert.equal(state.words.length, 200);
+  assert.deepEqual([...new Set(state.words.map(entry => entry.categoryId))].sort(), ['animals', 'food-drink']);
+  assert.throws(() => createDrawGuessState({ categoryIds: [] }), /至少选择一个词库分类/);
+  assert.throws(() => createDrawGuessState({ categoryIds: ['unknown'] }), /词库分类无效/);
 });
 
 test('draw guess awards 10, 7, 5, then 3 points and scores each uid once per round', () => {

@@ -36,7 +36,7 @@ test('queue overlay loads one focused module entrypoint', () => {
   assert.match(entrySource, /from '\.\/queue-scroll\.js';/);
 });
 
-test('all six queues use one contain scale for freely resized browser sources', () => {
+test('queue styles use contain scaling while identity never grows beyond 100%', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const sandbox = {
@@ -91,11 +91,14 @@ test('all six queues use one contain scale for freely resized browser sources', 
   assert.ok(illustratedRule);
   assert.match(classicRule, /width:\s*405px/);
   assert.match(identityRule, /width:\s*430px/);
-  [classicRule, identityRule, storybookRule, illustratedRule].forEach((rule) => {
+  [classicRule, storybookRule, illustratedRule].forEach((rule) => {
     assert.match(rule, /transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/);
     assert.match(rule, /transform-origin:\s*top left/);
     assert.doesNotMatch(rule, /100vw/);
   });
+  assert.match(identityRule, /transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/);
+  assert.match(identityRule, /transform-origin:\s*top left/);
+  assert.doesNotMatch(identityRule, /100vw/);
   assert.match(storybookRule, /width:\s*560px/);
   assert.match(illustratedRule, /width:\s*560px/);
   assert.match(source, /syncQueuePanelViewport\(panel\)/);
@@ -149,7 +152,7 @@ test('illustrated queue cards display their full artwork without clipping decora
       backgroundPosition: /background-position:\s*44\.482%\s+45\.972%/
     },
     'neon-vinyl': {
-      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*450/,
+      aspectRatio: /aspect-ratio:\s*2172\s*\/\s*517\.5/,
       width: /width:\s*94%/,
       backgroundSize: /background-size:\s*100%\s+100%/
     },
@@ -180,7 +183,7 @@ test('illustrated queue cards display their full artwork without clipping decora
   }
 });
 
-test('style 4 keeps its frame height and displays compressed full entries', () => {
+test('style 4 keeps its frame height and displays entries at 115% of their previous height', () => {
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const frameRule = overlayCss.match(/\.queue-neon-vinyl\s*\{[^}]*\}/)?.[0];
   const rowRule = overlayCss.match(/\.neon-vinyl-row\s*\{[^}]*\}/)?.[0];
@@ -189,7 +192,7 @@ test('style 4 keeps its frame height and displays compressed full entries', () =
   assert.ok(rowRule);
   assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1402/);
   assert.match(rowRule, /width:\s*94%/);
-  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*450/);
+  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*517\.5/);
   assert.match(rowRule, /background-size:\s*100%\s+100%/);
   assert.doesNotMatch(rowRule, /\bcover\b|\bcontain\b/);
 });
@@ -317,7 +320,7 @@ test('classic queue animates only when its rendered rows overflow available heig
   assert.equal(longClasses.has('scrolling'), true);
 });
 
-test('identity queue keeps fixed design coordinates while the whole panel scales', () => {
+test('identity queue keeps fixed design coordinates and never grows beyond its default canvas', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const sandbox = {
@@ -338,6 +341,7 @@ test('identity queue keeps fixed design coordinates while the whole panel scales
   vm.runInNewContext(source, sandbox);
 
   assert.match(overlayCss, /\.queue-identity\s*\{[^}]*width:\s*430px/s);
+  assert.match(overlayCss, /\.queue-identity\s*\{[^}]*transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/s);
   const identityWindowRule = overlayCss.match(/\.identity-list-window\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(identityWindowRule);
   assert.match(identityWindowRule, /height:\s*364px/);

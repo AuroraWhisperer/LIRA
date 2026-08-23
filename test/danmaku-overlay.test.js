@@ -46,6 +46,9 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /body\[data-style='bubble'\]/);
   assert.match(styles, /body\[data-style='minimal'\]/);
   assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*height:\s*calc\(100vh - clamp/);
+  assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item \{[^}]*border-left:/);
+  assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{[^}]*--minimal-role:\s*'普'/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\]::after \{\s*display:\s*none;\s*\}/);
   for (const style of ['signal', 'bubble', 'minimal']) {
     for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
       assert.match(
