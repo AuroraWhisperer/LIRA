@@ -279,7 +279,7 @@
   box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-save) 24%, transparent);
 }
 .overtime-manual-duration { grid-column: span 4; }
-.overtime-manual-duration span { display: flex; justify-content: space-between; gap: 8px; }
+.overtime-manual-duration > span { display: flex; justify-content: space-between; gap: 8px; }
 .overtime-manual-duration small { color: var(--text); font-weight: 700; letter-spacing: 0.04em; }
 .overtime-manual-duration input { font-variant-numeric: tabular-nums; }
 .overtime-duration-selectors {

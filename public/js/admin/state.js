@@ -35,8 +35,7 @@ export class StateService {
     const status = document.getElementById('wsStatus');
 
     this.ws.addEventListener('open', () => {
-      status.textContent = '前端实时连接正常';
-      status.className = 'pill good';
+      status.hidden = true;
       eventBus.emit('ws:connected');
     });
 
@@ -94,6 +93,7 @@ export class StateService {
     });
 
     this.ws.addEventListener('close', () => {
+      status.hidden = false;
       if (this.shuttingDown) {
         status.textContent = '程序已退出';
         status.className = 'pill warn';

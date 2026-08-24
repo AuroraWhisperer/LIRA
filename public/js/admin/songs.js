@@ -126,8 +126,10 @@ import {
     renderTagFilter(songTags);
 
     const table = document.getElementById('songsTable');
+    const showNoteColumn = songs.some((song) => String(song.note || '').trim());
+    document.getElementById('songNoteColumnHeader').hidden = !showNoteColumn;
     if (songs.length === 0) {
-      table.innerHTML = '<tr><td colspan="9">暂无歌曲</td></tr>';
+      table.innerHTML = '<tr><td colspan="8">暂无歌曲</td></tr>';
       return;
     }
     table.innerHTML = songs.map((song) => `
@@ -139,7 +141,7 @@ import {
         <td>${escapeHtml(song.tags || '')}</td>
         <td>${escapeHtml(song.language || '')}</td>
         <td>${song.is_enabled ? '可点' : '停用'}</td>
-        <td>${escapeHtml(song.note || '')}</td>
+        ${showNoteColumn ? `<td>${escapeHtml(song.note || '')}</td>` : ''}
         <td>
           <div class="actions">
             <button type="button" data-edit-song="${song.id}" title="加载到编辑表单">编辑</button>

@@ -77,29 +77,23 @@ test('minimum-height desktop reclaims space before the point-song page heading',
   assert.doesNotMatch(compactDesktopRule, /panel-header|queue-list|font-|line-height/);
 });
 
-test('point-song subviews expose compact semantic page headings without inline typography', () => {
+test('point-song subviews rely on tabs instead of repeated page headings', () => {
   const html = readAdminHtml();
-  const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const settings = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'settings.html'),
-    'utf8'
-  );
   const views = [
-    ['songsPage', '歌库'],
-    ['settingsPage', '设置'],
-    ['themePage', '点歌板'],
-    ['displayPage', '展示板'],
-    ['overlayPage', '直播画面'],
-    ['importPage', '导入导出'],
-    ['desktopLyricPage', '桌面歌词']
+    'songsPage',
+    'settingsPage',
+    'themePage',
+    'displayPage',
+    'overlayPage',
+    'importPage',
+    'desktopLyricPage'
   ];
 
-  assert.equal((html.match(/class="song-subview-header"/g) || []).length, views.length);
-  for (const [id, title] of views) {
-    assert.match(html, new RegExp(`id="${id}"[\\s\\S]*?<h2 class="ui-page-title">${title}</h2>`));
+  for (const id of views) {
+    assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(source, /\.app-shell \.song-workspace \.ui-page-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-page-title\)/);
-  assert.doesNotMatch(settings, /style="[^"]*(?:font-size|font-weight|font-family|line-height|letter-spacing)/);
+  assert.doesNotMatch(html, /class="song-subview-header"/);
+  assert.doesNotMatch(html, /<h2 class="ui-page-title">(?:歌库|设置|点歌板|展示板|浏览器源|导入导出|桌面歌词)<\/h2>/);
 });
 
 test('colored action buttons use solid or frameless treatments', () => {
@@ -268,7 +262,7 @@ test('hardware summary hides memory temperature and renders missing CPU temperat
     gpus: []
   }, false);
 
-  assert.equal(elements.get('hardwareCpuTemperature').textContent, '温度：未知');
+  assert.equal(elements.get('hardwareCpuTemperature').textContent, '未知');
   assert.doesNotMatch(html, /id="hardwareMemoryTemperature"/);
 });
 
@@ -490,16 +484,37 @@ test('desktop update opens its toolbox feature through module APIs', () => {
   assert.equal(selectedFeature, 'otherDesktopUpdateFeature');
 });
 
-test('desktop lyric address is available from the live screen tab', () => {
+test('browser source tab classifies and exposes every overlay address', () => {
   const html = readAdminHtml();
   const displaySource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
     'utf8'
   );
+  const sources = [
+    ['queueUrl', '/queue'],
+    ['songsUrl', '/songlist'],
+    ['lyricsUrl', '/lyrics'],
+    ['liveDanmakuUrl', '/danmaku'],
+    ['liveBlindboxUrl', '/blindbox'],
+    ['liveGamesUrl', '/games'],
+    ['liveWheelUrl', '/wheel'],
+    ['liveOvertimeUrl', '/overtime'],
+    ['liveGiftEffectsUrl', '/gift-effects'],
+    ['liveOpeningUrl', '/opening'],
+    ['liveClockUrl', '/clock']
+  ];
 
-  assert.match(html, /id="lyricsUrl"/);
+  assert.match(html, /data-tab="overlayPage"[^>]*>浏览器源<\/button>/);
+  for (const [id, route] of sources) {
+    assert.match(html, new RegExp(`id="${id}"`));
+    assert.match(html, new RegExp(`data-copy-url="${id}"`));
+    const assignment = `document.getElementById('${id}').textContent = \`\${origin}${route}\`;`;
+    assert.ok(displaySource.includes(assignment), `${route} should be initialized in the live screen tab`);
+  }
+  assert.match(html, />点歌与音乐<\/h3>/);
+  assert.match(html, />直播互动<\/h3>/);
+  assert.match(html, />场景与氛围<\/h3>/);
   assert.doesNotMatch(html, /playbackLyricBtn|playbackLyricLockBtn/);
-  assert.match(displaySource, /lyricsUrl.*`\$\{origin\}\/lyrics`/);
 });
 
 test('song board defaults to a clear frosted glass theme', () => {

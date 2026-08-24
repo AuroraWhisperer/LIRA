@@ -49,6 +49,10 @@
   flex: 1 1 auto;
 }
 
+.playback-search-results:empty {
+  display: none;
+}
+
 /* 美化搜索结果滚动条 */
 .playback-search-results::-webkit-scrollbar {
   width: 8px;

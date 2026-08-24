@@ -4,9 +4,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { handleApi } = require('../src/server/api-routes');
+const { cleanClockLabel, getClockConfig } = require('../src/server/clock-contract');
 const { addFrameProtectionHeaders } = require('../src/server/http-utils');
+const clockRoutes = require('../src/server/routes/clock-routes');
+const settingsRoutes = require('../src/server/routes/settings-routes');
+const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
+const CLOCK_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'clock.js');
 const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 test('cute clock overlay owns a fixed frameable route and complete assets', () => {
@@ -49,6 +56,8 @@ test('cute clock overlay exposes two distinct styles and safe time parameters', 
   assert.match(script, /booleanParameter\(params,\s*'seconds'/);
   assert.match(script, /params\.get\('format'\)/);
   assert.match(script, /params\.get\('label'\)/);
+  assert.match(script, /fetch\('\/api\/clock\/config'/);
+  assert.match(script, /mergeClockConfig/);
   assert.match(script, /Intl\.DateTimeFormat/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
@@ -74,9 +83,11 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
 
   assert.match(panel, /<h2 class="ui-page-title">萌时钟<\/h2>/);
   assert.match(panel, /给直播画面添一块会呼吸的日期与时间小卡片/);
-  for (const id of ['clockPreview', 'clockFixedUrl', 'clockCustomUrl', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockCustomLabel', 'clockCopyFixed', 'clockCopyCustom', 'clockOpenPreview']) {
+  for (const id of ['clockPreview', 'clockFixedUrl', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockCustomLabel', 'clockCopyFixed', 'clockOpenPreview']) {
     assert.match(panel, new RegExp(`id="${id}"`));
   }
+  assert.doesNotMatch(panel, /clockCustomUrl|clockCopyCustom|带参数网址/);
+  assert.match(panel, /设置变化，网址不变/);
   assert.match(panel, /data-clock-style-option="peach"/);
   assert.match(panel, /data-clock-style-option="starlight"/);
   assert.match(panel, />桃桃便签</);
@@ -88,6 +99,135 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /params\.set\('seconds'/);
   assert.match(script, /params\.set\('format'/);
   assert.match(script, /params\.set\('label'/);
+  assert.match(script, /clockSettingsPayload/);
+  assert.match(script, /fetch\(SETTINGS_ENDPOINT/);
+  assert.match(script, /fetch\(CLOCK_CONFIG_ENDPOINT/);
+  assert.match(script, /fixedUrlNode\.textContent\s*=\s*fixedUrl/);
+  assert.match(script, /window\.open\(fixedUrl/);
+  assert.doesNotMatch(script, /clockCustomUrl|clockCopyCustom/);
   assert.match(script, /copyText/);
   assert.match(script, /window\.open/);
+});
+
+test('clock settings are persisted through validated keys and exposed by a public read-only route', async () => {
+  assert.equal(DEFAULT_SETTINGS.clockStyle, 'peach');
+  assert.equal(DEFAULT_SETTINGS.clockShowDate, 'true');
+  assert.equal(DEFAULT_SETTINGS.clockShowSeconds, 'true');
+  assert.equal(DEFAULT_SETTINGS.clockHourFormat, '24');
+  assert.equal(cleanClockLabel('\u0000  今晚   一起值班  '), '今晚 一起值班');
+  assert.equal(cleanClockLabel('abcdefghijklmnopq'), 'abcdefghijklmnop');
+  assert.deepEqual(getClockConfig({
+    clockStyle: 'space',
+    clockShowDate: 'maybe',
+    clockShowSeconds: 'maybe',
+    clockHourFormat: '48',
+    clockLabel: ''
+  }), {
+    style: 'peach',
+    showDate: true,
+    showSeconds: true,
+    hourFormat: '24',
+    label: '今天也要闪闪发光'
+  });
+
+  const writes = [];
+  let configureCalls = 0;
+  const context = {
+    settings: {
+      defaults: DEFAULT_SETTINGS,
+      get() { return Object.fromEntries(writes); },
+      set(key, value) { writes.push([key, value]); }
+    },
+    bilibili: { configure() { configureCalls += 1; } },
+    broadcastSnapshot() {},
+    system: { getState() { return { settings: {} }; } }
+  };
+  const response = {
+    writeHead(status) { this.status = status; },
+    end(value) { this.payload = JSON.parse(value); }
+  };
+
+  await settingsRoutes.routes['POST /api/settings'](context, {
+    async body() { return { clockStyle: 'space' }; }
+  }, response);
+  assert.equal(response.status, 400);
+  assert.deepEqual(writes, []);
+  assert.equal(configureCalls, 0);
+
+  await settingsRoutes.routes['POST /api/settings'](context, {
+    async body() {
+      return {
+        clockStyle: ' starlight ',
+        clockShowDate: 0,
+        clockShowSeconds: '1',
+        clockHourFormat: 12,
+        clockLabel: '\u0000  今晚   一起值班  '
+      };
+    }
+  }, response);
+  assert.equal(response.status, 200);
+  assert.deepEqual(writes, [
+    ['clockStyle', 'starlight'],
+    ['clockShowDate', 'false'],
+    ['clockShowSeconds', 'true'],
+    ['clockHourFormat', '12'],
+    ['clockLabel', '今晚 一起值班']
+  ]);
+  assert.equal(configureCalls, 1);
+  assert.deepEqual(getClockConfig(Object.fromEntries(writes)), {
+    style: 'starlight',
+    showDate: false,
+    showSeconds: true,
+    hourFormat: '12',
+    label: '今晚 一起值班'
+  });
+
+  await clockRoutes.routes['GET /api/clock/config'](context, {}, response);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.payload.data, getClockConfig(Object.fromEntries(writes)));
+
+  const publicResponse = {
+    writeHead(status) { this.status = status; },
+    end(value) { this.payload = JSON.parse(value); }
+  };
+  await handleApi({ ...context, sessionToken: 'required-token' }, { method: 'GET', headers: {} }, publicResponse,
+    new URL('http://127.0.0.1:3000/api/clock/config'));
+  assert.equal(publicResponse.status, 200);
+  assert.equal(publicResponse.payload.ok, true);
+});
+
+test('clock overlay loads saved settings while explicit legacy parameters still override each field', async () => {
+  const module = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
+  const saved = {
+    style: 'starlight',
+    showDate: false,
+    showSeconds: false,
+    hourFormat: '12',
+    label: '自定义夜班'
+  };
+
+  let params = new URLSearchParams('');
+  let merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
+  assert.deepEqual({ ...merged }, {
+    style: 'starlight',
+    showDate: false,
+    showSeconds: false,
+    hour12: true,
+    label: '自定义夜班'
+  });
+
+  params = new URLSearchParams('style=peach&seconds=1');
+  merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
+  assert.deepEqual({ ...merged }, {
+    style: 'peach',
+    showDate: false,
+    showSeconds: true,
+    hour12: true,
+    label: '今天也要闪闪发光'
+  });
+
+  params = new URLSearchParams('label=');
+  merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
+  assert.equal(merged.style, 'starlight');
+  assert.equal(merged.label, '今晚与星星一起值班');
 });

@@ -215,7 +215,12 @@ const DEFAULT_SETTINGS = {
   openingShowEq: 'true',
   openingAudioFile: '',
   openingAudioName: '',
-  openingAudioVolume: '0.35'
+  openingAudioVolume: '0.35',
+  clockStyle: 'peach',
+  clockShowDate: 'true',
+  clockShowSeconds: 'true',
+  clockHourFormat: '24',
+  clockLabel: '今天也要闪闪发光'
 };
 
 function createSettingsStore(db) {

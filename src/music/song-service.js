@@ -32,9 +32,17 @@ function saveSong(db, input) {
   const tags = cleanText(input.tags);
   const language = cleanText(input.language);
   const sourcePlatform = cleanText(input.sourcePlatform || input.source_platform);
+  const hasRequestPrice = Object.prototype.hasOwnProperty.call(input, 'requestPrice')
+    || Object.prototype.hasOwnProperty.call(input, 'request_price');
+  const requestPrice = cleanText(input.requestPrice ?? input.request_price);
+  const hasSongClip = Object.prototype.hasOwnProperty.call(input, 'songClip')
+    || Object.prototype.hasOwnProperty.call(input, 'song_clip');
+  const songClip = cleanText(input.songClip ?? input.song_clip);
 
   if (input.id) {
-    const existingRow = db.prepare('SELECT id FROM songs WHERE id = ?').get(Number(input.id));
+    const existingRow = db.prepare(`
+      SELECT id, request_price, song_clip FROM songs WHERE id = ?
+    `).get(Number(input.id));
     if (!existingRow) {
       throw new Error('歌曲不存在。');
     }
@@ -43,11 +51,13 @@ function saveSong(db, input) {
         UPDATE songs
         SET name = ?, name_pinyin = ?, name_initial = ?, artist = ?, category_id = ?,
             is_enabled = ?, note = ?, tags = ?, language = ?, source_platform = ?,
-            updated_at = ?
+            request_price = ?, song_clip = ?, updated_at = ?
         WHERE id = ?
       `).run(
         name, initial, initial, artist, categoryId,
         enabled, note, tags, language, sourcePlatform,
+        hasRequestPrice ? requestPrice : existingRow.request_price,
+        hasSongClip ? songClip : existingRow.song_clip,
         updatedAt, Number(input.id)
       );
     } catch (error) {
@@ -60,27 +70,32 @@ function saveSong(db, input) {
   }
 
   const existing = db.prepare(`
-    SELECT id FROM songs WHERE name = ? AND artist = ? LIMIT 1
+    SELECT id, request_price, song_clip FROM songs WHERE name = ? AND artist = ? LIMIT 1
   `).get(name, artist);
   if (existing) {
     db.prepare(`
       UPDATE songs
       SET category_id = ?, is_enabled = ?, note = ?, tags = ?, language = ?,
-          source_platform = ?, updated_at = ?
+          source_platform = ?, request_price = ?, song_clip = ?, updated_at = ?
       WHERE id = ?
-    `).run(categoryId, enabled, note, tags, language, sourcePlatform, updatedAt, existing.id);
+    `).run(
+      categoryId, enabled, note, tags, language, sourcePlatform,
+      hasRequestPrice ? requestPrice : existing.request_price,
+      hasSongClip ? songClip : existing.song_clip,
+      updatedAt, existing.id
+    );
     return db.prepare('SELECT * FROM songs WHERE id = ?').get(existing.id);
   }
 
   const result = db.prepare(`
     INSERT INTO songs (
       name, name_pinyin, name_initial, artist, category_id,
-      is_enabled, note, tags, language, source_platform,
+      is_enabled, note, tags, language, source_platform, request_price, song_clip,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     name, initial, initial, artist, categoryId,
-    enabled, note, tags, language, sourcePlatform,
+    enabled, note, tags, language, sourcePlatform, requestPrice, songClip,
     updatedAt, updatedAt
   );
 
@@ -303,13 +318,13 @@ function importSongs(db, rows) {
       db.prepare(`
         INSERT INTO songs (
           name, name_pinyin, name_initial, artist, category_id,
-          is_enabled, note, tags, language, source_platform,
+          is_enabled, note, tags, language, source_platform, request_price, song_clip,
           created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         row.name, initial, initial, row.artist, categoryId,
         row.isEnabled ? 1 : 0, row.note, row.tags, row.language,
-        row.sourcePlatform,
+        row.sourcePlatform, row.requestPrice, row.songClip,
         createdAt, createdAt
       );
       inserted += 1;

@@ -1,6 +1,6 @@
 # HTTP API 端点注册表
 
-> 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/debug-routes.js](../../../src/server/routes/debug-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
+> 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/clock-routes.js](../../../src/server/routes/clock-routes.js)、[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/debug-routes.js](../../../src/server/routes/debug-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
 
 本文档是全部 HTTP API 端点的**唯一事实源**:每个端点的方法、路径、请求体、响应形态与错误码只在此成表。其他文档一律链接此处,不自行罗列端点。服务进程的端口、token 机制、请求管线详见 [server-core.md](server-core.md);WebSocket 消息与快照见 [ws.md](ws.md);数据库与设置见 [storage.md](storage.md)。
 
@@ -10,12 +10,12 @@
 
 | 事实 | 值 | 出处 |
 |---|---|---|
-| 模块注册 | `ROUTE_MODULES` 数组按序 require **17 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler) | [api-routes.js:8-26](../../../src/server/api-routes.js#L8-L26) |
+| 模块注册 | `ROUTE_MODULES` 数组按序 require **18 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler) | [api-routes.js:8-27](../../../src/server/api-routes.js#L8-L27) |
 | 匹配顺序 | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404** | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取 | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body) | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
 
-**认证**:**除 `/api/health` 与只读开播配置 `/api/opening/config` 外全部端点要求 Bearer 头(`Authorization: Bearer <sessionToken>`)或查询参数 `?token=<sessionToken>`**,校验失败回 401。token 生成/落盘/前端注入的完整机制由 [server-core.md](server-core.md) §4 与 §7 负责,此处只记录契约形态:
+**认证**:**除 `/api/health` 与 Browser Source 只读配置 `/api/clock/config`、`/api/opening/config` 外全部端点要求 Bearer 头(`Authorization: Bearer <sessionToken>`)或查询参数 `?token=<sessionToken>`**,校验失败回 401。token 生成/落盘/前端注入的完整机制由 [server-core.md](server-core.md) §4 与 §7 负责,此处只记录契约形态:
 
 - 401:`{ok:false, error:'未授权访问。请在启动日志中查看 session token。'}`
 - 405:`{ok:false, error:'请求方法不支持', details:'该接口不支持 <METHOD> 请求'}`
@@ -35,7 +35,7 @@
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/health` | 无(**免 token 端点之一**；另一个是只读 `GET /api/opening/config`，见 `PUBLIC_API_PATHS` [api-routes.js:29](../../../src/server/api-routes.js#L29)) | 健康信息:`serviceId/rootDir/dataDir/各库路径/schemaVersions/desktop/pid/liveStatus`(详见 [server-core.md](server-core.md) §7) | — |
+| `GET /api/health` | 无(**免 token 端点之一**；其余为只读 `GET /api/clock/config`、`GET /api/opening/config`，见 `PUBLIC_API_PATHS` [api-routes.js:30](../../../src/server/api-routes.js#L30)) | 健康信息:`serviceId/rootDir/dataDir/各库路径/schemaVersions/desktop/pid/liveStatus`(详见 [server-core.md](server-core.md) §7) | — |
 | `GET /api/state` | 无 | 全量状态快照,与 WS 快照 `state` 的 **16 字段一致**(见 [ws.md](ws.md) §2) | — |
 | `GET /api/system/metrics` | 查询参数 `windowMs`(可选,默认 5000) | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8) | — |
 | `GET /api/system/hardware` | 查询参数 `includeTemperatures=true`(可选) | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器）；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号 | — |
@@ -50,7 +50,7 @@
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `POST /api/settings` | body:设置键值对(**白名单**:仅 `settings.defaults` 中的键生效,未知键静默忽略;`roomId` 经 `normalizeRoomInput` 规范化,`customReplyRules` 经 `parseCustomReplyRules` 解析后 `JSON.stringify`,`openingTrackMotion` 仅接受 `heart`/`barber`/`progress`,`danmakuOverlayStyle` 仅接受 `bubble`/`signal`/`minimal`,其余值一律 `String()`;每次调用后重建 Bilibili 监听并广播快照 `settings`) | 全量状态快照(`system.getState()`,同 §1 `GET /api/state`) | 枚举值无效为 400;规范化异常走顶层 500 |
+| `POST /api/settings` | body:设置键值对(**白名单**:仅 `settings.defaults` 中的键生效,未知键静默忽略;`roomId` 经 `normalizeRoomInput` 规范化,`customReplyRules` 经 `parseCustomReplyRules` 解析后 `JSON.stringify`,`openingTrackMotion`、`clockStyle`、`clockShowDate/Seconds`、`clockHourFormat` 与 `danmakuOverlayStyle` 按各自枚举校验，`clockLabel` 去控制字符、合并空白并截到 16 字，其余值一律 `String()`;每次调用后重建 Bilibili 监听并广播快照 `settings`) | 全量状态快照(`system.getState()`,同 §1 `GET /api/state`) | 枚举值无效为 400;规范化异常走顶层 500 |
 
 行为文档:[storage.md](storage.md) §7(设置键全表)。
 
@@ -92,6 +92,15 @@
 4. 截取前 `MAX_CUSTOM_REPLY_RULES = 30` 条
 
 写入时 `JSON.stringify(parseCustomReplyRules(rawValue))` 落库；读取时再次 `parseCustomReplyRules(stored)` 反序列化使用。
+
+## 2.4 萌时钟域(clock)
+
+> 模块文件:[src/server/routes/clock-routes.js](../../../src/server/routes/clock-routes.js)
+> 前缀:`/api/clock`
+
+| 端点 | 请求 | 响应(data) | 错误码 |
+|---|---|---|---|
+| `GET /api/clock/config` | 无；为 Browser Source 读取当前萌时钟设置，免 session token | 已清洗的 `style`、`showDate`、`showSeconds`、`hourFormat`、`label`；非法存量值回退原默认配置 | — |
 
 ## 3. WeSing 采集域(wesing)
 

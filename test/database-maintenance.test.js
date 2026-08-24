@@ -154,7 +154,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       databases = createDatabases({ dataDir });
 
       assert.deepEqual(getSchemaVersions(databases), {
-        songDb: 3,
+        songDb: 5,
         superChatDb: 1,
         giftDb: 7,
         musicDb: 1,
@@ -173,12 +173,14 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       ]);
 
       const song = databases.songDb.prepare(`
-        SELECT name, artist, note FROM songs WHERE id = 1
+        SELECT name, artist, note, request_price, song_clip FROM songs WHERE id = 1
       `).get();
       assert.deepEqual({ ...song }, {
         name: 'Legacy Song',
         artist: 'Legacy Artist',
-        note: 'keep me'
+        note: 'keep me',
+        request_price: '',
+        song_clip: ''
       });
       const queue = databases.songDb.prepare(`
         SELECT song_name, requester_uid, is_pinned, pinned_at FROM queue WHERE id = 1

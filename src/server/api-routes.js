@@ -8,6 +8,7 @@ const { readJsonBody, sendJson, verifyToken } = require('./http-utils');
 const ROUTE_MODULES = [
   require('./routes/system-routes'),
   require('./routes/settings-routes'),
+  require('./routes/clock-routes'),
   require('./routes/opening-routes'),
   require('./routes/wesing-routes'),
   require('./routes/music-routes'),
@@ -25,8 +26,8 @@ const ROUTE_MODULES = [
   require('./routes/bilibili-routes')
 ];
 
-// 无需 token 即可访问的 API（健康检查与开播 Browser Source 配置）
-const PUBLIC_API_PATHS = new Set(['/api/health', '/api/opening/config']);
+// 无需 token 即可访问的 API（健康检查与 Browser Source 只读配置）
+const PUBLIC_API_PATHS = new Set(['/api/health', '/api/clock/config', '/api/opening/config']);
 
 function findRoute(pathName, method) {
   let pathExists = false;

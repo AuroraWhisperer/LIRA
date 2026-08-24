@@ -10,7 +10,7 @@
                 <header class="other-feature-page-header">
                   <div>
                     <h2 class="ui-page-title">主播工作台</h2>
-                    <p class="ui-page-subtitle">安排直播流程、待办与现场备忘。</p>
+                    <p class="ui-page-subtitle">把开场、互动、收尾和临场线索放在手边。</p>
                   </div>
                 </header>
                 <header class="planner-show-card">
@@ -28,8 +28,8 @@
                       <input id="plannerSessionTitle" type="text" maxlength="60" data-session-field="title" placeholder="例如：周五点歌回 · 新歌首唱">
                     </label>
                     <label class="planner-session-goal">
-                      <span>本场最重要的事</span>
-                      <input id="plannerSessionGoal" type="text" maxlength="100" data-session-field="goal" placeholder="例如：把两首新歌唱稳，提醒下周直播时间">
+                      <span>今晚想让观众记住什么</span>
+                      <input id="plannerSessionGoal" type="text" maxlength="100" data-session-field="goal" placeholder="例如：新歌首唱，周日还有一场点歌回">
                     </label>
                     <span id="plannerSaveState" class="planner-save-state" role="status" aria-live="polite">已自动保存</span>
                   </form>
@@ -39,8 +39,8 @@
                   <section class="planner-plan-panel" aria-labelledby="plannerPlanTitle">
                     <div class="planner-panel-heading">
                       <div>
-                        <span class="planner-section-label ui-eyebrow">RUN OF SHOW</span>
-                        <h3 id="plannerPlanTitle" class="ui-section-title">直播计划 <lira-help>按实际顺序准备，完成一项勾掉一项。</lira-help></h3>
+                        <span class="planner-section-label ui-eyebrow">ON-AIR CUES</span>
+                        <h3 id="plannerPlanTitle" class="ui-section-title">本场提词 <lira-help>只写直播时需要看一眼的提醒，按顺序说完一条勾掉一条。</lira-help></h3>
                       </div>
                       <div class="planner-plan-progress">
                         <strong id="plannerPlanSummary">0 / 0</strong>
@@ -50,40 +50,41 @@
 
                     <form id="plannerTaskForm" class="planner-task-form" autocomplete="off">
                       <label class="planner-task-input">
-                        <span>添加一件要做的事</span>
-                        <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="例如：把本场三段聊天话题写下来">
+                        <span>添加一句提醒</span>
+                        <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="例如：冷场时问大家最近在循环哪首歌">
                       </label>
                       <label>
-                        <span>放到哪个阶段</span>
+                        <span>放在哪个环节</span>
                         <select id="plannerTaskStage" data-dropdown-variant="toolbox">
-                          <option value="before">开播前</option>
-                          <option value="live">直播中</option>
-                          <option value="after">下播后</option>
+                          <option value="before">开场</option>
+                          <option value="live">互动</option>
+                          <option value="after">收尾</option>
                         </select>
                       </label>
                       <button class="primary planner-add-button" type="submit">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                        加入清单
+                        加入提词
                       </button>
                     </form>
 
-                    <div class="planner-template-row" aria-label="常用直播清单">
+                    <div class="planner-template-row" aria-label="常用直播提词">
                       <span>常用：</span>
-                      <button type="button" data-planner-template data-title="检查麦克风、耳返、画面和网络" data-stage="before">设备检查</button>
-                      <button type="button" data-planner-template data-title="确认直播标题、封面和开播公告" data-stage="before">标题与公告</button>
-                      <button type="button" data-planner-template data-title="准备开场、过场和结束前的话题" data-stage="live">流程与话题</button>
-                      <button type="button" data-planner-template data-title="记下高光时间点和观众反馈" data-stage="after">高光记录</button>
-                      <button type="button" data-planner-template data-title="复盘数据并定下一个改进动作" data-stage="after">下播复盘</button>
+                      <button type="button" data-planner-template data-title="欢迎刚进来的观众，简单说明今天播什么" data-stage="before">开场说明</button>
+                      <button type="button" data-planner-template data-title="开场问大家：今天最想听哪类歌？" data-stage="before">暖场问题</button>
+                      <button type="button" data-planner-template data-title="冷场时聊：最近单曲循环的一首歌" data-stage="live">备用话题</button>
+                      <button type="button" data-planner-template data-title="让大家二选一：下一首唱轻快的还是抒情的？" data-stage="live">互动选择</button>
+                      <button type="button" data-planner-template data-title="中场再说一次点歌方式和本场主题" data-stage="live">重点提醒</button>
+                      <button type="button" data-planner-template data-title="结束前预告下次直播时间和内容" data-stage="after">下次预告</button>
                     </div>
 
-                    <div class="planner-stage-track" aria-label="开播前、直播中和下播后清单">
+                    <div class="planner-stage-track" aria-label="开场、互动和收尾提词">
                       <section class="planner-stage planner-stage-before" data-planner-stage="before">
                         <header class="planner-stage-heading">
                           <span class="planner-stage-index">01</span>
                           <span class="planner-stage-dot" aria-hidden="true"></span>
                           <div>
-                            <h4>开播前</h4>
-                            <p>设备、内容、公告都准备好</p>
+                            <h4>开场</h4>
+                            <p>让刚进来的人马上知道今天播什么</p>
                           </div>
                           <strong id="plannerBeforeCount">0 项</strong>
                         </header>
@@ -95,8 +96,8 @@
                           <span class="planner-stage-index">02</span>
                           <span class="planner-stage-dot" aria-hidden="true"></span>
                           <div>
-                            <h4>直播中</h4>
-                            <p>流程、互动和要说的话</p>
+                            <h4>互动</h4>
+                            <p>暖场问题、备用话题和观众参与</p>
                           </div>
                           <strong id="plannerLiveCount">0 项</strong>
                         </header>
@@ -108,8 +109,8 @@
                           <span class="planner-stage-index">03</span>
                           <span class="planner-stage-dot" aria-hidden="true"></span>
                           <div>
-                            <h4>下播后</h4>
-                            <p>高光、观众约定和复盘</p>
+                            <h4>收尾</h4>
+                            <p>回顾本场、感谢观众和下次预告</p>
                           </div>
                           <strong id="plannerAfterCount">0 项</strong>
                         </header>
@@ -121,24 +122,24 @@
                   <aside class="planner-notes-panel" aria-labelledby="plannerNotesTitle">
                     <div class="planner-panel-heading planner-notes-heading">
                       <div>
-                        <span class="planner-section-label ui-eyebrow">FIELD NOTES</span>
-                        <h3 id="plannerNotesTitle" class="ui-section-title">现场备忘 <lira-help>先记录，稍后再决定是否跟进。</lira-help></h3>
+                        <span class="planner-section-label ui-eyebrow">LIVE NOTES</span>
+                        <h3 id="plannerNotesTitle" class="ui-section-title">直播速记 <lira-help>接住观众请求、临时话题和高光时间点，避免一转头就忘。</lira-help></h3>
                       </div>
                       <span id="plannerNoteCount" class="planner-note-count">0 条</span>
                     </div>
 
                     <form id="plannerNoteForm" class="planner-note-form" autocomplete="off">
                       <label>
-                        <span>记一句</span>
-                        <textarea id="plannerNoteBody" maxlength="300" required placeholder="观众想听的歌、突然想到的梗、本场高光时间点……"></textarea>
+                        <span>随手记</span>
+                        <textarea id="plannerNoteBody" maxlength="300" required placeholder="谁点了哪首歌、要稍后回应的问题、高光发生在几点……"></textarea>
                       </label>
                       <div class="planner-note-actions">
                         <label>
-                          <span>这是什么</span>
+                          <span>分类</span>
                           <select id="plannerNoteType" data-dropdown-variant="toolbox">
-                            <option value="idea">内容灵感</option>
-                            <option value="promise">观众约定</option>
-                            <option value="review">复盘记录</option>
+                            <option value="idea">话题灵感</option>
+                            <option value="promise">观众请求</option>
+                            <option value="review">高光时刻</option>
                           </select>
                         </label>
                         <button class="planner-note-submit" type="submit">记下来</button>
@@ -146,7 +147,7 @@
                     </form>
 
                     <div id="plannerNoteList" class="planner-note-list" role="list" aria-live="polite"></div>
-                    <p class="planner-notes-tip"><strong>小提示 <lira-help>备忘可直接加入计划，无需重复输入。</lira-help></strong></p>
+                    <p class="planner-notes-tip"><strong>小提示 <lira-help>需要在本场再说一次的速记，可以直接转成提词。</lira-help></strong></p>
                   </aside>
                 </div>
               </div>

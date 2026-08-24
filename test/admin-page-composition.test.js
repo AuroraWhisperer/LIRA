@@ -113,7 +113,7 @@ test('admin pages include frame protection headers', () => {
 });
 
 test('overlay pages do not include frame protection headers', () => {
-  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics', '/games', '/wheel', '/danmaku'];
+  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics', '/games', '/wheel', '/opening', '/danmaku', '/clock'];
 
   for (const pathname of overlayPaths) {
     let headers = {};

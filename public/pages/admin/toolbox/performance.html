@@ -109,9 +109,22 @@
                           <small class="hardware-card-eyebrow">PROCESSOR</small>
                         </div>
                       </div>
-                      <strong id="hardwareCpuModel">等待读取</strong>
-                      <small id="hardwareCpuDetail">--</small>
-                      <small id="hardwareCpuTemperature">温度：--</small>
+                      <div class="hardware-card-content">
+                        <div class="hardware-card-primary">
+                          <span>处理器型号</span>
+                          <strong id="hardwareCpuModel">等待读取</strong>
+                        </div>
+                        <dl class="hardware-card-details">
+                          <div>
+                            <dt>核心</dt>
+                            <dd id="hardwareCpuDetail">--</dd>
+                          </div>
+                          <div>
+                            <dt>温度</dt>
+                            <dd id="hardwareCpuTemperature">--</dd>
+                          </div>
+                        </dl>
+                      </div>
                     </article>
                     <article class="hardware-card hardware-card--gpu">
                       <div class="hardware-card-top">
@@ -126,9 +139,22 @@
                           <small class="hardware-card-eyebrow">GRAPHICS</small>
                         </div>
                       </div>
-                      <strong id="hardwareGpuModel">等待读取</strong>
-                      <small id="hardwareGpuDetail">--</small>
-                      <small id="hardwareGpuTemperature">温度：--</small>
+                      <div class="hardware-card-content">
+                        <div class="hardware-card-primary">
+                          <span>显卡型号</span>
+                          <strong id="hardwareGpuModel">等待读取</strong>
+                        </div>
+                        <dl class="hardware-card-details">
+                          <div>
+                            <dt>规格</dt>
+                            <dd id="hardwareGpuDetail">--</dd>
+                          </div>
+                          <div>
+                            <dt>温度</dt>
+                            <dd id="hardwareGpuTemperature">--</dd>
+                          </div>
+                        </dl>
+                      </div>
                     </article>
                     <article class="hardware-card hardware-card--memory">
                       <div class="hardware-card-top">
@@ -144,8 +170,18 @@
                           <small class="hardware-card-eyebrow">MEMORY</small>
                         </div>
                       </div>
-                      <strong id="hardwareMemoryModel">等待读取</strong>
-                      <small id="hardwareMemoryDetail">--</small>
+                      <div class="hardware-card-content">
+                        <div class="hardware-card-primary">
+                          <span>总容量</span>
+                          <strong id="hardwareMemoryModel">等待读取</strong>
+                        </div>
+                        <dl class="hardware-card-details">
+                          <div>
+                            <dt>内存条</dt>
+                            <dd id="hardwareMemoryDetail">--</dd>
+                          </div>
+                        </dl>
+                      </div>
                     </article>
                   </div>
                 </section>

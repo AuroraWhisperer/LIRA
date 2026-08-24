@@ -26,33 +26,34 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
     'desktopLyricScaleEffect',
     'desktopLyricBackgroundEnabled'
   ]);
+  // 第五项把内部小数换算为数值框中的百分数。
   const RANGE_PAIRS = [
     ['desktopLyricFontSize', 24, 72, 56],
     ['desktopLyricLetterSpacing', -0.1, 0.3, 0],
-    ['desktopLyricLineHeight', 1, 2, 1.4],
+    ['desktopLyricLineHeight', 1, 2, 1.4, 100],
     ['desktopLyricStrokeWidth', 0, 6, 3],
-    ['desktopLyricShadowIntensity', 0, 1, 0.35],
+    ['desktopLyricShadowIntensity', 0, 1, 0.35, 100],
     ['desktopLyricShadowBlur', 0, 30, 8],
     ['desktopLyricShadowOffsetX', -20, 20, 0],
     ['desktopLyricShadowOffsetY', -20, 20, 3],
-    ['desktopLyricTranslationScale', 0.4, 1, 0.65],
+    ['desktopLyricTranslationScale', 0.4, 1, 0.65, 100],
     ['desktopLyricInterludeOffsetEm', -10, 10, 0],
-    ['desktopLyricOpacity', 0, 1, 0.95],
-    ['desktopLyricBaseOpacity', 0, 1, 0.38],
-    ['desktopLyricTranslationOpacity', 0, 1, 0.72],
+    ['desktopLyricOpacity', 0, 1, 0.95, 100],
+    ['desktopLyricBaseOpacity', 0, 1, 0.38, 100],
+    ['desktopLyricTranslationOpacity', 0, 1, 0.72, 100],
     ['desktopLyricTimeOffsetMs', -5000, 5000, 0],
-    ['desktopLyricScale', 0.5, 2, 1],
-    ['desktopLyricAlignPosition', 0, 1, 0.5],
+    ['desktopLyricScale', 0.5, 2, 1, 100],
+    ['desktopLyricAlignPosition', 0, 1, 0.5, 100],
     ['desktopLyricTranslateX', -500, 500, 0],
     ['desktopLyricTranslateY', -500, 500, 0],
     ['desktopLyricPerspective', 200, 2000, 800],
     ['desktopLyricRotateX', -45, 45, 0],
     ['desktopLyricRotateY', -45, 45, 0],
-    ['desktopLyricBgOpacity', 0, 1, 0.15],
-    ['desktopLyricGlobalOpacity', 0, 1, 1],
-    ['desktopLyricBrightness', 0.2, 2, 1],
-    ['desktopLyricContrast', 0.2, 2, 1],
-    ['desktopLyricSaturation', 0, 2, 1]
+    ['desktopLyricBgOpacity', 0, 1, 0.15, 100],
+    ['desktopLyricGlobalOpacity', 0, 1, 1, 100],
+    ['desktopLyricBrightness', 0.2, 2, 1, 100],
+    ['desktopLyricContrast', 0.2, 2, 1, 100],
+    ['desktopLyricSaturation', 0, 2, 1, 100]
   ];
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
@@ -63,8 +64,8 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
     // Range ↔ Number 双向绑定
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
-      RANGE_PAIRS.forEach(([key, minimum, maximum, fallback]) => {
-        bindRangePair(key, `${key}Number`, minimum, maximum, fallback);
+      RANGE_PAIRS.forEach(([key, minimum, maximum, fallback, displayScale = 1]) => {
+        bindRangePair(key, `${key}Number`, minimum, maximum, fallback, displayScale);
       });
     }
 
@@ -219,8 +220,10 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
         ensureSavedFontOption(document.getElementById('desktopLyricFontFamily'), nextValue);
       }
       setValue(key, nextValue);
-      if (RANGE_PAIRS.some(([rangeKey]) => rangeKey === key)) {
-        setValue(`${key}Number`, nextValue);
+      const rangePair = RANGE_PAIRS.find(([rangeKey]) => rangeKey === key);
+      if (rangePair) {
+        const displayValue = Number(nextValue) * (rangePair[4] || 1);
+        setValue(`${key}Number`, String(Number(displayValue.toFixed(6))));
       }
     });
     window.AdminApp.forms?.refreshParameterRanges?.();

@@ -40,6 +40,9 @@ class LiraHelpElement extends HTMLElement {
     this.tooltip = null;
     this.tooltipOpen = false;
     this.listenersConnected = false;
+    this.handlePointerEnter = this.showTooltip.bind(this);
+    this.handlePointerLeave = this.onPointerLeave.bind(this);
+    this.handleFocus = this.showTooltip.bind(this);
     this.handleBlur = this.hideTooltip.bind(this);
     this.handleClick = this.onClick.bind(this);
     this.handleKeydown = this.onKeydown.bind(this);
@@ -82,6 +85,9 @@ class LiraHelpElement extends HTMLElement {
 
     if (this.listenersConnected) return;
 
+    this.addEventListener('mouseenter', this.handlePointerEnter);
+    this.addEventListener('mouseleave', this.handlePointerLeave);
+    this.addEventListener('focus', this.handleFocus);
     this.addEventListener('blur', this.handleBlur);
     this.addEventListener('click', this.handleClick);
     this.addEventListener('keydown', this.handleKeydown);
@@ -90,6 +96,9 @@ class LiraHelpElement extends HTMLElement {
 
   disconnectedCallback() {
     this.hideTooltip();
+    this.removeEventListener('mouseenter', this.handlePointerEnter);
+    this.removeEventListener('mouseleave', this.handlePointerLeave);
+    this.removeEventListener('focus', this.handleFocus);
     this.removeEventListener('blur', this.handleBlur);
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('keydown', this.handleKeydown);
@@ -144,18 +153,13 @@ class LiraHelpElement extends HTMLElement {
     this.tooltip.dataset.placement = position.placement;
   }
 
-  toggleTooltip() {
-    if (this.tooltipOpen) {
-      this.hideTooltip();
-      return;
-    }
-    this.showTooltip();
+  onPointerLeave() {
+    if (!this.matches(':focus-visible')) this.hideTooltip();
   }
 
   onClick(event) {
     event.preventDefault();
     event.stopPropagation();
-    this.toggleTooltip();
   }
 
   onKeydown(event) {
@@ -166,7 +170,7 @@ class LiraHelpElement extends HTMLElement {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     event.stopPropagation();
-    this.toggleTooltip();
+    this.showTooltip();
   }
 }
 

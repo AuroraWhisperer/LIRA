@@ -42,22 +42,82 @@ function loadTodo(stored = new Map([[STORAGE_KEY, JSON.stringify({
   return { todo: sandbox.window.AdminApp.todo, stored };
 }
 
-test('streamer workbench keeps broadcast stages and field notes', () => {
+test('streamer workbench keeps on-air cues and live notes', () => {
   const html = readAdminHtml();
   const planner = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'planner.html'),
     'utf8'
   );
 
-  assert.match(html, /<strong>主播工作台<\/strong>\s*<small>直播清单与现场备忘<\/small>/);
+  assert.match(html, /<strong>主播工作台<\/strong>\s*<small>本场提词与直播速记<\/small>/);
   assert.match(html, /id="plannerSessionForm"[\s\S]*id="plannerSessionDate"[\s\S]*id="plannerSessionTime"[\s\S]*id="plannerSessionTitle"[\s\S]*id="plannerSessionGoal"/);
   assert.match(html, /id="plannerTaskForm"[\s\S]*id="plannerTaskTitle"[\s\S]*id="plannerTaskStage"/);
   assert.match(html, /id="plannerBeforeList"[\s\S]*id="plannerLiveList"[\s\S]*id="plannerAfterList"/);
   assert.match(html, /id="plannerNoteForm"[\s\S]*id="plannerNoteBody"[\s\S]*id="plannerNoteType"[\s\S]*id="plannerNoteList"/);
+  assert.match(planner, /本场提词[\s\S]*<option value="before">开场<\/option>[\s\S]*<option value="live">互动<\/option>[\s\S]*<option value="after">收尾<\/option>/);
+  assert.match(planner, /直播速记[\s\S]*话题灵感[\s\S]*观众请求[\s\S]*高光时刻/);
+  assert.doesNotMatch(planner, /设备检查|标题与公告|开播前检查麦克风/);
   assert.doesNotMatch(planner, /NEXT LIVE · 下一场直播/);
   assert.doesNotMatch(planner, /把下一场播清楚，也把直播里的灵感留下来/);
   assert.doesNotMatch(planner, /场次信息、直播清单和现场备忘会自动保存，下次打开还在。/);
   assert.doesNotMatch(planner, /内容只保存在这台电脑/);
+});
+
+test('streamer workbench starts with useful on-air cues', () => {
+  const { todo } = loadTodo(new Map());
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(todo.getTasks().map(({ title, stage, done }) => ({ title, stage, done })))),
+    [
+      { title: '欢迎刚进来的观众，简单说明今天播什么', stage: 'before', done: false },
+      { title: '开场问大家：今天最想听哪类歌？', stage: 'before', done: false },
+      { title: '冷场时聊：最近单曲循环的一首歌', stage: 'live', done: false },
+      { title: '让大家二选一：下一首唱轻快的还是抒情的？', stage: 'live', done: false },
+      { title: '中场再说一次点歌方式和本场主题', stage: 'live', done: false },
+      { title: '结束前预告下次直播时间和内容', stage: 'after', done: false }
+    ]
+  );
+});
+
+test('streamer workbench replaces obsolete built-in tasks without touching custom tasks', () => {
+  const stored = new Map([[STORAGE_KEY, JSON.stringify({
+    version: 2,
+    session: { date: '2026-08-21', time: '20:00', title: '', goal: '' },
+    tasks: [
+      {
+        id: 'starter-device-check',
+        title: '检查麦克风、耳返、画面和网络',
+        stage: 'before',
+        done: true
+      },
+      {
+        id: 'custom-reminder',
+        title: '感谢昨天帮忙找歌的小满',
+        stage: 'live',
+        done: true
+      }
+    ],
+    notes: []
+  })]]);
+  const { todo } = loadTodo(stored);
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(todo.getTasks().map(({ id, title, stage, done }) => ({ id, title, stage, done })))),
+    [
+      {
+        id: 'starter-device-check',
+        title: '欢迎刚进来的观众，简单说明今天播什么',
+        stage: 'before',
+        done: false
+      },
+      {
+        id: 'custom-reminder',
+        title: '感谢昨天帮忙找歌的小满',
+        stage: 'live',
+        done: true
+      }
+    ]
+  );
 });
 
 test('streamer workbench keeps its split desk readable on narrow windows', () => {
@@ -72,7 +132,7 @@ test('streamer workbench keeps its split desk readable on narrow windows', () =>
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.planner-task-row/);
 });
 
-test('streamer workbench saves show details and stage checklist actions', () => {
+test('streamer workbench saves show details and on-air cue actions', () => {
   const { todo, stored } = loadTodo();
 
   todo.updateSession({
@@ -106,7 +166,7 @@ test('streamer workbench rejects blank items and normalizes unsupported stages',
   assert.equal(task.done, false);
 });
 
-test('streamer workbench stores notes and turns a note into an action', () => {
+test('streamer workbench stores notes and turns a viewer request into an interaction cue', () => {
   const { todo, stored } = loadTodo();
 
   assert.equal(todo.addNote({ body: '  ' }), null);
@@ -114,12 +174,36 @@ test('streamer workbench stores notes and turns a note into an action', () => {
   const task = todo.promoteNote(note.id);
 
   assert.equal(task.title, '观众想听《稻香》');
-  assert.equal(task.stage, 'after');
+  assert.equal(task.stage, 'live');
   assert.equal(todo.getState().notes[0].promotedTaskId, task.id);
   assert.match(stored.get(STORAGE_KEY), /观众想听《稻香》/);
 
   assert.equal(todo.removeNote(note.id), true);
   assert.equal(todo.getState().notes.length, 0);
+});
+
+test('streamer workbench replaces the six v1 built-in tasks shown to existing users', () => {
+  const legacyTasks = [
+    { id: 'starter-preflight', title: '开播前检查麦克风、耳返和网络', period: 'today', category: 'prep', progress: 0 },
+    { id: 'starter-announcement', title: '写好今天的直播标题和开播公告', period: 'today', category: 'content', progress: 0 },
+    { id: 'starter-song', title: '添加本周要学的第一首歌', period: 'week', category: 'song', progress: 0 },
+    { id: 'starter-clip', title: '剪出一条值得分享的直播切片', period: 'week', category: 'content', progress: 0 },
+    { id: 'starter-library', title: '整理一次可点歌单', period: 'month', category: 'prep', progress: 0 },
+    { id: 'starter-review', title: '看看本月最受欢迎的歌和直播时段', period: 'month', category: 'review', progress: 0 }
+  ];
+  const { todo } = loadTodo(new Map([[LEGACY_STORAGE_KEY, JSON.stringify(legacyTasks)]]));
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(todo.getTasks().map(({ title, stage }) => ({ title, stage })))),
+    [
+      { title: '欢迎刚进来的观众，简单说明今天播什么', stage: 'before' },
+      { title: '开场问大家：今天最想听哪类歌？', stage: 'before' },
+      { title: '冷场时聊：最近单曲循环的一首歌', stage: 'live' },
+      { title: '让大家二选一：下一首唱轻快的还是抒情的？', stage: 'live' },
+      { title: '中场再说一次点歌方式和本场主题', stage: 'live' },
+      { title: '结束前预告下次直播时间和内容', stage: 'after' }
+    ]
+  );
 });
 
 test('streamer workbench migrates existing v1 tasks without deleting the old data', () => {

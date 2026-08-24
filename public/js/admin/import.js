@@ -57,7 +57,9 @@
       isEnabled: ['是否可点', '可点', '是否启用', '启用', 'isEnabled', 'enabled'],
       language: ['语言', '语种', 'language'],
       sourcePlatform: ['核对平台', '来源平台', '平台', '来源', 'sourcePlatform', 'source'],
-      note: ['核对备注', '备注', '说明', 'note']
+      note: ['核对备注', '备注', '说明', 'note'],
+      requestPrice: ['点歌价格', '点歌价', '点歌门槛', '点歌要求', 'requestPrice', 'request_price'],
+      songClip: ['歌切', '歌切链接', '歌曲切片', '切片链接', 'songClip', 'song_clip']
     };
     const hasHeader = Object.values(aliases).flat().some((name) => header.includes(name));
     const bodyRows = hasHeader ? rows.slice(1) : rows;
@@ -70,7 +72,9 @@
       isEnabled: hasHeader ? findHeader(header, aliases.isEnabled) : 4,
       language: hasHeader ? findHeader(header, aliases.language) : 5,
       sourcePlatform: hasHeader ? findHeader(header, aliases.sourcePlatform) : 6,
-      note: hasHeader ? findHeader(header, aliases.note) : 7
+      note: hasHeader ? findHeader(header, aliases.note) : 7,
+      requestPrice: hasHeader ? findHeader(header, aliases.requestPrice) : 8,
+      songClip: hasHeader ? findHeader(header, aliases.songClip) : 9
     };
 
     return bodyRows.map((row) => ({
@@ -81,7 +85,9 @@
       isEnabled: parseEnabledCell(readCell(row, indexes.isEnabled)),
       language: readCell(row, indexes.language),
       sourcePlatform: readCell(row, indexes.sourcePlatform),
-      note: readCell(row, indexes.note)
+      note: readCell(row, indexes.note),
+      requestPrice: readCell(row, indexes.requestPrice),
+      songClip: readCell(row, indexes.songClip)
     })).filter((row) => row.name.trim());
   }
 

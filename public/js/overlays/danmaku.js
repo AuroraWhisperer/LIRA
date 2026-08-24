@@ -192,7 +192,7 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
 
 function previewItems() {
   return [
-    { id: 'preview-1', name: '金色航线', message: '今晚也一起守到最后', guardLevel: 1, medalName: '夜航', medalLevel: 28 },
+    { id: 'preview-1', name: '金色航线', message: '今晚也一起守到最后！这段副歌听完还想再循环一遍～', guardLevel: 1, medalName: '夜航', medalLevel: 28 },
     { id: 'preview-2', name: '云端来信', message: '这一段的情绪太稳了', guardLevel: 2, medalName: '星频', medalLevel: 23 },
     { id: 'preview-3', name: '阿沐', message: '前奏一响就知道是今晚的歌', guardLevel: 3, medalName: '夜航', medalLevel: 18 },
     { id: 'preview-4', name: '晚风信号', message: '这个转音好稳 ✦', medalName: '星频', medalLevel: 9 },

@@ -432,13 +432,16 @@ body.desktop-shell .status-strip {
 }
 
 body.desktop-shell .main-page-tabs {
-  border: 0;
+  border-color: transparent;
   background: transparent;
 }
 
 body.desktop-shell .main-page-tab.active {
-  background: var(--primary);
-  box-shadow: 0 3px 10px rgba(180, 35, 24, 0.2);
+  background: #fffaf1;
+  color: #3f3026;
+  box-shadow:
+    0 2px 8px rgba(87, 58, 28, 0.12),
+    inset 0 0 0 1px rgba(183, 133, 50, 0.08);
 }
 
 body.desktop-shell .panel {

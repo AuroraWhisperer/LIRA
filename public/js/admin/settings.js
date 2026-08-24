@@ -538,8 +538,10 @@
     }
     document.getElementById('shutdownBtn').disabled = true;
     document.getElementById('shutdownBtn').textContent = '正在退出';
-    document.getElementById('wsStatus').textContent = '正在退出';
-    document.getElementById('wsStatus').className = 'pill warn';
+    const wsStatus = document.getElementById('wsStatus');
+    wsStatus.hidden = false;
+    wsStatus.textContent = '正在退出';
+    wsStatus.className = 'pill warn';
 
     try {
       await api('/api/system/shutdown', { confirm: true });

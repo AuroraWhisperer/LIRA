@@ -9,6 +9,7 @@ implementation, but it cannot redefine an accepted specification.
 <!-- SPEC_INDEX_START -->
 | Document | Type | Status | Runtime Evidence | Last Reviewed |
 |---|---|---|---|---|
+| `specs/clock-stable-url_design.md` | Design specification | Implemented | `src/server/routes/clock-routes.js`<br>`public/js/admin/clock-card.js`<br>`public/js/overlays/clock.js`<br>`test/clock-overlay.test.js` | 2026-08-24 |
 | `specs/bilibili-user-info-service_design.md` | Design specification | Implemented | `src/bilibili/users/user-info-service.js`<br>`src/bilibili/users/profile-provider.js`<br>`src/bilibili/danmaku-client.js`<br>`src/bilibili/danmaku/history-poller.js`<br>`src/bilibili/danmaku/online-rank-poller.js`<br>`src/bilibili/danmaku/fans-medal-poller.js`<br>`src/bilibili/parsers/superchat-parser.js`<br>`test/bilibili-user-info-service.test.js`<br>`test/bilibili-user-info-pollers.test.js` | 2026-08-21 |
 | `specs/danmaku-draw-guess_design.md` | Design specification | Implemented | `src/games/draw-guess.js`<br>`src/games/game-session-service.js`<br>`public/js/admin/games.js`<br>`public/js/overlays/games.js`<br>`test/games.test.js` | 2026-08-20 |
 | `specs/song-request-board-style-3_design.md` | Design specification | Implemented | `public/js/overlays/queue.js`<br>`public/js/overlays/queue-render.js`<br>`public/css/overlays/base/storybook.css`<br>`test/frontend-queue.test.js` | 2026-08-20 |

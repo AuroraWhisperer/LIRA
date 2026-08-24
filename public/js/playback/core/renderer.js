@@ -94,9 +94,7 @@ export function createRenderer(deps) {
 
     const searchResults = searchService.getResults();
     if (!searchResults.length) {
-      resultNode.innerHTML = playbackState.selectedSource === 'netease'
-        ? '输入关键词后可搜索网易云音乐。'
-        : '输入关键词后可搜索 QQ 音乐。';
+      resultNode.innerHTML = '';
       return;
     }
 

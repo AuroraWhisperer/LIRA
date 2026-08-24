@@ -190,9 +190,9 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 ## 6.3 萌时钟(/clock)
 
 [overlays/clock.js](../../../public/js/overlays/clock.js) 驱动固定 `/clock`
-浏览器源，使用设备本地时区显示当前时间、日期和星期，不读取 API、设置或
-WebSocket。页面外层透明，内部卡片固定以 560×190 为设计比例，并在浏览器源
-不足时按可用宽度缩小。
+浏览器源，首帧从免认证只读接口 `GET /api/clock/config` 读取已保存设置，并使用
+设备本地时区显示当前时间、日期和星期。页面外层透明，内部卡片固定以 560×190
+为设计比例，并在浏览器源不足时按可用宽度缩小。
 
 - 风格参数仅接受 `style=peach|starlight`，非法或缺失值回退桃桃便签
   (`peach`)；桃桃便签使用奶油蜜桃与兔耳贴纸，星夜软糖使用靛蓝果冻边框与
@@ -202,8 +202,9 @@ WebSocket。页面外层透明，内部卡片固定以 560×190 为设计比例�
   字符，始终通过 `textContent` 输出。
 - 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
   立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
-- Admin 百宝箱的「萌时钟」卡片展示固定地址，同时用这些参数生成带参数地址并
-  复用 `/clock` iframe 实时预览；参数不写入数据库或 localStorage。
+- Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
+  `POST /api/settings` 保存，iframe 仍用参数即时预览。旧带参数地址保持兼容，显式
+  参数逐字段覆盖保存配置；已打开的 OBS 页面在 Browser Source 刷新后读取新设置。
 
 ## 7. 数据消费一览
 
@@ -215,7 +216,7 @@ WebSocket。页面外层透明，内部卡片固定以 560×190 为设计比例�
 | overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
 | gift-effects | `/gift-effects` 页面内置完整合成图 + 四方结构 PNG + 三张独立装饰 PNG | `gift:frame` | `eventId` 稳定去重 + 3 条 pending 队列 | 每个合格 final 礼物一次播放 |
 | opening | `/api/opening/config` | 无 | 无；首帧配置经枚举/文本清洗 | 页面加载一次；Admin 预览可由 URL 参数覆盖 |
-| clock | 设备本地时间 + URL 参数 | 本地秒边界定时器 | 无；页面恢复可见时立即校时 | 不消费 WebSocket reason |
+| clock | `/api/clock/config` + 设备本地时间；URL 参数可覆盖 | 本地秒边界定时器 | 无；页面恢复可见时立即校时 | 页面加载一次；不消费 WebSocket reason |
 | lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
 | danmaku | snapshot 中的 `danmakuFeed` | `danmaku:message` | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复 |
 | games | `/api/games/session` | snapshot + `game:update` + `game:draw` | 游戏入口调度器按更新频率合并渲染 | `game:update` / `game:draw` |

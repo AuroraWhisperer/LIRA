@@ -28,8 +28,8 @@
     grid-template-columns: 1fr;
     grid-template-areas:
       "head"
-      "search"
       "discovery"
+      "search"
       "match";
   }
 

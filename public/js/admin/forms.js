@@ -13,14 +13,18 @@ import { ensureSavedFontOption } from './local-font-library.js';
  */
 export class FormsService {
   /**
-   * 绑定range输入和number输入的双向同步
+   * 绑定 range 输入和 number 输入的双向同步，可选换算数值框的显示倍率
    */
-  bindRangePair(rangeId, numberId, min, max, fallback) {
-    document.getElementById(rangeId).addEventListener('input', () =>
-      setValue(numberId, value(rangeId))
-    );
+  bindRangePair(rangeId, numberId, min, max, fallback, displayScale = 1) {
+    document.getElementById(rangeId).addEventListener('input', () => {
+      const rangeValue = value(rangeId);
+      const displayValue = displayScale === 1
+        ? rangeValue
+        : String(Number((Number(rangeValue) * displayScale).toFixed(6)));
+      setValue(numberId, displayValue);
+    });
     document.getElementById(numberId).addEventListener('input', () => {
-      setValue(rangeId, normalizeRangeValue(value(numberId), min, max, fallback));
+      setValue(rangeId, normalizeRangeValue(Number(value(numberId)) / displayScale, min, max, fallback));
       this.refreshParameterRanges(document.getElementById(rangeId));
     });
   }

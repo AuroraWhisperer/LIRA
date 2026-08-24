@@ -42,7 +42,8 @@ function songToExportRow(song) {
   return [
     song.name || '', song.artist || '', song.category_name || '默认',
     song.tags || '', song.is_enabled ? '是' : '否',
-    song.language || '', song.source_platform || '', song.note || ''
+    song.language || '', song.source_platform || '', song.note || '',
+    song.request_price || '', song.song_clip || ''
   ];
 }
 
@@ -54,8 +55,8 @@ function buildSongsCsv(rows) {
 
 function templateSongs() {
   return [
-    { name:'晴天',artist:'周杰伦',category_name:'流行',tags:'怀旧,抒情,治愈',is_enabled:true,language:'国语',source_platform:'QQ音乐 / 网易云音乐',note:'' },
-    { name:'小幸运',artist:'田馥甄',category_name:'流行',tags:'抒情,治愈',is_enabled:true,language:'国语',source_platform:'QQ音乐 / 网易云音乐',note:'' }
+    { name:'晴天',artist:'周杰伦',category_name:'流行',tags:'怀旧,抒情,治愈',is_enabled:true,language:'国语',source_platform:'QQ音乐 / 网易云音乐',note:'',request_price:'免费',song_clip:'' },
+    { name:'小幸运',artist:'田馥甄',category_name:'流行',tags:'抒情,治愈',is_enabled:true,language:'国语',source_platform:'QQ音乐 / 网易云音乐',note:'',request_price:'心动 / 30元SC / 舰长 / 冠歌',song_clip:'' }
   ];
 }
 
@@ -76,7 +77,9 @@ function buildSongsWorkbook(rows) {
     '<cols><col min="1" max="1" width="24" customWidth="1"/>' +
     '<col min="2" max="2" width="18" customWidth="1"/>' +
     '<col min="3" max="3" width="16" customWidth="1"/>' +
-    '<col min="4" max="9" width="20" customWidth="1"/></cols>\n' +
+    '<col min="4" max="8" width="20" customWidth="1"/>' +
+    '<col min="9" max="9" width="32" customWidth="1"/>' +
+    '<col min="10" max="10" width="20" customWidth="1"/></cols>\n' +
     '<sheetData>' + sheetRows + '</sheetData>\n</worksheet>';
 
   return createZip([

@@ -37,6 +37,8 @@
       else button.removeAttribute?.('title');
     });
 
+    syncFeatureGroupAvailability(root);
+
     if (!persist) return;
     try {
       window.localStorage?.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
@@ -50,6 +52,65 @@
       buttons: Array.from(root.querySelectorAll('[data-other-feature]')),
       panels: Array.from(root.querySelectorAll('[data-other-feature-panel]'))
     };
+  }
+
+  function getFeatureGroupElements(root) {
+    return Array.from(root.querySelectorAll('[data-other-feature-group]'));
+  }
+
+  function isMobileOtherLayout() {
+    try {
+      return window.matchMedia?.('(max-width: 900px)').matches === true;
+    } catch {
+      return false;
+    }
+  }
+
+  function syncFeatureGroupAvailability(root) {
+    const iconOnly = root.classList?.contains?.('sidebar-collapsed') === true && !isMobileOtherLayout();
+    getFeatureGroupElements(root).forEach((heading) => {
+      heading.disabled = iconOnly;
+      heading.tabIndex = iconOnly ? -1 : 0;
+      heading.setAttribute('aria-hidden', String(iconOnly));
+    });
+  }
+
+  function getGroupButtons(heading) {
+    const buttons = [];
+    let sibling = heading?.nextElementSibling;
+    while (sibling && !sibling.dataset?.otherFeatureGroup) {
+      if (sibling.dataset?.otherFeature) buttons.push(sibling);
+      sibling = sibling.nextElementSibling;
+    }
+    return buttons;
+  }
+
+  function getFeatureGroupForButton(root, targetButton) {
+    return getFeatureGroupElements(root).find((heading) => (
+      getGroupButtons(heading).includes(targetButton)
+    ));
+  }
+
+  function setFeatureGroupExpanded(heading, expanded) {
+    const isExpanded = Boolean(expanded);
+    const groupLabel = heading.querySelector?.('strong')?.textContent?.trim() || '功能分组';
+    const actionLabel = `${isExpanded ? '收起' : '展开'}${groupLabel}`;
+    heading.setAttribute('aria-expanded', String(isExpanded));
+    heading.setAttribute('aria-label', actionLabel);
+    heading.title = actionLabel;
+
+    getGroupButtons(heading).forEach((button) => {
+      if (!isExpanded) {
+        if (!button.hidden) button.dataset.otherFeatureGroupHidden = 'true';
+        button.hidden = true;
+        return;
+      }
+
+      if (button.dataset.otherFeatureGroupHidden === 'true') {
+        button.hidden = false;
+        delete button.dataset.otherFeatureGroupHidden;
+      }
+    });
   }
 
   function isFeatureAvailable(button, panels) {
@@ -79,6 +140,16 @@
     if (!root) return false;
 
     const { buttons, panels } = getFeatureElements(root);
+    const targetButton = buttons.find((button) => (
+      button.dataset.otherFeature === featureId
+      && panels.some((panel) => panel.id === button.dataset.otherFeature)
+    ));
+    if (targetButton?.hidden) {
+      const groupHeading = getFeatureGroupForButton(root, targetButton);
+      if (groupHeading?.getAttribute('aria-expanded') === 'false') {
+        setFeatureGroupExpanded(groupHeading, true);
+      }
+    }
     const selectedButton = buttons.find((button) => (
       button.dataset.otherFeature === featureId
       && isFeatureAvailable(button, panels)
@@ -146,6 +217,10 @@
     const sidebarToggle = root.querySelector?.('[data-other-sidebar-toggle]');
     const navigationLinks = Array.from(root.querySelectorAll?.('[data-main-page-link]') || []);
     setSidebarCollapsed(root, readSidebarCollapsed(), false);
+    const mobileLayout = window.matchMedia?.('(max-width: 900px)');
+    const syncMobileGroupAvailability = () => syncFeatureGroupAvailability(root);
+    if (mobileLayout?.addEventListener) mobileLayout.addEventListener('change', syncMobileGroupAvailability);
+    else mobileLayout?.addListener?.(syncMobileGroupAvailability);
     sidebarToggle?.addEventListener('click', () => {
       setSidebarCollapsed(root, !root.classList.contains('sidebar-collapsed'));
     });
@@ -157,6 +232,12 @@
         selectFeatureById(targetFeature);
       }
     }));
+
+    getFeatureGroupElements(root).forEach((heading) => {
+      heading.addEventListener('click', () => {
+        setFeatureGroupExpanded(heading, heading.getAttribute('aria-expanded') !== 'true');
+      });
+    });
 
     buttons.forEach((button) => {
       button.addEventListener('click', () => {

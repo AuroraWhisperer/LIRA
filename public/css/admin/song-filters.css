@@ -143,3 +143,8 @@
 .category-filter-clear:disabled {
   display: none;
 }
+
+.song-library-summary {
+  display: flex;
+  justify-content: flex-end;
+}

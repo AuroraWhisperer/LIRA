@@ -155,7 +155,14 @@
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
-    // 盲盒盈亏的 URL 由 settings.js 的 buildBlindboxOverlayUrl 生成
+    document.getElementById('liveDanmakuUrl').textContent = `${origin}/danmaku`;
+    document.getElementById('liveBlindboxUrl').textContent = `${origin}/blindbox`;
+    document.getElementById('liveGamesUrl').textContent = `${origin}/games`;
+    document.getElementById('liveWheelUrl').textContent = `${origin}/wheel`;
+    document.getElementById('liveOvertimeUrl').textContent = `${origin}/overtime`;
+    document.getElementById('liveGiftEffectsUrl').textContent = `${origin}/gift-effects`;
+    document.getElementById('liveOpeningUrl').textContent = `${origin}/opening`;
+    document.getElementById('liveClockUrl').textContent = `${origin}/clock`;
     if (window.AdminApp.settings && window.AdminApp.settings.updateBlindboxOverlayUrl) {
       window.AdminApp.settings.updateBlindboxOverlayUrl();
     }

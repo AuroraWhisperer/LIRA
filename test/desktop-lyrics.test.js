@@ -220,6 +220,50 @@ test('desktop lyric settings define the merged presentation defaults', () => {
   assert.equal(DEFAULT_SETTINGS.desktopLyricVisibleLines, '0');
 });
 
+test('desktop lyric relative controls display percentages without changing stored values', async () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const listeners = new Map();
+  const range = {
+    value: '0.15',
+    addEventListener(type, handler) {
+      listeners.set(`range:${type}`, handler);
+    }
+  };
+  const number = {
+    value: '15',
+    addEventListener(type, handler) {
+      listeners.set(`number:${type}`, handler);
+    }
+  };
+  const document = {
+    getElementById(id) {
+      return id === 'range' ? range : id === 'number' ? number : null;
+    }
+  };
+  const { FormsService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'),
+    { document, window: { AdminApp: {} } }
+  );
+  const service = new FormsService();
+  service.refreshParameterRanges = () => {};
+  service.bindRangePair('range', 'number', 0, 1, 0.15, 100);
+
+  range.value = '0.35';
+  listeners.get('range:input')();
+  assert.equal(number.value, '35');
+
+  number.value = '80';
+  listeners.get('number:input')();
+  assert.equal(range.value, '0.8');
+
+  assert.match(html, /id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15"/);
+  assert.match(html, /id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100"/);
+  assert.doesNotMatch(html, /class="desktop-lyric-unit">(?:比|倍)<\/span>/);
+});
+
 test('desktop lyric frontend defaults match storage defaults', async () => {
   const { DESKTOP_LYRIC_DEFAULTS } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-defaults.js')

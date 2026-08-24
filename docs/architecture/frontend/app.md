@@ -20,7 +20,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 │     ├── 快速入队(折叠面板:手动点歌表单 manualForm)
 │     └── 歌曲管理面板(song-management-panel):内部六个 Tab
 │           songsPage(歌库) / settingsPage(设置) / themePage(点歌板)
-│           displayPage(展示板) / overlayPage(直播画面) / importPage(导入导出)
+│           displayPage(展示板) / overlayPage(浏览器源) / importPage(导入导出)
 │           / desktopLyricPage(桌面歌词设置)
 ├── #playbackAssistantPage 播放助手(#playback)
 ├── #giftAssistantPage     礼物面板(#gifts):礼物检测/提示/最近/月底冲刺/今日盲盒盈亏/盈亏榜/盲盒映射
@@ -35,7 +35,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 设置 | 直播间(roomId/开关)、点歌行为、队列上限/冷却、清库按钮、Bilibili 登录、退出程序 |
 | 点歌板 | 经典/身份/奶油画框三种样式切换、预设卡片、规则与置顶文案、主题色/字号/滚动/字体 |
 | 展示板 | 歌单板独立主题(可同步主主题)、滚动秒数、字号、预设卡片 |
-| 直播画面 | `/queue`、`/songlist`、`/lyrics` OBS 地址 + 盲盒投屏链接生成 |
+| 浏览器源 | 按点歌与音乐、直播互动、场景与氛围分类汇总全部 11 个固定 OBS / 直播姬浏览器源地址；参数化地址仍由对应功能页生成 |
 | 导入导出 | 文本/文件导入、导入结果统计 |
 | 桌面歌词设置 | `desktopLyric*` 全套 + 实时预览(弹簧跟随) |
 
@@ -117,7 +117,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 4.5 import.js(批量导入)
 
-- 输入源:粘贴文本 或 文件(.tsv/.csv/.xlsx)。文本先解析表格(引号转义、表头别名映射 `歌名/歌手/分类/标签/可点/语言/核对平台/备注`,无表头按列位),`readTextFile` 做 UTF-8→GB18030 编码回退;xlsx 读 base64 提交 `/api/songs/import-xlsx`;结果渲染 `总行数/成功/重复/失败/新增分类`。
+- 输入源:粘贴文本 或 文件(.tsv/.csv/.xlsx)。文本先解析表格(引号转义、表头别名映射 `歌名/歌手/分类/标签/可点/语言/核对平台/备注/点歌价格/歌切`,无表头按列位),`readTextFile` 做 UTF-8→GB18030 编码回退;xlsx 读 base64 提交 `/api/songs/import-xlsx`;结果渲染 `总行数/成功/重复/失败/新增分类`。
 - 表头识别:命中任一别名(如 `歌曲名字`/`歌名`/`name`)才按表头解析,否则整表按固定列序([import.js:52-85](../../../public/js/admin/import.js#L52-L85));`可点` 列支持 `是/可点/true/1` 与 `否/停用/false/0` 语义。
 - 成功后 `reloadAll()` 使歌库、分类、计数立即生效。
 
@@ -144,7 +144,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ## 6. 百宝箱(otherAssistantPage)
 
-`other.js` 只负责**功能导航**(侧边栏可折叠、方向键/WAI-ARIA tab 模式、localStorage 记住选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)将不变的功能 ID 按直播互动、直播画面、主播工作、软件与帮助四组呈现,各面板仍由独立模块初始化:
+`other.js` 只负责**功能导航**(侧边栏整体可折叠、四个功能分组可独立折叠、方向键/WAI-ARIA tab 模式、localStorage 记住整栏折叠与选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)将不变的功能 ID 按直播互动、直播画面、主播工作、软件与帮助四组呈现,各面板仍由独立模块初始化:
 
 | 功能 | 模块 | 内容与数据源 |
 |---|---|---|
@@ -154,8 +154,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | 礼物姬 · 礼物边框 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 保存 `giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；预览只发 `gift:frame` 事件，不影响实时开关与事件去重 |
 | 加班机 | [overtime.js](../../../public/js/admin/overtime.js) + [overtime-rule-editor.js](../../../public/js/admin/overtime-rule-editor.js) | 控制台:启用/开始/暂停/重置(`/api/overtime/action`)、初始时间(`/api/overtime/time`)、礼物规则编辑器(固定时间 / 时间盲盒,`/api/overtime/rules`)、背景(`/api/overtime/config`)、结算流水、内置 `/overtime` 预览 iframe(`?quality=low`);**Round-trip contract**:前端从 `GET /api/overtime` 的 `limits` 字段获取服务端限制(maxSeconds/maxEffectFactor/maxRandomWeight/maxEnabledRules),用于 UI 提示与客户端验证;前端必须保留服务端接受的任何值,即使超出 UI 输入控件范围(如 999h 小时选择器无法编辑 9999 年的值),只读展示 + 隐藏字段保存,最大值验证交给服务端;详见 [overtime.md](../backend/overtime.md) §4 |
 | 小游戏直播台 | [games.js](../../../public/js/admin/games.js) | 固定 `/games` 地址 + 数字炸弹/五子棋/你画我猜单会话互斥；第三张画猜卡片向下展开，可设置 1–12 局和每局 15–300 秒，并从 9 类、每类 100 词的固定题库中全选、清空或组合本场分类，未选分类时禁止开局，开局后锁定选择；`GET /api/games/host-state` 私下显示题词并恢复 `categoryIds`，`game:update` 驱动主持状态与 10/7/5/3 积分；画猜控制拆分为结束作画、公布答案、开始下一题，超时后仍捕捉弹幕但不计分；独立 `/wheel` 不参与互斥 |
-| 主播工作台 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 工作台**(`admin.streamerWorkbench.v2`):保存下一场直播日期/时间/主题/重点,按开播前/直播中/下播后三阶段管理完成态清单,现场备忘分内容灵感/观众约定/复盘记录并可转为计划;首次启动提供 4 条实用备播/复盘清单,读取旧 `admin.streamerPlanner.v1` 时迁移任务但不删除旧键;不经过后端 |
-| 萌时钟 | [clock-card.js](../../../public/js/admin/clock-card.js) | 固定 `/clock` Browser Source 地址与带参数地址生成器；桃桃便签/星夜软糖两套风格、日期/秒数、12/24 小时制和 16 字角标文案都直接写入 URL，并用同页 iframe 实时预览，不持久化设置 |
+| 主播工作台 | [todo.js](../../../public/js/admin/todo.js) | **纯 localStorage 工作台**(`admin.streamerWorkbench.v2`):保存下一场直播日期/时间/主题/重点,按开场/互动/收尾管理完成态提词,直播速记分话题灵感/观众请求/高光时刻并可转成提词;首次启动提供 6 条直播中可执行的提词,读取旧 `admin.streamerPlanner.v1` 时迁移任务但不删除旧键,并精确替换历史内置旧条目而保留用户任务;不经过后端 |
+| 萌时钟 | [clock-card.js](../../../public/js/admin/clock-card.js) | 只展示并复制固定 `/clock` Browser Source 地址；桃桃便签/星夜软糖、日期/秒数、12/24 小时制和 16 字角标文案经设置接口持久化，同时用同页 iframe 即时预览 |
 | 性能检测 | metrics.js(见 §4.6) | |
 | 使用文档 / 桌面更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [desktop.js](../../../public/js/desktop.js) | 目录锚点平滑滚动与章节高亮、侧栏收缩时切换双栏目录;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update` |
 | 首次启动引导 | [onboarding.js](../../../public/js/admin/onboarding.js) / [interactive-tour.js](../../../public/js/admin/interactive-tour.js) | 配置遮罩通过现有认证、设置、AI 接口验证状态，完成标记写入普通 settings；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示 |

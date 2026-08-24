@@ -51,7 +51,7 @@ data/
 | `ai_query_cache` | 查询缓存 | cache_key PK、expires_at |
 | `ai_blacklist` | AI 黑名单 | uid PK、reason |
 | `song_categories` | 歌曲分类 | name UNIQUE、sort_order、is_enabled |
-| `songs` | 曲库 | name/name_pinyin/name_initial/artist/category_id/tags/language/source_platform/original_group;唯一索引 `idx_songs_name_artist(name, artist)` 由迁移 v3 创建 |
+| `songs` | 曲库 | name/name_pinyin/name_initial/artist/category_id/tags/language/source_platform/request_price/song_clip/original_group;`request_price` 保存自由文本点歌价格说明，`song_clip` 保存自由文本歌切链接或说明；唯一索引 `idx_songs_name_artist(name, artist)` 由迁移 v3 创建 |
 | `queue` | 点歌队列 | song_id(FK)、requester_* 元数据、source(admin/danmaku/…)、status、is_pinned/pinned_at;idx(status, is_pinned, pinned_at, created_at) |
 | `requests` | 点歌流水(统计/保留期清理) | queue_id/song_id(FK)、message;idx created_at、idx(requester_uid, created_at)、idx song_name |
 | `import_batches` | 批量导入批次记录 | total/inserted/duplicate/failed/created_category |
@@ -99,7 +99,7 @@ data/
 
 | 库 | key | 版本 | 步骤内容 |
 |---|---|---|---|
-| songDb | `song_db` | v1-v3 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引 |
+| songDb | `song_db` | v1-v5 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串 |
 | superChatDb | `super_chat_db` | v1 | 基线 |
 | giftDb | `gift_db` | v1-v7 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式 |
 | musicDb | `music_db` | v1 | 基线 |
@@ -195,6 +195,7 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 | 桌面歌词 | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式) |
 | WeSing | `weSingCachePath`、`weSingLyricOffsetMs` |
 | 开播动画 | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`；上传音频文件位于 data 目录 `opening-music/` |
+| 萌时钟 | `clockStyle`(`peach`/`starlight`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`；供固定 `/clock` Browser Source 首帧读取 |
 | 保留期 | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup` |
 | 更新 | `enableAutoUpdate` |
 

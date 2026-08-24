@@ -10,7 +10,9 @@ const SONG_EXPORT_HEADERS = [
   '是否可点',
   '语言',
   '核对平台',
-  '核对备注'
+  '核对备注',
+  '点歌价格',
+  '歌切'
 ];
 
 const SONG_IMPORT_ALIASES = {
@@ -21,7 +23,9 @@ const SONG_IMPORT_ALIASES = {
   tags: ['tags', 'tag', '歌曲标签', '标签'],
   isEnabled: ['isEnabled', 'enabled', '是否可点', '可点', '是否启用', '启用'],
   language: ['language', '语言', '语种'],
-  sourcePlatform: ['sourcePlatform', 'source', '核对平台', '来源平台', '平台', '来源']
+  sourcePlatform: ['sourcePlatform', 'source', '核对平台', '来源平台', '平台', '来源'],
+  requestPrice: ['requestPrice', 'request_price', '点歌价格', '点歌价', '点歌门槛', '点歌要求'],
+  songClip: ['songClip', 'song_clip', '歌切', '歌切链接', '歌曲切片', '切片链接']
 };
 
 function normalizeImportedSongRow(row) {
@@ -33,7 +37,9 @@ function normalizeImportedSongRow(row) {
     isEnabled: parseEnabled(firstValue(row, SONG_IMPORT_ALIASES.isEnabled), true),
     language: cleanText(firstValue(row, SONG_IMPORT_ALIASES.language)),
     sourcePlatform: cleanText(firstValue(row, SONG_IMPORT_ALIASES.sourcePlatform)),
-    note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note))
+    note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note)),
+    requestPrice: cleanText(firstValue(row, SONG_IMPORT_ALIASES.requestPrice)),
+    songClip: cleanText(firstValue(row, SONG_IMPORT_ALIASES.songClip))
   };
 }
 

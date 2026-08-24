@@ -1,6 +1,6 @@
 /* WeSing capture workspace: a light live-control surface that matches the player. */
 .playback-wesing-panel {
-  grid-area: search;
+  grid-area: discovery;
   overflow: hidden;
   border-color: color-mix(in srgb, var(--color-primary) 22%, var(--border));
   background: linear-gradient(135deg, var(--surface) 0%, var(--color-primary-light) 100%);

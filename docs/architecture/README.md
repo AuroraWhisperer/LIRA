@@ -60,7 +60,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | [comms.md](frontend/comms.md) | 前后端通信:token 注入、fetch 约定、WS 客户端、桌面桥 |
 | [app.md](frontend/app.md) | Admin 应用与公共框架(EventBus/DI/StateService)及 27 个功能模块 |
 | [playback.md](frontend/playback.md) | 播放引擎:状态机、音源解析、本地文件、队列持久化 |
-| [overlays.md](frontend/overlays.md) | OBS 悬浮层 ×5:队列/歌单/盲盒/加班机/桌面歌词 |
+| [overlays.md](frontend/overlays.md) | 浏览器源 ×11:队列/歌单/盲盒/加班机/礼物特效/歌词/弹幕/小游戏/转盘/开播画面/时钟 |
 
 ### 桌面端 desktop/
 
@@ -123,7 +123,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | 事实族 | 归属文件 |
 |---|---|
 | 端口/环境变量/启动与关闭时序/token 注入机制 | [backend/server-core.md](backend/server-core.md) |
-| HTTP 端点(91 个)与方法/请求/响应/错误码契约 | [backend/api.md](backend/api.md) |
+| HTTP 端点(92 个)与方法/请求/响应/错误码契约 | [backend/api.md](backend/api.md) |
 | `roomId` 规范化算法/`customReplyRules` 解析规则 | [backend/api.md](backend/api.md) §2.1–§2.2 |
 | WS 传输参数/快照 16 字段/消息类型/reason 枚举 | [backend/ws.md](backend/ws.md) |
 | Bilibili 用户信息合并、字段投影与房间 run 生命周期 | [backend/bilibili/danmaku.md](backend/bilibili/danmaku.md) §10 |

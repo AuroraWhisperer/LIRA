@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 主播工作台：围绕下一场直播保存清单与现场备忘，数据仅留在当前设备。
+// 主播工作台：围绕一场直播保存提词与速记，数据仅留在当前设备。
 'use strict';
 
 (function () {
@@ -8,38 +8,78 @@
   const STAGES = ['before', 'live', 'after'];
   const NOTE_TYPES = ['idea', 'promise', 'review'];
   const NOTE_LABELS = {
-    idea: '内容灵感',
-    promise: '观众约定',
-    review: '复盘记录'
+    idea: '话题灵感',
+    promise: '观众请求',
+    review: '高光时刻'
   };
   const NOTE_STAGE = {
-    idea: 'before',
-    promise: 'after',
+    idea: 'live',
+    promise: 'live',
     review: 'after'
   };
   const STAGE_CONFIG = {
     before: {
       listId: 'plannerBeforeList',
       countId: 'plannerBeforeCount',
-      empty: '开播前还没有清单，可从上面的常用项开始。'
+      empty: '还没有开场提词，写下开播后第一句要说的话。'
     },
     live: {
       listId: 'plannerLiveList',
       countId: 'plannerLiveCount',
-      empty: '把流程、话题或互动提醒放在这里。'
+      empty: '把互动问题、备用话题和中场提醒放在这里。'
     },
     after: {
       listId: 'plannerAfterList',
       countId: 'plannerAfterCount',
-      empty: '下播后的高光、约定和复盘会放在这里。'
+      empty: '把感谢、回顾和下次预告放在这里。'
     }
   };
   const STARTER_TASKS = [
-    { id: 'starter-device-check', title: '检查麦克风、耳返、画面和网络', stage: 'before', done: false },
-    { id: 'starter-show-info', title: '确认直播标题、封面和开播公告', stage: 'before', done: false },
-    { id: 'starter-show-assets', title: '打开场景、歌单和直播要用的页面', stage: 'before', done: false },
-    { id: 'starter-review', title: '记下高光时间点和需要改进的问题', stage: 'after', done: false }
+    { id: 'starter-device-check', title: '欢迎刚进来的观众，简单说明今天播什么', stage: 'before', done: false },
+    { id: 'starter-show-info', title: '开场问大家：今天最想听哪类歌？', stage: 'before', done: false },
+    { id: 'starter-show-assets', title: '冷场时聊：最近单曲循环的一首歌', stage: 'live', done: false },
+    { id: 'starter-interaction-choice', title: '让大家二选一：下一首唱轻快的还是抒情的？', stage: 'live', done: false },
+    { id: 'starter-midstream-reminder', title: '中场再说一次点歌方式和本场主题', stage: 'live', done: false },
+    { id: 'starter-review', title: '结束前预告下次直播时间和内容', stage: 'after', done: false }
   ];
+  const OBSOLETE_STARTER_TASKS = {
+    'starter-device-check': {
+      titles: ['检查麦克风、耳返、画面和网络'],
+      replacementId: 'starter-device-check'
+    },
+    'starter-show-info': {
+      titles: ['确认直播标题、封面和开播公告'],
+      replacementId: 'starter-show-info'
+    },
+    'starter-show-assets': {
+      titles: ['打开场景、歌单和直播要用的页面'],
+      replacementId: 'starter-show-assets'
+    },
+    'starter-preflight': {
+      titles: ['开播前检查麦克风、耳返和网络'],
+      replacementId: 'starter-device-check'
+    },
+    'starter-announcement': {
+      titles: ['写好今天的直播标题和开播公告'],
+      replacementId: 'starter-show-info'
+    },
+    'starter-song': {
+      titles: ['添加本周要学的第一首歌'],
+      replacementId: 'starter-show-assets'
+    },
+    'starter-clip': {
+      titles: ['剪出一条值得分享的直播切片'],
+      replacementId: 'starter-interaction-choice'
+    },
+    'starter-library': {
+      titles: ['整理一次可点歌单'],
+      replacementId: 'starter-midstream-reminder'
+    },
+    'starter-review': {
+      titles: ['看看本月最受欢迎的歌和直播时段', '记下高光时间点和需要改进的问题'],
+      replacementId: 'starter-review'
+    }
+  };
 
   function createItemId(prefix) {
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -95,6 +135,26 @@
     };
   }
 
+  function upgradeStarterTask(task) {
+    const obsolete = OBSOLETE_STARTER_TASKS[task.id];
+    if (!obsolete?.titles.includes(task.title)) return task;
+
+    const replacement = STARTER_TASKS.find((item) => item.id === obsolete.replacementId);
+    if (!replacement) return task;
+    return normalizeTask({
+      ...replacement,
+      createdAt: task.createdAt,
+      done: false
+    }, replacement.id);
+  }
+
+  function normalizeTasks(values, fallbackPrefix) {
+    return values
+      .map((task, index) => normalizeTask(task, `${fallbackPrefix}-${index}`))
+      .filter(Boolean)
+      .map(upgradeStarterTask);
+  }
+
   function normalizeNote(value, fallbackId = '') {
     if (!value || typeof value !== 'object') return null;
     const body = String(value.body || '').trim().slice(0, 300);
@@ -127,9 +187,7 @@
     return {
       version: 2,
       session: normalizeSession(value.session),
-      tasks: Array.isArray(value.tasks)
-        ? value.tasks.map((task, index) => normalizeTask(task, `restored-task-${index}`)).filter(Boolean)
-        : [],
+      tasks: Array.isArray(value.tasks) ? normalizeTasks(value.tasks, 'restored-task') : [],
       notes: Array.isArray(value.notes)
         ? value.notes.map((note, index) => normalizeNote(note, `restored-note-${index}`)).filter(Boolean)
         : []
@@ -153,9 +211,7 @@
     const legacy = readStoredJson(LEGACY_STORAGE_KEY);
     if (Array.isArray(legacy)) {
       const migrated = createDefaultState(false);
-      migrated.tasks = legacy
-        .map((task, index) => normalizeTask(task, `migrated-task-${index}`))
-        .filter(Boolean);
+      migrated.tasks = normalizeTasks(legacy, 'migrated-task');
       return migrated;
     }
 
@@ -338,7 +394,7 @@
     const remove = createElement('button', 'planner-task-delete', '×');
     remove.type = 'button';
     remove.dataset.taskDelete = task.id;
-    remove.title = '删除这项安排';
+    remove.title = '删除这条提词';
     remove.setAttribute('aria-label', `删除“${task.title}”`);
 
     row.append(check, title, remove);
@@ -366,10 +422,10 @@
     if (summary) summary.textContent = `${completed} / ${total}`;
     if (status) {
       status.textContent = total === 0
-        ? '等待安排'
+        ? '还没有提词'
         : completed === total
-          ? '本场已准备妥当'
-          : `还有 ${total - completed} 件事`;
+          ? '本场提词已走完'
+          : `还有 ${total - completed} 条提醒`;
     }
   }
 
@@ -388,8 +444,8 @@
     const empty = createElement('div', 'planner-note-empty');
     empty.append(
       createElement('span', '', '✦'),
-      createElement('strong', '', '这里专门接住直播里的临时想法'),
-      createElement('p', '', '不必先想好怎么分类，记下来比记住它更可靠。')
+      createElement('strong', '', '直播里的请求和灵感，先放这里'),
+      createElement('p', '', '点歌、待回应的问题和高光时间点都可以随手记。')
     );
     empty.firstElementChild?.setAttribute('aria-hidden', 'true');
     return empty;
@@ -409,7 +465,7 @@
     const actions = createElement('div', 'planner-note-card-actions');
 
     const promotedTask = moduleState.planner.tasks.find((task) => task.id === note.promotedTaskId);
-    const promote = createElement('button', 'planner-note-promote', promotedTask ? '已加入计划' : '加入计划');
+    const promote = createElement('button', 'planner-note-promote', promotedTask ? '已转成提词' : '转成提词');
     promote.type = 'button';
     promote.dataset.notePromote = note.id;
     promote.disabled = Boolean(promotedTask);

@@ -13,16 +13,30 @@
                 title="收起功能导航"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <rect x="3.5" y="4" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/>
-                  <path d="M9 4v16M15.5 9 12.5 12l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                  <g class="other-sidebar-toggle-state other-sidebar-toggle-collapse">
+                    <path d="M17.5 5.5v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="m13.5 8.5-3.5 3.5 3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </g>
+                  <g class="other-sidebar-toggle-state other-sidebar-toggle-expand">
+                    <path d="M6.5 5.5v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="m10.5 8.5 3.5 3.5-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </g>
                 </svg>
               </button>
             </div>
             <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
-              <div class="other-feature-group-heading" data-other-feature-group="live-interaction" role="presentation">
+              <button
+                class="other-feature-group-heading"
+                type="button"
+                data-other-feature-group="live-interaction"
+                aria-expanded="true"
+                aria-label="收起直播互动"
+                title="收起直播互动"
+              >
                 <strong>直播互动</strong>
                 <small>和观众实时发生</small>
-              </div>
+                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
               <button
                 id="otherDanmakuFeatureTab"
                 class="other-feature-button"
@@ -64,10 +78,18 @@
                 <span class="other-feature-label"><strong>小游戏</strong><small>多种直播互动小游戏</small></span>
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
-              <div class="other-feature-group-heading" data-other-feature-group="live-scene" role="presentation">
+              <button
+                class="other-feature-group-heading"
+                type="button"
+                data-other-feature-group="live-scene"
+                aria-expanded="true"
+                aria-label="收起直播画面"
+                title="收起直播画面"
+              >
                 <strong>直播画面</strong>
                 <small>投到直播姬或 OBS</small>
-              </div>
+                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
               <button
                 id="otherOvertimeMachineFeatureTab"
                 class="other-feature-button"
@@ -161,10 +183,18 @@
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <div class="other-feature-group-heading" data-other-feature-group="streamer-work" role="presentation">
+              <button
+                class="other-feature-group-heading"
+                type="button"
+                data-other-feature-group="streamer-work"
+                aria-expanded="true"
+                aria-label="收起主播工作"
+                title="收起主播工作"
+              >
                 <strong>主播工作</strong>
                 <small>只在主播端使用</small>
-              </div>
+                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
               <button
                 id="otherDailyTodoFeatureTab"
                 class="other-feature-button"
@@ -182,16 +212,24 @@
                 </span>
                 <span class="other-feature-label">
                   <strong>主播工作台</strong>
-                  <small>直播清单与现场备忘</small>
+                  <small>本场提词与直播速记</small>
                 </span>
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <div class="other-feature-group-heading" data-other-feature-group="software-help" role="presentation">
+              <button
+                class="other-feature-group-heading"
+                type="button"
+                data-other-feature-group="software-help"
+                aria-expanded="true"
+                aria-label="收起软件与帮助"
+                title="收起软件与帮助"
+              >
                 <strong>软件与帮助</strong>
                 <small>本机维护与说明</small>
-              </div>
+                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
               <button
                 id="otherPerformanceFeatureTab"
                 class="other-feature-button active"

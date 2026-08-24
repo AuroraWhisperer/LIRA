@@ -1,8 +1,5 @@
         <div id="importPage" class="tab-page">
           <div class="panel-body stack">
-            <header class="song-subview-header">
-              <h2 class="ui-page-title">导入导出</h2>
-            </header>
             <div class="actions">
               <a href="/api/songs/template.xlsx"><button type="button">下载导入模板</button></a>
               <a href="/api/songs/export.xlsx"><button type="button">导出歌库 Excel</button></a>
@@ -18,7 +15,7 @@
               <textarea id="importText" placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	核对平台	核对备注"></textarea>
             </label>
             <button id="importBtn" class="primary" type="button">导入歌库</button>
-            <p class="hint">支持粘贴 TSV/CSV 或上传 Excel (.xlsx) 文件。表头可以用「原唱/首发歌手」「歌曲标签」「核对平台」「核对备注」等，旧格式也会自动识别。清空歌库只会删除歌曲和分类，不会删除直播间号、主题颜色和其他设置。</p>
+            <p class="hint">支持 XLSX/CSV/TSV 或粘贴表格，兼容常用表头。多歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。清空歌库不影响其他设置。</p>
             <div id="importResult" class="hint"></div>
           </div>
         </div>

@@ -319,7 +319,11 @@
 .desktop-lyric-settings-group > summary strong,
 .desktop-lyric-reset-group > header strong {
   color: var(--text);
-  ;
+  font-family: var(--font-display);
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
 }
 
 .desktop-lyric-settings-group > summary small,
@@ -509,8 +513,9 @@
 
 .desktop-lyric-control-copy strong {
   color: var(--text);
-  ;
-  line-height: 1.35;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-body);
 }
 
 .desktop-lyric-control-copy small {
@@ -645,18 +650,19 @@
 
 .desktop-lyric-control .range-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 68px 32px;
+  grid-template-columns: minmax(0, 1fr) 64px 24px;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   width: 100%;
 }
 
 .desktop-lyric-control .range-row input[type="number"] {
-  width: 68px;
+  width: 64px;
   min-width: 0;
-  height: 34px;
+  height: 32px;
   padding: 5px 6px;
-  ;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
   text-align: right;
 }
 
@@ -664,7 +670,8 @@
   overflow: hidden;
   color: var(--muted);
   font-family: "Segoe UI", sans-serif;
-  ;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -101,8 +101,7 @@
 .clock-parameter-section { display: grid; gap: 9px; padding: 12px; }
 .clock-parameter-section { border-top: 1px solid #eadfe5; background: linear-gradient(155deg, #fff 0%, #fff8fb 100%); }
 
-.clock-url-box,
-.clock-custom-url {
+.clock-url-box {
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -117,8 +116,7 @@
   align-items: center;
 }
 
-.clock-url-box code,
-.clock-custom-url code {
+.clock-url-box code {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -130,7 +128,6 @@
   white-space: nowrap;
 }
 
-.clock-custom-url > span { color: #a35d78; font-size: var(--type-size-control); font-weight: var(--type-weight-bold); }
 .clock-url-box button { justify-self: start; min-height: 31px; padding: 6px 10px; font-size: var(--type-size-control); }
 
 .clock-style-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
@@ -205,7 +202,7 @@
 .clock-form-field select { min-height: 35px; height: 35px; border-color: #e7d8df; background-color: #fff; font-size: var(--type-size-control); }
 .clock-form-field .lira-select-trigger { min-height: 35px; padding-block: 6px; }
 
-.clock-url-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.clock-url-actions { display: grid; grid-template-columns: 1fr; gap: 9px; }
 .clock-url-actions button { min-height: 34px; padding: 7px 9px; font-size: var(--type-size-control); }
 
 @media (max-width: 980px) {

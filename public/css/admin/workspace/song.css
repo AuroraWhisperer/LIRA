@@ -314,19 +314,74 @@ body.player-dock-expanded .song-workspace {
   min-width: 0;
 }
 
-.song-subview-header {
-  display: flex;
-  align-items: center;
-  min-height: 32px;
+/* 颜色选择器：用色片和展开提示表达可点击性，避免输入框套色块的视觉。 */
+.song-workspace input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 64px;
+  min-width: 64px;
+  height: 40px;
+  min-height: 40px;
+  padding: 4px 18px 4px 4px;
+  border: 0;
+  border-radius: 10px;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px 6px;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-.app-shell .song-workspace .ui-page-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--type-size-page-title);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-page-title);
-  letter-spacing: var(--type-tracking-tight);
+.song-workspace input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.song-workspace input[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(31, 43, 68, 0.14), 0 1px 3px rgba(31, 43, 68, 0.12);
+}
+
+.song-workspace input[type="color"]::-moz-color-swatch {
+  border: 0;
+  border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(31, 43, 68, 0.14), 0 1px 3px rgba(31, 43, 68, 0.12);
+}
+
+.song-workspace input[type="color"]:hover {
+  background-color: color-mix(in srgb, var(--primary) 7%, transparent);
+  box-shadow: 0 3px 10px rgba(31, 43, 68, 0.09);
+  transform: translateY(-1px);
+}
+
+.song-workspace input[type="color"]:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.song-workspace input[type="color"]:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+  background-color: var(--color-control-accent-light);
+}
+
+.song-workspace input[type="color"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.song-workspace .identity-rule-setting input[type="color"] {
+  width: 54px;
+  min-width: 54px;
+  padding-right: 15px;
+  background-position-x: right 4px;
+}
+
+.song-workspace .identity-rule-setting {
+  grid-template-columns: 52px minmax(0, 1fr) 54px;
 }
 
 .song-workspace .overlay-address-item code {

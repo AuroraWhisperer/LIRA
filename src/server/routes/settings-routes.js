@@ -7,6 +7,7 @@ const { normalizeRoomInput } = require('../../shared/utils');
 const { parseCustomReplyRules } = require('../../bilibili/custom-reply-service');
 const { normalizeFrameSettingValue } = require('../../bilibili/gift/frame-config');
 const { normalizeOpeningTrackMotion } = require('../opening-contract');
+const { CLOCK_SETTING_KEYS, normalizeClockSettingValue } = require('../clock-contract');
 
 const prefixes = ['/api/settings'];
 
@@ -43,6 +44,7 @@ const routes = {
 
 function normalizeSettingValue(key, rawValue) {
   if (FRAME_SETTING_KEYS.has(key)) return normalizeFrameSettingValue(key, rawValue);
+  if (CLOCK_SETTING_KEYS.has(key)) return normalizeClockSettingValue(key, rawValue);
   if (key === 'danmakuOverlayStyle') {
     const value = String(rawValue || '').trim();
     return DANMAKU_OVERLAY_STYLES.has(value) ? value : null;

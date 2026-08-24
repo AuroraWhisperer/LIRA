@@ -166,18 +166,18 @@
 
     setHardwareText('hardwareCpuModel', cpu.model || '未知 CPU');
     setHardwareText('hardwareCpuDetail', `物理 ${cpu.physicalCores || '--'} 核 / 逻辑 ${cpu.logicalCores || '--'} 线程`);
-    setHardwareText('hardwareCpuTemperature', `温度：${formatTemperature(cpu, '未知')}`);
+    setHardwareText('hardwareCpuTemperature', formatTemperature(cpu, '未知'));
 
-    setHardwareText('hardwareGpuModel', gpus.length ? gpus.map((gpu) => gpu.name || '未知 GPU').join(' / ') : '未读取到 GPU');
+    setHardwareText('hardwareGpuModel', gpus.length ? gpus.map((gpu) => gpu.name || '未知 GPU').join('\n') : '未读取到 GPU');
     setHardwareText(
       'hardwareGpuDetail',
       gpus.length
-        ? gpus.map((gpu) => `${gpu.vendor || '未知厂商'}，显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`).join('；')
+        ? gpus.map((gpu) => `${gpu.vendor || '未知厂商'}，显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`).join('\n')
         : 'Windows 未返回显卡信息'
     );
     setHardwareText(
       'hardwareGpuTemperature',
-      `温度：${gpus.length ? gpus.map((gpu) => `${gpu.name || 'GPU'} ${formatTemperature(gpu)}`).join('；') : '不可用'}`
+      gpus.length ? gpus.map((gpu) => `${gpu.name || 'GPU'}：${formatTemperature(gpu)}`).join('\n') : '不可用'
     );
 
     setHardwareText(
@@ -192,7 +192,7 @@
           module.model,
           formatHardwareBytes(module.capacityBytes),
           module.speedMhz ? `${module.speedMhz} MHz` : ''
-        ].filter(Boolean).join(' ')).join('；')
+        ].filter(Boolean).join(' ')).join('\n')
         : 'Windows 未返回内存条型号'
     );
     document.getElementById('hardwareSummaryStatus').textContent = includesTemperatures

@@ -864,6 +864,8 @@ test('overtime initial duration is minute-based, selectable, and readable', () =
   assert.match(source, /remainingSeconds:\s*initialSeconds/);
   assert.match(source, /function parseInitialDuration/);
   assert.match(overtimeStyles, /\.overtime-actions button:disabled[\s\S]*?opacity:\s*1/);
+  assert.match(overtimeStyles, /\.overtime-manual-duration\s*>\s*span\s*\{/);
+  assert.doesNotMatch(overtimeStyles, /\.overtime-manual-duration\s+span\s*\{/);
 
   const helperStart = source.indexOf('function parseInitialDuration');
   const helperEnd = source.indexOf('\nfunction formatClock', helperStart);

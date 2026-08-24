@@ -141,6 +141,8 @@ const SONG_TABLE_SCHEMA = `
     category_id INTEGER,
     is_enabled INTEGER NOT NULL DEFAULT 1,
     note TEXT NOT NULL DEFAULT '',
+    request_price TEXT NOT NULL DEFAULT '',
+    song_clip TEXT NOT NULL DEFAULT '',
     tags TEXT NOT NULL DEFAULT '',
     language TEXT NOT NULL DEFAULT '',
     source_platform TEXT NOT NULL DEFAULT '',

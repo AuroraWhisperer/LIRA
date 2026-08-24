@@ -32,6 +32,43 @@ function readClockConfig(params) {
   };
 }
 
+function normalizeSavedClockConfig(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const style = CLOCK_STYLE_VALUES.has(source.style) ? source.style : 'peach';
+  return {
+    style,
+    showDate: source.showDate !== false,
+    showSeconds: source.showSeconds !== false,
+    hour12: source.hourFormat === '12',
+    label: cleanLabel(source.label, DEFAULT_LABELS[style])
+  };
+}
+
+function mergeClockConfig(savedConfig, queryConfig, params) {
+  const saved = normalizeSavedClockConfig(savedConfig);
+  const style = params.has('style') ? queryConfig.style : saved.style;
+  return {
+    style,
+    showDate: params.has('date') ? queryConfig.showDate : saved.showDate,
+    showSeconds: params.has('seconds') ? queryConfig.showSeconds : saved.showSeconds,
+    hour12: params.has('format') ? queryConfig.hour12 : saved.hour12,
+    label: params.has('label')
+      ? cleanLabel(params.get('label'), DEFAULT_LABELS[style])
+      : (params.has('style') ? DEFAULT_LABELS[style] : saved.label)
+  };
+}
+
+async function loadSavedClockConfig() {
+  try {
+    const response = await fetch('/api/clock/config', { cache: 'no-store' });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload?.ok && payload.data ? payload.data : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function partValue(parts, type, fallback = '') {
   return parts.find(part => part.type === type)?.value || fallback;
 }
@@ -50,8 +87,11 @@ function createClockFormatters(config) {
   };
 }
 
-function initClock() {
-  const config = readClockConfig(new URLSearchParams(location.search));
+async function initClock() {
+  const params = new URLSearchParams(location.search);
+  const queryConfig = readClockConfig(params);
+  const savedConfig = await loadSavedClockConfig();
+  const config = mergeClockConfig(savedConfig, queryConfig, params);
   const formatters = createClockFormatters(config);
   const card = document.getElementById('clockCard');
   const timeNode = document.getElementById('clockTime');
@@ -105,6 +145,6 @@ function initClock() {
   schedule();
 }
 
-initClock();
+if (typeof document !== 'undefined') initClock();
 
-export { CLOCK_STYLE_VALUES, cleanLabel, readClockConfig };
+export { CLOCK_STYLE_VALUES, cleanLabel, mergeClockConfig, normalizeSavedClockConfig, readClockConfig };

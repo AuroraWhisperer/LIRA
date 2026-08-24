@@ -84,7 +84,7 @@
     const gifts = appState.gifts || {};
     const giftSprint = appState.giftSprint || {};
 
-    document.getElementById('songCount').textContent = `歌库 ${appState.songCount || 0} 首`;
+    document.getElementById('songCount').textContent = `歌库共 ${appState.songCount || 0} 首`;
     const totalCount = queueItems.length;
     document.getElementById('queueSize').textContent = `${totalCount} 首`;
     renderSuperChatQueue(superChats);

@@ -119,6 +119,14 @@ function runAllMigrations(databases, options = {}) {
         )
       `).run();
       db.exec('CREATE UNIQUE INDEX idx_songs_name_artist ON songs(name, artist)');
+    },
+    // v4：保存 Excel 点歌价格说明，旧歌曲默认留空
+    (db) => {
+      ensureSongRequestPriceColumn(db);
+    },
+    // v5：保存 Excel 歌切说明，旧歌曲默认留空
+    (db) => {
+      ensureSongClipColumn(db);
     }
   ]));
 
@@ -294,6 +302,20 @@ function ensureSongColumns(db) {
     if (!columns.has(name)) {
       db.exec(`ALTER TABLE songs ADD COLUMN ${name} ${definition}`);
     }
+  }
+}
+
+function ensureSongRequestPriceColumn(db) {
+  const columns = new Set(db.prepare('PRAGMA table_info(songs)').all().map((column) => column.name));
+  if (!columns.has('request_price')) {
+    db.exec("ALTER TABLE songs ADD COLUMN request_price TEXT NOT NULL DEFAULT ''");
+  }
+}
+
+function ensureSongClipColumn(db) {
+  const columns = new Set(db.prepare('PRAGMA table_info(songs)').all().map((column) => column.name));
+  if (!columns.has('song_clip')) {
+    db.exec("ALTER TABLE songs ADD COLUMN song_clip TEXT NOT NULL DEFAULT ''");
   }
 }
 

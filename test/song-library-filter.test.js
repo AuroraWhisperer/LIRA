@@ -216,12 +216,58 @@ test('song library table displays the language column for rows and empty results
   assert.ok(header, 'song table markup should remain present');
   assert.match(header, /<th>歌曲标签<\/th>\s*<th>语言<\/th>\s*<th>状态<\/th>/);
   assert.match(source, /escapeHtml\(song\.language \|\| ''\)/);
-  assert.match(source, /colspan="9">暂无歌曲/);
+  assert.match(source, /colspan="8">暂无歌曲/);
+});
+
+test('song library hides the note column when every visible note is empty', async () => {
+  const elements = {
+    songsTable: { innerHTML: '' },
+    songNoteColumnHeader: { hidden: false },
+    languageFilter: { value: '', innerHTML: '' },
+    artistFilter: { value: '', innerHTML: '' },
+    tagFilterOptions: { innerHTML: '' },
+    tagFilterSummary: { textContent: '' },
+    clearTagFilter: { disabled: false }
+  };
+  const document = {
+    getElementById: id => elements[id],
+    querySelectorAll: () => []
+  };
+  const window = {
+    AdminApp: {
+      utils: {
+        escapeHtml: String,
+        escapeAttr: String,
+        value: () => '',
+        setValue() {},
+        toast() {},
+        showError() {},
+        api: async () => {},
+        debounce: handler => handler,
+        dangerConfirm: async () => false
+      }
+    }
+  };
+  const songsModule = await loadSongsModule({ document, window });
+  const filters = [new Set(), new Set(), new Set()];
+
+  songsModule.renderSongs([
+    { id: 1, name: '无备注歌曲', artist: '', is_enabled: true, note: '  ' }
+  ], ...filters);
+  assert.equal(elements.songNoteColumnHeader.hidden, true);
+  assert.doesNotMatch(elements.songsTable.innerHTML, /<td>  <\/td>/);
+
+  songsModule.renderSongs([
+    { id: 2, name: '有备注歌曲', artist: '', is_enabled: true, note: '待核对' }
+  ], ...filters);
+  assert.equal(elements.songNoteColumnHeader.hidden, false);
+  assert.match(elements.songsTable.innerHTML, /<td>待核对<\/td>/);
 });
 
 test('song deletion closes custom confirmation before deleting and refreshing', async () => {
   const elements = {
     songsTable: { innerHTML: '' },
+    songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },
     artistFilter: { value: '', innerHTML: '' },
     tagFilterOptions: { innerHTML: '' },
