@@ -27,6 +27,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="gameResultNext"[^>]*>下一局<\/button>/);
   assert.match(html, /id="drawGuessView"/);
   assert.match(html, /id="drawCanvas"/);
+  assert.match(html, /id="drawCountdown"/);
   assert.match(html, /id="drawScoreboard"/);
   assert.match(html, /id="drawCorrectFeed"/);
   assert.match(html, /id="drawDanmakuFeed"[^>]+data-style="bubble"/);
@@ -88,6 +89,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /data-draw-color/);
   assert.match(script, /getContext\(['"]2d['"]\)/);
   assert.match(script, /renderDrawGuess/);
+  assert.match(script, /byId\('drawCountdown'\)\.textContent = countdown/);
   assert.match(script, /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/);
   assert.doesNotMatch(script, /payload\.state\?\.games \|\| null/);
   assert.match(script, /revealedAnswer/);
@@ -128,8 +130,9 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.draw-canvas\.is-eraser\s*\{[^}]*cursor:\s*url\(['"]\/img\/overlays\/draw-eraser-cursor\.svg/);
   assert.match(script, /classList\.toggle\(['"]is-eraser['"],\s*drawTool === 'eraser'\)/);
   assert.match(styles, /\.draw-canvas\.is-shape\s*\{[^}]*cursor:\s*crosshair/);
-  assert.match(styles, /body\[data-game='draw-guess'\] \.draw-canvas-wrap\s*\{[^}]*max-width:\s*min\(100%,\s*1040px\)/);
-  assert.match(styles, /calc\(\(100vh - 270px\) \* 16 \/ 9\)/);
+  assert.match(styles, /grid-template-columns:\s*clamp\(260px,\s*21vw,\s*340px\) minmax\(0,\s*1fr\) clamp\(308px,\s*28vw,\s*420px\)/);
+  assert.match(styles, /body\[data-game='draw-guess'\] \.draw-canvas-wrap\s*\{[^}]*height:\s*100%/);
+  assert.match(styles, /body\[data-game='draw-guess'\] \.draw-canvas\s*\{[^}]*aspect-ratio:\s*auto/);
   assert.match(styles, /\.draw-scoreboard/);
   assert.match(styles, /\.draw-danmaku-identity/);
   assert.match(styles, /\.draw-danmaku-avatar\s*\{[^}]*overflow:\s*hidden/);

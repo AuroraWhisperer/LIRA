@@ -61,6 +61,31 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.deepEqual(refreshedCatalog.payload.data.gifts.map(gift => gift.id), ['35793', '35794']);
     assert.equal(refreshedCatalog.payload.data.gifts[0].imagePath, '/img/bilibili-gifts/0000-under-0100/35793.webp');
 
+    const localSearch = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '万象' });
+    assert.equal(localSearch.response.status, 200);
+    assert.deepEqual(localSearch.payload.data.gifts, [{
+      id: '35600',
+      name: '万象天衣',
+      battery: 30000,
+      rmb: 3000,
+      imagePath: '/img/bilibili-gifts/3000-above/35600.webp'
+    }]);
+    const invalidLocalSearch = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '' });
+    assert.equal(invalidLocalSearch.response.status, 400);
+
+    const manualLocalRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [{
+        giftId: '35600',
+        giftName: '万象天衣',
+        imagePath: '/img/bilibili-gifts/3000-above/35600.webp',
+        mode: 'fixed',
+        fixedSeconds: 60,
+        quantityMode: 'item'
+      }]
+    });
+    assert.equal(manualLocalRule.response.status, 200);
+    assert.equal(manualLocalRule.payload.data.rules[0].giftId, '35600');
+
     const snapshotMessage = await readNextWebSocketMessage(app.baseUrl, token);
     assert.equal(snapshotMessage.type, 'snapshot');
     assert.equal(snapshotMessage.state.overtime.status, 'disabled');
@@ -127,12 +152,15 @@ function createGiftSalePublicFixture(root) {
   const publicDir = path.join(root, 'public-fixture');
   const giftDir = path.join(publicDir, 'img', 'bilibili-gifts');
   fs.mkdirSync(path.join(giftDir, '0000-under-0100'), { recursive: true });
+  fs.mkdirSync(path.join(giftDir, '3000-above'), { recursive: true });
   fs.writeFileSync(path.join(giftDir, '0000-under-0100', '35793.webp'), 'fixture');
+  fs.writeFileSync(path.join(giftDir, '3000-above', '35600.webp'), 'fixture');
   const gold = `# gifts
 
 | 礼物 ID | 图片 | 礼物名称 | 电池 | 人民币 | 同特效代码 |
 | ---: | --- | --- | ---: | ---: | --- |
 | 35793 | [35793.webp](0000-under-0100/35793.webp) | 传情鹊 | 1 | ¥0.10 |
+| 35600 | [35600.webp](3000-above/35600.webp) | 万象天衣 | 30000 | ¥3000.00 |
 `;
   const silver = `# free
 

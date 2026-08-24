@@ -122,7 +122,8 @@ body { min-height: 100vh; }
 
 .clock-sparkles,
 .clock-peach-mascot,
-.clock-night-mascot {
+.clock-night-mascot,
+.clock-soda-mascot {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -146,16 +147,23 @@ body { min-height: 100vh; }
 
 .clock-card[data-clock-style='peach']::before {
   position: absolute;
-  top: -9px;
-  left: 45px;
+  top: 10px;
+  left: 98px;
   z-index: 4;
-  width: 86px;
-  height: 23px;
-  border: 1px solid rgba(202, 128, 105, .18);
-  background: linear-gradient(90deg, rgba(255, 220, 174, .74), rgba(255, 232, 192, .9), rgba(255, 211, 167, .76));
-  clip-path: polygon(3% 4%, 98% 0, 96% 94%, 0 100%);
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(198, 112, 65, .24);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ffda82 0 20%, #f3aa48 24% 100%);
+  box-shadow:
+    0 -7px 0 3px #f7aec0,
+    7px -2px 0 3px #f7aec0,
+    4px 6px 0 3px #f7aec0,
+    -4px 6px 0 3px #f7aec0,
+    -7px -2px 0 3px #f7aec0;
   content: '';
-  transform: rotate(-2deg);
+  filter: drop-shadow(0 2px 2px rgba(157, 70, 99, .18));
+  transform: rotate(-8deg);
 }
 
 .clock-card[data-clock-style='peach']::after {
@@ -176,7 +184,8 @@ body { min-height: 100vh; }
 .clock-card[data-clock-style='peach'] .clock-seconds { border-color: #df6789; color: #fffdf9; background: linear-gradient(145deg, #f184a2, #e5658d); box-shadow: 0 4px 0 #c75275, 0 8px 13px rgba(163, 67, 98, .16); }
 .clock-card[data-clock-style='peach'] .clock-date-row { color: #956373; }
 .clock-card[data-clock-style='peach'] .clock-date-row > i { background: #f1a043; }
-.clock-card[data-clock-style='peach'] .clock-night-mascot { display: none; }
+.clock-card[data-clock-style='peach'] .clock-night-mascot,
+.clock-card[data-clock-style='peach'] .clock-soda-mascot { display: none; }
 
 .clock-card[data-clock-style='peach'] .clock-sparkles i {
   width: 9px;
@@ -300,7 +309,8 @@ body { min-height: 100vh; }
 .clock-card[data-clock-style='starlight'] .clock-seconds { border-color: rgba(216, 250, 255, .62); color: #2b315f; background: linear-gradient(145deg, #d4f9ff, #aee7f5); box-shadow: 0 0 0 3px rgba(157, 225, 244, .08), 0 7px 18px rgba(85, 182, 220, .24); }
 .clock-card[data-clock-style='starlight'] .clock-date-row { color: #cfd3ff; }
 .clock-card[data-clock-style='starlight'] .clock-date-row > i { background: #f7cf73; box-shadow: 0 0 8px #f7cf73; }
-.clock-card[data-clock-style='starlight'] .clock-peach-mascot { display: none; }
+.clock-card[data-clock-style='starlight'] .clock-peach-mascot,
+.clock-card[data-clock-style='starlight'] .clock-soda-mascot { display: none; }
 
 .clock-card[data-clock-style='starlight'] .clock-sparkles i {
   width: 6px;
@@ -388,6 +398,163 @@ body { min-height: 100vh; }
   animation: clock-star-float 3.6s ease-in-out infinite;
 }
 
+/* 汽水小鸭：清凉薄荷气泡、奶黄鸭鸭与珊瑚色点缀。 */
+.clock-card[data-clock-style='soda'] {
+  border: 2px solid #4ca7a7;
+  border-radius: 28px;
+  color: #245460;
+  background:
+    radial-gradient(circle at 11% 9%, rgba(255, 255, 255, .9) 0 4%, transparent 4.4%),
+    radial-gradient(circle at 67% 110%, rgba(60, 174, 176, .18) 0 32%, transparent 32.4%),
+    repeating-linear-gradient(135deg, transparent 0 24px, rgba(46, 146, 148, .035) 24px 25px),
+    linear-gradient(135deg, #f0fffb 0%, #d5f7f3 55%, #bcebe9 100%);
+  box-shadow: 0 14px 28px rgba(42, 121, 125, .2), inset 0 0 0 5px rgba(255, 255, 255, .58);
+}
+
+.clock-card[data-clock-style='soda']::before {
+  position: absolute;
+  inset: 9px;
+  border: 1px dashed rgba(49, 142, 145, .24);
+  border-radius: 19px;
+  content: '';
+}
+
+.clock-card[data-clock-style='soda']::after {
+  position: absolute;
+  right: 80px;
+  bottom: -77px;
+  width: 224px;
+  height: 142px;
+  border: 18px solid rgba(255, 255, 255, .26);
+  border-radius: 50%;
+  content: '';
+  transform: rotate(-8deg);
+}
+
+.clock-card[data-clock-style='soda'] .clock-label { border-color: rgba(48, 145, 147, .18); color: #267477; background: rgba(255, 255, 255, .82); box-shadow: 0 3px 9px rgba(31, 112, 116, .08); }
+.clock-card[data-clock-style='soda'] .clock-period { border-color: rgba(226, 119, 88, .18); color: #8a4937; background: #ffe3d8; }
+.clock-card[data-clock-style='soda'] .clock-time { color: #20515e; text-shadow: 0 2px 0 rgba(255, 255, 255, .9), 0 7px 15px rgba(39, 111, 117, .1); }
+.clock-card[data-clock-style='soda'] .clock-seconds { border-color: #dc785d; color: #fffdf8; background: linear-gradient(145deg, #f49a7f, #e87f63); box-shadow: 0 4px 0 #c96650, 0 8px 15px rgba(174, 85, 64, .16); }
+.clock-card[data-clock-style='soda'] .clock-date-row { color: #4e7c83; }
+.clock-card[data-clock-style='soda'] .clock-date-row > i { background: #e87f63; }
+.clock-card[data-clock-style='soda'] .clock-peach-mascot,
+.clock-card[data-clock-style='soda'] .clock-night-mascot { display: none; }
+
+.clock-card[data-clock-style='soda'] .clock-sparkles i {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(57, 153, 155, .55);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .22);
+  animation: clock-bubble-float 3.4s ease-in-out infinite;
+}
+
+.clock-card[data-clock-style='soda'] .clock-sparkles i:nth-child(1) { top: 24px; left: 24px; }
+.clock-card[data-clock-style='soda'] .clock-sparkles i:nth-child(2) { top: 31px; right: 145px; width: 7px; height: 7px; animation-delay: -.9s; }
+.clock-card[data-clock-style='soda'] .clock-sparkles i:nth-child(3) { right: 27px; bottom: 25px; width: 12px; height: 12px; border-color: rgba(255, 255, 255, .75); animation-delay: -1.8s; }
+.clock-card[data-clock-style='soda'] .clock-sparkles i:nth-child(4) { right: 152px; bottom: 20px; width: 6px; height: 6px; animation-delay: -2.5s; }
+
+.soda-duck {
+  position: absolute;
+  top: 28px;
+  right: 44px;
+  z-index: 2;
+  width: 78px;
+  height: 70px;
+  border: 3px solid #c28a2e;
+  border-radius: 52% 48% 45% 45%;
+  background:
+    radial-gradient(ellipse at 24% 70%, rgba(255, 172, 117, .34) 0 10%, transparent 10.8%),
+    radial-gradient(ellipse at 76% 70%, rgba(255, 172, 117, .34) 0 10%, transparent 10.8%),
+    linear-gradient(145deg, #fff08e 0%, #ffdb69 72%, #f4c34f 100%);
+  box-shadow: inset 0 5px 0 rgba(255, 255, 255, .28), 0 8px 14px rgba(61, 128, 126, .14);
+}
+
+.soda-duck::before {
+  position: absolute;
+  top: 27px;
+  left: 20px;
+  width: 7px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 64% 20%, #fff 0 1px, transparent 1.4px), #31585d;
+  box-shadow: 29px 0 0 #31585d;
+  content: '';
+}
+
+.soda-duck::after {
+  position: absolute;
+  top: 42px;
+  right: -9px;
+  width: 25px;
+  height: 13px;
+  border: 2px solid #ca6f45;
+  border-radius: 4px 13px 13px 5px;
+  background: #f59362;
+  content: '';
+  transform: rotate(5deg);
+}
+
+.soda-duck span {
+  position: absolute;
+  top: 52px;
+  left: -8px;
+  z-index: -1;
+  width: 94px;
+  height: 73px;
+  border: 3px solid #c28a2e;
+  border-radius: 52% 48% 47% 45%;
+  background: linear-gradient(145deg, #ffe77c, #f6ca50);
+}
+
+.soda-duck span::after {
+  position: absolute;
+  top: 22px;
+  left: 10px;
+  width: 39px;
+  height: 23px;
+  border-bottom: 3px solid #c28a2e;
+  border-radius: 50%;
+  content: '';
+  transform: rotate(-18deg);
+}
+
+.soda-ring {
+  position: absolute;
+  right: 18px;
+  bottom: 20px;
+  z-index: 3;
+  width: 137px;
+  height: 57px;
+  border: 14px solid #4ebbb7;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 3px #d9fffa, 0 8px 13px rgba(37, 116, 119, .2);
+  transform: rotate(-4deg);
+}
+
+.soda-ring::after {
+  position: absolute;
+  top: -10px;
+  left: 13px;
+  width: 47px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .56);
+  content: '';
+}
+
+.soda-bubble {
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, .88);
+  border-radius: 50%;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .28);
+  animation: clock-bubble-float 3s ease-in-out infinite;
+}
+
+.soda-bubble-one { top: 24px; right: 22px; width: 18px; height: 18px; }
+.soda-bubble-two { top: 51px; right: 128px; width: 11px; height: 11px; animation-delay: -1.4s; }
+
 @keyframes clock-colon-breathe {
   0%, 100% { opacity: .4; }
   50% { opacity: 1; }
@@ -403,10 +570,16 @@ body { min-height: 100vh; }
   50% { transform: translateY(-6px) rotate(12deg); }
 }
 
+@keyframes clock-bubble-float {
+  0%, 100% { opacity: .48; transform: translateY(2px) scale(.92); }
+  50% { opacity: 1; transform: translateY(-5px) scale(1.05); }
+}
+
 [hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .clock-colon,
   .clock-sparkles i,
-  .night-star { animation: none !important; }
+  .night-star,
+  .soda-bubble { animation: none !important; }
 }

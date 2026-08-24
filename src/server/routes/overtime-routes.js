@@ -22,6 +22,11 @@ const routes = {
 
   'POST /api/overtime/gifts/refresh': overtimeRoute(overtime => overtime.refreshGiftCatalog()),
 
+  'POST /api/overtime/gifts/local/search': overtimeRoute(async (overtime, request) => {
+    const body = await request.body();
+    return overtime.searchLocalGifts(body.query);
+  }),
+
   'POST /api/overtime/time': overtimeRoute(async (overtime, request) => {
     return overtime.setTime(await request.body());
   }),

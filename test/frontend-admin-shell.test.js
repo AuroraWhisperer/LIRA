@@ -116,34 +116,44 @@ test('colored action buttons use solid or frameless treatments', () => {
   assert.match(dangerRule, /background:\s*transparent/);
 });
 
-test('top navigation exposes a visible shared indicator with usable tab spacing', () => {
+test('top navigation exposes a visible shared track and moving active pill', () => {
   const mainTabs = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
     'utf8'
   );
   const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const desktop = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'desktop.css'), 'utf8');
   const appSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
   const tabsRule = mainTabs.match(/\.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0];
-  const indicatorRule = workspace.match(/\.main-page-tabs::after\s*\{[\s\S]*?\n\}/)?.[0];
-  const readyRule = workspace.match(/\.main-page-tabs\.indicator-ready::after\s*\{[\s\S]*?\n\}/)?.[0];
+  const movingLayersRule = workspace.match(/\.main-page-tabs::before,\s*\.main-page-tabs::after\s*\{[\s\S]*?\n\}/)?.[0];
+  const pillRule = workspace.match(/\.main-page-tabs::before\s*\{[\s\S]*?\n\}/)?.[0];
+  const railRule = Array.from(workspace.matchAll(/\.main-page-tabs::after\s*\{[\s\S]*?\n\}/g))
+    .map(match => match[0])
+    .find(rule => /background:/.test(rule));
+  const activeRule = workspace.match(/\.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
+  const desktopActiveRule = desktop.match(/body\.desktop-shell \.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(tabsRule, 'top navigation layout should remain defined');
   assert.match(tabsRule, /gap:\s*8px/);
-  assert.ok(indicatorRule, 'top navigation should use one shared moving indicator');
-  assert.ok(readyRule, 'top navigation indicator should appear after positioning');
-  assert.match(indicatorRule, /background:\s*var\(--main-nav-accent,\s*var\(--accent\)\)/);
-  assert.match(readyRule, /transform:\s*translateX\(var\(--main-page-indicator-x\)\)/);
-  assert.match(indicatorRule, /transition:[\s\S]*transform/);
+  assert.match(tabsRule, /border:\s*1px solid rgba\(183, 133, 50, 0\.16\)/);
+  assert.match(tabsRule, /background:\s*rgba\(255, 250, 241, 0\.72\)/);
+  assert.ok(movingLayersRule, 'top navigation moving layers should share the active geometry');
+  assert.match(movingLayersRule, /width:\s*var\(--main-page-indicator-width,\s*0px\)/);
+  assert.match(movingLayersRule, /transform:\s*translateX\(var\(--main-page-indicator-x,\s*0px\)\)/);
+  assert.ok(pillRule, 'top navigation should use one shared moving active pill');
+  assert.match(pillRule, /transition:[\s\S]*width[\s\S]*transform/);
+  assert.ok(railRule, 'top navigation should keep the accent rail inside the moving pill');
+  assert.match(railRule, /center bottom 3px \/ 22px 3px no-repeat/);
+  assert.match(activeRule, /background:\s*transparent/);
+  assert.match(activeRule, /box-shadow:\s*none/);
+  assert.match(desktopActiveRule, /background:\s*transparent/);
+  assert.match(desktopActiveRule, /box-shadow:\s*none/);
   assert.match(appSource, /function syncMainPageIndicator\(/);
   assert.match(appSource, /--main-page-indicator-x/);
+  assert.match(appSource, /--main-page-indicator-width/);
 });
 
 test('accent actions do not add a colored frame around their fill or active state', () => {
-  const mainTabs = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
-    'utf8'
-  );
-  const desktop = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'desktop.css'), 'utf8');
   const layout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'), 'utf8');
   const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const lyric = fs.readFileSync(
@@ -154,8 +164,6 @@ test('accent actions do not add a colored frame around their fill or active stat
   const toolbox = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const playback = readCssBundle('public', 'css', 'styles-playback.css');
   const rules = [
-    mainTabs.match(/\.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0],
-    desktop.match(/body\.desktop-shell \.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0],
     layout.match(/\.status-strip button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
     workspace.match(/\.queues-row \.song-queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
     lyric.match(/\.desktop-lyric-reset-button\s*\{[\s\S]*?\n\}/)?.[0],
@@ -170,7 +178,6 @@ test('accent actions do not add a colored frame around their fill or active stat
   for (const rule of rules) {
     assert.match(rule, /border(?:-color)?:\s*(?:0|transparent)/);
   }
-  assert.match(mainTabs, /background:\s*transparent/);
 });
 
 test('SuperChat clear control lives in the SC queue header', () => {
@@ -350,15 +357,18 @@ test('usage guide main-flow steps keep body text out of the number gutter', () =
   assert.match(markerRule, /left:\s*2px/);
 });
 
-test('usage guide fills the available width with expanded sidebar navigation', () => {
+test('usage guide fills the available panel and lead width in both sidebar states', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const panelRule = source.match(/\.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
+  const leadRule = source.match(/\.usage-guide-lead\s*\{[\s\S]*?\n\}/)?.[0];
   const collapsedRule = source.match(/\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(panelRule, 'usage guide panel sizing should remain defined');
+  assert.ok(leadRule, 'usage guide lead sizing should remain defined');
   assert.ok(collapsedRule, 'collapsed sidebar sizing should remain defined');
-  assert.match(panelRule, /max-width:\s*1180px/);
-  assert.match(collapsedRule, /max-width:\s*1180px/);
+  assert.match(panelRule, /max-width:\s*none/);
+  assert.match(leadRule, /max-width:\s*none/);
+  assert.match(collapsedRule, /max-width:\s*none/);
 });
 
 test('usage guide presents overlays for both live companion and OBS users', () => {

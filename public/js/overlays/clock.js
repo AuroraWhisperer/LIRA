@@ -1,9 +1,10 @@
 'use strict';
 
-const CLOCK_STYLE_VALUES = new Set(['peach', 'starlight']);
+const CLOCK_STYLE_VALUES = new Set(['peach', 'starlight', 'soda']);
 const DEFAULT_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
-  starlight: '今晚与星星一起值班'
+  starlight: '今晚与星星一起值班',
+  soda: '今天也要元气满满'
 });
 const MAX_LABEL_LENGTH = 16;
 const CLOCK_CARD_WIDTH = 560;

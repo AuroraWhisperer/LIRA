@@ -34,7 +34,7 @@ test('cute clock overlay owns a fixed frameable route and complete assets', () =
   assert.equal(headers.has('X-Frame-Options'), false);
 });
 
-test('cute clock overlay exposes two distinct styles and safe time parameters', () => {
+test('cute clock overlay exposes three distinct styles and safe time parameters', () => {
   const html = read('public', 'pages', 'overlays', 'clock.html');
   const css = read('public', 'css', 'overlays', 'clock.css');
   const script = read('public', 'js', 'overlays', 'clock.js');
@@ -45,6 +45,7 @@ test('cute clock overlay exposes two distinct styles and safe time parameters', 
   assert.match(html, /data-clock-style="peach"/);
   assert.match(css, /\[data-clock-style='peach'\]/);
   assert.match(css, /\[data-clock-style='starlight'\]/);
+  assert.match(css, /\[data-clock-style='soda'\]/);
   assert.match(css, /width:\s*560px/);
   assert.match(css, /height:\s*190px/);
   assert.match(css, /transform:\s*scale\(var\(--clock-scale,\s*1\)\)/);
@@ -52,7 +53,7 @@ test('cute clock overlay exposes two distinct styles and safe time parameters', 
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /background:\s*transparent/);
   assert.match(script, /new URLSearchParams\(location\.search\)/);
-  assert.match(script, /new Set\(\['peach',\s*'starlight'\]\)/);
+  assert.match(script, /new Set\(\['peach',\s*'starlight',\s*'soda'\]\)/);
   assert.match(script, /booleanParameter\(params,\s*'date'/);
   assert.match(script, /booleanParameter\(params,\s*'seconds'/);
   assert.match(script, /params\.get\('format'\)/);
@@ -98,8 +99,10 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(panel, /设置变化，网址不变/);
   assert.match(panel, /data-clock-style-option="peach"/);
   assert.match(panel, /data-clock-style-option="starlight"/);
+  assert.match(panel, /data-clock-style-option="soda"/);
   assert.match(panel, />桃桃便签</);
   assert.match(panel, />星夜软糖</);
+  assert.match(panel, />汽水小鸭</);
   assert.match(styles, /grid-template-columns:\s*minmax\(360px,\s*1\.15fr\)\s+minmax\(320px,\s*\.85fr\)/);
   assert.match(styles, /@media \(max-width:\s*980px\)/);
   assert.match(script, /params\.set\('style'/);
@@ -136,6 +139,13 @@ test('clock settings are persisted through validated keys and exposed by a publi
     showSeconds: true,
     hourFormat: '24',
     label: '今天也要闪闪发光'
+  });
+  assert.deepEqual(getClockConfig({ clockStyle: 'soda' }), {
+    style: 'soda',
+    showDate: true,
+    showSeconds: true,
+    hourFormat: '24',
+    label: '今天也要元气满满'
   });
 
   const writes = [];

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260824-02">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260824-03">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
@@ -31,6 +31,26 @@
       </section>
       <section id="drawGuessView" class="game-view draw-guess-view" hidden>
         <div class="draw-layout">
+          <aside class="draw-left-stats" aria-label="你画我猜信息">
+            <div class="draw-countdown-card">
+              <span>本局倒计时</span>
+              <strong id="drawCountdown">00:00</strong>
+              <small id="drawRoundLabel">等待开局</small>
+            </div>
+            <div class="draw-clue-card">
+              <span>直播间线索</span>
+              <strong id="drawClue">等待开局</strong>
+              <small>输入答案即可抢答</small>
+            </div>
+            <section class="draw-score-section" aria-labelledby="drawScoreTitle">
+              <div class="draw-panel-heading"><strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span></div>
+              <ol id="drawScoreboard" class="draw-scoreboard"></ol>
+            </section>
+            <section class="draw-correct-section" aria-labelledby="drawCorrectTitle">
+              <div class="draw-panel-heading"><strong id="drawCorrectTitle">本局抢答</strong><span>10 / 7 / 5 / 3</span></div>
+              <ol id="drawCorrectFeed" class="draw-correct-feed"></ol>
+            </section>
+          </aside>
           <div class="draw-main-column">
             <div class="draw-canvas-panel">
               <div class="draw-canvas-wrap">
@@ -82,21 +102,6 @@
                   <button type="button" data-draw-width="12" aria-label="特大号" aria-pressed="false"><span></span></button>
                 </div>
               </div>
-            </div>
-            <div class="draw-left-stats">
-              <div class="draw-clue-card">
-                <span>直播间线索</span>
-                <strong id="drawClue">等待开局</strong>
-                <small>输入答案即可抢答</small>
-              </div>
-              <section class="draw-score-section" aria-labelledby="drawScoreTitle">
-                <div class="draw-panel-heading"><strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span></div>
-                <ol id="drawScoreboard" class="draw-scoreboard"></ol>
-              </section>
-              <section class="draw-correct-section" aria-labelledby="drawCorrectTitle">
-                <div class="draw-panel-heading"><strong id="drawCorrectTitle">本局抢答</strong><span>10 / 7 / 5 / 3</span></div>
-                <ol id="drawCorrectFeed" class="draw-correct-feed"></ol>
-              </section>
             </div>
           </div>
           <aside class="draw-danmaku-panel" aria-label="直播消息">
@@ -158,6 +163,6 @@
         </div>
       </div>
     </main>
-    <script type="module" src="/js/overlays/games.js?v=20260824-01"></script>
+    <script type="module" src="/js/overlays/games.js?v=20260824-02"></script>
   </body>
 </html>

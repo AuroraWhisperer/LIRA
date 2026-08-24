@@ -24,9 +24,12 @@ let rulesSaving = false;
 let backgroundDirty = false;
 let backgroundSaving = false;
 let catalogRefreshing = false;
+let localGiftSearchPending = false;
 let giftCatalogSnapshot = null;
 let catalogLiveStatus = null;
 let saleGiftIds = new Set();
+let localGiftMatches = [];
+let giftPickerSource = 'sale';
 let ruleEditor = null;
 let clockRafId = null;
 let lastClockValue = '';
@@ -73,7 +76,9 @@ function bindControls() {
   byId('overtimeInitialMinutes').addEventListener('change', syncDurationInputFromSelectors);
   byId('overtimeRefreshGiftsBtn').addEventListener('click', refreshGiftCatalog);
   byId('overtimeAddGiftBtn').addEventListener('click', openGiftPicker);
-  byId('overtimeGiftSearch').addEventListener('input', renderGiftPicker);
+  byId('overtimeGiftSearch').addEventListener('input', handleGiftSearchInput);
+  byId('overtimeGiftSearch').addEventListener('keydown', handleGiftSearchKeydown);
+  byId('overtimeLocalGiftSearchBtn').addEventListener('click', searchLocalGifts);
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
   byId('overtimeSaveRulesBtn').addEventListener('click', saveRules);
@@ -366,19 +371,72 @@ function syncRuleAvailability() {
 function openGiftPicker() {
   const search = byId('overtimeGiftSearch');
   search.value = '';
+  localGiftMatches = [];
+  giftPickerSource = 'sale';
   renderGiftPicker();
   byId('overtimeGiftPicker').showModal();
   search.focus();
+}
+
+function handleGiftSearchInput() {
+  giftPickerSource = 'sale';
+  renderGiftPicker();
+}
+
+function handleGiftSearchKeydown(event) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  searchLocalGifts();
+}
+
+async function searchLocalGifts() {
+  if (localGiftSearchPending) return;
+  const query = byId('overtimeGiftSearch').value.trim();
+  if (!query || Array.from(query).length > 100) {
+    showError(new Error('请输入 1–100 个字符的礼物名称或 ID。'));
+    return;
+  }
+  localGiftSearchPending = true;
+  syncLocalGiftSearchButton();
+  try {
+    const result = await api('/api/overtime/gifts/local/search', { query });
+    localGiftMatches = (Array.isArray(result.data?.gifts) ? result.data.gifts : []).map(gift => ({
+      id: String(gift.id),
+      name: String(gift.name || gift.id),
+      rmb: Number(gift.rmb) || 0,
+      imagePath: String(gift.imagePath || '')
+    }));
+    giftPickerSource = 'local';
+    renderGiftPicker();
+  } catch (_) {
+  } finally {
+    localGiftSearchPending = false;
+    syncLocalGiftSearchButton();
+  }
+}
+
+function syncLocalGiftSearchButton() {
+  const button = byId('overtimeLocalGiftSearchBtn');
+  if (!button) return;
+  button.disabled = localGiftSearchPending;
+  button.textContent = localGiftSearchPending ? '搜索中…' : '搜索本地礼物';
 }
 
 function renderGiftPicker() {
   const root = byId('overtimeGiftResults');
   const query = byId('overtimeGiftSearch').value.trim().toLocaleLowerCase();
   const selectedIds = new Set(Array.from(byId('overtimeRules').querySelectorAll('[data-overtime-rule]')).map(row => row.dataset.giftId));
-  const matches = catalog.filter(gift => !selectedIds.has(gift.id) && (
+  const source = giftPickerSource === 'local' ? localGiftMatches : catalog;
+  const matches = source.filter(gift => !selectedIds.has(gift.id) && (
     !query || gift.id.toLocaleLowerCase().includes(query) || gift.name.toLocaleLowerCase().includes(query)
   ));
   root.replaceChildren();
+  if (giftPickerSource === 'local' && matches.length) {
+    root.append(createMessage(
+      'overtime-rule-empty overtime-local-gift-search-status',
+      `本地匹配 ${matches.length} 个；这些礼物可手动加入，不要求当前在售。`
+    ));
+  }
   for (const gift of matches) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -393,14 +451,20 @@ function renderGiftPicker() {
     text.append(name);
     if (!gift.id.startsWith('guard-')) {
       const meta = document.createElement('small');
-      meta.textContent = `¥${gift.rmb.toFixed(2)}`;
+      const availability = giftPickerSource === 'local'
+        ? (saleGiftIds.has(gift.id) ? '当前在售' : '当前未在售')
+        : '';
+      meta.textContent = `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}${availability ? ` · ${availability}` : ''}`;
       text.append(meta);
     }
     button.append(image, text);
     button.addEventListener('click', () => addGiftRule(gift));
     root.append(button);
   }
-  if (!matches.length) root.append(createMessage('overtime-rule-empty', '没有找到这个礼物。'));
+  if (!matches.length) root.append(createMessage(
+    'overtime-rule-empty',
+    giftPickerSource === 'local' ? '本地没有已下载图片的匹配礼物。' : '没有找到这个在售礼物。'
+  ));
 }
 
 function addGiftRule(gift) {

@@ -192,6 +192,8 @@ function renderDrawGuess(state) {
     ? { remainingMs: Number(state.remainingMs) || 0, receivedAt: performance.now() }
     : null;
   byId('drawMeta').textContent = '';
+  byId('drawRoundLabel').textContent = `第 ${state.round} / ${state.totalRounds} 局`;
+  if (state.phase !== 'drawing') byId('drawCountdown').textContent = '00:00';
   byId('drawClue').textContent = state.phase === 'drawing'
     ? `${state.wordLength} 个字`
     : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
@@ -314,7 +316,9 @@ function updateDrawCountdown() {
   if (session?.game !== 'draw-guess' || session.state?.phase !== 'drawing' || !drawClock) return;
   const remaining = Math.max(0, drawClock.remainingMs - (performance.now() - drawClock.receivedAt));
   const seconds = Math.ceil(remaining / 1000);
-  byId('gameTurn').textContent = `第 ${session.state.round} / ${session.state.totalRounds} 局 · ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  const countdown = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  byId('drawCountdown').textContent = countdown;
+  byId('gameTurn').textContent = `第 ${session.state.round} / ${session.state.totalRounds} 局 · ${countdown}`;
 }
 
 function initDrawCanvas() {

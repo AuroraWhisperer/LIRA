@@ -53,6 +53,13 @@
   box-shadow: var(--shadow-floating, 0 10px 28px rgba(31, 43, 68, 0.16));
 }
 
+.song-actions-list:popover-open {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+}
+
 .song-actions-list.opens-upward {
   top: auto;
   bottom: calc(100% + 6px);

@@ -30,6 +30,8 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /guardLevel:\s*1/);
   assert.match(script, /guardLevel:\s*2/);
   assert.match(script, /guardLevel:\s*3/);
+  assert.equal([...script.matchAll(/\{ id: 'preview-\d+'/g)].length, 4);
+  assert.equal([...script.matchAll(/guardLevel:\s*[123]/g)].length, 3);
   assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
   assert.match(script, /payload\.state\.liveStatus/);
   assert.match(script, /topic=danmaku/);
@@ -74,13 +76,13 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /--ranked-stage-width:\s*384px/);
   assert.match(styles, /--ranked-stage-height:\s*640px/);
   assert.match(styles, /--ranked-card-width:\s*360px/);
-  assert.match(styles, /--ranked-card-min-height:\s*76px/);
-  assert.match(styles, /--ranked-avatar-width:\s*98px/);
+  assert.match(styles, /--ranked-card-min-height:\s*72px/);
+  assert.match(styles, /--ranked-avatar-width:\s*72px/);
   assert.match(styles, /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*visible/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*width:\s*clamp\(70px, calc\(var\(--danmaku-height\) \+ 22px\), 104px\)[^}]*border-radius:\s*50%[^}]*background:\s*var\(--danmaku-avatar-art\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*hidden[^}]*border-radius:\s*2px[^}]*background:\s*var\(--ranked-surface\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*align-self:\s*center[^}]*width:\s*var\(--ranked-avatar-width\)[^}]*height:\s*var\(--ranked-avatar-width\)[^}]*border-radius:\s*0[^}]*background:\s*var\(--danmaku-avatar-art\)/s);
   assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*grid-area:\s*content[^}]*min-height:\s*var\(--ranked-card-min-height\)/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*font-size:\s*22px/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff[^}]*font-size:\s*30px[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, \.34\)/s);
   assert.doesNotMatch(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*-webkit-line-clamp/s);
   assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.png'\)/);
   assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/captain\.png'\)/);

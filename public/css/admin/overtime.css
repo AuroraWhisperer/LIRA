@@ -600,7 +600,13 @@
 .overtime-picker-shell { display: grid; gap: 10px; padding: 14px; }
 .overtime-picker-shell header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .overtime-picker-shell h3 { margin: 0; }
-.overtime-picker-shell > input { min-height: 42px; }
+.overtime-gift-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.overtime-gift-search-row > :is(input, button) { min-height: 42px; }
+.overtime-gift-search-row > button { min-width: 128px; font-weight: 700; }
 .overtime-gift-results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -626,6 +632,7 @@
 .overtime-gift-option strong,
 .overtime-gift-option small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .overtime-gift-option small { margin-top: 3px; color: var(--muted); font-weight: 400; }
+.overtime-local-gift-search-status { grid-column: 1 / -1; }
 
 .overtime-admin :is(button, input, select, textarea):focus-visible {
   outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);

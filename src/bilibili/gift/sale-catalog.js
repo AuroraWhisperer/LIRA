@@ -29,6 +29,9 @@ function createUnavailableGiftSaleCatalogService() {
     },
     async refresh() {
       throw new Error('礼物目录刷新服务未配置。');
+    },
+    searchLocal() {
+      throw new Error('本地礼物搜索服务未配置。');
     }
   };
 }
@@ -188,7 +191,9 @@ function parseGiftMappingDocument(content) {
     const mapping = Object.freeze({
       primaryId: id,
       name: String(cells[2] || id).trim(),
-      imagePath: markdownImagePath(cells[1])
+      imagePath: markdownImagePath(cells[1]),
+      battery: finiteNonNegative(parseMappingNumber(cells[3])),
+      rmb: finiteNonNegative(parseMappingNumber(cells[4]))
     });
     if (!byId.has(id)) byId.set(id, mapping);
     for (const match of String(cells[5] || '').matchAll(/\d+/g)) {
@@ -197,6 +202,10 @@ function parseGiftMappingDocument(content) {
     }
   }
   return byId;
+}
+
+function parseMappingNumber(value) {
+  return Number(String(value || '').replace(/[^\d.-]/g, ''));
 }
 
 function markdownImagePath(cell) {
@@ -236,6 +245,50 @@ function buildGiftCatalog(saleIds, configById, mappingById) {
     || left.rmb - right.rmb
     || Number(left.id) - Number(right.id))
     .map(({ known: _known, ...gift }) => gift);
+}
+
+function searchLocalGiftCatalog(publicDir, value, limit = 100) {
+  const query = validateLocalGiftQuery(value);
+  const normalizedQuery = query.toLocaleLowerCase();
+  const maxResults = Math.min(100, Math.max(1, Number(limit) || 100));
+  const mappings = readGiftMappings(publicDir);
+  const gifts = [...mappings].filter(([id, mapping]) => {
+    if (isExcludedGiftId(id) || !hasLocalGiftImage(publicDir, mapping.imagePath)) return false;
+    return String(id).includes(normalizedQuery)
+      || String(mapping.name || '').toLocaleLowerCase().includes(normalizedQuery);
+  }).map(([id, mapping]) => ({
+    id: String(id),
+    name: String(mapping.name || `礼物 ${id}`).slice(0, 100),
+    battery: finiteNonNegative(mapping.battery),
+    rmb: finiteNonNegative(mapping.rmb),
+    imagePath: mapping.imagePath
+  })).sort((left, right) => Number(left.id !== query) - Number(right.id !== query)
+    || left.rmb - right.rmb
+    || Number(left.id) - Number(right.id))
+    .slice(0, maxResults);
+  return { query, count: gifts.length, gifts };
+}
+
+function validateLocalGiftQuery(value) {
+  if (typeof value !== 'string') throw new Error('本地礼物搜索词必须是字符串。');
+  const query = value.trim();
+  const length = Array.from(query).length;
+  if (length < 1 || length > 100) throw new Error('请输入 1–100 个字符的礼物名称或 ID。');
+  return query;
+}
+
+function hasLocalGiftImage(publicDir, imagePath) {
+  const prefix = '/img/bilibili-gifts/';
+  if (!String(imagePath || '').startsWith(prefix)) return false;
+  const giftDir = path.resolve(publicDir, 'img', 'bilibili-gifts');
+  const filePath = path.resolve(publicDir, String(imagePath).replace(/^\/+/, ''));
+  const relativePath = path.relative(giftDir, filePath);
+  if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) return false;
+  try {
+    return fs.statSync(filePath).isFile();
+  } catch (_) {
+    return false;
+  }
 }
 
 function finiteNonNegative(value) {
@@ -289,6 +342,10 @@ function createGiftSaleCatalogService(options = {}) {
     return { ...snapshot, gifts: snapshot.gifts.map((gift) => ({ ...gift })), cached: true };
   }
 
+  function searchLocal(query) {
+    return searchLocalGiftCatalog(publicDir, query);
+  }
+
   async function refresh() {
     const roomId = validateRoomId(getRoomId());
     const currentMs = now();
@@ -334,7 +391,7 @@ function createGiftSaleCatalogService(options = {}) {
     return pending;
   }
 
-  return { getSnapshot, refresh };
+  return { getSnapshot, refresh, searchLocal };
 }
 
 function validateRoomId(value) {
@@ -446,5 +503,7 @@ module.exports = {
   parseGiftConfig,
   parseGiftMappingDocument,
   readGiftMappings,
+  searchLocalGiftCatalog,
+  validateLocalGiftQuery,
   validateRoomId
 };

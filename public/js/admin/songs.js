@@ -101,6 +101,8 @@ import {
       closeFilterMenusOnOutsideClick(event, filterMenus);
       if (!event.target.closest('.song-actions-menu')) closeSongActionsMenus();
     });
+    document.addEventListener('scroll', closeSongActionsMenus, true);
+    window.addEventListener('resize', closeSongActionsMenus);
     document.addEventListener('keydown', (event) => {
       const menu = event.target.closest('.song-actions-list');
       if (!menu) return;
@@ -122,8 +124,13 @@ import {
 
   function closeSongActionsMenu(menu, restoreFocus = false) {
     if (!menu) return;
+    if (typeof menu.hidePopover === 'function' && menu.matches(':popover-open')) {
+      menu.hidePopover();
+    }
     menu.hidden = true;
     menu.classList.remove('opens-upward');
+    menu.style.removeProperty('top');
+    menu.style.removeProperty('left');
     const trigger = menu.closest('.song-actions-menu')?.querySelector('[data-song-actions-toggle]');
     trigger?.setAttribute('aria-expanded', 'false');
     if (restoreFocus) trigger?.focus();
@@ -153,6 +160,25 @@ import {
     menu.hidden = false;
     button.setAttribute('aria-expanded', 'true');
     const wrapperRect = button.closest('.song-actions-menu').getBoundingClientRect();
+    if (typeof menu.showPopover === 'function') {
+      menu.showPopover();
+      const gap = 6;
+      const viewportPadding = 8;
+      const menuRect = menu.getBoundingClientRect();
+      const spaceAbove = wrapperRect.top - viewportPadding - gap;
+      const spaceBelow = window.innerHeight - wrapperRect.bottom - viewportPadding - gap;
+      const opensUpward = spaceBelow < menuRect.height && spaceAbove > spaceBelow;
+      const preferredTop = opensUpward
+        ? wrapperRect.top - gap - menuRect.height
+        : wrapperRect.bottom + gap;
+      const maxTop = Math.max(viewportPadding, window.innerHeight - viewportPadding - menuRect.height);
+      const maxLeft = Math.max(viewportPadding, window.innerWidth - viewportPadding - menuRect.width);
+      menu.style.top = `${Math.min(Math.max(preferredTop, viewportPadding), maxTop)}px`;
+      menu.style.left = `${Math.min(Math.max(wrapperRect.right - menuRect.width, viewportPadding), maxLeft)}px`;
+      menu.querySelector('[role="menuitem"]')?.focus();
+      return;
+    }
+
     const tableRect = button.closest('.table-wrap')?.getBoundingClientRect();
     const boundaryTop = Math.max(tableRect?.top ?? 0, 0);
     const boundaryBottom = Math.min(tableRect?.bottom ?? window.innerHeight, window.innerHeight);
@@ -205,7 +231,7 @@ import {
         <td class="song-actions-cell">
           <div class="song-actions-menu">
             <button class="song-actions-trigger" type="button" data-song-actions-toggle="${song.id}" title="更多操作" aria-label="展开歌曲操作" aria-haspopup="menu" aria-expanded="false" aria-controls="song-actions-${song.id}">…</button>
-            <div id="song-actions-${song.id}" class="song-actions-list" role="menu" aria-label="歌曲操作" hidden>
+            <div id="song-actions-${song.id}" class="song-actions-list" role="menu" aria-label="歌曲操作" popover="manual" hidden>
               <button type="button" role="menuitem" data-edit-song="${song.id}" title="加载到编辑表单">编辑</button>
               <button type="button" role="menuitem" data-add-song="${song.id}" title="以主播身份加入点歌队列">入队</button>
               <button class="danger" type="button" role="menuitem" data-delete-song="${song.id}" title="从歌库中移除该歌曲">删除</button>

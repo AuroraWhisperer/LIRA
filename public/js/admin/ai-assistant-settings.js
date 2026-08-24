@@ -449,13 +449,13 @@ function renderModelCapabilities(endpoint = {}) {
   }[reasoningMode] || '等待配置');
 
   if (webSearchMode === 'hosted') {
-    setText('xiaomiAiWebSearchLabel', '启用服务端 Web Search');
+    setText('xiaomiAiWebSearchLabel', '服务端联网搜索');
     setText('xiaomiAiWebSearchHelp', '由 Responses API 执行，需要上游支持 web_search。');
   } else if (webSearchMode === 'local_function') {
-    setText('xiaomiAiWebSearchLabel', '启用 LIRA Web Search');
+    setText('xiaomiAiWebSearchLabel', 'LIRA 联网搜索');
     setText('xiaomiAiWebSearchHelp', '由 LIRA 执行，需要模型支持 tool_calls。');
   } else {
-    setText('xiaomiAiWebSearchLabel', '启用 Web Search');
+    setText('xiaomiAiWebSearchLabel', '联网搜索');
     setText('xiaomiAiWebSearchHelp', '保存地址和协议后显示实际联网方式。');
   }
 
@@ -467,13 +467,13 @@ function renderModelCapabilities(endpoint = {}) {
   if (effortControl) effortControl.hidden = !configurableReasoning;
   if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed';
   if (reasoningMode === 'effort') {
-    setText('xiaomiAiReasoningLabel', '启用模型推理');
+    setText('xiaomiAiReasoningLabel', '模型推理');
     setText('xiaomiAiReasoningHelp', '可调推理强度；“服务默认”不覆盖上游设置。');
   } else if (reasoningMode === 'deepseek_effort') {
-    setText('xiaomiAiReasoningLabel', '启用 DeepSeek 思考');
+    setText('xiaomiAiReasoningLabel', 'DeepSeek 思考');
     setText('xiaomiAiReasoningHelp', '支持 low、high、max；其他档位自动就近映射。');
   } else if (reasoningMode === 'gemini_effort') {
-    setText('xiaomiAiReasoningLabel', '启用 Gemini 思考');
+    setText('xiaomiAiReasoningLabel', 'Gemini 思考');
     setText('xiaomiAiReasoningHelp', '支持 minimal 到 high；能否关闭取决于模型。');
   }
   syncReasoningEffortAvailability();

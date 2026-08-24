@@ -55,7 +55,7 @@
 | `/games` | [overlays/games.html](../../../public/pages/overlays/games.html) | OBS 浏览器源、独立浏览器窗口 | 直播小游戏浏览器源；管理页先打开固定地址再开始游戏，页面按当前会话自动显示数字炸弹、五子棋或你画我猜；画猜页面使用收窄并居中的 16:9 画布，由主播通过画笔、橡皮擦、直线、矩形、圆形和画布取色器作画，并显示弹幕抢答/总积分；图形仍编码为既有 append 笔画同步，不新增 WebSocket 消息形状。弹幕画廊按消息视觉长度动态调整气泡宽度与高度，展示头像、昵称、消息、大航海与当前房间灯牌，头像统一经带 token 的 `/api/bilibili/avatar` 本地代理加载并补全；题词只在 Admin 私有主持区显示；旧 `?game=` 地址仍可访问但参数不再决定游戏 |
 | `/wheel` | [overlays/wheel.html](../../../public/pages/overlays/wheel.html) | OBS 浏览器源、独立浏览器窗口 | 独立转盘浏览器源；圆形外透明，按主播配置的内容份数绘制多色扇形，抽取时旋转并突出最终结果；不参与 `/games` 会话互斥 |
 | `/opening` | [overlays/opening.html](../../../public/pages/overlays/opening.html) | OBS 浏览器源、管理页预览 | 固定开播画面地址,读取已保存的文案、动画、画质与音乐设置 |
-| `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定萌时钟地址；默认读取已保存设置，兼容 `style=peach|starlight`、`date=0|1`、`seconds=0|1`、`format=12|24`、`label=` 逐字段覆盖 |
+| `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定萌时钟地址；默认读取已保存设置，兼容 `style=peach|starlight|soda`、`date=0|1`、`seconds=0|1`、`format=12|24`、`label=` 逐字段覆盖 |
 
 调试页面(无 URL 映射,只能按文件路径访问):
 
@@ -81,7 +81,7 @@
 | 游戏叠加层 | [pages/overlays/games.html](../../../public/pages/overlays/games.html) | ES Module(`js/overlays/games.js`) | 数字炸弹/五子棋/你画我猜共享会话；你画我猜使用紧凑画布、六种绘画工具，并通过 `danmaku-feed.js` 渲染动态宽高弹幕气泡 |
 | 转盘叠加层 | [pages/overlays/wheel.html](../../../public/pages/overlays/wheel.html) | ES Module(`js/overlays/wheel.js`) | 独立抽奖转盘,按主播配置的选项绘制并突出抽取结果 |
 | 开播画面叠加层 | [pages/overlays/opening.html](../../../public/pages/overlays/opening.html) | ES Module(`js/overlays/opening.js`) | 固定地址读取已保存的开场文案、动画、画质和音乐设置 |
-| 萌时钟叠加层 | [pages/overlays/clock.html](../../../public/pages/overlays/clock.html) | ES Module(`js/overlays/clock.js`) | 当前本地时间、日期与星期；固定 URL 读取已保存的桃桃便签/星夜软糖设置，卡片外透明 |
+| 萌时钟叠加层 | [pages/overlays/clock.html](../../../public/pages/overlays/clock.html) | ES Module(`js/overlays/clock.js`) | 当前本地时间、日期与星期；固定 URL 读取已保存的桃桃便签/星夜软糖/汽水小鸭设置，卡片外透明 |
 
 ## 4. JS 模块地图
 
@@ -159,7 +159,7 @@
 | `css/overlays/base.css` | 叠加层框架(classic/identity 队列主题、滚动动画、歌单板) |
 | `css/overlays/blindbox.css` | 盲盒叠加层动画与布局 |
 | `css/overlays/overtime.css` | 加班机叠加层(cq 单位 + 容器查询,见 [overlays.md](overlays.md) §4) |
-| `css/overlays/clock.css` | 萌时钟桃桃便签/星夜软糖两套代码原生卡片与 reduced-motion 降级 |
+| `css/overlays/clock.css` | 萌时钟桃桃便签/星夜软糖/汽水小鸭三套代码原生卡片与 reduced-motion 降级 |
 | `css/overlays/desktop.css` | 桌面外壳主题(`html.desktop-shell`,标题栏拖拽区/窗口控件) |
 
 ## 6. 静态资源

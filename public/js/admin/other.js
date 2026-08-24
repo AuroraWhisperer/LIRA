@@ -4,11 +4,14 @@
 
 (function () {
   const SIDEBAR_COLLAPSED_KEY = 'admin.toolboxSidebarCollapsed';
+  const COLLAPSED_FEATURE_GROUPS_KEY = 'admin.toolboxCollapsedFeatureGroups';
   const SELECTED_FEATURE_KEY = 'admin.toolboxSelectedFeature';
   const moduleState = {
     initialized: false,
     persistSidebarCollapsed: null,
-    sidebarPreferenceReconciled: false
+    persistCollapsedFeatureGroups: null,
+    sidebarPreferenceReconciled: false,
+    featureGroupPreferenceReconciled: false
   };
 
   function readSidebarCollapsed() {
@@ -79,6 +82,85 @@
 
     setSidebarCollapsed(root, collapsed);
     if (durableValue !== collapsed) persistSidebarCollapsed(collapsed);
+  }
+
+  function parseCollapsedFeatureGroups(root, rawValue) {
+    if (typeof rawValue !== 'string' || !rawValue.trim()) return null;
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (!Array.isArray(parsed)) return null;
+      const storedIds = new Set(parsed.filter((value) => typeof value === 'string'));
+      return getFeatureGroupElements(root)
+        .map((heading) => heading.dataset.otherFeatureGroup)
+        .filter((groupId) => storedIds.has(groupId));
+    } catch {
+      return null;
+    }
+  }
+
+  function readCollapsedFeatureGroups(root) {
+    try {
+      return parseCollapsedFeatureGroups(
+        root,
+        window.localStorage?.getItem(COLLAPSED_FEATURE_GROUPS_KEY)
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  function storeCollapsedFeatureGroups(groupIds) {
+    try {
+      window.localStorage?.setItem(COLLAPSED_FEATURE_GROUPS_KEY, JSON.stringify(groupIds));
+    } catch (error) {
+      console.warn('[Toolbox] Failed to cache feature group preferences:', error);
+    }
+  }
+
+  function persistCollapsedFeatureGroups(groupIds) {
+    if (!moduleState.persistCollapsedFeatureGroups) return;
+    try {
+      const request = moduleState.persistCollapsedFeatureGroups([...groupIds]);
+      request?.catch?.((error) => {
+        console.warn('[Toolbox] Failed to persist feature group preferences:', error);
+      });
+    } catch (error) {
+      console.warn('[Toolbox] Failed to persist feature group preferences:', error);
+    }
+  }
+
+  function getCollapsedFeatureGroups(root) {
+    return getFeatureGroupElements(root)
+      .filter((heading) => heading.getAttribute('aria-expanded') === 'false')
+      .map((heading) => heading.dataset.otherFeatureGroup);
+  }
+
+  function applyCollapsedFeatureGroups(root, groupIds) {
+    const collapsedIds = new Set(groupIds);
+    getFeatureGroupElements(root).forEach((heading) => {
+      setFeatureGroupExpanded(heading, !collapsedIds.has(heading.dataset.otherFeatureGroup));
+    });
+  }
+
+  function saveCollapsedFeatureGroups(root) {
+    const groupIds = getCollapsedFeatureGroups(root);
+    storeCollapsedFeatureGroups(groupIds);
+    persistCollapsedFeatureGroups(groupIds);
+  }
+
+  function reconcileCollapsedFeatureGroups(root, settings) {
+    if (moduleState.featureGroupPreferenceReconciled) return;
+    moduleState.featureGroupPreferenceReconciled = true;
+
+    const cachedValue = readCollapsedFeatureGroups(root);
+    const durableValue = parseCollapsedFeatureGroups(root, settings?.toolboxCollapsedFeatureGroups);
+    const collapsedGroups = cachedValue ?? durableValue ?? [];
+
+    applyCollapsedFeatureGroups(root, collapsedGroups);
+    storeCollapsedFeatureGroups(collapsedGroups);
+    if (JSON.stringify(durableValue) !== JSON.stringify(collapsedGroups)) {
+      persistCollapsedFeatureGroups(collapsedGroups);
+    }
   }
 
   function getFeatureElements(root) {
@@ -182,6 +264,7 @@
       const groupHeading = getFeatureGroupForButton(root, targetButton);
       if (groupHeading?.getAttribute('aria-expanded') === 'false') {
         setFeatureGroupExpanded(groupHeading, true);
+        saveCollapsedFeatureGroups(root);
       }
     }
     const selectedButton = buttons.find((button) => (
@@ -250,12 +333,18 @@
     moduleState.persistSidebarCollapsed = typeof options.persistSidebarCollapsed === 'function'
       ? options.persistSidebarCollapsed
       : null;
+    moduleState.persistCollapsedFeatureGroups = typeof options.persistCollapsedFeatureGroups === 'function'
+      ? options.persistCollapsedFeatureGroups
+      : null;
     const { buttons, panels } = getFeatureElements(root);
     const sidebarToggle = root.querySelector?.('[data-other-sidebar-toggle]');
     const navigationLinks = Array.from(root.querySelectorAll?.('[data-main-page-link]') || []);
     setSidebarCollapsed(root, readSidebarCollapsed() ?? false, false);
+    const cachedCollapsedGroups = readCollapsedFeatureGroups(root);
+    if (cachedCollapsedGroups) applyCollapsedFeatureGroups(root, cachedCollapsedGroups);
     window.addEventListener?.('app:settings-state', (event) => {
       reconcileSidebarCollapsed(root, event.detail || {});
+      reconcileCollapsedFeatureGroups(root, event.detail || {});
     });
     const mobileLayout = window.matchMedia?.('(max-width: 900px)');
     const syncMobileGroupAvailability = () => syncFeatureGroupAvailability(root);
@@ -278,6 +367,7 @@
     getFeatureGroupElements(root).forEach((heading) => {
       heading.addEventListener('click', () => {
         setFeatureGroupExpanded(heading, heading.getAttribute('aria-expanded') !== 'true');
+        saveCollapsedFeatureGroups(root);
       });
     });
 

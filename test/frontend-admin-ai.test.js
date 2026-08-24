@@ -545,7 +545,7 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, 'DeepSeek 强度');
   assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
   assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
-  assert.equal(elements.get('xiaomiAiReasoningLabel').textContent, '启用 DeepSeek 思考');
+  assert.equal(elements.get('xiaomiAiReasoningLabel').textContent, 'DeepSeek 思考');
   assert.equal(elements.get('xiaomiAiProviderBadge').textContent, 'DeepSeek 官方');
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, true);
   assert.equal(elements.get('xiaomiAiProtocolControl').hidden, true);

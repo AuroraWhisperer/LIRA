@@ -195,7 +195,7 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 | 桌面歌词 | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式) |
 | WeSing | `weSingCachePath`、`weSingLyricOffsetMs` |
 | 开播动画 | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`；上传音频文件位于 data 目录 `opening-music/` |
-| 萌时钟 | `clockStyle`(`peach`/`starlight`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`；供固定 `/clock` Browser Source 首帧读取 |
+| 萌时钟 | `clockStyle`(`peach`/`starlight`/`soda`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`；供固定 `/clock` Browser Source 首帧读取 |
 | 保留期 | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup` |
 | 更新 | `enableAutoUpdate` |
 

@@ -22,6 +22,13 @@
                     </div>
                     <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 直播信号带</span>
                   </div>
+                  <div class="danmaku-overlay-link">
+                    <label><span>固定网页链接</span><input id="danmakuOverlayUrl" type="text" readonly></label>
+                    <div class="danmaku-overlay-actions">
+                      <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button">复制链接</button>
+                      <button id="danmakuOpenOverlayBtn" class="secondary" type="button">打开网页</button>
+                    </div>
+                  </div>
                   <div class="danmaku-style-picker">
                     <div class="danmaku-style-options" role="group" aria-label="选择弹幕姬样式">
                       <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
@@ -42,13 +49,6 @@
                       </button>
                     </div>
                     <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite">选择后自动保存，已打开的弹幕姬会同步切换。</p>
-                  </div>
-                  <div class="danmaku-overlay-link">
-                    <label><span>固定网页链接</span><input id="danmakuOverlayUrl" type="text" readonly></label>
-                    <div class="danmaku-overlay-actions">
-                      <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button">复制链接</button>
-                      <button id="danmakuOpenOverlayBtn" class="secondary" type="button">打开网页</button>
-                    </div>
                   </div>
                   <div id="danmakuStylePreview" class="danmaku-style-preview" aria-label="弹幕姬网页预览">
                     <iframe id="danmakuStylePreviewFrame" src="/danmaku?preview=1&amp;style=signal" title="弹幕姬样式预览" loading="lazy"></iframe>
@@ -129,9 +129,18 @@
                         <div><span>推理</span><strong id="xiaomiAiReasoningCapability">等待配置</strong></div>
                       </div>
                       <div class="xiaomi-ai-toggle-row">
-                        <label class="xiaomi-ai-capability-control"><span><input id="xiaomiAiWebSearch" type="checkbox" checked> <b id="xiaomiAiWebSearchLabel">启用 Web Search</b><lira-help><span id="xiaomiAiWebSearchHelp">根据当前协议选择联网方式。</span></lira-help></span></label>
-                        <label id="xiaomiAiReasoningControl" class="xiaomi-ai-capability-control" hidden><span><input id="xiaomiAiReasoning" type="checkbox"> <b id="xiaomiAiReasoningLabel">启用模型推理</b><lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help></span></label>
-                        <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control" hidden>推理强度
+                        <label class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control">
+                          <input id="xiaomiAiWebSearch" type="checkbox" role="switch" checked>
+                          <span class="switch-track" aria-hidden="true"></span>
+                          <span class="xiaomi-ai-control-copy"><span><b id="xiaomiAiWebSearchLabel">联网搜索</b><lira-help><span id="xiaomiAiWebSearchHelp">根据当前协议选择联网方式。</span></lira-help></span><small>使用当前服务支持的方式检索信息。</small></span>
+                        </label>
+                        <label id="xiaomiAiReasoningControl" class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control" hidden>
+                          <input id="xiaomiAiReasoning" type="checkbox" role="switch">
+                          <span class="switch-track" aria-hidden="true"></span>
+                          <span class="xiaomi-ai-control-copy"><span><b id="xiaomiAiReasoningLabel">模型推理</b><lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help></span><small>让模型在回答前进行额外思考。</small></span>
+                        </label>
+                        <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control xiaomi-ai-effort-control" hidden>
+                          <span class="xiaomi-ai-control-copy"><b>推理强度</b><small>开启推理后可调整。</small></span>
                           <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
                             <option value="auto">服务默认</option>
                             <option value="minimal">Minimal</option>

@@ -64,7 +64,8 @@ function createApiContext(options) {
       setBackground: domainServices.overtime.setBackground,
       replaceRules: domainServices.overtime.replaceRules,
       getGiftCatalog: overtimeGiftCatalog.getSnapshot,
-      refreshGiftCatalog: overtimeGiftCatalog.refresh
+      refreshGiftCatalog: overtimeGiftCatalog.refresh,
+      searchLocalGifts: overtimeGiftCatalog.searchLocal
     },
     debug: {
       getGiftMessages: () => messageBuffer.getAll(),

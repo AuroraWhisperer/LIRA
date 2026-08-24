@@ -272,6 +272,9 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
 | `GET /api/overtime` | 无 | 加班机总览(`getSnapshot()`:`enabled/status/initialSeconds/effectiveRemainingMs/serverNowMs/revision/background/rules`) + `limits:{maxSeconds, maxEffectFactor, maxRandomWeight, maxEnabledRules, minRandomOutcomes, maxRandomOutcomes, maxDisplayTextLength}` | 400 |
+| `GET /api/overtime/gifts` | 无 | 最后一次自动刷新礼物目录快照 | 400 |
+| `POST /api/overtime/gifts/refresh` | `{}` | 从当前直播间礼物面板、盲盒映射及已登录账号当前可送背包刷新目录；10 秒内重复请求返回缓存 | 400（未配置有效直播间号或上游返回错误） |
+| `POST /api/overtime/gifts/local/search` | `{query}`：字符串，去除首尾空白后 **1–100 字符** | 三份固定 Markdown 中按名称/ID 匹配且本地图片实际存在的礼物，最多 100 个；不修改自动刷新快照 | 400（查询无效或本地目录不可用） |
 | `POST /api/overtime/time` | `{initialSeconds?}` 与 `{remainingSeconds?}` **至少一个**,取值范围 **0–315,328,464,000**;`remainingSeconds` 设置后状态置为 `paused`(归零时 `finished`) | 更新后的快照 | 400(`initialSeconds or remainingSeconds is required.`/越界报错) |
 | `POST /api/overtime/action` | `{action}` ∈ `start`/`pause`/`reset`/`enable`/`disable` | 更新后的快照 | 400(`action must be start, pause, reset, enable, or disable.`) |
 | `POST /api/overtime/config` | `{path?, fit?}`:`fit` ∈ `cover`/`contain`/`fill`(默认 `cover`);`path` 若非空必须是内置图片路径(正则 `/img/overtime-machine/…`,拒绝 `..`/反斜杠/协议头) | 更新后的快照 | 400 |

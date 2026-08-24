@@ -125,6 +125,7 @@
 }
 
 .clock-style-option:hover { transform: translateY(-1px); }
+.clock-style-option:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .clock-style-option.active { border-color: #db7194; box-shadow: 0 0 0 3px rgba(219, 113, 148, .12); }
 .clock-style-option:focus-visible { outline: 2px solid #db7194; outline-offset: 2px; }
 .clock-style-option > span:last-child { display: grid; gap: 3px; min-width: 0; }
@@ -147,6 +148,9 @@
 .clock-style-swatch.is-peach i { border: 1px solid #df809b; background: #fff8f2; }
 .clock-style-swatch.is-starlight { border: 1px solid #9c9edc; color: #fff; background: linear-gradient(135deg, #2b2d5d, #50468a); }
 .clock-style-swatch.is-starlight i { background: #f4da8e; box-shadow: -6px 0 0 #3e3c75; }
+.clock-style-swatch.is-soda { border: 1px solid #67b8b6; color: #245763; background: linear-gradient(135deg, #effffc, #bcebea); }
+.clock-style-swatch.is-soda i { width: 18px; height: 18px; border: 1px solid #cf9c35; background: #ffdc72; box-shadow: 0 4px 0 -1px #f5a55a; }
+.clock-style-swatch.is-soda i::after { position: absolute; top: 8px; right: -4px; width: 7px; height: 4px; border-radius: 2px 5px 5px 2px; background: #f28b5f; content: ''; }
 
 .clock-toggle-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .clock-toggle-field {

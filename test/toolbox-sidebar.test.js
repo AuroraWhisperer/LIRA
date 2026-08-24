@@ -289,8 +289,9 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
   };
 }
 
-test('toolbox sidebar has an uninitialized durable preference by default', () => {
+test('toolbox navigation has uninitialized durable preferences by default', () => {
   assert.equal(DEFAULT_SETTINGS.toolboxSidebarCollapsed, '');
+  assert.equal(DEFAULT_SETTINGS.toolboxCollapsedFeatureGroups, '');
 });
 
 test('toolbox sidebar restores the durable preference when the legacy cache is absent', () => {
@@ -335,6 +336,95 @@ test('admin app persists toolbox sidebar changes through the settings API', () =
     source,
     /initOtherPage\?\.\(\{[\s\S]*?persistSidebarCollapsed:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxSidebarCollapsed:/
   );
+  assert.match(
+    source,
+    /persistCollapsedFeatureGroups:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxCollapsedFeatureGroups:/
+  );
+});
+
+test('toolbox feature groups restore after a full application restart', () => {
+  let durableGroups = '';
+  const firstRuntime = createToolboxRuntime();
+  firstRuntime.sandbox.window.AdminApp.other.initOtherPage({
+    persistCollapsedFeatureGroups: (groupIds) => {
+      durableGroups = JSON.stringify(groupIds);
+    }
+  });
+  firstRuntime.dispatchWindowEvent('app:settings-state', {
+    toolboxCollapsedFeatureGroups: ''
+  });
+
+  firstRuntime.headings[0].dispatch('click');
+  firstRuntime.headings[1].dispatch('click');
+  assert.equal(durableGroups, '["live-interaction","live-scene"]');
+
+  const secondRuntime = createToolboxRuntime();
+  secondRuntime.sandbox.window.AdminApp.other.initOtherPage();
+  secondRuntime.dispatchWindowEvent('app:settings-state', {
+    toolboxCollapsedFeatureGroups: durableGroups
+  });
+
+  assert.equal(secondRuntime.headings[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(secondRuntime.headings[1].getAttribute('aria-expanded'), 'false');
+  assert.equal(secondRuntime.buttons.slice(0, 7).every((button) => button.hidden), true);
+  assert.equal(
+    secondRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'),
+    '["live-interaction","live-scene"]'
+  );
+});
+
+test('toolbox feature groups migrate cached state and ignore malformed or stale IDs', () => {
+  const migrated = [];
+  const cachedRuntime = createToolboxRuntime({
+    initialStorage: {
+      'admin.toolboxCollapsedFeatureGroups': '["live-interaction"]',
+      'admin.toolboxSelectedFeature': 'otherDanmakuFeature'
+    }
+  });
+  cachedRuntime.sandbox.window.AdminApp.other.initOtherPage({
+    persistCollapsedFeatureGroups: (groupIds) => migrated.push([...groupIds])
+  });
+  cachedRuntime.dispatchWindowEvent('app:settings-state', {
+    toolboxCollapsedFeatureGroups: ''
+  });
+
+  assert.equal(cachedRuntime.headings[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(cachedRuntime.buttons.slice(0, 3).every((button) => button.hidden), true);
+  assert.equal(cachedRuntime.buttons[8].getAttribute('aria-selected'), 'true');
+  assert.deepEqual(migrated, [['live-interaction']]);
+
+  const durableRuntime = createToolboxRuntime({
+    initialStorage: { 'admin.toolboxCollapsedFeatureGroups': '{invalid' }
+  });
+  durableRuntime.sandbox.window.AdminApp.other.initOtherPage();
+  durableRuntime.dispatchWindowEvent('app:settings-state', {
+    toolboxCollapsedFeatureGroups: '["live-scene","removed-group"]'
+  });
+
+  assert.equal(durableRuntime.headings[0].getAttribute('aria-expanded'), 'true');
+  assert.equal(durableRuntime.headings[1].getAttribute('aria-expanded'), 'false');
+  assert.equal(
+    durableRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'),
+    '["live-scene"]'
+  );
+});
+
+test('explicit toolbox feature selection reopens and persists its collapsed group', () => {
+  const persisted = [];
+  const runtime = createToolboxRuntime({
+    initialStorage: { 'admin.toolboxCollapsedFeatureGroups': '["live-scene"]' }
+  });
+  runtime.sandbox.window.AdminApp.other.initOtherPage({
+    persistCollapsedFeatureGroups: (groupIds) => persisted.push([...groupIds])
+  });
+  runtime.dispatchWindowEvent('app:settings-state', {
+    toolboxCollapsedFeatureGroups: '["live-scene"]'
+  });
+
+  runtime.sandbox.window.AdminApp.other.selectFeature(runtime.root, 'otherClockFeature');
+
+  assert.equal(runtime.headings[1].getAttribute('aria-expanded'), 'true');
+  assert.deepEqual(persisted, [[]]);
 });
 
 test('toolbox groups hide and restore only their own features and deep links reopen them', () => {
@@ -391,6 +481,7 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   assert.match(html, /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/);
   assert.match(html, /id="danmakuCounter"[\s\S]*?id="danmakuAutoBtn"[\s\S]*?id="danmakuSendBtn"/);
   assert.match(html, /data-danmaku-style="ranked"[\s\S]*?class="danmaku-style-option-visual is-ranked"[\s\S]*?<strong>身份横卡<\/strong>/);
+  assert.match(html, /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options"/);
   assert.match(styles, /\.danmaku-style-option-visual\.is-ranked\s*\{/);
   assert.match(styles, /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/);
   assert.match(styles, /\.danmaku-feature-section\s*\{[^}]*border:\s*1px solid var\(--border\)/);

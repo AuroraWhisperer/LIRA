@@ -2,10 +2,11 @@
 
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 
-const CLOCK_STYLE_VALUES = new Set(['peach', 'starlight']);
+const CLOCK_STYLE_VALUES = new Set(['peach', 'starlight', 'soda']);
 const CLOCK_STYLE_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
-  starlight: '今晚与星星一起值班'
+  starlight: '今晚与星星一起值班',
+  soda: '今天也要元气满满'
 });
 const SETTINGS_ENDPOINT = '/api/' + 'settings';
 const CLOCK_CONFIG_ENDPOINT = '/api/clock/config';
@@ -45,7 +46,7 @@ function initClockCard() {
   const hourFormat = document.getElementById('clockHourFormat');
   const customLabel = document.getElementById('clockCustomLabel');
   const styleOptions = Array.from(document.querySelectorAll('[data-clock-style-option]'));
-  if (!preview || !fixedUrlNode || !showDate || !showSeconds || !hourFormat || !customLabel || styleOptions.length !== 2) return;
+  if (!preview || !fixedUrlNode || !showDate || !showSeconds || !hourFormat || !customLabel || styleOptions.length !== CLOCK_STYLE_VALUES.size) return;
   initialized = true;
 
   const fixedUrl = `${localOverlayOrigin(location)}/clock`;

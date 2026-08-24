@@ -770,6 +770,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(html, /id="overtimeRules"/);
   assert.match(html, /id="overtimeGiftPicker"/);
   assert.match(html, /id="overtimeRefreshGiftsBtn"/);
+  assert.match(html, /id="overtimeLocalGiftSearchBtn"[^>]*>搜索本地礼物<\/button>/);
   assert.match(html, /id="overtimeGiftCatalogStatus"[^>]+role="status"/);
   assert.match(html, /id="overtimePreview"/);
   assert.match(entrySource, /import '\.\/overtime\.js';/);
@@ -778,6 +779,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(source, /fetch\('\/img\/bilibili-gifts\.json'/);
   assert.match(source, /fetch\('\/api\/overtime\/gifts'/);
   assert.match(source, /\/api\/overtime\/gifts\/refresh/);
+  assert.match(source, /\/api\/overtime\/gifts\/local\/search/);
   assert.match(source, /catalogRoomLabel\(giftCatalogSnapshot, catalogLiveStatus\)/);
   assert.match(source, /liveStatus\?\.ownerName/);
   assert.doesNotMatch(html, /选择“文字展板”可让礼物只展示自定义文字/);
@@ -785,8 +787,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(source, /minute:\s*'2-digit'/);
   assert.match(source, /当前未在售/);
   assert.match(source, /left\.catalogGroup - right\.catalogGroup[\s\S]*left\.catalogOrder - right\.catalogOrder[\s\S]*left\.rmb - right\.rmb/);
-  assert.match(source, /if \(!gift\.id\.startsWith\('guard-'\)\) \{[\s\S]*meta\.textContent = `¥\$\{gift\.rmb\.toFixed\(2\)\}`/);
-  assert.doesNotMatch(source, /`ID \$\{gift\.id\}[^`]*`/);
+  assert.match(source, /meta\.textContent = `ID \$\{gift\.id\} · ¥\$\{gift\.rmb\.toFixed\(2\)\}/);
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(source, /ruleEditor\.setLimits\(serverLimits\)/);
   assert.match(source, /该下播了/);
@@ -830,12 +831,14 @@ test('overtime gift rule actions keep adding obvious and saving stateful', () =>
   assert.match(html, /id="overtimeAddGiftBtn" class="overtime-add-gift-action"/);
   assert.match(html, /id="overtimeSaveRulesBtn"[^>]+disabled>✓ 已保存<\/button>/);
   assert.match(html, /<h3>添加礼物<\/h3>/);
-  assert.match(html, /placeholder="输入礼物名称"/);
+  assert.match(html, /placeholder="输入礼物名称或 ID"/);
+  assert.match(html, /id="overtimeGiftSearch"[^>]+maxlength="100"/);
   assert.doesNotMatch(html, /按名称或礼物 ID 搜索本地目录/);
   assert.match(source, /createOvertimeRuleEditor\(byId\('overtimeRules'\), markRulesDirty\)/);
   assert.match(source, /row\.scrollIntoView\(\{ block: 'nearest' \}\)/);
   assert.match(source, /toast\(`已添加 \$\{gift\.name\}`\)/);
   assert.match(overtimeStyles, /\.overtime-add-gift-action/);
+  assert.match(overtimeStyles, /\.overtime-gift-search-row/);
   assert.match(overtimeStyles, /\.overtime-save-rules-action\.is-dirty/);
   assert.match(overtimeStyles, /--ot-action-add:\s*#6657c7/);
   assert.match(overtimeStyles, /--ot-action-save:\s*#147d73/);

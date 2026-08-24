@@ -1,7 +1,7 @@
 /* ===== 使用文档 ===== */
 .usage-guide-panel {
   width: 100%;
-  max-width: 1180px;
+  max-width: none;
   margin: 0 auto;
   gap: 16px;
 }
@@ -22,7 +22,7 @@
 }
 
 .usage-guide-lead {
-  max-width: 78ch;
+  max-width: none;
   margin: 0;
   color: var(--muted);
   font-size: var(--type-size-body);
@@ -416,10 +416,10 @@
   border-top: 1px dashed var(--border);
 }
 
-/* 侧边栏收缩且窗口足够宽：目录变成左侧常驻栏，正文保持阅读宽度 */
+/* 侧边栏收缩且窗口足够宽：目录变成左侧常驻栏，正文填满剩余宽度 */
 @media (min-width: 1120px) {
   .other-page.sidebar-collapsed .usage-guide-panel {
-    max-width: 1180px;
+    max-width: none;
   }
 
   .other-page.sidebar-collapsed .usage-guide-layout {

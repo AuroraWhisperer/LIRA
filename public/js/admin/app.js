@@ -89,6 +89,9 @@ async function initApp() {
   modules.other?.initOtherPage?.({
     persistSidebarCollapsed: (collapsed) => Utils.api('/api/settings', {
       toolboxSidebarCollapsed: String(collapsed)
+    }),
+    persistCollapsedFeatureGroups: (groupIds) => Utils.api('/api/settings', {
+      toolboxCollapsedFeatureGroups: JSON.stringify(groupIds)
     })
   });
   initStartAnimation();
@@ -170,7 +173,6 @@ const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAss
 const MAIN_PAGE_HASH_MAP = { playbackAssistantPage: '#playback', giftAssistantPage: '#gifts', otherAssistantPage: '#other' };
 // 主页面 → body dataset 标识
 const MAIN_PAGE_BODY_MAP = { playbackAssistantPage: 'playback', giftAssistantPage: 'gifts', songAssistantPage: 'songs', otherAssistantPage: 'other' };
-const MAIN_PAGE_INDICATOR_WIDTH = 22;
 
 function syncMainPageIndicator(activeButton) {
   const tabs = activeButton?.closest('.main-page-tabs');
@@ -178,8 +180,9 @@ function syncMainPageIndicator(activeButton) {
 
   const tabsRect = tabs.getBoundingClientRect();
   const buttonRect = activeButton.getBoundingClientRect();
-  const indicatorX = buttonRect.left - tabsRect.left + (buttonRect.width - MAIN_PAGE_INDICATOR_WIDTH) / 2;
+  const indicatorX = buttonRect.left - tabsRect.left;
   tabs.style.setProperty('--main-page-indicator-x', `${indicatorX}px`);
+  tabs.style.setProperty('--main-page-indicator-width', `${buttonRect.width}px`);
   tabs.classList.add('indicator-ready');
 }
 

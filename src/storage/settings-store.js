@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   onboardingCompletedAt: '',
   onboardingSkippedOptional: '',
   toolboxSidebarCollapsed: '',
+  toolboxCollapsedFeatureGroups: '',
   enableBilibili: 'true',
   danmakuOverlayStyle: 'signal',
   enableAutoUpdate: 'false',

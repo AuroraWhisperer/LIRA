@@ -12,7 +12,8 @@ const {
   createGiftSaleCatalogService,
   expandBlindBoxSaleIds,
   parseGiftConfig,
-  parseGiftMappingDocument
+  parseGiftMappingDocument,
+  searchLocalGiftCatalog
 } = require('../src/bilibili/gift/sale-catalog');
 
 test('collectSendableBackpackGiftIds follows the current backpack without a fixed gift count', () => {
@@ -76,6 +77,26 @@ test('parseGiftConfig and buildGiftCatalog reuse alias images and keep unknown s
       imagePath: ''
     }
   ]);
+});
+
+test('local gift search matches names or IDs and only returns existing mapped images', () => {
+  const fixture = createFixture();
+
+  assert.deepEqual(searchLocalGiftCatalog(fixture.publicDir, 'A'), {
+    query: 'A',
+    count: 1,
+    gifts: [{
+      id: '100',
+      name: 'A',
+      battery: 10,
+      rmb: 1,
+      imagePath: '/img/bilibili-gifts/0000-under-0100/100.webp'
+    }]
+  });
+  assert.equal(searchLocalGiftCatalog(fixture.publicDir, '100').gifts[0].id, '100');
+  assert.equal(searchLocalGiftCatalog(fixture.publicDir, '101').count, 0);
+  assert.equal(searchLocalGiftCatalog(fixture.publicDir, 'Free').count, 0);
+  assert.throws(() => searchLocalGiftCatalog(fixture.publicDir, ''), /1–100/);
 });
 
 test('expandBlindBoxSaleIds adds outputs only for sale boxes and prefers non-bag duplicate gifts', () => {
@@ -179,21 +200,21 @@ test('gift sale service does not call upstream without a configured room', async
   assert.equal(called, false);
 });
 
-test('gift sale service keeps panel-only refreshes working without a login Cookie', async () => {
+test('gift sale service keeps panel-only refreshes working without login and does not infer historical bag gifts', async () => {
   const fixture = createFixture();
   const endpoints = [];
   const service = createGiftSaleCatalogService({
     dataDir: fixture.dataDir,
     publicDir: fixture.publicDir,
     getRoomId: () => '22637261',
-    getCookieHeader: async () => '',
     async fetchJson(name) {
       endpoints.push(name);
       if (name === 'gift_data') {
         return { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: 100 }] } } };
       }
       return { code: 0, data: { list: [
-        { id: 100, name: '面板礼物', price: 1000, coin_type: 'gold' }
+        { id: 100, name: '面板礼物', price: 1000, coin_type: 'gold' },
+        { id: 35600, name: '历史背包礼物', price: 3000000, coin_type: 'gold', bag_gift: 1 }
       ] } };
     }
   });

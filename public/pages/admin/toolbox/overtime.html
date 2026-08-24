@@ -91,7 +91,10 @@
               <dialog id="overtimeGiftPicker" class="overtime-gift-picker">
                 <form method="dialog" class="overtime-picker-shell">
                   <header><h3>添加礼物</h3><button class="secondary" value="cancel" type="submit">取消</button></header>
-                  <input id="overtimeGiftSearch" type="search" aria-label="搜索礼物" placeholder="输入礼物名称" autocomplete="off">
+                  <div class="overtime-gift-search-row">
+                    <input id="overtimeGiftSearch" type="search" aria-label="搜索礼物" placeholder="输入礼物名称或 ID" autocomplete="off" maxlength="100">
+                    <button id="overtimeLocalGiftSearchBtn" class="secondary" type="button">搜索本地礼物</button>
+                  </div>
                   <div id="overtimeGiftResults" class="overtime-gift-results"></div>
                 </form>
               </dialog>
