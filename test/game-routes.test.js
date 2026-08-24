@@ -131,6 +131,24 @@ test('game session route returns conflict for a second start request', async () 
   assert.equal(service.getSession().game, 'number-bomb');
 });
 
+test('game session route restarts a finished game without an empty-session response', async () => {
+  let status;
+  let payload;
+  let restarts = 0;
+  await routes['POST /api/games/session'](
+    { games: { restart: () => { restarts += 1; return { game: 'gomoku', state: { winner: '' } }; } } },
+    { body: async () => ({ action: 'restart' }) },
+    {
+      writeHead(nextStatus) { status = nextStatus; },
+      end(body) { payload = JSON.parse(body); }
+    }
+  );
+
+  assert.equal(status, 200);
+  assert.equal(restarts, 1);
+  assert.deepEqual(payload, { ok: true, data: { game: 'gomoku', state: { winner: '' } } });
+});
+
 test('game winner profile route returns transient avatar data', async () => {
   let status;
   let payload;

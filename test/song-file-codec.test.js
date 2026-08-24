@@ -27,7 +27,7 @@ function namespaceWorksheetTags(buffer) {
   return createZip(Array.from(files.entries()));
 }
 
-test('song workbook codec preserves export fields for the import schema', () => {
+test('song workbook codec uses the default column order and leaves the exported source platform blank', () => {
   const songs = [{
     name: '测试,歌曲',
     artist: '测试歌手',
@@ -42,7 +42,7 @@ test('song workbook codec preserves export fields for the import schema', () => 
   }];
 
   const csv = buildSongsCsv(songs);
-  assert.match(csv, /核对备注,点歌价格,歌切/);
+  assert.match(csv, /语言,点歌价格,歌切,核对平台,核对备注/);
   assert.match(csv, /"测试,歌曲"/);
   assert.match(csv, /30元SC/);
   const [row] = parseSongsFromXlsx(buildSongsWorkbook(songs));
@@ -53,7 +53,7 @@ test('song workbook codec preserves export fields for the import schema', () => 
     tags: '抒情,治愈',
     isEnabled: false,
     language: '国语',
-    sourcePlatform: 'QQ音乐',
+    sourcePlatform: '',
     note: '导入测试',
     requestPrice: '30元SC',
     songClip: 'BV1SongClip'

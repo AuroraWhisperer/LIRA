@@ -8,11 +8,26 @@ const test = require('node:test');
 const {
   buildGiftCatalog,
   collectPanelGiftIds,
+  collectSendableBackpackGiftIds,
   createGiftSaleCatalogService,
   expandBlindBoxSaleIds,
   parseGiftConfig,
   parseGiftMappingDocument
 } = require('../src/bilibili/gift/sale-catalog');
+
+test('collectSendableBackpackGiftIds follows the current backpack without a fixed gift count', () => {
+  const nowMs = Date.parse('2026-08-24T08:00:00.000Z');
+  const ids = collectSendableBackpackGiftIds({ data: { list: [
+    { gift_id: 35777, gift_num: 1, expire_at: 0, bind_roomid: 0 },
+    { gift_id: 35778, gift_num: 2, expire_at: Math.floor(nowMs / 1000) + 60, bind_roomid: 22637261 },
+    { gift_id: 40001, gift_num: 3, expire_at: 0, bind_roomid: 0 },
+    { gift_id: 31134, gift_num: 0, expire_at: 0, bind_roomid: 0 },
+    { gift_id: 40002, gift_num: 1, expire_at: Math.floor(nowMs / 1000) - 1, bind_roomid: 0 },
+    { gift_id: 40003, gift_num: 1, expire_at: 0, bind_roomid: 6 }
+  ] } }, '22637261', nowMs);
+
+  assert.deepEqual([...ids].sort((left, right) => left - right), [35777, 35778, 40001]);
+});
 
 test('collectPanelGiftIds excludes red-packet and guard purchase actions', () => {
   const ids = collectPanelGiftIds({
@@ -79,12 +94,26 @@ test('expandBlindBoxSaleIds adds outputs only for sale boxes and prefers non-bag
   assert.deepEqual([...expanded].sort((left, right) => left - right), [10, 12, 13]);
 });
 
+test('expandBlindBoxSaleIds distinguishes same-name gifts by configured price', () => {
+  const config = parseGiftConfig({ data: { list: [
+    { id: 31134, name: '守护之翼', price: 200000, bag_gift: 1 },
+    { id: 35461, name: '羁绊宝盒', price: 33000, bag_gift: 0 },
+    { id: 35465, name: '守护之翼', price: 100000, bag_gift: 0 }
+  ] } });
+  const expanded = expandBlindBoxSaleIds(new Set([35461]), config, [
+    { name: '羁绊宝盒', outputs: [{ name: '守护之翼', price: 100 }] }
+  ]);
+
+  assert.deepEqual([...expanded].sort((left, right) => left - right), [35461, 35465]);
+});
+
 test('gift sale service validates room ID, caches refreshes, persists snapshots, and leaves Markdown unchanged', async () => {
   const fixture = createFixture();
   const mappingBefore = fixture.mappingPaths.map(filePath => fs.readFileSync(filePath, 'utf8'));
   let nowMs = Date.parse('2026-08-16T06:00:00.000Z');
   let roomId = '22637261';
   let fetchCount = 0;
+  const bagRequestOptions = [];
   const service = createGiftSaleCatalogService({
     dataDir: fixture.dataDir,
     publicDir: fixture.publicDir,
@@ -94,37 +123,48 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
     ]),
     now: () => nowMs,
     minRefreshMs: 10_000,
-    async fetchJson(name) {
+    getCookieHeader: async () => 'SESSDATA=fixture',
+    async fetchJson(name, _url, _roomId, requestOptions) {
       fetchCount += 1;
       if (name === 'gift_data') return { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: 100 }] } } };
+      if (name === 'gift_bag') {
+        bagRequestOptions.push(requestOptions);
+        return { code: 0, data: { list: [
+          { gift_id: 35777, gift_num: 1, expire_at: 0, bind_roomid: 0 },
+          { gift_id: 31134, gift_num: 0, expire_at: 0, bind_roomid: 0 }
+        ] } };
+      }
       return { code: 0, data: { list: [
         { id: 100, name: '测试盲盒', price: 1000, coin_type: 'gold' },
-        { id: 101, name: '测试产物', price: 2000, coin_type: 'gold' }
+        { id: 101, name: '测试产物', price: 2000, coin_type: 'gold' },
+        { id: 35777, name: '相识玉扣', price: 35000, coin_type: 'gold', bag_gift: 1 },
+        { id: 31134, name: '旧背包礼物', price: 200000, coin_type: 'gold', bag_gift: 1 }
       ] } };
     }
   });
 
   const refreshed = await service.refresh();
   assert.equal(refreshed.roomId, '22637261');
-  assert.equal(refreshed.count, 2);
+  assert.equal(refreshed.count, 3);
   assert.equal(refreshed.panelCount, 1);
-  assert.deepEqual(refreshed.gifts.map(gift => gift.id), ['100', '101']);
-  assert.equal(fetchCount, 2);
+  assert.deepEqual(refreshed.gifts.map(gift => gift.id), ['100', '101', '35777']);
+  assert.equal(fetchCount, 3);
+  assert.deepEqual(bagRequestOptions, [{ cookieHeader: 'SESSDATA=fixture' }]);
   assert.deepEqual(fixture.mappingPaths.map(filePath => fs.readFileSync(filePath, 'utf8')), mappingBefore);
   assert.equal(fs.existsSync(path.join(fixture.dataDir, 'overtime-gift-sale.json')), true);
 
   const cached = await service.refresh();
   assert.equal(cached.cached, true);
-  assert.equal(fetchCount, 2);
+  assert.equal(fetchCount, 3);
 
   roomId = '6';
   const changedRoom = await service.refresh();
   assert.equal(changedRoom.roomId, '6');
-  assert.equal(fetchCount, 4);
+  assert.equal(fetchCount, 6);
 
   nowMs += 10_001;
   await service.refresh();
-  assert.equal(fetchCount, 6);
+  assert.equal(fetchCount, 9);
 });
 
 test('gift sale service does not call upstream without a configured room', async () => {
@@ -137,6 +177,30 @@ test('gift sale service does not call upstream without a configured room', async
   });
   await assert.rejects(service.refresh(), /直播间号/);
   assert.equal(called, false);
+});
+
+test('gift sale service keeps panel-only refreshes working without a login Cookie', async () => {
+  const fixture = createFixture();
+  const endpoints = [];
+  const service = createGiftSaleCatalogService({
+    dataDir: fixture.dataDir,
+    publicDir: fixture.publicDir,
+    getRoomId: () => '22637261',
+    getCookieHeader: async () => '',
+    async fetchJson(name) {
+      endpoints.push(name);
+      if (name === 'gift_data') {
+        return { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: 100 }] } } };
+      }
+      return { code: 0, data: { list: [
+        { id: 100, name: '面板礼物', price: 1000, coin_type: 'gold' }
+      ] } };
+    }
+  });
+
+  const refreshed = await service.refresh();
+  assert.deepEqual(endpoints, ['gift_data', 'gift_config']);
+  assert.deepEqual(refreshed.gifts.map(gift => gift.id), ['100']);
 });
 
 test('gift sale service removes guard aliases from an existing cached snapshot', () => {

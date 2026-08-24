@@ -1,0 +1,91 @@
+/* 歌库表格行操作：默认收起，按需展开三项操作。 */
+.song-actions-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.song-actions-menu {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.song-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 20px;
+  font-weight: var(--type-weight-bold);
+  line-height: 1;
+  letter-spacing: 1px;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.song-actions-trigger:hover,
+.song-actions-trigger[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.song-actions-trigger:focus-visible,
+.song-actions-list button:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+.song-actions-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 112px;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-floating, 0 10px 28px rgba(31, 43, 68, 0.16));
+}
+
+.song-actions-list.opens-upward {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.song-actions-list[hidden] {
+  display: none;
+}
+
+.song-actions-list button {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: center;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+
+.song-actions-list button:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.song-actions-list button.danger {
+  border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.song-actions-list button.danger:hover {
+  border-color: var(--danger);
+  background: var(--color-danger-light);
+}

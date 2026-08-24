@@ -403,29 +403,6 @@ body.player-dock-expanded .other-workspace {
   background: linear-gradient(110deg, var(--surface) 0%, var(--surface-2) 100%);
 }
 
-.other-feature-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.app-shell .other-feature-page-header .ui-page-title {
-  margin: 0;
-  font-size: var(--type-size-page-title);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-page-title);
-  letter-spacing: var(--type-tracking-tight);
-}
-
-.app-shell .other-feature-page-header .ui-page-subtitle {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: var(--type-size-body);
-  font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-body);
-}
-
 .other-feature-panel-header h2 {
   font-size: var(--type-size-page-title);
   font-weight: var(--type-weight-bold);

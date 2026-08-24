@@ -23,13 +23,15 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="gomokuColumnLabels"/);
   assert.match(html, /id="gomokuRowLabels"/);
   assert.match(html, /id="gameResultAvatar"/);
+  assert.match(html, /id="gameResultExit"[^>]*>退出<\/button>/);
+  assert.match(html, /id="gameResultNext"[^>]*>下一局<\/button>/);
   assert.match(html, /id="drawGuessView"/);
   assert.match(html, /id="drawCanvas"/);
   assert.match(html, /id="drawScoreboard"/);
   assert.match(html, /id="drawCorrectFeed"/);
   assert.match(html, /id="drawDanmakuFeed"[^>]+data-style="bubble"/);
-  assert.match(html, /id="drawClearBtn"/);
-  assert.match(html, /id="drawUndoBtn"/);
+  assert.match(html, /id="drawClearBtn"[^>]+class="draw-tool-button draw-clear-button"[^>]*>\s*<svg[\s\S]*?<\/svg>\s*<\/button>/);
+  assert.match(html, /id="drawUndoBtn"[^>]+class="draw-tool-button draw-undo-button"[^>]*>\s*<svg[\s\S]*?<\/svg>\s*<\/button>/);
   assert.match(html, /id="drawPenBtn"[^>]+aria-label="画笔"/);
   assert.match(html, /id="drawEraserBtn"[^>]+aria-label="橡皮擦"/);
   assert.match(html, /id="drawLineBtn"[^>]+aria-label="直线"/);
@@ -47,6 +49,8 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /INITIAL_SNAPSHOT_RETRIES/);
   assert.match(script, /scheduleSnapshotRetry/);
   assert.match(script, /api\/games\/winner-profile/);
+  assert.match(script, /submitGameResultAction\('stop'\)/);
+  assert.match(script, /submitGameResultAction\('restart'\)/);
   assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
@@ -120,7 +124,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.gomoku-cell::before/);
   assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);
   assert.match(styles, /\.draw-canvas/);
-  assert.match(styles, /\.draw-undo-button/);
   assert.match(styles, /cursor:\s*url\(['"]\/img\/overlays\/draw-pen-cursor\.svg/);
   assert.match(styles, /\.draw-canvas\.is-eraser\s*\{[^}]*cursor:\s*url\(['"]\/img\/overlays\/draw-eraser-cursor\.svg/);
   assert.match(script, /classList\.toggle\(['"]is-eraser['"],\s*drawTool === 'eraser'\)/);

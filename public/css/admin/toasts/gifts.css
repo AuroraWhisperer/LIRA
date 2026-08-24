@@ -474,27 +474,29 @@
   color: var(--style-option-accent);
 }
 
-.monitor-hero {
+.monitor-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-bg-primary) 0%, #f7fbfa 48%, var(--color-primary-light) 100%);
-  padding: 16px;
 }
 
-.monitor-hero h3 {
-  margin: 0;
-  font-size: var(--type-size-section-title);
-  line-height: var(--type-leading-section-title);
+.monitor-status {
+  display: grid;
+  gap: 3px;
 }
 
-.monitor-hero p {
-  margin: 6px 0 0;
+.monitor-status > span {
   color: var(--muted);
-  font-size: var(--type-size-body);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+}
+
+.monitor-status p {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
 }
 
 .monitor-actions {

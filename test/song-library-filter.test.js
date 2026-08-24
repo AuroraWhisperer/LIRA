@@ -219,6 +219,18 @@ test('song library table displays the language column for rows and empty results
   assert.match(source, /colspan="8">暂无歌曲/);
 });
 
+test('song library folds row actions into an accessible bordered menu', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'song-actions.css'), 'utf8');
+
+  assert.match(source, /class="song-actions-trigger"[^>]+aria-haspopup="menu"[^>]+aria-expanded="false"/);
+  assert.match(source, /class="song-actions-list" role="menu"[^>]+hidden/);
+  assert.match(source, /role="menuitem" data-edit-song=/);
+  assert.match(source, /role="menuitem" data-add-song=/);
+  assert.match(source, /class="danger" type="button" role="menuitem" data-delete-song=/);
+  assert.match(styles, /\.song-actions-list button\.danger\s*\{[^}]*border-color:/s);
+});
+
 test('song library hides the note column when every visible note is empty', async () => {
   const elements = {
     songsTable: { innerHTML: '' },

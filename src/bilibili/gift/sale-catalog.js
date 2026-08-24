@@ -6,6 +6,7 @@ const { isGuardGiftAliasId } = require('./guard-gift-aliases');
 
 const GIFT_DATA_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftData';
 const GIFT_CONFIG_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftConfig';
+const GIFT_BAG_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/gift/bag_list';
 const MAPPING_FILES = [
   'gift-mapping-under-100.md',
   'gift-mapping-100-above.md',
@@ -85,6 +86,24 @@ function parseGiftConfig(payload) {
     }));
   }
   return result;
+}
+
+function collectSendableBackpackGiftIds(payload, roomId, nowMs = Date.now()) {
+  const ids = new Set();
+  const currentRoomId = String(roomId || '').trim();
+  const nowSeconds = Math.floor(Number(nowMs) / 1000);
+  for (const entry of Array.isArray(payload?.data?.list) ? payload.data.list : []) {
+    const id = Number(entry?.gift_id ?? entry?.id);
+    const quantity = Number(entry?.gift_num ?? 0);
+    const expiresAt = Number(entry?.expire_at ?? 0);
+    const boundRoomId = String(entry?.bind_roomid || '').trim();
+    if (!Number.isSafeInteger(id) || id <= 0 || isExcludedGiftId(id)) continue;
+    if (!Number.isFinite(quantity) || quantity <= 0) continue;
+    if (Number.isFinite(expiresAt) && expiresAt > 0 && expiresAt <= nowSeconds) continue;
+    if (boundRoomId && boundRoomId !== '0' && boundRoomId !== currentRoomId) continue;
+    ids.add(id);
+  }
+  return ids;
 }
 
 function expandBlindBoxSaleIds(panelSaleIds, configById, rawConfig) {
@@ -256,6 +275,7 @@ function createGiftSaleCatalogService(options = {}) {
   if (!options.dataDir || !options.publicDir) throw new Error('dataDir and publicDir are required.');
   const getRoomId = options.getRoomId || (() => '');
   const getBlindBoxConfig = options.getBlindBoxConfig || (() => '');
+  const getCookieHeader = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : null;
   const fetchJson = options.fetchJson || defaultFetchJson;
   const now = options.now || Date.now;
   const minRefreshMs = Math.max(0, Number(options.minRefreshMs ?? DEFAULT_MIN_REFRESH_MS) || 0);
@@ -277,16 +297,23 @@ function createGiftSaleCatalogService(options = {}) {
     }
     if (pending) return pending;
 
-    pending = Promise.all([
-      fetchJson('gift_data', giftDataUrl(roomId), roomId),
-      fetchJson('gift_config', giftConfigUrl(roomId), roomId)
-    ]).then(([giftData, giftConfig]) => {
+    pending = (async () => {
+      const cookieHeader = getCookieHeader ? String(await getCookieHeader() || '').trim() : '';
+      const [giftData, giftConfig, giftBag] = await Promise.all([
+        fetchJson('gift_data', giftDataUrl(roomId), roomId),
+        fetchJson('gift_config', giftConfigUrl(roomId), roomId),
+        cookieHeader
+          ? fetchJson('gift_bag', giftBagUrl(roomId), roomId, { cookieHeader })
+          : Promise.resolve(null)
+      ]);
       validateBilibiliPayload(giftData, '礼物面板');
       validateBilibiliPayload(giftConfig, '礼物配置');
+      if (giftBag) validateBilibiliPayload(giftBag, '礼物背包');
       const panelSaleIds = collectPanelGiftIds(giftData);
       if (panelSaleIds.size === 0) throw new Error('Bilibili 礼物面板没有返回可用礼物。');
       const configById = parseGiftConfig(giftConfig);
       const saleIds = expandBlindBoxSaleIds(panelSaleIds, configById, getBlindBoxConfig());
+      for (const id of collectSendableBackpackGiftIds(giftBag, roomId, currentMs)) saleIds.add(id);
       const mappings = readGiftMappings(publicDir);
       const gifts = buildGiftCatalog(saleIds, configById, mappings);
       snapshot = {
@@ -301,7 +328,7 @@ function createGiftSaleCatalogService(options = {}) {
       lastRefreshMs = currentMs;
       console.log(`[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length}`);
       return getUncachedSnapshot(snapshot);
-    }).finally(() => {
+    })().finally(() => {
       pending = null;
     });
     return pending;
@@ -332,16 +359,23 @@ function giftConfigUrl(roomId) {
   return `${GIFT_CONFIG_URL}?platform=pc&source=live&room_id=${encodeURIComponent(roomId)}`;
 }
 
-async function defaultFetchJson(endpointName, url, roomId) {
+function giftBagUrl(roomId) {
+  return `${GIFT_BAG_URL}?room_id=${encodeURIComponent(roomId)}`;
+}
+
+async function defaultFetchJson(endpointName, url, roomId, options = {}) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+    'Origin': 'https://live.bilibili.com',
+    'Referer': `https://live.bilibili.com/${encodeURIComponent(roomId)}`
+  };
+  const cookieHeader = String(options.cookieHeader || '').trim();
+  if (cookieHeader) headers.Cookie = cookieHeader;
   const response = await fetch(url, {
     signal: AbortSignal.timeout(15_000),
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'zh-CN,zh;q=0.9',
-      'Origin': 'https://live.bilibili.com',
-      'Referer': `https://live.bilibili.com/${encodeURIComponent(roomId)}`
-    }
+    headers
   });
   const text = await response.text();
   let payload;
@@ -398,12 +432,14 @@ function getUncachedSnapshot(value) {
 }
 
 module.exports = {
+  GIFT_BAG_URL,
   GIFT_CONFIG_URL,
   GIFT_DATA_URL,
   EXCLUDED_GIFT_IDS,
   MAPPING_FILES,
   buildGiftCatalog,
   collectPanelGiftIds,
+  collectSendableBackpackGiftIds,
   createGiftSaleCatalogService,
   createUnavailableGiftSaleCatalogService,
   expandBlindBoxSaleIds,

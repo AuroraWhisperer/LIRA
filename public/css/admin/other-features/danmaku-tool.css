@@ -2,7 +2,6 @@
   width: 100%;
   max-width: none;
 }
-.other-feature-panel-header-inline,
 .danmaku-reply-target {
   display: flex;
   align-items: center;
@@ -252,8 +251,6 @@
 .danmaku-status-grid strong.connection-good::before { content: '\25CF'; }
 .danmaku-status-grid strong.connection-bad::before { content: '\25B2'; }
 .danmaku-status-grid strong.warn { color: var(--warning); }
-.other-feature-panel-header-inline h2 { margin: 0; font-size: var(--type-size-page-title); }
-.other-feature-panel-header-inline p { margin: 5px 0 0; color: var(--muted); font-size: var(--type-size-body); }
 .danmaku-reply-target {
   min-height: 96px;
   padding: 18px;

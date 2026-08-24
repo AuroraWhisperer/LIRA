@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260823-02">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260824-02">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
@@ -60,6 +60,12 @@
                   <button id="drawPickerBtn" class="draw-tool-button draw-picker-button" type="button" aria-label="取色器" title="取色器 (I)" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.8 5.2 4 4M6.5 17.5l8.8-8.8 2 2-8.8 8.8H5v-3.5l8.8-8.8M5 21h5"/></svg>
                   </button>
+                  <button id="drawUndoBtn" class="draw-tool-button draw-undo-button" type="button" aria-label="撤销上一笔" title="撤销上一笔 (Ctrl+Z)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M5 12h8a6 6 0 0 1 6 6"/></svg>
+                  </button>
+                  <button id="drawClearBtn" class="draw-tool-button draw-clear-button" type="button" aria-label="清空全部" title="清空全部">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+                  </button>
                 </div>
                 <div class="draw-color-tools" aria-label="画笔颜色">
                   <button type="button" data-draw-color="#222034" aria-label="墨黑" aria-pressed="true"></button>
@@ -75,8 +81,6 @@
                   <button type="button" data-draw-width="8" aria-label="大号" aria-pressed="false"><span></span></button>
                   <button type="button" data-draw-width="12" aria-label="特大号" aria-pressed="false"><span></span></button>
                 </div>
-                <button id="drawUndoBtn" class="draw-undo-button" type="button" aria-label="撤销上一笔" title="撤销上一笔">撤销上一笔</button>
-                <button id="drawClearBtn" class="draw-clear-button" type="button">清空画布</button>
               </div>
             </div>
             <div class="draw-left-stats">
@@ -102,53 +106,58 @@
       </section>
       <section id="gameEmptyView" class="game-empty" hidden><strong>等待主播开局</strong></section>
       <div id="gameResult" class="game-result" hidden>
-        <div class="game-result-card">
-          <div class="game-result-icon">
-            <!-- 数字炸弹：爆炸图标 -->
-            <svg class="icon-bomb" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-              <!-- 爆炸外层光晕 -->
-              <circle cx="50" cy="50" r="42" fill="url(#explosion-glow)" opacity="0.6"/>
-              <!-- 爆炸主体星形 -->
-              <path d="M 50 10 L 55 40 L 85 35 L 60 55 L 90 80 L 58 65 L 50 95 L 42 65 L 10 80 L 40 55 L 15 35 L 45 40 Z" fill="url(#explosion-gradient)" stroke="#ff6b35" stroke-width="1.5"/>
-              <!-- 中心亮点 -->
-              <circle cx="50" cy="50" r="18" fill="#fff4e6"/>
-              <circle cx="50" cy="50" r="12" fill="#ffe89f"/>
-              <!-- 数字碎片 -->
-              <text x="35" y="35" font-family="Bahnschrift, sans-serif" font-size="14" font-weight="700" fill="#ff8c5a" opacity="0.8">7</text>
-              <text x="60" y="32" font-family="Bahnschrift, sans-serif" font-size="12" font-weight="700" fill="#ffb380" opacity="0.7">3</text>
-              <text x="68" y="62" font-family="Bahnschrift, sans-serif" font-size="13" font-weight="700" fill="#ff6b35" opacity="0.75">9</text>
-              <text x="28" y="68" font-family="Bahnschrift, sans-serif" font-size="11" font-weight="700" fill="#ffa366" opacity="0.7">5</text>
-              <defs>
-                <radialGradient id="explosion-glow">
-                  <stop offset="0%" stop-color="#ffcc80" stop-opacity="0.8"/>
-                  <stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/>
-                </radialGradient>
-                <radialGradient id="explosion-gradient" cx="50%" cy="50%">
-                  <stop offset="0%" stop-color="#ffe89f"/>
-                  <stop offset="50%" stop-color="#ffb380"/>
-                  <stop offset="100%" stop-color="#ff8c5a"/>
-                </radialGradient>
-              </defs>
-            </svg>
-            <!-- 五子棋：棋子图标 -->
-            <svg class="icon-gomoku" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="50" cy="50" r="35" fill="url(#stone-gradient)" stroke="#3a3a3a" stroke-width="2"/>
-              <ellipse cx="42" cy="42" rx="8" ry="6" fill="#ffffff" opacity="0.4"/>
-              <defs>
-                <radialGradient id="stone-gradient" cx="40%" cy="40%">
-                  <stop offset="0%" stop-color="#f0ead2"/>
-                  <stop offset="100%" stop-color="#ddb892"/>
-                </radialGradient>
-              </defs>
-            </svg>
-          </div>
-          <div class="game-result-winner">
+        <div class="game-result-card" role="dialog" aria-labelledby="gameResultText">
+          <div class="game-result-emblem">
+            <div class="game-result-icon">
+              <!-- 数字炸弹：爆炸图标 -->
+              <svg class="icon-bomb" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <!-- 爆炸外层光晕 -->
+                <circle cx="50" cy="50" r="42" fill="url(#explosion-glow)" opacity="0.6"/>
+                <!-- 爆炸主体星形 -->
+                <path d="M 50 10 L 55 40 L 85 35 L 60 55 L 90 80 L 58 65 L 50 95 L 42 65 L 10 80 L 40 55 L 15 35 L 45 40 Z" fill="url(#explosion-gradient)" stroke="#ff6b35" stroke-width="1.5"/>
+                <!-- 中心亮点 -->
+                <circle cx="50" cy="50" r="18" fill="#fff4e6"/>
+                <circle cx="50" cy="50" r="12" fill="#ffe89f"/>
+                <!-- 数字碎片 -->
+                <text x="35" y="35" font-family="Bahnschrift, sans-serif" font-size="14" font-weight="700" fill="#ff8c5a" opacity="0.8">7</text>
+                <text x="60" y="32" font-family="Bahnschrift, sans-serif" font-size="12" font-weight="700" fill="#ffb380" opacity="0.7">3</text>
+                <text x="68" y="62" font-family="Bahnschrift, sans-serif" font-size="13" font-weight="700" fill="#ff6b35" opacity="0.75">9</text>
+                <text x="28" y="68" font-family="Bahnschrift, sans-serif" font-size="11" font-weight="700" fill="#ffa366" opacity="0.7">5</text>
+                <defs>
+                  <radialGradient id="explosion-glow">
+                    <stop offset="0%" stop-color="#ffcc80" stop-opacity="0.8"/>
+                    <stop offset="100%" stop-color="#ff6b35" stop-opacity="0"/>
+                  </radialGradient>
+                  <radialGradient id="explosion-gradient" cx="50%" cy="50%">
+                    <stop offset="0%" stop-color="#ffe89f"/>
+                    <stop offset="50%" stop-color="#ffb380"/>
+                    <stop offset="100%" stop-color="#ff8c5a"/>
+                  </radialGradient>
+                </defs>
+              </svg>
+              <!-- 五子棋：棋子图标 -->
+              <svg class="icon-gomoku" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="35" fill="url(#stone-gradient)" stroke="#3a3a3a" stroke-width="2"/>
+                <ellipse cx="42" cy="42" rx="8" ry="6" fill="#ffffff" opacity="0.4"/>
+                <defs>
+                  <radialGradient id="stone-gradient" cx="40%" cy="40%">
+                    <stop offset="0%" stop-color="#f0ead2"/>
+                    <stop offset="100%" stop-color="#ddb892"/>
+                  </radialGradient>
+                </defs>
+              </svg>
+            </div>
             <img id="gameResultAvatar" class="game-result-avatar" alt="" hidden>
-            <div id="gameResultText" class="game-result-text"></div>
           </div>
+          <div id="gameResultText" class="game-result-text"></div>
+          <div class="game-result-actions">
+            <button id="gameResultExit" class="game-result-button game-result-exit" type="button">退出</button>
+            <button id="gameResultNext" class="game-result-button game-result-next" type="button">下一局</button>
+          </div>
+          <p id="gameResultActionStatus" class="game-result-action-status" role="status" hidden></p>
         </div>
       </div>
     </main>
-    <script type="module" src="/js/overlays/games.js?v=20260823-03"></script>
+    <script type="module" src="/js/overlays/games.js?v=20260824-01"></script>
   </body>
 </html>

@@ -299,7 +299,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ### 11.1 列契约(song-import-schema.js)
 
-`SONG_EXPORT_HEADERS` 10 列([song-import-schema.js:5-16](../../../../src/music/song-import-schema.js#L5-L16)):`歌曲名字 / 原唱/首发歌手 / 歌曲分类 / 歌曲标签 / 是否可点 / 语言 / 核对平台 / 核对备注 / 点歌价格 / 歌切`。`点歌价格` 是自由文本说明，例如 `免费 / 心动 / 30元SC / 舰长 / 冠歌`;`歌切` 是可放链接、BV 号、时间点或其他说明的自由文本。两列均不参与点歌资格或排序判断。
+`SONG_EXPORT_HEADERS` 10 列([song-import-schema.js:5-16](../../../../src/music/song-import-schema.js#L5-L16)):`歌曲名字 / 原唱/首发歌手 / 歌曲分类 / 歌曲标签 / 是否可点 / 语言 / 点歌价格 / 歌切 / 核对平台 / 核对备注`。`点歌价格` 是自由文本说明，例如 `免费 / 心动 / 30元SC / 舰长 / 冠歌`;`歌切` 是可放链接、BV 号、时间点或其他说明的自由文本。两列均不参与点歌资格或排序判断。
 
 `SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js:18-29](../../../../src/music/song-import-schema.js#L18-L29));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。`firstValue` 按别名顺序取首个非空;`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集,未识别回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
 
@@ -311,7 +311,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `buildSongsCsv(rows)` | 表头 + `csvCell` 转义逐行 |
 | `buildSongsWorkbook(rows)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels) |
 | `templateSongs()` | 两行示例数据(晴天/小幸运)，点歌价格示例覆盖 `免费` 及 `心动 / 30元SC / 舰长 / 冠歌`，歌切默认留空 |
-| `songToExportRow(song)` | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切) |
+| `songToExportRow(song)` | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，核对平台导出为空) |
 
 ## 12. 请求者定位(requester-target-store.js)
 

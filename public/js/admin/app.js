@@ -86,7 +86,11 @@ async function initApp() {
   window.liraTour = interactiveTour;
 
   // 初始化「百宝箱」页面的通用功能导航
-  modules.other?.initOtherPage?.();
+  modules.other?.initOtherPage?.({
+    persistSidebarCollapsed: (collapsed) => Utils.api('/api/settings', {
+      toolboxSidebarCollapsed: String(collapsed)
+    })
+  });
   initStartAnimation();
   initClockCard();
   modules.gifts?.initGiftHistoryDrawer?.();
@@ -154,6 +158,10 @@ function initMainPages() {
                     : hash === '#other' ? 'otherAssistantPage'
                     : 'songAssistantPage';
   setMainPage(initialPage);
+
+  window.addEventListener('resize', () => {
+    syncMainPageIndicator(document.querySelector('.main-page-tab.active'));
+  }, { passive: true });
 }
 
 // 有效的主页面 ID 列表 — 新增页面时在此注册即可
@@ -162,6 +170,18 @@ const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAss
 const MAIN_PAGE_HASH_MAP = { playbackAssistantPage: '#playback', giftAssistantPage: '#gifts', otherAssistantPage: '#other' };
 // 主页面 → body dataset 标识
 const MAIN_PAGE_BODY_MAP = { playbackAssistantPage: 'playback', giftAssistantPage: 'gifts', songAssistantPage: 'songs', otherAssistantPage: 'other' };
+const MAIN_PAGE_INDICATOR_WIDTH = 22;
+
+function syncMainPageIndicator(activeButton) {
+  const tabs = activeButton?.closest('.main-page-tabs');
+  if (!tabs) return;
+
+  const tabsRect = tabs.getBoundingClientRect();
+  const buttonRect = activeButton.getBoundingClientRect();
+  const indicatorX = buttonRect.left - tabsRect.left + (buttonRect.width - MAIN_PAGE_INDICATOR_WIDTH) / 2;
+  tabs.style.setProperty('--main-page-indicator-x', `${indicatorX}px`);
+  tabs.classList.add('indicator-ready');
+}
 
 /**
  * 设置主页面
@@ -177,6 +197,7 @@ function setMainPage(pageId) {
     const isActive = button.dataset.mainPage === nextPageId;
     button.classList.toggle('active', isActive);
     button.setAttribute('aria-pressed', String(isActive));
+    if (isActive) syncMainPageIndicator(button);
   });
 
   document.body.dataset.mainPage = MAIN_PAGE_BODY_MAP[nextPageId] || 'songs';

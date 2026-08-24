@@ -6,10 +6,10 @@
               data-other-feature-panel
             >
               <div class="other-feature-panel-body stack">
-                <header class="monitor-hero other-feature-page-header">
-                  <div>
-                    <h2 class="ui-page-title">性能检测</h2>
-                    <p id="metricsStatus" class="ui-page-subtitle">未检测</p>
+                <div class="monitor-toolbar">
+                  <div class="monitor-status">
+                    <span>检测状态</span>
+                    <p id="metricsStatus">未检测</p>
                   </div>
                   <div class="monitor-actions">
                     <div id="metricsCountdown" class="metrics-countdown" role="timer" aria-label="每次检测采样 5 秒">
@@ -24,7 +24,7 @@
                     </div>
                     <button id="metricsRefreshBtn" class="primary" type="button">开始检测</button>
                   </div>
-                </header>
+                </div>
 
                 <div class="monitor-grid">
                   <section class="metric-card">

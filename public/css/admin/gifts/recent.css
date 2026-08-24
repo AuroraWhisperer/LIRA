@@ -321,6 +321,11 @@
   background: linear-gradient(90deg, #ffeaf8 0%, #f4ebff 48%, var(--color-bg-primary) 100%);
 }
 
+.gift-card.blind-box-card.blind-box-bond {
+  border-left-color: #ff6fb8;
+  background: linear-gradient(90deg, #fff0fa 0%, #eefbff 48%, var(--color-bg-primary) 100%);
+}
+
 .gift-card.blind-box-card .profit-up {
   color: #c0392b;
 }

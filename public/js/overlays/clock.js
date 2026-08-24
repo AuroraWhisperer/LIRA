@@ -6,6 +6,15 @@ const DEFAULT_LABELS = Object.freeze({
   starlight: '今晚与星星一起值班'
 });
 const MAX_LABEL_LENGTH = 16;
+const CLOCK_CARD_WIDTH = 560;
+const CLOCK_CARD_HEIGHT = 190;
+const CLOCK_FRAME_GUTTER = 20;
+
+function clockScaleForViewport(width, height) {
+  const widthScale = Math.max(0, width - CLOCK_FRAME_GUTTER) / CLOCK_CARD_WIDTH;
+  const heightScale = Math.max(0, height - CLOCK_FRAME_GUTTER) / CLOCK_CARD_HEIGHT;
+  return Math.min(widthScale, heightScale);
+}
 
 function booleanParameter(params, key, fallback) {
   const value = params.get(key);
@@ -105,12 +114,18 @@ async function initClock() {
   const weekdayNode = document.getElementById('clockWeekday');
   let timer = 0;
 
+  function syncCardScale() {
+    card.style.setProperty('--clock-scale', String(clockScaleForViewport(window.innerWidth, window.innerHeight)));
+  }
+
   document.documentElement.dataset.clockStyle = config.style;
   card.dataset.clockStyle = config.style;
   labelNode.textContent = config.label;
   secondsNode.hidden = !config.showSeconds;
   periodNode.hidden = !config.hour12;
   dateRow.hidden = !config.showDate;
+  window.addEventListener('resize', syncCardScale);
+  syncCardScale();
 
   function render() {
     const now = new Date();
@@ -147,4 +162,4 @@ async function initClock() {
 
 if (typeof document !== 'undefined') initClock();
 
-export { CLOCK_STYLE_VALUES, cleanLabel, mergeClockConfig, normalizeSavedClockConfig, readClockConfig };
+export { CLOCK_STYLE_VALUES, cleanLabel, clockScaleForViewport, mergeClockConfig, normalizeSavedClockConfig, readClockConfig };

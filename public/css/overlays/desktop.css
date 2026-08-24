@@ -75,43 +75,16 @@ body.desktop-shell #shutdownBtn {
   display: none;
 }
 
-.desktop-update-hero,
 .desktop-update-card {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
 
-.desktop-update-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  max-width: 100%;
-  overflow: hidden;
-  border-left: 5px solid var(--primary);
-  background:
-    linear-gradient(135deg, #fff 0%, #fff7ed 52%, #f7fbfa 100%);
-  padding: 20px 22px;
-  box-shadow: 0 14px 34px rgba(87, 58, 28, 0.12);
-}
-
-.desktop-update-hero > div {
-  min-width: 0;
-}
-
-.desktop-update-hero h2,
 .desktop-update-card h4 {
   margin: 0;
 }
 
-.desktop-update-hero h2 {
-  font-size: var(--type-size-page-title);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-page-title);
-}
-
-.desktop-update-hero p,
 .desktop-update-card p {
   margin: 6px 0 0;
   color: var(--muted);
@@ -122,7 +95,7 @@ body.desktop-shell #shutdownBtn {
   word-break: break-word;
 }
 
-.desktop-update-hero p {
+#desktopUpdateStatus {
   display: -webkit-box;
   max-height: 80px;
   overflow: hidden;
@@ -134,27 +107,49 @@ body.desktop-shell #shutdownBtn {
   white-space: pre-line;
 }
 
-.desktop-update-hero p[data-status="checking"],
-.desktop-update-hero p[data-status="downloading"],
-.desktop-update-hero p[data-status="installing"] {
+#desktopUpdateStatus[data-status="checking"],
+#desktopUpdateStatus[data-status="downloading"],
+#desktopUpdateStatus[data-status="installing"] {
   color: var(--primary-strong);
 }
 
-.desktop-update-hero p[data-status="not-available"] {
+#desktopUpdateStatus[data-status="not-available"] {
   color: var(--color-success-dark);
 }
 
-.desktop-update-hero p[data-status="error"] {
+#desktopUpdateStatus[data-status="error"] {
   color: var(--danger);
 }
 
-.desktop-update-hero .pill {
+.desktop-update-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.desktop-current-version {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
   min-height: 36px;
   padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--color-bg-primary);
+  white-space: nowrap;
+}
+
+.desktop-current-version > span {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+}
+
+#desktopVersionPill {
   color: var(--text);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
-  background: var(--color-bg-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .desktop-update-grid {

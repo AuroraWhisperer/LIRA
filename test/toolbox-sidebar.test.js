@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
+const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -155,7 +156,7 @@ test('toolbox group headings are collapsible buttons with the intended type scal
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.other-feature-group-arrow\s*\{[^}]*transition:\s*none/);
 });
 
-function createToolboxRuntime() {
+function createToolboxRuntime({ initialStorage = {} } = {}) {
   function createNode({ dataset = {}, id = '', textContent = '' } = {}) {
     const attributes = new Map();
     const listeners = new Map();
@@ -252,12 +253,18 @@ function createToolboxRuntime() {
       return [];
     }
   };
-  const stored = new Map();
+  const stored = new Map(Object.entries(initialStorage));
+  const windowListeners = new Map();
   const sandbox = {
     console,
     document: { getElementById() { return root; } },
     window: {
       AdminApp: {},
+      addEventListener(type, handler) {
+        const handlers = windowListeners.get(type) || [];
+        handlers.push(handler);
+        windowListeners.set(type, handlers);
+      },
       localStorage: {
         getItem(key) { return stored.get(key) || null; },
         setItem(key, value) { stored.set(key, value); }
@@ -268,8 +275,67 @@ function createToolboxRuntime() {
     fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8'),
     sandbox
   );
-  return { sandbox, root, headings, buttons, panels };
+  return {
+    sandbox,
+    root,
+    headings,
+    buttons,
+    panels,
+    sidebarToggle,
+    stored,
+    dispatchWindowEvent(type, detail) {
+      (windowListeners.get(type) || []).forEach((handler) => handler({ detail }));
+    }
+  };
 }
+
+test('toolbox sidebar has an uninitialized durable preference by default', () => {
+  assert.equal(DEFAULT_SETTINGS.toolboxSidebarCollapsed, '');
+});
+
+test('toolbox sidebar restores the durable preference when the legacy cache is absent', () => {
+  for (const [setting, expected] of [['true', true], ['false', false]]) {
+    const persisted = [];
+    const runtime = createToolboxRuntime();
+    runtime.sandbox.window.AdminApp.other.initOtherPage({
+      persistSidebarCollapsed: (collapsed) => persisted.push(collapsed)
+    });
+
+    runtime.dispatchWindowEvent('app:settings-state', { toolboxSidebarCollapsed: setting });
+
+    assert.equal(runtime.root.classList.contains('sidebar-collapsed'), expected);
+    assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), setting);
+    assert.deepEqual(persisted, []);
+  }
+});
+
+test('toolbox sidebar migrates the legacy preference and saves explicit toggles', () => {
+  const persisted = [];
+  const runtime = createToolboxRuntime({
+    initialStorage: { 'admin.toolboxSidebarCollapsed': 'true' }
+  });
+  runtime.sandbox.window.AdminApp.other.initOtherPage({
+    persistSidebarCollapsed: (collapsed) => persisted.push(collapsed)
+  });
+
+  assert.equal(runtime.root.classList.contains('sidebar-collapsed'), true);
+  runtime.dispatchWindowEvent('app:settings-state', { toolboxSidebarCollapsed: '' });
+  assert.deepEqual(persisted, [true]);
+
+  runtime.sidebarToggle.dispatch('click');
+  assert.equal(runtime.root.classList.contains('sidebar-collapsed'), false);
+  assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), 'false');
+  assert.deepEqual(persisted, [true, false]);
+});
+
+test('admin app persists toolbox sidebar changes through the settings API', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+
+  assert.match(
+    source,
+    /initOtherPage\?\.\(\{[\s\S]*?persistSidebarCollapsed:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxSidebarCollapsed:/
+  );
+});
 
 test('toolbox groups hide and restore only their own features and deep links reopen them', () => {
   const runtime = createToolboxRuntime();
@@ -419,34 +485,37 @@ test('desktop update feature keeps its tab and panel mapping', () => {
   assert.match(html, /aria-labelledby="otherDesktopUpdateFeatureTab"/);
 });
 
-test('toolbox features share one semantic page-header contract', () => {
-  const html = readAdminHtml();
+test('toolbox tabs rely on sidebar titles instead of repeating page headers', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const pageTitles = [
-    '把直播间准备好',
-    '弹幕姬',
-    '礼物姬',
-    '小游戏',
-    '加班机',
-    '礼物特效',
-    '主播工作台',
-    '开播画面',
-    '萌时钟',
-    '性能检测',
-    '使用文档',
-    '桌面更新'
+  const featureFiles = [
+    'danmaku.html',
+    'gift.html',
+    'games.html',
+    'overtime.html',
+    'gift-effects.html',
+    'start-animation.html',
+    'clock.html',
+    'planner.html',
+    'performance.html',
+    'desktop-update.html'
   ];
 
-  for (const title of pageTitles) {
-    assert.match(
-      html,
-      new RegExp(`class="[^"]*ui-page-title[^"]*"[^>]*>${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|<)`),
-      `${title} should use the common page-title role`
+  for (const file of featureFiles) {
+    const featureHtml = fs.readFileSync(
+      path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', file),
+      'utf8'
     );
+    assert.doesNotMatch(featureHtml, /ui-page-(?:title|subtitle)|other-feature-page-header/);
   }
 
-  assert.match(styles, /\.other-feature-page-header\s*\{[^}]*display:\s*flex/);
-  assert.match(styles, /\.app-shell \.other-feature-page-header \.ui-page-title\s*\{[^}]*font-size:\s*var\(--type-size-page-title\)/);
-  assert.match(styles, /\.app-shell \.other-feature-page-header \.ui-page-subtitle\s*\{[^}]*font-size:\s*var\(--type-size-body\)/);
+  const usageGuideHtml = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'usage-guide.html'),
+    'utf8'
+  );
+  assert.match(usageGuideHtml, /<h2 id="usageGuideTitle" class="usage-guide-title">使用文档<\/h2>/);
+  assert.match(usageGuideHtml, /class="usage-guide-lead">把直播间的互动交给 LIRA/);
+  assert.match(usageGuideHtml, /class="usage-guide-hero-actions"/);
+  assert.doesNotMatch(usageGuideHtml, /other-feature-page-header/);
+  assert.doesNotMatch(styles, /\.other-feature-page-header\b/);
   assert.match(styles, /\.planner-session-form label > span,[\s\S]*?font-size:\s*var\(--type-size-control\)/);
 });

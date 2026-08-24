@@ -7,21 +7,16 @@
               hidden
             >
               <div id="gamesAdminPanel" class="other-feature-panel-body games-admin">
-                <header class="games-admin-header other-feature-page-header">
-                  <div>
-                    <p class="games-eyebrow ui-eyebrow">LIVE ARCADE</p>
-                    <h2 class="ui-page-title">小游戏</h2>
-                  </div>
-                  <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
-                </header>
-
                 <section class="games-category games-category-primary" aria-labelledby="gamesCategoryTitle">
                   <header class="games-category-header">
                     <div>
                       <span class="games-category-kicker">类别 1</span>
                       <h3 id="gamesCategoryTitle" class="ui-section-title">直播间互动</h3>
                     </div>
-                    <span class="games-category-note">三款游戏共用一个直播画面</span>
+                    <div class="games-category-meta">
+                      <span class="games-category-note">三款游戏共用一个直播画面</span>
+                      <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
+                    </div>
                   </header>
                   <section class="games-link-deck" aria-labelledby="gamesLinkTitle">
                     <div>
@@ -131,10 +126,6 @@
                           </div>
                           <div id="drawWordCategories" class="draw-word-categories" aria-label="你画我猜词库分类"></div>
                         </section>
-                        <div class="draw-rules" aria-label="你画我猜计分规则">
-                          <div><span>前三名</span><strong>10 · 7 · 5</strong><small>按答对顺序计分</small></div>
-                          <div><span>其余答对</span><strong>3 分</strong><small>每人每局一次</small></div>
-                        </div>
                         <section class="draw-host-panel" aria-labelledby="drawHostTitle">
                           <div class="draw-host-copy">
                             <span>仅主播可见 · 不会出现在游戏网页</span>

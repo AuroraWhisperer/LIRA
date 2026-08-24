@@ -144,6 +144,30 @@
   background: rgba(169, 77, 180, 0.1);
 }
 
+/* 羁绊宝盒专属样式 — 亮粉与青蓝呼应盒面配色 */
+.blind-box-chip:has(img[alt*="羁绊宝盒"]) {
+  border-color: #ff6fb8;
+  background: linear-gradient(135deg, #fff0fa 0%, #eefbff 100%);
+}
+
+.blind-box-chip:has(img[alt*="羁绊宝盒"]):hover {
+  border-color: #e84e9f;
+  box-shadow: 0 4px 12px rgba(232, 78, 159, 0.18);
+}
+
+.blind-box-chip:has(img[alt*="羁绊宝盒"]) .bb-chip-icon {
+  background: linear-gradient(135deg, #ffe7f5 0%, #dcf8ff 100%);
+}
+
+.blind-box-chip:has(img[alt*="羁绊宝盒"]) .bb-chip-name {
+  color: #b43f89;
+}
+
+.blind-box-chip:has(img[alt*="羁绊宝盒"]) .bb-chip-price {
+  color: #2a87b7;
+  background: rgba(42, 135, 183, 0.1);
+}
+
 .bb-chip-icon-fallback {
   width: 44px;
   height: 44px;

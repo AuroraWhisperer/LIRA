@@ -11,29 +11,6 @@
     var(--surface-2);
 }
 
-.clock-tool-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.clock-tool-header > div { display: grid; gap: 3px; }
-.clock-tool-eyebrow { color: #c05a7c; font-family: Consolas, monospace; font-size: var(--type-size-micro); font-weight: var(--type-weight-bold); line-height: 1; letter-spacing: .16em; }
-.clock-tool-header h2 { margin: 3px 0 0; font-size: var(--type-size-page-title); letter-spacing: var(--type-tracking-tight); }
-.clock-tool-header p { margin: 2px 0 0; color: var(--muted); font-size: var(--type-size-body); line-height: 1.55; }
-
-.clock-tool-badge {
-  padding: 7px 10px;
-  border: 1px solid #dbcff0;
-  border-radius: 999px;
-  color: #6d5592;
-  background: rgba(255, 255, 255, .72);
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-bold);
-  white-space: nowrap;
-}
-
 .clock-tool-layout {
   display: grid;
   grid-template-columns: minmax(360px, 1.15fr) minmax(320px, .85fr);
@@ -211,12 +188,10 @@
 }
 
 @media (max-width: 620px) {
-  .clock-tool-header,
   .clock-card-heading { flex-direction: column; }
   .clock-style-options,
   .clock-toggle-grid,
   .clock-url-actions { grid-template-columns: 1fr; }
   .clock-url-box { grid-template-columns: 1fr; }
-  .clock-tool-badge { align-self: flex-start; }
   .clock-preview-canvas { min-height: 170px; padding: 10px; }
 }

@@ -7,17 +7,16 @@
               hidden
             >
               <div class="other-feature-panel-body stack">
-                <header class="desktop-update-hero other-feature-page-header">
-                  <div>
-                    <h2 class="ui-page-title">桌面更新</h2>
-                    <p id="desktopUpdateStatus" class="ui-page-subtitle">等待桌面端连接</p>
-                  </div>
-                  <span id="desktopVersionPill" class="pill">版本 --</span>
-                </header>
-
                 <div class="desktop-update-grid">
                   <section class="desktop-update-card">
-                    <h4 class="ui-section-title">🔄 版本更新</h4>
+                    <div class="desktop-update-card-heading">
+                      <h4 class="ui-section-title">🔄 版本更新</h4>
+                      <span class="desktop-current-version">
+                        <span>当前版本</span>
+                        <strong id="desktopVersionPill">--</strong>
+                      </span>
+                    </div>
+                    <p id="desktopUpdateStatus">等待桌面端连接</p>
 
                     <div class="actions">
                       <button id="desktopCheckUpdateBtn" class="primary" type="button">检查更新</button>

@@ -7,85 +7,117 @@
               hidden
             >
               <div class="other-feature-panel-body opening-animation-panel">
-                <header class="opening-animation-header other-feature-page-header">
-                  <div>
-                    <h2 class="ui-page-title">开播画面</h2>
+                <div class="opening-animation-toolbar">
+                  <div class="opening-animation-title">
+                    <span>直播开场</span>
+                    <div>
+                      <h2>开播动画</h2>
+                      <p>集中设置开场画面、动效和音乐，右侧会同步显示最终效果。</p>
+                    </div>
                   </div>
                   <label class="opening-master-toggle">
                     <input id="openingEnabled" type="checkbox">
                     <span class="opening-master-toggle-ui" aria-hidden="true"></span>
-                    <span>显示整套特效（动画 + 音乐）</span>
+                    <span class="opening-master-toggle-copy">
+                      <strong>显示整套特效（动画 + 音乐）</strong>
+                      <small>同时控制预览与固定浏览器源</small>
+                    </span>
                   </label>
-                </header>
+                </div>
 
                 <div class="opening-animation-layout">
                   <form id="openingAnimationForm" class="opening-animation-editor" novalidate>
                     <div class="opening-editor-heading">
                       <div>
                         <span>文案设置</span>
-                        <span>开场文案</span><lira-help><strong>设置开播画面上的文字</strong></lira-help>
+                        <div class="opening-editor-title">
+                          <span>开场文案</span><lira-help><strong>设置开播画面上的文字</strong></lira-help>
+                        </div>
                       </div>
                     </div>
-                    <label><span class="opening-field-label"><span>主标题</span><output id="openingTitleCount" for="openingTitle">12/20</output></span><input id="openingTitle" name="title" maxlength="20" value="唱一首，在一首，给你的歌" autocomplete="off"></label>
-                    <label>副标题<input id="openingSubtitle" name="subtitle" maxlength="40" value="开播准备中" autocomplete="off"></label>
-                    <label>主播名<input id="openingName" name="name" maxlength="32" value="" autocomplete="off"></label>
-                    <label>底部文案<input id="openingFooter" name="footer" maxlength="48" value="欢迎来到直播间" autocomplete="off"></label>
-                    <label>画质<select id="openingQuality" name="quality">
-                      <option value="normal" selected>普通 · 推荐</option>
-                      <option value="high">高 · 更多氛围粒子</option>
-                      <option value="low">低 · 轻量模式</option>
-                    </select></label>
-                    <label>轨道动效<select id="openingTrackMotion" name="trackMotion">
-                      <option value="heart" selected>心形巡航</option>
-                      <option value="barber">灯带循环</option>
-                      <option value="progress">流光进度</option>
-                    </select></label>
-                    <div class="opening-editor-checks">
-                      <label>
-                        <span class="opening-switch-label">漂浮音符</span>
-                        <input id="openingShowNotes" type="checkbox" checked>
-                        <span class="opening-switch-ui" aria-hidden="true"></span>
-                      </label>
-                      <label>
-                        <span class="opening-switch-label">音乐律动</span>
-                        <input id="openingShowEq" type="checkbox" checked>
-                        <span class="opening-switch-ui" aria-hidden="true"></span>
-                      </label>
+                    <div class="opening-copy-fields">
+                      <label class="opening-field-wide"><span class="opening-field-label"><span>主标题</span><output id="openingTitleCount" for="openingTitle">12/20</output></span><input id="openingTitle" name="title" maxlength="20" value="唱一首，在一首，给你的歌" autocomplete="off"></label>
+                      <label>副标题<input id="openingSubtitle" name="subtitle" maxlength="40" value="开播准备中" autocomplete="off"></label>
+                      <label>主播名<input id="openingName" name="name" maxlength="32" value="" autocomplete="off"></label>
+                      <label class="opening-field-wide">底部文案<input id="openingFooter" name="footer" maxlength="48" value="欢迎来到直播间" autocomplete="off"></label>
                     </div>
-                    <div class="opening-music-card">
-                      <div class="opening-music-heading">
-                        <span>开场音乐</span>
-                        <strong id="openingAudioName">默认音乐：果实</strong>
+
+                    <section class="opening-editor-section" aria-labelledby="openingEffectsHeading">
+                      <div class="opening-section-heading">
+                        <strong id="openingEffectsHeading">画面效果</strong>
+                        <small>调整渲染质量和画面细节</small>
                       </div>
-                      <div class="opening-music-actions">
-                        <label class="opening-upload-button">
-                          <input id="openingAudioFile" type="file" accept="audio/*,.mp3,.flac,.wav,.aac,.ogg,.m4a,.wma">
-                          <span>上传歌曲</span>
+                      <div class="opening-select-grid">
+                        <label>画质<select id="openingQuality" name="quality">
+                          <option value="normal" selected>普通 · 推荐</option>
+                          <option value="high">高 · 更多氛围粒子</option>
+                          <option value="low">低 · 轻量模式</option>
+                        </select></label>
+                        <label>轨道动效<select id="openingTrackMotion" name="trackMotion">
+                          <option value="heart" selected>心形巡航</option>
+                          <option value="barber">灯带循环</option>
+                          <option value="progress">流光进度</option>
+                        </select></label>
+                      </div>
+                      <div class="opening-editor-checks">
+                        <label>
+                          <span class="opening-switch-label">漂浮音符</span>
+                          <input id="openingShowNotes" type="checkbox" checked>
+                          <span class="opening-switch-ui" aria-hidden="true"></span>
                         </label>
-                        <button id="openingResetAudio" class="button-quiet" type="button">恢复默认</button>
+                        <label>
+                          <span class="opening-switch-label">音乐律动</span>
+                          <input id="openingShowEq" type="checkbox" checked>
+                          <span class="opening-switch-ui" aria-hidden="true"></span>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section class="opening-music-card" aria-labelledby="openingMusicHeading">
+                      <div class="opening-music-heading">
+                        <div>
+                          <strong id="openingMusicHeading">开场音乐</strong>
+                          <span id="openingAudioName">默认音乐：果实</span>
+                        </div>
+                        <div class="opening-music-actions">
+                          <label class="opening-upload-button">
+                            <input id="openingAudioFile" type="file" accept="audio/*,.mp3,.flac,.wav,.aac,.ogg,.m4a,.wma">
+                            <span>上传歌曲</span>
+                          </label>
+                          <button id="openingResetAudio" class="button-quiet" type="button">恢复默认</button>
+                        </div>
                       </div>
                       <label class="opening-volume-field" for="openingAudioVolume">
                         <span>音乐音量 <output id="openingAudioVolumeValue" for="openingAudioVolume">35%</output></span>
                         <input id="openingAudioVolume" type="range" min="0" max="100" step="1" value="35">
                       </label>
                       <p id="openingAudioStatus" class="opening-audio-status" role="status" aria-live="polite"></p>
-                    </div>
+                    </section>
                   </form>
 
                   <section class="opening-animation-preview" aria-labelledby="openingPreviewHeading">
                     <div class="opening-preview-heading">
-                      <strong id="openingPreviewHeading">开播动画预览</strong>
+                      <div>
+                        <strong id="openingPreviewHeading">开播动画预览</strong>
+                        <span>16:9 实时画面</span>
+                      </div>
                     </div>
-                    <iframe id="openingPreview" title="开播动画预览" loading="lazy" hidden></iframe>
-                  </section>
-                </div>
+                    <div class="opening-preview-stage">
+                      <div class="opening-preview-empty">
+                        <strong>预览已暂停</strong>
+                        <span>打开整套特效开关后，这里会显示最终开场画面。</span>
+                      </div>
+                      <iframe id="openingPreview" title="开播动画预览" loading="lazy" hidden></iframe>
+                    </div>
 
-                <div class="opening-animation-address">
-                  <div>
-                    <span>固定浏览器源地址</span>
-                    <code id="openingUrl"></code>
-                  </div>
-                  <button id="openingCopyUrl" class="button-secondary" type="button">复制地址</button>
+                    <div class="opening-animation-address">
+                      <div>
+                        <span>固定浏览器源地址</span>
+                        <code id="openingUrl"></code>
+                      </div>
+                      <button id="openingCopyUrl" class="button-secondary" type="button">复制地址</button>
+                    </div>
+                  </section>
                 </div>
               </div>
             </section>

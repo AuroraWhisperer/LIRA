@@ -52,6 +52,26 @@ test('game session retains the viewer identity that wins', () => {
   assert.deepEqual(service.getSession().winner, { role: 'viewer', uid: '42', name: 'Alice' });
 });
 
+test('finished game can restart with the same player configuration', () => {
+  const service = createGameSessionService();
+  service.start({ game: 'gomoku', mode: 'single', targetUid: '42', targetName: 'Alice' });
+  assert.throws(() => service.restart(), /尚未结算/);
+
+  for (let index = 1; index <= 5; index += 1) {
+    service.move({ value: `A${index}` }, 'host');
+    if (index < 5) service.move({ value: `${String.fromCharCode(66 + index)}1` }, 'viewer');
+  }
+  const restarted = service.restart();
+
+  assert.equal(restarted.game, 'gomoku');
+  assert.equal(restarted.mode, 'single');
+  assert.equal(restarted.targetUid, '42');
+  assert.equal(restarted.targetName, 'Alice');
+  assert.equal(restarted.state.winner, '');
+  assert.equal(restarted.state.turn, 'host');
+  assert.equal(Object.hasOwn(restarted, 'winner'), false);
+});
+
 test('draw guess hides the answer while drawing and reveals it after the round', () => {
   const state = createDrawGuessState({
     words: [{ word: '苹果', category: '食物', aliases: ['蘋果'] }],

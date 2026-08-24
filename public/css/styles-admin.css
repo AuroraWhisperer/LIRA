@@ -38,6 +38,9 @@
 /* 歌库筛选 */
 @import url('./admin/song-filters.css');
 
+/* 歌库行操作菜单 */
+@import url('./admin/song-actions.css');
+
 /* 百宝箱功能侧栏 */
 @import url('./admin/other-features.css');
 

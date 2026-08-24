@@ -6,14 +6,31 @@
   const SIDEBAR_COLLAPSED_KEY = 'admin.toolboxSidebarCollapsed';
   const SELECTED_FEATURE_KEY = 'admin.toolboxSelectedFeature';
   const moduleState = {
-    initialized: false
+    initialized: false,
+    persistSidebarCollapsed: null,
+    sidebarPreferenceReconciled: false
   };
 
   function readSidebarCollapsed() {
     try {
-      return window.localStorage?.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+      const value = window.localStorage?.getItem(SIDEBAR_COLLAPSED_KEY);
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      return null;
     } catch {
-      return false;
+      return null;
+    }
+  }
+
+  function persistSidebarCollapsed(collapsed) {
+    if (!moduleState.persistSidebarCollapsed) return;
+    try {
+      const request = moduleState.persistSidebarCollapsed(Boolean(collapsed));
+      request?.catch?.((error) => {
+        console.warn('[Toolbox] Failed to persist sidebar preference:', error);
+      });
+    } catch (error) {
+      console.warn('[Toolbox] Failed to persist sidebar preference:', error);
     }
   }
 
@@ -45,6 +62,23 @@
     } catch {
       // The navigation still works when storage is disabled.
     }
+  }
+
+  function reconcileSidebarCollapsed(root, settings) {
+    if (moduleState.sidebarPreferenceReconciled) return;
+    moduleState.sidebarPreferenceReconciled = true;
+
+    const cachedValue = readSidebarCollapsed();
+    const settingValue = settings?.toolboxSidebarCollapsed;
+    const durableValue = settingValue === 'true'
+      ? true
+      : settingValue === 'false'
+        ? false
+        : null;
+    const collapsed = cachedValue ?? durableValue ?? false;
+
+    setSidebarCollapsed(root, collapsed);
+    if (durableValue !== collapsed) persistSidebarCollapsed(collapsed);
   }
 
   function getFeatureElements(root) {
@@ -209,20 +243,28 @@
     nextButton.focus();
   }
 
-  function initOtherPage() {
+  function initOtherPage(options = {}) {
     const root = document.getElementById('otherAssistantPage');
     if (!root || moduleState.initialized) return;
 
+    moduleState.persistSidebarCollapsed = typeof options.persistSidebarCollapsed === 'function'
+      ? options.persistSidebarCollapsed
+      : null;
     const { buttons, panels } = getFeatureElements(root);
     const sidebarToggle = root.querySelector?.('[data-other-sidebar-toggle]');
     const navigationLinks = Array.from(root.querySelectorAll?.('[data-main-page-link]') || []);
-    setSidebarCollapsed(root, readSidebarCollapsed(), false);
+    setSidebarCollapsed(root, readSidebarCollapsed() ?? false, false);
+    window.addEventListener?.('app:settings-state', (event) => {
+      reconcileSidebarCollapsed(root, event.detail || {});
+    });
     const mobileLayout = window.matchMedia?.('(max-width: 900px)');
     const syncMobileGroupAvailability = () => syncFeatureGroupAvailability(root);
     if (mobileLayout?.addEventListener) mobileLayout.addEventListener('change', syncMobileGroupAvailability);
     else mobileLayout?.addListener?.(syncMobileGroupAvailability);
     sidebarToggle?.addEventListener('click', () => {
-      setSidebarCollapsed(root, !root.classList.contains('sidebar-collapsed'));
+      const collapsed = !root.classList.contains('sidebar-collapsed');
+      setSidebarCollapsed(root, collapsed);
+      persistSidebarCollapsed(collapsed);
     });
     navigationLinks.forEach((link) => link.addEventListener('click', () => {
       window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink);

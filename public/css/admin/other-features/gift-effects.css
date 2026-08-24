@@ -5,20 +5,6 @@
   padding: 22px;
 }
 
-.gift-effect-tool-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 2px 2px 20px;
-}
-
-.gift-effect-tool-heading h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--type-size-page-title);
-}
-
 #giftEffectLookupState {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -46,11 +32,14 @@
 }
 
 .gift-effect-card-heading {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .gift-effect-card-heading h3 {
-  margin: 0 0 5px;
+  margin: 0;
   color: var(--text);
   font-size: var(--type-size-section-title);
 }
@@ -196,14 +185,9 @@
     padding: 16px;
   }
 
-  .gift-effect-tool-heading,
   .gift-effect-input-row,
   .gift-effect-url-row {
     grid-template-columns: 1fr;
-  }
-
-  .gift-effect-tool-heading {
-    display: grid;
   }
 
   .gift-effect-url-actions {

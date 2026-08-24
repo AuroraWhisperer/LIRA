@@ -53,7 +53,7 @@ test('games admin groups shared games and the independent wheel', () => {
   assert.match(html, /本场词库/);
   assert.match(html, /1–12 局/);
   assert.match(html, /15–300 秒/);
-  assert.match(html, /10.*7.*5.*3/s);
+  assert.doesNotMatch(html, /你画我猜计分规则|前三名|其余答对|10 · 7 · 5|3 分/);
   assert.match(html, /画板快捷操作：.*B.*画笔.*E.*橡皮擦.*Ctrl\+Z.*撤销/s);
   assert.match(html, /清空画布前会二次确认/);
   assert.doesNotMatch(html, /data-copy-game/);

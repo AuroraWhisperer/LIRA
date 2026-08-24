@@ -17,7 +17,6 @@
   contain-intrinsic-size: auto 260px;
 }
 
-.overtime-admin-header,
 .overtime-section-heading,
 .overtime-console,
 .overtime-heading-actions,
@@ -29,89 +28,10 @@
   gap: 12px;
 }
 
-.overtime-admin-header {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  min-height: 146px;
-  padding: 22px 26px;
-  border: 1px solid rgba(255, 111, 145, 0.46);
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at 88% 18%, rgba(255, 111, 145, 0.18), transparent 25%),
-    linear-gradient(135deg, #28283a 0%, var(--ot-night) 68%);
-  box-shadow: inset 6px 0 0 var(--ot-pink), 0 12px 26px rgba(24, 24, 35, 0.14);
-}
-.overtime-admin-header::before {
-  position: absolute;
-  inset: 10px;
-  z-index: -1;
-  border: 1px solid rgba(255, 247, 251, 0.10);
-  border-radius: 14px;
-  content: '';
-  pointer-events: none;
-}
-.overtime-admin-header::after {
-  position: absolute;
-  top: -118px;
-  right: -54px;
-  z-index: -1;
-  width: 250px;
-  height: 250px;
-  border: 1px solid rgba(255, 111, 145, 0.22);
-  border-radius: 50%;
-  box-shadow: 0 0 0 18px rgba(255, 111, 145, 0.04), 0 0 0 36px rgba(255, 111, 145, 0.03);
-  content: '';
-  pointer-events: none;
-}
-.overtime-admin-header > div {
-  position: relative;
-  z-index: 1;
-  padding-left: 14px;
-}
-.overtime-admin-header > div::before {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 0;
-  width: 3px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--ot-pink), rgba(255, 111, 145, 0.18));
-  content: '';
-}
-
-.overtime-admin h2,
 .overtime-admin h3,
 .overtime-admin p { margin: 0; }
-.overtime-admin h2 { margin-top: 5px; font-size: var(--type-size-page-title); color: #fff7fb; letter-spacing: var(--type-tracking-tight); }
 .overtime-admin h3 { font-size: var(--type-size-section-title); }
 .overtime-admin p { margin-top: 6px; color: var(--muted); font-size: var(--type-size-body); line-height: 1.55; }
-.overtime-admin-header > div > p:not(.overtime-admin-kicker) { color: rgba(255, 247, 251, 0.76); }
-.overtime-admin-kicker {
-  color: #ff9ab2 !important;
-  font-size: var(--type-size-micro) !important;
-  font-weight: var(--type-weight-bold) !important;
-  letter-spacing: 0.12em;
-}
-.overtime-admin-header #overtimeEnableBtn {
-  position: relative;
-  z-index: 1;
-  min-width: 132px;
-  min-height: 46px;
-  border-color: rgba(255, 247, 251, 0.72);
-  border-radius: 12px;
-  background: #fff7fb;
-  color: #5f2940;
-  font-weight: 700;
-  box-shadow: 0 8px 16px rgba(10, 10, 18, 0.18);
-}
-.overtime-admin-header #overtimeEnableBtn:hover {
-  border-color: var(--ot-pink);
-  background: #ffe8f0;
-  color: #742342;
-  box-shadow: 0 10px 20px rgba(255, 111, 145, 0.18);
-}
-
 .overtime-console {
   position: relative;
   isolation: isolate;
@@ -713,7 +633,6 @@
 }
 
 @media (max-width: 820px) {
-  .overtime-admin-header,
   .overtime-console,
   .overtime-section-heading { align-items: stretch; flex-direction: column; }
   .overtime-control-stack { justify-items: stretch; }

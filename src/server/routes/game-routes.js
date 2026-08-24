@@ -29,6 +29,10 @@ const routes = {
         sendJson(res, 200, { ok: true, data: null });
         return;
       }
+      if (body.action === 'restart') {
+        sendJson(res, 200, { ok: true, data: context.games.restart() });
+        return;
+      }
       sendJson(res, 200, { ok: true, data: context.games.start(normalizeSessionInput(body)) });
     } catch (error) {
       const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;

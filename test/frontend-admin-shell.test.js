@@ -116,6 +116,28 @@ test('colored action buttons use solid or frameless treatments', () => {
   assert.match(dangerRule, /background:\s*transparent/);
 });
 
+test('top navigation exposes a visible shared indicator with usable tab spacing', () => {
+  const mainTabs = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
+    'utf8'
+  );
+  const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const appSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const tabsRule = mainTabs.match(/\.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0];
+  const indicatorRule = workspace.match(/\.main-page-tabs::after\s*\{[\s\S]*?\n\}/)?.[0];
+  const readyRule = workspace.match(/\.main-page-tabs\.indicator-ready::after\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(tabsRule, 'top navigation layout should remain defined');
+  assert.match(tabsRule, /gap:\s*8px/);
+  assert.ok(indicatorRule, 'top navigation should use one shared moving indicator');
+  assert.ok(readyRule, 'top navigation indicator should appear after positioning');
+  assert.match(indicatorRule, /background:\s*var\(--main-nav-accent,\s*var\(--accent\)\)/);
+  assert.match(readyRule, /transform:\s*translateX\(var\(--main-page-indicator-x\)\)/);
+  assert.match(indicatorRule, /transition:[\s\S]*transform/);
+  assert.match(appSource, /function syncMainPageIndicator\(/);
+  assert.match(appSource, /--main-page-indicator-x/);
+});
+
 test('accent actions do not add a colored frame around their fill or active state', () => {
   const mainTabs = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
@@ -217,8 +239,10 @@ test('toolbox owns independent overtime, streamer planner, start animation, perf
   assert.doesNotMatch(performanceHtml, /<input|metricsToggle/);
   assert.match(performanceHtml, /id="metricsCountdown"[^>]*role="timer"[^>]*aria-label="每次检测采样 5 秒"/);
   assert.match(performanceHtml, /id="metricsCountdownValue">5<\/strong>/);
+  assert.match(performanceHtml, /class="monitor-status">[\s\S]*?<span>检测状态<\/span>[\s\S]*?id="metricsStatus">未检测<\/p>/);
   assert.match(performanceHtml, /id="metricsRefreshBtn"[^>]*>开始检测<\/button>/);
   assert.equal(html.match(/id="desktopCheckUpdateBtn"/g)?.length, 1);
+  assert.match(html, /class="desktop-current-version">[\s\S]*?<span>当前版本<\/span>[\s\S]*?id="desktopVersionPill">--<\/strong>/);
   assert.match(styles, /@import url\('\.\/admin\/other-features\.css'\);/);
   assert.match(
     featureStyles,

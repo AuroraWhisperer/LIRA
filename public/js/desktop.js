@@ -87,7 +87,7 @@ function initDesktopShell() {
   desktop.getInfo()
     .then((info) => {
       const versionNode = document.getElementById('desktopVersionPill');
-      if (versionNode) versionNode.textContent = `版本 ${info.version || '--'}`;
+      if (versionNode) versionNode.textContent = info.version || '--';
       handleDesktopUpdateState(info.updateState);
     })
     .catch(showError);

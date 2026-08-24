@@ -81,8 +81,6 @@ body:not([data-game='draw-guess']) .draw-status { display: none; }
 .draw-width-tools button[data-draw-width='12'] span { width: 14px; height: 14px; }
 .draw-toolbar button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .draw-toolbar button:disabled { opacity: .42; cursor: not-allowed; }
-.draw-undo-button, .draw-clear-button { padding: 6px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; color: #f3efff; background: rgba(255,255,255,.08); font: 700 10px Bahnschrift, sans-serif; cursor: pointer; }
-.draw-clear-button { margin-left: auto; }
 .draw-audience-panel { display: grid; align-content: start; gap: 9px; min-width: 0; }
 .draw-clue-card, .draw-score-section, .draw-correct-section { border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.06); }
 .draw-clue-card { display: grid; gap: 5px; padding: 12px; background: linear-gradient(145deg, rgba(108,92,231,.24), rgba(255,200,87,.1)); }
@@ -102,18 +100,30 @@ body:not([data-game='draw-guess']) .draw-status { display: none; }
 .game-empty { grid-column: 1; grid-row: 1; align-self: start; justify-self: start; display: grid; text-align: left; }
 .game-empty strong { font-size: clamp(22px, 3vw, 40px); letter-spacing: -.04em; }
 .game-result[hidden] { display: none; }
-.game-result { position: absolute; left: 0; top: 0; z-index: 100; display: grid; place-items: center; background: rgba(20, 19, 39, .85); backdrop-filter: blur(8px); animation: resultFadeIn 320ms ease forwards; }
-.game-result-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.2vw, 12px); max-width: 90%; padding: clamp(14px, 2vw, 22px) clamp(18px, 2.8vw, 30px); border-radius: 12px; background: linear-gradient(135deg, rgba(128, 116, 232, .12), rgba(255, 200, 87, .08)); box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), 0 14px 36px rgba(0, 0, 0, .4); animation: resultCardIn 420ms cubic-bezier(.34, 1.56, .64, 1) .15s backwards; }
-.game-result-icon { width: clamp(44px, 6vw, 68px); height: clamp(44px, 6vw, 68px); display: grid; place-items: center; animation: resultIconPulse 800ms ease-in-out infinite alternate; }
+.game-result { position: absolute; left: 0; top: 0; z-index: 100; display: grid; place-items: center; background: rgba(20, 19, 39, .82); backdrop-filter: blur(8px); animation: resultFadeIn 320ms ease forwards; }
+.game-result-card { position: relative; display: grid; justify-items: center; gap: clamp(10px, 1.4vw, 15px); width: min(360px, calc(100% - 24px)); max-height: calc(100% - 24px); padding: clamp(18px, 2.6vw, 28px); overflow: auto; border: 1px solid rgba(255, 255, 255, .14); border-radius: 18px; background: radial-gradient(circle at 50% 0, rgba(128, 116, 232, .24), transparent 50%), linear-gradient(155deg, rgba(43, 40, 76, .98), rgba(24, 22, 47, .98)); box-shadow: 0 18px 46px rgba(0, 0, 0, .46), inset 0 1px rgba(255, 255, 255, .08); animation: resultCardIn 420ms cubic-bezier(.34, 1.56, .64, 1) .15s backwards; }
+.game-result-emblem { position: relative; display: grid; place-items: center; width: clamp(82px, 10vw, 108px); height: clamp(82px, 10vw, 108px); }
+.game-result-emblem::before { position: absolute; inset: 4%; border: 1px solid rgba(255, 200, 87, .2); border-radius: 50%; box-shadow: 0 0 32px rgba(128, 116, 232, .24); content: ''; }
+.game-result-icon { display: grid; place-items: center; width: clamp(60px, 7.4vw, 82px); height: clamp(60px, 7.4vw, 82px); animation: resultIconPulse 800ms ease-in-out infinite alternate; }
 .game-result-icon svg { width: 100%; height: 100%; display: none; }
 .game-result-icon .icon-bomb { display: block; filter: drop-shadow(0 6px 20px rgba(255, 107, 53, .5)); }
 body[data-game='gomoku'] .game-result-icon .icon-bomb { display: none; }
 body[data-game='gomoku'] .game-result-icon .icon-gomoku { display: block; filter: drop-shadow(0 6px 20px rgba(228, 216, 182, .5)); }
 .game-result[data-winner='draw'] .game-result-icon svg { filter: drop-shadow(0 6px 20px rgba(180, 160, 220, .4)); }
-.game-result-winner { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.game-result-avatar { width: clamp(36px, 4.6vw, 56px); height: clamp(36px, 4.6vw, 56px); flex: 0 0 auto; aspect-ratio: 1; border: 2px solid rgba(255, 255, 255, .82); border-radius: 50%; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); object-fit: cover; }
+.game-result-avatar { position: absolute; right: -3%; bottom: -3%; width: clamp(36px, 4.6vw, 56px); height: clamp(36px, 4.6vw, 56px); aspect-ratio: 1; border: 3px solid #2b284c; border-radius: 50%; background: #2b284c; box-shadow: 0 0 0 2px rgba(255, 200, 87, .82), 0 6px 16px rgba(0, 0, 0, .38); object-fit: cover; }
 .game-result-avatar[hidden] { display: none; }
-.game-result-text { color: var(--ink); font-size: clamp(16px, 2.2vw, 24px); font-weight: 700; letter-spacing: -.02em; text-align: center; animation: resultTextIn 400ms ease .3s backwards; }
+.game-result-text { color: var(--ink); font-size: clamp(20px, 2.8vw, 30px); font-weight: 800; letter-spacing: -.04em; text-align: center; animation: resultTextIn 400ms ease .3s backwards; }
+.game-result-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 10px; width: 100%; padding-top: 3px; }
+.game-result-button { min-height: 42px; padding: 9px 14px; border: 1px solid transparent; border-radius: 10px; color: var(--ink); font: 800 clamp(13px, 1.35vw, 15px)/1 Bahnschrift, 'Microsoft YaHei', sans-serif; cursor: pointer; transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+.game-result-exit { border-color: rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .07); }
+.game-result-next { color: #211b36; background: linear-gradient(135deg, #ffe28a, var(--amber)); box-shadow: 0 6px 18px rgba(255, 200, 87, .2); }
+.game-result-button:hover:not(:disabled) { transform: translateY(-2px); }
+.game-result-exit:hover:not(:disabled) { border-color: rgba(255, 255, 255, .38); background: rgba(255, 255, 255, .11); }
+.game-result-next:hover:not(:disabled) { box-shadow: 0 9px 24px rgba(255, 200, 87, .3); }
+.game-result-button:focus-visible { outline: 2px solid #fff1b8; outline-offset: 3px; }
+.game-result-button:disabled { cursor: wait; opacity: .58; transform: none; }
+.game-result-action-status { margin: -3px 0 0; color: #ffb9c7; font-size: 11px; font-weight: 700; text-align: center; }
+.game-result-action-status[hidden] { display: none; }
 @keyframes resultFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes resultCardIn { from { opacity: 0; transform: scale(.88) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes resultIconPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
@@ -212,7 +222,6 @@ body[data-game='draw-guess'] .draw-danmaku-panel { display: grid; grid-template-
 .draw-danmaku-item.is-emote-only .draw-danmaku-emote { height: 3em; margin: 0; }
 .draw-danmaku-empty { width: 100%; padding: 22px 8px; color: var(--muted); font-size: 11px; text-align: center; }
 @keyframes danmakuBubbleIn { from { opacity: 0; transform: translateY(7px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-body[data-game='draw-guess'] .draw-undo-button, body[data-game='draw-guess'] .draw-clear-button { padding: 5px 8px; }
 @media (max-width: 700px) {
   body[data-game='draw-guess'] .game-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   body[data-game='draw-guess'] .game-stage-header { grid-column: 1; }

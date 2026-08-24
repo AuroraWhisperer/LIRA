@@ -9,10 +9,10 @@ const SONG_EXPORT_HEADERS = [
   '歌曲标签',
   '是否可点',
   '语言',
-  '核对平台',
-  '核对备注',
   '点歌价格',
-  '歌切'
+  '歌切',
+  '核对平台',
+  '核对备注'
 ];
 
 const SONG_IMPORT_ALIASES = {

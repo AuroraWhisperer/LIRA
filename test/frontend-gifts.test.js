@@ -367,11 +367,14 @@ test('recent blind box cards keep box colors while profit text uses stock-style 
   assert.match(script, /className: 'blind-box-lucky'/);
   assert.match(script, /className: 'blind-box-bear'/);
   assert.match(script, /className: 'blind-box-qixi'/);
+  assert.match(script, /className: 'blind-box-bond'/);
   assert.match(script, /blind-box\/35786\.webp/);
+  assert.match(script, /blind-box\/35461\.webp/);
   assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-heart\s*\{[^}]*border-left-color:\s*#f3a2aa/);
   assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-lucky\s*\{[^}]*border-left-color:\s*#b8d983/);
   assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-bear\s*\{[^}]*border-left-color:\s*#f5a6cb/);
   assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-qixi\s*\{[^}]*border-left-color:\s*#d786dc[^}]*background:\s*linear-gradient/);
+  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-bond\s*\{[^}]*border-left-color:\s*#ff6fb8[^}]*background:\s*linear-gradient/);
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*#c0392b/);
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*#21b6a8/);
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-neutral\s*\{[^}]*color:\s*#647181/);
@@ -467,7 +470,7 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
 test('blind box mapping cards keep distinct colors for known box types', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
 
-  for (const name of ['心动盲盒', '幸运盲盒', '小熊虫', '七夕鹊匣']) {
+  for (const name of ['心动盲盒', '幸运盲盒', '小熊虫', '七夕鹊匣', '羁绊宝盒']) {
     const selector = `.blind-box-chip:has(img[alt*="${name}"])`;
     const ruleStart = styles.indexOf(`${selector} {`);
     const ruleEnd = styles.indexOf('\n}', ruleStart);

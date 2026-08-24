@@ -184,6 +184,9 @@
     if (blindBoxName.includes('七夕鹊匣')) {
       return { name: '七夕鹊匣', className: 'blind-box-qixi', src: '/img/bilibili-gifts/blind-box/35786.webp' };
     }
+    if (blindBoxName.includes('羁绊宝盒')) {
+      return { name: '羁绊宝盒', className: 'blind-box-bond', src: '/img/bilibili-gifts/blind-box/35461.webp' };
+    }
     return null;
   }
 

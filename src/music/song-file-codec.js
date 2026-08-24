@@ -42,8 +42,8 @@ function songToExportRow(song) {
   return [
     song.name || '', song.artist || '', song.category_name || '默认',
     song.tags || '', song.is_enabled ? '是' : '否',
-    song.language || '', song.source_platform || '', song.note || '',
-    song.request_price || '', song.song_clip || ''
+    song.language || '', song.request_price || '', song.song_clip || '',
+    '', song.note || ''
   ];
 }
 

@@ -46,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSnapshot();
   connectSocket();
   byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
+  byId('gameResultExit').addEventListener('click', () => submitGameResultAction('stop'));
+  byId('gameResultNext').addEventListener('click', () => submitGameResultAction('restart'));
   window.addEventListener('resize', positionGameResult);
   setInterval(updateDrawCountdown, 250);
 });
@@ -753,6 +755,8 @@ function showGameResult(winner, winnerIdentity = {}) {
   resultEl.dataset.winner = winner;
   resultEl.dataset.winnerUid = winnerUid;
   textEl.textContent = winnerLabel(winner);
+  setGameResultActionsPending(false);
+  setGameResultActionStatus('');
   resultEl.hidden = false;
   positionGameResult();
   hideGameResultAvatar();
@@ -798,6 +802,46 @@ async function loadWinnerProfile(requestId, winner) {
   }
 }
 
+async function submitGameResultAction(action) {
+  const resultEl = byId('gameResult');
+  if (resultEl.hidden || !['stop', 'restart'].includes(action)) return;
+  setGameResultActionsPending(true, action);
+  setGameResultActionStatus('');
+  try {
+    const token = window.__API_TOKEN__;
+    const response = await fetch('/api/games/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ action })
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || '操作失败');
+    renderGame(payload.data);
+  } catch (_) {
+    if (resultEl.hidden) return;
+    setGameResultActionsPending(false);
+    setGameResultActionStatus('操作失败，请重试');
+  }
+}
+
+function setGameResultActionsPending(pending, action = '') {
+  const exitButton = byId('gameResultExit');
+  const nextButton = byId('gameResultNext');
+  exitButton.disabled = pending;
+  nextButton.disabled = pending;
+  exitButton.textContent = pending && action === 'stop' ? '退出中…' : '退出';
+  nextButton.textContent = pending && action === 'restart' ? '开局中…' : '下一局';
+}
+
+function setGameResultActionStatus(message) {
+  const status = byId('gameResultActionStatus');
+  status.textContent = message;
+  status.hidden = !message;
+}
+
 function hideGameResult() {
   resultProfileRequest += 1;
   const resultEl = byId('gameResult');
@@ -806,6 +850,8 @@ function hideGameResult() {
   delete resultEl.dataset.winner;
   delete resultEl.dataset.winnerUid;
   hideGameResultAvatar();
+  setGameResultActionsPending(false);
+  setGameResultActionStatus('');
 }
 
 function hideGameResultAvatar() {

@@ -128,6 +128,8 @@ function createServerRuntime(runtimeOptions = {}) {
         giftSaleGetRoomId: runtimeOptions.giftSaleGetRoomId,
         giftSaleGetBlindBoxConfig: runtimeOptions.giftSaleGetBlindBoxConfig,
         giftSaleFetchJson: runtimeOptions.giftSaleFetchJson,
+        giftSaleGetCookieHeader: runtimeOptions.giftSaleGetCookieHeader
+          || options.bilibiliAuth?.getCookieHeader,
         giftEffectResolver,
         onGiftFlushed: (item) => {
           logGiftDelivery('final', item);

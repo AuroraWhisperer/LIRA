@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "3.7.6",
+  "version": "3.7.7",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -17,6 +17,7 @@
     "verify:quick": "npm run verify:docs && npm run check && npm run verify:architecture",
     "verify": "npm run verify:quick && npm test",
     "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
+    "sync:backpack-gifts": "node scripts/sync-bilibili-backpack-gifts.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",
     "make:icon": "node scripts/create-icon.js",
     "dist:win": "npm run make:icon && electron-builder --win nsis --x64",

@@ -81,6 +81,24 @@ function createGameSessionService(options = {}) {
     return null;
   }
 
+  function restart() {
+    if (!session || session.game === 'draw-guess' || !session.state.winner) {
+      const error = new Error('当前游戏尚未结算。');
+      error.statusCode = 409;
+      throw error;
+    }
+    const input = {
+      game: session.game,
+      mode: session.mode,
+      targetUid: session.targetUid,
+      targetName: session.targetName
+    };
+    session = null;
+    viewer = null;
+    winner = null;
+    return start(input);
+  }
+
   function move(input = {}, player = 'host', playerIdentity = {}) {
     if (!session) return { accepted: false, reason: '当前没有进行中的游戏。' };
     materializeDrawGuessDeadline();
@@ -266,6 +284,7 @@ function createGameSessionService(options = {}) {
   return {
     start,
     stop,
+    restart,
     move,
     draw,
     handleDanmaku,

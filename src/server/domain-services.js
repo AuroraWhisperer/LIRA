@@ -107,6 +107,7 @@ function createDomainServices(options) {
       getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
       getBlindBoxConfig: options.giftSaleGetBlindBoxConfig
         || (() => settingsStore.getSettings().giftBlindBoxConfig),
+      getCookieHeader: options.giftSaleGetCookieHeader,
       fetchJson: options.giftSaleFetchJson
     })
     : createUnavailableGiftSaleCatalogService();

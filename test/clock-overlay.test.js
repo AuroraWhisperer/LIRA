@@ -45,9 +45,10 @@ test('cute clock overlay exposes two distinct styles and safe time parameters', 
   assert.match(html, /data-clock-style="peach"/);
   assert.match(css, /\[data-clock-style='peach'\]/);
   assert.match(css, /\[data-clock-style='starlight'\]/);
-  assert.match(css, /font-size:\s*clamp\(48px,\s*14vw,\s*78px\)/);
-  assert.match(css, /font-size:\s*clamp\(11px,\s*2\.6vw,\s*15px\)/);
-  assert.match(css, /font-size:\s*clamp\(13px,\s*3\.2vw,\s*18px\)/);
+  assert.match(css, /width:\s*560px/);
+  assert.match(css, /height:\s*190px/);
+  assert.match(css, /transform:\s*scale\(var\(--clock-scale,\s*1\)\)/);
+  assert.match(css, /\.clock-seconds\s*\{[\s\S]*?display:\s*inline-grid[\s\S]*?text-shadow:\s*none/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /background:\s*transparent/);
   assert.match(script, /new URLSearchParams\(location\.search\)/);
@@ -62,6 +63,14 @@ test('cute clock overlay exposes two distinct styles and safe time parameters', 
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.match(script, /visibilitychange/);
+});
+
+test('clock overlay scales its complete design canvas without moving style artwork', async () => {
+  const module = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
+
+  assert.equal(module.clockScaleForViewport(580, 210), 1);
+  assert.equal(module.clockScaleForViewport(300, 115), 0.5);
+  assert.equal(module.clockScaleForViewport(1140, 400), 2);
 });
 
 test('toolbox composes the named clock card with fixed URL and custom controls', () => {
@@ -81,8 +90,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(app, /import \{ initClockCard \} from '\.\/clock-card\.js'/);
   assert.match(app, /initClockCard\(\)/);
 
-  assert.match(panel, /<h2 class="ui-page-title">萌时钟<\/h2>/);
-  assert.match(panel, /给直播画面添一块会呼吸的日期与时间小卡片/);
+  assert.doesNotMatch(panel, /ui-page-(?:title|subtitle)|other-feature-page-header/);
   for (const id of ['clockPreview', 'clockFixedUrl', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockCustomLabel', 'clockCopyFixed', 'clockOpenPreview']) {
     assert.match(panel, new RegExp(`id="${id}"`));
   }

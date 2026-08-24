@@ -15,18 +15,33 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     dataDir,
     giftSalePublicDir,
     giftSaleGetRoomId: () => '22637261',
-    giftSaleFetchJson: async (name) => {
+    giftSaleFetchJson: async (name, _url, _roomId, requestOptions) => {
       if (name === 'gift_data') {
         return { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: 35793 }] } } };
       }
+      if (name === 'gift_bag') {
+        assert.deepEqual(requestOptions, { cookieHeader: 'SESSDATA=fixture' });
+        return { code: 0, data: { list: [
+          { gift_id: 35794, gift_num: 1, expire_at: 0, bind_roomid: 0 }
+        ] } };
+      }
       return { code: 0, data: { list: [
-        { id: 35793, name: '传情鹊', price: 100, coin_type: 'gold' }
+        { id: 35793, name: '传情鹊', price: 100, coin_type: 'gold' },
+        { id: 35794, name: '未来背包礼物', price: 200, coin_type: 'gold', bag_gift: 1 }
       ] } };
     }
   });
 
   try {
-    const app = await runtime.start({ host: '127.0.0.1', startPort: await findAvailablePort() });
+    const app = await runtime.start({
+      host: '127.0.0.1',
+      startPort: await findAvailablePort(),
+      bilibiliAuth: {
+        getAuthState: async () => ({ loggedIn: true, uid: 1 }),
+        getCookieHeader: async () => 'SESSDATA=fixture',
+        getUid: async () => 1
+      }
+    });
     const token = runtime.getApiToken();
 
     const unauthorized = await fetch(`${app.baseUrl}/api/overtime`);
@@ -42,8 +57,8 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
 
     const refreshedCatalog = await postJson(app.baseUrl, token, '/api/overtime/gifts/refresh', {});
     assert.equal(refreshedCatalog.response.status, 200);
-    assert.equal(refreshedCatalog.payload.data.count, 1);
-    assert.equal(refreshedCatalog.payload.data.gifts[0].id, '35793');
+    assert.equal(refreshedCatalog.payload.data.count, 2);
+    assert.deepEqual(refreshedCatalog.payload.data.gifts.map(gift => gift.id), ['35793', '35794']);
     assert.equal(refreshedCatalog.payload.data.gifts[0].imagePath, '/img/bilibili-gifts/0000-under-0100/35793.webp');
 
     const snapshotMessage = await readNextWebSocketMessage(app.baseUrl, token);

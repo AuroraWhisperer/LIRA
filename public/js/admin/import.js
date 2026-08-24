@@ -71,10 +71,10 @@
       tags: hasHeader ? findHeader(header, aliases.tags) : 3,
       isEnabled: hasHeader ? findHeader(header, aliases.isEnabled) : 4,
       language: hasHeader ? findHeader(header, aliases.language) : 5,
-      sourcePlatform: hasHeader ? findHeader(header, aliases.sourcePlatform) : 6,
-      note: hasHeader ? findHeader(header, aliases.note) : 7,
-      requestPrice: hasHeader ? findHeader(header, aliases.requestPrice) : 8,
-      songClip: hasHeader ? findHeader(header, aliases.songClip) : 9
+      requestPrice: hasHeader ? findHeader(header, aliases.requestPrice) : 6,
+      songClip: hasHeader ? findHeader(header, aliases.songClip) : 7,
+      sourcePlatform: hasHeader ? findHeader(header, aliases.sourcePlatform) : 8,
+      note: hasHeader ? findHeader(header, aliases.note) : 9
     };
 
     return bodyRows.map((row) => ({

@@ -49,5 +49,18 @@
       { "name": "锦书传意", "price": 19 },
       { "name": "月下牵丝", "price": 5 }
     ]
+  },
+  {
+    "name": "羁绊宝盒",
+    "price": 33,
+    "outputs": [
+      { "name": "暖心陪伴", "price": 5 },
+      { "name": "星光点点", "price": 20 },
+      { "name": "甜蜜契约", "price": 35 },
+      { "name": "守护之翼", "price": 100 },
+      { "name": "心电共鸣", "price": 200 },
+      { "name": "时光羁绊", "price": 800 },
+      { "name": "命运交响", "price": 2888 }
+    ]
   }
 ]
