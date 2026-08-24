@@ -744,7 +744,6 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     closest: () => queuePanel
   };
   const elements = {
-    manualForm: makeTarget(),
     nextBtn: makeTarget(),
     clearBtn: makeTarget(),
     superChatList,

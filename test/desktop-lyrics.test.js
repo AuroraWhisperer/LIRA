@@ -203,6 +203,20 @@ test('desktop lyric settings expose WeSing-only lyric source preferences', () =>
   assert.match(styles, /\.desktop-lyric-smart-match-row\s*\{/);
 });
 
+test('desktop lyric settings reserve help marks for non-obvious behavior', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+
+  for (const label of ['基础样式', '主字体', '字体大小', '文字颜色', '显示背景', '亮度']) {
+    assert.doesNotMatch(html, new RegExp(`${label} <lira-help`));
+  }
+  for (const label of ['备选字体', '时间偏移', '弹性动画', '模糊效果', '显示歌词行数']) {
+    assert.match(html, new RegExp(`${label} <lira-help`));
+  }
+});
+
 test('desktop lyric settings define the merged presentation defaults', () => {
   assert.equal(DEFAULT_SETTINGS.desktopLyricFallbackFontFamily, 'Microsoft JhengHei');
   assert.equal(DEFAULT_SETTINGS.desktopLyricTextAlign, 'left');
@@ -223,6 +237,10 @@ test('desktop lyric settings define the merged presentation defaults', () => {
 test('desktop lyric relative controls display percentages without changing stored values', async () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'desktop-lyric.html'),
+    'utf8'
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
     'utf8'
   );
   const listeners = new Map();
@@ -262,6 +280,9 @@ test('desktop lyric relative controls display percentages without changing store
   assert.match(html, /id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15"/);
   assert.match(html, /id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100"/);
   assert.doesNotMatch(html, /class="desktop-lyric-unit">(?:比|倍)<\/span>/);
+  assert.match(styles, /\.desktop-lyric-control \.range-row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 82px/);
+  assert.match(styles, /\.desktop-lyric-control \.range-row input\[type="number"\]\s*\{[^}]*height:\s*28px[^}]*padding:\s*3px 30px 3px 7px/);
+  assert.match(styles, /\.desktop-lyric-unit\s*\{[^}]*grid-column:\s*2[^}]*justify-self:\s*end/);
 });
 
 test('desktop lyric frontend defaults match storage defaults', async () => {
@@ -580,11 +601,13 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/);
   assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
   assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*clamp\(580px,\s*calc\(100vh - 145px\),\s*820px\)[^}]*overflow-y:\s*auto/);
-  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*overscroll-behavior-y:\s*contain[^}]*scrollbar-color:\s*rgba\(217, 75, 112, 0\.58\) transparent/);
+  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*overscroll-behavior-y:\s*auto[^}]*scrollbar-color:\s*rgba\(217, 75, 112, 0\.58\) transparent/);
   assert.match(styles, /\.desktop-lyric-settings:hover,[\s\S]*?\.desktop-lyric-settings:focus-within\s*\{[^}]*scrollbar-color:\s*#d94b70 transparent/);
   assert.match(styles, /\.desktop-lyric-settings::-webkit-scrollbar-button\s*\{[^}]*display:\s*none/);
   assert.match(styles, /\.desktop-lyric-settings::-webkit-scrollbar-thumb\s*\{[^}]*border:\s*4px solid transparent[^}]*background:\s*rgba\(217, 75, 112, 0\.58\)/);
   assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overscroll-behavior-y:\s*auto/);
+  assert.match(styles, /\.desktop-lyric-workspace \.desktop-lyric-preview-viewport:has\(\.desktop-lyric-preview-empty\)\s*\{[^}]*overflow-y:\s*hidden/);
   assert.match(styles, /@media \(max-width:\s*980px\)[\s\S]*?\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/);
   assert.match(styles, /\.desktop-lyric-preview-row\.is-active/);
   assert.match(styles, /\.desktop-lyric-preview-countdown-dot/);

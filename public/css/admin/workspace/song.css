@@ -304,6 +304,11 @@ body.player-dock-expanded .song-workspace {
   flex: 0 0 auto;
 }
 
+.song-management-panel > .tabs > .tab {
+  font-size: 18px;
+  letter-spacing: 0.04em;
+}
+
 .song-management-panel > .tab-page.active {
   flex: 1 1 auto;
   min-height: 0;
@@ -382,6 +387,7 @@ body.player-dock-expanded .song-workspace {
 
 .song-workspace .identity-rule-setting {
   grid-template-columns: 52px minmax(0, 1fr) 54px;
+  padding-block: 6px;
 }
 
 .song-workspace .overlay-address-item code {

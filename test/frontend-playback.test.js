@@ -238,7 +238,7 @@ test('playback workspace keeps semantic hierarchy and presentation typography', 
     'utf8'
   );
 
-  assert.match(html, /class="ui-page-title playback-workspace-title">播放助手<\/h1>/);
+  assert.doesNotMatch(html, /class="ui-page-title playback-workspace-title"/);
   assert.match(html, /id="playbackDrawerTitle" class="ui-section-title"/);
   assert.match(html, /id="queuePopupTitle" class="ui-section-title"/);
   assert.doesNotMatch(playbackCss, /^\s*;\s*$/m);

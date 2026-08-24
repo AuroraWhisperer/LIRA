@@ -17,7 +17,6 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
         + 窗口控件 #windowControls(最小化/最大化/关闭,仅桌面可见)
 ├── #songAssistantPage     点歌主页面(默认,#hash 无)
 │     ├── SC 队列面板 + 点歌队列面板(切歌/清空,带滚轮冒泡控制)
-│     ├── 快速入队(折叠面板:手动点歌表单 manualForm)
 │     └── 歌曲管理面板(song-management-panel):内部六个 Tab
 │           songsPage(歌库) / settingsPage(设置) / themePage(点歌板)
 │           displayPage(展示板) / overlayPage(浏览器源) / importPage(导入导出)
@@ -80,7 +79,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 1. `await Theme.loadThemeConfig()` 预载主题配置
 2. `initMainPages()` 绑定主页面 Tab(按 hash 选中初始页)
-3. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键、快速入队折叠)
+3. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键)
 4. 监听 `playback-module-loaded` 事件(播放助手模块异步加载完成后)调 `initPlaybackAssistant(options)`,把浏览器基础设施能力注入播放控制器
 5. 通过 `legacy-admin-bridge` 取得迁移期模块并逐个初始化(`desktop/queue/songs/settings/theme/display/desktopLyric/metrics/overtime/todo/other/gifts`)
 6. `stateService.connectSocket()` + `await stateService.reloadAll()`(先 WS 后 HTTP 兜底)

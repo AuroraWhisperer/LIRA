@@ -7,7 +7,6 @@
     escapeHtml,
     escapeAttr,
     value,
-    setValue,
     formatTime,
     formatSuperChatPrice,
     withMultilingualFallback,
@@ -17,22 +16,6 @@
   } = window.AdminApp.utils;
 
   function initQueueForm() {
-    document.getElementById('manualForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      await api('/api/queue/add', {
-        songName: value('manualSong'),
-        artist: value('manualArtist'),
-        requesterName: value('manualRequester') || '主播',
-        source: 'admin'
-      });
-      setValue('manualSong', '');
-      setValue('manualArtist', '');
-      toast('已添加到队列');
-      if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-        await window.AdminApp.state.reloadState();
-      }
-    });
-
     document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
     document.getElementById('clearBtn').addEventListener('click', async () => {
       const confirmed = await dangerConfirm({

@@ -214,7 +214,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.ok(styleSectionStart >= 0 && styleSectionEnd < composeSectionStart);
   assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="xiaomiAiSection"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuFixedReplyTitle"'));
-  assert.match(html, /id="danmakuFixedReplyTitle">固定回复 <lira-help>/);
+  assert.match(html, /id="danmakuFixedReplyTitle">固定回复<\/h3>/);
   assert.doesNotMatch(html, /id="danmakuSongReplySectionTitle"/);
   const fixedReplySectionStart = html.indexOf('class="danmaku-feature-section danmaku-fixed-reply-section"');
   const fixedReplySectionEnd = html.indexOf('</section>', fixedReplySectionStart);
@@ -279,8 +279,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
 
   assert.ok(html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'));
   assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
-  assert.match(html, /id="xiaomiAiTitle">AI 互动助手 <lira-help>/);
-  assert.match(html, /按昵称响应弹幕，并通过已配置的模型生成回复/);
+  assert.match(html, /id="xiaomiAiTitle">AI 互动助手<\/h3>/);
   assert.match(html, /id="xiaomiAiProviderBadge">自动识别</);
   assert.match(html, /可选官方预设/);
   assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);

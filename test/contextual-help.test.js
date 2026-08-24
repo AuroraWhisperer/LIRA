@@ -53,16 +53,35 @@ test('Admin optional explanations use one contextual help component', () => {
   assert.doesNotMatch(styles, /\.lira-help-tooltip::after/);
   assert.doesNotMatch(styles, /lira-help--[\w-]+/);
 
-  const migratedCopy = [
-    '控制点歌板全部队列文字',
+  const retainedCopy = [
+    '1 最慢，100 最快',
     '留空时使用文字色',
-    '控制歌单板全部文字',
-    '只统计并显示盈利观众',
+    '设置后倒计时会重置并暂停',
     '接受服务根地址、v1 地址或完整接口地址',
-    '控制主歌词字号'
+    '会增加合成压力',
+    '正值让歌词提前'
   ];
-  for (const copy of migratedCopy) {
+  for (const copy of retainedCopy) {
     assert.match(html, new RegExp(`<lira-help[^>]*>[^<]*(?:<[^>]+>)*[^<]*${copy}`));
+  }
+
+  const redundantHelpLabels = [
+    '开场文案',
+    '礼物姬',
+    '小游戏',
+    '连接状态',
+    'AI 互动助手',
+    '扩展能力',
+    '高级设置',
+    '固定回复',
+    '快捷入口',
+    '点歌匹配诊断',
+    '显示礼物提示',
+    '歌曲排序方式',
+    '圆角大小'
+  ];
+  for (const label of redundantHelpLabels) {
+    assert.doesNotMatch(html, new RegExp(`>${label} <lira-help`));
   }
 
   for (const statusId of ['xiaomiAiSaveState', 'giftStatusLine', 'desktopLyricAutosaveState']) {

@@ -12,7 +12,7 @@
   padding-right: 4px;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   scrollbar-color: rgba(217, 75, 112, 0.58) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
@@ -650,28 +650,46 @@
 
 .desktop-lyric-control .range-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 24px;
+  grid-template-columns: minmax(0, 1fr) 82px;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
   width: 100%;
 }
 
 .desktop-lyric-control .range-row input[type="number"] {
-  width: 64px;
+  grid-column: 2;
+  grid-row: 1;
+  width: 82px;
   min-width: 0;
-  height: 32px;
-  padding: 5px 6px;
+  min-height: 28px;
+  height: 28px;
+  padding: 3px 30px 3px 7px;
+  appearance: textfield;
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
+.desktop-lyric-control .range-row input[type="number"]::-webkit-inner-spin-button,
+.desktop-lyric-control .range-row input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
 .desktop-lyric-unit {
+  z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
   overflow: hidden;
+  margin-right: 9px;
   color: var(--muted);
   font-family: "Segoe UI", sans-serif;
   font-size: var(--type-size-control);
-  font-weight: var(--type-weight-semibold);
+  font-weight: var(--type-weight-medium);
+  line-height: 1;
+  pointer-events: none;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -836,7 +854,7 @@
   scrollbar-width: thin;
   mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 90%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 90%, transparent);
-  overscroll-behavior: contain;
+  overscroll-behavior-y: auto;
   filter:
     opacity(var(--preview-global-opacity))
     brightness(var(--preview-brightness))
@@ -886,6 +904,10 @@
 
 .desktop-lyric-preview-viewport:focus-visible {
   box-shadow: inset 0 0 0 2px rgba(255, 207, 74, 0.74);
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-viewport:has(.desktop-lyric-preview-empty) {
+  overflow-y: hidden;
 }
 
 .desktop-lyric-preview-timeline {

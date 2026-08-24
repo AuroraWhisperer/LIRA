@@ -102,22 +102,6 @@ export class FormsService {
         }
       }
     });
-
-    const quickAddToggle = document.getElementById('quickAddToggle');
-    const quickAddPanel = quickAddToggle?.closest('.panel');
-    const quickAddHeader = quickAddPanel?.querySelector('.panel-header');
-
-    // 点击整个 header 区域都可以展开/收起
-    quickAddHeader?.addEventListener('click', (e) => {
-      if (e.target.closest('button:not(#quickAddToggle)')) return;
-
-      const collapsed = quickAddPanel?.classList.toggle('is-collapsed') || false;
-      if (quickAddToggle) {
-        quickAddToggle.setAttribute('aria-expanded', String(!collapsed));
-        quickAddToggle.title = collapsed ? '展开快速入队' : '折叠快速入队';
-      }
-    });
-
   }
 
   /**
