@@ -6,10 +6,10 @@
               data-other-feature-panel
             >
               <div class="other-feature-panel-body stack">
-                <div class="monitor-hero">
+                <header class="monitor-hero other-feature-page-header">
                   <div>
-                    <h3>性能检测</h3>
-                    <p id="metricsStatus">未检测</p>
+                    <h2 class="ui-page-title">性能检测</h2>
+                    <p id="metricsStatus" class="ui-page-subtitle">未检测</p>
                   </div>
                   <div class="monitor-actions">
                     <div id="metricsCountdown" class="metrics-countdown" role="timer" aria-label="每次检测采样 5 秒">
@@ -24,7 +24,7 @@
                     </div>
                     <button id="metricsRefreshBtn" class="primary" type="button">开始检测</button>
                   </div>
-                </div>
+                </header>
 
                 <div class="monitor-grid">
                   <section class="metric-card">
@@ -91,7 +91,7 @@
                 <section class="hardware-summary" aria-labelledby="hardwareSummaryTitle">
                   <div class="hardware-summary-head">
                     <div>
-                      <h4 id="hardwareSummaryTitle">本机硬件</h4>
+                      <h4 id="hardwareSummaryTitle" class="ui-section-title">本机硬件</h4>
                       <p id="hardwareSummaryStatus">打开性能页后读取型号和容量；GPU 温度仅在检测时读取</p>
                     </div>
                   </div>

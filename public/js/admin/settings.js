@@ -504,9 +504,9 @@
               <circle cx="36" cy="56" r="2.5" fill="currentColor" opacity="0.7"/>
             </svg>
           </div>
-          <h1 class="shutdown-title">LIRA 已退出</h1>
-          <p class="shutdown-subtitle">本地服务已安全关闭</p>
-          <ul class="shutdown-checklist">
+          <h1 class="shutdown-title ui-page-title">LIRA 已退出</h1>
+          <p class="shutdown-subtitle ui-page-subtitle">本地服务已安全关闭</p>
+          <ul class="shutdown-checklist ui-body">
             <li><span class="check-mark">✓</span> 本地 HTTP 服务已停止</li>
             <li><span class="check-mark">✓</span> 端口已释放</li>
             <li><span class="check-mark">✓</span> 弹幕监听已断开</li>
@@ -516,7 +516,7 @@
             ${isDesktop ? `<button id="restartAppBtn" class="primary shutdown-restart-btn" type="button">🔄 重新启动</button>` : ''}
             <button id="closeWindowBtn" class="${isDesktop ? '' : 'primary'}" type="button">${isDesktop ? '关闭窗口' : '关闭页面'}</button>
           </div>
-          <p class="shutdown-hint">${hintText}</p>
+          <p class="shutdown-hint ui-caption">${hintText}</p>
         </section>
       </main>
     `;

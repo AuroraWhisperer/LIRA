@@ -40,9 +40,6 @@ class LiraHelpElement extends HTMLElement {
     this.tooltip = null;
     this.tooltipOpen = false;
     this.listenersConnected = false;
-    this.handlePointerEnter = this.showTooltip.bind(this);
-    this.handlePointerLeave = this.onPointerLeave.bind(this);
-    this.handleFocus = this.showTooltip.bind(this);
     this.handleBlur = this.hideTooltip.bind(this);
     this.handleClick = this.onClick.bind(this);
     this.handleKeydown = this.onKeydown.bind(this);
@@ -62,8 +59,11 @@ class LiraHelpElement extends HTMLElement {
 
       const mark = document.createElement('span');
       mark.className = 'lira-help-mark';
-      mark.textContent = '?';
       mark.setAttribute('aria-hidden', 'true');
+      const glyph = document.createElement('span');
+      glyph.className = 'lira-help-glyph';
+      glyph.textContent = '?';
+      mark.append(glyph);
 
       tooltip.id = tooltipId;
       tooltip.classList.add('lira-help-tooltip');
@@ -76,14 +76,12 @@ class LiraHelpElement extends HTMLElement {
       this.setAttribute('role', 'button');
       this.setAttribute('aria-label', this.getAttribute('label') || '查看说明');
       this.setAttribute('aria-describedby', tooltipId);
+      this.setAttribute('aria-expanded', 'false');
       this.dataset.helpReady = 'true';
     }
 
     if (this.listenersConnected) return;
 
-    this.addEventListener('mouseenter', this.handlePointerEnter);
-    this.addEventListener('mouseleave', this.handlePointerLeave);
-    this.addEventListener('focus', this.handleFocus);
     this.addEventListener('blur', this.handleBlur);
     this.addEventListener('click', this.handleClick);
     this.addEventListener('keydown', this.handleKeydown);
@@ -92,9 +90,6 @@ class LiraHelpElement extends HTMLElement {
 
   disconnectedCallback() {
     this.hideTooltip();
-    this.removeEventListener('mouseenter', this.handlePointerEnter);
-    this.removeEventListener('mouseleave', this.handlePointerLeave);
-    this.removeEventListener('focus', this.handleFocus);
     this.removeEventListener('blur', this.handleBlur);
     this.removeEventListener('click', this.handleClick);
     this.removeEventListener('keydown', this.handleKeydown);
@@ -116,11 +111,13 @@ class LiraHelpElement extends HTMLElement {
       document.addEventListener('scroll', this.repositionTooltip, true);
     }
 
+    this.setAttribute('aria-expanded', 'true');
     this.positionTooltip();
     this.tooltip.style.removeProperty('visibility');
   }
 
   hideTooltip() {
+    this.setAttribute('aria-expanded', 'false');
     if (!this.tooltipOpen || !this.tooltip) return;
 
     if (typeof this.tooltip.hidePopover === 'function') {
@@ -147,14 +144,18 @@ class LiraHelpElement extends HTMLElement {
     this.tooltip.dataset.placement = position.placement;
   }
 
-  onPointerLeave() {
-    if (!this.matches(':focus')) this.hideTooltip();
+  toggleTooltip() {
+    if (this.tooltipOpen) {
+      this.hideTooltip();
+      return;
+    }
+    this.showTooltip();
   }
 
   onClick(event) {
     event.preventDefault();
     event.stopPropagation();
-    this.showTooltip();
+    this.toggleTooltip();
   }
 
   onKeydown(event) {
@@ -165,7 +166,7 @@ class LiraHelpElement extends HTMLElement {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
     event.stopPropagation();
-    this.showTooltip();
+    this.toggleTooltip();
   }
 }
 

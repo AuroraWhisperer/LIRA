@@ -289,15 +289,15 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: the composed Admin HTML and recursively expanded CSS bundles.
 - Produces: a deterministic contract for semantic tokens, scoped role mappings, inline-style removal, minimum readable sizes, standard weights, and preserved overlay boundaries.
 
-- [ ] Add a test that reads `styles-base.css` and asserts the exact family, size, weight, leading, and tracking tokens listed in this plan.
-- [ ] Add monotonic assertions: page > section > card > body > label > caption > micro, with body exactly 14px and caption exactly 12px.
-- [ ] Add a test that reads the Admin CSS bundle and requires scoped consumers for page title, page subtitle, section title, section description, card title, body, label, caption, eyebrow, and metric roles.
-- [ ] Add a test that verifies no bare shared `h1/h2/h3/h4/p/small/strong` typography rule is introduced into `styles-base.css`.
-- [ ] Scan composed Admin HTML and runtime template sources for inline `font-size`, `font-weight`, `font-family`, `line-height`, or `letter-spacing`; fail on the current declarations in `song/settings.html` and `playback/ui/components.js`.
-- [ ] Implement an explicit allowlist for 11px microcopy and `<12px` presentation exceptions. Require all normal descriptions, paragraphs, form help, and error text to be at least 12px.
-- [ ] Implement an explicit allowlist for 800/900 presentation weights and dynamic font variables. Reject new 650/750/850 common UI declarations.
-- [ ] Add representative cascade assertions for common panel titles, point-song subpages, playback queue groups, gift headings, toolbox page headers, confirmation dialogs, and captions.
-- [ ] Run `node --experimental-vm-modules --test test/frontend-typography.test.js` and confirm it fails for missing tokens, unmapped roles, and the two known inline typography sites.
+- [x] Add a test that reads `styles-base.css` and asserts the exact family, size, weight, leading, and tracking tokens listed in this plan.
+- [x] Add monotonic assertions: page > section > card > body > label > caption > micro, with body exactly 14px and caption exactly 12px.
+- [x] Add a test that reads the Admin CSS bundle and requires scoped consumers for page title, page subtitle, section title, section description, card title, body, label, caption, eyebrow, and metric roles.
+- [x] Add a test that verifies no bare shared `h1/h2/h3/h4/p/small/strong` typography rule is introduced into `styles-base.css`.
+- [x] Scan composed Admin HTML and runtime template sources for inline `font-size`, `font-weight`, `font-family`, `line-height`, or `letter-spacing`; fail on the current declarations in `song/settings.html` and `playback/ui/components.js`.
+- [x] Implement an explicit allowlist for 11px microcopy and `<12px` presentation exceptions. Require all normal descriptions, paragraphs, form help, and error text to be at least 12px.
+- [x] Implement an explicit allowlist for 800/900 presentation weights and dynamic font variables. Reject new 650/750/850 common UI declarations.
+- [x] Add representative cascade assertions for common panel titles, point-song subpages, playback queue groups, gift headings, toolbox page headers, confirmation dialogs, and captions.
+- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js` and confirm it fails for missing tokens, unmapped roles, and the two known inline typography sites.
 
 ### Task 2: Add tokens and the scoped Admin foundation
 
@@ -314,15 +314,15 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: existing `--font`, color tokens, `.app-shell`, `.panel`, `.panel-header`, `.tabs`, `.tab`, `.pill`, and `.hint` contracts.
 - Produces: the semantic token scale and Admin-scoped role mappings used by later page batches.
 
-- [ ] Add the exact token values from “Design Direction And Type Contract” to `:root`, with `--font-ui: var(--font)` and no new element selectors.
-- [ ] Set `.app-shell` to the body role: `var(--font-ui)`, 14px, 400, line-height 1.55, and normal tracking.
-- [ ] Define the exact `.ui-display`, `.ui-page-title`, `.ui-page-subtitle`, `.ui-section-title`, `.ui-section-description`, `.ui-card-title`, `.ui-body`, `.ui-control-label`, `.ui-caption`, `.ui-eyebrow`, and `.ui-metric` classes in `admin/layout.css`, all scoped under `.app-shell` or the specific top-level transient-surface owner.
-- [ ] Map `.panel-header h2` to section-title tokens and `.panel-body` prose to body/caption roles without styling arbitrary nested data values.
-- [ ] Map primary navigation to control-label typography and secondary tabs to the same or lower scale; verify secondary navigation never appears larger than primary navigation.
-- [ ] Map `label`, `legend`, `.hint`, `.pill`, table headers, and buttons by function. A group `legend` uses card-title or label role according to its structural level, not a blanket element rule.
-- [ ] Replace generic common negative tracking and non-standard 650/750/850 weights with the semantic values where they describe ordinary UI copy.
-- [ ] Re-run `test/frontend-typography.test.js`; confirm the token/foundation tests pass while page-migration assertions remain intentionally failing.
-- [ ] Run `npm.cmd run test:admin` and confirm existing shell/composition behavior still passes.
+- [x] Add the exact token values from “Design Direction And Type Contract” to `:root`, with `--font-ui: var(--font)` and no new element selectors.
+- [x] Set `.app-shell` to the body role: `var(--font-ui)`, 14px, 400, line-height 1.55, and normal tracking.
+- [x] Define the exact `.ui-display`, `.ui-page-title`, `.ui-page-subtitle`, `.ui-section-title`, `.ui-section-description`, `.ui-card-title`, `.ui-body`, `.ui-control-label`, `.ui-caption`, `.ui-eyebrow`, and `.ui-metric` classes in `admin/layout.css`, all scoped under `.app-shell` or the specific top-level transient-surface owner.
+- [x] Map `.panel-header h2` to section-title tokens and `.panel-body` prose to body/caption roles without styling arbitrary nested data values.
+- [x] Map primary navigation to control-label typography and secondary tabs to the same or lower scale; verify secondary navigation never appears larger than primary navigation.
+- [x] Map `label`, `legend`, `.hint`, `.pill`, table headers, and buttons by function. A group `legend` uses card-title or label role according to its structural level, not a blanket element rule.
+- [x] Replace generic common negative tracking and non-standard 650/750/850 weights with the semantic values where they describe ordinary UI copy.
+- [x] Re-run `test/frontend-typography.test.js`; confirm the token/foundation tests pass while page-migration assertions remain intentionally failing.
+- [x] Run `npm.cmd run test:admin` and confirm existing shell/composition behavior still passes.
 
 ### Task 3: Migrate point-song and gift workspaces
 
@@ -338,16 +338,16 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: the Task 2 role classes/tokens and existing tab/panel composition.
 - Produces: consistent content anchors and text hierarchy for the point-song and gift main pages.
 
-- [ ] Add one compact visible page-heading role to each point-song subview that currently begins directly with fields. Reuse existing navigation names (`歌库`, `设置`, `点歌板`, `展示板`, `直播画面`, `导入导出`, `桌面歌词`) and do not invent marketing copy.
-- [ ] Add or map a gift-workspace page heading, then classify the seven existing gift panels as sections/cards beneath it.
-- [ ] Preserve the two queue panels’ equal header height and existing controls while changing only title, eyebrow, status, song, requester, and empty-state text roles.
-- [ ] Fix the gift heading selector drift where HTML uses `h2` but component CSS still targets `h3`; bind the class/container role instead of the tag name.
-- [ ] Map form labels, fieldset legends, URLs, helper text, empty states, song metadata, gift metadata, blind-box labels, and metric values to their correct roles.
-- [ ] Remove inline typography from `song/settings.html`; keep the existing Bilibili colors, button types, IDs, and visibility behavior in scoped CSS classes.
-- [ ] Raise all non-allowlisted 8–11px readable copy in these views to caption or label size. Keep only bounded status/eyebrow/table-header exceptions at 11px.
-- [ ] Keep queue-theme and desktop-lyric user-selected fonts/sizes out of the Admin chrome contract; normalize only the surrounding configuration labels and descriptions.
-- [ ] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/frontend-admin-shell.test.js test/frontend-gifts.test.js test/admin-page-composition.test.js` and confirm the batch passes.
-- [ ] Use Electron at 1280×720 and 1024×680 to inspect all seven point-song subviews plus empty/dense gift states before continuing.
+- [x] Add one compact visible page-heading role to each point-song subview that currently begins directly with fields. Reuse existing navigation names (`歌库`, `设置`, `点歌板`, `展示板`, `直播画面`, `导入导出`, `桌面歌词`) and do not invent marketing copy.
+- [x] Add or map a gift-workspace page heading, then classify the seven existing gift panels as sections/cards beneath it.
+- [x] Preserve the two queue panels’ equal header height and existing controls while changing only title, eyebrow, status, song, requester, and empty-state text roles.
+- [x] Fix the gift heading selector drift where HTML uses `h2` but component CSS still targets `h3`; bind the class/container role instead of the tag name.
+- [x] Map form labels, fieldset legends, URLs, helper text, empty states, song metadata, gift metadata, blind-box labels, and metric values to their correct roles.
+- [x] Remove inline typography from `song/settings.html`; keep the existing Bilibili colors, button types, IDs, and visibility behavior in scoped CSS classes.
+- [x] Raise all non-allowlisted 8–11px readable copy in these views to caption or label size. Keep only bounded status/eyebrow/table-header exceptions at 11px.
+- [x] Keep queue-theme and desktop-lyric user-selected fonts/sizes out of the Admin chrome contract; normalize only the surrounding configuration labels and descriptions.
+- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/frontend-admin-shell.test.js test/frontend-gifts.test.js test/admin-page-composition.test.js` and confirm the batch passes.
+- [x] Use Electron at 1280×720 and 1024×680 to inspect all seven point-song subviews plus empty/dense gift states before continuing.
 
 ### Task 4: Migrate playback, drawers, queue popups, and fullscreen chrome
 
@@ -363,15 +363,15 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: the shared semantic scale and current playback DOM/classes.
 - Produces: a consistent playback page, card, song, metadata, queue-group, drawer, dialog, and fullscreen-control hierarchy.
 
-- [ ] Give the playback workspace a clear content anchor without crowding the source tabs and account controls at 1024px width; reuse `播放`/`播放助手` copy already present in navigation/product language.
-- [ ] Map discovery/search/match/WeSing panel headings to section roles; map result-card names to card titles and artist/source/reason text to captions.
-- [ ] Correct the reverse hierarchy in queue popups: popup title > queue group title > song title > song metadata. Do not let a group heading remain smaller than its song rows.
-- [ ] Remove the inline playlist title typography emitted by `playback/ui/components.js` and replace it with a stable class consumed by playback CSS.
-- [ ] Apply the same role names to dynamic playlist picker, drawer loading/error/empty states, queue empty states, and pending request groups.
-- [ ] Normalize playback buttons, source tabs, status pills, quality menus, and technical values without changing click targets or menu accessibility.
-- [ ] Preserve fullscreen song/artist/lyric responsive sizes, playback progress metrics, and `desktop-lyric` custom variables. Normalize only surrounding chrome, labels, and help text.
-- [ ] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/frontend-playback.test.js test/playback-layering.test.js test/desktop-lyrics.test.js` and confirm all pass.
-- [ ] Inspect QQ/NetEase/WeSing, logged-out/error states, long mixed-language song names, drawer depth, queue popup, playlist picker, and fullscreen in Electron.
+- [x] Give the playback workspace a clear content anchor without crowding the source tabs and account controls at 1024px width; reuse `播放`/`播放助手` copy already present in navigation/product language.
+- [x] Map discovery/search/match/WeSing panel headings to section roles; map result-card names to card titles and artist/source/reason text to captions.
+- [x] Correct the reverse hierarchy in queue popups: popup title > queue group title > song title > song metadata. Do not let a group heading remain smaller than its song rows.
+- [x] Remove the inline playlist title typography emitted by `playback/ui/components.js` and replace it with a stable class consumed by playback CSS.
+- [x] Apply the same role names to dynamic playlist picker, drawer loading/error/empty states, queue empty states, and pending request groups.
+- [x] Normalize playback buttons, source tabs, status pills, quality menus, and technical values without changing click targets or menu accessibility.
+- [x] Preserve fullscreen song/artist/lyric responsive sizes, playback progress metrics, and `desktop-lyric` custom variables. Normalize only surrounding chrome, labels, and help text.
+- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/frontend-playback.test.js test/playback-layering.test.js test/desktop-lyrics.test.js` and confirm all pass.
+- [x] Inspect QQ/NetEase/WeSing, logged-out/error states, long mixed-language song names, drawer depth, queue popup, playlist picker, and fullscreen in Electron.
 
 ### Task 5: Give every toolbox feature a common page hierarchy
 
@@ -387,16 +387,16 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: the Task 2 semantic scale, the existing toolbox sidebar, and each feature’s component-owned visual styling.
 - Produces: one common page-heading structure plus consistent section/card/body/caption roles across all toolbox modules.
 
-- [ ] Introduce one shared toolbox page-header structure and apply it to onboarding, danmaku, gift, games, overtime, gift effects, planner, start animation, clock, performance, usage guide, and desktop update. Reuse existing page titles and descriptions.
-- [ ] Map feature-level `h2`, major section `h3`, card/subsection `h4` or `strong`, body copy, labels, captions, eyebrows, and metrics to the semantic roles. Do not infer visual role from the tag alone.
-- [ ] Bring currently missing page anchors (`弹幕姬`, `主播工作台`, `性能检测`, `桌面更新`) into the common header contract.
-- [ ] Retain the individual visual identity of games, overtime, clock, onboarding, and the usage guide through their existing surfaces/icons, but remove their independent base title scales.
-- [ ] Raise the streamer planner’s 8–10px readable labels and descriptions to the label/caption minimum; reflow grids instead of shrinking text to preserve fit.
-- [ ] Normalize AI advanced settings, danmaku editors, overtime rule cards, game configuration cards, hardware cards, update cards, and guide sections independently so dense states remain readable.
-- [ ] Preserve mono fonts for host/path/diagnostic values, tabular numbers for metrics/timers, and short Latin eyebrows at the 11px exception.
-- [ ] Verify sidebar expanded/collapsed states still fit and the page heading remains visible in both states.
-- [ ] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/toolbox-sidebar.test.js test/frontend-admin-ai.test.js test/overtime-rule-editor.test.js test/frontend-games.test.js` and confirm all pass.
-- [ ] Inspect every toolbox feature at 1280×720 and 1024×680; for AI, overtime, games, planner, performance, and usage guide also inspect the densest reachable state.
+- [x] Introduce one shared toolbox page-header structure and apply it to onboarding, danmaku, gift, games, overtime, gift effects, planner, start animation, clock, performance, usage guide, and desktop update. Reuse existing page titles and descriptions.
+- [x] Map feature-level `h2`, major section `h3`, card/subsection `h4` or `strong`, body copy, labels, captions, eyebrows, and metrics to the semantic roles. Do not infer visual role from the tag alone.
+- [x] Bring currently missing page anchors (`弹幕姬`, `主播工作台`, `性能检测`, `桌面更新`) into the common header contract.
+- [x] Retain the individual visual identity of games, overtime, clock, onboarding, and the usage guide through their existing surfaces/icons, but remove their independent base title scales.
+- [x] Raise the streamer planner’s 8–10px readable labels and descriptions to the label/caption minimum; reflow grids instead of shrinking text to preserve fit.
+- [x] Normalize AI advanced settings, danmaku editors, overtime rule cards, game configuration cards, hardware cards, update cards, and guide sections independently so dense states remain readable.
+- [x] Preserve mono fonts for host/path/diagnostic values, tabular numbers for metrics/timers, and short Latin eyebrows at the 11px exception.
+- [x] Verify sidebar expanded/collapsed states still fit and the page heading remains visible in both states.
+- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/toolbox-sidebar.test.js test/frontend-admin-ai.test.js test/overtime-rule-editor.test.js test/frontend-games.test.js` and confirm all pass.
+- [x] Inspect every toolbox feature at 1280×720 and 1024×680; for AI, overtime, games, planner, performance, and usage guide also inspect the densest reachable state.
 
 ### Task 6: Normalize transient UI and preserve special typography
 
@@ -417,13 +417,13 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: shared role tokens and existing accessible modal/toast/tour/shutdown behavior.
 - Produces: consistent transient hierarchy without changing timing, focus, actions, or Electron-specific behavior.
 
-- [ ] Map dialog title, optional context, description, detail list, warning/keep text, and action labels to page/card/body/caption/control roles.
-- [ ] Map toast title/body/action, interactive-tour title/body/note, desktop update state, and shutdown title/subtitle/hint to the same hierarchy.
-- [ ] Keep semantic warning/success colors and accessible focus states; typography must not become the only status indicator.
-- [ ] Preserve hardware metric, timer, and status-number sizes in legacy-owned `toasts/gifts.css`; change only generic labels/descriptions/headings.
-- [ ] Review the final source order so `overlays/desktop.css` and `interactive-tour.css` do not reintroduce non-standard common weights or undersized body text.
-- [ ] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/ui-surface.test.js test/frontend-admin-shell.test.js test/update-manager.test.js`.
-- [ ] In Electron, inspect normal/caution/destructive confirmations, gift and system toasts, all tour tooltip positions, tour-exit confirmation, update states, and shutdown/restart screen with short and long copy.
+- [x] Map dialog title, optional context, description, detail list, warning/keep text, and action labels to page/card/body/caption/control roles.
+- [x] Map toast title/body/action, interactive-tour title/body/note, desktop update state, and shutdown title/subtitle/hint to the same hierarchy.
+- [x] Keep semantic warning/success colors and accessible focus states; typography must not become the only status indicator.
+- [x] Preserve hardware metric, timer, and status-number sizes in legacy-owned `toasts/gifts.css`; change only generic labels/descriptions/headings.
+- [x] Review the final source order so `overlays/desktop.css` and `interactive-tour.css` do not reintroduce non-standard common weights or undersized body text.
+- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/ui-surface.test.js test/frontend-admin-shell.test.js test/update-manager.test.js`.
+- [x] In Electron, inspect normal/caution/destructive confirmations, gift and system toasts, all tour tooltip positions, tour-exit confirmation, update states, and shutdown/restart screen with short and long copy.
 
 ### Task 7: Prove OBS, lyric, font-permission, and responsive isolation
 
@@ -437,12 +437,12 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: the completed desktop typography cascade.
 - Produces: evidence that desktop hierarchy improvements do not leak into output surfaces or privileged font behavior.
 
-- [ ] Verify `styles-base.css` contains tokens only and no bare element typography capable of changing OBS pages.
-- [ ] Verify `/lyrics` computed preview/timeline typography still follows user settings and that Admin-only labels use the new roles only inside the desktop renderer.
-- [ ] Verify point-song overlay theme variables and `overlayFontFamily`/title-size settings are unchanged.
-- [ ] Verify Admin core UI never calls or depends on `queryLocalFonts()` and no permission, IPC, or settings contract changed.
-- [ ] Run `node --experimental-vm-modules --test test/desktop-lyrics.test.js test/local-font-library.test.js test/queue-overlay-esm.test.js test/queue-overlay-responsive.test.js test/frontend-song-board.test.js test/overtime-overlay.test.js test/danmaku-overlay.test.js test/games-overlay.test.js test/clock-overlay.test.js test/gift-effects-overlay.test.js`.
-- [ ] Inspect representative `/queue`, `/songlist`, `/lyrics`, `/overtime`, `/danmaku`, `/games`, `/clock`, and `/gift-effects` browser-source views at their documented capture sizes; confirm no text, measurement, scrolling, transparency, or theme change.
+- [x] Verify `styles-base.css` contains tokens only and no bare element typography capable of changing OBS pages.
+- [x] Verify `/lyrics` computed preview/timeline typography still follows user settings and that Admin-only labels use the new roles only inside the desktop renderer.
+- [x] Verify point-song overlay theme variables and `overlayFontFamily`/title-size settings are unchanged.
+- [x] Verify Admin core UI never calls or depends on `queryLocalFonts()` and no permission, IPC, or settings contract changed.
+- [x] Run `node --experimental-vm-modules --test test/desktop-lyrics.test.js test/local-font-library.test.js test/queue-overlay-esm.test.js test/queue-overlay-responsive.test.js test/frontend-song-board.test.js test/overtime-overlay.test.js test/danmaku-overlay.test.js test/games-overlay.test.js test/clock-overlay.test.js test/gift-effects-overlay.test.js`.
+- [x] Inspect representative `/queue`, `/songlist`, `/lyrics`, `/overtime`, `/danmaku`, `/games`, `/clock`, and `/gift-effects` browser-source views at their documented capture sizes; confirm no text, measurement, scrolling, transparency, or theme change.
 
 ### Task 8: Electron visual QA, documentation, and final gates
 
@@ -458,16 +458,16 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Consumes: all completed typography batches.
 - Produces: reviewable documentation and final functional/visual evidence.
 
-- [ ] Document the semantic scale, the Admin owner, the minimum readable-copy rule, and the OBS/user-configurable-font exclusions in `frontend/pages.md`.
-- [ ] Register the new focused test in `engineering/test.md`.
-- [ ] Launch the native Electron client and inspect the as-launched 1280×720 layout before resizing.
-- [ ] Repeat the full shell pass at the 1024×680 supported minimum and in a maximized window.
+- [x] Document the semantic scale, the Admin owner, the minimum readable-copy rule, and the OBS/user-configurable-font exclusions in `frontend/pages.md`.
+- [x] Register the new focused test in `engineering/test.md`.
+- [x] Launch the native Electron client and inspect the as-launched 1280×720 layout before resizing.
+- [x] Repeat the full shell pass at the 1024×680 supported minimum and in a maximized window.
 - [ ] Check Windows 100% and 125% display scaling; add 150% as an exploratory pass. Do not simulate correctness by changing Electron zoom factors.
-- [ ] Exercise the QA matrix below with real mouse and keyboard input; capture screenshots for each main workspace, each dense/high-risk state, and each transient surface.
-- [ ] Confirm every intended hierarchy remains legible in grayscale and that font fallback works for Chinese, English platform names, numbers, emoji, paths, and long error text.
-- [ ] Confirm no required controls or text are clipped, overlapped, truncated without an intentional ellipsis, hidden by the player dock, or pushed out of the initial fixed-shell viewport.
-- [ ] Run focused tests, `npm.cmd run verify:docs`, `npm.cmd run check`, `npm.cmd run verify:architecture`, `npm.cmd run verify:quick`, `npm.cmd test`, and `npm.cmd run verify`.
-- [ ] Review `git diff`, `git diff --check`, `git status --short`, and `git diff --cached` if staged content exists. Confirm every changed line traces to this typography task and no unrelated dirty-worktree content was altered.
+- [x] Exercise the QA matrix below with real mouse and keyboard input; capture screenshots for each main workspace, each dense/high-risk state, and each transient surface.
+- [x] Confirm every intended hierarchy remains legible in grayscale and that font fallback works for Chinese, English platform names, numbers, emoji, paths, and long error text.
+- [x] Confirm no required controls or text are clipped, overlapped, truncated without an intentional ellipsis, hidden by the player dock, or pushed out of the initial fixed-shell viewport.
+- [x] Run focused tests, `npm.cmd run verify:docs`, `npm.cmd run check`, `npm.cmd run verify:architecture`, `npm.cmd run verify:quick`, `npm.cmd test`, and `npm.cmd run verify`.
+- [x] Review `git diff`, `git diff --check`, `git status --short`, and `git diff --cached` if staged content exists. Confirm every changed line traces to this typography task and no unrelated dirty-worktree content was altered.
 
 ## Electron Visual QA Matrix
 
@@ -485,6 +485,16 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 | OBS boundary | representative queue/song/lyric/overtime/danmaku/game/clock/gift views | No computed typography, wrapping, scrolling, or capture-size regression |
 
 ## Verification
+
+### Execution record (2026-08-24)
+
+- Focused typography, Admin shell, playback, toolbox, transient-surface, and overlay-isolation suites passed.
+- The native Electron client was inspected at its as-launched 1280×722 viewport and maximized 1707×912 viewport on the available Windows 150% display scale; the 1024×682 layout pass also completed without changing Electron zoom factors.
+- A grayscale Electron pass confirmed the 24/18/15/14/13/12/11px semantic roles and the multilingual fallback stack with Chinese, English, numbers, emoji, a Windows path, and long error copy.
+- `/queue`, `/songlist`, `/lyrics`, `/overtime`, `/danmaku`, `/games`, `/clock`, and `/gift-effects` returned 200 at their representative capture sizes with no page errors or horizontal overflow; user-configurable lyric and overlay typography remained isolated.
+- `verify:docs`, syntax, architecture, quick, full test, and aggregate `verify` gates passed; the full suite reported 878 passing tests and zero failures.
+- Concurrent non-typography worktree changes, including the danmaku style-four work and local Codex configuration, were left intact and remain outside this task's reviewed hunks; no changes are staged.
+- Windows 100% and 125% display-scale checks remain open because the current host exposes only a real 150% scale. They were not simulated with page or Electron zoom.
 
 ### Focused commands
 

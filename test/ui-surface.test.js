@@ -23,6 +23,27 @@ test('confirmation dialog keeps one accessible shared contract', () => {
   assert.match(styles, /\.is-destructive \.lira-confirm-confirm/);
 });
 
+test('transient surfaces use the shared typography hierarchy without orphan declarations', () => {
+  const files = [
+    ['public', 'css', 'components', 'confirmation-dialog.css'],
+    ['public', 'css', 'admin', 'modals.css'],
+    ['public', 'css', 'admin', 'toasts', 'system.css'],
+    ['public', 'css', 'admin', 'toasts', 'gifts.css'],
+    ['public', 'css', 'admin', 'other-features', 'interactive-tour.css'],
+    ['public', 'css', 'overlays', 'desktop.css']
+  ];
+  const styles = files.map(parts => read(...parts)).join('\n');
+  const settings = read('public', 'js', 'admin', 'settings.js');
+
+  assert.doesNotMatch(styles, /^\s*;\s*$/m);
+  assert.match(styles, /\.lira-confirm-heading h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
+  assert.match(styles, /\.desktop-update-toast strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
+  assert.match(styles, /\.lira-tour-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
+  assert.match(styles, /\.shutdown-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-page-title\)/);
+  assert.match(settings, /class="shutdown-title ui-page-title"/);
+  assert.match(settings, /class="shutdown-hint ui-caption"/);
+});
+
 test('native selects and custom menus use the control accent without replacing semantics', () => {
   const baseStyles = read('public', 'css', 'styles-base.css');
   const blindboxHtml = read('public', 'pages', 'admin', 'gifts', 'blindbox-analysis.html');

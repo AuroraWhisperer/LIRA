@@ -18,11 +18,56 @@
                 </svg>
               </button>
             </div>
-            <div class="other-sidebar-page-links" aria-label="直播工具">
-              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherDanmakuFeature" aria-selected="false" title="弹幕姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="other-feature-label"><strong>弹幕姬</strong><small>发送弹幕并管理互动回复</small></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <button class="other-feature-button other-sidebar-page-link" type="button" data-other-feature="otherGiftFeature" aria-selected="false" title="礼物姬"><span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span><span class="other-feature-label"><strong>礼物姬</strong></span><svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            </div>
             <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
+              <div class="other-feature-group-heading" data-other-feature-group="live-interaction" role="presentation">
+                <strong>直播互动</strong>
+                <small>和观众实时发生</small>
+              </div>
+              <button
+                id="otherDanmakuFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherDanmakuFeature"
+                data-other-feature="otherDanmakuFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
+                <span class="other-feature-label"><strong>弹幕姬</strong><small>发送弹幕并管理互动回复</small></span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button
+                id="otherGiftFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherGiftFeature"
+                data-other-feature="otherGiftFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+                <span class="other-feature-label"><strong>礼物姬</strong></span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button
+                id="otherGamesFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherGamesFeature"
+                data-other-feature="otherGamesFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M8 8h8a5 5 0 0 1 4.8 6.4l-1 3.5a2.2 2.2 0 0 1-3.8.8L14.5 17h-5l-1.5 1.7a2.2 2.2 0 0 1-3.8-.8l-1-3.5A5 5 0 0 1 8 8Z" stroke="currentColor" stroke-width="1.7"/><path d="M8 11v4M6 13h4M16 12h.01M18 14h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+                </span>
+                <span class="other-feature-label"><strong>小游戏</strong><small>多种直播互动小游戏</small></span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="other-feature-group-heading" data-other-feature-group="live-scene" role="presentation">
+                <strong>直播画面</strong>
+                <small>投到直播姬或 OBS</small>
+              </div>
               <button
                 id="otherOvertimeMachineFeatureTab"
                 class="other-feature-button"
@@ -68,44 +113,6 @@
                 <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-              </button>
-              <button
-                id="otherDailyTodoFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherDailyTodoFeature"
-                data-other-feature="otherDailyTodoFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="m8 10 1.7 1.7L12 9.2M14 11h3M8 15l1.7 1.7L12 14.2M14 16h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>主播工作台</strong>
-                  <small>直播清单与现场备忘</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherGamesFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherGamesFeature"
-                data-other-feature="otherGamesFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none"><path d="M8 8h8a5 5 0 0 1 4.8 6.4l-1 3.5a2.2 2.2 0 0 1-3.8.8L14.5 17h-5l-1.5 1.7a2.2 2.2 0 0 1-3.8-.8l-1-3.5A5 5 0 0 1 8 8Z" stroke="currentColor" stroke-width="1.7"/><path d="M8 11v4M6 13h4M16 12h.01M18 14h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-                </span>
-                <span class="other-feature-label"><strong>小游戏</strong><small>多种直播互动小游戏</small></span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
               <button
                 id="otherStartAnimationFeatureTab"
@@ -154,6 +161,37 @@
                   <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
+              <div class="other-feature-group-heading" data-other-feature-group="streamer-work" role="presentation">
+                <strong>主播工作</strong>
+                <small>只在主播端使用</small>
+              </div>
+              <button
+                id="otherDailyTodoFeatureTab"
+                class="other-feature-button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="otherDailyTodoFeature"
+                data-other-feature="otherDailyTodoFeature"
+              >
+                <span class="other-feature-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                    <path d="m8 10 1.7 1.7L12 9.2M14 11h3M8 15l1.7 1.7L12 14.2M14 16h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span class="other-feature-label">
+                  <strong>主播工作台</strong>
+                  <small>直播清单与现场备忘</small>
+                </span>
+                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="other-feature-group-heading" data-other-feature-group="software-help" role="presentation">
+                <strong>软件与帮助</strong>
+                <small>本机维护与说明</small>
+              </div>
               <button
                 id="otherPerformanceFeatureTab"
                 class="other-feature-button active"

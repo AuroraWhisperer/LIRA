@@ -48,14 +48,14 @@
   left: 35px;
   top: 50%;
   transform: translate(-50%, -50%);
-  ;
+  font-size: var(--type-size-metric-sm);
   line-height: 1;
 }
 
 .gift-notify-toast strong {
   display: block;
   color: #fff;
-  ;
+  font-size: var(--type-size-card-title);
   line-height: 1.35;
   font-weight: var(--type-weight-bold);
 }
@@ -63,8 +63,8 @@
 .gift-notify-toast span {
   display: block;
   color: rgba(235, 220, 195, 0.65);
-  ;
-  line-height: 1.45;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
 }
 
 .gift-notify-toast .gift-price-badge {
@@ -74,8 +74,8 @@
   background: rgba(251, 191, 36, 0.15);
   padding: 2px 8px;
   color: #fbbf24;
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
   vertical-align: middle;
 }
 
@@ -195,7 +195,7 @@
 .gift-notify-toast.gift-premium .gift-price-badge {
   background: rgba(251, 191, 36, 0.22);
   color: #fcd34d;
-  ;
+  font-size: var(--type-size-caption);
   padding: 3px 10px;
 }
 
@@ -238,12 +238,12 @@
 }
 
 .overlay-address-item strong {
-  ;
+  font-size: var(--type-size-section-title);
 }
 
 .overlay-address-item span {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
 }
 
 .overlay-address-item code {
@@ -303,7 +303,7 @@
 
 .identity-rule-setting > span {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
 }
 
@@ -393,12 +393,12 @@
 
 .style-option strong {
   color: var(--style-option-title);
-  ;
+  font-size: var(--type-size-card-title);
 }
 
 .style-option span {
   color: var(--style-option-meta);
-  ;
+  font-size: var(--type-size-caption);
 }
 
 .style-option:hover,
@@ -432,14 +432,14 @@
 
 .monitor-hero h3 {
   margin: 0;
-  ;
-  line-height: 1.2;
+  font-size: var(--type-size-section-title);
+  line-height: var(--type-leading-section-title);
 }
 
 .monitor-hero p {
   margin: 6px 0 0;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-body);
 }
 
 .monitor-actions {
@@ -497,14 +497,14 @@
 }
 
 .metrics-countdown-copy strong {
-  ;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
 }
 
 .metrics-countdown-copy small {
   margin-top: 3px;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
 }
 
 @keyframes metrics-countdown-progress {
@@ -598,11 +598,11 @@
 
 .metric-head small {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
 }
 
 .metric-value {
-  ;
+  font-size: 34px;
   line-height: 1;
   font-weight: var(--type-weight-bold);
 }
@@ -626,7 +626,7 @@
 .metric-detail {
   min-height: 18px;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
   overflow-wrap: anywhere;
 }
 
@@ -644,7 +644,7 @@
 
 .metric-card.muted .metric-value {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-metric-md);
 }
 
 .hardware-summary {
@@ -658,13 +658,13 @@
 
 .hardware-summary-head h4 {
   margin: 0;
-  ;
+  font-size: var(--type-size-card-title);
 }
 
 .hardware-summary-head p {
   margin: 5px 0 0;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
 }
 
 .hardware-grid {
@@ -779,14 +779,14 @@
 
 .hardware-card-label {
   color: var(--hardware-ink);
-  ;
+  font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.01em;
 }
 
 .hardware-card-eyebrow {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.14em;
   line-height: 1.1;
@@ -799,7 +799,7 @@
 
 .hardware-card small {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
   line-height: 1.4;
 }
 
@@ -807,7 +807,7 @@
   align-self: end;
   min-height: 38px;
   color: var(--text);
-  ;
+  font-size: 16px;
   line-height: 1.3;
 }
 

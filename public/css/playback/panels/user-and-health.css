@@ -37,7 +37,9 @@
 .playback-user span {
   margin-top: 4px;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .playback-cache-row {
@@ -71,9 +73,10 @@
   min-height: 24px;
   box-sizing: border-box;
   border: 1px solid transparent;
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: var(--type-leading-caption);
   padding: 2px 10px;
   border-radius: 6px;
   background: var(--surface-2);
@@ -115,4 +118,3 @@
   content: "⚠ ";
   font-weight: bold;
 }
-

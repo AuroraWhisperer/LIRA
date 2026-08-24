@@ -81,8 +81,8 @@
 .lira-confirm-context {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
 }
 
 .lira-confirm-indicator {
@@ -117,7 +117,7 @@
 .lira-confirm-description {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--type-size-body);
   line-height: 1.65;
   white-space: pre-line;
 }
@@ -128,13 +128,13 @@
   border-radius: var(--radius-md);
   background: var(--surface-2);
   color: var(--text);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
 }
 
 .lira-confirm-details strong {
   color: var(--muted);
-  font-weight: 700;
+  font-weight: var(--type-weight-bold);
 }
 
 .lira-confirm-details ul {
@@ -168,8 +168,8 @@
   min-height: 38px;
   padding: 8px 14px;
   border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-bold);
 }
 
 .lira-confirm-cancel {

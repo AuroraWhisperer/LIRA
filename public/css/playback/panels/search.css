@@ -91,13 +91,15 @@
 }
 
 .playback-search-row .song {
-  ;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
 }
 
 .playback-search-row .meta {
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   margin-top: 2px;
 }
 
@@ -105,7 +107,7 @@
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
-  ;
+  font-size: var(--type-size-body);
 }
 
 .playback-search-row .queue-actions {
@@ -116,7 +118,8 @@
 }
 
 .playback-search-row .queue-actions button {
-  ;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
   padding: 4px 10px;
   min-height: 28px;
 }
@@ -134,4 +137,3 @@
     grid-template-columns: 1fr;
   }
 }
-

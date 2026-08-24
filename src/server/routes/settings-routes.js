@@ -19,7 +19,7 @@ const FRAME_SETTING_KEYS = new Set([
   'giftFrameTheme',
   'giftFrameMotionMode'
 ]);
-const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal']);
+const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked']);
 
 const routes = {
   async 'POST /api/settings'(context, request, res) {

@@ -1,16 +1,17 @@
 /* Admin optional explanations: one compact question-mark treatment. */
 lira-help {
   position: relative;
-  display: inline-grid;
+  display: inline-flex;
   flex: 0 0 16px;
   width: 16px;
   height: 16px;
-  place-items: center;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
   margin-inline-start: 4px;
   border-radius: 50%;
   color: var(--color-success-dark);
-  font: 800 11px/1 var(--font);
-  vertical-align: -2px;
+  vertical-align: 0.125em;
   cursor: help;
   user-select: none;
 }
@@ -25,14 +26,23 @@ lira-help:not(:defined) {
 }
 
 .lira-help-mark {
-  display: grid;
+  display: inline-flex;
   width: 16px;
   height: 16px;
-  place-items: center;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
   border: 1px solid color-mix(in srgb, var(--color-control-accent) 58%, var(--border));
   border-radius: 50%;
   background: var(--color-control-accent-light);
   transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.lira-help-glyph {
+  display: block;
+  font: 700 12px/1 'Segoe UI', Arial, sans-serif;
+  text-align: center;
+  transform: translateY(0.5px);
 }
 
 lira-help:hover .lira-help-mark,

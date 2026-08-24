@@ -7,10 +7,10 @@
               hidden
             >
               <div class="other-feature-panel-body stack usage-guide-panel">
-                <div class="usage-guide-hero">
+                <header class="usage-guide-hero other-feature-page-header">
                   <div class="usage-guide-hero-copy">
-                    <span class="usage-guide-kicker">LIRA 直播助手</span>
-                    <h2>使用文档</h2>
+                    <span class="usage-guide-kicker ui-eyebrow">LIRA 直播助手</span>
+                    <h2 class="ui-page-title">使用文档</h2>
                     <p class="usage-guide-hero-lead">把直播间的互动交给 LIRA：它运行在主播电脑本地，把 Bilibili 弹幕点歌、歌曲队列、音乐播放和 OBS / 直播姬投屏串成一条顺手的开播链路。弹幕与礼物互动、AI 回复、加班机和全民 K 歌歌词捕捉也都在同一个桌面工具里，数据始终保存在本机。</p>
                     <div class="usage-guide-hero-actions">
                       <a href="#ug-quick" data-usage-guide-link>第一次用？从头开始</a>
@@ -26,7 +26,7 @@
                       <li><strong>把互动投上屏</strong><span>在 OBS / 直播姬添加浏览器源</span></li>
                     </ol>
                   </aside>
-                </div>
+                </header>
 
                 <div class="usage-guide-layout">
                 <nav class="usage-guide-toc" aria-label="文档目录">
@@ -253,14 +253,14 @@
                 <!-- ============ 百宝箱详解 ============ -->
                 <section class="usage-guide-section" id="ug-toolbox">
                   <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">08</span>百宝箱详解</h3>
-                  <p class="usage-guide-section-intro">百宝箱是辅助工具的集合地。点左侧顶部的折叠按钮可以收起侧边栏，只留图标；侧边栏收起后，这份文档会自动变成双栏——目录固定在左边，正文保持适合阅读的宽度。上方有弹幕姬和礼物姬的快捷入口，下方依次是加班机、礼物特效、主播工作台、性能、使用文档和桌面更新。</p>
+                  <p class="usage-guide-section-intro">百宝箱按使用场景分成四组：直播互动放弹幕姬、礼物姬和小游戏，直播画面放加班机、礼物特效、开播动画和萌时钟，主播工作放直播清单与现场备忘，软件与帮助放性能、使用文档和桌面更新。点左侧顶部的折叠按钮可以收起侧边栏，只留图标；侧边栏收起后，这份文档会自动变成双栏——目录固定在左边，正文保持适合阅读的宽度。</p>
                   <div class="usage-guide-feature-list">
                     <article class="usage-guide-feature">
                       <div class="usage-guide-feature-head"><strong>弹幕姬</strong><span class="usage-guide-chip">弹幕</span></div>
                       <p>弹幕展示和手动发送已拆成两个区域。面板按连接状态、弹幕姬、发送弹幕、点歌回复、AI 回复和固定回复归类：</p>
                       <ul>
                         <li><strong>连接状态</strong>：显示当前发送账号（含昵称）、目标直播间（含房间名）和发送状态（是否可发送）；右侧按钮可刷新状态。</li>
-                        <li><strong>弹幕姬</strong>：固定网页地址是 <code>/danmaku</code>，复制后添加到 OBS 或直播姬浏览器源；可在聊天气泡、直播信号带和极简字幕之间自由切换，已打开的页面会同步更新，并实时显示头像、昵称、身份徽标、普通文字和 B 站表情。</li>
+                        <li><strong>弹幕姬</strong>：固定网页地址是 <code>/danmaku</code>，复制后添加到 OBS 或直播姬浏览器源；可在聊天气泡、直播信号带、极简字幕和身份横卡之间自由切换，已打开的页面会同步更新。身份横卡使用右侧头像和四档身份底色，并随浏览器源等比缩放；所有样式都会实时显示昵称、普通文字和 B 站表情。</li>
                         <li><strong>发送弹幕</strong>：只在 Admin 中保留手动输入、自动钓鱼/打劫和发送结果，不另设网页地址。</li>
                         <li><strong>点歌回复</strong>：单独控制「随机点歌回复」，在观众点歌条件无匹配时自动 @ 提醒。</li>
                         <li><strong>AI 回复</strong>：配置模型服务、触发关键词、回复长度、联网搜索、推理和外部查询工具。</li>

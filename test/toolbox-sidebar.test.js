@@ -64,6 +64,58 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-page\.sidebar-collapsed \.other-feature-label\s*\{[^}]*display:\s*grid/);
 });
 
+test('toolbox sidebar groups features by live and local workflows', () => {
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const navigation = html.match(/<nav class="other-feature-menu"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+  const expectedGroups = [
+    ['live-interaction', '直播互动', ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature']],
+    ['live-scene', '直播画面', ['otherOvertimeMachineFeature', 'otherGiftEffectsFeature', 'otherStartAnimationFeature', 'otherClockFeature']],
+    ['streamer-work', '主播工作', ['otherDailyTodoFeature']],
+    ['software-help', '软件与帮助', ['otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature']]
+  ];
+
+  assert.ok(navigation, 'toolbox navigation should remain present');
+
+  const headingPositions = expectedGroups.map(([groupId]) => (
+    navigation.indexOf(`data-other-feature-group="${groupId}"`)
+  ));
+  assert.deepEqual(
+    [...headingPositions].sort((left, right) => left - right),
+    headingPositions,
+    'workflow groups should keep their intended order'
+  );
+  assert.ok(headingPositions.every((position) => position >= 0), 'every workflow group should be labeled');
+
+  expectedGroups.forEach(([groupId, label, featureIds], groupIndex) => {
+    const groupStart = headingPositions[groupIndex];
+    const groupEnd = headingPositions[groupIndex + 1] ?? navigation.length;
+    const groupHtml = navigation.slice(groupStart, groupEnd);
+
+    assert.match(groupHtml, new RegExp(`<strong>${label}<\\/strong>`), `${label} should label its workflow group`);
+    const featurePositions = featureIds.map((featureId) => (
+      groupHtml.indexOf(`data-other-feature="${featureId}"`)
+    ));
+    assert.ok(featurePositions.every((position) => position >= 0), `${label} should contain its assigned features`);
+    assert.deepEqual(
+      [...featurePositions].sort((left, right) => left - right),
+      featurePositions,
+      `${label} features should keep their intended order`
+    );
+
+    for (const [otherGroupId, , otherFeatureIds] of expectedGroups) {
+      if (otherGroupId === groupId) continue;
+      for (const featureId of otherFeatureIds) {
+        assert.doesNotMatch(groupHtml, new RegExp(`data-other-feature="${featureId}"`));
+      }
+    }
+  });
+
+  assert.match(styles, /\.other-feature-group-heading\s*\{[^}]*border-top:\s*1px solid var\(--border\)/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-group-heading\s*\{[^}]*overflow:\s*hidden/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-feature-group-heading\s*\{[^}]*grid-column:\s*1 \/ -1/);
+});
+
 test('danmaku detail panel fills the workspace and keeps actions grouped', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
@@ -71,6 +123,8 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   assert.match(html, /class="danmaku-feature-section danmaku-connection-section"[\s\S]*?id="danmakuAccountState"[\s\S]*?id="danmakuRoomState"[\s\S]*?id="danmakuToolStatus"/);
   assert.match(html, /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/);
   assert.match(html, /id="danmakuCounter"[\s\S]*?id="danmakuAutoBtn"[\s\S]*?id="danmakuSendBtn"/);
+  assert.match(html, /data-danmaku-style="ranked"[\s\S]*?class="danmaku-style-option-visual is-ranked"[\s\S]*?<strong>身份横卡<\/strong>/);
+  assert.match(styles, /\.danmaku-style-option-visual\.is-ranked\s*\{/);
   assert.match(styles, /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/);
   assert.match(styles, /\.danmaku-feature-section\s*\{[^}]*border:\s*1px solid var\(--border\)/);
   assert.match(styles, /\.danmaku-bot-switch-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
@@ -162,4 +216,36 @@ test('desktop update feature keeps its tab and panel mapping', () => {
   assert.match(html, /id="otherDesktopUpdateFeatureTab"[\s\S]*data-other-feature="otherDesktopUpdateFeature"/);
   assert.match(html, /id="otherDesktopUpdateFeature"[\s\S]*data-other-feature-panel/);
   assert.match(html, /aria-labelledby="otherDesktopUpdateFeatureTab"/);
+});
+
+test('toolbox features share one semantic page-header contract', () => {
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const pageTitles = [
+    '把直播间准备好',
+    '弹幕姬',
+    '礼物姬',
+    '小游戏',
+    '加班机',
+    '礼物特效',
+    '主播工作台',
+    '开播画面',
+    '萌时钟',
+    '性能检测',
+    '使用文档',
+    '桌面更新'
+  ];
+
+  for (const title of pageTitles) {
+    assert.match(
+      html,
+      new RegExp(`class="[^"]*ui-page-title[^"]*"[^>]*>${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s|<)`),
+      `${title} should use the common page-title role`
+    );
+  }
+
+  assert.match(styles, /\.other-feature-page-header\s*\{[^}]*display:\s*flex/);
+  assert.match(styles, /\.app-shell \.other-feature-page-header \.ui-page-title\s*\{[^}]*font-size:\s*var\(--type-size-page-title\)/);
+  assert.match(styles, /\.app-shell \.other-feature-page-header \.ui-page-subtitle\s*\{[^}]*font-size:\s*var\(--type-size-body\)/);
+  assert.match(styles, /\.planner-session-form label > span,[\s\S]*?font-size:\s*var\(--type-size-control\)/);
 });

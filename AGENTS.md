@@ -193,3 +193,44 @@ has been reviewed.
 Use two-space indentation, semicolons, single quotes, CommonJS `'use strict'`,
 `camelCase` variables and functions, `PascalCase` classes, `UPPER_SNAKE_CASE`
 constants, and lowercase kebab-case file names.
+
+## Sol / Luna Model Workflow
+
+`Sol investigates and decides -> Luna implements and tests -> Sol accepts`
+
+### Responsibilities And Routing
+
+Sol owns the primary thread. Before delegating, Sol must understand the request,
+inspect relevant code and tests, determine the root cause or implementation
+direction, and define the allowed scope, preserved behavior, acceptance
+criteria, and required checks.
+
+Do not delegate unresolved requirements, architecture decisions, or
+public-interface decisions to Luna.
+
+Prefer `luna_worker` for clear, substantial implementation work such as
+multi-file changes, features, non-obvious fixes, tests, business or state logic,
+integrations, data structures, and asynchronous or lifecycle work. Sol may
+complete tiny mechanical changes directly.
+
+Investigation, architecture, root-cause analysis, option comparison, and review
+remain Sol responsibilities.
+
+### Luna Boundaries
+
+`luna_worker` implements the bounded change, updates directly related tests,
+runs the requested checks, and reports actual results.
+
+Luna must escalate instead of changing requirements, architecture, public
+interfaces, or task scope, and must avoid unrelated refactoring.
+
+### Final Acceptance
+
+Luna's report is not final acceptance. Sol must inspect the actual Git diff,
+check scope and preserved contracts, review test results, run final verification
+as needed, and remain responsible for the outcome.
+
+### Concurrency
+
+Outside the primary thread, at most one spawned subagent thread may run
+concurrently. This applies to every subagent, not only coding agents.

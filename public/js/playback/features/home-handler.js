@@ -101,7 +101,7 @@ export function createHomeHandler(deps) {
     if (!body) return;
 
     if (!result.items.length) {
-      body.innerHTML = '<p class="hint" style="text-align:center;padding:40px 0;">暂无播放记录</p>';
+      body.innerHTML = '<p class="playback-drawer-state playback-drawer-empty ui-caption">暂无播放记录</p>';
       updateDrawerActions(false);
       return;
     }

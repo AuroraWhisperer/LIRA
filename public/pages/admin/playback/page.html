@@ -1,5 +1,6 @@
       <section id="playbackAssistantPage" class="main-page playback-page">
         <header class="playback-page-header">
+          <h1 class="ui-page-title playback-workspace-title">播放助手</h1>
           <div class="playback-head-inner">
             <div class="source-tabs" role="tablist" aria-label="选择播放器">
               <button class="source-tab active" type="button" data-source="qq">
@@ -35,38 +36,38 @@
           <section class="panel playback-discovery-panel">
             <div class="panel-header">
               <div>
-                <h2>快捷入口 <lira-help>从推荐、收藏和最近播放快速开始。</lira-help></h2>
+                <h2 class="ui-section-title">快捷入口 <lira-help>从推荐、收藏和最近播放快速开始。</lira-help></h2>
               </div>
             </div>
             <div class="panel-body">
               <div class="playback-home-grid">
                 <button class="playback-home-card" type="button" data-playback-home-action="personalized">
-                  <strong>为你推荐</strong>
-                  <span>根据听歌偏好智能推荐</span>
+                  <strong class="ui-card-title">为你推荐</strong>
+                  <span class="ui-caption">根据听歌偏好智能推荐</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="daily">
-                  <strong>每日推荐</strong>
-                  <span>每天刷新，100 首基于听歌偏好的推荐</span>
+                  <strong class="ui-card-title">每日推荐</strong>
+                  <span class="ui-caption">每天刷新，100 首基于听歌偏好的推荐</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="radio">
-                  <strong>心动 / 电台</strong>
-                  <span>无限续播，队列低于阈值时自动补充 10 首</span>
+                  <strong class="ui-card-title">心动 / 电台</strong>
+                  <span class="ui-caption">无限续播，队列低于阈值时自动补充 10 首</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="liked">
-                  <strong>我喜欢</strong>
-                  <span>已点亮红心的歌曲</span>
+                  <strong class="ui-card-title">我喜欢</strong>
+                  <span class="ui-caption">已点亮红心的歌曲</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="created-playlists">
-                  <strong>我的歌单</strong>
-                  <span>自己创建的歌单列表</span>
+                  <strong class="ui-card-title">我的歌单</strong>
+                  <span class="ui-caption">自己创建的歌单列表</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="collected-playlists">
-                  <strong>收藏歌单</strong>
-                  <span>收藏的其他用户歌单</span>
+                  <strong class="ui-card-title">收藏歌单</strong>
+                  <span class="ui-caption">收藏的其他用户歌单</span>
                 </button>
                 <button class="playback-home-card" type="button" data-playback-home-action="recent">
-                  <strong>最近播放</strong>
-                  <span>近期播放过的歌曲</span>
+                  <strong class="ui-card-title">最近播放</strong>
+                  <span class="ui-caption">近期播放过的歌曲</span>
                 </button>
               </div>
             </div>
@@ -77,7 +78,7 @@
         <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
           <div class="panel-header wesing-panel-heading">
             <div class="wesing-heading-copy">
-              <h2>全民 K歌歌词</h2>
+              <h2 class="ui-section-title">全民 K歌歌词</h2>
             </div>
             <div class="actions">
               <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
@@ -92,10 +93,10 @@
               </div>
               <div class="wesing-track-copy">
                 <h3 id="weSingTrackTitle">等待播放</h3>
-                <p id="weSingTrackMeta"></p>
+                <p id="weSingTrackMeta" class="ui-caption"></p>
               </div>
               <div class="wesing-lyric-stage" aria-live="polite">
-                <span class="wesing-lyric-kicker">当前歌词</span>
+                <span class="wesing-lyric-kicker ui-eyebrow">当前歌词</span>
                 <p id="weSingLyricLine" class="wesing-lyric-line">—</p>
                 <span id="weSingLyricHint" class="wesing-lyric-hint">启动全民 K 歌后，逐字歌词会在这里同步</span>
               </div>
@@ -108,7 +109,7 @@
 
             <aside class="wesing-capture-console">
               <div class="wesing-console-intro">
-                <h3>捕捉设置</h3>
+                <h3 class="ui-card-title">捕捉设置</h3>
               </div>
               <div class="wesing-path-field">
                 <label for="weSingCachePath">缓存目录</label>
@@ -144,7 +145,7 @@
 
         <section class="panel playback-search-panel" data-online-source-view>
           <div class="panel-header">
-            <h2>在线搜索</h2>
+            <h2 class="ui-section-title">在线搜索</h2>
             <div class="actions">
               <button id="playbackSearchBtn" type="button">搜索</button>
               <button id="playbackSearchClearBtn" type="button">清除</button>
@@ -165,16 +166,16 @@
                 <input id="playbackSearchLimit" type="number" min="1" max="30" step="1" value="9">
               </label>
             </div>
-            <div id="playbackSearchResults" class="playback-search-results hint">输入关键词搜索歌曲，结果可加入播放队列</div>
+            <div id="playbackSearchResults" class="playback-search-results hint ui-caption">输入关键词搜索歌曲，结果可加入播放队列</div>
           </div>
         </section>
 
         <details class="panel playback-match-panel" data-online-source-view>
           <summary class="panel-header">
             <div>
-              <h2>点歌匹配诊断 <lira-help>检查本地歌库的匹配结果。</lira-help></h2>
+              <h2 class="ui-section-title">点歌匹配诊断 <lira-help>检查本地歌库的匹配结果。</lira-help></h2>
             </div>
-            <span class="details-indicator">展开</span>
+            <span class="details-indicator ui-control-label">展开</span>
           </summary>
           <div class="panel-body stack">
             <div class="grid-3">
@@ -194,7 +195,7 @@
             <div class="actions">
               <button id="playbackMatchBtn" type="button">测试匹配</button>
             </div>
-            <div id="playbackMatchResults" class="playback-match-results hint">用本地歌库测试歌曲匹配准确度</div>
+            <div id="playbackMatchResults" class="playback-match-results hint ui-caption">用本地歌库测试歌曲匹配准确度</div>
           </div>
         </details>
       </section>

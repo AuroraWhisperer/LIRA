@@ -56,6 +56,27 @@ test('queue headers share a fixed minimum height and song queue controls stay co
   assert.match(buttonRule, /min-height:\s*32px/);
 });
 
+test('minimum-height desktop reclaims space before the point-song page heading', () => {
+  const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const responsiveSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
+    'utf8'
+  );
+  const baseQueueRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
+  const compactDesktopRule = responsiveSource.match(
+    /@media \(min-width: 901px\) and \(max-height: 700px\) \{\s*(\.queues-row\s*\{[\s\S]*?\n\s*\})\s*\}/
+  )?.[1];
+  const baseHeight = Number(baseQueueRule?.match(/height:\s*(\d+)px/)?.[1]);
+  const compactHeight = Number(compactDesktopRule?.match(/height:\s*(\d+)px/)?.[1]);
+  const compactBasis = Number(compactDesktopRule?.match(/flex-basis:\s*(\d+)px/)?.[1]);
+
+  assert.ok(baseQueueRule, 'default desktop queue sizing should remain defined');
+  assert.ok(compactDesktopRule, 'minimum-height desktop queue sizing should be height-scoped');
+  assert.equal(compactHeight, compactBasis);
+  assert.ok(baseHeight - compactHeight >= 32, 'minimum-height desktop should reclaim at least one page-heading row');
+  assert.doesNotMatch(compactDesktopRule, /panel-header|queue-list|font-|line-height/);
+});
+
 test('point-song subviews expose compact semantic page headings without inline typography', () => {
   const html = readAdminHtml();
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
@@ -642,7 +663,9 @@ test('queue panels remain the same height on desktop', () => {
   const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
   const queueRowRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
-  const responsiveQueueRule = responsiveSource.match(/\.queues-row\s*\{[\s\S]*?\n\s*\}/)?.[0];
+  const responsiveQueueRule = responsiveSource.match(
+    /@media \(max-width: 900px\) \{[\s\S]*?(\.queues-row\s*\{[\s\S]*?\n\s*\})/
+  )?.[1];
   const responsivePanelRule = responsiveSource.match(/\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/)?.[0];
 
   assert.ok(queueRowRule, 'desktop queue row styles should remain defined');

@@ -3,7 +3,9 @@ import { createDanmakuFeed } from './danmaku-feed.js';
 'use strict';
 
 const MAX_ITEMS = 50;
-const OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal']);
+const OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked']);
+const RANKED_STAGE_WIDTH = 384;
+const RANKED_STAGE_HEIGHT = 640;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
 
@@ -26,6 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
     resolveEmoteUrl: bilibiliImageSource,
     getGuardLabel: guardLabel
   });
+  syncRankedOverlayScale();
+  window.addEventListener('resize', syncRankedOverlayScale);
   if (previewMode) {
     document.body.classList.add('is-preview');
     applyStyle(params.get('style'));
@@ -121,6 +125,19 @@ function itemKey(item = {}) {
 
 function applyStyle(value) {
   document.body.dataset.style = OVERLAY_STYLES.has(value) ? value : 'signal';
+  syncRankedOverlayScale();
+}
+
+function syncRankedOverlayScale() {
+  const scale = calculateRankedOverlayScale(window.innerWidth, window.innerHeight);
+  document.documentElement.style.setProperty('--ranked-scale', String(scale));
+}
+
+export function calculateRankedOverlayScale(viewportWidth, viewportHeight) {
+  const width = Math.max(0, Number(viewportWidth) || 0);
+  const height = Math.max(0, Number(viewportHeight) || 0);
+  if (!width || !height) return 1;
+  return Math.min(width / RANKED_STAGE_WIDTH, height / RANKED_STAGE_HEIGHT);
 }
 
 function bilibiliImageSource(value) {

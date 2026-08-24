@@ -72,7 +72,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(app, /import \{ initClockCard \} from '\.\/clock-card\.js'/);
   assert.match(app, /initClockCard\(\)/);
 
-  assert.match(panel, /<h2>萌时钟<\/h2>/);
+  assert.match(panel, /<h2 class="ui-page-title">萌时钟<\/h2>/);
   assert.match(panel, /给直播画面添一块会呼吸的日期与时间小卡片/);
   for (const id of ['clockPreview', 'clockFixedUrl', 'clockCustomUrl', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockCustomLabel', 'clockCopyFixed', 'clockCopyCustom', 'clockOpenPreview']) {
     assert.match(panel, new RegExp(`id="${id}"`));

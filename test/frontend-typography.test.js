@@ -225,6 +225,9 @@ test('representative desktop selectors resolve to semantic role tokens', () => {
     ['gift heading', /\.app-shell\b[^,{]*\.gift-page\b[^,{]*\.panel-header h2\b/, 'section-title', 'bold'],
     ['toolbox page header', /\.app-shell\b[^,{]*\.other-feature-panel-header h2\b/, 'page-title', 'bold'],
     ['confirmation title', /\.lira-confirm-heading h2\b/, 'section-title', 'bold'],
+    ['update toast title', /\.desktop-update-toast strong\b/, 'section-title', 'bold'],
+    ['tour title', /\.lira-tour-title\b/, 'section-title', 'bold'],
+    ['shutdown title', /\.shutdown-title\b/, 'page-title', 'bold'],
     ['caption', /\.app-shell\b[^,{]*\.hint\b/, 'caption', 'regular']
   ];
   for (const [label, selector, size, weight] of contracts) {

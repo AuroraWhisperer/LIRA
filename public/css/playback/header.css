@@ -1,6 +1,17 @@
 .playback-page-header {
   grid-area: head;
+  display: grid;
+  gap: 8px;
   padding: 0 2px;
+}
+
+.app-shell .playback-workspace-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-page-title);
+  letter-spacing: var(--type-tracking-tight);
 }
 
 .playback-head-inner,
@@ -17,8 +28,9 @@
 
 .playback-head h2 {
   margin: 0;
-  ;
-  line-height: 1.2;
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
 }
 
 /* ===== 账号状态（紧凑型） ===== */
@@ -41,7 +53,7 @@
 
 .playback-account-status .pill {
   flex-shrink: 0;
-  ;
+  font-size: var(--type-size-caption);
   padding: 3px 9px;
 }
 
@@ -49,7 +61,7 @@
 .playback-cache-row button {
   min-height: 30px;
   padding: 4px 10px;
-  ;
+  font-size: var(--type-size-control);
 }
 
 /* ===== 信源切换标签 ===== */
@@ -73,8 +85,10 @@
   border-radius: 8px;
   background: transparent;
   color: var(--muted);
-  font-weight: 700;
-  ;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
+  letter-spacing: var(--type-tracking-normal);
   cursor: pointer;
   transition: all 200ms ease;
 }

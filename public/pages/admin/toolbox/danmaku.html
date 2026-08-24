@@ -1,9 +1,15 @@
             <section id="otherDanmakuFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>
               <div class="other-feature-panel-body stack danmaku-tool-panel">
+                <header class="other-feature-page-header">
+                  <div>
+                    <h2 class="ui-page-title">弹幕姬</h2>
+                    <p class="ui-page-subtitle">发送弹幕、配置直播投屏和管理互动回复。</p>
+                  </div>
+                </header>
                 <section class="danmaku-feature-section danmaku-connection-section" aria-labelledby="danmakuConnectionTitle">
                   <div class="danmaku-section-heading">
                     <div>
-                      <h3 id="danmakuConnectionTitle">连接状态 <lira-help>查看当前账号、直播间和发送能力。</lira-help></h3>
+                      <h3 id="danmakuConnectionTitle" class="ui-section-title">连接状态 <lira-help>查看当前账号、直播间和发送能力。</lira-help></h3>
                     </div>
                     <button id="danmakuRefreshBtn" class="icon" type="button" title="刷新发送状态" aria-label="刷新发送状态">
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -36,6 +42,10 @@
                         <span class="danmaku-style-option-visual is-minimal" aria-hidden="true"><i></i><i></i><i></i></span>
                         <span class="danmaku-style-option-copy"><strong>极简字幕</strong><small>低遮挡，适合游戏和演出画面</small></span>
                       </button>
+                      <button class="danmaku-style-option" type="button" data-danmaku-style="ranked" aria-pressed="false">
+                        <span class="danmaku-style-option-visual is-ranked" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                        <span class="danmaku-style-option-copy"><strong>身份横卡</strong><small>右侧头像，四档身份配色</small></span>
+                      </button>
                     </div>
                     <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite">选择后自动保存，已打开的弹幕姬会同步切换。</p>
                   </div>
@@ -53,7 +63,7 @@
                 <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
                   <div class="danmaku-section-heading">
                     <div>
-                      <h3 id="danmakuComposeTitle">发送弹幕 <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help></h3>
+                      <h3 id="danmakuComposeTitle" class="ui-section-title">发送弹幕 <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help></h3>
                     </div>
                   </div>
                   <form id="danmakuSendForm" class="stack">

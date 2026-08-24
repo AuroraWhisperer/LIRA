@@ -18,8 +18,10 @@
 }
 
 .playback-discovery-panel .panel-header h2 {
-  ;
+  font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
   color: var(--text);
   margin: 0 0 6px 0;
 }
@@ -57,16 +59,17 @@
 }
 
 .playback-home-card strong {
-  ;
-  line-height: 1.25;
-  font-weight: 700;
+  font-size: var(--type-size-card-title);
+  line-height: var(--type-leading-card-title);
+  font-weight: var(--type-weight-semibold);
   color: var(--text);
 }
 
 .playback-home-card span {
   color: var(--muted);
-  ;
-  line-height: 1.35;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   max-width: 100%;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -81,7 +84,7 @@
 
 .playback-home-card::before {
   content: "♫";
-  ;
+  font-size: var(--type-size-metric-sm);
   color: var(--primary);
   opacity: 0.3;
   line-height: 1;

@@ -10,7 +10,8 @@ let autoBotRunning = false;
 const DANMAKU_OVERLAY_STYLES = Object.freeze({
   bubble: '聊天气泡',
   signal: '直播信号带',
-  minimal: '极简字幕'
+  minimal: '极简字幕',
+  ranked: '身份横卡'
 });
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -239,7 +240,7 @@ function getElements() {
     resultState: document.getElementById('danmakuSendResult')
   };
   elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
-  return Object.values(elements).some((element) => !element) || elements.styleButtons.length !== 3 ? null : elements;
+  return Object.values(elements).some((element) => !element) || elements.styleButtons.length !== 4 ? null : elements;
 }
 
 function normalizeOverlayStyle(value) {

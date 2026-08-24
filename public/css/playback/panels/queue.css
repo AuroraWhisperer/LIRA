@@ -19,15 +19,18 @@
   padding-left: 9px;
   border-left: 3px solid var(--primary-strong);
   color: var(--text);
-  ;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  line-height: 1;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: var(--type-tracking-normal);
+  line-height: var(--type-leading-card-title);
 }
 
 .app-shell .playback-queue-section h3 {
   font-size: var(--type-size-card-title);
   font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
+  letter-spacing: var(--type-tracking-normal);
 }
 
 .playback-queue-section h3 span {
@@ -40,8 +43,8 @@
   border-radius: 9px;
   background: var(--primary-strong);
   color: #fff;
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
   line-height: 1;
 }
 
@@ -86,10 +89,10 @@
   height: 28px;
   padding: 0 11px;
   border-radius: 14px;
-  ;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-  line-height: 1;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: var(--type-tracking-normal);
+  line-height: var(--type-leading-control);
   white-space: nowrap;
 }
 

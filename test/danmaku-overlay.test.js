@@ -45,9 +45,11 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /body\[data-style='signal'\]/);
   assert.match(styles, /body\[data-style='bubble'\]/);
   assert.match(styles, /body\[data-style='minimal'\]/);
+  assert.match(styles, /body\[data-style='ranked'\]/);
   assert.match(styles, /body\.is-preview \{[^}]*rgba\(248, 251, 255, \.96\)[^}]*rgba\(229, 239, 248, \.9\)/s);
   assert.match(styles, /body\.is-preview\[data-style='bubble'\] \{[^}]*rgba\(255, 252, 247, \.96\)[^}]*rgba\(237, 246, 243, \.9\)/s);
   assert.match(styles, /body\.is-preview\[data-style='minimal'\] \{[^}]*rgba\(244, 247, 252, \.94\)[^}]*rgba\(223, 231, 242, \.88\)/s);
+  assert.match(styles, /body\.is-preview\[data-style='ranked'\] \{[^}]*rgba\(232, 237, 244, \.96\)[^}]*rgba\(207, 216, 228, \.9\)/s);
   assert.match(styles, /\.draw-danmaku-feed \{[^}]*align-items:\s*flex-start;/s);
   assert.match(styles, /\.draw-danmaku-item \{[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*min\(100%, 660px\);/s);
   assert.doesNotMatch(styles, /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s);
@@ -67,7 +69,20 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{[^}]*--minimal-role:\s*'普'/);
   assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='fan'\] \{[^}]*--minimal-role:\s*'粉'/);
   assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\]::after,\s*body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='fan'\]::after \{\s*display:\s*none;\s*\}/);
-  for (const style of ['signal', 'bubble', 'minimal']) {
+  assert.match(styles, /--ranked-stage-width:\s*384px/);
+  assert.match(styles, /--ranked-stage-height:\s*640px/);
+  assert.match(styles, /--ranked-card-width:\s*360px/);
+  assert.match(styles, /--ranked-card-height:\s*64px/);
+  assert.match(styles, /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*width:\s*var\(--ranked-card-width\)[^}]*height:\s*var\(--ranked-card-height\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*width:\s*var\(--ranked-card-height\)[^}]*height:\s*var\(--ranked-card-height\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*grid-area:\s*content/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-badge \{\s*display:\s*none;/);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='viewer'\],\s*body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --ranked-surface: rgba\(52, 59, 69, \.84\);/);
+  for (const identity of ['captain', 'admiral', 'governor']) {
+    assert.match(styles, new RegExp(`body\\[data-style='ranked'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`));
+  }
+  for (const style of ['signal', 'bubble', 'minimal', 'ranked']) {
     for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
       assert.match(
         styles,
@@ -75,6 +90,24 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
       );
     }
   }
+});
+
+test('ranked danmaku overlay preserves its 384 by 640 design viewport', async () => {
+  const module = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
+    {
+      document: { addEventListener() {} },
+      location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
+      URL,
+      URLSearchParams
+    }
+  );
+
+  assert.equal(module.calculateRankedOverlayScale(384, 640), 1);
+  assert.equal(module.calculateRankedOverlayScale(192, 640), 0.5);
+  assert.equal(module.calculateRankedOverlayScale(768, 640), 1);
+  assert.equal(module.calculateRankedOverlayScale(768, 1280), 2);
+  assert.equal(module.calculateRankedOverlayScale(0, 0), 1);
 });
 
 test('shared danmaku renderer replaces whole and inline emote triggers with safe images', async () => {

@@ -117,7 +117,7 @@ export class Drawer {
 
     const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
     const hintHtml = hint ? `<small>${escapeHtml(hint)}</small>` : '';
-    this.bodyEl.innerHTML = `<div class="playback-drawer-loading"><span>${escapeHtml(message)}</span>${hintHtml}</div>`;
+    this.bodyEl.innerHTML = `<div class="playback-drawer-loading ui-body"><span>${escapeHtml(message)}</span>${hintHtml}</div>`;
     this.updateActions(false);
   }
 
@@ -129,7 +129,7 @@ export class Drawer {
     if (!this.bodyEl) return;
 
     const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-    this.bodyEl.innerHTML = `<p class="hint" style="text-align:center;padding:40px 0;color:var(--danger);">${escapeHtml(message)}</p>`;
+    this.bodyEl.innerHTML = `<p class="playback-drawer-state playback-drawer-error ui-caption">${escapeHtml(message)}</p>`;
     this.updateActions(false);
   }
 
@@ -145,7 +145,7 @@ export class Drawer {
     if (!this.bodyEl) return;
 
     if (!items || !items.length) {
-      this.bodyEl.innerHTML = '<p class="hint" style="text-align:center;padding:40px 0;">暂无内容</p>';
+      this.bodyEl.innerHTML = '<p class="playback-drawer-state playback-drawer-empty ui-caption">暂无内容</p>';
       this.updateActions(false, action);
       return;
     }

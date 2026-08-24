@@ -8,7 +8,7 @@ const settingsRoutes = require('../src/server/routes/settings-routes');
 test('danmaku overlay style defaults to signal and accepts only named themes', async () => {
   assert.equal(DEFAULT_SETTINGS.danmakuOverlayStyle, 'signal');
 
-  for (const style of ['bubble', 'signal', 'minimal']) {
+  for (const style of ['bubble', 'signal', 'minimal', 'ranked']) {
     const result = await postSettings({ danmakuOverlayStyle: ` ${style} ` });
     assert.equal(result.status, 200);
     assert.deepEqual(result.writes, [['danmakuOverlayStyle', style]]);

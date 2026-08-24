@@ -106,6 +106,7 @@
 | [frontend-admin-shell.test.js](../../../test/frontend-admin-shell.test.js) | Admin 外壳、工具箱、布局、主题与初始化回归 | [frontend/app.md](../frontend/app.md) |
 | [frontend-gifts.test.js](../../../test/frontend-gifts.test.js) | 礼物、盲盒、历史记录与礼物样式回归 | [frontend/app.md](../frontend/app.md) + [frontend/overlays.md](../frontend/overlays.md) |
 | [frontend-playback.test.js](../../../test/frontend-playback.test.js) | 全屏歌词、收藏分页与播放搜索竞态 | [frontend/playback.md](../frontend/playback.md) |
+| [frontend-typography.test.js](../../../test/frontend-typography.test.js) | 桌面 Admin 字体 token、语义角色、可读字号/字重与 OBS/用户字体隔离契约 | [frontend/pages.md](../frontend/pages.md) |
 | [frontend-queue.test.js](../../../test/frontend-queue.test.js) | 队列叠加层、加班机 UI 和滚动/尺寸边界 | [frontend/overlays.md](../frontend/overlays.md) |
 | [frontend-song-board.test.js](../../../test/frontend-song-board.test.js) | 歌单展示板字号、视口与滚动速率 | [frontend/pages.md](../frontend/pages.md) |
 | [playback-cache.test.js](../../../test/playback-cache.test.js) | `public/js`(个人歌单缓存 CacheManager) | [frontend/playback.md](../frontend/playback.md) |

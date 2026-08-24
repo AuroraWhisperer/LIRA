@@ -23,8 +23,9 @@
   align-items: center;
   gap: 7px;
   color: var(--muted);
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
 }
 
 .playback-match-panel .details-indicator::after {
@@ -62,15 +63,17 @@
 
 .match-result-row strong {
   color: var(--text);
-  ;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
   overflow-wrap: anywhere;
 }
 
 .match-result-row span,
 .match-result-row small {
   color: var(--muted);
-  ;
-  line-height: 1.45;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
   overflow-wrap: anywhere;
 }
-

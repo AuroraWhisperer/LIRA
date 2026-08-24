@@ -101,17 +101,17 @@ html.lira-tour-active .other-feature-panel {
   display: block;
   margin: 0 0 6px;
   color: var(--color-accent, #ff5555);
-  ;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
+  letter-spacing: var(--type-tracking-eyebrow);
   text-transform: uppercase;
 }
 
 .lira-tour-title {
   margin: 0;
-  ;
-  font-weight: 600;
-  line-height: 1.3;
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
 }
 
 .lira-tour-close {
@@ -126,7 +126,7 @@ html.lira-tour-active .other-feature-panel {
   border-radius: 999px;
   background: var(--color-bg-secondary, #f0f3f7);
   color: var(--color-text-secondary, #647181);
-  ;
+  font-size: var(--type-size-section-title);
   line-height: 1;
   padding: 0;
   transition: all 160ms ease;
@@ -147,8 +147,8 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-body {
   margin-bottom: 16px;
   color: var(--color-text-secondary, #647181);
-  ;
-  line-height: 1.6;
+  font-size: var(--type-size-body);
+  line-height: var(--type-leading-body);
 }
 
 .lira-tour-body p { margin: 0 0 10px; }
@@ -156,7 +156,7 @@ html.lira-tour-active .other-feature-panel {
 
 .lira-tour-body strong {
   color: var(--color-text-primary, #17202a);
-  font-weight: 600;
+  font-weight: var(--type-weight-semibold);
 }
 
 .lira-tour-note {
@@ -165,7 +165,7 @@ html.lira-tour-active .other-feature-panel {
   border-left: 3px solid var(--color-accent, #ff5555);
   background: var(--color-accent-light, #fff5f5);
   border-radius: 0 6px 6px 0;
-  ;
+  font-size: var(--type-size-caption);
   color: var(--color-text-secondary, #647181);
 }
 
@@ -204,8 +204,8 @@ html.lira-tour-active .other-feature-panel {
   min-height: 34px;
   padding: 6px 14px;
   border-radius: 999px;
-  ;
-  font-weight: 600;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
   transition: all 180ms ease;
 }
 
@@ -248,7 +248,7 @@ html.lira-tour-active .other-feature-panel {
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--color-bg-secondary, #f0f3f7);
-  ;
+  font-size: var(--type-size-caption);
   color: var(--color-text-secondary, #647181);
 }
 
@@ -272,8 +272,8 @@ html.lira-tour-active .other-feature-panel {
   place-items: center;
   border: 2px solid currentColor;
   border-radius: 999px;
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-bold);
   line-height: 1;
   opacity: 0.65;
 }
@@ -339,28 +339,30 @@ html.lira-tour-active .other-feature-panel {
   border-radius: 999px;
   background: var(--color-danger-light, #fff7f6);
   color: var(--color-danger, #c0392b);
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-metric-sm);
+  font-weight: var(--type-weight-bold);
 }
 
 .lira-tour-exit-kicker {
   display: block;
   margin-bottom: 3px;
   color: var(--color-danger, #c0392b);
-  ;
-  font-weight: 600;
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-bold);
+  letter-spacing: var(--type-tracking-eyebrow);
 }
 
 .lira-tour-exit-dialog h3 {
   margin: 0;
-  ;
-  line-height: 1.3;
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
+  line-height: var(--type-leading-section-title);
 }
 
 .lira-tour-exit-dialog p {
   margin: 0 0 18px;
   color: var(--color-text-secondary, #647181);
-  ;
+  font-size: var(--type-size-body);
   line-height: 1.65;
 }
 
@@ -375,8 +377,8 @@ html.lira-tour-active .other-feature-panel {
   min-height: 40px;
   padding: 7px 12px;
   border-radius: 7px;
-  ;
-  font-weight: 600;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
 }
 
 .lira-tour-exit-stay {

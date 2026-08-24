@@ -17,15 +17,18 @@
 .wesing-heading-copy h2 {
   margin: 0;
   color: var(--text);
-  font-size: clamp(18px, 1.8vw, 23px);
+  font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
-  letter-spacing: -0.025em;
+  line-height: var(--type-leading-section-title);
+  letter-spacing: var(--type-tracking-tight);
 }
 
 .wesing-heading-copy p {
   margin: 5px 0 0;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .wesing-panel-heading .actions {
@@ -36,7 +39,8 @@
 .wesing-panel-heading .actions button {
   min-height: 32px;
   padding: 5px 12px;
-  ;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
 }
 
 .wesing-eyebrow,
@@ -44,7 +48,7 @@
 .wesing-track-kicker,
 .wesing-lyric-kicker {
   font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
-  ;
+  font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -114,7 +118,8 @@
   justify-content: space-between;
   gap: 16px;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
 }
 
 .wesing-live-mark {
@@ -122,7 +127,7 @@
   align-items: center;
   gap: 8px;
   color: var(--primary-strong);
-  ;
+  font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.08em;
 }
@@ -147,7 +152,7 @@
 .wesing-lyric-kicker {
   display: block;
   color: var(--color-text-muted);
-  ;
+  font-size: var(--type-size-micro);
 }
 
 .wesing-track-copy h3 {
@@ -164,7 +169,9 @@
 .wesing-track-copy p {
   margin: 9px 0 0;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .wesing-lyric-stage {
@@ -204,14 +211,17 @@
   display: block;
   margin-top: 9px;
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .wesing-progress-row {
   gap: 12px;
   color: var(--muted);
   font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
-  ;
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -248,14 +258,18 @@
 .wesing-console-intro h3 {
   margin: 0;
   color: var(--text);
-  ;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
 }
 
 .wesing-console-intro p,
 .wesing-path-field small,
 .wesing-field-heading small {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .wesing-console-intro p {
@@ -272,8 +286,9 @@
 .wesing-path-field label,
 .wesing-field-heading span {
   color: var(--text);
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
 }
 
 .wesing-path-field small {
@@ -293,7 +308,7 @@
   background: var(--color-bg-tertiary);
   color: var(--text);
   font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
-  ;
+  font-size: var(--type-size-control);
 }
 
 .wesing-path-control input:focus,
@@ -312,7 +327,7 @@
   border-color: var(--border);
   background: var(--surface);
   color: var(--muted);
-  ;
+  font-size: var(--type-size-control);
 }
 
 .wesing-path-control button:hover,
@@ -335,8 +350,8 @@
   border-radius: 8px;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
   box-shadow: 0 5px 14px rgba(255, 111, 145, 0.2);
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
 }
 
 .wesing-save-path:hover {
@@ -373,15 +388,16 @@
 .wesing-offset-control > span {
   color: var(--muted);
   font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
-  ;
+  font-size: var(--type-size-caption);
 }
 
 .wesing-signal-heading {
   padding-top: 2px;
   border-top: 1px solid var(--border);
   color: var(--text);
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
 }
 
 .wesing-signal-list {
@@ -417,21 +433,25 @@
 
 .wesing-signal-list span {
   color: var(--muted);
-  ;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .wesing-signal-list strong {
   color: var(--text);
-  ;
-  font-weight: 700;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-caption);
   text-align: right;
 }
 
 .wesing-status-message {
   margin: -4px 0 0;
   color: var(--muted);
-  ;
-  line-height: 1.5;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 @media (max-width: 1180px) {

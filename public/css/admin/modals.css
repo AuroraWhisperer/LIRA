@@ -63,8 +63,8 @@
 
 .confirm-modal-title {
   margin: 0;
-  ;
-  font-weight: 600;
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-bold);
   color: #1a1a1a;
   letter-spacing: -0.01em;
 }
@@ -72,8 +72,8 @@
 .confirm-modal-body {
   margin: 0 0 24px;
   color: #5a5a5a;
-  ;
-  line-height: 1.5;
+  font-size: var(--type-size-body);
+  line-height: var(--type-leading-body);
   text-align: left;
 }
 
@@ -85,8 +85,8 @@
 .confirm-modal-actions button {
   flex: 1;
   min-height: 44px;
-  ;
-  font-weight: 500;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
   border-radius: 8px;
   transition: all 0.15s ease;
 }
@@ -191,7 +191,7 @@ button.danger-filled:hover {
   border-radius: 12px;
   background: linear-gradient(135deg, #fde8e8 0%, #fef0f0 100%);
   color: #c0392b;
-  ;
+  font-size: var(--type-size-metric-sm);
   line-height: 1;
 }
 
@@ -203,7 +203,7 @@ button.danger-filled:hover {
 
 .danger-confirm-title {
   margin: 0;
-  ;
+  font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
   color: #1a1a1a;
   line-height: 1.25;
@@ -211,9 +211,9 @@ button.danger-filled:hover {
 }
 
 .danger-confirm-subtitle {
-  ;
+  font-size: var(--type-size-caption);
   color: #9e5d5d;
-  font-weight: 500;
+  font-weight: var(--type-weight-medium);
 }
 
 .danger-confirm-message {
@@ -222,7 +222,7 @@ button.danger-filled:hover {
   background: #fff8f6;
   border: 1px solid rgba(192, 57, 43, 0.12);
   border-radius: 10px;
-  ;
+  font-size: var(--type-size-body);
   line-height: 1.7;
   color: #5a3a3a;
 }
@@ -243,8 +243,8 @@ button.danger-filled:hover {
   position: absolute;
   left: -16px;
   color: #c0392b;
-  font-weight: 700;
-  ;
+  font-weight: var(--type-weight-bold);
+  font-size: var(--type-size-caption);
   line-height: 1.7;
 }
 
@@ -254,7 +254,7 @@ button.danger-filled:hover {
   background: #f4faf7;
   border: 1px solid rgba(33, 182, 168, 0.18);
   border-radius: 8px;
-  ;
+  font-size: var(--type-size-caption);
   color: #2d6a5a;
   line-height: 1.6;
 }
@@ -271,8 +271,8 @@ button.danger-filled:hover {
 .danger-confirm-actions button {
   flex: 1;
   min-height: 42px;
-  ;
-  font-weight: 600;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
   border-radius: 10px;
   transition: all 0.18s ease;
   cursor: pointer;
@@ -379,9 +379,9 @@ button.danger-filled:hover {
   border-radius: 12px;
   background: linear-gradient(135deg, #fff4e6 0%, #fff9f0 100%);
   color: #ff8c00;
-  ;
+  font-size: var(--type-size-metric-sm);
   line-height: 1;
-  font-weight: 700;
+  font-weight: var(--type-weight-bold);
 }
 
 .logout-confirm-header-text {
@@ -392,7 +392,7 @@ button.danger-filled:hover {
 
 .logout-confirm-title {
   margin: 0;
-  ;
+  font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
   color: #1a1a1a;
   line-height: 1.25;
@@ -400,9 +400,9 @@ button.danger-filled:hover {
 }
 
 .logout-confirm-subtitle {
-  ;
+  font-size: var(--type-size-caption);
   color: #b8884d;
-  font-weight: 500;
+  font-weight: var(--type-weight-medium);
 }
 
 .logout-confirm-message {
@@ -411,7 +411,7 @@ button.danger-filled:hover {
   background: #fff9f0;
   border: 1px solid rgba(255, 159, 64, 0.18);
   border-radius: 10px;
-  ;
+  font-size: var(--type-size-body);
   line-height: 1.7;
   color: #5a4a3a;
 }
@@ -424,8 +424,8 @@ button.danger-filled:hover {
 .logout-confirm-actions button {
   flex: 1;
   min-height: 42px;
-  ;
-  font-weight: 600;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
   border-radius: 10px;
   transition: all 0.18s ease;
   cursor: pointer;

@@ -144,11 +144,11 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ## 6. 百宝箱(otherAssistantPage)
 
-`other.js` 只负责**功能导航**(侧边栏可折叠、方向键/WAI-ARIA tab 模式、localStorage 记住选中项),各面板由独立模块初始化:
+`other.js` 只负责**功能导航**(侧边栏可折叠、方向键/WAI-ARIA tab 模式、localStorage 记住选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)将不变的功能 ID 按直播互动、直播画面、主播工作、软件与帮助四组呈现,各面板仍由独立模块初始化:
 
 | 功能 | 模块 | 内容与数据源 |
 |---|---|---|
-| 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 面板按连接状态、弹幕姬、发送弹幕、AI 回复和固定回复归类；固定回复组统一放置点歌未匹配、签到、抽签和 DIY 关键词回复开关及词库编辑器。弹幕姬区域提供固定 `/danmaku` 地址的复制/打开按钮、聊天气泡/直播信号带/极简字幕三张可视化主题卡，并用 `/danmaku?preview=1&style=…` iframe 复用同一页面即时预览；选择保存到 `danmakuOverlayStyle`，由后续 snapshot 同步到已打开页面。发送弹幕只保留在 Admin（`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数），不另设网页地址。连接/账号/房间状态来自 `/api/bilibili/danmaku/state`，断开时可一键重连并回读新状态；四个机器人开关为 `enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`，无发送权限时禁用 |
+| 弹幕姬 | [danmaku-tool.js](../../../public/js/admin/danmaku-tool.js) | 面板按连接状态、弹幕姬、发送弹幕、AI 回复和固定回复归类；固定回复组统一放置点歌未匹配、签到、抽签和 DIY 关键词回复开关及词库编辑器。弹幕姬区域提供固定 `/danmaku` 地址的复制/打开按钮、聊天气泡/直播信号带/极简字幕/身份横卡四张可视化主题卡，并用 `/danmaku?preview=1&style=…` iframe 复用同一页面即时预览；选择保存到 `danmakuOverlayStyle`，由后续 snapshot 同步到已打开页面。身份横卡在 384×640 设计画布中使用 360×64 卡片、右侧头像和四档身份底色，随浏览器源取宽高较小倍率等比缩放。发送弹幕只保留在 Admin（`/api/bilibili/danmaku/send`,Ctrl+Enter 快捷发送,超长自动拆条并提示条数），不另设网页地址。连接/账号/房间状态来自 `/api/bilibili/danmaku/state`，断开时可一键重连并回读新状态；四个机器人开关为 `enableRandomTagReply/enableCheckinBot/enableFortuneBot/enableCustomReplyBot`，无发送权限时禁用 |
 | 弹幕库编辑器 | [danmaku-libraries.js](../../../public/js/admin/danmaku-libraries.js) | 签到祝福语 / 抽签词库 / DIY 关键词回复 三个编辑器的工厂(加载/增删/脏标记/保存到对应 settings 键) |
 | AI 互动助手 | [ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) | 模型服务配置:`/api/ai/config`(PUT 保存)、`/api/ai/status`、`/api/ai/test/<provider>`、`/api/ai/models`；电脑端先选自动识别、DeepSeek、OpenAI、Claude、Gemini 或自定义，官方预设锁定地址/协议，自动与自定义允许编辑；按服务端 `modelEndpoint` 显示协议、联网方式与可用推理控件；密钥字段使用 password + `'********'` 遮罩且提交时过滤遮罩值；700ms 自动保存 + 保存失败重试队列 |
 | 礼物姬 · 礼物边框 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 保存 `giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；预览只发 `gift:frame` 事件，不影响实时开关与事件去重 |

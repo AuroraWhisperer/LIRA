@@ -204,3 +204,52 @@ test('only the latest playback search updates state and renders', async () => {
   assert.equal(searchService.getResults()[0]?.id, 'new-result');
   assert.deepEqual(renderedIds, ['new-result']);
 });
+
+test('playback workspace keeps semantic hierarchy and presentation typography', () => {
+  const html = readAdminHtml();
+  const playbackCssDir = path.join(ROOT_DIR, 'public', 'css', 'playback');
+  const playbackCssFiles = [
+    'dialogs.css',
+    'drawer.css',
+    'fullscreen.css',
+    'header.css',
+    'player.css',
+    'queue-modal.css',
+    'responsive.css',
+    'song-row.css',
+    path.join('panels', 'confirm-dialog.css'),
+    path.join('panels', 'discovery.css'),
+    path.join('panels', 'match.css'),
+    path.join('panels', 'queue.css'),
+    path.join('panels', 'search.css'),
+    path.join('panels', 'track-menu.css'),
+    path.join('panels', 'user-and-health.css'),
+    path.join('panels', 'wesing.css')
+  ];
+  const playbackCss = playbackCssFiles
+    .map((file) => fs.readFileSync(path.join(playbackCssDir, file), 'utf8'))
+    .join('\n');
+  const drawerSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'drawer.js'),
+    'utf8'
+  );
+  const queueSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'queue-popup.js'),
+    'utf8'
+  );
+
+  assert.match(html, /class="ui-page-title playback-workspace-title">播放助手<\/h1>/);
+  assert.match(html, /id="playbackDrawerTitle" class="ui-section-title"/);
+  assert.match(html, /id="queuePopupTitle" class="ui-section-title"/);
+  assert.doesNotMatch(playbackCss, /^\s*;\s*$/m);
+
+  assert.match(playbackCss, /\.player-fs-title\s*\{[\s\S]*?font-size:\s*42px;/);
+  assert.match(playbackCss, /\.lyric-text\s*\{[\s\S]*?font-size:\s*32px;/);
+  assert.match(playbackCss, /\.playback-quality-btn\s*\{[\s\S]*?font-size:\s*var\(--type-size-control\);/);
+  assert.match(playbackCss, /\.queue-popup-head strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\);/);
+
+  assert.match(drawerSource, /playback-drawer-loading ui-body/);
+  assert.match(drawerSource, /playback-drawer-state playback-drawer-error ui-caption/);
+  assert.match(drawerSource, /playback-drawer-state playback-drawer-empty ui-caption/);
+  assert.match(queueSource, /<h3 class="ui-card-title">/);
+});

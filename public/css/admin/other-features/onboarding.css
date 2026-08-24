@@ -5,9 +5,9 @@
 .lira-onboarding-header, .lira-onboarding-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .lira-onboarding-header { border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 18px; }
 .lira-onboarding-header h2, .lira-onboarding-content h3 { margin: 0; }
-.lira-onboarding-kicker, .lira-onboarding-eyebrow { margin: 0 0 6px; color: var(--theme-accent, #f5b72f); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+.lira-onboarding-kicker, .lira-onboarding-eyebrow { margin: 0 0 6px; color: var(--theme-accent, #f5b72f); font-size: var(--type-size-micro); letter-spacing: .08em; text-transform: uppercase; }
 .lira-onboarding-content { min-height: 260px; padding: 28px 4px 22px; line-height: 1.7; }
-.lira-onboarding-content h3 { font-size: 1.65rem; margin-bottom: 14px; }
+.lira-onboarding-content h3 { margin-bottom: 14px; font-size: var(--type-size-section-title); }
 .lira-onboarding-content p { max-width: 62ch; margin: 0 0 15px; color: var(--muted-text, #b8bfce); }
 .lira-onboarding-note { padding: 12px 14px; border-left: 3px solid var(--theme-accent, #f5b72f); background: rgba(255,255,255,.05); }
 .lira-onboarding-progress { display: flex; gap: 5px; padding-top: 17px; }

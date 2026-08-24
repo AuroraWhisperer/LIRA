@@ -16,6 +16,25 @@
 | 命令通道 | `fetch('/api/...')`(见 [comms.md](comms.md)、[api.md](../backend/api.md)) |
 | 模块形态 | ES Module 带 `.js` 后缀的相对导入;Classic Script 挂载 `window.AdminApp.*` 兼容层 |
 
+### 1.1 桌面 Admin 字体层级
+
+桌面 Admin 的通用字体层级由 [styles-base.css](../../../public/css/styles-base.css) 中的 token 与 [admin/layout.css](../../../public/css/admin/layout.css) 中 `.app-shell` 范围内的语义角色共同持有。`styles-base.css` 只声明 token，不得增加会影响普通 `h1`、`p`、`small` 等元素的裸排版规则；页面和组件通过 `ui-*` 角色或组件自有的等价选择器消费这些值。
+
+| 角色 | 字号 | 常用字重 | 用途 |
+|---|---:|---:|---|
+| display | 28px | 700 | 少量展示型标题 |
+| page title | 24px | 700 | 主工作区与百宝箱功能页锚点 |
+| section title | 18px | 700 | 面板、弹窗和主要内容分区 |
+| card title | 15px | 600 | 卡片标题、歌曲名与 Toast 标题 |
+| body | 14px | 400 | 正文、说明和普通状态文案 |
+| control label | 13px | 600 | 表单标签、按钮和导航控件 |
+| caption | 12px | 400 | 元数据、辅助说明和次级状态 |
+| micro / eyebrow | 11px | 700 | 短标签、表头、状态徽标和 Latin eyebrow |
+
+普通正文、帮助、错误与可操作说明不得小于 12px；11px 只用于短而有边界的 microcopy。计时器、歌词、硬件数值、图表与其他展示数据可使用组件自有的 metric/presentation 字号，但不能反向覆盖通用正文。常规字重限定为 400/500/600/700。
+
+该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览继续读取同一组 `--preview-*` 用户配置。本地字体枚举仍只由桌面歌词设置的 `admin/local-font-library.js` 在用户手势后调用，不是 Admin 核心 UI 的依赖。
+
 ## 2. 入口 URL(唯一成表处)
 
 所有页面都由后端 `servePageOrAsset` 提供(`pageMap` 见 [server-core.md](../backend/server-core.md) §4.3),响应 `Cache-Control: no-store`。
@@ -31,7 +50,7 @@
 | `/blindbox` | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | OBS 浏览器源 | 盲盒盈亏投屏,支持 `?top=/winners=/heartBox=/title=` 等参数(管理页「直播画面」生成链接) |
 | `/overtime` | [overlays/overtime.html](../../../public/pages/overlays/overtime.html) | OBS 浏览器源、管理页预览 `<iframe>` | 加班机叠加层,支持 `?quality=low`(降帧/降动画) |
 | `/lyrics` | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | OBS 浏览器源、独立浏览器窗口 | 桌面歌词完整时间轴;地址由管理页「复制桌面歌词」提供 |
-| `/danmaku` | [overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定弹幕姬地址；按设置自由切换聊天气泡/直播信号带/极简字幕并实时显示普通文字和 B 站表情，`?preview=1&style=…` 只用于 Admin 的确定性样本预览 |
+| `/danmaku` | [overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定弹幕姬地址；按设置自由切换聊天气泡/直播信号带/极简字幕/身份横卡并实时显示普通文字和 B 站表情；身份横卡使用右侧头像、四档身份底色和 384×640 等比缩放设计画布，`?preview=1&style=…` 只用于 Admin 的确定性样本预览 |
 | `/games` | [overlays/games.html](../../../public/pages/overlays/games.html) | OBS 浏览器源、独立浏览器窗口 | 直播小游戏浏览器源；管理页先打开固定地址再开始游戏，页面按当前会话自动显示数字炸弹、五子棋或你画我猜；画猜页面使用收窄并居中的 16:9 画布，由主播通过画笔、橡皮擦、直线、矩形、圆形和画布取色器作画，并显示弹幕抢答/总积分；图形仍编码为既有 append 笔画同步，不新增 WebSocket 消息形状。弹幕画廊按消息视觉长度动态调整气泡宽度与高度，展示头像、昵称、消息、大航海与当前房间灯牌，头像统一经带 token 的 `/api/bilibili/avatar` 本地代理加载并补全；题词只在 Admin 私有主持区显示；旧 `?game=` 地址仍可访问但参数不再决定游戏 |
 | `/wheel` | [overlays/wheel.html](../../../public/pages/overlays/wheel.html) | OBS 浏览器源、独立浏览器窗口 | 独立转盘浏览器源；圆形外透明，按主播配置的内容份数绘制多色扇形，抽取时旋转并突出最终结果；不参与 `/games` 会话互斥 |
 | `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定萌时钟地址；默认桃桃便签，可用 `style=peach|starlight`、`date=0|1`、`seconds=0|1`、`format=12|24`、`label=` 组合两套风格与显示字段 |

@@ -160,7 +160,7 @@ export class QueuePopup {
 
     return `
       <section class="playback-queue-section">
-        <h3>待确认点歌 <span>${state.pendingRequests.length}</span></h3>
+        <h3 class="ui-card-title">待确认点歌 <span>${state.pendingRequests.length}</span></h3>
         ${rows}
       </section>
     `;
@@ -186,7 +186,7 @@ export class QueuePopup {
 
     return `
       <section class="playback-queue-section">
-        <h3>${escapeHtml(state.queueTitle)} <span>${tracks.length}</span></h3>
+        <h3 class="ui-card-title">${escapeHtml(state.queueTitle)} <span>${tracks.length}</span></h3>
         ${rows}
       </section>
     `;
@@ -211,7 +211,7 @@ export class QueuePopup {
 
     return `
       <section class="playback-queue-section">
-        <h3>${escapeHtml(title)} <span>${queue.length}</span></h3>
+        <h3 class="ui-card-title">${escapeHtml(title)} <span>${queue.length}</span></h3>
         ${rows}
       </section>
     `;
