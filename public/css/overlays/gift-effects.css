@@ -45,48 +45,19 @@
 .gift-frame-accents { z-index: 2; }
 #particleStage { z-index: 3; }
 
-.gift-frame-component,
-.gift-frame-composite-fallback {
+.gift-frame-composite {
   position: absolute;
+  inset: 0;
   display: block;
+  width: 100%;
+  height: 100%;
   max-width: none;
+  object-fit: fill;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
   filter: drop-shadow(0 7px 14px rgba(6, 26, 15, .2));
 }
-
-.gift-frame-top,
-.gift-frame-bottom,
-.gift-frame-composite-fallback {
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.gift-frame-top { z-index: 3; }
-.gift-frame-bottom { z-index: 4; }
-
-.gift-frame-left,
-.gift-frame-right {
-  top: 0;
-  width: auto;
-  height: 100%;
-  object-fit: contain;
-  z-index: 2;
-}
-
-.gift-frame-left { left: 0; }
-.gift-frame-right { right: 0; }
-
-.gift-frame-composite-fallback {
-  display: none;
-  z-index: 5;
-}
-
-#giftFrame.use-composite-fallback .gift-frame-component { display: none; }
-#giftFrame.use-composite-fallback .gift-frame-composite-fallback { display: block; }
 
 .gift-frame-accent {
   position: absolute;

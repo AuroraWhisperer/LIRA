@@ -171,6 +171,15 @@ function initStartAnimation() {
     persistTimer = window.setTimeout(persist, 220);
   };
 
+  const updatePreviewVolume = () => {
+    const config = readStartAnimationConfig(root);
+    updateVolumeOutput(root, config);
+    preview?.contentWindow?.postMessage({
+      type: 'lira:opening-preview-volume',
+      volume: config.volume
+    }, origin);
+  };
+
   const loadSavedConfig = async () => {
     try {
       const response = await fetch(OPENING_CONFIG_ENDPOINT, { cache: 'no-store' });
@@ -194,8 +203,9 @@ function initStartAnimation() {
     }
   };
 
-  const handleConfigChange = () => {
-    render();
+  const handleConfigChange = (event) => {
+    if (event.target?.id === 'openingAudioVolume') updatePreviewVolume();
+    else render();
     schedulePersist();
   };
   form.addEventListener('input', handleConfigChange);

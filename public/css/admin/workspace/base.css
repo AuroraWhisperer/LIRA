@@ -41,8 +41,8 @@
 .main-page-tabs::after {
   content: '';
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 4px;
+  bottom: 4px;
   left: 0;
   width: var(--main-page-indicator-width, 0px);
   opacity: 0;

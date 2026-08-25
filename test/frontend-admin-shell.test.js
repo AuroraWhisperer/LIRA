@@ -116,7 +116,7 @@ test('colored action buttons use solid or frameless treatments', () => {
   assert.match(dangerRule, /background:\s*transparent/);
 });
 
-test('top navigation stays frameless and exposes a colored moving active capsule', () => {
+test('top navigation keeps its outer track and colored moving active capsule', () => {
   const mainTabs = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
     'utf8'
@@ -137,9 +137,10 @@ test('top navigation stays frameless and exposes a colored moving active capsule
 
   assert.ok(tabsRule, 'top navigation layout should remain defined');
   assert.match(tabsRule, /gap:\s*8px/);
-  assert.match(tabsRule, /border:\s*0/);
-  assert.match(tabsRule, /background:\s*transparent/);
-  assert.match(tabsRule, /box-shadow:\s*none/);
+  assert.match(tabsRule, /border:\s*1px solid rgba\(183, 133, 50, 0\.22\)/);
+  assert.match(tabsRule, /background:\s*#fffaf1/);
+  assert.match(tabsRule, /border-radius:\s*12px/);
+  assert.match(tabsRule, /padding:\s*3px/);
   assert.ok(movingLayersRule, 'top navigation moving layers should share the active geometry');
   assert.match(movingLayersRule, /width:\s*var\(--main-page-indicator-width,\s*0px\)/);
   assert.match(movingLayersRule, /transform:\s*translateX\(var\(--main-page-indicator-x,\s*0px\)\)/);
@@ -153,7 +154,7 @@ test('top navigation stays frameless and exposes a colored moving active capsule
   assert.match(readyRule, /opacity:\s*1/);
   assert.match(activeRule, /background:\s*transparent/);
   assert.match(activeRule, /box-shadow:\s*none/);
-  assert.match(desktopTabsRule, /background:\s*transparent/);
+  assert.match(desktopTabsRule, /background:\s*#fffaf1/);
   assert.match(desktopActiveRule, /background:\s*transparent/);
   assert.match(desktopActiveRule, /box-shadow:\s*none/);
   assert.match(appSource, /function syncMainPageIndicator\(/);

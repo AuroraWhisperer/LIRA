@@ -53,20 +53,14 @@
   }
 
   function initFrameAssets() {
-    const parts = Array.from(document.querySelectorAll('.gift-frame-component'));
+    const artwork = document.getElementById('giftFrameArtworkImage');
     const accents = Array.from(document.querySelectorAll('[data-frame-accent]'));
-    const fallback = document.getElementById('giftFrameFallback');
-    const useFallback = () => {
-      frameRoot.classList.add('use-composite-fallback');
-      if (!frameRoot.classList.contains('is-playing') || !fallback) return;
-      fallback.style.opacity = '1';
-      fallback.style.transform = 'translate(0, 0)';
-      fallback.style.clipPath = 'inset(0)';
+    const hideArtwork = () => {
+      if (artwork) artwork.hidden = true;
+      showStatus('礼物边框素材加载失败。');
     };
-    parts.forEach((part) => {
-      part.addEventListener('error', useFallback, { once: true });
-      if (part.complete && part.naturalWidth === 0) useFallback();
-    });
+    artwork?.addEventListener('error', hideArtwork, { once: true });
+    if (artwork?.complete && artwork.naturalWidth === 0) hideArtwork();
     accents.forEach((accent) => {
       const hideAccent = () => { accent.hidden = true; };
       accent.addEventListener('error', hideAccent, { once: true });
@@ -160,11 +154,9 @@
   }
 
   function createFrameController() {
-    const parts = Array.from(document.querySelectorAll('[data-frame-part]'));
+    const artwork = document.getElementById('giftFrameArtworkImage');
     const accents = Array.from(document.querySelectorAll('[data-frame-accent]'));
-    const fallback = document.getElementById('giftFrameFallback');
     const info = { root: frameRoot, plate: document.getElementById('giftInfo'), name: document.getElementById('giftInfoName'), amount: document.getElementById('giftInfoAmount'), user: document.getElementById('giftInfoUser'), num: document.getElementById('giftInfoNum') };
-    const activeParts = () => info.root.classList.contains('use-composite-fallback') ? [fallback] : parts;
     return {
       prepare(payload, motionMode) {
         info.name.textContent = payload.giftName;
@@ -174,12 +166,9 @@
         info.root.dataset.motion = motionMode;
         info.root.classList.add('is-playing');
         info.root.style.opacity = '1';
-        [...parts, fallback].forEach((part) => {
-          if (!part) return;
-          part.style.opacity = '0';
-          part.style.transform = '';
-          part.style.clipPath = '';
-        });
+        artwork.style.opacity = '0';
+        artwork.style.transform = '';
+        artwork.style.clipPath = '';
         accents.forEach((accent) => {
           accent.style.opacity = '0';
           accent.style.transform = '';
@@ -190,7 +179,7 @@
       async playEnterTimeline(session, motionMode) {
         const reduced = motionMode === 'reduced';
         const animations = [];
-        activeParts().forEach((part) => animations.push(animateNode(part, frameEnterKeyframes(part, reduced), reduced ? 180 : 620, reduced ? 0 : framePartDelay(part, false))));
+        animations.push(animateNode(artwork, frameEnterKeyframes(artwork, reduced), reduced ? 180 : 620, 0));
         accents.filter((accent) => !accent.hidden).forEach((accent) => animations.push(animateNode(accent, accentEnterKeyframes(accent, reduced), reduced ? 180 : accentEnterDuration(accent), reduced ? 0 : accentEnterDelay(accent))));
         animations.push(animateNode(info.plate, [{ opacity: 0, transform: 'translate(-50%, calc(-50% + 12px))' }, { opacity: 1, transform: 'translate(-50%, -50%)' }], reduced ? 180 : 250, reduced ? 0 : 558));
         animations.push(animateNode(info.name, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 180, reduced ? 0 : 738));
@@ -211,7 +200,7 @@
       async playExitTimeline(session, motionMode) {
         const reduced = motionMode === 'reduced';
         const animations = [animateNode(info.plate, [{ opacity: 1, transform: 'translate(-50%, -50%)' }, { opacity: 0, transform: 'translate(-50%, calc(-50% + 10px))' }], reduced ? 180 : 260, 0)];
-        activeParts().forEach((part) => animations.push(animateNode(part, frameExitKeyframes(part, reduced), reduced ? 180 : 440, reduced ? 0 : framePartDelay(part, true))));
+        animations.push(animateNode(artwork, frameExitKeyframes(artwork, reduced), reduced ? 180 : 440, 0));
         accents.filter((accent) => !accent.hidden).forEach((accent) => animations.push(animateNode(accent, [{ opacity: 1, transform: 'translate(0, 0) rotate(0)' }, { opacity: 0, transform: accentExitTransform(accent, reduced) }], reduced ? 180 : 320, reduced ? 0 : accentExitDelay(accent))));
         await Promise.all(animations);
         session.throwIfAborted();
@@ -220,12 +209,9 @@
         info.root.classList.remove('is-playing');
         info.root.removeAttribute('data-motion');
         info.root.style.opacity = '';
-        [...parts, fallback].forEach((part) => {
-          if (!part) return;
-          part.style.opacity = '';
-          part.style.transform = '';
-          part.style.clipPath = '';
-        });
+        artwork.style.opacity = '';
+        artwork.style.transform = '';
+        artwork.style.clipPath = '';
         accents.forEach((accent) => {
           accent.style.opacity = '';
           accent.style.transform = '';
@@ -252,7 +238,8 @@
     if (name.includes('top')) return 'translate(0, -36px)';
     if (name.includes('bottom')) return 'translate(0, 36px)';
     if (name.includes('right')) return 'translate(36px, 0)';
-    return 'translate(-36px, 0)';
+    if (name.includes('left')) return 'translate(-36px, 0)';
+    return 'translate(0, 0)';
   }
 
   function frameHiddenClip(part) {
@@ -278,13 +265,6 @@
       { opacity: 1, transform: 'translate(0, 0)', clipPath: 'inset(0)' },
       { opacity: 0, transform: edgeOffset(part), clipPath: frameHiddenClip(part) }
     ];
-  }
-
-  function framePartDelay(part, exiting) {
-    const name = part.dataset.framePart || '';
-    const entering = { top: 0, left: 90, right: 90, bottom: 170 };
-    const leaving = { bottom: 20, left: 80, right: 80, top: 150 };
-    return (exiting ? leaving : entering)[name] || 0;
   }
 
   function accentEnterKeyframes(accent, reduced) {

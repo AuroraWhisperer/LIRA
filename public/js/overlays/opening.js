@@ -192,6 +192,11 @@ function startRuntime(config) {
     audio.load();
   }
 
+  window.addEventListener('message', (event) => {
+    if (event.source !== window.parent || event.data?.type !== 'lira:opening-preview-volume') return;
+    if (audio) audio.volume = parseVolume(event.data.volume, audio.volume);
+  });
+
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pause();
     else resume();

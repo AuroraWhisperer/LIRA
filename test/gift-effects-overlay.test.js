@@ -126,28 +126,22 @@ test('gift effects overlay uses official frame metadata without cropping or inve
   assert.doesNotMatch(css, /mix-blend-mode/);
 });
 
-test('gift frame overlay uses the local four-component artwork and bounded perimeter fireflies', () => {
+test('gift frame overlay uses one full-perimeter artwork and bounded perimeter fireflies', () => {
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
   const overlayJs = read('public/js/overlays/gift-effects.js');
   const assetDir = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'gift-frame', 'woodland-bloom');
 
-  for (const fileName of ['frame-composite.png', 'frame-top.png', 'frame-right.png', 'frame-bottom.png', 'frame-left.png']) {
-    assert.equal(fs.statSync(path.join(assetDir, fileName)).isFile(), true);
-    assert.match(html, new RegExp(`/img/overlays/gift-frame/woodland-bloom/${fileName.replace('.', '\\.')}`));
-  }
-
-  for (const part of ['top', 'right', 'bottom', 'left']) {
-    assert.match(html, new RegExp(`data-frame-part="${part}"`));
-  }
-  assert.match(html, /id="giftFrameFallback"/);
+  assert.equal(fs.statSync(path.join(assetDir, 'frame-composite.png')).isFile(), true);
+  assert.match(html, /id="giftFrameArtworkImage"[^>]+data-frame-part="composite"[^>]+frame-composite\.png/);
+  assert.doesNotMatch(html, /data-frame-part="(?:top|right|bottom|left)"/);
   assert.doesNotMatch(html, /id="giftFrameSvg"/);
-  assert.match(css, /\.gift-frame-component/);
-  assert.match(css, /\.use-composite-fallback/);
+  assert.match(css, /\.gift-frame-composite\s*\{[^}]*object-fit:\s*fill/s);
   assert.match(overlayJs, /const FIREFLY_LIMIT = 6/);
   assert.match(overlayJs, /const FRAME_PERIMETER_ANCHORS/);
   assert.match(overlayJs, /motionMode !== 'reduced'/);
-  assert.match(overlayJs, /use-composite-fallback/);
+  assert.match(overlayJs, /getElementById\('giftFrameArtworkImage'\)/);
+  assert.doesNotMatch(overlayJs, /use-composite-fallback/);
   assert.doesNotMatch(overlayJs, /innerHTML/);
 });
 

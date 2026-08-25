@@ -8,9 +8,12 @@ const { Readable, Writable } = require('node:stream');
 const test = require('node:test');
 const { addFrameProtectionHeaders, contentType, serveOpeningCharacter } = require('../src/server/http-utils');
 const { handleApi } = require('../src/server/api-routes');
+const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
 const openingRoutes = require('../src/server/routes/opening-routes');
 const settingsRoutes = require('../src/server/routes/settings-routes');
-const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
+const { closeDatabases, createDatabases } = require('../src/storage/database');
+const settingsStoreModule = require('../src/storage/settings-store');
+const { DEFAULT_SETTINGS } = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
@@ -176,6 +179,11 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /enabled:\s*false/);
   assert.match(script, /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/);
   assert.match(script, /volumePercent/);
+  assert.match(script, /event\.target\?\.id === 'openingAudioVolume'/);
+  assert.match(script, /type: 'lira:opening-preview-volume'/);
+  assert.match(script, /preview\?\.contentWindow\?\.postMessage/);
+  assert.match(overlayScript, /event\.source !== window\.parent \|\| event\.data\?\.type !== 'lira:opening-preview-volume'/);
+  assert.match(overlayScript, /audio\.volume = parseVolume\(event\.data\.volume, audio\.volume\)/);
   assert.doesNotMatch(script, /固定地址刷新后会读取最新设置/);
   assert.match(overlayScript, /enabled:\s*false/);
   assert.match(openingRoutesSource, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
@@ -246,6 +254,22 @@ test('opening track motion settings reject values outside the public enum', asyn
   assert.deepEqual(writes, [['openingTrackMotion', 'barber']]);
   assert.equal(configureCalls, 1);
   assert.equal(broadcastReason, 'settings');
+});
+
+test('opening animation starts disabled for every application session', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-startup-'));
+  const databases = createDatabases({ dataDir, defaultSettings: DEFAULT_SETTINGS });
+
+  try {
+    const firstSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
+    firstSession.setSetting('openingEnabled', 'true');
+
+    const nextSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
+    assert.equal(nextSession.getSettings().openingEnabled, 'false');
+  } finally {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });
 
 test('opening music uploads stay inside the configured data directory', async () => {

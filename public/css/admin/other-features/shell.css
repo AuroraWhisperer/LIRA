@@ -30,6 +30,11 @@ body.player-dock-expanded .other-workspace {
 .other-feature-sidebar {
   min-height: 0;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.other-feature-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .other-sidebar-toolbar {

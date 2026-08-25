@@ -49,6 +49,7 @@ function prepareSettingsBootstrap(songDb, settingsStoreModule) {
   }
 
   runMigrations();
+  settingsStore.setSetting('openingEnabled', 'false');
   return { settingsStore };
 }
 
