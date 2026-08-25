@@ -14,6 +14,7 @@ const DEFAULTS = Object.freeze({
   volume: 0.35,
   audioUrl: '/img/overlays/opening/music.ogg',
   audioName: '默认音乐：果实',
+  characterUrl: '/img/overlays/opening/avatar.webp',
   debug: false
 });
 
@@ -165,6 +166,7 @@ function startRuntime(config) {
 
   if (config.enabled) {
     stage.classList.remove('is-disabled', 'is-paused');
+    trackSvg?.setCurrentTime?.(0);
     scheduleParticles();
   } else {
     stage.classList.add('is-disabled', 'is-paused');
@@ -218,6 +220,12 @@ function safeAudioUrl(value) {
   return DEFAULTS.audioUrl;
 }
 
+function safeCharacterUrl(value) {
+  const candidate = String(value || '');
+  if (candidate === DEFAULTS.characterUrl || candidate.startsWith('/opening-character/')) return candidate;
+  return DEFAULTS.characterUrl;
+}
+
 function applyOpeningConfig(config) {
   setText('openingTitle', config.title);
   setText('openingSubtitle', config.subtitle);
@@ -226,6 +234,7 @@ function applyOpeningConfig(config) {
   const stage = document.getElementById('openingStage');
   const viewport = document.querySelector('.opening-viewport');
   const nameRow = document.getElementById('openingNameRow');
+  const avatar = document.getElementById('openingAvatar');
   const titleLength = Array.from(config.title).length;
   stage?.style.setProperty('--opening-title-size', `${titleSizeForLength(titleLength)}cqw`);
   if (stage) stage.dataset.trackMotion = config.trackMotion;
@@ -237,6 +246,7 @@ function applyOpeningConfig(config) {
   document.documentElement.classList.toggle('opening-disabled', !config.enabled);
   document.body.classList.toggle('opening-disabled', !config.enabled);
   if (nameRow) nameRow.hidden = config.name.length === 0;
+  if (avatar) avatar.src = safeCharacterUrl(config.characterUrl);
   createNodes(config);
   startRuntime(config);
 }
@@ -269,6 +279,7 @@ function mergeConfig(remote, query) {
   if (!params.has('volume')) merged.volume = parseVolume(source.volume);
   merged.audioUrl = safeAudioUrl(source.audioUrl || DEFAULTS.audioUrl);
   merged.audioName = cleanText(source.audioName, 160) || DEFAULTS.audioName;
+  merged.characterUrl = safeCharacterUrl(source.characterUrl || DEFAULTS.characterUrl);
   return merged;
 }
 
@@ -280,4 +291,4 @@ async function initOpeningOverlay() {
 
 if (typeof document !== 'undefined') initOpeningOverlay();
 
-export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, TRACK_MOTION_VALUES, cleanText, normalizeFooter, normalizeTrackMotion, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, mergeConfig };
+export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, TRACK_MOTION_VALUES, cleanText, normalizeFooter, normalizeTrackMotion, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, safeCharacterUrl, mergeConfig };

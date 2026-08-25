@@ -10,7 +10,7 @@ let autoBotRunning = false;
 const DANMAKU_OVERLAY_STYLES = Object.freeze({
   bubble: '聊天气泡',
   signal: '直播信号带',
-  minimal: '极简字幕',
+  minimal: '航海铭牌',
   ranked: '身份横卡'
 });
 

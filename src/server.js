@@ -259,6 +259,17 @@ function createServerRuntime(runtimeOptions = {}) {
         return;
       }
 
+      if (requestUrl.pathname.startsWith('/opening-character/')) {
+        httpUtils.serveOpeningCharacter(
+          DATA_DIR,
+          req,
+          res,
+          requestUrl,
+          () => settingsStore?.getSettings().openingCharacterFile || ''
+        );
+        return;
+      }
+
       servePageOrAsset(req, res, requestUrl);
     } catch (error) {
       if (error?.code === 'SERVER_QUIESCING' || phase !== 'ready') {

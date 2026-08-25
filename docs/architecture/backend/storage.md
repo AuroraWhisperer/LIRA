@@ -194,7 +194,7 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 | 悬浮层 | `danmakuOverlayStyle`(`bubble`/`signal`/`minimal`，默认 `signal`)、`overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、插画风格各自的 `*QueueFontFamily`/`*QueueFontWeight`/`*QueueUseCustomTextColor`/`*QueueTextColor`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号 |
 | 桌面歌词 | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式) |
 | WeSing | `weSingCachePath`、`weSingLyricOffsetMs` |
-| 开播动画 | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`；上传音频文件位于 data 目录 `opening-music/` |
+| 开播动画 | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`、`openingCharacterFile`、`openingCharacterName`；上传音频与人物图分别位于 data 目录 `opening-music/`、`opening-character/` |
 | 萌时钟 | `clockStyle`(`peach`/`starlight`/`soda`)、`clockShowDate`、`clockShowSeconds`、`clockHourFormat`(`12`/`24`)、`clockLabel`；供固定 `/clock` Browser Source 首帧读取 |
 | 保留期 | `giftRawJsonRetentionDays`(30)、`giftEventRetentionDays`(0)、`requestRetentionDays`(0)、`superChatRetentionDays`(0)、`autoRetentionOnStartup` |
 | 更新 | `enableAutoUpdate` |

@@ -61,11 +61,13 @@
 
 | 端点 | 请求 | 响应(data) | 错误码 |
 |---|---|---|---|
-| `GET /api/opening/config` | 无；为 Browser Source 读取当前开播设置，免 session token | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)和当前音频 URL；未上传时 `audioUrl` 为内置“果实”音乐，非法轨道值回退 `heart` | — |
+| `GET /api/opening/config` | 无；为 Browser Source 读取当前开播设置，免 session token | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)、当前音频与人物图 URL；未上传时分别使用内置“果实”音乐和默认人物图，非法轨道值回退 `heart` | — |
 | `POST /api/opening/music` | `multipart/form-data`，字段 `file`；≤ 64 MB，扩展名限 `.mp3/.flac/.wav/.aac/.ogg/.m4a/.wma` | 保存至 data 目录下 `opening-music/` 并将其设为当前音频 | 400(缺少/不支持音频文件)、413(超限) |
 | `DELETE /api/opening/music` | 无 | 清除当前上传音乐，恢复内置音乐 | — |
+| `POST /api/opening/character` | `multipart/form-data`，字段 `file`；内容 ≤ 16 MB，扩展名限 `.png/.jpg/.jpeg/.webp` 且必须匹配图片签名 | 保存至 data 目录下 `opening-character/` 并将其设为当前人物图 | 400(缺少、不支持或签名不匹配)、413(请求体超限) |
+| `DELETE /api/opening/character` | 无 | 清除当前上传人物图，恢复内置人物图 | — |
 
-上传文件使用随机文件名并只允许当前设置指向的文件通过 `/opening-media/` 播放，原始文件名仅作为界面显示文本。
+上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。除 `GET /api/opening/config` 外，本节写接口仍需 session token。
 
 ### 2.2 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
 

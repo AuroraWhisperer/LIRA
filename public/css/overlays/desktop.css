@@ -426,6 +426,11 @@ body.desktop-shell .status-strip {
   margin-left: auto;
 }
 
+body.desktop-shell .main-page-tabs {
+  border-color: transparent;
+  background: transparent;
+}
+
 body.desktop-shell .main-page-tab.active {
   background: transparent;
   color: #3f3026;

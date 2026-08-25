@@ -116,7 +116,7 @@ test('colored action buttons use solid or frameless treatments', () => {
   assert.match(dangerRule, /background:\s*transparent/);
 });
 
-test('top navigation exposes a visible shared track and moving active pill', () => {
+test('top navigation stays frameless and exposes a colored moving active capsule', () => {
   const mainTabs = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
     'utf8'
@@ -130,27 +130,43 @@ test('top navigation exposes a visible shared track and moving active pill', () 
   const railRule = Array.from(workspace.matchAll(/\.main-page-tabs::after\s*\{[\s\S]*?\n\}/g))
     .map(match => match[0])
     .find(rule => /background:/.test(rule));
+  const readyRule = workspace.match(/\.main-page-tabs\.indicator-ready::before,\s*\.main-page-tabs\.indicator-ready::after\s*\{[\s\S]*?\n\}/)?.[0];
   const activeRule = workspace.match(/\.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
+  const desktopTabsRule = desktop.match(/body\.desktop-shell \.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0];
   const desktopActiveRule = desktop.match(/body\.desktop-shell \.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(tabsRule, 'top navigation layout should remain defined');
   assert.match(tabsRule, /gap:\s*8px/);
-  assert.match(tabsRule, /border:\s*1px solid rgba\(183, 133, 50, 0\.16\)/);
-  assert.match(tabsRule, /background:\s*rgba\(255, 250, 241, 0\.72\)/);
+  assert.match(tabsRule, /border:\s*0/);
+  assert.match(tabsRule, /background:\s*transparent/);
+  assert.match(tabsRule, /box-shadow:\s*none/);
   assert.ok(movingLayersRule, 'top navigation moving layers should share the active geometry');
   assert.match(movingLayersRule, /width:\s*var\(--main-page-indicator-width,\s*0px\)/);
   assert.match(movingLayersRule, /transform:\s*translateX\(var\(--main-page-indicator-x,\s*0px\)\)/);
-  assert.ok(pillRule, 'top navigation should use one shared moving active pill');
+  assert.ok(pillRule, 'top navigation should use one shared moving active capsule');
+  assert.match(pillRule, /linear-gradient\(135deg,\s*#fff0d2 0%,\s*#ffd99a 100%\)/);
+  assert.match(pillRule, /inset 0 0 0 1px rgba\(183, 133, 50, 0\.34\)/);
   assert.match(pillRule, /transition:[\s\S]*width[\s\S]*transform/);
-  assert.ok(railRule, 'top navigation should keep the accent rail inside the moving pill');
+  assert.ok(railRule, 'top navigation should keep the accent rail inside the colored capsule');
   assert.match(railRule, /center bottom 3px \/ 22px 3px no-repeat/);
+  assert.ok(readyRule, 'top navigation capsule should appear after positioning');
+  assert.match(readyRule, /opacity:\s*1/);
   assert.match(activeRule, /background:\s*transparent/);
   assert.match(activeRule, /box-shadow:\s*none/);
+  assert.match(desktopTabsRule, /background:\s*transparent/);
   assert.match(desktopActiveRule, /background:\s*transparent/);
   assert.match(desktopActiveRule, /box-shadow:\s*none/);
   assert.match(appSource, /function syncMainPageIndicator\(/);
   assert.match(appSource, /--main-page-indicator-x/);
   assert.match(appSource, /--main-page-indicator-width/);
+});
+
+test('desktop live status and refresh control keep visible separation', () => {
+  const layout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'), 'utf8');
+  const statusStripRule = layout.match(/\.status-strip\s*\{[\s\S]*?\n\}/)?.[0];
+
+  assert.ok(statusStripRule, 'desktop status strip layout should remain defined');
+  assert.match(statusStripRule, /gap:\s*8px/);
 });
 
 test('accent actions do not add a colored frame around their fill or active state', () => {

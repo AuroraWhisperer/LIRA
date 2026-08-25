@@ -4,7 +4,7 @@ import { createDanmakuFeed } from './danmaku-feed.js';
 
 const MAX_ITEMS = 50;
 const OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked']);
-const RANKED_STAGE_WIDTH = 384;
+const RANKED_STAGE_WIDTH = 624;
 const RANKED_STAGE_HEIGHT = 640;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';

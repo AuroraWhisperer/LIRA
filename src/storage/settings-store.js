@@ -218,6 +218,8 @@ const DEFAULT_SETTINGS = {
   openingAudioFile: '',
   openingAudioName: '',
   openingAudioVolume: '0.35',
+  openingCharacterFile: '',
+  openingCharacterName: '',
   clockStyle: 'peach',
   clockShowDate: 'true',
   clockShowSeconds: 'true',

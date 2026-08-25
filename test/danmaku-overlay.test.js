@@ -11,6 +11,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('fixed danmaku overlay consumes snapshot and incremental feed events safely', () => {
   const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'danmaku.html'), 'utf8');
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), 'utf8');
+  const feedScript = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), 'utf8');
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'danmaku.css'), 'utf8');
   const server = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8');
 
@@ -59,30 +60,39 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.doesNotMatch(styles, /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s);
   assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --signal-accent: #7d91a8;/);
   assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --signal-accent: #7d91a8;/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --signal-accent: #3ec7ff;/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --signal-accent: #d45cff;/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --signal-accent: #ffb627;/);
+  assert.match(styles, /--guard-captain:\s*#2f9bff;/);
+  assert.match(styles, /--guard-admiral:\s*#a45cff;/);
+  assert.match(styles, /--guard-governor:\s*#f0445a;/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --signal-accent: var\(--guard-captain\);/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --signal-accent: var\(--guard-admiral\);/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --signal-accent: var\(--guard-governor\);/);
   assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-identity \{ padding-right: 68px; \}/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-guard \{ display: none; \}/);
+  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-medal-level \{[^}]*right:\s*9px;[^}]*bottom:\s*0;/s);
   assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --bubble-accent: #70ddc6;/);
   assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --bubble-accent: #70ddc6;/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: #55b9ff;/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: #dc78ff;/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: #ffc34f;/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: var\(--guard-captain\);[^}]*bubble-captain-frame\.png/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: var\(--guard-admiral\);[^}]*bubble-admiral-frame\.png/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: var\(--guard-governor\);[^}]*bubble-governor-frame\.png/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-guard \{ display: none; \}/);
+  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-medal-level \{ font-size: 14px; \}/);
   assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*height:\s*calc\(100vh - clamp/);
-  assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item \{[^}]*border-left:/);
-  assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{[^}]*--minimal-role:\s*'普'/);
-  assert.doesNotMatch(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='fan'\] \{[^}]*--minimal-role:\s*'粉'/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='viewer'\]::after,\s*body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='fan'\]::after \{\s*display:\s*none;\s*\}/);
-  assert.match(styles, /--ranked-stage-width:\s*384px/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-body \{[^}]*display:\s*grid;/s);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='captain'\] \{[^}]*nameplate-captain-divider\.png/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{[^}]*nameplate-admiral-divider\.png/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*nameplate-governor-divider\.png/);
+  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item:is\([^}]*\) \.draw-danmaku-identity::after \{[^}]*background:\s*var\(--nameplate-divider\)/s);
+  assert.match(feedScript, /draw-danmaku-medal-level/);
+  assert.match(feedScript, /draw-danmaku-medal-name/);
+  assert.match(styles, /--ranked-stage-width:\s*624px/);
   assert.match(styles, /--ranked-stage-height:\s*640px/);
-  assert.match(styles, /--ranked-card-width:\s*360px/);
-  assert.match(styles, /--ranked-card-min-height:\s*72px/);
-  assert.match(styles, /--ranked-avatar-width:\s*72px/);
+  assert.match(styles, /--ranked-card-width:\s*600px/);
+  assert.match(styles, /--ranked-card-min-height:\s*92px/);
   assert.match(styles, /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*hidden[^}]*border-radius:\s*2px[^}]*background:\s*var\(--ranked-surface\)/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*align-self:\s*center[^}]*width:\s*var\(--ranked-avatar-width\)[^}]*height:\s*var\(--ranked-avatar-width\)[^}]*border-radius:\s*0[^}]*background:\s*var\(--danmaku-avatar-art\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--ranked-card-min-height\)[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*hidden[^}]*border-radius:\s*2px[^}]*background:\s*var\(--ranked-surface\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*align-self:\s*stretch[^}]*width:\s*100%[^}]*height:\s*auto[^}]*min-width:\s*0[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*mask-image:\s*linear-gradient\(to right, transparent 0%, #000 55%\)/s);
   assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*grid-area:\s*content[^}]*min-height:\s*var\(--ranked-card-min-height\)/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff[^}]*font-size:\s*30px[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, \.34\)/s);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff[^}]*font-size:\s*38px[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, \.34\)/s);
   assert.doesNotMatch(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*-webkit-line-clamp/s);
   assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.png'\)/);
   assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/captain\.png'\)/);
@@ -91,6 +101,17 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /\.draw-danmaku-avatar \{[^}]*color:\s*transparent;[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*font-size:\s*0;/s);
   assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-badge \{\s*display:\s*none;/);
   assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='viewer'\],\s*body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --ranked-surface: rgba\(52, 59, 69, \.84\);/);
+  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*rgba\(171, 37, 61, \.92\)/s);
+  for (const asset of [
+    'bubble-captain-frame.png',
+    'bubble-admiral-frame.png',
+    'bubble-governor-frame.png',
+    'nameplate-captain-divider.png',
+    'nameplate-admiral-divider.png',
+    'nameplate-governor-divider.png'
+  ]) {
+    assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'danmaku-guard', asset)));
+  }
   for (const identity of ['captain', 'admiral', 'governor']) {
     assert.match(styles, new RegExp(`body\\[data-style='ranked'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`));
   }
@@ -104,7 +125,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   }
 });
 
-test('ranked danmaku overlay preserves its 384 by 640 design viewport', async () => {
+test('ranked danmaku overlay preserves its 624 by 640 design viewport', async () => {
   const module = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
     {
@@ -115,10 +136,10 @@ test('ranked danmaku overlay preserves its 384 by 640 design viewport', async ()
     }
   );
 
-  assert.equal(module.calculateRankedOverlayScale(384, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(192, 640), 0.5);
-  assert.equal(module.calculateRankedOverlayScale(768, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(768, 1280), 2);
+  assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
+  assert.equal(module.calculateRankedOverlayScale(312, 640), 0.5);
+  assert.equal(module.calculateRankedOverlayScale(1248, 640), 1);
+  assert.equal(module.calculateRankedOverlayScale(1248, 1280), 2);
   assert.equal(module.calculateRankedOverlayScale(0, 0), 1);
 });
 

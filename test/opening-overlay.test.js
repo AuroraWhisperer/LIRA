@@ -4,9 +4,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { Readable } = require('node:stream');
+const { Readable, Writable } = require('node:stream');
 const test = require('node:test');
-const { addFrameProtectionHeaders, contentType } = require('../src/server/http-utils');
+const { addFrameProtectionHeaders, contentType, serveOpeningCharacter } = require('../src/server/http-utils');
+const { handleApi } = require('../src/server/api-routes');
 const openingRoutes = require('../src/server/routes/opening-routes');
 const settingsRoutes = require('../src/server/routes/settings-routes');
 const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
@@ -24,9 +25,12 @@ test('opening overlay assets and explicit route are registered', () => {
   assert.ok(fs.statSync(musicPath).size > 100_000);
   assert.equal(fs.readFileSync(musicPath).subarray(0, 4).toString('ascii'), 'OggS');
   const server = read('src', 'server', 'http-utils.js');
+  const serverRuntime = read('src', 'server.js');
   assert.match(server, /\['\/opening',\s*'pages\/overlays\/opening\.html'\]/);
   assert.match(server, /'\.ogg':\s*'audio\/ogg'/);
   assert.equal(contentType(path.join(ROOT_DIR, 'public/img/overlays/opening/music.ogg')), 'audio/ogg');
+  assert.match(serverRuntime, /requestUrl\.pathname\.startsWith\('\/opening-character\/'\)/);
+  assert.match(serverRuntime, /serveOpeningCharacter/);
 });
 
 test('opening overlay is frameable and keeps the required character transform layers', () => {
@@ -50,6 +54,8 @@ test('opening overlay is frameable and keeps the required character transform la
     assert.match(html, new RegExp(`class="[^"]*${className}[^"]*"`));
   }
   assert.match(html, /<animateMotion[^>]+repeatCount="indefinite"/);
+  assert.match(html, /<animate[^>]+class="track-heart-visibility"[^>]+attributeName="opacity"/);
+  assert.doesNotMatch(html, /<animateMotion[^>]+keyPoints=/);
   assert.match(html, /<mpath href="#openingTrackPath"/);
   assert.match(html, /<audio id="openingAudio" loop preload="metadata"><\/audio>/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+autoplay/);
@@ -79,7 +85,8 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.doesNotMatch(css, /\.track::before\s*\{/);
   assert.doesNotMatch(css, /@keyframes\s+track-glint/);
   assert.doesNotMatch(css, /mic-glint/);
-  assert.match(css, /\.track-heart-motion/);
+  assert.match(css, /\.track-heart-motion\s*\{\s*opacity:\s*\.86/);
+  assert.doesNotMatch(css, /@keyframes\s+track-heart-visibility/);
   assert.match(css, /\[data-track-motion='barber'\][^\{]*\.track-barber/);
   assert.match(css, /\[data-track-motion='progress'\][^\{]*\.track-progress/);
   assert.match(css, /@keyframes\s+track-barber-flow/);
@@ -96,6 +103,7 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow[^\{]*\{[^}]*animation:\s*none/);
   assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow\s*\{[^}]*opacity:\s*\.74/);
   assert.match(html, /<animateMotion dur="7\.2s"/);
+  assert.match(html, /values="\.86;\.86;0;0" keyTimes="0;\.88;\.96;1"/);
   assert.match(css, /translate3d\(/);
   assert.match(css, /\.opening-stage\.is-disabled[^\n]*display:\s*none/);
   assert.match(css, /\.opening-stage\.is-disabled[^\n]*animation:\s*none/);
@@ -109,6 +117,9 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(script, /QUALITY_LIMITS/);
   assert.match(script, /TRACK_MOTION_VALUES/);
   assert.match(script, /stage\.dataset\.trackMotion\s*=\s*config\.trackMotion/);
+  assert.match(script, /trackSvg\?\.setCurrentTime\?\.\(0\)/);
+  assert.match(script, /safeCharacterUrl/);
+  assert.match(script, /avatar\.src\s*=\s*safeCharacterUrl\(config\.characterUrl\)/);
   assert.match(script, /titleSizeForLength/);
   assert.match(script, /title:\s*'唱一首，在一首，给你的歌'/);
   assert.match(script, /MAX_LENGTHS = Object\.freeze\(\{ title: 20/);
@@ -140,7 +151,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(html, /<strong>设置开播画面上的文字<\/strong>/);
   assert.match(html, /class="opening-switch-label">漂浮音符<\/span>/);
   assert.match(html, /class="opening-switch-label">音乐律动<\/span>/);
-  for (const id of ['openingTitle', 'openingTitleCount', 'openingSubtitle', 'openingName', 'openingFooter', 'openingQuality', 'openingTrackMotion', 'openingShowNotes', 'openingShowEq', 'openingAudioFile', 'openingAudioVolume', 'openingUrl', 'openingPreview']) {
+  for (const id of ['openingTitle', 'openingTitleCount', 'openingSubtitle', 'openingName', 'openingFooter', 'openingQuality', 'openingTrackMotion', 'openingShowNotes', 'openingShowEq', 'openingCharacterFile', 'openingCharacterName', 'openingResetCharacter', 'openingAudioFile', 'openingAudioVolume', 'openingUrl', 'openingPreview']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /id="openingTrackMotion"[^>]*>[\s\S]*value="heart"[^>]*selected[^>]*>心形巡航/);
@@ -157,6 +168,8 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /buildOpeningSourceUrl/);
   assert.match(script, /openingAudioVolume/);
   assert.match(script, /OPENING_AUDIO_ENDPOINT/);
+  assert.match(script, /OPENING_CHARACTER_ENDPOINT/);
+  assert.match(script, /MAX_CHARACTER_UPLOAD_BYTES/);
   assert.match(script, /openingSettingsPayload/);
   assert.match(script, /openingTrackMotion:\s*config\.trackMotion/);
   assert.match(script, /about:blank/);
@@ -169,6 +182,8 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
   assert.equal(DEFAULT_SETTINGS.openingTrackMotion, 'heart');
+  assert.equal(DEFAULT_SETTINGS.openingCharacterFile, '');
+  assert.equal(DEFAULT_SETTINGS.openingCharacterName, '');
   assert.equal(openingRoutes.getOpeningConfig({
     settings: { get() { return { openingFooter: 'SINGING LIVE' }; } },
     system: { dataDir: os.tmpdir() }
@@ -181,6 +196,10 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
     settings: { get() { return { openingTrackMotion: 'sparkle' }; } },
     system: { dataDir: os.tmpdir() }
   }).trackMotion, 'heart');
+  assert.equal(openingRoutes.getOpeningConfig({
+    settings: { get() { return {}; } },
+    system: { dataDir: os.tmpdir() }
+  }).characterUrl, '/img/overlays/opening/avatar.webp');
   assert.match(script, /openingTitleCount/);
   assert.match(script, /Array\.from\(config\.title\)\.length}\/20/);
   assert.doesNotMatch(script, /localStorage/);
@@ -235,7 +254,8 @@ test('opening music uploads stay inside the configured data directory', async ()
     values: {
       openingEnabled: 'true', openingTitle: '', openingSubtitle: '', openingName: '', openingFooter: '',
       openingQuality: 'normal', openingTrackMotion: 'heart', openingShowNotes: 'true', openingShowEq: 'true',
-      openingAudioFile: '', openingAudioName: '', openingAudioVolume: '0.35'
+      openingAudioFile: '', openingAudioName: '', openingAudioVolume: '0.35',
+      openingCharacterFile: '', openingCharacterName: ''
     },
     get() { return { ...this.values }; },
     set(key, value) { this.values[key] = value; }
@@ -264,6 +284,131 @@ test('opening music uploads stay inside the configured data directory', async ()
     const files = fs.readdirSync(openingRoutes.getMusicDir(dataDir));
     assert.equal(files.length, 1);
     assert.match(files[0], /^opening-.*\.mp3$/);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('opening character uploads validate image signatures and stay inside the data directory', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-character-test-'));
+  const settings = {
+    values: {
+      openingEnabled: 'true', openingTitle: '', openingSubtitle: '', openingName: '', openingFooter: '',
+      openingQuality: 'normal', openingTrackMotion: 'heart', openingShowNotes: 'true', openingShowEq: 'true',
+      openingAudioFile: '', openingAudioName: '', openingAudioVolume: '0.35',
+      openingCharacterFile: '', openingCharacterName: ''
+    },
+    get() { return { ...this.values }; },
+    set(key, value) { this.values[key] = value; }
+  };
+  const context = { system: { dataDir }, settings, broadcastSnapshot() {} };
+  const makeRequest = (name, content) => {
+    const boundary = 'opening-character-test-boundary';
+    const crlf = '\r\n';
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="file"; filename="${name}"${crlf}Content-Type: image/png${crlf}${crlf}`),
+      content,
+      Buffer.from(`${crlf}--${boundary}--${crlf}`)
+    ]);
+    const request = Readable.from([body]);
+    request.headers = { 'content-type': `multipart/form-data; boundary=${boundary}` };
+    return request;
+  };
+  const makeResponse = () => {
+    const result = { payload: null };
+    result.response = {
+      writeHead(status) { this.status = status; },
+      end(value) { result.payload = JSON.parse(value); }
+    };
+    return result;
+  };
+
+  try {
+    const invalid = makeResponse();
+    await openingRoutes.routes['POST /api/opening/character'](
+      context,
+      { req: makeRequest('fake.png', Buffer.from('not an image')) },
+      invalid.response
+    );
+    assert.equal(invalid.response.status, 400);
+    assert.equal(settings.values.openingCharacterFile, '');
+
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+    const uploaded = makeResponse();
+    await openingRoutes.routes['POST /api/opening/character'](
+      context,
+      { req: makeRequest('custom.png', png) },
+      uploaded.response
+    );
+    assert.equal(uploaded.response.status, 200);
+    assert.equal(uploaded.payload.ok, true);
+    assert.equal(uploaded.payload.data.characterName, 'custom.png');
+    assert.equal(uploaded.payload.data.hasUploadedCharacter, true);
+    assert.match(uploaded.payload.data.characterUrl, /^\/opening-character\/opening-character-.*\.png$/);
+    const files = fs.readdirSync(openingRoutes.getCharacterDir(dataDir));
+    assert.equal(files.length, 1);
+    assert.equal(files[0], settings.values.openingCharacterFile);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('opening character writes require authentication and only the selected file is served', async () => {
+  let authPayload = null;
+  const authResponse = {
+    writeHead(status) { this.status = status; },
+    end(value) { authPayload = JSON.parse(value); }
+  };
+  await handleApi(
+    { sessionToken: 'required-token' },
+    { method: 'POST', headers: {} },
+    authResponse,
+    new URL('http://127.0.0.1/api/opening/character')
+  );
+  assert.equal(authResponse.status, 401);
+  assert.equal(authPayload.ok, false);
+
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-character-media-test-'));
+  const characterDir = openingRoutes.getCharacterDir(dataDir);
+  const fileName = 'opening-character-selected.png';
+  const content = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  fs.mkdirSync(characterDir, { recursive: true });
+  fs.writeFileSync(path.join(characterDir, fileName), content);
+
+  const requestCharacter = (requestedName, selectedName) => new Promise((resolve) => {
+    const chunks = [];
+    const response = new Writable({
+      write(chunk, _encoding, callback) {
+        chunks.push(Buffer.from(chunk));
+        callback();
+      }
+    });
+    response.writeHead = (status, headers) => {
+      response.status = status;
+      response.headers = headers;
+    };
+    response.on('finish', () => resolve({
+      status: response.status,
+      headers: response.headers,
+      body: Buffer.concat(chunks)
+    }));
+    serveOpeningCharacter(
+      dataDir,
+      { method: 'GET' },
+      response,
+      new URL(`http://127.0.0.1/opening-character/${requestedName}`),
+      () => selectedName
+    );
+  });
+
+  try {
+    const served = await requestCharacter(fileName, fileName);
+    assert.equal(served.status, 200);
+    assert.equal(served.headers['Content-Type'], 'image/png');
+    assert.deepEqual(served.body, content);
+
+    const rejected = await requestCharacter(fileName, 'different.png');
+    assert.equal(rejected.status, 404);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

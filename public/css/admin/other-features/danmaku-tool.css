@@ -141,18 +141,21 @@
 .danmaku-style-option-visual.is-signal i:nth-child(2) { top: 31px; width: 72%; }
 .danmaku-style-option-visual.is-signal i:nth-child(3) { top: 52px; width: 60%; border-color: rgba(97,223,192,.28); background: rgba(27,78,78,.65); }
 .danmaku-style-option-visual.is-minimal {
-  background: linear-gradient(160deg, #182033, #0e1320);
+  background: linear-gradient(160deg, #eef3fa, #d7e0ec);
 }
 .danmaku-style-option-visual.is-minimal i {
-  left: 13px;
-  height: 2px;
-  border-left: 5px solid #67d4b1;
-  background: linear-gradient(90deg, rgba(255,255,255,.9) 0 28%, rgba(255,255,255,.3) 28% 100%);
-  box-shadow: 0 7px 0 rgba(255,255,255,.12);
+  left: 12px;
+  width: 72%;
+  height: 17px;
+  border-left: 3px solid var(--preview-rank);
+  border-radius: 2px 7px 7px 2px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--preview-rank) 28%, #121827), #121827 52%, rgba(18,24,39,.76));
+  box-shadow: 0 2px 5px rgba(18, 25, 39, .18);
 }
-.danmaku-style-option-visual.is-minimal i:nth-child(1) { top: 13px; width: 78%; }
-.danmaku-style-option-visual.is-minimal i:nth-child(2) { top: 36px; width: 60%; border-left-color: #f0bb65; }
-.danmaku-style-option-visual.is-minimal i:nth-child(3) { top: 59px; width: 70%; border-left-color: #8a8fde; }
+.danmaku-style-option-visual.is-minimal i::after { position: absolute; top: 6px; left: 9px; width: 45%; height: 2px; background: var(--preview-rank); content: ''; box-shadow: 0 4px rgba(255,255,255,.32); }
+.danmaku-style-option-visual.is-minimal i:nth-child(1) { --preview-rank: #2f9bff; top: 8px; }
+.danmaku-style-option-visual.is-minimal i:nth-child(2) { --preview-rank: #a45cff; top: 30px; left: 20%; width: 68%; }
+.danmaku-style-option-visual.is-minimal i:nth-child(3) { --preview-rank: #f0445a; top: 52px; width: 78%; }
 .danmaku-style-option-visual.is-ranked {
   background: linear-gradient(145deg, #e9eef4, #cfd8e4);
 }
@@ -175,7 +178,7 @@
 .danmaku-style-option-visual.is-ranked i:nth-child(1) { top: 6px; }
 .danmaku-style-option-visual.is-ranked i:nth-child(2) { top: 24px; background: #2478a6; }
 .danmaku-style-option-visual.is-ranked i:nth-child(3) { top: 42px; background: #784996; }
-.danmaku-style-option-visual.is-ranked i:nth-child(4) { top: 60px; background: #9b6a28; }
+.danmaku-style-option-visual.is-ranked i:nth-child(4) { top: 60px; background: #ab253d; }
 .danmaku-style-option-copy {
   display: grid;
   gap: 3px;

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>直播小游戏</title>
-    <link rel="stylesheet" href="/css/overlays/games.css?v=20260824-03">
+    <link rel="stylesheet" href="/css/overlays/games.css?v=20260824-04">
   </head>
   <body>
     <main id="gameStage" class="game-stage">
@@ -62,44 +62,44 @@
               </div>
               <div class="draw-toolbar" aria-label="画笔工具">
                 <div class="draw-mode-tools" aria-label="绘画工具">
-                  <button id="drawPenBtn" class="draw-tool-button draw-pen-button" type="button" aria-label="画笔" aria-pressed="true">
+                  <button id="drawPenBtn" class="draw-tool-button draw-pen-button" type="button" aria-label="画笔" data-tooltip="画笔 (B)" aria-pressed="true">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20zm9.8-12.6 3 3"/></svg>
                   </button>
-                  <button id="drawEraserBtn" class="draw-tool-button draw-eraser-button" type="button" aria-label="橡皮擦" aria-pressed="false">
+                  <button id="drawEraserBtn" class="draw-tool-button draw-eraser-button" type="button" aria-label="橡皮擦" data-tooltip="橡皮擦 (E)" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 18.5 3.9 15.2a2 2 0 0 1 0-2.8l7.8-7.8a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8l-6.1 6.1H7.2zM9 17l7.5-7.5M13.4 18.5H21"/></svg>
                   </button>
-                  <button id="drawLineBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="直线" title="直线 (L)" aria-pressed="false">
+                  <button id="drawLineBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="直线" data-tooltip="直线 (L)" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg>
                   </button>
-                  <button id="drawRectangleBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="矩形" title="矩形 (R)" aria-pressed="false">
+                  <button id="drawRectangleBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="矩形" data-tooltip="矩形 (R)" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="5" width="15" height="14" rx="1.5"/></svg>
                   </button>
-                  <button id="drawEllipseBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="圆形" title="圆形 (O)" aria-pressed="false">
+                  <button id="drawEllipseBtn" class="draw-tool-button draw-shape-button" type="button" aria-label="圆形" data-tooltip="圆形 (O)" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="7.5" ry="7"/></svg>
                   </button>
-                  <button id="drawPickerBtn" class="draw-tool-button draw-picker-button" type="button" aria-label="取色器" title="取色器 (I)" aria-pressed="false">
+                  <button id="drawPickerBtn" class="draw-tool-button draw-picker-button" type="button" aria-label="取色器" data-tooltip="取色器 (I)" aria-pressed="false">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.8 5.2 4 4M6.5 17.5l8.8-8.8 2 2-8.8 8.8H5v-3.5l8.8-8.8M5 21h5"/></svg>
                   </button>
-                  <button id="drawUndoBtn" class="draw-tool-button draw-undo-button" type="button" aria-label="撤销上一笔" title="撤销上一笔 (Ctrl+Z)">
+                  <button id="drawUndoBtn" class="draw-tool-button draw-undo-button" type="button" aria-label="撤销上一笔" data-tooltip="撤销上一笔 (Ctrl+Z)">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M5 12h8a6 6 0 0 1 6 6"/></svg>
                   </button>
-                  <button id="drawClearBtn" class="draw-tool-button draw-clear-button" type="button" aria-label="清空全部" title="清空全部">
+                  <button id="drawClearBtn" class="draw-tool-button draw-clear-button" type="button" aria-label="清空全部" data-tooltip="清空全部">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
                   </button>
                 </div>
                 <div class="draw-color-tools" aria-label="画笔颜色">
-                  <button type="button" data-draw-color="#222034" aria-label="墨黑" aria-pressed="true"></button>
-                  <button type="button" data-draw-color="#6c5ce7" aria-label="紫色" aria-pressed="false"></button>
-                  <button type="button" data-draw-color="#ef476f" aria-label="红色" aria-pressed="false"></button>
-                  <button type="button" data-draw-color="#118ab2" aria-label="蓝色" aria-pressed="false"></button>
-                  <button type="button" data-draw-color="#06d6a0" aria-label="绿色" aria-pressed="false"></button>
-                  <button type="button" data-draw-color="#f6bd60" aria-label="黄色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#222034" aria-label="墨黑" data-tooltip="墨黑" aria-pressed="true"></button>
+                  <button type="button" data-draw-color="#6c5ce7" aria-label="紫色" data-tooltip="紫色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#ef476f" aria-label="红色" data-tooltip="红色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#118ab2" aria-label="蓝色" data-tooltip="蓝色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#06d6a0" aria-label="绿色" data-tooltip="绿色" aria-pressed="false"></button>
+                  <button type="button" data-draw-color="#f6bd60" aria-label="黄色" data-tooltip="黄色" aria-pressed="false"></button>
                 </div>
                 <div class="draw-width-tools" aria-label="工具大小">
-                  <button type="button" data-draw-width="2" aria-label="小号" aria-pressed="false"><span></span></button>
-                  <button type="button" data-draw-width="4" aria-label="中号" aria-pressed="true"><span></span></button>
-                  <button type="button" data-draw-width="8" aria-label="大号" aria-pressed="false"><span></span></button>
-                  <button type="button" data-draw-width="12" aria-label="特大号" aria-pressed="false"><span></span></button>
+                  <button type="button" data-draw-width="2" aria-label="小号" data-tooltip="小号" aria-pressed="false"><span></span></button>
+                  <button type="button" data-draw-width="4" aria-label="中号" data-tooltip="中号" aria-pressed="true"><span></span></button>
+                  <button type="button" data-draw-width="8" aria-label="大号" data-tooltip="大号" aria-pressed="false"><span></span></button>
+                  <button type="button" data-draw-width="12" aria-label="特大号" data-tooltip="特大号" aria-pressed="false"><span></span></button>
                 </div>
               </div>
             </div>

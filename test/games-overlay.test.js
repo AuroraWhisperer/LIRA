@@ -39,6 +39,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /id="drawRectangleBtn"[^>]+aria-label="矩形"/);
   assert.match(html, /id="drawEllipseBtn"[^>]+aria-label="圆形"/);
   assert.match(html, /id="drawPickerBtn"[^>]+aria-label="取色器"/);
+  assert.match(html, /id="drawPenBtn"[^>]+data-tooltip="画笔 \(B\)"/);
+  assert.match(html, /data-draw-color="#222034"[^>]+data-tooltip="墨黑"/);
+  assert.match(html, /data-draw-width="4"[^>]+data-tooltip="中号"/);
+  assert.match(styles, /button\[data-tooltip\]:hover::after/);
   assert.doesNotMatch(html, />橡皮擦</);
   assert.doesNotMatch(html, /drawDanmakuCount|\d+ 条/);
   assert.doesNotMatch(html, /gomoku-legend|gomokuHint|gomokuLastMove/);

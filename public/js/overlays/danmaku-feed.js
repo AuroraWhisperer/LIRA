@@ -210,10 +210,18 @@ export function createDanmakuFeed(root, options = {}) {
     const medalName = String(item.medalName || '').trim();
     if (medalName) {
       const medalLevel = Math.max(0, Math.trunc(Number(item.medalLevel)) || 0);
-      identity.append(createBadge(
-        medalLevel > 0 ? `${medalName} ${medalLevel}` : medalName,
-        classNames.medal
-      ));
+      const medal = createBadge('', classNames.medal);
+      const medalNameElement = document.createElement('span');
+      medalNameElement.className = 'draw-danmaku-medal-name';
+      medalNameElement.textContent = medalLevel > 0 ? `${medalName} ` : medalName;
+      medal.append(medalNameElement);
+      if (medalLevel > 0) {
+        const medalLevelElement = document.createElement('b');
+        medalLevelElement.className = 'draw-danmaku-medal-level';
+        medalLevelElement.textContent = String(medalLevel);
+        medal.append(medalLevelElement);
+      }
+      identity.append(medal);
     }
 
     const messageElement = document.createElement('p');

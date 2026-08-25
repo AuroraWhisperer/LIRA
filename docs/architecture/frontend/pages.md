@@ -109,7 +109,7 @@
 | `other.js` | 百宝箱侧边导航(功能面板切换,不承载业务) | [app.md](app.md) §6 |
 | `desktop-lyric.js` | 桌面歌词设置表单(自动保存) | [app.md](app.md) §6 |
 | `desktop-lyric-preview.js` | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画) | [app.md](app.md) §6 |
-| `start-animation.js` | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、音乐上传与音量控制 | [app.md](app.md) §6 |
+| `start-animation.js` | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、人物图/音乐上传与恢复、音量控制 | [app.md](app.md) §6 |
 | `clock-card.js` | 萌时钟固定地址、持久化设置、两套风格选择与实时 iframe 预览 | [app.md](app.md) §6 |
 | `song-category-filter.js` | 分类/标签筛选工具(拆分、选中态读取) | [app.md](app.md) §4 |
 | `gifts/index.js` | 礼物面板统一渲染入口 | [app.md](app.md) §5 |
@@ -128,7 +128,7 @@
 | `song-virtual-scroller.js` | 歌单虚拟滚动器(环形 DOM 窗口) |
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md) |
 | `games.js` | 直播小游戏入口与会话渲染；你画我猜在本地预览图形后把直线/矩形/圆形拆为归一化坐标点，取色器只吸附到现有安全色板；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
-| `opening.js` | 开播动画 Browser Source：读取本地配置、播放内置/上传音乐，并驱动人物待机与心形/灯带/流光轨道动画 |
+| `opening.js` | 开播动画 Browser Source：读取本地配置与内置/上传人物图、播放内置/上传音乐，并驱动人物待机与心形/灯带/流光轨道动画 |
 | `clock.js` | 萌时钟 Browser Source：读取已保存配置并兼容 URL 参数覆盖，按本地秒边界更新时间/日期并在页面隐藏时暂停调度 |
 | `danmaku-feed.js` | 可复用弹幕气泡组件：安全构建身份/消息 DOM，并根据文本视觉长度写入气泡宽高 CSS 变量 |
 

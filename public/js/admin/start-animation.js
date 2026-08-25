@@ -20,6 +20,9 @@ const TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);
 const SETTINGS_ENDPOINT = '/api/' + 'settings';
 const OPENING_CONFIG_ENDPOINT = '/api/opening/config';
 const OPENING_AUDIO_ENDPOINT = '/api/opening/music';
+const OPENING_CHARACTER_ENDPOINT = '/api/opening/character';
+const MAX_CHARACTER_UPLOAD_BYTES = 16 * 1024 * 1024;
+const CHARACTER_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
 
 function readStartAnimationConfig(root = document) {
   const value = (id, fallback) => root.getElementById(id)?.value ?? fallback;
@@ -123,6 +126,8 @@ function initStartAnimation() {
   const titleCount = document.getElementById('openingTitleCount');
   const audioName = document.getElementById('openingAudioName');
   const audioStatus = document.getElementById('openingAudioStatus');
+  const characterName = document.getElementById('openingCharacterName');
+  const characterStatus = document.getElementById('openingCharacterStatus');
   const origin = localOverlayOrigin(location);
   const sourceUrl = buildOpeningSourceUrl(origin);
   let persistTimer = null;
@@ -180,6 +185,7 @@ function initStartAnimation() {
       }
       setFormConfig(root, payload.data);
       if (audioName) audioName.textContent = payload.data.audioName || '默认音乐：果实';
+      if (characterName) characterName.textContent = payload.data.characterName || '默认人物图';
       hydrated = true;
       render(true);
     } catch (_) {
@@ -216,6 +222,50 @@ function initStartAnimation() {
       if (audioStatus) audioStatus.textContent = error.message || '歌曲上传失败，请重试。';
     } finally {
       event.target.value = '';
+    }
+  });
+
+  document.getElementById('openingCharacterFile')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!CHARACTER_EXTENSIONS.has(extension)) {
+      if (characterStatus) characterStatus.textContent = '请选择 PNG、JPG 或 WebP 图片。';
+      event.target.value = '';
+      return;
+    }
+    if (file.size > MAX_CHARACTER_UPLOAD_BYTES) {
+      if (characterStatus) characterStatus.textContent = '图片不能超过 16 MB。';
+      event.target.value = '';
+      return;
+    }
+    if (characterStatus) characterStatus.textContent = '正在上传人物图片…';
+    const body = new FormData();
+    body.append('file', file, file.name);
+    try {
+      const response = await fetch(OPENING_CHARACTER_ENDPOINT, { method: 'POST', body });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '人物图片上传失败');
+      if (characterName) characterName.textContent = payload.data.characterName || file.name;
+      if (characterStatus) characterStatus.textContent = '人物图片已保存。';
+      render(true);
+    } catch (error) {
+      if (characterStatus) characterStatus.textContent = error.message || '人物图片上传失败，请重试。';
+    } finally {
+      event.target.value = '';
+    }
+  });
+
+  document.getElementById('openingResetCharacter')?.addEventListener('click', async () => {
+    try {
+      const response = await fetch(OPENING_CHARACTER_ENDPOINT, { method: 'DELETE' });
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '恢复默认人物图失败');
+      if (characterName) characterName.textContent = payload.data.characterName || '默认人物图';
+      if (characterStatus) characterStatus.textContent = '已恢复默认人物图。';
+      render(true);
+    } catch (error) {
+      if (characterStatus) characterStatus.textContent = error.message || '恢复默认人物图失败。';
     }
   });
 

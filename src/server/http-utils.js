@@ -221,6 +221,39 @@ function serveOpeningMedia(dataDir, req, res, requestUrl, getCurrentFileName) {
   });
 }
 
+function serveOpeningCharacter(dataDir, req, res, requestUrl, getCurrentFileName) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '开播人物图仅支持 GET 请求' });
+    return;
+  }
+  const encodedName = requestUrl.pathname.slice('/opening-character/'.length);
+  let fileName = '';
+  try { fileName = decodeURIComponent(encodedName); } catch (_) { fileName = ''; }
+  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
+    sendJson(res, 404, { ok: false, error: 'Not found.' });
+    return;
+  }
+  const extension = path.extname(fileName).toLowerCase();
+  if (!new Set(['.png', '.jpg', '.jpeg', '.webp']).has(extension)) {
+    sendJson(res, 404, { ok: false, error: 'Not found.' });
+    return;
+  }
+  const filePath = path.join(path.resolve(String(dataDir || '')), 'opening-character', fileName);
+  fs.stat(filePath, (statError, stats) => {
+    if (statError || !stats.isFile()) {
+      sendJson(res, 404, { ok: false, error: 'Not found.' });
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': contentType(filePath),
+      'Content-Length': stats.size,
+      'Cache-Control': 'no-store'
+    });
+    if (req.method === 'HEAD') res.end();
+    else fs.createReadStream(filePath).pipe(res);
+  });
+}
+
 function contentType(filePath) {
   const ext = require('node:path').extname(filePath).toLowerCase();
   const mimeTypes = {
@@ -309,6 +342,7 @@ module.exports = {
   sendBuffer,
   servePageOrAsset,
   serveOpeningMedia,
+  serveOpeningCharacter,
   contentType,
   verifyToken,
   validateRequestHost,

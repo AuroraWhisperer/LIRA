@@ -79,6 +79,13 @@ body:not([data-game='draw-guess']) .draw-status { display: none; }
 .draw-width-tools button[data-draw-width='4'] span { width: 6px; height: 6px; }
 .draw-width-tools button[data-draw-width='8'] span { width: 10px; height: 10px; }
 .draw-width-tools button[data-draw-width='12'] span { width: 14px; height: 14px; }
+.draw-toolbar button[data-tooltip] { position: relative; }
+.draw-toolbar button[data-tooltip]::before, .draw-toolbar button[data-tooltip]::after { position: absolute; left: 50%; z-index: 20; visibility: hidden; pointer-events: none; opacity: 0; transition: opacity 120ms ease, transform 120ms ease, visibility 120ms; }
+.draw-toolbar button[data-tooltip]::before { bottom: calc(100% + 5px); width: 8px; height: 8px; border-right: 1px solid rgba(255,255,255,.16); border-bottom: 1px solid rgba(255,255,255,.16); background: #27233f; content: ''; transform: translate(-50%, 2px) rotate(45deg); }
+.draw-toolbar button[data-tooltip]::after { bottom: calc(100% + 9px); padding: 6px 8px; border: 1px solid rgba(255,255,255,.16); border-radius: 6px; color: #f8f7ff; background: #27233f; box-shadow: 0 6px 18px rgba(0,0,0,.32); content: attr(data-tooltip); font: 700 11px/1.2 Bahnschrift, 'Microsoft YaHei', sans-serif; letter-spacing: .01em; white-space: nowrap; transform: translate(-50%, 4px); }
+.draw-toolbar button[data-tooltip]:hover::before, .draw-toolbar button[data-tooltip]:hover::after, .draw-toolbar button[data-tooltip]:focus-visible::before, .draw-toolbar button[data-tooltip]:focus-visible::after { visibility: visible; opacity: 1; }
+.draw-toolbar button[data-tooltip]:hover::before, .draw-toolbar button[data-tooltip]:focus-visible::before { transform: translate(-50%, 0) rotate(45deg); }
+.draw-toolbar button[data-tooltip]:hover::after, .draw-toolbar button[data-tooltip]:focus-visible::after { transform: translate(-50%, 0); }
 .draw-toolbar button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .draw-toolbar button:disabled { opacity: .42; cursor: not-allowed; }
 .draw-audience-panel { display: grid; align-content: start; gap: 9px; min-width: 0; }

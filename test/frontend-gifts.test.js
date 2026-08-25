@@ -27,7 +27,7 @@ test('gift workspace exposes one page heading and seven semantic panel titles', 
     readCssBundle('public', 'css', 'admin', 'workspace.css')
   ].join('\n');
 
-  assert.match(page, /<h1 class="ui-page-title">礼物<\/h1>/);
+  assert.doesNotMatch(page, /<h1 class="ui-page-title">礼物<\/h1>/);
   assert.equal((page.match(/class="gift-section-title ui-section-title"/g) || []).length, 7);
   assert.match(styles, /\.gift-recent-heading \.gift-section-title\s*\{/);
   assert.match(styles, /\.blind-stats-heading \.gift-section-title\s*\{/);

@@ -86,10 +86,12 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 
 开播页从免认证只读接口 `GET /api/opening/config` 读取已保存设置；Admin 预览 URL 可用
 查询参数临时覆盖设置。`trackMotion` 仅接受 `heart`、`barber`、`progress`，查询参数优先于
-保存值，非法值回退 `heart`。三种模式复用同一条 SVG waveform：心形走 `animateMotion`，
+保存值，非法值回退 `heart`。三种模式复用同一条 SVG waveform：心形的位移和显隐使用同一条
+SVG 时间轴，启用画面时统一归零并从首轮立即移动；
 灯带用金色短划线连续偏移，流光用单段粉色 dash 沿整条路径循环；任何时刻只显示一种前景
 动效，不创建任意 CSS/SVG 输入面。页面隐藏、低画质或 `prefers-reduced-motion` 时暂停或停用
-连续轨道动画，固定 `/opening` 地址本身不携带配置。
+连续轨道动画，固定 `/opening` 地址本身不携带配置。右侧人物图默认读取内置 WebP；Admin 可上传
+PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` 当前文件 URL。
 
 ## 2. 队列叠加层(/queue)
 

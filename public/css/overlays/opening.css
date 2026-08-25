@@ -187,7 +187,7 @@ body {
   animation: track-progress-flow 4.8s linear infinite;
 }
 .opening-stage:not([data-track-motion='heart']) .track-heart-motion { display: none; }
-.track-heart-motion { opacity: 0; animation: track-heart-visibility 7.2s ease-in-out infinite; }
+.track-heart-motion { opacity: .86; }
 .track-heart-pulse { transform-box: fill-box; transform-origin: center; animation: heartbeat 2.2s ease-in-out infinite; }
 .track-heart-shape { fill: rgba(255, 226, 168, .08); stroke: var(--opening-gold); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 5px rgba(255, 226, 168, .5)); }
 
@@ -252,6 +252,8 @@ body {
 .opening-stage.is-reduced-motion .opening-notes span,
 .opening-stage.is-reduced-motion .opening-particles span,
 .opening-stage.is-reduced-motion .opening-eq span { animation: none; }
+.opening-stage.is-reduced-motion .track-heart-motion,
+.opening-stage.quality-low .track-heart-motion { display: none; }
 .opening-stage.is-reduced-motion .character-float,
 .opening-stage.is-reduced-motion .character-sway,
 .opening-stage.is-reduced-motion .character-breathe { transform: none; }
@@ -289,7 +291,6 @@ body.opening-disabled,
 @keyframes opening-glow { 0%, 100% { opacity: .68; transform: scale(.985); } 50% { opacity: .82; transform: scale(1.015); } }
 @keyframes track-barber-flow { to { stroke-dashoffset: -.09; } }
 @keyframes track-progress-flow { to { stroke-dashoffset: -1; } }
-@keyframes track-heart-visibility { 0%, 8%, 78%, 100% { opacity: 0; } 14%, 70% { opacity: .86; } }
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 7% { transform: scale(1.07); } 13% { transform: scale(.99); } 19% { transform: scale(1.035); } 28% { transform: scale(1); } }
 @keyframes note-drift { 0%, 100% { opacity: 0; transform: translate3d(0, .625cqw, 0) rotate(var(--note-rotation)); } 14% { opacity: .14; } 54% { opacity: .42; } 82% { opacity: 0; transform: translate3d(var(--note-drift), -1.98cqw, 0) rotate(calc(var(--note-rotation) + 8deg)); } }
 @keyframes particle-drift { 0%, 100% { opacity: 0; transform: translate3d(0, .52cqw, 0); } 18% { opacity: .08; } 58% { opacity: .24; } 86% { opacity: 0; transform: translate3d(.73cqw, -1.35cqw, 0); } }
