@@ -174,14 +174,14 @@
           accent.style.transform = '';
         });
         info.plate.style.opacity = '0';
-        info.plate.style.transform = 'translate(-50%, calc(-50% + 12px))';
+        info.plate.style.transform = 'translate(-50%, -50%)';
       },
       async playEnterTimeline(session, motionMode) {
         const reduced = motionMode === 'reduced';
         const animations = [];
         animations.push(animateNode(artwork, frameEnterKeyframes(artwork, reduced), reduced ? 180 : 620, 0));
         accents.filter((accent) => !accent.hidden).forEach((accent) => animations.push(animateNode(accent, accentEnterKeyframes(accent, reduced), reduced ? 180 : accentEnterDuration(accent), reduced ? 0 : accentEnterDelay(accent))));
-        animations.push(animateNode(info.plate, [{ opacity: 0, transform: 'translate(-50%, calc(-50% + 12px))' }, { opacity: 1, transform: 'translate(-50%, -50%)' }], reduced ? 180 : 250, reduced ? 0 : 558));
+        animations.push(animateNode(info.plate, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 250, reduced ? 0 : 558));
         animations.push(animateNode(info.name, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 180, reduced ? 0 : 738));
         animations.push(animateNode(info.amount, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 180, reduced ? 0 : 738));
         animations.push(animateNode(info.user, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 160, reduced ? 0 : 810));
@@ -199,7 +199,7 @@
       },
       async playExitTimeline(session, motionMode) {
         const reduced = motionMode === 'reduced';
-        const animations = [animateNode(info.plate, [{ opacity: 1, transform: 'translate(-50%, -50%)' }, { opacity: 0, transform: 'translate(-50%, calc(-50% + 10px))' }], reduced ? 180 : 260, 0)];
+        const animations = [animateNode(info.plate, [{ opacity: 1 }, { opacity: 0 }], reduced ? 180 : 260, 0)];
         animations.push(animateNode(artwork, frameExitKeyframes(artwork, reduced), reduced ? 180 : 440, 0));
         accents.filter((accent) => !accent.hidden).forEach((accent) => animations.push(animateNode(accent, [{ opacity: 1, transform: 'translate(0, 0) rotate(0)' }, { opacity: 0, transform: accentExitTransform(accent, reduced) }], reduced ? 180 : 320, reduced ? 0 : accentExitDelay(accent))));
         await Promise.all(animations);

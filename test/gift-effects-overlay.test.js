@@ -145,6 +145,17 @@ test('gift frame overlay uses one full-perimeter artwork and bounded perimeter f
   assert.doesNotMatch(overlayJs, /innerHTML/);
 });
 
+test('gift frame caption stays anchored inside the responsive bottom plate', () => {
+  const css = read('public/css/overlays/gift-effects.css');
+  const overlayJs = read('public/js/overlays/gift-effects.js');
+
+  assert.match(css, /\.gift-info\s*\{[^}]*top:\s*89\.7%[^}]*width:\s*31vw[^}]*height:\s*7\.6vh/s);
+  assert.match(css, /\.gift-info-primary\s*\{[^}]*font-size:\s*min\(1\.34vw, 2\.38vh\)/s);
+  assert.match(css, /\.gift-info-secondary\s*\{[^}]*font-size:\s*min\(\.75vw, 1\.33vh\)/s);
+  assert.doesNotMatch(css, /\.gift-info\s*\{[^}]*min-width/s);
+  assert.doesNotMatch(overlayJs, /translate\(-50%, calc\(-50% \+ (?:10|12)px\)\)/);
+});
+
 test('gift frame accents remain separate, bounded, and reduced-motion safe', () => {
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
