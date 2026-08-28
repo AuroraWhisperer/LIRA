@@ -213,7 +213,7 @@ test('SuperChat clear control lives in the SC queue header', () => {
   assert.doesNotMatch(importPage, /id="clearSuperChatsBtn"/);
 });
 
-test('toolbox owns independent overtime, streamer planner, start animation, performance, usage guide, and update features', () => {
+test('toolbox owns independent settings, overtime, streamer planner, start animation, performance, usage guide, and update features', () => {
   const html = readAdminHtml();
   const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
   const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
@@ -228,6 +228,7 @@ test('toolbox owns independent overtime, streamer planner, start animation, perf
   const dailyTodoPosition = html.indexOf('data-other-feature="otherDailyTodoFeature"');
   const startAnimationPosition = html.indexOf('data-other-feature="otherStartAnimationFeature"');
   const performancePosition = html.indexOf('data-other-feature="otherPerformanceFeature"');
+  const settingsPosition = html.indexOf('data-other-feature="otherSettingsFeature"');
   const usageGuidePosition = html.indexOf('data-other-feature="otherUsageGuideFeature"');
   const updatePosition = html.indexOf('data-other-feature="otherDesktopUpdateFeature"');
 
@@ -249,6 +250,12 @@ test('toolbox owns independent overtime, streamer planner, start animation, perf
   assert.match(html, /id="otherStartAnimationFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
   assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
+  assert.match(html, /data-other-feature="otherSettingsFeature"/);
+  assert.match(html, /id="otherSettingsFeature"[^>]+data-other-feature-panel/);
+  assert.match(html, /id="licenseAccountDevice"[^>]+hidden/);
+  assert.match(html, /id="licenseDeviceProfile"/);
+  assert.match(html, /设备私钥由系统安全存储保护/);
+  assert.match(html, /密码和激活密钥不会保存/);
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-panel/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-faq-grid/);
@@ -259,6 +266,7 @@ test('toolbox owns independent overtime, streamer planner, start animation, perf
   assert.ok(startAnimationPosition < performancePosition, 'start animation should precede performance in the toolbox');
   assert.ok(usageGuidePosition > performancePosition, 'usage guide should follow performance in the toolbox');
   assert.ok(updatePosition > performancePosition, 'desktop update should follow performance in the toolbox');
+  assert.ok(settingsPosition < performancePosition, 'settings should precede performance in the toolbox');
   assert.equal(performanceHtml.match(/<button/g)?.length, 1);
   assert.doesNotMatch(performanceHtml, /<input|metricsToggle/);
   assert.match(performanceHtml, /id="metricsCountdown"[^>]*role="timer"[^>]*aria-label="每次检测采样 5 秒"/);

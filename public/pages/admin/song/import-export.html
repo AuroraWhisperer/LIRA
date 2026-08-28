@@ -17,5 +17,15 @@
             <button id="importBtn" class="primary" type="button">导入歌库</button>
             <p class="hint">支持 XLSX/CSV/TSV 或粘贴表格，兼容常用表头。多歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。清空歌库不影响其他设置。</p>
             <div id="importResult" class="hint"></div>
+            <fieldset id="licenseSongSync" class="theme-section" hidden>
+              <legend>云端歌单</legend>
+              <p id="licenseProfileStatus" class="hint">正在读取授权账号…</p>
+              <p class="hint">同步会以当前本地歌库覆盖网页歌单。</p>
+              <div class="actions">
+                <a id="licenseSongPageLink" href="#" target="_blank" rel="noreferrer" hidden>打开网页歌单</a>
+                <button id="licenseSyncSongsBtn" class="primary" type="button">同步当前歌单到网页</button>
+              </div>
+              <p id="licenseSyncResult" class="hint" role="status" aria-live="polite"></p>
+            </fieldset>
           </div>
         </div>

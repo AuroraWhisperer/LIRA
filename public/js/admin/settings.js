@@ -105,6 +105,7 @@
   }
 
   function initSettingsForm() {
+    initLicenseAccountDevice();
     document.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       await api('/api/settings', collectSettings());
@@ -359,6 +360,92 @@
         });
       }
     }
+  }
+
+  async function initLicenseAccountDevice() {
+    const section = document.getElementById('licenseAccountDevice');
+    if (!section || !window.liraLicense) return;
+    const profileEl = document.getElementById('licenseDeviceProfile');
+    const resultEl = document.getElementById('licensePairingCodeResult');
+    const listEl = document.getElementById('licensePairingCodes');
+    const createBtn = document.getElementById('licenseCreatePairingCodeBtn');
+    const refreshBtn = document.getElementById('licenseRefreshPairingCodesBtn');
+    section.hidden = false;
+
+    function renderCodes(payload) {
+      listEl.replaceChildren();
+      const items = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+      const labels = { active: '有效', used: '已使用', expired: '已过期', revoked: '已撤销' };
+      for (const item of items.slice(0, 12)) {
+        const li = document.createElement('li');
+        const prefix = String(item.codePrefix || item.code_prefix || '').slice(0, 8);
+        const effectiveStatus = String(item.effectiveStatus || item.status || '').toLowerCase();
+        const status = labels[effectiveStatus] || '未知状态';
+        const device = String(item.usedByDeviceName || item.used_by_device_name || '').slice(0, 60);
+        const text = document.createElement('span');
+        text.textContent = `${prefix ? `${prefix}••••` : '授权码'} · ${status}${device ? ` · ${device}` : ''}`;
+        li.appendChild(text);
+        const id = Number(item.id);
+        if (effectiveStatus === 'active' && Number.isInteger(id) && id > 0) {
+          const revoke = document.createElement('button');
+          revoke.type = 'button';
+          revoke.className = 'ghost';
+          revoke.textContent = '撤销';
+          revoke.addEventListener('click', async () => {
+            revoke.disabled = true;
+            try {
+              await window.liraLicense.revokePairingCode(id);
+              resultEl.textContent = '授权码已撤销。';
+              await refreshProfileAndCodes();
+            } catch (error) {
+              resultEl.textContent = `撤销失败：${error.message || '请稍后重试'}`;
+              revoke.disabled = false;
+            }
+          });
+          li.appendChild(revoke);
+        }
+        listEl.appendChild(li);
+      }
+      if (!listEl.children.length) listEl.textContent = '暂无授权码记录。';
+    }
+
+    async function refreshProfileAndCodes() {
+      try {
+        const profile = await window.liraLicense.getProfile();
+        const streamer = profile?.streamer;
+        const device = profile?.device;
+        profileEl.textContent = streamer?.accountName
+          ? `账号：${streamer.accountName}${device?.name ? `　当前设备：${device.name}` : ''}`
+          : '已授权，但暂时无法读取主播资料。';
+        renderCodes(await window.liraLicense.listPairingCodes());
+      } catch (error) {
+        profileEl.textContent = '暂时无法读取云端账号信息。';
+        listEl.textContent = '授权码记录暂时不可用。';
+        void error;
+      }
+    }
+
+    createBtn.addEventListener('click', async () => {
+      createBtn.disabled = true;
+      resultEl.textContent = '正在生成授权码…';
+      try {
+        const response = await window.liraLicense.createPairingCode();
+        const code = String(response?.code || '').trim();
+        resultEl.textContent = code
+          ? `新设备授权码：${code}（只显示这一次）`
+          : '服务器未返回授权码，请稍后重试。';
+        if (code && navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(code).catch((error) => { void error; });
+        }
+        await refreshProfileAndCodes();
+      } catch (error) {
+        resultEl.textContent = `生成失败：${error.message || '请稍后重试'}`;
+      } finally {
+        createBtn.disabled = false;
+      }
+    });
+    refreshBtn.addEventListener('click', refreshProfileAndCodes);
+    refreshProfileAndCodes();
   }
 
   function buildBlindboxOverlayUrl() {
@@ -621,6 +708,7 @@
   window.AdminApp.settings = {
     initBilibiliAuth,
     initSettingsForm,
+    initLicenseAccountDevice,
     collectSettings,
     clearDatabase,
     clearSuperChats,

@@ -97,6 +97,10 @@ function createServerRuntime(runtimeOptions = {}) {
   let shutdownPromise = null;
   let sessionToken = '';
   const inflightTracker = createInflightTracker();
+  const licenseGate = runtimeOptions.licenseGate || { isAuthorized: () => true };
+  const isLicenseAuthorized = () => typeof licenseGate.isAuthorized === 'function'
+    ? licenseGate.isAuthorized() === true
+    : true;
 
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
@@ -229,6 +233,20 @@ function createServerRuntime(runtimeOptions = {}) {
         return;
       }
 
+      const authorized = isLicenseAuthorized();
+      if (!authorized) {
+        if (requestUrl.pathname === '/admin' || requestUrl.pathname === '/' ||
+            requestUrl.pathname === '/settings' || requestUrl.pathname === '/songs') {
+          res.writeHead(302, { Location: '/license', 'Cache-Control': 'no-store' });
+          res.end();
+          return;
+        }
+        if (requestUrl.pathname.startsWith('/api/') && requestUrl.pathname !== '/api/health') {
+          httpUtils.sendJson(res, 423, { ok: false, error: 'LICENSE_REQUIRED' });
+          return;
+        }
+      }
+
       // Validate Origin for state-changing requests
       if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
         const allowedOrigins = [baseUrl];
@@ -300,6 +318,10 @@ function createServerRuntime(runtimeOptions = {}) {
     const requestUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${START_PORT}`}`);
     if (requestUrl.pathname !== '/ws') {
       socket.destroy();
+      return;
+    }
+    if (!isLicenseAuthorized()) {
+      socket.end('HTTP/1.1 423 Locked\r\nConnection: close\r\n\r\n');
       return;
     }
     const baseUrl = `http://${HOST}:${startedPort || START_PORT}`;
@@ -434,16 +456,18 @@ function createServerRuntime(runtimeOptions = {}) {
         console.log(`Overtime overlay: ${baseUrl}/overtime`);
         console.log(`Danmaku overlay: ${baseUrl}/danmaku`);
         openAdminPageIfNeeded(baseUrl);
-        bilibiliRuntime.reconnect().catch((error) => {
-          console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
-          bilibiliRuntime?.updateStatus({
-            connected: false,
-            enabled: true,
-            roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
-            mode: 'bilibili',
-            message: sharedUtils.publicBilibiliErrorMessage(error, true)
+        if (isLicenseAuthorized()) {
+          bilibiliRuntime.reconnect().catch((error) => {
+            console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
+            bilibiliRuntime?.updateStatus({
+              connected: false,
+              enabled: true,
+              roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
+              mode: 'bilibili',
+              message: sharedUtils.publicBilibiliErrorMessage(error, true)
+            });
           });
-        });
+        }
         return { server, port, host, baseUrl };
       } catch (error) {
         phase = 'quiescing';
@@ -653,6 +677,15 @@ function createServerRuntime(runtimeOptions = {}) {
     }
   }
 
+  function resumeAuthorizedWork() {
+    if (!isLicenseAuthorized() || !bilibiliRuntime) return Promise.resolve(false);
+    return bilibiliRuntime.reconnect().then(() => true);
+  }
+
+  function pauseAuthorizedWork() {
+    bilibiliRuntime?.disconnect?.();
+  }
+
   function getSetting(key) {
     return settingsStore ? settingsStore.getSettings()[key] : DEFAULT_SETTINGS[key];
   }
@@ -662,6 +695,8 @@ function createServerRuntime(runtimeOptions = {}) {
     stop: shutdownApplication,
     setPreShutdownHook,
     persistPlaybackSnapshot,
+    resumeAuthorizedWork,
+    pauseAuthorizedWork,
     getApiToken: () => sessionToken,
     getSetting
   };

@@ -30,6 +30,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/toolbox/planner.html',
   'pages/admin/toolbox/start-animation.html',
   'pages/admin/toolbox/clock.html',
+  'pages/admin/toolbox/settings.html',
   'pages/admin/toolbox/performance.html',
   'pages/admin/toolbox/usage-guide.html',
   'pages/admin/toolbox/desktop-update.html',

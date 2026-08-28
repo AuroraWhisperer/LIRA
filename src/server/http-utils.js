@@ -93,6 +93,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
 
   const isAdminPage = isAdminPageRoute(requestUrl.pathname);
   const pageMap = new Map([
+    ['/license', 'pages/license.html'],
     ['/queue', 'pages/overlays/queue.html'],
     ['/songlist', 'pages/overlays/songs.html'],
     ['/blindbox', 'pages/overlays/blindbox.html'],

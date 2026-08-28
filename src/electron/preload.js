@@ -65,3 +65,20 @@ contextBridge.exposeInMainWorld('bilibiliAuth', {
   login: () => ipcRenderer.invoke('bilibili:login'),
   logout: () => ipcRenderer.invoke('bilibili:logout')
 });
+
+contextBridge.exposeInMainWorld('liraLicense', {
+  getState: () => ipcRenderer.invoke('license:get-state'),
+  activate: (payload) => ipcRenderer.invoke('license:activate', payload),
+  retry: () => ipcRenderer.invoke('license:retry'),
+  getProfile: () => ipcRenderer.invoke('license:get-profile'),
+  syncSongs: (songs) => ipcRenderer.invoke('license:sync-songs', songs),
+  createPairingCode: () => ipcRenderer.invoke('license:create-pairing-code'),
+  listPairingCodes: () => ipcRenderer.invoke('license:list-pairing-codes'),
+  revokePairingCode: (id) => ipcRenderer.invoke('license:revoke-pairing-code', id),
+  onStateChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, snapshot) => callback(snapshot);
+    ipcRenderer.on('license:state-changed', listener);
+    return () => ipcRenderer.removeListener('license:state-changed', listener);
+  }
+});

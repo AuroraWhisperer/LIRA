@@ -21,6 +21,8 @@ const { installTerminalLog, formatLogLine } = require('./terminal-log');
 const { registerUpdateIpc } = require('./ipc/update-ipc');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
+const { registerLicenseIpc } = require('./ipc/license-ipc');
+const { createLicenseManager, LicenseState } = require('./license/license-manager');
 const serverRuntimeModule = require('../server');
 const { redactCredentials } = require('../shared/log-redaction');
 const { isAllowedExternal, isAllowedLocalUrl } = require('./external-url-policy');
@@ -37,6 +39,7 @@ const pathState = desktopState.paths;
 const loggingState = desktopState.logging;
 const updateRuntime = desktopState.update;
 const startupTiming = { startedAt: 0 };
+var licenseManager = null;
 
 // ---- app lifecycle ----
 
@@ -97,6 +100,8 @@ app.on('before-quit', function (event) {
         lifecycleState.forceQuitTimer = null;
       }
       writeLog('lifecycle', { event: 'QUIT_DONE' });
+      licenseManager?.dispose();
+      licenseManager = null;
       app.releaseSingleInstanceLock();
       app.exit(0);
     });
@@ -184,6 +189,12 @@ async function startDesktopApp() {
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
     safeStorage,
+    appVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
+    licenseGate: {
+      isAuthorized: () => licenseManager?.getState() === LicenseState.AUTHORIZED
+    },
     onPhase: (phase, durationMs, extra) => writeLog('lifecycle', {
       event: 'PHASE', phase, durationMs, ...extra
     })
@@ -197,6 +208,22 @@ async function startDesktopApp() {
   var serverInfo = await lifecycleState.runtime.start(serverOptions);
   logStartupPhase('runtime-ready', phaseStartedAt);
 
+  licenseManager = createLicenseManager({
+    dataDir: pathState.dataDir,
+    safeStorage,
+    appVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
+    isProduction: app.isPackaged,
+    allowInsecure: !app.isPackaged
+  });
+  registerLicenseIpc({
+    ipcMain,
+    licenseManager,
+    getMainWindow: () => windowState.main
+  });
+  await licenseManager.bootstrap();
+
   registerLocalFontPermissionHandler({
     desktopSession: session.defaultSession,
     dialog,
@@ -205,7 +232,18 @@ async function startDesktopApp() {
     hasExactOrigin
   });
   phaseStartedAt = Date.now();
-  createMainWindow(serverInfo.baseUrl);
+  createMainWindow(serverInfo.baseUrl, licenseManager.getState() === LicenseState.AUTHORIZED);
+  licenseManager.onStateChanged((snapshot) => {
+    if (!windowState.main || windowState.main.isDestroyed()) return;
+    if (snapshot.state === LicenseState.AUTHORIZED) {
+      const resumePromise = lifecycleState.runtime.resumeAuthorizedWork?.();
+      if (resumePromise?.catch) resumePromise.catch((error) => writeLog('license-resume', error));
+      windowState.main.loadURL(windowState.baseUrl + '/admin?desktop=1').catch((error) => writeLog('license-navigation', error));
+    } else if (snapshot.state !== LicenseState.CHECKING && snapshot.state !== LicenseState.AUTHORIZING) {
+      lifecycleState.runtime.pauseAuthorizedWork?.();
+      windowState.main.loadURL(windowState.baseUrl + '/license').catch((error) => writeLog('license-navigation', error));
+    }
+  });
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
@@ -280,7 +318,7 @@ function configureLocalMediaProtocol() {
   registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia);
 }
 
-function createMainWindow(baseUrl) {
+function createMainWindow(baseUrl, authorized = false) {
   windowState.baseUrl = baseUrl;
   var opts = {
     width: 1280, height: 720, minWidth: 1024, minHeight: 680,
@@ -296,7 +334,7 @@ function createMainWindow(baseUrl) {
 
   windowState.main = new BrowserWindow(opts);
   writeLog('window', { event: 'create', window: 'main' });
-  windowState.main.loadURL(baseUrl + '/admin?desktop=1');
+  windowState.main.loadURL(baseUrl + (authorized ? '/admin?desktop=1' : '/license'));
 
   windowState.main.once('ready-to-show', function () {
     writeLog('window', { event: 'ready', window: 'main' });

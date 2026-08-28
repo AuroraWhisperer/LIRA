@@ -2,13 +2,15 @@
 
 ## Project
 
-LIRA is a local modular monolith: Electron 43 desktop + in-process Node.js 24+
+LIRA is a local-first modular monolith: Electron 43 desktop + Node.js 24+
 backend, Vanilla JavaScript ES modules, and native CSS. Pages live in
 `public/pages/`, frontend modules in `public/js/`, and shared CSS tokens in
 `public/css/styles-base.css`.
 
 Electron desktop is the primary UI target. OBS browser-source overlays are
-explicit browser-first exceptions.
+explicit browser-first exceptions. Accepted server-assisted work may move selected
+shared, realtime, persistence, and authentication responsibilities to a remote
+LIRA Server without turning the product into unrelated services.
 
 Scoped `AGENTS.md` files apply to their directory trees; deeper instructions
 specialize this root file for touched files. They may narrow implementation
@@ -91,9 +93,9 @@ For a normal feature or bug contained in one area:
 
 Use a formal plan and broader verification for architecture/ownership, public
 contracts, persistence/migrations, auth/secrets, Electron security/lifecycle,
-packaging/updater/build infrastructure, complex async/retry/recovery,
-concurrency/idempotency/ordering behavior, multiple independent domains, or
-large migrations.
+server-assisted migration or tenant isolation, packaging/updater/build
+infrastructure, complex async/retry/recovery, concurrency/idempotency/ordering
+behavior, multiple independent domains, or large migrations.
 
 File count alone does not determine risk.
 
@@ -133,6 +135,35 @@ security invariants including context isolation, `safeStorage`, session
 partitions, secret protection, log redaction, and `local-media://` origin checks.
 
 Changing one of these boundaries is not a Small task.
+
+### Server-Assisted Evolution
+
+Server-assisted work extends the modular monolith; it does not by itself justify
+microservices, one process per feature, or a new framework. Prefer staged changes
+that keep unrelated local behavior working until an accepted requirement moves it.
+
+For multi-streamer/server behavior:
+
+- `streamerId` is the stable internal tenant identity. Bilibili `roomId` is an
+  external attribute, not an authorization boundary.
+- Resolve streamer scope at an authenticated server boundary and carry that scope
+  through the runtime. Never trust client-supplied identity, role, ownership, or
+  `streamerId` as authorization evidence.
+- Bind Bilibili events to the owning streamer runtime at ingress. Do not route
+  unscoped events through global mutable `currentStreamer` state.
+- Keep streamer-private persistence, settings, realtime subscriptions, Bilibili
+  credentials, and business state isolated by streamer. Global storage is for
+  genuinely platform-wide state such as server/admin metadata and the shared
+  Bilibili gift catalog/assets.
+- Keep `admin`, `streamer`, `device`, `overlay`, and explicitly public access as
+  distinct principals/scopes. Enforce authorization server-side for protected HTTP
+  and WebSocket operations; credentials must be revocable and must not be reused
+  across privilege levels.
+- Do not implement remote access by simply weakening loopback, Host/Origin, Electron,
+  secret-protection, or storage boundaries. Internal Node listeners, SQLite files,
+  and secret stores are not public interfaces.
+- Keep server location/domain configurable. Do not hardcode public IPs, domains, or
+  deployment-specific URLs into business logic.
 
 ## Desktop And UI
 

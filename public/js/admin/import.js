@@ -171,6 +171,46 @@
     return btoa(binary);
   }
 
+  async function initCloudSongSync() {
+    if (typeof document === 'undefined') return;
+    const section = document.getElementById('licenseSongSync');
+    const syncButton = document.getElementById('licenseSyncSongsBtn');
+    const status = document.getElementById('licenseProfileStatus');
+    const result = document.getElementById('licenseSyncResult');
+    const link = document.getElementById('licenseSongPageLink');
+    if (!section || !syncButton || !window.liraLicense) return;
+    section.hidden = false;
+    try {
+      const profile = await window.liraLicense.getProfile();
+      const streamer = profile?.streamer;
+      status.textContent = streamer?.accountName
+        ? `已绑定：${streamer.accountName}`
+        : '已授权，但暂时无法读取主播资料。';
+      if (streamer?.songPageUrl && /^https:\/\//i.test(streamer.songPageUrl)) {
+        link.href = streamer.songPageUrl;
+        link.hidden = false;
+      }
+    } catch (_) {
+      status.textContent = '暂时无法读取云端账号信息。';
+    }
+    syncButton.addEventListener('click', async () => {
+      if (syncButton.disabled) return;
+      const songs = window['AdminApp']?.state?.getSongs?.() || [];
+      syncButton.disabled = true;
+      result.textContent = '正在同步当前歌库…';
+      try {
+        const response = await window.liraLicense.syncSongs(songs);
+        if (!response?.ok) throw new Error(response?.error || '同步失败');
+        result.textContent = `已同步 ${Number(response.count) || songs.length} 首歌曲。`;
+        toast('云端歌单同步完成');
+      } catch (error) {
+        result.textContent = `同步失败：${error.message || '请稍后重试'}`;
+      } finally {
+        syncButton.disabled = false;
+      }
+    });
+  }
+
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.imports = {
     importSongs,
@@ -178,6 +218,8 @@
     parseTable,
     parseDelimited,
     readTextFile,
-    readFileAsBase64
+    readFileAsBase64,
+    initCloudSongSync
   };
+  if (typeof document !== 'undefined') initCloudSongSync();
 })();

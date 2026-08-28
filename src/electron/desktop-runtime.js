@@ -20,6 +20,12 @@ function createDesktopRuntime(serverModule, options = {}) {
     persistPlaybackSnapshot: typeof serverModule.persistPlaybackSnapshot === 'function'
       ? (payload, clientId) => serverModule.persistPlaybackSnapshot(payload, clientId)
       : null,
+    resumeAuthorizedWork: typeof serverModule.resumeAuthorizedWork === 'function'
+      ? () => serverModule.resumeAuthorizedWork()
+      : null,
+    pauseAuthorizedWork: typeof serverModule.pauseAuthorizedWork === 'function'
+      ? () => serverModule.pauseAuthorizedWork()
+      : null,
     getSetting: typeof serverModule.getSetting === 'function'
       ? (key) => serverModule.getSetting(key)
       : () => undefined
