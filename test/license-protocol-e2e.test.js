@@ -10,12 +10,14 @@ const {
 const {
   RemoteLicenseError,
 } = require('../src/electron/license/remote-license-client');
+const protocol = require('../src/electron/license/license-protocol');
 
 /**
  * Protocol E2E: a stateful in-memory fake of the LIRA Server device API.
  * It exercises the real client-side signing/canonical-payload code and the
  * real license-manager state machine; only the network and server storage
- * are faked. Signatures are recorded for presence, not verified.
+ * are faked. Activation signatures are reconstructed with the server HTTP
+ * boundary's trimmed public key and verified against the submitted SPKI key.
  */
 function createFakeLicenseServer() {
   const devices = new Map(); // deviceId → { deviceId, licenseId, accountName, revoked }
@@ -95,6 +97,30 @@ function createFakeLicenseServer() {
           'ACTIVATION_INPUT_INVALID',
           'ACTIVATION_INPUT_INVALID',
           { status: 400 },
+        );
+      const activationPayload = protocol.buildActivationPayload({
+        accountName: body.accountName,
+        password: body.password,
+        activationCode: body.code,
+        deviceName: body.deviceName,
+        platform: body.platform,
+        appVersion: body.appVersion,
+        buildId: body.buildId,
+        keyProtection: body.keyProtection,
+        publicKeyPem: String(body.publicKey || '').trim(),
+        fingerprint: body.fingerprint,
+      });
+      const activationProofValid = crypto.verify(
+        'sha256',
+        Buffer.from(activationPayload, 'utf8'),
+        body.publicKey,
+        Buffer.from(String(body.activationSignature || ''), 'base64'),
+      );
+      if (!activationProofValid)
+        throw new RemoteLicenseError(
+          'ACTIVATION_PROOF_INVALID',
+          'ACTIVATION_PROOF_INVALID',
+          { status: 403 },
         );
       const pairing = findPairingCode(String(body.code || ''));
       if (body.code !== 'VALID-CODE') {

@@ -24,6 +24,10 @@ function normalizeAccountName(value) {
     .toLowerCase();
 }
 
+function normalizePublicKeyPem(value) {
+  return String(value || '').trim();
+}
+
 function validateActivationInput(input = {}) {
   const accountName = normalizeAccountName(input.accountName);
   const password = String(input.password || '');
@@ -99,7 +103,7 @@ function buildActivationPayload(input = {}) {
       .trim()
       .toLowerCase()
       .slice(0, 20)}`,
-    `publicKeySha256=${sha256(input.publicKeyPem || '')}`,
+    `publicKeySha256=${sha256(normalizePublicKeyPem(input.publicKeyPem))}`,
     `fingerprintSha256=${buildFingerprintDigest(fingerprint)}`,
     `accountName=${accountName.slice(0, 32)}`,
     `accountPasswordSha256=${sha256(String(input.password || ''))}`,

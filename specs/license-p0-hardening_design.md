@@ -15,7 +15,7 @@ Make the Electron client enforce the server device-license protocol without rene
 - While a valid token remains usable, when a transient network failure occurs, the client shall preserve `AUTHORIZED` and allow bounded retry.
 - When Windows resumes from suspension, the Electron main process shall immediately recheck the current license session and reschedule heartbeat maintenance.
 - When an already-enrolled device starts and verifies successfully, the Electron main process shall resume license-gated Bilibili work.
-- The activation and challenge canonical payloads shall match server-owned golden vectors byte for byte.
+- The activation and challenge canonical payloads shall match server-owned golden vectors byte for byte; activation shall hash the SPKI PEM after removing surrounding whitespace so Node-generated trailing newlines cannot change the proof.
 - When a user explicitly clicks cloud song sync, the client shall send one complete local snapshot; no automatic sync shall be introduced.
 
 ## Architecture
@@ -52,7 +52,7 @@ Make the Electron client enforce the server device-license protocol without rene
 6. A transient protected-call failure while the token is still valid preserves `AUTHORIZED`.
 7. System resume performs an immediate heartbeat/revalidation and resets the heartbeat timer.
 8. An initially authorized startup calls `resumeAuthorizedWork()` once.
-9. Client and server protocol tests assert the same complete activation and challenge canonical strings.
+9. Client and server protocol tests assert the same complete activation and challenge canonical strings, including SPKI PEM surrounding-whitespace normalization.
 10. Existing IPC, background-image, song-sync, gate, and license UI tests remain green.
 
 ## Non-goals

@@ -51,7 +51,7 @@ test('activation and auth canonical payloads match the server golden vectors byt
     appVersion: '4.0.0',
     buildId: 'LIRA/4.0.0/dev',
     keyProtection: 'DPAPI',
-    publicKeyPem: 'public-key',
+    publicKeyPem: ' public-key\r\n',
     fingerprint,
   });
   assert.equal(activation, ACTIVATION_GOLDEN);
@@ -97,6 +97,47 @@ test('P-256 signature verifies and changes to canonical input fail', () => {
       Buffer.from(signature, 'base64'),
     ),
     false,
+  );
+});
+
+test('activation canonical payload normalizes generated SPKI PEM whitespace', () => {
+  const generated = crypto.generateKeyPairSync('ec', {
+    namedCurve: 'prime256v1',
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  });
+  assert.equal(generated.publicKey.endsWith('\n'), true);
+
+  const input = {
+    accountName: 'mlbb',
+    password: '123456',
+    activationCode: 'abcd-efgh',
+    deviceName: 'DESKTOP-01',
+    platform: 'win32-x64',
+    appVersion: '4.0.0',
+    buildId: 'LIRA/4.0.0/dev',
+    keyProtection: 'dpapi',
+    fingerprint,
+  };
+  const clientPayload = protocol.buildActivationPayload({
+    ...input,
+    publicKeyPem: generated.publicKey,
+  });
+  const serverBoundaryPayload = protocol.buildActivationPayload({
+    ...input,
+    publicKeyPem: generated.publicKey.trim(),
+  });
+
+  assert.equal(clientPayload, serverBoundaryPayload);
+  const signature = protocol.signPayload(clientPayload, generated.privateKey);
+  assert.equal(
+    crypto.verify(
+      'sha256',
+      Buffer.from(serverBoundaryPayload, 'utf8'),
+      generated.publicKey,
+      Buffer.from(signature, 'base64'),
+    ),
+    true,
   );
 });
 
