@@ -31,9 +31,27 @@ test('admin routes use one explicit ordered fragment composition', () => {
 
 test('composed admin page is complete, ordered, and has unique ids', () => {
   const html = composeAdminHtml(PUBLIC_DIR);
+  const shellStart = fs.readFileSync(
+    path.join(PUBLIC_DIR, 'pages/admin/shell-start.html'),
+    'utf8',
+  );
+  const songShellStart = fs.readFileSync(
+    path.join(PUBLIC_DIR, 'pages/admin/song/shell-start.html'),
+    'utf8',
+  );
+  const toolboxShellStart = fs.readFileSync(
+    path.join(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html'),
+    'utf8',
+  );
 
   assert.match(html, /<!doctype html>/);
   assert.match(html, /<\/html>\s*$/);
+  assert.match(shellStart, /<\/header>\s*$/);
+  assert.match(songShellStart, /<\/button>\s*<\/div>\s*$/);
+  assert.match(
+    toolboxShellStart,
+    /<div class="other-feature-content">\s*$/,
+  );
   assert.ok(
     html.indexOf('id="songAssistantPage"') <
       html.indexOf('id="giftAssistantPage"'),
@@ -46,6 +64,17 @@ test('composed admin page is complete, ordered, and has unique ids', () => {
     html.indexOf('id="otherAssistantPage"') <
       html.indexOf('id="playbackAssistantPage"'),
   );
+  for (const pageId of [
+    'songAssistantPage',
+    'giftAssistantPage',
+    'otherAssistantPage',
+    'playbackAssistantPage',
+  ]) {
+    assert.ok(html.indexOf(`id="${pageId}"`) < html.indexOf('</main>'));
+  }
+  assert.equal((html.match(/<\/main>/g) || []).length, 1);
+  assert.equal((html.match(/<\/body>/g) || []).length, 1);
+  assert.equal((html.match(/<\/html>/g) || []).length, 1);
   assert.ok(
     html.indexOf('/js/admin/index.js') < html.indexOf('/js/playback.js'),
   );
