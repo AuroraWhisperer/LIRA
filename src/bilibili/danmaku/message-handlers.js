@@ -10,21 +10,29 @@ const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 
 class MessageHandlers {
-  constructor(handlers, userInfoService, deduplicator, diagnostics, options = {}) {
+  constructor(
+    handlers,
+    userInfoService,
+    deduplicator,
+    diagnostics,
+    options = {},
+  ) {
     this.handlers = handlers;
     this.userInfoService = userInfoService;
     this.deduplicator = deduplicator;
     this.diagnostics = diagnostics;
-    this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
+    this.runtimeGiftCommandPrefixes =
+      options.runtimeGiftCommandPrefixes || new Set();
     this.startedAtMs = options.startedAtMs || Date.now();
     this.connectionGeneration = Number(options.connectionGeneration) || 0;
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.roomRunContext = null;
     this.messageBuffer = options.messageBuffer || null;
-    this.isCommandText = typeof options.isCommandText === 'function'
-      ? options.isCommandText
-      : isBilibiliCommandText;
+    this.isCommandText =
+      typeof options.isCommandText === 'function'
+        ? options.isCommandText
+        : isBilibiliCommandText;
   }
 
   updateStartTime(startedAtMs) {
@@ -55,13 +63,24 @@ class MessageHandlers {
   async handlePackets(buffer) {
     this.diagnostics.lastPacketAt = now();
     for (const message of packetParser.parseBilibiliPackets(buffer)) {
-      bilibiliHelpers.recordBilibiliCommandDiagnostic(this.diagnostics, message && message.cmd);
+      bilibiliHelpers.recordBilibiliCommandDiagnostic(
+        this.diagnostics,
+        message && message.cmd,
+      );
 
       if (message.cmd && String(message.cmd).startsWith('DANMU_MSG')) {
         this.handleDanmaku(message);
-      } else if (message.cmd && String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')) {
+      } else if (
+        message.cmd &&
+        String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')
+      ) {
         this.handleSuperChat(message);
-      } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd, this.runtimeGiftCommandPrefixes)) {
+      } else if (
+        packetParser.isBilibiliGiftLikeCommand(
+          message.cmd,
+          this.runtimeGiftCommandPrefixes,
+        )
+      ) {
         // 所有 gift-like 消息都尝试解析，包括未知 CMD
         // extractBilibiliGiftMessage 有通用 fallback 能处理大部分格式
         this.handleGift(message);
@@ -72,28 +91,44 @@ class MessageHandlers {
   handleDanmaku(message) {
     const info = message.info || [];
     const userInfo = info[2] || [];
-    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid);
+    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(
+      info,
+      this.roomOwnerUid,
+    );
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
     const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
     const emotes = packetParser.extractBilibiliDanmakuEmotes(info);
 
-    if (this.isCommandText(text) && !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)) {
+    if (
+      this.isCommandText(text) &&
+      !bilibiliHelpers.isCapturableBilibiliTimestamp(
+        messageTimestamp,
+        this.startedAtMs,
+      )
+    ) {
       return;
     }
-    if (this.isCommandText(text) && !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
-      userName: userInfo[1],
-      source: 'danmaku'
-    })) {
+    if (
+      this.isCommandText(text) &&
+      !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
+        userName: userInfo[1],
+        source: 'danmaku',
+      })
+    ) {
       return;
     }
 
-    const requester = this.ingestIdentity({
-      uid: userInfo[0],
-      name: String(userInfo[1] || '观众'),
-      avatarUrl,
-      roomIdentity: roomIdentityFromMeta(userMeta)
-    }, 'danmaku', userMeta.currentRoomVerified);
+    const requester = this.ingestIdentity(
+      {
+        uid: userInfo[0],
+        name: String(userInfo[1] || '观众'),
+        avatarUrl,
+        roomIdentity: roomIdentityFromMeta(userMeta),
+      },
+      'danmaku',
+      userMeta.currentRoomVerified,
+    );
 
     this.handlers.onMessage({
       message: text,
@@ -108,30 +143,42 @@ class MessageHandlers {
       avatarUrl: requester.avatarUrl,
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
-      cmd: normalizeBilibiliCommandName(message.cmd)
+      cmd: normalizeBilibiliCommandName(message.cmd),
     });
   }
 
   handleSuperChat(message) {
-    const superChat = packetParser.extractBilibiliSuperChatMessage(message, this.roomOwnerUid);
+    const superChat = packetParser.extractBilibiliSuperChatMessage(
+      message,
+      this.roomOwnerUid,
+    );
     const text = superChat.message;
-    const requester = this.ingestIdentity({
-      uid: superChat.uid,
-      name: superChat.userName,
-      avatarUrl: superChat.avatarUrl,
-      roomIdentity: roomIdentityFromMeta(superChat)
-    }, 'superchat', superChat.currentRoomVerified);
+    const requester = this.ingestIdentity(
+      {
+        uid: superChat.uid,
+        name: superChat.userName,
+        avatarUrl: superChat.avatarUrl,
+        roomIdentity: roomIdentityFromMeta(superChat),
+      },
+      'superchat',
+      superChat.currentRoomVerified,
+    );
     const trace = {
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
-      cmd: normalizeBilibiliCommandName(message.cmd)
+      cmd: normalizeBilibiliCommandName(message.cmd),
     };
 
-    console.log(formatBilibiliSuperChatLog({
-      ...superChat,
-      uid: requester.uid,
-      userName: requester.userName
-    }, trace));
+    console.log(
+      formatBilibiliSuperChatLog(
+        {
+          ...superChat,
+          uid: requester.uid,
+          userName: requester.userName,
+        },
+        trace,
+      ),
+    );
 
     this.handlers.onSuperChat({
       id: superChat.id,
@@ -145,19 +192,31 @@ class MessageHandlers {
       currentRoomVerified: superChat.currentRoomVerified,
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,
-      ...trace
+      ...trace,
     });
 
     if (!this.isCommandText(text)) {
       return;
     }
-    if (!bilibiliHelpers.isCapturableBilibiliTimestamp(superChat.messageTimestamp, this.startedAtMs)) {
+    if (
+      !bilibiliHelpers.isCapturableBilibiliTimestamp(
+        superChat.messageTimestamp,
+        this.startedAtMs,
+      )
+    ) {
       return;
     }
-    if (!this.deduplicator.remember(superChat.uid || superChat.id, text, superChat.messageTimestamp, {
-      userName: superChat.userName,
-      source: 'superchat'
-    })) {
+    if (
+      !this.deduplicator.remember(
+        superChat.uid || superChat.id,
+        text,
+        superChat.messageTimestamp,
+        {
+          userName: superChat.userName,
+          source: 'superchat',
+        },
+      )
+    ) {
       return;
     }
 
@@ -173,7 +232,7 @@ class MessageHandlers {
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,
       isPinned: superChat.price >= SUPER_CHAT_PIN_THRESHOLD,
-      ...trace
+      ...trace,
     });
   }
 
@@ -183,19 +242,30 @@ class MessageHandlers {
     // USER_TOAST_MSG_V2 source=2 is a companion of the paid source=0 message.
     if (packetParser.isBilibiliDuplicateGuardToast(message)) return;
 
-    const isKnownCmd = packetParser.isBilibiliGiftCommand(message.cmd, this.runtimeGiftCommandPrefixes);
+    const isKnownCmd = packetParser.isBilibiliGiftCommand(
+      message.cmd,
+      this.runtimeGiftCommandPrefixes,
+    );
     const gift = packetParser.extractBilibiliGiftMessage(message);
 
     if (!gift || !isValidGiftResult(gift)) {
-      const dataKeys = message.data && typeof message.data === 'object'
-        ? Object.keys(message.data).slice(0, 15).join(',') : 'N/A';
+      const dataKeys =
+        message.data && typeof message.data === 'object'
+          ? Object.keys(message.data).slice(0, 15).join(',')
+          : 'N/A';
       const failureKind = !gift ? 'null-result' : 'validation-failed';
-      const diagnosticReason = isKnownCmd ? 'known-gift-command' : 'gift-like-command';
-      bilibiliHelpers.logUnparsedGiftLikeCommand(message, `${diagnosticReason}:${failureKind}`, {
-        status: isKnownCmd ? 'rejected' : 'unrecognized',
-        connectionGeneration: this.connectionGeneration,
-        connectionAttempt: this.connectionAttempt
-      });
+      const diagnosticReason = isKnownCmd
+        ? 'known-gift-command'
+        : 'gift-like-command';
+      bilibiliHelpers.logUnparsedGiftLikeCommand(
+        message,
+        `${diagnosticReason}:${failureKind}`,
+        {
+          status: isKnownCmd ? 'rejected' : 'unrecognized',
+          connectionGeneration: this.connectionGeneration,
+          connectionAttempt: this.connectionAttempt,
+        },
+      );
       if (this.messageBuffer) {
         this.messageBuffer.record({
           cmd: message.cmd,
@@ -203,22 +273,32 @@ class MessageHandlers {
           rawData: message.data,
           detail: gift
             ? `Parsed but validation failed: giftId="${gift.giftId || ''}" giftName="${gift.giftName || ''}" totalPrice=${gift.totalPrice || 0}`
-            : `extractBilibiliGiftMessage returned null; data keys: ${dataKeys}`
+            : `extractBilibiliGiftMessage returned null; data keys: ${dataKeys}`,
         });
       }
       if (isKnownCmd) {
-        bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'known-gift-command');
+        bilibiliHelpers.recordBilibiliGiftDiagnostic(
+          this.diagnostics,
+          message.cmd,
+          'known-gift-command',
+        );
       } else {
-        bilibiliHelpers.recordBilibiliGiftDiagnostic(this.diagnostics, message.cmd, 'gift-like-command');
+        bilibiliHelpers.recordBilibiliGiftDiagnostic(
+          this.diagnostics,
+          message.cmd,
+          'gift-like-command',
+        );
       }
       return;
     }
 
     // Keep one readable line per parsed gift; persistence is reflected in the UI.
-    console.log(formatBilibiliGiftLog(gift, {
-      connectionGeneration: this.connectionGeneration,
-      connectionAttempt: this.connectionAttempt
-    }));
+    console.log(
+      formatBilibiliGiftLog(gift, {
+        connectionGeneration: this.connectionGeneration,
+        connectionAttempt: this.connectionAttempt,
+      }),
+    );
     this.diagnostics.lastGiftAt = now();
     this.diagnostics.parsedGiftCount += 1;
     if (this.messageBuffer) {
@@ -227,24 +307,33 @@ class MessageHandlers {
         category: 'parsed-ok',
         rawData: message.data,
         parsed: gift,
-        detail: isKnownCmd ? '' : `New/unrecognized CMD parsed successfully via fallback`
+        detail: isKnownCmd
+          ? ''
+          : `New/unrecognized CMD parsed successfully via fallback`,
       });
     }
-    const isVerifiedGuardPurchase = cleanText(gift.cmd).startsWith('USER_TOAST_MSG')
-      && normalizeGuardLevelFromGift(gift) > 0;
-    const requester = this.ingestIdentity({
-      uid: gift.uid,
-      name: gift.userName,
-      avatarUrl: gift.avatarUrl,
-      roomIdentity: isVerifiedGuardPurchase ? {
-        guardKnown: true,
-        guardLevel: normalizeGuardLevelFromGift(gift)
-      } : undefined
-    }, 'gift', isVerifiedGuardPurchase);
+    const isVerifiedGuardPurchase =
+      cleanText(gift.cmd).startsWith('USER_TOAST_MSG') &&
+      normalizeGuardLevelFromGift(gift) > 0;
+    const requester = this.ingestIdentity(
+      {
+        uid: gift.uid,
+        name: gift.userName,
+        avatarUrl: gift.avatarUrl,
+        roomIdentity: isVerifiedGuardPurchase
+          ? {
+              guardKnown: true,
+              guardLevel: normalizeGuardLevelFromGift(gift),
+            }
+          : undefined,
+      },
+      'gift',
+      isVerifiedGuardPurchase,
+    );
     this.handlers.onGift({
       ...gift,
       uid: requester.uid,
-      userName: requester.userName
+      userName: requester.userName,
     });
   }
 
@@ -255,13 +344,13 @@ class MessageHandlers {
       avatarUrl: cleanText(hint && hint.avatarUrl),
       guardLevel: 0,
       medalName: '',
-      medalLevel: 0
+      medalLevel: 0,
     };
     if (!this.roomRunContext) return fallback;
     const result = this.userInfoService.ingestHint(hint, {
       ...this.roomRunContext,
       source,
-      roomIdentityVerified: roomIdentityVerified === true
+      roomIdentityVerified: roomIdentityVerified === true,
     });
     return compatibilityRequester(result.snapshot, fallback);
   }
@@ -273,26 +362,30 @@ function roomIdentityFromMeta(meta = {}) {
     guardKnown: verified,
     guardLevel: meta.guardLevel,
     medalKnown: verified,
-    fansMedal: meta.medalName ? {
-      name: meta.medalName,
-      level: meta.medalLevel,
-      targetUid: meta.medalTargetUid
-    } : null
+    fansMedal: meta.medalName
+      ? {
+          name: meta.medalName,
+          level: meta.medalLevel,
+          targetUid: meta.medalTargetUid,
+        }
+      : null,
   };
 }
 
 function compatibilityRequester(snapshot, fallback) {
   if (!snapshot) return fallback;
-  const medal = snapshot.fansMedal && snapshot.fansMedal.known
-    ? snapshot.fansMedal.value
-    : null;
+  const medal =
+    snapshot.fansMedal && snapshot.fansMedal.known
+      ? snapshot.fansMedal.value
+      : null;
   return {
     uid: snapshot.uid,
     userName: snapshot.name || fallback.userName,
     avatarUrl: snapshot.avatarUrl || fallback.avatarUrl,
-    guardLevel: snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
+    guardLevel:
+      snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
     medalName: medal ? medal.name : '',
-    medalLevel: medal ? medal.level : 0
+    medalLevel: medal ? medal.level : 0,
   };
 }
 
@@ -311,37 +404,44 @@ function normalizeBilibiliCommandName(value) {
 
 function formatBilibiliGiftLog(gift, trace = null) {
   const userName = JSON.stringify(cleanText(gift && gift.userName) || '观众');
-  const giftName = JSON.stringify(cleanText(gift && gift.giftName) || '未知礼物');
+  const giftName = JSON.stringify(
+    cleanText(gift && gift.giftName) || '未知礼物',
+  );
   const quantity = Math.max(1, Number(gift && gift.num) || 1);
   const totalPrice = Number(gift && gift.totalPrice);
   const amount = Number.isFinite(totalPrice) ? totalPrice.toFixed(2) : '0.00';
   const tags = [];
   if (gift && gift.isBlindBox) tags.push('blind-box');
-  if (gift && gift.coinType && gift.coinType !== 'gold') tags.push(`coin=${gift.coinType}`);
+  if (gift && gift.coinType && gift.coinType !== 'gold')
+    tags.push(`coin=${gift.coinType}`);
   const suffix = tags.length > 0 ? ` ${tags.join(' ')}` : '';
-  const traceSuffix = trace ? ` trace=${JSON.stringify({
-    connectionGeneration: Number(trace.connectionGeneration) || 0,
-    connectionAttempt: Number(trace.connectionAttempt) || 0,
-    cmd: cleanText(gift && gift.cmd),
-    platformId: cleanText(gift && gift.platformId),
-    comboId: cleanText(gift && gift.comboId),
-    messageTimestamp: timestampToIso(gift && gift.messageTimestamp)
-  })}` : '';
+  const traceSuffix = trace
+    ? ` trace=${JSON.stringify({
+        connectionGeneration: Number(trace.connectionGeneration) || 0,
+        connectionAttempt: Number(trace.connectionAttempt) || 0,
+        cmd: cleanText(gift && gift.cmd),
+        platformId: cleanText(gift && gift.platformId),
+        comboId: cleanText(gift && gift.comboId),
+        messageTimestamp: timestampToIso(gift && gift.messageTimestamp),
+      })}`
+    : '';
   return `[Bilibili][Gift] status=parsed user=${userName} gift=${giftName} x${quantity} amount=¥${amount}${suffix}${traceSuffix}`;
 }
 
 function formatBilibiliSuperChatLog(superChat, trace = {}) {
-  return `[Bilibili][SuperChat] status=received`
-    + ` user=${JSON.stringify(cleanText(superChat && superChat.userName) || '观众')}`
-    + ` uid=${JSON.stringify(cleanText(superChat && superChat.uid))}`
-    + ` price=${Number(superChat && superChat.price) || 0}`
-    + ` message=${JSON.stringify(cleanText(superChat && superChat.message))}`
-    + ` trace=${JSON.stringify({
+  return (
+    `[Bilibili][SuperChat] status=received` +
+    ` user=${JSON.stringify(cleanText(superChat && superChat.userName) || '观众')}` +
+    ` uid=${JSON.stringify(cleanText(superChat && superChat.uid))}` +
+    ` price=${Number(superChat && superChat.price) || 0}` +
+    ` message=${JSON.stringify(cleanText(superChat && superChat.message))}` +
+    ` trace=${JSON.stringify({
       connectionGeneration: Number(trace.connectionGeneration) || 0,
       connectionAttempt: Number(trace.connectionAttempt) || 0,
       cmd: cleanText(trace.cmd),
-      messageTimestamp: timestampToIso(superChat && superChat.messageTimestamp)
-    })}`;
+      messageTimestamp: timestampToIso(superChat && superChat.messageTimestamp),
+    })}`
+  );
 }
 
 /**
@@ -357,8 +457,13 @@ function isValidGiftResult(gift) {
   // 有付费金额 —— 即使名字解析不出来，有金额就是真礼物
   if (gift.totalPrice > 0) return true;
   // 盲盒
-  if (gift.isBlindBox && gift.blindBoxPrice !== null && gift.blindBoxPrice > 0) return true;
+  if (gift.isBlindBox && gift.blindBoxPrice !== null && gift.blindBoxPrice > 0)
+    return true;
   return false;
 }
 
-module.exports = { MessageHandlers, formatBilibiliGiftLog, formatBilibiliSuperChatLog };
+module.exports = {
+  MessageHandlers,
+  formatBilibiliGiftLog,
+  formatBilibiliSuperChatLog,
+};

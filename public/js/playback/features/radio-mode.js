@@ -11,7 +11,7 @@ export function createRadioMode(deps) {
     playbackRadioRefillThreshold,
     playbackRadioRefillBatchSize,
     savePlaybackState,
-    renderPlayback
+    renderPlayback,
   } = deps;
 
   let playbackRadioRefillRunning = false;
@@ -29,21 +29,25 @@ export function createRadioMode(deps) {
         body: JSON.stringify({
           platform: playbackState.selectedSource,
           action: 'radio',
-          limit: playbackRadioRefillBatchSize
-        })
+          limit: playbackRadioRefillBatchSize,
+        }),
       });
       const payload = await readJsonResponse(response, '补充电台队列失败');
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '补充电台队列失败');
+      if (!response.ok || !payload.ok)
+        throw new Error(payload.error || '补充电台队列失败');
       if (playbackState.queueType !== 'radio') return;
 
       const tracks = Array.isArray(payload.data && payload.data.tracks)
         ? payload.data.tracks.map(PlaybackUtils.normalizeOnlineTrack)
         : [];
-      const recentIds = new Set(playbackState.history.slice(-30).map((track) => track.id));
+      const recentIds = new Set(
+        playbackState.history.slice(-30).map((track) => track.id),
+      );
 
       for (const track of tracks) {
         if (recentIds.has(track.id)) continue;
-        if (playbackState.radioQueue.some((item) => item.id === track.id)) continue;
+        if (playbackState.radioQueue.some((item) => item.id === track.id))
+          continue;
         playbackState.radioQueue.push(track);
       }
 
@@ -57,6 +61,6 @@ export function createRadioMode(deps) {
   }
 
   return {
-    ensurePlaybackRadioQueueFilled
+    ensurePlaybackRadioQueueFilled,
   };
 }

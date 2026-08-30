@@ -2,7 +2,9 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { WebSocketConnection } = require('../src/bilibili/danmaku/websocket-connection');
+const {
+  WebSocketConnection,
+} = require('../src/bilibili/danmaku/websocket-connection');
 
 class FakeWebSocket {
   static OPEN = 1;
@@ -50,7 +52,11 @@ test('forwards WebSocket error and close event evidence', async () => {
 
     FakeWebSocket.latest.readyState = FakeWebSocket.OPEN;
     FakeWebSocket.latest.emit('error', { message: 'socket failed' });
-    FakeWebSocket.latest.emit('close', { code: 4001, reason: 'risk control', wasClean: false });
+    FakeWebSocket.latest.emit('close', {
+      code: 4001,
+      reason: 'risk control',
+      wasClean: false,
+    });
 
     assert.deepEqual(events, [
       { type: 'error', event: { message: 'socket failed' } },
@@ -60,9 +66,9 @@ test('forwards WebSocket error and close event evidence', async () => {
           code: 0,
           reason: 'socket failed',
           wasClean: false,
-          connectionError: true
-        }
-      }
+          connectionError: true,
+        },
+      },
     ]);
   } finally {
     connection.close();
@@ -122,7 +128,10 @@ function operationPacket(operation) {
   packet.writeUInt16BE(1, 6);
   packet.writeUInt32BE(operation, 8);
   packet.writeUInt32BE(1, 12);
-  return packet.buffer.slice(packet.byteOffset, packet.byteOffset + packet.byteLength);
+  return packet.buffer.slice(
+    packet.byteOffset,
+    packet.byteOffset + packet.byteLength,
+  );
 }
 
 async function waitFor(predicate, timeoutMs) {

@@ -1,8 +1,16 @@
 # 打包与更新说明
 
-当前版本：`4.0.0`
+当前版本：`4.0.1`
 
 ---
+
+## v4.0.1 变更
+
+- 🔐 **授权链路加固**：完善设备身份、授权协议、会话续期、并发请求 single-flight、失败状态收敛、系统恢复重连和受保护操作门禁；补充重试策略、日志脱敏、端到端协议及设备授权回归测试。
+- ☁️ **云端歌单与歌单页增强**：支持本地歌库确认后整体同步到公开歌单、查看云端歌单状态及上传/删除歌单页背景图片；补充配对码时间信息、撤销确认和相关使用说明。
+- 🎁 **礼物目录与解析增强**：修复 Bilibili V2 礼物解析和重复事件处理，新增服务器全局礼物目录缓存与本地回退，并完善礼物守护解析及目录同步测试。
+- 🧩 **大文件模块化**：按服务端、存储、Bilibili、音乐、AI、Electron 授权、管理端和覆盖层等所有权拆分生产模块，保持既有 HTTP/WebSocket/IPC、页面地址、设置键和持久化格式兼容。
+- ✅ **工程质量与验证**：统一可解析源码格式，补充模块边界、文档、授权、礼物、歌单和 UI 回归覆盖；完成文档、语法、架构及全量测试门禁。
 
 ## v4.0.0 变更
 
@@ -1784,26 +1792,31 @@
 ## v1.3.3 变更
 
 **QQ 音乐 Provider 全面升级**
+
 - 实现所有歌单/推荐接口：个性化推荐、每日推荐、心动电台、我喜欢、我的歌单、收藏歌单、最近播放、歌单详情。
 - 新增 `requestMusicu` / `requestText` / `buildHeaders` 等通用请求辅助方法。
 - 优化歌曲与歌单字段映射，兼容更多 API 返回格式；改进封面图提取逻辑，支持多种图片来源。
 - 统一错误提示文案格式。
 
 **播放页面视觉增强**
+
 - 歌单列表、搜索结果、队列行新增专辑封面缩略图。
 - 当前播放封面支持远程图片展示。
 - 优化播放页面入口卡片文案。
 - 移除本地音频文件上传功能。
 
 **新增 5 套点歌板预设主题**
+
 - 陶土侘寂（terracotta）、珊瑚海礁（coral）、墨香宣纸（ink）、工业灰调（slate）、勃艮第醇（burgundy）。
 
 **界面优化**
+
 - 歌曲表单按钮改为双列布局；新增表单与搜索之间的分隔线。
 - 队列「固定 6 首歌高度」设置独立展示。
 - 状态栏按钮样式优化；移除动态页面标题。
 
 **问题修复**
+
 - 修复点歌板同步主题开关在首次加载时误读未定义值的问题。
 - 修复叠加层 URL 在 127.0.0.1 环境下无法访问的问题。
 - 修复服务关闭时 blivedm 兼容性检查回调可能访问已销毁状态的问题。
@@ -1830,6 +1843,7 @@
 ## v1.3.0 变更
 
 **架构重构 — 代码模块化**
+
 - 从 monolithic `server.js`（5315 行）和 `electron/main.js`（778 行）中拆出 25+ 独立模块。
 - 新增模块：`shared/utils`、`storage/database`、`storage/settings-store`、`music/song-service`、`music/queue-service`、`music/lyrics-service`、`music/music-cache`、`music/stream-resolver`、`music/provider-health`、`bilibili/bilibili-message-handler`、`bilibili/superchat-service`、`bilibili/gift-service`、`bilibili/blivedm-compat`、`bilibili/danmaku-client`、`bilibili/helpers`、`bilibili/wbi-signer`、`bilibili/packet-parser`、`server/api-routes`、`server/http-utils`、`server/ws`。
 - Electron 模块：`auth-manager`、`login-window`、`lyric-window`、`update-manager`。

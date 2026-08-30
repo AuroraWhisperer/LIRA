@@ -33,10 +33,10 @@ npm run release:win
 
 ## 文件说明
 
-| 文件 | 发布前要改什么 |
-|---|---|
-| `package.json` | `version` 字段改成新版本号 |
-| `UPDATE.md` | 新增 `## vX.Y.Z 变更` 小节，写本次变更内容 |
+| 文件           | 发布前要改什么                             |
+| -------------- | ------------------------------------------ |
+| `package.json` | `version` 字段改成新版本号                 |
+| `UPDATE.md`    | 新增 `## vX.Y.Z 变更` 小节，写本次变更内容 |
 
 ---
 
@@ -58,11 +58,13 @@ npm run release:win
 
 **Q: 上传太慢，要好几分钟？**
 脚本会自动检测本机代理（127.0.0.1 的 7890 / 10809 / 1080 端口，Clash / v2rayN 常见端口），检测到就把 GitHub 上传流量走代理——日志里会显示 `Auto-detected local proxy …` 或 `Using proxy from environment: …`，直连状态从几百 KB/s 提到代理带宽上限。
+
 - 手动指定代理：`HTTPS_PROXY=http://127.0.0.1:7890 npm run release:win`
 - 强制直连（禁用自动检测）：`RELEASE_NO_PROXY=1 npm run release:win`
 - 安装包体积方面：`electronLanguages` 只保留 `zh-CN` / `en-US` 两个语言包（原来 55 个语言约 47MB），安装包已明显变小。
 
 **Q: 为什么要用这个脚本而不是直接跑 electron-builder？**
 两个原因：
+
 1. `GH_TOKEN` 不是持久环境变量，electron-builder 直接跑可能找不到
 2. electron-builder 并发上传 `.exe` 和 `.exe.blockmap` 时，如果 release 还不存在，两个任务同时创建 release 会产生竞态 — 一个成功一个 422 报错，导致 release 里缺文件

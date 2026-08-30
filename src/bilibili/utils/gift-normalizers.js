@@ -1,10 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const {
-  cleanText,
-  readObjectValue
-} = require('../../shared/utils');
+const { cleanText, readObjectValue } = require('../../shared/utils');
 
 // ---------------------------------------------------------------------------
 // Gift-related normalization utilities
@@ -21,7 +18,7 @@ function normalizeBilibiliGiftCoin(value) {
 
 function normalizeBilibiliCoinRmb(value) {
   const amount = normalizeBilibiliGiftCoin(value);
-  return amount > 0 ? (amount / 1000) : 0;
+  return amount > 0 ? amount / 1000 : 0;
 }
 
 function guardLevelName(level) {
@@ -53,14 +50,40 @@ function detectGuardLevelFromName(name) {
 }
 
 function buildBilibiliFallbackGiftId(packet, data) {
-  return crypto.createHash('sha1')
-    .update([
-      cleanText(packet && packet.cmd),
-      cleanText(readObjectValue(data, ['uid', 'mid', 'username', 'uname'])),
-      cleanText(readObjectValue(data, ['gift_name', 'giftName', 'role_name', 'roleName'])),
-      cleanText(readObjectValue(data, ['price', 'gift_price', 'giftPrice', 'total_price', 'totalPrice'])),
-      cleanText(readObjectValue(data, ['timestamp', 'ts', 'time', 'start_time', 'startTime'])) || Math.floor(Date.now() / 1000)
-    ].join('|'))
+  return crypto
+    .createHash('sha1')
+    .update(
+      [
+        cleanText(packet && packet.cmd),
+        cleanText(readObjectValue(data, ['uid', 'mid', 'username', 'uname'])),
+        cleanText(
+          readObjectValue(data, [
+            'gift_name',
+            'giftName',
+            'role_name',
+            'roleName',
+          ]),
+        ),
+        cleanText(
+          readObjectValue(data, [
+            'price',
+            'gift_price',
+            'giftPrice',
+            'total_price',
+            'totalPrice',
+          ]),
+        ),
+        cleanText(
+          readObjectValue(data, [
+            'timestamp',
+            'ts',
+            'time',
+            'start_time',
+            'startTime',
+          ]),
+        ) || Math.floor(Date.now() / 1000),
+      ].join('|'),
+    )
     .digest('hex');
 }
 
@@ -69,5 +92,5 @@ module.exports = {
   normalizeBilibiliCoinRmb,
   guardLevelName,
   detectGuardLevelFromName,
-  buildBilibiliFallbackGiftId
+  buildBilibiliFallbackGiftId,
 };

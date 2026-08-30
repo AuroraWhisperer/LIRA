@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-**LIRA** (**L**ive **I**nteraction & **R**equest **A**ssistant) is a lightweight, local-first companion for Bilibili streamers, featuring danmaku song requests, queue and library management, live overlays, and more — with no server or subscription required. It runs entirely on the streamer's computer: viewers request songs via danmaku, requests are queued automatically, and the queue is shown on stream through an OBS browser source. Beyond song requests, it packs a danmaku bot, an AI chat assistant, a gift-driven overtime timer, and Quanmin K-Ge lyrics capture.
+**LIRA** (**L**ive **I**nteraction & **R**equest **A**ssistant) is a lightweight, local-first companion for Bilibili streamers, featuring danmaku song requests, queue and library management, live overlays, and more. Live interaction, playback, the song library, and the queue run primarily in the desktop client; first use requires online LIRA account/device authorization, with an optional cloud public playlist and playlist-page background. Viewers request songs via danmaku, requests are queued automatically, and the queue is shown on stream through an OBS browser source. Beyond song requests, it packs a danmaku bot, an AI chat assistant, a gift-driven overtime timer, and Quanmin K-Ge lyrics capture.
 
 ## Usage Declaration
 
@@ -11,6 +11,17 @@ This project is for personal learning, research, and reference only. Commercial 
 ## Installation
 
 Download the latest installer from [Releases](https://github.com/AuroraWhisperer/LIRA/releases) and run it.
+
+### First Launch and Server-Assisted Features
+
+LIRA remains local-first, but the desktop client must complete online authorization before the main UI opens. Release builds use the production authorization service automatically (the current default is `https://api.lirahub.cn`); custom deployments use the address supplied by the administrator.
+
+1. **Activate the first device.** On the “Log in to LIRA” page, enter the account name, password, and the one-time activation key supplied by the administrator, then choose “Activate and enter LIRA”. The server creates an independent device identity; the password and activation key are not stored locally.
+2. **Later launches verify automatically.** A bound device does not require the account name, password, or first activation key again, but it still performs an online authorization check at startup. If the service is temporarily unreachable, use “Retry connection”. A revoked device/license or disabled account requires administrator assistance.
+3. **Pair another computer.** On an authorized computer, open “Toolbox → Settings → Login and devices” and choose “Generate authorization code for another computer” (this is a new-device pairing code, not the first activation key). On the new computer, enter the same account name, password, and one-time code (the current default lifetime is 60 minutes). Each computer gets its own device identity; pairing does not copy the local library, settings, Bilibili login, or music-platform login. Never copy the old computer's `data`, `userData`, private key, or token.
+4. **Sync the public playlist manually.** In “Song requests → Import/Export”, “Cloud playlist” can publish a full snapshot of the local library to the public playlist page after confirmation. The current service accepts up to 5,000 songs, does not merge concurrent edits, and does not automatically restore the cloud snapshot to the local library. Unresolved edits from another computer or the web page may be overwritten by the next full sync. The same page manages a PNG/JPG/JPEG/WebP/GIF background image up to 5 MB; uploading replaces the latest image and deleting it restores the default background.
+
+In the current client, the authorization service handles account/device authorization and optional public playlist data. Bilibili login, danmaku and gift monitoring, the queue, playback, and the local library remain in the local runtime. The public playlist URL usually looks like `https://account.lirahub.cn/`; use the URL shown by “Open web playlist” for the remote HTTPS song page. OBS and 直播姬 browser sources continue to use the local `127.0.0.1` URLs and require OBS/直播姬 and LIRA to run on the same computer.
 
 ## Key Features
 
@@ -69,10 +80,18 @@ Download the latest installer from [Releases](https://github.com/AuroraWhisperer
 - Add, edit, enable/disable, delete songs
 - Search, category filter, language filter, artist filter
 
+**Device Authorization and Cloud Playlist**
+
+- First-device LIRA account authorization with online checks on later launches
+- One-time new-device pairing codes for additional computers
+- Explicit full-snapshot publishing from the local library to the public playlist page
+- Custom public playlist-page background (PNG/JPG/JPEG/WebP/GIF, up to 5 MB)
+
 **Overtime Timer**
 
 - Gift-driven countdown: viewers extend the countdown with gifts, real-time OBS overlay
 - Gift rule editor: direct time adjustment / random result draw / time mystery box
+- The gift picker prefers the server-wide catalog with a local cache, while the existing room catalog and local gift search remain available as fallbacks
 
 **Streamer Planner**
 

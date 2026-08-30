@@ -19,9 +19,11 @@
 ### Task 1: Define and verify the disabled-state contract
 
 **Files:**
+
 - Modify: `test/opening-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: Existing opening overlay HTML, CSS, and admin renderer source.
 - Produces: Regression assertions for transparent/silent disabled behavior.
 
@@ -31,11 +33,13 @@
 ### Task 2: Make the overlay source transparent and silent when disabled
 
 **Files:**
+
 - Modify: `public/pages/overlays/opening.html`
 - Modify: `public/js/overlays/opening.js`
 - Modify: `public/css/overlays/opening.css`
 
 **Interfaces:**
+
 - Consumes: Persisted `openingEnabled` and existing runtime scheduler/audio helpers.
 - Produces: Disabled overlay state with transparent document/body/viewport, no visible stage, cancelled visual schedulers, paused SVG/CSS animations, and no audio source or playback.
 
@@ -47,11 +51,13 @@
 ### Task 3: Unload the editor preview when the switch is off
 
 **Files:**
+
 - Modify: `public/js/admin/start-animation.js`
 - Modify: `public/css/admin/other-features/start-animation.css`
 - Modify: `public/pages/admin/toolbox/start-animation.html`
 
 **Interfaces:**
+
 - Consumes: Existing `render()` preview lifecycle and fixed source URL.
 - Produces: A clear master-control label/status and an editor iframe that is navigated to `about:blank` while disabled, then rebuilt from the opening URL when enabled.
 
@@ -62,6 +68,7 @@
 ### Task 4: Run the project gates
 
 **Files:**
+
 - Review: `git diff --check`, affected files only.
 
 - [x] **Step 1: Run `node --test test/opening-overlay.test.js`**.

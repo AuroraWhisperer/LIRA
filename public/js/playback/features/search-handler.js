@@ -15,7 +15,7 @@ export function createSearchHandler(deps) {
     searchService,
     value,
     toast,
-    renderPlaybackSearchResults
+    renderPlaybackSearchResults,
   } = deps;
   let searchGeneration = 0;
 
@@ -74,10 +74,12 @@ export function createSearchHandler(deps) {
     }
 
     if (action === 'requested') {
-      callbacks.insertPlaybackTracksNext([{
-        ...queuedTrack,
-        requestedBy: '手动搜索'
-      }]);
+      callbacks.insertPlaybackTracksNext([
+        {
+          ...queuedTrack,
+          requestedBy: '手动搜索',
+        },
+      ]);
       toast('已插入当前歌曲之后');
     } else {
       callbacks.appendPlaybackTracks([queuedTrack]);
@@ -92,6 +94,6 @@ export function createSearchHandler(deps) {
   return {
     runPlaybackSearch,
     clearPlaybackSearch,
-    handlePlaybackSearchAction
+    handlePlaybackSearchAction,
   };
 }

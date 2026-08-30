@@ -93,7 +93,7 @@ export class EventBus {
     if (handlers) {
       // 复制一份以避免在执行过程中修改集合
       const handlersCopy = Array.from(handlers);
-      handlersCopy.forEach(handler => {
+      handlersCopy.forEach((handler) => {
         try {
           handler(data);
         } catch (error) {
@@ -199,6 +199,7 @@ export const Events = {
   // 礼物相关
   GIFT_RECEIVED: 'gift:received',
   GIFT_SPRINT_UPDATED: 'gift:sprint_updated',
+  GIFT_CATALOG_UPDATED: 'gift:catalog_updated',
   OVERTIME_UPDATED: 'overtime:updated',
 
   // 主题相关
@@ -207,5 +208,5 @@ export const Events = {
   // 系统相关
   STATE_SAVED: 'state:saved',
   STATE_LOADED: 'state:loaded',
-  ERROR_OCCURRED: 'error:occurred'
+  ERROR_OCCURRED: 'error:occurred',
 };

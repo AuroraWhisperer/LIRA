@@ -4,33 +4,56 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {
-  app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, safeStorage, session, shell
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+  powerMonitor,
 } = require('electron');
-const authMgr = require('./auth-manager');
-const bilibiliAuth = require('./bilibili-auth');
-const { openBilibiliLoginWindow } = require('./bilibili-login-window');
-const loginWin = require('./login-window');
+const { createDesktopAuthController } = require('./desktop-auth-controller');
+const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
+const {
+  createDesktopUpdateController,
+} = require('./desktop-update-controller');
 const { createDesktopState } = require('./desktop-state');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
-const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
+const {
+  createLocalMediaAccess,
+  hasExactOrigin,
+} = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
+const {
+  configureMusicMediaRequestHeaders,
+  configureBilibiliMediaRequestHeaders,
+} = require('./media-request-headers');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
-const { installTerminalLog, formatLogLine } = require('./terminal-log');
+const { installTerminalLog } = require('./terminal-log');
 const { registerUpdateIpc } = require('./ipc/update-ipc');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const { registerLicenseIpc } = require('./ipc/license-ipc');
-const { createLicenseManager, LicenseState } = require('./license/license-manager');
+const {
+  createLicenseManager,
+  LicenseState,
+} = require('./license/license-manager');
+const { resolveConfiguredBaseUrl } = require('./license/remote-license-client');
+const { createLicenseResumeHandler } = require('./license/license-resume');
 const serverRuntimeModule = require('../server');
-const { redactCredentials } = require('../shared/log-redaction');
-const { isAllowedExternal, isAllowedLocalUrl } = require('./external-url-policy');
+const {
+  isAllowedExternal,
+  isAllowedLocalUrl,
+} = require('./external-url-policy');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
-const MUSIC_LOGIN_CONFIG = authMgr.MUSIC_LOGIN_CONFIG;
-
 const desktopState = createDesktopState();
 const windowState = desktopState.window;
 const lifecycleState = desktopState.lifecycle;
@@ -39,32 +62,86 @@ const pathState = desktopState.paths;
 const loggingState = desktopState.logging;
 const updateRuntime = desktopState.update;
 const startupTiming = { startedAt: 0 };
+const { writeLog, nextSequence: nextLogSequence } = createDesktopLogger({
+  getLogFile: () => pathState.logFile,
+  loggingState,
+});
+const desktopAuth = createDesktopAuthController({
+  BrowserWindow,
+  shell,
+  getMainWindow: () => windowState.main,
+  getDataDir: () => pathState.dataDir,
+  writeLog,
+});
+const {
+  getMusicAuthState,
+  getMusicCookieHeader,
+  getMusicProviderRegistry,
+  loginMusicAccount,
+  logoutMusicAccount,
+  clearMusicBrowserCache,
+  restoreMusicCookieSnapshots,
+  getBilibiliAuthState,
+  getBilibiliCookieHeader,
+  getBilibiliUid,
+  restoreBilibiliCookieSnapshot,
+  loginBilibiliAccount,
+  logoutBilibiliAccount,
+} = desktopAuth;
+const desktopUpdate = createDesktopUpdateController({
+  app,
+  updateManager: updateMgr,
+  updateRuntime,
+  getRuntime: () => lifecycleState.runtime,
+  getMainWindow: () => windowState.main,
+  writeLog,
+});
+const {
+  configureAutoUpdater,
+  checkForUpdates,
+  readAutoUpdateSetting,
+  downloadUpdate,
+  installUpdate,
+  setUpdateError,
+  sendUpdateState,
+} = desktopUpdate;
 var licenseManager = null;
+var licenseResumeController = null;
+const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
 
 // Register local-media:// protocol for local audio file playback
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'local-media',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true }
-}]);
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'local-media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true,
+    },
+  },
+]);
 
 // 将 Electron userData 目录重定向到应用安装目录下的 data/，
 // 确保卸载时所有登录态（包括 Chromium 持久化分区）一并清理，
 // 不会残留在 %APPDATA% 中。
-const appDir = app.isPackaged
-  ? path.dirname(app.getPath('exe'))
-  : ROOT_DIR;
+const appDir = app.isPackaged ? path.dirname(app.getPath('exe')) : ROOT_DIR;
 app.setPath('userData', path.join(appDir, 'data'));
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.whenReady().then(startDesktopApp).catch(function (error) {
-    dialog.showErrorBox('启动失败', error.message || String(error));
-    app.quit();
-  });
+  app
+    .whenReady()
+    .then(startDesktopApp)
+    .catch(function (error) {
+      dialog.showErrorBox('启动失败', error.message || String(error));
+      app.quit();
+    });
 }
 
 app.setName('LIRA');
@@ -83,13 +160,15 @@ app.on('before-quit', function (event) {
   if (lifecycleState.gracefulQuitStarted || !lifecycleState.shutdown) return;
   event.preventDefault();
   lifecycleState.gracefulQuitStarted = true;
+  licenseResumeController?.unregister();
   writeLog('lifecycle', { event: 'QUIT_BEGIN' });
   lifecycleState.forceQuitTimer = setTimeout(function () {
     writeLog('lifecycle', { event: 'QUIT_TIMEOUT' });
     app.releaseSingleInstanceLock();
     app.exit(0);
   }, 5000);
-  lifecycleState.shutdown({ exitProcess: false })
+  lifecycleState
+    .shutdown({ exitProcess: false })
     .catch(function (error) {
       writeLog('shutdown-error', error);
       console.warn('Shutdown failed:', error.message);
@@ -120,7 +199,9 @@ async function startDesktopApp() {
   configureMenu();
   configureLocalMediaProtocol();
   registerUpdateIpc({
-    ipcMain, app, shell,
+    ipcMain,
+    app,
+    shell,
     getDataDir: () => pathState.dataDir,
     getLogFile: () => pathState.logFile,
     getLogDir: () => pathState.logDir,
@@ -133,10 +214,11 @@ async function startDesktopApp() {
     getShutdownApplication: () => lifecycleState.shutdown,
     getMainWindow: () => windowState.main,
     normalizeGiftDisplayTrace,
-    writeLog
+    writeLog,
   });
   registerMusicIpc({
-    ipcMain, dialog,
+    ipcMain,
+    dialog,
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => windowState.baseUrl,
     getDesktopRuntime: () => lifecycleState.runtime,
@@ -151,21 +233,24 @@ async function startDesktopApp() {
     isPathAllowedForLocalMedia,
     acknowledgePlaybackFlush: playbackFlush.acknowledgePlaybackFlush,
     writePlaybackSnapshot: (payload, clientId) => {
-      if (!lifecycleState.runtime || typeof lifecycleState.runtime.persistPlaybackSnapshot !== 'function') {
+      if (
+        !lifecycleState.runtime ||
+        typeof lifecycleState.runtime.persistPlaybackSnapshot !== 'function'
+      ) {
         return { ok: false, error: 'Playback store not available' };
       }
       return lifecycleState.runtime.persistPlaybackSnapshot(payload, clientId);
-    }
+    },
   });
   registerBilibiliIpc({
     ipcMain,
     getAuthState: getBilibiliAuthState,
     login: loginBilibiliAccount,
-    logout: logoutBilibiliAccount
+    logout: logoutBilibiliAccount,
   });
-  configureMusicMediaRequestHeaders();
-  configureBilibiliMediaRequestHeaders();
-  updateMgr.configureAutoUpdater({ onStateChange: onUpdateStateChange, writeLog: writeLog });
+  configureMusicMediaRequestHeaders(session.defaultSession, mediaState);
+  configureBilibiliMediaRequestHeaders(session.defaultSession);
+  configureAutoUpdater();
   phaseStartedAt = Date.now();
   await restoreMusicCookieSnapshots();
   logStartupPhase('music-cookie-restore', phaseStartedAt);
@@ -178,13 +263,23 @@ async function startDesktopApp() {
     startPort: 3000,
     musicAuth: {
       getAuthState: getMusicAuthState,
-      getCookieHeader: getMusicCookieHeader
+      getCookieHeader: getMusicCookieHeader,
     },
     bilibiliAuth: {
       getAuthState: getBilibiliAuthState,
       getCookieHeader: getBilibiliCookieHeader,
-      getUid: getBilibiliUid
-    }
+      getUid: getBilibiliUid,
+    },
+    remoteGiftCatalog: {
+      // The callback is evaluated after the license manager is created. It
+      // deliberately exposes no token or remote client to the renderer.
+      fetch: (request) =>
+        licenseManager?.getState() === LicenseState.AUTHORIZED
+          ? licenseManager.getGiftCatalog(request)
+          : null,
+      imageBaseUrl: () =>
+        licenseManager?.getRemoteBaseUrl?.() || remoteGiftCatalogBootstrapBase,
+    },
   };
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: pathState.dataDir,
@@ -193,13 +288,20 @@ async function startDesktopApp() {
     isPackaged: app.isPackaged,
     appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
     licenseGate: {
-      isAuthorized: () => licenseManager?.getState() === LicenseState.AUTHORIZED
+      isAuthorized: () =>
+        licenseManager?.getState() === LicenseState.AUTHORIZED,
     },
-    onPhase: (phase, durationMs, extra) => writeLog('lifecycle', {
-      event: 'PHASE', phase, durationMs, ...extra
-    })
+    onPhase: (phase, durationMs, extra) =>
+      writeLog('lifecycle', {
+        event: 'PHASE',
+        phase,
+        durationMs,
+        ...extra,
+      }),
   });
-  lifecycleState.shutdown = lifecycleState.runtime.stop.bind(lifecycleState.runtime);
+  lifecycleState.shutdown = lifecycleState.runtime.stop.bind(
+    lifecycleState.runtime,
+  );
 
   // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
   lifecycleState.runtime.setPreShutdownHook(requestPlaybackFlush);
@@ -215,35 +317,68 @@ async function startDesktopApp() {
     isPackaged: app.isPackaged,
     appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
     isProduction: app.isPackaged,
-    allowInsecure: !app.isPackaged
+    allowInsecure: !app.isPackaged,
   });
   registerLicenseIpc({
     ipcMain,
     licenseManager,
-    getMainWindow: () => windowState.main
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
+    hasExactOrigin,
   });
   await licenseManager.bootstrap();
+  writeLog('license-state', {
+    event: 'bootstrap',
+    ...licenseManager.getSnapshot(),
+  });
+  licenseResumeController = createLicenseResumeHandler({
+    powerMonitor,
+    getLicenseManager: () => licenseManager,
+    writeLog,
+  });
+  licenseResumeController.register();
 
   registerLocalFontPermissionHandler({
     desktopSession: session.defaultSession,
     dialog,
     desktopBaseUrl: serverInfo.baseUrl,
     getMainWindow: () => windowState.main,
-    hasExactOrigin
+    hasExactOrigin,
   });
   phaseStartedAt = Date.now();
-  createMainWindow(serverInfo.baseUrl, licenseManager.getState() === LicenseState.AUTHORIZED);
+  createMainWindow(
+    serverInfo.baseUrl,
+    licenseManager.getState() === LicenseState.AUTHORIZED,
+  );
   licenseManager.onStateChanged((snapshot) => {
+    writeLog('license-state', {
+      event: 'changed',
+      state: snapshot.state,
+      error: snapshot.error || null,
+    });
     if (!windowState.main || windowState.main.isDestroyed()) return;
     if (snapshot.state === LicenseState.AUTHORIZED) {
       const resumePromise = lifecycleState.runtime.resumeAuthorizedWork?.();
-      if (resumePromise?.catch) resumePromise.catch((error) => writeLog('license-resume', error));
-      windowState.main.loadURL(windowState.baseUrl + '/admin?desktop=1').catch((error) => writeLog('license-navigation', error));
-    } else if (snapshot.state !== LicenseState.CHECKING && snapshot.state !== LicenseState.AUTHORIZING) {
+      if (resumePromise?.catch)
+        resumePromise.catch((error) => writeLog('license-resume', error));
+      windowState.main
+        .loadURL(windowState.baseUrl + '/admin?desktop=1')
+        .catch((error) => writeLog('license-navigation', error));
+    } else if (
+      snapshot.state !== LicenseState.CHECKING &&
+      snapshot.state !== LicenseState.AUTHORIZING
+    ) {
       lifecycleState.runtime.pauseAuthorizedWork?.();
-      windowState.main.loadURL(windowState.baseUrl + '/license').catch((error) => writeLog('license-navigation', error));
+      windowState.main
+        .loadURL(windowState.baseUrl + '/license')
+        .catch((error) => writeLog('license-navigation', error));
     }
   });
+  if (licenseManager.getState() === LicenseState.AUTHORIZED) {
+    const resumePromise = lifecycleState.runtime.resumeAuthorizedWork?.();
+    if (resumePromise?.catch)
+      resumePromise.catch((error) => writeLog('license-resume', error));
+  }
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
@@ -253,7 +388,7 @@ async function startDesktopApp() {
       status: 'dev-disabled',
       message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
       canDownload: false,
-      canInstall: false
+      canInstall: false,
     };
     sendUpdateState();
   }
@@ -272,13 +407,13 @@ function configureDesktopEnvironment() {
     runId: loggingState.runId,
     pid: process.pid,
     processType: process.type || 'browser',
-    nextSequence: nextLogSequence
+    nextSequence: nextLogSequence,
   });
   writeLog('lifecycle', {
     event: 'START',
     dataDir: pathState.dataDir,
     logDir: pathState.logDir,
-    isPackaged: app.isPackaged
+    isPackaged: app.isPackaged,
   });
   mediaState.localAccess = createLocalMediaAccess(pathState.dataDir);
   process.env.SONG_PLUGIN_DATA_DIR = pathState.dataDir;
@@ -299,7 +434,13 @@ function migrateUserDataFromAppData() {
   if (fs.existsSync(oldPartitions) && !fs.existsSync(newPartitions)) {
     try {
       fs.cpSync(oldPartitions, newPartitions, { recursive: true });
-      writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
+      writeLog(
+        'migration',
+        '已将旧 Chromium 分区数据从 ' +
+          oldPartitions +
+          ' 迁移至 ' +
+          newPartitions,
+      );
     } catch (e) {
       writeLog('migration-error', e);
     }
@@ -311,7 +452,9 @@ function configureMenu() {
 }
 
 function isPathAllowedForLocalMedia(filePath) {
-  return Boolean(mediaState.localAccess && mediaState.localAccess.isAllowed(filePath));
+  return Boolean(
+    mediaState.localAccess && mediaState.localAccess.isAllowed(filePath),
+  );
 }
 
 function configureLocalMediaProtocol() {
@@ -321,20 +464,29 @@ function configureLocalMediaProtocol() {
 function createMainWindow(baseUrl, authorized = false) {
   windowState.baseUrl = baseUrl;
   var opts = {
-    width: 1280, height: 720, minWidth: 1024, minHeight: 680,
-    show: false, title: 'LIRA', backgroundColor: '#f7f3ef',
+    width: 1280,
+    height: 720,
+    minWidth: 1024,
+    minHeight: 680,
+    show: false,
+    title: 'LIRA',
+    backgroundColor: '#f7f3ef',
     frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true, nodeIntegration: false, sandbox: false
-    }
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
   };
   var iconPath = path.join(ROOT_DIR, 'build', 'icon.png');
   if (fs.existsSync(iconPath)) opts.icon = iconPath;
 
   windowState.main = new BrowserWindow(opts);
   writeLog('window', { event: 'create', window: 'main' });
-  windowState.main.loadURL(baseUrl + (authorized ? '/admin?desktop=1' : '/license'));
+  windowState.main.loadURL(
+    baseUrl + (authorized ? '/admin?desktop=1' : '/license'),
+  );
 
   windowState.main.once('ready-to-show', function () {
     writeLog('window', { event: 'ready', window: 'main' });
@@ -343,7 +495,9 @@ function createMainWindow(baseUrl, authorized = false) {
     sendUpdateState();
     if (app.isPackaged && readAutoUpdateSetting()) {
       setTimeout(function () {
-        checkForUpdates().catch(function (e) { setUpdateError(e); });
+        checkForUpdates().catch(function (e) {
+          setUpdateError(e);
+        });
       }, 1000);
     }
   });
@@ -356,9 +510,20 @@ function createMainWindow(baseUrl, authorized = false) {
   });
 
   windowState.main.webContents.on('will-navigate', function (event, url) {
-    var parsed; try { parsed = new URL(url); } catch (_) { parsed = null; }
+    var parsed;
+    try {
+      parsed = new URL(url);
+    } catch (_) {
+      parsed = null;
+    }
     var base = new URL(baseUrl);
-    if (parsed && parsed.protocol === base.protocol && parsed.hostname === base.hostname && parsed.port === base.port) return;
+    if (
+      parsed &&
+      parsed.protocol === base.protocol &&
+      parsed.hostname === base.hostname &&
+      parsed.port === base.port
+    )
+      return;
     event.preventDefault();
     if (isAllowedExternal(url) || isAllowedLocalUrl(url)) {
       shell.openExternal(url);
@@ -389,203 +554,7 @@ function logStartupPhase(phase, startedAt, extra = {}) {
     event: 'PHASE',
     phase,
     durationMs: Math.max(0, Date.now() - Number(startedAt || Date.now())),
-    ...extra
-  });
-}
-
-// ---- IPC handlers ----
-
-function configureMusicMediaRequestHeaders() {
-  if (mediaState.headersConfigured) return;
-  mediaState.headersConfigured = true;
-  session.defaultSession.webRequest.onBeforeSendHeaders({
-    urls: [
-      '*://*.music.163.com/*', '*://*.music.126.net/*',
-      '*://*.qqmusic.qq.com/*', '*://*.gtimg.cn/*', '*://*.y.qq.com/*'
-    ]
-  }, function (details, callback) {
-    var headers = { ...details.requestHeaders };
-    var host = '';
-    try { host = new URL(details.url).hostname.toLowerCase(); } catch (_) {}
-    if (host.endsWith('music.163.com') || host.endsWith('music.126.net')) {
-      if (!headers.Referer && !headers.referer) headers.Referer = 'https://music.163.com/';
-    } else if (host.endsWith('qqmusic.qq.com') || host.endsWith('gtimg.cn') || host.endsWith('y.qq.com')) {
-      if (!headers.Referer && !headers.referer) headers.Referer = 'https://y.qq.com/';
-      if (!headers.Origin && !headers.origin) headers.Origin = 'https://y.qq.com';
-    }
-    callback({ requestHeaders: headers });
-  });
-}
-
-function configureBilibiliMediaRequestHeaders() {
-  session.defaultSession.webRequest.onBeforeSendHeaders({
-    urls: ['*://*.bilibili.com/*', '*://*.hdslb.com/*']
-  }, function (details, callback) {
-    var headers = { ...details.requestHeaders };
-    var host = '';
-    try { host = new URL(details.url).hostname.toLowerCase(); } catch (_) {}
-    if (host.endsWith('bilibili.com') || host.endsWith('hdslb.com')) {
-      if (!headers.Referer && !headers.referer) headers.Referer = 'https://www.bilibili.com/';
-      if (!headers.Origin && !headers.origin) headers.Origin = 'https://www.bilibili.com';
-    }
-    callback({ requestHeaders: headers });
-  });
-}
-
-// ---- thin wrappers (delegate to extracted modules) ----
-
-
-function getMusicAuthState(platform) {
-  return authMgr.getMusicAuthState(platform, pathState.dataDir);
-}
-
-function getMusicCookieHeader(platform) {
-  return authMgr.getMusicCookieHeader(platform);
-}
-
-// 复用同一个 provider registry，避免每次 health 检查都重新实例化（状态不一致 + 无谓开销）。
-function getMusicProviderRegistry() {
-  if (!mediaState.providerRegistry) {
-    mediaState.providerRegistry = require('../music/provider-registry').createMusicProviderRegistry({
-      getAuthState: getMusicAuthState,
-      getCookieHeader: getMusicCookieHeader
-    });
-  }
-  return mediaState.providerRegistry;
-}
-
-function logoutMusicAccount(platform) {
-  return authMgr.logoutMusicAccount(platform, pathState.dataDir);
-}
-
-function clearMusicBrowserCache() {
-  return authMgr.clearMusicBrowserCache();
-}
-
-function persistMusicCookieSnapshot(platform) {
-  return authMgr.persistMusicCookieSnapshot(platform, pathState.dataDir);
-}
-
-function restoreMusicCookieSnapshot(platform) {
-  return authMgr.restoreMusicCookieSnapshot(platform, pathState.dataDir);
-}
-
-function normalizeMusicPlatform(value) {
-  return authMgr.normalizeMusicPlatform(value);
-}
-
-function isAllowedMusicLoginUrl(platform, url) {
-  return authMgr.isAllowedMusicLoginUrl(platform, url);
-}
-
-// ── Bilibili auth wrappers ──
-
-function getBilibiliAuthState() {
-  return bilibiliAuth.getBilibiliAuthState(pathState.dataDir);
-}
-
-function getBilibiliCookieHeader() {
-  return bilibiliAuth.getBilibiliCookieHeader();
-}
-
-function getBilibiliUid() {
-  return bilibiliAuth.getBilibiliUid();
-}
-
-function restoreBilibiliCookieSnapshot() {
-  return bilibiliAuth.restoreBilibiliCookieSnapshot(pathState.dataDir);
-}
-
-async function loginBilibiliAccount() {
-  writeLog('window', { event: 'create', window: 'bilibili-login' });
-  try {
-    return await openBilibiliLoginWindow({
-      BrowserWindow,
-      shell,
-      auth: bilibiliAuth,
-      mainWindow: windowState.main,
-      dataDir: pathState.dataDir,
-      writeLog
-    });
-  } finally {
-    writeLog('window', { event: 'closed', window: 'bilibili-login' });
-  }
-}
-
-async function logoutBilibiliAccount() {
-  return bilibiliAuth.logoutBilibiliAccount(pathState.dataDir);
-}
-
-async function restoreMusicCookieSnapshots() {
-  var platforms = Object.keys(MUSIC_LOGIN_CONFIG);
-  for (var i = 0; i < platforms.length; i++) {
-    await restoreMusicCookieSnapshot(platforms[i]);
-  }
-}
-
-async function loginMusicAccount(platform) {
-  writeLog('window', { event: 'create', window: 'music-login', platform });
-  try {
-    return await loginWin.loginMusicAccount(windowState.main, platform, pathState.dataDir);
-  } finally {
-    writeLog('window', { event: 'closed', window: 'music-login', platform });
-  }
-}
-
-async function checkForUpdates() {
-  return updateMgr.checkForUpdates();
-}
-
-function readAutoUpdateSetting() {
-  try {
-    return Boolean(lifecycleState.runtime &&
-      typeof lifecycleState.runtime.getSetting === 'function' &&
-      lifecycleState.runtime.getSetting('enableAutoUpdate') === 'true');
-  } catch (_) {
-    return false;
-  }
-}
-
-async function downloadUpdate() {
-  return updateMgr.downloadUpdate();
-}
-
-function installUpdate() {
-  return updateMgr.installUpdate();
-}
-
-function onUpdateStateChange(state) {
-  updateRuntime.value = state;
-  sendUpdateState();
-}
-
-function setUpdateState(nextState) {
-  updateRuntime.value = { ...updateRuntime.value, ...nextState, version: app.getVersion() };
-  sendUpdateState();
-  return updateRuntime.value;
-}
-
-function sendUpdateState() {
-  if (windowState.main && !windowState.main.isDestroyed()) {
-    windowState.main.webContents.send('desktop:update-state', updateRuntime.value);
-    // 让预留的 desktop:show-update-page 通道生效：更新可用/已下载时主动切到更新页。
-    if (updateRuntime.value.status !== updateRuntime.lastStatus) {
-      updateRuntime.lastStatus = updateRuntime.value.status;
-      if (updateRuntime.value.status === 'available' || updateRuntime.value.status === 'downloaded') {
-        windowState.main.webContents.send('desktop:show-update-page');
-      }
-    }
-  }
-}
-
-function setUpdateError(error) {
-  writeLog('update-error', error);
-  var friendly = updateMgr.friendlyUpdateError(error);
-  setUpdateState({
-    status: friendly.status,
-    message: friendly.message,
-    canDownload: false,
-    canInstall: false
+    ...extra,
   });
 }
 
@@ -593,23 +562,6 @@ async function requestPlaybackFlush() {
   var result = await playbackFlush.requestPlaybackFlush(windowState.main);
   writeLog('playback-flush', result);
   return result;
-}
-
-function writeLog(scope, value) {
-  var redactedValue = redactCredentials(value);
-  var msg = redactedValue instanceof Error
-    ? (redactedValue.stack || redactedValue.message)
-    : (typeof redactedValue === 'string' ? redactedValue : JSON.stringify(redactedValue));
-  var line = formatLogLine({
-    timestamp: new Date().toISOString(),
-    runId: loggingState.runId,
-    sequence: nextLogSequence(),
-    pid: process.pid,
-    processType: process.type || 'browser',
-    source: 'desktop:' + scope,
-    message: msg
-  });
-  try { fs.appendFileSync(pathState.logFile, line, 'utf8'); } catch (_) {}
 }
 
 function normalizeGiftDisplayTrace(gift) {
@@ -622,11 +574,6 @@ function normalizeGiftDisplayTrace(gift) {
     userName: String(value.userName || '').slice(0, 200),
     num: Math.max(1, Number(value.num) || 1),
     totalPrice: Number(value.totalPrice) || 0,
-    toastKey: String(value.toastKey || '').slice(0, 200)
+    toastKey: String(value.toastKey || '').slice(0, 200),
   };
-}
-
-function nextLogSequence() {
-  loggingState.sequence += 1;
-  return loggingState.sequence;
 }

@@ -25,7 +25,10 @@
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
   cursor: pointer;
   list-style: none;
 }

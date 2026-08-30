@@ -17,21 +17,38 @@ test('personal playlist cache survives a restart for up to twenty-four hours', a
     }
   }
   const localStorage = {
-    get length() { return values.size; },
-    getItem(key) { return values.get(key) ?? null; },
-    setItem(key, value) { values.set(key, String(value)); },
-    removeItem(key) { values.delete(key); },
-    key(index) { return Array.from(values.keys())[index] ?? null; }
+    get length() {
+      return values.size;
+    },
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      values.set(key, String(value));
+    },
+    removeItem(key) {
+      values.delete(key);
+    },
+    key(index) {
+      return Array.from(values.keys())[index] ?? null;
+    },
   };
-  const { CacheManager } = await loadCacheManager({ localStorage, Date: TestDate });
-  const cached = { items: [{ id: 'liked-1', title: '缓存歌曲' }], itemType: 'track', action: 'liked' };
+  const { CacheManager } = await loadCacheManager({
+    localStorage,
+    Date: TestDate,
+  });
+  const cached = {
+    items: [{ id: 'liked-1', title: '缓存歌曲' }],
+    itemType: 'track',
+    action: 'liked',
+  };
 
   new CacheManager().set('qq:liked', cached);
   now += 12 * 60 * 60 * 1000;
 
   assert.deepEqual(
     JSON.parse(JSON.stringify(new CacheManager().get('qq:liked'))),
-    cached
+    cached,
   );
 
   now += 13 * 60 * 60 * 1000;
@@ -39,11 +56,19 @@ test('personal playlist cache survives a restart for up to twenty-four hours', a
 });
 
 async function loadCacheManager(globals) {
-  const filePath = path.join(__dirname, '..', 'public', 'js', 'playback', 'cache', 'manager.js');
+  const filePath = path.join(
+    __dirname,
+    '..',
+    'public',
+    'js',
+    'playback',
+    'cache',
+    'manager.js',
+  );
   const context = vm.createContext({ console, ...globals });
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context,
-    identifier: pathToFileURL(filePath).href
+    identifier: pathToFileURL(filePath).href,
   });
   await module.link(() => {
     throw new Error('CacheManager should not import dependencies.');

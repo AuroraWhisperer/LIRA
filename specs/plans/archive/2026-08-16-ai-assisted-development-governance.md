@@ -138,27 +138,27 @@ maintainability > minimal diff > cleverness.`
 
 ## File Map
 
-| File | Action | Responsibility |
-|---|---|---|
-| `AGENTS.md` | Rewrite | Root constitution, authority rules, workflow, verification, and local rule discovery |
-| `PLANS.md` | Create | Risk-based planning requirements and plan format |
-| `docs/architecture/engineering/ai-workflow.md` | Create | Task-to-owner, contract, consumer, and test routing |
-| `docs/architecture/engineering/legacy-boundaries.md` | Create | Qualitative legacy registry and migration direction |
-| `docs/architecture/engineering/modularity-standard.md` | Rewrite in English | Target architecture, stable rule IDs, status, and enforcement mapping |
-| `src/storage/AGENTS.md` | Create | SQLite migration, transaction, and data-safety restrictions |
-| `src/electron/AGENTS.md` | Create | Renderer privilege, IPC, lifecycle, session, and update restrictions |
-| `public/js/admin/AGENTS.md` | Create | ESM, legacy bridge, rendering safety, and UI ownership restrictions |
-| `specs/README.md` | Create | Spec lifecycle index, status vocabulary, threshold, and template |
-| `docs/architecture/adr/0008-ai-assisted-change-governance.md` | Create | Accepted governance decision and trade-offs |
-| `test/governance-docs.test.js` | Create | Small deterministic governance and documentation checks |
-| `test/module-boundaries.test.js` | Extend | Exact legacy text-debt budgets |
-| `package.json` | Modify | Add quick and full verification scripts |
-| `docs/architecture/frontend/app.md` | Correct | Replace stale `admin.html` references |
-| `docs/architecture/frontend/pages.md` | Correct | Replace stale `admin.html` references |
-| `docs/architecture/README.md` | Update | Engineering navigation, ADR, fact-map entries, and volatile-version cleanup |
-| `docs/architecture/engineering/build.md` | Update | Verification scripts only |
-| `docs/architecture/engineering/test.md` | Update | Governance checks and verification commands |
-| `docs/superpowers/plans/2026-08-16-modularity-low-coupling-refactor.md` | Move and normalize | Archive the completed historical plan without changing historical changelog text |
+| File                                                                    | Action             | Responsibility                                                                       |
+| ----------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `AGENTS.md`                                                             | Rewrite            | Root constitution, authority rules, workflow, verification, and local rule discovery |
+| `PLANS.md`                                                              | Create             | Risk-based planning requirements and plan format                                     |
+| `docs/architecture/engineering/ai-workflow.md`                          | Create             | Task-to-owner, contract, consumer, and test routing                                  |
+| `docs/architecture/engineering/legacy-boundaries.md`                    | Create             | Qualitative legacy registry and migration direction                                  |
+| `docs/architecture/engineering/modularity-standard.md`                  | Rewrite in English | Target architecture, stable rule IDs, status, and enforcement mapping                |
+| `src/storage/AGENTS.md`                                                 | Create             | SQLite migration, transaction, and data-safety restrictions                          |
+| `src/electron/AGENTS.md`                                                | Create             | Renderer privilege, IPC, lifecycle, session, and update restrictions                 |
+| `public/js/admin/AGENTS.md`                                             | Create             | ESM, legacy bridge, rendering safety, and UI ownership restrictions                  |
+| `specs/README.md`                                                       | Create             | Spec lifecycle index, status vocabulary, threshold, and template                     |
+| `docs/architecture/adr/0008-ai-assisted-change-governance.md`           | Create             | Accepted governance decision and trade-offs                                          |
+| `test/governance-docs.test.js`                                          | Create             | Small deterministic governance and documentation checks                              |
+| `test/module-boundaries.test.js`                                        | Extend             | Exact legacy text-debt budgets                                                       |
+| `package.json`                                                          | Modify             | Add quick and full verification scripts                                              |
+| `docs/architecture/frontend/app.md`                                     | Correct            | Replace stale `admin.html` references                                                |
+| `docs/architecture/frontend/pages.md`                                   | Correct            | Replace stale `admin.html` references                                                |
+| `docs/architecture/README.md`                                           | Update             | Engineering navigation, ADR, fact-map entries, and volatile-version cleanup          |
+| `docs/architecture/engineering/build.md`                                | Update             | Verification scripts only                                                            |
+| `docs/architecture/engineering/test.md`                                 | Update             | Governance checks and verification commands                                          |
+| `docs/superpowers/plans/2026-08-16-modularity-low-coupling-refactor.md` | Move and normalize | Archive the completed historical plan without changing historical changelog text     |
 
 ## Milestone 1: Root Constitution And Planning Standard
 
@@ -176,7 +176,7 @@ Required sections:
 - Sources of truth and links to the architecture fact map.
 - Before editing:
   `fact map -> route table -> exports/imports/callers -> relevant tests ->
-  optional git history`.
+optional git history`.
 - Change scope.
 - Architecture invariants.
 - Legacy policy.
@@ -257,8 +257,10 @@ Use a human-readable Markdown table enclosed by:
 
 ```markdown
 <!-- ROUTE_TABLE_START -->
+
 | Route ID | Domain | Owner | Contract | Typical Consumers | Tests |
-|---|---|---|---|---|---|
+| -------- | ------ | ----- | -------- | ----------------- | ----- |
+
 <!-- ROUTE_TABLE_END -->
 ```
 
@@ -273,20 +275,20 @@ Rules for machine readability:
 
 Required route rows:
 
-| Route ID | Domain |
-|---|---|
+| Route ID               | Domain                                                 |
+| ---------------------- | ------------------------------------------------------ |
 | `ROUTE-MUSIC-REQUESTS` | Song library, requests, matching, queue, and cooldowns |
-| `ROUTE-PLAYBACK` | Playback, providers, streams, and lyrics |
-| `ROUTE-WESING` | WeSing capture and synchronization |
-| `ROUTE-BILIBILI` | Bilibili danmaku and commands |
-| `ROUTE-GIFTS` | Gifts and SuperChat |
-| `ROUTE-OVERTIME` | Overtime settlement and countdown |
-| `ROUTE-AI` | AI assistant and provider adapters |
-| `ROUTE-STORAGE` | Storage, schema, migrations, and retention |
-| `ROUTE-SERVER` | Server core, HTTP, WebSocket, and lifecycle |
-| `ROUTE-ELECTRON` | Electron windows, login, IPC, update, and shutdown |
-| `ROUTE-ADMIN` | Admin frontend and page composition |
-| `ROUTE-OVERLAYS` | OBS overlays |
+| `ROUTE-PLAYBACK`       | Playback, providers, streams, and lyrics               |
+| `ROUTE-WESING`         | WeSing capture and synchronization                     |
+| `ROUTE-BILIBILI`       | Bilibili danmaku and commands                          |
+| `ROUTE-GIFTS`          | Gifts and SuperChat                                    |
+| `ROUTE-OVERTIME`       | Overtime settlement and countdown                      |
+| `ROUTE-AI`             | AI assistant and provider adapters                     |
+| `ROUTE-STORAGE`        | Storage, schema, migrations, and retention             |
+| `ROUTE-SERVER`         | Server core, HTTP, WebSocket, and lifecycle            |
+| `ROUTE-ELECTRON`       | Electron windows, login, IPC, update, and shutdown     |
+| `ROUTE-ADMIN`          | Admin frontend and page composition                    |
+| `ROUTE-OVERLAYS`       | OBS overlays                                           |
 
 The governance test must require every ID in this set exactly once and reject
 duplicate Route IDs. Additional rows are allowed only with a unique `ROUTE-*` ID.
@@ -344,15 +346,15 @@ vocabulary:
 
 Initial rule registry:
 
-| Rule ID | Rule | Status | Enforcement |
-|---|---|---|---|
-| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle | Enforced | Composition-root boundary test |
-| `MOD-STORAGE-001` | Domain services do not issue SQL | Incrementally Enforced | Receiver-aware SQL debt budget |
-| `MOD-STORAGE-002` | Stores own transaction boundaries | Incrementally Enforced | Selected store atomicity tests plus review |
-| `MOD-ADMIN-001` | New Admin code does not add global-state access | Incrementally Enforced | `window.AdminApp` debt budget |
-| `MOD-FRONTEND-001` | New frontend code uses explicit ESM boundaries | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
-| `MOD-SHARED-001` | Shared utilities remain domain-neutral | Migration Target | Selected regression assertions |
-| `MOD-CONTRACT-001` | Public contracts remain compatible by default | Incrementally Enforced | Existing regression tests; full inventory deferred |
+| Rule ID               | Rule                                                 | Status                 | Enforcement                                                                                                                                                                      |
+| --------------------- | ---------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle | Enforced               | Composition-root boundary test                                                                                                                                                   |
+| `MOD-STORAGE-001`     | Domain services do not issue SQL                     | Incrementally Enforced | Receiver-aware SQL debt budget                                                                                                                                                   |
+| `MOD-STORAGE-002`     | Stores own transaction boundaries                    | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
+| `MOD-ADMIN-001`       | New Admin code does not add global-state access      | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
+| `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries       | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
+| `MOD-SHARED-001`      | Shared utilities remain domain-neutral               | Migration Target       | Selected regression assertions                                                                                                                                                   |
+| `MOD-CONTRACT-001`    | Public contracts remain compatible by default        | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
 
 Do not label review-only or partial coverage as `Enforced`.
 
@@ -405,8 +407,10 @@ Enclose the index with:
 
 ```markdown
 <!-- SPEC_INDEX_START -->
+
 | Document | Type | Status | Runtime Evidence | Last Reviewed |
-|---|---|---|---|---|
+| -------- | ---- | ------ | ---------------- | ------------- |
+
 <!-- SPEC_INDEX_END -->
 ```
 
@@ -588,7 +592,7 @@ Files:
 Use this receiver-aware raw-text pattern:
 
 ```javascript
-/\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\.(?:prepare|exec)\s*\(/g
+/\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\.(?:prepare|exec)\s*\(/g;
 ```
 
 Rules:
@@ -625,7 +629,7 @@ Scan every JavaScript file under `src/` and `public/js/` with this exact raw-tex
 pattern:
 
 ```javascript
-/\bcatch(?:\s*\([^)]*\))?\s*\{(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\}/g
+/\bcatch(?:\s*\([^)]*\))?\s*\{(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\}/g;
 ```
 
 Semantics:

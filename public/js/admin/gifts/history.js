@@ -11,11 +11,17 @@
     formatMoney,
     toast,
     readJsonResponse,
-    dangerConfirm
+    dangerConfirm,
   } = window.AdminApp.utils;
 
   const GIFT_HISTORY_LIMIT = 50;
-  let giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
+  let giftHistory = {
+    page: 1,
+    limit: GIFT_HISTORY_LIMIT,
+    total: 0,
+    totalPages: 1,
+    items: [],
+  };
   let giftHistorySeq = 0;
   let giftHistorySort = { field: 'created_at', direction: 'desc' };
 
@@ -27,94 +33,121 @@
     const closeBtn = document.getElementById('giftHistoryClose');
     const backdrop = document.getElementById('giftHistoryBackdrop');
 
-    openBtn && openBtn.addEventListener('click', () => {
-      giftHistory.page = 1;
-      openGiftHistoryDrawer();
-      loadGiftHistory(1);
-    });
+    openBtn &&
+      openBtn.addEventListener('click', () => {
+        giftHistory.page = 1;
+        openGiftHistoryDrawer();
+        loadGiftHistory(1);
+      });
     closeBtn && closeBtn.addEventListener('click', closeGiftHistoryDrawer);
     backdrop && backdrop.addEventListener('click', closeGiftHistoryDrawer);
 
-    const clearDisplayBtn = document.getElementById('giftHistoryClearDisplayBtn');
-    const clearDatabaseBtn = document.getElementById('giftHistoryClearDatabaseBtn');
+    const clearDisplayBtn = document.getElementById(
+      'giftHistoryClearDisplayBtn',
+    );
+    const clearDatabaseBtn = document.getElementById(
+      'giftHistoryClearDatabaseBtn',
+    );
 
-    clearDisplayBtn && clearDisplayBtn.addEventListener('click', async () => {
-      const confirmed = await dangerConfirm({
-        title: '清理显示',
-        message: '将清理抽屉中显示的最近3000条礼物记录。更早的记录仍保留在数据库中。此操作无法恢复。',
-        confirmLabel: '确认清理'
-      });
-      if (!confirmed) return;
-      try {
-        const response = await fetch('/api/gifts/clear-recent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confirm: true })
+    clearDisplayBtn &&
+      clearDisplayBtn.addEventListener('click', async () => {
+        const confirmed = await dangerConfirm({
+          title: '清理显示',
+          message:
+            '将清理抽屉中显示的最近3000条礼物记录。更早的记录仍保留在数据库中。此操作无法恢复。',
+          confirmLabel: '确认清理',
         });
-        const payload = await readJsonResponse(response, '清理显示失败');
-        if (!payload.ok) throw new Error(payload.error || '清理失败');
-        toast(`已清理 ${payload.data.deletedCount} 条显示记录`);
-        giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
-        renderGiftHistory();
-        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-          window.AdminApp.state.reloadState();
+        if (!confirmed) return;
+        try {
+          const response = await fetch('/api/gifts/clear-recent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirm: true }),
+          });
+          const payload = await readJsonResponse(response, '清理显示失败');
+          if (!payload.ok) throw new Error(payload.error || '清理失败');
+          toast(`已清理 ${payload.data.deletedCount} 条显示记录`);
+          giftHistory = {
+            page: 1,
+            limit: GIFT_HISTORY_LIMIT,
+            total: 0,
+            totalPages: 1,
+            items: [],
+          };
+          renderGiftHistory();
+          if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+            window.AdminApp.state.reloadState();
+          }
+        } catch (error) {
+          toast(error.message || '清理显示失败');
         }
-      } catch (error) {
-        toast(error.message || '清理显示失败');
-      }
-    });
+      });
 
-    clearDatabaseBtn && clearDatabaseBtn.addEventListener('click', async () => {
-      const confirmed = await dangerConfirm({
-        title: '清空数据库礼物记录',
-        message: '此操作将永久删除数据库中的所有礼物流水（包括显示的和不显示的），无法恢复。',
-        confirmLabel: '确认清空'
-      });
-      if (!confirmed) return;
-      try {
-        const response = await fetch('/api/database/clear-gifts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ confirm: true })
+    clearDatabaseBtn &&
+      clearDatabaseBtn.addEventListener('click', async () => {
+        const confirmed = await dangerConfirm({
+          title: '清空数据库礼物记录',
+          message:
+            '此操作将永久删除数据库中的所有礼物流水（包括显示的和不显示的），无法恢复。',
+          confirmLabel: '确认清空',
         });
-        const payload = await readJsonResponse(response, '清空礼物失败');
-        if (!payload.ok) throw new Error(payload.error || '清空失败');
-        toast('已清空全部礼物记录');
-        giftHistory = { page: 1, limit: GIFT_HISTORY_LIMIT, total: 0, totalPages: 1, items: [] };
-        renderGiftHistory();
-        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-          window.AdminApp.state.reloadState();
+        if (!confirmed) return;
+        try {
+          const response = await fetch('/api/database/clear-gifts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirm: true }),
+          });
+          const payload = await readJsonResponse(response, '清空礼物失败');
+          if (!payload.ok) throw new Error(payload.error || '清空失败');
+          toast('已清空全部礼物记录');
+          giftHistory = {
+            page: 1,
+            limit: GIFT_HISTORY_LIMIT,
+            total: 0,
+            totalPages: 1,
+            items: [],
+          };
+          renderGiftHistory();
+          if (window.AdminApp.state && window.AdminApp.state.reloadState) {
+            window.AdminApp.state.reloadState();
+          }
+        } catch (error) {
+          toast(error.message || '清空礼物失败');
         }
-      } catch (error) {
-        toast(error.message || '清空礼物失败');
-      }
-    });
+      });
 
     const prevBtn = document.getElementById('giftHistoryPrev');
     const nextBtn = document.getElementById('giftHistoryNext');
-    prevBtn && prevBtn.addEventListener('click', () => {
-      if (giftHistory.page > 1) loadGiftHistory(giftHistory.page - 1);
-    });
-    nextBtn && nextBtn.addEventListener('click', () => {
-      if (giftHistory.page < giftHistory.totalPages) loadGiftHistory(giftHistory.page + 1);
-    });
+    prevBtn &&
+      prevBtn.addEventListener('click', () => {
+        if (giftHistory.page > 1) loadGiftHistory(giftHistory.page - 1);
+      });
+    nextBtn &&
+      nextBtn.addEventListener('click', () => {
+        if (giftHistory.page < giftHistory.totalPages)
+          loadGiftHistory(giftHistory.page + 1);
+      });
 
     // 可排序列点击
-    document.querySelectorAll('#giftHistoryDrawer th[data-sort]').forEach(th => {
-      th.addEventListener('click', () => {
-        const field = th.dataset.sort;
-        if (!field) return;
-        if (giftHistorySort.field === field) {
-          giftHistorySort.direction = giftHistorySort.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-          giftHistorySort.field = field;
-          giftHistorySort.direction = 'asc';
-        }
-        // 重新从第一页加载（后端排序）
-        giftHistory.page = 1;
-        loadGiftHistory(1);
+    document
+      .querySelectorAll('#giftHistoryDrawer th[data-sort]')
+      .forEach((th) => {
+        th.addEventListener('click', () => {
+          const field = th.dataset.sort;
+          if (!field) return;
+          if (giftHistorySort.field === field) {
+            giftHistorySort.direction =
+              giftHistorySort.direction === 'asc' ? 'desc' : 'asc';
+          } else {
+            giftHistorySort.field = field;
+            giftHistorySort.direction = 'asc';
+          }
+          // 重新从第一页加载（后端排序）
+          giftHistory.page = 1;
+          loadGiftHistory(1);
+        });
       });
-    });
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') closeGiftHistoryDrawer();
@@ -148,24 +181,29 @@
   async function loadGiftHistory(page) {
     const seq = ++giftHistorySeq;
     const body = document.getElementById('giftHistoryBody');
-    if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
+    if (body)
+      body.innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
 
     try {
       const params = new URLSearchParams({
         page: String(page),
         limit: String(GIFT_HISTORY_LIMIT),
         sortField: giftHistorySort.field,
-        sortDirection: giftHistorySort.direction
+        sortDirection: giftHistorySort.direction,
       });
       const response = await fetch(`/api/gifts/history?${params}`);
       const payload = await readJsonResponse(response, '礼物流水加载失败');
-      if (!response.ok || !payload.ok) throw new Error(payload.error || `礼物流水加载失败（HTTP ${response.status}）`);
+      if (!response.ok || !payload.ok)
+        throw new Error(
+          payload.error || `礼物流水加载失败（HTTP ${response.status}）`,
+        );
       if (seq !== giftHistorySeq) return;
       giftHistory = { ...giftHistory, ...payload.data };
       renderGiftHistory();
     } catch (error) {
       if (seq !== giftHistorySeq) return;
-      if (body) body.innerHTML = `<tr><td colspan="6" class="empty">加载失败：${escapeHtml(error.message)}</td></tr>`;
+      if (body)
+        body.innerHTML = `<tr><td colspan="6" class="empty">加载失败：${escapeHtml(error.message)}</td></tr>`;
     }
   }
 
@@ -178,28 +216,34 @@
     if (totalEl) totalEl.textContent = `共 ${giftHistory.total} 条`;
 
     if (!giftHistory.items || giftHistory.items.length === 0) {
-      if (body) body.innerHTML = '<tr><td colspan="6" class="empty">暂无礼物记录</td></tr>';
+      if (body)
+        body.innerHTML =
+          '<tr><td colspan="6" class="empty">暂无礼物记录</td></tr>';
     } else {
-      if (body) body.innerHTML = giftHistory.items.map(renderGiftHistoryRow).join('');
+      if (body)
+        body.innerHTML = giftHistory.items.map(renderGiftHistoryRow).join('');
     }
 
     // 排序箭头
-    document.querySelectorAll('#giftHistoryDrawer th[data-sort]').forEach(th => {
-      const arrow = th.querySelector('.sort-arrow');
-      if (!arrow) return;
-      if (th.dataset.sort === giftHistorySort.field) {
-        arrow.textContent = giftHistorySort.direction === 'asc' ? ' ▲' : ' ▼';
-      } else {
-        arrow.textContent = '';
-      }
-    });
+    document
+      .querySelectorAll('#giftHistoryDrawer th[data-sort]')
+      .forEach((th) => {
+        const arrow = th.querySelector('.sort-arrow');
+        if (!arrow) return;
+        if (th.dataset.sort === giftHistorySort.field) {
+          arrow.textContent = giftHistorySort.direction === 'asc' ? ' ▲' : ' ▼';
+        } else {
+          arrow.textContent = '';
+        }
+      });
 
     const prev = document.getElementById('giftHistoryPrev');
     const next = document.getElementById('giftHistoryNext');
     const info = document.getElementById('giftHistoryPageInfo');
     if (prev) prev.disabled = giftHistory.page <= 1;
     if (next) next.disabled = giftHistory.page >= giftHistory.totalPages;
-    if (info) info.textContent = `第 ${giftHistory.page}/${giftHistory.totalPages} 页`;
+    if (info)
+      info.textContent = `第 ${giftHistory.page}/${giftHistory.totalPages} 页`;
   }
 
   /**
@@ -217,16 +261,21 @@
     const blindBoxIcon = getBlindBoxIcon(item);
     const remarks = [];
     if (guardBadge) {
-      remarks.push(`<span class="gift-remark-tag guard"><img class="gift-guard-icon" src="${escapeAttr(guardBadge.src)}" alt="${escapeAttr(guardBadge.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy"> ${escapeHtml(guardBadge.name)}</span>`);
+      remarks.push(
+        `<span class="gift-remark-tag guard"><img class="gift-guard-icon" src="${escapeAttr(guardBadge.src)}" alt="${escapeAttr(guardBadge.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy"> ${escapeHtml(guardBadge.name)}</span>`,
+      );
     }
     if (item.is_blind_box) {
       const blindProfit = item.blind_profit;
       const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
-      const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
+      const profitClass =
+        blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
       const iconHtml = blindBoxIcon
         ? `<img class="gift-blind-box-icon" src="${escapeAttr(blindBoxIcon.src)}" alt="${escapeAttr(blindBoxIcon.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy">`
         : '🎁';
-      remarks.push(`<span class="gift-remark-tag blind ${profitClass}">${iconHtml} 盲盒 ${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span>`);
+      remarks.push(
+        `<span class="gift-remark-tag blind ${profitClass}">${iconHtml} 盲盒 ${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
+      );
     }
     return `
       <tr>
@@ -275,6 +324,6 @@
     openGiftHistoryDrawer,
     closeGiftHistoryDrawer,
     loadGiftHistory,
-    initGiftRecentToggle
+    initGiftRecentToggle,
   };
 })();

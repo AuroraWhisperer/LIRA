@@ -124,7 +124,9 @@
   line-height: 1.4;
   white-space: nowrap;
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .usage-guide-toc a:hover {
@@ -357,7 +359,9 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-2);
-  transition: border-color 0.16s ease, background 0.16s ease;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
 }
 
 .usage-guide-faq:hover {
@@ -402,7 +406,9 @@
   width: 16px;
   height: 16px;
   color: var(--muted);
-  transition: transform 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease;
 }
 
 .usage-guide-faq[open] .usage-guide-faq-chevron {
@@ -442,7 +448,7 @@
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc::before {
-    content: "本页目录";
+    content: '本页目录';
     padding: 0 12px 8px;
     color: var(--muted);
     font-size: var(--type-size-micro);
@@ -514,34 +520,73 @@
   .danmaku-fortune-fields,
   .danmaku-fortune-add-grid,
   .danmaku-custom-reply-fields,
-  .danmaku-custom-reply-add-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .danmaku-fortune-add-grid .secondary { grid-column: 2; }
-  .danmaku-custom-reply-add-grid .secondary { grid-column: 2; }
+  .danmaku-custom-reply-add-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .danmaku-fortune-add-grid .secondary {
+    grid-column: 2;
+  }
+  .danmaku-custom-reply-add-grid .secondary {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 600px) {
-  .danmaku-reply-target { align-items: stretch; flex-direction: column; }
-  .danmaku-bot-switch-grid { grid-template-columns: 1fr; }
-  .danmaku-reply-target .switch-control { align-self: flex-start; }
-  .danmaku-feature-section { padding: 14px; }
-  .danmaku-status-grid { grid-template-columns: 1fr; }
-  .danmaku-status-grid > div + div { border-top: 1px solid var(--border); border-left: 0; }
-  .danmaku-blessings-section > summary { padding: 13px 14px; }
-  .danmaku-blessings-body { padding: 12px 14px 14px; }
-  .danmaku-blessing-actions { align-items: stretch; flex-direction: column; }
-  .danmaku-blessing-actions button { width: 100%; }
+  .danmaku-reply-target {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .danmaku-bot-switch-grid {
+    grid-template-columns: 1fr;
+  }
+  .danmaku-reply-target .switch-control {
+    align-self: flex-start;
+  }
+  .danmaku-feature-section {
+    padding: 14px;
+  }
+  .danmaku-status-grid {
+    grid-template-columns: 1fr;
+  }
+  .danmaku-status-grid > div + div {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+  .danmaku-blessings-section > summary {
+    padding: 13px 14px;
+  }
+  .danmaku-blessings-body {
+    padding: 12px 14px 14px;
+  }
+  .danmaku-blessing-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .danmaku-blessing-actions button {
+    width: 100%;
+  }
   .danmaku-fortune-fields,
   .danmaku-fortune-add-grid,
   .danmaku-custom-reply-fields,
-  .danmaku-custom-reply-add-grid { grid-template-columns: 1fr; }
-  .danmaku-fortune-add-grid .secondary { grid-column: 1; justify-self: stretch; }
-  .danmaku-custom-reply-add-grid .secondary { grid-column: 1; justify-self: stretch; }
+  .danmaku-custom-reply-add-grid {
+    grid-template-columns: 1fr;
+  }
+  .danmaku-fortune-add-grid .secondary {
+    grid-column: 1;
+    justify-self: stretch;
+  }
+  .danmaku-custom-reply-add-grid .secondary {
+    grid-column: 1;
+    justify-self: stretch;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .danmaku-details-chevron,
   .danmaku-reply-target,
-  #danmakuMessage { transition: none; }
+  #danmakuMessage {
+    transition: none;
+  }
 }
 
 @media (max-width: 900px) {

@@ -1,24 +1,30 @@
 // Queue overlay stateless formatting and timing helpers.
 'use strict';
 
-const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
+const multilingualFontFallback =
+  '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 export function hexToRgb(hex) {
   const normalized = String(hex || '#181823').replace('#', '');
-  const value = normalized.length === 3
-    ? normalized.split('').map((char) => char + char).join('')
-    : normalized;
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : normalized;
   const number = Number.parseInt(value, 16);
   return {
     r: (number >> 16) & 255,
     g: (number >> 8) & 255,
-    b: number & 255
+    b: number & 255,
   };
 }
 
 export function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
-  const settingSpeed = settings?.[settingKey] || settings?.queueScrollSpeed || 80;
+  const settingSpeed =
+    settings?.[settingKey] || settings?.queueScrollSpeed || 80;
   const speed = Math.round(Number(urlSpeed || settingSpeed));
   const displaySpeed = normalizeQueueScrollSpeed(speed);
   const actualSpeed = 50 + ((displaySpeed - 1) / 99) * 150;
@@ -29,7 +35,9 @@ export function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
 export function normalizeQueueScrollSpeed(speed) {
   if (!Number.isFinite(speed)) return 80;
   if (speed > 100) {
-    return Math.round(1 + ((Math.max(50, Math.min(200, speed)) - 50) / 150) * 99);
+    return Math.round(
+      1 + ((Math.max(50, Math.min(200, speed)) - 50) / 150) * 99,
+    );
   }
   return Math.max(1, Math.min(100, speed));
 }
@@ -41,11 +49,19 @@ export function overlayLowPowerEnabled(settings) {
   return (settings.overlayLowPowerMode || 'false') === 'true';
 }
 
-export function scrollTravelSeconds(secondsPerViewport, distance, viewportDistance) {
+export function scrollTravelSeconds(
+  secondsPerViewport,
+  distance,
+  viewportDistance,
+) {
   const safeSeconds = Math.max(0.01, Number(secondsPerViewport) || 0.01);
   const safeDistance = Math.max(0, Number(distance) || 0);
   const safeViewportDistance = Math.max(1, Number(viewportDistance) || 1);
-  return Number(Math.max(0.05, (safeSeconds * safeDistance) / safeViewportDistance).toFixed(3));
+  return Number(
+    Math.max(0.05, (safeSeconds * safeDistance) / safeViewportDistance).toFixed(
+      3,
+    ),
+  );
 }
 
 export function bounceScrollTiming(downSeconds, upSeconds = 3) {
@@ -55,14 +71,17 @@ export function bounceScrollTiming(downSeconds, upSeconds = 3) {
     totalSeconds,
     topPauseEndPercent: (pauseSeconds / totalSeconds) * 100,
     downPercent: ((pauseSeconds + downSeconds) / totalSeconds) * 100,
-    pauseEndPercent: ((pauseSeconds + downSeconds + pauseSeconds) / totalSeconds) * 100
+    pauseEndPercent:
+      ((pauseSeconds + downSeconds + pauseSeconds) / totalSeconds) * 100,
   };
 }
 
 export function hexToRgba(hex, opacity) {
   const { r, g, b } = hexToRgb(hex);
   const alpha = Number(opacity);
-  const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 0.76;
+  const safeAlpha = Number.isFinite(alpha)
+    ? Math.max(0, Math.min(1, alpha))
+    : 0.76;
   return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
 }
 
@@ -83,7 +102,7 @@ export function queueSongFontSize(settings) {
     (settings || {}).queueSongFontSize,
     scaleToFontSize((settings || {}).themeFontScale, 40),
     70,
-    10
+    10,
   );
 }
 
@@ -98,11 +117,13 @@ export function scaleToFontSize(scale, baseSize) {
 }
 
 export function guardLabel(level) {
-  return {
-    1: '总督',
-    2: '提督',
-    3: '舰长'
-  }[level] || '观众';
+  return (
+    {
+      1: '总督',
+      2: '提督',
+      3: '舰长',
+    }[level] || '观众'
+  );
 }
 
 export function requesterIdentityLabel(guardLevel, medalName) {
@@ -131,13 +152,16 @@ export function medalLevelClass(level) {
 export function formatSuperChatPrice(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return '0';
-  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return Number.isInteger(number)
+    ? String(number)
+    : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 export function superChatPriceClass(value) {
   const number = Number(value);
   if (Number.isFinite(number) && number >= 1000) return 'identity-sc-price-red';
-  if (Number.isFinite(number) && number >= 100) return 'identity-sc-price-yellow';
+  if (Number.isFinite(number) && number >= 100)
+    return 'identity-sc-price-yellow';
   return 'identity-sc-price-blue';
 }
 

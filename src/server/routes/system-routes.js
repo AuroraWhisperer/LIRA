@@ -17,12 +17,19 @@ const routes = {
 
   async 'GET /api/system/metrics'(context, request, res) {
     const windowMs = Number(request.query.get('windowMs') || 5000);
-    sendJson(res, 200, { ok: true, data: await context.system.getMetrics(windowMs) });
+    sendJson(res, 200, {
+      ok: true,
+      data: await context.system.getMetrics(windowMs),
+    });
   },
 
   async 'GET /api/system/hardware'(context, request, res) {
-    const includeTemperatures = request.query.get('includeTemperatures') === 'true';
-    sendJson(res, 200, { ok: true, data: await context.system.getHardware(includeTemperatures) });
+    const includeTemperatures =
+      request.query.get('includeTemperatures') === 'true';
+    sendJson(res, 200, {
+      ok: true,
+      data: await context.system.getHardware(includeTemperatures),
+    });
   },
 
   async 'POST /api/system/shutdown'(context, request, res) {
@@ -33,7 +40,7 @@ const routes = {
     }
     sendJson(res, 200, { ok: true, data: { shuttingDown: true } });
     setTimeout(() => context.system.shutdown(), 250);
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

@@ -13,9 +13,10 @@ export class Logger {
 
   _shouldEnable() {
     // 开发环境检测
-    const isDev = window.location.hostname === 'localhost' ||
-                  window.location.hostname === '127.0.0.1' ||
-                  window.AdminApp?.debug === true;
+    const isDev =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.AdminApp?.debug === true;
     return isDev;
   }
 

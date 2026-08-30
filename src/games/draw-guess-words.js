@@ -1,14 +1,21 @@
 'use strict';
 
 const WORD_CATEGORIES = Object.freeze([
-  createCategory('food-drink', '美食饮品', `
+  createCategory(
+    'food-drink',
+    '美食饮品',
+    `
     苹果 梨 香蕉 橙子 柚子 葡萄 草莓 蓝莓 樱桃 西瓜 哈密瓜 桃子 菠萝 芒果 猕猴桃 石榴 柿子 柠檬 椰子 火龙果
     荔枝 龙眼 山竹 榴莲 杨梅 枇杷 橘子 百香果 桑葚 甘蔗 玉米 红薯 土豆 番茄 黄瓜 茄子 南瓜 胡萝卜 白菜 西兰花
     蘑菇 洋葱 辣椒 大蒜 生姜 豆腐 鸡蛋 米饭 馒头 面条 饺子 包子 油条 粽子 月饼 汤圆 春卷 寿司 披萨 汉堡包|汉堡
     三明治 热狗 薯条 炸鸡 牛排 烤鸭 火锅 烧烤 麻辣烫 小龙虾 大闸蟹 烤鱼 水煮鱼 宫保鸡丁 红烧肉 糖醋排骨 蛋炒饭 兰州拉面 螺蛳粉 凉皮
     蛋糕 甜甜圈 冰淇淋|冰激凌 棒棒糖 巧克力 饼干 爆米花 布丁 果冻 棉花糖 奶茶 咖啡 可乐 雪碧 果汁 豆浆 牛奶 啤酒 红酒 绿茶
-  `),
-  createCategory('animals', '动物世界', `
+  `,
+  ),
+  createCategory(
+    'animals',
+    '动物世界',
+    `
     猫 狗 兔子 仓鼠 松鼠 刺猬 熊猫 棕熊 北极熊 狐狸
     狼 狮子 老虎 豹子 猎豹 大象 长颈鹿 斑马 河马 犀牛
     猴子 猩猩 树懒 袋鼠 考拉 羊驼 山羊 绵羊 奶牛 水牛
@@ -19,8 +26,12 @@ const WORD_CATEGORIES = Object.freeze([
     海龟 鳄鱼 蛇 蜥蜴 变色龙 青蛙 蝾螈 恐龙 壁虎 乌龟
     蝴蝶 蜜蜂 蜻蜓 蚂蚁 七星瓢虫 螳螂 蚊子 苍蝇 毛毛虫 蜘蛛
     蜗牛 蚯蚓 蝎子 甲虫 萤火虫 河豚 鳗鱼 海星 珊瑚 寄居蟹
-  `),
-  createCategory('daily-items', '日常物品', `
+  `,
+  ),
+  createCategory(
+    'daily-items',
+    '日常物品',
+    `
     铅笔 钢笔 毛笔 蜡笔 橡皮擦 尺子 剪刀 胶水 订书机 笔记本
     书包 课本 字典 地球仪 黑板 粉笔 眼镜 手表 闹钟 日历
     手机 电话 电脑 键盘 鼠标 耳机 相机 遥控器 电视机 收音机
@@ -31,8 +42,12 @@ const WORD_CATEGORIES = Object.freeze([
     手套 袜子 鞋子 拖鞋 衬衫 裙子 裤子 外套 领带 皮带
     钱包 钥匙 行李箱 购物袋 垃圾桶 衣架 花瓶 蜡烛 打火机 火柴
     玩具熊 积木 风筝 气球 口罩 体温计 药瓶 拐杖 锤子 螺丝刀
-  `),
-  createCategory('actions', '动作行为', `
+  `,
+  ),
+  createCategory(
+    'actions',
+    '动作行为',
+    `
     刷牙 洗脸 梳头 洗澡 穿衣 系鞋带 吃饭 喝水 睡觉 起床
     走路 跑步 跳跃 爬山 游泳 潜水 滑雪 滑冰 骑车 开车
     唱歌 跳舞 弹琴 打鼓 吹口哨 拍照 画画 写字 看书 做作业
@@ -43,8 +58,12 @@ const WORD_CATEGORIES = Object.freeze([
     握手 拥抱 鼓掌 招手 敬礼 鞠躬 打电话 发短信 网购 排队
     打喷嚏 咳嗽 哭泣 大笑 生气 害怕 发呆 思考 做梦 许愿
     灭火 修车 搬家 送快递 理发 看医生 打针 量体温 过马路 坐电梯
-  `),
-  createCategory('nature-plants', '自然植物', `
+  `,
+  ),
+  createCategory(
+    'nature-plants',
+    '自然植物',
+    `
     太阳 月亮 星星 彩虹 白云 乌云 闪电 雷雨 台风 龙卷风
     雪花 冰雹 雾 露珠 霜 火山 瀑布 河流 湖泊 海洋
     沙漠 草原 森林 山峰 山洞 悬崖 岛屿 海滩 温泉 峡谷
@@ -55,8 +74,12 @@ const WORD_CATEGORIES = Object.freeze([
     日出 日落 星空 极光 流星 彗星 月食 潮汐 漩涡 海浪
     春天 夏天 秋天 冬天 雪山 冰川 火焰 烟雾 泥石流 地震
     鸟巢 蜂巢 蚁穴 蛛网 贝壳 鹅卵石 珍珠 水晶 化石 琥珀
-  `),
-  createCategory('places-buildings', '地点建筑', `
+  `,
+  ),
+  createCategory(
+    'places-buildings',
+    '地点建筑',
+    `
     学校 教室 操场 图书馆 实验室 食堂 宿舍 幼儿园 大学 电影院
     剧院 博物馆 美术馆 音乐厅 体育馆 游泳馆 游乐园 动物园 水族馆 植物园
     医院 药店 银行 邮局 警察局 消防站 法院 市政府 电视台 广播站
@@ -67,8 +90,12 @@ const WORD_CATEGORIES = Object.freeze([
     农场 牧场 果园 渔港 工厂 仓库 工地 矿山 风车村 灯塔
     厨房 客厅 卧室 浴室 阳台 地下室 阁楼 车库 电梯间 楼梯间
     太空站 海底世界 荒岛 火星基地 雪屋 帐篷 木屋 树屋 船舱 直播间
-  `),
-  createCategory('people-roles', '职业角色', `
+  `,
+  ),
+  createCategory(
+    'people-roles',
+    '职业角色',
+    `
     医生 护士 牙医 药剂师 警察 消防员 军人 法官 律师 记者
     老师 校长 学生 科学家 宇航员 工程师 程序员 建筑师 设计师 画家
     歌手 舞蹈家 演员 导演 摄影师 主持人 魔术师 小丑 模特 作家
@@ -79,8 +106,12 @@ const WORD_CATEGORIES = Object.freeze([
     孙悟空 猪八戒 唐僧 沙和尚 白雪公主 灰姑娘 美人鱼 圣诞老人 丘比特 超级英雄
     巫师 女巫 吸血鬼 僵尸 木乃伊 外星人 天使 恶魔 精灵 巨人
     婴儿 双胞胎 新郎 新娘 老爷爷 老奶奶 小朋友 发明家 探险家 考古学家
-  `),
-  createCategory('sports-entertainment', '运动娱乐', `
+  `,
+  ),
+  createCategory(
+    'sports-entertainment',
+    '运动娱乐',
+    `
     足球 篮球 排球 乒乓球 羽毛球 网球 高尔夫球 棒球 橄榄球 保龄球
     台球 冰球 曲棍球 水球 沙滩排球 躲避球 铅球 铁饼 标枪 弓箭
     跑步比赛 接力赛 跨栏 马拉松 跳高 跳远 撑杆跳 竞走 自行车赛 赛马
@@ -91,8 +122,12 @@ const WORD_CATEGORIES = Object.freeze([
     吉他 钢琴 小提琴 大提琴 架子鼓 小号 萨克斯 长笛 手风琴 二胡
     电影 电视剧 动画片 漫画 小说 童话 魔术 木偶戏 皮影戏 烟花
     奖杯 金牌 银牌 铜牌 领奖台 终点线 记分牌 拉拉队 门票 爆竹
-  `),
-  createCategory('transport-technology', '交通科技', `
+  `,
+  ),
+  createCategory(
+    'transport-technology',
+    '交通科技',
+    `
     自行车 电动车 摩托车 三轮车 滑板车 轿车 出租车 公交车 校车 救护车
     消防车 警车 垃圾车 洒水车 挖掘机 推土机 压路机 起重机 叉车 拖拉机
     卡车 油罐车 混凝土车 房车 赛车 吉普车 越野车 缆车 雪地车 装甲车
@@ -103,24 +138,35 @@ const WORD_CATEGORIES = Object.freeze([
     智能手机 平板电脑 笔记本电脑 台式电脑 显示器 打印机 扫描仪 摄像头 路由器 游戏机
     无人机 机械臂 太阳能板 风力发电机 充电桩 自动售货机 电子秤 计算器 投影仪 望远镜
     显微镜 温度计 指南针 导航仪 二维码 芯片 电池 插座 智能音箱 密码锁
-  `)
+  `,
+  ),
 ]);
 
-const DEFAULT_WORDS = Object.freeze(WORD_CATEGORIES.flatMap(category => category.words));
+const DEFAULT_WORDS = Object.freeze(
+  WORD_CATEGORIES.flatMap((category) => category.words),
+);
 
 function createCategory(id, label, source) {
-  const words = String(source || '').trim().split(/\s+/).map(token => {
-    const [word, ...aliases] = token.split('|');
-    return Object.freeze({ word, categoryId: id, category: label, ...(aliases.length ? { aliases } : {}) });
-  });
+  const words = String(source || '')
+    .trim()
+    .split(/\s+/)
+    .map((token) => {
+      const [word, ...aliases] = token.split('|');
+      return Object.freeze({
+        word,
+        categoryId: id,
+        category: label,
+        ...(aliases.length ? { aliases } : {}),
+      });
+    });
   return Object.freeze({ id, label, words: Object.freeze(words) });
 }
 
 function getWordCategorySummaries() {
-  return WORD_CATEGORIES.map(category => ({
+  return WORD_CATEGORIES.map((category) => ({
     id: category.id,
     label: category.label,
-    count: category.words.length
+    count: category.words.length,
   }));
 }
 

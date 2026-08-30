@@ -8,19 +8,25 @@ const {
   parseArguments,
   parseStartKSongLine,
   readRunningCachePath,
-  summarizeSample
+  summarizeSample,
 } = require('../scripts/inspect-wesing-playback');
 
 test('WeSing diagnostic parses cache, output, and duration options', () => {
-  const result = parseArguments([
-    '--cache', 'C:\\Music\\WeSingCache',
-    '--output', 'D:\\Logs\\wesing.jsonl',
-    '--duration', '90'
-  ], {
-    environment: { APPDATA: 'C:\\Users\\Tester\\AppData\\Roaming' },
-    projectRoot: 'D:\\Work\\Live',
-    now: new Date('2026-08-13T10:00:00.000Z')
-  });
+  const result = parseArguments(
+    [
+      '--cache',
+      'C:\\Music\\WeSingCache',
+      '--output',
+      'D:\\Logs\\wesing.jsonl',
+      '--duration',
+      '90',
+    ],
+    {
+      environment: { APPDATA: 'C:\\Users\\Tester\\AppData\\Roaming' },
+      projectRoot: 'D:\\Work\\Live',
+      now: new Date('2026-08-13T10:00:00.000Z'),
+    },
+  );
 
   assert.equal(result.cachePath, path.resolve('C:\\Music\\WeSingCache'));
   assert.equal(result.outputPath, path.resolve('D:\\Logs\\wesing.jsonl'));
@@ -43,8 +49,11 @@ test('WeSing diagnostic maps operation markers', () => {
 test('WeSing diagnostic reads the configured cache path from the running local app', async () => {
   const requests = [];
   const files = new Map([
-    ['D:\\Work\\Live\\data\\.server-runtime.json', '{"port":3000,"host":"127.0.0.1"}'],
-    ['D:\\Work\\Live\\data\\.session-token', 'local-token']
+    [
+      'D:\\Work\\Live\\data\\.server-runtime.json',
+      '{"port":3000,"host":"127.0.0.1"}',
+    ],
+    ['D:\\Work\\Live\\data\\.session-token', 'local-token'],
   ]);
   const cachePath = await readRunningCachePath({
     projectRoot: 'D:\\Work\\Live',
@@ -58,21 +67,23 @@ test('WeSing diagnostic reads the configured cache path from the running local a
         ok: true,
         async json() {
           return { data: { cachePath: 'D:\\WeSingCache' } };
-        }
+        },
       };
-    }
+    },
   });
 
   assert.equal(cachePath, 'D:\\WeSingCache');
-  assert.deepEqual(requests, [{
-    url: 'http://127.0.0.1:3000/api/music/wesing/status',
-    authorization: 'Bearer local-token'
-  }]);
+  assert.deepEqual(requests, [
+    {
+      url: 'http://127.0.0.1:3000/api/music/wesing/status',
+      authorization: 'Bearer local-token',
+    },
+  ]);
 });
 
 test('WeSing diagnostic extracts StartKSong identity from native log rows', () => {
   const parsed = parseStartKSongLine(
-    'event "StartKSong" payload {"mid":"0042","songname":"失眠飞行"}'
+    'event "StartKSong" payload {"mid":"0042","songname":"失眠飞行"}',
   );
   assert.deepEqual(parsed, { mid: '0042', songName: '失眠飞行' });
   assert.equal(parseStartKSongLine('ordinary row'), null);
@@ -88,7 +99,7 @@ test('WeSing diagnostic summarizes samples without copying UIA controls', () => 
     audioPeak: 0.125,
     windowHandle: 123,
     processIds: [10, 11],
-    controls: [{ name: '暂停' }]
+    controls: [{ name: '暂停' }],
   });
 
   assert.equal(summary.audioPeak, 0.125);

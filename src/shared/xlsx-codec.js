@@ -19,7 +19,9 @@ function unescapeXml(value) {
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, code) => decodeXmlCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => decodeXmlCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) =>
+      decodeXmlCodePoint(Number.parseInt(code, 16)),
+    )
     .replace(/&amp;/g, '&');
 }
 
@@ -56,7 +58,7 @@ function columnNameToIndex(name) {
 const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
   for (let bit = 0; bit < 8; bit += 1) {
-    value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+    value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
   }
   return value >>> 0;
 });
@@ -72,8 +74,14 @@ function crc32(buffer) {
 function dosDateTime(dateValue) {
   const year = Math.max(1980, dateValue.getFullYear());
   return {
-    time: (dateValue.getHours() << 11) | (dateValue.getMinutes() << 5) | Math.floor(dateValue.getSeconds() / 2),
-    date: ((year - 1980) << 9) | ((dateValue.getMonth() + 1) << 5) | dateValue.getDate()
+    time:
+      (dateValue.getHours() << 11) |
+      (dateValue.getMinutes() << 5) |
+      Math.floor(dateValue.getSeconds() / 2),
+    date:
+      ((year - 1980) << 9) |
+      ((dateValue.getMonth() + 1) << 5) |
+      dateValue.getDate(),
   };
 }
 
@@ -157,7 +165,9 @@ function readZipFiles(buffer) {
     const extraLength = buffer.readUInt16LE(offset + 30);
     const commentLength = buffer.readUInt16LE(offset + 32);
     const localOffset = buffer.readUInt32LE(offset + 42);
-    const filename = buffer.subarray(offset + 46, offset + 46 + nameLength).toString('utf8');
+    const filename = buffer
+      .subarray(offset + 46, offset + 46 + nameLength)
+      .toString('utf8');
 
     if (buffer.readUInt32LE(localOffset) !== 0x04034b50) {
       throw new Error(`Excel 文件 ZIP 本地头损坏：${filename}`);
@@ -165,7 +175,10 @@ function readZipFiles(buffer) {
     const localNameLength = buffer.readUInt16LE(localOffset + 26);
     const localExtraLength = buffer.readUInt16LE(localOffset + 28);
     const dataStart = localOffset + 30 + localNameLength + localExtraLength;
-    const compressedData = buffer.subarray(dataStart, dataStart + compressedSize);
+    const compressedData = buffer.subarray(
+      dataStart,
+      dataStart + compressedSize,
+    );
 
     if (method === 0) {
       files.set(filename, compressedData.toString('utf8'));
@@ -179,7 +192,11 @@ function readZipFiles(buffer) {
 }
 
 function findEndOfCentralDirectory(buffer) {
-  for (let offset = buffer.length - 22; offset >= Math.max(0, buffer.length - 65557); offset -= 1) {
+  for (
+    let offset = buffer.length - 22;
+    offset >= Math.max(0, buffer.length - 65557);
+    offset -= 1
+  ) {
     if (buffer.readUInt32LE(offset) === 0x06054b50) return offset;
   }
   return -1;
@@ -211,13 +228,16 @@ function parseWorksheetXml(xml, sharedStrings) {
   let rowMatch;
   while ((rowMatch = rowRegex.exec(xml))) {
     const row = [];
-    const cellRegex = /<(?:[\w.-]+:)?c\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?c>|<(?:[\w.-]+:)?c\b([^>]*)\/>/g;
+    const cellRegex =
+      /<(?:[\w.-]+:)?c\b([^>]*)>([\s\S]*?)<\/(?:[\w.-]+:)?c>|<(?:[\w.-]+:)?c\b([^>]*)\/>/g;
     let cellMatch;
     while ((cellMatch = cellRegex.exec(rowMatch[1]))) {
       const attrs = cellMatch[1] || cellMatch[3] || '';
       const body = cellMatch[2] || '';
       const ref = getXmlAttr(attrs, 'r');
-      const columnIndex = ref ? columnNameToIndex(ref.replace(/\d+/g, '')) : row.length;
+      const columnIndex = ref
+        ? columnNameToIndex(ref.replace(/\d+/g, ''))
+        : row.length;
       row[columnIndex] = readWorksheetCell(attrs, body, sharedStrings);
     }
     if (row.some((cell) => cleanText(cell))) {
@@ -233,7 +253,9 @@ function readWorksheetCell(attrs, body, sharedStrings) {
     return extractXmlTexts(body).join('');
   }
 
-  const valueMatch = body.match(/<(?:[\w.-]+:)?v\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?v>/);
+  const valueMatch = body.match(
+    /<(?:[\w.-]+:)?v\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?v>/,
+  );
   const value = valueMatch ? unescapeXml(valueMatch[1]) : '';
   if (type === 's') return sharedStrings[Number(value)] || '';
   if (type === 'b') return value === '1' ? '是' : '否';
@@ -246,5 +268,5 @@ module.exports = {
   escapeXml,
   parseSharedStrings,
   parseWorksheetXml,
-  readZipFiles
+  readZipFiles,
 };

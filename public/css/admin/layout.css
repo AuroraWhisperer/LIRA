@@ -220,7 +220,7 @@
 }
 
 .status-strip .pill::before {
-  content: "";
+  content: '';
   width: 6px;
   height: 6px;
   flex: 0 0 6px;
@@ -276,7 +276,7 @@
 }
 
 .pill.warn {
-  border-color: rgba(165, 103, 22, 0.30);
+  border-color: rgba(165, 103, 22, 0.3);
   background: var(--color-warning-light);
   color: var(--warning);
 }
@@ -354,42 +354,3 @@ hr.section-divider {
   line-height: var(--type-leading-body);
   letter-spacing: var(--type-tracking-normal);
 }
-
-/* 可折叠面板 */
-.section-toggle {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  padding: 0;
-  border-color: transparent;
-  background: transparent;
-  color: var(--muted);
-}
-
-.section-toggle svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 180ms ease;
-}
-
-.panel.is-collapsed .section-toggle svg {
-  transform: rotate(180deg);
-}
-
-.panel:has(.section-toggle) .panel-header {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 150ms ease;
-}
-
-.panel:has(.section-toggle) .panel-header:hover {
-  background-color: var(--hover-bg, rgba(255, 255, 255, 0.03));
-}
-
-.panel:has(.section-toggle) .panel-header:active {
-  background-color: var(--active-bg, rgba(255, 255, 255, 0.05));
-}
-
-.collapsible-panel-body {

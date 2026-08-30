@@ -1,12 +1,22 @@
 /* 重启确认弹窗 */
 @keyframes confirm-modal-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes confirm-modal-up {
-  from { opacity: 0; transform: translateY(20px) scale(0.96); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .confirm-modal-overlay {
@@ -53,7 +63,9 @@
   color: #fff;
   background: linear-gradient(145deg, #ff7a59 0%, #e54444 100%);
   border-radius: 13px;
-  box-shadow: 0 6px 14px rgba(229, 68, 68, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 6px 14px rgba(229, 68, 68, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .confirm-modal-icon svg {
@@ -113,21 +125,35 @@ button.danger-filled:hover {
   border-color: #9b2c2c;
 }
 
-
 /* ===== 危险操作确认弹窗（右上角浮层） ===== */
 @keyframes danger-popup-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes danger-popup-slide {
-  from { opacity: 0; transform: translateY(-12px) scale(0.92); }
-  to { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
 }
 
 @keyframes danger-popup-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.25); }
-  50% { box-shadow: 0 0 0 8px rgba(192, 57, 43, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(192, 57, 43, 0);
+  }
 }
 
 .danger-confirm-backdrop {
@@ -162,13 +188,18 @@ button.danger-filled:hover {
 }
 
 .danger-confirm-popup::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--color-danger-medium) 0%, #c0392b 50%, var(--color-danger-medium) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--color-danger-medium) 0%,
+    #c0392b 50%,
+    var(--color-danger-medium) 100%
+  );
 }
 
 .danger-confirm-body {
@@ -239,7 +270,7 @@ button.danger-filled:hover {
 }
 
 .danger-confirm-message ul li::before {
-  content: "×";
+  content: '×';
   position: absolute;
   left: -16px;
   color: #c0392b;
@@ -290,7 +321,11 @@ button.danger-filled:hover {
 }
 
 .danger-confirm-execute {
-  background: linear-gradient(135deg, var(--color-danger-medium) 0%, #c0392b 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-danger-medium) 0%,
+    #c0392b 100%
+  );
   border: 1px solid #c0392b;
   color: #fff;
   box-shadow: 0 3px 12px rgba(192, 57, 43, 0.25);
@@ -314,7 +349,8 @@ button.danger-filled:hover {
 }
 
 .danger-confirm-backdrop.is-leaving .danger-confirm-popup {
-  animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse forwards;
+  animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse
+    forwards;
 }
 
 /* ===== 退出登录确认弹窗 ===== */
@@ -350,7 +386,7 @@ button.danger-filled:hover {
 }
 
 .logout-confirm-popup::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
@@ -467,10 +503,6 @@ button.danger-filled:hover {
 }
 
 .logout-confirm-backdrop.is-leaving .logout-confirm-popup {
-  animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse forwards;
+  animation: danger-popup-slide 0.22s cubic-bezier(0.55, 0, 1, 0.45) reverse
+    forwards;
 }
-
-
-/* ===== 响应式 ===== */
-@media (max-width: 980px) {
-  .layout {

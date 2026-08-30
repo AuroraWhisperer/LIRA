@@ -22,7 +22,8 @@ async function getSystemMetrics(rawWindowMs = 5000) {
 
   const cpuEnd = readSystemCpuSnapshot();
   const processCpuDelta = process.cpuUsage(processCpuStart);
-  const processElapsedMicros = Number(process.hrtime.bigint() - processTimeStart) / 1000;
+  const processElapsedMicros =
+    Number(process.hrtime.bigint() - processTimeStart) / 1000;
   const cpuCount = Math.max(os.cpus().length, 1);
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
@@ -36,8 +37,8 @@ async function getSystemMetrics(rawWindowMs = 5000) {
       available: false,
       totalPercent: null,
       processPercent: null,
-      message: 'GPU 计数器采样超时'
-    }))
+      message: 'GPU 计数器采样超时',
+    })),
   ]);
 
   return {
@@ -45,38 +46,52 @@ async function getSystemMetrics(rawWindowMs = 5000) {
     windowMs: Date.now() - startedAt,
     system: {
       cpuPercent: calculateSystemCpuPercent(cpuStart, cpuEnd),
-      memoryPercent: totalMemory > 0 ? clampPercent(((totalMemory - freeMemory) / totalMemory) * 100) : null,
+      memoryPercent:
+        totalMemory > 0
+          ? clampPercent(((totalMemory - freeMemory) / totalMemory) * 100)
+          : null,
       memoryUsedBytes: totalMemory - freeMemory,
       memoryTotalBytes: totalMemory,
       gpuPercent: gpu.totalPercent,
       gpuAvailable: gpu.available,
-      gpuMessage: gpu.message
+      gpuMessage: gpu.message,
     },
     process: {
       pid: process.pid,
-      cpuPercent: processElapsedMicros > 0
-        ? clampPercent(((processCpuDelta.user + processCpuDelta.system) / (processElapsedMicros * cpuCount)) * 100)
-        : null,
-      memoryPercent: totalMemory > 0 ? clampPercent((processMemory.rss / totalMemory) * 100) : null,
+      cpuPercent:
+        processElapsedMicros > 0
+          ? clampPercent(
+              ((processCpuDelta.user + processCpuDelta.system) /
+                (processElapsedMicros * cpuCount)) *
+                100,
+            )
+          : null,
+      memoryPercent:
+        totalMemory > 0
+          ? clampPercent((processMemory.rss / totalMemory) * 100)
+          : null,
       memoryRssBytes: processMemory.rss,
       memoryHeapUsedBytes: processMemory.heapUsed,
       uptimeSeconds: Math.floor(process.uptime()),
       gpuPercent: gpu.processPercent,
       gpuAvailable: gpu.available,
-      gpuMessage: gpu.message
-    }
+      gpuMessage: gpu.message,
+    },
   };
 }
 
 function readSystemCpuSnapshot() {
-  return os.cpus().reduce((snapshot, cpu) => {
-    const times = cpu.times || {};
-    const total = Object.values(times).reduce((sum, value) => sum + value, 0);
-    return {
-      idle: snapshot.idle + (times.idle || 0),
-      total: snapshot.total + total
-    };
-  }, { idle: 0, total: 0 });
+  return os.cpus().reduce(
+    (snapshot, cpu) => {
+      const times = cpu.times || {};
+      const total = Object.values(times).reduce((sum, value) => sum + value, 0);
+      return {
+        idle: snapshot.idle + (times.idle || 0),
+        total: snapshot.total + total,
+      };
+    },
+    { idle: 0, total: 0 },
+  );
 }
 
 function calculateSystemCpuPercent(start, end) {
@@ -96,7 +111,8 @@ function createHardwareSummaryService(options = {}) {
   const readTemperatures = options.readTemperatures || readHardwareTemperatures;
 
   async function getStaticSummary() {
-    if (!staticSummaryPromise) staticSummaryPromise = Promise.resolve().then(readStatic);
+    if (!staticSummaryPromise)
+      staticSummaryPromise = Promise.resolve().then(readStatic);
     return staticSummaryPromise;
   }
 
@@ -117,11 +133,11 @@ function createHardwareSummaryService(options = {}) {
           temperatureCelsius: Number.isFinite(temperature) ? temperature : null,
           temperatureMessage: Number.isFinite(temperature)
             ? ''
-            : (temperatures.gpuMessage || 'NVIDIA GPU 温度不可用')
+            : temperatures.gpuMessage || 'NVIDIA GPU 温度不可用',
         };
       });
       return result;
-    }
+    },
   };
 }
 
@@ -129,7 +145,7 @@ async function readStaticHardwareSummary() {
   const osSnapshot = {
     cpuModel: os.cpus()[0]?.model || '',
     logicalCpuCount: os.cpus().length,
-    totalMemoryBytes: os.totalmem()
+    totalMemoryBytes: os.totalmem(),
   };
   if (process.platform !== 'win32') {
     return buildHardwareSummary({}, osSnapshot);
@@ -153,13 +169,11 @@ $ErrorActionPreference = 'Stop'
 } | ConvertTo-Json -Depth 3 -Compress
 `;
 
-  return runCommand('powershell.exe', [
-    '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-Command',
-    command
-  ], { timeout: 5000 }).then((stdout) => parseCommandJson(stdout));
+  return runCommand(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+    { timeout: 5000 },
+  ).then((stdout) => parseCommandJson(stdout));
 }
 
 async function readHardwareTemperatures(gpus) {
@@ -167,10 +181,11 @@ async function readHardwareTemperatures(gpus) {
   if (!nvidiaGpus.length) return { gpuTemperatures: [], gpuMessage: '' };
 
   try {
-    const stdout = await runCommand('nvidia-smi.exe', [
-      '--query-gpu=name,temperature.gpu',
-      '--format=csv,noheader,nounits'
-    ], { timeout: 3000 });
+    const stdout = await runCommand(
+      'nvidia-smi.exe',
+      ['--query-gpu=name,temperature.gpu', '--format=csv,noheader,nounits'],
+      { timeout: 3000 },
+    );
     return { gpuTemperatures: parseNvidiaSmiOutput(stdout), gpuMessage: '' };
   } catch (_) {
     return { gpuTemperatures: [], gpuMessage: 'NVIDIA GPU 温度不可用' };
@@ -180,20 +195,30 @@ async function readHardwareTemperatures(gpus) {
 function buildHardwareSummary(details = {}, osSnapshot = {}) {
   const cpus = toArray(details.cpus);
   const memoryModules = toArray(details.memoryModules);
-  const gpus = toArray(details.gpus).filter((gpu) => !isVirtualDisplayAdapter(gpu));
+  const gpus = toArray(details.gpus).filter(
+    (gpu) => !isVirtualDisplayAdapter(gpu),
+  );
   const primaryCpu = cpus[0] || {};
-  const logicalCpuCount = positiveInteger(primaryCpu.NumberOfLogicalProcessors)
-    || positiveInteger(osSnapshot.logicalCpuCount)
-    || null;
-  const physicalCores = cpus.reduce((total, cpu) => total + positiveInteger(cpu.NumberOfCores), 0) || null;
+  const logicalCpuCount =
+    positiveInteger(primaryCpu.NumberOfLogicalProcessors) ||
+    positiveInteger(osSnapshot.logicalCpuCount) ||
+    null;
+  const physicalCores =
+    cpus.reduce(
+      (total, cpu) => total + positiveInteger(cpu.NumberOfCores),
+      0,
+    ) || null;
 
   return {
     cpu: {
-      model: hardwareText(primaryCpu.Name) || hardwareText(osSnapshot.cpuModel) || '未知 CPU',
+      model:
+        hardwareText(primaryCpu.Name) ||
+        hardwareText(osSnapshot.cpuModel) ||
+        '未知 CPU',
       physicalCores,
       logicalCores: logicalCpuCount,
       temperatureCelsius: null,
-      temperatureMessage: 'Windows 未提供可靠的 CPU 温度'
+      temperatureMessage: 'Windows 未提供可靠的 CPU 温度',
     },
     memory: {
       totalBytes: positiveInteger(osSnapshot.totalMemoryBytes) || null,
@@ -201,10 +226,10 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
         manufacturer: hardwareText(module.Manufacturer) || '未知厂商',
         model: hardwareText(module.PartNumber) || '未知型号',
         capacityBytes: positiveInteger(module.Capacity) || null,
-        speedMhz: positiveInteger(module.Speed) || null
+        speedMhz: positiveInteger(module.Speed) || null,
       })),
       temperatureCelsius: null,
-      temperatureMessage: 'Windows 未提供可靠的内存温度'
+      temperatureMessage: 'Windows 未提供可靠的内存温度',
     },
     gpus: gpus.map((gpu) => ({
       name: hardwareText(gpu.Name) || '未知 GPU',
@@ -213,50 +238,69 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
       temperatureCelsius: null,
       temperatureMessage: isNvidiaGpu(gpu)
         ? '点击检测时读取温度'
-        : 'Windows/驱动未提供可靠的 GPU 温度'
-    }))
+        : 'Windows/驱动未提供可靠的 GPU 温度',
+    })),
   };
 }
 
 function cloneHardwareSummary(summary) {
   return {
     cpu: { ...summary.cpu },
-    memory: { ...summary.memory, modules: summary.memory.modules.map((module) => ({ ...module })) },
-    gpus: summary.gpus.map((gpu) => ({ ...gpu }))
+    memory: {
+      ...summary.memory,
+      modules: summary.memory.modules.map((module) => ({ ...module })),
+    },
+    gpus: summary.gpus.map((gpu) => ({ ...gpu })),
   };
 }
 
 function parseCommandJson(stdout) {
-  const line = String(stdout || '').trim().split(/\r?\n/).filter(Boolean).pop();
+  const line = String(stdout || '')
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .pop();
   const parsed = JSON.parse(line || '{}');
   return parsed && typeof parsed === 'object' ? parsed : {};
 }
 
 function parseNvidiaSmiOutput(stdout) {
-  return String(stdout || '').split(/\r?\n/).filter(Boolean).flatMap((line) => {
-    const parts = line.split(',', 2);
-    if (parts.length < 2) return [];
-    const rawTemperature = parts[1];
-    const temperature = Number(String(rawTemperature).trim());
-    return [Number.isFinite(temperature) ? temperature : null];
-  });
+  return String(stdout || '')
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .flatMap((line) => {
+      const parts = line.split(',', 2);
+      if (parts.length < 2) return [];
+      const rawTemperature = parts[1];
+      const temperature = Number(String(rawTemperature).trim());
+      return [Number.isFinite(temperature) ? temperature : null];
+    });
 }
 
 function runCommand(file, args, options = {}) {
   return new Promise((resolve, reject) => {
-    childProcess.execFile(file, args, {
-      windowsHide: true,
-      timeout: options.timeout || 5000,
-      maxBuffer: 1024 * 1024
-    }, (error, stdout) => {
-      if (error) reject(error);
-      else resolve(stdout);
-    });
+    childProcess.execFile(
+      file,
+      args,
+      {
+        windowsHide: true,
+        timeout: options.timeout || 5000,
+        maxBuffer: 1024 * 1024,
+      },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(stdout);
+      },
+    );
   });
 }
 
 function toArray(value) {
-  return Array.isArray(value) ? value : (value && typeof value === 'object' ? [value] : []);
+  return Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? [value]
+      : [];
 }
 
 function positiveInteger(value) {
@@ -273,7 +317,9 @@ function isNvidiaGpu(gpu) {
 }
 
 function isVirtualDisplayAdapter(gpu) {
-  return /\bvirtual\s+(?:display|graphics|video)(?:\s+adapter)?\b/i.test(hardwareText(gpu.name || gpu.Name));
+  return /\bvirtual\s+(?:display|graphics|video)(?:\s+adapter)?\b/i.test(
+    hardwareText(gpu.name || gpu.Name),
+  );
 }
 
 function sampleWindowsGpuMetrics(windowMs) {
@@ -282,7 +328,7 @@ function sampleWindowsGpuMetrics(windowMs) {
       available: false,
       totalPercent: null,
       processPercent: null,
-      message: '当前系统不支持 GPU 计数器'
+      message: '当前系统不支持 GPU 计数器',
     });
   }
 
@@ -323,45 +369,48 @@ if ($count -lt 1) { $count = 1 }
 `;
 
   return new Promise((resolve) => {
-    childProcess.execFile('powershell.exe', [
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-Command',
-      command
-    ], {
-      windowsHide: true,
-      timeout: (sampleCount + 3) * 1000,
-      maxBuffer: 1024 * 1024
-    }, (error, stdout) => {
-      if (error) {
-        resolve({
-          available: false,
-          totalPercent: null,
-          processPercent: null,
-          message: 'GPU 计数器不可用'
-        });
-        return;
-      }
+    childProcess.execFile(
+      'powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+      {
+        windowsHide: true,
+        timeout: (sampleCount + 3) * 1000,
+        maxBuffer: 1024 * 1024,
+      },
+      (error, stdout) => {
+        if (error) {
+          resolve({
+            available: false,
+            totalPercent: null,
+            processPercent: null,
+            message: 'GPU 计数器不可用',
+          });
+          return;
+        }
 
-      try {
-        const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop();
-        const payload = JSON.parse(line || '{}');
-        resolve({
-          available: payload.available === true,
-          totalPercent: Number.isFinite(Number(payload.totalPercent)) ? clampPercent(Number(payload.totalPercent)) : null,
-          processPercent: Number.isFinite(Number(payload.processPercent)) ? clampPercent(Number(payload.processPercent)) : null,
-          message: cleanText(payload.message) || ''
-        });
-      } catch (_) {
-        resolve({
-          available: false,
-          totalPercent: null,
-          processPercent: null,
-          message: 'GPU 数据解析失败'
-        });
-      }
-    });
+        try {
+          const line = stdout.trim().split(/\r?\n/).filter(Boolean).pop();
+          const payload = JSON.parse(line || '{}');
+          resolve({
+            available: payload.available === true,
+            totalPercent: Number.isFinite(Number(payload.totalPercent))
+              ? clampPercent(Number(payload.totalPercent))
+              : null,
+            processPercent: Number.isFinite(Number(payload.processPercent))
+              ? clampPercent(Number(payload.processPercent))
+              : null,
+            message: cleanText(payload.message) || '',
+          });
+        } catch (_) {
+          resolve({
+            available: false,
+            totalPercent: null,
+            processPercent: null,
+            message: 'GPU 数据解析失败',
+          });
+        }
+      },
+    );
   });
 }
 
@@ -373,5 +422,5 @@ module.exports = {
   parseNvidiaSmiOutput,
   readSystemCpuSnapshot,
   calculateSystemCpuPercent,
-  sampleWindowsGpuMetrics
+  sampleWindowsGpuMetrics,
 };

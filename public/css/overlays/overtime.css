@@ -7,9 +7,20 @@
   --ot-text: #fff7fb;
 }
 
-* { box-sizing: border-box; }
-html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
 
 .overtime-machine {
   position: relative;
@@ -37,8 +48,14 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   background-repeat: no-repeat;
   background-size: cover;
 }
-.overtime-background-shade { display: none; z-index: -1; background: rgba(10, 10, 18, 0.26); }
-.overtime-machine.has-background .overtime-background-shade { display: block; }
+.overtime-background-shade {
+  display: none;
+  z-index: -1;
+  background: rgba(10, 10, 18, 0.26);
+}
+.overtime-machine.has-background .overtime-background-shade {
+  display: block;
+}
 
 .overtime-foreground {
   display: grid;
@@ -64,8 +81,14 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   padding: 1.2em 2.4em 1.4em;
   border: 0.12em solid rgba(255, 247, 251, 0.42);
   border-radius: 1.67em;
-  background: linear-gradient(128deg, rgba(24, 24, 35, 0.9), rgba(42, 38, 52, 0.78));
-  box-shadow: 0 1.6em 4em rgba(6, 6, 14, 0.24), inset 0 0.12em 0 rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    128deg,
+    rgba(24, 24, 35, 0.9),
+    rgba(42, 38, 52, 0.78)
+  );
+  box-shadow:
+    0 1.6em 4em rgba(6, 6, 14, 0.24),
+    inset 0 0.12em 0 rgba(255, 255, 255, 0.12);
   text-align: center;
   backdrop-filter: blur(1.2em);
 }
@@ -74,7 +97,7 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   inset: 0 auto 0 0;
   width: 0.48em;
   background: linear-gradient(180deg, var(--ot-pink), var(--ot-teal));
-  content: "";
+  content: '';
 }
 .overtime-status {
   display: flex;
@@ -88,37 +111,70 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 }
 .overtime-live-label {
   color: var(--ot-pink);
-  font: 800 1.43em/1 Bahnschrift, sans-serif;
+  font:
+    800 1.43em/1 Bahnschrift,
+    sans-serif;
 }
-.overtime-status span { font-size: 1.15em; }
-.overtime-status span:not([hidden])::before { margin-right: 0.5em; color: var(--ot-pink); content: "·"; }
+.overtime-status span {
+  font-size: 1.15em;
+}
+.overtime-status span:not([hidden])::before {
+  margin-right: 0.5em;
+  color: var(--ot-pink);
+  content: '·';
+}
 .overtime-clock {
-  font: 700 8.5em/0.9 Bahnschrift SemiCondensed, Bahnschrift, "Arial Narrow", sans-serif;
+  font:
+    700 8.5em/0.9 Bahnschrift SemiCondensed,
+    Bahnschrift,
+    'Arial Narrow',
+    sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.045em;
   white-space: nowrap;
   text-shadow: 0 0 1.8em rgba(255, 111, 145, 0.2);
 }
-.overtime-clock.is-calendar { letter-spacing: -0.02em; }
-.overtime-clock.is-finished { color: #fff2b8; font-size: 4.6em; letter-spacing: 0.02em; }
-.overtime-clock.is-positive { animation: overtime-clock-positive 820ms ease-out; }
-.overtime-clock.is-negative { animation: overtime-clock-negative 820ms ease-out; }
+.overtime-clock.is-calendar {
+  letter-spacing: -0.02em;
+}
+.overtime-clock.is-finished {
+  color: #fff2b8;
+  font-size: 4.6em;
+  letter-spacing: 0.02em;
+}
+.overtime-clock.is-positive {
+  animation: overtime-clock-positive 820ms ease-out;
+}
+.overtime-clock.is-negative {
+  animation: overtime-clock-negative 820ms ease-out;
+}
 
 .overtime-gift-guide {
   display: grid;
   width: min(
     100%,
-    calc((var(--ticket-wide-columns, 1) * 25em) + ((var(--ticket-wide-columns, 1) - 1) * 0.72em))
+    calc(
+      (var(--ticket-wide-columns, 1) * 25em) +
+        ((var(--ticket-wide-columns, 1) - 1) * 0.72em)
+    )
   );
   gap: 0.6em;
   padding: 0.72em;
   border: 0.12em solid rgba(255, 247, 251, 0.3);
   border-radius: 1.55em;
-  background: linear-gradient(120deg, rgba(24, 24, 35, 0.82), rgba(34, 32, 43, 0.72));
-  box-shadow: 0 1.2em 3em rgba(6, 6, 14, 0.2), inset 0 0.12em 0 rgba(255, 255, 255, 0.09);
+  background: linear-gradient(
+    120deg,
+    rgba(24, 24, 35, 0.82),
+    rgba(34, 32, 43, 0.72)
+  );
+  box-shadow:
+    0 1.2em 3em rgba(6, 6, 14, 0.2),
+    inset 0 0.12em 0 rgba(255, 255, 255, 0.09);
   backdrop-filter: blur(1.08em);
 }
-.overtime-gift-guide[hidden] { display: none; }
+.overtime-gift-guide[hidden] {
+  display: none;
+}
 .overtime-guide-heading {
   display: flex;
   align-items: end;
@@ -126,10 +182,15 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   gap: 1.2em;
   padding-inline: 0.48em;
 }
-.overtime-guide-heading > div { display: grid; gap: 0.12em; }
+.overtime-guide-heading > div {
+  display: grid;
+  gap: 0.12em;
+}
 .overtime-guide-heading span {
   color: var(--ot-pink);
-  font: 800 0.85em/1.1 Bahnschrift, sans-serif;
+  font:
+    800 0.85em/1.1 Bahnschrift,
+    sans-serif;
   letter-spacing: 0.12em;
 }
 .overtime-guide-heading strong {
@@ -154,17 +215,24 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas: "icon name" "icon effect";
+  grid-template-areas: 'icon name' 'icon effect';
   align-items: center;
   gap: 0 0.83em;
   min-width: 0;
   min-height: 6.67em;
   padding: 0.83em;
   overflow: hidden;
-  border: 0.12em solid color-mix(in srgb, var(--ticket-accent) 58%, rgba(255, 255, 255, 0.58));
+  border: 0.12em solid
+    color-mix(in srgb, var(--ticket-accent) 58%, rgba(255, 255, 255, 0.58));
   border-radius: 1.2em;
-  background: linear-gradient(135deg, rgba(24, 24, 35, 0.94), color-mix(in srgb, var(--ticket-accent) 14%, rgba(35, 34, 45, 0.88)));
-  box-shadow: 0 0.9em 2.4em rgba(6, 6, 14, 0.2), inset 0 0.12em 0 rgba(255, 255, 255, 0.1);
+  background: linear-gradient(
+    135deg,
+    rgba(24, 24, 35, 0.94),
+    color-mix(in srgb, var(--ticket-accent) 14%, rgba(35, 34, 45, 0.88))
+  );
+  box-shadow:
+    0 0.9em 2.4em rgba(6, 6, 14, 0.2),
+    inset 0 0.12em 0 rgba(255, 255, 255, 0.1);
   isolation: isolate;
   backdrop-filter: blur(0.95em);
 }
@@ -173,40 +241,64 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   inset: 0 auto 0 0;
   width: 0.36em;
   background: var(--ticket-accent);
-  content: "";
+  content: '';
   overflow: hidden;
 }
 .overtime-ticket::after {
   position: absolute;
   inset: 0.42em;
   z-index: -1;
-  border: 0.1em dashed color-mix(in srgb, var(--ticket-accent) 36%, rgba(255, 255, 255, 0.18));
+  border: 0.1em dashed
+    color-mix(in srgb, var(--ticket-accent) 36%, rgba(255, 255, 255, 0.18));
   border-radius: 0.84em;
-  content: "";
+  content: '';
   pointer-events: none;
 }
-.overtime-ticket.is-positive { --ticket-accent: var(--ot-teal); }
-.overtime-ticket.is-negative { --ticket-accent: var(--ot-coral); }
-.overtime-ticket.is-random { --ticket-accent: var(--ot-gold); }
-.overtime-ticket.is-multiply { --ticket-accent: var(--ot-gold); }
-.overtime-ticket.is-divide { --ticket-accent: var(--ot-pink); }
-.overtime-ticket.is-clear { --ticket-accent: #a8a5b3; }
-.overtime-ticket.is-neutral { --ticket-accent: #a8a5b3; }
-.overtime-ticket.is-display { --ticket-accent: var(--ot-pink); }
-.overtime-ticket.is-hit { animation: overtime-ticket-hit 900ms ease-out; }
+.overtime-ticket.is-positive {
+  --ticket-accent: var(--ot-teal);
+}
+.overtime-ticket.is-negative {
+  --ticket-accent: var(--ot-coral);
+}
+.overtime-ticket.is-random {
+  --ticket-accent: var(--ot-gold);
+}
+.overtime-ticket.is-multiply {
+  --ticket-accent: var(--ot-gold);
+}
+.overtime-ticket.is-divide {
+  --ticket-accent: var(--ot-pink);
+}
+.overtime-ticket.is-clear {
+  --ticket-accent: #a8a5b3;
+}
+.overtime-ticket.is-neutral {
+  --ticket-accent: #a8a5b3;
+}
+.overtime-ticket.is-display {
+  --ticket-accent: var(--ot-pink);
+}
+.overtime-ticket.is-hit {
+  animation: overtime-ticket-hit 900ms ease-out;
+}
 .overtime-ticket-image {
   grid-area: icon;
   z-index: 1;
   width: 3.57em;
   height: 3.57em;
   padding: 0.24em;
-  border: 0.12em solid color-mix(in srgb, var(--ticket-accent) 42%, rgba(255, 255, 255, 0.28));
+  border: 0.12em solid
+    color-mix(in srgb, var(--ticket-accent) 42%, rgba(255, 255, 255, 0.28));
   border-radius: 0.95em;
   background: rgba(255, 255, 255, 0.08);
   object-fit: contain;
 }
 .overtime-ticket-name,
-.overtime-ticket-time { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overtime-ticket-time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .overtime-ticket-name {
   grid-area: name;
   z-index: 1;
@@ -225,7 +317,8 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   margin-top: 0.36em;
   padding-top: 0.48em;
   overflow: hidden;
-  border-top: 0.1em dashed color-mix(in srgb, var(--ticket-accent) 54%, transparent);
+  border-top: 0.1em dashed
+    color-mix(in srgb, var(--ticket-accent) 54%, transparent);
   color: var(--ticket-accent);
 }
 .overtime-ticket-effect > span {
@@ -236,7 +329,10 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
 .overtime-ticket-time {
   min-width: 0;
   color: currentColor;
-  font: 800 1.9em/1 Bahnschrift, "Microsoft YaHei", sans-serif;
+  font:
+    800 1.9em/1 Bahnschrift,
+    'Microsoft YaHei',
+    sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -256,62 +352,137 @@ body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
   color: var(--ot-teal);
   box-shadow: 0 2em 6em rgba(0, 0, 0, 0.32);
   text-align: center;
-  animation: overtime-stamp 900ms cubic-bezier(.2, .8, .2, 1) both;
+  animation: overtime-stamp 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-.overtime-adjustment-card.is-negative { color: var(--ot-coral); }
-.overtime-adjustment-card.is-random { color: var(--ot-gold); }
+.overtime-adjustment-card.is-negative {
+  color: var(--ot-coral);
+}
+.overtime-adjustment-card.is-random {
+  color: var(--ot-gold);
+}
 .overtime-adjustment-card strong,
-.overtime-adjustment-card span { display: block; }
-.overtime-adjustment-card strong { font-size: 2em; }
-.overtime-adjustment-card span { margin-top: 0.7em; font: 700 1.65em/1 Bahnschrift, sans-serif; }
+.overtime-adjustment-card span {
+  display: block;
+}
+.overtime-adjustment-card strong {
+  font-size: 2em;
+}
+.overtime-adjustment-card span {
+  margin-top: 0.7em;
+  font:
+    700 1.65em/1 Bahnschrift,
+    sans-serif;
+}
 
 @container (max-width: 719px) {
   .overtime-gift-guide {
     width: min(
       100%,
-      calc((var(--ticket-narrow-columns, 1) * 25em) + ((var(--ticket-narrow-columns, 1) - 1) * 0.72em))
+      calc(
+        (var(--ticket-narrow-columns, 1) * 25em) +
+          ((var(--ticket-narrow-columns, 1) - 1) * 0.72em)
+      )
     );
   }
-  .overtime-ticket-grid { grid-template-columns: repeat(var(--ticket-narrow-columns, 1), minmax(0, 1fr)); }
+  .overtime-ticket-grid {
+    grid-template-columns: repeat(
+      var(--ticket-narrow-columns, 1),
+      minmax(0, 1fr)
+    );
+  }
 }
 @container (max-width: 419px) {
-  .overtime-clock-panel { min-width: min(78cqw, 62em); }
-  .overtime-guide-heading small { max-width: 54%; }
+  .overtime-clock-panel {
+    min-width: min(78cqw, 62em);
+  }
+  .overtime-guide-heading small {
+    max-width: 54%;
+  }
 }
 @container (max-aspect-ratio: 1.45) {
-  .overtime-foreground { gap: 1em; }
+  .overtime-foreground {
+    gap: 1em;
+  }
 }
 @container (max-height: 239px) {
-  .overtime-foreground { gap: 0.8em; padding: 0.8em; }
-  .overtime-guide-heading { display: none; }
-  .overtime-gift-guide { gap: 0; }
+  .overtime-foreground {
+    gap: 0.8em;
+    padding: 0.8em;
+  }
+  .overtime-guide-heading {
+    display: none;
+  }
+  .overtime-gift-guide {
+    gap: 0;
+  }
 }
 
 @keyframes overtime-ticket-hit {
-  0% { transform: scale(1); }
-  32% { transform: scale(1.06) rotate(-0.8deg); border-color: var(--ot-pink); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  32% {
+    transform: scale(1.06) rotate(-0.8deg);
+    border-color: var(--ot-pink);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 @keyframes overtime-stamp {
-  0% { opacity: 0; transform: translateY(2em) scale(1.35) rotate(-4deg); filter: blur(0.8em); }
-  28% { opacity: 1; transform: translateY(0) scale(0.96) rotate(1deg); filter: blur(0); }
-  76% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: translateY(-1em) scale(0.98); }
+  0% {
+    opacity: 0;
+    transform: translateY(2em) scale(1.35) rotate(-4deg);
+    filter: blur(0.8em);
+  }
+  28% {
+    opacity: 1;
+    transform: translateY(0) scale(0.96) rotate(1deg);
+    filter: blur(0);
+  }
+  76% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-1em) scale(0.98);
+  }
 }
-@keyframes overtime-clock-positive { 35% { color: var(--ot-teal); text-shadow: 0 0 3em var(--ot-teal); } }
-@keyframes overtime-clock-negative { 35% { color: var(--ot-coral); text-shadow: 0 0 3em var(--ot-coral); } }
+@keyframes overtime-clock-positive {
+  35% {
+    color: var(--ot-teal);
+    text-shadow: 0 0 3em var(--ot-teal);
+  }
+}
+@keyframes overtime-clock-negative {
+  35% {
+    color: var(--ot-coral);
+    text-shadow: 0 0 3em var(--ot-coral);
+  }
+}
 
 @supports not (font-size: 1cqmin) {
-  .overtime-machine { font-size: 2vmin; }
+  .overtime-machine {
+    font-size: 2vmin;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .overtime-ticket.is-hit,
   .overtime-adjustment-card,
   .overtime-clock.is-positive,
-  .overtime-clock.is-negative { animation-duration: 180ms; transform: none; filter: none; }
+  .overtime-clock.is-negative {
+    animation-duration: 180ms;
+    transform: none;
+    filter: none;
+  }
 }
 .overtime-machine.low-motion .overtime-ticket.is-hit,
 .overtime-machine.low-motion .overtime-adjustment-card,
 .overtime-machine.low-motion .overtime-clock.is-positive,
-.overtime-machine.low-motion .overtime-clock.is-negative { animation-duration: 180ms; transform: none; filter: none; }
+.overtime-machine.low-motion .overtime-clock.is-negative {
+  animation-duration: 180ms;
+  transform: none;
+  filter: none;
+}

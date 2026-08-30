@@ -3,9 +3,11 @@
 // 判断字符是否为汉字（CJK Unified Ideographs + Extension A + Compatibility）
 function isCJK(c) {
   const cp = c.codePointAt(0);
-  return (cp >= 0x4E00 && cp <= 0x9FFF)      // CJK Unified Ideographs
-      || (cp >= 0x3400 && cp <= 0x4DBF)      // CJK Extension A
-      || (cp >= 0xF900 && cp <= 0xFAFF);     // CJK Compatibility Ideographs
+  return (
+    (cp >= 0x4e00 && cp <= 0x9fff) || // CJK Unified Ideographs
+    (cp >= 0x3400 && cp <= 0x4dbf) || // CJK Extension A
+    (cp >= 0xf900 && cp <= 0xfaff)
+  ); // CJK Compatibility Ideographs
 }
 
 function extractKanaReadings(rawLyric) {
@@ -45,12 +47,19 @@ function mapKanaToLines(lines, kanaReadings) {
 function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   const wordLines = parseWordLyric(rawWordLyric);
   const lrcLines = parseLrc(rawLyric);
-  const lines = lrcLines.length > 0
-    ? lrcLines
-    : wordLines.map((line) => ({ startMs: line.startMs, endMs: line.endMs, text: line.text }));
+  const lines =
+    lrcLines.length > 0
+      ? lrcLines
+      : wordLines.map((line) => ({
+          startMs: line.startMs,
+          endMs: line.endMs,
+          text: line.text,
+        }));
   const translations = parseTimedText(rawTranslation);
   const resolveTranslation = createTimedTextResolver(translations);
-  const wordLineByStart = new Map(wordLines.map((line) => [line.startMs, line]));
+  const wordLineByStart = new Map(
+    wordLines.map((line) => [line.startMs, line]),
+  );
   const romaLines = parseTimedText(rawRoma);
   const resolveRoma = createTimedTextResolver(romaLines);
 
@@ -63,13 +72,18 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
 
   return lines.map((line, index) => {
     const romaFromApi = resolveRoma(line.startMs);
-    const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
+    const kanaFromTag = kanaByLineStart
+      ? kanaByLineStart.get(line.startMs) || ''
+      : '';
     return {
       ...line,
-      endMs: line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
+      endMs:
+        line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
       translation: resolveTranslation(line.startMs),
       roma: romaFromApi || kanaFromTag,
-      words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : []
+      words: wordLineByStart.get(line.startMs)
+        ? wordLineByStart.get(line.startMs).words
+        : [],
     };
   });
 }
@@ -85,7 +99,9 @@ function parseTimedText(rawText) {
  */
 function createTimedTextResolver(lines, toleranceMs = 100) {
   const sorted = Array.isArray(lines)
-    ? lines.filter((line) => Number.isFinite(line.startMs)).sort((a, b) => a.startMs - b.startMs)
+    ? lines
+        .filter((line) => Number.isFinite(line.startMs))
+        .sort((a, b) => a.startMs - b.startMs)
     : [];
   const exact = new Map(sorted.map((line) => [line.startMs, line.text]));
 
@@ -102,7 +118,7 @@ function createTimedTextResolver(lines, toleranceMs = 100) {
 
     const candidates = [sorted[low], sorted[low - 1]].filter(Boolean);
     const nearest = candidates.sort(
-      (a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs)
+      (a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs),
     )[0];
     return nearest && Math.abs(nearest.startMs - startMs) <= toleranceMs
       ? nearest.text || ''
@@ -140,9 +156,10 @@ function toStartMs(minutes, seconds, fraction) {
   const minuteNumber = Number(minutes);
   const secondNumber = Number(seconds);
   const fractionText = String(fraction || '0');
-  const fractionMs = fractionText.length === 3
-    ? Number(fractionText)
-    : Number(fractionText.padEnd(3, '0'));
+  const fractionMs =
+    fractionText.length === 3
+      ? Number(fractionText)
+      : Number(fractionText.padEnd(3, '0'));
   return (minuteNumber * 60 + secondNumber) * 1000 + fractionMs;
 }
 
@@ -170,7 +187,7 @@ function parseWordLyric(rawText) {
       words.push({
         startMs,
         endMs: startMs + Math.max(0, durationMs),
-        text: textValue
+        text: textValue,
       });
     }
     if (!words.length) {
@@ -183,7 +200,7 @@ function parseWordLyric(rawText) {
         words.push({
           startMs,
           endMs: startMs + Math.max(0, durationMs),
-          text: textValue
+          text: textValue,
         });
       }
     }
@@ -191,8 +208,11 @@ function parseWordLyric(rawText) {
     result.push({
       startMs: lineStartMs,
       endMs: lineStartMs + Math.max(0, lineDurationMs),
-      text: words.map((word) => word.text).join('').trim(),
-      words
+      text: words
+        .map((word) => word.text)
+        .join('')
+        .trim(),
+      words,
     });
   }
 
@@ -226,5 +246,5 @@ module.exports = {
   findCurrentLyricLine,
   parseLrc,
   parseLyricResult,
-  parseWordLyric
+  parseWordLyric,
 };

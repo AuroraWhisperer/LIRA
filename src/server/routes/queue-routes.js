@@ -19,7 +19,7 @@ const routes = {
       requesterMedalName: body.requesterMedalName,
       requesterMedalLevel: body.requesterMedalLevel,
       source: body.source || 'admin',
-      message: body.message || ''
+      message: body.message || '',
     });
     context.broadcastSnapshot('queue:add');
     sendJson(res, 200, { ok: true, data: item });
@@ -30,7 +30,7 @@ const routes = {
     const result = context.queue.handleAction(body.action, body.id);
     context.broadcastSnapshot(`queue:${body.action}`);
     sendJson(res, 200, { ok: true, data: result });
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

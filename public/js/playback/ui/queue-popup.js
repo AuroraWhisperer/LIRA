@@ -79,7 +79,8 @@ export class QueuePopup {
 
     // 空队列
     if (this.getTotalCount(state) === 0 && !state.current) {
-      this.listContainer.innerHTML = '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
+      this.listContainer.innerHTML =
+        '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
       return;
     }
 
@@ -95,11 +96,15 @@ export class QueuePopup {
     } else {
       const queue = this.getActiveQueue(state);
       const origin = this.getActiveOrigin(state);
-      sections.push(this.renderQueueSection(state.queueTitle, queue, origin, state));
+      sections.push(
+        this.renderQueueSection(state.queueTitle, queue, origin, state),
+      );
     }
 
     const html = sections.filter(Boolean).join('');
-    this.listContainer.innerHTML = html || '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
+    this.listContainer.innerHTML =
+      html ||
+      '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
   }
 
   /**
@@ -109,7 +114,9 @@ export class QueuePopup {
     if (!this.listContainer) return;
 
     requestAnimationFrame(() => {
-      const currentRow = this.listContainer.querySelector('.playback-queue-row.playlist-current');
+      const currentRow = this.listContainer.querySelector(
+        '.playback-queue-row.playlist-current',
+      );
       if (currentRow) {
         currentRow.scrollIntoView({ block: 'center', behavior: 'instant' });
       }
@@ -176,13 +183,16 @@ export class QueuePopup {
     if (!tracks || !tracks.length) return '';
 
     const currentIndex = state.playlistIndex;
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml =
+      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
-    const rows = tracks.map((track, index) => {
-      const isCurrent = index === currentIndex;
-      const isPast = index < currentIndex;
-      return UIComponents.renderPlaylistRow(track, index, isCurrent, isPast);
-    }).join('');
+    const rows = tracks
+      .map((track, index) => {
+        const isCurrent = index === currentIndex;
+        const isPast = index < currentIndex;
+        return UIComponents.renderPlaylistRow(track, index, isCurrent, isPast);
+      })
+      .join('');
 
     return `
       <section class="playback-queue-section">
@@ -203,11 +213,21 @@ export class QueuePopup {
   renderQueueSection(title, queue, origin, state) {
     if (!queue || !queue.length) return '';
 
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml =
+      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
-    const rows = queue.map((track, index) =>
-      UIComponents.renderQueueRow(track, origin, index, false, state.current, state.currentOrigin)
-    ).join('');
+    const rows = queue
+      .map((track, index) =>
+        UIComponents.renderQueueRow(
+          track,
+          origin,
+          index,
+          false,
+          state.current,
+          state.currentOrigin,
+        ),
+      )
+      .join('');
 
     return `
       <section class="playback-queue-section">

@@ -1,192 +1,334 @@
-        <div id="displayPage" class="tab-page">
-          <div class="panel-body stack">
-            <form id="displayForm" class="stack">
-              <label>
-                <span>歌单滚动速率 <lira-help>数值越大滚动越快；1 最慢，100 最快。</lira-help></span>
-                <span class="range-row">
-                  <input id="scrollSecondsRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
-                  <input id="scrollSeconds" type="number" min="1" max="100" step="1">
-                </span>
-              </label>
+<div id="displayPage" class="tab-page">
+  <div class="panel-body stack">
+    <form id="displayForm" class="stack">
+      <label>
+        <span
+          >歌单滚动速率
+          <lira-help>数值越大滚动越快；1 最慢，100 最快。</lira-help></span
+        >
+        <span class="range-row">
+          <input
+            id="scrollSecondsRange"
+            class="parameter-range parameter-range--tempo"
+            type="range"
+            min="1"
+            max="100"
+            step="1"
+          />
+          <input id="scrollSeconds" type="number" min="1" max="100" step="1" />
+        </span>
+      </label>
 
-              <div class="grid-2" style="margin-bottom:12px">
-                <label>
-                  <span>歌曲排序方式</span>
-                  <select id="songBoardSortMode" data-dropdown-variant="settings">
-                    <option value="initial">按首字母</option>
-                    <option value="category">按歌曲风格</option>
-                    <option value="artist">按歌手</option>
-                    <option value="language">按语言</option>
-                    <option value="length">按歌曲名字长度</option>
-                  </select>
-                </label>
-                <label>
-                  <span>字体大小 <lira-help>控制歌单板全部文字，默认 40 px。</lira-help></span>
-                  <span class="range-row">
-                    <input id="songBoardFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="80" step="1" value="40">
-                    <input id="songBoardFontSizeNumber" type="number" min="10" max="80" step="1" value="40">
-                  </span>
-                </label>
-              </div>
+      <div class="grid-2" style="margin-bottom: 12px">
+        <label>
+          <span>歌曲排序方式</span>
+          <select id="songBoardSortMode" data-dropdown-variant="settings">
+            <option value="initial">按首字母</option>
+            <option value="category">按歌曲风格</option>
+            <option value="artist">按歌手</option>
+            <option value="language">按语言</option>
+            <option value="length">按歌曲名字长度</option>
+          </select>
+        </label>
+        <label>
+          <span
+            >字体大小
+            <lira-help>控制歌单板全部文字，默认 40 px。</lira-help></span
+          >
+          <span class="range-row">
+            <input
+              id="songBoardFontSize"
+              class="parameter-range parameter-range--scale"
+              type="range"
+              min="10"
+              max="80"
+              step="1"
+              value="40"
+            />
+            <input
+              id="songBoardFontSizeNumber"
+              type="number"
+              min="10"
+              max="80"
+              step="1"
+              value="40"
+            />
+          </span>
+        </label>
+      </div>
 
-              <div class="sync-toggle-row">
-                <label class="switch-control">
-                  <input id="songBoardSyncTheme" type="checkbox" checked>
-                  <span class="switch-track"></span>
-                  <span>同步点歌板主题 <lira-help>关闭后可单独设置歌单板的颜色、字体和效果。</lira-help></span>
-                </label>
-              </div>
+      <div class="sync-toggle-row">
+        <label class="switch-control">
+          <input id="songBoardSyncTheme" type="checkbox" checked />
+          <span class="switch-track"></span>
+          <span
+            >同步点歌板主题
+            <lira-help
+              >关闭后可单独设置歌单板的颜色、字体和效果。</lira-help
+            ></span
+          >
+        </label>
+      </div>
 
-              <div id="songBoardThemeArea" hidden>
-                <fieldset class="theme-section">
-                  <legend>歌单展示板预设</legend>
-                  <div class="preset-grid" id="songBoardPresets"></div>
-                </fieldset>
+      <div id="songBoardThemeArea" hidden>
+        <fieldset class="theme-section">
+          <legend>歌单展示板预设</legend>
+          <div class="preset-grid" id="songBoardPresets"></div>
+        </fieldset>
 
-                <fieldset class="theme-section">
-                  <legend>颜色设置</legend>
-                  <div class="swatch-row">
-                    <label>
-                      主色
-                      <input id="songBoardThemePrimary" type="color">
-                    </label>
-                    <label>
-                      辅助色
-                      <input id="songBoardThemeAccent" type="color">
-                    </label>
-                    <label>
-                      文字色
-                      <input id="songBoardThemeText" type="color">
-                    </label>
-                    <label>
-                      背景色
-                      <input id="songBoardThemeBackground" type="color">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>文字样式</legend>
-                  <div class="grid-2">
-                    <label>
-                      字体
-                      <select id="songBoardFontFamily" data-dropdown-variant="settings">
-                        <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
-                        <option value="Microsoft YaHei">微软雅黑（默认）</option>
-                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
-                        <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
-                        <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
-                        <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
-                        <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
-                        <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
-                        <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
-                        <option value="STLiti, FZLiShu, KaiTi, serif">隶书 · 古朴庄重</option>
-                        <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
-                        <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
-                        <option value="STHupo, KaiTi, cursive">琥珀体 · 创意醒目</option>
-                        <option value="Hannotate SC, KaiTi, serif">手札体 · 文艺清新</option>
-                      </select>
-                    </label>
-                    <label>
-                      字重
-                      <select id="songBoardFontWeight" data-dropdown-variant="settings">
-                        <option value="600">较细</option>
-                        <option value="700">中等</option>
-                        <option value="800" selected>粗体（默认）</option>
-                        <option value="900">超粗</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
-                      <input id="songBoardSongColor" type="color" value="">
-                    </label>
-                    <label>
-                      <span>面板标题 <lira-help>修改歌单板顶部标题；留空时使用默认标题。</lira-help></span>
-                      <input id="songBoardTitle" placeholder="留空显示默认：可点歌单">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>字号设置</legend>
-                  <div class="grid-2">
-                    <label>
-                      歌名字号
-                      <span class="range-row">
-                        <input id="songBoardSongFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="40" step="1">
-                        <input id="songBoardSongFontSizeNumber" type="number" min="10" max="40" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      标题字号
-                      <span class="range-row">
-                        <input id="songBoardTitleFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="28" step="1">
-                        <input id="songBoardTitleFontSizeNumber" type="number" min="10" max="28" step="1">
-                      </span>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>玻璃质感效果</legend>
-                  <div class="grid-2">
-                    <label>
-                      <span>背景模糊 <lira-help>数值越大，毛玻璃越明显；0 表示关闭。</lira-help></span>
-                      <span class="range-row">
-                        <input id="songBoardBackdropBlur" class="parameter-range parameter-range--intensity" type="range" min="0" max="30" step="1">
-                        <input id="songBoardBackdropBlurNumber" type="number" min="0" max="30" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      <span>发光强度 <lira-help>控制辅助色发光；0 表示关闭。</lira-help></span>
-                      <span class="range-row">
-                        <input id="songBoardGlowIntensity" class="parameter-range parameter-range--intensity" type="range" min="0" max="20" step="1">
-                        <input id="songBoardGlowIntensityNumber" type="number" min="0" max="20" step="1">
-                      </span>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>渐变背景</legend>
-                  <div class="grid-2">
-                    <label>
-                      启用渐变
-                      <select id="songBoardEnableGradient" data-dropdown-variant="settings">
-                        <option value="false">关闭（纯色背景）</option>
-                        <option value="true">开启（渐变背景）</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>渐变结束色 <lira-help>与背景色组成双色渐变。</lira-help></span>
-                      <input id="songBoardGradientEnd" type="color">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>面板设置</legend>
-                  <div class="grid-2">
-                    <label>
-                      背景透明度
-                      <span class="range-row">
-                        <input id="songBoardThemeOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.01">
-                        <input id="songBoardThemeOpacityNumber" type="number" min="0" max="1" step="0.01">
-                      </span>
-                    </label>
-                    <label>
-                      <span>圆角大小</span>
-                      <input id="songBoardThemeRadius" type="number" min="0" max="24">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <div class="actions">
-                  <button id="songBoardResetTheme" type="button">恢复默认</button>
-                </div>
-              </div>
-
-              <button class="primary" type="submit">保存展示板</button>
-            </form>
+        <fieldset class="theme-section">
+          <legend>颜色设置</legend>
+          <div class="swatch-row">
+            <label>
+              主色
+              <input id="songBoardThemePrimary" type="color" />
+            </label>
+            <label>
+              辅助色
+              <input id="songBoardThemeAccent" type="color" />
+            </label>
+            <label>
+              文字色
+              <input id="songBoardThemeText" type="color" />
+            </label>
+            <label>
+              背景色
+              <input id="songBoardThemeBackground" type="color" />
+            </label>
           </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>文字样式</legend>
+          <div class="grid-2">
+            <label>
+              字体
+              <select id="songBoardFontFamily" data-dropdown-variant="settings">
+                <option
+                  value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
+                >
+                  中日英韩通用
+                </option>
+                <option value="Microsoft YaHei">微软雅黑（默认）</option>
+                <option value="PingFang SC, Microsoft YaHei, sans-serif">
+                  苹方 · 现代简约
+                </option>
+                <option value="SimHei, Microsoft YaHei, sans-serif">
+                  黑体 · 醒目有力
+                </option>
+                <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
+                <option value="system-ui, -apple-system, sans-serif">
+                  系统圆体 · 圆润可爱
+                </option>
+                <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
+                <option
+                  value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif"
+                >
+                  思源黑体 · 清晰现代
+                </option>
+                <option value="YouYuan, STYuanti, PingFang SC, sans-serif">
+                  幼圆 · 圆润亲切
+                </option>
+                <option value="STLiti, FZLiShu, KaiTi, serif">
+                  隶书 · 古朴庄重
+                </option>
+                <option value="Georgia, Times New Roman, STSong, serif">
+                  Georgia · 优雅衬线
+                </option>
+                <option value="Courier New, Consolas, monospace">
+                  等宽字体 · 极客风格
+                </option>
+                <option value="STHupo, KaiTi, cursive">
+                  琥珀体 · 创意醒目
+                </option>
+                <option value="Hannotate SC, KaiTi, serif">
+                  手札体 · 文艺清新
+                </option>
+              </select>
+            </label>
+            <label>
+              字重
+              <select id="songBoardFontWeight" data-dropdown-variant="settings">
+                <option value="600">较细</option>
+                <option value="700">中等</option>
+                <option value="800" selected>粗体（默认）</option>
+                <option value="900">超粗</option>
+              </select>
+            </label>
+            <label>
+              <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
+              <input id="songBoardSongColor" type="color" value="" />
+            </label>
+            <label>
+              <span
+                >面板标题
+                <lira-help
+                  >修改歌单板顶部标题；留空时使用默认标题。</lira-help
+                ></span
+              >
+              <input id="songBoardTitle" placeholder="留空显示默认：可点歌单" />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>字号设置</legend>
+          <div class="grid-2">
+            <label>
+              歌名字号
+              <span class="range-row">
+                <input
+                  id="songBoardSongFontSize"
+                  class="parameter-range parameter-range--scale"
+                  type="range"
+                  min="10"
+                  max="40"
+                  step="1"
+                />
+                <input
+                  id="songBoardSongFontSizeNumber"
+                  type="number"
+                  min="10"
+                  max="40"
+                  step="1"
+                />
+              </span>
+            </label>
+            <label>
+              标题字号
+              <span class="range-row">
+                <input
+                  id="songBoardTitleFontSize"
+                  class="parameter-range parameter-range--scale"
+                  type="range"
+                  min="10"
+                  max="28"
+                  step="1"
+                />
+                <input
+                  id="songBoardTitleFontSizeNumber"
+                  type="number"
+                  min="10"
+                  max="28"
+                  step="1"
+                />
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>玻璃质感效果</legend>
+          <div class="grid-2">
+            <label>
+              <span
+                >背景模糊
+                <lira-help
+                  >数值越大，毛玻璃越明显；0 表示关闭。</lira-help
+                ></span
+              >
+              <span class="range-row">
+                <input
+                  id="songBoardBackdropBlur"
+                  class="parameter-range parameter-range--intensity"
+                  type="range"
+                  min="0"
+                  max="30"
+                  step="1"
+                />
+                <input
+                  id="songBoardBackdropBlurNumber"
+                  type="number"
+                  min="0"
+                  max="30"
+                  step="1"
+                />
+              </span>
+            </label>
+            <label>
+              <span
+                >发光强度
+                <lira-help>控制辅助色发光；0 表示关闭。</lira-help></span
+              >
+              <span class="range-row">
+                <input
+                  id="songBoardGlowIntensity"
+                  class="parameter-range parameter-range--intensity"
+                  type="range"
+                  min="0"
+                  max="20"
+                  step="1"
+                />
+                <input
+                  id="songBoardGlowIntensityNumber"
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="1"
+                />
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>渐变背景</legend>
+          <div class="grid-2">
+            <label>
+              启用渐变
+              <select
+                id="songBoardEnableGradient"
+                data-dropdown-variant="settings"
+              >
+                <option value="false">关闭（纯色背景）</option>
+                <option value="true">开启（渐变背景）</option>
+              </select>
+            </label>
+            <label>
+              <span
+                >渐变结束色 <lira-help>与背景色组成双色渐变。</lira-help></span
+              >
+              <input id="songBoardGradientEnd" type="color" />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>面板设置</legend>
+          <div class="grid-2">
+            <label>
+              背景透明度
+              <span class="range-row">
+                <input
+                  id="songBoardThemeOpacity"
+                  class="parameter-range parameter-range--intensity"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                />
+                <input
+                  id="songBoardThemeOpacityNumber"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                />
+              </span>
+            </label>
+            <label>
+              <span>圆角大小</span>
+              <input id="songBoardThemeRadius" type="number" min="0" max="24" />
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button id="songBoardResetTheme" type="button">恢复默认</button>
         </div>
+      </div>
+
+      <button class="primary" type="submit">保存展示板</button>
+    </form>
+  </div>
+</div>

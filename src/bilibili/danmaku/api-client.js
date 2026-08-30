@@ -23,14 +23,23 @@ class BilibiliApiClient {
 
   async resolveRoomInfo() {
     if (!this.roomId) {
-      throw new Error('请填写 Bilibili 直播间号，或直接粘贴 https://live.bilibili.com/房间号。');
+      throw new Error(
+        '请填写 Bilibili 直播间号，或直接粘贴 https://live.bilibili.com/房间号。',
+      );
     }
     const { payload, response } = await this.fetchJson(
       'room_init',
-      `https://api.live.bilibili.com/room/v1/Room/room_init?id=${encodeURIComponent(this.roomId)}`
+      `https://api.live.bilibili.com/room/v1/Room/room_init?id=${encodeURIComponent(this.roomId)}`,
     );
     if (payload.code !== 0 || !payload.data || !payload.data.room_id) {
-      throw new Error(formatBilibiliApiError('room_init', response, payload, '请确认填写的是直播间地址里的房间号，不是主播 UID、昵称或个人主页 ID。也可以直接粘贴 https://live.bilibili.com/房间号。'));
+      throw new Error(
+        formatBilibiliApiError(
+          'room_init',
+          response,
+          payload,
+          '请确认填写的是直播间地址里的房间号，不是主播 UID、昵称或个人主页 ID。也可以直接粘贴 https://live.bilibili.com/房间号。',
+        ),
+      );
     }
     const uid = payload.data.uid || '';
     let ownerName = '';
@@ -38,25 +47,34 @@ class BilibiliApiClient {
       try {
         ownerName = await this.fetchOwnerName(uid);
       } catch (e) {
-        console.warn(`[Bilibili] failed to fetch owner name for uid=${uid}: ${e.message}`);
+        console.warn(
+          `[Bilibili] failed to fetch owner name for uid=${uid}: ${e.message}`,
+        );
       }
     }
-    console.log(`[Bilibili] room resolved: input=${this.roomId} room_id=${payload.data.room_id} short_id=${payload.data.short_id || 0} uid=${uid} owner=${ownerName || '(unknown)'} live_status=${payload.data.live_status}`);
+    console.log(
+      `[Bilibili] room resolved: input=${this.roomId} room_id=${payload.data.room_id} short_id=${payload.data.short_id || 0} uid=${uid} owner=${ownerName || '(unknown)'} live_status=${payload.data.live_status}`,
+    );
     return {
       roomId: payload.data.room_id,
       shortId: payload.data.short_id || 0,
       uid,
       ownerName,
-      liveStatus: payload.data.live_status
+      liveStatus: payload.data.live_status,
     };
   }
 
   async fetchOwnerName(uid) {
     const { payload } = await this.fetchJson(
       'master_info',
-      `https://api.live.bilibili.com/live_user/v1/Master/info?uid=${encodeURIComponent(uid)}`
+      `https://api.live.bilibili.com/live_user/v1/Master/info?uid=${encodeURIComponent(uid)}`,
     );
-    if (payload.code === 0 && payload.data && payload.data.info && payload.data.info.uname) {
+    if (
+      payload.code === 0 &&
+      payload.data &&
+      payload.data.info &&
+      payload.data.info.uname
+    ) {
       return payload.data.info.uname;
     }
     return '';
@@ -66,9 +84,11 @@ class BilibiliApiClient {
     if (!this.cookieHeader) return '';
     const { payload } = await this.fetchJson(
       'nav',
-      'https://api.bilibili.com/x/web-interface/nav'
+      'https://api.bilibili.com/x/web-interface/nav',
     );
-    return cleanText(payload && payload.data && (payload.data.uname || payload.data.name));
+    return cleanText(
+      payload && payload.data && (payload.data.uname || payload.data.name),
+    );
   }
 
   async fetchUserProfile(uid) {
@@ -76,12 +96,12 @@ class BilibiliApiClient {
     if (!/^\d{1,20}$/.test(userId)) return { avatarUrl: '', name: '' };
     const { payload } = await this.fetchJson(
       'user_card',
-      `https://api.bilibili.com/x/web-interface/card?mid=${encodeURIComponent(userId)}`
+      `https://api.bilibili.com/x/web-interface/card?mid=${encodeURIComponent(userId)}`,
     );
     const card = payload && payload.data && payload.data.card;
     return {
       avatarUrl: normalizeBilibiliAvatarUrl(card && card.face),
-      name: cleanText(card && card.name)
+      name: cleanText(card && card.name),
     };
   }
 
@@ -95,30 +115,54 @@ class BilibiliApiClient {
     const response = await fetch(avatarUrl, {
       headers: {
         ...this.requestHeaders(),
-        Accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif,image/*;q=0.8'
+        Accept:
+          'image/avif,image/webp,image/png,image/jpeg,image/gif,image/*;q=0.8',
       },
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok) throw new Error(`Bilibili 头像读取失败。HTTP ${response.status}`);
-    const contentType = String(response.headers.get('content-type') || '').split(';', 1)[0].toLowerCase();
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(contentType)) {
+    if (!response.ok)
+      throw new Error(`Bilibili 头像读取失败。HTTP ${response.status}`);
+    const contentType = String(response.headers.get('content-type') || '')
+      .split(';', 1)[0]
+      .toLowerCase();
+    if (
+      ![
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+        'image/avif',
+      ].includes(contentType)
+    ) {
       throw new Error('Bilibili 头像返回了非图片内容。');
     }
     const contentLength = Number(response.headers.get('content-length')) || 0;
-    if (contentLength > MAX_AVATAR_BYTES) throw new Error('Bilibili 头像文件过大。');
+    if (contentLength > MAX_AVATAR_BYTES)
+      throw new Error('Bilibili 头像文件过大。');
     const data = Buffer.from(await response.arrayBuffer());
-    if (data.length > MAX_AVATAR_BYTES) throw new Error('Bilibili 头像文件过大。');
+    if (data.length > MAX_AVATAR_BYTES)
+      throw new Error('Bilibili 头像文件过大。');
     return { contentType, data };
   }
 
   async resolveDanmuInfo(roomId) {
-    const query = await wbiSigner.signBilibiliWbiParams({ id: roomId, type: 0 }, this.requestHeaders());
+    const query = await wbiSigner.signBilibiliWbiParams(
+      { id: roomId, type: 0 },
+      this.requestHeaders(),
+    );
     const { payload, response } = await this.fetchJson(
       'getDanmuInfo',
-      `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?${query}`
+      `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?${query}`,
     );
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(formatBilibiliApiError('getDanmuInfo', response, payload, '这是获取弹幕服务器信息失败，不是点歌逻辑失败。常见原因是 B 站风控、WBI 签名变化、缺少登录 Cookie 或网络/IP 被风控。'));
+      throw new Error(
+        formatBilibiliApiError(
+          'getDanmuInfo',
+          response,
+          payload,
+          '这是获取弹幕服务器信息失败，不是点歌逻辑失败。常见原因是 B 站风控、WBI 签名变化、缺少登录 Cookie 或网络/IP 被风控。',
+        ),
+      );
     }
     return payload.data;
   }
@@ -127,16 +171,33 @@ class BilibiliApiClient {
     const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId=${encodeURIComponent(roomId)}&ruid=${encodeURIComponent(ruid)}&page=${page}&pageSize=${pageSize}`;
     const { payload, response } = await this.fetchJson('online_gold_rank', url);
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(formatBilibiliApiError('online_gold_rank', response, payload, '在线榜身份缓存获取失败。'));
+      throw new Error(
+        formatBilibiliApiError(
+          'online_gold_rank',
+          response,
+          payload,
+          '在线榜身份缓存获取失败。',
+        ),
+      );
     }
     return payload.data;
   }
 
   async fetchFansMembersRank(roomId, ruid, page, pageSize) {
     const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId=${encodeURIComponent(roomId)}&ruid=${encodeURIComponent(ruid)}&page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`;
-    const { payload, response } = await this.fetchJson('fans_members_rank', url);
+    const { payload, response } = await this.fetchJson(
+      'fans_members_rank',
+      url,
+    );
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(formatBilibiliApiError('fans_members_rank', response, payload, '全量粉丝牌身份缓存获取失败。'));
+      throw new Error(
+        formatBilibiliApiError(
+          'fans_members_rank',
+          response,
+          payload,
+          '全量粉丝牌身份缓存获取失败。',
+        ),
+      );
     }
     return payload.data;
   }
@@ -144,10 +205,17 @@ class BilibiliApiClient {
   async fetchHistory(roomId) {
     const { payload, response } = await this.fetchJson(
       'gethistory',
-      `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid=${encodeURIComponent(roomId)}`
+      `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid=${encodeURIComponent(roomId)}`,
     );
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(formatBilibiliApiError('gethistory', response, payload, '历史消息补偿监听失败。'));
+      throw new Error(
+        formatBilibiliApiError(
+          'gethistory',
+          response,
+          payload,
+          '历史消息补偿监听失败。',
+        ),
+      );
     }
     return payload.data;
   }
@@ -157,7 +225,8 @@ class BilibiliApiClient {
     if (!this.cookieHeader) throw new Error('请先登录 Bilibili 账号。');
     const csrf = extractCookie(this.cookieHeader, 'bili_jct');
     if (!csrf) throw new Error('登录态缺少 bili_jct，无法发送弹幕。');
-    if (!rawText || rawText.length > 1000) throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
+    if (!rawText || rawText.length > 1000)
+      throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
 
     const mentionTarget = normalizeMentionTarget(reply);
     const replyMid = mentionTarget.uid;
@@ -174,7 +243,7 @@ class BilibiliApiClient {
       color: '16777215',
       rnd: String(Math.floor(Date.now() / 1000)),
       roomid: String(Number(roomId) || Number(this.roomId) || 0),
-      room_type: '0'
+      room_type: '0',
     });
     if (replyMid) {
       form.set('reply_mid', replyMid);
@@ -186,50 +255,74 @@ class BilibiliApiClient {
       method: 'POST',
       headers: {
         ...this.requestHeaders(),
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       },
-      body: form.toString()
+      body: form.toString(),
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || Number(payload.code) !== 0) {
-      throw new Error(formatBilibiliApiError('send_danmaku', response, payload, '请确认账号已登录且具备在该直播间发言权限。'));
+      throw new Error(
+        formatBilibiliApiError(
+          'send_danmaku',
+          response,
+          payload,
+          '请确认账号已登录且具备在该直播间发言权限。',
+        ),
+      );
     }
-    return { message: text, replyMid: replyMid || '', replyUname: replyName || '' };
+    return {
+      message: text,
+      replyMid: replyMid || '',
+      replyUname: replyName || '',
+    };
   }
 
   async fetchJson(endpointName, url) {
-    const quiet = endpointName === 'gethistory'
-      || endpointName === 'online_gold_rank'
-      || endpointName === 'fans_members_rank';
+    const quiet =
+      endpointName === 'gethistory' ||
+      endpointName === 'online_gold_rank' ||
+      endpointName === 'fans_members_rank';
     if (!quiet) {
       console.log(`[Bilibili] request ${endpointName}: ${redactUrl(url)}`);
     }
     const response = await fetch(url, {
-      headers: this.requestHeaders()
+      headers: this.requestHeaders(),
     });
     const text = await response.text();
     let payload;
     try {
       payload = JSON.parse(text);
     } catch (_) {
-      throw new Error(`Bilibili API ${endpointName} returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`);
+      throw new Error(
+        `Bilibili API ${endpointName} returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
+      );
     }
     if (!quiet) {
-      console.log(`[Bilibili] response ${endpointName}: http=${response.status} code=${payload.code} message=${payload.message || payload.msg || ''}`);
+      console.log(
+        `[Bilibili] response ${endpointName}: http=${response.status} code=${payload.code} message=${payload.message || payload.msg || ''}`,
+      );
     }
     if (!response.ok) {
-      throw new Error(formatBilibiliApiError(endpointName, response, payload, 'HTTP 请求失败。'));
+      throw new Error(
+        formatBilibiliApiError(
+          endpointName,
+          response,
+          payload,
+          'HTTP 请求失败。',
+        ),
+      );
     }
     return { payload, response };
   }
 
   requestHeaders() {
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      Accept: 'application/json, text/plain, */*',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-      'Origin': 'https://live.bilibili.com',
-      'Referer': `https://live.bilibili.com/${encodeURIComponent(this.roomId)}`
+      Origin: 'https://live.bilibili.com',
+      Referer: `https://live.bilibili.com/${encodeURIComponent(this.roomId)}`,
     };
     if (this.cookieHeader) {
       headers['Cookie'] = this.cookieHeader;
@@ -239,7 +332,9 @@ class BilibiliApiClient {
 }
 
 function extractCookie(cookieHeader, name) {
-  const match = String(cookieHeader || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  const match = String(cookieHeader || '').match(
+    new RegExp(`(?:^|;\\s*)${name}=([^;]*)`),
+  );
   return match ? decodeURIComponent(match[1]) : '';
 }
 
@@ -247,7 +342,10 @@ function formatBilibiliApiError(endpointName, response, payload, extraHint) {
   const code = payload && payload.code;
   const message = (payload && (payload.message || payload.msg)) || '未知错误';
   const hint = bilibiliErrorHint(code);
-  const data = payload && payload.data ? ` data=${JSON.stringify(payload.data).slice(0, 220)}` : '';
+  const data =
+    payload && payload.data
+      ? ` data=${JSON.stringify(payload.data).slice(0, 220)}`
+      : '';
   return `Bilibili API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
 }
 
@@ -274,7 +372,8 @@ function redactUrl(url) {
 function normalizeBilibiliAvatarUrl(value) {
   try {
     const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) return '';
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com'))
+      return '';
     return url.toString();
   } catch (_) {
     return '';

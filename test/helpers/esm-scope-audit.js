@@ -14,53 +14,241 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const KEYWORDS = new Set([
-  'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
-  'delete', 'do', 'else', 'export', 'extends', 'finally', 'for', 'function',
-  'if', 'import', 'in', 'instanceof', 'new', 'return', 'super', 'switch',
-  'this', 'throw', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield',
-  'let', 'static', 'enum', 'await', 'implements', 'interface', 'package',
-  'private', 'protected', 'public', 'null', 'true', 'false', 'undefined',
-  'NaN', 'Infinity', 'arguments', 'eval', 'get', 'set', 'async', 'of', 'as',
-  'from'
-].join(' ').split(' '));
+const KEYWORDS = new Set(
+  [
+    'break',
+    'case',
+    'catch',
+    'class',
+    'const',
+    'continue',
+    'debugger',
+    'default',
+    'delete',
+    'do',
+    'else',
+    'export',
+    'extends',
+    'finally',
+    'for',
+    'function',
+    'if',
+    'import',
+    'in',
+    'instanceof',
+    'new',
+    'return',
+    'super',
+    'switch',
+    'this',
+    'throw',
+    'try',
+    'typeof',
+    'var',
+    'void',
+    'while',
+    'with',
+    'yield',
+    'let',
+    'static',
+    'enum',
+    'await',
+    'implements',
+    'interface',
+    'package',
+    'private',
+    'protected',
+    'public',
+    'null',
+    'true',
+    'false',
+    'undefined',
+    'NaN',
+    'Infinity',
+    'arguments',
+    'eval',
+    'get',
+    'set',
+    'async',
+    'of',
+    'as',
+    'from',
+  ]
+    .join(' ')
+    .split(' '),
+);
 
-const BROWSER_GLOBALS = new Set([
-  'document', 'window', 'globalThis', 'self', 'location', 'navigator',
-  'history', 'screen', 'localStorage', 'sessionStorage', 'indexedDB',
-  'performance', 'console', 'alert', 'confirm', 'prompt', 'fetch', 'WebSocket',
-  'EventSource', 'XMLHttpRequest', 'FormData', 'Blob', 'File', 'FileReader',
-  'FileList', 'URL', 'URLSearchParams', 'DOMParser', 'Image', 'Audio',
-  'Worker', 'SharedWorker', 'Notification', 'crypto', 'atob', 'btoa',
-  'TextEncoder', 'TextDecoder', 'queueMicrotask', 'structuredClone',
-  'requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback',
-  'cancelIdleCallback', 'setTimeout', 'clearTimeout', 'setInterval',
-  'clearInterval', 'getComputedStyle', 'matchMedia', 'scrollTo', 'scrollBy',
-  'open', 'close', 'print', 'postMessage', 'addEventListener',
-  'removeEventListener', 'dispatchEvent', 'Promise', 'Symbol', 'Proxy',
-  'Reflect', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Array', 'ArrayBuffer',
-  'DataView', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array',
-  'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array',
-  'BigInt', 'BigInt64Array', 'BigUint64Array', 'Object', 'Function',
-  'Boolean', 'Number', 'String', 'Date', 'RegExp', 'Error', 'TypeError',
-  'RangeError', 'ReferenceError', 'SyntaxError', 'EvalError', 'URIError',
-  'AggregateError', 'JSON', 'Math', 'Intl', 'parseFloat', 'parseInt',
-  'isFinite', 'isNaN', 'encodeURI', 'decodeURI', 'encodeURIComponent',
-  'decodeURIComponent', 'escape', 'unescape', 'HTMLElement', 'HTMLDivElement',
-  'HTMLSpanElement', 'HTMLImageElement', 'HTMLInputElement',
-  'HTMLSelectElement', 'HTMLButtonElement', 'HTMLFormElement',
-  'HTMLAnchorElement', 'HTMLCanvasElement', 'HTMLVideoElement',
-  'HTMLAudioElement', 'HTMLTextAreaElement', 'HTMLTemplateElement', 'Element',
-  'Node', 'NodeList', 'Document', 'Window', 'Event', 'CustomEvent',
-  'MouseEvent', 'KeyboardEvent', 'InputEvent', 'FocusEvent', 'TouchEvent',
-  'WheelEvent', 'PointerEvent', 'DragEvent', 'ClipboardEvent', 'MessageEvent',
-  'CloseEvent', 'ProgressEvent', 'ErrorEvent', 'StorageEvent', 'PopStateEvent',
-  'HashChangeEvent', 'UIEvent', 'AbortController', 'AbortSignal',
-  'MutationObserver', 'IntersectionObserver', 'ResizeObserver', 'DOMException',
-  'DOMTokenList', 'CSSStyleDeclaration', 'SpeechSynthesisUtterance',
-  'speechSynthesis', 'AudioContext', 'MediaMetadata', 'devicePixelRatio',
-  'innerWidth', 'innerHeight', 'outerWidth', 'outerHeight'
-].join(' ').split(' '));
+const BROWSER_GLOBALS = new Set(
+  [
+    'document',
+    'window',
+    'globalThis',
+    'self',
+    'location',
+    'navigator',
+    'history',
+    'screen',
+    'localStorage',
+    'sessionStorage',
+    'indexedDB',
+    'performance',
+    'console',
+    'alert',
+    'confirm',
+    'prompt',
+    'fetch',
+    'WebSocket',
+    'EventSource',
+    'XMLHttpRequest',
+    'FormData',
+    'Blob',
+    'File',
+    'FileReader',
+    'FileList',
+    'URL',
+    'URLSearchParams',
+    'DOMParser',
+    'Image',
+    'Audio',
+    'Worker',
+    'SharedWorker',
+    'Notification',
+    'crypto',
+    'atob',
+    'btoa',
+    'TextEncoder',
+    'TextDecoder',
+    'queueMicrotask',
+    'structuredClone',
+    'requestAnimationFrame',
+    'cancelAnimationFrame',
+    'requestIdleCallback',
+    'cancelIdleCallback',
+    'setTimeout',
+    'clearTimeout',
+    'setInterval',
+    'clearInterval',
+    'getComputedStyle',
+    'matchMedia',
+    'scrollTo',
+    'scrollBy',
+    'open',
+    'close',
+    'print',
+    'postMessage',
+    'addEventListener',
+    'removeEventListener',
+    'dispatchEvent',
+    'Promise',
+    'Symbol',
+    'Proxy',
+    'Reflect',
+    'Map',
+    'Set',
+    'WeakMap',
+    'WeakSet',
+    'Array',
+    'ArrayBuffer',
+    'DataView',
+    'Int8Array',
+    'Uint8Array',
+    'Uint8ClampedArray',
+    'Int16Array',
+    'Uint16Array',
+    'Int32Array',
+    'Uint32Array',
+    'Float32Array',
+    'Float64Array',
+    'BigInt',
+    'BigInt64Array',
+    'BigUint64Array',
+    'Object',
+    'Function',
+    'Boolean',
+    'Number',
+    'String',
+    'Date',
+    'RegExp',
+    'Error',
+    'TypeError',
+    'RangeError',
+    'ReferenceError',
+    'SyntaxError',
+    'EvalError',
+    'URIError',
+    'AggregateError',
+    'JSON',
+    'Math',
+    'Intl',
+    'parseFloat',
+    'parseInt',
+    'isFinite',
+    'isNaN',
+    'encodeURI',
+    'decodeURI',
+    'encodeURIComponent',
+    'decodeURIComponent',
+    'escape',
+    'unescape',
+    'HTMLElement',
+    'HTMLDivElement',
+    'HTMLSpanElement',
+    'HTMLImageElement',
+    'HTMLInputElement',
+    'HTMLSelectElement',
+    'HTMLButtonElement',
+    'HTMLFormElement',
+    'HTMLAnchorElement',
+    'HTMLCanvasElement',
+    'HTMLVideoElement',
+    'HTMLAudioElement',
+    'HTMLTextAreaElement',
+    'HTMLTemplateElement',
+    'Element',
+    'Node',
+    'NodeList',
+    'Document',
+    'Window',
+    'Event',
+    'CustomEvent',
+    'MouseEvent',
+    'KeyboardEvent',
+    'InputEvent',
+    'FocusEvent',
+    'TouchEvent',
+    'WheelEvent',
+    'PointerEvent',
+    'DragEvent',
+    'ClipboardEvent',
+    'MessageEvent',
+    'CloseEvent',
+    'ProgressEvent',
+    'ErrorEvent',
+    'StorageEvent',
+    'PopStateEvent',
+    'HashChangeEvent',
+    'UIEvent',
+    'AbortController',
+    'AbortSignal',
+    'MutationObserver',
+    'IntersectionObserver',
+    'ResizeObserver',
+    'DOMException',
+    'DOMTokenList',
+    'CSSStyleDeclaration',
+    'SpeechSynthesisUtterance',
+    'speechSynthesis',
+    'AudioContext',
+    'MediaMetadata',
+    'devicePixelRatio',
+    'innerWidth',
+    'innerHeight',
+    'outerWidth',
+    'outerHeight',
+  ]
+    .join(' ')
+    .split(' '),
+);
 
 const IDENTIFIER_RE = /[A-Za-z_$][\w$]*/g;
 
@@ -68,9 +256,11 @@ const IDENTIFIER_RE = /[A-Za-z_$][\w$]*/g;
 // position. `get`/`set`/`async`/`static` are deliberately absent so that a
 // method literally named `get` or `set` (e.g. CacheManager#set) still counts
 // as a declaration of its parameters.
-const CONTROL_KEYWORDS = new Set([
-  'if', 'for', 'while', 'switch', 'catch', 'with', 'function'
-].join(' ').split(' '));
+const CONTROL_KEYWORDS = new Set(
+  ['if', 'for', 'while', 'switch', 'catch', 'with', 'function']
+    .join(' ')
+    .split(' '),
+);
 
 // Replaces source[start, end) with spaces while preserving newlines so that
 // reported line numbers match the original file.
@@ -111,21 +301,59 @@ function sanitizeSource(source) {
       const prev = prevCharOf(buffer);
       if (!prev) return true;
       if ('([{:;,=!&|?+-*%^~<>'.includes(prev)) return true;
-      return /^(return|typeof|instanceof|in|of|new|void|delete|do|else|case|yield|await|throw|extends)$/.test(lastWordOf(buffer));
+      return /^(return|typeof|instanceof|in|of|new|void|delete|do|else|case|yield|await|throw|extends)$/.test(
+        lastWordOf(buffer),
+      );
     };
 
     while (i < n) {
       const ch = source[i];
-      if (stopChar && ch === stopChar && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+      if (
+        stopChar &&
+        ch === stopChar &&
+        parenDepth === 0 &&
+        bracketDepth === 0 &&
+        braceDepth === 0
+      ) {
         i += 1;
         break;
       }
-      if (ch === '(') { parenDepth += 1; seg.push(ch); i += 1; continue; }
-      if (ch === ')') { parenDepth = Math.max(0, parenDepth - 1); seg.push(ch); i += 1; continue; }
-      if (ch === '[') { bracketDepth += 1; seg.push(ch); i += 1; continue; }
-      if (ch === ']') { bracketDepth = Math.max(0, bracketDepth - 1); seg.push(ch); i += 1; continue; }
-      if (ch === '{') { braceDepth += 1; seg.push(ch); i += 1; continue; }
-      if (stopChar && ch === '}') { braceDepth = Math.max(0, braceDepth - 1); seg.push(ch); i += 1; continue; }
+      if (ch === '(') {
+        parenDepth += 1;
+        seg.push(ch);
+        i += 1;
+        continue;
+      }
+      if (ch === ')') {
+        parenDepth = Math.max(0, parenDepth - 1);
+        seg.push(ch);
+        i += 1;
+        continue;
+      }
+      if (ch === '[') {
+        bracketDepth += 1;
+        seg.push(ch);
+        i += 1;
+        continue;
+      }
+      if (ch === ']') {
+        bracketDepth = Math.max(0, bracketDepth - 1);
+        seg.push(ch);
+        i += 1;
+        continue;
+      }
+      if (ch === '{') {
+        braceDepth += 1;
+        seg.push(ch);
+        i += 1;
+        continue;
+      }
+      if (stopChar && ch === '}') {
+        braceDepth = Math.max(0, braceDepth - 1);
+        seg.push(ch);
+        i += 1;
+        continue;
+      }
       if (ch === '/' && source[i + 1] === '/') {
         const end = source.indexOf('\n', i + 2);
         const stop = end === -1 ? n : end;
@@ -156,8 +384,16 @@ function sanitizeSource(source) {
         i += 1;
         while (i < n) {
           const c = source[i];
-          if (c === '`') { seg.push(' '); i += 1; break; }
-          if (c === '\\') { seg.push(' '); i += 2; continue; }
+          if (c === '`') {
+            seg.push(' ');
+            i += 1;
+            break;
+          }
+          if (c === '\\') {
+            seg.push(' ');
+            i += 2;
+            continue;
+          }
           if (c === '$' && source[i + 1] === '{') {
             seg.push('  ');
             i += 2;
@@ -176,11 +412,17 @@ function sanitizeSource(source) {
           let terminated = false;
           while (j < n) {
             const rc = source[j];
-            if (rc === '\\') { j += 2; continue; }
+            if (rc === '\\') {
+              j += 2;
+              continue;
+            }
             if (rc === '\n') break;
             if (rc === '[') inClass = true;
             else if (rc === ']') inClass = false;
-            else if (rc === '/' && !inClass) { terminated = true; break; }
+            else if (rc === '/' && !inClass) {
+              terminated = true;
+              break;
+            }
             j += 1;
           }
           if (terminated) {
@@ -235,7 +477,8 @@ function splitTopLevel(text, separator) {
   for (let k = 0; k < text.length; k += 1) {
     const ch = text[k];
     if (ch === '{' || ch === '[' || ch === '(') depth += 1;
-    else if (ch === '}' || ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
+    else if (ch === '}' || ch === ']' || ch === ')')
+      depth = Math.max(0, depth - 1);
     else if (ch === separator && depth === 0) {
       parts.push(text.slice(start, k));
       start = k + 1;
@@ -254,7 +497,7 @@ function extractNames(text) {
     const prev2 = idx > 1 ? text[idx - 2] : '';
     const after = text.slice(idx + match[0].length).trimStart();
     if (prev === '.' && prev2 !== '.') continue; // property access (…rest is kept)
-    if (after.startsWith(':')) continue;          // destructuring / object key
+    if (after.startsWith(':')) continue; // destructuring / object key
     names.push(match[0]);
   }
   return names;
@@ -265,7 +508,8 @@ function captureStatement(text, start) {
   for (let k = start; k < text.length; k += 1) {
     const ch = text[k];
     if (ch === '{' || ch === '[' || ch === '(') depth += 1;
-    else if (ch === '}' || ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
+    else if (ch === '}' || ch === ']' || ch === ')')
+      depth = Math.max(0, depth - 1);
     else if (ch === ';' && depth === 0) return text.slice(start, k);
   }
   return text.slice(start);
@@ -273,7 +517,8 @@ function captureStatement(text, start) {
 
 function collectImportedNames(sanitized) {
   const imported = new Set();
-  const importRe = /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*/g;
+  const importRe =
+    /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*/g;
   let match;
   while ((match = importRe.exec(sanitized))) {
     if (match[1]) imported.add(match[1]);
@@ -281,7 +526,9 @@ function collectImportedNames(sanitized) {
       for (const part of match[2].split(',')) {
         const trimmed = part.trim();
         if (!trimmed) continue;
-        const asMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
+        const asMatch = trimmed.match(
+          /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/,
+        );
         if (asMatch) imported.add(asMatch[2]);
         else imported.add(trimmed);
       }
@@ -299,7 +546,8 @@ function collectDeclaredNames(sanitized) {
   while ((match = functionDecl.exec(sanitized))) {
     if (match[1]) declared.add(match[1]);
     const openIdx = match.index + match[0].length - 1;
-    for (const name of extractNames(balancedParens(sanitized, openIdx))) declared.add(name);
+    for (const name of extractNames(balancedParens(sanitized, openIdx)))
+      declared.add(name);
   }
 
   const classDecl = /\bclass\s+([A-Za-z_$][\w$]*)/g;
@@ -338,24 +586,30 @@ function collectDeclaredNames(sanitized) {
     if (before.endsWith(')')) {
       const openIdx = matchingOpenParenBackward(sanitized, before.length - 1);
       if (openIdx !== -1) {
-        for (const name of extractNames(sanitized.slice(openIdx + 1, before.length - 1))) declared.add(name);
+        for (const name of extractNames(
+          sanitized.slice(openIdx + 1, before.length - 1),
+        ))
+          declared.add(name);
       }
     } else {
       const identMatch = /([A-Za-z_$][\w$]*)\s*$/.exec(before);
-      if (identMatch && !KEYWORDS.has(identMatch[1])) declared.add(identMatch[1]);
+      if (identMatch && !KEYWORDS.has(identMatch[1]))
+        declared.add(identMatch[1]);
     }
     arrowIdx = sanitized.indexOf('=>', arrowIdx + 2);
   }
 
   // Class fields and other function-valued assignments: name = (...) => ...
-  const fieldArrow = /\b([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:[A-Za-z_$][\w$]*|\([^()]*\))\s*=>/g;
+  const fieldArrow =
+    /\b([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:[A-Za-z_$][\w$]*|\([^()]*\))\s*=>/g;
   while ((match = fieldArrow.exec(sanitized))) declared.add(match[1]);
 
   // catch parameters.
   const catchParams = /\bcatch\s*\(/g;
   while ((match = catchParams.exec(sanitized))) {
     const openIdx = match.index + match[0].length - 1;
-    for (const name of extractNames(balancedParens(sanitized, openIdx))) declared.add(name);
+    for (const name of extractNames(balancedParens(sanitized, openIdx)))
+      declared.add(name);
   }
 
   return declared;
@@ -389,7 +643,8 @@ function collectUnresolvedUsages(sanitized, imported, declared) {
   while ((match = IDENTIFIER_RE.exec(sanitized))) {
     const name = match[0];
     if (KEYWORDS.has(name)) continue;
-    if (imported.has(name) || declared.has(name) || BROWSER_GLOBALS.has(name)) continue;
+    if (imported.has(name) || declared.has(name) || BROWSER_GLOBALS.has(name))
+      continue;
     const prev = previousChar(sanitized, match.index);
     const next = nextChar(sanitized, match.index + name.length);
     if (prev === '.') continue;
@@ -397,7 +652,14 @@ function collectUnresolvedUsages(sanitized, imported, declared) {
     if (next === ':') continue;
     if (prev === '{' && next === '(') continue;
     const word = previousWord(sanitized, match.index);
-    if ((word === 'get' || word === 'set' || word === 'async' || word === 'static') && next === '(') continue;
+    if (
+      (word === 'get' ||
+        word === 'set' ||
+        word === 'async' ||
+        word === 'static') &&
+      next === '('
+    )
+      continue;
     if (!unresolved.has(name)) {
       const line = sanitized.slice(0, match.index).split('\n').length;
       unresolved.set(name, line);

@@ -8,7 +8,9 @@ const test = require('node:test');
 const { installTerminalLog } = require('../src/electron/terminal-log');
 
 test('resets the terminal log and mirrors ordinary console output', () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
+  );
   const filePath = path.join(directory, 'terminal.log');
   const originalLog = console.log;
   const originalInfo = console.info;
@@ -30,7 +32,7 @@ test('resets the terminal log and mirrors ordinary console output', () => {
           sequence += 1;
           return sequence;
         };
-      })()
+      })(),
     });
     console.log('hello %s', 'world');
     console.info({ ready: true });
@@ -40,11 +42,11 @@ test('resets the terminal log and mirrors ordinary console output', () => {
 
     assert.equal(
       fs.readFileSync(filePath, 'utf8'),
-      '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:log] hello world\n'
-      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:info] { ready: true }\n'
-      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=3 pid=1234 type=browser] [terminal:debug] debug line\n'
-      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=4 pid=1234 type=browser] [terminal:warn] warning line\n'
-      + '[2026-08-03T15:07:34.288Z] [run=run-test seq=5 pid=1234 type=browser] [terminal:error] error line\n'
+      '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:log] hello world\n' +
+        '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:info] { ready: true }\n' +
+        '[2026-08-03T15:07:34.288Z] [run=run-test seq=3 pid=1234 type=browser] [terminal:debug] debug line\n' +
+        '[2026-08-03T15:07:34.288Z] [run=run-test seq=4 pid=1234 type=browser] [terminal:warn] warning line\n' +
+        '[2026-08-03T15:07:34.288Z] [run=run-test seq=5 pid=1234 type=browser] [terminal:error] error line\n',
     );
   } finally {
     restore?.();
@@ -58,7 +60,9 @@ test('resets the terminal log and mirrors ordinary console output', () => {
 });
 
 test('redacts credentials from terminal output', () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
+  );
   const filePath = path.join(directory, 'terminal.log');
   const originalLog = console.log;
   let restore;
@@ -75,22 +79,39 @@ test('redacts credentials from terminal output', () => {
           sequence += 1;
           return sequence;
         };
-      })()
+      })(),
     });
 
     console.log('Authorization: Bearer secret-token-12345');
     console.log('Cookie: session=abc123; user=john');
-    console.log('API URL: https://api.example.com/data?key=secret123&other=value');
+    console.log(
+      'API URL: https://api.example.com/data?key=secret123&other=value',
+    );
     console.log('Connecting to https://user:password@example.com/resource');
 
     const content = fs.readFileSync(filePath, 'utf8');
 
     // Verify credentials are redacted
-    assert.ok(!content.includes('secret-token-12345'), 'Bearer token should be redacted');
-    assert.ok(!content.includes('session=abc123'), 'Cookie values should be redacted');
-    assert.ok(!content.includes('key=secret123'), 'Query param secrets should be redacted');
-    assert.ok(!content.includes('user:password@'), 'URL userinfo should be redacted');
-    assert.ok(content.includes('[REDACTED]'), 'Should contain redaction placeholder');
+    assert.ok(
+      !content.includes('secret-token-12345'),
+      'Bearer token should be redacted',
+    );
+    assert.ok(
+      !content.includes('session=abc123'),
+      'Cookie values should be redacted',
+    );
+    assert.ok(
+      !content.includes('key=secret123'),
+      'Query param secrets should be redacted',
+    );
+    assert.ok(
+      !content.includes('user:password@'),
+      'URL userinfo should be redacted',
+    );
+    assert.ok(
+      content.includes('[REDACTED]'),
+      'Should contain redaction placeholder',
+    );
   } finally {
     restore?.();
     console.log = originalLog;

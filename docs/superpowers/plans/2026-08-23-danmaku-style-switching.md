@@ -21,11 +21,13 @@
 ### Task 1: 持久化样式契约
 
 **Files:**
+
 - Modify: `src/storage/settings-store.js`
 - Modify: `src/server/routes/settings-routes.js`
 - Test: `test/danmaku-overlay-settings.test.js`
 
 **Interfaces:**
+
 - Consumes: `POST /api/settings {danmakuOverlayStyle}`.
 - Produces: snapshot `state.settings.danmakuOverlayStyle`，值只能是 `'bubble'|'signal'|'minimal'`。
 
@@ -37,11 +39,13 @@
 ### Task 2: 固定页面运行时切换三套视觉
 
 **Files:**
+
 - Modify: `public/js/overlays/danmaku.js`
 - Modify: `public/css/overlays/danmaku.css`
 - Test: `test/danmaku-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: snapshot `settings.danmakuOverlayStyle`；预览参数 `?preview=1&style=bubble|signal|minimal`。
 - Produces: `body[data-style='bubble'|'signal'|'minimal']`，固定地址不变。
 
@@ -53,6 +57,7 @@
 ### Task 3: Admin 自由切换与预览
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/danmaku-tool.js`
 - Modify: `public/css/admin/other-features/danmaku-tool.css`
@@ -60,6 +65,7 @@
 - Test: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**
+
 - Consumes: `app:settings-state` 与现有 `saveSetting(key,value)`。
 - Produces: `[data-danmaku-style]` 可视化主题卡；选择后保存并刷新 `/danmaku?preview=1&style=...` iframe。
 
@@ -71,12 +77,14 @@
 ### Task 4: 事实源与验收
 
 **Files:**
+
 - Modify: `docs/architecture/backend/storage.md`
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/frontend/overlays.md`
 
 **Interfaces:**
+
 - Consumes: 已实现的设置与页面行为。
 - Produces: 与运行时一致的持久化、Admin 和 Overlay 契约说明。
 

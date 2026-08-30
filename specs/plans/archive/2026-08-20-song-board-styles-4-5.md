@@ -63,6 +63,7 @@ The 点歌板 tab offers style 4 and style 5. Style 4 is a dark violet/cyan/cora
 ### Task 1: Generate and validate the four image assets
 
 **Files:**
+
 - Create: `public/img/overlays/song-board-style-4/frame.png`
 - Create: `public/img/overlays/song-board-style-4/entry.png`
 - Create: `public/img/overlays/song-board-style-5/frame.png`
@@ -77,6 +78,7 @@ Focused verification: load all four files through the image viewer and confirm n
 ### Task 2: Add failing coverage for styles 4 and 5
 
 **Files:**
+
 - Modify: `test/frontend-queue.test.js`
 - Modify: `test/queue-overlay-esm.test.js`
 
@@ -88,6 +90,7 @@ Focused verification: load all four files through the image viewer and confirm n
 ### Task 3: Implement admin selection and queue rendering
 
 **Files:**
+
 - Modify: `public/pages/admin/song/queue-theme.html`
 - Modify: `public/css/admin/toasts/gifts.css`
 - Modify: `public/js/admin/theme.js`
@@ -105,6 +108,7 @@ Focused verification: `node --experimental-vm-modules --test test/frontend-queue
 ### Task 4: Integrate the generated art as responsive OBS layouts
 
 **Files:**
+
 - Modify: `public/css/overlays/base.css`
 - Create: `public/css/overlays/base/illustrated.css`
 - Create: `public/css/overlays/base/neon-vinyl.css`
@@ -121,6 +125,7 @@ Focused verification: inspect both styles in the desktop/OBS renderer at represe
 ### Task 5: Update contracts and run repository gates
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/backend/storage.md`

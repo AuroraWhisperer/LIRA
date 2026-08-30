@@ -1,30 +1,45 @@
 // Queue overlay layout and animation mechanics.
 'use strict';
 
-import { bounceScrollTiming, overlayLowPowerEnabled, queueScrollSeconds, scrollTravelSeconds } from './queue-utils.js';
+import {
+  bounceScrollTiming,
+  overlayLowPowerEnabled,
+  queueScrollSeconds,
+  scrollTravelSeconds,
+} from './queue-utils.js';
 
 export function captureScrollAnimation() {
-  const list = document.querySelector('.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce');
+  const list = document.querySelector(
+    '.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce',
+  );
   if (!list || typeof list.getAnimations !== 'function') return null;
   const animation = list.getAnimations().find((item) => item.effect);
   if (!animation || animation.currentTime === null) return null;
   return {
     className: list.className,
-    currentTime: Number(animation.currentTime) || 0
+    currentTime: Number(animation.currentTime) || 0,
   };
 }
 
 export function restoreScrollAnimation(scrollState) {
   if (!scrollState) return;
-  const list = document.querySelector('.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce');
-  if (!list || list.className !== scrollState.className || typeof list.getAnimations !== 'function') return;
+  const list = document.querySelector(
+    '.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce',
+  );
+  if (
+    !list ||
+    list.className !== scrollState.className ||
+    typeof list.getAnimations !== 'function'
+  )
+    return;
   const animation = list.getAnimations().find((item) => item.effect);
   if (!animation) return;
   const timing = animation.effect.getTiming();
   const duration = Number(timing.duration);
-  animation.currentTime = Number.isFinite(duration) && duration > 0
-    ? scrollState.currentTime % duration
-    : scrollState.currentTime;
+  animation.currentTime =
+    Number.isFinite(duration) && duration > 0
+      ? scrollState.currentTime % duration
+      : scrollState.currentTime;
 }
 
 export function scheduleScrollAnimationRestore(scrollState) {
@@ -39,11 +54,15 @@ export function scheduleScrollAnimationRestore(scrollState) {
 
 export function removeQueueLoopClones(list) {
   if (!list || typeof list.querySelectorAll !== 'function') return;
-  list.querySelectorAll('[data-loop-clone="true"]').forEach((node) => node.remove());
+  list
+    .querySelectorAll('[data-loop-clone="true"]')
+    .forEach((node) => node.remove());
 }
 
 export function resetQueueScrollClasses(list) {
-  ['scrolling', 'scrolling-bounce'].forEach((name) => list.classList.remove(name));
+  ['scrolling', 'scrolling-bounce'].forEach((name) =>
+    list.classList.remove(name),
+  );
   list.classList.add('paused');
 }
 
@@ -57,18 +76,27 @@ export function appendLoopCloneHtml(list, html) {
   const startIndex = list.children ? list.children.length : 0;
   list.insertAdjacentHTML('beforeend', html);
   if (!list.children) return;
-  Array.from(list.children).slice(startIndex).forEach((node) => {
-    if (node.dataset) node.dataset.loopClone = 'true';
-    else if (typeof node.setAttribute === 'function') node.setAttribute('data-loop-clone', 'true');
-  });
+  Array.from(list.children)
+    .slice(startIndex)
+    .forEach((node) => {
+      if (node.dataset) node.dataset.loopClone = 'true';
+      else if (typeof node.setAttribute === 'function')
+        node.setAttribute('data-loop-clone', 'true');
+    });
 }
 
-export function scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGap) {
+export function scheduleClassicVerticalScroll(
+  content,
+  settings,
+  rowsHtml,
+  rowGap,
+) {
   const viewport = content.querySelector('.classic-list-window');
   const list = viewport && viewport.querySelector('.classic-list');
   if (!viewport || !list) return;
 
-  const setup = () => configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
+  const setup = () =>
+    configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(setup);
   } else {
@@ -76,7 +104,13 @@ export function scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGa
   }
 }
 
-export function configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap = 5) {
+export function configureClassicVerticalScroll(
+  viewport,
+  list,
+  settings,
+  rowsHtml,
+  rowGap = 5,
+) {
   removeQueueLoopClones(list);
   if (typeof list.getAnimations === 'function') {
     list.getAnimations().forEach((animation) => animation.cancel());
@@ -84,7 +118,10 @@ export function configureClassicVerticalScroll(viewport, list, settings, rowsHtm
   resetQueueScrollClasses(list);
 
   const visibleHeight = Math.max(1, viewport.clientHeight);
-  const overflowDistance = Math.max(0, Math.ceil(list.scrollHeight - visibleHeight));
+  const overflowDistance = Math.max(
+    0,
+    Math.ceil(list.scrollHeight - visibleHeight),
+  );
   if (overflowDistance <= 1) return false;
 
   const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
@@ -92,18 +129,42 @@ export function configureClassicVerticalScroll(viewport, list, settings, rowsHtm
   let scrollClass = 'scrolling';
 
   if (scrollMode === 'bounce') {
-    const downSeconds = scrollTravelSeconds(secondsPerViewport, overflowDistance, visibleHeight);
+    const downSeconds = scrollTravelSeconds(
+      secondsPerViewport,
+      overflowDistance,
+      visibleHeight,
+    );
     const upSeconds = scrollTravelSeconds(3, overflowDistance, visibleHeight);
     const timing = bounceScrollTiming(downSeconds, upSeconds);
-    document.documentElement.style.setProperty('--classic-bounce-distance', `${overflowDistance}px`);
-    document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
-    setClassicBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
+    document.documentElement.style.setProperty(
+      '--classic-bounce-distance',
+      `${overflowDistance}px`,
+    );
+    document.documentElement.style.setProperty(
+      '--scroll-seconds',
+      `${timing.totalSeconds}s`,
+    );
+    setClassicBounceKeyframes(
+      timing.topPauseEndPercent,
+      timing.downPercent,
+      timing.pauseEndPercent,
+    );
     scrollClass = 'scrolling-bounce';
   } else {
     const loopDistance = Math.ceil(list.scrollHeight + rowGap);
-    const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, visibleHeight);
-    document.documentElement.style.setProperty('--classic-loop-distance', `${loopDistance}px`);
-    document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
+    const travelSeconds = scrollTravelSeconds(
+      secondsPerViewport,
+      loopDistance,
+      visibleHeight,
+    );
+    document.documentElement.style.setProperty(
+      '--classic-loop-distance',
+      `${loopDistance}px`,
+    );
+    document.documentElement.style.setProperty(
+      '--scroll-seconds',
+      `${travelSeconds}s`,
+    );
     appendLoopCloneHtml(list, rowsHtml);
   }
 
@@ -112,12 +173,24 @@ export function configureClassicVerticalScroll(viewport, list, settings, rowsHtm
   return true;
 }
 
-export function scheduleIdentityVerticalScroll(content, settings, combinedRows, rowGap) {
+export function scheduleIdentityVerticalScroll(
+  content,
+  settings,
+  combinedRows,
+  rowGap,
+) {
   const viewport = content.querySelector('.identity-list-window');
   const list = viewport && viewport.querySelector('.identity-list');
   if (!viewport || !list) return;
 
-  const setup = () => configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap);
+  const setup = () =>
+    configureIdentityVerticalScroll(
+      viewport,
+      list,
+      settings,
+      combinedRows,
+      rowGap,
+    );
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(setup);
   } else {
@@ -125,16 +198,34 @@ export function scheduleIdentityVerticalScroll(content, settings, combinedRows, 
   }
 }
 
-export function scheduleStorybookVerticalScroll(content, settings, rowsHtml, rowGap) {
-  scheduleIllustratedVerticalScroll(content, settings, rowsHtml, rowGap, 'storybook');
+export function scheduleStorybookVerticalScroll(
+  content,
+  settings,
+  rowsHtml,
+  rowGap,
+) {
+  scheduleIllustratedVerticalScroll(
+    content,
+    settings,
+    rowsHtml,
+    rowGap,
+    'storybook',
+  );
 }
 
-export function scheduleIllustratedVerticalScroll(content, settings, rowsHtml, rowGap, style) {
+export function scheduleIllustratedVerticalScroll(
+  content,
+  settings,
+  rowsHtml,
+  rowGap,
+  style,
+) {
   const viewport = content.querySelector(`.${style}-list-window`);
   const list = viewport && viewport.querySelector(`.${style}-list`);
   if (!viewport || !list) return;
 
-  const setup = () => configureIdentityVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
+  const setup = () =>
+    configureIdentityVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(setup);
   } else {
@@ -142,7 +233,13 @@ export function scheduleIllustratedVerticalScroll(content, settings, rowsHtml, r
   }
 }
 
-export function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4) {
+export function configureIdentityVerticalScroll(
+  viewport,
+  list,
+  settings,
+  combinedRows,
+  rowGap = 4,
+) {
   removeQueueLoopClones(list);
   if (typeof list.getAnimations === 'function') {
     list.getAnimations().forEach((animation) => animation.cancel());
@@ -150,26 +247,56 @@ export function configureIdentityVerticalScroll(viewport, list, settings, combin
   resetQueueScrollClasses(list);
   const contentHeight = Math.max(1, Math.ceil(list.scrollHeight));
   const viewportHeight = Math.max(1, viewport.clientHeight);
-  const overflowDistance = Math.max(0, Math.ceil(contentHeight - viewportHeight));
+  const overflowDistance = Math.max(
+    0,
+    Math.ceil(contentHeight - viewportHeight),
+  );
   if (overflowDistance <= 1) return false;
 
   const scrollMode = settings.queueScrollMode === 'bounce' ? 'bounce' : 'loop';
-  const secondsPerViewport = queueScrollSeconds(settings, 'identityQueueScrollSpeed');
+  const secondsPerViewport = queueScrollSeconds(
+    settings,
+    'identityQueueScrollSpeed',
+  );
   let scrollClass = 'scrolling';
 
   if (scrollMode === 'bounce') {
-    const downSeconds = scrollTravelSeconds(secondsPerViewport, overflowDistance, viewportHeight);
+    const downSeconds = scrollTravelSeconds(
+      secondsPerViewport,
+      overflowDistance,
+      viewportHeight,
+    );
     const upSeconds = scrollTravelSeconds(3, overflowDistance, viewportHeight);
     const timing = bounceScrollTiming(downSeconds, upSeconds);
-    document.documentElement.style.setProperty('--identity-bounce-distance', `${overflowDistance}px`);
-    document.documentElement.style.setProperty('--scroll-seconds', `${timing.totalSeconds}s`);
-    setIdentityBounceKeyframes(timing.topPauseEndPercent, timing.downPercent, timing.pauseEndPercent);
+    document.documentElement.style.setProperty(
+      '--identity-bounce-distance',
+      `${overflowDistance}px`,
+    );
+    document.documentElement.style.setProperty(
+      '--scroll-seconds',
+      `${timing.totalSeconds}s`,
+    );
+    setIdentityBounceKeyframes(
+      timing.topPauseEndPercent,
+      timing.downPercent,
+      timing.pauseEndPercent,
+    );
     scrollClass = 'scrolling-bounce';
   } else {
     const loopDistance = Math.ceil(contentHeight + rowGap);
-    const travelSeconds = scrollTravelSeconds(secondsPerViewport, loopDistance, viewportHeight);
-    document.documentElement.style.setProperty('--identity-loop-distance', `${loopDistance}px`);
-    document.documentElement.style.setProperty('--scroll-seconds', `${travelSeconds}s`);
+    const travelSeconds = scrollTravelSeconds(
+      secondsPerViewport,
+      loopDistance,
+      viewportHeight,
+    );
+    document.documentElement.style.setProperty(
+      '--identity-loop-distance',
+      `${loopDistance}px`,
+    );
+    document.documentElement.style.setProperty(
+      '--scroll-seconds',
+      `${travelSeconds}s`,
+    );
     appendLoopCloneHtml(list, combinedRows);
   }
 
@@ -183,21 +310,32 @@ export function scheduleIdentitySuperChatScroll(content) {
     content.querySelectorAll('.identity-sc-content').forEach((container) => {
       const text = container.querySelector('.identity-sc-text');
       cancelElementAnimations(text);
-      const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
+      const distance = text
+        ? Math.ceil(text.scrollWidth - container.clientWidth)
+        : 0;
       if (!text || distance <= 1 || typeof text.animate !== 'function') return;
 
       const travelSeconds = Math.max(3, distance / 30);
       const pauseSeconds = 1.5;
-      const totalSeconds = (travelSeconds * 2) + pauseSeconds;
-      text.animate([
-        { transform: 'translateX(0)', offset: 0 },
-        { transform: `translateX(-${distance}px)`, offset: travelSeconds / totalSeconds },
-        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + pauseSeconds) / totalSeconds },
-        { transform: 'translateX(0)', offset: 1 }
-      ], {
-        duration: totalSeconds * 1000,
-        iterations: Infinity
-      });
+      const totalSeconds = travelSeconds * 2 + pauseSeconds;
+      text.animate(
+        [
+          { transform: 'translateX(0)', offset: 0 },
+          {
+            transform: `translateX(-${distance}px)`,
+            offset: travelSeconds / totalSeconds,
+          },
+          {
+            transform: `translateX(-${distance}px)`,
+            offset: (travelSeconds + pauseSeconds) / totalSeconds,
+          },
+          { transform: 'translateX(0)', offset: 1 },
+        ],
+        {
+          duration: totalSeconds * 1000,
+          iterations: Infinity,
+        },
+      );
     });
   };
 
@@ -212,29 +350,53 @@ export function scheduleIdentityContentScroll(content) {
   const setup = () => {
     const reducedMotion = prefersReducedMotion();
 
-    content.querySelectorAll('.identity-content-wrapper, .storybook-info-viewport').forEach((container) => {
-      const text = container.querySelector('.identity-content, .storybook-info');
-      cancelElementAnimations(text);
-      const distance = text ? Math.ceil(text.scrollWidth - container.clientWidth) : 0;
-      if (container.classList && typeof container.classList.toggle === 'function') {
-        container.classList.toggle('has-horizontal-overflow', distance > 1);
-      }
-      if (!text || distance <= 1 || reducedMotion || typeof text.animate !== 'function') return;
+    content
+      .querySelectorAll('.identity-content-wrapper, .storybook-info-viewport')
+      .forEach((container) => {
+        const text = container.querySelector(
+          '.identity-content, .storybook-info',
+        );
+        cancelElementAnimations(text);
+        const distance = text
+          ? Math.ceil(text.scrollWidth - container.clientWidth)
+          : 0;
+        if (
+          container.classList &&
+          typeof container.classList.toggle === 'function'
+        ) {
+          container.classList.toggle('has-horizontal-overflow', distance > 1);
+        }
+        if (
+          !text ||
+          distance <= 1 ||
+          reducedMotion ||
+          typeof text.animate !== 'function'
+        )
+          return;
 
-      const travelSeconds = Math.max(3, distance / 30);
-      const pauseSeconds = 1;
-      const totalSeconds = (travelSeconds * 2) + (pauseSeconds * 2);
-      text.animate([
-        { transform: 'translateX(0)', offset: 0 },
-        { transform: 'translateX(0)', offset: pauseSeconds / totalSeconds },
-        { transform: `translateX(-${distance}px)`, offset: (pauseSeconds + travelSeconds) / totalSeconds },
-        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + (pauseSeconds * 2)) / totalSeconds },
-        { transform: 'translateX(0)', offset: 1 }
-      ], {
-        duration: totalSeconds * 1000,
-        iterations: Infinity
+        const travelSeconds = Math.max(3, distance / 30);
+        const pauseSeconds = 1;
+        const totalSeconds = travelSeconds * 2 + pauseSeconds * 2;
+        text.animate(
+          [
+            { transform: 'translateX(0)', offset: 0 },
+            { transform: 'translateX(0)', offset: pauseSeconds / totalSeconds },
+            {
+              transform: `translateX(-${distance}px)`,
+              offset: (pauseSeconds + travelSeconds) / totalSeconds,
+            },
+            {
+              transform: `translateX(-${distance}px)`,
+              offset: (travelSeconds + pauseSeconds * 2) / totalSeconds,
+            },
+            { transform: 'translateX(0)', offset: 1 },
+          ],
+          {
+            duration: totalSeconds * 1000,
+            iterations: Infinity,
+          },
+        );
       });
-    });
   };
 
   if (typeof requestAnimationFrame === 'function') {
@@ -264,17 +426,26 @@ export function scheduleIdentityRuleScroll(content) {
 
       const travelSeconds = Math.max(3, distance / 24);
       const pauseSeconds = 1.5;
-      const totalSeconds = (travelSeconds * 2) + pauseSeconds;
+      const totalSeconds = travelSeconds * 2 + pauseSeconds;
       container.classList.add('is-scrolling');
-      text.animate([
-        { transform: 'translateX(0)', offset: 0 },
-        { transform: `translateX(-${distance}px)`, offset: travelSeconds / totalSeconds },
-        { transform: `translateX(-${distance}px)`, offset: (travelSeconds + pauseSeconds) / totalSeconds },
-        { transform: 'translateX(0)', offset: 1 }
-      ], {
-        duration: totalSeconds * 1000,
-        iterations: Infinity
-      });
+      text.animate(
+        [
+          { transform: 'translateX(0)', offset: 0 },
+          {
+            transform: `translateX(-${distance}px)`,
+            offset: travelSeconds / totalSeconds,
+          },
+          {
+            transform: `translateX(-${distance}px)`,
+            offset: (travelSeconds + pauseSeconds) / totalSeconds,
+          },
+          { transform: 'translateX(0)', offset: 1 },
+        ],
+        {
+          duration: totalSeconds * 1000,
+          iterations: Infinity,
+        },
+      );
     });
   };
 
@@ -291,15 +462,30 @@ export function cancelElementAnimations(element) {
 }
 
 export function prefersReducedMotion() {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
 }
 
-export function setClassicBounceKeyframes(topPauseEndPercent, downPercent, pauseEndPercent) {
-  const topPauseEnd = Math.max(1, Math.min(95, Number(topPauseEndPercent) || 5)).toFixed(4);
-  const bottomPauseStart = Math.max(Number(topPauseEnd), Math.min(97, Number(downPercent) || 90)).toFixed(4);
-  const bottomPauseEnd = Math.max(Number(bottomPauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
+export function setClassicBounceKeyframes(
+  topPauseEndPercent,
+  downPercent,
+  pauseEndPercent,
+) {
+  const topPauseEnd = Math.max(
+    1,
+    Math.min(95, Number(topPauseEndPercent) || 5),
+  ).toFixed(4);
+  const bottomPauseStart = Math.max(
+    Number(topPauseEnd),
+    Math.min(97, Number(downPercent) || 90),
+  ).toFixed(4);
+  const bottomPauseEnd = Math.max(
+    Number(bottomPauseStart),
+    Math.min(99, Number(pauseEndPercent) || 95),
+  ).toFixed(4);
   let style = document.getElementById('classicBounceKeyframes');
   if (!style) {
     style = document.createElement('style');
@@ -316,10 +502,23 @@ export function setClassicBounceKeyframes(topPauseEndPercent, downPercent, pause
 }`;
 }
 
-export function setIdentityBounceKeyframes(topPauseEndPercent, downPercent, pauseEndPercent) {
-  const topPauseEnd = Math.max(1, Math.min(95, Number(topPauseEndPercent) || 5)).toFixed(4);
-  const bottomPauseStart = Math.max(Number(topPauseEnd), Math.min(97, Number(downPercent) || 90)).toFixed(4);
-  const bottomPauseEnd = Math.max(Number(bottomPauseStart), Math.min(99, Number(pauseEndPercent) || 95)).toFixed(4);
+export function setIdentityBounceKeyframes(
+  topPauseEndPercent,
+  downPercent,
+  pauseEndPercent,
+) {
+  const topPauseEnd = Math.max(
+    1,
+    Math.min(95, Number(topPauseEndPercent) || 5),
+  ).toFixed(4);
+  const bottomPauseStart = Math.max(
+    Number(topPauseEnd),
+    Math.min(97, Number(downPercent) || 90),
+  ).toFixed(4);
+  const bottomPauseEnd = Math.max(
+    Number(bottomPauseStart),
+    Math.min(99, Number(pauseEndPercent) || 95),
+  ).toFixed(4);
   let style = document.getElementById('identityBounceKeyframes');
   if (!style) {
     style = document.createElement('style');

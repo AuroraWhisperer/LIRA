@@ -3,13 +3,21 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { createDanmakuFeedBuffer } = require('../src/bilibili/danmaku/feed-buffer');
+const {
+  createDanmakuFeedBuffer,
+} = require('../src/bilibili/danmaku/feed-buffer');
 
 test('danmaku feed buffer projects public fields and keeps a bounded defensive snapshot', () => {
   const feed = createDanmakuFeedBuffer({ limit: 2 });
   feed.setRoom('100');
 
-  feed.push({ uid: '1', userName: '甲', message: '第一条', secret: 'drop-me', messageTimestamp: 1000 });
+  feed.push({
+    uid: '1',
+    userName: '甲',
+    message: '第一条',
+    secret: 'drop-me',
+    messageTimestamp: 1000,
+  });
   const second = feed.push({
     uid: '2',
     userName: '乙',
@@ -19,16 +27,39 @@ test('danmaku feed buffer projects public fields and keeps a bounded defensive s
     requesterMedalName: '米粒',
     requesterMedalLevel: 16,
     messageTimestamp: 2000,
-    emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/bfs/emote/miao.png', width: 64, height: 64 }]
+    emotes: [
+      {
+        text: '[妙]',
+        url: 'https://i0.hdslb.com/bfs/emote/miao.png',
+        width: 64,
+        height: 64,
+      },
+    ],
   });
-  feed.push({ uid: '3', userName: '丙', message: '第三条', messageTimestamp: 3000 });
+  feed.push({
+    uid: '3',
+    userName: '丙',
+    message: '第三条',
+    messageTimestamp: 3000,
+  });
 
   assert.equal(second.id, 2);
   assert.deepEqual(Object.keys(second), [
-    'id', 'uid', 'name', 'message', 'avatarUrl', 'guardLevel', 'medalName',
-    'medalLevel', 'timestamp', 'emotes'
+    'id',
+    'uid',
+    'name',
+    'message',
+    'avatarUrl',
+    'guardLevel',
+    'medalName',
+    'medalLevel',
+    'timestamp',
+    'emotes',
   ]);
-  assert.deepEqual(feed.getSnapshot().map(item => item.name), ['乙', '丙']);
+  assert.deepEqual(
+    feed.getSnapshot().map((item) => item.name),
+    ['乙', '丙'],
+  );
   const snapshot = feed.getSnapshot();
   snapshot[0].name = '篡改';
   snapshot[0].emotes[0].text = '篡改';
@@ -45,7 +76,10 @@ test('danmaku feed buffer clears only when the active room changes', () => {
   assert.equal(feed.getSnapshot().length, 1);
   assert.equal(feed.setRoom('200'), true);
   assert.equal(feed.getSnapshot().length, 0);
-  assert.equal(feed.push({ uid: '2', userName: '乙', message: '新房间' }).id, 2);
+  assert.equal(
+    feed.push({ uid: '2', userName: '乙', message: '新房间' }).id,
+    2,
+  );
 });
 
 test('danmaku feed buffer ignores empty messages', () => {

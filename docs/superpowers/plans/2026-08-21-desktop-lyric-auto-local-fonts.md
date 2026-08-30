@@ -19,11 +19,13 @@
 ## Task 1: Remove manual UI and replace it with automatic loading
 
 **Files:**
+
 - Modify: `public/pages/admin/song/desktop-lyric.html`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Modify: `public/js/admin/desktop-lyric.js`
 
 **Interfaces:**
+
 - Consumes: `window.queryLocalFonts(): Promise<Array<{ family: string }>>` when available.
 - Produces: a `本机字体` option group merged during `initDesktopLyricForm()` while preserving the current selector value.
 
@@ -35,11 +37,13 @@
 ## Task 2: Update focused regression coverage and owner docs
 
 **Files:**
+
 - Modify: `test/desktop-lyrics.test.js`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/desktop/main.md`
 
 **Interfaces:**
+
 - Consumes: the automatic initialization behavior from Task 1.
 - Produces: tests proving automatic enumeration, deduplication, selection preservation, and non-destructive denial/error handling; documentation matching runtime behavior.
 

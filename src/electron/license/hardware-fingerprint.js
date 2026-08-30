@@ -12,32 +12,60 @@ function createHardwareFingerprint(options = {}) {
 
   async function readCommand(command, args) {
     return new Promise((resolve) => {
-      execFile(command, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 }, (error, stdout) => {
-        resolve(error ? '' : String(stdout || '').trim());
-      });
+      execFile(
+        command,
+        args,
+        { timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 },
+        (error, stdout) => {
+          resolve(error ? '' : String(stdout || '').trim());
+        },
+      );
     });
   }
 
   async function collect() {
-    const values = { machineGuidHash: '', smbiosUuidHash: '', systemDriveHash: '' };
+    const values = {
+      machineGuidHash: '',
+      smbiosUuidHash: '',
+      systemDriveHash: '',
+    };
     if (platform === 'win32') {
       const [machineGuid, smbiosUuid, driveSerial] = await Promise.all([
-        readCommand('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid']),
-        readCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_ComputerSystemProduct).UUID']),
-        readCommand('cmd.exe', ['/d', '/c', 'vol %SystemDrive%'])
+        readCommand('reg', [
+          'query',
+          'HKLM\\SOFTWARE\\Microsoft\\Cryptography',
+          '/v',
+          'MachineGuid',
+        ]),
+        readCommand('powershell.exe', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          '(Get-CimInstance Win32_ComputerSystemProduct).UUID',
+        ]),
+        readCommand('cmd.exe', ['/d', '/c', 'vol %SystemDrive%']),
       ]);
       values.machineGuidHash = hashRaw(extractMachineGuid(machineGuid));
       values.smbiosUuidHash = hashRaw(smbiosUuid);
       values.systemDriveHash = hashRaw(extractVolumeSerial(driveSerial));
     } else {
       let machineId = '';
-      try { machineId = fs.readFileSync('/etc/machine-id', 'utf8'); } catch (error) { void error; }
+      try {
+        machineId = fs.readFileSync('/etc/machine-id', 'utf8');
+      } catch (error) {
+        void error;
+      }
       values.machineGuidHash = hashRaw(machineId || os.hostname());
-      values.smbiosUuidHash = hashRaw(`${os.platform()}:${os.arch()}:${os.hostname()}`);
+      values.smbiosUuidHash = hashRaw(
+        `${os.platform()}:${os.arch()}:${os.hostname()}`,
+      );
       try {
         const stats = fs.statSync('/');
         values.systemDriveHash = hashRaw(`${stats.dev}:${stats.ino}`);
-      } catch (error) { values.systemDriveHash = ''; void error; }
+      } catch (error) {
+        values.systemDriveHash = '';
+        void error;
+      }
     }
     return { version: 1, ...values };
   }
@@ -46,12 +74,17 @@ function createHardwareFingerprint(options = {}) {
 }
 
 function normalizeRaw(value) {
-  return String(value || '').replace(/[\r\n\t]+/g, ' ').trim().toLowerCase();
+  return String(value || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .toLowerCase();
 }
 
 function hashRaw(value) {
   const normalized = normalizeRaw(value);
-  return normalized ? crypto.createHash('sha256').update(normalized, 'utf8').digest('hex') : '';
+  return normalized
+    ? crypto.createHash('sha256').update(normalized, 'utf8').digest('hex')
+    : '';
 }
 
 function extractMachineGuid(output) {
@@ -64,4 +97,10 @@ function extractVolumeSerial(output) {
   return match ? match[1] : output;
 }
 
-module.exports = { createHardwareFingerprint, normalizeRaw, hashRaw, extractMachineGuid, extractVolumeSerial };
+module.exports = {
+  createHardwareFingerprint,
+  normalizeRaw,
+  hashRaw,
+  extractMachineGuid,
+  extractVolumeSerial,
+};

@@ -3,19 +3,19 @@
 const API_QUOTAS = Object.freeze({
   qweather: 40000,
   amap_search: 4000,
-  amap_lbs: 120000
+  amap_lbs: 120000,
 });
 
 const CATEGORY_TOOL_NAMES = Object.freeze({
   qweather: ['get_weather'],
   amap_search: ['search_places'],
-  amap_lbs: ['resolve_location', 'get_route']
+  amap_lbs: ['resolve_location', 'get_route'],
 });
 
 const CATEGORY_ERROR_CODES = Object.freeze({
   qweather: 'QWEATHER_MONTHLY_LIMIT',
   amap_search: 'AMAP_SEARCH_MONTHLY_LIMIT',
-  amap_lbs: 'AMAP_LBS_MONTHLY_LIMIT'
+  amap_lbs: 'AMAP_LBS_MONTHLY_LIMIT',
 });
 
 function createAiApiQuotaStore(db, options = {}) {
@@ -58,14 +58,20 @@ function createAiApiQuotaStore(db, options = {}) {
     const limit = requireLimit(category);
     const monthKey = getBeijingMonthKey(now());
     const row = readStatement.get(category, monthKey);
-    return { category, monthKey, requestCount: Number(row?.request_count) || 0, limit };
+    return {
+      category,
+      monthKey,
+      requestCount: Number(row?.request_count) || 0,
+      limit,
+    };
   }
 
   function getExcludedToolNames() {
     const excluded = [];
     for (const category of Object.keys(API_QUOTAS)) {
       const usage = getUsage(category);
-      if (usage.requestCount >= usage.limit) excluded.push(...CATEGORY_TOOL_NAMES[category]);
+      if (usage.requestCount >= usage.limit)
+        excluded.push(...CATEGORY_TOOL_NAMES[category]);
     }
     return excluded;
   }
@@ -91,7 +97,9 @@ function reserveApiQuota(quotaStore, category) {
   if (!quotaStore) return { commit() {}, release() {} };
   const usage = quotaStore.consume(category);
   if (!usage.allowed) {
-    const error = new Error('本月第三方 API 安全用量已达到上限，请改用 web_search。');
+    const error = new Error(
+      '本月第三方 API 安全用量已达到上限，请改用 web_search。',
+    );
     error.code = CATEGORY_ERROR_CODES[category];
     error.quotaCategory = category;
     throw error;
@@ -105,7 +113,7 @@ function reserveApiQuota(quotaStore, category) {
       if (!active) return;
       active = false;
       releaseApiQuota(quotaStore, category, usage.monthKey);
-    }
+    },
   };
 }
 
@@ -126,7 +134,9 @@ function getQuotaToolNames(error) {
 }
 
 function getBeijingMonthKey(timestamp) {
-  return new Date(Number(timestamp) + 8 * 60 * 60 * 1000).toISOString().slice(0, 7);
+  return new Date(Number(timestamp) + 8 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 7);
 }
 
 function requireLimit(category) {
@@ -143,5 +153,5 @@ module.exports = {
   reserveApiQuota,
   withApiQuota,
   getQuotaToolNames,
-  getBeijingMonthKey
+  getBeijingMonthKey,
 };

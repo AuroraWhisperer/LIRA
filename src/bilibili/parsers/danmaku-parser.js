@@ -20,12 +20,14 @@ function extractBilibiliDanmakuTimestamp(info) {
 }
 
 function extractBilibiliDanmakuAvatarUrl(info) {
-  const rawOptions = Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
+  const rawOptions =
+    Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
   const options = parseDanmakuOptions(rawOptions);
   const user = options && typeof options === 'object' ? options.user : null;
   const base = user && typeof user.base === 'object' ? user.base : null;
-  const face = (user && (user.face || user.face_url || user.faceUrl))
-    || (base && (base.face || base.face_url || base.faceUrl));
+  const face =
+    (user && (user.face || user.face_url || user.faceUrl)) ||
+    (base && (base.face || base.face_url || base.faceUrl));
   return normalizeBilibiliAvatarUrl(face);
 }
 
@@ -53,7 +55,12 @@ function appendEmoteMap(records, seen, value) {
   if (!value || typeof value !== 'object') return;
   for (const [key, emote] of Object.entries(value)) {
     if (!emote || typeof emote !== 'object') continue;
-    appendEmote(records, seen, key || emote.text || emote.emoji || emote.descript, emote);
+    appendEmote(
+      records,
+      seen,
+      key || emote.text || emote.emoji || emote.descript,
+      emote,
+    );
   }
 }
 
@@ -66,7 +73,7 @@ function appendEmote(records, seen, textValue, value) {
     text,
     url,
     width: normalizeEmoteDimension(value.width),
-    height: normalizeEmoteDimension(value.height)
+    height: normalizeEmoteDimension(value.height),
   });
 }
 
@@ -107,5 +114,5 @@ module.exports = {
   extractBilibiliDanmakuAvatarUrl,
   extractBilibiliDanmakuEmotes,
   normalizeBilibiliAvatarUrl,
-  normalizeBilibiliImageUrl
+  normalizeBilibiliImageUrl,
 };

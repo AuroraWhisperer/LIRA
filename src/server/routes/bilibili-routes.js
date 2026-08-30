@@ -1,26 +1,31 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const { normalizeRoomInput, publicBilibiliErrorMessage } = require('../../shared/utils');
+const {
+  normalizeRoomInput,
+  publicBilibiliErrorMessage,
+} = require('../../shared/utils');
 
 const prefixes = ['/api/bilibili/'];
 
 const routes = {
   async 'GET /api/bilibili/avatar'(context, request, res) {
     try {
-      const image = await context.bilibili.fetchAvatarImage(request.query.get('url'));
+      const image = await context.bilibili.fetchAvatarImage(
+        request.query.get('url'),
+      );
       res.writeHead(200, {
         'Content-Type': image.contentType,
         'Content-Length': image.data.length,
         'Content-Disposition': 'inline',
         'Cache-Control': 'private, max-age=3600',
-        'X-Content-Type-Options': 'nosniff'
+        'X-Content-Type-Options': 'nosniff',
       });
       res.end(image.data);
     } catch (error) {
       sendJson(res, Number(error.statusCode) === 400 ? 400 : 502, {
         ok: false,
-        error: error.message || 'Bilibili 头像读取失败。'
+        error: error.message || 'Bilibili 头像读取失败。',
       });
     }
   },
@@ -29,16 +34,26 @@ const routes = {
     try {
       const authState = context.bilibili.auth
         ? await context.bilibili.auth.getAuthState()
-        : { loggedIn: false, uid: 0, message: 'Bilibili 登录仅在 Electron 桌面环境中可用。' };
+        : {
+            loggedIn: false,
+            uid: 0,
+            message: 'Bilibili 登录仅在 Electron 桌面环境中可用。',
+          };
       sendJson(res, 200, { ok: true, data: authState });
     } catch (error) {
-      sendJson(res, 500, { ok: false, error: error.message || '获取 Bilibili 登录状态失败。' });
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || '获取 Bilibili 登录状态失败。',
+      });
     }
   },
 
   async 'POST /api/bilibili/reconnect'(context, _request, res) {
     try {
-      sendJson(res, 200, { ok: true, data: await context.bilibili.reconnect() });
+      sendJson(res, 200, {
+        ok: true,
+        data: await context.bilibili.reconnect(),
+      });
     } catch (error) {
       console.warn(`[Bilibili] manual reconnect failed: ${error.message}`);
       const message = publicBilibiliErrorMessage(error, true);
@@ -47,13 +62,13 @@ const routes = {
         enabled: true,
         roomId: normalizeRoomInput(context.settings.get().roomId),
         mode: 'bilibili',
-        message
+        message,
       });
       sendJson(res, 500, {
         ok: false,
         error: message,
         detail: error.message || String(error),
-        data: { liveStatus: context.bilibili.liveStatus }
+        data: { liveStatus: context.bilibili.liveStatus },
       });
     }
   },
@@ -68,25 +83,28 @@ const routes = {
           ...sender,
           checkinBlessings: settings.checkinBlessings,
           fortunePool: settings.fortunePool,
-          customReplyRules: settings.customReplyRules
-        }
+          customReplyRules: settings.customReplyRules,
+        },
       });
     } catch (error) {
-      sendJson(res, 500, { ok: false, error: error.message || '获取弹幕发送状态失败。' });
+      sendJson(res, 500, {
+        ok: false,
+        error: error.message || '获取弹幕发送状态失败。',
+      });
     }
   },
 
   async 'POST /api/bilibili/danmaku/send'(context, request, res) {
     try {
       const body = await request.body();
-      const message = String(body && body.message || '').trim();
+      const message = String((body && body.message) || '').trim();
       if (!message) {
         sendJson(res, 400, { ok: false, error: '弹幕内容不能为空。' });
         return;
       }
       const result = await context.bilibili.sendDanmaku({
         message,
-        mentionRequester: body && body.mentionRequester === true
+        mentionRequester: body && body.mentionRequester === true,
       });
       sendJson(res, 200, { ok: true, data: result });
     } catch (error) {
@@ -94,10 +112,10 @@ const routes = {
       sendJson(res, 502, {
         ok: false,
         error: publicDanmakuSendErrorMessage(error),
-        detail: error.message || String(error)
+        detail: error.message || String(error),
       });
     }
-  }
+  },
 };
 
 function publicDanmakuSendErrorMessage(error) {
@@ -115,7 +133,11 @@ function publicDanmakuSendErrorMessage(error) {
     friendly = '发送失败：B站拦截了这次请求，稍后再试或换网络看看。';
   } else if (/code=-400|参数/i.test(message)) {
     friendly = '发送失败：B站认为这条弹幕的内容或房间参数不正确。';
-  } else if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(message)) {
+  } else if (
+    /ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(
+      message,
+    )
+  ) {
     friendly = '发送失败：现在连不上 B站服务，请检查网络后重试。';
   } else if (/non-JSON|Unexpected token|Unexpected end/i.test(message)) {
     friendly = '发送失败：B站接口返回了异常内容，请稍后再试。';

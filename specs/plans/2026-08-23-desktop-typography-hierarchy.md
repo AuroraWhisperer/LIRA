@@ -59,34 +59,36 @@ LIRA is a desktop livestream operations console for Chinese streamers. The typog
 
 ### Font families
 
-| Token | Target value | Use |
-|---|---|---|
-| `--font-ui` | `var(--font)` | Body, controls, labels, captions, Chinese-first interface copy |
+| Token            | Target value                                                                                      | Use                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `--font-ui`      | `var(--font)`                                                                                     | Body, controls, labels, captions, Chinese-first interface copy            |
 | `--font-display` | `"Segoe UI Variable Display", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif` | Page/section headings; Chinese falls back to the existing stable UI fonts |
-| `--font-mono` | `"Cascadia Mono", Consolas, monospace` | Paths, URLs, time offsets, diagnostics, and technical values only |
+| `--font-mono`    | `"Cascadia Mono", Consolas, monospace`                                                            | Paths, URLs, time offsets, diagnostics, and technical values only         |
 
 Do not use Bahnschrift, Georgia, Consolas, or theme-selected fonts for generic Chinese headings. Keep those faces in their current timer, decorative, technical, or user-configurable roles.
 
 ### Semantic scale
 
-| Role | Size | Weight | Line height | Tracking | Color/behavior |
-|---|---:|---:|---:|---:|---|
-| Display/hero | 28px | 700 | 1.15 | -0.01em | Rare onboarding/empty-state use only |
-| Page title | 24px | 700 | 1.30 | -0.01em | Primary text, `--font-display` |
-| Section title | 18px | 700 | 1.40 | -0.01em | Primary text, shared panels and major sections |
-| Card/subsection title | 15px | 600 | 1.45 | 0 | Primary text |
-| Body/control value | 14px | 400 | 1.55 | 0 | Primary text |
-| Form/control label | 13px | 600 | 1.45 | 0 | Primary or secondary text according to context |
-| Caption/helper/meta | 12px | 400 | 1.50 | 0 | Secondary/muted text |
-| Eyebrow/table header/micro status | 11px | 700 | 1.45 | 0.06em | Short bounded text only; no paragraph copy |
-| Key metric | 20/28/36px | 700 | 1.10–1.20 | 0 | Component-owned size plus `tabular-nums` |
+| Role                              |       Size | Weight | Line height | Tracking | Color/behavior                                 |
+| --------------------------------- | ---------: | -----: | ----------: | -------: | ---------------------------------------------- |
+| Display/hero                      |       28px |    700 |        1.15 |  -0.01em | Rare onboarding/empty-state use only           |
+| Page title                        |       24px |    700 |        1.30 |  -0.01em | Primary text, `--font-display`                 |
+| Section title                     |       18px |    700 |        1.40 |  -0.01em | Primary text, shared panels and major sections |
+| Card/subsection title             |       15px |    600 |        1.45 |        0 | Primary text                                   |
+| Body/control value                |       14px |    400 |        1.55 |        0 | Primary text                                   |
+| Form/control label                |       13px |    600 |        1.45 |        0 | Primary or secondary text according to context |
+| Caption/helper/meta               |       12px |    400 |        1.50 |        0 | Secondary/muted text                           |
+| Eyebrow/table header/micro status |       11px |    700 |        1.45 |   0.06em | Short bounded text only; no paragraph copy     |
+| Key metric                        | 20/28/36px |    700 |   1.10–1.20 |        0 | Component-owned size plus `tabular-nums`       |
 
 The shared token names and values are fixed for this plan:
 
 ```css
 --font-ui: var(--font);
---font-display: "Segoe UI Variable Display", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
---font-mono: "Cascadia Mono", Consolas, monospace;
+--font-display:
+  'Segoe UI Variable Display', 'Microsoft YaHei UI', 'Microsoft YaHei',
+  'PingFang SC', sans-serif;
+--font-mono: 'Cascadia Mono', Consolas, monospace;
 
 --type-size-display: 28px;
 --type-size-page-title: 24px;
@@ -121,19 +123,19 @@ The shared token names and values are fixed for this plan:
 
 The scoped Admin role-class interface is also fixed:
 
-| Class | Role |
-|---|---|
-| `.ui-display` | Rare display/hero text |
-| `.ui-page-title` | Current content view title |
-| `.ui-page-subtitle` | Direct supporting copy for the page title |
-| `.ui-section-title` | Major section/panel title |
-| `.ui-section-description` | Direct supporting copy for a section title |
-| `.ui-card-title` | Card, field group, or subsection title |
-| `.ui-body` | Normal explanatory content |
-| `.ui-control-label` | Form and action labels |
-| `.ui-caption` | Helper, metadata, and secondary status text |
-| `.ui-eyebrow` | Short category/table/Latin eyebrow label |
-| `.ui-metric` | Key data value; local modifier selects 20/28/36px |
+| Class                     | Role                                              |
+| ------------------------- | ------------------------------------------------- |
+| `.ui-display`             | Rare display/hero text                            |
+| `.ui-page-title`          | Current content view title                        |
+| `.ui-page-subtitle`       | Direct supporting copy for the page title         |
+| `.ui-section-title`       | Major section/panel title                         |
+| `.ui-section-description` | Direct supporting copy for a section title        |
+| `.ui-card-title`          | Card, field group, or subsection title            |
+| `.ui-body`                | Normal explanatory content                        |
+| `.ui-control-label`       | Form and action labels                            |
+| `.ui-caption`             | Helper, metadata, and secondary status text       |
+| `.ui-eyebrow`             | Short category/table/Latin eyebrow label          |
+| `.ui-metric`              | Key data value; local modifier selects 20/28/36px |
 
 ### Role rules
 
@@ -471,18 +473,18 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 
 ## Electron Visual QA Matrix
 
-| Surface | Required states | Typography evidence |
-|---|---|---|
-| Top bar/navigation/status | connected/disconnected, long host/room text, active main tabs | Primary nav is stronger than secondary/status text; no collision with window controls |
-| Point song | seven subviews, empty/dense queues, long song/requester, SC, pinned item, dock collapsed/expanded | Page/section/card/song/meta/help roles are distinct; row heights do not crop text |
-| Playback | QQ/NetEase/WeSing, logged out/in/error, discovery/search/match, drawer, queue popup, picker, fullscreen | Workspace/section/group/song/meta roles are ordered; lyric/presentation sizes remain intact |
-| Gifts | loading/empty/dense, long names, large amounts, blind-box analysis/history, toast | Page/section/card/metric/label roles are distinct; data never masquerades as a heading |
-| Toolbox | sidebar expanded/collapsed; every feature default state | Every feature starts with the same page hierarchy while retaining local visual identity |
-| Toolbox dense states | AI advanced, multiple overtime rules, expanded games, many planner tasks, completed performance scan, long guide | 12px body floor holds; grids reflow instead of shrinking readable text |
-| Dialogs/drawers/toasts | normal/caution/destructive, long text, loading/error/empty | Title > description > details > actions remains consistent; focus behavior unchanged |
-| Onboarding/tour/update/shutdown | every onboarding step, four tooltip directions, exit confirm, all update states, exited screen | Hero/page/card/body/caption roles remain obvious and fit the supported window |
-| Desktop lyric settings | default/custom local font, long lyric, translation/romanization | Admin controls follow the new hierarchy; preview and `/lyrics` remain user-configurable |
-| OBS boundary | representative queue/song/lyric/overtime/danmaku/game/clock/gift views | No computed typography, wrapping, scrolling, or capture-size regression |
+| Surface                         | Required states                                                                                                  | Typography evidence                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Top bar/navigation/status       | connected/disconnected, long host/room text, active main tabs                                                    | Primary nav is stronger than secondary/status text; no collision with window controls       |
+| Point song                      | seven subviews, empty/dense queues, long song/requester, SC, pinned item, dock collapsed/expanded                | Page/section/card/song/meta/help roles are distinct; row heights do not crop text           |
+| Playback                        | QQ/NetEase/WeSing, logged out/in/error, discovery/search/match, drawer, queue popup, picker, fullscreen          | Workspace/section/group/song/meta roles are ordered; lyric/presentation sizes remain intact |
+| Gifts                           | loading/empty/dense, long names, large amounts, blind-box analysis/history, toast                                | Page/section/card/metric/label roles are distinct; data never masquerades as a heading      |
+| Toolbox                         | sidebar expanded/collapsed; every feature default state                                                          | Every feature starts with the same page hierarchy while retaining local visual identity     |
+| Toolbox dense states            | AI advanced, multiple overtime rules, expanded games, many planner tasks, completed performance scan, long guide | 12px body floor holds; grids reflow instead of shrinking readable text                      |
+| Dialogs/drawers/toasts          | normal/caution/destructive, long text, loading/error/empty                                                       | Title > description > details > actions remains consistent; focus behavior unchanged        |
+| Onboarding/tour/update/shutdown | every onboarding step, four tooltip directions, exit confirm, all update states, exited screen                   | Hero/page/card/body/caption roles remain obvious and fit the supported window               |
+| Desktop lyric settings          | default/custom local font, long lyric, translation/romanization                                                  | Admin controls follow the new hierarchy; preview and `/lyrics` remain user-configurable     |
+| OBS boundary                    | representative queue/song/lyric/overtime/danmaku/game/clock/gift views                                           | No computed typography, wrapping, scrolling, or capture-size regression                     |
 
 ## Verification
 

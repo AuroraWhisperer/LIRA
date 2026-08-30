@@ -1,64 +1,97 @@
-        <div id="settingsPage" class="tab-page">
-          <div class="panel-body stack">
-            <!-- Bilibili 账号登录 -->
-            <fieldset class="theme-section" style="border-color: #fb7299;">
-              <legend>🔐 Bilibili 账号登录 <lira-help>登录后弹幕和礼物接收更稳定。</lira-help></legend>
-              <div class="bilibili-auth-row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span id="bilibiliAuthStatus" class="pill warn" style="padding:2px 7px;">未登录</span>
-                <span id="bilibiliAuthUid" class="ui-caption" style="color:#888;"></span>
-                <button id="bilibiliLoginBtn" class="primary" type="button" style="background:#fb7299;border-color:#fb7299;padding:3px 8px;min-height:26px;">📱 扫码登录 Bilibili</button>
-                <button id="bilibiliLogoutBtn" class="danger" type="button" style="display:none;padding:3px 8px;min-height:26px;">退出登录</button>
-              </div>
-            </fieldset>
+<div id="settingsPage" class="tab-page">
+  <div class="panel-body stack">
+    <!-- Bilibili 账号登录 -->
+    <fieldset class="theme-section" style="border-color: #fb7299">
+      <legend>
+        🔐 Bilibili 账号登录 <lira-help>登录后弹幕和礼物接收更稳定。</lira-help>
+      </legend>
+      <div
+        class="bilibili-auth-row"
+        style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"
+      >
+        <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px"
+          >未登录</span
+        >
+        <span
+          id="bilibiliAuthUid"
+          class="ui-caption"
+          style="color: #888"
+        ></span>
+        <button
+          id="bilibiliLoginBtn"
+          class="primary"
+          type="button"
+          style="
+            background: #fb7299;
+            border-color: #fb7299;
+            padding: 3px 8px;
+            min-height: 26px;
+          "
+        >
+          📱 扫码登录 Bilibili
+        </button>
+        <button
+          id="bilibiliLogoutBtn"
+          class="danger"
+          type="button"
+          style="display: none; padding: 3px 8px; min-height: 26px"
+        >
+          退出登录
+        </button>
+      </div>
+    </fieldset>
 
-            <form id="settingsForm" class="stack">
-              <div class="grid-3">
-                <label>
-                  Bilibili 直播间号或链接
-                  <input id="roomId" placeholder="例如：123456 或 https://live.bilibili.com/123456">
-                </label>
-                <label>
-                  启用 Bilibili 监听
-                  <select id="enableBilibili" data-dropdown-variant="settings">
-                    <option value="false">暂不启用</option>
-                    <option value="true">启用</option>
-                  </select>
-                </label>
-                <label>
-                  暂停接收点歌
-                  <select id="paused" data-dropdown-variant="settings">
-                    <option value="false">接收点歌</option>
-                    <option value="true">暂停点歌</option>
-                  </select>
-                </label>
-              </div>
-              <div class="grid-3">
-                <label>
-                  队列最大长度
-                  <input id="queueLimit" type="number" min="1" max="300">
-                </label>
-                <label>
-                  用户冷却秒数
-                  <input id="userCooldownSeconds" type="number" min="0" max="3600">
-                </label>
-              </div>
-              <div class="grid-2">
-                <label>
-                  只允许点歌库歌曲
-                  <select id="onlyFromLibrary" data-dropdown-variant="settings">
-                    <option value="false">不限制</option>
-                    <option value="true">只允许歌库歌曲</option>
-                  </select>
-                </label>
-                <label>
-                  允许重复点歌
-                  <select id="allowDuplicate" data-dropdown-variant="settings">
-                    <option value="true">允许</option>
-                    <option value="false">不允许</option>
-                  </select>
-                </label>
-              </div>
-              <button class="primary" type="submit">保存设置</button>
-            </form>
-          </div>
-        </div>
+    <form id="settingsForm" class="stack">
+      <div class="grid-3">
+        <label>
+          Bilibili 直播间号或链接
+          <input
+            id="roomId"
+            placeholder="例如：123456 或 https://live.bilibili.com/123456"
+          />
+        </label>
+        <label>
+          启用 Bilibili 监听
+          <select id="enableBilibili" data-dropdown-variant="settings">
+            <option value="false">暂不启用</option>
+            <option value="true">启用</option>
+          </select>
+        </label>
+        <label>
+          暂停接收点歌
+          <select id="paused" data-dropdown-variant="settings">
+            <option value="false">接收点歌</option>
+            <option value="true">暂停点歌</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid-3">
+        <label>
+          队列最大长度
+          <input id="queueLimit" type="number" min="1" max="300" />
+        </label>
+        <label>
+          用户冷却秒数
+          <input id="userCooldownSeconds" type="number" min="0" max="3600" />
+        </label>
+      </div>
+      <div class="grid-2">
+        <label>
+          只允许点歌库歌曲
+          <select id="onlyFromLibrary" data-dropdown-variant="settings">
+            <option value="false">不限制</option>
+            <option value="true">只允许歌库歌曲</option>
+          </select>
+        </label>
+        <label>
+          允许重复点歌
+          <select id="allowDuplicate" data-dropdown-variant="settings">
+            <option value="true">允许</option>
+            <option value="false">不允许</option>
+          </select>
+        </label>
+      </div>
+      <button class="primary" type="submit">保存设置</button>
+    </form>
+  </div>
+</div>

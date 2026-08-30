@@ -15,9 +15,10 @@ function createServerCompatibility(createServerRuntime) {
   }
 
   function shutdownApplication(options = {}) {
-    const stopOptions = options.exitProcess === undefined
-      ? { ...options, exitProcess: true }
-      : options;
+    const stopOptions =
+      options.exitProcess === undefined
+        ? { ...options, exitProcess: true }
+        : options;
     return getCompatibilityRuntime().stop(stopOptions);
   }
 
@@ -38,9 +39,8 @@ function createServerCompatibility(createServerRuntime) {
     persistPlaybackSnapshot,
     setPreShutdownHook,
     shutdownApplication,
-    startServer
+    startServer,
   };
 }
 
 module.exports = { createServerCompatibility };
-

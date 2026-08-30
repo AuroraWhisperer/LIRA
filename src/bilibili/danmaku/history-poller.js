@@ -13,12 +13,14 @@ class HistoryPoller {
     this.onMessage = onMessage;
     this.startedAtMs = options.startedAtMs || Date.now();
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
-    this.isCommandText = typeof options.isCommandText === 'function'
-      ? options.isCommandText
-      : isBilibiliCommandText;
-    this.onIdentityHint = typeof options.onIdentityHint === 'function'
-      ? options.onIdentityHint
-      : null;
+    this.isCommandText =
+      typeof options.isCommandText === 'function'
+        ? options.isCommandText
+        : isBilibiliCommandText;
+    this.onIdentityHint =
+      typeof options.onIdentityHint === 'function'
+        ? options.onIdentityHint
+        : null;
     this.deduplicator = options.deduplicator || null;
     this.timer = null;
     this.pollInFlight = false;
@@ -57,58 +59,76 @@ class HistoryPoller {
     if (this.pollInFlight) return;
     this.pollInFlight = true;
     try {
-    const data = await this.apiClient.fetchHistory(context.roomId);
-    if (localGeneration !== this.localGeneration) return;
-    const messages = []
-      .concat(Array.isArray(data.admin) ? data.admin : [])
-      .concat(Array.isArray(data.room) ? data.room : []);
-    messages.sort((a, b) => parseBilibiliTimeline(a.timeline) - parseBilibiliTimeline(b.timeline));
-
-    let processed = 0;
-    for (const item of messages) {
+      const data = await this.apiClient.fetchHistory(context.roomId);
       if (localGeneration !== this.localGeneration) return;
-      const text = cleanText(item.text);
-      if (!text) continue;
-      const timelineMs = parseBilibiliTimeline(item.timeline);
-      if (!this.isCommandText(text)) continue;
-      if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) continue;
-      if (this.deduplicator && !this.deduplicator.remember(item.uid, text, timelineMs, {
-        userName: item.nickname || item.uname,
-        source: 'history'
-      })) continue;
+      const messages = []
+        .concat(Array.isArray(data.admin) ? data.admin : [])
+        .concat(Array.isArray(data.room) ? data.room : []);
+      messages.sort(
+        (a, b) =>
+          parseBilibiliTimeline(a.timeline) - parseBilibiliTimeline(b.timeline),
+      );
 
-      processed += 1;
-      const userMeta = packetParser.extractBilibiliHistoryUserMeta(item, this.roomOwnerUid);
-      let identitySnapshot = null;
-      if (this.onIdentityHint) {
+      let processed = 0;
+      for (const item of messages) {
         if (localGeneration !== this.localGeneration) return;
-        const result = this.onIdentityHint(toIdentityHint(item, userMeta), {
-          ...context,
-          source: 'history',
-          roomIdentityVerified: userMeta.currentRoomVerified === true
-        });
-        identitySnapshot = result && result.snapshot;
-      }
-      if (localGeneration !== this.localGeneration) return;
-      this.onMessage({
-        uid: item.uid,
-        userName: String(item.nickname || item.uname || '观众'),
-        avatarUrl: userMeta.avatarUrl,
-        message: text,
-        requesterGuardLevel: userMeta.guardLevel,
-        requesterMedalName: userMeta.medalName,
-        requesterMedalLevel: userMeta.medalLevel,
-        currentRoomVerified: userMeta.currentRoomVerified,
-        identitySource: 'history',
-        source: 'history',
-        messageTimestamp: timelineMs,
-        identitySnapshot
-      });
-    }
+        const text = cleanText(item.text);
+        if (!text) continue;
+        const timelineMs = parseBilibiliTimeline(item.timeline);
+        if (!this.isCommandText(text)) continue;
+        if (
+          !bilibiliHelpers.isCapturableBilibiliTimestamp(
+            timelineMs,
+            this.startedAtMs,
+          )
+        )
+          continue;
+        if (
+          this.deduplicator &&
+          !this.deduplicator.remember(item.uid, text, timelineMs, {
+            userName: item.nickname || item.uname,
+            source: 'history',
+          })
+        )
+          continue;
 
-    if (processed > 0) {
-      console.log(`[Bilibili] history polling processed ${processed} command message(s).`);
-    }
+        processed += 1;
+        const userMeta = packetParser.extractBilibiliHistoryUserMeta(
+          item,
+          this.roomOwnerUid,
+        );
+        let identitySnapshot = null;
+        if (this.onIdentityHint) {
+          if (localGeneration !== this.localGeneration) return;
+          const result = this.onIdentityHint(toIdentityHint(item, userMeta), {
+            ...context,
+            source: 'history',
+            roomIdentityVerified: userMeta.currentRoomVerified === true,
+          });
+          identitySnapshot = result && result.snapshot;
+        }
+        if (localGeneration !== this.localGeneration) return;
+        this.onMessage({
+          uid: item.uid,
+          userName: String(item.nickname || item.uname || '观众'),
+          avatarUrl: userMeta.avatarUrl,
+          message: text,
+          requesterGuardLevel: userMeta.guardLevel,
+          requesterMedalName: userMeta.medalName,
+          requesterMedalLevel: userMeta.medalLevel,
+          currentRoomVerified: userMeta.currentRoomVerified,
+          identitySource: 'history',
+          source: 'history',
+          messageTimestamp: timelineMs,
+          identitySnapshot,
+        });
+      }
+
+      if (processed > 0) {
+        console.log(
+          `[Bilibili] history polling processed ${processed} command message(s).`,
+        );
+      }
     } finally {
       this.pollInFlight = false;
     }
@@ -124,12 +144,14 @@ function toIdentityHint(item, userMeta) {
       guardKnown: userMeta.currentRoomVerified === true,
       guardLevel: userMeta.guardLevel,
       medalKnown: userMeta.currentRoomVerified === true,
-      fansMedal: userMeta.medalName ? {
-        name: userMeta.medalName,
-        level: userMeta.medalLevel,
-        targetUid: userMeta.medalTargetUid
-      } : null
-    }
+      fansMedal: userMeta.medalName
+        ? {
+            name: userMeta.medalName,
+            level: userMeta.medalLevel,
+            targetUid: userMeta.medalTargetUid,
+          }
+        : null,
+    },
   };
 }
 

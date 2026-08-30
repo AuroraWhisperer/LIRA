@@ -28,18 +28,25 @@ export function showConfirmationDialog(options = {}) {
     : 'normal';
   const title = String(options.title || '确认操作');
   const description = String(options.description ?? options.message ?? '');
-  const confirmLabel = String(options.confirmLabel || options.confirmText || '继续');
-  const cancelLabel = String(options.cancelLabel || options.cancelText || '取消');
+  const confirmLabel = String(
+    options.confirmLabel || options.confirmText || '继续',
+  );
+  const cancelLabel = String(
+    options.cancelLabel || options.cancelText || '取消',
+  );
   const closeOnBackdrop = options.closeOnBackdrop ?? variant !== 'destructive';
   const dialogId = ++confirmationId;
   const titleId = `lira-confirm-title-${dialogId}`;
   const descriptionId = `lira-confirm-description-${dialogId}`;
-  const icon = options.icon ? `<span class="lira-confirm-indicator" aria-hidden="true">${escapeHtml(options.icon)}</span>` : '';
-  const kicker = variant === 'destructive'
-    ? '<span class="lira-confirm-kicker">这项操作无法撤销</span>'
-    : variant === 'caution'
-      ? '<span class="lira-confirm-kicker">请确认这一步</span>'
-      : '';
+  const icon = options.icon
+    ? `<span class="lira-confirm-indicator" aria-hidden="true">${escapeHtml(options.icon)}</span>`
+    : '';
+  const kicker =
+    variant === 'destructive'
+      ? '<span class="lira-confirm-kicker">这项操作无法撤销</span>'
+      : variant === 'caution'
+        ? '<span class="lira-confirm-kicker">请确认这一步</span>'
+        : '';
   const deletes = renderList('将移除', options.deletes, 'is-destructive');
   const keeps = renderList('会保留', options.keeps, 'is-kept');
   const platform = options.platform
@@ -47,9 +54,11 @@ export function showConfirmationDialog(options = {}) {
     : '';
 
   return new Promise((resolve) => {
-    const previousFocus = document.activeElement && typeof document.activeElement.focus === 'function'
-      ? document.activeElement
-      : null;
+    const previousFocus =
+      document.activeElement &&
+      typeof document.activeElement.focus === 'function'
+        ? document.activeElement
+        : null;
     const backdrop = document.createElement('div');
     backdrop.className = `lira-confirm-backdrop is-${variant}`;
     backdrop.dataset.variant = variant;
@@ -81,7 +90,7 @@ export function showConfirmationDialog(options = {}) {
       .map((element) => ({
         element,
         inert: Boolean(element.inert),
-        ariaHidden: element.getAttribute('aria-hidden')
+        ariaHidden: element.getAttribute('aria-hidden'),
       }));
     inertSiblings.forEach(({ element }) => {
       element.inert = true;
@@ -116,9 +125,10 @@ export function showConfirmationDialog(options = {}) {
     const close = (result) => {
       if (settled || closeTimer) return;
       backdrop.classList.add('is-closing');
-      const reducedMotion = typeof window !== 'undefined'
-        && typeof window.matchMedia === 'function'
-        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reducedMotion =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       closeTimer = setTimeout(() => finish(result), reducedMotion ? 0 : 170);
     };
 
@@ -129,7 +139,11 @@ export function showConfirmationDialog(options = {}) {
         return;
       }
       if (event.key !== 'Tab') return;
-      const focusable = [...backdrop.querySelectorAll('button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+      const focusable = [
+        ...backdrop.querySelectorAll(
+          'button:not(:disabled), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ];
       if (focusable.length === 0) {
         event.preventDefault();
         dialog.focus();
@@ -158,10 +172,12 @@ export function showConfirmationDialog(options = {}) {
     document.addEventListener('keydown', onKeyDown);
 
     const focusInitial = () => {
-      const initial = options.initialFocus === 'confirm' ? confirmButton : cancelButton;
+      const initial =
+        options.initialFocus === 'confirm' ? confirmButton : cancelButton;
       (initial || dialog).focus();
     };
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focusInitial);
+    if (typeof requestAnimationFrame === 'function')
+      requestAnimationFrame(focusInitial);
     else setTimeout(focusInitial, 0);
   });
 }
@@ -174,7 +190,7 @@ export function dangerConfirm(options = {}) {
     confirmLabel: options.confirmLabel || '继续操作',
     closeOnBackdrop: false,
     initialFocus: 'cancel',
-    icon: options.icon || '!'
+    icon: options.icon || '!',
   });
 }
 
@@ -186,6 +202,6 @@ export function logoutConfirm(options = {}) {
     confirmLabel: options.confirmLabel || '退出登录',
     cancelLabel: options.cancelLabel || '先不退出',
     initialFocus: 'cancel',
-    icon: options.icon || '→'
+    icon: options.icon || '→',
   });
 }

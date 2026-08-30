@@ -3,7 +3,14 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { cleanText, normalizeTimestampMs, normalizePositiveInteger, normalizeMoney, normalizeGuardLevel, safeJsonStringify } = require('../shared/utils');
+const {
+  cleanText,
+  normalizeTimestampMs,
+  normalizePositiveInteger,
+  normalizeMoney,
+  normalizeGuardLevel,
+  safeJsonStringify,
+} = require('../shared/utils');
 
 // ── 数值转换 ──
 
@@ -32,7 +39,11 @@ function recordBilibiliCommandDiagnostic(diag, cmd) {
 function recordBilibiliGiftDiagnostic(diag, cmd, reason) {
   const text = cleanText(cmd) || 'UNKNOWN';
   diag.unparsedGiftCount += 1;
-  diag.recentGiftLikeCommands.unshift({ cmd: text, reason: cleanText(reason), at: new Date().toISOString() });
+  diag.recentGiftLikeCommands.unshift({
+    cmd: text,
+    reason: cleanText(reason),
+    at: new Date().toISOString(),
+  });
   diag.recentGiftLikeCommands = diag.recentGiftLikeCommands.slice(0, 20);
 }
 
@@ -58,29 +69,61 @@ function buildBilibiliCommandKey(uid, message, timestampMs) {
 }
 
 function buildBilibiliFallbackGiftId(packet, data) {
-  return crypto.createHash('sha1')
-    .update([
-      cleanText(packet && packet.cmd),
-      cleanText((data && (data.uid || data.mid || data.username || data.uname)) || ''),
-      cleanText((data && (data.gift_name || data.giftName || data.role_name || data.roleName)) || ''),
-      cleanText((data && (data.price || data.gift_price || data.giftPrice || data.total_price || data.totalPrice)) || ''),
-      cleanText((data && (data.timestamp || data.ts || data.time || data.start_time || data.startTime)) || '') || Math.floor(Date.now() / 1000)
-    ].join('|'))
+  return crypto
+    .createHash('sha1')
+    .update(
+      [
+        cleanText(packet && packet.cmd),
+        cleanText(
+          (data && (data.uid || data.mid || data.username || data.uname)) || '',
+        ),
+        cleanText(
+          (data &&
+            (data.gift_name ||
+              data.giftName ||
+              data.role_name ||
+              data.roleName)) ||
+            '',
+        ),
+        cleanText(
+          (data &&
+            (data.price ||
+              data.gift_price ||
+              data.giftPrice ||
+              data.total_price ||
+              data.totalPrice)) ||
+            '',
+        ),
+        cleanText(
+          (data &&
+            (data.timestamp ||
+              data.ts ||
+              data.time ||
+              data.start_time ||
+              data.startTime)) ||
+            '',
+        ) || Math.floor(Date.now() / 1000),
+      ].join('|'),
+    )
     .digest('hex');
 }
 
 function formatUnparsedGiftLikeCommandLog(message, reason, options = {}) {
   const cmd = cleanText(message && message.cmd);
-  const data = message && message.data && typeof message.data === 'object' ? message.data : {};
+  const data =
+    message && message.data && typeof message.data === 'object'
+      ? message.data
+      : {};
   const keys = Object.keys(data).slice(0, 30).join(',');
   const preview = safeJsonStringify(data).slice(0, 260);
   const status = cleanText(options.status) || 'unrecognized';
-  const trace = options.connectionGeneration || options.connectionAttempt
-    ? ` trace=${JSON.stringify({
-      connectionGeneration: Number(options.connectionGeneration) || 0,
-      connectionAttempt: Number(options.connectionAttempt) || 0
-    })}`
-    : '';
+  const trace =
+    options.connectionGeneration || options.connectionAttempt
+      ? ` trace=${JSON.stringify({
+          connectionGeneration: Number(options.connectionGeneration) || 0,
+          connectionAttempt: Number(options.connectionAttempt) || 0,
+        })}`
+      : '';
   return `[Bilibili][Gift] status=${status} reason=${cleanText(reason)} cmd=${cmd} dataKeys=${keys} data=${preview}${trace}`;
 }
 
@@ -97,7 +140,7 @@ function normalizeRequesterIdentity(input) {
     guardLevel: normalizeGuardLevel(input && input.guardLevel),
     medalName: cleanText(input && input.medalName),
     medalLevel: normalizePositiveInteger(input && input.medalLevel),
-    seenAt: normalizePositiveInteger(input && input.seenAt) || undefined
+    seenAt: normalizePositiveInteger(input && input.seenAt) || undefined,
   };
 }
 
@@ -110,35 +153,67 @@ function guardLevelName(level) {
 
 function readMedalName(medalInfo) {
   return cleanText(
-    (medalInfo && (medalInfo.medal_name || medalInfo.medalName || medalInfo.medal || medalInfo.name)) || ''
+    (medalInfo &&
+      (medalInfo.medal_name ||
+        medalInfo.medalName ||
+        medalInfo.medal ||
+        medalInfo.name)) ||
+      '',
   );
 }
 
 function readMedalLevel(medalInfo) {
   return normalizePositiveInteger(
-    (medalInfo && (medalInfo.medal_level || medalInfo.medalLevel || medalInfo.level)) || 0
+    (medalInfo &&
+      (medalInfo.medal_level || medalInfo.medalLevel || medalInfo.level)) ||
+      0,
   );
 }
 
 function readBilibiliOnlineRankItems(data) {
   if (!data || typeof data !== 'object') return [];
-  const candidates = [data.OnlineRankItem, data.onlineRankItem, data.online_rank_item, data.list, data.items];
-  for (const candidate of candidates) { if (Array.isArray(candidate)) return candidate; }
+  const candidates = [
+    data.OnlineRankItem,
+    data.onlineRankItem,
+    data.online_rank_item,
+    data.list,
+    data.items,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
   return [];
 }
 
 function readBilibiliFansMembersRankItems(data) {
   if (!data || typeof data !== 'object') return [];
-  const candidates = [data.item, data.items, data.list, data.fans_members, data.fansMembers];
-  for (const candidate of candidates) { if (Array.isArray(candidate)) return candidate; }
+  const candidates = [
+    data.item,
+    data.items,
+    data.list,
+    data.fans_members,
+    data.fansMembers,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
   return [];
 }
 
 module.exports = {
-  normalizeBilibiliCoinRmb, parseBooleanLike,
-  recordBilibiliCommandDiagnostic, recordBilibiliGiftDiagnostic,
-  isCapturableBilibiliTimestamp, buildBilibiliCommandKey,
-  buildBilibiliFallbackGiftId, logUnparsedGiftLikeCommand, formatUnparsedGiftLikeCommandLog,
-  normalizeRequesterIdentity, guardLevelName,
-  readMedalName, readMedalLevel, readBilibiliOnlineRankItems, readBilibiliFansMembersRankItems
+  normalizeBilibiliCoinRmb,
+  parseBooleanLike,
+  recordBilibiliCommandDiagnostic,
+  recordBilibiliGiftDiagnostic,
+  isCapturableBilibiliTimestamp,
+  buildBilibiliCommandKey,
+  buildBilibiliFallbackGiftId,
+  logUnparsedGiftLikeCommand,
+  formatUnparsedGiftLikeCommandLog,
+  normalizeRequesterIdentity,
+  guardLevelName,
+  readMedalName,
+  readMedalLevel,
+  readBilibiliOnlineRankItems,
+  readBilibiliFansMembersRankItems,
 };

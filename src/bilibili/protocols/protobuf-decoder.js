@@ -6,13 +6,19 @@
 
 function firstProtoScalar(values) {
   if (!Array.isArray(values)) return '';
-  const value = values.find((item) => item !== null && item !== undefined && typeof item !== 'object');
+  const value = values.find(
+    (item) => item !== null && item !== undefined && typeof item !== 'object',
+  );
   return value === undefined ? '' : value;
 }
 
 function firstProtoObject(values) {
   if (!Array.isArray(values)) return null;
-  return values.find((item) => item && typeof item === 'object' && !Buffer.isBuffer(item)) || null;
+  return (
+    values.find(
+      (item) => item && typeof item === 'object' && !Buffer.isBuffer(item),
+    ) || null
+  );
 }
 
 function readBilibiliProtoVarint(buffer, offset) {
@@ -51,7 +57,10 @@ function decodeBilibiliProtoFields(buffer, depth = 0) {
     if (wireType === 0) {
       const result = readBilibiliProtoVarint(buffer, offset);
       if (!result) return null;
-      value = result.value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(result.value) : result.value.toString();
+      value =
+        result.value <= BigInt(Number.MAX_SAFE_INTEGER)
+          ? Number(result.value)
+          : result.value.toString();
       offset = result.offset;
     } else if (wireType === 1) {
       if (offset + 8 > buffer.length) return null;
@@ -66,12 +75,21 @@ function decodeBilibiliProtoFields(buffer, depth = 0) {
       if (!lengthResult) return null;
       const length = Number(lengthResult.value);
       offset = lengthResult.offset;
-      if (!Number.isFinite(length) || length < 0 || offset + length > buffer.length) return null;
+      if (
+        !Number.isFinite(length) ||
+        length < 0 ||
+        offset + length > buffer.length
+      )
+        return null;
 
       const chunk = buffer.subarray(offset, offset + length);
       offset += length;
-      const nested = depth < 5 ? decodeBilibiliProtoFields(chunk, depth + 1) : null;
-      value = nested && Object.keys(nested).length > 0 ? nested : chunk.toString('utf8');
+      const nested =
+        depth < 5 ? decodeBilibiliProtoFields(chunk, depth + 1) : null;
+      value =
+        nested && Object.keys(nested).length > 0
+          ? nested
+          : chunk.toString('utf8');
     }
 
     if (!fields[field]) fields[field] = [];
@@ -97,5 +115,5 @@ module.exports = {
   firstProtoObject,
   readBilibiliProtoVarint,
   decodeBilibiliProtoFields,
-  decodeBilibiliGiftV2Proto
+  decodeBilibiliGiftV2Proto,
 };

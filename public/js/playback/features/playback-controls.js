@@ -5,8 +5,12 @@
 import * as PlaybackUtils from '../utils.js';
 
 function isInterruptedMediaPlayError(error) {
-  return error?.name === 'AbortError'
-    || /play\(\) request was interrupted/i.test(String(error?.message || error || ''));
+  return (
+    error?.name === 'AbortError' ||
+    /play\(\) request was interrupted/i.test(
+      String(error?.message || error || ''),
+    )
+  );
 }
 
 export function createPlaybackControls(deps) {
@@ -24,7 +28,7 @@ export function createPlaybackControls(deps) {
     syncPlaybackLyricWindow,
     getPlaybackAuthState,
     rebuildPlaybackShuffleOrder,
-    U
+    U,
   } = deps;
   let playRequestGeneration = 0;
 
@@ -36,9 +40,15 @@ export function createPlaybackControls(deps) {
     }
 
     // Try IPC restore from saved filePath
-    if (track.filePath && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
+    if (
+      track.filePath &&
+      window.musicAPI &&
+      typeof window.musicAPI.resolveLocalMediaUrls === 'function'
+    ) {
       try {
-        const res = await window.musicAPI.resolveLocalMediaUrls([track.filePath]);
+        const res = await window.musicAPI.resolveLocalMediaUrls([
+          track.filePath,
+        ]);
         const entry = res && res.results && res.results[track.filePath];
         if (entry && entry.ok) {
           track.objectUrl = entry.url;
@@ -86,8 +96,8 @@ export function createPlaybackControls(deps) {
         forceRefresh: options.forceRefresh === true,
         quality: PlaybackUtils.normalizeQuality(
           track.source,
-          playbackState.qualityPreferences?.[track.source]
-        )
+          playbackState.qualityPreferences?.[track.source],
+        ),
       });
     } catch (error) {
       if (requestGeneration !== playRequestGeneration) return;
@@ -98,13 +108,18 @@ export function createPlaybackControls(deps) {
     if (requestGeneration !== playRequestGeneration) return;
     if (!streamUrl) {
       playbackState.current = track;
-      playbackState.currentOrigin = options.origin || playbackState.currentOrigin || 'normal';
+      playbackState.currentOrigin =
+        options.origin || playbackState.currentOrigin || 'normal';
       renderPlayback();
       return;
     }
 
     if (!options.isRetry) streamService.resetRetryCount();
-    if (playbackState.current && playbackState.current.id !== track.id && !options.fromHistory) {
+    if (
+      playbackState.current &&
+      playbackState.current.id !== track.id &&
+      !options.fromHistory
+    ) {
       playbackState.history.push(playbackState.current);
       playbackState.history = playbackState.history.slice(-50);
     }
@@ -112,23 +127,31 @@ export function createPlaybackControls(deps) {
     if (!options.fromHistory) {
       playbackState.displayHistory = [
         { ...track, playedAt: Date.now() },
-        ...playbackState.displayHistory.filter((t) => t.id !== track.id)
+        ...playbackState.displayHistory.filter((t) => t.id !== track.id),
       ].slice(0, 200);
     }
 
     playbackState.current = track;
-    playbackState.currentOrigin = options.origin || playbackState.currentOrigin || 'normal';
+    playbackState.currentOrigin =
+      options.origin || playbackState.currentOrigin || 'normal';
     audio.dataset.trackId = track.id;
     audio.src = streamUrl;
     audio.load();
 
     const startAt = Math.max(0, Number(options.startAt || 0));
     if (startAt > 0) {
-      audio.addEventListener('loadedmetadata', () => {
-        if (Number.isFinite(audio.duration) && audio.duration > 0) {
-          audio.currentTime = Math.min(startAt, Math.max(0, audio.duration - 1));
-        }
-      }, { once: true });
+      audio.addEventListener(
+        'loadedmetadata',
+        () => {
+          if (Number.isFinite(audio.duration) && audio.duration > 0) {
+            audio.currentTime = Math.min(
+              startAt,
+              Math.max(0, audio.duration - 1),
+            );
+          }
+        },
+        { once: true },
+      );
     }
 
     try {
@@ -140,7 +163,10 @@ export function createPlaybackControls(deps) {
         }
       }
     } catch (error) {
-      if (requestGeneration === playRequestGeneration && !isInterruptedMediaPlayError(error)) {
+      if (
+        requestGeneration === playRequestGeneration &&
+        !isInterruptedMediaPlayError(error)
+      ) {
         showError(error);
       }
     }
@@ -167,11 +193,17 @@ export function createPlaybackControls(deps) {
   async function changePlaybackQuality(quality) {
     const audio = getPlaybackAudio();
     const currentSource = playbackState.current?.source;
-    const source = currentSource === 'qq' || currentSource === 'netease'
-      ? currentSource
-      : playbackState.selectedSource;
+    const source =
+      currentSource === 'qq' || currentSource === 'netease'
+        ? currentSource
+        : playbackState.selectedSource;
     const normalizedQuality = PlaybackUtils.normalizeQuality(source, quality);
-    if (!PlaybackUtils.getQualityOptions(source).some((item) => item.id === quality)) return;
+    if (
+      !PlaybackUtils.getQualityOptions(source).some(
+        (item) => item.id === quality,
+      )
+    )
+      return;
 
     playbackState.qualityPreferences[source] = normalizedQuality;
     savePlaybackState();
@@ -179,7 +211,9 @@ export function createPlaybackControls(deps) {
 
     const track = playbackState.current;
     if (!audio || !track || track.source !== source) {
-      toast(`${PlaybackUtils.getSourceName(source)}默认音质已设为${PlaybackUtils.getQualityLabel(source, normalizedQuality)}`);
+      toast(
+        `${PlaybackUtils.getSourceName(source)}默认音质已设为${PlaybackUtils.getQualityLabel(source, normalizedQuality)}`,
+      );
       return;
     }
 
@@ -188,24 +222,39 @@ export function createPlaybackControls(deps) {
     try {
       const streamUrl = await streamService.getTrackUrl(track, {
         forceRefresh: true,
-        quality: normalizedQuality
+        quality: normalizedQuality,
       });
       if (!streamUrl) return;
 
       audio.src = streamUrl;
       audio.load();
-      audio.addEventListener('loadedmetadata', () => {
-        if (Number.isFinite(audio.duration) && audio.duration > 0) {
-          audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 1));
-        }
-      }, { once: true });
+      audio.addEventListener(
+        'loadedmetadata',
+        () => {
+          if (Number.isFinite(audio.duration) && audio.duration > 0) {
+            audio.currentTime = Math.min(
+              resumeAt,
+              Math.max(0, audio.duration - 1),
+            );
+          }
+        },
+        { once: true },
+      );
       if (shouldResume) await audio.play();
 
-      const actualQuality = PlaybackUtils.getQualityLabel(source, track.playbackQuality);
-      const requestedLabel = PlaybackUtils.getQualityLabel(source, normalizedQuality);
-      toast(actualQuality === requestedLabel
-        ? `已切换到${actualQuality}音质`
-        : `${requestedLabel}不可用，已使用${actualQuality}音质`);
+      const actualQuality = PlaybackUtils.getQualityLabel(
+        source,
+        track.playbackQuality,
+      );
+      const requestedLabel = PlaybackUtils.getQualityLabel(
+        source,
+        normalizedQuality,
+      );
+      toast(
+        actualQuality === requestedLabel
+          ? `已切换到${actualQuality}音质`
+          : `${requestedLabel}不可用，已使用${actualQuality}音质`,
+      );
       savePlaybackState();
       renderPlayback();
     } catch (error) {
@@ -214,7 +263,10 @@ export function createPlaybackControls(deps) {
     }
   }
 
-  async function togglePlayback(takeNextPlaybackTrack, showPlaybackLoginPrompt) {
+  async function togglePlayback(
+    takeNextPlaybackTrack,
+    showPlaybackLoginPrompt,
+  ) {
     const audio = getPlaybackAudio();
     if (!audio) return;
 
@@ -233,13 +285,15 @@ export function createPlaybackControls(deps) {
         showPlaybackLoginPrompt();
       } else {
         if (typeof U.showStackedToast === 'function') {
-          const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
+          const sourceName = PlaybackUtils.getSourceName(
+            playbackState.selectedSource,
+          );
           U.showStackedToast({
             key: 'playback-queue-empty',
             title: '播放队列为空',
             message: `搜索${sourceName}歌曲并添加到播放队列`,
             className: 'playback-empty-queue-toast',
-            duration: 4200
+            duration: 4200,
           });
         } else {
           toast('播放队列为空，请先选择歌曲');
@@ -249,7 +303,10 @@ export function createPlaybackControls(deps) {
     }
 
     if (!audio.src || audio.dataset.trackId !== track.id) {
-      await playPlaybackTrack(track, { origin: playbackState.currentOrigin, startAt: playbackState.restoredTime });
+      await playPlaybackTrack(track, {
+        origin: playbackState.currentOrigin,
+        startAt: playbackState.restoredTime,
+      });
       return;
     }
 
@@ -275,16 +332,25 @@ export function createPlaybackControls(deps) {
     }
     const previousTrack = playbackState.history.pop();
     if (previousTrack) {
-      await playPlaybackTrack(previousTrack, { fromHistory: true, origin: 'history' });
+      await playPlaybackTrack(previousTrack, {
+        fromHistory: true,
+        origin: 'history',
+      });
     }
   }
 
-  function playbackNext(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled) {
+  function playbackNext(
+    fromEnded,
+    takeNextPlaybackTrack,
+    ensurePlaybackRadioQueueFilled,
+  ) {
     const audio = getPlaybackAudio();
     if (!audio) return;
 
     if (playbackState.mode === 'repeat-one' && playbackState.current) {
-      playPlaybackTrack(playbackState.current, { origin: playbackState.currentOrigin });
+      playPlaybackTrack(playbackState.current, {
+        origin: playbackState.currentOrigin,
+      });
       return;
     }
 
@@ -296,13 +362,19 @@ export function createPlaybackControls(deps) {
     }
 
     // 固定歌单按当前模式循环
-    if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
-      const tracks = playbackState.mode === 'shuffle'
-        ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)
-        : playbackState.normalQueueTracks.map((track) => ({ ...track }));
+    if (
+      playbackState.queueType === 'playlist' &&
+      playbackState.normalQueueTracks.length > 0
+    ) {
+      const tracks =
+        playbackState.mode === 'shuffle'
+          ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)
+          : playbackState.normalQueueTracks.map((track) => ({ ...track }));
       const first = tracks[0];
       playbackState.normalQueue = tracks.slice(1);
-      playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex((track) => track.id === first.id);
+      playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex(
+        (track) => track.id === first.id,
+      );
       rebuildPlaybackShuffleOrder();
       savePlaybackState();
       playPlaybackTrack(first, { origin: 'normal' });
@@ -327,6 +399,6 @@ export function createPlaybackControls(deps) {
     playbackPrevious,
     playbackNext,
     loadPlaybackLyrics,
-    ensureLocalTrackPlayable
+    ensureLocalTrackPlayable,
   };
 }

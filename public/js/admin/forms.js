@@ -18,13 +18,22 @@ export class FormsService {
   bindRangePair(rangeId, numberId, min, max, fallback, displayScale = 1) {
     document.getElementById(rangeId).addEventListener('input', () => {
       const rangeValue = value(rangeId);
-      const displayValue = displayScale === 1
-        ? rangeValue
-        : String(Number((Number(rangeValue) * displayScale).toFixed(6)));
+      const displayValue =
+        displayScale === 1
+          ? rangeValue
+          : String(Number((Number(rangeValue) * displayScale).toFixed(6)));
       setValue(numberId, displayValue);
     });
     document.getElementById(numberId).addEventListener('input', () => {
-      setValue(rangeId, normalizeRangeValue(Number(value(numberId)) / displayScale, min, max, fallback));
+      setValue(
+        rangeId,
+        normalizeRangeValue(
+          Number(value(numberId)) / displayScale,
+          min,
+          max,
+          fallback,
+        ),
+      );
       this.refreshParameterRanges(document.getElementById(rangeId));
     });
   }
@@ -39,8 +48,12 @@ export class FormsService {
   initTabs() {
     document.querySelectorAll('.tab').forEach((button) => {
       button.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
-        document.querySelectorAll('.tab-page').forEach((item) => item.classList.remove('active'));
+        document
+          .querySelectorAll('.tab')
+          .forEach((item) => item.classList.remove('active'));
+        document
+          .querySelectorAll('.tab-page')
+          .forEach((item) => item.classList.remove('active'));
         button.classList.add('active');
         document.getElementById(button.dataset.tab).classList.add('active');
       });
@@ -76,7 +89,9 @@ export class FormsService {
     // ESC键关闭全屏播放器，空格键播放/暂停
     playerDockToggle?.addEventListener('click', (e) => {
       e.stopPropagation();
-      const collapsed = !document.body.classList.contains('player-dock-collapsed');
+      const collapsed = !document.body.classList.contains(
+        'player-dock-collapsed',
+      );
       this.setPlayerDockCollapsed(collapsed);
     });
 
@@ -168,17 +183,19 @@ export class FormsService {
    * 填充表单
    */
   fillForm(values) {
-    const overlayStyle = values?.overlayQueueStyle || value('overlayQueueStyle') || 'classic';
+    const overlayStyle =
+      values?.overlayQueueStyle || value('overlayQueueStyle') || 'classic';
     const activeQueueSettings = readQueueStyleSettings(values, overlayStyle);
     ensureSavedFontOption(
       document.getElementById('illustratedQueueFontFamily'),
-      activeQueueSettings.fontFamily
+      activeQueueSettings.fontFamily,
     );
     for (const [key, inputValue] of Object.entries(values || {})) {
       const element = document.getElementById(key);
       // Keep an in-progress edit intact while a live state snapshot arrives.
       if (element?.closest('#openingAnimationForm')) continue;
-      if (element && element !== document.activeElement) element.value = inputValue;
+      if (element && element !== document.activeElement)
+        element.value = inputValue;
     }
     if (window.AdminApp.theme && window.AdminApp.theme.setOverlayStyle) {
       window.AdminApp.theme.setOverlayStyle(overlayStyle);
@@ -194,19 +211,58 @@ export class FormsService {
         syncArea.hidden = synced;
         if (synced) {
           // Copy main theme values into song board fields
-          setValue('songBoardThemePrimary', (values && values.themePrimary) || '#ff6f91');
-          setValue('songBoardThemeAccent', (values && values.themeAccent) || '#21b6a8');
-          setValue('songBoardThemeText', (values && values.themeText) || '#fff7fb');
-          setValue('songBoardThemeBackground', (values && values.themeBackground) || '#181823');
-          setValue('songBoardThemeOpacity', (values && values.themeOpacity) || '0.48');
-          setValue('songBoardThemeRadius', (values && values.themeRadius) || '8');
-          setValue('songBoardBackdropBlur', (values && values.backdropBlur) || '14');
-          setValue('songBoardGlowIntensity', (values && values.glowIntensity) || '2');
-          setValue('songBoardEnableGradient', (values && values.enableGradient) || 'false');
-          setValue('songBoardGradientEnd', (values && values.gradientEnd) || '#181823');
-          setValue('songBoardFontFamily', (values && values.overlayFontFamily) || 'Microsoft YaHei');
-          setValue('songBoardFontWeight', (values && values.overlayFontWeight) || '800');
-          setValue('songBoardSongColor', (values && values.overlaySongColor) || '');
+          setValue(
+            'songBoardThemePrimary',
+            (values && values.themePrimary) || '#ff6f91',
+          );
+          setValue(
+            'songBoardThemeAccent',
+            (values && values.themeAccent) || '#21b6a8',
+          );
+          setValue(
+            'songBoardThemeText',
+            (values && values.themeText) || '#fff7fb',
+          );
+          setValue(
+            'songBoardThemeBackground',
+            (values && values.themeBackground) || '#181823',
+          );
+          setValue(
+            'songBoardThemeOpacity',
+            (values && values.themeOpacity) || '0.48',
+          );
+          setValue(
+            'songBoardThemeRadius',
+            (values && values.themeRadius) || '8',
+          );
+          setValue(
+            'songBoardBackdropBlur',
+            (values && values.backdropBlur) || '14',
+          );
+          setValue(
+            'songBoardGlowIntensity',
+            (values && values.glowIntensity) || '2',
+          );
+          setValue(
+            'songBoardEnableGradient',
+            (values && values.enableGradient) || 'false',
+          );
+          setValue(
+            'songBoardGradientEnd',
+            (values && values.gradientEnd) || '#181823',
+          );
+          setValue(
+            'songBoardFontFamily',
+            (values && values.overlayFontFamily) || 'Microsoft YaHei',
+          );
+          setValue(
+            'songBoardFontWeight',
+            (values && values.overlayFontWeight) || '800',
+          );
+          setValue(
+            'songBoardSongColor',
+            (values && values.overlaySongColor) || '',
+          );
           setValue('songBoardTitle', (values && values.overlayTitle) || '');
         }
       }
@@ -216,13 +272,13 @@ export class FormsService {
       values && values.queueSongFontSize,
       this.scaleToFontSize(values && values.themeFontScale, 40),
       70,
-      10
+      10,
     );
     const titleFontSize = this.normalizeFontSize(
       values && values.queueTitleFontSize,
       this.scaleToFontSize(values && values.themeFontScale, 30),
       40,
-      10
+      10,
     );
     setValue('queueSongFontSize', songFontSize);
     if (document.getElementById('queueSongFontSizeNumber')) {
@@ -233,7 +289,12 @@ export class FormsService {
     if (document.getElementById('queueTitleFontSizeNumber')) {
       setValue('queueTitleFontSizeNumber', titleFontSize);
     }
-    const identityFontSize = this.normalizeFontSize(activeQueueSettings.fontSize, 26, 78, 9);
+    const identityFontSize = this.normalizeFontSize(
+      activeQueueSettings.fontSize,
+      26,
+      78,
+      9,
+    );
     if (document.getElementById('identityQueueFontSize')) {
       setValue('identityQueueFontSize', identityFontSize);
     }
@@ -242,10 +303,17 @@ export class FormsService {
     }
     setValue('illustratedQueueFontFamily', activeQueueSettings.fontFamily);
     setValue('illustratedQueueFontWeight', activeQueueSettings.fontWeight);
-    setValue('illustratedQueueUseCustomTextColor', activeQueueSettings.useCustomTextColor);
+    setValue(
+      'illustratedQueueUseCustomTextColor',
+      activeQueueSettings.useCustomTextColor,
+    );
     setValue('illustratedQueueTextColor', activeQueueSettings.textColor);
     setValue('identityQueueScrollMode', activeQueueSettings.scrollMode);
-    const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
+    const ruleFontSize = this.normalizeFontSize(
+      values && values.overlayRuleFontSize,
+      10,
+      18,
+    );
     if (document.getElementById('overlayRuleFontSize')) {
       setValue('overlayRuleFontSize', ruleFontSize);
     }
@@ -266,18 +334,24 @@ export class FormsService {
     }
     if (document.getElementById('scrollSecondsRange')) {
       const songScrollSpeed = this.normalizeSongScrollSpeedForDisplay(
-        values && values.scrollSeconds !== undefined ? values.scrollSeconds : value('scrollSeconds')
+        values && values.scrollSeconds !== undefined
+          ? values.scrollSeconds
+          : value('scrollSeconds'),
       );
       setValue('scrollSeconds', songScrollSpeed);
       setValue('scrollSecondsRange', songScrollSpeed);
     }
     if (document.getElementById('queueScrollSpeedRange')) {
-      const queueScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
+      const queueScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(
+        values && values.queueScrollSpeed,
+      );
       setValue('queueScrollSpeed', queueScrollSpeed);
       setValue('queueScrollSpeedRange', queueScrollSpeed);
     }
     if (document.getElementById('identityQueueScrollSpeedRange')) {
-      const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(activeQueueSettings.scrollSpeed);
+      const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(
+        activeQueueSettings.scrollSpeed,
+      );
       setValue('identityQueueScrollSpeed', identityScrollSpeed);
       setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
@@ -323,7 +397,11 @@ export class FormsService {
    */
   reconnectErrorMessage(error) {
     const text = String((error && error.message) || error || '');
-    if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
+    if (
+      /Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(
+        text,
+      )
+    ) {
       return '刷新直播失败：本地服务未响应，请重启 LIRA 后再试。';
     }
     if (/Unexpected end of JSON input|非 JSON/i.test(text)) {
@@ -346,11 +424,13 @@ if (typeof window !== 'undefined') {
     initWorkspaceControls: () => formsService.initWorkspaceControls(),
     refreshParameterRanges: (root) => formsService.refreshParameterRanges(root),
     fillForm: (values) => formsService.fillForm(values),
-    normalizeQueueScrollSpeedForDisplay: (input) => formsService.normalizeQueueScrollSpeedForDisplay(input),
-    normalizeSongScrollSpeedForDisplay: (input) => formsService.normalizeSongScrollSpeedForDisplay(input),
+    normalizeQueueScrollSpeedForDisplay: (input) =>
+      formsService.normalizeQueueScrollSpeedForDisplay(input),
+    normalizeSongScrollSpeedForDisplay: (input) =>
+      formsService.normalizeSongScrollSpeedForDisplay(input),
     normalizeFontSize: (...args) => formsService.normalizeFontSize(...args),
     scaleToFontSize: (...args) => formsService.scaleToFontSize(...args),
-    reconnectErrorMessage: (error) => formsService.reconnectErrorMessage(error)
+    reconnectErrorMessage: (error) => formsService.reconnectErrorMessage(error),
   };
 
   // 全局函数（为了兼容现有代码）

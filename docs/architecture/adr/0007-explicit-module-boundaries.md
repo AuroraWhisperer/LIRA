@@ -1,6 +1,7 @@
 # ADR-0007: Enforce Explicit Module Boundaries Incrementally
 
 ## Status
+
 Accepted
 
 ## Context

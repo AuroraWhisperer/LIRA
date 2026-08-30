@@ -97,10 +97,16 @@
   --shadow: var(--shadow-md);
   --radius: var(--radius-md);
   --motion-ui-duration: 180ms;
-  --font: "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif;
+  --font:
+    'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'Hiragino Sans GB',
+    'Yu Gothic', 'Meiryo', 'Malgun Gothic', 'Apple SD Gothic Neo',
+    'Noto Sans CJK SC', 'Noto Sans JP', 'Noto Sans KR', 'Segoe UI', Arial,
+    sans-serif;
   --font-ui: var(--font);
-  --font-display: "Segoe UI Variable Display", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", sans-serif;
-  --font-mono: "Cascadia Mono", Consolas, monospace;
+  --font-display:
+    'Segoe UI Variable Display', 'Microsoft YaHei UI', 'Microsoft YaHei',
+    'PingFang SC', sans-serif;
+  --font-mono: 'Cascadia Mono', Consolas, monospace;
 
   --type-size-display: 28px;
   --type-size-page-title: 24px;
@@ -170,7 +176,10 @@ select {
   background-repeat: no-repeat;
   background-size: 16px;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 select:hover:not(:disabled) {

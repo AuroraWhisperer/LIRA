@@ -23,18 +23,22 @@ test('logs successful updater state boundaries without progress noise', () => {
     updateManager.configureAutoUpdater({
       updater,
       onStateChange() {},
-      writeLog: (scope, value) => logs.push({ scope, value })
+      writeLog: (scope, value) => logs.push({ scope, value }),
     });
 
     updater.emit('checking-for-update');
     updater.emit('update-available', { version: '3.1.0' });
-    updater.emit('download-progress', { percent: 50, transferred: 5, total: 10 });
+    updater.emit('download-progress', {
+      percent: 50,
+      transferred: 5,
+      total: 10,
+    });
     updater.emit('update-downloaded', { version: '3.1.0' });
 
     assert.deepEqual(logs, [
       { scope: 'update', value: { event: 'checking' } },
       { scope: 'update', value: { event: 'available', version: '3.1.0' } },
-      { scope: 'update', value: { event: 'downloaded', version: '3.1.0' } }
+      { scope: 'update', value: { event: 'downloaded', version: '3.1.0' } },
     ]);
   } finally {
     delete require.cache[modulePath];

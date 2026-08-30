@@ -3,11 +3,7 @@
 'use strict';
 
 (function () {
-  const {
-    escapeHtml,
-    formatMoney,
-    showStackedToast
-  } = window.AdminApp.utils;
+  const { escapeHtml, formatMoney, showStackedToast } = window.AdminApp.utils;
 
   let giftNoticeKeys = null;
 
@@ -18,7 +14,7 @@
   function notifyNewGift(items) {
     const currentKeys = new Map();
     for (const item of items) {
-      const id = Number(item && item.id || 0);
+      const id = Number((item && item.id) || 0);
       if (!id) continue;
       currentKeys.set(id, giftNoticeKey(item));
     }
@@ -29,8 +25,8 @@
     }
 
     const changed = items
-      .filter(item => {
-        const id = Number(item && item.id || 0);
+      .filter((item) => {
+        const id = Number((item && item.id) || 0);
         return id && giftNoticeKeys.get(id) !== currentKeys.get(id);
       })
       .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
@@ -44,16 +40,20 @@
     return [
       Number(item.id || 0),
       Number(item.num || 1),
-      Number(item.sprint_count_price ?? item.total_price ?? 0)
+      Number(item.sprint_count_price ?? item.total_price ?? 0),
     ].join(':');
   }
 
   function showGiftNotice(newest) {
     const newestId = Number(newest.id || 0);
-    const sprintPrice = Number(newest.sprint_count_price ?? newest.total_price ?? 0);
+    const sprintPrice = Number(
+      newest.sprint_count_price ?? newest.total_price ?? 0,
+    );
 
     // 检查是否启用礼物提示
-    const enableGiftNotification = document.getElementById('enableGiftNotification');
+    const enableGiftNotification = document.getElementById(
+      'enableGiftNotification',
+    );
     if (enableGiftNotification && !enableGiftNotification.checked) {
       return;
     }
@@ -63,8 +63,10 @@
     const num = Number(newest.num || 1);
     const coinType = String(newest.coin_type || '').toLowerCase();
     const giftId = String(newest.gift_id || '').toLowerCase();
-    const isBlindBox = !!(newest.is_blind_box);
-    const blindBoxName = newest.blind_box_name ? escapeHtml(newest.blind_box_name) : '';
+    const isBlindBox = !!newest.is_blind_box;
+    const blindBoxName = newest.blind_box_name
+      ? escapeHtml(newest.blind_box_name)
+      : '';
 
     // 判断礼物类型变体
     let variantClass = '';
@@ -74,7 +76,11 @@
       variantClass = ' gift-blind-box';
     } else if (sprintPrice >= 100) {
       variantClass = ' gift-premium';
-    } else if (sprintPrice <= 0 || coinType === 'free' || coinType === 'silver') {
+    } else if (
+      sprintPrice <= 0 ||
+      coinType === 'free' ||
+      coinType === 'silver'
+    ) {
       variantClass = ' gift-free';
     }
 
@@ -108,20 +114,22 @@
       key: toastKey,
       className: `gift-notify-toast${variantClass}`,
       html: `<strong>${titleHtml}</strong><span>${subtitle}</span>`,
-      duration: 3200
+      duration: 3200,
     });
     const desktop = window.songAssistantDesktop;
     if (desktop && typeof desktop.reportGiftDisplay === 'function') {
-      desktop.reportGiftDisplay({
-        eventId: newestId,
-        giftId: String(newest.gift_id || ''),
-        giftName: String(newest.gift_name || ''),
-        uid: String(newest.uid || ''),
-        userName: String(newest.user_name || ''),
-        num,
-        totalPrice: sprintPrice,
-        toastKey
-      }).catch(() => {});
+      desktop
+        .reportGiftDisplay({
+          eventId: newestId,
+          giftId: String(newest.gift_id || ''),
+          giftName: String(newest.gift_name || ''),
+          uid: String(newest.uid || ''),
+          userName: String(newest.user_name || ''),
+          num,
+          totalPrice: sprintPrice,
+          toastKey,
+        })
+        .catch(() => {});
     }
   }
 
@@ -137,6 +145,6 @@
   window.AdminApp.gifts = window.AdminApp.gifts || {};
   window.AdminApp.gifts.notification = {
     notifyNewGift,
-    resetNotificationState
+    resetNotificationState,
   };
 })();

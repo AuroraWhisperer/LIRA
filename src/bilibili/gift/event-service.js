@@ -10,7 +10,7 @@ const {
   normalizePositiveInteger,
   normalizeMoney,
   normalizeSignedMoney,
-  safeParseJson
+  safeParseJson,
 } = require('../../shared/utils');
 
 function extractComboRootKey(platformId) {
@@ -21,34 +21,62 @@ function extractComboRootKey(platformId) {
 }
 
 function applyBlindBoxMetadata(context, gift) {
-  const matchedBox = matchBlindBox(context, gift.blindBoxName) || matchBlindBox(context, gift.giftName);
+  const matchedBox =
+    matchBlindBox(context, gift.blindBoxName) ||
+    matchBlindBox(context, gift.giftName);
   if (matchedBox) {
     gift.isBlindBox = true;
     gift.blindBoxName = matchedBox.blindBoxName || gift.blindBoxName;
     if (gift.blindBoxPrice === null || gift.blindBoxPrice === undefined) {
       gift.blindBoxPrice = normalizeMoney(matchedBox.boxPrice * gift.num);
     }
-    if (matchedBox.giftPrice !== null && matchedBox.giftPrice !== undefined && matchedBox.giftPrice > 0) {
+    if (
+      matchedBox.giftPrice !== null &&
+      matchedBox.giftPrice !== undefined &&
+      matchedBox.giftPrice > 0
+    ) {
       gift.totalPrice = normalizeMoney(matchedBox.giftPrice * gift.num);
       gift.unitPrice = matchedBox.giftPrice;
     }
-    gift.blindProfit = normalizeSignedMoney(gift.totalPrice - gift.blindBoxPrice);
+    gift.blindProfit = normalizeSignedMoney(
+      gift.totalPrice - gift.blindBoxPrice,
+    );
   }
+}
+
+function applyComboTotals(gift) {
+  if (gift.comboNum > gift.num) gift.num = gift.comboNum;
+  if (gift.comboTotalPrice > gift.totalPrice)
+    gift.totalPrice = gift.comboTotalPrice;
+  if (gift.num > 0) gift.unitPrice = normalizeMoney(gift.totalPrice / gift.num);
 }
 
 function repairGiftV2Events(context) {
   const giftDb = context.db.giftDb;
-  const rows = giftDb.prepare(`
+  // Older clients used the per-packet `tid` as platform_id.  Once the
+  // parser uses the shared batch combo id, those already-positive rows must
+  // be revisited as well; restricting this repair to zero-price rows leaves
+  // the old identity in place and lets the later COMBO_SEND create a second
+  // ledger row.  Canonical combo rows are excluded from the scan so startup
+  // repair remains bounded in normal operation.
+  const selectRows = giftDb.prepare(`
     SELECT *
     FROM gift_events
     WHERE status = 'active'
       AND cmd LIKE 'SEND_GIFT_V2%'
-      AND total_price <= 0
       AND raw_json != ''
+      AND id > ?
+      AND (
+        total_price <= 0
+        OR platform_id = ''
+        OR (
+          lower(platform_id) NOT LIKE '%combo%'
+          AND lower(platform_id) NOT LIKE '%batch%'
+        )
+      )
     ORDER BY id ASC
     LIMIT 200
-  `).all();
-  if (rows.length === 0) return;
+  `);
 
   const statement = giftDb.prepare(`
     UPDATE gift_events
@@ -59,38 +87,51 @@ function repairGiftV2Events(context) {
   `);
 
   let repaired = 0;
+  let lastId = 0;
   giftDb.exec('BEGIN');
   try {
-    for (const row of rows) {
-      const packet = safeParseJson(row.raw_json);
-      const parsed = packetParser.extractBilibiliGiftMessage(packet);
-      const gift = parsed ? normalizeGiftInput(parsed) : null;
-      if (!gift || gift.totalPrice <= 0) continue;
+    while (true) {
+      const rows = selectRows.all(lastId);
+      if (rows.length === 0) break;
+      lastId = Number(rows[rows.length - 1].id) || lastId;
 
-      const existing = gift.platformId ? findGiftByPlatformIdentity(giftDb, gift) : null;
-      if (existing && Number(existing.id) !== Number(row.id)) {
-        updateGiftEventIfProgressed(context, existing, gift);
-        giftDb.prepare('DELETE FROM gift_events WHERE id = ?').run(Number(row.id));
+      for (const row of rows) {
+        const packet = safeParseJson(row.raw_json);
+        const parsed = packetParser.extractBilibiliGiftMessage(packet);
+        const gift = parsed ? normalizeGiftInput(parsed) : null;
+        if (gift) applyComboTotals(gift);
+        if (!gift || gift.totalPrice <= 0) continue;
+
+        const existing = gift.platformId
+          ? findGiftByPlatformIdentity(giftDb, gift)
+          : null;
+        if (existing && Number(existing.id) !== Number(row.id)) {
+          updateGiftEventIfProgressed(context, existing, gift);
+          giftDb
+            .prepare('DELETE FROM gift_events WHERE id = ?')
+            .run(Number(row.id));
+          repaired += 1;
+          continue;
+        }
+
+        if (!giftV2RowNeedsRepair(row, gift)) continue;
+        statement.run(
+          gift.platformId || cleanText(row.platform_id),
+          gift.giftId || cleanText(row.gift_id),
+          gift.giftName || cleanText(row.gift_name),
+          gift.uid || cleanText(row.uid),
+          gift.userName || cleanText(row.user_name),
+          gift.num,
+          gift.unitPrice,
+          gift.totalPrice,
+          gift.coinType || cleanText(row.coin_type),
+          1,
+          gift.createdAt || cleanText(row.created_at),
+          now(),
+          row.id,
+        );
         repaired += 1;
-        continue;
       }
-
-      statement.run(
-        gift.platformId || cleanText(row.platform_id),
-        gift.giftId || cleanText(row.gift_id),
-        gift.giftName || cleanText(row.gift_name),
-        gift.uid || cleanText(row.uid),
-        gift.userName || cleanText(row.user_name),
-        gift.num,
-        gift.unitPrice,
-        gift.totalPrice,
-        gift.coinType || cleanText(row.coin_type),
-        1,
-        gift.createdAt || cleanText(row.created_at),
-        now(),
-        row.id
-      );
-      repaired += 1;
     }
     giftDb.exec('COMMIT');
   } catch (error) {
@@ -98,7 +139,22 @@ function repairGiftV2Events(context) {
     throw error;
   }
 
-  if (repaired > 0) console.log(`[Startup] repaired ${repaired} SEND_GIFT_V2 gift record(s).`);
+  if (repaired > 0)
+    console.log(`[Startup] repaired ${repaired} SEND_GIFT_V2 gift record(s).`);
+}
+
+function giftV2RowNeedsRepair(row, gift) {
+  return (
+    cleanText(row.platform_id) !== cleanText(gift.platformId) ||
+    cleanText(row.gift_id) !== cleanText(gift.giftId) ||
+    cleanText(row.gift_name) !== cleanText(gift.giftName) ||
+    cleanText(row.uid) !== cleanText(gift.uid) ||
+    cleanText(row.user_name) !== cleanText(gift.userName) ||
+    normalizePositiveInteger(row.num) !== normalizePositiveInteger(gift.num) ||
+    normalizeMoney(row.unit_price) !== normalizeMoney(gift.unitPrice) ||
+    normalizeMoney(row.total_price) !== normalizeMoney(gift.totalPrice) ||
+    cleanText(row.coin_type) !== cleanText(gift.coinType)
+  );
 }
 
 function updateGiftEventIfProgressed(context, row, gift, options = {}) {
@@ -106,38 +162,62 @@ function updateGiftEventIfProgressed(context, row, gift, options = {}) {
   const nextNum = normalizePositiveInteger(gift.num) || 1;
   const existingTotal = normalizeMoney(row.total_price);
   const nextTotal = normalizeMoney(gift.totalPrice);
-  if (nextNum <= existingNum && nextTotal <= existingTotal) return normalizeGiftRow(row);
+  if (nextNum <= existingNum && nextTotal <= existingTotal)
+    return normalizeGiftRow(row);
 
   const mergedNum = Math.max(existingNum, nextNum);
   const mergedTotal = Math.max(existingTotal, nextTotal);
-  const mergedUnit = mergedNum > 0 ? normalizeMoney(mergedTotal / mergedNum) : normalizeMoney(gift.unitPrice);
-  const blindBoxPrice = gift.blindBoxPrice === null ? row.blind_box_price : gift.blindBoxPrice;
-  const blindProfit = blindBoxPrice === null || blindBoxPrice === undefined
-    ? null
-    : normalizeSignedMoney(mergedTotal - Number(blindBoxPrice || 0));
+  const mergedUnit =
+    mergedNum > 0
+      ? normalizeMoney(mergedTotal / mergedNum)
+      : normalizeMoney(gift.unitPrice);
+  const blindBoxPrice =
+    gift.blindBoxPrice === null ? row.blind_box_price : gift.blindBoxPrice;
+  const blindProfit =
+    blindBoxPrice === null || blindBoxPrice === undefined
+      ? null
+      : normalizeSignedMoney(mergedTotal - Number(blindBoxPrice || 0));
   const updatedAt = gift.createdAt || now();
 
   const giftDb = context.db.giftDb;
-  giftDb.prepare(`
+  giftDb
+    .prepare(
+      `
     UPDATE gift_events
     SET gift_id = ?, gift_name = ?, uid = ?, user_name = ?,
         num = ?, unit_price = ?, total_price = ?, coin_type = ?,
         is_blind_box = ?, blind_box_name = ?, blind_box_price = ?,
         blind_profit = ?, counted_in_sprint = ?, raw_json = ?, updated_at = ?
     WHERE id = ?
-  `).run(
-    gift.giftId || cleanText(row.gift_id), gift.giftName || cleanText(row.gift_name),
-    gift.uid || cleanText(row.uid), gift.userName || cleanText(row.user_name),
-    mergedNum, mergedUnit, mergedTotal, gift.coinType || cleanText(row.coin_type),
-    gift.isBlindBox ? 1 : Number(row.is_blind_box || 0),
-    gift.blindBoxName || cleanText(row.blind_box_name),
-    blindBoxPrice, blindProfit,
-    options.updateSprint === false
-      ? Number(row.counted_in_sprint || 0)
-      : (mergedTotal > 0 ? 1 : Number(row.counted_in_sprint || 0)),
-    gift.rawJson || cleanText(row.raw_json), updatedAt, Number(row.id)
+  `,
+    )
+    .run(
+      gift.giftId || cleanText(row.gift_id),
+      gift.giftName || cleanText(row.gift_name),
+      gift.uid || cleanText(row.uid),
+      gift.userName || cleanText(row.user_name),
+      mergedNum,
+      mergedUnit,
+      mergedTotal,
+      gift.coinType || cleanText(row.coin_type),
+      gift.isBlindBox ? 1 : Number(row.is_blind_box || 0),
+      gift.blindBoxName || cleanText(row.blind_box_name),
+      blindBoxPrice,
+      blindProfit,
+      options.updateSprint === false
+        ? Number(row.counted_in_sprint || 0)
+        : mergedTotal > 0
+          ? 1
+          : Number(row.counted_in_sprint || 0),
+      gift.rawJson || cleanText(row.raw_json),
+      updatedAt,
+      Number(row.id),
+    );
+  return normalizeGiftRow(
+    giftDb
+      .prepare('SELECT * FROM gift_events WHERE id = ?')
+      .get(Number(row.id)),
   );
-  return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(row.id)));
 }
 
 function hasGiftProgressed(row, gift) {
@@ -150,20 +230,34 @@ function hasGiftProgressed(row, gift) {
 
 function findGiftByPlatformIdentity(giftDb, gift) {
   if (gift.uid) {
-    return giftDb.prepare(`
+    return giftDb
+      .prepare(
+        `
       SELECT * FROM gift_events
       WHERE platform_id = ? AND uid = ?
       ORDER BY id ASC LIMIT 1
-    `).get(gift.platformId, gift.uid);
+    `,
+      )
+      .get(gift.platformId, gift.uid);
   }
-  return giftDb.prepare(`
+  return giftDb
+    .prepare(
+      `
     SELECT * FROM gift_events
     WHERE platform_id = ? AND uid = '' AND user_name = ?
     ORDER BY id ASC LIMIT 1
-  `).get(gift.platformId, gift.userName);
+  `,
+    )
+    .get(gift.platformId, gift.userName);
 }
 
-function logGiftServiceDecision(action, gift, item = null, reason = '', extraTrace = null) {
+function logGiftServiceDecision(
+  action,
+  gift,
+  item = null,
+  reason = '',
+  extraTrace = null,
+) {
   const trace = {
     eventId: Number(item && item.id) || 0,
     platformId: cleanText(gift && (gift.platformId || gift.platform_id)),
@@ -175,41 +269,97 @@ function logGiftServiceDecision(action, gift, item = null, reason = '', extraTra
     giftName: cleanText(gift && (gift.giftName || gift.gift_name)),
     num: normalizePositiveInteger(gift && gift.num) || 1,
     totalPrice: normalizeMoney(gift && (gift.totalPrice ?? gift.total_price)),
-    messageTimestamp: timestampToIso(gift && gift.messageTimestamp) || cleanText(gift && gift.createdAt)
+    messageTimestamp:
+      timestampToIso(gift && gift.messageTimestamp) ||
+      cleanText(gift && gift.createdAt),
   };
-  if (extraTrace && typeof extraTrace === 'object') Object.assign(trace, extraTrace);
+  if (extraTrace && typeof extraTrace === 'object')
+    Object.assign(trace, extraTrace);
   const reasonText = reason ? ` reason=${reason}` : '';
-  console.log(`[Bilibili][GiftService] action=${action}${reasonText} trace=${JSON.stringify(trace)}`);
+  console.log(
+    `[Bilibili][GiftService] action=${action}${reasonText} trace=${JSON.stringify(trace)}`,
+  );
 }
 
-function findRecentGiftCommandDuplicate(context, gift) {
+function findRecentGiftCommandDuplicate(context, gift, giftEventStore = null) {
   const cmd = cleanText(gift && gift.cmd);
   const isCombo = cmd.startsWith('COMBO_SEND');
-  const isSingleGift = cmd.startsWith('SEND_GIFT') || cmd.startsWith('BLIND_GIFT');
+  const isSingleGift =
+    cmd.startsWith('SEND_GIFT') || cmd.startsWith('BLIND_GIFT');
   if (!isCombo && !isSingleGift) return null;
+
+  // A missing UID is not a stable identity.  Treating it as an empty string
+  // makes unrelated viewers' same gift look like one recent event.
+  const uid = cleanText(gift && gift.uid);
+  if (!uid) return null;
 
   const createdAtMs = Date.parse(gift.createdAt) || Date.now();
   const startIso = new Date(createdAtMs - 5000).toISOString();
   const endIso = new Date(createdAtMs + 5000).toISOString();
-  const crossCmdRow = context.db.giftDb.prepare(`
+  const incomingComboKey = extractComboRootKey(gift.comboId || gift.platformId);
+  const crossCmdRows = context.db.giftDb
+    .prepare(
+      `
     SELECT * FROM gift_events
     WHERE status = 'active'
       AND created_at BETWEEN ? AND ?
       AND cmd != ? AND (cmd LIKE 'COMBO_SEND%' OR ? LIKE 'COMBO_SEND%')
       AND uid = ? AND gift_id = ? AND gift_name = ? AND num = ?
       AND ABS(total_price - ?) < 0.0001
-    ORDER BY datetime(created_at) DESC, id DESC LIMIT 1
-  `).get(startIso, endIso, cmd, cmd, gift.uid, gift.giftId, gift.giftName, gift.num, gift.totalPrice);
-  return crossCmdRow ? normalizeGiftRow(crossCmdRow) : null;
+      AND (? = '' OR platform_id = ?)
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT 200
+  `,
+    )
+    .all(
+      startIso,
+      endIso,
+      cmd,
+      cmd,
+      uid,
+      gift.giftId,
+      gift.giftName,
+      gift.num,
+      gift.totalPrice,
+      incomingComboKey || '',
+      incomingComboKey || '',
+    );
+  const crossCmdRow = crossCmdRows.find((row) => {
+    const storedComboKey = extractComboRootKey(row.combo_id || row.platform_id);
+    // An explicit incoming combo identity must never absorb a legacy row that
+    // has no combo identity (or belongs to another batch).  Without an
+    // incoming identity we retain the historical cross-command fallback.
+    return incomingComboKey ? storedComboKey === incomingComboKey : true;
+  });
+  if (crossCmdRow) return normalizeGiftRow(crossCmdRow);
+  if (extractComboRootKey(gift.comboId || gift.platformId)) return null;
+
+  if (
+    !giftEventStore ||
+    typeof giftEventStore.findRecentSameCommandDuplicate !== 'function'
+  )
+    return null;
+  const sameCmdRow = giftEventStore.findRecentSameCommandDuplicate({
+    startIso,
+    endIso,
+    cmd,
+    uid,
+    giftId: gift.giftId,
+    giftName: gift.giftName,
+    num: gift.num,
+    totalPrice: gift.totalPrice,
+  });
+  return sameCmdRow ? normalizeGiftRow(sameCmdRow) : null;
 }
 
 module.exports = {
   repairGiftV2Events,
   extractComboRootKey,
+  applyComboTotals,
   applyBlindBoxMetadata,
   findGiftByPlatformIdentity,
   findRecentGiftCommandDuplicate,
   updateGiftEventIfProgressed,
   hasGiftProgressed,
-  logGiftServiceDecision
+  logGiftServiceDecision,
 };

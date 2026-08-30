@@ -10,25 +10,45 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('games admin groups shared games and the independent wheel', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'games.html'),
-    'utf8'
+    'utf8',
   );
   const linkPosition = html.indexOf('class="games-link-deck"');
   const sessionPosition = html.indexOf('id="gamesSessionStatus"');
   const catalogPosition = html.indexOf('class="games-catalog"');
   const bombPosition = html.indexOf('data-game-card="number-bomb"');
   const gomokuPosition = html.indexOf('data-game-card="gomoku"');
-  const wheelCategoryPosition = html.indexOf('class="games-category games-category-wheel"');
+  const wheelCategoryPosition = html.indexOf(
+    'class="games-category games-category-wheel"',
+  );
   const wheelPosition = html.indexOf('data-wheel-card');
   const drawPosition = html.indexOf('data-game-card="draw-guess"');
 
   assert.ok(linkPosition >= 0, 'the overlay link section should be present');
-  assert.ok(sessionPosition > linkPosition, 'current session should follow the overlay link');
-  assert.ok(catalogPosition > sessionPosition, 'game cards should follow the current session');
-  assert.ok(bombPosition > catalogPosition, 'game one should be inside the catalog');
+  assert.ok(
+    sessionPosition > linkPosition,
+    'current session should follow the overlay link',
+  );
+  assert.ok(
+    catalogPosition > sessionPosition,
+    'game cards should follow the current session',
+  );
+  assert.ok(
+    bombPosition > catalogPosition,
+    'game one should be inside the catalog',
+  );
   assert.ok(gomokuPosition > bombPosition, 'game two should follow game one');
-  assert.ok(drawPosition > gomokuPosition, 'draw guess should follow the first two games');
-  assert.ok(wheelCategoryPosition > drawPosition, 'the independent wheel should follow the shared games');
-  assert.ok(wheelPosition > wheelCategoryPosition, 'the wheel card should be inside category two');
+  assert.ok(
+    drawPosition > gomokuPosition,
+    'draw guess should follow the first two games',
+  );
+  assert.ok(
+    wheelCategoryPosition > drawPosition,
+    'the independent wheel should follow the shared games',
+  );
+  assert.ok(
+    wheelPosition > wheelCategoryPosition,
+    'the wheel card should be inside category two',
+  );
   assert.match(html, /id="gamesOverlayUrl"/);
   assert.match(html, /id="gamesCopyBaseUrlBtn"/);
   assert.match(html, /类别 1/);
@@ -61,41 +81,79 @@ test('games admin groups shared games and the independent wheel', () => {
 
 test('games admin uses the restored single-column card layout', () => {
   const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'games.css'),
-    'utf8'
+    path.join(
+      ROOT_DIR,
+      'public',
+      'css',
+      'admin',
+      'other-features',
+      'games.css',
+    ),
+    'utf8',
   );
 
   assert.match(styles, /\.games-link-deck\s*\{/);
-  assert.match(styles, /\.games-catalog\s*\{\s*display:\s*grid;\s*gap:\s*16px;/);
-  assert.match(styles, /\.game-admin-card\s*\{[^}]*grid-template-columns:\s*210px/);
-  assert.doesNotMatch(styles, /\.games-catalog\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
+  assert.match(
+    styles,
+    /\.games-catalog\s*\{\s*display:\s*grid;\s*gap:\s*16px;/,
+  );
+  assert.match(
+    styles,
+    /\.game-admin-card\s*\{[^}]*grid-template-columns:\s*210px/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /\.games-catalog\s*\{[^}]*grid-template-columns:\s*repeat\(2/,
+  );
 });
 
 test('games admin dropdowns can escape the first two game cards', () => {
   const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'games.css'),
-    'utf8'
+    path.join(
+      ROOT_DIR,
+      'public',
+      'css',
+      'admin',
+      'other-features',
+      'games.css',
+    ),
+    'utf8',
   );
 
-  assert.match(styles, /\.game-admin-card:has\(\.lira-select\.is-open\)\s*\{[^}]*z-index:\s*1;[^}]*overflow:\s*visible;/);
-  assert.match(styles, /\.game-admin-card:has\(\.lira-select\.is-open\)\s*>\s*\.game-card-poster\s*\{[^}]*border-radius:\s*17px 0 0 17px;/);
+  assert.match(
+    styles,
+    /\.game-admin-card:has\(\.lira-select\.is-open\)\s*\{[^}]*z-index:\s*1;[^}]*overflow:\s*visible;/,
+  );
+  assert.match(
+    styles,
+    /\.game-admin-card:has\(\.lira-select\.is-open\)\s*>\s*\.game-card-poster\s*\{[^}]*border-radius:\s*17px 0 0 17px;/,
+  );
 });
 
 test('games admin uses one base URL and never opens a game-specific URL', () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
+  const script = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'),
+    'utf8',
+  );
   assert.doesNotMatch(script, /data-copy-game|overlayUrl\(game\)/);
   assert.match(script, /gamesCopyBaseUrlBtn/);
   assert.match(script, /button\.disabled = Boolean\(session\)/);
-  assert.match(script, /card\.classList\.toggle\('is-running'/);
+  assert.match(script, /card\.classList\.toggle\(\s*["']is-running["']/);
   assert.match(script, /api\/games\/host-state/);
   assert.match(script, /draw-guess/);
-  assert.match(script, /totalRounds: Number\(byId\('drawTotalRounds'\)\.value\)/);
-  assert.match(script, /roundDurationSeconds: Number\(byId\('drawRoundDuration'\)\.value\)/);
+  assert.match(
+    script,
+    /totalRounds: Number\(byId\(["']drawTotalRounds["']\)\.value\)/,
+  );
+  assert.match(
+    script,
+    /roundDurationSeconds: Number\(byId\(["']drawRoundDuration["']\)\.value\)/,
+  );
   assert.match(script, /api\/games\/draw-guess\/categories/);
   assert.match(script, /const categoryIds = readSelectedDrawCategoryIds\(\)/);
-  assert.match(script, /categoryIds\s*\n/);
+  assert.match(script, /categoryIds,?\s*\n/);
   assert.match(script, /function renderDrawCategories\(/);
-  assert.match(script, /createElement\('input'\)/);
+  assert.match(script, /createElement\(["']input["']\)/);
   assert.match(script, /textContent/);
   assert.match(script, /finish-round/);
   assert.match(script, /next-round/);
@@ -104,36 +162,61 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
 
 test('games admin gives the word library a compact selectable shelf', () => {
   const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'games.css'),
-    'utf8'
+    path.join(
+      ROOT_DIR,
+      'public',
+      'css',
+      'admin',
+      'other-features',
+      'games.css',
+    ),
+    'utf8',
   );
 
   assert.match(styles, /\.draw-word-library\s*\{/);
-  assert.match(styles, /\.draw-word-categories\s*\{[^}]*grid-template-columns:\s*repeat\(3/);
+  assert.match(
+    styles,
+    /\.draw-word-categories\s*\{[^}]*grid-template-columns:\s*repeat\(3/,
+  );
   assert.match(styles, /\.draw-word-category:has\(input:checked\)/);
   assert.match(styles, /\.draw-word-category input:focus-visible/);
 });
 
 test('games viewer refresh waits for the live connection and retries an empty startup snapshot', () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
+  const script = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'),
+    'utf8',
+  );
 
-  assert.match(script, /import \{ eventBus, Events \} from '\.\.\/shared\/event-bus\.js';/);
+  assert.match(
+    script,
+    /import \{ eventBus, Events \} from ["']\.\.\/shared\/event-bus\.js["'];/,
+  );
   assert.match(script, /const VIEWER_REFRESH_RETRY_DELAYS_MS = \[/);
   assert.match(script, /let viewerRefreshPromise = null;/);
   assert.match(script, /function requestViewerRefresh\(options = \{\}\)/);
-  assert.match(script, /eventBus\.on\(Events\.STATE_LOADED, \(\{ state \}\) =>/);
+  assert.match(
+    script,
+    /eventBus\.on\(Events\.STATE_LOADED, \(\{ state \}\) =>/,
+  );
   assert.match(script, /liveStatus\.connected === true/);
   assert.match(script, /requestViewerRefresh\(\{ notify: false \}\)/);
   assert.match(script, /requestViewerRefresh\(\{ notify: true \}\)/);
-  assert.match(script, /fetch\('\/api\/games\/viewers'\)/);
+  assert.match(script, /fetch\(["']\/api\/games\/viewers["']\)/);
 });
 
 test('wheel admin consumes limits from server state', () => {
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
+  const script = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'games-wheel.js'),
+    'utf8',
+  );
 
   assert.match(script, /if \(state\?\.limits\) wheelLimits = state\.limits/);
   assert.match(script, /labelInput\.maxLength = wheelLimits\.maxLabelLength/);
   assert.match(script, /weightInput\.max = String\(wheelLimits\.maxWeight\)/);
   assert.match(script, /rows\.length >= wheelLimits\.maxEntries/);
-  assert.doesNotMatch(script, /maxLength = 40|weightInput\.max = '100'|rows\.length >= 12/);
+  assert.doesNotMatch(
+    script,
+    /maxLength = 40|weightInput\.max = ["']100["']|rows\.length >= 12/,
+  );
 });

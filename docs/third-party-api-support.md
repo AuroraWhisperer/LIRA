@@ -15,12 +15,12 @@ Claude 和 Gemini 预设使用供应商官方提供的 OpenAI 兼容入口。Cla
 
 管理页的“接口协议”对应供应商文档中的 `wire_api`。第三方服务不按域名猜供应商；如果文档明确写 `responses` 或 `chat/completions`，请选择对应协议。不确定时保持“自动识别”，继续使用旧版兼容规则。
 
-| 接口协议 | 填写形式 | 实际模型请求地址 |
-|---|---|---|
-| 自动识别 | `https://provider.example/` 或 `/v1` | `/v1/chat/completions` |
-| Responses API | `https://provider.example/` 或 `/v1` | `/v1/responses` |
-| Chat Completions | `https://provider.example/` 或 `/v1` | `/v1/chat/completions` |
-| 任意 | 完整 `/responses` 或 `/chat/completions` | 原样使用，并以完整路径确定协议 |
+| 接口协议         | 填写形式                                 | 实际模型请求地址               |
+| ---------------- | ---------------------------------------- | ------------------------------ |
+| 自动识别         | `https://provider.example/` 或 `/v1`     | `/v1/chat/completions`         |
+| Responses API    | `https://provider.example/` 或 `/v1`     | `/v1/responses`                |
+| Chat Completions | `https://provider.example/` 或 `/v1`     | `/v1/chat/completions`         |
+| 任意             | 完整 `/responses` 或 `/chat/completions` | 原样使用，并以完整路径确定协议 |
 
 DeepSeek 官方根地址继续按其官方路径适配：Chat 使用 `/chat/completions`，Responses 使用 `/responses`，不受第三方 `/v1` 根地址规则影响。无法明确
 识别为基础地址的自定义完整路径会原样作为 Responses API 地址使用，避免擅自改写

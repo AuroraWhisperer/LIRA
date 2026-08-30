@@ -4,105 +4,105 @@
 
 > https://api.live.bilibili.com/room/v1/Room/get_info
 
-*请求方式: GET*
+_请求方式: GET_
 
 **URL参数：**
 
-| 参数名     | 类型  | 内容   | 必要性 | 备注    |
-|---------|-----|------|-----|-------|
-| room_id | num | 直播间号 | 必要  | 可以为短号 |
+| 参数名  | 类型 | 内容     | 必要性 | 备注       |
+| ------- | ---- | -------- | ------ | ---------- |
+| room_id | num  | 直播间号 | 必要   | 可以为短号 |
 
 **json回复：**
 
 根对象：
 
-| 字段      | 类型  | 内容   | 备注              |
-|---------|-----|------|-----------------|
-| code    | num | 返回值  | 0：成功<br />1：不存在 |
-| message | str | 错误信息 |                 |
-| msg     | str | 错误信息 |                 |
-| data    | obj | 信息本体 |                 |
+| 字段    | 类型 | 内容     | 备注                   |
+| ------- | ---- | -------- | ---------------------- |
+| code    | num  | 返回值   | 0：成功<br />1：不存在 |
+| message | str  | 错误信息 |                        |
+| msg     | str  | 错误信息 |                        |
+| data    | obj  | 信息本体 |                        |
 
 `data`对象：
 
-| 字段                      | 类型        | 内容     | 备注                          |
-|-------------------------|-----------|--------|-----------------------------|
-| uid                     | num       | 主播mid  |                             |
-| room_id                 | num       | 直播间长号  |                             |
-| short_id                | num       | 直播间短号  | 为0是无短号                      |
-| attention               | num       | 关注数量   |                             |
-| online                  | num       | 观看人数   |                             |
-| is_portrait             | bool      | 是否竖屏   |                             |
-| description             | str       | 描述     |                             |
-| live_status             | num       | 直播状态   | 0：未开播<br />1：直播中<br />2：轮播中 |
-| area_id                 | num       | 分区id   |                             |
-| parent_area_id          | num       | 父分区id  |                             |
-| parent_area_name        | str       | 父分区名称  |                             |
-| old_area_id             | num       | 旧版分区id |                             |
-| background              | str       | 背景图片链接 |                             |
-| title                   | str       | 标题     |                             |
-| user_cover              | str       | 封面     |                             |
-| keyframe                | str       | 关键帧    | 用于网页端悬浮展示                   |
-| is_strict_room          | bool      | 未知     | 未知                          |
-| live_time               | str       | 直播开始时间 | YYYY-MM-DD HH:mm:ss         |
-| tags                    | str       | 标签     | ','分隔                       |
-| is_anchor               | num       | 未知     | 未知                          |
-| room_silent_type        | str       | 禁言状态   |                             |
-| room_silent_level       | num       | 禁言等级   |                             |
-| room_silent_second      | num       | 禁言时间   | 单位是秒                        |
-| area_name               | str       | 分区名称   |                             |
-| pardants                | str       | 未知     | 未知                          |
-| area_pardants           | str       | 未知     | 未知                          |
-| hot_words               | list(str) | 热词     |                             |
-| hot_words_status        | num       | 热词状态   |                             |
-| verify                  | str       | 未知     | 未知                          |
-| new_pendants            | obj       | 头像框\大v |                             |
-| up_session              | str       | 未知     |                             |
-| pk_status               | num       | pk状态   |                             |
-| pk_id                   | num       | pk id  |                             |
-| battle_id               | num       | 未知     |                             |
-| allow_change_area_time  | num       |        |                             |
-| allow_upload_cover_time | num       |        |                             |
-| studio_info             | obj       |        |                             |
+| 字段                    | 类型      | 内容         | 备注                                    |
+| ----------------------- | --------- | ------------ | --------------------------------------- |
+| uid                     | num       | 主播mid      |                                         |
+| room_id                 | num       | 直播间长号   |                                         |
+| short_id                | num       | 直播间短号   | 为0是无短号                             |
+| attention               | num       | 关注数量     |                                         |
+| online                  | num       | 观看人数     |                                         |
+| is_portrait             | bool      | 是否竖屏     |                                         |
+| description             | str       | 描述         |                                         |
+| live_status             | num       | 直播状态     | 0：未开播<br />1：直播中<br />2：轮播中 |
+| area_id                 | num       | 分区id       |                                         |
+| parent_area_id          | num       | 父分区id     |                                         |
+| parent_area_name        | str       | 父分区名称   |                                         |
+| old_area_id             | num       | 旧版分区id   |                                         |
+| background              | str       | 背景图片链接 |                                         |
+| title                   | str       | 标题         |                                         |
+| user_cover              | str       | 封面         |                                         |
+| keyframe                | str       | 关键帧       | 用于网页端悬浮展示                      |
+| is_strict_room          | bool      | 未知         | 未知                                    |
+| live_time               | str       | 直播开始时间 | YYYY-MM-DD HH:mm:ss                     |
+| tags                    | str       | 标签         | ','分隔                                 |
+| is_anchor               | num       | 未知         | 未知                                    |
+| room_silent_type        | str       | 禁言状态     |                                         |
+| room_silent_level       | num       | 禁言等级     |                                         |
+| room_silent_second      | num       | 禁言时间     | 单位是秒                                |
+| area_name               | str       | 分区名称     |                                         |
+| pardants                | str       | 未知         | 未知                                    |
+| area_pardants           | str       | 未知         | 未知                                    |
+| hot_words               | list(str) | 热词         |                                         |
+| hot_words_status        | num       | 热词状态     |                                         |
+| verify                  | str       | 未知         | 未知                                    |
+| new_pendants            | obj       | 头像框\大v   |                                         |
+| up_session              | str       | 未知         |                                         |
+| pk_status               | num       | pk状态       |                                         |
+| pk_id                   | num       | pk id        |                                         |
+| battle_id               | num       | 未知         |                                         |
+| allow_change_area_time  | num       |              |                                         |
+| allow_upload_cover_time | num       |              |                                         |
+| studio_info             | obj       |              |                                         |
 
 `new_pendants`对象：
 
-| 字段           | 类型  | 内容  | 备注                |
-|--------------|-----|-----|-------------------|
-| frame        | obj | 头像框 |                   |
-| mobile_frame | obj | 同上  | 手机版, 结构一致, 可能null |
-| badge        | obj | 大v  |                   |
-| mobile_badge | obj | 同上  | 手机版, 结构一致, 可能null |
+| 字段         | 类型 | 内容   | 备注                       |
+| ------------ | ---- | ------ | -------------------------- |
+| frame        | obj  | 头像框 |                            |
+| mobile_frame | obj  | 同上   | 手机版, 结构一致, 可能null |
+| badge        | obj  | 大v    |                            |
+| mobile_badge | obj  | 同上   | 手机版, 结构一致, 可能null |
 
 `frame`对象：
 
-| 字段           | 类型   | 内容     | 备注  |
-|--------------|------|--------|-----|
-| name         | str  | 名称     |     |
-| value        | str  | 值      |     |
-| position     | num  | 位置     |     |
-| desc         | str  | 描述     |     |
-| area         | num  | 分区     |     |
-| area_old     | num  | 旧分区    |     |
-| bg_color     | str  | 背景色    |     |
-| bg_pic       | str  | 背景图    |     |
-| use_old_area | bool | 是否旧分区号 |     |
+| 字段         | 类型 | 内容         | 备注 |
+| ------------ | ---- | ------------ | ---- |
+| name         | str  | 名称         |      |
+| value        | str  | 值           |      |
+| position     | num  | 位置         |      |
+| desc         | str  | 描述         |      |
+| area         | num  | 分区         |      |
+| area_old     | num  | 旧分区       |      |
+| bg_color     | str  | 背景色       |      |
+| bg_pic       | str  | 背景图       |      |
+| use_old_area | bool | 是否旧分区号 |      |
 
 `badge`对象：
 
-| 字段       | 类型  | 内容  | 备注                                        |
-|----------|-----|-----|-------------------------------------------|
-| name     | str | 类型  | v_person: 个人认证(黄) <br> v_company: 企业认证(蓝) |
-| position | num | 位置  |                                           |
-| value    | str | 值   |                                           |
-| desc     | str | 描述  |                                           |
+| 字段     | 类型 | 内容 | 备注                                                |
+| -------- | ---- | ---- | --------------------------------------------------- |
+| name     | str  | 类型 | v_person: 个人认证(黄) <br> v_company: 企业认证(蓝) |
+| position | num  | 位置 |                                                     |
+| value    | str  | 值   |                                                     |
+| desc     | str  | 描述 |                                                     |
 
 `studio_info`对象：
 
-| 字段          | 类型    | 内容  | 备注  |
-|-------------|-------|-----|-----|
-| status      | num   |     |     |
-| master_list | array |     |     |
+| 字段        | 类型  | 内容 | 备注 |
+| ----------- | ----- | ---- | ---- |
+| status      | num   |      |      |
+| master_list | array |      |      |
 
 **示例：**
 
@@ -221,39 +221,39 @@ curl -G 'https://api.live.bilibili.com/room/v1/Room/get_info' \
 
 > https://api.live.bilibili.com/room/v1/Room/getRoomInfoOld
 
-*请求方式：GET*
+_请求方式：GET_
 
 **url参数：**
 
-| 参数名 | 类型  | 内容      | 必要性 | 备注  |
-|-----|-----|---------|-----|-----|
-| mid | num | 目标用户mid | 必要  |     |
+| 参数名 | 类型 | 内容        | 必要性 | 备注 |
+| ------ | ---- | ----------- | ------ | ---- |
+| mid    | num  | 目标用户mid | 必要   |      |
 
 **json回复：**
 
 根对象：
 
-| 字段      | 类型  | 内容   | 备注                  |
-|---------|-----|------|---------------------|
-| code    | num | 返回值  | 0：成功<br />-400：请求错误 |
-| message | str | 错误信息 | 默认为0                |
-| ttl     | num | 1    |                     |
-| data    | obj | 信息本体 |                     |
+| 字段    | 类型 | 内容     | 备注                        |
+| ------- | ---- | -------- | --------------------------- |
+| code    | num  | 返回值   | 0：成功<br />-400：请求错误 |
+| message | str  | 错误信息 | 默认为0                     |
+| ttl     | num  | 1        |                             |
+| data    | obj  | 信息本体 |                             |
 
 `data`对象：
 
-| 字段             | 类型  | 内容        | 备注               |
-|----------------|-----|-----------|------------------|
-| roomStatus     | num | 直播间状态     | 0：无房间<br />1：有房间 |
-| roundStatus    | num | 轮播状态      | 0：未轮播<br />1：轮播  |
-| live_status    | num | 直播状态      | 0：未开播<br />1：直播中 |
-| url            | str | 直播间网页url  |                  |
-| title          | str | 直播间标题     |                  |
-| cover          | str | 直播间封面url  |                  |
-| online         | num | 直播间人气     | 值为上次直播时刷新        |
-| roomid         | num | 直播间id（短号） |                  |
-| broadcast_type | num | 0         |                  |
-| online_hidden  | num | 0         |                  |
+| 字段           | 类型 | 内容             | 备注                     |
+| -------------- | ---- | ---------------- | ------------------------ |
+| roomStatus     | num  | 直播间状态       | 0：无房间<br />1：有房间 |
+| roundStatus    | num  | 轮播状态         | 0：未轮播<br />1：轮播   |
+| live_status    | num  | 直播状态         | 0：未开播<br />1：直播中 |
+| url            | str  | 直播间网页url    |                          |
+| title          | str  | 直播间标题       |                          |
+| cover          | str  | 直播间封面url    |                          |
+| online         | num  | 直播间人气       | 值为上次直播时刷新       |
+| roomid         | num  | 直播间id（短号） |                          |
+| broadcast_type | num  | 0                |                          |
+| online_hidden  | num  | 0                |                          |
 
 **示例：**
 
@@ -293,45 +293,45 @@ curl -G 'https://api.live.bilibili.com/room/v1/Room/getRoomInfoOld' \
 
 > https://api.live.bilibili.com/room/v1/Room/room_init
 
-*请求方式：GET*
+_请求方式：GET_
 
 **url参数：**
 
-| 参数名 | 类型  | 内容         | 必要性 | 备注  |
-|-----|-----|------------|-----|-----|
-| id  | num | 目标直播间号（短号） | 必要  |     |
+| 参数名 | 类型 | 内容                 | 必要性 | 备注 |
+| ------ | ---- | -------------------- | ------ | ---- |
+| id     | num  | 目标直播间号（短号） | 必要   |      |
 
 **json回复：**
 
 根对象：
 
-| 字段      | 类型  | 内容   | 备注                     |
-|---------|-----|------|------------------------|
-| code    | num | 返回值  | 0：成功<br />60004：直播间不存在 |
-| msg     | str | 错误信息 | 默认为ok                  |
-| message | str | 错误信息 | 默认为ok                  |
-| data    | obj | 信息本体 |                        |
+| 字段    | 类型 | 内容     | 备注                             |
+| ------- | ---- | -------- | -------------------------------- |
+| code    | num  | 返回值   | 0：成功<br />60004：直播间不存在 |
+| msg     | str  | 错误信息 | 默认为ok                         |
+| message | str  | 错误信息 | 默认为ok                         |
+| data    | obj  | 信息本体 |                                  |
 
 `data`对象：
 
-| 字段           | 类型   | 内容           | 备注                                 |
-|--------------|------|--------------|------------------------------------|
-| room_id      | num  | 直播间真实id      |                                    |
-| short_id     | num  | 直播间id（短号）    |                                    |
-| uid          | num  | 主播用户mid      |                                    |
-| need_p2p     | num  | 是否p2p        |                                    |
-| is_hidden    | bool | 是否隐藏         |                                    |
-| is_locked    | bool | 是否锁定         |                                    |
-| is_portrait  | bool | 是否竖屏         |                                    |
-| live_status  | num  | 直播状态         | 0：未开播<br />1：直播中<br />2：轮播中        |
-| hidden_till  | num  | 隐藏时间戳        | 	                                  |
-| lock_till    | num  | 锁定时间戳        | 		                                 |
-| encrypted    | bool | 是否加密         | 		                                 |
-| pwd_verified | bool | 加密房间是否通过密码验证 | `encrypted`=true时才有意义              |
-| live_time    | num  | 开播时间         | 未开播时为`-62170012800`                |
-| room_shield  | num  | 未知           |                                    |
-| is_sp        | num  | 是否为特殊直播间     | 0：普通直播间<br />1：付费直播间               |
-| special_type | num  | 特殊直播间标志      | 0：普通直播间<br />1：付费直播间<br />2：拜年祭直播间 |
+| 字段         | 类型 | 内容                     | 备注                                                  |
+| ------------ | ---- | ------------------------ | ----------------------------------------------------- |
+| room_id      | num  | 直播间真实id             |                                                       |
+| short_id     | num  | 直播间id（短号）         |                                                       |
+| uid          | num  | 主播用户mid              |                                                       |
+| need_p2p     | num  | 是否p2p                  |                                                       |
+| is_hidden    | bool | 是否隐藏                 |                                                       |
+| is_locked    | bool | 是否锁定                 |                                                       |
+| is_portrait  | bool | 是否竖屏                 |                                                       |
+| live_status  | num  | 直播状态                 | 0：未开播<br />1：直播中<br />2：轮播中               |
+| hidden_till  | num  | 隐藏时间戳               |                                                       |
+| lock_till    | num  | 锁定时间戳               |                                                       |
+| encrypted    | bool | 是否加密                 |                                                       |
+| pwd_verified | bool | 加密房间是否通过密码验证 | `encrypted`=true时才有意义                            |
+| live_time    | num  | 开播时间                 | 未开播时为`-62170012800`                              |
+| room_shield  | num  | 未知                     |                                                       |
+| is_sp        | num  | 是否为特殊直播间         | 0：普通直播间<br />1：付费直播间                      |
+| special_type | num  | 特殊直播间标志           | 0：普通直播间<br />1：付费直播间<br />2：拜年祭直播间 |
 
 **示例：**
 
@@ -377,92 +377,92 @@ curl -G 'https://api.live.bilibili.com/room/v1/Room/room_init' \
 
 > https://api.live.bilibili.com/live_user/v1/Master/info
 
-*请求方式：GET*
+_请求方式：GET_
 
 **url参数：**
 
-| 参数名 | 类型  | 内容      | 必要性 | 备注  |
-|-----|-----|---------|-----|-----|
-| uid | num | 目标用户mid | 必要  |     |
+| 参数名 | 类型 | 内容        | 必要性 | 备注 |
+| ------ | ---- | ----------- | ------ | ---- |
+| uid    | num  | 目标用户mid | 必要   |      |
 
 **json回复：**
 
 根对象：
 
-| 字段      | 类型  | 内容   | 备注               |
-|---------|-----|------|------------------|
-| code    | num | 返回值  | 0：成功<br />1：参数错误 |
-| msg     | str | 错误信息 | 默认为空             |
-| message | str | 错误信息 | 默认为空             |
-| data    | obj | 信息本体 |                  |
+| 字段    | 类型 | 内容     | 备注                     |
+| ------- | ---- | -------- | ------------------------ |
+| code    | num  | 返回值   | 0：成功<br />1：参数错误 |
+| msg     | str  | 错误信息 | 默认为空                 |
+| message | str  | 错误信息 | 默认为空                 |
+| data    | obj  | 信息本体 |                          |
 
 `data`对象：
 
-| 字段             | 类型  | 内容        | 备注         |
-|----------------|-----|-----------|------------|
-| info           | obj | 主播信息      |            |
-| exp            | obj | 经验等级      |            |
-| follower_num   | num | 主播粉丝数     |            |
-| room_id        | num | 直播间id（短号） |            |
-| medal_name     | str | 粉丝勋章名     |            |
-| glory_count    | num | 主播荣誉数     |            |
-| pendant        | str | 直播间头像框url |            |
-| link_group_num | num | 0         | **作用尚不明确** |
-| room_news      | obj | 主播公告      |            |
+| 字段           | 类型 | 内容             | 备注             |
+| -------------- | ---- | ---------------- | ---------------- |
+| info           | obj  | 主播信息         |                  |
+| exp            | obj  | 经验等级         |                  |
+| follower_num   | num  | 主播粉丝数       |                  |
+| room_id        | num  | 直播间id（短号） |                  |
+| medal_name     | str  | 粉丝勋章名       |                  |
+| glory_count    | num  | 主播荣誉数       |                  |
+| pendant        | str  | 直播间头像框url  |                  |
+| link_group_num | num  | 0                | **作用尚不明确** |
+| room_news      | obj  | 主播公告         |                  |
 
 `info`对象：
 
-| 字段              | 类型  | 内容      | 备注                      |
-|-----------------|-----|---------|-------------------------|
-| uid             | num | 主播mid   |                         |
-| uname           | str | 主播用户名   |                         |
-| face            | str | 主播头像url |                         |
-| official_verify | obj | 认证信息    |                         |
-| gender          | num | 主播性别    | -1：保密<br />0：女<br />1：男 |
+| 字段            | 类型 | 内容        | 备注                           |
+| --------------- | ---- | ----------- | ------------------------------ |
+| uid             | num  | 主播mid     |                                |
+| uname           | str  | 主播用户名  |                                |
+| face            | str  | 主播头像url |                                |
+| official_verify | obj  | 认证信息    |                                |
+| gender          | num  | 主播性别    | -1：保密<br />0：女<br />1：男 |
 
 `info`中的`official_verify`对象：
 
-| 字段   | 类型  | 内容     | 备注                           |
-|------|-----|--------|------------------------------|
-| type | num | 主播认证类型 | -1：无<br />0：个人认证<br />1：机构认证 |
-| desc | str | 主播认证信息 |                              |
+| 字段 | 类型 | 内容         | 备注                                     |
+| ---- | ---- | ------------ | ---------------------------------------- |
+| type | num  | 主播认证类型 | -1：无<br />0：个人认证<br />1：机构认证 |
+| desc | str  | 主播认证信息 |                                          |
 
 `exp`对象：
 
-| 字段           | 类型  | 内容   | 备注  |
-|--------------|-----|------|-----|
-| master_level | obj | 主播等级 |     |
+| 字段         | 类型 | 内容     | 备注 |
+| ------------ | ---- | -------- | ---- |
+| master_level | obj  | 主播等级 |      |
 
 `exp`中的`master_level`对象：
 
-| 字段      | 类型    | 内容     | 备注  |
-|---------|-------|--------|-----|
-| level   | num   | 当前等级   |     |
-| color   | num   | 等级框颜色  |     |
-| current | array | 当前等级信息 |     |
-| next    | array | 下一等级信息 |     |
+| 字段    | 类型  | 内容         | 备注 |
+| ------- | ----- | ------------ | ---- |
+| level   | num   | 当前等级     |      |
+| color   | num   | 等级框颜色   |      |
+| current | array | 当前等级信息 |      |
+| next    | array | 下一等级信息 |      |
 
 `master_level`中的`current`数组：
 
-| 项   | 类型  | 内容   | 备注  |
-|-----|-----|------|-----|
-| 0   | num | 升级积分 |     |
-| 1   | num | 总积分  |     |
+| 项  | 类型 | 内容     | 备注 |
+| --- | ---- | -------- | ---- |
+| 0   | num  | 升级积分 |      |
+| 1   | num  | 总积分   |      |
 
 `master_level`中的`next`数组：
 
-| 项   | 类型  | 内容   | 备注  |
-|-----|-----|------|-----|
-| 0   | num | 升级积分 |     |
-| 1   | num | 总积分  |     |
+| 项  | 类型 | 内容     | 备注 |
+| --- | ---- | -------- | ---- |
+| 0   | num  | 升级积分 |      |
+| 1   | num  | 总积分   |      |
 
 `room_news`对象：
 
-| 字段         | 类型  | 内容   | 备注  |
-|------------|-----|------|-----|
-| content    | str | 公告内容 |     |
-| ctime      | str | 公告时间 |     |
-| ctime_text | str | 公告日期 |     |
+| 字段       | 类型 | 内容     | 备注 |
+| ---------- | ---- | -------- | ---- |
+| content    | str  | 公告内容 |      |
+| ctime      | str  | 公告时间 |      |
+| ctime_text | str  | 公告日期 |      |
 
 **示例：**
 
@@ -496,14 +496,8 @@ curl -G 'https://api.live.bilibili.com/live_user/v1/Master/info' \
       "master_level": {
         "level": 30,
         "color": 10512625,
-        "current": [
-          2870000,
-          11883810
-        ],
-        "next": [
-          3730000,
-          15613810
-        ]
+        "current": [2870000, 11883810],
+        "next": [3730000, 15613810]
       }
     },
     "follower_num": 926624,
@@ -527,66 +521,66 @@ curl -G 'https://api.live.bilibili.com/live_user/v1/Master/info' \
 
 > https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids
 
-*请求方式：GET/POST*
+_请求方式：GET/POST_
 
 认证方式：无 (无需添加Cookie)
 
 **url参数 (GET方式)：**
 
-| 参数名    | 类型    | 内容         | 必要性 | 备注  |
-|--------|-------|------------|-----|-----|
-| uids[] | array | 要查询的主播 mid | 必要  |     |
+| 参数名 | 类型  | 内容             | 必要性 | 备注 |
+| ------ | ----- | ---------------- | ------ | ---- |
+| uids[] | array | 要查询的主播 mid | 必要   |      |
 
 **正文参数 (POST方式)：**
 
-| 参数名  | 类型   | 内容         | 必要性 | 备注  |
-|------|------|------------|-----|-----|
-| uids | nums | 要查询的主播 mid | 必要  |     |
+| 参数名 | 类型 | 内容             | 必要性 | 备注 |
+| ------ | ---- | ---------------- | ------ | ---- |
+| uids   | nums | 要查询的主播 mid | 必要   |      |
 
 **json回复：**
 
 根对象：
 
-| 字段      | 类型  | 内容   | 备注                      |
-|---------|-----|------|-------------------------|
-| code    | num | 返回值  | 0：成功<br />-111：csrf校验失败 |
-| message | str | 错误信息 | 默认为success              |
-| msg     | str | 错误信息 | 默认为success              |
-| ttl     | num | 1    |                         |
-| data    | obj | 信息本体 |                         |
+| 字段    | 类型 | 内容     | 备注                            |
+| ------- | ---- | -------- | ------------------------------- |
+| code    | num  | 返回值   | 0：成功<br />-111：csrf校验失败 |
+| message | str  | 错误信息 | 默认为success                   |
+| msg     | str  | 错误信息 | 默认为success                   |
+| ttl     | num  | 1        |                                 |
+| data    | obj  | 信息本体 |                                 |
 
 `data`对象：
 
-| 字段  | 类型  | 内容    | 备注         |
-|-----|-----|-------|------------|
-| uid | str | 直播间信息 | 实际字段为主播mid |
+| 字段 | 类型 | 内容       | 备注              |
+| ---- | ---- | ---------- | ----------------- |
+| uid  | str  | 直播间信息 | 实际字段为主播mid |
 
 `uid`对象：
 
-| 字段                  | 类型  | 内容        | 备注                           |
-|---------------------|-----|-----------|------------------------------|
-| title               | str | 直播间标题     |                              |
-| room_id             | num | 直播间房间号    | 直播间实际房间号                     |
-| uid                 | num | 主播mid     |                              |
-| online              | num | 直播间在线人数   |                              |
-| live_time           | num | 直播持续时长    |                              |
-| live_status         | num | 直播间开播状态   | 0：未开播<br />1：正在直播<br />2：轮播中 |
-| short_id            | num | 直播间房间号    | 直播间短房间号，常见于签约主播              |
-| area                | num | 直播间分区id   |                              |
-| area_name           | str | 直播间分区名    |                              |
-| area_v2_id          | num | 直播间新版分区id |                              |
-| area_v2_name        | str | 直播间新版分区名  |                              |
-| area_v2_parent_id   | num | 直播间父分区id  |                              |
-| area_v2_parent_name | str | 直播间父分区名   |                              |
-| uname               | str | 主播用户名     |                              |
-| face                | str | 主播头像url   |                              |
-| tag_name            | str | 直播间标签     |                              |
-| tags                | str | 直播间自定标签   |                              |
-| cover_from_user     | str | 直播间封面url  |                              |
-| keyframe            | str | 直播间关键帧url |                              |
-| lock_till           | str | 直播间封禁信息   |                              |
-| hidden_till         | str | 直播间隐藏信息   |                              |
-| broadcast_type      | num | 直播类型      | 0:普通直播<br />1：手机直播           |
+| 字段                | 类型 | 内容             | 备注                                      |
+| ------------------- | ---- | ---------------- | ----------------------------------------- |
+| title               | str  | 直播间标题       |                                           |
+| room_id             | num  | 直播间房间号     | 直播间实际房间号                          |
+| uid                 | num  | 主播mid          |                                           |
+| online              | num  | 直播间在线人数   |                                           |
+| live_time           | num  | 直播持续时长     |                                           |
+| live_status         | num  | 直播间开播状态   | 0：未开播<br />1：正在直播<br />2：轮播中 |
+| short_id            | num  | 直播间房间号     | 直播间短房间号，常见于签约主播            |
+| area                | num  | 直播间分区id     |                                           |
+| area_name           | str  | 直播间分区名     |                                           |
+| area_v2_id          | num  | 直播间新版分区id |                                           |
+| area_v2_name        | str  | 直播间新版分区名 |                                           |
+| area_v2_parent_id   | num  | 直播间父分区id   |                                           |
+| area_v2_parent_name | str  | 直播间父分区名   |                                           |
+| uname               | str  | 主播用户名       |                                           |
+| face                | str  | 主播头像url      |                                           |
+| tag_name            | str  | 直播间标签       |                                           |
+| tags                | str  | 直播间自定标签   |                                           |
+| cover_from_user     | str  | 直播间封面url    |                                           |
+| keyframe            | str  | 直播间关键帧url  |                                           |
+| lock_till           | str  | 直播间封禁信息   |                                           |
+| hidden_till         | str  | 直播间隐藏信息   |                                           |
+| broadcast_type      | num  | 直播类型         | 0:普通直播<br />1：手机直播               |
 
 **示例：**
 
@@ -600,7 +594,7 @@ curl -G 'https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids'
 # POST方式
 curl 'https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids' \
 -H "Content-Type: application/json" \
--d "{\"uids\": [672328094]}" 
+-d "{\"uids\": [672328094]}"
 ```
 
 <details>
@@ -644,138 +638,138 @@ curl 'https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids' \
 
 ## 清晰度代码
 
-| 代码    | 说明  |
-|-------|-----|
-| 30000 | 杜比  |
-| 20000 | 4K  |
-| 10000 | 原画  |
-| 400   | 蓝光  |
-| 250   | 超清  |
-| 150   | 高清  |
-| 80    | 流畅  |
+| 代码  | 说明 |
+| ----- | ---- |
+| 30000 | 杜比 |
+| 20000 | 4K   |
+| 10000 | 原画 |
+| 400   | 蓝光 |
+| 250   | 超清 |
+| 150   | 高清 |
+| 80    | 流畅 |
 
 ## 获取直播间信息
 
 > https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo
 
-*请求方式：GET*
+_请求方式：GET_
 
 认证方式：无 (无需添加Cookie)
 
 **url参数 (GET方式)：**
 
-| 参数名      | 类型  | 内容    | 必填  | 备注                                             |
-|----------|-----|-------|-----|------------------------------------------------|
-| room_id  | num | 直播间id | 必要  |                                                |
-| protocol | str | 直播协议  | 必要  | 0：http_stream<br/>1：http_hls<br/>可多选, 使用英文逗号分隔 |
-| format   | str | 格式    | 必要  | 0：flv<br/>1：ts<br/>2：fmp4<br/>可多选, 使用英文逗号分隔    |
-| codec    | str | 编码格式  | 必要  | 0：AVC<br/>1：HEVC<br/>可多选, 使用英文逗号分隔             |
-| qn       | num | 清晰度编码 |     | 默认`150`<br/>[清晰度代码](#清晰度代码)                    |
-| platform | str | `web` |     |                                                |
-| ptype    | num | `8`   |     |                                                |
-| dolby    | num | `5`   |     |                                                |
-| panorama | num | `1`   |     |                                                |
+| 参数名   | 类型 | 内容       | 必填 | 备注                                                        |
+| -------- | ---- | ---------- | ---- | ----------------------------------------------------------- |
+| room_id  | num  | 直播间id   | 必要 |                                                             |
+| protocol | str  | 直播协议   | 必要 | 0：http_stream<br/>1：http_hls<br/>可多选, 使用英文逗号分隔 |
+| format   | str  | 格式       | 必要 | 0：flv<br/>1：ts<br/>2：fmp4<br/>可多选, 使用英文逗号分隔   |
+| codec    | str  | 编码格式   | 必要 | 0：AVC<br/>1：HEVC<br/>可多选, 使用英文逗号分隔             |
+| qn       | num  | 清晰度编码 |      | 默认`150`<br/>[清晰度代码](#清晰度代码)                     |
+| platform | str  | `web`      |      |                                                             |
+| ptype    | num  | `8`        |      |                                                             |
+| dolby    | num  | `5`        |      |                                                             |
+| panorama | num  | `1`        |      |                                                             |
 
 **json回复：**
 
 根对象：
 
-| 字段名     | 类型  | 内容   | 备注                    |
-|---------|-----|------|-----------------------|
-| code    | num | 响应码  | 0：成功<br/>1002002：参数错误 |
-| message | str | 0    |                       |
-| ttl     | num | 1    |                       |
-| data    | obj | 信息本体 |                       |
+| 字段名  | 类型 | 内容     | 备注                          |
+| ------- | ---- | -------- | ----------------------------- |
+| code    | num  | 响应码   | 0：成功<br/>1002002：参数错误 |
+| message | str  | 0        |                               |
+| ttl     | num  | 1        |                               |
+| data    | obj  | 信息本体 |                               |
 
 `data`对象：
 
-| 字段名               | 类型    | 内容        | 备注                        |
-|-------------------|-------|-----------|---------------------------|
-| room_id           | num   | 直播间id     |                           |
-| short_id          | num   | 直播间短id    |                           |
-| uid               | num   | 主播uid     |                           |
-| is_hidden         | bool  | 直播间是否被隐藏  |                           |
-| is_locked         | bool  | 直播间是否被锁定  |                           |
-| is_portrait       | bool  | 是否竖屏      |                           |
-| live_status       | num   | 直播状态      | 0：未开播<br/>1：直播中<br/>2：轮播中 |
-| hidden_till       | num   | 隐藏结束时间    |                           |
-| lock_till         | num   | 封禁结束时间    | 秒级时间戳                     |
-| encrypted         | bool  | 直播间为加密直播间 |                           |
-| pwd_verified      | bool  | 是否通过密码验证  | 当`encrypted`为`true`时才有意义  |
-| live_time         | num   | 本次开播时间    | 秒级时间戳                     |
-| room_shield       | num   |           |                           |
-| all_special_types | array |           |                           |
-| playurl_info      | obj   | 直播流信息     |                           |
+| 字段名            | 类型  | 内容               | 备注                                  |
+| ----------------- | ----- | ------------------ | ------------------------------------- |
+| room_id           | num   | 直播间id           |                                       |
+| short_id          | num   | 直播间短id         |                                       |
+| uid               | num   | 主播uid            |                                       |
+| is_hidden         | bool  | 直播间是否被隐藏   |                                       |
+| is_locked         | bool  | 直播间是否被锁定   |                                       |
+| is_portrait       | bool  | 是否竖屏           |                                       |
+| live_status       | num   | 直播状态           | 0：未开播<br/>1：直播中<br/>2：轮播中 |
+| hidden_till       | num   | 隐藏结束时间       |                                       |
+| lock_till         | num   | 封禁结束时间       | 秒级时间戳                            |
+| encrypted         | bool  | 直播间为加密直播间 |                                       |
+| pwd_verified      | bool  | 是否通过密码验证   | 当`encrypted`为`true`时才有意义       |
+| live_time         | num   | 本次开播时间       | 秒级时间戳                            |
+| room_shield       | num   |                    |                                       |
+| all_special_types | array |                    |                                       |
+| playurl_info      | obj   | 直播流信息         |                                       |
 
 `playurl_info`对象
 
-| 字段名       | 类型  | 内容  | 备注  |
-|-----------|-----|-----|-----|
-| conf_json | str |     |     |
-| playurl   | obj |     |     |
+| 字段名    | 类型 | 内容 | 备注 |
+| --------- | ---- | ---- | ---- |
+| conf_json | str  |      |      |
+| playurl   | obj  |      |      |
 
 `playurl`对象
 
-| 字段名       | 类型    | 内容    | 备注  |
-|-----------|-------|-------|-----|
-| cid       | num   | 直播间id |     |
-| g_qn_desc | array | 清晰度列表 |     |
-| stream    | array | 直播流信息 |     |
-| p2p_data  | obj   |       |     |
-| dolby_qn  |       |       |     |
+| 字段名    | 类型  | 内容       | 备注 |
+| --------- | ----- | ---------- | ---- |
+| cid       | num   | 直播间id   |      |
+| g_qn_desc | array | 清晰度列表 |      |
+| stream    | array | 直播流信息 |      |
+| p2p_data  | obj   |            |      |
+| dolby_qn  |       |            |      |
 
 `g_qn_desc`数组中的对象
 
-| 字段名       | 类型  | 内容    | 备注              |
-|-----------|-----|-------|-----------------|
-| qn        | num | 清晰度代码 | [清晰度代码](#清晰度代码) |
-| desc      | str | 清晰度描述 |                 |
-| hdr_desc  | str |       |                 |
-| attr_desc |     |       |                 |
+| 字段名    | 类型 | 内容       | 备注                      |
+| --------- | ---- | ---------- | ------------------------- |
+| qn        | num  | 清晰度代码 | [清晰度代码](#清晰度代码) |
+| desc      | str  | 清晰度描述 |                           |
+| hdr_desc  | str  |            |                           |
+| attr_desc |      |            |                           |
 
 `stream`数组中的对象
 
-| 字段名           | 类型    | 内容   | 备注  |
-|---------------|-------|------|-----|
-| protocol_name | str   | 协议名  |     |
-| format        | array | 格式列表 |     |
+| 字段名        | 类型  | 内容     | 备注 |
+| ------------- | ----- | -------- | ---- |
+| protocol_name | str   | 协议名   |      |
+| format        | array | 格式列表 |      |
 
 `format`数组中的对象
 
-| 字段名         | 类型    | 内容   | 备注  |
-|-------------|-------|------|-----|
-| format_name | str   | 格式名  |     |
-| codec       | array | 编码列表 |     |
+| 字段名      | 类型  | 内容     | 备注 |
+| ----------- | ----- | -------- | ---- |
+| format_name | str   | 格式名   |      |
+| codec       | array | 编码列表 |      |
 
 `codec`数组中的对象
 
-| 字段名        | 类型    | 内容        | 备注              |
-|------------|-------|-----------|-----------------|
-| codec_name | str   | 编码名       |                 |
-| current_qn | num   | 当前清晰度编码   | [清晰度代码](#清晰度代码) |
+| 字段名     | 类型  | 内容               | 备注                      |
+| ---------- | ----- | ------------------ | ------------------------- |
+| codec_name | str   | 编码名             |                           |
+| current_qn | num   | 当前清晰度编码     | [清晰度代码](#清晰度代码) |
 | accept_qn  | array | 可用清晰度编码列表 | [清晰度代码](#清晰度代码) |
-| base_url   | str   | 播放源路径     |                 |
-| url_info   | array | 域名信息列表    |                 |
-| hdr_qn     | null  |           |                 |
-| dolby_type | num   |           |                 |
-| attr_name  | str   |           |                 |
+| base_url   | str   | 播放源路径         |                           |
+| url_info   | array | 域名信息列表       |                           |
+| hdr_qn     | null  |                    |                           |
+| dolby_type | num   |                    |                           |
+| attr_name  | str   |                    |                           |
 
 `url_info`数组中的对象
 
-| 字段名        | 类型  | 内容    | 备注  |
-|------------|-----|-------|-----|
-| host       | str | 域名    |     |
-| extra      | str | URL参数 |     |
-| stream_ttl | num |       |     |
+| 字段名     | 类型 | 内容    | 备注 |
+| ---------- | ---- | ------- | ---- |
+| host       | str  | 域名    |      |
+| extra      | str  | URL参数 |      |
+| stream_ttl | num  |         |      |
 
 `p2p_data`对象
 
-| 字段名       | 类型   | 内容  | 备注  |
-|-----------|------|-----|-----|
-| p2p       | bool |     |     |
-| p2p_type  | num  |     |     |
-| m_p2p     | bool |     |     |
-| m_servers | null |     |     |
+| 字段名    | 类型 | 内容 | 备注 |
+| --------- | ---- | ---- | ---- |
+| p2p       | bool |      |      |
+| p2p_type  | num  |      |      |
+| m_p2p     | bool |      |      |
+| m_servers | null |      |      |
 
 **示例：**
 
@@ -866,10 +860,7 @@ curl -L -X GET 'https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPla
                   {
                     "codec_name": "avc",
                     "current_qn": 10000,
-                    "accept_qn": [
-                      10000,
-                      150
-                    ],
+                    "accept_qn": [10000, 150],
                     "base_url": "/live-bvc/462997/live_11153765_9369560.flv?",
                     "url_info": [
                       {
@@ -895,10 +886,7 @@ curl -L -X GET 'https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPla
                   {
                     "codec_name": "avc",
                     "current_qn": 10000,
-                    "accept_qn": [
-                      10000,
-                      150
-                    ],
+                    "accept_qn": [10000, 150],
                     "base_url": "/live-bvc/462997/live_11153765_9369560.m3u8?",
                     "url_info": [
                       {
@@ -919,10 +907,7 @@ curl -L -X GET 'https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPla
                   {
                     "codec_name": "avc",
                     "current_qn": 10000,
-                    "accept_qn": [
-                      10000,
-                      150
-                    ],
+                    "accept_qn": [10000, 150],
                     "base_url": "/live-bvc/462997/live_11153765_9369560/index.m3u8?",
                     "url_info": [
                       {

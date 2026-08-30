@@ -3,7 +3,8 @@
 const MAX_ANIMATION_QUEUE = 5;
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const quality = new URLSearchParams(location.search).get('quality') || '';
-const lowMotion = quality === 'low' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lowMotion =
+  quality === 'low' || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let currentState = null;
 let currentRevision = -1;
@@ -27,7 +28,8 @@ async function loadSnapshot() {
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
-    if (payload.ok && payload.data?.overtime) applyState(payload.data.overtime, { force: true });
+    if (payload.ok && payload.data?.overtime)
+      applyState(payload.data.overtime, { force: true });
   } catch (error) {
     setConnectionStatus('连接中断');
     console.warn('[overtime-overlay] snapshot failed:', error.message || error);
@@ -44,10 +46,11 @@ function connectSocket() {
     clearTimeout(reconnectTimer);
     reconnectAttempts = 0;
   });
-  socket.addEventListener('message', event => {
+  socket.addEventListener('message', (event) => {
     const payload = JSON.parse(event.data);
     if (payload.type === 'snapshot') {
-      if (payload.state?.overtime) applyState(payload.state.overtime, { force: true });
+      if (payload.state?.overtime)
+        applyState(payload.state.overtime, { force: true });
       return;
     }
     if (payload.type === 'overtime:update') {
@@ -59,7 +62,7 @@ function connectSocket() {
   });
   socket.addEventListener('close', () => {
     setConnectionStatus('连接中断');
-    const delay = Math.min(30000, 800 * (2 ** Math.min(reconnectAttempts, 6)));
+    const delay = Math.min(30000, 800 * 2 ** Math.min(reconnectAttempts, 6));
     reconnectAttempts += 1;
     reconnectTimer = setTimeout(() => {
       loadSnapshot();
@@ -74,10 +77,14 @@ function applyState(state, { force }) {
   if (!force && revision <= currentRevision) return;
   currentRevision = revision;
   currentState = state;
-  const transportElapsedMs = state.status === 'running'
-    ? Math.max(0, Date.now() - (Number(state.serverNowMs) || Date.now()))
-    : 0;
-  anchorRemainingMs = Math.max(0, (Number(state.effectiveRemainingMs) || 0) - transportElapsedMs);
+  const transportElapsedMs =
+    state.status === 'running'
+      ? Math.max(0, Date.now() - (Number(state.serverNowMs) || Date.now()))
+      : 0;
+  anchorRemainingMs = Math.max(
+    0,
+    (Number(state.effectiveRemainingMs) || 0) - transportElapsedMs,
+  );
   localAnchorMs = performance.now();
   renderStatus();
   renderBackground();
@@ -96,7 +103,8 @@ function renderClock() {
   if (!currentState) return;
 
   const nowMs = performance.now();
-  const elapsed = currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
+  const elapsed =
+    currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
   const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
   const value = formatClockDisplay(remainingMs, currentState.status);
   if (value !== lastClockValue) {
@@ -107,7 +115,8 @@ function renderClock() {
     lastClockValue = value;
   }
 
-  if (currentState.status !== 'running' || remainingMs <= 0 || document.hidden) return;
+  if (currentState.status !== 'running' || remainingMs <= 0 || document.hidden)
+    return;
   clockTimer = setTimeout(renderClock, nextClockDelay(remainingMs));
 }
 
@@ -116,7 +125,7 @@ function renderStatus() {
     disabled: '未启用',
     paused: '已暂停',
     running: '',
-    finished: '已结束'
+    finished: '已结束',
   };
   setConnectionStatus(labels[currentState?.status] ?? '连接中');
 }
@@ -131,10 +140,14 @@ function renderBackground() {
   const machine = byId('overtimeMachine');
   const background = byId('overtimeBackground');
   const imagePath = String(currentState?.background?.path || '');
-  const fit = ['cover', 'contain', 'fill'].includes(currentState?.background?.fit)
+  const fit = ['cover', 'contain', 'fill'].includes(
+    currentState?.background?.fit,
+  )
     ? currentState.background.fit
     : 'cover';
-  background.style.backgroundImage = imagePath ? `url(${JSON.stringify(imagePath)})` : '';
+  background.style.backgroundImage = imagePath
+    ? `url(${JSON.stringify(imagePath)})`
+    : '';
   background.style.backgroundSize = fit;
   machine.classList.toggle('has-background', Boolean(imagePath));
 }
@@ -142,7 +155,9 @@ function renderBackground() {
 function renderTickets() {
   const guide = byId('overtimeGiftGuide');
   const root = byId('overtimeTickets');
-  const rules = Array.isArray(currentState?.rules) ? currentState.rules.filter(rule => rule.enabled) : [];
+  const rules = Array.isArray(currentState?.rules)
+    ? currentState.rules.filter((rule) => rule.enabled)
+    : [];
   const ticketCount = Math.max(1, rules.length);
   const wideColumns = Math.min(3, ticketCount);
   const narrowColumns = Math.min(2, ticketCount);
@@ -164,7 +179,13 @@ function renderTickets() {
     image.className = 'overtime-ticket-image';
     image.src = rule.imagePath || PLACEHOLDER;
     image.alt = '';
-    image.addEventListener('error', () => { image.src = PLACEHOLDER; }, { once: true });
+    image.addEventListener(
+      'error',
+      () => {
+        image.src = PLACEHOLDER;
+      },
+      { once: true },
+    );
     const name = document.createElement('span');
     name.className = 'overtime-ticket-name';
     name.textContent = rule.giftName || `礼物 ${rule.giftId}`;
@@ -192,11 +213,14 @@ function enqueueAdjustment(adjustment) {
     const previous = animationQueue[lastIndex];
     animationQueue[lastIndex] = {
       aggregate: true,
-      quantity: Number(previous.quantity || 0) + Number(adjustment.quantity || 0),
-      appliedDeltaSeconds: Number(previous.appliedDeltaSeconds || previous.netSeconds || 0)
-        + Number(adjustment.appliedDeltaSeconds || 0),
-      netSeconds: Number(previous.appliedDeltaSeconds || previous.netSeconds || 0)
-        + Number(adjustment.appliedDeltaSeconds || 0)
+      quantity:
+        Number(previous.quantity || 0) + Number(adjustment.quantity || 0),
+      appliedDeltaSeconds:
+        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) +
+        Number(adjustment.appliedDeltaSeconds || 0),
+      netSeconds:
+        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) +
+        Number(adjustment.appliedDeltaSeconds || 0),
     };
   } else {
     animationQueue.push(adjustment);
@@ -208,7 +232,8 @@ function playNextAdjustment() {
   if (animationActive || animationQueue.length === 0) return;
   animationActive = true;
   const adjustment = animationQueue.shift();
-  const delta = Number(adjustment.netSeconds ?? adjustment.appliedDeltaSeconds) || 0;
+  const delta =
+    Number(adjustment.netSeconds ?? adjustment.appliedDeltaSeconds) || 0;
 
   if (!adjustment.aggregate) highlightTicket(adjustment.giftId);
   const stage = byId('overtimeAdjustmentStage');
@@ -228,15 +253,20 @@ function playNextAdjustment() {
   stage.replaceChildren(card);
   flashClock(delta);
 
-  setTimeout(() => {
-    stage.replaceChildren();
-    animationActive = false;
-    playNextAdjustment();
-  }, lowMotion ? 220 : 920);
+  setTimeout(
+    () => {
+      stage.replaceChildren();
+      animationActive = false;
+      playNextAdjustment();
+    },
+    lowMotion ? 220 : 920,
+  );
 }
 
 function highlightTicket(giftId) {
-  const ticket = Array.from(byId('overtimeTickets').children).find(node => node.dataset.giftId === String(giftId));
+  const ticket = Array.from(byId('overtimeTickets').children).find(
+    (node) => node.dataset.giftId === String(giftId),
+  );
   if (!ticket) return;
   ticket.classList.remove('is-hit');
   void ticket.offsetWidth;
@@ -257,23 +287,26 @@ function nextClockDelay(remainingMs) {
   const remaining = Math.max(0, Number(remainingMs) || 0);
   const dayMs = 24 * 60 * 60 * 1000;
   const yearMs = 365 * dayMs;
-  const resolutionMs = remaining >= yearMs
-    ? 60 * 60 * 1000
-    : remaining >= dayMs
-      ? 60 * 1000
-      : 1000;
+  const resolutionMs =
+    remaining >= yearMs
+      ? 60 * 60 * 1000
+      : remaining >= dayMs
+        ? 60 * 1000
+        : 1000;
   const boundaryDelay = remaining % resolutionMs || resolutionMs;
-  const tierBoundaryDelay = remaining >= yearMs
-    ? remaining - yearMs || 1000
-    : remaining >= dayMs
-      ? remaining - dayMs || 1000
-      : boundaryDelay;
+  const tierBoundaryDelay =
+    remaining >= yearMs
+      ? remaining - yearMs || 1000
+      : remaining >= dayMs
+        ? remaining - dayMs || 1000
+        : boundaryDelay;
   return Math.max(25, Math.ceil(Math.min(boundaryDelay, tierBoundaryDelay)));
 }
 
 function formatClockDisplay(milliseconds, status) {
   const remainingMs = Math.max(0, Number(milliseconds) || 0);
-  const finished = status === 'finished' || (status === 'running' && remainingMs === 0);
+  const finished =
+    status === 'finished' || (status === 'running' && remainingMs === 0);
   return finished ? '该下播了' : formatClock(remainingMs);
 }
 
@@ -301,17 +334,29 @@ function formatClockSeconds(seconds) {
 
 function describeRuleEffect(rule) {
   if (rule?.mode === 'display') {
-    return { modifier: 'is-display', verb: '', value: String(rule.displayText || '展示') };
+    return {
+      modifier: 'is-display',
+      verb: '',
+      value: String(rule.displayText || '展示'),
+    };
   }
   if (rule?.mode === 'random') {
     return { modifier: 'is-random', verb: '', value: '盲盒' };
   }
   const effect = normalizeRuleEffect(rule?.fixedEffect, rule?.fixedSeconds);
   if (effect.operation === 'add') {
-    return { modifier: 'is-positive', verb: '加时', value: formatDurationLabel(effect.value) };
+    return {
+      modifier: 'is-positive',
+      verb: '加时',
+      value: formatDurationLabel(effect.value),
+    };
   }
   if (effect.operation === 'subtract') {
-    return { modifier: 'is-negative', verb: '减时', value: formatDurationLabel(effect.value) };
+    return {
+      modifier: 'is-negative',
+      verb: '减时',
+      value: formatDurationLabel(effect.value),
+    };
   }
   if (effect.operation === 'multiply') {
     return { modifier: 'is-multiply', verb: '时间', value: `×${effect.value}` };
@@ -325,7 +370,10 @@ function describeRuleEffect(rule) {
 function normalizeRuleEffect(effect, legacySeconds) {
   const operation = String(effect?.operation || '');
   if (['add', 'subtract', 'multiply', 'divide', 'clear'].includes(operation)) {
-    return { operation, value: Math.max(0, Math.floor(Number(effect.value) || 0)) };
+    return {
+      operation,
+      value: Math.max(0, Math.floor(Number(effect.value) || 0)),
+    };
   }
   const seconds = Math.trunc(Number(legacySeconds) || 0);
   return seconds < 0
@@ -351,8 +399,10 @@ function formatSignedSeconds(seconds) {
 }
 
 function formatAdjustmentEffect(effect, deltaSeconds) {
-  if (effect?.operation === 'multiply') return `×${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
-  if (effect?.operation === 'divide') return `÷${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
+  if (effect?.operation === 'multiply')
+    return `×${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
+  if (effect?.operation === 'divide')
+    return `÷${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
   if (effect?.operation === 'clear') return '清零';
   return formatSignedSeconds(deltaSeconds);
 }

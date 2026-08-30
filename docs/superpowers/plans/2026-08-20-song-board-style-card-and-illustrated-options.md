@@ -17,6 +17,7 @@
 ### Task 1: Selector card neutralization
 
 **Files:**
+
 - Modify: `public/css/admin/toasts/gifts.css`
 - Test: `test/frontend-queue.test.js`
 
@@ -26,6 +27,7 @@
 ### Task 2: Persisted illustrated typography controls
 
 **Files:**
+
 - Modify: `src/storage/settings-store.js`
 - Modify: `src/storage/theme-store.js`
 - Modify: `public/pages/admin/song/queue-theme.html`

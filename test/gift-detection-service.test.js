@@ -8,35 +8,42 @@ const test = require('node:test');
 const {
   createGiftConsumerRegistry,
   createGiftDetectionService,
-  createGiftStatisticsConsumer
+  createGiftStatisticsConsumer,
 } = require('../src/bilibili/gift');
 const {
   DB_FILE_NAMES,
   closeDatabases,
   createDatabases,
   getSchemaVersions,
-  openSqliteDatabase
+  openSqliteDatabase,
 } = require('../src/storage/database');
 
 test('gift database v4 exposes the shared detection ledger columns', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-ledger-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-ledger-'),
+  );
   const db = createDatabases({ dataDir });
 
   try {
-  assert.equal(getSchemaVersions(db).giftDb, 7);
+    assert.equal(getSchemaVersions(db).giftDb, 7);
     const columns = new Set(
-      db.giftDb.prepare('PRAGMA table_info(gift_events)').all().map(column => column.name)
+      db.giftDb
+        .prepare('PRAGMA table_info(gift_events)')
+        .all()
+        .map((column) => column.name),
     );
     assert.deepEqual(
-      [...columns].filter(name => [
-        'detection_status',
-        'first_detected_at_ms',
-        'last_platform_at_ms',
-        'finalized_at_ms',
-        'gift_stats_eligible',
-        'gift_stats_delivered',
-        'overtime_epoch'
-      ].includes(name)),
+      [...columns].filter((name) =>
+        [
+          'detection_status',
+          'first_detected_at_ms',
+          'last_platform_at_ms',
+          'finalized_at_ms',
+          'gift_stats_eligible',
+          'gift_stats_delivered',
+          'overtime_epoch',
+        ].includes(name),
+      ),
       [
         'detection_status',
         'first_detected_at_ms',
@@ -44,8 +51,8 @@ test('gift database v4 exposes the shared detection ledger columns', () => {
         'finalized_at_ms',
         'gift_stats_eligible',
         'gift_stats_delivered',
-        'overtime_epoch'
-      ]
+        'overtime_epoch',
+      ],
     );
   } finally {
     closeDatabases(db);
@@ -54,7 +61,9 @@ test('gift database v4 exposes the shared detection ledger columns', () => {
 });
 
 test('gift database v3 upgrades before creating indexes that depend on v4 columns', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'),
+  );
   let db = createDatabases({ dataDir });
 
   try {
@@ -75,9 +84,12 @@ test('gift database v3 upgrades before creating indexes that depend on v4 column
     giftDb.close();
 
     db = createDatabases({ dataDir });
-  assert.equal(getSchemaVersions(db).giftDb, 7);
+    assert.equal(getSchemaVersions(db).giftDb, 7);
     const indexes = new Set(
-      db.giftDb.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map(row => row.name)
+      db.giftDb
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+        .all()
+        .map((row) => row.name),
     );
     assert.equal(indexes.has('idx_gift_events_detection_pending'), true);
     assert.equal(indexes.has('idx_gift_events_gift_stats_delivery'), true);
@@ -96,29 +108,33 @@ test('consumer registry isolates a failing consumer from the remaining consumers
         name: 'broken',
         handle() {
           throw new Error('consumer failed');
-        }
+        },
       },
       {
         name: 'healthy',
         handle(event) {
           delivered.push(event.giftEventId);
-        }
-      }
+        },
+      },
     ],
     onError(error, consumerName) {
       errors.push({ message: error.message, consumerName });
-    }
+    },
   });
 
   const result = registry.dispatch({ phase: 'final', giftEventId: 17 });
 
   assert.deepEqual(delivered, [17]);
-  assert.deepEqual(errors, [{ message: 'consumer failed', consumerName: 'broken' }]);
+  assert.deepEqual(errors, [
+    { message: 'consumer failed', consumerName: 'broken' },
+  ]);
   assert.deepEqual(result, { delivered: ['healthy'], failed: ['broken'] });
 });
 
 test('detection persists progress immediately and finalizes once after one quiet window', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-detection-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-detection-'),
+  );
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   const events = [];
@@ -126,48 +142,67 @@ test('detection persists progress immediately and finalizes once after one quiet
   const registry = createGiftConsumerRegistry({
     consumers: [
       statistics,
-      { name: 'recorder', handle: event => events.push(event) }
-    ]
+      { name: 'recorder', handle: (event) => events.push(event) },
+    ],
   });
-  const detection = createGiftDetectionService({
-    db,
-    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' }),
-    state: { blindBoxCache: null }
-  }, {
-    consumerRegistry: registry,
-    getOvertimeEpoch: () => 7,
-    now: clock.now,
-    setTimeout: clock.setTimeout,
-    clearTimeout: clock.clearTimeout
-  });
+  const detection = createGiftDetectionService(
+    {
+      db,
+      settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' }),
+      state: { blindBoxCache: null },
+    },
+    {
+      consumerRegistry: registry,
+      getOvertimeEpoch: () => 7,
+      now: clock.now,
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clearTimeout,
+    },
+  );
 
   try {
-    const first = detection.detect(makeGift({ num: 1, totalPrice: 0.1 }, clock.now()));
+    const first = detection.detect(
+      makeGift({ num: 1, totalPrice: 0.1 }, clock.now()),
+    );
     assert.equal(first.detection_status, 'progress');
     assert.equal(first.gift_stats_eligible, 1);
     assert.equal(first.overtime_epoch, 7);
     assert.equal(first.counted_in_sprint, false);
-    assert.deepEqual(events.map(event => event.phase), ['progress']);
+    assert.deepEqual(
+      events.map((event) => event.phase),
+      ['progress'],
+    );
 
     clock.advance(8_000);
-    const progressed = detection.detect(makeGift({ num: 100, totalPrice: 10 }, clock.now()));
+    const progressed = detection.detect(
+      makeGift({ num: 100, totalPrice: 10 }, clock.now()),
+    );
     assert.equal(progressed.id, first.id);
     assert.equal(progressed.num, 100);
 
     clock.advance(9_999);
     assert.equal(readGift(db, first.id).detection_status, 'progress');
-    assert.deepEqual(events.map(event => event.phase), ['progress', 'progress']);
+    assert.deepEqual(
+      events.map((event) => event.phase),
+      ['progress', 'progress'],
+    );
 
     clock.advance(1);
     const finalized = readGift(db, first.id);
     assert.equal(finalized.detection_status, 'final');
     assert.equal(finalized.gift_stats_delivered, 1);
     assert.equal(finalized.counted_in_sprint, 1);
-    assert.deepEqual(events.map(event => event.phase), ['progress', 'progress', 'final']);
+    assert.deepEqual(
+      events.map((event) => event.phase),
+      ['progress', 'progress', 'final'],
+    );
 
     clock.advance(20_000);
     detection.flushPending();
-    assert.deepEqual(events.map(event => event.phase), ['progress', 'progress', 'final']);
+    assert.deepEqual(
+      events.map((event) => event.phase),
+      ['progress', 'progress', 'final'],
+    );
   } finally {
     detection.dispose();
     closeDatabases(db);
@@ -176,29 +211,36 @@ test('detection persists progress immediately and finalizes once after one quiet
 });
 
 test('final delivery retries after one second without another platform packet', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-delivery-retry-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-delivery-retry-'),
+  );
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   let attempts = 0;
-  const detection = createGiftDetectionService({
-    db,
-    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' }),
-    state: { blindBoxCache: null }
-  }, {
-    consumerRegistry: createGiftConsumerRegistry({
-      consumers: [{
-        name: 'fails-once',
-        handle(event) {
-          if (event.phase !== 'final') return;
-          attempts += 1;
-          if (attempts === 1) throw new Error('temporary delivery failure');
-        }
-      }]
-    }),
-    now: clock.now,
-    setTimeout: clock.setTimeout,
-    clearTimeout: clock.clearTimeout
-  });
+  const detection = createGiftDetectionService(
+    {
+      db,
+      settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' }),
+      state: { blindBoxCache: null },
+    },
+    {
+      consumerRegistry: createGiftConsumerRegistry({
+        consumers: [
+          {
+            name: 'fails-once',
+            handle(event) {
+              if (event.phase !== 'final') return;
+              attempts += 1;
+              if (attempts === 1) throw new Error('temporary delivery failure');
+            },
+          },
+        ],
+      }),
+      now: clock.now,
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clearTimeout,
+    },
+  );
 
   try {
     detection.detect(makeGift({}, clock.now()));
@@ -221,25 +263,30 @@ test('final delivery retries after one second without another platform packet', 
 });
 
 test('consumer eligibility is frozen by the first packet', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-eligibility-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-eligibility-'),
+  );
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   let giftStatisticsEnabled = false;
   let overtimeEpoch = 0;
-  const detection = createGiftDetectionService({
-    db,
-    settings: () => ({
-      enableGiftSprint: giftStatisticsEnabled ? 'true' : 'false',
-      giftBlindBoxConfig: ''
-    }),
-    state: { blindBoxCache: null }
-  }, {
-    consumerRegistry: createGiftConsumerRegistry(),
-    getOvertimeEpoch: () => overtimeEpoch,
-    now: clock.now,
-    setTimeout: clock.setTimeout,
-    clearTimeout: clock.clearTimeout
-  });
+  const detection = createGiftDetectionService(
+    {
+      db,
+      settings: () => ({
+        enableGiftSprint: giftStatisticsEnabled ? 'true' : 'false',
+        giftBlindBoxConfig: '',
+      }),
+      state: { blindBoxCache: null },
+    },
+    {
+      consumerRegistry: createGiftConsumerRegistry(),
+      getOvertimeEpoch: () => overtimeEpoch,
+      now: clock.now,
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clearTimeout,
+    },
+  );
 
   try {
     overtimeEpoch = 3;
@@ -247,7 +294,9 @@ test('consumer eligibility is frozen by the first packet', () => {
     giftStatisticsEnabled = true;
     overtimeEpoch = 4;
     clock.advance(1_000);
-    const second = detection.detect(makeGift({ num: 2, totalPrice: 0.2 }, clock.now()));
+    const second = detection.detect(
+      makeGift({ num: 2, totalPrice: 0.2 }, clock.now()),
+    );
 
     assert.equal(first.gift_stats_eligible, 0);
     assert.equal(first.overtime_epoch, 3);
@@ -272,7 +321,7 @@ function makeGift(overrides, timestamp) {
     unitPrice: 0.1,
     totalPrice: 0.1,
     messageTimestamp: timestamp,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -288,7 +337,7 @@ function createFakeClock(startMs) {
   function runDueTimers() {
     while (true) {
       const due = [...timers.values()]
-        .filter(timer => timer.at <= currentMs)
+        .filter((timer) => timer.at <= currentMs)
         .sort((left, right) => left.at - right.at || left.id - right.id)[0];
       if (!due) return;
       timers.delete(due.id);
@@ -310,6 +359,6 @@ function createFakeClock(startMs) {
     advance(deltaMs) {
       currentMs += deltaMs;
       runDueTimers();
-    }
+    },
   };
 }

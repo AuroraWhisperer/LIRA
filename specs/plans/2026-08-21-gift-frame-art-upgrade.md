@@ -44,15 +44,15 @@ The overlay already receives `gift:frame` events and has bounded queueing, reduc
 
 ## QA Inventory
 
-| Claim or state | Functional check | Visual evidence |
-|---|---|---|
-| Frame is actually four parts | Assert four stable `data-frame-part` side nodes and four local asset URLs | Holding-state screenshot at 1920×1080 |
-| Artwork is intricate and coordinated | Inspect the user's wood, foliage, gold, butterfly, lantern, crystal, and firefly detail | Holding-state screenshot and close visual review |
-| Fireflies improve the static image | Verify the bounded controller emits perimeter-only light points in full motion and none in reduced motion | Enter/holding transition screenshots |
-| Stream center stays usable | Verify transparent center and no full-screen veil | 1920×1080 and 2560×1440 screenshots |
-| Existing motion modes remain safe | Exercise `full` and `reduced`; reduced has no particles or large movement | Reduced holding-state screenshot |
-| Lifecycle remains clean | Wait through playback and verify `idle`, hidden frame, empty dynamic text | Post-playback DOM assertions |
-| Long text remains readable | Dispatch long gift/user strings and verify ellipsis without amount clipping | Dense payload screenshot |
+| Claim or state                       | Functional check                                                                                          | Visual evidence                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Frame is actually four parts         | Assert four stable `data-frame-part` side nodes and four local asset URLs                                 | Holding-state screenshot at 1920×1080            |
+| Artwork is intricate and coordinated | Inspect the user's wood, foliage, gold, butterfly, lantern, crystal, and firefly detail                   | Holding-state screenshot and close visual review |
+| Fireflies improve the static image   | Verify the bounded controller emits perimeter-only light points in full motion and none in reduced motion | Enter/holding transition screenshots             |
+| Stream center stays usable           | Verify transparent center and no full-screen veil                                                         | 1920×1080 and 2560×1440 screenshots              |
+| Existing motion modes remain safe    | Exercise `full` and `reduced`; reduced has no particles or large movement                                 | Reduced holding-state screenshot                 |
+| Lifecycle remains clean              | Wait through playback and verify `idle`, hidden frame, empty dynamic text                                 | Post-playback DOM assertions                     |
+| Long text remains readable           | Dispatch long gift/user strings and verify ellipsis without amount clipping                               | Dense payload screenshot                         |
 
 Exploratory checks: reload during playback and run at a smaller 1280×720 viewport; confirm no stale classes, clipping, or unexpected center obstruction.
 

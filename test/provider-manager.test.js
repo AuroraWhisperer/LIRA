@@ -19,24 +19,36 @@ test('provider state stays scoped to its source when checks finish out of order'
       },
       providerHealth(platform) {
         return new Promise((resolve) => healthRequests.set(platform, resolve));
-      }
-    }
+      },
+    },
   };
   const ProviderManager = await loadProviderManager({ window });
   const manager = new ProviderManager({ state });
 
   const qqRefresh = Promise.all([
     manager.refreshAuthState({ platform: 'qq', notify: false }),
-    manager.checkProviderHealth({ platform: 'qq', silent: true, notify: false })
+    manager.checkProviderHealth({
+      platform: 'qq',
+      silent: true,
+      notify: false,
+    }),
   ]);
   state.selectedSource = 'netease';
   const neteaseRefresh = Promise.all([
     manager.refreshAuthState({ platform: 'netease', notify: false }),
-    manager.checkProviderHealth({ platform: 'netease', silent: true, notify: false })
+    manager.checkProviderHealth({
+      platform: 'netease',
+      silent: true,
+      notify: false,
+    }),
   ]);
 
   authRequests.get('netease')({ platform: 'netease', loggedIn: true });
-  healthRequests.get('netease')({ source: 'netease', ok: true, message: '网易云可用' });
+  healthRequests.get('netease')({
+    source: 'netease',
+    ok: true,
+    message: '网易云可用',
+  });
   await neteaseRefresh;
   authRequests.get('qq')({ platform: 'qq', loggedIn: false });
   healthRequests.get('qq')({ source: 'qq', ok: true, message: 'QQ 可用' });
@@ -52,11 +64,19 @@ test('provider state stays scoped to its source when checks finish out of order'
 
 async function loadProviderManager(sandbox) {
   const context = vm.createContext({ console, encodeURIComponent, ...sandbox });
-  const filePath = path.join(__dirname, '..', 'public', 'js', 'playback', 'provider', 'manager.js');
+  const filePath = path.join(
+    __dirname,
+    '..',
+    'public',
+    'js',
+    'playback',
+    'provider',
+    'manager.js',
+  );
   const identifier = pathToFileURL(filePath).href;
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context,
-    identifier
+    identifier,
   });
   await module.link(() => {
     throw new Error('ProviderManager should not import dependencies.');

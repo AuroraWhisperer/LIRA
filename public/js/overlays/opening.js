@@ -15,14 +15,19 @@ const DEFAULTS = Object.freeze({
   audioUrl: '/img/overlays/opening/music.ogg',
   audioName: '默认音乐：果实',
   characterUrl: '/img/overlays/opening/avatar.webp',
-  debug: false
+  debug: false,
 });
 
-const MAX_LENGTHS = Object.freeze({ title: 20, subtitle: 40, name: 32, footer: 48 });
+const MAX_LENGTHS = Object.freeze({
+  title: 20,
+  subtitle: 40,
+  name: 32,
+  footer: 48,
+});
 const QUALITY_LIMITS = Object.freeze({
   high: Object.freeze({ notes: 6, particles: 24, eq: 16 }),
   normal: Object.freeze({ notes: 4, particles: 12, eq: 10 }),
-  low: Object.freeze({ notes: 0, particles: 0, eq: 0 })
+  low: Object.freeze({ notes: 0, particles: 0, eq: 0 }),
 });
 const TRACK_MOTION_VALUES = new Set(['heart', 'barber', 'progress']);
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/gu;
@@ -30,8 +35,13 @@ const NOTE_GLYPHS = ['♪', '♫', '♩', '♬', '♪', '♫'];
 const NOTE_DURATIONS = [7, 9, 11, 13];
 
 function cleanText(value, maxLength) {
-  return Array.from(String(value ?? '').replace(CONTROL_CHARS, '').trim())
-    .slice(0, maxLength).join('');
+  return Array.from(
+    String(value ?? '')
+      .replace(CONTROL_CHARS, '')
+      .trim(),
+  )
+    .slice(0, maxLength)
+    .join('');
 }
 
 function parseBoolean(value, fallback) {
@@ -55,7 +65,9 @@ function normalizeTrackMotion(value) {
   return TRACK_MOTION_VALUES.has(candidate) ? candidate : DEFAULTS.trackMotion;
 }
 
-function parseConfig(search = typeof location === 'undefined' ? '' : location.search) {
+function parseConfig(
+  search = typeof location === 'undefined' ? '' : location.search,
+) {
   const params = new URLSearchParams(search);
   const quality = params.get('quality');
   const audio = params.get('audio');
@@ -68,7 +80,9 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
     subtitle: subtitle || DEFAULTS.subtitle,
     name,
     footer: normalizeFooter(params.get('footer')),
-    quality: Object.hasOwn(QUALITY_LIMITS, quality) ? quality : DEFAULTS.quality,
+    quality: Object.hasOwn(QUALITY_LIMITS, quality)
+      ? quality
+      : DEFAULTS.quality,
     trackMotion: normalizeTrackMotion(params.get('trackMotion')),
     showNotes: parseBoolean(params.get('showNotes'), DEFAULTS.showNotes),
     showEq: parseBoolean(params.get('showEq'), DEFAULTS.showEq),
@@ -76,13 +90,13 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
     volume: parseVolume(params.get('volume'), DEFAULTS.volume),
     audioUrl: DEFAULTS.audioUrl,
     audioName: DEFAULTS.audioName,
-    debug: parseBoolean(params.get('debug'), DEFAULTS.debug)
+    debug: parseBoolean(params.get('debug'), DEFAULTS.debug),
   };
 }
 
 function titleSizeForLength(length) {
   const safeLength = Math.max(1, Number(length) || 1);
-  return Math.max(.92, Math.min(5.4, 39 / Math.max(safeLength, 7)));
+  return Math.max(0.92, Math.min(5.4, 39 / Math.max(safeLength, 7)));
 }
 
 function setText(id, value) {
@@ -105,8 +119,11 @@ function createNodes(config) {
     note.style.setProperty('--note-x', `${16 + ((index * 17) % 72)}%`);
     note.style.setProperty('--note-y', `${18 + ((index * 23) % 57)}%`);
     note.style.setProperty('--note-delay', `${-(index * 1.1)}s`);
-    note.style.setProperty('--note-duration', `${NOTE_DURATIONS[index % NOTE_DURATIONS.length]}s`);
-    note.style.setProperty('--note-drift', `${index % 2 ? -.83 : .83}cqw`);
+    note.style.setProperty(
+      '--note-duration',
+      `${NOTE_DURATIONS[index % NOTE_DURATIONS.length]}s`,
+    );
+    note.style.setProperty('--note-drift', `${index % 2 ? -0.83 : 0.83}cqw`);
     note.style.setProperty('--note-rotation', `${index % 2 ? -8 : 8}deg`);
     notes?.append(note);
   }
@@ -115,7 +132,10 @@ function createNodes(config) {
     const particle = document.createElement('span');
     particle.style.setProperty('--particle-x', `${8 + ((index * 29) % 84)}%`);
     particle.style.setProperty('--particle-y', `${12 + ((index * 31) % 72)}%`);
-    particle.style.setProperty('--particle-size', `${.1 + (index % 3) * .05}cqw`);
+    particle.style.setProperty(
+      '--particle-size',
+      `${0.1 + (index % 3) * 0.05}cqw`,
+    );
     particle.style.setProperty('--particle-delay', `${-(index % 9)}s`);
     particle.style.setProperty('--particle-duration', `${6 + (index % 5)}s`);
     particles?.append(particle);
@@ -124,8 +144,8 @@ function createNodes(config) {
   for (let index = 0; index < limits.eq; index += 1) {
     const bar = document.createElement('span');
     bar.style.setProperty('--eq-height', `${0.2 + ((index * 13) % 7) / 10}`);
-    bar.style.setProperty('--eq-duration', `${2.4 + (index % 5) * .34}s`);
-    bar.style.setProperty('--eq-delay', `${-(index * .22)}s`);
+    bar.style.setProperty('--eq-duration', `${2.4 + (index % 5) * 0.34}s`);
+    bar.style.setProperty('--eq-delay', `${-(index * 0.22)}s`);
     eq?.append(bar);
   }
 }
@@ -145,8 +165,9 @@ function startRuntime(config) {
     particleTimer = null;
   };
   const scheduleParticles = () => {
-    if (config.quality === 'low' || document.hidden || !stage.isConnected) return;
-    stage.style.setProperty('--particle-phase', `${lastPhase += 1}`);
+    if (config.quality === 'low' || document.hidden || !stage.isConnected)
+      return;
+    stage.style.setProperty('--particle-phase', `${(lastPhase += 1)}`);
     particleTimer = setTimeout(scheduleParticles, 2400 + Math.random() * 2200);
   };
   const pause = () => {
@@ -193,7 +214,11 @@ function startRuntime(config) {
   }
 
   window.addEventListener('message', (event) => {
-    if (event.source !== window.parent || event.data?.type !== 'lira:opening-preview-volume') return;
+    if (
+      event.source !== window.parent ||
+      event.data?.type !== 'lira:opening-preview-volume'
+    )
+      return;
     if (audio) audio.volume = parseVolume(event.data.volume, audio.volume);
   });
 
@@ -202,8 +227,10 @@ function startRuntime(config) {
     else resume();
   });
 
-  const reducedMotion = typeof matchMedia === 'function'
-    ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  const reducedMotion =
+    typeof matchMedia === 'function'
+      ? matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
   const updateReducedMotion = () => {
     const shouldReduce = Boolean(reducedMotion?.matches);
     stage.classList.toggle('is-reduced-motion', shouldReduce);
@@ -221,13 +248,21 @@ function startRuntime(config) {
 
 function safeAudioUrl(value) {
   const candidate = String(value || '');
-  if (candidate === DEFAULTS.audioUrl || candidate.startsWith('/opening-media/')) return candidate;
+  if (
+    candidate === DEFAULTS.audioUrl ||
+    candidate.startsWith('/opening-media/')
+  )
+    return candidate;
   return DEFAULTS.audioUrl;
 }
 
 function safeCharacterUrl(value) {
   const candidate = String(value || '');
-  if (candidate === DEFAULTS.characterUrl || candidate.startsWith('/opening-character/')) return candidate;
+  if (
+    candidate === DEFAULTS.characterUrl ||
+    candidate.startsWith('/opening-character/')
+  )
+    return candidate;
   return DEFAULTS.characterUrl;
 }
 
@@ -241,14 +276,20 @@ function applyOpeningConfig(config) {
   const nameRow = document.getElementById('openingNameRow');
   const avatar = document.getElementById('openingAvatar');
   const titleLength = Array.from(config.title).length;
-  stage?.style.setProperty('--opening-title-size', `${titleSizeForLength(titleLength)}cqw`);
+  stage?.style.setProperty(
+    '--opening-title-size',
+    `${titleSizeForLength(titleLength)}cqw`,
+  );
   if (stage) stage.dataset.trackMotion = config.trackMotion;
   stage?.classList.add(`quality-${config.quality}`);
   stage?.classList.toggle('show-notes', config.showNotes);
   stage?.classList.toggle('show-eq', config.showEq);
   stage?.classList.toggle('is-disabled', !config.enabled);
   viewport?.classList.toggle('opening-disabled', !config.enabled);
-  document.documentElement.classList.toggle('opening-disabled', !config.enabled);
+  document.documentElement.classList.toggle(
+    'opening-disabled',
+    !config.enabled,
+  );
   document.body.classList.toggle('opening-disabled', !config.enabled);
   if (nameRow) nameRow.hidden = config.name.length === 0;
   if (avatar) avatar.src = safeCharacterUrl(config.characterUrl);
@@ -269,22 +310,37 @@ async function loadSavedConfig() {
 
 function mergeConfig(remote, query) {
   const source = remote && typeof remote === 'object' ? remote : {};
-  const params = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
+  const params = new URLSearchParams(
+    typeof location === 'undefined' ? '' : location.search,
+  );
   const merged = { ...DEFAULTS, ...source, ...query };
-  if (!params.has('enabled')) merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
-  if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
-  if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || DEFAULTS.subtitle;
-  if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
+  if (!params.has('enabled'))
+    merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
+  if (!params.has('title'))
+    merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
+  if (!params.has('subtitle'))
+    merged.subtitle =
+      cleanText(source.subtitle, MAX_LENGTHS.subtitle) || DEFAULTS.subtitle;
+  if (!params.has('name'))
+    merged.name = cleanText(source.name, MAX_LENGTHS.name);
   if (!params.has('footer')) merged.footer = normalizeFooter(source.footer);
-  if (!params.has('quality')) merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
-  merged.trackMotion = normalizeTrackMotion(params.has('trackMotion') ? query.trackMotion : source.trackMotion);
+  if (!params.has('quality'))
+    merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality)
+      ? source.quality
+      : DEFAULTS.quality;
+  merged.trackMotion = normalizeTrackMotion(
+    params.has('trackMotion') ? query.trackMotion : source.trackMotion,
+  );
   if (!params.has('showNotes')) merged.showNotes = source.showNotes !== false;
   if (!params.has('showEq')) merged.showEq = source.showEq !== false;
-  if (!params.has('audio')) merged.audio = source.audio === 'none' ? 'none' : DEFAULTS.audio;
+  if (!params.has('audio'))
+    merged.audio = source.audio === 'none' ? 'none' : DEFAULTS.audio;
   if (!params.has('volume')) merged.volume = parseVolume(source.volume);
   merged.audioUrl = safeAudioUrl(source.audioUrl || DEFAULTS.audioUrl);
   merged.audioName = cleanText(source.audioName, 160) || DEFAULTS.audioName;
-  merged.characterUrl = safeCharacterUrl(source.characterUrl || DEFAULTS.characterUrl);
+  merged.characterUrl = safeCharacterUrl(
+    source.characterUrl || DEFAULTS.characterUrl,
+  );
   return merged;
 }
 
@@ -296,4 +352,18 @@ async function initOpeningOverlay() {
 
 if (typeof document !== 'undefined') initOpeningOverlay();
 
-export { DEFAULTS, MAX_LENGTHS, QUALITY_LIMITS, TRACK_MOTION_VALUES, cleanText, normalizeFooter, normalizeTrackMotion, parseConfig, titleSizeForLength, parseVolume, safeAudioUrl, safeCharacterUrl, mergeConfig };
+export {
+  DEFAULTS,
+  MAX_LENGTHS,
+  QUALITY_LIMITS,
+  TRACK_MOTION_VALUES,
+  cleanText,
+  normalizeFooter,
+  normalizeTrackMotion,
+  parseConfig,
+  titleSizeForLength,
+  parseVolume,
+  safeAudioUrl,
+  safeCharacterUrl,
+  mergeConfig,
+};

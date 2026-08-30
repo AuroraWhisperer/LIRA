@@ -1,16 +1,18 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
-> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
+> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
+**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
+
 ## 1. 进程形态与入口
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 入口 | `package.json` 的 `main` 指向 `src/electron/main.js`,Electron 启动即执行此文件 | [package.json:8](../../../package.json#L8) |
+| 事实     | 值                                                                                                                    | 出处                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 入口     | `package.json` 的 `main` 指向 `src/electron/main.js`,Electron 启动即执行此文件                                        | [package.json:8](../../../package.json#L8)                                                   |
 | 运行形态 | `npm run desktop` → `electron .`;后端 HTTP 服务与 Electron main **同进程**(`require('../server')` 的运行时适配,见 §2) | [package.json:11](../../../package.json#L11)、[server-core.md](../backend/server-core.md) §1 |
-| 应用名 | `app.setName('LIRA')` — 决定 `%APPDATA%/LIRA` 等派生路径 | [main.js:69](../../../src/electron/main.js#L69) |
+| 应用名   | `app.setName('LIRA')` — 决定 `%APPDATA%/LIRA` 等派生路径                                                              | [main.js:69](../../../src/electron/main.js#L69)                                              |
 
 **单实例锁**:`app.requestSingleInstanceLock()` 拿不到锁立即 `app.quit()`([main.js:59-67](../../../src/electron/main.js#L59-L67));`second-instance` 事件时还原并聚焦主窗口([main.js:71-75](../../../src/electron/main.js#L71-L75));锁在退出流程末尾释放(§7)。
 
@@ -32,22 +34,36 @@
 8. `await restoreMusicCookieSnapshots()` → `await restoreBilibiliCookieSnapshot()` — **先于服务器启动**恢复会话([auth.md](auth.md) §8)
 9. `desktopRuntime = createDesktopRuntime(serverRuntimeModule, { dataDir, safeStorage })` + `setPreShutdownHook(requestPlaybackFlush)`([main.js:133-137](../../../src/electron/main.js#L133-L137))
 10. `await desktopRuntime.start(serverOptions)` — 启动内嵌 HTTP 服务(注入契约见 [auth.md](auth.md) §11,[server-core.md](../backend/server-core.md) §6.1)
-11. `registerLocalFontPermissionHandler(...)` — 将本机字体权限限制为内嵌服务的精确 origin,并用原生对话框取得用户明确同意(§4)
-12. `createMainWindow(serverInfo.baseUrl)`(§4)
+11. 创建 `licenseManager`,注册 license IPC,再 `await licenseManager.bootstrap()`;本地服务此时仍通过动态 `licenseGate` 拒绝 Admin、业务 API 和 WebSocket
+12. 由 `license/license-resume.js` 的 `createLicenseResumeHandler` 注册 `powerMonitor` 的 `resume` 监听;系统唤醒时由 main process 立即调用 `licenseManager.resume()` 重新确认设备会话
+13. `registerLocalFontPermissionHandler(...)` — 将本机字体权限限制为内嵌服务的精确 origin,并用原生对话框取得用户明确同意(§4)
+14. 按最终授权状态加载 `/admin?desktop=1` 或 `/license`;若启动验证已成功,显式调用一次 `resumeAuthorizedWork()` 恢复 Bilibili 工作
 
 `createDesktopRuntime`([main.js:156-180](../../../src/electron/main.js#L156-L180))是兼容适配器:若传入模块已是运行时(具备 `start/stop/setPreShutdownHook`)直接返回;若暴露 `createServerRuntime(options)` 则调用之;否则退化为包装 `startServer`/`shutdownApplication` 的旧兼容层。
 
 开发模式(未打包)在窗口就绪后把更新状态置为 `dev-disabled`([main.js:144-153](../../../src/electron/main.js#L144-L153),见 [update.md](update.md) §2)。
 
+### 2.1 设备授权生命周期
+
+`license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
+
+- 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
+- token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发
+- 默认 `10m` token 在到期前 90 秒续期;heartbeat 每 150 秒执行一次
+- 续期失败(token 仍有效时)按 `license/retry-policy.js` 做有界指数退避:基础 5s 倍增、封顶 60s、jitter 系数 `[0.5, 1.5)`,延迟同时受 token 剩余有效期钳制;连续 10 次失败(`nextDelay()` 返回 `null`)停止重试并进入 `NEEDS_CONNECTION`,续期成功或状态切换时序列重置
+- HTTP 408/429/5xx、DNS 和 timeout 在 token 已失效时进入 `NEEDS_CONNECTION`,但不删除设备身份;仍有效 token 的单次网络失败保持 `AUTHORIZED`
+- Device/License/Streamer 撤销和 Session 拒绝立即清空内存 token、停止维护定时器并进入 `BLOCKED`;main 监听状态后暂停授权业务并切回 `/license`
+- 系统唤醒时立即 heartbeat;若此前为 `NEEDS_CONNECTION`,则重新执行 challenge/verify
+
 ## 3. 数据目录决策
 
 ### 3.1 userData 重定向
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 目标 | `app.setPath('userData', <安装目录或仓库根>/data)` | [main.js:54-57](../../../src/electron/main.js#L54-L57) |
-| 打包版 | `path.dirname(app.getPath('exe'))/data` — 卸载时登录态(含 Chromium 持久化分区)随安装目录一并清理 | [main.js:54-55](../../../src/electron/main.js#L54-L55) |
-| 开发版 | `ROOT_DIR/data`(仓库根) | [main.js:56](../../../src/electron/main.js#L56) |
+| 事实     | 值                                                                                                          | 出处                                                       |
+| -------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 目标     | `app.setPath('userData', <安装目录或仓库根>/data)`                                                          | [main.js:54-57](../../../src/electron/main.js#L54-L57)     |
+| 打包版   | `path.dirname(app.getPath('exe'))/data` — 卸载时登录态(含 Chromium 持久化分区)随安装目录一并清理            | [main.js:54-55](../../../src/electron/main.js#L54-L55)     |
+| 开发版   | `ROOT_DIR/data`(仓库根)                                                                                     | [main.js:56](../../../src/electron/main.js#L56)            |
 | 环境变量 | `process.env.SONG_PLUGIN_DATA_DIR = dataDir`、`process.env.ELECTRON_DESKTOP = '1'`、`HOST` 缺省 `127.0.0.1` | [main.js:211-213](../../../src/electron/main.js#L211-L213) |
 
 目录树(五库、`music-auth/`、`bilibili-auth/`、`Partitions/`、允许清单)见 [../backend/storage.md](../backend/storage.md) §2 — 本文件不重复成树。
@@ -60,13 +76,13 @@
 
 `createMainWindow(baseUrl)`([main.js:317-375](../../../src/electron/main.js#L317-L375)):
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 尺寸 | **1280×720**,minWidth 1024,minHeight 680 | [main.js:320](../../../src/electron/main.js#L320) |
-| 窗口形态 | `frame: false`(自绘标题栏)、`backgroundColor: '#f7f3ef'`(暖白,防白屏闪烁)、`show: false` 等 `ready-to-show` 再显示 | [main.js:321-322](../../../src/electron/main.js#L321-L322) |
-| 加载 URL | `{baseUrl}/admin?desktop=1`(页面清单见 [../frontend/pages.md](../frontend/pages.md)) | [main.js:333](../../../src/electron/main.js#L333) |
-| webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false` | [main.js:323-326](../../../src/electron/main.js#L323-L326) |
-| 图标 | 打包资源 `build/icon.png` 存在时附加 | [main.js:328-329](../../../src/electron/main.js#L328-L329) |
+| 事实           | 值                                                                                                                 | 出处                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| 尺寸           | **1280×720**,minWidth 1024,minHeight 680                                                                           | [main.js:320](../../../src/electron/main.js#L320)          |
+| 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor: '#f7f3ef'`(暖白,防白屏闪烁)、`show: false` 等 `ready-to-show` 再显示 | [main.js:321-322](../../../src/electron/main.js#L321-L322) |
+| 加载 URL       | `{baseUrl}/admin?desktop=1`(页面清单见 [../frontend/pages.md](../frontend/pages.md))                               | [main.js:333](../../../src/electron/main.js#L333)          |
+| webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js:323-326](../../../src/electron/main.js#L323-L326) |
+| 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [main.js:328-329](../../../src/electron/main.js#L328-L329) |
 
 导航策略:`setWindowOpenHandler` 一律 `shell.openExternal` + `{action:'deny'}`([main.js:346-349](../../../src/electron/main.js#L346-L349));`will-navigate` 仅放行与 `baseUrl` 同协议/同 host/同端口的导航,其余拦截并交系统浏览器([main.js:351-357](../../../src/electron/main.js#L351-L357))。
 
@@ -109,11 +125,11 @@
 
 Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒体/API 请求补齐 Referer/Origin,避免因缺头被拒;**仅当请求头缺失时注入,不覆盖既有值**;host 小写化后按 `endsWith` 判定。唯一成表处:
 
-| 匹配 URL 模式 | host 判定 | 注入 |
-|---|---|---|
-| `*://*.music.163.com/*`、`*://*.music.126.net/*` | 以 `music.163.com` / `music.126.net` 结尾 | `Referer: https://music.163.com/` |
-| `*://*.qqmusic.qq.com/*`、`*://*.gtimg.cn/*`、`*://*.y.qq.com/*` | 以 `qqmusic.qq.com` / `gtimg.cn` / `y.qq.com` 结尾 | `Referer: https://y.qq.com/` + `Origin: https://y.qq.com` |
-| `*://*.bilibili.com/*`、`*://*.hdslb.com/*` | 以 `bilibili.com` / `hdslb.com` 结尾 | `Referer: https://www.bilibili.com/` + `Origin: https://www.bilibili.com` |
+| 匹配 URL 模式                                                    | host 判定                                          | 注入                                                                      |
+| ---------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------- |
+| `*://*.music.163.com/*`、`*://*.music.126.net/*`                 | 以 `music.163.com` / `music.126.net` 结尾          | `Referer: https://music.163.com/`                                         |
+| `*://*.qqmusic.qq.com/*`、`*://*.gtimg.cn/*`、`*://*.y.qq.com/*` | 以 `qqmusic.qq.com` / `gtimg.cn` / `y.qq.com` 结尾 | `Referer: https://y.qq.com/` + `Origin: https://y.qq.com`                 |
+| `*://*.bilibili.com/*`、`*://*.hdslb.com/*`                      | 以 `bilibili.com` / `hdslb.com` 结尾               | `Referer: https://www.bilibili.com/` + `Origin: https://www.bilibili.com` |
 
 出处:`configureMusicMediaRequestHeaders` 与 `configureBilibiliMediaRequestHeaders`。音乐组使用 `mediaState.headersConfigured` 幂等标记。
 
@@ -122,9 +138,10 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒
 `before-quit`([main.js:81-102](../../../src/electron/main.js#L81-L102)):
 
 1. `gracefulQuitStarted` 防重入;首次进入 `event.preventDefault()` 接管关闭
-2. 5s 兜底定时器 → 释放单实例锁 + `app.exit(0)`(渲染进程卡死不阻塞退出)
-3. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
-4. 完成后清兜底定时器、释放单实例锁、`app.exit(0)`
+2. `licenseResumeController.unregister()` 移除 `powerMonitor` resume 监听(`license/license-resume.js`),防止关闭阶段再启动授权请求
+3. 5s 兜底定时器 → 释放单实例锁 + `app.exit(0)`(渲染进程卡死不阻塞退出)
+4. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
+5. 完成后释放授权维护 timer、清兜底定时器、释放单实例锁、`app.exit(0)`
 
 **播放状态冲刷握手**([playback-flush.js](../../../src/electron/playback-flush.js)):
 
@@ -142,28 +159,30 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 ## 8. 日志
 
-| 文件 | 位置 | 写入者 |
-|---|---|---|
-| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 包裹 console 五方法(log/info/debug/warn/error) |
-| `logs/desktop.log` | 同目录 | main.js `writeLog(scope, value)` — 结构化事件(`lifecycle`/`window`/`ipc`/`update-error`/`gift-display`/`playback-flush` 等) |
+| 文件                | 位置                                  | 写入者                                                                                                                      |
+| ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 包裹 console 五方法(log/info/debug/warn/error)                                                         |
+| `logs/desktop.log`  | 同目录                                | main.js `writeLog(scope, value)` — 结构化事件(`lifecycle`/`window`/`ipc`/`update-error`/`gift-display`/`playback-flush` 等) |
 
 出处:[configureDesktopEnvironment:189-214](../../../src/electron/main.js#L189-L214)(目录创建、`logRunId`、`installTerminalLog`)、[writeLog:729-743](../../../src/electron/main.js#L729-L743)。日志目录位于 data 目录**父目录**下(data 目录树见 [storage.md](../backend/storage.md) §2)。
 
 行格式 `formatLogLine`([terminal-log.js:72-81](../../../src/electron/terminal-log.js#L72-L81)):`[ISO 时间] [run=<runId> seq=<n> pid=<pid> type=<processType>] [<source>] <message>`,消息内换行转义为 `\n`;`installTerminalLog` 返回恢复函数([terminal-log.js:9-38](../../../src/electron/terminal-log.js#L9-L38))。所有日志写入失败静默(日志绝不干扰主流程)。
 
+所有日志输出(terminal.log 的 console 包裹与 desktop.log 的 `writeLog`)统一经 `src/shared/log-redaction.js` 的 `redactCredentials` 脱敏。脱敏字段:`password`/`passwd`、`activationcode`、`pairingcode`、`fingerprint`、`hardwareid`(精确键名),`*apikey`/`*secret`/`*token`/`*signature`(键名后缀),包含 `privatekey` 的键名,`authorization`/`cookie` 头,以及 URL 查询参数中的同名键(大小写不敏感)。即日志中不出现密码、完整激活码/授权码、token、签名、私钥和原始硬件标识。
+
 ## 9. Electron 版本与安全配置
 
-| 项 | 值 | 出处 |
-|---|---|---|
-| Electron | `43.2.0`(devDependencies) | [package.json:29](../../../package.json#L29) |
+| 项        | 值                                                                                                                        | 出处                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Electron  | `43.2.0`(devDependencies)                                                                                                 | [package.json:29](../../../package.json#L29)        |
 | 构建/更新 | electron-builder 26.x + electron-updater 6.x;builder 与 publish 配置见 [../engineering/build.md](../engineering/build.md) | [package.json:25-30](../../../package.json#L25-L30) |
 
 窗口安全配置差异(sandbox 取向与各窗口形态对应):
 
-| 窗口 | contextIsolation | nodeIntegration | sandbox | preload |
-|---|---|---|---|---|
-| 主窗口 | true | false | **false** | 有(preload.js) |
-| 歌词窗 | true | false | true | 有(preload.js) |
-| 登录窗(音乐/B站) | true | false | true | 无 |
+| 窗口             | contextIsolation | nodeIntegration | sandbox   | preload        |
+| ---------------- | ---------------- | --------------- | --------- | -------------- |
+| 主窗口           | true             | false           | **false** | 有(preload.js) |
+| 歌词窗           | true             | false           | true      | 有(preload.js) |
+| 登录窗(音乐/B站) | true             | false           | true      | 无             |
 
 主窗口 `sandbox: false`([main.js:325](../../../src/electron/main.js#L325)):preload 桥需在页面上下文暴露 `contextBridge` API 并访问完整 `ipcRenderer`;辅助窗口无此需求,保持 `sandbox: true` 收紧。IPC 安全边界见 [preload.md](preload.md) §1。

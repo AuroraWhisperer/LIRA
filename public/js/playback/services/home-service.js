@@ -52,7 +52,7 @@ export class HomeService {
         items: this.homeItems,
         itemType: this.homeItemType,
         action: this.homeAction,
-        page: this.homePage
+        page: this.homePage,
       };
     } catch (error) {
       this.clearHomeState();
@@ -80,7 +80,7 @@ export class HomeService {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      page: this.homePage
+      page: this.homePage,
     };
   }
 
@@ -109,13 +109,16 @@ export class HomeService {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      page: this.homePage
+      page: this.homePage,
     });
 
     try {
-      const result = await this.contentLoader.loadHomeContent('playlist-tracks', {
-        playlistId: playlist.id
-      });
+      const result = await this.contentLoader.loadHomeContent(
+        'playlist-tracks',
+        {
+          playlistId: playlist.id,
+        },
+      );
 
       // 记录当前歌单 ID，供刷新时使用
       this._currentPlaylistId = playlist.id;
@@ -130,7 +133,7 @@ export class HomeService {
         items: this.homeItems,
         itemType: this.homeItemType,
         action: this.homeAction,
-        title: playlist.title || playlist.id
+        title: playlist.title || playlist.id,
       };
     } catch (error) {
       this.onError(error);
@@ -156,12 +159,17 @@ export class HomeService {
     }
 
     // —— 可缓存类型：走 ContentLoader 强制刷新 ——
-    const CACHED_ACTIONS = ['liked', 'created-playlists', 'collected-playlists', 'playlist-tracks'];
+    const CACHED_ACTIONS = [
+      'liked',
+      'created-playlists',
+      'collected-playlists',
+      'playlist-tracks',
+    ];
     if (CACHED_ACTIONS.includes(action) && this.contentLoader) {
       try {
         const result = await this.contentLoader.loadHomeContent(action, {
           forceRefresh: true,
-          playlistId: this._currentPlaylistId
+          playlistId: this._currentPlaylistId,
         });
 
         this.homeItems = result.items;
@@ -173,7 +181,7 @@ export class HomeService {
           items: this.homeItems,
           itemType: this.homeItemType,
           action: this.homeAction,
-          page: this.homePage
+          page: this.homePage,
         };
       } catch (error) {
         this.onError(error);
@@ -197,8 +205,8 @@ export class HomeService {
           action,
           limit: action === 'personalized' ? 12 : 100,
           page: this.homePage,
-          refresh: true
-        })
+          refresh: true,
+        }),
       });
 
       const payload = await this.readJsonResponse(response, '刷新内容失败');
@@ -209,7 +217,9 @@ export class HomeService {
       const data = payload.data || {};
       const items = Array.isArray(data.playlists)
         ? data.playlists
-        : (Array.isArray(data.tracks) ? data.tracks : []);
+        : Array.isArray(data.tracks)
+          ? data.tracks
+          : [];
 
       if (items.length === 0) {
         this.homePage = Math.max(1, this.homePage - 1);
@@ -223,7 +233,7 @@ export class HomeService {
         items: this.homeItems,
         itemType: this.homeItemType,
         action: this.homeAction,
-        page: this.homePage
+        page: this.homePage,
       };
     } catch (error) {
       this.homePage = Math.max(1, this.homePage - 1);
@@ -241,7 +251,7 @@ export class HomeService {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      page: this.homePage
+      page: this.homePage,
     };
   }
 
@@ -262,7 +272,11 @@ export class HomeService {
    * @returns {Object|null}
    */
   getItemByIndex(index) {
-    if (!Number.isInteger(index) || index < 0 || index >= this.homeItems.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.homeItems.length
+    ) {
       return null;
     }
     return this.homeItems[index];
@@ -281,7 +295,11 @@ export class HomeService {
       const lastHistory = this.drawerHistory[this.drawerHistory.length - 1];
       if (lastHistory && lastHistory.items && lastHistory.items.length > 0) {
         // 查找被点击的歌单（通过 _currentPlaylistId 匹配）
-        return lastHistory.items.find((item) => item.id === this._currentPlaylistId) || null;
+        return (
+          lastHistory.items.find(
+            (item) => item.id === this._currentPlaylistId,
+          ) || null
+        );
       }
     }
     return null;
@@ -326,7 +344,7 @@ export class HomeService {
       itemType: this.homeItemType,
       action: this.homeAction,
       page: this.homePage,
-      title: previous.title
+      title: previous.title,
     };
   }
 

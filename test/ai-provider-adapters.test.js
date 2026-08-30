@@ -8,7 +8,10 @@ const { createQWeatherTool } = require('../src/ai/tools/qweather-tool');
 const { createAmapTool } = require('../src/ai/tools/amap-tool');
 
 function jsonResponse(payload, status = 200) {
-  return new Response(JSON.stringify(payload), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 test('DeepSeek client sends Responses request with hosted search and no reasoning effort', async () => {
@@ -16,15 +19,24 @@ test('DeepSeek client sends Responses request with hosted search and no reasonin
   const client = createDeepSeekClient({
     fetchImpl: async (url, options) => {
       captured = { url: String(url), options, body: JSON.parse(options.body) };
-      return jsonResponse({ id: 'resp_1', output_text: '连接正常', usage: { input_tokens: 2, output_tokens: 2 } });
-    }
+      return jsonResponse({
+        id: 'resp_1',
+        output_text: '连接正常',
+        usage: { input_tokens: 2, output_tokens: 2 },
+      });
+    },
   });
   const result = await client.createResponse({
     config: {
-      deepseekResponsesUrl: 'https://example.test/responses', deepseekApiKey: 'secret',
-      model: 'ds-v4-flash', reasoningEnabled: false, requestTimeoutMs: 3000
+      deepseekResponsesUrl: 'https://example.test/responses',
+      deepseekApiKey: 'secret',
+      model: 'ds-v4-flash',
+      reasoningEnabled: false,
+      requestTimeoutMs: 3000,
     },
-    instructions: 'system', input: 'hello', tools: [{ type: 'web_search' }]
+    instructions: 'system',
+    input: 'hello',
+    tools: [{ type: 'web_search' }],
   });
   assert.equal(captured.url, 'https://example.test/responses');
   assert.equal(captured.options.headers.Authorization, 'Bearer secret');
@@ -38,17 +50,24 @@ test('DeepSeek preserves the AI shutdown cancellation reason', async () => {
   const shutdownError = new Error('AI service is shutting down.');
   shutdownError.code = 'AI_SHUTDOWN';
   const client = createDeepSeekClient({
-    fetchImpl: async (_url, options) => new Promise((resolve, reject) => {
-      options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
-    })
+    fetchImpl: async (_url, options) =>
+      new Promise((resolve, reject) => {
+        options.signal.addEventListener(
+          'abort',
+          () => reject(options.signal.reason),
+          { once: true },
+        );
+      }),
   });
   const request = client.createResponse({
     config: {
-      deepseekResponsesUrl: 'https://example.test/responses', deepseekApiKey: 'secret',
-      model: 'ds-v4-flash', requestTimeoutMs: 3000
+      deepseekResponsesUrl: 'https://example.test/responses',
+      deepseekApiKey: 'secret',
+      model: 'ds-v4-flash',
+      requestTimeoutMs: 3000,
     },
     input: 'hello',
-    signal: controller.signal
+    signal: controller.signal,
   });
 
   controller.abort(shutdownError);
@@ -57,15 +76,36 @@ test('DeepSeek preserves the AI shutdown cancellation reason', async () => {
 });
 
 test('DeepSeek client parses function calls from Responses output', async () => {
-  const client = createDeepSeekClient({ fetchImpl: async () => jsonResponse({
-    id: 'resp_tool',
-    output: [{ type: 'function_call', call_id: 'call_1', name: 'get_weather', arguments: '{"location":"苏州","date":"today","dataType":"weather"}' }]
-  }) });
-  const result = await client.createResponse({
-    config: { deepseekResponsesUrl: 'https://example.test/responses', deepseekApiKey: 'x', model: 'm', requestTimeoutMs: 3000 },
-    input: '天气', tools: []
+  const client = createDeepSeekClient({
+    fetchImpl: async () =>
+      jsonResponse({
+        id: 'resp_tool',
+        output: [
+          {
+            type: 'function_call',
+            call_id: 'call_1',
+            name: 'get_weather',
+            arguments:
+              '{"location":"苏州","date":"today","dataType":"weather"}',
+          },
+        ],
+      }),
   });
-  assert.deepEqual(result.functionCalls[0].arguments, { location: '苏州', date: 'today', dataType: 'weather' });
+  const result = await client.createResponse({
+    config: {
+      deepseekResponsesUrl: 'https://example.test/responses',
+      deepseekApiKey: 'x',
+      model: 'm',
+      requestTimeoutMs: 3000,
+    },
+    input: '天气',
+    tools: [],
+  });
+  assert.deepEqual(result.functionCalls[0].arguments, {
+    location: '苏州',
+    date: 'today',
+    dataType: 'weather',
+  });
 });
 
 test('DeepSeek official base uses Chat Completions for connection tests and normal requests', async () => {
@@ -78,22 +118,32 @@ test('DeepSeek official base uses Chat Completions for connection tests and norm
       }
       return jsonResponse({
         id: 'chat_1',
-        choices: [{ message: {
-          content: '苏州今天晴',
-          tool_calls: [{
-            id: 'call_1', type: 'function',
-            function: { name: 'get_weather', arguments: '{"location":"苏州"}' }
-          }]
-        } }],
-        usage: { prompt_tokens: 12, completion_tokens: 8 }
+        choices: [
+          {
+            message: {
+              content: '苏州今天晴',
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function',
+                  function: {
+                    name: 'get_weather',
+                    arguments: '{"location":"苏州"}',
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: { prompt_tokens: 12, completion_tokens: 8 },
       });
-    }
+    },
   });
   const config = {
     deepseekResponsesUrl: 'https://api.deepseek.com',
     deepseekApiKey: 'secret',
     model: 'deepseek-chat',
-    requestTimeoutMs: 3000
+    requestTimeoutMs: 3000,
   };
 
   const testResult = await client.testConnection(config);
@@ -101,38 +151,52 @@ test('DeepSeek official base uses Chat Completions for connection tests and norm
     config,
     instructions: 'system',
     input: 'hello',
-    tools: [{
-      type: 'function', name: 'get_weather', description: 'weather',
-      parameters: { type: 'object', properties: {} }, strict: true
-    }]
+    tools: [
+      {
+        type: 'function',
+        name: 'get_weather',
+        description: 'weather',
+        parameters: { type: 'object', properties: {} },
+        strict: true,
+      },
+    ],
   });
 
   assert.deepEqual(testResult, {
     provider: 'deepseek',
     model: 'deepseek-chat',
     reply: 'ok',
-    endpointAdapted: true
+    endpointAdapted: true,
   });
   assert.equal(requests[0].url, 'https://api.deepseek.com/chat/completions');
-  assert.deepEqual(requests[0].body.messages[0], { role: 'user', content: '你好' });
+  assert.deepEqual(requests[0].body.messages[0], {
+    role: 'user',
+    content: '你好',
+  });
   assert.equal(requests[0].body.max_tokens, 128);
   assert.equal(requests[1].url, 'https://api.deepseek.com/chat/completions');
   assert.deepEqual(requests[1].body.messages, [
     { role: 'system', content: 'system' },
-    { role: 'user', content: 'hello' }
+    { role: 'user', content: 'hello' },
   ]);
   assert.deepEqual(requests[1].body.thinking, { type: 'disabled' });
   assert.deepEqual(requests[1].body.tools[0], {
     type: 'function',
     function: {
-      name: 'get_weather', description: 'weather',
-      parameters: { type: 'object', properties: {} }, strict: true
-    }
+      name: 'get_weather',
+      description: 'weather',
+      parameters: { type: 'object', properties: {} },
+      strict: true,
+    },
   });
   assert.equal(response.text, '苏州今天晴');
-  assert.deepEqual(response.functionCalls, [{
-    callId: 'call_1', name: 'get_weather', arguments: { location: '苏州' }
-  }]);
+  assert.deepEqual(response.functionCalls, [
+    {
+      callId: 'call_1',
+      name: 'get_weather',
+      arguments: { location: '苏州' },
+    },
+  ]);
   assert.deepEqual(response.usage, { inputTokens: 12, outputTokens: 8 });
 });
 
@@ -144,41 +208,75 @@ test('DeepSeek official Chat Completions URL remains usable and carries tool res
       if (requests.length === 1) {
         return jsonResponse({
           id: 'chat_tool',
-          choices: [{ message: {
-            content: null,
-            tool_calls: [{
-              id: 'call_1', type: 'function',
-              function: { name: 'get_weather', arguments: '{"location":"苏州"}' }
-            }]
-          } }]
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'get_weather',
+                      arguments: '{"location":"苏州"}',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
         });
       }
-      return jsonResponse({ id: 'chat_answer', choices: [{ message: { content: '苏州今天晴' } }] });
-    }
+      return jsonResponse({
+        id: 'chat_answer',
+        choices: [{ message: { content: '苏州今天晴' } }],
+      });
+    },
   });
   const config = {
     deepseekResponsesUrl: 'https://api.deepseek.com/v1/chat/completions',
-    deepseekApiKey: 'secret', model: 'deepseek-chat', requestTimeoutMs: 3000
+    deepseekApiKey: 'secret',
+    model: 'deepseek-chat',
+    requestTimeoutMs: 3000,
   };
 
-  const first = await client.createResponse({ config, instructions: 'system', input: '苏州天气', tools: [] });
+  const first = await client.createResponse({
+    config,
+    instructions: 'system',
+    input: '苏州天气',
+    tools: [],
+  });
   const second = await client.createResponse({
     config,
     previousResponseId: first.id,
-    input: [{ type: 'function_call_output', call_id: 'call_1', output: '{"temp":"25"}' }],
-    tools: []
+    input: [
+      {
+        type: 'function_call_output',
+        call_id: 'call_1',
+        output: '{"temp":"25"}',
+      },
+    ],
+    tools: [],
   });
 
-  assert.ok(requests.every(({ url }) => url === 'https://api.deepseek.com/v1/chat/completions'));
+  assert.ok(
+    requests.every(
+      ({ url }) => url === 'https://api.deepseek.com/v1/chat/completions',
+    ),
+  );
   assert.deepEqual(requests[1].body.messages.slice(-2), [
     {
-      role: 'assistant', content: null,
-      tool_calls: [{
-        id: 'call_1', type: 'function',
-        function: { name: 'get_weather', arguments: '{"location":"苏州"}' }
-      }]
+      role: 'assistant',
+      content: null,
+      tool_calls: [
+        {
+          id: 'call_1',
+          type: 'function',
+          function: { name: 'get_weather', arguments: '{"location":"苏州"}' },
+        },
+      ],
     },
-    { role: 'tool', tool_call_id: 'call_1', content: '{"temp":"25"}' }
+    { role: 'tool', tool_call_id: 'call_1', content: '{"temp":"25"}' },
   ]);
   assert.equal(second.text, '苏州今天晴');
 });
@@ -189,7 +287,7 @@ test('DeepSeek official Chat enables thinking and sends the selected reasoning e
     fetchImpl: async (_url, options) => {
       capturedBody = JSON.parse(options.body);
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
-    }
+    },
   });
 
   await client.createResponse({
@@ -199,9 +297,9 @@ test('DeepSeek official Chat enables thinking and sends the selected reasoning e
       model: 'deepseek-v4-pro',
       reasoningEnabled: true,
       reasoningEffort: 'max',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
-    input: 'hello'
+    input: 'hello',
   });
 
   assert.deepEqual(capturedBody.thinking, { type: 'enabled' });
@@ -214,7 +312,7 @@ test('DeepSeek official Responses API uses its root path and mapped reasoning ef
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ id: 'resp_ds', output_text: 'ok' });
-    }
+    },
   });
 
   await client.createResponse({
@@ -225,9 +323,9 @@ test('DeepSeek official Responses API uses its root path and mapped reasoning ef
       model: 'deepseek-v4-pro',
       reasoningEnabled: true,
       reasoningEffort: 'medium',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
-    input: 'hello'
+    input: 'hello',
   });
 
   assert.equal(captured.url, 'https://api.deepseek.com/responses');
@@ -240,7 +338,7 @@ test('OpenAI provider preset fixes the official Responses endpoint', async () =>
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ id: 'resp_openai', output_text: 'ok' });
-    }
+    },
   });
 
   await client.createResponse({
@@ -252,9 +350,9 @@ test('OpenAI provider preset fixes the official Responses endpoint', async () =>
       model: 'gpt-test',
       reasoningEnabled: true,
       reasoningEffort: 'high',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
-    input: 'hello'
+    input: 'hello',
   });
 
   assert.equal(captured.url, 'https://api.openai.com/v1/responses');
@@ -267,7 +365,7 @@ test('Claude provider preset uses the official OpenAI compatibility endpoint', a
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
-    }
+    },
   });
 
   await client.createResponse({
@@ -277,9 +375,9 @@ test('Claude provider preset uses the official OpenAI compatibility endpoint', a
       model: 'claude-test',
       reasoningEnabled: true,
       reasoningEffort: 'high',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
-    input: 'hello'
+    input: 'hello',
   });
 
   assert.equal(captured.url, 'https://api.anthropic.com/v1/chat/completions');
@@ -294,7 +392,7 @@ test('Gemini provider preset uses the official compatibility endpoint and reason
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
-    }
+    },
   });
 
   await client.createResponse({
@@ -304,71 +402,102 @@ test('Gemini provider preset uses the official compatibility endpoint and reason
       model: 'gemini-test',
       reasoningEnabled: true,
       reasoningEffort: 'xhigh',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
-    input: 'hello'
+    input: 'hello',
   });
 
-  assert.equal(captured.url, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+  assert.equal(
+    captured.url,
+    'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  );
   assert.equal(captured.body.reasoning_effort, 'high');
   assert.equal(captured.body.thinking, undefined);
 });
 
 test('DeepSeek reports a length-truncated empty Chat Completions response precisely', async () => {
   const client = createDeepSeekClient({
-    fetchImpl: async () => jsonResponse({
-      choices: [{ message: { content: '', reasoning_content: 'still thinking' }, finish_reason: 'length' }]
-    })
+    fetchImpl: async () =>
+      jsonResponse({
+        choices: [
+          {
+            message: { content: '', reasoning_content: 'still thinking' },
+            finish_reason: 'length',
+          },
+        ],
+      }),
   });
 
   await assert.rejects(
     client.createResponse({
       config: {
-        deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
-        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+        deepseekResponsesUrl: 'https://api.deepseek.com',
+        deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash',
+        requestTimeoutMs: 3000,
       },
-      input: '南阳怎么去加州最快', tools: []
+      input: '南阳怎么去加州最快',
+      tools: [],
     }),
-    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED',
   );
 });
 
 test('DeepSeek reports an incomplete Responses API output precisely', async () => {
   const client = createDeepSeekClient({
-    fetchImpl: async () => jsonResponse({
-      id: 'resp_incomplete', status: 'incomplete',
-      incomplete_details: { reason: 'max_output_tokens' }, output: []
-    })
+    fetchImpl: async () =>
+      jsonResponse({
+        id: 'resp_incomplete',
+        status: 'incomplete',
+        incomplete_details: { reason: 'max_output_tokens' },
+        output: [],
+      }),
   });
 
   await assert.rejects(
     client.createResponse({
       config: {
-        deepseekResponsesUrl: 'https://gateway.example.test/responses', deepseekApiKey: 'secret',
-        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+        deepseekResponsesUrl: 'https://gateway.example.test/responses',
+        deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash',
+        requestTimeoutMs: 3000,
       },
-      instructions: 'very long system prompt', input: 'route question', tools: []
+      instructions: 'very long system prompt',
+      input: 'route question',
+      tools: [],
     }),
-    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED',
   );
 });
 
 test('DeepSeek reports truncated Responses tool arguments precisely', async () => {
   const client = createDeepSeekClient({
-    fetchImpl: async () => jsonResponse({
-      status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' },
-      output: [{ type: 'function_call', call_id: 'call_1', name: 'get_route', arguments: '{"origin":"太原' }]
-    })
+    fetchImpl: async () =>
+      jsonResponse({
+        status: 'incomplete',
+        incomplete_details: { reason: 'max_output_tokens' },
+        output: [
+          {
+            type: 'function_call',
+            call_id: 'call_1',
+            name: 'get_route',
+            arguments: '{"origin":"太原',
+          },
+        ],
+      }),
   });
   await assert.rejects(
     client.createResponse({
       config: {
-        deepseekResponsesUrl: 'https://gateway.example.test/responses', deepseekApiKey: 'secret',
-        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+        deepseekResponsesUrl: 'https://gateway.example.test/responses',
+        deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash',
+        requestTimeoutMs: 3000,
       },
-      input: 'route question', tools: []
+      input: 'route question',
+      tools: [],
     }),
-    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED',
   );
 });
 
@@ -376,14 +505,19 @@ test('DeepSeek request logs omit the system preset while retaining request metad
   const events = [];
   const client = createDeepSeekClient({
     logEvent: async (event) => events.push(event),
-    fetchImpl: async () => jsonResponse({ choices: [{ message: { content: 'ok' } }] })
+    fetchImpl: async () =>
+      jsonResponse({ choices: [{ message: { content: 'ok' } }] }),
   });
   await client.createResponse({
     config: {
-      deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
-      model: 'deepseek-chat', requestTimeoutMs: 3000
+      deepseekResponsesUrl: 'https://api.deepseek.com',
+      deepseekApiKey: 'secret',
+      model: 'deepseek-chat',
+      requestTimeoutMs: 3000,
     },
-    instructions: 'PRIVATE PRESET SHOULD NOT BE LOGGED', input: 'hello', tools: []
+    instructions: 'PRIVATE PRESET SHOULD NOT BE LOGGED',
+    input: 'hello',
+    tools: [],
   });
   assert.equal(events[0].body.instructions, undefined);
   assert.equal(events[0].body.messages[0].content, '[system prompt omitted]');
@@ -391,29 +525,41 @@ test('DeepSeek request logs omit the system preset while retaining request metad
 
 test('DeepSeek reports length-truncated tool arguments instead of generic invalid JSON', async () => {
   const client = createDeepSeekClient({
-    fetchImpl: async () => jsonResponse({
-      choices: [{
-        message: {
-          content: '',
-          tool_calls: [{
-            id: 'call_1', type: 'function',
-            function: { name: 'search_places', arguments: '{"keywords":"酒店","district":"宛城区"' }
-          }]
-        },
-        finish_reason: 'length'
-      }]
-    })
+    fetchImpl: async () =>
+      jsonResponse({
+        choices: [
+          {
+            message: {
+              content: '',
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function',
+                  function: {
+                    name: 'search_places',
+                    arguments: '{"keywords":"酒店","district":"宛城区"',
+                  },
+                },
+              ],
+            },
+            finish_reason: 'length',
+          },
+        ],
+      }),
   });
 
   await assert.rejects(
     client.createResponse({
       config: {
-        deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
-        model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+        deepseekResponsesUrl: 'https://api.deepseek.com',
+        deepseekApiKey: 'secret',
+        model: 'deepseek-v4-flash',
+        requestTimeoutMs: 3000,
       },
-      input: '白河湿地公园附近酒店', tools: []
+      input: '白河湿地公园附近酒店',
+      tools: [],
     }),
-    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED'
+    (error) => error.code === 'DEEPSEEK_OUTPUT_TRUNCATED',
   );
 });
 
@@ -422,17 +568,27 @@ test('DeepSeek chat adapter exposes web search as a local function tool', async 
   const client = createDeepSeekClient({
     fetchImpl: async (url, options) => {
       body = JSON.parse(options.body);
-      return jsonResponse({ choices: [{ message: { content: '当前接口无法联网查询航班。' }, finish_reason: 'stop' }] });
-    }
+      return jsonResponse({
+        choices: [
+          {
+            message: { content: '当前接口无法联网查询航班。' },
+            finish_reason: 'stop',
+          },
+        ],
+      });
+    },
   });
 
   await client.createResponse({
     config: {
-      deepseekResponsesUrl: 'https://api.deepseek.com', deepseekApiKey: 'secret',
-      model: 'deepseek-v4-flash', requestTimeoutMs: 3000
+      deepseekResponsesUrl: 'https://api.deepseek.com',
+      deepseekApiKey: 'secret',
+      model: 'deepseek-v4-flash',
+      requestTimeoutMs: 3000,
     },
-    instructions: '航班必须使用 web_search。', input: '南阳怎么去加州最快',
-    tools: [{ type: 'web_search' }]
+    instructions: '航班必须使用 web_search。',
+    input: '南阳怎么去加州最快',
+    tools: [{ type: 'web_search' }],
   });
 
   assert.doesNotMatch(body.messages[0].content, /当前接口不支持 web_search/);
@@ -440,15 +596,16 @@ test('DeepSeek chat adapter exposes web search as a local function tool', async 
     type: 'function',
     function: {
       name: 'web_search',
-      description: '联网搜索最新网页信息，必须用于美食小吃饮料推荐、特产、菜单价格、新闻、演唱会、车次、航班等时效性问题。',
+      description:
+        '联网搜索最新网页信息，必须用于美食小吃饮料推荐、特产、菜单价格、新闻、演唱会、车次、航班等时效性问题。',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string' } },
         required: ['query'],
-        additionalProperties: false
+        additionalProperties: false,
       },
-      strict: true
-    }
+      strict: true,
+    },
   });
 });
 
@@ -456,18 +613,25 @@ test('DeepSeek client traces request, raw response, normalized response, and err
   const events = [];
   const client = createDeepSeekClient({
     fetchImpl: async () => jsonResponse({ id: 'resp_1', output_text: 'ok' }),
-    logEvent: async (event, options) => events.push({ event, options })
+    logEvent: async (event, options) => events.push({ event, options }),
   });
   const config = {
     deepseekResponsesUrl: 'https://gateway.example.test/responses',
-    deepseekApiKey: 'secret-key', model: 'custom-model', requestTimeoutMs: 3000
+    deepseekApiKey: 'secret-key',
+    model: 'custom-model',
+    requestTimeoutMs: 3000,
   };
 
-  await client.createResponse({ config, purpose: 'generation', input: 'hello' });
+  await client.createResponse({
+    config,
+    purpose: 'generation',
+    input: 'hello',
+  });
 
-  assert.deepEqual(events.map(({ event }) => event.type), [
-    'request', 'response', 'normalized_response'
-  ]);
+  assert.deepEqual(
+    events.map(({ event }) => event.type),
+    ['request', 'response', 'normalized_response'],
+  );
   assert.equal(events[0].event.purpose, 'generation');
   assert.equal(events[0].event.requestId, events[1].event.requestId);
   assert.equal(events[1].event.status, 200);
@@ -482,19 +646,22 @@ test('DeepSeek connection test keeps a complete Responses API URL unchanged', as
     fetchImpl: async (url) => {
       capturedUrl = String(url);
       return jsonResponse({ id: 'resp_1', output_text: 'ok' });
-    }
+    },
   });
 
   const result = await client.testConnection({
     deepseekResponsesUrl: 'https://gateway.example.test/responses',
     deepseekApiKey: 'secret',
     model: 'custom-model',
-    requestTimeoutMs: 3000
+    requestTimeoutMs: 3000,
   });
 
   assert.equal(capturedUrl, 'https://gateway.example.test/responses');
   assert.deepEqual(result, {
-    provider: 'deepseek', model: 'custom-model', reply: 'ok', endpointAdapted: false
+    provider: 'deepseek',
+    model: 'custom-model',
+    reply: 'ok',
+    endpointAdapted: false,
   });
 });
 
@@ -510,74 +677,108 @@ test('model client derives and sanitizes model listings from the configured API'
           { id: 'deepseek-v4-pro' },
           { id: '' },
           { id: 'x'.repeat(81) },
-          { id: 42 }
-        ]
+          { id: 42 },
+        ],
       });
-    }
+    },
   });
 
   const result = await client.listModels({
     apiKey: 'temporary-secret',
-    responsesUrl: 'https://gateway.example.test/openai/v1/responses?ignored=true',
-    requestTimeoutMs: 3000
+    responsesUrl:
+      'https://gateway.example.test/openai/v1/responses?ignored=true',
+    requestTimeoutMs: 3000,
   });
 
   assert.equal(captured.url, 'https://gateway.example.test/openai/v1/models');
-  assert.equal(captured.options.headers.Authorization, 'Bearer temporary-secret');
+  assert.equal(
+    captured.options.headers.Authorization,
+    'Bearer temporary-secret',
+  );
   assert.doesNotMatch(captured.url, /temporary-secret/);
   assert.deepEqual(result.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
 });
 
 test('provider connection tests validate successful responses', async () => {
   const qweather = createQWeatherTool({
-    fetchImpl: async () => jsonResponse({ code: '200', location: [{ id: '101010100', name: '北京' }] }),
-    quotaStore: { consume: () => ({ allowed: true }) }
+    fetchImpl: async () =>
+      jsonResponse({
+        code: '200',
+        location: [{ id: '101010100', name: '北京' }],
+      }),
+    quotaStore: { consume: () => ({ allowed: true }) },
   });
-  assert.deepEqual(await qweather.testConnection({
-    qweatherApiHost: 'https://weather.test', qweatherApiKey: 'weather-secret', requestTimeoutMs: 3000
-  }), { provider: 'qweather' });
+  assert.deepEqual(
+    await qweather.testConnection({
+      qweatherApiHost: 'https://weather.test',
+      qweatherApiKey: 'weather-secret',
+      requestTimeoutMs: 3000,
+    }),
+    { provider: 'qweather' },
+  );
 
   const amap = createAmapTool({
-    fetchImpl: async () => jsonResponse({ status: '1', geocodes: [{ location: '116.397,39.908' }] }),
-    quotaStore: { consume: () => ({ allowed: true }) }
+    fetchImpl: async () =>
+      jsonResponse({ status: '1', geocodes: [{ location: '116.397,39.908' }] }),
+    quotaStore: { consume: () => ({ allowed: true }) },
   });
-  assert.deepEqual(await amap.testConnection({
-    amapApiHost: 'https://amap.test', amapApiKey: 'amap-secret', requestTimeoutMs: 3000
-  }), { provider: 'amap' });
+  assert.deepEqual(
+    await amap.testConnection({
+      amapApiHost: 'https://amap.test',
+      amapApiKey: 'amap-secret',
+      requestTimeoutMs: 3000,
+    }),
+    { provider: 'amap' },
+  );
 });
 
 test('provider connection tests distinguish missing fields and rejected keys', async () => {
   const qweather = createQWeatherTool({
     fetchImpl: async () => jsonResponse({ code: '401' }),
-    quotaStore: { consume: () => ({ allowed: true }) }
+    quotaStore: { consume: () => ({ allowed: true }) },
   });
-  await assert.rejects(qweather.testConnection({}), (error) => error.code === 'QWEATHER_HOST_MISSING');
   await assert.rejects(
-    qweather.testConnection({ qweatherApiHost: 'https://weather.test' }),
-    (error) => error.code === 'QWEATHER_KEY_MISSING'
+    qweather.testConnection({}),
+    (error) => error.code === 'QWEATHER_HOST_MISSING',
   );
   await assert.rejects(
-    qweather.testConnection({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'bad' }),
-    (error) => error.code === 'QWEATHER_AUTH_FAILED'
+    qweather.testConnection({ qweatherApiHost: 'https://weather.test' }),
+    (error) => error.code === 'QWEATHER_KEY_MISSING',
+  );
+  await assert.rejects(
+    qweather.testConnection({
+      qweatherApiHost: 'https://weather.test',
+      qweatherApiKey: 'bad',
+    }),
+    (error) => error.code === 'QWEATHER_AUTH_FAILED',
   );
 
   const amap = createAmapTool({
     fetchImpl: async () => jsonResponse({ status: '0', infocode: '10001' }),
-    quotaStore: { consume: () => ({ allowed: true }) }
+    quotaStore: { consume: () => ({ allowed: true }) },
   });
-  await assert.rejects(amap.testConnection({}), (error) => error.code === 'AMAP_HOST_MISSING');
   await assert.rejects(
-    amap.testConnection({ amapApiHost: 'https://amap.test' }),
-    (error) => error.code === 'AMAP_KEY_MISSING'
+    amap.testConnection({}),
+    (error) => error.code === 'AMAP_HOST_MISSING',
   );
   await assert.rejects(
-    amap.testConnection({ amapApiHost: 'https://amap.test', amapApiKey: 'bad' }),
-    (error) => error.code === 'AMAP_AUTH_FAILED'
+    amap.testConnection({ amapApiHost: 'https://amap.test' }),
+    (error) => error.code === 'AMAP_KEY_MISSING',
+  );
+  await assert.rejects(
+    amap.testConnection({
+      amapApiHost: 'https://amap.test',
+      amapApiKey: 'bad',
+    }),
+    (error) => error.code === 'AMAP_AUTH_FAILED',
   );
 });
 
 test('current time tool uses IANA timezone without an external API', () => {
-  const result = getCurrentTime({ timeZone: 'Asia/Shanghai' }, { now: '2026-08-06T04:00:00.000Z' });
+  const result = getCurrentTime(
+    { timeZone: 'Asia/Shanghai' },
+    { now: '2026-08-06T04:00:00.000Z' },
+  );
   assert.equal(result.timeZone, 'Asia/Shanghai');
   assert.match(result.formatted, /12:00:00/);
   assert.throws(() => getCurrentTime({ timeZone: 'Not/AZone' }), /时区/);
@@ -586,12 +787,18 @@ test('current time tool uses IANA timezone without an external API', () => {
 test('QWeather does not send a request after its monthly quota is exhausted', async () => {
   let fetchCalls = 0;
   const tool = createQWeatherTool({
-    fetchImpl: async () => { fetchCalls += 1; return jsonResponse({}); },
-    quotaStore: { consume: () => ({ allowed: false }) }
+    fetchImpl: async () => {
+      fetchCalls += 1;
+      return jsonResponse({});
+    },
+    quotaStore: { consume: () => ({ allowed: false }) },
   });
   await assert.rejects(
-    tool.getWeather({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, { location: '苏州' }),
-    (error) => error.code === 'QWEATHER_MONTHLY_LIMIT'
+    tool.getWeather(
+      { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' },
+      { location: '苏州' },
+    ),
+    (error) => error.code === 'QWEATHER_MONTHLY_LIMIT',
   );
   assert.equal(fetchCalls, 0);
 });
@@ -602,13 +809,18 @@ test('QWeather refunds quota when a successful response has no locations', async
     fetchImpl: async () => jsonResponse({ code: '200', location: [] }),
     quotaStore: {
       consume: () => ({ allowed: true }),
-      release: () => { releases += 1; }
-    }
+      release: () => {
+        releases += 1;
+      },
+    },
   });
 
   await assert.rejects(
-    tool.resolveLocation({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, '未知地点'),
-    (error) => error.code === 'WEATHER_LOCATION_NOT_FOUND'
+    tool.resolveLocation(
+      { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' },
+      '未知地点',
+    ),
+    (error) => error.code === 'WEATHER_LOCATION_NOT_FOUND',
   );
   assert.equal(releases, 1);
 });
@@ -621,20 +833,25 @@ test('AMap refunds quota when route normalization finds no route', async () => {
       if (pathName.includes('/direction/')) {
         return jsonResponse({ status: '1', route: { paths: [] } });
       }
-      return jsonResponse({ status: '1', geocodes: [{ formatted_address: '地点', location: '120,30' }] });
+      return jsonResponse({
+        status: '1',
+        geocodes: [{ formatted_address: '地点', location: '120,30' }],
+      });
     },
     quotaStore: {
       consume: () => ({ allowed: true }),
-      release: () => { releases += 1; }
-    }
+      release: () => {
+        releases += 1;
+      },
+    },
   });
 
   await assert.rejects(
     tool.getRoute(
       { amapApiHost: 'https://amap.test', amapApiKey: 'key' },
-      { origin: '甲地', destination: '乙地', city: '苏州', mode: 'driving' }
+      { origin: '甲地', destination: '乙地', city: '苏州', mode: 'driving' },
     ),
-    (error) => error.code === 'AMAP_ROUTE_NOT_FOUND'
+    (error) => error.code === 'AMAP_ROUTE_NOT_FOUND',
   );
   assert.equal(releases, 1);
 });
@@ -645,12 +862,17 @@ test('provider connection checks refund quota for invalid successful payloads', 
     fetchImpl: async () => jsonResponse({ code: '200', location: [{}] }),
     quotaStore: {
       consume: () => ({ allowed: true }),
-      release: () => { qweatherReleases += 1; }
-    }
+      release: () => {
+        qweatherReleases += 1;
+      },
+    },
   });
   await assert.rejects(
-    qweather.testConnection({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }),
-    (error) => error.code === 'QWEATHER_INVALID_RESPONSE'
+    qweather.testConnection({
+      qweatherApiHost: 'https://weather.test',
+      qweatherApiKey: 'key',
+    }),
+    (error) => error.code === 'QWEATHER_INVALID_RESPONSE',
   );
   assert.equal(qweatherReleases, 1);
 
@@ -659,12 +881,17 @@ test('provider connection checks refund quota for invalid successful payloads', 
     fetchImpl: async () => jsonResponse({ status: '1', geocodes: [{}] }),
     quotaStore: {
       consume: () => ({ allowed: true }),
-      release: () => { amapReleases += 1; }
-    }
+      release: () => {
+        amapReleases += 1;
+      },
+    },
   });
   await assert.rejects(
-    amap.testConnection({ amapApiHost: 'https://amap.test', amapApiKey: 'key' }),
-    (error) => error.code === 'AMAP_INVALID_RESPONSE'
+    amap.testConnection({
+      amapApiHost: 'https://amap.test',
+      amapApiKey: 'key',
+    }),
+    (error) => error.code === 'AMAP_INVALID_RESPONSE',
   );
   assert.equal(amapReleases, 1);
 });
@@ -673,17 +900,23 @@ test('AMap separates search and LBS quota categories before sending requests', a
   const categories = [];
   let fetchCalls = 0;
   const tool = createAmapTool({
-    fetchImpl: async () => { fetchCalls += 1; return jsonResponse({ status: '1', pois: [] }); },
+    fetchImpl: async () => {
+      fetchCalls += 1;
+      return jsonResponse({ status: '1', pois: [] });
+    },
     quotaStore: {
       consume(category) {
         categories.push(category);
         return { allowed: category !== 'amap_search' };
-      }
-    }
+      },
+    },
   });
   await assert.rejects(
-    tool.searchPlaces({ amapApiHost: 'https://amap.test', amapApiKey: 'key' }, { keywords: '餐厅' }),
-    (error) => error.code === 'AMAP_SEARCH_MONTHLY_LIMIT'
+    tool.searchPlaces(
+      { amapApiHost: 'https://amap.test', amapApiKey: 'key' },
+      { keywords: '餐厅' },
+    ),
+    (error) => error.code === 'AMAP_SEARCH_MONTHLY_LIMIT',
   );
   assert.deepEqual(categories, ['amap_search']);
   assert.equal(fetchCalls, 0);
@@ -700,23 +933,32 @@ test('AMap automatically uses the first matching endpoint and completes the rout
         assert.equal(parsedUrl.searchParams.get('destination'), '112.6,37.7');
         return jsonResponse({
           status: '1',
-          route: { transits: [{ distance: '16000', duration: '2400' }] }
+          route: { transits: [{ distance: '16000', duration: '2400' }] },
         });
       }
       return jsonResponse({
         status: '1',
         geocodes: [
           { formatted_address: '太原南站候车厅', location: '112.6,37.7' },
-          { formatted_address: '太原南站东广场', location: '112.61,37.71' }
-        ]
+          { formatted_address: '太原南站东广场', location: '112.61,37.71' },
+        ],
       });
     },
-    quotaStore: { consume: () => ({ allowed: true }) }
+    quotaStore: { consume: () => ({ allowed: true }) },
   });
 
   const result = await tool.getRoute(
-    { amapApiHost: 'https://amap.test', amapApiKey: 'key', requestTimeoutMs: 3000 },
-    { origin: '太原南站', destination: '太原武宿机场', city: '太原', mode: 'transit' }
+    {
+      amapApiHost: 'https://amap.test',
+      amapApiKey: 'key',
+      requestTimeoutMs: 3000,
+    },
+    {
+      origin: '太原南站',
+      destination: '太原武宿机场',
+      city: '太原',
+      mode: 'transit',
+    },
   );
 
   assert.equal(result.distanceMeters, 16000);
@@ -726,7 +968,7 @@ test('AMap automatically uses the first matching endpoint and completes the rout
   assert.deepEqual(requestedPaths, [
     '/v3/geocode/geo',
     '/v3/geocode/geo',
-    '/v3/direction/transit/integrated'
+    '/v3/direction/transit/integrated',
   ]);
 });
 
@@ -739,25 +981,46 @@ test('AMap prefers a complete place-name match over an earlier unrelated result'
         routeDestinations.push(parsedUrl.searchParams.get('destination'));
         return jsonResponse({
           status: '1',
-          route: { paths: [{ distance: '12000', duration: '1800' }] }
+          route: { paths: [{ distance: '12000', duration: '1800' }] },
         });
       }
       return jsonResponse({
         status: '1',
-        geocodes: parsedUrl.searchParams.get('address') === '苏州园区站'
-          ? [
-            { formatted_address: '江苏省苏州市常熟市园区站(公交站)', location: '120.886491,31.685435' },
-            { formatted_address: '江苏省苏州市吴中区苏州园区站(进站口)', location: '120.710567,31.341312' }
-          ]
-          : [{ formatted_address: '江苏省苏州市吴中区金鸡湖', location: '120.665152,31.316274' }]
+        geocodes:
+          parsedUrl.searchParams.get('address') === '苏州园区站'
+            ? [
+                {
+                  formatted_address: '江苏省苏州市常熟市园区站(公交站)',
+                  location: '120.886491,31.685435',
+                },
+                {
+                  formatted_address: '江苏省苏州市吴中区苏州园区站(进站口)',
+                  location: '120.710567,31.341312',
+                },
+              ]
+            : [
+                {
+                  formatted_address: '江苏省苏州市吴中区金鸡湖',
+                  location: '120.665152,31.316274',
+                },
+              ],
       });
     },
-    quotaStore: { consume: () => ({ allowed: true }) }
+    quotaStore: { consume: () => ({ allowed: true }) },
   });
 
   const result = await tool.getRoute(
-    { amapApiHost: 'https://amap.test', amapApiKey: 'key', requestTimeoutMs: 3000 },
-    { origin: '金鸡湖', destination: '苏州园区站', city: '苏州', mode: 'driving' }
+    {
+      amapApiHost: 'https://amap.test',
+      amapApiKey: 'key',
+      requestTimeoutMs: 3000,
+    },
+    {
+      origin: '金鸡湖',
+      destination: '苏州园区站',
+      city: '苏州',
+      mode: 'driving',
+    },
   );
 
   assert.equal(result.destination.location, '120.710567,31.341312');

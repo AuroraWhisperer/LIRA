@@ -8,8 +8,9 @@
   pointer-events: none;
   opacity: 0;
   transform: translateY(100%);
-  transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1),
-              opacity 320ms ease;
+  transition:
+    transform 420ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 320ms ease;
   visibility: hidden;
 }
 
@@ -44,36 +45,246 @@
   --fsbg-base: #fdf2f8;
 }
 
-.player-fs-bg.theme-1  { --fsbg-1:#ffd9e8; --fsbg-2:#ffe8c9; --fsbg-3:#ffc9d6; --fsbg-4:#ffb3c6; --fsbg-5:#fff1f4; --fsbg-base:#fff6f8; }
-.player-fs-bg.theme-2  { --fsbg-1:#c7f0ff; --fsbg-2:#d9e4ff; --fsbg-3:#a5e8f5; --fsbg-4:#bcd4ff; --fsbg-5:#eef7ff; --fsbg-base:#f5fbff; }
-.player-fs-bg.theme-3  { --fsbg-1:#d7f5d2; --fsbg-2:#f2f7c4; --fsbg-3:#b8ecd6; --fsbg-4:#cdf0b8; --fsbg-5:#f0fbee; --fsbg-base:#f7fdf5; }
-.player-fs-bg.theme-4  { --fsbg-1:#e6d7ff; --fsbg-2:#ffd9f0; --fsbg-3:#c9c2ff; --fsbg-4:#dcc4ff; --fsbg-5:#f5efff; --fsbg-base:#faf6ff; }
-.player-fs-bg.theme-5  { --fsbg-1:#ffe0bf; --fsbg-2:#ffcfa8; --fsbg-3:#ffd9c9; --fsbg-4:#ffbfa3; --fsbg-5:#fff3e8; --fsbg-base:#fff8f2; }
-.player-fs-bg.theme-6  { --fsbg-1:#bfeee6; --fsbg-2:#cfe9ff; --fsbg-3:#a8e2d9; --fsbg-4:#b8dff0; --fsbg-5:#ecfaf7; --fsbg-base:#f4fdfb; }
-.player-fs-bg.theme-7  { --fsbg-1:#ffd6d6; --fsbg-2:#ffe4c4; --fsbg-3:#ffc4b8; --fsbg-4:#ffb8a8; --fsbg-5:#fff0ec; --fsbg-base:#fff7f4; }
-.player-fs-bg.theme-8  { --fsbg-1:#dbe4ff; --fsbg-2:#e6dcff; --fsbg-3:#c4d0ff; --fsbg-4:#cfc4ff; --fsbg-5:#f0f2ff; --fsbg-base:#f7f8ff; }
-.player-fs-bg.theme-9  { --fsbg-1:#fff0b8; --fsbg-2:#ffe3a3; --fsbg-3:#f7e9c4; --fsbg-4:#ffd98f; --fsbg-5:#fffaeb; --fsbg-base:#fffdf5; }
-.player-fs-bg.theme-10 { --fsbg-1:#ffcfe4; --fsbg-2:#e0d4ff; --fsbg-3:#ffc2d9; --fsbg-4:#cfc9ff; --fsbg-5:#f7f0ff; --fsbg-base:#fdf7ff; }
-.player-fs-bg.theme-11 { --fsbg-1:#c9f2e4; --fsbg-2:#fff0c9; --fsbg-3:#b3ecd4; --fsbg-4:#ffe4a8; --fsbg-5:#f0fbf4; --fsbg-base:#f8fdf9; }
-.player-fs-bg.theme-12 { --fsbg-1:#d4e8ff; --fsbg-2:#ffd9e4; --fsbg-3:#bcdcff; --fsbg-4:#ffc4d4; --fsbg-5:#f2f6ff; --fsbg-base:#f9fbff; }
-.player-fs-bg.theme-13 { --fsbg-1:#e8ddd0; --fsbg-2:#f7e8d4; --fsbg-3:#dcd0bf; --fsbg-4:#efdcc4; --fsbg-5:#f9f3ec; --fsbg-base:#fdf9f4; }
-.player-fs-bg.theme-14 { --fsbg-1:#c4e4f7; --fsbg-2:#c9f0e0; --fsbg-3:#a8d6ef; --fsbg-4:#b3e8cf; --fsbg-5:#eef8fb; --fsbg-base:#f6fcfd; }
-.player-fs-bg.theme-15 { --fsbg-1:#ffdcf0; --fsbg-2:#ffefd4; --fsbg-3:#f7c9e8; --fsbg-4:#ffdfc4; --fsbg-5:#fdf2fa; --fsbg-base:#fef8fc; }
-.player-fs-bg.theme-16 { --fsbg-1:#d0d9f7; --fsbg-2:#c9e8f2; --fsbg-3:#bfc9ef; --fsbg-4:#b3dce8; --fsbg-5:#eff3fb; --fsbg-base:#f7fafd; }
-.player-fs-bg.theme-17 { --fsbg-1:#ffe4d0; --fsbg-2:#fff5c9; --fsbg-3:#ffd4b3; --fsbg-4:#f7ecb3; --fsbg-5:#fff8ec; --fsbg-base:#fffcf5; }
-.player-fs-bg.theme-18 { --fsbg-1:#e4d4f0; --fsbg-2:#d4e8f7; --fsbg-3:#d0bfe8; --fsbg-4:#bcd9ef; --fsbg-5:#f4f0fa; --fsbg-base:#faf8fd; }
-.player-fs-bg.theme-19 { --fsbg-1:#f7d9d0; --fsbg-2:#efe4d4; --fsbg-3:#e8c4bc; --fsbg-4:#e4d4c4; --fsbg-5:#fbf1ee; --fsbg-base:#fdf8f6; }
-.player-fs-bg.theme-20 { --fsbg-1:#cfe8dc; --fsbg-2:#e8f2cf; --fsbg-3:#b8dcc9; --fsbg-4:#dce8b8; --fsbg-5:#f1f9f2; --fsbg-base:#f8fcf8; }
-.player-fs-bg.theme-21 { --fsbg-1:#ffd4dc; --fsbg-2:#d4e0ff; --fsbg-3:#ffbfcf; --fsbg-4:#bfd0f7; --fsbg-5:#f5f2ff; --fsbg-base:#fcf8ff; }
-.player-fs-bg.theme-22 { --fsbg-1:#e0f2c9; --fsbg-2:#f7f0b8; --fsbg-3:#cfe8b3; --fsbg-4:#efe4a3; --fsbg-5:#f6fbeb; --fsbg-base:#fbfdf4; }
-.player-fs-bg.theme-23 { --fsbg-1:#c9dcf7; --fsbg-2:#e0d0f2; --fsbg-3:#b3cbef; --fsbg-4:#d0bce8; --fsbg-5:#eff1fb; --fsbg-base:#f7f9fd; }
-.player-fs-bg.theme-24 { --fsbg-1:#ffe8dc; --fsbg-2:#ffd0d9; --fsbg-3:#f7d4c4; --fsbg-4:#ffbcc9; --fsbg-5:#fff2f2; --fsbg-base:#fff9f8; }
-.player-fs-bg.theme-25 { --fsbg-1:#d4f0f7; --fsbg-2:#e8eaff; --fsbg-3:#bce4ef; --fsbg-4:#d4d6f7; --fsbg-5:#f0f7fd; --fsbg-base:#f8fcfe; }
-.player-fs-bg.theme-26 { --fsbg-1:#f2dcef; --fsbg-2:#e0e8f7; --fsbg-3:#e4c9e0; --fsbg-4:#cbd9ef; --fsbg-5:#f8f2f9; --fsbg-base:#fcf9fd; }
-.player-fs-bg.theme-27 { --fsbg-1:#fff0d4; --fsbg-2:#e8f7d9; --fsbg-3:#ffe4b8; --fsbg-4:#d4efbf; --fsbg-5:#fdfaec; --fsbg-base:#fefdf6; }
-.player-fs-bg.theme-28 { --fsbg-1:#dcdcf2; --fsbg-2:#f2dce4; --fsbg-3:#c9c9e8; --fsbg-4:#e8c9d4; --fsbg-5:#f4f1f8; --fsbg-base:#faf9fc; }
-.player-fs-bg.theme-29 { --fsbg-1:#c9f0ef; --fsbg-2:#dcf2d4; --fsbg-3:#aee4e2; --fsbg-4:#c9e8bf; --fsbg-5:#eefaf7; --fsbg-base:#f6fdfb; }
-.player-fs-bg.theme-30 { --fsbg-1:#ffdcc9; --fsbg-2:#ffeff2; --fsbg-3:#f7c9b3; --fsbg-4:#ffd9e0; --fsbg-5:#fff4f0; --fsbg-base:#fffaf8; }
+.player-fs-bg.theme-1 {
+  --fsbg-1: #ffd9e8;
+  --fsbg-2: #ffe8c9;
+  --fsbg-3: #ffc9d6;
+  --fsbg-4: #ffb3c6;
+  --fsbg-5: #fff1f4;
+  --fsbg-base: #fff6f8;
+}
+.player-fs-bg.theme-2 {
+  --fsbg-1: #c7f0ff;
+  --fsbg-2: #d9e4ff;
+  --fsbg-3: #a5e8f5;
+  --fsbg-4: #bcd4ff;
+  --fsbg-5: #eef7ff;
+  --fsbg-base: #f5fbff;
+}
+.player-fs-bg.theme-3 {
+  --fsbg-1: #d7f5d2;
+  --fsbg-2: #f2f7c4;
+  --fsbg-3: #b8ecd6;
+  --fsbg-4: #cdf0b8;
+  --fsbg-5: #f0fbee;
+  --fsbg-base: #f7fdf5;
+}
+.player-fs-bg.theme-4 {
+  --fsbg-1: #e6d7ff;
+  --fsbg-2: #ffd9f0;
+  --fsbg-3: #c9c2ff;
+  --fsbg-4: #dcc4ff;
+  --fsbg-5: #f5efff;
+  --fsbg-base: #faf6ff;
+}
+.player-fs-bg.theme-5 {
+  --fsbg-1: #ffe0bf;
+  --fsbg-2: #ffcfa8;
+  --fsbg-3: #ffd9c9;
+  --fsbg-4: #ffbfa3;
+  --fsbg-5: #fff3e8;
+  --fsbg-base: #fff8f2;
+}
+.player-fs-bg.theme-6 {
+  --fsbg-1: #bfeee6;
+  --fsbg-2: #cfe9ff;
+  --fsbg-3: #a8e2d9;
+  --fsbg-4: #b8dff0;
+  --fsbg-5: #ecfaf7;
+  --fsbg-base: #f4fdfb;
+}
+.player-fs-bg.theme-7 {
+  --fsbg-1: #ffd6d6;
+  --fsbg-2: #ffe4c4;
+  --fsbg-3: #ffc4b8;
+  --fsbg-4: #ffb8a8;
+  --fsbg-5: #fff0ec;
+  --fsbg-base: #fff7f4;
+}
+.player-fs-bg.theme-8 {
+  --fsbg-1: #dbe4ff;
+  --fsbg-2: #e6dcff;
+  --fsbg-3: #c4d0ff;
+  --fsbg-4: #cfc4ff;
+  --fsbg-5: #f0f2ff;
+  --fsbg-base: #f7f8ff;
+}
+.player-fs-bg.theme-9 {
+  --fsbg-1: #fff0b8;
+  --fsbg-2: #ffe3a3;
+  --fsbg-3: #f7e9c4;
+  --fsbg-4: #ffd98f;
+  --fsbg-5: #fffaeb;
+  --fsbg-base: #fffdf5;
+}
+.player-fs-bg.theme-10 {
+  --fsbg-1: #ffcfe4;
+  --fsbg-2: #e0d4ff;
+  --fsbg-3: #ffc2d9;
+  --fsbg-4: #cfc9ff;
+  --fsbg-5: #f7f0ff;
+  --fsbg-base: #fdf7ff;
+}
+.player-fs-bg.theme-11 {
+  --fsbg-1: #c9f2e4;
+  --fsbg-2: #fff0c9;
+  --fsbg-3: #b3ecd4;
+  --fsbg-4: #ffe4a8;
+  --fsbg-5: #f0fbf4;
+  --fsbg-base: #f8fdf9;
+}
+.player-fs-bg.theme-12 {
+  --fsbg-1: #d4e8ff;
+  --fsbg-2: #ffd9e4;
+  --fsbg-3: #bcdcff;
+  --fsbg-4: #ffc4d4;
+  --fsbg-5: #f2f6ff;
+  --fsbg-base: #f9fbff;
+}
+.player-fs-bg.theme-13 {
+  --fsbg-1: #e8ddd0;
+  --fsbg-2: #f7e8d4;
+  --fsbg-3: #dcd0bf;
+  --fsbg-4: #efdcc4;
+  --fsbg-5: #f9f3ec;
+  --fsbg-base: #fdf9f4;
+}
+.player-fs-bg.theme-14 {
+  --fsbg-1: #c4e4f7;
+  --fsbg-2: #c9f0e0;
+  --fsbg-3: #a8d6ef;
+  --fsbg-4: #b3e8cf;
+  --fsbg-5: #eef8fb;
+  --fsbg-base: #f6fcfd;
+}
+.player-fs-bg.theme-15 {
+  --fsbg-1: #ffdcf0;
+  --fsbg-2: #ffefd4;
+  --fsbg-3: #f7c9e8;
+  --fsbg-4: #ffdfc4;
+  --fsbg-5: #fdf2fa;
+  --fsbg-base: #fef8fc;
+}
+.player-fs-bg.theme-16 {
+  --fsbg-1: #d0d9f7;
+  --fsbg-2: #c9e8f2;
+  --fsbg-3: #bfc9ef;
+  --fsbg-4: #b3dce8;
+  --fsbg-5: #eff3fb;
+  --fsbg-base: #f7fafd;
+}
+.player-fs-bg.theme-17 {
+  --fsbg-1: #ffe4d0;
+  --fsbg-2: #fff5c9;
+  --fsbg-3: #ffd4b3;
+  --fsbg-4: #f7ecb3;
+  --fsbg-5: #fff8ec;
+  --fsbg-base: #fffcf5;
+}
+.player-fs-bg.theme-18 {
+  --fsbg-1: #e4d4f0;
+  --fsbg-2: #d4e8f7;
+  --fsbg-3: #d0bfe8;
+  --fsbg-4: #bcd9ef;
+  --fsbg-5: #f4f0fa;
+  --fsbg-base: #faf8fd;
+}
+.player-fs-bg.theme-19 {
+  --fsbg-1: #f7d9d0;
+  --fsbg-2: #efe4d4;
+  --fsbg-3: #e8c4bc;
+  --fsbg-4: #e4d4c4;
+  --fsbg-5: #fbf1ee;
+  --fsbg-base: #fdf8f6;
+}
+.player-fs-bg.theme-20 {
+  --fsbg-1: #cfe8dc;
+  --fsbg-2: #e8f2cf;
+  --fsbg-3: #b8dcc9;
+  --fsbg-4: #dce8b8;
+  --fsbg-5: #f1f9f2;
+  --fsbg-base: #f8fcf8;
+}
+.player-fs-bg.theme-21 {
+  --fsbg-1: #ffd4dc;
+  --fsbg-2: #d4e0ff;
+  --fsbg-3: #ffbfcf;
+  --fsbg-4: #bfd0f7;
+  --fsbg-5: #f5f2ff;
+  --fsbg-base: #fcf8ff;
+}
+.player-fs-bg.theme-22 {
+  --fsbg-1: #e0f2c9;
+  --fsbg-2: #f7f0b8;
+  --fsbg-3: #cfe8b3;
+  --fsbg-4: #efe4a3;
+  --fsbg-5: #f6fbeb;
+  --fsbg-base: #fbfdf4;
+}
+.player-fs-bg.theme-23 {
+  --fsbg-1: #c9dcf7;
+  --fsbg-2: #e0d0f2;
+  --fsbg-3: #b3cbef;
+  --fsbg-4: #d0bce8;
+  --fsbg-5: #eff1fb;
+  --fsbg-base: #f7f9fd;
+}
+.player-fs-bg.theme-24 {
+  --fsbg-1: #ffe8dc;
+  --fsbg-2: #ffd0d9;
+  --fsbg-3: #f7d4c4;
+  --fsbg-4: #ffbcc9;
+  --fsbg-5: #fff2f2;
+  --fsbg-base: #fff9f8;
+}
+.player-fs-bg.theme-25 {
+  --fsbg-1: #d4f0f7;
+  --fsbg-2: #e8eaff;
+  --fsbg-3: #bce4ef;
+  --fsbg-4: #d4d6f7;
+  --fsbg-5: #f0f7fd;
+  --fsbg-base: #f8fcfe;
+}
+.player-fs-bg.theme-26 {
+  --fsbg-1: #f2dcef;
+  --fsbg-2: #e0e8f7;
+  --fsbg-3: #e4c9e0;
+  --fsbg-4: #cbd9ef;
+  --fsbg-5: #f8f2f9;
+  --fsbg-base: #fcf9fd;
+}
+.player-fs-bg.theme-27 {
+  --fsbg-1: #fff0d4;
+  --fsbg-2: #e8f7d9;
+  --fsbg-3: #ffe4b8;
+  --fsbg-4: #d4efbf;
+  --fsbg-5: #fdfaec;
+  --fsbg-base: #fefdf6;
+}
+.player-fs-bg.theme-28 {
+  --fsbg-1: #dcdcf2;
+  --fsbg-2: #f2dce4;
+  --fsbg-3: #c9c9e8;
+  --fsbg-4: #e8c9d4;
+  --fsbg-5: #f4f1f8;
+  --fsbg-base: #faf9fc;
+}
+.player-fs-bg.theme-29 {
+  --fsbg-1: #c9f0ef;
+  --fsbg-2: #dcf2d4;
+  --fsbg-3: #aee4e2;
+  --fsbg-4: #c9e8bf;
+  --fsbg-5: #eefaf7;
+  --fsbg-base: #f6fdfb;
+}
+.player-fs-bg.theme-30 {
+  --fsbg-1: #ffdcc9;
+  --fsbg-2: #ffeff2;
+  --fsbg-3: #f7c9b3;
+  --fsbg-4: #ffd9e0;
+  --fsbg-5: #fff4f0;
+  --fsbg-base: #fffaf8;
+}
 
 /* 收起按钮 */
 .player-fs-close-btn {
@@ -147,7 +358,8 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: conic-gradient(from 0deg,
+  background: conic-gradient(
+    from 0deg,
     #e5e7eb 0deg,
     #f3f4f6 30deg,
     #e5e7eb 60deg,
@@ -177,7 +389,9 @@
 }
 
 @keyframes vinyl-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .player-fs-art {
@@ -239,7 +453,8 @@
   overflow: visible;
   border: 1px solid rgba(255, 255, 255, 0.86);
   border-radius: 11%;
-  background: #fff url('/img/playback/player-turntable-chassis.webp') center / cover no-repeat;
+  background: #fff url('/img/playback/player-turntable-chassis.webp') center /
+    cover no-repeat;
   box-shadow:
     0 34px 55px rgba(67, 75, 105, 0.22),
     0 8px 18px rgba(67, 75, 105, 0.1),
@@ -253,7 +468,11 @@
   inset: 4.5%;
   z-index: 0;
   border-radius: 10%;
-  background: radial-gradient(circle at 43% 43%, rgba(226, 231, 237, 0.2), transparent 61%);
+  background: radial-gradient(
+    circle at 43% 43%,
+    rgba(226, 231, 237, 0.2),
+    transparent 61%
+  );
   pointer-events: none;
 }
 
@@ -286,12 +505,15 @@
   aspect-ratio: 1;
   overflow: hidden;
   background:
-    repeating-radial-gradient(circle at center,
+    repeating-radial-gradient(
+      circle at center,
       rgba(51, 70, 83, 0.1) 0,
       rgba(51, 70, 83, 0.1) 1px,
       rgba(255, 255, 255, 0.05) 2px,
-      rgba(255, 255, 255, 0.05) 4px),
-    conic-gradient(from 18deg,
+      rgba(255, 255, 255, 0.05) 4px
+    ),
+    conic-gradient(
+      from 18deg,
       rgba(171, 213, 229, 0.9),
       rgba(215, 200, 213, 0.78) 16%,
       rgba(246, 222, 175, 0.76) 29%,
@@ -299,7 +521,8 @@
       rgba(142, 187, 220, 0.85) 61%,
       rgba(199, 188, 213, 0.8) 78%,
       rgba(235, 214, 189, 0.76) 90%,
-      rgba(171, 213, 229, 0.9));
+      rgba(171, 213, 229, 0.9)
+    );
   border-radius: 50%;
   box-shadow:
     0 0 0 5px rgba(152, 177, 194, 0.1),
@@ -316,7 +539,11 @@
   z-index: 0;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.46), transparent 24%),
+    radial-gradient(
+      circle at 34% 28%,
+      rgba(255, 255, 255, 0.46),
+      transparent 24%
+    ),
     radial-gradient(circle at 68% 72%, rgba(91, 148, 187, 0.2), transparent 39%);
   border: 1px solid rgba(87, 118, 139, 0.12);
 }
@@ -350,7 +577,12 @@
   z-index: 4;
   width: 3.6%;
   height: 3.6%;
-  background: radial-gradient(circle at 34% 30%, #fff 0 20%, #d4d9dc 42%, #7c858b 100%);
+  background: radial-gradient(
+    circle at 34% 30%,
+    #fff 0 20%,
+    #d4d9dc 42%,
+    #7c858b 100%
+  );
   box-shadow:
     0 0 0 1px rgba(62, 72, 78, 0.2),
     0 1px 4px rgba(29, 35, 39, 0.34);
@@ -633,7 +865,9 @@
 /* 正在播放行 */
 .playback-queue-row.playlist-current {
   background: linear-gradient(135deg, #fff3ee 0%, #fff8f5 100%) !important;
-  box-shadow: 0 2px 12px rgba(217, 75, 112, 0.14), 0 0 0 1.5px rgba(217, 75, 112, 0.32) !important;
+  box-shadow:
+    0 2px 12px rgba(217, 75, 112, 0.14),
+    0 0 0 1.5px rgba(217, 75, 112, 0.32) !important;
 }
 
 .playback-queue-row.playlist-current:hover {
@@ -656,6 +890,5 @@
   vertical-align: middle;
   line-height: 1;
 }
-
 
 /* ===== 响应式 ===== */

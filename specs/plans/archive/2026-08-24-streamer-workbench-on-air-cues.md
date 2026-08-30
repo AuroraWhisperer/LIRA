@@ -59,9 +59,11 @@
 ### Task 1: 锁定新内容与兼容行为
 
 **Files:**
+
 - Modify: `test/toolbox-todo.test.js`
 
 **Interfaces:**
+
 - Consumes: `window.AdminApp.todo.getState()` 和 localStorage 测试沙箱。
 - Produces: 新阶段文案、无旧检查项、v2 内置条目精确替换、v1 自建任务保留的回归约束。
 
@@ -82,6 +84,7 @@
 ### Task 2: 实现直播提词与精确迁移
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/planner.html`
 - Modify: `public/js/admin/todo.js`
 - Modify: `public/pages/admin/toolbox/shell-start.html`
@@ -90,6 +93,7 @@
 - Modify: `docs/architecture/frontend/pages.md`
 
 **Interfaces:**
+
 - Consumes: 既有 stage 值、localStorage 键、任务与备忘字段。
 - Produces: `upgradeStarterTask(task)`，返回替换后的新提词或原任务；页面 DOM ID 与 `AdminApp.todo` API 不变。
 

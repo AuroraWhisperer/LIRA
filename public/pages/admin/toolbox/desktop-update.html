@@ -1,55 +1,68 @@
-            <section
-              id="otherDesktopUpdateFeature"
-              class="other-feature-panel desktop-only"
-              role="tabpanel"
-              aria-labelledby="otherDesktopUpdateFeatureTab"
-              data-other-feature-panel
-              hidden
-            >
-              <div class="other-feature-panel-body stack">
-                <div class="desktop-update-grid">
-                  <section class="desktop-update-card">
-                    <div class="desktop-update-card-heading">
-                      <h4 class="ui-section-title">🔄 版本更新</h4>
-                      <span class="desktop-current-version">
-                        <span>当前版本</span>
-                        <strong id="desktopVersionPill">--</strong>
-                      </span>
-                    </div>
-                    <p id="desktopUpdateStatus">等待桌面端连接</p>
+<section
+  id="otherDesktopUpdateFeature"
+  class="other-feature-panel desktop-only"
+  role="tabpanel"
+  aria-labelledby="otherDesktopUpdateFeatureTab"
+  data-other-feature-panel
+  hidden
+>
+  <div class="other-feature-panel-body stack">
+    <div class="desktop-update-grid">
+      <section class="desktop-update-card">
+        <div class="desktop-update-card-heading">
+          <h4 class="ui-section-title">🔄 版本更新</h4>
+          <span class="desktop-current-version">
+            <span>当前版本</span>
+            <strong id="desktopVersionPill">--</strong>
+          </span>
+        </div>
+        <p id="desktopUpdateStatus">等待桌面端连接</p>
 
-                    <div class="actions">
-                      <button id="desktopCheckUpdateBtn" class="primary" type="button">检查更新</button>
-                      <button id="desktopDownloadUpdateBtn" type="button" disabled>下载更新</button>
-                      <button id="desktopInstallUpdateBtn" class="danger" type="button" disabled>安装更新</button>
-                    </div>
-                  </section>
+        <div class="actions">
+          <button id="desktopCheckUpdateBtn" class="primary" type="button">
+            检查更新
+          </button>
+          <button id="desktopDownloadUpdateBtn" type="button" disabled>
+            下载更新
+          </button>
+          <button
+            id="desktopInstallUpdateBtn"
+            class="danger"
+            type="button"
+            disabled
+          >
+            安装更新
+          </button>
+        </div>
+      </section>
 
-                  <section class="desktop-update-card">
-                    <h4 class="ui-section-title">📁 本地数据</h4>
-                    <p>歌库、设置等数据独立存储，更新不影响已有内容。</p>
-                    <div class="actions">
-                      <button id="desktopOpenDataBtn" type="button">数据目录</button>
-                      <button id="desktopOpenLogBtn" type="button">日志目录</button>
-                      <button id="desktopOpenGithubBtn" type="button">项目主页</button>
-                    </div>
-                  </section>
-                </div>
+      <section class="desktop-update-card">
+        <h4 class="ui-section-title">📁 本地数据</h4>
+        <p>歌库、设置等数据独立存储，更新不影响已有内容。</p>
+        <div class="actions">
+          <button id="desktopOpenDataBtn" type="button">数据目录</button>
+          <button id="desktopOpenLogBtn" type="button">日志目录</button>
+          <button id="desktopOpenGithubBtn" type="button">项目主页</button>
+        </div>
+      </section>
+    </div>
 
-                <fieldset class="theme-section" style="margin-top: 16px;">
-                  <legend>⚙️ 自动更新</legend>
-                  <div class="gift-detect-head">
-                    <label class="switch-control">
-                      <input id="autoUpdateToggle" type="checkbox">
-                      <span class="switch-track"></span>
-                      <span id="autoUpdateLabel">已关闭</span>
-                    </label>
-                  </div>
-                </fieldset>
+    <fieldset class="theme-section" style="margin-top: 16px">
+      <legend>⚙️ 自动更新</legend>
+      <div class="gift-detect-head">
+        <label class="switch-control">
+          <input id="autoUpdateToggle" type="checkbox" />
+          <span class="switch-track"></span>
+          <span id="autoUpdateLabel">已关闭</span>
+        </label>
+      </div>
+    </fieldset>
 
-                <div class="desktop-update-progress">
-                  <span id="desktopUpdateProgressBar"></span>
-                </div>
-                <p id="desktopUpdateHint" class="hint">只有通过安装包安装后的 exe 才会启用自动更新；开发模式会显示为不可检查。</p>
-              </div>
-            </section>
+    <div class="desktop-update-progress">
+      <span id="desktopUpdateProgressBar"></span>
+    </div>
+    <p id="desktopUpdateHint" class="hint">
+      只有通过安装包安装后的 exe 才会启用自动更新；开发模式会显示为不可检查。
+    </p>
+  </div>
+</section>

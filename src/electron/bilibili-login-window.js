@@ -1,6 +1,9 @@
 'use strict';
 
-const { isAllowedLoginNavigation, isAllowedExternal } = require('./external-url-policy');
+const {
+  isAllowedLoginNavigation,
+  isAllowedExternal,
+} = require('./external-url-policy');
 
 async function openBilibiliLoginWindow(options = {}) {
   const {
@@ -9,7 +12,7 @@ async function openBilibiliLoginWindow(options = {}) {
     auth,
     mainWindow,
     dataDir,
-    writeLog = () => {}
+    writeLog = () => {},
   } = options;
   if (typeof BrowserWindow !== 'function' || !shell || !auth) {
     throw new Error('Bilibili login window dependencies are required.');
@@ -17,33 +20,41 @@ async function openBilibiliLoginWindow(options = {}) {
 
   const config = auth.BILIBILI_LOGIN_CONFIG;
   const loginWindow = new BrowserWindow({
-    width: 1000, height: 720,
+    width: 1000,
+    height: 720,
     title: `登录${config.name}`,
     parent: mainWindow || undefined,
-    modal: false, show: true,
+    modal: false,
+    show: true,
     webPreferences: {
       partition: config.partition,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
-    }
+      sandbox: true,
+    },
   });
 
   // 登录页(直播首页)可能自动播放带声音的直播流,默认禁音避免打扰
   loginWindow.webContents.setAudioMuted(true);
 
   const loginSession = loginWindow.webContents.session;
-  loginSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  loginSession.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => callback(false),
+  );
 
   const openExternal = (url, scope) => {
     if (isAllowedExternal(url)) {
-      Promise.resolve(shell.openExternal(url)).catch((error) => writeLog(scope, error));
+      Promise.resolve(shell.openExternal(url)).catch((error) =>
+        writeLog(scope, error),
+      );
     }
   };
 
   loginWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedLoginNavigation(url, config.allowedHosts)) {
-      loginWindow.loadURL(url).catch((error) => writeLog('bilibili-login-navigation', error));
+      loginWindow
+        .loadURL(url)
+        .catch((error) => writeLog('bilibili-login-navigation', error));
     } else {
       openExternal(url, 'bilibili-login-external');
     }
@@ -64,19 +75,24 @@ async function openBilibiliLoginWindow(options = {}) {
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
-      auth.persistBilibiliCookieSnapshot(dataDir)
+      auth
+        .persistBilibiliCookieSnapshot(dataDir)
         .catch((error) => writeLog('bilibili-cookie-save', error));
     }, 800);
   };
 
   const checkLoginComplete = async () => {
-    if (loginCheckInFlight || loginCloseRequested || loginWindow.isDestroyed()) return;
+    if (loginCheckInFlight || loginCloseRequested || loginWindow.isDestroyed())
+      return;
     loginCheckInFlight = true;
     try {
       const state = await auth.getBilibiliAuthState(dataDir);
       if (state.loggedIn && !loginWindow.isDestroyed()) {
         loginCloseRequested = true;
-        writeLog('bilibili-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);
+        writeLog(
+          'bilibili-login-auto-close',
+          `${config.name} 登录成功，自动关闭登录窗口`,
+        );
         loginWindow.close();
       }
     } catch (_) {
@@ -98,13 +114,16 @@ async function openBilibiliLoginWindow(options = {}) {
     loginSession.cookies.removeListener('changed', onCookieChanged);
   };
 
-  loginWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-    writeLog('bilibili-login-load-failure', { errorCode, errorDescription });
-    cleanup();
-    if (!loginWindow.isDestroyed()) {
-      loginWindow.destroy();
-    }
-  });
+  loginWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription) => {
+      writeLog('bilibili-login-load-failure', { errorCode, errorDescription });
+      cleanup();
+      if (!loginWindow.isDestroyed()) {
+        loginWindow.destroy();
+      }
+    },
+  );
 
   const completion = new Promise((resolve) => {
     loginWindow.once('closed', async () => {
@@ -123,7 +142,7 @@ async function openBilibiliLoginWindow(options = {}) {
       }
       resolve({
         snapshot,
-        state
+        state,
       });
     });
   });

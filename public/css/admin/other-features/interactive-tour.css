@@ -1,7 +1,14 @@
 /* 交互式引导系统 - 聚光灯高亮 + 浮动提示 */
 
-.lira-tour { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
-.lira-tour[hidden] { display: none; }
+.lira-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+}
+.lira-tour[hidden] {
+  display: none;
+}
 
 /* 引导切换由脚本在下一帧完成定位，避免导航过渡制造额外等待。 */
 html.lira-tour-active .main-page-tab,
@@ -54,7 +61,7 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-tooltip::before {
-  content: "";
+  content: '';
   position: absolute;
   width: 14px;
   height: 14px;
@@ -64,28 +71,28 @@ html.lira-tour-active .other-feature-panel {
 }
 
 /* 箭头按目标中心动态偏移，而不是固定在卡片边缘。 */
-.lira-tour-tooltip[data-position="bottom"]::before {
+.lira-tour-tooltip[data-position='bottom']::before {
   top: -8px;
   left: calc(var(--tour-arrow-offset) - 7px);
   border-width: 1px 0 0 1px;
 }
-.lira-tour-tooltip[data-position="top"]::before {
+.lira-tour-tooltip[data-position='top']::before {
   bottom: -8px;
   left: calc(var(--tour-arrow-offset) - 7px);
   border-width: 0 1px 1px 0;
 }
-.lira-tour-tooltip[data-position="right"]::before {
+.lira-tour-tooltip[data-position='right']::before {
   left: -8px;
   top: calc(var(--tour-arrow-offset) - 7px);
   border-width: 0 0 1px 1px;
 }
-.lira-tour-tooltip[data-position="left"]::before {
+.lira-tour-tooltip[data-position='left']::before {
   right: -8px;
   top: calc(var(--tour-arrow-offset) - 7px);
   border-width: 1px 1px 0 0;
 }
 
-.lira-tour-tooltip[data-position="center"]::before {
+.lira-tour-tooltip[data-position='center']::before {
   display: none;
 }
 
@@ -151,8 +158,12 @@ html.lira-tour-active .other-feature-panel {
   line-height: var(--type-leading-body);
 }
 
-.lira-tour-body p { margin: 0 0 10px; }
-.lira-tour-body p:last-child { margin-bottom: 0; }
+.lira-tour-body p {
+  margin: 0 0 10px;
+}
+.lira-tour-body p:last-child {
+  margin-bottom: 0;
+}
 
 .lira-tour-body strong {
   color: var(--color-text-primary, #17202a);
@@ -263,7 +274,7 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-status::before {
-  content: "";
+  content: '';
   display: grid;
   width: 18px;
   height: 18px;
@@ -279,12 +290,12 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-status.waiting::before {
-  content: "…";
+  content: '…';
   padding-bottom: 5px;
 }
 
 .lira-tour-status.completed::before {
-  content: "✓";
+  content: '✓';
   border: 0;
   background: var(--color-success-dark, #08766c);
   color: #fff;

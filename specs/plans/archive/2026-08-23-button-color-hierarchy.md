@@ -54,10 +54,12 @@ Button element types, IDs, classes, labels, focus behavior, disabled behavior, c
 ### Task 1: Lock the shared button hierarchy
 
 **Files:**
+
 - Modify: `test/frontend-admin-shell.test.js`
 - Modify: `public/css/styles-base.css`
 
 **Interfaces:**
+
 - Consumes: existing `button.primary`, `button.secondary`, `button.danger`, and `button.danger-filled` classes.
 - Produces: solid primary actions, neutral secondary actions, and frameless danger actions without changing markup.
 
@@ -69,6 +71,7 @@ Button element types, IDs, classes, labels, focus behavior, disabled behavior, c
 ### Task 2: Remove nested and local colored frames
 
 **Files:**
+
 - Modify: `public/css/admin/gifts/main-page-tabs.css`
 - Modify: `public/css/overlays/desktop.css`
 - Modify: `public/css/admin/layout.css`
@@ -82,6 +85,7 @@ Button element types, IDs, classes, labels, focus behavior, disabled behavior, c
 - Modify: `test/frontend-admin-shell.test.js`
 
 **Interfaces:**
+
 - Consumes: the shared hierarchy from Task 1 and existing component-specific selectors.
 - Produces: a frameless top navigation; full-fill primary CTA; frameless soft-fill/text low-emphasis actions; unchanged selection-card boundaries.
 
@@ -93,10 +97,12 @@ Button element types, IDs, classes, labels, focus behavior, disabled behavior, c
 ### Task 3: Desktop visual and interaction verification
 
 **Files:**
+
 - No production files created.
 - Temporary screenshots may be written under ignored `tmp/`.
 
 **Interfaces:**
+
 - Consumes: the completed CSS cascade.
 - Produces: visual evidence at the default 1280x720 Electron viewport and a smaller supported desktop window.
 

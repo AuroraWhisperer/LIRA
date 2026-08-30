@@ -20,10 +20,12 @@
 ### Task 1: Add deterministic startup refresh coordination
 
 **Files:**
+
 - Modify: `public/js/admin/games.js:1-55`
 - Test: `test/frontend-games.test.js`
 
 **Interfaces:**
+
 - Consumes: `eventBus`/`Events.STATE_LOADED` and existing `/api/games/viewers` endpoint.
 - Produces: `requestViewerRefresh(options)` used by initial load, live-state refresh, and the manual button.
 

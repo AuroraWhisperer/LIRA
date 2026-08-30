@@ -6,7 +6,7 @@ const test = require('node:test');
 const {
   broadcastSnapshot,
   createWebSocketHub,
-  handleWebSocketUpgrade
+  handleWebSocketUpgrade,
 } = require('../src/server/ws');
 
 class FakeSocket extends EventEmitter {
@@ -20,7 +20,9 @@ class FakeSocket extends EventEmitter {
   }
 
   write(chunk) {
-    this.writes.push(Buffer.isBuffer(chunk) ? Buffer.from(chunk) : String(chunk));
+    this.writes.push(
+      Buffer.isBuffer(chunk) ? Buffer.from(chunk) : String(chunk),
+    );
     return true;
   }
 
@@ -68,19 +70,29 @@ test('fragmented WebSocket messages are capped across frames', () => {
   const context = {
     sessionToken: '',
     state: { sockets: new Set() },
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  handleWebSocketUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-    }
-  }, socket);
+  handleWebSocketUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
+    },
+    socket,
+  );
 
-  socket.emit('data', maskedFrame(Buffer.alloc(200 * 1024, 0x61), { opcode: 0x1, fin: false }));
-  socket.emit('data', maskedFrame(Buffer.alloc(100 * 1024, 0x62), { opcode: 0x0, fin: true }));
+  socket.emit(
+    'data',
+    maskedFrame(Buffer.alloc(200 * 1024, 0x61), { opcode: 0x1, fin: false }),
+  );
+  socket.emit(
+    'data',
+    maskedFrame(Buffer.alloc(100 * 1024, 0x62), { opcode: 0x0, fin: true }),
+  );
 
   const binaryWrites = socket.writes.filter(Buffer.isBuffer);
   const closeFrame = binaryWrites.at(-1);
@@ -95,16 +107,20 @@ test('ignores data events that arrive after WebSocket cleanup', () => {
   const context = {
     sessionToken: '',
     state: { sockets: new Set() },
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  handleWebSocketUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-    }
-  }, socket);
+  handleWebSocketUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
+    },
+    socket,
+  );
   socket.writes = [];
 
   socket.emit('close');
@@ -114,7 +130,9 @@ test('ignores data events that arrive after WebSocket cleanup', () => {
   assert.equal(context.state.sockets.has(socket), false);
   assert.equal(socket.listenerCount('data'), 0);
   assert.equal(socket.dataHandlerRemovals, 1);
-  assert.doesNotThrow(() => socket.emit('data', maskedFrame('late', { opcode: 0x1, fin: true })));
+  assert.doesNotThrow(() =>
+    socket.emit('data', maskedFrame('late', { opcode: 0x1, fin: true })),
+  );
   assert.equal(socket._wsBuffer, null);
   assert.equal(context.state.sockets.has(socket), false);
   assert.equal(socket.writes.length, 0);
@@ -125,29 +143,36 @@ test('WebSocket hub starts heartbeat on upgrade and releases resources on stop',
   const socket = new FakeSocket();
   const context = {
     sessionToken: '',
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  hub.handleUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-    }
-  }, socket);
+  hub.handleUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
+    },
+    socket,
+  );
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const heartbeatCount = socket.writes.filter((write) => (
-    Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9
-  )).length;
-  assert.ok(heartbeatCount > 0, 'heartbeat should begin after a successful upgrade');
+  const heartbeatCount = socket.writes.filter(
+    (write) => Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9,
+  ).length;
+  assert.ok(
+    heartbeatCount > 0,
+    'heartbeat should begin after a successful upgrade',
+  );
 
   hub.stop();
   assert.equal(socket.ended, true);
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const stoppedHeartbeatCount = socket.writes.filter((write) => (
-    Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9
-  )).length;
+  const stoppedHeartbeatCount = socket.writes.filter(
+    (write) => Buffer.isBuffer(write) && (write[0] & 0x0f) === 0x9,
+  ).length;
   assert.equal(stoppedHeartbeatCount, heartbeatCount);
 });
 
@@ -157,15 +182,22 @@ test('coalesces same-turn hub snapshots and keeps the latest reason', async () =
   let stateReads = 0;
   const context = {
     sessionToken: '',
-    getState: () => { stateReads += 1; return { stateReads }; }
+    getState: () => {
+      stateReads += 1;
+      return { stateReads };
+    },
   };
-  hub.handleUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-    }
-  }, socket);
+  hub.handleUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
+    },
+    socket,
+  );
   socket.writes = [];
   stateReads = 0;
 
@@ -187,19 +219,26 @@ test('WebSocket hub filters topic broadcasts without changing ordinary broadcast
   const context = {
     sessionToken: '',
     state: { sockets: new Set() },
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
   const headers = {
     host: '127.0.0.1:3000',
-    'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
+    'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
   };
 
-  hub.handleUpgrade(context, { url: '/ws?topic=danmaku', headers }, topicSocket);
+  hub.handleUpgrade(
+    context,
+    { url: '/ws?topic=danmaku', headers },
+    topicSocket,
+  );
   hub.handleUpgrade(context, { url: '/ws', headers }, ordinarySocket);
   topicSocket.writes = [];
   ordinarySocket.writes = [];
 
-  hub.broadcast({ type: 'danmaku:message', item: { id: 'one' } }, { topic: 'danmaku' });
+  hub.broadcast(
+    { type: 'danmaku:message', item: { id: 'one' } },
+    { topic: 'danmaku' },
+  );
   assert.equal(topicSocket.writes.length, 1);
   assert.equal(ordinarySocket.writes.length, 0);
 
@@ -215,16 +254,20 @@ test('WebSocket hub drops a client before its pending write queue exceeds the ce
   const context = {
     sessionToken: '',
     state: { sockets: new Set() },
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  hub.handleUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-    }
-  }, socket);
+  hub.handleUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
+    },
+    socket,
+  );
   socket.writes = [];
   socket.writableLength = 120;
 
@@ -243,19 +286,19 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
   const firstContext = {
     sessionToken: '',
     state: { sockets: new Set() },
-    getState: () => ({ runtime: 'first' })
+    getState: () => ({ runtime: 'first' }),
   };
   const secondContext = {
     sessionToken: '',
     state: { sockets: new Set() },
-    getState: () => ({ runtime: 'second' })
+    getState: () => ({ runtime: 'second' }),
   };
   const request = {
     url: '/ws',
     headers: {
       host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-    }
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+    },
   };
 
   handleWebSocketUpgrade(firstContext, request, firstSocket);
@@ -276,17 +319,21 @@ test('WebSocket upgrade rejects requests with wrong Origin', () => {
   const context = {
     sessionToken: '',
     allowedOrigins: ['http://127.0.0.1:3000'],
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  handleWebSocketUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      origin: 'http://evil.com'
-    }
-  }, socket);
+  handleWebSocketUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        origin: 'http://evil.com',
+      },
+    },
+    socket,
+  );
 
   assert.equal(socket.destroyed, true);
   const responseText = socket.writes.join('');
@@ -299,17 +346,21 @@ test('WebSocket upgrade accepts requests with correct Origin', () => {
     sessionToken: '',
     allowedOrigins: ['http://127.0.0.1:3000'],
     state: { sockets: new Set() },
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  handleWebSocketUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      origin: 'http://127.0.0.1:3000'
-    }
-  }, socket);
+  handleWebSocketUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        origin: 'http://127.0.0.1:3000',
+      },
+    },
+    socket,
+  );
 
   assert.equal(socket.destroyed, false);
   const responseText = socket.writes.join('');
@@ -323,17 +374,21 @@ test('WebSocket upgrade accepts requests without Origin header (non-browser)', (
     sessionToken: '',
     allowedOrigins: ['http://127.0.0.1:3000'],
     state: { sockets: new Set() },
-    getState: () => ({ ok: true })
+    getState: () => ({ ok: true }),
   };
 
-  handleWebSocketUpgrade(context, {
-    url: '/ws',
-    headers: {
-      host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ=='
-      // No origin header
-    }
-  }, socket);
+  handleWebSocketUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        host: '127.0.0.1:3000',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        // No origin header
+      },
+    },
+    socket,
+  );
 
   assert.equal(socket.destroyed, false);
   const responseText = socket.writes.join('');

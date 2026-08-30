@@ -1,7 +1,9 @@
 'use strict';
 
 const { clearMusicCache, getMusicCacheStats } = require('../music/music-cache');
-const { createUnavailableGiftSaleCatalogService } = require('../bilibili/gift/sale-catalog');
+const {
+  createUnavailableGiftSaleCatalogService,
+} = require('../bilibili/gift/sale-catalog');
 const lifecycle = require('./lifecycle');
 const systemMetrics = require('./system-metrics');
 
@@ -22,10 +24,11 @@ function createApiContext(options) {
     wheel,
     settings,
     system,
-    music
+    music,
   } = options;
-  const overtimeGiftCatalog = domainServices.overtimeGiftCatalog
-    || createUnavailableGiftSaleCatalogService();
+  const overtimeGiftCatalog =
+    domainServices.overtimeGiftCatalog ||
+    createUnavailableGiftSaleCatalogService();
 
   return {
     maxBodyBytes,
@@ -37,25 +40,26 @@ function createApiContext(options) {
       delete: domainServices.songs.delete,
       toggle: domainServices.songs.toggle,
       import: domainServices.songs.import,
-      listCategories: domainServices.songs.listCategories
+      listCategories: domainServices.songs.listCategories,
     },
     queue: {
       add: domainServices.queue.add,
-      handleAction: domainServices.queue.handleAction
+      handleAction: domainServices.queue.handleAction,
     },
     superChat: {
-      handleAction: domainServices.superChats.handleAction
+      handleAction: domainServices.superChats.handleAction,
     },
     gifts: {
       resetSprint: domainServices.gifts.resetSprint,
-      getHistory: (historyOptions) => domainServices.gifts.getHistory(historyOptions),
+      getHistory: (historyOptions) =>
+        domainServices.gifts.getHistory(historyOptions),
       getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
       getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
       search: domainServices.gifts.search,
       clearRecent: domainServices.gifts.clearRecent,
       resolveEffect: domainServices.gifts.resolveEffect,
       previewEffect: broadcastGiftEffectPreview,
-      previewFrame: broadcastGiftEffectPreview
+      previewFrame: broadcastGiftEffectPreview,
     },
     overtime: {
       getOverview: domainServices.overtime.getOverview,
@@ -65,12 +69,12 @@ function createApiContext(options) {
       replaceRules: domainServices.overtime.replaceRules,
       getGiftCatalog: overtimeGiftCatalog.getSnapshot,
       refreshGiftCatalog: overtimeGiftCatalog.refresh,
-      searchLocalGifts: overtimeGiftCatalog.searchLocal
+      searchLocalGifts: overtimeGiftCatalog.searchLocal,
     },
     debug: {
       getGiftMessages: () => messageBuffer.getAll(),
       getGiftMessageStats: () => messageBuffer.getStats(),
-      clearGiftMessages: () => messageBuffer.clear()
+      clearGiftMessages: () => messageBuffer.clear(),
     },
     data: {
       clearSongLibrary: domainServices.data.clearSongLibrary,
@@ -80,19 +84,19 @@ function createApiContext(options) {
       clearAll: domainServices.data.clearAll,
       getSchemaVersions: domainServices.data.getSchemaVersions,
       getRetentionStats: domainServices.data.getRetentionStats,
-      runRetention: domainServices.data.runRetention
+      runRetention: domainServices.data.runRetention,
     },
     playback: domainServices.playback,
     playbackLyrics: {
       publish: publishLyricState,
-      publishTimeline: publishLyricTimeline
+      publishTimeline: publishLyricTimeline,
     },
     weSing: {
       getStatus: weSingCapture.getStatus,
       configure: weSingCapture.setCachePath,
       setLyricOffsetMs: weSingCapture.setLyricOffsetMs,
       setActive: weSingCapture.setActive,
-      refresh: weSingCapture.refresh
+      refresh: weSingCapture.refresh,
     },
     theme: domainServices.theme,
     bilibili: {
@@ -103,7 +107,7 @@ function createApiContext(options) {
       auth: bilibili.auth,
       fetchAvatarImage: bilibili.fetchAvatarImage,
       getDanmakuSenderState: () => bilibili.danmakuSender.getState(),
-      sendDanmaku: (input) => bilibili.danmakuSender.send(input)
+      sendDanmaku: (input) => bilibili.danmakuSender.send(input),
     },
     ai: {
       getConfig: () => ai.configStore.getPublicConfig(),
@@ -111,14 +115,14 @@ function createApiContext(options) {
       getStatus: () => ai.service.getStatus(),
       listModels: (input) => ai.service.listModels(input),
       test: () => ai.service.testConfiguration(),
-      testProvider: (provider) => ai.service.testProvider(provider)
+      testProvider: (provider) => ai.service.testProvider(provider),
     },
     games: createGamesContext(games),
     wheel: createWheelContext(wheel),
     settings: {
       defaults: settings.defaults,
       get: settings.store.getSettings,
-      set: settings.store.setSetting
+      set: settings.store.setSetting,
     },
     system: {
       dataDir: system.dataDir,
@@ -134,32 +138,38 @@ function createApiContext(options) {
         schemaVersions: domainServices.data.getSchemaVersions(),
         desktop: process.env.ELECTRON_DESKTOP === '1',
         pid: process.pid,
-        liveStatus: system.liveStatus
+        liveStatus: system.liveStatus,
       }),
       getState: system.getState,
       getMetrics: systemMetrics.getSystemMetrics,
       getHardware: systemMetrics.getHardwareSummary,
-      shutdown: system.shutdown
+      shutdown: system.shutdown,
     },
     music: {
       registry: music.registry,
       lyrics: music.lyrics,
-      getCacheStats: () => getMusicCacheStats(music.apiCacheDir, music.lyricCacheDir),
-      clearCache: () => clearMusicCache(music.apiCacheDir, music.lyricCacheDir)
-    }
+      getCacheStats: () =>
+        getMusicCacheStats(music.apiCacheDir, music.lyricCacheDir),
+      clearCache: () => clearMusicCache(music.apiCacheDir, music.lyricCacheDir),
+    },
   };
 }
 
 function createWheelContext(wheel = {}) {
   const service = wheel.service || {
-    getState: () => ({ entries: [], totalWeight: 0, lastResult: null, spin: null }),
+    getState: () => ({
+      entries: [],
+      totalWeight: 0,
+      lastResult: null,
+      spin: null,
+    }),
     configure: () => null,
-    spin: () => null
+    spin: () => null,
   };
   return {
     getState: service.getState,
     configure: service.configure,
-    spin: service.spin
+    spin: service.spin,
   };
 }
 
@@ -173,17 +183,20 @@ function createGamesContext(games = {}) {
     draw: () => ({ accepted: false, reason: '小游戏服务未启用。' }),
     getHostState: () => null,
     listDrawGuessCategories: () => [],
-    listViewers: () => []
+    listViewers: () => [],
   };
-  const listOnlineViewers = typeof games.listOnlineViewers === 'function'
-    ? games.listOnlineViewers
-    : () => [];
-  const refreshViewers = typeof games.refreshViewers === 'function'
-    ? games.refreshViewers
-    : async () => {};
-  const getWinnerProfile = typeof games.getWinnerProfile === 'function'
-    ? games.getWinnerProfile
-    : async () => ({ avatarUrl: '', name: '' });
+  const listOnlineViewers =
+    typeof games.listOnlineViewers === 'function'
+      ? games.listOnlineViewers
+      : () => [];
+  const refreshViewers =
+    typeof games.refreshViewers === 'function'
+      ? games.refreshViewers
+      : async () => {};
+  const getWinnerProfile =
+    typeof games.getWinnerProfile === 'function'
+      ? games.getWinnerProfile
+      : async () => ({ avatarUrl: '', name: '' });
   return {
     getSession: service.getSession,
     start: service.start,
@@ -195,7 +208,7 @@ function createGamesContext(games = {}) {
     listDrawGuessCategories: service.listDrawGuessCategories,
     refreshViewers: () => refreshViewers(),
     listViewers: () => mergeViewerCandidates(listOnlineViewers()),
-    getWinnerProfile: () => getWinnerProfile(service.getSession()?.winner)
+    getWinnerProfile: () => getWinnerProfile(service.getSession()?.winner),
   };
 }
 
@@ -203,16 +216,22 @@ function mergeViewerCandidates(...groups) {
   const byKey = new Map();
   for (const viewer of groups.flat()) {
     const uid = String(viewer?.uid || '').trim();
-    const name = String(viewer?.name || viewer?.userName || '观众').trim() || '观众';
+    const name =
+      String(viewer?.name || viewer?.userName || '观众').trim() || '观众';
     const key = uid || `name:${name}`;
     const previous = byKey.get(key);
     byKey.set(key, {
       uid,
       name,
-      lastSeenAt: Math.max(Number(previous?.lastSeenAt) || 0, Number(viewer?.lastSeenAt || viewer?.seenAt) || 0)
+      lastSeenAt: Math.max(
+        Number(previous?.lastSeenAt) || 0,
+        Number(viewer?.lastSeenAt || viewer?.seenAt) || 0,
+      ),
     });
   }
-  return [...byKey.values()].filter(viewer => viewer.uid).sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+  return [...byKey.values()]
+    .filter((viewer) => viewer.uid)
+    .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 }
 
 module.exports = { createApiContext };

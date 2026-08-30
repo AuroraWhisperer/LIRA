@@ -5,14 +5,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
+const {
+  prepareSettingsBootstrap,
+} = require('../src/server/settings-bootstrap');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const settingsStoreModule = require('../src/storage/settings-store');
 const defaultBlindBoxConfig = require('../src/storage/default-blind-box-config.json');
-const {
-  DEFAULT_SETTINGS,
-  migrateBlindBoxConfig
-} = settingsStoreModule;
+const { DEFAULT_SETTINGS, migrateBlindBoxConfig } = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -22,7 +21,7 @@ const qixiOutputs = [
   ['云桥缘续', 66],
   ['鹊语相思', 26],
   ['锦书传意', 19],
-  ['月下牵丝', 5]
+  ['月下牵丝', 5],
 ];
 
 const bondOutputs = [
@@ -32,7 +31,7 @@ const bondOutputs = [
   ['守护之翼', 100],
   ['心电共鸣', 200],
   ['时光羁绊', 800],
-  ['命运交响', 2888]
+  ['命运交响', 2888],
 ];
 
 test('default blind-box config keeps 七夕鹊匣 fourth and adds 羁绊宝盒 fifth', () => {
@@ -42,14 +41,14 @@ test('default blind-box config keeps 七夕鹊匣 fourth and adds 羁绊宝盒 f
   assert.equal(config[3].name, '七夕鹊匣');
   assert.equal(config[3].price, 25);
   assert.deepEqual(
-    config[3].outputs.map(output => [output.name, output.price]),
-    qixiOutputs
+    config[3].outputs.map((output) => [output.name, output.price]),
+    qixiOutputs,
   );
   assert.equal(config[4].name, '羁绊宝盒');
   assert.equal(config[4].price, 33);
   assert.deepEqual(
-    config[4].outputs.map(output => [output.name, output.price]),
-    bondOutputs
+    config[4].outputs.map((output) => [output.name, output.price]),
+    bondOutputs,
   );
 });
 
@@ -58,7 +57,11 @@ test('blind-box migration appends missing defaults without replacing user entrie
     { name: '心动盲盒', price: 15, outputs: [] },
     { name: '幸运盲盒', price: 5, outputs: [] },
     { name: '小熊虫盲盒', price: 9, outputs: [] },
-    { name: '用户自定义盲盒', price: 88, outputs: [{ name: '自定义礼物', price: 188 }] }
+    {
+      name: '用户自定义盲盒',
+      price: 88,
+      outputs: [{ name: '自定义礼物', price: 188 }],
+    },
   ];
   const updates = [];
   const db = {
@@ -67,10 +70,12 @@ test('blind-box migration appends missing defaults without replacing user entrie
         return { get: () => ({ value: JSON.stringify(existing) }) };
       }
       if (sql.includes('UPDATE settings SET value')) {
-        return { run: (value, updatedAt) => updates.push({ value, updatedAt }) };
+        return {
+          run: (value, updatedAt) => updates.push({ value, updatedAt }),
+        };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
-    }
+    },
   };
 
   migrateBlindBoxConfig(db);
@@ -78,33 +83,53 @@ test('blind-box migration appends missing defaults without replacing user entrie
   assert.equal(updates.length, 1);
   const migrated = JSON.parse(updates[0].value);
   assert.deepEqual(migrated.slice(0, existing.length), existing);
-  assert.equal(migrated.filter(box => box.name === '七夕鹊匣').length, 1);
+  assert.equal(migrated.filter((box) => box.name === '七夕鹊匣').length, 1);
   assert.equal(migrated[existing.length].price, 25);
-  assert.equal(migrated.filter(box => box.name === '羁绊宝盒').length, 1);
+  assert.equal(migrated.filter((box) => box.name === '羁绊宝盒').length, 1);
   assert.equal(migrated[existing.length + 1].price, 33);
 });
 
 test('settings bootstrap merges new blind-box defaults before the first settings read', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-blind-box-bootstrap-'));
-  const databases = createDatabases({ dataDir, defaultSettings: DEFAULT_SETTINGS });
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-blind-box-bootstrap-'),
+  );
+  const databases = createDatabases({
+    dataDir,
+    defaultSettings: DEFAULT_SETTINGS,
+  });
   const existing = [
-    { name: '心动盲盒', price: 12, outputs: [{ name: '用户修改礼物', price: 99 }] },
-    { name: '用户自定义盲盒', price: 88, outputs: [{ name: '自定义礼物', price: 188 }] }
+    {
+      name: '心动盲盒',
+      price: 12,
+      outputs: [{ name: '用户修改礼物', price: 99 }],
+    },
+    {
+      name: '用户自定义盲盒',
+      price: 88,
+      outputs: [{ name: '自定义礼物', price: 188 }],
+    },
   ];
 
   try {
-    databases.songDb.prepare(`
+    databases.songDb
+      .prepare(
+        `
       INSERT INTO settings (key, value, updated_at)
       VALUES ('giftBlindBoxConfig', ?, ?)
-    `).run(JSON.stringify(existing), new Date().toISOString());
+    `,
+      )
+      .run(JSON.stringify(existing), new Date().toISOString());
 
-    const { settingsStore } = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
+    const { settingsStore } = prepareSettingsBootstrap(
+      databases.songDb,
+      settingsStoreModule,
+    );
     const migrated = JSON.parse(settingsStore.getSettings().giftBlindBoxConfig);
 
     assert.deepEqual(migrated.slice(0, existing.length), existing);
     assert.deepEqual(
-      migrated.slice(existing.length).map(box => box.name),
-      ['幸运盲盒', '小熊虫盲盒', '七夕鹊匣', '羁绊宝盒']
+      migrated.slice(existing.length).map((box) => box.name),
+      ['幸运盲盒', '小熊虫盲盒', '七夕鹊匣', '羁绊宝盒'],
     );
   } finally {
     closeDatabases(databases);
@@ -124,7 +149,7 @@ test('blind-box migration does not duplicate existing default entries', () => {
         return { run: () => updates.push(true) };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
-    }
+    },
   };
 
   migrateBlindBoxConfig(db);
@@ -148,19 +173,37 @@ test('event blind-box artwork uses RMB value folders', () => {
     [35789, ['0000-under-0100/35789.webp', 26]],
     [35790, ['0000-under-0100/35790.webp', 66]],
     [35791, ['0500-0600/35791.webp', 500]],
-    [35792, ['1200-1300/35792.webp', 1200]]
+    [35792, ['1200-1300/35792.webp', 1200]],
   ]);
   const giftRoot = path.join(ROOT_DIR, 'public', 'img', 'bilibili-gifts');
-  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'public', 'img', 'bilibili-gifts.json'), 'utf8'));
-  const paidMapping = fs.readFileSync(path.join(giftRoot, 'gift-mapping-100-above.md'), 'utf8');
+  const manifest = JSON.parse(
+    fs.readFileSync(
+      path.join(ROOT_DIR, 'public', 'img', 'bilibili-gifts.json'),
+      'utf8',
+    ),
+  );
+  const paidMapping = fs.readFileSync(
+    path.join(giftRoot, 'gift-mapping-100-above.md'),
+    'utf8',
+  );
 
   assert.equal(fs.existsSync(path.join(giftRoot, 'qixi-que-box')), false);
   for (const [id, [relativePath, rmb]] of expectedPaths) {
-    assert.equal(fs.existsSync(path.join(giftRoot, relativePath)), true, `${id} artwork should exist`);
-    const gift = manifest.gifts.find(item => item.id === id);
+    assert.equal(
+      fs.existsSync(path.join(giftRoot, relativePath)),
+      true,
+      `${id} artwork should exist`,
+    );
+    const gift = manifest.gifts.find((item) => item.id === id);
     assert.equal(gift?.image, `bilibili-gifts/${relativePath}`);
     assert.equal(gift?.rmb, rmb);
   }
-  assert.match(paidMapping, /\| 31134 \|[^\n]+\| 守护之翼 \| 2000 \| ¥200\.00 \|[^\n]+非目前在售 \|/);
-  assert.match(paidMapping, /\| 35465 \|[^\n]+\| 守护之翼 \| 1000 \| ¥100\.00 \|[^\n]+在售 \|/);
+  assert.match(
+    paidMapping,
+    /\|\s*31134\s*\|[^\n]+\|\s*守护之翼\s*\|\s*2000\s*\|\s*¥200\.00\s*\|[^\n]+非目前在售\s*\|/,
+  );
+  assert.match(
+    paidMapping,
+    /\|\s*35465\s*\|[^\n]+\|\s*守护之翼\s*\|\s*1000\s*\|\s*¥100\.00\s*\|[^\n]+在售\s*\|/,
+  );
 });

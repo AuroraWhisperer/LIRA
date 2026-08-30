@@ -5,17 +5,17 @@ const STYLE_SETTING_KEYS = {
   classic: {
     fontSize: 'queueSongFontSize',
     scrollMode: 'queueScrollMode',
-    scrollSpeed: 'queueScrollSpeed'
+    scrollSpeed: 'queueScrollSpeed',
   },
   identity: {
     fontSize: 'identityQueueFontSize',
     scrollMode: 'identityQueueScrollMode',
-    scrollSpeed: 'identityQueueScrollSpeed'
+    scrollSpeed: 'identityQueueScrollSpeed',
   },
   storybook: illustratedStyleKeys('storybook'),
   'neon-vinyl': illustratedStyleKeys('neonVinyl'),
   'cherry-ribbon': illustratedStyleKeys('cherryRibbon'),
-  'golden-lily': illustratedStyleKeys('goldenLily')
+  'golden-lily': illustratedStyleKeys('goldenLily'),
 };
 
 const LEGACY_KEYS = {
@@ -25,7 +25,7 @@ const LEGACY_KEYS = {
   useCustomTextColor: 'illustratedQueueUseCustomTextColor',
   textColor: 'illustratedQueueTextColor',
   scrollMode: 'queueScrollMode',
-  scrollSpeed: 'identityQueueScrollSpeed'
+  scrollSpeed: 'identityQueueScrollSpeed',
 };
 
 const FIELD_DEFAULTS = {
@@ -35,14 +35,14 @@ const FIELD_DEFAULTS = {
   useCustomTextColor: 'false',
   textColor: '#315d7d',
   scrollMode: 'bounce',
-  scrollSpeed: '80'
+  scrollSpeed: '80',
 };
 
 export const QUEUE_ILLUSTRATED_STYLES = new Set([
   'storybook',
   'neon-vinyl',
   'cherry-ribbon',
-  'golden-lily'
+  'golden-lily',
 ]);
 
 function illustratedStyleKeys(prefix) {
@@ -53,7 +53,7 @@ function illustratedStyleKeys(prefix) {
     useCustomTextColor: `${prefix}QueueUseCustomTextColor`,
     textColor: `${prefix}QueueTextColor`,
     scrollMode: `${prefix}QueueScrollMode`,
-    scrollSpeed: `${prefix}QueueScrollSpeed`
+    scrollSpeed: `${prefix}QueueScrollSpeed`,
   };
 }
 
@@ -74,7 +74,11 @@ export function readQueueStyleSettings(settings, style) {
     const legacyKey = normalizedStyle === 'classic' ? null : LEGACY_KEYS[field];
     if (key && source[key] !== undefined && source[key] !== null) {
       values[field] = String(source[key]);
-    } else if (legacyKey && source[legacyKey] !== undefined && source[legacyKey] !== null) {
+    } else if (
+      legacyKey &&
+      source[legacyKey] !== undefined &&
+      source[legacyKey] !== null
+    ) {
       values[field] = String(source[legacyKey]);
     } else if (normalizedStyle === 'classic' && field === 'fontSize') {
       values[field] = '40';
@@ -109,7 +113,7 @@ export function resolveQueueStyleSettings(settings, style) {
     ...source,
     identityQueueFontSize: active.fontSize,
     identityQueueScrollSpeed: active.scrollSpeed,
-    queueScrollMode: active.scrollMode
+    queueScrollMode: active.scrollMode,
   };
   if (QUEUE_ILLUSTRATED_STYLES.has(active.style)) {
     resolved.illustratedQueueFontFamily = active.fontFamily;

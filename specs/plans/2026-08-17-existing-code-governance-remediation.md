@@ -90,46 +90,46 @@
 
 ### High
 
-| ID | Finding | Evidence | Impact | Track |
-|---|---|---|---|---|
-| `AUD-H01` | AI 公开配置返回明文密钥 | [config-store.js](../../src/ai/config-store.js#L38), [api-context.js](../../src/server/api-context.js#L104), [ai-routes.js](../../src/server/routes/ai-routes.js#L31), [ai-config-store.test.js](../../test/ai-config-store.test.js#L40) | renderer、注入脚本和调试工具可读取 DeepSeek、QWeather、Amap Key；测试与 owner 契约相反 | 1 |
-| `AUD-H02` | runtime 构造在旧实例清理前打开并修改数据库 | [server.js](../../src/server.js#L57), [server.js](../../src/server.js#L95), [server.js](../../src/server.js#L245) | 仅构造第二个 runtime 就可能迁移数据库、清直播队列和执行保留期，与旧实例并发写库 | 2 |
-| `AUD-H03` | 当前索引阻断 pre-v1 数据库迁移 | [database.js](../../src/storage/database.js#L43), [schema.js](../../src/storage/schema.js#L179), [schema.js](../../src/storage/schema.js#L308) | 老用户 song/gift 数据库分别报 `no such column: pinned_at` 和 `counted_in_sprint`，无法启动升级 | 2 |
-| `AUD-H04` | clear-all 未清除全部业务与个人数据 | [database.js](../../src/storage/database.js#L532), [storage.md](../../docs/architecture/backend/storage.md#L128), [api.md](../../docs/architecture/backend/api.md#L298), [settings.js](../../public/js/admin/settings.js#L425) | 用户确认清空后仍保留 AI 审计/上下文/黑名单、收藏、歌单、加班机状态和规则，违反隐私与公开契约 | 4 |
-| `AUD-H05` | `local-media://` 授权整个数据目录 | [local-media-access.js](../../src/electron/local-media-access.js#L15), [update-ipc.js](../../src/electron/ipc/update-ipc.js#L24), [music-ipc.js](../../src/electron/ipc/music-ipc.js#L68), [local-media-protocol.js](../../src/electron/local-media-protocol.js#L62) | renderer 边界失守时可读取 session token、五个数据库、Cookie 快照和访问清单 | 3 |
-| `AUD-H06` | 本地 HTTP 浏览器源边界缺失 | [server.js](../../src/server.js#L36), [server.js](../../src/server.js#L139), [http-utils.js](../../src/server/http-utils.js#L107), [main.js](../../src/electron/main.js#L158) | 非回环 `HOST` 可直接暴露到 LAN；即使绑定回环，伪造 Host/DNS rebinding 仍可取得注入 HTML 的 bearer token | 1 |
-| `AUD-H07` | Windows 自动更新发行链无签名 | [package.json](../../package.json#L56), [update-manager.js](../../src/electron/update-manager.js#L36), [publish-release.js](../../scripts/publish-release.js#L1) | Release 凭据或资产被替换时，SHA-512 只能证明清单与安装器一致，不能证明发行者身份 | 5 |
-| `AUD-H08` | 任意 URI scheme 可传给 `shell.openExternal` | [main.js](../../src/electron/main.js#L284), [login-window.js](../../src/electron/login-window.js#L31), [bilibili-login-window.js](../../src/electron/bilibili-login-window.js#L37) | 远程内容可触发 `file:`、`ms-settings:` 或自定义协议处理器；结果取决于宿主机注册程序 | 3 |
-| `AUD-H09` | production `js-yaml@4.3.0` 命中 High 公告 | [package-lock.json](../../package-lock.json), [package.json](../../package.json) | `GHSA-5p4m-2wfm-xmqj` 可造成二次方 CPU 消耗；`electron-updater@6.8.9` 的范围允许安全的 `4.3.1` | 5 |
+| ID        | Finding                                     | Evidence                                                                                                                                                                                                                                                             | Impact                                                                                                  | Track |
+| --------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
+| `AUD-H01` | AI 公开配置返回明文密钥                     | [config-store.js](../../src/ai/config-store.js#L38), [api-context.js](../../src/server/api-context.js#L104), [ai-routes.js](../../src/server/routes/ai-routes.js#L31), [ai-config-store.test.js](../../test/ai-config-store.test.js#L40)                             | renderer、注入脚本和调试工具可读取 DeepSeek、QWeather、Amap Key；测试与 owner 契约相反                  | 1     |
+| `AUD-H02` | runtime 构造在旧实例清理前打开并修改数据库  | [server.js](../../src/server.js#L57), [server.js](../../src/server.js#L95), [server.js](../../src/server.js#L245)                                                                                                                                                    | 仅构造第二个 runtime 就可能迁移数据库、清直播队列和执行保留期，与旧实例并发写库                         | 2     |
+| `AUD-H03` | 当前索引阻断 pre-v1 数据库迁移              | [database.js](../../src/storage/database.js#L43), [schema.js](../../src/storage/schema.js#L179), [schema.js](../../src/storage/schema.js#L308)                                                                                                                       | 老用户 song/gift 数据库分别报 `no such column: pinned_at` 和 `counted_in_sprint`，无法启动升级          | 2     |
+| `AUD-H04` | clear-all 未清除全部业务与个人数据          | [database.js](../../src/storage/database.js#L532), [storage.md](../../docs/architecture/backend/storage.md#L128), [api.md](../../docs/architecture/backend/api.md#L298), [settings.js](../../public/js/admin/settings.js#L425)                                       | 用户确认清空后仍保留 AI 审计/上下文/黑名单、收藏、歌单、加班机状态和规则，违反隐私与公开契约            | 4     |
+| `AUD-H05` | `local-media://` 授权整个数据目录           | [local-media-access.js](../../src/electron/local-media-access.js#L15), [update-ipc.js](../../src/electron/ipc/update-ipc.js#L24), [music-ipc.js](../../src/electron/ipc/music-ipc.js#L68), [local-media-protocol.js](../../src/electron/local-media-protocol.js#L62) | renderer 边界失守时可读取 session token、五个数据库、Cookie 快照和访问清单                              | 3     |
+| `AUD-H06` | 本地 HTTP 浏览器源边界缺失                  | [server.js](../../src/server.js#L36), [server.js](../../src/server.js#L139), [http-utils.js](../../src/server/http-utils.js#L107), [main.js](../../src/electron/main.js#L158)                                                                                        | 非回环 `HOST` 可直接暴露到 LAN；即使绑定回环，伪造 Host/DNS rebinding 仍可取得注入 HTML 的 bearer token | 1     |
+| `AUD-H07` | Windows 自动更新发行链无签名                | [package.json](../../package.json#L56), [update-manager.js](../../src/electron/update-manager.js#L36), [publish-release.js](../../scripts/publish-release.js#L1)                                                                                                     | Release 凭据或资产被替换时，SHA-512 只能证明清单与安装器一致，不能证明发行者身份                        | 5     |
+| `AUD-H08` | 任意 URI scheme 可传给 `shell.openExternal` | [main.js](../../src/electron/main.js#L284), [login-window.js](../../src/electron/login-window.js#L31), [bilibili-login-window.js](../../src/electron/bilibili-login-window.js#L37)                                                                                   | 远程内容可触发 `file:`、`ms-settings:` 或自定义协议处理器；结果取决于宿主机注册程序                     | 3     |
+| `AUD-H09` | production `js-yaml@4.3.0` 命中 High 公告   | [package-lock.json](../../package-lock.json), [package.json](../../package.json)                                                                                                                                                                                     | `GHSA-5p4m-2wfm-xmqj` 可造成二次方 CPU 消耗；`electron-updater@6.8.9` 的范围允许安全的 `4.3.1`          | 5     |
 
 ### Medium
 
-| ID | Finding | Evidence | Required outcome | Track |
-|---|---|---|---|---|
-| `AUD-M01` | 删除礼物事件会遗留永久 pending 的加班结算 | [query-service.js](../../src/bilibili/gift/query-service.js#L145), [retention.js](../../src/storage/retention.js#L61), [overtime-store.js](../../src/overtime/overtime-store.js#L193) | 手动清理和保留期删除必须在同库事务中处理 pending/applied/ignored 三类结算 | 4 |
-| `AUD-M02` | AI shutdown 不取消或等待在途任务 | [async-coordinator.js](../../src/ai/async-coordinator.js#L36), [ai-assistant-service.js](../../src/ai/ai-assistant-service.js#L174), [server.js](../../src/server.js#L373) | stop 后不得投递、重新填充 ready 队列、写数据库或遗留 delivery timer | 4 |
-| `AUD-M03` | 服务关闭不追踪异步 HTTP handler | [server.js](../../src/server.js#L139), [server.js](../../src/server.js#L340), [server.js](../../src/server.js#L373) | shutdown 必须先停止 ingress，等待请求/异步任务，再关闭 DB，且端口只能在 DB 关闭后释放 | 2 |
-| `AUD-M04` | clear-all 跨五库逐个提交，失败后可能部分清空 | [database.js](../../src/storage/database.js#L539), [database.js](../../src/storage/database.js#L591) | 提交前失败统一回滚；不可避免的提交期失败返回精确 per-database partial 结果并触发状态重载 | 4 |
-| `AUD-M05` | AI 审计、上下文和缓存没有主动保留期 | [config-store.js](../../src/ai/config-store.js#L80), [config-store.js](../../src/ai/config-store.js#L149), [retention.js](../../src/storage/retention.js#L9) | 启动时清 TTL 数据；AI request log 采用明确、可配置的默认保留期并支持 dry-run | 4 |
-| `AUD-M06` | session token 被写入 `terminal.log` | [server.js](../../src/server.js#L258), [terminal-log.js](../../src/electron/terminal-log.js#L49) | 不再输出 token 原值；桌面和终端日志统一脱敏 Authorization、Cookie、API Key、代理 userinfo 和敏感查询参数 | 1 |
-| `AUD-M07` | 登录 URL 策略允许 HTTP 降级 | [auth-manager.js](../../src/electron/auth-manager.js#L58), [bilibili-auth.js](../../src/electron/bilibili-auth.js#L49) | 持久化认证窗口只允许精确白名单域名的 `https:` | 3 |
-| `AUD-M08` | 端口清理信任可伪造 `serviceId` 后强杀 PID | [lifecycle.js](../../src/server/lifecycle.js#L76), [lifecycle.js](../../src/server/lifecycle.js#L94), [lifecycle.js](../../src/server/lifecycle.js#L100) | 强制终止必须同时匹配可信 runtime 记录、health PID 和进程身份；HTTP 响应不能单独授权 kill | 2 |
-| `AUD-M09` | 发布脚本记录完整代理 URL | [publish-release.js](../../scripts/publish-release.js#L74) | 日志只显示协议、主机和端口，不显示 userinfo 或敏感查询参数 | 5 |
-| `AUD-M10` | 未处理异常把原始 `error.message` 返回客户端 | [server.js](../../src/server.js#L152) | 已知输入错误映射稳定 4xx；未知 5xx 只返回固定公开消息，详细错误仅进脱敏日志 | 1 |
-| `AUD-M11` | 旧实例清理预算短于合法 graceful shutdown | [server.js](../../src/server.js#L31), [playback-flush.js](../../src/electron/playback-flush.js#L5), [lifecycle.js](../../src/server/lifecycle.js#L87) | 等待预算覆盖 renderer flush、runtime drain 和 server close；强杀前重新验证实例 | 2 |
-| `AUD-M12` | Admin 控制页可被跨站 iframe | [http-utils.js](../../src/server/http-utils.js#L145) | Admin HTML 返回 `Content-Security-Policy: frame-ancestors 'none'` 和 `X-Frame-Options: DENY`；overlay 页面保持可供 OBS 使用 | 1 |
-| `AUD-M13` | 加班机限制在后端、Admin 和 owner 文档间漂移 | [overtime-contract.js](../../src/overtime/overtime-contract.js#L3), [schema.js](../../src/storage/schema.js#L315), [overtime.js](../../public/js/admin/overtime.js#L380), [overtime-rule-editor.js](../../public/js/admin/overtime-rule-editor.js#L5), [overtime.md](../../docs/architecture/backend/overtime.md#L165), [frontend-queue.test.js](../../test/frontend-queue.test.js#L377) | Admin 必须无损加载、展示和提交所有服务端合法值；限制由后端契约通过 additive `limits` 下发，前端和 owner 文档不再复制过期常量 | 4 |
+| ID        | Finding                                      | Evidence                                                                                                                                                                                                                                                                                                                                                                                 | Required outcome                                                                                                             | Track |
+| --------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `AUD-M01` | 删除礼物事件会遗留永久 pending 的加班结算    | [query-service.js](../../src/bilibili/gift/query-service.js#L145), [retention.js](../../src/storage/retention.js#L61), [overtime-store.js](../../src/overtime/overtime-store.js#L193)                                                                                                                                                                                                    | 手动清理和保留期删除必须在同库事务中处理 pending/applied/ignored 三类结算                                                    | 4     |
+| `AUD-M02` | AI shutdown 不取消或等待在途任务             | [async-coordinator.js](../../src/ai/async-coordinator.js#L36), [ai-assistant-service.js](../../src/ai/ai-assistant-service.js#L174), [server.js](../../src/server.js#L373)                                                                                                                                                                                                               | stop 后不得投递、重新填充 ready 队列、写数据库或遗留 delivery timer                                                          | 4     |
+| `AUD-M03` | 服务关闭不追踪异步 HTTP handler              | [server.js](../../src/server.js#L139), [server.js](../../src/server.js#L340), [server.js](../../src/server.js#L373)                                                                                                                                                                                                                                                                      | shutdown 必须先停止 ingress，等待请求/异步任务，再关闭 DB，且端口只能在 DB 关闭后释放                                        | 2     |
+| `AUD-M04` | clear-all 跨五库逐个提交，失败后可能部分清空 | [database.js](../../src/storage/database.js#L539), [database.js](../../src/storage/database.js#L591)                                                                                                                                                                                                                                                                                     | 提交前失败统一回滚；不可避免的提交期失败返回精确 per-database partial 结果并触发状态重载                                     | 4     |
+| `AUD-M05` | AI 审计、上下文和缓存没有主动保留期          | [config-store.js](../../src/ai/config-store.js#L80), [config-store.js](../../src/ai/config-store.js#L149), [retention.js](../../src/storage/retention.js#L9)                                                                                                                                                                                                                             | 启动时清 TTL 数据；AI request log 采用明确、可配置的默认保留期并支持 dry-run                                                 | 4     |
+| `AUD-M06` | session token 被写入 `terminal.log`          | [server.js](../../src/server.js#L258), [terminal-log.js](../../src/electron/terminal-log.js#L49)                                                                                                                                                                                                                                                                                         | 不再输出 token 原值；桌面和终端日志统一脱敏 Authorization、Cookie、API Key、代理 userinfo 和敏感查询参数                     | 1     |
+| `AUD-M07` | 登录 URL 策略允许 HTTP 降级                  | [auth-manager.js](../../src/electron/auth-manager.js#L58), [bilibili-auth.js](../../src/electron/bilibili-auth.js#L49)                                                                                                                                                                                                                                                                   | 持久化认证窗口只允许精确白名单域名的 `https:`                                                                                | 3     |
+| `AUD-M08` | 端口清理信任可伪造 `serviceId` 后强杀 PID    | [lifecycle.js](../../src/server/lifecycle.js#L76), [lifecycle.js](../../src/server/lifecycle.js#L94), [lifecycle.js](../../src/server/lifecycle.js#L100)                                                                                                                                                                                                                                 | 强制终止必须同时匹配可信 runtime 记录、health PID 和进程身份；HTTP 响应不能单独授权 kill                                     | 2     |
+| `AUD-M09` | 发布脚本记录完整代理 URL                     | [publish-release.js](../../scripts/publish-release.js#L74)                                                                                                                                                                                                                                                                                                                               | 日志只显示协议、主机和端口，不显示 userinfo 或敏感查询参数                                                                   | 5     |
+| `AUD-M10` | 未处理异常把原始 `error.message` 返回客户端  | [server.js](../../src/server.js#L152)                                                                                                                                                                                                                                                                                                                                                    | 已知输入错误映射稳定 4xx；未知 5xx 只返回固定公开消息，详细错误仅进脱敏日志                                                  | 1     |
+| `AUD-M11` | 旧实例清理预算短于合法 graceful shutdown     | [server.js](../../src/server.js#L31), [playback-flush.js](../../src/electron/playback-flush.js#L5), [lifecycle.js](../../src/server/lifecycle.js#L87)                                                                                                                                                                                                                                    | 等待预算覆盖 renderer flush、runtime drain 和 server close；强杀前重新验证实例                                               | 2     |
+| `AUD-M12` | Admin 控制页可被跨站 iframe                  | [http-utils.js](../../src/server/http-utils.js#L145)                                                                                                                                                                                                                                                                                                                                     | Admin HTML 返回 `Content-Security-Policy: frame-ancestors 'none'` 和 `X-Frame-Options: DENY`；overlay 页面保持可供 OBS 使用  | 1     |
+| `AUD-M13` | 加班机限制在后端、Admin 和 owner 文档间漂移  | [overtime-contract.js](../../src/overtime/overtime-contract.js#L3), [schema.js](../../src/storage/schema.js#L315), [overtime.js](../../public/js/admin/overtime.js#L380), [overtime-rule-editor.js](../../public/js/admin/overtime-rule-editor.js#L5), [overtime.md](../../docs/architecture/backend/overtime.md#L165), [frontend-queue.test.js](../../test/frontend-queue.test.js#L377) | Admin 必须无损加载、展示和提交所有服务端合法值；限制由后端契约通过 additive `limits` 下发，前端和 owner 文档不再复制过期常量 | 4     |
 
 ### Low And Informational
 
-| ID | Severity | Finding | Evidence / disposition |
-|---|---|---|---|
-| `AUD-L01` | Low | 音乐登录首次 `loadURL` 失败会遗留窗口和 Cookie listener | [login-window.js](../../src/electron/login-window.js#L68); Track 3 统一 cleanup 并补失败测试 |
-| `AUD-L02` | Low | API owner 文档漏记四个公开端点 | [gift-routes.js](../../src/server/routes/gift-routes.js#L58), [overtime-routes.js](../../src/server/routes/overtime-routes.js#L21), [api.md](../../docs/architecture/backend/api.md#L5); Track 6 增加 route-key 与文档完整性门禁 |
-| `AUD-L03` | Low | storage owner 文档仍写 gift DB v1-v5，代码已到 v6 | [storage.md](../../docs/architecture/backend/storage.md#L104), [database.js](../../src/storage/database.js#L94); Track 2 随迁移测试修正文档 |
-| `AUD-L04` | Low | server owner 文档错误描述 `PORT` 和启动迁移顺序 | [server-core.md](../../docs/architecture/backend/server-core.md#L43), [server.js](../../src/server.js#L57); Track 2 修正文档并避免复制易漂移顺序 |
-| `AUD-I01` | Info | 可选 `cookies.txt` 明文 Bilibili Cookie 导出没有仓库内消费者 | [bilibili-auth.js](../../src/electron/bilibili-auth.js#L99), [auth.md](../../docs/architecture/desktop/auth.md#L84); 实施前需确认外部兼容需求，不自动删除用户文件 |
-| `AUD-I02` | Info | 主窗口仍为 `sandbox: false`，CSP/IPC sender 参数门禁不完整 | [main.js](../../src/electron/main.js#L263); 当前未确认直接利用链，作为 Electron 后续加固，不与 P0 修复混做 |
+| ID        | Severity | Finding                                                      | Evidence / disposition                                                                                                                                                                                                           |
+| --------- | -------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUD-L01` | Low      | 音乐登录首次 `loadURL` 失败会遗留窗口和 Cookie listener      | [login-window.js](../../src/electron/login-window.js#L68); Track 3 统一 cleanup 并补失败测试                                                                                                                                     |
+| `AUD-L02` | Low      | API owner 文档漏记四个公开端点                               | [gift-routes.js](../../src/server/routes/gift-routes.js#L58), [overtime-routes.js](../../src/server/routes/overtime-routes.js#L21), [api.md](../../docs/architecture/backend/api.md#L5); Track 6 增加 route-key 与文档完整性门禁 |
+| `AUD-L03` | Low      | storage owner 文档仍写 gift DB v1-v5，代码已到 v6            | [storage.md](../../docs/architecture/backend/storage.md#L104), [database.js](../../src/storage/database.js#L94); Track 2 随迁移测试修正文档                                                                                      |
+| `AUD-L04` | Low      | server owner 文档错误描述 `PORT` 和启动迁移顺序              | [server-core.md](../../docs/architecture/backend/server-core.md#L43), [server.js](../../src/server.js#L57); Track 2 修正文档并避免复制易漂移顺序                                                                                 |
+| `AUD-I01` | Info     | 可选 `cookies.txt` 明文 Bilibili Cookie 导出没有仓库内消费者 | [bilibili-auth.js](../../src/electron/bilibili-auth.js#L99), [auth.md](../../docs/architecture/desktop/auth.md#L84); 实施前需确认外部兼容需求，不自动删除用户文件                                                                |
+| `AUD-I02` | Info     | 主窗口仍为 `sandbox: false`，CSP/IPC sender 参数门禁不完整   | [main.js](../../src/electron/main.js#L263); 当前未确认直接利用链，作为 Electron 后续加固，不与 P0 修复混做                                                                                                                       |
 
 ## Frozen Debt, Not New Defects
 
@@ -150,14 +150,14 @@
 
 ## Ownership
 
-| Area | Runtime owner | Public contract | Primary tests |
-|---|---|---|---|
-| AI config and lifecycle | `src/ai/`, `src/server/ai-runtime.js` | `docs/architecture/backend/ai.md` | `test/ai-config-store.test.js`, `test/ai-routes.test.js`, `test/ai-assistant-service.test.js` |
-| Server lifecycle and browser boundary | `src/server.js`, `src/server/` | `docs/architecture/backend/server-core.md`, `api.md`, `ws.md` | `test/server-smoke.test.js`, `test/server-lifecycle.test.js`, `test/websocket-transport.test.js` |
-| Storage and migrations | `src/storage/` | `docs/architecture/backend/storage.md` | `test/database-maintenance.test.js`, `test/overtime-service.test.js` |
-| Electron security | `src/electron/` | `docs/architecture/desktop/` | `test/electron-main-modules.test.js`, `test/local-media-access.test.js`, `test/bilibili-login-window.test.js`, `test/terminal-log.test.js` |
-| Admin clear-data UX | `public/js/admin/settings.js` | `docs/architecture/frontend/app.md`, backend API/storage owners | `test/frontend-admin-shell.test.js`, `test/server-smoke.test.js` |
-| Release and dependencies | `package.json`, `package-lock.json`, `scripts/publish-release.js` | `docs/architecture/engineering/build.md`, `docs/architecture/desktop/update.md` | `test/update-manager.test.js`, new release preflight tests |
+| Area                                  | Runtime owner                                                     | Public contract                                                                 | Primary tests                                                                                                                              |
+| ------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| AI config and lifecycle               | `src/ai/`, `src/server/ai-runtime.js`                             | `docs/architecture/backend/ai.md`                                               | `test/ai-config-store.test.js`, `test/ai-routes.test.js`, `test/ai-assistant-service.test.js`                                              |
+| Server lifecycle and browser boundary | `src/server.js`, `src/server/`                                    | `docs/architecture/backend/server-core.md`, `api.md`, `ws.md`                   | `test/server-smoke.test.js`, `test/server-lifecycle.test.js`, `test/websocket-transport.test.js`                                           |
+| Storage and migrations                | `src/storage/`                                                    | `docs/architecture/backend/storage.md`                                          | `test/database-maintenance.test.js`, `test/overtime-service.test.js`                                                                       |
+| Electron security                     | `src/electron/`                                                   | `docs/architecture/desktop/`                                                    | `test/electron-main-modules.test.js`, `test/local-media-access.test.js`, `test/bilibili-login-window.test.js`, `test/terminal-log.test.js` |
+| Admin clear-data UX                   | `public/js/admin/settings.js`                                     | `docs/architecture/frontend/app.md`, backend API/storage owners                 | `test/frontend-admin-shell.test.js`, `test/server-smoke.test.js`                                                                           |
+| Release and dependencies              | `package.json`, `package-lock.json`, `scripts/publish-release.js` | `docs/architecture/engineering/build.md`, `docs/architecture/desktop/update.md` | `test/update-manager.test.js`, new release preflight tests                                                                                 |
 
 ## Compatibility Constraints
 
@@ -242,26 +242,26 @@ Files:
 Steps:
 
 - [ ] Change the public projection to derive `has*ApiKey` first, then remove every
-  key in `AI_SECRET_KEYS`; do not maintain a second hardcoded secret list.
+      key in `AI_SECRET_KEYS`; do not maintain a second hardcoded secret list.
 - [ ] Replace the test that expects `sk-secret-value` in the public result with
-  assertions that all three keys are absent while internal `getConfig()` still
-  returns the decrypted value.
+      assertions that all three keys are absent while internal `getConfig()` still
+      returns the decrypted value.
 - [ ] Add GET and PUT route assertions proving response bodies never contain
-  plaintext keys and blank/`null` update semantics remain unchanged.
+      plaintext keys and blank/`null` update semantics remain unchanged.
 - [ ] Keep secret input values empty after loading, but when a `has*ApiKey` flag
-  is true, render a fixed `********` mask inside the corresponding input so a
-  novice user can clearly see that the Key was saved successfully. The mask is
-  display-only and must never be treated as, submitted as, or persisted as a Key.
+      is true, render a fixed `********` mask inside the corresponding input so a
+      novice user can clearly see that the Key was saved successfully. The mask is
+      display-only and must never be treated as, submitted as, or persisted as a Key.
 - [ ] Use password-style inputs so newly pasted Key text is visually masked. An
-  untouched masked field preserves the existing Key; a real newly entered value
-  replaces it; explicit `null` clearing semantics remain unchanged.
+      untouched masked field preserves the existing Key; a real newly entered value
+      replaces it; explicit `null` clearing semantics remain unchanged.
 - [ ] Document the exact GET/PUT secret-field contract in
-  `docs/architecture/backend/api.md`, the storage/public-projection boundary in
-  `docs/architecture/backend/ai.md`, and the `********` saved-state behavior in
-  `docs/architecture/frontend/app.md`.
+      `docs/architecture/backend/api.md`, the storage/public-projection boundary in
+      `docs/architecture/backend/ai.md`, and the `********` saved-state behavior in
+      `docs/architecture/frontend/app.md`.
 - [ ] Add Admin regressions proving all three saved flags render `********`, the
-  DOM never receives the real secret, untouched fields preserve their Keys, and
-  the mask is never included in a PUT or model-list request.
+      DOM never receives the real secret, untouched fields preserve their Keys, and
+      the mask is never included in a PUT or model-list request.
 
 Focused verification:
 
@@ -285,18 +285,18 @@ Files:
 Steps:
 
 - [ ] Accept only `127.0.0.1` and `localhost` input, normalized to
-  `127.0.0.1`; reject `0.0.0.0`, LAN addresses and arbitrary hostnames before
-  any filesystem or database side effect.
+      `127.0.0.1`; reject `0.0.0.0`, LAN addresses and arbitrary hostnames before
+      any filesystem or database side effect.
 - [ ] Build request URLs from the trusted runtime base URL, not
-  `req.headers.host`; reject an unexpected Host header before serving HTML,
-  APIs or WebSocket upgrades.
+      `req.headers.host`; reject an unexpected Host header before serving HTML,
+      APIs or WebSocket upgrades.
 - [ ] Validate browser Origin for state-changing API requests and WebSocket
-  upgrades when Origin is present; preserve non-browser health checks.
+      upgrades when Origin is present; preserve non-browser health checks.
 - [ ] Add Admin-only `frame-ancestors 'none'` and `X-Frame-Options: DENY`;
-  do not apply frame blocking to OBS overlay pages.
+      do not apply frame blocking to OBS overlay pages.
 - [ ] Add regressions for `Host: rebind.example`, non-loopback startup,
-  mismatched WS Origin and cross-site iframe headers; responses must not include
-  the session token.
+      mismatched WS Origin and cross-site iframe headers; responses must not include
+      the session token.
 
 ### Deliverable 1.3: Stop Credential And Internal Error Leakage
 
@@ -313,15 +313,15 @@ Files:
 Steps:
 
 - [ ] Remove the startup line that prints the bearer token; keep the protected
-  token file and runtime API intact.
+      token file and runtime API intact.
 - [ ] Apply one focused string redactor before both `terminal.log` and
-  `desktop.log` writes; cover bearer headers, cookie values, secret-key JSON
-  fields, URL query secrets and proxy userinfo.
+      `desktop.log` writes; cover bearer headers, cookie values, secret-key JSON
+      fields, URL query secrets and proxy userinfo.
 - [ ] Map malformed JSON and oversized request bodies to stable 4xx responses;
-  map unexpected exceptions to a fixed 500 message while logging the redacted
-  detail locally.
+      map unexpected exceptions to a fixed 500 message while logging the redacted
+      detail locally.
 - [ ] Add string、object、Error and URL regression cases proving raw credentials
-  never reach either log.
+      never reach either log.
 
 Track 1 Done When:
 
@@ -361,14 +361,14 @@ Required startup order:
 Steps:
 
 - [ ] Move all `createDatabases()` and startup mutations from constructor time
-  into the post-bind initialization phase.
+      into the post-bind initialization phase.
 - [ ] Keep every created resource in explicit creation order; failure closes
-  partial resources in reverse order, removes only files owned by this instance
-  and releases the reserved listener.
+      partial resources in reverse order, removes only files owned by this instance
+      and releases the reserved listener.
 - [ ] Add a temp-directory test proving `createServerRuntime()` alone creates no
-  DB, token, runtime-info or log file and changes no queue row.
+      DB, token, runtime-info or log file and changes no queue row.
 - [ ] Add a two-runtime test proving the old instance completes shutdown before
-  the new instance opens the same DB and performs startup repair.
+      the new instance opens the same DB and performs startup repair.
 
 ### Deliverable 2.2: Repair Pre-v1 Migration Ordering
 
@@ -382,13 +382,13 @@ Files:
 Steps:
 
 - [ ] Split each schema into idempotent base table DDL and migration-dependent
-  index DDL; run `base tables -> immutable migrations -> dependent indexes`.
+      index DDL; run `base tables -> immutable migrations -> dependent indexes`.
 - [ ] Do not edit or renumber published migration steps; v1 remains the owner of
-  `pinned_at` and `counted_in_sprint` compatibility columns.
+      `pinned_at` and `counted_in_sprint` compatibility columns.
 - [ ] Build real pre-v1 song and gift fixtures, keep representative rows, start
-  twice, and assert data、schema versions and all current indexes survive.
+      twice, and assert data、schema versions and all current indexes survive.
 - [ ] Correct the owner document from gift v1-v5 to v1-v6 and document the
-  three-stage ordering instead of copying volatile source line numbers.
+      three-stage ordering instead of copying volatile source line numbers.
 
 ### Deliverable 2.3: Quiesce Before Releasing The Port
 
@@ -412,13 +412,13 @@ Required shutdown order:
 Steps:
 
 - [ ] Track async request promises and reject new work with stable 503 while
-  quiescing; health may report the shutdown state without touching closed stores.
+      quiescing; health may report the shutdown state without touching closed stores.
 - [ ] Increase previous-instance wait budget to cover the documented worst-case
-  graceful deadline plus a bounded margin; do not SIGTERM at 1.2 seconds.
+      graceful deadline plus a bounded margin; do not SIGTERM at 1.2 seconds.
 - [ ] Force-kill only when runtime record PID、health PID and process identity
-  all match; a public `serviceId` response alone never authorizes kill.
+      all match; a public `serviceId` response alone never authorizes kill.
 - [ ] Add failure-injection tests for handler drain、renderer flush、DB close and
-  spoofed PID; confirm the new instance cannot open the DB before port release.
+      spoofed PID; confirm the new instance cannot open the DB before port release.
 
 Track 2 Done When:
 
@@ -448,14 +448,14 @@ Files:
 Steps:
 
 - [ ] Remove the implicit `dataDir` subtree allowance; only exact paths selected
-  through the audio file dialog and persisted in the allowlist may resolve.
+      through the audio file dialog and persisted in the allowlist may resolve.
 - [ ] Canonicalize both grants and requests with `realpath`; reject symlink or
-  junction escape and reject files that no longer resolve to the granted target.
+      junction escape and reject files that no longer resolve to the granted target.
 - [ ] Enforce the current audio extension set at grant、resolution and protocol
-  serving boundaries; never fall back to `application/octet-stream` for an
-  unapproved extension.
+      serving boundaries; never fall back to `application/octet-stream` for an
+      unapproved extension.
 - [ ] Prove `.session-token`、all DB files、Cookie snapshots and the allowlist
-  itself return 403 while selected audio and Range requests still work.
+      itself return 403 while selected audio and Range requests still work.
 
 ### Deliverable 3.2: Centralize External URL And Login Policy
 
@@ -473,13 +473,13 @@ Files:
 Steps:
 
 - [ ] Allow `shell.openExternal` only for parsed `https:` URLs; reject `file:`,
-  `javascript:`, `data:`, `ms-settings:` and custom schemes without invoking the OS.
+      `javascript:`, `data:`, `ms-settings:` and custom schemes without invoking the OS.
 - [ ] Keep provider domain allowlists for in-window navigation, but require
-  `https:` and exact hostname matching.
+      `https:` and exact hostname matching.
 - [ ] Install cleanup before initial `loadURL`; on navigation failure remove
-  Cookie listeners and destroy the failed login window.
+      Cookie listeners and destroy the failed login window.
 - [ ] Add direct policy tests plus handler integration tests for all three window
-  types.
+      types.
 
 ### Deliverable 3.3: Resolve Plaintext Cookie Compatibility Explicitly
 
@@ -534,17 +534,17 @@ Required matrix:
 Steps:
 
 - [ ] Insert one row into every business table across all five temp databases and
-  assert the exact post-clear matrix table by table.
+      assert the exact post-clear matrix table by table.
 - [ ] Begin all DB transactions before deleting; a pre-commit failure rolls all
-  back. If a commit-stage failure occurs, return a structured per-database result
-  with `partial: true`, committed/rolled-back/unknown state and force every client
-  to reload rather than claiming success.
+      back. If a commit-stage failure occurs, return a structured per-database result
+      with `partial: true`, committed/rolled-back/unknown state and force every client
+      to reload rather than claiming success.
 - [ ] Quiesce pre-clear asynchronous writers so no request accepted before the
-  confirmation can repopulate deleted AI or gift data after the response.
+      confirmation can repopulate deleted AI or gift data after the response.
 - [ ] Reset in-memory cooldown、gift、overtime and playback state only after the
-  corresponding persistent operation succeeds.
+      corresponding persistent operation succeeds.
 - [ ] Expand Admin confirmation and result copy to list all deleted data and the
-  exact preserved configuration; do not keep the current under-description.
+      exact preserved configuration; do not keep the current under-description.
 
 Public-contract gate:
 
@@ -566,14 +566,14 @@ Files:
 Steps:
 
 - [ ] Move the touched clear-recent SQL behind the storage owner rather than
-  adding more receiver-aware SQL to the gift domain.
+      adding more receiver-aware SQL to the gift domain.
 - [ ] In one `BEGIN IMMEDIATE` transaction, mark pending settlements for deleted
-  events as `ignored` with a stable maintenance reason, preserve completed audit
-  rows when the narrow clear contract allows it, then delete gift events.
+      events as `ignored` with a stable maintenance reason, preserve completed audit
+      rows when the narrow clear contract allows it, then delete gift events.
 - [ ] Apply the same coordination to retention deletion and cover pending、applied
-  and ignored settlements for both manual and automatic paths.
+      and ignored settlements for both manual and automatic paths.
 - [ ] Confirm `countPending()`、recovery scheduling and recent audit lists contain
-  no unreachable orphan after maintenance.
+      no unreachable orphan after maintenance.
 
 ### Deliverable 4.3: Add AI Cancellation And Retention Governance
 
@@ -593,16 +593,16 @@ Files:
 Steps:
 
 - [ ] Make `shutdown()` asynchronous: reject new jobs, abort network/tool work,
-  clear delivery waiters, await tracked promises and check cancellation before
-  context/cache/audit writes or danmaku delivery.
+      clear delivery waiters, await tracked promises and check cancellation before
+      context/cache/audit writes or danmaku delivery.
 - [ ] Resolve pending delivery waiters as false and clear every owned timer during
-  stop.
+      stop.
 - [ ] Call TTL prune at trusted startup after exclusivity is acquired.
 - [ ] Add `aiRequestLogRetentionDays` with a documented default of 30 days;
-  include log counts in dry-run/real retention results. Keep blacklist and current
-  provider configuration until explicit clear-all or user action.
+      include log counts in dry-run/real retention results. Keep blacklist and current
+      provider configuration until explicit clear-all or user action.
 - [ ] Test a hanging generation released after shutdown: no DB write、delivery、
-  ready job or timer may remain.
+      ready job or timer may remain.
 
 ### Deliverable 4.4: Make Overtime Limits A Round-trip Contract
 
@@ -632,20 +632,20 @@ Current recommended owner:
 Steps:
 
 - [ ] Add a `limits` object to the successful `GET /api/overtime` data, derived
-  from the backend contract and containing at least `maxSeconds`,
-  `maxEffectFactor`, `maxRandomWeight` and `maxEnabledRules`; existing fields、
-  status and path remain unchanged.
+      from the backend contract and containing at least `maxSeconds`,
+      `maxEffectFactor`, `maxRandomWeight` and `maxEnabledRules`; existing fields、
+      status and path remain unchanged.
 - [ ] Make Admin validators and input bounds consume the returned limits; remove
-  the stale 999-hour initial-time clamp、24-hour rule-effect ceiling and 10,000
-  per-outcome weight ceiling instead of replacing them with another copied value.
+      the stale 999-hour initial-time clamp、24-hour rule-effect ceiling and 10,000
+      per-outcome weight ceiling instead of replacing them with another copied value.
 - [ ] Preserve any server-valid value during load、render and save. If a control
-  cannot conveniently edit the full range, it must still display and round-trip
-  the untouched value without silent normalization.
+      cannot conveniently edit the full range, it must still display and round-trip
+      the untouched value without silent normalization.
 - [ ] Correct backend API、overtime and frontend owner documents in the same
-  change and remove frontend tests that inject stale constants.
+      change and remove frontend tests that inject stale constants.
 - [ ] Add maximum-boundary fixtures for initial/remaining time、fixed effects and
-  random outcomes; load them through `GET /api/overtime`, render them in Admin,
-  submit without edits and assert exact values survive.
+      random outcomes; load them through `GET /api/overtime`, render them in Admin,
+      submit without edits and assert exact values survive.
 
 Public-contract gate:
 
@@ -690,13 +690,13 @@ Files:
 Steps:
 
 - [ ] Configure the accepted `publisherName` and force code signing for release
-  builds; signing credentials remain outside the repository.
+      builds; signing credentials remain outside the repository.
 - [ ] Before tag or upload, verify installer and unpacked executable are
-  Authenticode `Valid`, signed by the exact accepted subject and timestamped.
+      Authenticode `Valid`, signed by the exact accepted subject and timestamped.
 - [ ] Keep the current SHA-512/latest.yml verification as transport integrity;
-  do not treat it as a substitute for publisher identity.
+      do not treat it as a substitute for publisher identity.
 - [ ] Make release preflight fail closed for unsigned、wrong-publisher、invalid or
-  non-timestamped artifacts and prove no upload command runs after failure.
+      non-timestamped artifacts and prove no upload command runs after failure.
 - [ ] Keep existing installer name、version and updater asset contract.
 
 ### Deliverable 5.2: Remove Credential Logging And Known Production Advisory
@@ -711,15 +711,15 @@ Files:
 Steps:
 
 - [ ] Log only proxy protocol/host/port; remove userinfo and sensitive query
-  parameters before any console output.
+      parameters before any console output.
 - [ ] Refresh the transitive `js-yaml` lock entry to `4.3.1` within
-  `electron-updater`'s existing semver range; do not add an unnecessary direct
-  runtime dependency and do not use `npm audit fix --force`.
+      `electron-updater`'s existing semver range; do not add an unnecessary direct
+      runtime dependency and do not use `npm audit fix --force`.
 - [ ] Run `npm ci`, inspect the lockfile diff, and verify
-  `npm audit --omit=dev --audit-level=moderate` has no production High result.
+      `npm audit --omit=dev --audit-level=moderate` has no production High result.
 - [ ] Triage the remaining build-tool advisories separately against the latest
-  direct Electron packaging dependencies; do not suppress them by changing the
-  deterministic local `verify` gate into a network-dependent command.
+      direct Electron packaging dependencies; do not suppress them by changing the
+      deterministic local `verify` gate into a network-dependent command.
 
 Focused verification:
 
@@ -755,17 +755,17 @@ Files:
 Steps:
 
 - [ ] Export or derive the literal registered API route keys and compare them
-  against backticked `METHOD /api/path` entries in the owner document; fail on
-  missing and stale entries. Add the four currently missing gift-effect/overtime
-  routes first.
+      against backticked `METHOD /api/path` entries in the owner document; fail on
+      missing and stale entries. Add the four currently missing gift-effect/overtime
+      routes first.
 - [ ] Keep numeric debt authority only in architecture tests. When a task removes
-  SQL、global or empty-catch matches, lower or delete that exact per-file baseline.
+      SQL、global or empty-catch matches, lower or delete that exact per-file baseline.
 - [ ] Move only touched receiver-aware SQL into a real storage owner; do not
-  introduce repositories for unrelated code or hypothetical reuse.
+      introduce repositories for unrelated code or hypothetical reuse.
 - [ ] Convert classic Admin producer/consumer slices only when a feature or fix
-  already changes both ends; preserve page fragment order and no-build loading.
+      already changes both ends; preserve page fragment order and no-build loading.
 - [ ] Correct owner-document facts in the same track that changes runtime
-  behavior; do not rewrite documentation merely to mirror a defect.
+      behavior; do not rewrite documentation merely to mirror a defect.
 
 Track 6 Done When:
 

@@ -1,6 +1,6 @@
 # 前端通信:Token、HTTP、WebSocket 与桌面桥
 
-> 涉及文件:[shared/utils.js](../../../public/js/shared/utils.js)、[shared/event-bus.js](../../../public/js/shared/event-bus.js)、[admin/state.js](../../../public/js/admin/state.js)、[desktop.js](../../../public/js/desktop.js)、[overlays/queue.js](../../../public/js/overlays/queue.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)
+> 涉及文件:[shared/utils.js](../../../public/js/shared/utils.js)、[shared/event-bus.js](../../../public/js/shared/event-bus.js)、[admin/state.js](../../../public/js/admin/state.js)、[admin/overtime.js](../../../public/js/admin/overtime.js)、[desktop.js](../../../public/js/desktop.js)、[overlays/queue.js](../../../public/js/overlays/queue.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)
 
 本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 16 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
 
@@ -8,13 +8,13 @@
 
 服务端在每次返回 HTML 时向 `</head>` 前注入一段脚本([http-utils.js:108-137](../../../src/server/http-utils.js#L108-L137),机制归 [server-core.md](../backend/server-core.md) §4.3),客户端侧表现为:
 
-| 事实 | 客户端行为 |
-|---|---|
-| 全局令牌 | 注入脚本写 `window.__API_TOKEN__ = <uuid>`;页面其余脚本直接读取,无需自己请求 |
-| fetch 补丁 | 注入脚本包装 `window.fetch`:对以 `/api/` 开头(除 `/api/health`)且未带 Authorization 的请求自动附加 `Authorization: Bearer <token>` |
-| WebSocket 补丁 | 包装 `window.WebSocket`:URL 含 `/ws` 且无 `?token=` 时自动追加 `token=`(encodeURIComponent 编码) |
-| 原生链接补丁 | 对同源 `/api/` 的 `<a href>` 补 `?token=`(原生导航带不了 Header) |
-| 兜底 | 显式使用 token 的代码仍是合法模式:`utils.api()` 手动加 Bearer([utils.js:156](../../../public/js/shared/utils.js#L156))、`state.js` 拼接 `ws://host/ws?token=…`([state.js:31-32](../../../public/js/admin/state.js#L31-L32)) |
+| 事实           | 客户端行为                                                                                                                                                                                                                  |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 全局令牌       | 注入脚本写 `window.__API_TOKEN__ = <uuid>`;页面其余脚本直接读取,无需自己请求                                                                                                                                                |
+| fetch 补丁     | 注入脚本包装 `window.fetch`:对以 `/api/` 开头(除 `/api/health`)且未带 Authorization 的请求自动附加 `Authorization: Bearer <token>`                                                                                          |
+| WebSocket 补丁 | 包装 `window.WebSocket`:URL 含 `/ws` 且无 `?token=` 时自动追加 `token=`(encodeURIComponent 编码)                                                                                                                            |
+| 原生链接补丁   | 对同源 `/api/` 的 `<a href>` 补 `?token=`(原生导航带不了 Header)                                                                                                                                                            |
+| 兜底           | 显式使用 token 的代码仍是合法模式:`utils.api()` 手动加 Bearer([utils.js:156](../../../public/js/shared/utils.js#L156))、`state.js` 拼接 `ws://host/ws?token=…`([state.js:31-32](../../../public/js/admin/state.js#L31-L32)) |
 
 **Token 生命周期**:随服务启动生成、关闭删除(见 [server-core.md](../backend/server-core.md) §7)。页面缓存被禁止(`Cache-Control: no-store`),每次刷新都能拿到新注入的 token。
 
@@ -22,17 +22,17 @@
 
 ### 2.1 工具函数([shared/utils.js](../../../public/js/shared/utils.js))
 
-| 函数 | 用途 |
-|---|---|
-| `api(url, body)` | POST JSON 便捷封装:自动 `Content-Type: application/json` + Bearer 头;解析信封后 `!payload.ok` 抛错;出错先 `showError` 再抛 |
-| `readJsonResponse(response, fallbackMessage)` | 统一响应解析:空响应→`{}`;非 JSON→带 HTTP 状态码与内容预览的报错;正常→`JSON.parse` |
-| `showError(error)` / `toast(message)` / `showStackedToast(options)` | 错误与提示:全局 `#toast` 容器,支持 key 去重、点击回调、礼物通知最多 6 条上限 |
-| `escapeHtml` / `escapeAttr` | 渲染前转义(所有模板插值必须经此) |
-| `formatBytes` / `formatMoney` / `formatCompactNumber` / `formatDuration` / `formatSuperChatPrice` | 展示格式化 |
-| `debounce` / `normalizeRangeValue` | 输入防抖与滑块数值归一 |
-| `dangerConfirm` / `logoutConfirm` | 危险操作 / 退出登录的自绘确认弹窗(替代原生 confirm) |
-| `localOverlayOrigin(locationLike)` | 以 `127.0.0.1` 规范化叠加层 URL(供管理页生成 OBS 地址) |
-| `withMultilingualFallback(fontFamily)` | 字体栈追加多语言回退 |
+| 函数                                                                                              | 用途                                                                                                                       |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `api(url, body)`                                                                                  | POST JSON 便捷封装:自动 `Content-Type: application/json` + Bearer 头;解析信封后 `!payload.ok` 抛错;出错先 `showError` 再抛 |
+| `readJsonResponse(response, fallbackMessage)`                                                     | 统一响应解析:空响应→`{}`;非 JSON→带 HTTP 状态码与内容预览的报错;正常→`JSON.parse`                                          |
+| `showError(error)` / `toast(message)` / `showStackedToast(options)`                               | 错误与提示:全局 `#toast` 容器,支持 key 去重、点击回调、礼物通知最多 6 条上限                                               |
+| `escapeHtml` / `escapeAttr`                                                                       | 渲染前转义(所有模板插值必须经此)                                                                                           |
+| `formatBytes` / `formatMoney` / `formatCompactNumber` / `formatDuration` / `formatSuperChatPrice` | 展示格式化                                                                                                                 |
+| `debounce` / `normalizeRangeValue`                                                                | 输入防抖与滑块数值归一                                                                                                     |
+| `dangerConfirm` / `logoutConfirm`                                                                 | 危险操作 / 退出登录的自绘确认弹窗(替代原生 confirm)                                                                        |
+| `localOverlayOrigin(locationLike)`                                                                | 以 `127.0.0.1` 规范化叠加层 URL(供管理页生成 OBS 地址)                                                                     |
+| `withMultilingualFallback(fontFamily)`                                                            | 字体栈追加多语言回退                                                                                                       |
 
 ### 2.2 响应信封约定
 
@@ -51,15 +51,15 @@
 
 ### 3.1 连接与快照处理
 
-| 事实 | 行为 | 出处 |
-|---|---|---|
-| 连接 URL | `(wss\|ws)://<host>/ws?token=<token>`(token 自动追加或手动拼)；固定 `/danmaku` 追加 `topic=danmaku` 订阅高频弹幕事件 | [state.js:30-33](../../../public/js/admin/state.js#L30-L33)、[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) |
-| 首帧 | 连接建立即收 `{type:'snapshot', reason:'connect', state}` 全量快照(契约见 [ws.md](../backend/ws.md) §2) | [ws.md](../backend/ws.md) §2 |
-| 协议选择 | `location.protocol === 'https:' ? 'wss:' : 'ws:'`,与页面同源(`location.host`) | [state.js:30](../../../public/js/admin/state.js#L30) |
-| 只读客户端 | 前端**不发送任何业务消息**给服务端;`shutdown` 消息到达后停止重连 | [ws.md](../backend/ws.md) §1 |
-| 全量替换 | 每次 snapshot 用 `payload.state` **整体替换**本地状态再重渲染,不做增量合并 | [state.js:44-58](../../../public/js/admin/state.js#L44-L58) |
-| 局部消息 | `overtime:update`/`wesing-state`/`lyric-state`/`lyric-timeline` 只更新对应字段并派发 CustomEvent(`app:overtime`、`app:wesing-state`、`app:lyric-state`、`app:lyric-timeline`) | [state.js:59-78](../../../public/js/admin/state.js#L59-L78) |
-| 礼物触发 | reason ∈ {`bilibili:gift`,`gift:clear-recent`,`database:clear-gifts`,`database:clear-all`} 时额外发 `gift:received` 事件 | [state.js:215-220](../../../public/js/admin/state.js#L215-L220) |
+| 事实       | 行为                                                                                                                                                                                                                                                        | 出处                                                                                                                       |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 连接 URL   | `(wss\|ws)://<host>/ws?token=<token>`(token 自动追加或手动拼)；固定 `/danmaku` 追加 `topic=danmaku` 订阅高频弹幕事件                                                                                                                                        | [state.js:30-33](../../../public/js/admin/state.js#L30-L33)、[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) |
+| 首帧       | 连接建立即收 `{type:'snapshot', reason:'connect', state}` 全量快照(契约见 [ws.md](../backend/ws.md) §2)                                                                                                                                                     | [ws.md](../backend/ws.md) §2                                                                                               |
+| 协议选择   | `location.protocol === 'https:' ? 'wss:' : 'ws:'`,与页面同源(`location.host`)                                                                                                                                                                               | [state.js:30](../../../public/js/admin/state.js#L30)                                                                       |
+| 只读客户端 | 前端**不发送任何业务消息**给服务端;`shutdown` 消息到达后停止重连                                                                                                                                                                                            | [ws.md](../backend/ws.md) §1                                                                                               |
+| 全量替换   | 每次 snapshot 用 `payload.state` **整体替换**本地状态再重渲染,不做增量合并                                                                                                                                                                                  | [state.js:44-58](../../../public/js/admin/state.js#L44-L58)                                                                |
+| 局部消息   | `overtime:update`/`wesing-state`/`lyric-state`/`lyric-timeline` 只更新对应字段并派发 CustomEvent(`app:overtime`、`app:wesing-state`、`app:lyric-state`、`app:lyric-timeline`)；`gift-catalog:update` 不写入全量 state，只派发 `Events.GIFT_CATALOG_UPDATED` | [state.js:59-86](../../../public/js/admin/state.js#L59-L86)                                                                |
+| 礼物触发   | reason ∈ {`bilibili:gift`,`gift:clear-recent`,`database:clear-gifts`,`database:clear-all`} 时额外发 `gift:received` 事件                                                                                                                                    | [state.js:215-220](../../../public/js/admin/state.js#L215-L220)                                                            |
 
 ### 3.2 指纹去重(叠加层)
 
@@ -72,26 +72,26 @@
 
 ### 3.3 断线重连与退避
 
-| 客户端 | 策略 | 出处 |
-|---|---|---|
-| 管理页 `StateService` | close 后固定 **1600ms** 重连;`setShuttingDown(true)` 时改显示"程序已退出"并停止重连 | [state.js:81-92](../../../public/js/admin/state.js#L81-L92) |
-| 叠加层(队列/歌单/盲盒/加班机) | 指数退避 `min(30000, 800 × 2^min(attempts,6))`,重连前先 `loadState()` 拿快照兜底 | [overlays/queue.js:86-93](../../../public/js/overlays/queue.js#L86-L93) |
-| 桌面歌词浏览器源 | `min(15000, 1000 × 2^min(attempts-1,4))`,连接恢复后继续接收状态与时间轴 | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
-| shutdown | 服务关闭前广播 `shutdown`(见 [ws.md](../backend/ws.md) §3),管理页据此进入"程序已退出"状态 | [ws.md](../backend/ws.md) §3 |
+| 客户端                        | 策略                                                                                      | 出处                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| 管理页 `StateService`         | close 后固定 **1600ms** 重连;`setShuttingDown(true)` 时改显示"程序已退出"并停止重连       | [state.js:81-92](../../../public/js/admin/state.js#L81-L92)             |
+| 叠加层(队列/歌单/盲盒/加班机) | 指数退避 `min(30000, 800 × 2^min(attempts,6))`,重连前先 `loadState()` 拿快照兜底          | [overlays/queue.js:86-93](../../../public/js/overlays/queue.js#L86-L93) |
+| 桌面歌词浏览器源              | `min(15000, 1000 × 2^min(attempts-1,4))`,连接恢复后继续接收状态与时间轴                   | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
+| shutdown                      | 服务关闭前广播 `shutdown`(见 [ws.md](../backend/ws.md) §3),管理页据此进入"程序已退出"状态 | [ws.md](../backend/ws.md) §3                                            |
 
 ### 3.4 客户端消费的消息类型(全集在 [ws.md](../backend/ws.md) §3)
 
-`snapshot`(所有页面)、`overtime:update`(管理页 + 加班机层,revision 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)。所有页面都不向服务端发送业务消息(服务端丢弃客户端帧,见 [ws.md](../backend/ws.md) §1)。
+`snapshot`(所有页面)、`overtime:update`(管理页 + 加班机层,revision 去重)、`gift-catalog:update`(管理页加班机选择器,version 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)。所有页面都不向服务端发送业务消息(服务端丢弃客户端帧,见 [ws.md](../backend/ws.md) §1)。
 
 ## 4. 桌面桥(preload 暴露的三个命名空间)
 
 桌面渲染进程通过 preload 的 `contextBridge` 获得三个命名空间(通道注册表见 [desktop/preload.md](../desktop/preload.md)),浏览器环境**不注入**,前端一律先做特性检测:
 
-| 桥 | 典型用法 | 检测方式 |
-|---|---|---|
-| `window.songAssistantDesktop` | 窗口控制 `minimizeWindow/maximizeWindow/closeWindow/restart`、`onWindowMaximized` 图标切换、更新流程 `checkForUpdates/downloadUpdate/installUpdate`、`openDataDir/openLogDir/openGithub`、`setAutoUpdate` | `if (window.songAssistantDesktop)`([settings.js:327](../../../public/js/admin/settings.js#L327)) |
-| `window.musicAPI` | 播放器域:登录态/健康 `getAuthState/providerHealth`、播放状态落盘 `savePlaybackState`(卸载/关机前刷新)、本地文件 `selectLocalFiles/getRecentLocalFiles/resolveLocalMediaUrls`、WeSing 目录选择 `selectWeSingCacheDirectory`、关机钩子 `onPrepareShutdown/confirmShutdownFlush` | `typeof window.musicAPI?.xxx === 'function'` |
-| `window.bilibiliAuth` | Bilibili 扫码登录 `login/logout/getAuthState`;Web 模式禁用并显示"Web 模式(不可用)" | `!!window.bilibiliAuth`([settings.js:23-30](../../../public/js/admin/settings.js#L23-L30)) |
+| 桥                            | 典型用法                                                                                                                                                                                                                                                                      | 检测方式                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `window.songAssistantDesktop` | 窗口控制 `minimizeWindow/maximizeWindow/closeWindow/restart`、`onWindowMaximized` 图标切换、更新流程 `checkForUpdates/downloadUpdate/installUpdate`、`openDataDir/openLogDir/openGithub`、`setAutoUpdate`                                                                     | `if (window.songAssistantDesktop)`([settings.js:327](../../../public/js/admin/settings.js#L327)) |
+| `window.musicAPI`             | 播放器域:登录态/健康 `getAuthState/providerHealth`、播放状态落盘 `savePlaybackState`(卸载/关机前刷新)、本地文件 `selectLocalFiles/getRecentLocalFiles/resolveLocalMediaUrls`、WeSing 目录选择 `selectWeSingCacheDirectory`、关机钩子 `onPrepareShutdown/confirmShutdownFlush` | `typeof window.musicAPI?.xxx === 'function'`                                                     |
+| `window.bilibiliAuth`         | Bilibili 扫码登录 `login/logout/getAuthState`;Web 模式禁用并显示"Web 模式(不可用)"                                                                                                                                                                                            | `!!window.bilibiliAuth`([settings.js:23-30](../../../public/js/admin/settings.js#L23-L30))       |
 
 **降级路径**:同一功能先走 IPC、后端不可用再回退 HTTP(如 `ProviderManager.refreshProviderState` 先 `musicAPI.providerHealth(source)`,浏览器回退 `GET /api/music/health`([provider/manager.js:42-64](../../../public/js/playback/provider/manager.js#L42-L64)));登录态接口 404/501 时标记不可用并静默返回空态。
 

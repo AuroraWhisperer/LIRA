@@ -12,7 +12,7 @@ const {
   createWeSingCapture,
   findLatestSongEntry,
   loadWeSingLyrics,
-  normalizeWeSingCachePath
+  normalizeWeSingCachePath,
 } = require('../src/music/wesing-capture');
 
 function qrcXml(content, options = {}) {
@@ -28,18 +28,25 @@ function createFixture() {
   const qrcDir = path.join(cachePath, 'WeSingDL', 'Res', mid);
   fs.mkdirSync(logDir, { recursive: true });
   fs.mkdirSync(qrcDir, { recursive: true });
-  fs.writeFileSync(path.join(logDir, 'WeSing-1.log'), Buffer.from([
-    'ignored line',
-    'event "StartKSong" payload {"mid":"older","songname":"旧歌"}',
-    `event "StartKSong" payload {"mid":"${mid}","songname":"测试歌曲","singer":"测试歌手"}`
-  ].join('\r\n'), 'utf16le'));
+  fs.writeFileSync(
+    path.join(logDir, 'WeSing-1.log'),
+    Buffer.from(
+      [
+        'ignored line',
+        'event "StartKSong" payload {"mid":"older","songname":"旧歌"}',
+        `event "StartKSong" payload {"mid":"${mid}","songname":"测试歌曲","singer":"测试歌手"}`,
+      ].join('\r\n'),
+      'utf16le',
+    ),
+  );
 
-  const content = '[ti:测试歌曲]\n[ar:测试歌手]\n[1000,1800]你(1000,800)好(1800,1000)\n[4000,1200]世(4000,600)界(4600,600)';
+  const content =
+    '[ti:测试歌曲]\n[ar:测试歌手]\n[1000,1800]你(1000,800)好(1800,1000)\n[4000,1200]世(4000,600)界(4600,600)';
   const encrypted = Buffer.from(encryptQrc(qrcXml(content)), 'hex');
-  fs.writeFileSync(path.join(qrcDir, `${mid}.qrc`), Buffer.concat([
-    Buffer.from('[offset:0]\n', 'utf8'),
-    encrypted
-  ]));
+  fs.writeFileSync(
+    path.join(qrcDir, `${mid}.qrc`),
+    Buffer.concat([Buffer.from('[offset:0]\n', 'utf8'), encrypted]),
+  );
   return { root, cachePath, mid };
 }
 
@@ -51,7 +58,10 @@ test('WeSing capture facade preserves focused module exports', () => {
 
   assert.equal(facade.createWeSingCapture, engine.createWeSingCapture);
   assert.equal(facade.loadWeSingLyrics, cache.loadWeSingLyrics);
-  assert.equal(facade.buildPowerShellMonitorScript, monitor.buildPowerShellMonitorScript);
+  assert.equal(
+    facade.buildPowerShellMonitorScript,
+    monitor.buildPowerShellMonitorScript,
+  );
 });
 
 test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-timed QRC', async (t) => {
@@ -59,11 +69,15 @@ test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-ti
   t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
 
   const entry = await findLatestSongEntry(fixture.cachePath, '测试歌曲');
-  assert.deepEqual(entry, { mid: fixture.mid, songName: '测试歌曲', artist: '测试歌手' });
+  assert.deepEqual(entry, {
+    mid: fixture.mid,
+    songName: '测试歌曲',
+    artist: '测试歌手',
+  });
 
   const result = await loadWeSingLyrics({
     cachePath: fixture.cachePath,
-    title: '测试歌曲'
+    title: '测试歌曲',
   });
   assert.equal(result.songMid, fixture.mid);
   assert.equal(result.title, '测试歌曲');
@@ -73,7 +87,7 @@ test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-ti
   assert.equal(result.lines[0].text, '你好');
   assert.deepEqual(result.lines[0].words, [
     { text: '你', startMs: 1000, endMs: 1800 },
-    { text: '好', startMs: 1800, endMs: 2800 }
+    { text: '好', startMs: 1800, endMs: 2800 },
   ]);
 });
 
@@ -82,17 +96,26 @@ test('WeSing log parser ignores title mismatches and unsafe song IDs', async (t)
   t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
 
   const logPath = path.join(fixture.cachePath, 'Log', 'WeSing', 'WeSing-2.log');
-  fs.writeFileSync(logPath, Buffer.from(
-    'event "StartKSong" payload {"mid":"..\\..\\secret","songname":"测试歌曲"}',
-    'utf16le'
-  ));
+  fs.writeFileSync(
+    logPath,
+    Buffer.from(
+      'event "StartKSong" payload {"mid":"..\\..\\secret","songname":"测试歌曲"}',
+      'utf16le',
+    ),
+  );
   const future = new Date(Date.now() + 2000);
   fs.utimesSync(logPath, future, future);
 
   assert.equal(await findLatestSongEntry(fixture.cachePath, '另一首歌'), null);
   assert.equal(await findLatestSongEntry(fixture.cachePath, '测试歌曲'), null);
-  assert.throws(() => normalizeWeSingCachePath('relative\\WeSingCache'), /绝对路径/);
-  assert.throws(() => normalizeWeSingCachePath('C:\\Temp\\OtherFolder'), /WeSingCache/);
+  assert.throws(
+    () => normalizeWeSingCachePath('relative\\WeSingCache'),
+    /绝对路径/,
+  );
+  assert.throws(
+    () => normalizeWeSingCachePath('C:\\Temp\\OtherFolder'),
+    /WeSingCache/,
+  );
 });
 
 test('WeSing cache configuration creates a missing user cache directory', async (t) => {
@@ -118,10 +141,12 @@ test('WeSing activation creates a missing initial cache directory before detecti
     platform: 'win32',
     monitorFactory() {
       return {
-        start() { cacheExistedAtMonitorStart = fs.existsSync(cachePath); },
-        stop() {}
+        start() {
+          cacheExistedAtMonitorStart = fs.existsSync(cachePath);
+        },
+        stop() {},
       };
-    }
+    },
   });
   t.after(() => capture.stop());
 
@@ -146,15 +171,24 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
       onSample = callback;
       return {
         start() {},
-        stop() { stopped = true; }
+        stop() {
+          stopped = true;
+        },
       };
     },
-    onState(state) { states.push(state); }
+    onState(state) {
+      states.push(state);
+    },
   });
 
   await capture.setActive(true);
   assert.equal(typeof onSample, 'function');
-  onSample({ detected: true, title: '全民K歌 - 测试歌曲', currentSec: 1, totalSec: 8 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: 1,
+    totalSec: 8,
+  });
   await capture.waitForRefresh();
 
   let state = capture.getStatus();
@@ -166,19 +200,34 @@ test('WeSing capture activates an injected monitor and derives live lyric state'
   assert.equal(state.lyricState.words.length, 2);
 
   currentTime = 1100;
-  onSample({ detected: true, title: '全民K歌 - 测试歌曲', currentSec: 2, totalSec: 8 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: 2,
+    totalSec: 8,
+  });
   state = capture.getStatus();
   assert.equal(state.lyricState.playing, true);
 
   currentTime = 4000;
-  onSample({ detected: true, title: '全民K歌 - 测试歌曲', currentSec: -1, totalSec: -1 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: -1,
+    totalSec: -1,
+  });
   state = capture.getStatus();
   assert.equal(state.lyricState.currentMs, 5030);
   assert.equal(state.lyricState.lineText, '世界');
   assert.equal(state.lyricState.playing, false);
 
   currentTime = 4250;
-  onSample({ detected: true, title: '全民K歌 - 测试歌曲', currentSec: 4, totalSec: 8 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: 4,
+    totalSec: 8,
+  });
   state = capture.getStatus();
   assert.equal(state.lyricState.lineText, '世界');
   assert.equal(states.length > 2, true);
@@ -197,24 +246,39 @@ test('WeSing capture stays paused until progress text becomes available', async 
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
-    }
+    },
   });
 
   await capture.setActive(true);
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+  });
   let state = capture.getStatus();
   assert.equal(state.currentMs, 0);
   assert.equal(state.playing, false);
   assert.equal(state.waitingForPlayback, true);
 
   currentTime = 2250;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+  });
   state = capture.getStatus();
   assert.equal(state.currentMs, 0);
   assert.equal(state.playing, false);
 
   currentTime = 2500;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 2, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 2,
+    totalSec: 255,
+  });
   state = capture.getStatus();
   assert.equal(state.currentMs, 2130);
   assert.equal(state.durationMs, 255000);
@@ -230,7 +294,7 @@ test('WeSing capture waits for measured progress after the client finishes loadi
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
-    }
+    },
   });
 
   await capture.setActive(true);
@@ -239,28 +303,52 @@ test('WeSing capture waits for measured progress after the client finishes loadi
     title: '全民K歌 - 失控',
     currentSec: 0,
     totalSec: 255,
-    loading: true
+    loading: true,
   });
   assert.equal(capture.getStatus().currentMs, 0);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 2000;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1, loading: false });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+    loading: false,
+  });
   assert.equal(capture.getStatus().currentMs, 0);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 2250;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1, loading: false });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+    loading: false,
+  });
   assert.equal(capture.getStatus().currentMs, 0);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 2300;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 0, totalSec: 255, loading: false });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 0,
+    totalSec: 255,
+    loading: false,
+  });
   assert.equal(capture.getStatus().currentMs, 130);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 3200;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 1, totalSec: 255, loading: false });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 1,
+    totalSec: 255,
+    loading: false,
+  });
   assert.equal(capture.getStatus().currentMs, 1130);
   assert.equal(capture.getStatus().playing, true);
 });
@@ -293,14 +381,16 @@ test('WeSing capture delays the forced lyric refresh until one second after play
         title,
         artists: [loaded ? '正确歌手' : '错误歌手'],
         durationMs,
-        lines: [{
-          startMs: 0,
-          endMs: durationMs,
-          text: loaded ? '正确歌词' : '错误歌词',
-          words: []
-        }]
+        lines: [
+          {
+            startMs: 0,
+            endMs: durationMs,
+            text: loaded ? '正确歌词' : '错误歌词',
+            words: [],
+          },
+        ],
       };
-    }
+    },
   });
 
   await capture.setActive(true);
@@ -309,7 +399,7 @@ test('WeSing capture delays the forced lyric refresh until one second after play
     title: '全民K歌 - 同名歌曲',
     currentSec: 0,
     totalSec: 180,
-    loading: true
+    loading: true,
   });
   await capture.waitForRefresh();
   assert.deepEqual(capture.getStatus().lyricState.artists, ['错误歌手']);
@@ -319,7 +409,7 @@ test('WeSing capture delays the forced lyric refresh until one second after play
     title: '全民K歌 - 同名歌曲',
     currentSec: 0,
     totalSec: 200,
-    loading: false
+    loading: false,
   });
   assert.deepEqual(requestedDurations, [180000]);
 
@@ -328,7 +418,7 @@ test('WeSing capture delays the forced lyric refresh until one second after play
     title: '全民K歌 - 同名歌曲',
     currentSec: 1,
     totalSec: 200,
-    loading: false
+    loading: false,
   });
   assert.equal(timers.length, 1);
   assert.equal(timers[0].delayMs, 1000);
@@ -355,23 +445,43 @@ test('WeSing capture freezes on a confirmed pause and preserves it through unava
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
-    }
+    },
   });
 
   await capture.setActive(true);
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 10, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 10,
+    totalSec: 255,
+  });
   currentTime = 1100;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 11, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 11,
+    totalSec: 255,
+  });
   assert.equal(capture.getStatus().playing, true);
 
   currentTime = 2700;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 11, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 11,
+    totalSec: 255,
+  });
   const pausedAt = capture.getStatus().currentMs;
   assert.equal(pausedAt, 12730);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 3600;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+  });
   assert.equal(capture.getStatus().currentMs, pausedAt);
   assert.equal(capture.getStatus().playing, false);
 });
@@ -385,19 +495,39 @@ test('WeSing capture accepts backward progress as replay or seek calibration', a
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
-    }
+    },
   });
 
   await capture.setActive(true);
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 20, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 20,
+    totalSec: 255,
+  });
   currentTime = 1100;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 21, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 21,
+    totalSec: 255,
+  });
   currentTime = 1750;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+  });
   assert.equal(capture.getStatus().currentMs, 21780);
 
   currentTime = 2000;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 2, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 2,
+    totalSec: 255,
+  });
   assert.equal(capture.getStatus().currentMs, 2130);
   assert.equal(capture.getStatus().playing, true);
 });
@@ -411,20 +541,35 @@ test('WeSing capture restarts timing after the client returns and freezes on mon
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
-    }
+    },
   });
 
   await capture.setActive(true);
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 5, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 5,
+    totalSec: 255,
+  });
   currentTime = 1100;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 6, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 6,
+    totalSec: 255,
+  });
   currentTime = 1500;
   onSample({ detected: false, title: '', currentSec: -1, totalSec: -1 });
   assert.equal(capture.getStatus().currentMs, 6530);
   assert.equal(capture.getStatus().playing, false);
 
   currentTime = 2500;
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: -1, totalSec: -1 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: -1,
+    totalSec: -1,
+  });
   assert.equal(capture.getStatus().currentMs, 0);
   assert.equal(capture.getStatus().playing, false);
 
@@ -445,7 +590,10 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   fs.mkdirSync(logDir, { recursive: true });
   fs.writeFileSync(
     path.join(logDir, 'WeSing-online.log'),
-    Buffer.from('event "StartKSong" payload {"mid":"online-mid","songname":"失控","artist":"井迪"}', 'utf16le')
+    Buffer.from(
+      'event "StartKSong" payload {"mid":"online-mid","songname":"失控","artist":"井迪"}',
+      'utf16le',
+    ),
   );
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -470,18 +618,25 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
         title: input.title,
         artists: ['井迪'],
         durationMs: input.durationMs,
-        lines: [{
-          startMs: 0,
-          endMs: 2000,
-          text: '请原谅我的词穷',
-          words: [{ text: '请', startMs: 0, endMs: 200 }]
-        }]
+        lines: [
+          {
+            startMs: 0,
+            endMs: 2000,
+            text: '请原谅我的词穷',
+            words: [{ text: '请', startMs: 0, endMs: 200 }],
+          },
+        ],
       };
-    }
+    },
   });
 
   await capture.setActive(true);
-  onSample({ detected: true, title: '全民K歌 - 失控', currentSec: 1, totalSec: 255 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 失控',
+    currentSec: 1,
+    totalSec: 255,
+  });
   await capture.waitForRefresh();
 
   const state = capture.getStatus();
@@ -489,13 +644,18 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   assert.equal(state.qrcReady, true);
   assert.equal(state.lyricSource, 'qq');
   assert.equal(state.lyricState.lineText, '请原谅我的词穷');
-  assert.deepEqual(requested, [{
-    title: '失控',
-    artist: '井迪',
-    artists: ['井迪'],
-    durationMs: 255000
-  }]);
-  assert.equal(timelines.filter((timeline) => timeline.lines.length > 0).length, 1);
+  assert.deepEqual(requested, [
+    {
+      title: '失控',
+      artist: '井迪',
+      artists: ['井迪'],
+      durationMs: 255000,
+    },
+  ]);
+  assert.equal(
+    timelines.filter((timeline) => timeline.lines.length > 0).length,
+    1,
+  );
   assert.equal(timelines.at(-1).trackTitle, '失控');
   assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');
   await capture.setActive(false);
@@ -542,7 +702,11 @@ test('WeSing capture refreshes a late QRC without resetting the playback clock',
       assert.equal(directoryPath, fixture.cachePath);
       assert.equal(options.recursive, true);
       watchCallback = callback;
-      return { close() { watcherClosed = true; } };
+      return {
+        close() {
+          watcherClosed = true;
+        },
+      };
     },
     setTimer(callback, delayMs) {
       scheduledRefresh = { callback, delayMs };
@@ -550,7 +714,7 @@ test('WeSing capture refreshes a late QRC without resetting the playback clock',
     },
     clearTimer() {
       scheduledRefresh = null;
-    }
+    },
   });
 
   await capture.setActive(true);
@@ -559,7 +723,7 @@ test('WeSing capture refreshes a late QRC without resetting the playback clock',
     title: '全民K歌 - 测试歌曲',
     currentSec: -1,
     totalSec: 8,
-    audioActive: true
+    audioActive: true,
   });
   await capture.waitForRefresh();
   assert.equal(typeof watchCallback, 'function');
@@ -570,19 +734,32 @@ test('WeSing capture refreshes a late QRC without resetting the playback clock',
     title: '全民K歌 - 测试歌曲',
     currentSec: -1,
     totalSec: 8,
-    audioActive: true
+    audioActive: true,
   });
   const beforeRefreshMs = capture.getStatus().currentMs;
 
-  const replacement = Buffer.from(encryptQrc(qrcXml(
-    '[ti:测试歌曲]\n[ar:测试歌手]\n[0,1200]新(0,600)词(600,600)',
-    { saveTime: 8 }
-  )), 'hex');
-  fs.writeFileSync(
-    path.join(fixture.cachePath, 'WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`),
-    replacement
+  const replacement = Buffer.from(
+    encryptQrc(
+      qrcXml('[ti:测试歌曲]\n[ar:测试歌手]\n[0,1200]新(0,600)词(600,600)', {
+        saveTime: 8,
+      }),
+    ),
+    'hex',
   );
-  watchCallback('change', path.join('WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`));
+  fs.writeFileSync(
+    path.join(
+      fixture.cachePath,
+      'WeSingDL',
+      'Res',
+      fixture.mid,
+      `${fixture.mid}.qrc`,
+    ),
+    replacement,
+  );
+  watchCallback(
+    'change',
+    path.join('WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`),
+  );
   assert.equal(scheduledRefresh.delayMs, 2000);
   scheduledRefresh.callback();
   await capture.waitForRefresh();
@@ -604,15 +781,22 @@ test('WeSing lyric offset is validated, persisted, and applied without changing 
     cachePath: fixture.cachePath,
     platform: 'win32',
     lyricOffsetMs: -500,
-    saveLyricOffsetMs(value) { savedOffsets.push(value); },
+    saveLyricOffsetMs(value) {
+      savedOffsets.push(value);
+    },
     monitorFactory(callback) {
       onSample = callback;
       return { start() {}, stop() {} };
-    }
+    },
   });
 
   await capture.setActive(true);
-  onSample({ detected: true, title: '全民K歌 - 测试歌曲', currentSec: 4, totalSec: 8 });
+  onSample({
+    detected: true,
+    title: '全民K歌 - 测试歌曲',
+    currentSec: 4,
+    totalSec: 8,
+  });
   await capture.waitForRefresh();
 
   let state = capture.getStatus();

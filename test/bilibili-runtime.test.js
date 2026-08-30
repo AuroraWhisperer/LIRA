@@ -7,17 +7,17 @@ const { createBilibiliRuntime } = require('../src/server/bilibili-runtime');
 test('Bilibili runtime owns auth refresh, client replacement, and shutdown', async () => {
   const settings = {
     roomId: '123',
-    enableBilibili: 'true'
+    enableBilibili: 'true',
   };
   const clients = [];
   const activeRooms = [];
   const runtime = createBilibiliRuntime({
     settingsStore: { getSettings: () => settings },
     domainServices: {
-      requesterTargets: { getLatestRandomRequester: () => null }
+      requesterTargets: { getLatestRandomRequester: () => null },
     },
     broadcastSnapshot() {},
-    setActiveDanmakuRoom: roomId => activeRooms.push(roomId),
+    setActiveDanmakuRoom: (roomId) => activeRooms.push(roomId),
     buildClient(roomId, context) {
       const client = {
         roomId,
@@ -26,17 +26,21 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
         stopCount: 0,
         apiClient: { updateAuth() {} },
         start() {},
-        async restart() { this.restartCount += 1; },
-        stop() { this.stopCount += 1; }
+        async restart() {
+          this.restartCount += 1;
+        },
+        stop() {
+          this.stopCount += 1;
+        },
       };
       clients.push(client);
       return client;
-    }
+    },
   });
   runtime.setAuthProvider({
     getAuthState: async () => ({ loggedIn: true, uid: 42 }),
     getCookieHeader: async () => 'SESSDATA=test',
-    getUid: async () => 42
+    getUid: async () => 42,
   });
 
   await runtime.reconnect();
@@ -46,7 +50,7 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
   assert.equal(clients[0].restartCount, 1);
   assert.deepEqual(clients[0].context.bilibiliAuthCache, {
     cookieHeader: 'SESSDATA=test',
-    uid: 42
+    uid: 42,
   });
   assert.deepEqual(activeRooms, ['123']);
 

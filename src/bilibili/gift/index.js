@@ -2,9 +2,7 @@
 // 礼物冲刺服务入口。
 'use strict';
 
-const {
-  repairGiftV2Events
-} = require('./event-service');
+const { repairGiftV2Events } = require('./event-service');
 const { createGiftDetectionService } = require('./detection-service');
 const { createGiftConsumerRegistry } = require('./consumer-registry');
 const { createGiftStatisticsConsumer } = require('./statistics-consumer');
@@ -15,28 +13,29 @@ const {
   getGiftHistory,
   getGiftSprintSnapshot,
   searchGifts,
-  clearRecentGifts
+  clearRecentGifts,
 } = require('./query-service');
 const {
   getBlindBoxStats,
-  getBlindBoxAnalysis
+  getBlindBoxAnalysis,
 } = require('./blind-box-analysis');
-const {
-  normalizeGiftRow,
-  normalizeGiftInput
-} = require('./normalizer');
+const { normalizeGiftRow, normalizeGiftInput } = require('./normalizer');
 
 function createGiftService(context, options = {}) {
-  const statisticsConsumer = options.statisticsConsumer || createGiftStatisticsConsumer({
-    giftDb: context.db.giftDb
-  });
-  const consumerRegistry = options.consumerRegistry || createGiftConsumerRegistry({
-    consumers: [statisticsConsumer, ...(options.consumers || [])],
-    onError: options.onConsumerError
-  });
+  const statisticsConsumer =
+    options.statisticsConsumer ||
+    createGiftStatisticsConsumer({
+      giftDb: context.db.giftDb,
+    });
+  const consumerRegistry =
+    options.consumerRegistry ||
+    createGiftConsumerRegistry({
+      consumers: [statisticsConsumer, ...(options.consumers || [])],
+      onError: options.onConsumerError,
+    });
   const detectionService = createGiftDetectionService(context, {
     ...options,
-    consumerRegistry
+    consumerRegistry,
   });
   return {
     ...detectionService,
@@ -45,10 +44,11 @@ function createGiftService(context, options = {}) {
     getHistory: (queryOptions) => getGiftHistory(context, queryOptions),
     getSprintSnapshot: () => getGiftSprintSnapshot(context),
     getBlindBoxStats: (queryOptions) => getBlindBoxStats(context, queryOptions),
-    getBlindBoxAnalysis: (queryOptions) => getBlindBoxAnalysis(context, queryOptions),
+    getBlindBoxAnalysis: (queryOptions) =>
+      getBlindBoxAnalysis(context, queryOptions),
     resetSprint: () => resetGiftSprintProgress(context),
     search: (queryOptions) => searchGifts(context, queryOptions || {}),
-    clearRecent: () => clearRecentGifts(context)
+    clearRecent: () => clearRecentGifts(context),
   };
 }
 
@@ -68,5 +68,5 @@ module.exports = {
   searchGifts,
   normalizeGiftRow,
   normalizeGiftInput,
-  clearRecentGifts
+  clearRecentGifts,
 };

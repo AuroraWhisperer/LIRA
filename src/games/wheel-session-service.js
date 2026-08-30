@@ -13,11 +13,15 @@ const WHEEL_LIMITS = Object.freeze({
   maxLabelLength: MAX_LABEL_LENGTH,
   minWeight: 1,
   maxWeight: MAX_WEIGHT,
-  maxTotalWeight: MAX_TOTAL_WEIGHT
+  maxTotalWeight: MAX_TOTAL_WEIGHT,
 });
 
 function normalizeWheelEntries(input) {
-  if (!Array.isArray(input) || input.length < MIN_ENTRIES || input.length > MAX_ENTRIES) {
+  if (
+    !Array.isArray(input) ||
+    input.length < MIN_ENTRIES ||
+    input.length > MAX_ENTRIES
+  ) {
     throw new Error(`转盘需要 ${MIN_ENTRIES}-${MAX_ENTRIES} 个选项。`);
   }
 
@@ -26,17 +30,21 @@ function normalizeWheelEntries(input) {
   const entries = input.map((entry, index) => {
     const label = String(entry?.label || '').trim();
     const weight = Number(entry?.weight);
-    if (!label || label.length > MAX_LABEL_LENGTH) throw new Error(`第 ${index + 1} 个选项内容无效。`);
+    if (!label || label.length > MAX_LABEL_LENGTH)
+      throw new Error(`第 ${index + 1} 个选项内容无效。`);
     if (labels.has(label)) throw new Error('转盘选项内容不能重复。');
     if (!Number.isInteger(weight) || weight < 1 || weight > MAX_WEIGHT) {
-      throw new Error(`第 ${index + 1} 个选项的份数应为 1-${MAX_WEIGHT} 的整数。`);
+      throw new Error(
+        `第 ${index + 1} 个选项的份数应为 1-${MAX_WEIGHT} 的整数。`,
+      );
     }
     labels.add(label);
     totalWeight += weight;
     return { label, weight };
   });
 
-  if (totalWeight > MAX_TOTAL_WEIGHT) throw new Error(`转盘总份数不能超过 ${MAX_TOTAL_WEIGHT}。`);
+  if (totalWeight > MAX_TOTAL_WEIGHT)
+    throw new Error(`转盘总份数不能超过 ${MAX_TOTAL_WEIGHT}。`);
   return { entries, totalWeight };
 }
 
@@ -52,8 +60,10 @@ function chooseWeightedEntry(entries, random = Math.random) {
 }
 
 function createWheelSessionService(options = {}) {
-  const broadcast = typeof options.broadcast === 'function' ? options.broadcast : () => {};
-  const random = typeof options.random === 'function' ? options.random : Math.random;
+  const broadcast =
+    typeof options.broadcast === 'function' ? options.broadcast : () => {};
+  const random =
+    typeof options.random === 'function' ? options.random : Math.random;
   let entries = [];
   let totalWeight = 0;
   let lastResult = null;
@@ -61,20 +71,24 @@ function createWheelSessionService(options = {}) {
   let spinTimer = null;
 
   function getState() {
-    const spin = activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs
-      ? { ...activeSpin }
-      : null;
+    const spin =
+      activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs
+        ? { ...activeSpin }
+        : null;
     return {
-      entries: entries.map(entry => ({ ...entry })),
+      entries: entries.map((entry) => ({ ...entry })),
       totalWeight,
       lastResult: lastResult ? { ...lastResult } : null,
       spin,
-      limits: { ...WHEEL_LIMITS }
+      limits: { ...WHEEL_LIMITS },
     };
   }
 
   function configure(input) {
-    if (activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs) {
+    if (
+      activeSpin &&
+      Date.now() - activeSpin.startedAt < activeSpin.durationMs
+    ) {
       const error = new Error('转盘正在转动，请稍候再修改。');
       error.statusCode = 409;
       throw error;
@@ -89,8 +103,12 @@ function createWheelSessionService(options = {}) {
   }
 
   function spin() {
-    if (entries.length < MIN_ENTRIES) throw new Error('请先配置至少两个转盘选项。');
-    if (activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs) {
+    if (entries.length < MIN_ENTRIES)
+      throw new Error('请先配置至少两个转盘选项。');
+    if (
+      activeSpin &&
+      Date.now() - activeSpin.startedAt < activeSpin.durationMs
+    ) {
       const error = new Error('转盘正在转动，请稍候再抽取。');
       error.statusCode = 409;
       throw error;
@@ -102,9 +120,13 @@ function createWheelSessionService(options = {}) {
       index,
       startedAt: now,
       durationMs: SPIN_DURATION_MS,
-      turns: SPIN_TURNS
+      turns: SPIN_TURNS,
     };
-    lastResult = { index, label: entries[index].label, selectedAt: new Date(now).toISOString() };
+    lastResult = {
+      index,
+      label: entries[index].label,
+      selectedAt: new Date(now).toISOString(),
+    };
     publish();
     const spinId = activeSpin.id;
     clearTimeout(spinTimer);
@@ -133,5 +155,5 @@ module.exports = {
   WHEEL_LIMITS,
   normalizeWheelEntries,
   chooseWeightedEntry,
-  createWheelSessionService
+  createWheelSessionService,
 };

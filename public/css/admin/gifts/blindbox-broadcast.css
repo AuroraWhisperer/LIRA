@@ -102,7 +102,9 @@
   border-radius: 8px;
   background: var(--color-bg-tertiary);
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
   user-select: none;
 }
 
@@ -117,7 +119,7 @@
   box-shadow: 0 0 0 1px rgba(33, 182, 168, 0.08) inset;
 }
 
-.blindbox-switch input[type="checkbox"] {
+.blindbox-switch input[type='checkbox'] {
   flex-shrink: 0;
   width: 16px;
   height: 16px;

@@ -10,12 +10,14 @@ const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createQueueStore } = require('../src/storage/queue-store');
 
 test('queue and request inserts roll back together when request persistence fails', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-queue-atomic-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-queue-atomic-'),
+  );
   const db = createDatabases({ dataDir });
   const defaults = {
     queueLimit: '50',
     allowDuplicate: 'true',
-    onlyFromLibrary: 'false'
+    onlyFromLibrary: 'false',
   };
 
   try {
@@ -27,18 +29,31 @@ test('queue and request inserts roll back together when request persistence fail
       END
     `);
 
-    assert.throws(() => addQueueItem({
-      store: createQueueStore(db.songDb),
-      settings: () => defaults,
-      defaults: () => defaults
-    }, {
-      songName: 'Atomic Song',
-      requesterName: 'Tester',
-      message: 'request Atomic Song'
-    }), /forced request failure/);
+    assert.throws(
+      () =>
+        addQueueItem(
+          {
+            store: createQueueStore(db.songDb),
+            settings: () => defaults,
+            defaults: () => defaults,
+          },
+          {
+            songName: 'Atomic Song',
+            requesterName: 'Tester',
+            message: 'request Atomic Song',
+          },
+        ),
+      /forced request failure/,
+    );
 
-    assert.equal(db.songDb.prepare('SELECT COUNT(*) AS count FROM queue').get().count, 0);
-    assert.equal(db.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count, 0);
+    assert.equal(
+      db.songDb.prepare('SELECT COUNT(*) AS count FROM queue').get().count,
+      0,
+    );
+    assert.equal(
+      db.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count,
+      0,
+    );
   } finally {
     closeDatabases(db);
     fs.rmSync(dataDir, { recursive: true, force: true });

@@ -19,22 +19,27 @@
   position: absolute;
   inset: 0;
   border-radius: 0;
-  background: linear-gradient(135deg,
-              rgba(142, 68, 173, 0.1) 0%,
-              rgba(142, 68, 173, 0.04) 50%,
-              transparent 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(142, 68, 173, 0.1) 0%,
+    rgba(142, 68, 173, 0.04) 50%,
+    transparent 100%
+  );
   opacity: 0;
   transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
 .gift-blindbox-panel > .panel-header:hover {
-  background: linear-gradient(to right,
-              rgba(142, 68, 173, 0.06),
-              rgba(142, 68, 173, 0.02));
-  box-shadow: 0 0 0 1px rgba(142, 68, 173, 0.15) inset,
-              0 6px 20px -2px rgba(142, 68, 173, 0.25),
-              0 3px 10px -2px rgba(142, 68, 173, 0.15);
+  background: linear-gradient(
+    to right,
+    rgba(142, 68, 173, 0.06),
+    rgba(142, 68, 173, 0.02)
+  );
+  box-shadow:
+    0 0 0 1px rgba(142, 68, 173, 0.15) inset,
+    0 6px 20px -2px rgba(142, 68, 173, 0.25),
+    0 3px 10px -2px rgba(142, 68, 173, 0.15);
   transform: translateY(-2px);
 }
 
@@ -54,7 +59,9 @@
   padding: 18px 20px 16px;
   border-bottom: 1px solid #edf0f4;
   user-select: none;
-  transition: background-color 150ms ease, border-bottom-color 200ms ease;
+  transition:
+    background-color 150ms ease,
+    border-bottom-color 200ms ease;
   pointer-events: none;
 }
 
@@ -117,7 +124,6 @@
   border-radius: 9px;
   background: var(--color-bg-primary);
   color: var(--muted);
-  ;
   font-weight: var(--type-weight-bold);
   box-shadow: 0 2px 8px rgba(23, 32, 42, 0.07);
 }
@@ -185,7 +191,6 @@
   border-radius: 14px;
   background: #f5f7fa;
   color: #98a3b1;
-  ;
   font-weight: 500;
 }
 
@@ -195,7 +200,7 @@
   border: 2px solid #d9dee6;
   border-top-color: var(--primary);
   border-radius: 50%;
-  content: "";
+  content: '';
   animation: blind-stats-spin 800ms linear infinite;
 }
 
@@ -220,7 +225,9 @@
 }
 
 @keyframes blind-stats-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .blind-stats-table {
@@ -301,9 +308,9 @@
 }
 
 /* 加载/空状态/错误状态时，只显示状态消息，隐藏表格 */
-.gift-blindbox-panel[data-state="loading"] .gift-blind-stats-table-wrap,
-.gift-blindbox-panel[data-state="empty"] .gift-blind-stats-table-wrap,
-.gift-blindbox-panel[data-state="error"] .gift-blind-stats-table-wrap {
+.gift-blindbox-panel[data-state='loading'] .gift-blind-stats-table-wrap,
+.gift-blindbox-panel[data-state='empty'] .gift-blind-stats-table-wrap,
+.gift-blindbox-panel[data-state='error'] .gift-blind-stats-table-wrap {
   display: none;
 }
 
@@ -312,7 +319,9 @@
   overflow: visible;
   max-height: none;
   /* 只对 opacity/transform 做过渡，max-height 瞬间切换避免布局抖动 */
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
 }
 
 .gift-blindbox-panel.is-collapsed .blind-stats-collapsible {

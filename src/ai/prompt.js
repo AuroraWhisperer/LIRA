@@ -71,12 +71,15 @@ const FUNCTION_TOOLS = Object.freeze([
       type: 'object',
       properties: {
         location: { type: 'string', description: '城市、区县或具体地点' },
-        date: { type: 'string', description: 'today、tomorrow、YYYY-MM-DD 或自然日期' },
-        dataType: { type: 'string', enum: ['weather', 'air', 'warning'] }
+        date: {
+          type: 'string',
+          description: 'today、tomorrow、YYYY-MM-DD 或自然日期',
+        },
+        dataType: { type: 'string', enum: ['weather', 'air', 'warning'] },
       },
       required: ['location', 'date', 'dataType'],
-      additionalProperties: false
-    }
+      additionalProperties: false,
+    },
   },
   {
     type: 'function',
@@ -89,11 +92,11 @@ const FUNCTION_TOOLS = Object.freeze([
         keywords: { type: 'string' },
         city: { type: 'string' },
         district: { type: 'string' },
-        location: { type: 'string', description: '可选经纬度，格式 经度,纬度' }
+        location: { type: 'string', description: '可选经纬度，格式 经度,纬度' },
       },
       required: ['keywords', 'city', 'district', 'location'],
-      additionalProperties: false
-    }
+      additionalProperties: false,
+    },
   },
   {
     type: 'function',
@@ -104,8 +107,8 @@ const FUNCTION_TOOLS = Object.freeze([
       type: 'object',
       properties: { address: { type: 'string' }, city: { type: 'string' } },
       required: ['address', 'city'],
-      additionalProperties: false
-    }
+      additionalProperties: false,
+    },
   },
   {
     type: 'function',
@@ -118,11 +121,11 @@ const FUNCTION_TOOLS = Object.freeze([
         origin: { type: 'string' },
         destination: { type: 'string' },
         city: { type: 'string' },
-        mode: { type: 'string', enum: ['driving', 'transit', 'walking'] }
+        mode: { type: 'string', enum: ['driving', 'transit', 'walking'] },
       },
       required: ['origin', 'destination', 'city', 'mode'],
-      additionalProperties: false
-    }
+      additionalProperties: false,
+    },
   },
   {
     type: 'function',
@@ -131,11 +134,13 @@ const FUNCTION_TOOLS = Object.freeze([
     strict: true,
     parameters: {
       type: 'object',
-      properties: { timeZone: { type: 'string', description: '例如 Asia/Shanghai' } },
+      properties: {
+        timeZone: { type: 'string', description: '例如 Asia/Shanghai' },
+      },
       required: ['timeZone'],
-      additionalProperties: false
-    }
-  }
+      additionalProperties: false,
+    },
+  },
 ]);
 
 function buildTools(config) {
@@ -145,10 +150,20 @@ function buildTools(config) {
     if (tool.name === 'get_weather' && !config.weatherEnabled) continue;
     if (tool.name === 'search_places' && !config.placesEnabled) continue;
     if (tool.name === 'get_route' && !config.routesEnabled) continue;
-    if (tool.name === 'resolve_location' && !config.placesEnabled && !config.routesEnabled) continue;
+    if (
+      tool.name === 'resolve_location' &&
+      !config.placesEnabled &&
+      !config.routesEnabled
+    )
+      continue;
     tools.push(tool);
   }
   return tools;
 }
 
-module.exports = { SYSTEM_PROMPT, ANSWER_QUALITY_POLICY, FUNCTION_TOOLS, buildTools };
+module.exports = {
+  SYSTEM_PROMPT,
+  ANSWER_QUALITY_POLICY,
+  FUNCTION_TOOLS,
+  buildTools,
+};

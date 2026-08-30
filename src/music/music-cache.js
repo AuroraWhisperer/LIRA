@@ -12,7 +12,8 @@ const MUSIC_API_CACHE_MAX_BYTES = 50 * 1024 * 1024;
 const MUSIC_LYRIC_CACHE_MAX_BYTES = 300 * 1024 * 1024;
 
 function musicCacheKey(scope, payload) {
-  return crypto.createHash('sha1')
+  return crypto
+    .createHash('sha1')
     .update(`${scope}:${JSON.stringify(payload || {})}`)
     .digest('hex');
 }
@@ -25,18 +26,35 @@ function readMusicJsonCache(directory, key, ttlMs) {
     if (Date.now() - stat.mtimeMs > ttlMs) return null;
     const payload = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     return payload && payload.data ? payload.data : null;
-  } catch (_) { return null; }
+  } catch (_) {
+    return null;
+  }
 }
 
-function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MAX_BYTES) {
+function writeMusicJsonCache(
+  directory,
+  key,
+  data,
+  maxBytes = MUSIC_API_CACHE_MAX_BYTES,
+) {
   if (!key || !data) return;
   try {
     fs.mkdirSync(directory, { recursive: true });
-    fs.writeFileSync(path.join(directory, `${key}.json`), JSON.stringify({
-      savedAt: new Date().toISOString(), data
-    }), 'utf8');
-    pruneMusicCacheDirectory(directory, Number(maxBytes) || MUSIC_API_CACHE_MAX_BYTES);
-  } catch (_) { /* Cache failures must not affect playback. */ }
+    fs.writeFileSync(
+      path.join(directory, `${key}.json`),
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        data,
+      }),
+      'utf8',
+    );
+    pruneMusicCacheDirectory(
+      directory,
+      Number(maxBytes) || MUSIC_API_CACHE_MAX_BYTES,
+    );
+  } catch (_) {
+    /* Cache failures must not affect playback. */
+  }
 }
 
 function pruneMusicCacheDirectory(directory, maxBytes) {
@@ -44,29 +62,43 @@ function pruneMusicCacheDirectory(directory, maxBytes) {
   let total = files.reduce((sum, file) => sum + file.size, 0);
   for (const file of files.sort((a, b) => a.mtimeMs - b.mtimeMs)) {
     if (total <= maxBytes) break;
-    try { fs.unlinkSync(file.path); total -= file.size; } catch (_) { /* ignore */ }
+    try {
+      fs.unlinkSync(file.path);
+      total -= file.size;
+    } catch (_) {
+      /* ignore */
+    }
   }
 }
 
 function getDirectoryStats(directory) {
   const files = listCacheFiles(directory);
-  return { bytes: files.reduce((sum, f) => sum + f.size, 0), files: files.length };
+  return {
+    bytes: files.reduce((sum, f) => sum + f.size, 0),
+    files: files.length,
+  };
 }
 
 function listCacheFiles(directory) {
   try {
-    return fs.readdirSync(directory, { withFileTypes: true })
+    return fs
+      .readdirSync(directory, { withFileTypes: true })
       .filter((e) => e.isFile() && e.name.endsWith('.json'))
       .map((e) => {
         const fp = path.join(directory, e.name);
         const st = fs.statSync(fp);
         return { path: fp, size: st.size, mtimeMs: st.mtimeMs };
       });
-  } catch (_) { return []; }
+  } catch (_) {
+    return [];
+  }
 }
 
 function clearMusicCache(apiDir, lyricDir) {
-  const before = { api: getDirectoryStats(apiDir), lyrics: getDirectoryStats(lyricDir) };
+  const before = {
+    api: getDirectoryStats(apiDir),
+    lyrics: getDirectoryStats(lyricDir),
+  };
   fs.rmSync(apiDir, { recursive: true, force: true });
   fs.rmSync(lyricDir, { recursive: true, force: true });
   fs.mkdirSync(apiDir, { recursive: true });
@@ -74,7 +106,10 @@ function clearMusicCache(apiDir, lyricDir) {
   return {
     clearedBytes: before.api.bytes + before.lyrics.bytes,
     clearedFiles: before.api.files + before.lyrics.files,
-    after: { api: getDirectoryStats(apiDir), lyrics: getDirectoryStats(lyricDir) }
+    after: {
+      api: getDirectoryStats(apiDir),
+      lyrics: getDirectoryStats(lyricDir),
+    },
   };
 }
 
@@ -82,8 +117,10 @@ function getMusicCacheStats(apiDir, lyricDir) {
   return {
     api: getDirectoryStats(apiDir),
     lyrics: getDirectoryStats(lyricDir),
-    totalBytes: getDirectoryStats(apiDir).bytes + getDirectoryStats(lyricDir).bytes,
-    totalFiles: getDirectoryStats(apiDir).files + getDirectoryStats(lyricDir).files
+    totalBytes:
+      getDirectoryStats(apiDir).bytes + getDirectoryStats(lyricDir).bytes,
+    totalFiles:
+      getDirectoryStats(apiDir).files + getDirectoryStats(lyricDir).files,
   };
 }
 
@@ -96,5 +133,5 @@ module.exports = {
   readMusicJsonCache,
   writeMusicJsonCache,
   clearMusicCache,
-  getMusicCacheStats
+  getMusicCacheStats,
 };

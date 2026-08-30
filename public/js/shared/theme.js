@@ -24,10 +24,22 @@ export async function loadThemeConfig() {
     Object.assign(cachedDefaultTheme, themeConfig.default || {});
     Object.assign(cachedClassicPresets, themeConfig.presets?.classic || {});
     Object.assign(cachedSongBoardPresets, themeConfig.presets?.songBoard || {});
-    Object.assign(cachedClassicLabels, themeConfig.presets?.classicLabels || {});
-    Object.assign(cachedClassicSwatches, themeConfig.presets?.classicSwatches || {});
-    Object.assign(cachedSongBoardLabels, themeConfig.presets?.songBoardLabels || {});
-    Object.assign(cachedSongBoardSwatches, themeConfig.presets?.songBoardSwatches || {});
+    Object.assign(
+      cachedClassicLabels,
+      themeConfig.presets?.classicLabels || {},
+    );
+    Object.assign(
+      cachedClassicSwatches,
+      themeConfig.presets?.classicSwatches || {},
+    );
+    Object.assign(
+      cachedSongBoardLabels,
+      themeConfig.presets?.songBoardLabels || {},
+    );
+    Object.assign(
+      cachedSongBoardSwatches,
+      themeConfig.presets?.songBoardSwatches || {},
+    );
     return themeConfig;
   } catch (error) {
     console.error('Error loading theme configuration:', error);
@@ -113,7 +125,7 @@ export const theme = {
   },
   get songBoardPresetSwatches() {
     return getSongBoardSwatches();
-  }
+  },
 };
 
 // 【过渡期兼容层】- 保持window.AdminApp.theme可用
@@ -121,6 +133,9 @@ export const theme = {
 if (typeof window !== 'undefined') {
   window.AdminApp = window.AdminApp || {};
   const existingTheme = window.AdminApp.theme || {};
-  Object.defineProperties(existingTheme, Object.getOwnPropertyDescriptors(theme));
+  Object.defineProperties(
+    existingTheme,
+    Object.getOwnPropertyDescriptors(theme),
+  );
   window.AdminApp.theme = existingTheme;
 }

@@ -5,7 +5,7 @@
 > ~~https://api.live.bilibili.com/fans_medal/v5/live_fans_medal/iApiMedal~~ (旧)
 > https://api.live.bilibili.com/xlive/app-ucenter/v1/user/GetMyMedals
 
-*请求方式：GET*
+_请求方式：GET_
 
 认证方式：Cookie（SESSDATA）或 APP
 
@@ -120,7 +120,7 @@ curl https://api.live.bilibili.com/xlive/app-ucenter/v1/user/GetMyMedals?page=1&
 
 > https://api.live.bilibili.com/xlive/web-room/v1/fansMedal/wear
 
-*请求方式：POST*
+_请求方式：POST_
 
 **表单参数：**
 
@@ -204,7 +204,7 @@ _请求方式：GET_
 
 > https://api.live.bilibili.com/xlive/web-ucenter/v1/sign/WebGetSignInfo
 
-*请求方式：GET*
+_请求方式：GET_
 
 认证方式：Cookie（SESSDATA）或 APP
 
@@ -212,12 +212,12 @@ _请求方式：GET_
 
 根对象：
 
-| 字段    | 类型 | 内容     | 备注                   |
-| ------- | ---- | -------- | ---------------------- |
+| 字段    | 类型 | 内容     | 备注    |
+| ------- | ---- | -------- | ------- |
 | code    | num  | 返回值   | 0：成功 |
-| ttl     | num  | 1        |                        |
+| ttl     | num  | 1        |         |
 | message | str  | 错误信息 | 默认为0 |
-| data    | obj  | 信息本体 |                |
+| data    | obj  | 信息本体 |         |
 
 `data`对象：
 
@@ -241,39 +241,23 @@ _请求方式：GET_
 
 ```json
 {
-    "code": 0,
-    "message": "0",
-    "ttl": 1,
-    "data": {
-        "text": "3000点用户经验,2根辣条",
-        "specialText": "再签到7天可以获得50根辣条",
-        "status": 1,
-        "allDays": 28,
-        "curMonth": 2,
-        "curYear": 2023,
-        "curDay": 19,
-        "curDate": "2023-2-19",
-        "hadSignDays": 13,
-        "newTask": 0,
-        "signDaysList": [
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            11,
-            13,
-            14,
-            15,
-            17,
-            18,
-            19
-        ],
-        "signBonusDaysList": [
-            6
-        ]
-    }
+  "code": 0,
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "text": "3000点用户经验,2根辣条",
+    "specialText": "再签到7天可以获得50根辣条",
+    "status": 1,
+    "allDays": 28,
+    "curMonth": 2,
+    "curYear": 2023,
+    "curDay": 19,
+    "curDate": "2023-2-19",
+    "hadSignDays": 13,
+    "newTask": 0,
+    "signDaysList": [2, 3, 4, 5, 6, 7, 11, 13, 14, 15, 17, 18, 19],
+    "signBonusDaysList": [6]
+  }
 }
 ```
 
@@ -283,7 +267,7 @@ _请求方式：GET_
 
 > https://api.live.bilibili.com/sign/getLastMonthSignDays
 
-*请求方式：GET*
+_请求方式：GET_
 
 认证方式：Cookie（SESSDATA）或 APP
 
@@ -291,12 +275,12 @@ _请求方式：GET_
 
 根对象：
 
-| 字段    | 类型 | 内容     | 备注                   |
-| ------- | ---- | -------- | ---------------------- |
+| 字段    | 类型 | 内容     | 备注    |
+| ------- | ---- | -------- | ------- |
 | code    | num  | 返回值   | 0：成功 |
-| ttl     | num  | 1        |                        |
+| ttl     | num  | 1        |         |
 | message | str  | 错误信息 | 默认为0 |
-| data    | obj  | 信息本体 |                |
+| data    | obj  | 信息本体 |         |
 
 `data`对象：
 
@@ -313,40 +297,18 @@ _请求方式：GET_
 
 ```json
 {
-    "code": 0,
-    "message": "0",
-    "ttl": 1,
-    "data": {
-        "month": 1,
-        "days": 31,
-        "hadSignDays": 20,
-        "signDaysList": [
-            1,
-            2,
-            3,
-            6,
-            7,
-            8,
-            10,
-            12,
-            13,
-            14,
-            15,
-            18,
-            20,
-            23,
-            24,
-            25,
-            26,
-            27,
-            30,
-            31
-        ],
-        "signBonusDaysList": [
-            7,
-            31
-        ]
-    }
+  "code": 0,
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "month": 1,
+    "days": 31,
+    "hadSignDays": 20,
+    "signDaysList": [
+      1, 2, 3, 6, 7, 8, 10, 12, 13, 14, 15, 18, 20, 23, 24, 25, 26, 27, 30, 31
+    ],
+    "signBonusDaysList": [7, 31]
+  }
 }
 ```
 

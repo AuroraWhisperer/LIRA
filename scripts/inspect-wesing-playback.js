@@ -4,17 +4,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
 const { performance } = require('node:perf_hooks');
-const { createPowerShellWeSingMonitor } = require('../src/music/wesing-capture');
+const {
+  createPowerShellWeSingMonitor,
+} = require('../src/music/wesing-capture');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const MAX_LOG_LINE_CHARS = 8000;
 const MARKERS = Object.freeze({
-  '1': '点击 K 歌 / 开始录制',
-  '2': '点击暂停',
-  '3': '点击继续',
-  '4': '退出本次录制',
-  '5': '重新进入同一首歌 K 歌',
-  '6': '此刻歌词状态不正确'
+  1: '点击 K 歌 / 开始录制',
+  2: '点击暂停',
+  3: '点击继续',
+  4: '退出本次录制',
+  5: '重新进入同一首歌 K 歌',
+  6: '此刻歌词状态不正确',
 });
 
 function defaultCachePath(environment = process.env) {
@@ -25,7 +27,11 @@ function defaultCachePath(environment = process.env) {
 
 function defaultOutputPath(projectRoot = PROJECT_ROOT, date = new Date()) {
   const timestamp = date.toISOString().replace(/[:.]/g, '-');
-  return path.join(projectRoot, 'logs', `wesing-playback-diagnostic-${timestamp}.jsonl`);
+  return path.join(
+    projectRoot,
+    'logs',
+    `wesing-playback-diagnostic-${timestamp}.jsonl`,
+  );
 }
 
 /**
@@ -51,9 +57,14 @@ function parseArguments(argv, context = {}) {
       help = true;
       continue;
     }
-    if (argument === '--cache' || argument === '--output' || argument === '--duration') {
+    if (
+      argument === '--cache' ||
+      argument === '--output' ||
+      argument === '--duration'
+    ) {
       const value = argv[index + 1];
-      if (!value || value.startsWith('--')) throw new Error(`${argument} 缺少参数。`);
+      if (!value || value.startsWith('--'))
+        throw new Error(`${argument} 缺少参数。`);
       index += 1;
       if (argument === '--cache') {
         cachePath = path.resolve(value);
@@ -62,7 +73,11 @@ function parseArguments(argv, context = {}) {
       if (argument === '--output') outputPath = path.resolve(value);
       if (argument === '--duration') {
         const durationSeconds = Number(value);
-        if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > 3600) {
+        if (
+          !Number.isFinite(durationSeconds) ||
+          durationSeconds <= 0 ||
+          durationSeconds > 3600
+        ) {
           throw new Error('--duration 必须是 1 到 3600 之间的秒数。');
         }
         durationMs = Math.round(durationSeconds * 1000);
@@ -105,21 +120,32 @@ async function readRunningCachePath(options = {}) {
   try {
     const [runtimeText, token] = await Promise.all([
       readFile(path.join(dataDirectory, '.server-runtime.json'), 'utf8'),
-      readFile(path.join(dataDirectory, '.session-token'), 'utf8')
+      readFile(path.join(dataDirectory, '.session-token'), 'utf8'),
     ]);
     const runtime = JSON.parse(runtimeText);
     const host = String(runtime.host || '127.0.0.1').toLowerCase();
     const allowedHosts = new Set(['127.0.0.1', 'localhost', '::1']);
     const port = Number(runtime.port);
-    if (!allowedHosts.has(host) || !Number.isInteger(port) || port < 1 || port > 65535) return '';
+    if (
+      !allowedHosts.has(host) ||
+      !Number.isInteger(port) ||
+      port < 1 ||
+      port > 65535
+    )
+      return '';
     const requestHost = host === '::1' ? '[::1]' : host;
-    const response = await fetchImpl(`http://${requestHost}:${port}/api/music/wesing/status`, {
-      headers: { Authorization: `Bearer ${String(token).trim()}` },
-      signal: AbortSignal.timeout(1500)
-    });
+    const response = await fetchImpl(
+      `http://${requestHost}:${port}/api/music/wesing/status`,
+      {
+        headers: { Authorization: `Bearer ${String(token).trim()}` },
+        signal: AbortSignal.timeout(1500),
+      },
+    );
     if (!response.ok) return '';
     const payload = await response.json();
-    return typeof payload?.data?.cachePath === 'string' ? payload.data.cachePath : '';
+    return typeof payload?.data?.cachePath === 'string'
+      ? payload.data.cachePath
+      : '';
   } catch (_) {
     return '';
   }
@@ -147,7 +173,7 @@ async function createJsonlWriter(outputPath) {
       await pending;
       await handle.close();
       if (failure) throw failure;
-    }
+    },
   };
 }
 
@@ -157,7 +183,7 @@ function parseStartKSongLine(line) {
   const songMatch = line.match(/"songname"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
   return {
     mid: midMatch ? decodeJsonString(midMatch[1]) : '',
-    songName: songMatch ? decodeJsonString(songMatch[1]) : ''
+    songName: songMatch ? decodeJsonString(songMatch[1]) : '',
   };
 }
 
@@ -176,20 +202,26 @@ async function findLatestLogFile(logDirectory) {
   } catch (_) {
     return null;
   }
-  const candidates = await Promise.all(entries
-    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.log'))
-    .map(async (entry) => {
-      const filePath = path.join(logDirectory, entry.name);
-      try {
-        const stat = await fs.promises.stat(filePath);
-        return { filePath, modifiedMs: stat.mtimeMs, size: stat.size };
-      } catch (_) {
-        return null;
-      }
-    }));
-  return candidates
-    .filter(Boolean)
-    .sort((left, right) => right.modifiedMs - left.modifiedMs)[0] ?? null;
+  const candidates = await Promise.all(
+    entries
+      .filter(
+        (entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.log'),
+      )
+      .map(async (entry) => {
+        const filePath = path.join(logDirectory, entry.name);
+        try {
+          const stat = await fs.promises.stat(filePath);
+          return { filePath, modifiedMs: stat.mtimeMs, size: stat.size };
+        } catch (_) {
+          return null;
+        }
+      }),
+  );
+  return (
+    candidates
+      .filter(Boolean)
+      .sort((left, right) => right.modifiedMs - left.modifiedMs)[0] ?? null
+  );
 }
 
 /**
@@ -225,7 +257,7 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
         event: 'wesing-log-line',
         file: path.basename(filePath),
         line: clipped,
-        startKSong: parseStartKSongLine(clipped)
+        startKSong: parseStartKSongLine(clipped),
       });
     }
   }
@@ -236,13 +268,21 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
       offset = 0;
       pendingText = '';
       oddByte = Buffer.alloc(0);
-      emit({ event: 'wesing-log-file', status: 'switched', file: path.basename(activeFilePath) });
+      emit({
+        event: 'wesing-log-file',
+        status: 'switched',
+        file: path.basename(activeFilePath),
+      });
     }
     if (candidate.size < offset) {
       offset = 0;
       pendingText = '';
       oddByte = Buffer.alloc(0);
-      emit({ event: 'wesing-log-file', status: 'truncated', file: path.basename(activeFilePath) });
+      emit({
+        event: 'wesing-log-file',
+        status: 'truncated',
+        file: path.basename(activeFilePath),
+      });
     }
     if (candidate.size === offset) return;
 
@@ -264,7 +304,8 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
     } else {
       oddByte = Buffer.alloc(0);
     }
-    if (combined.length) processText(combined.toString('utf16le'), activeFilePath);
+    if (combined.length)
+      processText(combined.toString('utf16le'), activeFilePath);
   }
 
   async function poll() {
@@ -277,7 +318,12 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
     if (stopped) return;
     timer = setTimeout(() => {
       inFlight = poll()
-        .catch((error) => emit({ event: 'wesing-log-error', message: error.message || String(error) }))
+        .catch((error) =>
+          emit({
+            event: 'wesing-log-error',
+            message: error.message || String(error),
+          }),
+        )
         .finally(schedule);
     }, pollIntervalMs);
   }
@@ -292,10 +338,14 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
           event: 'wesing-log-file',
           status: 'ready',
           file: path.basename(activeFilePath),
-          initialSize: offset
+          initialSize: offset,
         });
       } else {
-        emit({ event: 'wesing-log-file', status: 'not-found', directory: logDirectory });
+        emit({
+          event: 'wesing-log-file',
+          status: 'not-found',
+          directory: logDirectory,
+        });
       }
       schedule();
     },
@@ -304,7 +354,7 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
       if (timer) clearTimeout(timer);
       await inFlight;
       if (pendingText) processText('\n', activeFilePath);
-    }
+    },
   };
 }
 
@@ -321,7 +371,7 @@ function summarizeSample(sample = {}) {
     windowHandle: Number(source.windowHandle),
     processIds: Array.isArray(source.processIds) ? source.processIds : [],
     controlCount: Array.isArray(source.controls) ? source.controls.length : 0,
-    error: source.error ? String(source.error) : ''
+    error: source.error ? String(source.error) : '',
   };
 }
 
@@ -334,13 +384,15 @@ async function runDiagnostic(configuration) {
   let finished = false;
   let finishResolve;
   let durationTimer = null;
-  const finishedPromise = new Promise((resolve) => { finishResolve = resolve; });
+  const finishedPromise = new Promise((resolve) => {
+    finishResolve = resolve;
+  });
 
   function writeRecord(record) {
     return writer.write({
       observedAt: new Date().toISOString(),
       elapsedMs: Math.round(performance.now() - startedAt),
-      ...record
+      ...record,
     });
   }
 
@@ -354,29 +406,34 @@ async function runDiagnostic(configuration) {
       summary.loading,
       summary.audioActive,
       summary.windowHandle,
-      summary.error
+      summary.error,
     ].join('|');
     const timestamp = performance.now();
     if (signature === lastSignature && timestamp - lastConsoleAt < 1000) return;
     lastSignature = signature;
     lastConsoleAt = timestamp;
     console.log(
-      `[采样] 标题=${summary.title || '-'} 进度=${summary.currentSec}/${summary.totalSec} `
-      + `Active=${String(summary.audioActive)} Peak=${summary.audioPeak} `
-      + `窗口=${summary.windowHandle || '-'} 控件=${summary.controlCount}`
+      `[采样] 标题=${summary.title || '-'} 进度=${summary.currentSec}/${summary.totalSec} ` +
+        `Active=${String(summary.audioActive)} Peak=${summary.audioPeak} ` +
+        `窗口=${summary.windowHandle || '-'} 控件=${summary.controlCount}`,
     );
   }
 
-  const monitor = createPowerShellWeSingMonitor((sample) => {
-    latestSample = sample;
-    void writeRecord({ event: 'monitor-sample', sample });
-    showSample(sample);
-  }, { includeDiagnostics: true, pollIntervalMs: 250 });
+  const monitor = createPowerShellWeSingMonitor(
+    (sample) => {
+      latestSample = sample;
+      void writeRecord({ event: 'monitor-sample', sample });
+      showSample(sample);
+    },
+    { includeDiagnostics: true, pollIntervalMs: 250 },
+  );
 
   const logProbe = createWeSingLogProbe(configuration.cachePath, (event) => {
     void writeRecord(event);
     if (event.startKSong) {
-      console.log(`[全民日志] StartKSong：${event.startKSong.songName || '-'} (${event.startKSong.mid || '-'})`);
+      console.log(
+        `[全民日志] StartKSong：${event.startKSong.songName || '-'} (${event.startKSong.mid || '-'})`,
+      );
     }
   });
 
@@ -390,7 +447,11 @@ async function runDiagnostic(configuration) {
     if (durationTimer) clearTimeout(durationTimer);
     monitor.stop();
     await logProbe.stop();
-    await writeRecord({ event: 'diagnostic-stop', reason, latestSample: summarizeSample(latestSample) });
+    await writeRecord({
+      event: 'diagnostic-stop',
+      reason,
+      latestSample: summarizeSample(latestSample),
+    });
     if (keypressHandler) process.stdin.off('keypress', keypressHandler);
     if (rawModeEnabled) process.stdin.setRawMode(false);
     process.stdin.pause();
@@ -405,7 +466,7 @@ async function runDiagnostic(configuration) {
     cachePath: configuration.cachePath,
     outputPath: configuration.outputPath,
     nodeVersion: process.version,
-    platform: process.platform
+    platform: process.platform,
   });
   await logProbe.start();
   monitor.start();
@@ -445,7 +506,7 @@ WeSingCache：${configuration.cachePath}
         event: 'user-marker',
         key: String(key.name || text),
         marker,
-        latestSample: summarizeSample(latestSample)
+        latestSample: summarizeSample(latestSample),
       });
       console.log(`\n[操作标记] ${marker}`);
     };
@@ -454,10 +515,14 @@ WeSingCache：${configuration.cachePath}
     console.log('当前终端不支持数字键标记，可用 Ctrl+C 或 --duration 结束。');
   }
 
-  sigintHandler = () => { void finish('sigint'); };
+  sigintHandler = () => {
+    void finish('sigint');
+  };
   process.on('SIGINT', sigintHandler);
   if (configuration.durationMs > 0) {
-    durationTimer = setTimeout(() => { void finish('duration'); }, configuration.durationMs);
+    durationTimer = setTimeout(() => {
+      void finish('duration');
+    }, configuration.durationMs);
   }
 
   await finishedPromise;
@@ -465,10 +530,12 @@ WeSingCache：${configuration.cachePath}
 
 async function main() {
   const parsed = parseArguments(process.argv.slice(2));
-  const configuredCachePath = parsed.cachePathFromArgument ? '' : await readRunningCachePath();
+  const configuredCachePath = parsed.cachePathFromArgument
+    ? ''
+    : await readRunningCachePath();
   const configuration = {
     ...parsed,
-    cachePath: configuredCachePath || parsed.cachePath
+    cachePath: configuredCachePath || parsed.cachePath,
   };
   if (configuration.help) {
     printHelp();
@@ -479,7 +546,9 @@ async function main() {
 
 if (require.main === module) {
   main().catch((error) => {
-    console.error(`诊断脚本运行失败：${error.stack || error.message || String(error)}`);
+    console.error(
+      `诊断脚本运行失败：${error.stack || error.message || String(error)}`,
+    );
     process.exitCode = 1;
   });
 }
@@ -492,5 +561,5 @@ module.exports = {
   parseArguments,
   parseStartKSongLine,
   readRunningCachePath,
-  summarizeSample
+  summarizeSample,
 };

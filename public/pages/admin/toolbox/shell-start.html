@@ -1,330 +1,696 @@
-      <!-- “百宝箱”只提供功能壳层，各功能内容由独立模块维护。 -->
-      <section id="otherAssistantPage" class="main-page other-page">
-        <div class="other-workspace">
-          <aside class="other-feature-sidebar">
-            <div class="other-sidebar-toolbar">
-              <button
-                id="otherSidebarToggle"
-                class="other-sidebar-toggle"
-                type="button"
-                data-other-sidebar-toggle
-                aria-label="收起功能导航"
-                aria-expanded="true"
-                title="收起功能导航"
-              >
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <g class="other-sidebar-toggle-state other-sidebar-toggle-collapse">
-                    <path d="M17.5 5.5v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <path d="m13.5 8.5-3.5 3.5 3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </g>
-                  <g class="other-sidebar-toggle-state other-sidebar-toggle-expand">
-                    <path d="M6.5 5.5v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <path d="m10.5 8.5 3.5 3.5-3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </g>
-                </svg>
-              </button>
-            </div>
-            <nav class="other-feature-menu" role="tablist" aria-label="百宝箱功能" aria-orientation="vertical">
-              <button
-                class="other-feature-group-heading"
-                type="button"
-                data-other-feature-group="live-interaction"
-                aria-expanded="true"
-                aria-label="收起直播互动"
-                title="收起直播互动"
-              >
-                <strong>直播互动</strong>
-                <small>和观众实时发生</small>
-                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                id="otherDanmakuFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherDanmakuFeature"
-                data-other-feature="otherDanmakuFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h.01M12 9h.01M16 9h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
-                <span class="other-feature-label"><strong>弹幕姬</strong><small>发送弹幕并管理互动回复</small></span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                id="otherGiftFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherGiftFeature"
-                data-other-feature="otherGiftFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-                <span class="other-feature-label"><strong>礼物姬</strong></span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                id="otherGamesFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherGamesFeature"
-                data-other-feature="otherGamesFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none"><path d="M8 8h8a5 5 0 0 1 4.8 6.4l-1 3.5a2.2 2.2 0 0 1-3.8.8L14.5 17h-5l-1.5 1.7a2.2 2.2 0 0 1-3.8-.8l-1-3.5A5 5 0 0 1 8 8Z" stroke="currentColor" stroke-width="1.7"/><path d="M8 11v4M6 13h4M16 12h.01M18 14h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-                </span>
-                <span class="other-feature-label"><strong>小游戏</strong><small>多种直播互动小游戏</small></span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                class="other-feature-group-heading"
-                type="button"
-                data-other-feature-group="live-scene"
-                aria-expanded="true"
-                aria-label="收起直播画面"
-                title="收起直播画面"
-              >
-                <strong>直播画面</strong>
-                <small>投到直播姬或 OBS</small>
-                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                id="otherOvertimeMachineFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherOvertimeMachineFeature"
-                data-other-feature="otherOvertimeMachineFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="7.5" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="M12 8v4.5l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>加班机</strong>
-                  <small>用礼物延长直播倒计时</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherGiftEffectsFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherGiftEffectsFeature"
-                data-other-feature="otherGiftEffectsFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="m12 3 1.35 4.15L17.5 8.5l-4.15 1.35L12 14l-1.35-4.15L6.5 8.5l4.15-1.35L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                    <path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14ZM6 13l.65 1.85L8.5 15.5l-1.85.65L6 18l-.65-1.85-1.85-.65 1.85-.65L6 13Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>礼物特效</strong>
-                  <small>查询并投屏 B站全屏动画</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherStartAnimationFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherStartAnimationFeature"
-                data-other-feature="otherStartAnimationFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v10a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 17V7A2.5 2.5 0 0 1 7 4.5Z" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="m10 8.5 5 3.5-5 3.5v-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>开播动画</strong>
-                  <small>准备直播开场画面</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherClockFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherClockFeature"
-                data-other-feature="otherClockFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="7.5" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="M12 8v4l2.8 1.8M8.5 3.5 7 5M15.5 3.5 17 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="m18.7 15.5.55 1.45 1.45.55-1.45.55-.55 1.45-.55-1.45-1.45-.55 1.45-.55.55-1.45Z" fill="currentColor"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>萌时钟</strong>
-                  <small>日期、星期和当前时间</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                class="other-feature-group-heading"
-                type="button"
-                data-other-feature-group="streamer-work"
-                aria-expanded="true"
-                aria-label="收起主播工作"
-                title="收起主播工作"
-              >
-                <strong>主播工作</strong>
-                <small>只在主播端使用</small>
-                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                id="otherDailyTodoFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherDailyTodoFeature"
-                data-other-feature="otherDailyTodoFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                    <path d="m8 10 1.7 1.7L12 9.2M14 11h3M8 15l1.7 1.7L12 14.2M14 16h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>主播工作台</strong>
-                  <small>本场提词与直播速记</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                class="other-feature-group-heading"
-                type="button"
-                data-other-feature-group="software-help"
-                aria-expanded="true"
-                aria-label="收起软件与帮助"
-                title="收起软件与帮助"
-              >
-                <strong>软件与帮助</strong>
-                <small>本机维护与说明</small>
-                <svg class="other-feature-group-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button
-                id="otherSettingsFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherSettingsFeature"
-                data-other-feature="otherSettingsFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M9.5 4.5h5l.8 2.1 2 .85 2.1-.8 2.5 4.3-1.6 1.55v2.25l1.6 1.55-2.5 4.3-2.1-.8-2 .85-.8 2.1h-5l-.8-2.1-2-.85-2.1.8-2.5-4.3 1.6-1.55v-2.25L2.1 10.95l2.5-4.3 2.1.8 2-.85.8-2.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                    <circle cx="12" cy="13.6" r="2.7" stroke="currentColor" stroke-width="1.7"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>设置</strong>
-                  <small>账号、设备与授权信息</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherPerformanceFeatureTab"
-                class="other-feature-button active"
-                type="button"
-                role="tab"
-                aria-selected="true"
-                aria-controls="otherPerformanceFeature"
-                data-other-feature="otherPerformanceFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M4 18a8 8 0 1 1 16 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <path d="m12 14 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    <circle cx="12" cy="18" r="1.5" fill="currentColor"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>性能</strong>
-                  <small>查看系统资源占用</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherUsageGuideFeatureTab"
-                class="other-feature-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherUsageGuideFeature"
-                data-other-feature="otherUsageGuideFeature"
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M6.5 4.5h8.2L18 7.8v11.7H6.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M14.5 4.5v3.3H18M9 12h6M9 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>使用文档</strong>
-                  <small>查看功能说明与常见问题</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-              <button
-                id="otherDesktopUpdateFeatureTab"
-                class="other-feature-button desktop-only"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="otherDesktopUpdateFeature"
-                data-other-feature="otherDesktopUpdateFeature"
-                hidden
-              >
-                <span class="other-feature-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M12 3v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                </span>
-                <span class="other-feature-label">
-                  <strong>桌面更新</strong>
-                  <small>检查版本并管理本地数据</small>
-                </span>
-                <svg class="other-feature-arrow" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-            </nav>
-          </aside>
+<!-- “百宝箱”只提供功能壳层，各功能内容由独立模块维护。 -->
+<section id="otherAssistantPage" class="main-page other-page">
+  <div class="other-workspace">
+    <aside class="other-feature-sidebar">
+      <div class="other-sidebar-toolbar">
+        <button
+          id="otherSidebarToggle"
+          class="other-sidebar-toggle"
+          type="button"
+          data-other-sidebar-toggle
+          aria-label="收起功能导航"
+          aria-expanded="true"
+          title="收起功能导航"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <g class="other-sidebar-toggle-state other-sidebar-toggle-collapse">
+              <path
+                d="M17.5 5.5v13"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path
+                d="m13.5 8.5-3.5 3.5 3.5 3.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </g>
+            <g class="other-sidebar-toggle-state other-sidebar-toggle-expand">
+              <path
+                d="M6.5 5.5v13"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path
+                d="m10.5 8.5 3.5 3.5-3.5 3.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </g>
+          </svg>
+        </button>
+      </div>
+      <nav
+        class="other-feature-menu"
+        role="tablist"
+        aria-label="百宝箱功能"
+        aria-orientation="vertical"
+      >
+        <button
+          class="other-feature-group-heading"
+          type="button"
+          data-other-feature-group="live-interaction"
+          aria-expanded="true"
+          aria-label="收起直播互动"
+          title="收起直播互动"
+        >
+          <strong>直播互动</strong>
+          <small>和观众实时发生</small>
+          <svg
+            class="other-feature-group-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherDanmakuFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherDanmakuFeature"
+          data-other-feature="otherDanmakuFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true"
+            ><svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M8 9h.01M12 9h.01M16 9h.01"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+              /></svg
+          ></span>
+          <span class="other-feature-label"
+            ><strong>弹幕姬</strong><small>发送弹幕并管理互动回复</small></span
+          >
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherGiftFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherGiftFeature"
+          data-other-feature="otherGiftFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true"
+            ><svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 10h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM3 7h18v3H3z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M12 7v14M12 7H8.5A2.5 2.5 0 1 1 11 4.5L12 7ZM12 7h3.5A2.5 2.5 0 1 0 13 4.5L12 7Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              /></svg
+          ></span>
+          <span class="other-feature-label"><strong>礼物姬</strong></span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherGamesFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherGamesFeature"
+          data-other-feature="otherGamesFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M8 8h8a5 5 0 0 1 4.8 6.4l-1 3.5a2.2 2.2 0 0 1-3.8.8L14.5 17h-5l-1.5 1.7a2.2 2.2 0 0 1-3.8-.8l-1-3.5A5 5 0 0 1 8 8Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+              />
+              <path
+                d="M8 11v4M6 13h4M16 12h.01M18 14h.01"
+                stroke="currentColor"
+                stroke-width="1.9"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label"
+            ><strong>小游戏</strong><small>多种直播互动小游戏</small></span
+          >
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          class="other-feature-group-heading"
+          type="button"
+          data-other-feature-group="live-scene"
+          aria-expanded="true"
+          aria-label="收起直播画面"
+          title="收起直播画面"
+        >
+          <strong>直播画面</strong>
+          <small>投到直播姬或 OBS</small>
+          <svg
+            class="other-feature-group-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherOvertimeMachineFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherOvertimeMachineFeature"
+          data-other-feature="otherOvertimeMachineFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle
+                cx="12"
+                cy="12"
+                r="7.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="M12 8v4.5l3 1.8"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>加班机</strong>
+            <small>用礼物延长直播倒计时</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherGiftEffectsFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherGiftEffectsFeature"
+          data-other-feature="otherGiftEffectsFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="m12 3 1.35 4.15L17.5 8.5l-4.15 1.35L12 14l-1.35-4.15L6.5 8.5l4.15-1.35L12 3Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+              <path
+                d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14ZM6 13l.65 1.85L8.5 15.5l-1.85.65L6 18l-.65-1.85-1.85-.65 1.85-.65L6 13Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>礼物特效</strong>
+            <small>查询并投屏 B站全屏动画</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherStartAnimationFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherStartAnimationFeature"
+          data-other-feature="otherStartAnimationFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M7 4.5h10A2.5 2.5 0 0 1 19.5 7v10a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 17V7A2.5 2.5 0 0 1 7 4.5Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="m10 8.5 5 3.5-5 3.5v-7Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>开播动画</strong>
+            <small>准备直播开场画面</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherClockFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherClockFeature"
+          data-other-feature="otherClockFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle
+                cx="12"
+                cy="12"
+                r="7.5"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="M12 8v4l2.8 1.8M8.5 3.5 7 5M15.5 3.5 17 5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="m18.7 15.5.55 1.45 1.45.55-1.45.55-.55 1.45-.55-1.45-1.45-.55 1.45-.55.55-1.45Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>萌时钟</strong>
+            <small>日期、星期和当前时间</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          class="other-feature-group-heading"
+          type="button"
+          data-other-feature-group="streamer-work"
+          aria-expanded="true"
+          aria-label="收起主播工作"
+          title="收起主播工作"
+        >
+          <strong>主播工作</strong>
+          <small>只在主播端使用</small>
+          <svg
+            class="other-feature-group-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherDailyTodoFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherDailyTodoFeature"
+          data-other-feature="otherDailyTodoFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect
+                x="5"
+                y="4"
+                width="14"
+                height="16"
+                rx="2"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <path
+                d="m8 10 1.7 1.7L12 9.2M14 11h3M8 15l1.7 1.7L12 14.2M14 16h3"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>主播工作台</strong>
+            <small>本场提词与直播速记</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          class="other-feature-group-heading"
+          type="button"
+          data-other-feature-group="software-help"
+          aria-expanded="true"
+          aria-label="收起软件与帮助"
+          title="收起软件与帮助"
+        >
+          <strong>软件与帮助</strong>
+          <small>本机维护与说明</small>
+          <svg
+            class="other-feature-group-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherSettingsFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherSettingsFeature"
+          data-other-feature="otherSettingsFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M9.5 4.5h5l.8 2.1 2 .85 2.1-.8 2.5 4.3-1.6 1.55v2.25l1.6 1.55-2.5 4.3-2.1-.8-2 .85-.8 2.1h-5l-.8-2.1-2-.85-2.1.8-2.5-4.3 1.6-1.55v-2.25L2.1 10.95l2.5-4.3 2.1.8 2-.85.8-2.1Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <circle
+                cx="12"
+                cy="13.6"
+                r="2.7"
+                stroke="currentColor"
+                stroke-width="1.7"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>设置</strong>
+            <small>账号、设备与授权信息</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherPerformanceFeatureTab"
+          class="other-feature-button active"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="otherPerformanceFeature"
+          data-other-feature="otherPerformanceFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 18a8 8 0 1 1 16 0"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path
+                d="m12 14 4-4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <circle cx="12" cy="18" r="1.5" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>性能</strong>
+            <small>查看系统资源占用</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherUsageGuideFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherUsageGuideFeature"
+          data-other-feature="otherUsageGuideFeature"
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6.5 4.5h8.2L18 7.8v11.7H6.5z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M14.5 4.5v3.3H18M9 12h6M9 15h4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>使用文档</strong>
+            <small>查看功能说明与常见问题</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          id="otherDesktopUpdateFeatureTab"
+          class="other-feature-button desktop-only"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherDesktopUpdateFeature"
+          data-other-feature="otherDesktopUpdateFeature"
+          hidden
+        >
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 3v12m0 0 4-4m-4 4-4-4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M5 19h14"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>桌面更新</strong>
+            <small>检查版本并管理本地数据</small>
+          </span>
+          <svg
+            class="other-feature-arrow"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m8 5 5 5-5 5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </nav>
+    </aside>
 
-          <div class="other-feature-content">
+    <div class="other-feature-content"></div>
+  </div>
+</section>

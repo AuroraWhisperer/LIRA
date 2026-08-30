@@ -31,14 +31,14 @@ function createCustomReplyService(dependencies = {}) {
         rule: matchedRule,
         autoReply: {
           message: matchedRule.reply,
-          target: { uid, name: userName }
-        }
+          target: { uid, name: userName },
+        },
       };
     },
 
     isCommandText(message) {
       return Boolean(findCustomReplyRule(message, currentSettings()));
-    }
+    },
   };
 }
 
@@ -47,9 +47,13 @@ function findCustomReplyRule(message, settings = {}) {
   if (!text || settings.enableCustomReplyBot !== 'true') return null;
 
   const normalizedText = text.toLocaleLowerCase();
-  return parseCustomReplyRules(settings.customReplyRules).find((rule) => (
-    rule.enabled !== false && normalizedText.includes(rule.keyword.toLocaleLowerCase())
-  )) || null;
+  return (
+    parseCustomReplyRules(settings.customReplyRules).find(
+      (rule) =>
+        rule.enabled !== false &&
+        normalizedText.includes(rule.keyword.toLocaleLowerCase()),
+    ) || null
+  );
 }
 
 function parseCustomReplyRules(value) {
@@ -73,9 +77,10 @@ function normalizeCustomReplyRule(item = {}) {
   return {
     keyword: truncateText(cleanText(item.keyword), CUSTOM_REPLY_KEYWORD_LIMIT),
     reply: truncateText(cleanText(item.reply), CUSTOM_REPLY_TEXT_LIMIT),
-    enabled: item.enabled === false || String(item.enabled).toLowerCase() === 'false'
-      ? false
-      : true
+    enabled:
+      item.enabled === false || String(item.enabled).toLowerCase() === 'false'
+        ? false
+        : true,
   };
 }
 
@@ -86,5 +91,5 @@ module.exports = {
   normalizeCustomReplyRule,
   MAX_CUSTOM_REPLY_RULES,
   CUSTOM_REPLY_KEYWORD_LIMIT,
-  CUSTOM_REPLY_TEXT_LIMIT
+  CUSTOM_REPLY_TEXT_LIMIT,
 };

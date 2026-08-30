@@ -24,7 +24,10 @@
       if (!sprint.enabled) {
         status.textContent = '未开启';
         status.className = 'pill warn';
-      } else if (live.connected && !String(live.message || '').includes('历史消息监听中')) {
+      } else if (
+        live.connected &&
+        !String(live.message || '').includes('历史消息监听中')
+      ) {
         status.textContent = '监听中';
         status.className = 'pill good';
       } else {
@@ -51,7 +54,9 @@
       }
       const count = Number(diagnostics.parsedGiftCount || 0);
       parts.push(`已解析 ${count} 条`);
-      const recentGiftLike = Array.isArray(diagnostics.recentGiftLikeCommands) ? diagnostics.recentGiftLikeCommands : [];
+      const recentGiftLike = Array.isArray(diagnostics.recentGiftLikeCommands)
+        ? diagnostics.recentGiftLikeCommands
+        : [];
       const lastGiftLike = recentGiftLike[0];
       if (lastGiftLike) {
         parts.push(`未识别 ${lastGiftLike.cmd}`);
@@ -66,6 +71,6 @@
   window.AdminApp.gifts = window.AdminApp.gifts || {};
   window.AdminApp.gifts.detection = {
     renderDetectionStatus,
-    renderGiftStatusLine
+    renderGiftStatusLine,
   };
 })();

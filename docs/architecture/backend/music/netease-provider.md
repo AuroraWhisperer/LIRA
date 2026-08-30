@@ -1,25 +1,27 @@
 # 网易云音乐 Provider — 上游 API 逆向工程
 
-> 涉及文件:[netease-provider.js](../../../../src/music/providers/netease-provider.js)、[lyrics.js](../../../../src/music/lyrics.js)(歌词解析器)、[stream-resolver.js](../../../../src/music/stream-resolver.js)(流解析编排)、[track-contract.js](../../../../src/music/track-contract.js)
+> 涉及文件:[netease-provider.js](../../../../src/music/providers/netease-provider.js)、[netease-weapi.js](../../../../src/music/providers/netease-weapi.js)、[netease-mappers.js](../../../../src/music/providers/netease-mappers.js)、[lyrics.js](../../../../src/music/lyrics.js)(歌词解析器)、[stream-resolver.js](../../../../src/music/stream-resolver.js)(流解析编排)、[track-contract.js](../../../../src/music/track-contract.js)
 
 本文档是网易云**上游接口**(`music.163.com`)的逆向工程唯一事实源:weapi 加密算法、Cookie 语义、12 个上游端点、歌词解析器与流解析契约只在此成表。Cookie 持久化(登录分区、快照加密)见 [auth.md](../../desktop/auth.md);本地 `/api/music/*` 端点清单见 [api.md](../api.md) 的 music-routes 节。QQ 侧见 [qq-provider.md](qq-provider.md);Provider 注册与缓存编排见 [services.md](services.md)。
 
+**内部模块边界:** `netease-provider.js` 保留 Provider 公共契约、Cookie/端点请求与流程编排；`netease-weapi.js` 是无状态的 weapi 加密边界；`netease-mappers.js` 只把上游响应归一化为内部曲目/歌单模型。加密与映射模块不得反向持有 Provider 实例或发起网络请求。
+
 ## 1. 上游域名
 
-| 域名 | 用途 | 出处 |
-|---|---|---|
+| 域名            | 用途                                                | 出处                                                                            |
+| --------------- | --------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `music.163.com` | 全部 API 的基础域名(明文接口 + `/weapi/*` 加密接口) | [netease-provider.js:6](../../../../src/music/providers/netease-provider.js#L6) |
 
 所有请求 `AbortSignal.timeout(REQUEST_TIMEOUT_MS)`,`REQUEST_TIMEOUT_MS = 10000`([netease-provider.js:7](../../../../src/music/providers/netease-provider.js#L7));流 URL TTL `STREAM_TTL_MS = 5 * 60 * 1000`([netease-provider.js:8](../../../../src/music/providers/netease-provider.js#L8))。
 
 ## 2. weapi 加密常量
 
-| 常量 | 值 | 出处 |
-|---|---|---|
-| `WEAPI_NONCE` | `'0CoJUm6Qyw8W8jud'`(内层 AES 固定 key) | [netease-provider.js:9](../../../../src/music/providers/netease-provider.js#L9) |
-| `WEAPI_IV` | `'0102030405060708'`(两层 AES 共用 16 字节 IV) | [netease-provider.js:10](../../../../src/music/providers/netease-provider.js#L10) |
-| `WEAPI_PUBLIC_KEY` | `'010001'`(RSA 公钥指数 e = 65537) | [netease-provider.js:11](../../../../src/music/providers/netease-provider.js#L11) |
-| `WEAPI_MODULUS` | `'00e0b509f6259df8642dbc35662901477df22677ec152b5f5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741ad8f16f4353b8b1cb4d20a7e1cdde46f'(257 hex 字符,含前导 00,1024-bit) | [netease-provider.js:12](../../../../src/music/providers/netease-provider.js#L12) |
+| 常量               | 值                                                                                                                                                                                                                                                                                                    | 出处                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `WEAPI_NONCE`      | `'0CoJUm6Qyw8W8jud'`(内层 AES 固定 key)                                                                                                                                                                                                                                                               | [netease-provider.js:9](../../../../src/music/providers/netease-provider.js#L9)   |
+| `WEAPI_IV`         | `'0102030405060708'`(两层 AES 共用 16 字节 IV)                                                                                                                                                                                                                                                        | [netease-provider.js:10](../../../../src/music/providers/netease-provider.js#L10) |
+| `WEAPI_PUBLIC_KEY` | `'010001'`(RSA 公钥指数 e = 65537)                                                                                                                                                                                                                                                                    | [netease-provider.js:11](../../../../src/music/providers/netease-provider.js#L11) |
+| `WEAPI_MODULUS`    | `'00e0b509f6259df8642dbc35662901477df22677ec152b5f5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741ad8f16f4353b8b1cb4d20a7e1cdde46f'(257 hex 字符,含前导 00,1024-bit) | [netease-provider.js:12](../../../../src/music/providers/netease-provider.js#L12) |
 
 ## 3. weapi 加密算法(逐步)
 
@@ -76,36 +78,36 @@ User-Agent: Mozilla/5.0 SongAssistant/1.0
 
 ## 5. Cookie 分析
 
-| Cookie | 用途 | Provider 角色 |
-|---|---|---|
-| `MUSIC_U` | 用户会话令牌 | **透传**:跟随 Cookie 头,Provider 不解析;`auth.loggedIn` 由外部认证状态提供 |
-| `__csrf` | CSRF 防护令牌 | **主动提取**([netease-provider.js:312](../../../../src/music/providers/netease-provider.js#L312)),同时注入两处:加密前 payload 的 `csrf_token` 字段 + URL 查询参数 `?csrf_token=<值>`([netease-provider.js:315-318](../../../../src/music/providers/netease-provider.js#L315-L318)) |
+| Cookie    | 用途          | Provider 角色                                                                                                                                                                                                                                                                      |
+| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MUSIC_U` | 用户会话令牌  | **透传**:跟随 Cookie 头,Provider 不解析;`auth.loggedIn` 由外部认证状态提供                                                                                                                                                                                                         |
+| `__csrf`  | CSRF 防护令牌 | **主动提取**([netease-provider.js:312](../../../../src/music/providers/netease-provider.js#L312)),同时注入两处:加密前 payload 的 `csrf_token` 字段 + URL 查询参数 `?csrf_token=<值>`([netease-provider.js:315-318](../../../../src/music/providers/netease-provider.js#L315-L318)) |
 
 `extractCookieValue(cookieHeader, '__csrf')`([netease-provider.js:438-444](../../../../src/music/providers/netease-provider.js#L438-L444)):按 `;` 分割后 `startsWith('__csrf=')` 匹配。登录分区与快照持久化见 [auth.md](../../desktop/auth.md)。
 
 ## 6. 请求方法
 
-| 方法 | 用途 | 要点 |
-|---|---|---|
-| `requestJson(pathname, params)` | GET 明文接口 | `new URL(pathname, NETEASE_BASE_URL)` 拼参;空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js:279-308](../../../../src/music/providers/netease-provider.js#L279-L308)) |
-| `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密,`URLSearchParams` 编码,URL 带 `csrf_token` 查询参数([netease-provider.js:310-340](../../../../src/music/providers/netease-provider.js#L310-L340)) |
+| 方法                                  | 用途                | 要点                                                                                                                                                                                      |
+| ------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requestJson(pathname, params)`       | GET 明文接口        | `new URL(pathname, NETEASE_BASE_URL)` 拼参;空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js:279-308](../../../../src/music/providers/netease-provider.js#L279-L308)) |
+| `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密,`URLSearchParams` 编码,URL 带 `csrf_token` 查询参数([netease-provider.js:310-340](../../../../src/music/providers/netease-provider.js#L310-L340))  |
 
 ## 7. 上游端点详解(12 个)
 
-| # | 端点 | 路径 | 登录 | 文档节 |
-|---|---|---|---|---|
-| 1 | 搜索 | `/api/search/get/web` | 否 | §7.1 |
-| 2 | 播放 URL 解析 | 纯字符串构造(无请求) | 否 | §7.2 |
-| 3 | 歌词 | `/api/song/lyric` | 否 | §7.3 |
-| 4 | 推荐歌单 | `/api/personalized/playlist` | 否 | §7.4 |
-| 5 | 每日推荐 | `/api/v1/discovery/recommend/songs` | **是** | §7.5 |
-| 6 | 新歌(电台) | `/api/personalized/newsong` | 否 | §7.6 |
-| 7 | 我喜欢 | 组合:用户资料 + 用户歌单 + 歌单详情 | **是** | §7.7 |
-| 8 | 我的歌单 / 收藏歌单 | `/api/user/playlist` | **是** | §7.8 |
-| 9 | 歌单详情 | `/api/v6/playlist/detail` | 否(公开) | §7.9 |
-| 10 | 最近播放 | `/api/play-record` | **是** | §7.10 |
-| 11 | 歌单写入 | `/weapi/playlist/manipulate/tracks` | **是** | §7.11 |
-| 12 | 用户资料 | `/api/nuser/account/get` | **是** | §7.12 |
+| #   | 端点                | 路径                                | 登录     | 文档节 |
+| --- | ------------------- | ----------------------------------- | -------- | ------ |
+| 1   | 搜索                | `/api/search/get/web`               | 否       | §7.1   |
+| 2   | 播放 URL 解析       | 纯字符串构造(无请求)                | 否       | §7.2   |
+| 3   | 歌词                | `/api/song/lyric`                   | 否       | §7.3   |
+| 4   | 推荐歌单            | `/api/personalized/playlist`        | 否       | §7.4   |
+| 5   | 每日推荐            | `/api/v1/discovery/recommend/songs` | **是**   | §7.5   |
+| 6   | 新歌(电台)          | `/api/personalized/newsong`         | 否       | §7.6   |
+| 7   | 我喜欢              | 组合:用户资料 + 用户歌单 + 歌单详情 | **是**   | §7.7   |
+| 8   | 我的歌单 / 收藏歌单 | `/api/user/playlist`                | **是**   | §7.8   |
+| 9   | 歌单详情            | `/api/v6/playlist/detail`           | 否(公开) | §7.9   |
+| 10  | 最近播放            | `/api/play-record`                  | **是**   | §7.10  |
+| 11  | 歌单写入            | `/weapi/playlist/manipulate/tracks` | **是**   | §7.11  |
+| 12  | 用户资料            | `/api/nuser/account/get`            | **是**   | §7.12  |
 
 ### 7.1 搜索([netease-provider.js:58-76](../../../../src/music/providers/netease-provider.js#L58-L76))
 
@@ -122,7 +124,7 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 **纯字符串构造,零网络请求**:
 
 ```javascript
-url = `https://music.163.com/song/media/outer/url?id=${encodeURIComponent(sourceTrackId)}.mp3`
+url = `https://music.163.com/song/media/outer/url?id=${encodeURIComponent(sourceTrackId)}.mp3`;
 ```
 
 - **刻意不调用 `/weapi/song/enhance/player/url`**——公开 `outer/url` 直链对任意 id 可用,免去加密请求与 VIP 校验
@@ -186,9 +188,9 @@ GET https://music.163.com/api/user/playlist?uid=<userId>&limit=<1-500 默认200>
 
 两个方法共享 `getUserPlaylists(userId, {limit})`([netease-provider.js:196-207](../../../../src/music/providers/netease-provider.js#L196-L207)),然后按 `creatorUserId` 与自己的 userId 是否相等分流:
 
-| 方法 | 过滤 |
-|---|---|
-| `getCreatedPlaylists` | `creatorUserId === userId`(我创建的) |
+| 方法                    | 过滤                                 |
+| ----------------------- | ------------------------------------ |
+| `getCreatedPlaylists`   | `creatorUserId === userId`(我创建的) |
 | `getCollectedPlaylists` | `creatorUserId !== userId`(我收藏的) |
 
 均需 `requireLogin`。
@@ -257,16 +259,16 @@ GET https://music.163.com/api/nuser/account/get
 
 ### 8.1 mapNeteaseSong([netease-provider.js:378-407](../../../../src/music/providers/netease-provider.js#L378-L407))
 
-| 输出字段 | 取值 |
-|---|---|
+| 输出字段               | 取值                                                                              |
+| ---------------------- | --------------------------------------------------------------------------------- |
 | `id` / `sourceTrackId` | `netease:<song.id>` / `String(song.id)`;**`song.id` 或 `song.name` 缺失整条丢弃** |
-| `sourceAlbumId` | `album.id`(或 `al.id`),无则空串 |
-| `title` / `album` | `song.name` / `album.name`(或 `al.name`),trim |
-| `artists` | `artists[].name` 或 `ar[].name`,过滤空值 |
-| `durationMs` | `max(0, song.duration \|\| song.dt)`(毫秒,无需换算) |
-| `coverUrl` | 优先 `album.picUrl \|\| album.pic_url`,否则 `artists[0].img1v1Url`(搜索接口回退) |
-| `playable` | `song.status !== -1`(-1 = 不可用) |
-| `vip` | `song.fee === 1 \|\| song.fee === 4` |
+| `sourceAlbumId`        | `album.id`(或 `al.id`),无则空串                                                   |
+| `title` / `album`      | `song.name` / `album.name`(或 `al.name`),trim                                     |
+| `artists`              | `artists[].name` 或 `ar[].name`,过滤空值                                          |
+| `durationMs`           | `max(0, song.duration \|\| song.dt)`(毫秒,无需换算)                               |
+| `coverUrl`             | 优先 `album.picUrl \|\| album.pic_url`,否则 `artists[0].img1v1Url`(搜索接口回退)  |
+| `playable`             | `song.status !== -1`(-1 = 不可用)                                                 |
+| `vip`                  | `song.fee === 1 \|\| song.fee === 4`                                              |
 
 ### 8.2 mapNeteasePlaylist([netease-provider.js:409-421](../../../../src/music/providers/netease-provider.js#L409-L421))
 
@@ -274,11 +276,11 @@ GET https://music.163.com/api/nuser/account/get
 
 ### 8.3 其他工具
 
-| 函数 | 行为 | 出处 |
-|---|---|---|
+| 函数                   | 行为                                         | 出处                                                                                         |
+| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `extractSourceTrackId` | 剥 `netease:` 前缀,空抛"缺少网易云歌曲 ID。" | [netease-provider.js:423-429](../../../../src/music/providers/netease-provider.js#L423-L429) |
-| `clampInteger` | 同 QQ Provider 语义 | [netease-provider.js:478-482](../../../../src/music/providers/netease-provider.js#L478-L482) |
-| `sliceByPage` | §7.5 客户端翻页(绕回语义) | [netease-provider.js:485-493](../../../../src/music/providers/netease-provider.js#L485-L493) |
+| `clampInteger`         | 同 QQ Provider 语义                          | [netease-provider.js:478-482](../../../../src/music/providers/netease-provider.js#L478-L482) |
+| `sliceByPage`          | §7.5 客户端翻页(绕回语义)                    | [netease-provider.js:485-493](../../../../src/music/providers/netease-provider.js#L485-L493) |
 
 ## 9. 歌词解析器(src/music/lyrics.js)
 
@@ -316,11 +318,11 @@ GET https://music.163.com/api/nuser/account/get
 
 ### 9.5 假名注音与当前行
 
-| 函数 | 行为 | 出处 |
-|---|---|---|
-| `extractKanaReadings(rawLyric)` | 匹配 `/\[kana:([^\]]+)\]/`,`1読1み2方` 按数字切分 → `['読','み','方']` | [lyrics.js:11-17](../../../../src/music/lyrics.js#L11-L17) |
-| `mapKanaToLines` | 逐行消费 CJK 字符(范围 U+4E00-9FFF / U+3400-4DBF / U+F900-FAFF),每字一个读音,空格连接,按 `startMs` 建 Map | [lyrics.js:19-43](../../../../src/music/lyrics.js#L19-L43) |
-| `findCurrentLyricLine(lines, currentMs)` | **二分查找最后一个 `startMs ≤ currentMs` 的行**;空数组返回 null | [lyrics.js:204-223](../../../../src/music/lyrics.js#L204-L223) |
+| 函数                                     | 行为                                                                                                      | 出处                                                           |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `extractKanaReadings(rawLyric)`          | 匹配 `/\[kana:([^\]]+)\]/`,`1読1み2方` 按数字切分 → `['読','み','方']`                                    | [lyrics.js:11-17](../../../../src/music/lyrics.js#L11-L17)     |
+| `mapKanaToLines`                         | 逐行消费 CJK 字符(范围 U+4E00-9FFF / U+3400-4DBF / U+F900-FAFF),每字一个读音,空格连接,按 `startMs` 建 Map | [lyrics.js:19-43](../../../../src/music/lyrics.js#L19-L43)     |
+| `findCurrentLyricLine(lines, currentMs)` | **二分查找最后一个 `startMs ≤ currentMs` 的行**;空数组返回 null                                           | [lyrics.js:204-223](../../../../src/music/lyrics.js#L204-L223) |
 
 ## 10. 流解析契约(stream-resolver)
 
@@ -332,10 +334,10 @@ GET https://music.163.com/api/nuser/account/get
 
 ## 11. 登录态要求总表
 
-| 操作 | 需要登录 | 判定方式 |
-|---|---|---|
-| 搜索 / 推荐歌单 / 新歌 / 歌单详情 / 歌词 / 播放 URL | ❌ | —(播放 URL 是公开直链) |
-| 每日推荐 | ✅ | `requireLogin('每日推荐需要先登录网易云音乐。')`([netease-provider.js:358-364](../../../../src/music/providers/netease-provider.js#L358-L364)):仅 `auth.loggedIn` 有效(**与 QQ 不同,Cookie 存在不兜底**) |
-| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放 | ✅ | `requireLogin` + `getUserProfile()` |
-| 歌单写入 | ✅ | `requireLogin` + `__csrf` Cookie(weapi 加密必需) |
-| 用户资料 | ✅ | 依赖 `MUSIC_U` Cookie |
+| 操作                                                | 需要登录 | 判定方式                                                                                                                                                                                                 |
+| --------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 搜索 / 推荐歌单 / 新歌 / 歌单详情 / 歌词 / 播放 URL | ❌       | —(播放 URL 是公开直链)                                                                                                                                                                                   |
+| 每日推荐                                            | ✅       | `requireLogin('每日推荐需要先登录网易云音乐。')`([netease-provider.js:358-364](../../../../src/music/providers/netease-provider.js#L358-L364)):仅 `auth.loggedIn` 有效(**与 QQ 不同,Cookie 存在不兜底**) |
+| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放             | ✅       | `requireLogin` + `getUserProfile()`                                                                                                                                                                      |
+| 歌单写入                                            | ✅       | `requireLogin` + `__csrf` Cookie(weapi 加密必需)                                                                                                                                                         |
+| 用户资料                                            | ✅       | 依赖 `MUSIC_U` Cookie                                                                                                                                                                                    |

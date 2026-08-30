@@ -12,6 +12,5 @@ function normalizeOpeningTrackMotion(value) {
 module.exports = {
   DEFAULT_OPENING_TRACK_MOTION,
   OPENING_TRACK_MOTION_VALUES,
-  normalizeOpeningTrackMotion
+  normalizeOpeningTrackMotion,
 };
-

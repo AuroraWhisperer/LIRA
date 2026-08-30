@@ -20,6 +20,7 @@
 ### Task 1: 游戏规则与会话领域
 
 **Files:**
+
 - Create: `src/games/number-bomb.js`
 - Create: `src/games/gomoku.js`
 - Create: `src/games/game-session-service.js`
@@ -33,6 +34,7 @@
 ### Task 2: 服务端 API、弹幕和 WS 接线
 
 **Files:**
+
 - Create: `src/server/routes/game-routes.js`
 - Modify: `src/server/api-routes.js`
 - Modify: `src/server/api-context.js`
@@ -49,6 +51,7 @@
 ### Task 3: Admin 百宝箱小游戏面板
 
 **Files:**
+
 - Create: `public/pages/admin/toolbox/games.html`
 - Create: `public/js/admin/games.js`
 - Create: `public/css/admin/other-features/games.css`
@@ -66,6 +69,7 @@
 ### Task 4: OBS 游戏浏览器源
 
 **Files:**
+
 - Create: `public/pages/overlays/games.html`
 - Create: `public/js/overlays/games.js`
 - Create: `public/css/overlays/games.css`
@@ -80,6 +84,7 @@
 ### Task 5: 架构文档与完整验证
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/pages.md`
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/architecture/backend/ws.md`
@@ -87,4 +92,3 @@
 
 - [ ] 登记 `/games` 页面、游戏 API、`game:update` 消息和 ROUTE-GAMES owner。
 - [ ] 运行 `git diff --check`、`npm run verify:docs`、`npm test`。
-

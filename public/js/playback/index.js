@@ -8,13 +8,14 @@ import { createPlaybackController } from './controller.js';
   let playbackController = null;
 
   function initPlaybackAssistant(options = {}) {
-    if (!playbackController) playbackController = createPlaybackController(options);
+    if (!playbackController)
+      playbackController = createPlaybackController(options);
     playbackController.init(options);
   }
 
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.playback = {
-    initPlaybackAssistant
+    initPlaybackAssistant,
   };
 
   // 模块加载完成后触发自定义事件，通知 main.js 可以初始化了

@@ -12,7 +12,7 @@ const routes = {
     const result = context.superChat.handleAction(body.action, body.id);
     context.broadcastSnapshot(`superchat:${body.action}`);
     sendJson(res, 200, { ok: true, data: result });
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

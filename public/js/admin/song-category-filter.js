@@ -23,11 +23,13 @@ export function closeFilterMenusOnOutsideClick(event, filters) {
 }
 
 export function readSelectedCategories(root = document) {
-  return Array.from(root.querySelectorAll('[data-category-filter]:checked'))
-    .map((input) => input.value);
+  return Array.from(
+    root.querySelectorAll('[data-category-filter]:checked'),
+  ).map((input) => input.value);
 }
 
 export function readSelectedTags(root = document) {
-  return Array.from(root.querySelectorAll('[data-tag-filter]:checked'))
-    .map((input) => input.value);
+  return Array.from(root.querySelectorAll('[data-tag-filter]:checked')).map(
+    (input) => input.value,
+  );
 }

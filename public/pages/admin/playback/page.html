@@ -1,295 +1,647 @@
-      <section id="playbackAssistantPage" class="main-page playback-page">
-        <header class="playback-page-header">
-          <div class="playback-head-inner">
-            <div class="source-tabs" role="tablist" aria-label="选择播放器">
-              <button class="source-tab active" type="button" data-source="qq">
-                <img class="source-tab-icon" src="/img/playback/qqmusic-icon.webp" alt="" draggable="false">
-                QQ音乐
-              </button>
-              <button class="source-tab" type="button" data-source="netease">
-                <img class="source-tab-icon" src="/img/playback/netease-music-icon.ico" alt="" draggable="false">
-                网易云音乐
-              </button>
-              <button class="source-tab" type="button" data-source="wesing">
-                <img class="source-tab-icon" src="/img/playback/wesing-icon.jpg" alt="" draggable="false">
-                全民 K歌
-              </button>
-            </div>
-            <div class="playback-account-compact">
-              <div class="playback-account-status">
-                <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
-                <button id="playbackHealthBtn" type="button">检查接口</button>
-                <button id="playbackClearCacheBtn" type="button">清理缓存</button>
-                <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
-                <button id="playbackLogoutBtn" class="danger" type="button" style="display: none;">退出登录</button>
-              </div>
-              <div class="playback-status-row">
-                <span id="playbackProviderHealth" class="playback-health-status">等待检查</span>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div class="playback-grid" data-online-source-view>
-
-          <section class="panel playback-discovery-panel">
-            <div class="panel-header">
-              <div>
-                <h2 class="ui-section-title">快捷入口</h2>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div class="playback-home-grid">
-                <button class="playback-home-card" type="button" data-playback-home-action="personalized">
-                  <strong class="ui-card-title">为你推荐</strong>
-                  <span class="ui-caption">根据听歌偏好智能推荐</span>
-                </button>
-                <button class="playback-home-card" type="button" data-playback-home-action="daily">
-                  <strong class="ui-card-title">每日推荐</strong>
-                  <span class="ui-caption">每天刷新，100 首基于听歌偏好的推荐</span>
-                </button>
-                <button class="playback-home-card" type="button" data-playback-home-action="radio">
-                  <strong class="ui-card-title">心动 / 电台</strong>
-                  <span class="ui-caption">无限续播，队列低于阈值时自动补充 10 首</span>
-                </button>
-                <button class="playback-home-card" type="button" data-playback-home-action="liked">
-                  <strong class="ui-card-title">我喜欢</strong>
-                  <span class="ui-caption">已点亮红心的歌曲</span>
-                </button>
-                <button class="playback-home-card" type="button" data-playback-home-action="created-playlists">
-                  <strong class="ui-card-title">我的歌单</strong>
-                  <span class="ui-caption">自己创建的歌单列表</span>
-                </button>
-                <button class="playback-home-card" type="button" data-playback-home-action="collected-playlists">
-                  <strong class="ui-card-title">收藏歌单</strong>
-                  <span class="ui-caption">收藏的其他用户歌单</span>
-                </button>
-                <button class="playback-home-card" type="button" data-playback-home-action="recent">
-                  <strong class="ui-card-title">最近播放</strong>
-                  <span class="ui-caption">近期播放过的歌曲</span>
-                </button>
-              </div>
-            </div>
-          </section>
-
-        </div>
-
-        <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
-          <div class="panel-header wesing-panel-heading">
-            <div class="wesing-heading-copy">
-              <h2 class="ui-section-title">全民 K歌歌词</h2>
-            </div>
-            <div class="actions">
-              <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
-              <button id="weSingRefreshBtn" class="secondary" type="button">重新检测</button>
-            </div>
-          </div>
-          <div class="panel-body wesing-capture-layout">
-            <article class="wesing-live-stage" aria-labelledby="weSingTrackTitle">
-              <div class="wesing-stage-topline">
-                <span class="wesing-live-mark"><i aria-hidden="true"></i> 实时歌词</span>
-                <span id="weSingPlaybackState"></span>
-              </div>
-              <div class="wesing-track-copy">
-                <h3 id="weSingTrackTitle">等待播放</h3>
-                <p id="weSingTrackMeta" class="ui-caption"></p>
-              </div>
-              <div class="wesing-lyric-stage" aria-live="polite">
-                <span class="wesing-lyric-kicker ui-eyebrow">当前歌词</span>
-                <p id="weSingLyricLine" class="wesing-lyric-line">—</p>
-                <span id="weSingLyricHint" class="wesing-lyric-hint">启动全民 K 歌后，逐字歌词会在这里同步</span>
-              </div>
-              <div class="wesing-progress-row">
-                <time id="weSingCurrentTime">00:00</time>
-                <div class="wesing-progress-track" aria-hidden="true"><span id="weSingProgressBar"></span></div>
-                <time id="weSingDuration">00:00</time>
-              </div>
-            </article>
-
-            <aside class="wesing-capture-console">
-              <div class="wesing-console-intro">
-                <h3 class="ui-card-title">捕捉设置</h3>
-              </div>
-              <div class="wesing-path-field">
-                <label for="weSingCachePath">缓存目录</label>
-                <div class="wesing-path-control">
-                  <input id="weSingCachePath" type="text" spellcheck="false" autocomplete="off" placeholder="WeSingCache 目录路径">
-                  <button id="weSingSelectCacheBtn" type="button" title="选择缓存目录" aria-label="选择全民 K 歌缓存目录">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 6.5h6l2 2h9v10h-17v-12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-                  </button>
-                </div>
-                <button id="weSingSaveCacheBtn" class="primary wesing-save-path" type="button">保存并检测</button>
-              </div>
-              <div class="wesing-offset-field">
-                <div class="wesing-field-heading">
-                  <span>时间偏移</span>
-                </div>
-                <div class="wesing-offset-control">
-                  <input id="weSingLyricOffsetMs" class="parameter-range parameter-range--centered" type="range" min="-3000" max="3000" step="50" value="0">
-                  <input id="weSingLyricOffsetMsNumber" type="number" min="-3000" max="3000" step="50" value="0" aria-label="歌词偏移" placeholder="0">
-                  <button id="weSingResetLyricOffsetBtn" type="button">重置</button>
-                  <span>ms</span>
-                </div>
-              </div>
-              <div class="wesing-signal-heading">状态</div>
-              <div class="wesing-signal-list" aria-label="状态">
-                <div><i id="weSingClientSignal" aria-hidden="true"></i><span>客户端</span><strong id="weSingClientStatus">未检测</strong></div>
-                <div><i id="weSingCacheSignal" aria-hidden="true"></i><span>缓存</span><strong id="weSingCacheStatus">待检查</strong></div>
-                <div><i id="weSingLyricSignal" aria-hidden="true"></i><span>歌词</span><strong id="weSingLyricStatus">待同步</strong></div>
-              </div>
-              <p id="weSingStatusMessage" class="wesing-status-message">未配置</p>
-            </aside>
-          </div>
-        </section>
-
-        <section class="panel playback-search-panel" data-online-source-view>
-          <div class="panel-header">
-            <h2 class="ui-section-title">在线搜索</h2>
-            <div class="actions">
-              <button id="playbackSearchBtn" type="button">搜索</button>
-              <button id="playbackSearchClearBtn" type="button">清除</button>
-            </div>
-          </div>
-          <div class="panel-body stack">
-            <div class="form-grid three">
-              <label>
-                关键词
-                <input id="playbackSearchKeyword" placeholder="歌名 / 歌手">
-              </label>
-              <label>
-                平台
-                <input id="playbackSearchSource" value="跟随当前平台" disabled>
-              </label>
-              <label>
-                数量
-                <input id="playbackSearchLimit" type="number" min="1" max="30" step="1" value="9">
-              </label>
-            </div>
-            <div id="playbackSearchResults" class="playback-search-results hint ui-caption"></div>
-          </div>
-        </section>
-
-        <details class="panel playback-match-panel" data-online-source-view>
-          <summary class="panel-header">
-            <div>
-              <h2 class="ui-section-title">点歌匹配诊断</h2>
-            </div>
-            <span class="details-indicator ui-control-label">展开</span>
-          </summary>
-          <div class="panel-body stack">
-            <div class="grid-3">
-              <label>
-                歌曲名
-                <input id="playbackMatchSong" placeholder="例如：晴天">
-              </label>
-              <label>
-                歌手
-                <input id="playbackMatchArtist" placeholder="可选">
-              </label>
-              <label>
-                时长毫秒
-                <input id="playbackMatchDuration" type="number" min="0" step="1000" placeholder="可选">
-              </label>
-            </div>
-            <div class="actions">
-              <button id="playbackMatchBtn" type="button">测试匹配</button>
-            </div>
-            <div id="playbackMatchResults" class="playback-match-results hint ui-caption">用本地歌库测试歌曲匹配准确度</div>
-          </div>
-        </details>
-      </section>
-
-        <section class="playback-player-panel" aria-label="全局播放器">
-          <button id="playerDockToggle" class="player-dock-toggle" type="button" title="收起播放器" aria-label="收起播放器" aria-expanded="true" aria-controls="playbackPlayerBody">
-            <svg class="dock-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-            <svg class="dock-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
+<section id="playbackAssistantPage" class="main-page playback-page">
+  <header class="playback-page-header">
+    <div class="playback-head-inner">
+      <div class="source-tabs" role="tablist" aria-label="选择播放器">
+        <button class="source-tab active" type="button" data-source="qq">
+          <img
+            class="source-tab-icon"
+            src="/img/playback/qqmusic-icon.webp"
+            alt=""
+            draggable="false"
+          />
+          QQ音乐
+        </button>
+        <button class="source-tab" type="button" data-source="netease">
+          <img
+            class="source-tab-icon"
+            src="/img/playback/netease-music-icon.ico"
+            alt=""
+            draggable="false"
+          />
+          网易云音乐
+        </button>
+        <button class="source-tab" type="button" data-source="wesing">
+          <img
+            class="source-tab-icon"
+            src="/img/playback/wesing-icon.jpg"
+            alt=""
+            draggable="false"
+          />
+          全民 K歌
+        </button>
+      </div>
+      <div class="playback-account-compact">
+        <div class="playback-account-status">
+          <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
+          <button id="playbackHealthBtn" type="button">检查接口</button>
+          <button id="playbackClearCacheBtn" type="button">清理缓存</button>
+          <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
+          <button
+            id="playbackLogoutBtn"
+            class="danger"
+            type="button"
+            style="display: none"
+          >
+            退出登录
           </button>
-          <div id="playbackPlayerBody" class="panel-body playback-player">
-            <div class="playback-cover" id="playbackCover">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-            </div>
-            <div class="playback-now">
-              <strong id="playbackTrackTitle" class="playback-marquee"><span class="playback-marquee-text">未选择歌曲</span></strong>
-              <span id="playbackTrackArtist" class="playback-marquee"><span class="playback-marquee-text">从本地测试音频开始</span></span>
-              <div class="playback-progress-row">
-                <span id="playbackCurrentTime">00:00</span>
-                <div class="playback-seek-wrap">
-                  <input id="playbackSeek" type="range" min="0" max="0" step="0.1" value="0">
-                  <div class="playback-seek-track"></div>
-                </div>
-                <span id="playbackDuration">00:00</span>
-                <button id="playbackAddToPlaylistBtn" class="playback-add-playlist-btn" type="button" title="添加到音乐歌单" disabled>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="7" x2="12" y2="17"/>
-                    <line x1="7" y1="12" x2="17" y2="12"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div class="playback-controls">
-              <div class="playback-mode-wrap">
-                <button id="playbackModeBtn" class="playback-icon-btn" type="button" title="播放模式" data-mode="sequence">
-                  <!-- 顺序播放图标 -->
-                  <svg class="mode-icon mode-sequence" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 2l4 4-4 4"/>
-                    <path d="M3 11v-1a4 4 0 0 1 4-4h14"/>
-                    <path d="M7 22l-4-4 4-4"/>
-                    <path d="M21 13v1a4 4 0 0 1-4 4H3"/>
-                  </svg>
-                  <!-- 随机播放图标 -->
-                  <svg class="mode-icon mode-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="16 3 21 3 21 8"/>
-                    <line x1="4" y1="20" x2="21" y2="3"/>
-                    <polyline points="21 16 21 21 16 21"/>
-                    <line x1="15" y1="15" x2="21" y2="21"/>
-                    <line x1="4" y1="4" x2="9" y2="9"/>
-                  </svg>
-                  <!-- 单曲循环图标 -->
-                  <svg class="mode-icon mode-repeat-one" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 2l4 4-4 4"/>
-                    <path d="M3 11v-1a4 4 0 0 1 4-4h14"/>
-                    <path d="M7 22l-4-4 4-4"/>
-                    <path d="M21 13v1a4 4 0 0 1-4 4H3"/>
-                    <text x="12" y="15" text-anchor="middle" font-size="10" font-weight="bold" fill="currentColor">1</text>
-                  </svg>
-                </button>
-                <span class="playback-mode-label" id="playbackModeLabel">顺序</span>
-              </div>
-              <div class="playback-control-buttons">
-                <button id="playbackPrev" class="playback-icon-btn" type="button" title="上一首">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-                </button>
-                <button id="playbackPlayPause" class="playback-play-btn" type="button" title="播放">
-                  <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                  <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                </button>
-                <button id="playbackNext" class="playback-icon-btn" type="button" title="下一首">
-                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zm-4.5 6l-8.5 6V6z"/></svg>
-                </button>
-              </div>
-              <div class="playback-extra-actions">
-                <div id="playbackQualityWrap" class="playback-quality-wrap">
-                  <div id="playbackQualityPanel" class="playback-quality-panel" role="menu" aria-label="选择播放音质" aria-hidden="true"></div>
-                  <button id="playbackQualityBtn" class="playback-quality-btn" type="button" title="选择播放音质" aria-label="选择播放音质" aria-expanded="false" aria-controls="playbackQualityPanel">
-                    <span id="playbackQualityLabel">标准</span>
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10 4-4 4 4"/></svg>
-                  </button>
-                </div>
-                <button id="playbackQueueBtn" class="playback-icon-btn" type="button" title="播放队列">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                </button>
-                <div class="playback-volume-wrap">
-                  <div id="playbackVolumePanel" class="playback-volume-panel" aria-hidden="true">
-                    <input id="playbackVolume" class="playback-volume-slider" type="range" min="0" max="1" step="0.01" value="0.3" title="音量" aria-label="音量" aria-orientation="vertical">
-                    <output id="playbackVolumeValue" class="playback-volume-value" for="playbackVolume">30%</output>
-                  </div>
-                  <button id="playbackVolumeIcon" class="playback-icon-btn" type="button" title="音量" aria-label="音量" aria-expanded="false" aria-controls="playbackVolumePanel">
-                    <svg class="vol-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
-                    <svg class="vol-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+        </div>
+        <div class="playback-status-row">
+          <span id="playbackProviderHealth" class="playback-health-status"
+            >等待检查</span
+          >
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="playback-grid" data-online-source-view>
+    <section class="panel playback-discovery-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="ui-section-title">快捷入口</h2>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="playback-home-grid">
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="personalized"
+          >
+            <strong class="ui-card-title">为你推荐</strong>
+            <span class="ui-caption">根据听歌偏好智能推荐</span>
+          </button>
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="daily"
+          >
+            <strong class="ui-card-title">每日推荐</strong>
+            <span class="ui-caption">每天刷新，100 首基于听歌偏好的推荐</span>
+          </button>
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="radio"
+          >
+            <strong class="ui-card-title">心动 / 电台</strong>
+            <span class="ui-caption"
+              >无限续播，队列低于阈值时自动补充 10 首</span
+            >
+          </button>
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="liked"
+          >
+            <strong class="ui-card-title">我喜欢</strong>
+            <span class="ui-caption">已点亮红心的歌曲</span>
+          </button>
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="created-playlists"
+          >
+            <strong class="ui-card-title">我的歌单</strong>
+            <span class="ui-caption">自己创建的歌单列表</span>
+          </button>
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="collected-playlists"
+          >
+            <strong class="ui-card-title">收藏歌单</strong>
+            <span class="ui-caption">收藏的其他用户歌单</span>
+          </button>
+          <button
+            class="playback-home-card"
+            type="button"
+            data-playback-home-action="recent"
+          >
+            <strong class="ui-card-title">最近播放</strong>
+            <span class="ui-caption">近期播放过的歌曲</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
+    <div class="panel-header wesing-panel-heading">
+      <div class="wesing-heading-copy">
+        <h2 class="ui-section-title">全民 K歌歌词</h2>
+      </div>
+      <div class="actions">
+        <span id="weSingCaptureStatus" class="pill warn">等待检测</span>
+        <button id="weSingRefreshBtn" class="secondary" type="button">
+          重新检测
+        </button>
+      </div>
+    </div>
+    <div class="panel-body wesing-capture-layout">
+      <article class="wesing-live-stage" aria-labelledby="weSingTrackTitle">
+        <div class="wesing-stage-topline">
+          <span class="wesing-live-mark"
+            ><i aria-hidden="true"></i> 实时歌词</span
+          >
+          <span id="weSingPlaybackState"></span>
+        </div>
+        <div class="wesing-track-copy">
+          <h3 id="weSingTrackTitle">等待播放</h3>
+          <p id="weSingTrackMeta" class="ui-caption"></p>
+        </div>
+        <div class="wesing-lyric-stage" aria-live="polite">
+          <span class="wesing-lyric-kicker ui-eyebrow">当前歌词</span>
+          <p id="weSingLyricLine" class="wesing-lyric-line">—</p>
+          <span id="weSingLyricHint" class="wesing-lyric-hint"
+            >启动全民 K 歌后，逐字歌词会在这里同步</span
+          >
+        </div>
+        <div class="wesing-progress-row">
+          <time id="weSingCurrentTime">00:00</time>
+          <div class="wesing-progress-track" aria-hidden="true">
+            <span id="weSingProgressBar"></span>
           </div>
-        </section>
+          <time id="weSingDuration">00:00</time>
+        </div>
+      </article>
+
+      <aside class="wesing-capture-console">
+        <div class="wesing-console-intro">
+          <h3 class="ui-card-title">捕捉设置</h3>
+        </div>
+        <div class="wesing-path-field">
+          <label for="weSingCachePath">缓存目录</label>
+          <div class="wesing-path-control">
+            <input
+              id="weSingCachePath"
+              type="text"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="WeSingCache 目录路径"
+            />
+            <button
+              id="weSingSelectCacheBtn"
+              type="button"
+              title="选择缓存目录"
+              aria-label="选择全民 K 歌缓存目录"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M3.5 6.5h6l2 2h9v10h-17v-12Z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <button
+            id="weSingSaveCacheBtn"
+            class="primary wesing-save-path"
+            type="button"
+          >
+            保存并检测
+          </button>
+        </div>
+        <div class="wesing-offset-field">
+          <div class="wesing-field-heading">
+            <span>时间偏移</span>
+          </div>
+          <div class="wesing-offset-control">
+            <input
+              id="weSingLyricOffsetMs"
+              class="parameter-range parameter-range--centered"
+              type="range"
+              min="-3000"
+              max="3000"
+              step="50"
+              value="0"
+            />
+            <input
+              id="weSingLyricOffsetMsNumber"
+              type="number"
+              min="-3000"
+              max="3000"
+              step="50"
+              value="0"
+              aria-label="歌词偏移"
+              placeholder="0"
+            />
+            <button id="weSingResetLyricOffsetBtn" type="button">重置</button>
+            <span>ms</span>
+          </div>
+        </div>
+        <div class="wesing-signal-heading">状态</div>
+        <div class="wesing-signal-list" aria-label="状态">
+          <div>
+            <i id="weSingClientSignal" aria-hidden="true"></i><span>客户端</span
+            ><strong id="weSingClientStatus">未检测</strong>
+          </div>
+          <div>
+            <i id="weSingCacheSignal" aria-hidden="true"></i><span>缓存</span
+            ><strong id="weSingCacheStatus">待检查</strong>
+          </div>
+          <div>
+            <i id="weSingLyricSignal" aria-hidden="true"></i><span>歌词</span
+            ><strong id="weSingLyricStatus">待同步</strong>
+          </div>
+        </div>
+        <p id="weSingStatusMessage" class="wesing-status-message">未配置</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="panel playback-search-panel" data-online-source-view>
+    <div class="panel-header">
+      <h2 class="ui-section-title">在线搜索</h2>
+      <div class="actions">
+        <button id="playbackSearchBtn" type="button">搜索</button>
+        <button id="playbackSearchClearBtn" type="button">清除</button>
+      </div>
+    </div>
+    <div class="panel-body stack">
+      <div class="form-grid three">
+        <label>
+          关键词
+          <input id="playbackSearchKeyword" placeholder="歌名 / 歌手" />
+        </label>
+        <label>
+          平台
+          <input id="playbackSearchSource" value="跟随当前平台" disabled />
+        </label>
+        <label>
+          数量
+          <input
+            id="playbackSearchLimit"
+            type="number"
+            min="1"
+            max="30"
+            step="1"
+            value="9"
+          />
+        </label>
+      </div>
+      <div
+        id="playbackSearchResults"
+        class="playback-search-results hint ui-caption"
+      ></div>
+    </div>
+  </section>
+
+  <details class="panel playback-match-panel" data-online-source-view>
+    <summary class="panel-header">
+      <div>
+        <h2 class="ui-section-title">点歌匹配诊断</h2>
+      </div>
+      <span class="details-indicator ui-control-label">展开</span>
+    </summary>
+    <div class="panel-body stack">
+      <div class="grid-3">
+        <label>
+          歌曲名
+          <input id="playbackMatchSong" placeholder="例如：晴天" />
+        </label>
+        <label>
+          歌手
+          <input id="playbackMatchArtist" placeholder="可选" />
+        </label>
+        <label>
+          时长毫秒
+          <input
+            id="playbackMatchDuration"
+            type="number"
+            min="0"
+            step="1000"
+            placeholder="可选"
+          />
+        </label>
+      </div>
+      <div class="actions">
+        <button id="playbackMatchBtn" type="button">测试匹配</button>
+      </div>
+      <div
+        id="playbackMatchResults"
+        class="playback-match-results hint ui-caption"
+      >
+        用本地歌库测试歌曲匹配准确度
+      </div>
+    </div>
+  </details>
+</section>
+
+<section class="playback-player-panel" aria-label="全局播放器">
+  <button
+    id="playerDockToggle"
+    class="player-dock-toggle"
+    type="button"
+    title="收起播放器"
+    aria-label="收起播放器"
+    aria-expanded="true"
+    aria-controls="playbackPlayerBody"
+  >
+    <svg
+      class="dock-chevron-down"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+    <svg
+      class="dock-chevron-up"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M18 15l-6-6-6 6" />
+    </svg>
+  </button>
+  <div id="playbackPlayerBody" class="panel-body playback-player">
+    <div class="playback-cover" id="playbackCover">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="18" cy="16" r="3" />
+      </svg>
+    </div>
+    <div class="playback-now">
+      <strong id="playbackTrackTitle" class="playback-marquee"
+        ><span class="playback-marquee-text">未选择歌曲</span></strong
+      >
+      <span id="playbackTrackArtist" class="playback-marquee"
+        ><span class="playback-marquee-text">从本地测试音频开始</span></span
+      >
+      <div class="playback-progress-row">
+        <span id="playbackCurrentTime">00:00</span>
+        <div class="playback-seek-wrap">
+          <input
+            id="playbackSeek"
+            type="range"
+            min="0"
+            max="0"
+            step="0.1"
+            value="0"
+          />
+          <div class="playback-seek-track"></div>
+        </div>
+        <span id="playbackDuration">00:00</span>
+        <button
+          id="playbackAddToPlaylistBtn"
+          class="playback-add-playlist-btn"
+          type="button"
+          title="添加到音乐歌单"
+          disabled
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="7" x2="12" y2="17" />
+            <line x1="7" y1="12" x2="17" y2="12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="playback-controls">
+      <div class="playback-mode-wrap">
+        <button
+          id="playbackModeBtn"
+          class="playback-icon-btn"
+          type="button"
+          title="播放模式"
+          data-mode="sequence"
+        >
+          <!-- 顺序播放图标 -->
+          <svg
+            class="mode-icon mode-sequence"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M17 2l4 4-4 4" />
+            <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+            <path d="M7 22l-4-4 4-4" />
+            <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+          </svg>
+          <!-- 随机播放图标 -->
+          <svg
+            class="mode-icon mode-shuffle"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="16 3 21 3 21 8" />
+            <line x1="4" y1="20" x2="21" y2="3" />
+            <polyline points="21 16 21 21 16 21" />
+            <line x1="15" y1="15" x2="21" y2="21" />
+            <line x1="4" y1="4" x2="9" y2="9" />
+          </svg>
+          <!-- 单曲循环图标 -->
+          <svg
+            class="mode-icon mode-repeat-one"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M17 2l4 4-4 4" />
+            <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+            <path d="M7 22l-4-4 4-4" />
+            <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+            <text
+              x="12"
+              y="15"
+              text-anchor="middle"
+              font-size="10"
+              font-weight="bold"
+              fill="currentColor"
+            >
+              1
+            </text>
+          </svg>
+        </button>
+        <span class="playback-mode-label" id="playbackModeLabel">顺序</span>
+      </div>
+      <div class="playback-control-buttons">
+        <button
+          id="playbackPrev"
+          class="playback-icon-btn"
+          type="button"
+          title="上一首"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+          </svg>
+        </button>
+        <button
+          id="playbackPlayPause"
+          class="playback-play-btn"
+          type="button"
+          title="播放"
+        >
+          <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+          </svg>
+        </button>
+        <button
+          id="playbackNext"
+          class="playback-icon-btn"
+          type="button"
+          title="下一首"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 6h2v12h-2zm-4.5 6l-8.5 6V6z" />
+          </svg>
+        </button>
+      </div>
+      <div class="playback-extra-actions">
+        <div id="playbackQualityWrap" class="playback-quality-wrap">
+          <div
+            id="playbackQualityPanel"
+            class="playback-quality-panel"
+            role="menu"
+            aria-label="选择播放音质"
+            aria-hidden="true"
+          ></div>
+          <button
+            id="playbackQualityBtn"
+            class="playback-quality-btn"
+            type="button"
+            title="选择播放音质"
+            aria-label="选择播放音质"
+            aria-expanded="false"
+            aria-controls="playbackQualityPanel"
+          >
+            <span id="playbackQualityLabel">标准</span>
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m4 10 4-4 4 4" />
+            </svg>
+          </button>
+        </div>
+        <button
+          id="playbackQueueBtn"
+          class="playback-icon-btn"
+          type="button"
+          title="播放队列"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+        </button>
+        <div class="playback-volume-wrap">
+          <div
+            id="playbackVolumePanel"
+            class="playback-volume-panel"
+            aria-hidden="true"
+          >
+            <input
+              id="playbackVolume"
+              class="playback-volume-slider"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.3"
+              title="音量"
+              aria-label="音量"
+              aria-orientation="vertical"
+            />
+            <output
+              id="playbackVolumeValue"
+              class="playback-volume-value"
+              for="playbackVolume"
+              >30%</output
+            >
+          </div>
+          <button
+            id="playbackVolumeIcon"
+            class="playback-icon-btn"
+            type="button"
+            title="音量"
+            aria-label="音量"
+            aria-expanded="false"
+            aria-controls="playbackVolumePanel"
+          >
+            <svg
+              class="vol-on"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path
+                d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+              />
+            </svg>
+            <svg
+              class="vol-off"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <line x1="23" y1="9" x2="17" y2="15" />
+              <line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,8 +1,10 @@
 # 后端核心:HTTP 服务与进程生命周期
 
-> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/inflight-tracker.js](../../../src/server/inflight-tracker.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/bilibili-runtime.js](../../../src/server/bilibili-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
+> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/runtime-config.js](../../../src/server/runtime-config.js)、[src/server/runtime-transport.js](../../../src/server/runtime-transport.js)、[src/server/authorized-work.js](../../../src/server/authorized-work.js)、[src/server/http-server.js](../../../src/server/http-server.js)、[src/server/runtime-api-context.js](../../../src/server/runtime-api-context.js)、[src/server/startup-retention.js](../../../src/server/startup-retention.js)、[src/server/runtime-reporting.js](../../../src/server/runtime-reporting.js)、[src/server/admin-launcher.js](../../../src/server/admin-launcher.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/inflight-tracker.js](../../../src/server/inflight-tracker.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/bilibili-runtime.js](../../../src/server/bilibili-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
 
 本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、token 注入机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
+
+**组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动保留策略、运行时报告和自动打开后台分别由 `startup-retention.js`、`runtime-reporting.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
 
 ## 1. 进程模型与入口
 
@@ -16,22 +18,22 @@
 
 两种运行形态:
 
-| 形态 | 入口 | 说明 |
-|---|---|---|
-| 独立服务 | `npm start` → [src/server.js](../../../src/server.js)(`require.main === module` 分支) | 纯 Node 进程,无 safeStorage、无 Cookie 注入(降级认证模式) |
+| 形态          | 入口                                                                                                               | 说明                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| 独立服务      | `npm start` → [src/server.js](../../../src/server.js)(`require.main === module` 分支)                              | 纯 Node 进程,无 safeStorage、无 Cookie 注入(降级认证模式)                            |
 | Electron 内嵌 | `npm run desktop` → [src/electron/main.js](../../../src/electron/main.js) 内 `require('../server')` **同进程**调用 | 桌面模式下服务与 Electron main 共享一个进程,见 [desktop/main.md](../desktop/main.md) |
 
 核心入口是工厂函数 `createServerRuntime(runtimeOptions)`([server.js:43](../../../src/server.js#L43)),返回 `{ start, stop, setPreShutdownHook, persistPlaybackSnapshot, getApiToken, getSetting }`。文件底部另有一套兼容层单例,由 [compatibility-runtime.js](../../../src/server/compatibility-runtime.js) 适配旧调用方 `startServer()`/`shutdownApplication()` 等顶层导出。
 
 ## 2. 端口与监听
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 默认端口 | `START_PORT = 3000` | [server.js:32](../../../src/server.js#L32) |
-| 默认主机 | `127.0.0.1`(`localhost` 归一化为 `127.0.0.1`,见 `normalizeServerHost`) | [server.js:38-40](../../../src/server.js#L38-L40) |
-| **主机验证** | **仅接受 `127.0.0.1` 或 `localhost`;拒绝 `0.0.0.0`、LAN 地址、任意主机名**(见 `validateServerHost`) | [server.js:42-49](../../../src/server.js#L42-L49) |
-| 监听方式 | `lifecycle.listenExactly` — **精确端口,失败即报错**(不做回退) | [lifecycle.js:31-47](../../../src/server/lifecycle.js#L31-L47) |
-| 回退辅助 | `listenWithFallback` 扫描 `startPort..startPort+19`,仅独立/兼容模式可用 | [lifecycle.js:13-29](../../../src/server/lifecycle.js#L13-L29) |
+| 事实         | 值                                                                                                      | 出处                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 默认端口     | `START_PORT = 3000`                                                                                     | [server.js:32](../../../src/server.js#L32)                       |
+| 默认主机     | `127.0.0.1`(`localhost` 归一化为 `127.0.0.1`,见 `normalizeServerHost`)                                  | [server.js:38-40](../../../src/server.js#L38-L40)                |
+| **主机验证** | **仅接受 `127.0.0.1` 或 `localhost`;拒绝 `0.0.0.0`、LAN 地址、任意主机名**(见 `validateServerHost`)     | [server.js:42-49](../../../src/server.js#L42-L49)                |
+| 监听方式     | `lifecycle.listenExactly` — **精确端口,失败即报错**(不做回退)                                           | [lifecycle.js:31-47](../../../src/server/lifecycle.js#L31-L47)   |
+| 回退辅助     | `listenWithFallback` 扫描 `startPort..startPort+19`,仅独立/兼容模式可用                                 | [lifecycle.js:13-29](../../../src/server/lifecycle.js#L13-L29)   |
 | 端口冲突处理 | 启动前 `cleanupOwnPortOccupant`:识别并关闭**上一个本服务实例**(同数据目录/SERVICE_ID/可执行路径),再绑定 | [lifecycle.js:65-111](../../../src/server/lifecycle.js#L65-L111) |
 
 `SERVICE_ID = 'lira'`([lifecycle.js:11](../../../src/server/lifecycle.js#L11)),用于 `/api/health` 应答与旧实例识别。旧实例清理顺序:读 `.server-runtime.json` → GET `/api/health` 验证身份 → POST `/api/system/shutdown` 请求退出 → 轮询端口释放(7.5s 超时/120ms 间隔)→ 仍占用则 `SIGTERM` 杀进程。等待预算覆盖 Electron 的 2 秒 renderer flush 和正常退出余量，避免健康旧实例仍在写库时被过早终止。
@@ -40,13 +42,13 @@
 
 ## 3. 环境变量(唯一成表处)
 
-| 变量 | 默认 | 作用 |
-|---|---|---|
-| `HOST` | `127.0.0.1` | 服务绑定主机(`localhost` 归一化) |
-| `PORT` | `3000` | 独立启动模式端口(兼容层读取) |
-| `SONG_PLUGIN_DATA_DIR` | 仓库根 `data/` | 数据目录(数据库、token、缓存),见 [storage.md](storage.md) |
-| `ELECTRON_DESKTOP` | 未设 | `'1'` 表示运行在 Electron 桌面模式,`/api/health` 的 `desktop` 字段据此报告 |
-| `AUTO_OPEN_ADMIN` | 未设 | `'1'` 时启动后自动用浏览器打开 `/admin`(`openAdminPageIfNeeded`,Windows 走 `cmd /c start`) |
+| 变量                   | 默认           | 作用                                                                                       |
+| ---------------------- | -------------- | ------------------------------------------------------------------------------------------ |
+| `HOST`                 | `127.0.0.1`    | 服务绑定主机(`localhost` 归一化)                                                           |
+| `PORT`                 | `3000`         | 独立启动模式端口(兼容层读取)                                                               |
+| `SONG_PLUGIN_DATA_DIR` | 仓库根 `data/` | 数据目录(数据库、token、缓存),见 [storage.md](storage.md)                                  |
+| `ELECTRON_DESKTOP`     | 未设           | `'1'` 表示运行在 Electron 桌面模式,`/api/health` 的 `desktop` 字段据此报告                 |
+| `AUTO_OPEN_ADMIN`      | 未设           | `'1'` 时启动后自动用浏览器打开 `/admin`(`openAdminPageIfNeeded`,Windows 走 `cmd /c start`) |
 
 ## 4. 请求管线
 
@@ -62,6 +64,7 @@
 phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub.handleUpgrade`;starting/quiescing 阶段返回 503。`inflight-tracker` 只统计 quiesce 前已接纳的 API handler，quiesce 后的 health/503 不进入 drain 集合。
 
 **Host/Origin 验证辅助函数**(`http-utils.js`):
+
 - `validateRequestHost(req, runtimeBaseUrl)`:提取 `req.headers.host` 与运行时 baseUrl 的 host:port 比较,确保请求目标与服务实际绑定地址一致。
 - `validateOrigin(req, allowedOrigins)`:检查 `req.headers.origin` 是否在白名单内。无 Origin 头时返回 `true`(允许非浏览器客户端)。
 - `addFrameProtectionHeaders(res, pathname)`:为管理页面(`/admin`/`/settings`/`/songs`/`/`)添加 `Content-Security-Policy: frame-ancestors 'none'` 与 `X-Frame-Options: DENY`;排除 overlay 页面(`/queue`/`/songlist`/`/blindbox`/`/overtime`/`/gift-effects`/`/lyrics`)，这些页面需要被 OBS 嵌入。
@@ -96,17 +99,17 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 `createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate })`([domain-services.js:22](../../../src/server/domain-services.js#L22))是唯一领域服务组装点,产出:
 
-| 领域 | 组成 | 详情文档 |
-|---|---|---|
-| `songs` | song-service 封装(save/list/find/pickRandom/count…) | [music/services.md](music/services.md) |
-| `queue` | queue-service(快照/加歌/动作/启动清理) | [music/services.md](music/services.md) |
-| `gifts` | gift-service + 消费者注册表(加班机消费者) | [bilibili/gift.md](bilibili/gift.md) |
-| `overtime` | `createOvertimeService({giftDb, onUpdate})` | [overtime.md](overtime.md) |
-| `superChats` | superchat-service | [bilibili/gift.md](bilibili/gift.md) |
-| `messages` | bilibili-message-handler + checkin/fortune/customReply 链 | [bilibili/danmaku.md](bilibili/danmaku.md) |
-| `checkins / fortunes / customReplies / requesterTargets` | 弹幕机器人四件套 | [bilibili/danmaku.md](bilibili/danmaku.md) |
-| `data` | 清库/保留策略入口(database + retention) | [storage.md](storage.md) |
-| `playback / theme / cooldowns` | playback-store / theme-store / cooldown-store | [storage.md](storage.md) |
+| 领域                                                     | 组成                                                      | 详情文档                                   |
+| -------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------ |
+| `songs`                                                  | song-service 封装(save/list/find/pickRandom/count…)       | [music/services.md](music/services.md)     |
+| `queue`                                                  | queue-service(快照/加歌/动作/启动清理)                    | [music/services.md](music/services.md)     |
+| `gifts`                                                  | gift-service + 消费者注册表(加班机消费者)                 | [bilibili/gift.md](bilibili/gift.md)       |
+| `overtime`                                               | `createOvertimeService({giftDb, onUpdate})`               | [overtime.md](overtime.md)                 |
+| `superChats`                                             | superchat-service                                         | [bilibili/gift.md](bilibili/gift.md)       |
+| `messages`                                               | bilibili-message-handler + checkin/fortune/customReply 链 | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `checkins / fortunes / customReplies / requesterTargets` | 弹幕机器人四件套                                          | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `data`                                                   | 清库/保留策略入口(database + retention)                   | [storage.md](storage.md)                   |
+| `playback / theme / cooldowns`                           | playback-store / theme-store / cooldown-store             | [storage.md](storage.md)                   |
 
 **启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `repairGiftV2Events` → `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
 

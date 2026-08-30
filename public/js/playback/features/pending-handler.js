@@ -8,11 +8,7 @@
  * @returns {Object} 待确认操作函数集合
  */
 export function createPendingHandler(deps) {
-  const {
-    playbackState,
-    savePlaybackState,
-    renderPlayback
-  } = deps;
+  const { playbackState, savePlaybackState, renderPlayback } = deps;
 
   /**
    * 处理待确认操作（确认/忽略）
@@ -28,7 +24,10 @@ export function createPendingHandler(deps) {
       playbackState.pendingRequests.splice(index, 1);
       const track = pending.track;
       if (track) {
-        playPlaybackTrack(track, { origin: 'requested', requestedBy: pending.requesterName });
+        playPlaybackTrack(track, {
+          origin: 'requested',
+          requestedBy: pending.requesterName,
+        });
       }
     } else if (action === 'ignore') {
       playbackState.pendingRequests.splice(index, 1);
@@ -39,6 +38,6 @@ export function createPendingHandler(deps) {
   }
 
   return {
-    handlePlaybackPendingAction
+    handlePlaybackPendingAction,
   };
 }

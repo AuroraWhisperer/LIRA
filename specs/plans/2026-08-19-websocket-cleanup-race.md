@@ -20,6 +20,7 @@
 ## Task 1: Make Socket Cleanup a One-Way Lifecycle Transition
 
 **Files:**
+
 - Modify: `src/server/ws.js`
 - Modify: `test/websocket-transport.test.js`
 

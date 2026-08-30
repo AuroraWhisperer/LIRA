@@ -3,32 +3,80 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="referrer" content="no-referrer">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
     <title>礼物特效</title>
-    <link rel="stylesheet" href="/css/overlays/base.css?v=20260815-01">
-    <link rel="stylesheet" href="/css/overlays/gift-effects.css?v=20260825-02">
+    <link rel="stylesheet" href="/css/overlays/base.css?v=20260815-01" />
+    <link
+      rel="stylesheet"
+      href="/css/overlays/gift-effects.css?v=20260825-02"
+    />
   </head>
   <body class="overlay-body gift-effects-overlay-body">
     <main id="giftEffectStage" aria-live="off">
       <div id="giftFrame" aria-hidden="true">
         <div id="giftFrameArtwork" class="gift-frame-artwork">
-          <img id="giftFrameArtworkImage" class="gift-frame-composite" data-frame-part="composite" src="/img/overlays/gift-frame/woodland-bloom/frame-composite.png?v=20260825-01" alt="" draggable="false">
+          <img
+            id="giftFrameArtworkImage"
+            class="gift-frame-composite"
+            data-frame-part="composite"
+            src="/img/overlays/gift-frame/woodland-bloom/frame-composite.png?v=20260825-01"
+            alt=""
+            draggable="false"
+          />
         </div>
-        <div id="giftFrameAccents" class="gift-frame-accents" aria-hidden="true">
-          <img class="gift-frame-accent gift-frame-accent-branch" data-frame-accent="branch" src="/img/overlays/gift-frame/woodland-bloom/accent-branch-sprig.png?v=20260823-02" alt="" draggable="false">
-          <img class="gift-frame-accent gift-frame-accent-crystal" data-frame-accent="crystal" src="/img/overlays/gift-frame/woodland-bloom/accent-crystal-charm.png?v=20260823-02" alt="" draggable="false">
-          <img class="gift-frame-accent gift-frame-accent-floral" data-frame-accent="floral" src="/img/overlays/gift-frame/woodland-bloom/accent-floral-knot.png?v=20260823-02" alt="" draggable="false">
+        <div
+          id="giftFrameAccents"
+          class="gift-frame-accents"
+          aria-hidden="true"
+        >
+          <img
+            class="gift-frame-accent gift-frame-accent-branch"
+            data-frame-accent="branch"
+            src="/img/overlays/gift-frame/woodland-bloom/accent-branch-sprig.png?v=20260823-02"
+            alt=""
+            draggable="false"
+          />
+          <img
+            class="gift-frame-accent gift-frame-accent-crystal"
+            data-frame-accent="crystal"
+            src="/img/overlays/gift-frame/woodland-bloom/accent-crystal-charm.png?v=20260823-02"
+            alt=""
+            draggable="false"
+          />
+          <img
+            class="gift-frame-accent gift-frame-accent-floral"
+            data-frame-accent="floral"
+            src="/img/overlays/gift-frame/woodland-bloom/accent-floral-knot.png?v=20260823-02"
+            alt=""
+            draggable="false"
+          />
         </div>
         <canvas id="particleStage" aria-hidden="true"></canvas>
         <div id="giftInfo" class="gift-info" role="status" aria-live="polite">
-          <div class="gift-info-primary"><span id="giftInfoName" class="gift-info-name"></span><strong id="giftInfoAmount" class="gift-info-amount"></strong></div>
-          <div class="gift-info-secondary"><span id="giftInfoUser" class="gift-info-user"></span><span class="gift-info-separator" aria-hidden="true">×</span><span id="giftInfoNum" class="gift-info-num"></span></div>
+          <div class="gift-info-primary">
+            <span id="giftInfoName" class="gift-info-name"></span
+            ><strong id="giftInfoAmount" class="gift-info-amount"></strong>
+          </div>
+          <div class="gift-info-secondary">
+            <span id="giftInfoUser" class="gift-info-user"></span
+            ><span class="gift-info-separator" aria-hidden="true">×</span
+            ><span id="giftInfoNum" class="gift-info-num"></span>
+          </div>
         </div>
       </div>
     </main>
-    <div id="giftEffectStatus" class="gift-effect-status" role="status" aria-live="polite" hidden></div>
-    <script src="/js/overlays/gift-effects.js?v=20260825-02"></script>
+    <div
+      id="giftEffectStatus"
+      class="gift-effect-status"
+      role="status"
+      aria-live="polite"
+      hidden
+    ></div>
+    <script
+      type="module"
+      src="/js/overlays/gift-effects.js?v=20260825-02"
+    ></script>
   </body>
 </html>

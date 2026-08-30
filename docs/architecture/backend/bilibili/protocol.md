@@ -1,8 +1,10 @@
 # Bilibili 直播协议:HTTP API、WBI 签名与 WebSocket 弹幕长连
 
-> 涉及文件:[api-client.js](../../../../src/bilibili/danmaku/api-client.js)、[wbi-signer.js](../../../../src/bilibili/wbi-signer.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)、[packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)、[protobuf-decoder.js](../../../../src/bilibili/protocols/protobuf-decoder.js)、[danmaku-parser.js](../../../../src/bilibili/parsers/danmaku-parser.js)、[superchat-parser.js](../../../../src/bilibili/parsers/superchat-parser.js)、[gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)、[gift-normalizers.js](../../../../src/bilibili/utils/gift-normalizers.js)、[user-meta-extractor.js](../../../../src/bilibili/utils/user-meta-extractor.js)、[helpers.js](../../../../src/bilibili/helpers.js)、[danmaku-client.js](../../../../src/bilibili/danmaku-client.js) 的连接部分、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js) 的分发部分
+> 涉及文件:[api-client.js](../../../../src/bilibili/danmaku/api-client.js)、[wbi-signer.js](../../../../src/bilibili/wbi-signer.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)、[packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)、[protobuf-decoder.js](../../../../src/bilibili/protocols/protobuf-decoder.js)、[danmaku-parser.js](../../../../src/bilibili/parsers/danmaku-parser.js)、[superchat-parser.js](../../../../src/bilibili/parsers/superchat-parser.js)、[gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)、[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js)、[gift-guard-parser.js](../../../../src/bilibili/parsers/gift-guard-parser.js)、[gift-normalizers.js](../../../../src/bilibili/utils/gift-normalizers.js)、[user-meta-extractor.js](../../../../src/bilibili/utils/user-meta-extractor.js)、[helpers.js](../../../../src/bilibili/helpers.js)、[danmaku-client.js](../../../../src/bilibili/danmaku-client.js) 的连接部分、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js) 的分发部分
 
 本文档是 **Bilibili 平台出向协议**的唯一事实源:HTTP 端点、WBI 签名、WebSocket 二进制帧、自实现 Protobuf 解码与消息解析规则只在此成表。平台侧 API 的完整参考(用户/直播间信息、管理、消息流等)见 [`docs/bilibili-live-api/`](../../../bilibili-live-api/info.md) 目录,本文不复述。消息经解析后进入的监听管线见 [danmaku.md](danmaku.md),礼物/SC 的入库与服务层见 [gift.md](gift.md)。
+
+**礼物解析模块边界:** `gift-parser.js` 只编排命令分支并生成统一礼物事件；`gift-command-utils.js` 只处理命令名、字段提取和通用归一化；`gift-guard-parser.js` 只拥有大航海/守护类命令及其证据兼容规则。辅助模块不发起网络请求，也不向消息处理层反向分发。
 
 ## 1. 架构总览
 
@@ -24,13 +26,13 @@ BilibiliDanmakuClient (顶层编排, 见 danmaku.md)
 
 统一由 `requestHeaders()`([api-client.js:173-185](../../../../src/bilibili/danmaku/api-client.js#L173-L185)) 生成:
 
-| 头 | 值 | 出处 |
-|---|---|---|
-| `User-Agent` | Chrome/126 桌面 UA | [api-client.js:175](../../../../src/bilibili/danmaku/api-client.js#L175) |
-| `Accept` | `application/json, text/plain, */*` | [api-client.js:176](../../../../src/bilibili/danmaku/api-client.js#L176) |
-| `Accept-Language` | `zh-CN,zh;q=0.9,en;q=0.8` | [api-client.js:177](../../../../src/bilibili/danmaku/api-client.js#L177) |
+| 头                   | 值                                                                 | 出处                                                                              |
+| -------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `User-Agent`         | Chrome/126 桌面 UA                                                 | [api-client.js:175](../../../../src/bilibili/danmaku/api-client.js#L175)          |
+| `Accept`             | `application/json, text/plain, */*`                                | [api-client.js:176](../../../../src/bilibili/danmaku/api-client.js#L176)          |
+| `Accept-Language`    | `zh-CN,zh;q=0.9,en;q=0.8`                                          | [api-client.js:177](../../../../src/bilibili/danmaku/api-client.js#L177)          |
 | `Origin` / `Referer` | `https://live.bilibili.com` / `https://live.bilibili.com/{roomId}` | [api-client.js:178-179](../../../../src/bilibili/danmaku/api-client.js#L178-L179) |
-| `Cookie` | 可选,有登录 Cookie 时附加,缓解 -352 风控 | [api-client.js:181-183](../../../../src/bilibili/danmaku/api-client.js#L181-L183) |
+| `Cookie`             | 可选,有登录 Cookie 时附加,缓解 -352 风控                           | [api-client.js:181-183](../../../../src/bilibili/danmaku/api-client.js#L181-L183) |
 
 Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [desktop/auth.md](../../desktop/auth.md),此处只消费 `cookieHeader` 字符串。运行中可用 `updateAuth(cookieHeader, uid)` 热更新([api-client.js:17-20](../../../../src/bilibili/danmaku/api-client.js#L17-L20))。
 
@@ -38,27 +40,27 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 
 `bilibiliErrorHint(code)`([api-client.js:201-215](../../../../src/bilibili/danmaku/api-client.js#L201-L215))对平台业务码给出中文提示;`formatBilibiliApiError` 统一拼接 `http status + code + message`([api-client.js:193-199](../../../../src/bilibili/danmaku/api-client.js#L193-L199))。`fetchJson` 对非 JSON 响应单独抛错([api-client.js:149-171](../../../../src/bilibili/danmaku/api-client.js#L149-L171)),日志中的 `w_rid` 会被脱敏([api-client.js:217-219](../../../../src/bilibili/danmaku/api-client.js#L217-L219))。
 
-| code | 含义 | 出处 |
-|---|---|---|
-| `0` | 成功 | — |
-| `-352` | 风控/校验失败(WBI 签名、请求头、Cookie/设备标识、网络 IP) | [api-client.js:202-204](../../../../src/bilibili/danmaku/api-client.js#L202-L204) |
-| `-400` | 请求参数错误 | [api-client.js:208-210](../../../../src/bilibili/danmaku/api-client.js#L208-L210) |
-| `-412` | 请求被风控拦截 | [api-client.js:211-213](../../../../src/bilibili/danmaku/api-client.js#L211-L213) |
-| `60004` | 直播间不存在 | [api-client.js:205-207](../../../../src/bilibili/danmaku/api-client.js#L205-L207) |
+| code    | 含义                                                      | 出处                                                                              |
+| ------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `0`     | 成功                                                      | —                                                                                 |
+| `-352`  | 风控/校验失败(WBI 签名、请求头、Cookie/设备标识、网络 IP) | [api-client.js:202-204](../../../../src/bilibili/danmaku/api-client.js#L202-L204) |
+| `-400`  | 请求参数错误                                              | [api-client.js:208-210](../../../../src/bilibili/danmaku/api-client.js#L208-L210) |
+| `-412`  | 请求被风控拦截                                            | [api-client.js:211-213](../../../../src/bilibili/danmaku/api-client.js#L211-L213) |
+| `60004` | 直播间不存在                                              | [api-client.js:205-207](../../../../src/bilibili/danmaku/api-client.js#L205-L207) |
 
 ### 2.3 端点清单
 
-| 端点 | URL | 用途与关键响应 | 出处 |
-|---|---|---|---|
-| `room_init` | `https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId}` | 解析房间:`data.room_id`(标准长房号,必需)、`short_id`、`uid`(主播)、`live_status`(1=开播);随后拉 `master_info` 补 `ownerName` | [api-client.js:26-29](../../../../src/bilibili/danmaku/api-client.js#L26-L29)、[api-client.js:33-41](../../../../src/bilibili/danmaku/api-client.js#L33-L41) |
-| `master_info` | `https://api.live.bilibili.com/live_user/v1/Master/info?uid={uid}` | `data.info.uname` → 主播名称,失败仅告警不阻断 | [api-client.js:52-61](../../../../src/bilibili/danmaku/api-client.js#L52-L61) |
-| `nav` | `https://api.bilibili.com/x/web-interface/nav` | 当前登录账号名(`data.uname`),同时是 WBI img/sub 密钥来源(见 §3) | [api-client.js:63-70](../../../../src/bilibili/danmaku/api-client.js#L63-L70)、[wbi-signer.js:50](../../../../src/bilibili/wbi-signer.js#L50) |
-| `getDanmuInfo` | `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{WBI签名}` | 参数 `{id: roomId, type: 0}` 经 WBI 签名;返回 `data.host_list[0].host` / `wss_port`(默认 443)/ `data.token` | [api-client.js:72-82](../../../../src/bilibili/danmaku/api-client.js#L72-L82) |
-| `gethistory` | `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid={roomId}` | 历史弹幕降级监听:`data.admin[]` + `data.room[]`,每条约 `uid/nickname/text/timeline`;间隔 2.5s 见 [danmaku.md](danmaku.md) §3 | [api-client.js:93-102](../../../../src/bilibili/danmaku/api-client.js#L93-L102) |
-| `online_gold_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId&ruid&page&pageSize` | 高能榜身份补全;参数/停止条件见 [danmaku.md](danmaku.md) §3 | [api-client.js:84-91](../../../../src/bilibili/danmaku/api-client.js#L84-L91) |
-| `fans_members_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId&ruid&page&page_size` | 全量本房粉丝牌成员快照;响应 `data.item[]`、`data.num`;分页/轮询策略见 [danmaku.md](danmaku.md) §3 | [api-client.js:93-103](../../../../src/bilibili/danmaku/api-client.js#L93-L103) |
-| `send_danmaku` | `POST https://api.live.bilibili.com/msg/send` | 机器人回弹幕(见 [danmaku.md](danmaku.md) §7):表单 `msg/csrf/bubble/fontsize/mode/color/rnd/roomid/room_type`;`reply_mid/reply_attr/reply_uname` 仅在回复目标存在时附带 | [api-client.js:104-147](../../../../src/bilibili/danmaku/api-client.js#L104-L147) |
-| `avatar_image` | 由已校验的 `https://*.hdslb.com/*` 用户头像 URL 决定 | Node 侧读取 JPEG/PNG/WebP/GIF/AVIF，限制 2 MiB；供本地 `/api/bilibili/avatar` 代理给 Electron/OBS 页面，避免 renderer 直接建立 CDN TLS 连接 | [api-client.js](../../../../src/bilibili/danmaku/api-client.js) |
+| 端点                | URL                                                                                                           | 用途与关键响应                                                                                                                                                         | 出处                                                                                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `room_init`         | `https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId}`                                            | 解析房间:`data.room_id`(标准长房号,必需)、`short_id`、`uid`(主播)、`live_status`(1=开播);随后拉 `master_info` 补 `ownerName`                                           | [api-client.js:26-29](../../../../src/bilibili/danmaku/api-client.js#L26-L29)、[api-client.js:33-41](../../../../src/bilibili/danmaku/api-client.js#L33-L41) |
+| `master_info`       | `https://api.live.bilibili.com/live_user/v1/Master/info?uid={uid}`                                            | `data.info.uname` → 主播名称,失败仅告警不阻断                                                                                                                          | [api-client.js:52-61](../../../../src/bilibili/danmaku/api-client.js#L52-L61)                                                                                |
+| `nav`               | `https://api.bilibili.com/x/web-interface/nav`                                                                | 当前登录账号名(`data.uname`),同时是 WBI img/sub 密钥来源(见 §3)                                                                                                        | [api-client.js:63-70](../../../../src/bilibili/danmaku/api-client.js#L63-L70)、[wbi-signer.js:50](../../../../src/bilibili/wbi-signer.js#L50)                |
+| `getDanmuInfo`      | `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{WBI签名}`                                | 参数 `{id: roomId, type: 0}` 经 WBI 签名;返回 `data.host_list[0].host` / `wss_port`(默认 443)/ `data.token`                                                            | [api-client.js:72-82](../../../../src/bilibili/danmaku/api-client.js#L72-L82)                                                                                |
+| `gethistory`        | `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid={roomId}`                               | 历史弹幕降级监听:`data.admin[]` + `data.room[]`,每条约 `uid/nickname/text/timeline`;间隔 2.5s 见 [danmaku.md](danmaku.md) §3                                           | [api-client.js:93-102](../../../../src/bilibili/danmaku/api-client.js#L93-L102)                                                                              |
+| `online_gold_rank`  | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId&ruid&page&pageSize`   | 高能榜身份补全;参数/停止条件见 [danmaku.md](danmaku.md) §3                                                                                                             | [api-client.js:84-91](../../../../src/bilibili/danmaku/api-client.js#L84-L91)                                                                                |
+| `fans_members_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId&ruid&page&page_size` | 全量本房粉丝牌成员快照;响应 `data.item[]`、`data.num`;分页/轮询策略见 [danmaku.md](danmaku.md) §3                                                                      | [api-client.js:93-103](../../../../src/bilibili/danmaku/api-client.js#L93-L103)                                                                              |
+| `send_danmaku`      | `POST https://api.live.bilibili.com/msg/send`                                                                 | 机器人回弹幕(见 [danmaku.md](danmaku.md) §7):表单 `msg/csrf/bubble/fontsize/mode/color/rnd/roomid/room_type`;`reply_mid/reply_attr/reply_uname` 仅在回复目标存在时附带 | [api-client.js:104-147](../../../../src/bilibili/danmaku/api-client.js#L104-L147)                                                                            |
+| `avatar_image`      | 由已校验的 `https://*.hdslb.com/*` 用户头像 URL 决定                                                          | Node 侧读取 JPEG/PNG/WebP/GIF/AVIF，限制 2 MiB；供本地 `/api/bilibili/avatar` 代理给 Electron/OBS 页面，避免 renderer 直接建立 CDN TLS 连接                            | [api-client.js](../../../../src/bilibili/danmaku/api-client.js)                                                                                              |
 
 `send_danmaku` 细节:`bili_jct` 从 Cookie 提取([api-client.js:107-108](../../../../src/bilibili/danmaku/api-client.js#L107-L108)),消息上限 **1000 字符**([api-client.js:109](../../../../src/bilibili/danmaku/api-client.js#L109)),回复目标经 `normalizeMentionTarget` 校验(见 [danmaku.md](danmaku.md) §6)。
 
@@ -132,13 +134,13 @@ sequence:     发送固定 1
 
 ### 4.4 Operation 码
 
-| Op | 方向 | 含义 | 处理 |
-|----|------|------|------|
-| 2 | C→S | 心跳 | 30s 周期发送 |
-| 3 | S→C | 心跳回包 | 复位 `awaitingHeartbeatReply`;不做消息解析 |
-| 5 | S→C | 推送消息 | 唯一进入消息解析的操作 |
-| 7 | C→S | 认证 | 连接后立即发送 |
-| 8 | S→C | 认证回包 | 忽略 |
+| Op  | 方向 | 含义     | 处理                                       |
+| --- | ---- | -------- | ------------------------------------------ |
+| 2   | C→S  | 心跳     | 30s 周期发送                               |
+| 3   | S→C  | 心跳回包 | 复位 `awaitingHeartbeatReply`;不做消息解析 |
+| 5   | S→C  | 推送消息 | 唯一进入消息解析的操作                     |
+| 7   | C→S  | 认证     | 连接后立即发送                             |
+| 8   | S→C  | 认证回包 | 忽略                                       |
 
 解析器只处理 `operation === 5` 的包,其余跳过([packet-decoder.js:58](../../../../src/bilibili/parsers/packet-decoder.js#L58))。
 
@@ -192,34 +194,42 @@ while (offset + 16 <= buffer.length):
 
 ### 5.3 SEND_GIFT_V2 字段映射
 
-`extractBilibiliGiftV2Message`([gift-parser.js:64-112](../../../../src/bilibili/parsers/gift-parser.js#L64-L112)):
+`extractBilibiliGiftV2Message`([gift-parser.js:65-126](../../../../src/bilibili/parsers/gift-parser.js#L65-L126)):
 
-| 位置 | 字段 | 说明 |
-|---|---|---|
-| root `1` | uid | 送礼者 uid |
-| root `2` | userName | 送礼者昵称 |
-| root `10` | giftInfo | 嵌套消息(缺失 → 解析失败) |
-| giftInfo `1` / `2` | giftId / giftName | `giftName` 缺失回退 `'未知礼物'` |
-| giftInfo `3` / `4` | num | 取两者**最大值**,下限 1 |
-| giftInfo `5` / `6` | unitCoin | 单价金瓜子(6 为回退) |
-| giftInfo `7` / `14` | totalCoin | 总价金瓜子(7 优先) |
-| giftInfo `8` | coinType | 仅 `'gold'` 视为付费 |
-| giftInfo `9` | tid | 平台 ID(去重用,优先) |
-| giftInfo `10` | timestamp | 消息时间戳 |
-| giftInfo `12` | comboId | 连击 ID(去重备用) |
+| 位置               | 字段              | 说明                               |
+| ------------------ | ----------------- | ---------------------------------- |
+| root `1`           | uid               | 送礼者 uid                         |
+| root `2`           | userName          | 送礼者昵称                         |
+| root `10`          | giftInfo          | 嵌套消息(缺失 → 解析失败)          |
+| giftInfo `1` / `2` | giftId / giftName | `giftName` 缺失回退 `'未知礼物'`   |
+| giftInfo `3`       | num               | 本次 protobuf 包的礼物数量,下限 1  |
+| giftInfo `4`       | giftType          | 礼物类型,**不是数量字段**          |
+| giftInfo `5` / `6` | unitCoin          | 单价金瓜子(6 为回退)               |
+| giftInfo `7`       | totalCoin         | 本次包的总价金瓜子                 |
+| giftInfo `8`       | coinType          | 仅 `'gold'` 视为付费               |
+| giftInfo `9`       | tid               | 本包事务 ID(无连击 ID 时回退)      |
+| giftInfo `10`      | timestamp         | 消息时间戳                         |
+| giftInfo `11`      | comboCount        | 当前灰度协议的连击次数             |
+| giftInfo `12`      | comboId           | 共享 `batch_combo_id`,连击归并主键 |
+| giftInfo `14`      | comboTotalCoin    | 当前连击累计总价金瓜子(扩展字段)   |
 
-付费换算:`RMB = 金瓜子数 / 1000`([gift-parser.js:89-90](../../../../src/bilibili/parsers/gift-parser.js#L89-L90));`totalPrice = max(totalCoin, unitCoin*num) / 1000`。
+付费换算:`RMB = 金瓜子数 / 1000`([gift-parser.js:95-99](../../../../src/bilibili/parsers/gift-parser.js#L95-L99));`totalPrice = max(totalCoin, unitCoin*num) / 1000`。
+
+当 `comboCount` 存在时,解析器额外输出 `comboNum = num * comboCount` 和
+`comboTotalPrice = max(comboTotalCoin, unitCoin*comboNum) / 1000`;检测服务以
+`comboId` 合并进度包并在最终包或静默窗口收尾。`platformId` 优先使用
+`comboId`,无连击 ID 时才回退到 `tid`。
 
 ## 6. 消息解析与分发(协议 → 领域事件)
 
 `MessageHandlers.handlePackets` 对每个解析出的 JSON 对象按 `cmd` 分发([message-handlers.js:58-73](../../../../src/bilibili/danmaku/message-handlers.js#L58-L73)),并逐条记录诊断(见 [danmaku.md](danmaku.md) §8):
 
-| 条件 | 路由 | 事件 |
-|---|---|---|
-| `cmd` 以 `DANMU_MSG` 开头 | 弹幕 | `onMessage(source:'danmaku')` |
-| `cmd` 以 `SUPER_CHAT_MESSAGE` 开头 | SC | `onSuperChat` + 命令文本二次分发 `onMessage(source:'superchat')` |
-| `isBilibiliGiftLikeCommand(cmd)` | 礼物(5 条路径,见 §6.4) | `onGift` |
-| 其他 | — | 仅记诊断,跳过 |
+| 条件                               | 路由                   | 事件                                                             |
+| ---------------------------------- | ---------------------- | ---------------------------------------------------------------- |
+| `cmd` 以 `DANMU_MSG` 开头          | 弹幕                   | `onMessage(source:'danmaku')`                                    |
+| `cmd` 以 `SUPER_CHAT_MESSAGE` 开头 | SC                     | `onSuperChat` + 命令文本二次分发 `onMessage(source:'superchat')` |
+| `isBilibiliGiftLikeCommand(cmd)`   | 礼物(5 条路径,见 §6.4) | `onGift`                                                         |
+| 其他                               | —                      | 仅记诊断,跳过                                                    |
 
 ### 6.1 弹幕(DANMU_MSG)
 
@@ -252,17 +262,17 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 `extractBilibiliSuperChatMessage(packet)`([superchat-parser.js:16-42](../../../../src/bilibili/parsers/superchat-parser.js#L16-L42)):
 
-| 输出字段 | 提取(多字段回退) |
-|---|---|
-| `id` | `data.id \|\| message_id \|\| token` |
-| `message` | `data.message \|\| message_trans` |
-| `price` | `data.price \|\| rmb \|\| price_text`(经 `normalizeSuperChatPrice`,[utils.js:58-63](../../../../src/shared/utils.js#L58-L63)) |
-| `uid` | `data.uid \|\| mid \|\| user_info.uid` |
-| `userName` | `user_info.uname/name/user_name \|\| data.uname/nickname`,兜底 `'观众'` |
-| `avatarUrl` | `user_info.face/face_url/faceUrl/avatar/avatar_url`,经 `normalizeBilibiliAvatarUrl` 校验 |
-| `guardLevel` | `medal_info.guard_level \|\| user_info.guard_level \|\| data.guard_level` |
-| `medalName/medalLevel` | `medal_info` 数组或对象；匹配当前主播时同时形成 `targetUid` hint |
-| `messageTimestamp` | `data.start_time \|\| startTime \|\| ts \|\| time \|\| timestamp`,兜底 `Date.now()` |
+| 输出字段               | 提取(多字段回退)                                                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `id`                   | `data.id \|\| message_id \|\| token`                                                                                          |
+| `message`              | `data.message \|\| message_trans`                                                                                             |
+| `price`                | `data.price \|\| rmb \|\| price_text`(经 `normalizeSuperChatPrice`,[utils.js:58-63](../../../../src/shared/utils.js#L58-L63)) |
+| `uid`                  | `data.uid \|\| mid \|\| user_info.uid`                                                                                        |
+| `userName`             | `user_info.uname/name/user_name \|\| data.uname/nickname`,兜底 `'观众'`                                                       |
+| `avatarUrl`            | `user_info.face/face_url/faceUrl/avatar/avatar_url`,经 `normalizeBilibiliAvatarUrl` 校验                                      |
+| `guardLevel`           | `medal_info.guard_level \|\| user_info.guard_level \|\| data.guard_level`                                                     |
+| `medalName/medalLevel` | `medal_info` 数组或对象；匹配当前主播时同时形成 `targetUid` hint                                                              |
+| `messageTimestamp`     | `data.start_time \|\| startTime \|\| ts \|\| time \|\| timestamp`,兜底 `Date.now()`                                           |
 
 `isPinned = price >= SUPER_CHAT_PIN_THRESHOLD`(`= 2` RMB,[superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)),由分发层计算([message-handlers.js:173](../../../../src/bilibili/danmaku/message-handlers.js#L173))。SC 命令文本会二次触发 `onMessage(source:'superchat')`([message-handlers.js:151-175](../../../../src/bilibili/danmaku/message-handlers.js#L151-L175));入库门槛与状态机见 [gift.md](gift.md) §7。
 
@@ -284,13 +294,13 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 `extractBilibiliGiftMessage(packet)`([gift-parser.js:31-62](../../../../src/bilibili/parsers/gift-parser.js#L31-L62)):
 
-| 路径 | 触发条件 | 函数 | 说明 |
-|---|---|---|---|
-| 开放平台礼物 | `LIVE_OPEN_PLATFORM_SEND_GIFT` | [gift-parser.js:114-140](../../../../src/bilibili/parsers/gift-parser.js#L114-L140) | `gift_num`、`r_price`/`price` 金瓜子,`paid` 标志决定是否计费;`msg_id` 作平台 ID;`blind_gift/combo_gift` 非空即盲盒 |
-| 开放平台大航海 | `LIVE_OPEN_PLATFORM_GUARD` | [gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js) | `guard_level` 优先,否则从 `gift_name/role_name` 反推;`giftId = guard-{level}`,价格取 `price/total_price/amount`;`guard_num` 仅在 `guard_unit` 为空或含「月」时作为结算数量,其他单位按 1 次订单处理 |
-| Web 大航海 | `USER_TOAST_MSG` | [gift-parser.js:310-396](../../../../src/bilibili/parsers/gift-parser.js#L310-L396) | 见下 |
-| Protobuf | `SEND_GIFT_V2` 且 `data.pb` 非空 | [gift-parser.js:64-112](../../../../src/bilibili/parsers/gift-parser.js#L64-L112) | 见 §5.3;解析失败**落穿**到 Web 通用路径继续尝试 JSON 字段([gift-parser.js:54-59](../../../../src/bilibili/parsers/gift-parser.js#L54-L59)) |
-| Web 通用 | 以上都不满足的 gift-like 命令 | [gift-parser.js:176-308](../../../../src/bilibili/parsers/gift-parser.js#L176-L308) | 见下 |
+| 路径           | 触发条件                         | 函数                                                                                | 说明                                                                                                                                                                                               |
+| -------------- | -------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 开放平台礼物   | `LIVE_OPEN_PLATFORM_SEND_GIFT`   | [gift-parser.js:114-140](../../../../src/bilibili/parsers/gift-parser.js#L114-L140) | `gift_num`、`r_price`/`price` 金瓜子,`paid` 标志决定是否计费;`msg_id` 作平台 ID;`blind_gift/combo_gift` 非空即盲盒                                                                                 |
+| 开放平台大航海 | `LIVE_OPEN_PLATFORM_GUARD`       | [gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)                   | `guard_level` 优先,否则从 `gift_name/role_name` 反推;`giftId = guard-{level}`,价格取 `price/total_price/amount`;`guard_num` 仅在 `guard_unit` 为空或含「月」时作为结算数量,其他单位按 1 次订单处理 |
+| Web 大航海     | `USER_TOAST_MSG`                 | [gift-parser.js:310-396](../../../../src/bilibili/parsers/gift-parser.js#L310-L396) | 见下                                                                                                                                                                                               |
+| Protobuf       | `SEND_GIFT_V2` 且 `data.pb` 非空 | [gift-parser.js:64-112](../../../../src/bilibili/parsers/gift-parser.js#L64-L112)   | 见 §5.3;解析失败**落穿**到 Web 通用路径继续尝试 JSON 字段([gift-parser.js:54-59](../../../../src/bilibili/parsers/gift-parser.js#L54-L59))                                                         |
+| Web 通用       | 以上都不满足的 gift-like 命令    | [gift-parser.js:176-308](../../../../src/bilibili/parsers/gift-parser.js#L176-L308) | 见下                                                                                                                                                                                               |
 
 **排除项**:`COMBO_END` 直接返回 null;**`GUARD_BUY` 直接返回 null** —— 它只携带标价而非实付金额,实付由随后到达的 `USER_TOAST_MSG` 携带;`USER_TOAST_MSG_V2` 的 `option.source=2` 是付费 `source=0` 后的附带消息,解析器与分发层均提前跳过,不写礼物账本、诊断失败或身份缓存([gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js))。
 
@@ -311,11 +321,11 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 **大航海等级与名称**([gift-normalizers.js:27-53](../../../../src/bilibili/utils/gift-normalizers.js#L27-L53)):
 
-| 等级 | 名称 | detectGuardLevelFromName 匹配 |
-|---|---|---|
-| 1 | 总督 | 含「总督」;`governor`/`viceroy`;数字 `1` |
-| 2 | 提督 | 含「提督」;`admiral`/`commodore`;数字 `2` |
-| 3 | 舰长 | 含「舰长」;`captain`/`commander`;数字 `3` |
+| 等级 | 名称 | detectGuardLevelFromName 匹配             |
+| ---- | ---- | ----------------------------------------- |
+| 1    | 总督 | 含「总督」;`governor`/`viceroy`;数字 `1`  |
+| 2    | 提督 | 含「提督」;`admiral`/`commodore`;数字 `2` |
+| 3    | 舰长 | 含「舰长」;`captain`/`commander`;数字 `3` |
 
 > 注:价格**不再硬编码**(旧文档的 19998/1998/198 RMB 常量已在代码中移除),一律取协议字段,见上。
 
@@ -345,9 +355,23 @@ blindBoxPrice = blindBoxCoin * num / 1000  (RMB, 无则 null)
 
 ```javascript
 {
-  platformId, cmd, giftId, giftName, uid, userName,
-  num, comboId, unitPrice, totalPrice, comboTotalPrice, coinType, // coinType: 'gold'|'silver'|'free'|'guard'
-  isBlindBox, blindBoxName, blindBoxPrice, rawJson, messageTimestamp
+  (platformId,
+    cmd,
+    giftId,
+    giftName,
+    uid,
+    userName,
+    num,
+    comboId,
+    unitPrice,
+    totalPrice,
+    comboTotalPrice,
+    coinType, // coinType: 'gold'|'silver'|'free'|'guard'
+    isBlindBox,
+    blindBoxName,
+    blindBoxPrice,
+    rawJson,
+    messageTimestamp);
 }
 ```
 
@@ -367,13 +391,13 @@ SHA1("{cmd}|{uid}|{giftName}|{price}|{timestamp}") → 40 位 hex
 
 ## 7. 关键常数速查
 
-| 参数 | 值 | 出处 |
-|---|---|---|
-| WBI 密钥缓存 | 10 min | [wbi-signer.js:76](../../../../src/bilibili/wbi-signer.js#L76) |
-| WS 心跳间隔 | 30 s | [websocket-connection.js:5](../../../../src/bilibili/danmaku/websocket-connection.js#L5) |
-| WS 打开等待超时 | 8 s | [websocket-connection.js:144](../../../../src/bilibili/danmaku/websocket-connection.js#L144) |
-| Protobuf 递归深度上限 | 5 | [protobuf-decoder.js:73](../../../../src/bilibili/protocols/protobuf-decoder.js#L73) |
-| 弹幕时间戳有效窗 | ±30 天 | [danmaku-parser.js:15](../../../../src/bilibili/parsers/danmaku-parser.js#L15) |
-| SC 置顶阈值 | ≥ 2 RMB | [superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14) |
-| 弹幕发送字符上限 | 1000 | [api-client.js:109](../../../../src/bilibili/danmaku/api-client.js#L109) |
-| 大航海等级白名单 | 1/2/3 | [utils.js:73-76](../../../../src/shared/utils.js#L73-L76) |
+| 参数                  | 值      | 出处                                                                                         |
+| --------------------- | ------- | -------------------------------------------------------------------------------------------- |
+| WBI 密钥缓存          | 10 min  | [wbi-signer.js:76](../../../../src/bilibili/wbi-signer.js#L76)                               |
+| WS 心跳间隔           | 30 s    | [websocket-connection.js:5](../../../../src/bilibili/danmaku/websocket-connection.js#L5)     |
+| WS 打开等待超时       | 8 s     | [websocket-connection.js:144](../../../../src/bilibili/danmaku/websocket-connection.js#L144) |
+| Protobuf 递归深度上限 | 5       | [protobuf-decoder.js:73](../../../../src/bilibili/protocols/protobuf-decoder.js#L73)         |
+| 弹幕时间戳有效窗      | ±30 天  | [danmaku-parser.js:15](../../../../src/bilibili/parsers/danmaku-parser.js#L15)               |
+| SC 置顶阈值           | ≥ 2 RMB | [superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)                 |
+| 弹幕发送字符上限      | 1000    | [api-client.js:109](../../../../src/bilibili/danmaku/api-client.js#L109)                     |
+| 大航海等级白名单      | 1/2/3   | [utils.js:73-76](../../../../src/shared/utils.js#L73-L76)                                    |

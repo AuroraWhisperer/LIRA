@@ -522,90 +522,20 @@
       "cyber": "🎆 赛博霓虹"
     },
     "classicSwatches": {
-      "pure": [
-        "#ffffff",
-        "#555555",
-        "#888888",
-        "#1a1a1a"
-      ],
-      "cream": [
-        "#f5ede4",
-        "#f59e0b",
-        "#d97706",
-        "#2d1a08"
-      ],
-      "sky": [
-        "#e8f2f8",
-        "#3b82f6",
-        "#f59e0b",
-        "#1a2e3d"
-      ],
-      "peach": [
-        "#fce7f0",
-        "#ec4899",
-        "#8b5cf6",
-        "#3d1a2a"
-      ],
-      "mint": [
-        "#e6f2ea",
-        "#10b981",
-        "#f59e0b",
-        "#1a2d20"
-      ],
-      "sakura": [
-        "#1a1424",
-        "#ff7eb3",
-        "#7ec8e3",
-        "#fff5f7"
-      ],
-      "starry": [
-        "#0f0a1e",
-        "#c4b5fd",
-        "#67e8f9",
-        "#f5f3ff"
-      ],
-      "ocean": [
-        "#0c1929",
-        "#60a5fa",
-        "#fbbf24",
-        "#f0f9ff"
-      ],
-      "sunset": [
-        "#2a1508",
-        "#fb923c",
-        "#f472b6",
-        "#fffbf0"
-      ],
-      "cyber": [
-        "#0a0a14",
-        "#06b6d4",
-        "#c084fc",
-        "#f0f9ff"
-      ],
-      "gold": [
-        "#0c0a08",
-        "#fbbf24",
-        "#ef4444",
-        "#fefce8"
-      ],
-      "lavender": [
-        "#170f1f",
-        "#c084fc",
-        "#f9a8d4",
-        "#faf5ff"
-      ],
-      "emerald": [
-        "#0a1a10",
-        "#34d399",
-        "#fbbf24",
-        "#f0fdf4"
-      ],
-      "rose": [
-        "#1a0e14",
-        "#f472b6",
-        "#c084fc",
-        "#fff1f5"
-      ]
+      "pure": ["#ffffff", "#555555", "#888888", "#1a1a1a"],
+      "cream": ["#f5ede4", "#f59e0b", "#d97706", "#2d1a08"],
+      "sky": ["#e8f2f8", "#3b82f6", "#f59e0b", "#1a2e3d"],
+      "peach": ["#fce7f0", "#ec4899", "#8b5cf6", "#3d1a2a"],
+      "mint": ["#e6f2ea", "#10b981", "#f59e0b", "#1a2d20"],
+      "sakura": ["#1a1424", "#ff7eb3", "#7ec8e3", "#fff5f7"],
+      "starry": ["#0f0a1e", "#c4b5fd", "#67e8f9", "#f5f3ff"],
+      "ocean": ["#0c1929", "#60a5fa", "#fbbf24", "#f0f9ff"],
+      "sunset": ["#2a1508", "#fb923c", "#f472b6", "#fffbf0"],
+      "cyber": ["#0a0a14", "#06b6d4", "#c084fc", "#f0f9ff"],
+      "gold": ["#0c0a08", "#fbbf24", "#ef4444", "#fefce8"],
+      "lavender": ["#170f1f", "#c084fc", "#f9a8d4", "#faf5ff"],
+      "emerald": ["#0a1a10", "#34d399", "#fbbf24", "#f0fdf4"],
+      "rose": ["#1a0e14", "#f472b6", "#c084fc", "#fff1f5"]
     },
     "songBoard": {
       "pure": {
@@ -944,90 +874,20 @@
       "ink": "🖋 墨香宣纸"
     },
     "songBoardSwatches": {
-      "pure": [
-        "#ffffff",
-        "#555555",
-        "#888888",
-        "#1a1a1a"
-      ],
-      "sunset": [
-        "#2a1508",
-        "#fb923c",
-        "#f472b6",
-        "#fffbf0"
-      ],
-      "starry": [
-        "#0f0a1e",
-        "#c4b5fd",
-        "#67e8f9",
-        "#f5f3ff"
-      ],
-      "ocean": [
-        "#0c1929",
-        "#60a5fa",
-        "#fbbf24",
-        "#f0f9ff"
-      ],
-      "sky": [
-        "#e8f2f8",
-        "#3b82f6",
-        "#f59e0b",
-        "#1a2e3d"
-      ],
-      "mint": [
-        "#e6f2ea",
-        "#10b981",
-        "#f59e0b",
-        "#1a2d20"
-      ],
-      "peach": [
-        "#fce7f0",
-        "#ec4899",
-        "#8b5cf6",
-        "#3d1a2a"
-      ],
-      "emerald": [
-        "#0a1a10",
-        "#34d399",
-        "#fbbf24",
-        "#f0fdf4"
-      ],
-      "rose": [
-        "#1a0e14",
-        "#f472b6",
-        "#c084fc",
-        "#fff1f5"
-      ],
-      "terracotta": [
-        "#f5f0e8",
-        "#c67b5c",
-        "#8b9a6b",
-        "#3d2e26"
-      ],
-      "coral": [
-        "#1a2a2a",
-        "#ff6b6b",
-        "#4ecdc4",
-        "#fff5f5"
-      ],
-      "ink": [
-        "#f5f0e1",
-        "#6b5b4f",
-        "#c41e3a",
-        "#2c2416"
-      ],
-      "slate": [
-        "#1e2328",
-        "#6b7b8d",
-        "#f0a500",
-        "#f5f7fa"
-      ],
-      "burgundy": [
-        "#1a1018",
-        "#a61e4d",
-        "#d4a574",
-        "#faf0f0"
-      ]
+      "pure": ["#ffffff", "#555555", "#888888", "#1a1a1a"],
+      "sunset": ["#2a1508", "#fb923c", "#f472b6", "#fffbf0"],
+      "starry": ["#0f0a1e", "#c4b5fd", "#67e8f9", "#f5f3ff"],
+      "ocean": ["#0c1929", "#60a5fa", "#fbbf24", "#f0f9ff"],
+      "sky": ["#e8f2f8", "#3b82f6", "#f59e0b", "#1a2e3d"],
+      "mint": ["#e6f2ea", "#10b981", "#f59e0b", "#1a2d20"],
+      "peach": ["#fce7f0", "#ec4899", "#8b5cf6", "#3d1a2a"],
+      "emerald": ["#0a1a10", "#34d399", "#fbbf24", "#f0fdf4"],
+      "rose": ["#1a0e14", "#f472b6", "#c084fc", "#fff1f5"],
+      "terracotta": ["#f5f0e8", "#c67b5c", "#8b9a6b", "#3d2e26"],
+      "coral": ["#1a2a2a", "#ff6b6b", "#4ecdc4", "#fff5f5"],
+      "ink": ["#f5f0e1", "#6b5b4f", "#c41e3a", "#2c2416"],
+      "slate": ["#1e2328", "#6b7b8d", "#f0a500", "#f5f7fa"],
+      "burgundy": ["#1a1018", "#a61e4d", "#d4a574", "#faf0f0"]
     }
   }
 }

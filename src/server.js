@@ -1,27 +1,39 @@
 // 编写人：Aurora
 'use strict';
 
-const http = require('node:http');
+const { createHttpServer } = require('./server/http-server');
+const { createAuthorizedWorkController } = require('./server/authorized-work');
 const fs = require('node:fs');
 const path = require('node:path');
-const childProcess = require('node:child_process');
 const crypto = require('node:crypto');
-const { URL } = require('node:url');
-const apiRoutes = require('./server/api-routes');
-const { createApiContext: buildApiContext } = require('./server/api-context');
-const { createBilibiliClient: buildBilibiliClient } = require('./server/bilibili-client');
+const { openAdminPageIfNeeded } = require('./server/admin-launcher');
+const {
+  createBilibiliClient: buildBilibiliClient,
+} = require('./server/bilibili-client');
 const { createBilibiliRuntime } = require('./server/bilibili-runtime');
 const { buildMusicRuntime } = require('./server/music-runtime');
 const { buildAiRuntime } = require('./server/ai-runtime');
 const { createInflightTracker } = require('./server/inflight-tracker');
 const { createServerCompatibility } = require('./server/compatibility-runtime');
-const httpUtils = require('./server/http-utils');
+const {
+  createRuntimeApiContextFactory,
+} = require('./server/runtime-api-context');
+const {
+  resolveServerRuntimeConfig,
+  validateServerHost,
+} = require('./server/runtime-config');
+const { createRuntimeTransport } = require('./server/runtime-transport');
+const { runStartupRetention } = require('./server/startup-retention');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
 const sharedUtils = require('./shared/utils');
-const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
-const settingsStoreModule = require('./storage/settings-store');
+const {
+  createDatabases,
+  optimizeDatabases,
+  closeDatabases,
+} = require('./storage/database');
+const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
@@ -36,42 +48,21 @@ const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
-const DEFAULT_SETTINGS = settingsStoreModule.DEFAULT_SETTINGS;
-
-function normalizeServerHost(host) {
-  const value = String(host || '').trim();
-  return !value || value.toLowerCase() === 'localhost' ? '127.0.0.1' : value;
-}
-
-function validateServerHost(host) {
-  const normalized = normalizeServerHost(host);
-  if (normalized !== '127.0.0.1') {
-    throw new Error(
-      `Host must be '127.0.0.1' or 'localhost' (got '${host}'). ` +
-      `Remote binding (0.0.0.0, LAN addresses) is not supported for security.`
-    );
-  }
-  return normalized;
-}
 
 function createServerRuntime(runtimeOptions = {}) {
-  // Validate host before any filesystem/database side effects
-  const HOST = validateServerHost(runtimeOptions.host || process.env.HOST);
-
-  const DATA_DIR = runtimeOptions.dataDir
-    ? path.resolve(runtimeOptions.dataDir)
-    : process.env.SONG_PLUGIN_DATA_DIR
-      ? path.resolve(process.env.SONG_PLUGIN_DATA_DIR)
-      : path.join(ROOT_DIR, 'data');
-  const SONG_DB_PATH = path.join(DATA_DIR, 'song-request-data.db');
-  const SUPER_CHAT_DB_PATH = path.join(DATA_DIR, 'super-chat-data.db');
-  const GIFT_DB_PATH = path.join(DATA_DIR, 'gift-data.db');
-  const MUSIC_DB_PATH = path.join(DATA_DIR, 'music-data.db');
-  const CHECKIN_DB_PATH = path.join(DATA_DIR, 'checkin-data.db');
-  const MUSIC_API_CACHE_DIR = path.join(DATA_DIR, 'music-api-cache');
-  const MUSIC_LYRIC_CACHE_DIR = path.join(DATA_DIR, 'music-lyrics-cache');
-  const OPENING_MUSIC_DIR = path.join(DATA_DIR, 'opening-music');
-  const AI_LOG_PATH = path.join(path.dirname(DATA_DIR), 'logs', 'ai.log');
+  const {
+    HOST,
+    DATA_DIR,
+    SONG_DB_PATH,
+    SUPER_CHAT_DB_PATH,
+    GIFT_DB_PATH,
+    MUSIC_DB_PATH,
+    CHECKIN_DB_PATH,
+    MUSIC_API_CACHE_DIR,
+    MUSIC_LYRIC_CACHE_DIR,
+    OPENING_MUSIC_DIR,
+    AI_LOG_PATH,
+  } = resolveServerRuntimeConfig(ROOT_DIR, runtimeOptions);
 
   let db = null;
   let settingsStore = null;
@@ -97,31 +88,58 @@ function createServerRuntime(runtimeOptions = {}) {
   let shutdownPromise = null;
   let sessionToken = '';
   const inflightTracker = createInflightTracker();
-  const licenseGate = runtimeOptions.licenseGate || { isAuthorized: () => true };
-  const isLicenseAuthorized = () => typeof licenseGate.isAuthorized === 'function'
-    ? licenseGate.isAuthorized() === true
-    : true;
+  const licenseGate = runtimeOptions.licenseGate || {
+    isAuthorized: () => true,
+  };
+  const isLicenseAuthorized = () =>
+    typeof licenseGate.isAuthorized === 'function'
+      ? licenseGate.isAuthorized() === true
+      : true;
+  const {
+    getWebSocketContext,
+    broadcastSnapshot,
+    logGiftDelivery,
+    servePageOrAsset,
+  } = createRuntimeTransport({
+    publicDir: PUBLIC_DIR,
+    defaultPort: START_PORT,
+    getHost: () => HOST,
+    getStartedPort: () => startedPort,
+    getSessionToken: () => sessionToken,
+    getWebSocketHub: () => webSocketHub,
+    getState,
+  });
+  const { resumeAuthorizedWork, pauseAuthorizedWork } =
+    createAuthorizedWorkController({
+      isLicenseAuthorized,
+      getBilibiliRuntime: () => bilibiliRuntime,
+      getOvertimeGiftCatalog: () => domainServices?.overtimeGiftCatalog,
+    });
 
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
     try {
-      const reportPhase = typeof runtimeOptions.onPhase === 'function'
-        ? runtimeOptions.onPhase
-        : () => {};
+      const reportPhase =
+        typeof runtimeOptions.onPhase === 'function'
+          ? runtimeOptions.onPhase
+          : () => {};
       let phaseStartedAt = Date.now();
-      db = createDatabases({ dataDir: DATA_DIR, defaultSettings: DEFAULT_SETTINGS });
+      db = createDatabases({
+        dataDir: DATA_DIR,
+        defaultSettings: DEFAULT_SETTINGS,
+      });
       fs.mkdirSync(OPENING_MUSIC_DIR, { recursive: true });
       reportPhase('database-init', Date.now() - phaseStartedAt);
       phaseStartedAt = Date.now();
-      const settingsBootstrap = prepareSettingsBootstrap(db.songDb, settingsStoreModule);
+      const settingsBootstrap = prepareSettingsBootstrap(db.songDb);
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
       danmakuFeedBuffer = createDanmakuFeedBuffer();
       gameSessionService = createGameSessionService({
-        broadcast: payload => webSocketHub.broadcast(payload)
+        broadcast: (payload) => webSocketHub.broadcast(payload),
       });
       wheelSessionService = createWheelSessionService({
-        broadcast: payload => webSocketHub.broadcast(payload)
+        broadcast: (payload) => webSocketHub.broadcast(payload),
       });
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
       domainServices = createDomainServices({
@@ -132,34 +150,56 @@ function createServerRuntime(runtimeOptions = {}) {
         giftSaleGetRoomId: runtimeOptions.giftSaleGetRoomId,
         giftSaleGetBlindBoxConfig: runtimeOptions.giftSaleGetBlindBoxConfig,
         giftSaleFetchJson: runtimeOptions.giftSaleFetchJson,
-        giftSaleGetCookieHeader: runtimeOptions.giftSaleGetCookieHeader
-          || options.bilibiliAuth?.getCookieHeader,
+        giftSaleGetCookieHeader:
+          runtimeOptions.giftSaleGetCookieHeader ||
+          options.bilibiliAuth?.getCookieHeader,
+        remoteGiftCatalog:
+          typeof options.remoteGiftCatalog?.fetch === 'function'
+            ? {
+                ...options.remoteGiftCatalog,
+                onUpdated: (snapshot) => {
+                  if (webSocketHub)
+                    webSocketHub.broadcast({
+                      type: 'gift-catalog:update',
+                      snapshot,
+                    });
+                  options.remoteGiftCatalog.onUpdated?.(snapshot);
+                },
+              }
+            : null,
         giftEffectResolver,
         onGiftFlushed: (item) => {
           logGiftDelivery('final', item);
           broadcastSnapshot('bilibili:gift');
-          const frameEvent = giftFrameModule.buildGiftFrameEvent(item, settingsStore.getSettings());
+          const frameEvent = giftFrameModule.buildGiftFrameEvent(
+            item,
+            settingsStore.getSettings(),
+          );
           if (frameEvent && webSocketHub) webSocketHub.broadcast(frameEvent);
         },
-        onOvertimeUpdate: update => publishOvertimeUpdate(update)
+        onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
       musicRuntime = buildMusicRuntime({
-        dataDir: { apiCacheDir: MUSIC_API_CACHE_DIR, lyricCacheDir: MUSIC_LYRIC_CACHE_DIR },
+        dataDir: {
+          apiCacheDir: MUSIC_API_CACHE_DIR,
+          lyricCacheDir: MUSIC_LYRIC_CACHE_DIR,
+        },
         runtimeOptions,
         settingsStore,
-        webSocketHub
+        webSocketHub,
       });
-      publishOvertimeUpdate = update => webSocketHub.broadcast({
-        type: 'overtime:update',
-        reason: update.reason,
-        state: update.state,
-        ...(update.adjustment ? { adjustment: update.adjustment } : {})
-      });
+      publishOvertimeUpdate = (update) =>
+        webSocketHub.broadcast({
+          type: 'overtime:update',
+          reason: update.reason,
+          state: update.state,
+          ...(update.adjustment ? { adjustment: update.adjustment } : {}),
+        });
       bilibiliRuntime = createBilibiliRuntime({
         settingsStore,
         domainServices,
         broadcastSnapshot,
-        setActiveDanmakuRoom: roomId => danmakuFeedBuffer.setRoom(roomId),
+        setActiveDanmakuRoom: (roomId) => danmakuFeedBuffer.setRoom(roomId),
         buildClient(roomId, context) {
           return buildBilibiliClient(roomId, {
             ...context,
@@ -170,13 +210,16 @@ function createServerRuntime(runtimeOptions = {}) {
             publishDanmaku(danmaku) {
               const item = danmakuFeedBuffer.push(danmaku);
               if (item && webSocketHub) {
-                webSocketHub.broadcast({ type: 'danmaku:message', item }, { topic: 'danmaku' });
+                webSocketHub.broadcast(
+                  { type: 'danmaku:message', item },
+                  { topic: 'danmaku' },
+                );
               }
             },
             logGiftDelivery,
-            games: gameSessionService
+            games: gameSessionService,
           });
-        }
+        },
       });
       liveStatus = bilibiliRuntime.getLiveStatus();
       bilibiliDiagnostics = bilibiliRuntime.getDiagnostics();
@@ -186,7 +229,7 @@ function createServerRuntime(runtimeOptions = {}) {
         songDb: db.songDb,
         runtimeOptions,
         aiLogPath: AI_LOG_PATH,
-        danmakuSender
+        danmakuSender,
       });
 
       musicRuntime.setMusicRegistry(options.musicAuth || {});
@@ -194,7 +237,8 @@ function createServerRuntime(runtimeOptions = {}) {
       giftService.repairGiftV2Events({ db });
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.clearOnStartup();
-      runStartupRetention();
+      runStartupRetention(settingsStore, domainServices.data);
+      domainServices.overtimeGiftCatalog.start?.();
       reportPhase('startup-repair', Date.now() - phaseStartedAt);
       applicationInitialized = true;
     } catch (error) {
@@ -203,203 +247,52 @@ function createServerRuntime(runtimeOptions = {}) {
     }
   }
 
-  const server = http.createServer(async (req, res) => {
-    try {
-      const requestUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${START_PORT}`}`);
-
-      if (requestUrl.pathname === '/api/health' && phase !== 'ready') {
-        httpUtils.sendJson(res, 200, {
-          ok: true,
-          data: {
-            serviceId: lifecycle.SERVICE_ID,
-            rootDir: ROOT_DIR,
-            dataDir: DATA_DIR,
-            pid: process.pid,
-            phase
-          }
-        });
-        return;
-      }
-
-      if (phase !== 'ready') {
-        sendServiceUnavailable(res);
-        return;
-      }
-
-      // Validate Host header
-      const baseUrl = `http://${HOST}:${startedPort || START_PORT}`;
-      if (!httpUtils.validateRequestHost(req, baseUrl)) {
-        httpUtils.sendJson(res, 400, { ok: false, error: 'Invalid Host header.' });
-        return;
-      }
-
-      const authorized = isLicenseAuthorized();
-      if (!authorized) {
-        if (requestUrl.pathname === '/admin' || requestUrl.pathname === '/' ||
-            requestUrl.pathname === '/settings' || requestUrl.pathname === '/songs') {
-          res.writeHead(302, { Location: '/license', 'Cache-Control': 'no-store' });
-          res.end();
-          return;
-        }
-        if (requestUrl.pathname.startsWith('/api/') && requestUrl.pathname !== '/api/health') {
-          httpUtils.sendJson(res, 423, { ok: false, error: 'LICENSE_REQUIRED' });
-          return;
-        }
-      }
-
-      // Validate Origin for state-changing requests
-      if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
-        const allowedOrigins = [baseUrl];
-        if (!httpUtils.validateOrigin(req, allowedOrigins)) {
-          httpUtils.sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
-          return;
-        }
-      }
-
-      if (requestUrl.pathname === '/ws') {
-        httpUtils.sendJson(res, 400, { ok: false, error: 'Use a WebSocket client for /ws.' });
-        return;
-      }
-
-      if (requestUrl.pathname.startsWith('/api/')) {
-        await inflightTracker.run(() => apiRoutes.handleApi(createApiContext(), req, res, requestUrl));
-        return;
-      }
-
-      if (requestUrl.pathname.startsWith('/opening-media/')) {
-        httpUtils.serveOpeningMedia(
-          DATA_DIR,
-          req,
-          res,
-          requestUrl,
-          () => settingsStore?.getSettings().openingAudioFile || ''
-        );
-        return;
-      }
-
-      if (requestUrl.pathname.startsWith('/opening-character/')) {
-        httpUtils.serveOpeningCharacter(
-          DATA_DIR,
-          req,
-          res,
-          requestUrl,
-          () => settingsStore?.getSettings().openingCharacterFile || ''
-        );
-        return;
-      }
-
-      servePageOrAsset(req, res, requestUrl);
-    } catch (error) {
-      if (error?.code === 'SERVER_QUIESCING' || phase !== 'ready') {
-        if (!res.headersSent) sendServiceUnavailable(res);
-        return;
-      }
-
-      // Log redacted error details locally
-      console.error('[Server] Request error:', {
-        method: req.method,
-        path: req.url,
-        error: error.message,
-        stack: error.stack
-      });
-
-      // Send stable error response without internal details
-      if (!res.headersSent) {
-        httpUtils.sendStableError(res, error);
-      }
-    }
+  const createApiContext = createRuntimeApiContextFactory({
+    maxBodyBytes: MAX_BODY_BYTES,
+    defaultSettings: DEFAULT_SETTINGS,
+    systemPaths: {
+      rootDir: ROOT_DIR,
+      dataDir: DATA_DIR,
+      songDbPath: SONG_DB_PATH,
+      superChatDbPath: SUPER_CHAT_DB_PATH,
+      giftDbPath: GIFT_DB_PATH,
+      musicDbPath: MUSIC_DB_PATH,
+      checkinDbPath: CHECKIN_DB_PATH,
+    },
+    musicApiCacheDir: MUSIC_API_CACHE_DIR,
+    musicLyricCacheDir: MUSIC_LYRIC_CACHE_DIR,
+    getSessionToken: () => sessionToken,
+    broadcastSnapshot,
+    broadcastGiftEffectPreview: (payload) => webSocketHub.broadcast(payload),
+    getDomainServices: () => domainServices,
+    getMessageBuffer: () => messageBuffer,
+    getMusicRuntime: () => musicRuntime,
+    getBilibiliRuntime: () => bilibiliRuntime,
+    getLiveStatus: () => liveStatus,
+    getDanmakuSender: () => danmakuSender,
+    getAiRuntime: () => aiRuntime,
+    getGameSessionService: () => gameSessionService,
+    getWheelSessionService: () => wheelSessionService,
+    getSettingsStore: () => settingsStore,
+    getState,
+    shutdown: () => shutdownApplication({ exitProcess: true }),
   });
 
-  server.on('upgrade', (req, socket) => {
-    if (phase !== 'ready') {
-      socket.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
-      return;
-    }
-    const requestUrl = new URL(req.url, `http://${req.headers.host || `${HOST}:${START_PORT}`}`);
-    if (requestUrl.pathname !== '/ws') {
-      socket.destroy();
-      return;
-    }
-    if (!isLicenseAuthorized()) {
-      socket.end('HTTP/1.1 423 Locked\r\nConnection: close\r\n\r\n');
-      return;
-    }
-    const baseUrl = `http://${HOST}:${startedPort || START_PORT}`;
-    webSocketHub.handleUpgrade(getWebSocketContext(baseUrl), req, socket);
+  const server = createHttpServer({
+    host: HOST,
+    startPort: START_PORT,
+    rootDir: ROOT_DIR,
+    dataDir: DATA_DIR,
+    getPhase: () => phase,
+    getStartedPort: () => startedPort,
+    isLicenseAuthorized,
+    inflightTracker,
+    createApiContext,
+    getSettings: () => settingsStore?.getSettings(),
+    servePageOrAsset,
+    getWebSocketContext,
+    getWebSocketHub: () => webSocketHub,
   });
-
-  function sendServiceUnavailable(res) {
-    httpUtils.sendJson(res, 503, {
-      ok: false,
-      error: 'Service is starting or shutting down.'
-    });
-  }
-
-  // 按领域分组注入路由层，避免上下文退化成平铺的 Fat Context
-  function createApiContext() {
-    return buildApiContext({
-      maxBodyBytes: MAX_BODY_BYTES,
-      sessionToken,
-      broadcastSnapshot,
-      broadcastGiftEffectPreview: payload => webSocketHub.broadcast(payload),
-      domainServices,
-      messageBuffer,
-      publishLyricState: musicRuntime.publishLyricState,
-      publishLyricTimeline: musicRuntime.publishLyricTimeline,
-      weSingCapture: musicRuntime.weSingCapture,
-      bilibili: {
-        liveStatus,
-        configure: bilibiliRuntime.configure,
-        reconnect: bilibiliRuntime.reconnect,
-        updateStatus: bilibiliRuntime.updateStatus,
-        auth: bilibiliRuntime.getAuthProvider(),
-        danmakuSender,
-        fetchAvatarImage: bilibiliRuntime.fetchAvatarImage
-      },
-      ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
-      games: {
-        service: gameSessionService,
-        listOnlineViewers: bilibiliRuntime.getViewerCandidates,
-        refreshViewers: bilibiliRuntime.refreshViewerCandidates,
-        getWinnerProfile: bilibiliRuntime.getGameWinnerProfile
-      },
-      wheel: { service: wheelSessionService },
-      settings: { defaults: DEFAULT_SETTINGS, store: settingsStore },
-      system: {
-        rootDir: ROOT_DIR,
-        dataDir: DATA_DIR,
-        songDbPath: SONG_DB_PATH,
-        superChatDbPath: SUPER_CHAT_DB_PATH,
-        giftDbPath: GIFT_DB_PATH,
-        musicDbPath: MUSIC_DB_PATH,
-        checkinDbPath: CHECKIN_DB_PATH,
-        liveStatus,
-        getState,
-        shutdown: () => shutdownApplication({ exitProcess: true })
-      },
-      music: {
-        registry: musicRuntime.getMusicRegistry(),
-        lyrics: musicRuntime.lyricsService,
-        apiCacheDir: MUSIC_API_CACHE_DIR,
-        lyricCacheDir: MUSIC_LYRIC_CACHE_DIR
-      }
-    });
-  }
-
-  // 启动时按 settings 里的保留期清理过期数据；清理失败不能阻断启动
-  function runStartupRetention() {
-    if (settingsStore.getSettings().autoRetentionOnStartup !== 'true') return;
-    try {
-      const result = domainServices.data.runRetention();
-      const total = result.giftRawJsonCleared + result.giftEventsDeleted
-        + result.requestsDeleted + result.superChatsDeleted + result.cooldownsDeleted;
-      if (total > 0) {
-        console.log(`[Startup] retention: rawJson=${result.giftRawJsonCleared} gifts=${result.giftEventsDeleted} requests=${result.requestsDeleted} sc=${result.superChatsDeleted} cooldowns=${result.cooldownsDeleted}`);
-      }
-    } catch (error) {
-      console.warn('[Startup] retention failed:', error.message);
-    }
-  }
 
   function getLifecycleOptions(port, host) {
     return {
@@ -410,31 +303,41 @@ function createServerRuntime(runtimeOptions = {}) {
       cleanupTimeoutMs: PORT_CLEANUP_TIMEOUT_MS,
       cleanupPollMs: PORT_CLEANUP_POLL_MS,
       sleep: sharedUtils.sleep,
-      onPhase: runtimeOptions.onPhase
+      onPhase: runtimeOptions.onPhase,
     };
   }
 
   function startServer(options = {}) {
     if (startPromise) return startPromise;
-    if (isShuttingDown) return Promise.reject(new Error('Server runtime is shutting down.'));
+    if (isShuttingDown)
+      return Promise.reject(new Error('Server runtime is shutting down.'));
 
-    const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
+    const startPort =
+      options.startPort === undefined ? START_PORT : Number(options.startPort);
     const host = validateServerHost(options.host || HOST);
     if (!Number.isInteger(startPort) || startPort < 0 || startPort > 65535) {
-      return Promise.reject(new Error('startPort must be an integer between 0 and 65535.'));
+      return Promise.reject(
+        new Error('startPort must be an integer between 0 and 65535.'),
+      );
     }
     startPromise = (async () => {
       try {
-        const reportPhase = typeof runtimeOptions.onPhase === 'function'
-          ? runtimeOptions.onPhase
-          : () => {};
+        const reportPhase =
+          typeof runtimeOptions.onPhase === 'function'
+            ? runtimeOptions.onPhase
+            : () => {};
         const markPhase = (name, startedAt, extra = {}) => {
           reportPhase(name, Date.now() - startedAt, extra);
         };
-        await lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host));
+        await lifecycle.cleanupOwnPortOccupant(
+          getLifecycleOptions(startPort, host),
+        );
         if (isShuttingDown) throw new Error('Server runtime is shutting down.');
         let phaseStartedAt = Date.now();
-        const port = await lifecycle.listenExactly(server, { port: startPort, host });
+        const port = await lifecycle.listenExactly(server, {
+          port: startPort,
+          host,
+        });
         markPhase('listen', phaseStartedAt, { port });
         startedPort = port;
         phase = 'starting';
@@ -458,13 +361,17 @@ function createServerRuntime(runtimeOptions = {}) {
         openAdminPageIfNeeded(baseUrl);
         if (isLicenseAuthorized()) {
           bilibiliRuntime.reconnect().catch((error) => {
-            console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
+            console.warn(
+              `[Bilibili] startup reconnect failed: ${error.message}`,
+            );
             bilibiliRuntime?.updateStatus({
               connected: false,
               enabled: true,
-              roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
+              roomId: sharedUtils.normalizeRoomInput(
+                settingsStore.getSettings().roomId,
+              ),
               mode: 'bilibili',
-              message: sharedUtils.publicBilibiliErrorMessage(error, true)
+              message: sharedUtils.publicBilibiliErrorMessage(error, true),
             });
           });
         }
@@ -472,7 +379,10 @@ function createServerRuntime(runtimeOptions = {}) {
       } catch (error) {
         phase = 'quiescing';
         lifecycle.removeSessionToken(DATA_DIR, sessionToken);
-        lifecycle.removeRuntimeInfo(DATA_DIR, { pid: process.pid, port: startedPort });
+        lifecycle.removeRuntimeInfo(DATA_DIR, {
+          pid: process.pid,
+          port: startedPort,
+        });
         sessionToken = '';
         await disposeApplication({ optimize: false });
         await closeHttpServer();
@@ -503,26 +413,8 @@ function createServerRuntime(runtimeOptions = {}) {
       lyricState: musicRuntime.getLyricState(),
       lyricTimeline: musicRuntime.getLyricTimeline(),
       weSing: musicRuntime.weSingCapture.getStatus(),
-      danmakuFeed: danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : []
+      danmakuFeed: danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
     };
-  }
-
-  function openAdminPageIfNeeded(baseUrl) {
-    if (process.env.AUTO_OPEN_ADMIN !== '1') return;
-    const adminUrl = `${baseUrl}/admin`;
-    try {
-      if (process.platform === 'win32') {
-        childProcess.spawn('cmd', ['/c', 'start', '', adminUrl], {
-          detached: true,
-          stdio: 'ignore'
-        }).unref();
-      } else {
-        console.log(`Open admin page manually: ${adminUrl}`);
-      }
-    } catch (error) {
-      console.log(`Open admin page manually: ${adminUrl}`);
-      console.warn(`Could not open browser automatically: ${error.message}`);
-    }
   }
 
   function shutdownApplication(options = {}) {
@@ -536,22 +428,33 @@ function createServerRuntime(runtimeOptions = {}) {
 
     shutdownPromise = (async () => {
       if (startPromise) {
-        try { await startPromise; } catch (_) {}
+        try {
+          await startPromise;
+        } catch (_) {}
       }
 
       bilibiliRuntime?.stop();
-      webSocketHub?.stop({ shutdownPayload: { type: 'shutdown', reason: 'manual' } });
+      webSocketHub?.stop({
+        shutdownPayload: { type: 'shutdown', reason: 'manual' },
+      });
 
       // Flush renderer state before closing the server (e.g., save playback snapshot)
       if (preShutdownHook) {
-        try { await preShutdownHook(); } catch (error) { console.warn('Pre-shutdown hook failed:', error); }
+        try {
+          await preShutdownHook();
+        } catch (error) {
+          console.warn('Pre-shutdown hook failed:', error);
+        }
       }
 
       await inflightTracker.drain();
       await disposeApplication({ optimize: true });
       await closeHttpServer();
       lifecycle.removeSessionToken(DATA_DIR, sessionToken);
-      lifecycle.removeRuntimeInfo(DATA_DIR, { pid: process.pid, port: startedPort });
+      lifecycle.removeRuntimeInfo(DATA_DIR, {
+        pid: process.pid,
+        port: startedPort,
+      });
       sessionToken = '';
       startedPort = null;
       phase = 'stopped';
@@ -563,7 +466,9 @@ function createServerRuntime(runtimeOptions = {}) {
 
   async function disposeApplication(options = {}) {
     bilibiliRuntime?.stop();
-    webSocketHub?.stop({ shutdownPayload: { type: 'shutdown', reason: 'manual' } });
+    webSocketHub?.stop({
+      shutdownPayload: { type: 'shutdown', reason: 'manual' },
+    });
     gameSessionService?.dispose();
     if (aiRuntime) {
       try {
@@ -578,6 +483,7 @@ function createServerRuntime(runtimeOptions = {}) {
       } catch (error) {
         console.warn('[Shutdown] pending gift flush failed:', error.message);
       }
+      domainServices.overtimeGiftCatalog.stop?.();
       domainServices.overtime.dispose();
     }
     musicRuntime?.weSingCapture.stop();
@@ -621,46 +527,6 @@ function createServerRuntime(runtimeOptions = {}) {
     });
   }
 
-  function getWebSocketContext(baseUrl) {
-    return {
-      getState,
-      sessionToken,
-      allowedOrigins: baseUrl ? [baseUrl] : []
-    };
-  }
-
-  function broadcastSnapshot(reason) {
-    const baseUrl = `http://${HOST}:${startedPort || START_PORT}`;
-    if (webSocketHub) webSocketHub.broadcastSnapshot(getWebSocketContext(baseUrl), reason);
-  }
-
-  // Legacy MP4 lookup remains available to its explicit API callers, but is not
-  // part of the finalized-gift broadcast path consumed by /gift-effects.
-  function broadcastLegacyGiftEffect(item) {
-    return giftEffectModule.buildGiftEffectEvent(item, giftEffectResolver).then((effectEvent) => {
-      if (effectEvent && webSocketHub) webSocketHub.broadcast(effectEvent);
-      return effectEvent;
-    });
-  }
-
-  function logGiftDelivery(trigger, item) {
-    console.log(`[Bilibili][GiftDelivery] action=broadcast trigger=${trigger} trace=${JSON.stringify({
-      eventId: Number(item && item.id) || 0,
-      platformId: sharedUtils.cleanText(item && item.platform_id),
-      cmd: sharedUtils.cleanText(item && item.cmd),
-      uid: sharedUtils.cleanText(item && item.uid),
-      userName: sharedUtils.cleanText(item && item.user_name),
-      giftId: sharedUtils.cleanText(item && item.gift_id),
-      giftName: sharedUtils.cleanText(item && item.gift_name),
-      num: Number(item && item.num) || 1,
-      totalPrice: Number(item && item.total_price) || 0
-    })}`);
-  }
-
-  function servePageOrAsset(req, res, requestUrl) {
-    httpUtils.servePageOrAsset(PUBLIC_DIR, req, res, requestUrl, sessionToken);
-  }
-
   /** Pre-shutdown hook called before server/db close. Allows Electron main to flush renderer state. */
   let preShutdownHook = null;
   function setPreShutdownHook(fn) {
@@ -669,25 +535,21 @@ function createServerRuntime(runtimeOptions = {}) {
 
   /** Persist playback snapshot directly (used by Electron main process via IPC). */
   function persistPlaybackSnapshot(payload, clientId) {
-    if (!domainServices?.playback) return { ok: false, error: 'Playback store not ready' };
+    if (!domainServices?.playback)
+      return { ok: false, error: 'Playback store not ready' };
     try {
-      return domainServices.playback.saveQueueState(payload, { clientId: clientId || 'default' });
+      return domainServices.playback.saveQueueState(payload, {
+        clientId: clientId || 'default',
+      });
     } catch (error) {
       return { ok: false, error: error.message };
     }
   }
 
-  function resumeAuthorizedWork() {
-    if (!isLicenseAuthorized() || !bilibiliRuntime) return Promise.resolve(false);
-    return bilibiliRuntime.reconnect().then(() => true);
-  }
-
-  function pauseAuthorizedWork() {
-    bilibiliRuntime?.disconnect?.();
-  }
-
   function getSetting(key) {
-    return settingsStore ? settingsStore.getSettings()[key] : DEFAULT_SETTINGS[key];
+    return settingsStore
+      ? settingsStore.getSettings()[key]
+      : DEFAULT_SETTINGS[key];
   }
 
   return {
@@ -698,7 +560,7 @@ function createServerRuntime(runtimeOptions = {}) {
     resumeAuthorizedWork,
     pauseAuthorizedWork,
     getApiToken: () => sessionToken,
-    getSetting
+    getSetting,
   };
 }
 
@@ -707,7 +569,7 @@ const {
   persistPlaybackSnapshot,
   setPreShutdownHook,
   shutdownApplication,
-  startServer
+  startServer,
 } = createServerCompatibility(createServerRuntime);
 
 if (require.main === module) {
@@ -726,5 +588,5 @@ module.exports = {
   shutdownApplication,
   setPreShutdownHook,
   persistPlaybackSnapshot,
-  getApiToken
+  getApiToken,
 };

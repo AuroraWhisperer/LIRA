@@ -81,9 +81,21 @@ HTML structure:
 
 ```html
 <div class="gift-frame-accents" aria-hidden="true">
-  <img class="gift-frame-accent gift-frame-accent-branch" data-frame-accent="branch" ...>
-  <img class="gift-frame-accent gift-frame-accent-crystal" data-frame-accent="crystal" ...>
-  <img class="gift-frame-accent gift-frame-accent-floral" data-frame-accent="floral" ...>
+  <img
+    class="gift-frame-accent gift-frame-accent-branch"
+    data-frame-accent="branch"
+    ...
+  />
+  <img
+    class="gift-frame-accent gift-frame-accent-crystal"
+    data-frame-accent="crystal"
+    ...
+  />
+  <img
+    class="gift-frame-accent gift-frame-accent-floral"
+    data-frame-accent="floral"
+    ...
+  />
 </div>
 ```
 

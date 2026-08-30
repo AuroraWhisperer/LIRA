@@ -15,6 +15,7 @@
 ### Milestone 1: 服务端独立状态与 API
 
 Files:
+
 - Create: `src/games/wheel-session-service.js`
 - Modify: `src/server/routes/game-routes.js`
 - Modify: `src/server/api-context.js`
@@ -31,6 +32,7 @@ Files:
 ### Milestone 2: 主播配置面板
 
 Files:
+
 - Modify: `public/pages/admin/toolbox/games.html`
 - Modify: `public/js/admin/games.js`
 - Modify: `public/css/admin/other-features/games.css`
@@ -43,6 +45,7 @@ Files:
 ### Milestone 3: 单独透明转盘浏览器源
 
 Files:
+
 - Create: `public/pages/overlays/wheel.html`
 - Create: `public/js/overlays/wheel.js`
 - Create: `public/css/overlays/wheel.css`
@@ -59,6 +62,7 @@ Files:
 ### Milestone 4: 契约与回归验证
 
 Files:
+
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/architecture/backend/ws.md`
 - Modify: `docs/architecture/frontend/pages.md`

@@ -1,10 +1,18 @@
 'use strict';
 
 const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
-const { createDanmakuSenderService } = require('../bilibili/danmaku/sender-service');
-const { createMessageBuffer } = require('../bilibili/diagnostics/message-buffer');
-const { createGameWinnerProfileResolver } = require('../bilibili/users/game-winner-profile');
-const { BilibiliUserProfileProvider } = require('../bilibili/users/profile-provider');
+const {
+  createDanmakuSenderService,
+} = require('../bilibili/danmaku/sender-service');
+const {
+  createMessageBuffer,
+} = require('../bilibili/diagnostics/message-buffer');
+const {
+  createGameWinnerProfileResolver,
+} = require('../bilibili/users/game-winner-profile');
+const {
+  BilibiliUserProfileProvider,
+} = require('../bilibili/users/profile-provider');
 const { UserInfoService } = require('../bilibili/users/user-info-service');
 const sharedUtils = require('../shared/utils');
 
@@ -14,7 +22,7 @@ function createBilibiliRuntime(options) {
     domainServices,
     broadcastSnapshot,
     buildClient,
-    setActiveDanmakuRoom = () => {}
+    setActiveDanmakuRoom = () => {},
   } = options;
   const liveStatus = {
     connected: false,
@@ -22,7 +30,7 @@ function createBilibiliRuntime(options) {
     roomId: '',
     mode: 'disabled',
     message: '未启用 Bilibili 监听',
-    updatedAt: sharedUtils.now()
+    updatedAt: sharedUtils.now(),
   };
   const diagnostics = {
     lastPacketAt: '',
@@ -32,7 +40,7 @@ function createBilibiliRuntime(options) {
     unparsedGiftCount: 0,
     commandCounts: {},
     recentCommands: [],
-    recentGiftLikeCommands: []
+    recentGiftLikeCommands: [],
   };
   const runtimeGiftCommandPrefixes = new Set();
   const messageBuffer = createMessageBuffer(500);
@@ -42,16 +50,19 @@ function createBilibiliRuntime(options) {
   const userInfoService = new UserInfoService({
     profileProvider: {
       async fetchProfile(uid) {
-        const apiClient = client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
+        const apiClient =
+          client?.apiClient ||
+          new BilibiliApiClient(getConfiguredRoomId(), authCache);
         return new BilibiliUserProfileProvider(apiClient).fetchProfile(uid);
-      }
+      },
     },
-    diagnostics
+    diagnostics,
   });
   const resolveGameWinnerProfile = createGameWinnerProfileResolver({
     getHostIdentity: () => ({ uid: client?.ownerUid, name: client?.ownerName }),
     resolveRoomInfo: () => getGameApiClient().resolveRoomInfo(),
-    ensureProfile: (uid, profileOptions) => userInfoService.ensure(uid, profileOptions)
+    ensureProfile: (uid, profileOptions) =>
+      userInfoService.ensure(uid, profileOptions),
   });
   let stopped = false;
   let replaceClientChain = Promise.resolve();
@@ -60,30 +71,37 @@ function createBilibiliRuntime(options) {
     async getAuth() {
       await refreshAuthCache();
       const state = authProvider
-        ? await authProvider.getAuthState().catch(() => ({ loggedIn: false, uid: 0 }))
+        ? await authProvider
+            .getAuthState()
+            .catch(() => ({ loggedIn: false, uid: 0 }))
         : { loggedIn: false, uid: 0 };
       return {
         loggedIn: Boolean(state.loggedIn),
         uid: Number(state.uid || authCache.uid) || 0,
-        cookieHeader: authCache.cookieHeader
+        cookieHeader: authCache.cookieHeader,
       };
     },
     async getRoom() {
       return { roomId: getConfiguredRoomId() };
     },
     getLiveStatus: () => liveStatus,
-    getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
-    getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
-    getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
-    getFortuneBotEnabled: () => settingsStore.getSettings().enableFortuneBot === 'true',
-    getCustomReplyBotEnabled: () => settingsStore.getSettings().enableCustomReplyBot === 'true',
+    getMentionTarget: () =>
+      domainServices.requesterTargets.getLatestRandomRequester(),
+    getAutoReplyEnabled: () =>
+      settingsStore.getSettings().enableRandomTagReply === 'true',
+    getCheckinBotEnabled: () =>
+      settingsStore.getSettings().enableCheckinBot === 'true',
+    getFortuneBotEnabled: () =>
+      settingsStore.getSettings().enableFortuneBot === 'true',
+    getCustomReplyBotEnabled: () =>
+      settingsStore.getSettings().enableCustomReplyBot === 'true',
     createClient(roomId, auth) {
       if (client && client.roomId === roomId) {
         client.apiClient.updateAuth(auth.cookieHeader, auth.uid);
         return client.apiClient;
       }
       return new BilibiliApiClient(roomId, auth);
-    }
+    },
   });
 
   function getConfiguredRoomId() {
@@ -91,7 +109,10 @@ function createBilibiliRuntime(options) {
   }
 
   function getGameApiClient() {
-    return client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
+    return (
+      client?.apiClient ||
+      new BilibiliApiClient(getConfiguredRoomId(), authCache)
+    );
   }
 
   function fetchAvatarImage(value) {
@@ -116,7 +137,7 @@ function createBilibiliRuntime(options) {
         enabled: false,
         roomId,
         mode: 'disabled',
-        message: '未启用 Bilibili 监听'
+        message: '未启用 Bilibili 监听',
       });
       return;
     }
@@ -131,7 +152,7 @@ function createBilibiliRuntime(options) {
         enabled: true,
         roomId,
         mode: 'bilibili',
-        message: sharedUtils.publicBilibiliErrorMessage(error, true)
+        message: sharedUtils.publicBilibiliErrorMessage(error, true),
       });
     });
   }
@@ -166,7 +187,7 @@ function createBilibiliRuntime(options) {
         runtimeGiftCommandPrefixes,
         messageBuffer,
         bilibiliAuthCache: authCache,
-        userInfoService
+        userInfoService,
       });
       client = nextClient;
       if (restart) {
@@ -189,7 +210,7 @@ function createBilibiliRuntime(options) {
     try {
       const [cookieHeader, uid] = await Promise.all([
         authProvider.getCookieHeader().catch(() => ''),
-        authProvider.getUid().catch(() => 0)
+        authProvider.getUid().catch(() => 0),
       ]);
       authCache = { cookieHeader: cookieHeader || '', uid: Number(uid) || 0 };
     } catch (_) {
@@ -201,7 +222,7 @@ function createBilibiliRuntime(options) {
     if (stopped) return;
     Object.assign(liveStatus, {
       ...nextStatus,
-      updatedAt: sharedUtils.now()
+      updatedAt: sharedUtils.now(),
     });
     broadcastSnapshot('live:status');
   }
@@ -232,9 +253,10 @@ function createBilibiliRuntime(options) {
     getLiveStatus: () => liveStatus,
     getMessageBuffer: () => messageBuffer,
     getViewerCandidates: () => client?.getViewerCandidates?.() || [],
-    refreshViewerCandidates: () => client?.refreshViewerCandidates?.() || Promise.resolve(),
+    refreshViewerCandidates: () =>
+      client?.refreshViewerCandidates?.() || Promise.resolve(),
     getGameWinnerProfile: resolveGameWinnerProfile,
-    fetchAvatarImage
+    fetchAvatarImage,
   };
 }
 

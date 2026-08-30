@@ -1,44 +1,73 @@
-            <section
-              id="otherSettingsFeature"
-              class="other-feature-panel"
-              role="tabpanel"
-              aria-labelledby="otherSettingsFeatureTab"
-              data-other-feature-panel
-              hidden
-            >
-              <div class="other-feature-panel-body stack license-account-panel">
-                <header class="license-account-header">
-                  <div>
-                    <p class="license-account-kicker ui-eyebrow">账号中心</p>
-                    <h2 class="ui-page-title">登录与设备</h2>
-                    <p>查看当前 LIRA 授权账号和设备，并为其他电脑生成一次性授权码。</p>
-                  </div>
-                  <span class="license-account-badge">安全存储</span>
-                </header>
+<section
+  id="otherSettingsFeature"
+  class="other-feature-panel"
+  role="tabpanel"
+  aria-labelledby="otherSettingsFeatureTab"
+  data-other-feature-panel
+  hidden
+>
+  <div class="other-feature-panel-body stack license-account-panel">
+    <header class="license-account-header">
+      <div>
+        <p class="license-account-kicker ui-eyebrow">账号中心</p>
+        <h2 class="ui-page-title">登录与设备</h2>
+        <p>查看当前 LIRA 授权账号和设备，并为其他电脑生成一次性授权码。</p>
+      </div>
+      <span class="license-account-badge">安全存储</span>
+    </header>
 
-                <section id="licenseAccountDevice" class="license-account-card" hidden aria-labelledby="licenseAccountTitle">
-                  <div class="license-account-card-heading">
-                    <div>
-                      <span class="license-account-eyebrow">当前授权</span>
-                      <h3 id="licenseAccountTitle" class="ui-section-title">主播账号与设备</h3>
-                    </div>
-                    <span class="pill good">已授权</span>
-                  </div>
-                  <p id="licenseDeviceProfile" class="hint">正在读取授权账号…</p>
-                  <div class="actions">
-                    <button id="licenseCreatePairingCodeBtn" class="primary" type="button">为另一台电脑生成授权码</button>
-                    <button id="licenseRefreshPairingCodesBtn" class="secondary" type="button">刷新授权码记录</button>
-                  </div>
-                  <p id="licensePairingCodeResult" class="hint" role="status" aria-live="polite"></p>
-                  <ul id="licensePairingCodes" class="hint license-pairing-list" aria-label="最近授权码"></ul>
-                </section>
+    <section
+      id="licenseAccountDevice"
+      class="license-account-card"
+      hidden
+      aria-labelledby="licenseAccountTitle"
+    >
+      <div class="license-account-card-heading">
+        <div>
+          <span class="license-account-eyebrow">当前授权</span>
+          <h3 id="licenseAccountTitle" class="ui-section-title">
+            主播账号与设备
+          </h3>
+        </div>
+        <span class="pill good">已授权</span>
+      </div>
+      <p id="licenseDeviceProfile" class="hint">正在读取授权账号…</p>
+      <div class="actions">
+        <button id="licenseCreatePairingCodeBtn" class="primary" type="button">
+          为另一台电脑生成授权码
+        </button>
+        <button
+          id="licenseRefreshPairingCodesBtn"
+          class="secondary"
+          type="button"
+        >
+          刷新授权码记录
+        </button>
+      </div>
+      <p
+        id="licensePairingCodeResult"
+        class="hint"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <ul
+        id="licensePairingCodes"
+        class="hint license-pairing-list"
+        aria-label="最近授权码"
+      ></ul>
+    </section>
 
-                <section class="license-account-card license-account-note" aria-label="登录信息保存说明">
-                  <span class="license-account-note-icon" aria-hidden="true">✓</span>
-                  <div>
-                    <strong>登录状态会自动恢复</strong>
-                    <p>账号、设备和授权状态会保存在本机；设备私钥由系统安全存储保护。密码和激活密钥不会保存，也不会在此页面展示。</p>
-                  </div>
-                </section>
-              </div>
-            </section>
+    <section
+      class="license-account-card license-account-note"
+      aria-label="登录信息保存说明"
+    >
+      <span class="license-account-note-icon" aria-hidden="true">✓</span>
+      <div>
+        <strong>登录状态会自动恢复</strong>
+        <p>
+          账号、设备和授权状态会保存在本机；设备私钥由系统安全存储保护。密码和激活密钥不会保存，也不会在此页面展示。
+        </p>
+      </div>
+    </section>
+  </div>
+</section>

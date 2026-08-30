@@ -10,11 +10,15 @@ async function createPlaybackApp(initialState, options = {}) {
   const appOptions = options;
   const elements = new Map();
   const storage = options.storage || new Map();
-  const localState = Object.hasOwn(options, 'localState') ? options.localState : initialState;
+  const localState = Object.hasOwn(options, 'localState')
+    ? options.localState
+    : initialState;
   if (localState) {
     storage.set('songAssistantPlaybackState:v1', JSON.stringify(localState));
   }
-  let serverState = JSON.parse(JSON.stringify(options.serverState ?? initialState));
+  let serverState = JSON.parse(
+    JSON.stringify(options.serverState ?? initialState),
+  );
   let prepareShutdownListener = null;
   let ipcSavedState = null;
   let shutdownAcknowledged = false;
@@ -24,12 +28,16 @@ async function createPlaybackApp(initialState, options = {}) {
   const windowListeners = new Map();
   const homeTracks = options.homeTracks;
   const homeActionButton = options.homeAction ? new FakeElement() : null;
-  if (homeActionButton) homeActionButton.dataset.playbackHomeAction = options.homeAction;
+  if (homeActionButton)
+    homeActionButton.dataset.playbackHomeAction = options.homeAction;
 
   const document = {
     getElementById(id) {
       if (!elements.has(id)) {
-        elements.set(id, id === 'music-player' ? new FakeAudioElement() : new FakeElement());
+        elements.set(
+          id,
+          id === 'music-player' ? new FakeAudioElement() : new FakeElement(),
+        );
       }
       return elements.get(id);
     },
@@ -44,7 +52,7 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     querySelector() {
       return null;
-    }
+    },
   };
 
   const localStorage = {
@@ -62,7 +70,7 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     key(index) {
       return Array.from(storage.keys())[index] ?? null;
-    }
+    },
   };
 
   const window = {
@@ -81,8 +89,8 @@ async function createPlaybackApp(initialState, options = {}) {
         async api() {},
         async readJsonResponse(response) {
           return response.payload;
-        }
-      }
+        },
+      },
     },
     musicAPI: {
       async getAuthState(platform) {
@@ -98,26 +106,29 @@ async function createPlaybackApp(initialState, options = {}) {
       },
       onPrepareShutdown(callback) {
         prepareShutdownListener = callback;
-        return () => { prepareShutdownListener = null; };
+        return () => {
+          prepareShutdownListener = null;
+        };
       },
       async confirmShutdownFlush() {
         shutdownAcknowledged = true;
         return { ok: true };
-      }
+      },
     },
     addEventListener(eventName, listener) {
       if (!windowListeners.has(eventName)) windowListeners.set(eventName, []);
       windowListeners.get(eventName).push(listener);
-    }
+    },
   };
 
   async function fetch(url, options = {}) {
     fetchCalls.push({ url: String(url), options });
     if (url.startsWith('/api/playback/queue-state')) {
       if (options.method === 'POST') {
-        const body = options.body instanceof sandbox.Blob
-          ? options.body.parts.join('')
-          : options.body;
+        const body =
+          options.body instanceof sandbox.Blob
+            ? options.body.parts.join('')
+            : options.body;
         const parsed = JSON.parse(body);
         if (parsed.payload) {
           serverState = JSON.parse(JSON.stringify(parsed.payload));
@@ -128,45 +139,49 @@ async function createPlaybackApp(initialState, options = {}) {
         ok: true,
         data: {
           payload: serverState ? JSON.parse(JSON.stringify(serverState)) : null,
-          updatedAt: ''
-        }
+          updatedAt: '',
+        },
       });
     }
     if (url === '/api/music/search') {
       return response({
         ok: true,
         data: {
-          tracks: [track('searched', '新点的歌')]
-        }
+          tracks: [track('searched', '新点的歌')],
+        },
       });
     }
     if (url === '/api/music/resolve-stream') {
       resolveStreamRequestCount += 1;
       const requestBody = options.body ? JSON.parse(options.body) : {};
-      const stream = typeof appOptions.resolveStream === 'function'
-        ? await appOptions.resolveStream(resolveStreamRequestCount, requestBody)
-        : { url: 'https://example.test/audio.mp3' };
+      const stream =
+        typeof appOptions.resolveStream === 'function'
+          ? await appOptions.resolveStream(
+              resolveStreamRequestCount,
+              requestBody,
+            )
+          : { url: 'https://example.test/audio.mp3' };
       return response({
         ok: true,
-        data: stream
+        data: stream,
       });
     }
     if (url === '/api/music/lyrics') {
       return response({
         ok: true,
-        data: { lines: [] }
+        data: { lines: [] },
       });
     }
     if (url === '/api/music/cache') {
       return response({
         ok: true,
-        data: { totalBytes: 0, totalFiles: 0 }
+        data: { totalBytes: 0, totalFiles: 0 },
       });
     }
     if (url === '/api/music/home') {
       return response({
         ok: true,
-        data: { tracks: homeTracks || [track('radio-refill', '电台补充歌曲')] }
+        data: { tracks: homeTracks || [track('radio-refill', '电台补充歌曲')] },
       });
     }
     return response({ ok: true, data: {} });
@@ -183,9 +198,12 @@ async function createPlaybackApp(initialState, options = {}) {
     localStorage,
     navigator: {
       sendBeacon(url, data) {
-        fetchCalls.push({ url: String(url), options: { method: 'POST', body: data } });
+        fetchCalls.push({
+          url: String(url),
+          options: { method: 'POST', body: data },
+        });
         return true;
-      }
+      },
     },
     setTimeout(callback, delay) {
       const id = timerIdCounter++;
@@ -201,10 +219,17 @@ async function createPlaybackApp(initialState, options = {}) {
         this.type = options?.type || '';
       }
     },
-    window
+    window,
   };
   const context = vm.createContext(sandbox);
-  const playbackEntry = path.join(__dirname, '..', '..', 'public', 'js', 'playback.js');
+  const playbackEntry = path.join(
+    __dirname,
+    '..',
+    '..',
+    'public',
+    'js',
+    'playback.js',
+  );
   const moduleCache = new Map();
 
   async function loadModule(filePath) {
@@ -216,7 +241,7 @@ async function createPlaybackApp(initialState, options = {}) {
       identifier,
       initializeImportMeta(meta) {
         meta.url = identifier;
-      }
+      },
     });
     moduleCache.set(identifier, module);
     await module.link((specifier, referencingModule) => {
@@ -234,7 +259,7 @@ async function createPlaybackApp(initialState, options = {}) {
       return window.AdminApp.playback.initPlaybackAssistant({
         readJsonResponse: window.AdminApp.utils.readJsonResponse,
         showError: window.AdminApp.utils.showError,
-        toast: window.AdminApp.utils.toast
+        toast: window.AdminApp.utils.toast,
       });
     },
     element(id) {
@@ -259,7 +284,10 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     beaconUrls() {
       return fetchCalls
-        .filter(({ options: callOptions }) => callOptions.body instanceof sandbox.Blob)
+        .filter(
+          ({ options: callOptions }) =>
+            callOptions.body instanceof sandbox.Blob,
+        )
         .map(({ url }) => url);
     },
     hasStorageKey(key) {
@@ -282,14 +310,17 @@ async function createPlaybackApp(initialState, options = {}) {
 
       if (serverState) return JSON.parse(JSON.stringify(serverState));
       const serverSaveCall = fetchCalls.findLast(
-        ({ url, options }) => url.startsWith('/api/playback/queue-state') && options.method === 'POST'
+        ({ url, options }) =>
+          url.startsWith('/api/playback/queue-state') &&
+          options.method === 'POST',
       );
       if (!serverSaveCall || !serverSaveCall.options.body) {
         throw new Error('No saved state found in localStorage or fetch calls');
       }
-      const bodyText = serverSaveCall.options.body instanceof sandbox.Blob
-        ? serverSaveCall.options.body.parts.join('')
-        : serverSaveCall.options.body;
+      const bodyText =
+        serverSaveCall.options.body instanceof sandbox.Blob
+          ? serverSaveCall.options.body.parts.join('')
+          : serverSaveCall.options.body;
       return JSON.parse(JSON.parse(bodyText).payload);
     },
     radioRefillRequests() {
@@ -306,7 +337,7 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     resolveStreamRequestCount() {
       return resolveStreamRequestCount;
-    }
+    },
   };
 }
 
@@ -316,7 +347,9 @@ class FakeElement {
       add() {},
       remove() {},
       toggle() {},
-      contains() { return false; }
+      contains() {
+        return false;
+      },
     };
     this.dataset = {};
     this.disabled = false;
@@ -326,7 +359,7 @@ class FakeElement {
     this.prepended = [];
     this.style = {
       display: '',
-      setProperty() {}
+      setProperty() {},
     };
     this.textContent = '';
     this.value = '';
@@ -342,7 +375,16 @@ class FakeElement {
   }
 
   getBoundingClientRect() {
-    return { x: 0, y: 0, width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 };
+    return {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+    };
   }
 
   addEventListener(eventName, listener) {
@@ -397,7 +439,7 @@ function closestTarget(dataset, expectedSelectorPart) {
   return {
     closest(selector) {
       return selector.includes(expectedSelectorPart) ? { dataset } : null;
-    }
+    },
   };
 }
 
@@ -412,7 +454,7 @@ function track(id, title) {
     coverUrl: '',
     durationMs: 180000,
     playable: true,
-    vip: false
+    vip: false,
   };
 }
 
@@ -425,7 +467,7 @@ function response(payload) {
     },
     async json() {
       return payload;
-    }
+    },
   };
 }
 
@@ -446,5 +488,5 @@ module.exports = {
   closestTarget,
   createPlaybackApp,
   flushAsyncWork,
-  track
+  track,
 };

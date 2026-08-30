@@ -1,54 +1,62 @@
 <!doctype html>
 <html lang="zh-CN" data-clock-style="peach">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>萌时钟</title>
-  <link rel="stylesheet" href="/css/overlays/clock.css">
-</head>
-<body>
-  <main class="clock-stage" aria-label="当前日期与时间">
-    <article id="clockCard" class="clock-card" data-clock-style="peach">
-      <div class="clock-sparkles" aria-hidden="true">
-        <i></i><i></i><i></i><i></i>
-      </div>
-
-      <div class="clock-peach-mascot" aria-hidden="true">
-        <i class="peach-ear peach-ear-left"></i>
-        <i class="peach-ear peach-ear-right"></i>
-        <i class="peach-face"><span></span></i>
-        <i class="peach-paw"></i>
-      </div>
-
-      <div class="clock-night-mascot" aria-hidden="true">
-        <i class="night-moon"></i>
-        <i class="night-cloud"><span></span></i>
-        <i class="night-star"></i>
-      </div>
-
-      <div class="clock-soda-mascot" aria-hidden="true">
-        <i class="soda-duck"><span></span></i>
-        <i class="soda-ring"></i>
-        <i class="soda-bubble soda-bubble-one"></i>
-        <i class="soda-bubble soda-bubble-two"></i>
-      </div>
-
-      <div class="clock-content">
-        <div class="clock-kicker-row">
-          <span id="clockLabel" class="clock-label">今天也要闪闪发光</span>
-          <span id="clockPeriod" class="clock-period" hidden></span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>萌时钟</title>
+    <link rel="stylesheet" href="/css/overlays/clock.css" />
+  </head>
+  <body>
+    <main class="clock-stage" aria-label="当前日期与时间">
+      <article id="clockCard" class="clock-card" data-clock-style="peach">
+        <div class="clock-sparkles" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
         </div>
-        <time id="clockTime" class="clock-time">
-          <span id="clockHours">00</span><span class="clock-colon" aria-hidden="true">:</span><span id="clockMinutes">00</span><span id="clockSeconds" class="clock-seconds">00</span>
-        </time>
-        <div id="clockDateRow" class="clock-date-row">
-          <span id="clockDate">08月23日</span>
-          <i aria-hidden="true"></i>
-          <span id="clockWeekday">星期日</span>
+
+        <div class="clock-peach-mascot" aria-hidden="true">
+          <i class="peach-ear peach-ear-left"></i>
+          <i class="peach-ear peach-ear-right"></i>
+          <i class="peach-face"><span></span></i>
+          <i class="peach-paw"></i>
         </div>
-      </div>
-    </article>
-  </main>
-  <script type="module" src="/js/overlays/clock.js"></script>
-</body>
+
+        <div class="clock-night-mascot" aria-hidden="true">
+          <i class="night-moon"></i>
+          <i class="night-cloud"><span></span></i>
+          <i class="night-star"></i>
+        </div>
+
+        <div class="clock-soda-mascot" aria-hidden="true">
+          <i class="soda-duck"><span></span></i>
+          <i class="soda-ring"></i>
+          <i class="soda-bubble soda-bubble-one"></i>
+          <i class="soda-bubble soda-bubble-two"></i>
+        </div>
+
+        <div class="clock-content">
+          <div class="clock-kicker-row">
+            <span id="clockLabel" class="clock-label">今天也要闪闪发光</span>
+            <span id="clockPeriod" class="clock-period" hidden></span>
+          </div>
+          <div id="clockYear" class="clock-year" hidden>2026</div>
+          <time id="clockTime" class="clock-time">
+            <span id="clockHours">00</span
+            ><span
+              id="clockTimeSeparator"
+              class="clock-colon"
+              aria-hidden="true"
+              >:</span
+            ><span id="clockMinutes">00</span
+            ><span id="clockSeconds" class="clock-seconds">00</span>
+          </time>
+          <div id="clockDateRow" class="clock-date-row">
+            <span id="clockDate">08月23日</span>
+            <i id="clockDateSeparator" aria-hidden="true"></i>
+            <span id="clockWeekday">星期日</span>
+          </div>
+        </div>
+      </article>
+    </main>
+    <script type="module" src="/js/overlays/clock.js"></script>
+  </body>
 </html>

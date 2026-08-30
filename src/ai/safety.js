@@ -3,8 +3,15 @@
 const LOCAL_BLOCK_RULES = Object.freeze([
   { type: 'sexual', pattern: /(?:色情|成人视频|裸照|约炮|强奸)/i },
   { type: 'illegal', pattern: /(?:制毒|炸弹教程|买卖枪|洗钱|盗号|开盒)/i },
-  { type: 'privacy', pattern: /(?:身份证号|银行卡号|家庭住址|手机号是|微信号是|QQ号是)/i },
-  { type: 'prompt_injection', pattern: /(?:忽略|覆盖|忘掉|绕过).{0,12}(?:系统|预设|规则|提示词)|(?:system prompt|developer message|越狱|DAN模式)/i }
+  {
+    type: 'privacy',
+    pattern: /(?:身份证号|银行卡号|家庭住址|手机号是|微信号是|QQ号是)/i,
+  },
+  {
+    type: 'prompt_injection',
+    pattern:
+      /(?:忽略|覆盖|忘掉|绕过).{0,12}(?:系统|预设|规则|提示词)|(?:system prompt|developer message|越狱|DAN模式)/i,
+  },
 ]);
 
 const SAFE_REFUSAL = '这个不适合直播间回答，换个轻松问题吧喵～';
@@ -12,7 +19,8 @@ const SAFE_REFUSAL = '这个不适合直播间回答，换个轻松问题吧喵�
 function checkLocalInput(text) {
   const value = String(text || '').trim();
   for (const rule of LOCAL_BLOCK_RULES) {
-    if (rule.pattern.test(value)) return { allowed: false, riskType: rule.type, safeText: SAFE_REFUSAL };
+    if (rule.pattern.test(value))
+      return { allowed: false, riskType: rule.type, safeText: SAFE_REFUSAL };
   }
   return { allowed: true, riskType: '', safeText: '' };
 }
@@ -26,16 +34,24 @@ function buildOutputReviewPrompt(question, candidateAnswer) {
 }
 
 function parseSafetyReview(text, fallbackText = SAFE_REFUSAL) {
-  const source = String(text || '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+  const source = String(text || '')
+    .trim()
+    .replace(/^```(?:json)?\s*|\s*```$/g, '');
   try {
     const parsed = JSON.parse(source);
     return {
       allowed: parsed.allowed === true,
       riskType: String(parsed.riskType || '').slice(0, 40),
-      safeText: String(parsed.safeText || (parsed.allowed ? '' : fallbackText)).trim()
+      safeText: String(
+        parsed.safeText || (parsed.allowed ? '' : fallbackText),
+      ).trim(),
     };
   } catch {
-    return { allowed: false, riskType: 'review_invalid', safeText: fallbackText };
+    return {
+      allowed: false,
+      riskType: 'review_invalid',
+      safeText: fallbackText,
+    };
   }
 }
 
@@ -44,5 +60,5 @@ module.exports = {
   checkLocalInput,
   buildInputReviewPrompt,
   buildOutputReviewPrompt,
-  parseSafetyReview
+  parseSafetyReview,
 };

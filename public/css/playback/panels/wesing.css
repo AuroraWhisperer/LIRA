@@ -3,15 +3,27 @@
   grid-area: discovery;
   overflow: hidden;
   border-color: color-mix(in srgb, var(--color-primary) 22%, var(--border));
-  background: linear-gradient(135deg, var(--surface) 0%, var(--color-primary-light) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--surface) 0%,
+    var(--color-primary-light) 100%
+  );
   box-shadow: 0 8px 28px rgba(22, 31, 43, 0.08);
 }
 
 .wesing-panel-heading {
   align-items: center;
   padding: 18px 22px 16px;
-  border-bottom-color: color-mix(in srgb, var(--color-primary) 16%, var(--border));
-  background: linear-gradient(100deg, rgba(255, 246, 250, 0.96), rgba(240, 250, 248, 0.8));
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--color-primary) 16%,
+    var(--border)
+  );
+  background: linear-gradient(
+    100deg,
+    rgba(255, 246, 250, 0.96),
+    rgba(240, 250, 248, 0.8)
+  );
 }
 
 .wesing-heading-copy h2 {
@@ -47,7 +59,7 @@
 .wesing-console-kicker,
 .wesing-track-kicker,
 .wesing-lyric-kicker {
-  font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
+  font-family: var(--font-mono, 'Cascadia Mono', Consolas, monospace);
   font-size: var(--type-size-micro);
   font-weight: var(--type-weight-bold);
   letter-spacing: 0.12em;
@@ -68,7 +80,7 @@
   border-radius: 50%;
   background: var(--primary);
   box-shadow: 0 0 0 4px rgba(255, 111, 145, 0.13);
-  content: "";
+  content: '';
 }
 
 .wesing-capture-layout {
@@ -88,10 +100,20 @@
   border: 1px solid rgba(255, 111, 145, 0.2);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 12% 8%, rgba(255, 111, 145, 0.2), transparent 32%),
-    radial-gradient(circle at 88% 84%, rgba(33, 182, 168, 0.18), transparent 34%),
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(255, 111, 145, 0.2),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 88% 84%,
+      rgba(33, 182, 168, 0.18),
+      transparent 34%
+    ),
     linear-gradient(145deg, #fff9fb 0%, #f4fbfa 100%);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.9), 0 10px 24px rgba(22, 31, 43, 0.06);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.9),
+    0 10px 24px rgba(22, 31, 43, 0.06);
 }
 
 .wesing-live-stage::after {
@@ -102,7 +124,7 @@
   height: 260px;
   border: 42px solid rgba(33, 182, 168, 0.09);
   border-radius: 50%;
-  content: "";
+  content: '';
   pointer-events: none;
 }
 
@@ -137,7 +159,9 @@
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(33, 182, 168, 0.14), 0 0 12px rgba(33, 182, 168, 0.28);
+  box-shadow:
+    0 0 0 4px rgba(33, 182, 168, 0.14),
+    0 0 12px rgba(33, 182, 168, 0.28);
 }
 
 .wesing-track-copy {
@@ -200,7 +224,11 @@
 }
 
 .wesing-lyric-word {
-  background: linear-gradient(90deg, var(--primary-strong) var(--wesing-word-progress), var(--text) var(--wesing-word-progress));
+  background: linear-gradient(
+    90deg,
+    var(--primary-strong) var(--wesing-word-progress),
+    var(--text) var(--wesing-word-progress)
+  );
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -219,7 +247,7 @@
 .wesing-progress-row {
   gap: 12px;
   color: var(--muted);
-  font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
+  font-family: var(--font-mono, 'Cascadia Mono', Consolas, monospace);
   font-size: var(--type-size-caption);
   line-height: var(--type-leading-caption);
   font-variant-numeric: tabular-nums;
@@ -302,17 +330,17 @@
 }
 
 .wesing-path-control input,
-.wesing-offset-control input[type="number"] {
+.wesing-offset-control input[type='number'] {
   min-width: 0;
   border-color: var(--border);
   background: var(--color-bg-tertiary);
   color: var(--text);
-  font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
+  font-family: var(--font-mono, 'Cascadia Mono', Consolas, monospace);
   font-size: var(--type-size-control);
 }
 
 .wesing-path-control input:focus,
-.wesing-offset-control input[type="number"]:focus {
+.wesing-offset-control input[type='number']:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: 0 0 0 3px rgba(33, 182, 168, 0.12);
@@ -348,7 +376,11 @@
   padding: 8px 14px;
   border-color: var(--primary);
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary) 0%,
+    var(--primary-strong) 100%
+  );
   box-shadow: 0 5px 14px rgba(255, 111, 145, 0.2);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
@@ -375,11 +407,11 @@
   gap: 8px;
 }
 
-.wesing-offset-control input[type="range"] {
+.wesing-offset-control input[type='range'] {
   min-width: 0;
 }
 
-.wesing-offset-control input[type="number"] {
+.wesing-offset-control input[type='number'] {
   width: 72px;
   padding-inline: 8px;
   text-align: center;
@@ -387,7 +419,7 @@
 
 .wesing-offset-control > span {
   color: var(--muted);
-  font-family: var(--font-mono, "Cascadia Mono", Consolas, monospace);
+  font-family: var(--font-mono, 'Cascadia Mono', Consolas, monospace);
   font-size: var(--type-size-caption);
 }
 
@@ -428,7 +460,9 @@
 
 .wesing-signal-list i.is-active {
   background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(33, 182, 168, 0.13), 0 0 10px rgba(33, 182, 168, 0.25);
+  box-shadow:
+    0 0 0 4px rgba(33, 182, 168, 0.13),
+    0 0 10px rgba(33, 182, 168, 0.25);
 }
 
 .wesing-signal-list span {

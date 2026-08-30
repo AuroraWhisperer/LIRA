@@ -4,14 +4,26 @@ const {
   cleanText,
   normalizePositiveInteger,
   normalizeMoney,
-  normalizeSignedMoney
+  normalizeSignedMoney,
 } = require('../../shared/utils');
 
 const BLIND_BOX_ANALYSIS_VIEWS = new Set(['users', 'boxes', 'records']);
 const BLIND_BOX_ANALYSIS_SORTS = {
-  users: new Set(['profit', 'boxCount', 'totalCost', 'totalValue', 'lastOpenedAt']),
-  boxes: new Set(['profit', 'boxCount', 'viewerCount', 'totalCost', 'totalValue']),
-  records: new Set(['createdAt', 'profit', 'cost', 'value', 'num'])
+  users: new Set([
+    'profit',
+    'boxCount',
+    'totalCost',
+    'totalValue',
+    'lastOpenedAt',
+  ]),
+  boxes: new Set([
+    'profit',
+    'boxCount',
+    'viewerCount',
+    'totalCost',
+    'totalValue',
+  ]),
+  records: new Set(['createdAt', 'profit', 'cost', 'value', 'num']),
 };
 
 function getBlindBoxStats(context, { boxName = '' } = {}) {
@@ -20,7 +32,7 @@ function getBlindBoxStats(context, { boxName = '' } = {}) {
     return {
       today: todayStart,
       summary: { boxCount: 0, totalCost: 0, totalValue: 0, totalProfit: 0 },
-      perUser: []
+      perUser: [],
     };
   }
 
@@ -48,30 +60,33 @@ function getBlindBoxStats(context, { boxName = '' } = {}) {
       totalCost: 0,
       totalValue: 0,
       totalProfit: 0,
-      lastOpenedAt: row.created_at
+      lastOpenedAt: row.created_at,
     };
     entry.boxCount += boxCount;
     if (row.blind_box_name) entry.boxTypes.add(cleanText(row.blind_box_name));
     entry.totalCost = normalizeMoney(entry.totalCost + cost);
     entry.totalValue = normalizeMoney(entry.totalValue + value);
     entry.totalProfit = normalizeSignedMoney(entry.totalProfit + profit);
-    if (String(row.created_at) > String(entry.lastOpenedAt)) entry.lastOpenedAt = row.created_at;
+    if (String(row.created_at) > String(entry.lastOpenedAt))
+      entry.lastOpenedAt = row.created_at;
     userMap.set(key, entry);
   }
 
-  const perUser = Array.from(userMap.values()).map(entry => ({
-    userName: entry.userName,
-    uid: entry.uid,
-    viewer: entry.uid ? `uid:${entry.uid}` : `name:${entry.userName}`,
-    boxCount: entry.boxCount,
-    boxTypeCount: entry.boxTypes.size,
-    totalCost: entry.totalCost,
-    totalValue: entry.totalValue,
-    totalProfit: entry.totalProfit,
-    lastOpenedAt: entry.lastOpenedAt
-  })).sort((a, b) => b.totalProfit - a.totalProfit);
+  const perUser = Array.from(userMap.values())
+    .map((entry) => ({
+      userName: entry.userName,
+      uid: entry.uid,
+      viewer: entry.uid ? `uid:${entry.uid}` : `name:${entry.userName}`,
+      boxCount: entry.boxCount,
+      boxTypeCount: entry.boxTypes.size,
+      totalCost: entry.totalCost,
+      totalValue: entry.totalValue,
+      totalProfit: entry.totalProfit,
+      lastOpenedAt: entry.lastOpenedAt,
+    }))
+    .sort((a, b) => b.totalProfit - a.totalProfit);
 
-  const records = rows.slice(0, 500).map(row => ({
+  const records = rows.slice(0, 500).map((row) => ({
     id: row.id,
     user_name: (row.user_name || '观众').trim(),
     uid: (row.uid || '').trim(),
@@ -80,28 +95,38 @@ function getBlindBoxStats(context, { boxName = '' } = {}) {
     value: normalizeMoney(row.total_price),
     profit: normalizeSignedMoney(row.blind_profit),
     num: row.num || 1,
-    created_at: row.created_at
+    created_at: row.created_at,
   }));
 
   return {
     today: todayStart,
     summary: {
-      boxCount: rows.reduce((sum, row) => sum + (normalizePositiveInteger(row.num) || 1), 0),
+      boxCount: rows.reduce(
+        (sum, row) => sum + (normalizePositiveInteger(row.num) || 1),
+        0,
+      ),
       totalCost: normalizeMoney(totalCost),
       totalValue: normalizeMoney(totalValue),
-      totalProfit: normalizeSignedMoney(totalProfit)
+      totalProfit: normalizeSignedMoney(totalProfit),
     },
     perUser,
-    records
+    records,
   };
 }
 
 function getBlindBoxAnalysis(context, options = {}) {
-  const view = BLIND_BOX_ANALYSIS_VIEWS.has(options.view) ? options.view : 'users';
+  const view = BLIND_BOX_ANALYSIS_VIEWS.has(options.view)
+    ? options.view
+    : 'users';
   const defaultSort = view === 'records' ? 'createdAt' : 'profit';
-  const sort = BLIND_BOX_ANALYSIS_SORTS[view].has(options.sort) ? options.sort : defaultSort;
+  const sort = BLIND_BOX_ANALYSIS_SORTS[view].has(options.sort)
+    ? options.sort
+    : defaultSort;
   const direction = options.direction === 'asc' ? 'asc' : 'desc';
-  const limit = Math.min(100, Math.max(1, Number.parseInt(options.limit, 10) || 25));
+  const limit = Math.min(
+    100,
+    Math.max(1, Number.parseInt(options.limit, 10) || 25),
+  );
   const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1);
   const viewer = cleanText(options.viewer);
   const box = cleanText(options.box);
@@ -111,11 +136,12 @@ function getBlindBoxAnalysis(context, options = {}) {
   const boxes = new Set();
   for (const row of rows) {
     const viewerOption = getBlindBoxViewerOption(row);
-    if (!viewerMap.has(viewerOption.value)) viewerMap.set(viewerOption.value, viewerOption);
+    if (!viewerMap.has(viewerOption.value))
+      viewerMap.set(viewerOption.value, viewerOption);
     if (row.blind_box_name) boxes.add(cleanText(row.blind_box_name));
   }
 
-  const filteredRows = rows.filter(row => {
+  const filteredRows = rows.filter((row) => {
     if (viewer && getBlindBoxViewerOption(row).value !== viewer) return false;
     if (box && cleanText(row.blind_box_name) !== box) return false;
     return true;
@@ -132,23 +158,33 @@ function getBlindBoxAnalysis(context, options = {}) {
     today: todayStart,
     summary,
     filters: {
-      viewers: Array.from(viewerMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'zh-CN')),
+      viewers: Array.from(viewerMap.values()).sort((a, b) =>
+        a.label.localeCompare(b.label, 'zh-CN'),
+      ),
       boxes: Array.from(boxes).sort((a, b) => a.localeCompare(b, 'zh-CN')),
       selectedViewer: viewer,
-      selectedBox: box
+      selectedBox: box,
     },
     view,
     sort,
     direction,
     items: allItems.slice(start, start + limit),
-    pagination: { page, limit, total, totalPages }
+    pagination: { page, limit, total, totalPages },
   };
 }
 
 function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
   const nowDate = new Date();
-  const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).toISOString();
-  const tomorrowStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).toISOString();
+  const todayStart = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate(),
+  ).toISOString();
+  const tomorrowStart = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate() + 1,
+  ).toISOString();
   let sql = `
     SELECT id, gift_name, user_name, uid, blind_box_name, blind_box_price,
            total_price, blind_profit, num, created_at
@@ -168,7 +204,11 @@ function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
     params.push(normalizedBoxName);
   }
   sql += ' ORDER BY datetime(created_at) DESC, id DESC';
-  return { todayStart, tomorrowStart, rows: context.db.giftDb.prepare(sql).all(...params) };
+  return {
+    todayStart,
+    tomorrowStart,
+    rows: context.db.giftDb.prepare(sql).all(...params),
+  };
 }
 
 function getBlindBoxViewerOption(row) {
@@ -193,7 +233,7 @@ function summarizeBlindBoxRows(rows) {
 
 function buildBlindBoxAnalysisItems(rows, view) {
   if (view === 'records') {
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: Number(row.id),
       giftName: cleanText(row.gift_name) || '未知礼物',
       userName: cleanText(row.user_name) || '观众',
@@ -203,7 +243,7 @@ function buildBlindBoxAnalysisItems(rows, view) {
       cost: normalizeMoney(row.blind_box_price),
       value: normalizeMoney(row.total_price),
       profit: normalizeSignedMoney(row.blind_profit),
-      createdAt: row.created_at
+      createdAt: row.created_at,
     }));
   }
 
@@ -212,41 +252,44 @@ function buildBlindBoxAnalysisItems(rows, view) {
     const viewerOption = getBlindBoxViewerOption(row);
     const boxName = cleanText(row.blind_box_name) || '未知盲盒';
     const key = view === 'users' ? viewerOption.value : boxName;
-    const entry = groups.get(key) || (view === 'users'
-      ? {
-          viewer: viewerOption.value,
-          userName: viewerOption.label,
-          boxCount: 0,
-          boxTypeCount: 0,
-          totalCost: 0,
-          totalValue: 0,
-          profit: 0,
-          lastOpenedAt: row.created_at,
-          boxTypes: new Set()
-        }
-      : {
-          boxName,
-          boxCount: 0,
-          viewerCount: 0,
-          totalCost: 0,
-          totalValue: 0,
-          profit: 0,
-          viewers: new Set()
-        });
+    const entry =
+      groups.get(key) ||
+      (view === 'users'
+        ? {
+            viewer: viewerOption.value,
+            userName: viewerOption.label,
+            boxCount: 0,
+            boxTypeCount: 0,
+            totalCost: 0,
+            totalValue: 0,
+            profit: 0,
+            lastOpenedAt: row.created_at,
+            boxTypes: new Set(),
+          }
+        : {
+            boxName,
+            boxCount: 0,
+            viewerCount: 0,
+            totalCost: 0,
+            totalValue: 0,
+            profit: 0,
+            viewers: new Set(),
+          });
     entry.boxCount += normalizePositiveInteger(row.num) || 1;
     entry.totalCost += normalizeMoney(row.blind_box_price);
     entry.totalValue += normalizeMoney(row.total_price);
     entry.profit += normalizeSignedMoney(row.blind_profit);
     if (view === 'users') {
       entry.boxTypes.add(boxName);
-      if (String(row.created_at) > String(entry.lastOpenedAt)) entry.lastOpenedAt = row.created_at;
+      if (String(row.created_at) > String(entry.lastOpenedAt))
+        entry.lastOpenedAt = row.created_at;
     } else {
       entry.viewers.add(viewerOption.value);
     }
     groups.set(key, entry);
   }
 
-  return Array.from(groups.values()).map(entry => {
+  return Array.from(groups.values()).map((entry) => {
     entry.totalCost = normalizeMoney(entry.totalCost);
     entry.totalValue = normalizeMoney(entry.totalValue);
     entry.profit = normalizeSignedMoney(entry.profit);
@@ -263,24 +306,46 @@ function buildBlindBoxAnalysisItems(rows, view) {
 
 function sortBlindBoxAnalysisItems(items, view, sort, direction) {
   const fields = {
-    users: { profit: 'profit', boxCount: 'boxCount', totalCost: 'totalCost', totalValue: 'totalValue', lastOpenedAt: 'lastOpenedAt' },
-    boxes: { profit: 'profit', boxCount: 'boxCount', viewerCount: 'viewerCount', totalCost: 'totalCost', totalValue: 'totalValue' },
-    records: { createdAt: 'createdAt', profit: 'profit', cost: 'cost', value: 'value', num: 'num' }
+    users: {
+      profit: 'profit',
+      boxCount: 'boxCount',
+      totalCost: 'totalCost',
+      totalValue: 'totalValue',
+      lastOpenedAt: 'lastOpenedAt',
+    },
+    boxes: {
+      profit: 'profit',
+      boxCount: 'boxCount',
+      viewerCount: 'viewerCount',
+      totalCost: 'totalCost',
+      totalValue: 'totalValue',
+    },
+    records: {
+      createdAt: 'createdAt',
+      profit: 'profit',
+      cost: 'cost',
+      value: 'value',
+      num: 'num',
+    },
   };
   const field = fields[view][sort];
   const multiplier = direction === 'asc' ? 1 : -1;
   items.sort((a, b) => {
     const left = a[field];
     const right = b[field];
-    const difference = typeof left === 'number'
-      ? left - right
-      : String(left || '').localeCompare(String(right || ''), 'zh-CN');
+    const difference =
+      typeof left === 'number'
+        ? left - right
+        : String(left || '').localeCompare(String(right || ''), 'zh-CN');
     if (difference !== 0) return difference * multiplier;
-    return String(a.userName || a.boxName || a.id).localeCompare(String(b.userName || b.boxName || b.id), 'zh-CN');
+    return String(a.userName || a.boxName || a.id).localeCompare(
+      String(b.userName || b.boxName || b.id),
+      'zh-CN',
+    );
   });
 }
 
 module.exports = {
   getBlindBoxStats,
-  getBlindBoxAnalysis
+  getBlindBoxAnalysis,
 };

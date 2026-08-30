@@ -40,7 +40,9 @@
   overflow: hidden;
   /* 只对 opacity 和 transform 做过渡，max-height/padding 瞬间切换，
      避免每帧触发全局布局重计算（下方歌库有数百到数千行 DOM） */
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .panel.is-collapsed .collapsible-panel-body {
@@ -137,7 +139,7 @@
 }
 
 .queue-row::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   top: 0;
@@ -211,11 +213,11 @@
 }
 
 /* 长文本自动缩小 - 通过字符数量判断 */
-.queue-row:not(.sc-row) .song[data-length="long"] {
+.queue-row:not(.sc-row) .song[data-length='long'] {
   font-size: var(--type-size-caption);
 }
 
-.queue-row:not(.sc-row) .song[data-length="very-long"] {
+.queue-row:not(.sc-row) .song[data-length='very-long'] {
   font-size: var(--type-size-caption);
 }
 
@@ -278,11 +280,11 @@
   line-height: var(--type-leading-caption);
 }
 
-.sc-row .queue-actions button[data-sc-action="assist"] {
+.sc-row .queue-actions button[data-sc-action='assist'] {
   color: #21b6a8;
 }
 
-.sc-row.assisted .queue-actions button[data-sc-action="unassist"] {
+.sc-row.assisted .queue-actions button[data-sc-action='unassist'] {
   color: #d2921d;
   background: rgba(210, 146, 29, 0.08);
   border-radius: 5px;
@@ -303,7 +305,13 @@
   border: 1px dashed rgba(22, 143, 131, 0.22);
   border-radius: 10px;
   color: var(--muted);
-  background: radial-gradient(circle at 50% 38%, rgba(22, 143, 131, 0.08), transparent 38%), #fff;
+  background:
+    radial-gradient(
+      circle at 50% 38%,
+      rgba(22, 143, 131, 0.08),
+      transparent 38%
+    ),
+    #fff;
   transition: all 200ms ease;
   padding: 20px;
 }
@@ -317,7 +325,7 @@
   background: #e8f6f3;
   color: #168f83;
   font-family: Georgia, serif;
-  ;
+  font-size: var(--type-size-metric-lg);
   line-height: 1;
   opacity: 0.4;
   margin-bottom: 4px;
@@ -342,7 +350,11 @@
 
 .empty:hover {
   border-color: rgba(217, 224, 232, 0.6);
-  background: linear-gradient(135deg, rgba(249, 251, 253, 0.6) 0%, rgba(255, 255, 255, 0.4) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(249, 251, 253, 0.6) 0%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
 }
 
 .empty:hover .empty-icon {
@@ -360,9 +372,11 @@
   min-height: 180px;
   border: 2px dashed rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.18);
   border-radius: 12px;
-  background: linear-gradient(135deg,
-              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.03) 0%,
-              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.01) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.03) 0%,
+    rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.01) 100%
+  );
   color: var(--color-text-muted, var(--muted));
   font-size: var(--type-size-body);
   font-weight: var(--type-weight-medium);
@@ -373,7 +387,7 @@
 
 .gift-cards > .empty::before {
   content: '🎁';
-  ;
+  font-size: var(--type-size-metric-lg);
   line-height: 1;
   opacity: 0.4;
   filter: grayscale(0.3);
@@ -381,9 +395,11 @@
 
 .gift-cards > .empty:hover {
   border-color: rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.28);
-  background: linear-gradient(135deg,
-              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.06) 0%,
-              rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.06) 0%,
+    rgba(var(--gift-recent-accent-rgb, 20, 159, 148), 0.02) 100%
+  );
 }
 
 .table-wrap {
@@ -422,7 +438,3 @@ td {
 tr:last-child td {
   border-bottom: 0;
 }
-
-/* ===== 标签页 ===== */
-.tabs {
-  display: flex;

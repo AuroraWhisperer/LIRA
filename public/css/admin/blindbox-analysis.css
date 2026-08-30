@@ -163,19 +163,19 @@ body.blind-analysis-open .playback-player-panel {
   white-space: nowrap;
 }
 
-#blindBoxAnalysisProfitItem[data-tone="up"] {
+#blindBoxAnalysisProfitItem[data-tone='up'] {
   background: var(--analysis-green-soft);
 }
 
-#blindBoxAnalysisProfitItem[data-tone="up"] strong {
+#blindBoxAnalysisProfitItem[data-tone='up'] strong {
   color: var(--analysis-green);
 }
 
-#blindBoxAnalysisProfitItem[data-tone="down"] {
+#blindBoxAnalysisProfitItem[data-tone='down'] {
   background: var(--analysis-red-soft);
 }
 
-#blindBoxAnalysisProfitItem[data-tone="down"] strong {
+#blindBoxAnalysisProfitItem[data-tone='down'] strong {
   color: var(--analysis-red);
 }
 
@@ -224,7 +224,10 @@ body.blind-analysis-open .playback-player-panel {
   line-height: var(--type-leading-control);
   text-align: left;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .blind-analysis-select:hover {
@@ -232,7 +235,7 @@ body.blind-analysis-open .playback-player-panel {
   background: #fbfcfd;
 }
 
-.blind-analysis-select[aria-expanded="true"] {
+.blind-analysis-select[aria-expanded='true'] {
   border-color: var(--analysis-green);
   box-shadow: 0 0 0 3px rgba(21, 155, 143, 0.12);
 }
@@ -257,7 +260,7 @@ body.blind-analysis-open .playback-player-panel {
   transition: transform 160ms ease;
 }
 
-.blind-analysis-select[aria-expanded="true"] svg {
+.blind-analysis-select[aria-expanded='true'] svg {
   transform: rotate(180deg);
 }
 
@@ -274,7 +277,9 @@ body.blind-analysis-open .playback-player-panel {
   border: 1px solid #d8e0e5;
   border-radius: 8px;
   background: #fff;
-  box-shadow: 0 12px 30px rgba(31, 49, 61, 0.16), 0 2px 8px rgba(31, 49, 61, 0.08);
+  box-shadow:
+    0 12px 30px rgba(31, 49, 61, 0.16),
+    0 2px 8px rgba(31, 49, 61, 0.08);
   scrollbar-color: #b7c2c9 transparent;
   scrollbar-width: thin;
 }
@@ -324,13 +329,14 @@ body.blind-analysis-open .playback-player-panel {
   outline-offset: -2px;
 }
 
-.blind-analysis-option[aria-selected="true"] {
+.blind-analysis-option[aria-selected='true'] {
   color: #087f75;
   font-weight: var(--type-weight-bold);
 }
 
-.blind-analysis-option[aria-selected="true"]::before {
-  background: no-repeat center / 16px 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 10 3 3 7-7' stroke='%23159b8f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+.blind-analysis-option[aria-selected='true']::before {
+  background: no-repeat center / 16px 16px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 10 3 3 7-7' stroke='%23159b8f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
 .blind-analysis-clear {

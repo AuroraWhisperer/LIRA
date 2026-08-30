@@ -1,42 +1,80 @@
-      <div id="songAssistantPage" class="main-page active">
-      <section class="song-workspace">
-        <div class="queues-row">
-          <section class="panel queue-panel sc-queue-panel">
-            <div class="panel-header">
-              <div class="queue-heading"><h2 class="ui-section-title"><span class="queue-mark" aria-hidden="true"><img class="queue-mark-image" src="/img/admin/queue/admin-queue-sc.webp" alt="" draggable="false"></span>SC 队列</h2></div>
-              <div class="actions">
-                <span id="superChatSize" class="pill">0 条</span>
-                <button id="clearSuperChatsBtn" class="danger" type="button">清空 SC 记录</button>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div id="superChatList" class="queue-list sc-list"></div>
-            </div>
-          </section>
-
-          <section class="panel queue-panel song-queue-panel">
-            <div class="panel-header">
-              <div class="queue-heading"><h2 class="ui-section-title"><span class="queue-mark" aria-hidden="true"><img class="queue-mark-image" src="/img/admin/queue/admin-queue-song.webp" alt="" draggable="false"></span>点歌队列</h2></div>
-              <div class="actions">
-                <span id="queueSize" class="pill">0 首</span>
-                <button id="nextBtn" class="primary">切歌</button>
-                <button id="clearBtn" class="danger">清空全部队列</button>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div id="queueList" class="queue-list"></div>
-            </div>
-          </section>
+<div id="songAssistantPage" class="main-page active">
+  <section class="song-workspace">
+    <div class="queues-row">
+      <section class="panel queue-panel sc-queue-panel">
+        <div class="panel-header">
+          <div class="queue-heading">
+            <h2 class="ui-section-title">
+              <span class="queue-mark" aria-hidden="true"
+                ><img
+                  class="queue-mark-image"
+                  src="/img/admin/queue/admin-queue-sc.webp"
+                  alt=""
+                  draggable="false" /></span
+              >SC 队列
+            </h2>
+          </div>
+          <div class="actions">
+            <span id="superChatSize" class="pill">0 条</span>
+            <button id="clearSuperChatsBtn" class="danger" type="button">
+              清空 SC 记录
+            </button>
+          </div>
         </div>
+        <div class="panel-body">
+          <div id="superChatList" class="queue-list sc-list"></div>
+        </div>
+      </section>
 
-        <div class="tools-section">
+      <section class="panel queue-panel song-queue-panel">
+        <div class="panel-header">
+          <div class="queue-heading">
+            <h2 class="ui-section-title">
+              <span class="queue-mark" aria-hidden="true"
+                ><img
+                  class="queue-mark-image"
+                  src="/img/admin/queue/admin-queue-song.webp"
+                  alt=""
+                  draggable="false" /></span
+              >点歌队列
+            </h2>
+          </div>
+          <div class="actions">
+            <span id="queueSize" class="pill">0 首</span>
+            <button id="nextBtn" class="primary">切歌</button>
+            <button id="clearBtn" class="danger">清空全部队列</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="queueList" class="queue-list"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="tools-section">
       <section class="panel song-management-panel">
         <div class="tabs" role="tablist">
-          <button class="tab active" data-tab="songsPage" type="button">歌库</button>
-          <button class="tab" data-tab="settingsPage" type="button">设置</button>
+          <button class="tab active" data-tab="songsPage" type="button">
+            歌库
+          </button>
+          <button class="tab" data-tab="settingsPage" type="button">
+            设置
+          </button>
           <button class="tab" data-tab="themePage" type="button">点歌板</button>
-          <button class="tab" data-tab="displayPage" type="button">展示板</button>
-          <button class="tab" data-tab="overlayPage" type="button">浏览器源</button>
-          <button class="tab" data-tab="importPage" type="button">导入导出</button>
-          <button class="tab" data-tab="desktopLyricPage" type="button">桌面歌词设置</button>
+          <button class="tab" data-tab="displayPage" type="button">
+            展示板
+          </button>
+          <button class="tab" data-tab="overlayPage" type="button">
+            浏览器源
+          </button>
+          <button class="tab" data-tab="importPage" type="button">
+            导入导出
+          </button>
+          <button class="tab" data-tab="desktopLyricPage" type="button">
+            桌面歌词设置
+          </button>
         </div>
+      </section>
+    </div>
+  </section>
+</div>

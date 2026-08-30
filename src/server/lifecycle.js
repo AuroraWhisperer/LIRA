@@ -25,7 +25,9 @@ async function listenWithFallback(server, options) {
     const ok = await tryListen(server, port, host);
     if (ok) return port;
   }
-  throw new Error(`No available local port from ${startPort} to ${startPort + 19}.`);
+  throw new Error(
+    `No available local port from ${startPort} to ${startPort + 19}.`,
+  );
 }
 
 function listenExactly(server, options) {
@@ -63,9 +65,11 @@ function tryListen(server, port, host) {
 }
 
 async function cleanupOwnPortOccupant(options) {
-  const reportPhase = typeof options.onPhase === 'function' ? options.onPhase : () => {};
+  const reportPhase =
+    typeof options.onPhase === 'function' ? options.onPhase : () => {};
   const phaseStart = Date.now();
-  const markPhase = (phase, extra = {}) => reportPhase(phase, Date.now() - phaseStart, extra);
+  const markPhase = (phase, extra = {}) =>
+    reportPhase(phase, Date.now() - phaseStart, extra);
   const requestedPort = Number(options.port);
   const port = requestedPort;
   const host = options.host;
@@ -74,7 +78,8 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
   const runtime = readRuntimeInfo(options.dataDir);
-  const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
+  const runtimeForPort =
+    runtime && Number(runtime.port) === port ? runtime : null;
   if (runtimeForPort && Number(runtimeForPort.pid) === process.pid) {
     markPhase('port-cleanup', { result: 'skipped-current-process' });
     return;
@@ -83,12 +88,19 @@ async function cleanupOwnPortOccupant(options) {
   const fetchImpl = options.fetch || globalThis.fetch;
   const healthStart = Date.now();
   const health = await readLocalHealth(port, host, fetchImpl);
-  reportPhase('port-health-check', Date.now() - healthStart, { ok: Boolean(health && health.ok) });
-  const serviceIdIsOwn = health && health.ok && health.data && health.data.serviceId === SERVICE_ID;
-  const healthIsOwn = serviceIdIsOwn || (health && health.ok && isOwnServiceHealth(health.data, options));
+  reportPhase('port-health-check', Date.now() - healthStart, {
+    ok: Boolean(health && health.ok),
+  });
+  const serviceIdIsOwn =
+    health && health.ok && health.data && health.data.serviceId === SERVICE_ID;
+  const healthIsOwn =
+    serviceIdIsOwn ||
+    (health && health.ok && isOwnServiceHealth(health.data, options));
   const runtimePid = runtimeForPort && Number(runtimeForPort.pid);
-  const processInfo = Number.isInteger(runtimePid) && runtimePid > 0
-    ? getProcessInfo(runtimePid) : null;
+  const processInfo =
+    Number.isInteger(runtimePid) && runtimePid > 0
+      ? getProcessInfo(runtimePid)
+      : null;
   const processIsOwn = isOwnProcessInfo(processInfo, options);
   if (!healthIsOwn && !processIsOwn) {
     if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
@@ -96,20 +108,27 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
 
-  console.log(`Found previous LIRA service on ${host}:${port}; asking it to shut down...`);
+  console.log(
+    `Found previous LIRA service on ${host}:${port}; asking it to shut down...`,
+  );
   const gracefulStart = Date.now();
-  await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
+  await requestLocalShutdown(
+    port,
+    host,
+    readSessionToken(options.dataDir),
+    fetchImpl,
+  );
   const gracefulReleased = await waitForPortRelease(port, host, options);
-  reportPhase('port-graceful-wait', Date.now() - gracefulStart, { released: gracefulReleased });
+  reportPhase('port-graceful-wait', Date.now() - gracefulStart, {
+    released: gracefulReleased,
+  });
   if (gracefulReleased) {
     if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
     markPhase('port-cleanup', { result: 'graceful' });
     return;
   }
 
-  const pid = healthIsOwn
-    ? Number(health.data && health.data.pid)
-    : runtimePid;
+  const pid = healthIsOwn ? Number(health.data && health.data.pid) : runtimePid;
   if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) {
     markPhase('port-cleanup', { result: 'graceful-timeout-no-pid' });
     return;
@@ -125,22 +144,31 @@ async function cleanupOwnPortOccupant(options) {
   try {
     process.kill(pid, 'SIGTERM');
   } catch (error) {
-    console.warn(`Could not stop previous service pid ${pid}: ${error.message}`);
+    console.warn(
+      `Could not stop previous service pid ${pid}: ${error.message}`,
+    );
     markPhase('port-cleanup', { result: 'terminate-failed' });
     return;
   }
   const terminateStart = Date.now();
   const terminateReleased = await waitForPortRelease(port, host, options);
-  reportPhase('port-terminate-wait', Date.now() - terminateStart, { released: terminateReleased });
+  reportPhase('port-terminate-wait', Date.now() - terminateStart, {
+    released: terminateReleased,
+  });
   if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
-  markPhase('port-cleanup', { result: terminateReleased ? 'terminated' : 'terminate-timeout' });
+  markPhase('port-cleanup', {
+    result: terminateReleased ? 'terminated' : 'terminate-timeout',
+  });
 }
 
 async function readLocalHealth(port, host, fetchImpl = globalThis.fetch) {
   try {
-    const response = await fetchImpl(`http://${toLocalHost(host)}:${port}/api/health`, {
-      signal: AbortSignal.timeout(500)
-    });
+    const response = await fetchImpl(
+      `http://${toLocalHost(host)}:${port}/api/health`,
+      {
+        signal: AbortSignal.timeout(500),
+      },
+    );
     if (!response.ok) return null;
     return await response.json();
   } catch (_) {
@@ -148,7 +176,12 @@ async function readLocalHealth(port, host, fetchImpl = globalThis.fetch) {
   }
 }
 
-async function requestLocalShutdown(port, host, token = '', fetchImpl = globalThis.fetch) {
+async function requestLocalShutdown(
+  port,
+  host,
+  token = '',
+  fetchImpl = globalThis.fetch,
+) {
   try {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -156,7 +189,7 @@ async function requestLocalShutdown(port, host, token = '', fetchImpl = globalTh
       method: 'POST',
       headers,
       body: JSON.stringify({ confirm: true }),
-      signal: AbortSignal.timeout(500)
+      signal: AbortSignal.timeout(500),
     });
   } catch (_) {
     // The previous process can close the connection while shutting down.
@@ -176,7 +209,10 @@ async function waitForPortRelease(port, host, options) {
 }
 
 function getSessionTokenPath(dataDir) {
-  return path.join(path.resolve(String(dataDir || '')), SESSION_TOKEN_FILE_NAME);
+  return path.join(
+    path.resolve(String(dataDir || '')),
+    SESSION_TOKEN_FILE_NAME,
+  );
 }
 
 function readSessionToken(dataDir) {
@@ -217,7 +253,9 @@ function getRuntimeInfoPath(dataDir) {
 
 function readRuntimeInfo(dataDir) {
   try {
-    const value = JSON.parse(fs.readFileSync(getRuntimeInfoPath(dataDir), 'utf8'));
+    const value = JSON.parse(
+      fs.readFileSync(getRuntimeInfoPath(dataDir), 'utf8'),
+    );
     return value && typeof value === 'object' ? value : null;
   } catch (_) {
     return null;
@@ -228,18 +266,32 @@ function writeRuntimeInfo(dataDir, info) {
   const value = {
     pid: Number(info && info.pid),
     port: Number(info && info.port),
-    host: String(info && info.host || '')
+    host: String((info && info.host) || ''),
   };
-  if (!Number.isInteger(value.pid) || value.pid <= 0 || !Number.isInteger(value.port) || value.port <= 0) {
+  if (
+    !Number.isInteger(value.pid) ||
+    value.pid <= 0 ||
+    !Number.isInteger(value.port) ||
+    value.port <= 0
+  ) {
     throw new Error('Runtime info requires a valid pid and port.');
   }
-  fs.writeFileSync(getRuntimeInfoPath(dataDir), `${JSON.stringify(value)}\n`, { encoding: 'utf8', mode: 0o600 });
+  fs.writeFileSync(getRuntimeInfoPath(dataDir), `${JSON.stringify(value)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
   return getRuntimeInfoPath(dataDir);
 }
 
 function removeRuntimeInfo(dataDir, expected) {
   const current = readRuntimeInfo(dataDir);
-  if (expected && current && (Number(expected.pid) !== Number(current.pid) || Number(expected.port) !== Number(current.port))) return false;
+  if (
+    expected &&
+    current &&
+    (Number(expected.pid) !== Number(current.pid) ||
+      Number(expected.port) !== Number(current.port))
+  )
+    return false;
   try {
     fs.unlinkSync(getRuntimeInfoPath(dataDir));
     return true;
@@ -250,16 +302,19 @@ function removeRuntimeInfo(dataDir, expected) {
 
 function canConnectToPort(port, host) {
   return new Promise((resolve) => {
-    const req = http.request({
-      host: toLocalHost(host),
-      port,
-      path: '/api/health',
-      method: 'GET',
-      timeout: 250
-    }, (res) => {
-      res.resume();
-      resolve(true);
-    });
+    const req = http.request(
+      {
+        host: toLocalHost(host),
+        port,
+        path: '/api/health',
+        method: 'GET',
+        timeout: 250,
+      },
+      (res) => {
+        res.resume();
+        resolve(true);
+      },
+    );
     req.on('timeout', () => {
       req.destroy();
       resolve(false);
@@ -280,15 +335,19 @@ function isOwnServiceHealth(data, options) {
 function getProcessInfo(pid) {
   if (process.platform !== 'win32') return null;
   try {
-    const output = childProcess.execFileSync('powershell.exe', [
-      '-NoProfile',
-      '-Command',
-      `Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" | Select-Object -First 1 ExecutablePath,CommandLine | ConvertTo-Json -Compress`
-    ], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 1200
-    });
+    const output = childProcess.execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-Command',
+        `Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" | Select-Object -First 1 ExecutablePath,CommandLine | ConvertTo-Json -Compress`,
+      ],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 1200,
+      },
+    );
     return output.trim() ? JSON.parse(output) : null;
   } catch (_) {
     return null;
@@ -301,10 +360,12 @@ function isOwnProcessInfo(info, options) {
   const commandLine = String(info.CommandLine || '').toLowerCase();
   const ownRoot = normalizePathForCompare(options.rootDir);
 
-  return (executablePath && executablePath.endsWith('\\LIRA.exe'))
-    || (ownRoot && commandLine.includes(ownRoot.toLowerCase()))
-    || commandLine.includes('src\\server.js')
-    || commandLine.includes('src/server.js');
+  return (
+    (executablePath && executablePath.endsWith('\\LIRA.exe')) ||
+    (ownRoot && commandLine.includes(ownRoot.toLowerCase())) ||
+    commandLine.includes('src\\server.js') ||
+    commandLine.includes('src/server.js')
+  );
 }
 
 function toLocalHost(host) {
@@ -313,7 +374,11 @@ function toLocalHost(host) {
 
 function normalizePathForCompare(value) {
   if (!value) return '';
-  return path.resolve(String(value)).replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase();
+  return path
+    .resolve(String(value))
+    .replace(/\//g, '\\')
+    .replace(/\\+$/, '')
+    .toLowerCase();
 }
 
 module.exports = {
@@ -328,5 +393,5 @@ module.exports = {
   RUNTIME_FILE_NAME,
   readRuntimeInfo,
   writeRuntimeInfo,
-  removeRuntimeInfo
+  removeRuntimeInfo,
 };

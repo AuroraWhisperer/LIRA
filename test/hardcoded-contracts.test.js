@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
   MUSIC_API_CACHE_TTL_MS,
-  MUSIC_LYRIC_CACHE_TTL_MS
+  MUSIC_LYRIC_CACHE_TTL_MS,
 } = require('../src/music/music-cache');
 const { DANMAKU_MESSAGE_LIMIT } = require('../src/bilibili/danmaku/contract');
 const sender = require('../src/bilibili/danmaku/sender-service');

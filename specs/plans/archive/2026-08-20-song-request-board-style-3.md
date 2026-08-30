@@ -40,6 +40,7 @@
 ### Milestone 1: 回归契约与素材
 
 **Files:**
+
 - Create: `public/img/overlays/song-board-style-3/frame.png`
 - Create: `public/img/overlays/song-board-style-3/entry.png`
 - Modify: `test/frontend-queue.test.js`
@@ -52,6 +53,7 @@
 ### Milestone 2: 最小渲染与滚动实现
 
 **Files:**
+
 - Modify: `public/js/overlays/queue.js`
 - Modify: `public/js/overlays/queue-render.js`
 - Modify: `public/js/overlays/queue-scroll.js`
@@ -69,6 +71,7 @@
 ### Milestone 3: 管理页选择与契约文档
 
 **Files:**
+
 - Modify: `public/pages/admin/song/queue-theme.html`
 - Modify: `public/js/admin/theme.js`
 - Modify: `public/css/admin/toasts/gifts.css`
@@ -85,6 +88,7 @@
 ### Milestone 4: 桌面视觉与分层验证
 
 **Files:**
+
 - Modify: `specs/plans/2026-08-20-song-request-board-style-3.md`
 
 - [x] 以隔离临时数据目录载入 `overlayQueueStyle=storybook` 的 `/queue`，检查 2:3 框体、白色开口、黄色编号、身份字段和长文字蓝窗滚动。

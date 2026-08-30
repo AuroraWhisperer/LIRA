@@ -3,14 +3,13 @@
 const { normalizeGiftInput, normalizeGiftRow } = require('./normalizer');
 const {
   extractComboRootKey,
+  applyComboTotals,
   applyBlindBoxMetadata,
   findGiftByPlatformIdentity,
   findRecentGiftCommandDuplicate,
   updateGiftEventIfProgressed,
-  logGiftServiceDecision
+  logGiftServiceDecision,
 } = require('./event-service');
-const { normalizeMoney } = require('../../shared/utils');
-
 const GIFT_FINALIZE_QUIET_MS = 10 * 1000;
 const CONSUMER_RETRY_MAX_MS = 30 * 1000;
 
@@ -20,17 +19,23 @@ function createGiftDetectionService(context, options = {}) {
     throw new Error('giftDb is required to create GiftDetectionService.');
   }
 
-  const consumerRegistry = options.consumerRegistry || { dispatch: () => ({ delivered: [], failed: [] }) };
-  const getOvertimeEpoch = typeof options.getOvertimeEpoch === 'function'
-    ? options.getOvertimeEpoch
-    : () => 0;
+  const consumerRegistry = options.consumerRegistry || {
+    dispatch: () => ({ delivered: [], failed: [] }),
+  };
+  const getOvertimeEpoch =
+    typeof options.getOvertimeEpoch === 'function'
+      ? options.getOvertimeEpoch
+      : () => 0;
   const nowMs = typeof options.now === 'function' ? options.now : Date.now;
   const scheduleTimeout = options.setTimeout || setTimeout;
   const cancelTimeout = options.clearTimeout || clearTimeout;
   const captureWhenDisabled = options.captureWhenDisabled === true;
-  const onGiftFinalized = typeof options.onGiftFinalized === 'function'
-    ? options.onGiftFinalized
-    : (typeof options.onGiftFlushed === 'function' ? options.onGiftFlushed : null);
+  const onGiftFinalized =
+    typeof options.onGiftFinalized === 'function'
+      ? options.onGiftFinalized
+      : typeof options.onGiftFlushed === 'function'
+        ? options.onGiftFlushed
+        : null;
   const timers = new Map();
   const consumerRetryTimers = new Map();
   const consumerRetryAttempts = new Map();
@@ -39,9 +44,17 @@ function createGiftDetectionService(context, options = {}) {
   function detect(input) {
     if (disposed) return null;
 
-    const giftStatisticsEligible = context.settings().enableGiftSprint === 'true';
-    const overtimeEpoch = Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0));
-    if (!giftStatisticsEligible && overtimeEpoch === 0 && !captureWhenDisabled) {
+    const giftStatisticsEligible =
+      context.settings().enableGiftSprint === 'true';
+    const overtimeEpoch = Math.max(
+      0,
+      Math.floor(Number(getOvertimeEpoch()) || 0),
+    );
+    if (
+      !giftStatisticsEligible &&
+      overtimeEpoch === 0 &&
+      !captureWhenDisabled
+    ) {
       logGiftServiceDecision('ignored', input, null, 'all-consumers-disabled');
       return null;
     }
@@ -52,18 +65,26 @@ function createGiftDetectionService(context, options = {}) {
       logGiftServiceDecision('ignored', gift, null, 'invalid-gift');
       return null;
     }
+
+    const comboKey = extractComboRootKey(gift.comboId || gift.platformId);
+    if (comboKey) gift.platformId = comboKey;
+    // Some V2 packets carry only the cumulative combo amount. Apply those
+    // fields before deciding whether the event is a paid gift; otherwise a
+    // valid final combo with a zero per-packet amount is dropped permanently.
+    applyComboTotals(gift);
     if (gift.totalPrice <= 0) {
       logGiftServiceDecision('ignored', gift, null, 'non-positive-price');
       return null;
     }
-
-    const comboKey = extractComboRootKey(gift.comboId || gift.platformId);
-    if (comboKey) gift.platformId = comboKey;
-    applyComboTotals(gift);
     applyBlindBoxMetadata(context, gift);
 
     let row = gift.platformId ? findGiftByPlatformIdentity(giftDb, gift) : null;
-    if (!row) row = findRecentGiftCommandDuplicate(context, gift);
+    if (!row)
+      row = findRecentGiftCommandDuplicate(
+        context,
+        gift,
+        options.giftEventStore,
+      );
     if (row?.status === 'deleted') return null;
     if (row?.detection_status === 'final') {
       logGiftServiceDecision('deduplicated', gift, row, 'final-event');
@@ -72,18 +93,22 @@ function createGiftDetectionService(context, options = {}) {
 
     if (row) {
       updateGiftEventIfProgressed(context, row, gift, { updateSprint: false });
-      giftDb.prepare(`
+      giftDb
+        .prepare(
+          `
         UPDATE gift_events
         SET last_platform_at_ms = ?
         WHERE id = ? AND detection_status = 'progress'
-      `).run(detectedAtMs, Number(row.id));
+      `,
+        )
+        .run(detectedAtMs, Number(row.id));
       row = readGift(giftDb, row.id);
       logGiftServiceDecision('updated', gift, row, 'detection-progress');
     } else {
       row = insertProgressGift(giftDb, gift, {
         detectedAtMs,
         giftStatisticsEligible,
-        overtimeEpoch
+        overtimeEpoch,
       });
       logGiftServiceDecision('inserted', gift, row, 'detection-progress');
     }
@@ -101,11 +126,15 @@ function createGiftDetectionService(context, options = {}) {
     if (id <= 0) return null;
     clearGiftTimer(id);
 
-    const result = giftDb.prepare(`
+    const result = giftDb
+      .prepare(
+        `
       UPDATE gift_events
       SET detection_status = 'final', finalized_at_ms = ?
       WHERE id = ? AND detection_status = 'progress'
-    `).run(finalizedAtMs, id);
+    `,
+      )
+      .run(finalizedAtMs, id);
     const row = readGift(giftDb, id);
     if (!row || Number(result.changes) === 0) return row;
 
@@ -119,23 +148,33 @@ function createGiftDetectionService(context, options = {}) {
     if (id <= 0 || row.detection_status !== 'progress') return;
     clearGiftTimer(id);
     const dueAtMs = Number(row.last_platform_at_ms) + GIFT_FINALIZE_QUIET_MS;
-    const timer = scheduleTimeout(() => {
-      timers.delete(id);
-      finalizeDetected(id, Math.floor(nowMs()));
-    }, Math.max(0, dueAtMs - nowMs()));
+    const timer = scheduleTimeout(
+      () => {
+        timers.delete(id);
+        finalizeDetected(id, Math.floor(nowMs()));
+      },
+      Math.max(0, dueAtMs - nowMs()),
+    );
     if (timer && typeof timer.unref === 'function') timer.unref();
     timers.set(id, timer);
   }
 
   function flushPending({ force = false } = {}) {
-    const rows = giftDb.prepare(`
+    const rows = giftDb
+      .prepare(
+        `
       SELECT * FROM gift_events
       WHERE detection_status = 'progress'
       ORDER BY id ASC
-    `).all();
+    `,
+      )
+      .all();
     const currentMs = Math.floor(nowMs());
     for (const row of rows) {
-      if (force || Number(row.last_platform_at_ms) + GIFT_FINALIZE_QUIET_MS <= currentMs) {
+      if (
+        force ||
+        Number(row.last_platform_at_ms) + GIFT_FINALIZE_QUIET_MS <= currentMs
+      ) {
         finalizeDetected(row.id, currentMs);
       } else {
         scheduleFinalization(row);
@@ -145,26 +184,39 @@ function createGiftDetectionService(context, options = {}) {
 
   function recover() {
     flushPending();
-    const finalRows = giftDb.prepare(`
+    const finalRows = giftDb
+      .prepare(
+        `
       SELECT * FROM gift_events
       WHERE detection_status = 'final'
         AND gift_stats_eligible = 1
         AND gift_stats_delivered = 0
       ORDER BY id ASC
-    `).all();
+    `,
+      )
+      .all();
     for (const row of finalRows) dispatch(row, 'final');
   }
 
   function getStatus() {
     const giftStatistics = context.settings().enableGiftSprint === 'true';
-    const overtime = Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0)) > 0;
-    const pendingCount = Number(giftDb.prepare(`
+    const overtime =
+      Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0)) > 0;
+    const pendingCount =
+      Number(
+        giftDb
+          .prepare(
+            `
       SELECT COUNT(*) AS count FROM gift_events WHERE detection_status = 'progress'
-    `).get()?.count) || 0;
+    `,
+          )
+          .get()?.count,
+      ) || 0;
     return {
-      coreActive: giftStatistics || overtime || captureWhenDisabled || pendingCount > 0,
+      coreActive:
+        giftStatistics || overtime || captureWhenDisabled || pendingCount > 0,
       consumers: { giftStatistics, overtime, giftEffects: captureWhenDisabled },
-      pendingCount
+      pendingCount,
     };
   }
 
@@ -202,7 +254,7 @@ function createGiftDetectionService(context, options = {}) {
   function scheduleConsumerRetry(id) {
     if (disposed || id <= 0 || consumerRetryTimers.has(id)) return;
     const attempt = consumerRetryAttempts.get(id) || 0;
-    const delayMs = Math.min(CONSUMER_RETRY_MAX_MS, 1000 * (2 ** attempt));
+    const delayMs = Math.min(CONSUMER_RETRY_MAX_MS, 1000 * 2 ** attempt);
     consumerRetryAttempts.set(id, Math.min(attempt + 1, 5));
     const timer = scheduleTimeout(() => {
       consumerRetryTimers.delete(id);
@@ -225,11 +277,20 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   recover();
-  return { detect, recover, flushPending, finalizeDetected, getStatus, dispose };
+  return {
+    detect,
+    recover,
+    flushPending,
+    finalizeDetected,
+    getStatus,
+    dispose,
+  };
 }
 
 function insertProgressGift(giftDb, gift, eligibility) {
-  const result = giftDb.prepare(`
+  const result = giftDb
+    .prepare(
+      `
     INSERT INTO gift_events (
       platform_id, cmd, gift_id, gift_name,
       uid, user_name, num, unit_price, total_price, coin_type,
@@ -242,21 +303,32 @@ function insertProgressGift(giftDb, gift, eligibility) {
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
       0, 'progress', ?, ?, 0, ?, 0, ?, 'active', ?, ?, ?
     )
-  `).run(
-    gift.platformId, gift.cmd, gift.giftId, gift.giftName,
-    gift.uid, gift.userName, gift.num, gift.unitPrice, gift.totalPrice, gift.coinType,
-    gift.isBlindBox ? 1 : 0, gift.blindBoxName, gift.blindBoxPrice, gift.blindProfit,
-    eligibility.detectedAtMs, eligibility.detectedAtMs,
-    eligibility.giftStatisticsEligible ? 1 : 0, eligibility.overtimeEpoch,
-    gift.rawJson, gift.createdAt, gift.createdAt
-  );
+  `,
+    )
+    .run(
+      gift.platformId,
+      gift.cmd,
+      gift.giftId,
+      gift.giftName,
+      gift.uid,
+      gift.userName,
+      gift.num,
+      gift.unitPrice,
+      gift.totalPrice,
+      gift.coinType,
+      gift.isBlindBox ? 1 : 0,
+      gift.blindBoxName,
+      gift.blindBoxPrice,
+      gift.blindProfit,
+      eligibility.detectedAtMs,
+      eligibility.detectedAtMs,
+      eligibility.giftStatisticsEligible ? 1 : 0,
+      eligibility.overtimeEpoch,
+      gift.rawJson,
+      gift.createdAt,
+      gift.createdAt,
+    );
   return readGift(giftDb, result.lastInsertRowid);
-}
-
-function applyComboTotals(gift) {
-  if (gift.comboNum > gift.num) gift.num = gift.comboNum;
-  if (gift.comboTotalPrice > gift.totalPrice) gift.totalPrice = gift.comboTotalPrice;
-  if (gift.num > 0) gift.unitPrice = normalizeMoney(gift.totalPrice / gift.num);
 }
 
 function isPlatformFinal(gift, comboKey) {
@@ -271,17 +343,19 @@ function toStandardEvent(row, phase = row?.detection_status) {
     gift,
     eligibility: Object.freeze({
       giftStatistics: Number(row?.gift_stats_eligible) === 1,
-      overtimeEpoch: Math.max(0, Number(row?.overtime_epoch) || 0)
-    })
+      overtimeEpoch: Math.max(0, Number(row?.overtime_epoch) || 0),
+    }),
   });
 }
 
 function readGift(giftDb, id) {
-  return normalizeGiftRow(giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(id)));
+  return normalizeGiftRow(
+    giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(id)),
+  );
 }
 
 module.exports = {
   GIFT_FINALIZE_QUIET_MS,
   createGiftDetectionService,
-  toStandardEvent
+  toStandardEvent,
 };

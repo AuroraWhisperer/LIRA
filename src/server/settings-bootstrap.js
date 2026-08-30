@@ -1,51 +1,76 @@
 'use strict';
 
+const { createSettingsStore } = require('../storage/settings-store');
+const settingsMigrations = require('../storage/settings-migrations');
+
+const DEFAULT_SETTINGS_STORE_MODULE = {
+  createSettingsStore,
+  ...settingsMigrations,
+};
+
 function prepareSettingsBootstrap(songDb, settingsStoreModule) {
-  const queueScrollSpeedRangeVersion = songDb.prepare(`
+  const storeModule = settingsStoreModule || DEFAULT_SETTINGS_STORE_MODULE;
+  const queueScrollSpeedRangeVersion = songDb
+    .prepare(
+      `
     SELECT value
     FROM settings
     WHERE key = 'queueScrollSpeedRangeVersion'
-  `).get();
-  const queueFontSizeRangeVersion = songDb.prepare(`
+  `,
+    )
+    .get();
+  const queueFontSizeRangeVersion = songDb
+    .prepare(
+      `
     SELECT value
     FROM settings
     WHERE key = 'queueFontSizeRangeVersion'
-  `).get();
-  const queueStyleSettingsVersion = settingsStoreModule.getQueueStyleSettingsVersion(songDb);
-  const songScrollSpeedRow = songDb.prepare(`
+  `,
+    )
+    .get();
+  const queueStyleSettingsVersion =
+    storeModule.getQueueStyleSettingsVersion(songDb);
+  const songScrollSpeedRow = songDb
+    .prepare(
+      `
     SELECT value
     FROM settings
     WHERE key = 'scrollSeconds'
-  `).get();
-  const songScrollSpeedRangeVersion = songDb.prepare(`
+  `,
+    )
+    .get();
+  const songScrollSpeedRangeVersion = songDb
+    .prepare(
+      `
     SELECT value
     FROM settings
     WHERE key = 'songScrollSpeedRangeVersion'
-  `).get();
-  const settingsStore = settingsStoreModule.createSettingsStore(songDb);
+  `,
+    )
+    .get();
+  const settingsStore = storeModule.createSettingsStore(songDb);
 
   function runMigrations() {
-    settingsStoreModule.migrateQueueScrollSpeedSetting(
+    storeModule.migrateQueueScrollSpeedSetting(
       songDb,
-      queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value
+      queueScrollSpeedRangeVersion && queueScrollSpeedRangeVersion.value,
     );
-    settingsStoreModule.migrateSongScrollSpeedSetting(
+    storeModule.migrateSongScrollSpeedSetting(
       songDb,
       songScrollSpeedRangeVersion && songScrollSpeedRangeVersion.value
         ? songScrollSpeedRangeVersion.value
-        : songScrollSpeedRow ? '' : '2'
+        : songScrollSpeedRow
+          ? ''
+          : '2',
     );
-    settingsStoreModule.migrateQueueFontSizeSettings(
+    storeModule.migrateQueueFontSizeSettings(
       songDb,
-      queueFontSizeRangeVersion && queueFontSizeRangeVersion.value
+      queueFontSizeRangeVersion && queueFontSizeRangeVersion.value,
     );
-    settingsStoreModule.migrateQueueStyleSettings(
-      songDb,
-      queueStyleSettingsVersion
-    );
-    settingsStoreModule.migrateSongBoardFontSizeSetting(songDb);
-    settingsStoreModule.clearLegacyIdentityRuleDefaults(songDb);
-    settingsStoreModule.migrateBlindBoxConfig(songDb);
+    storeModule.migrateQueueStyleSettings(songDb, queueStyleSettingsVersion);
+    storeModule.migrateSongBoardFontSizeSetting(songDb);
+    storeModule.clearLegacyIdentityRuleDefaults(songDb);
+    storeModule.migrateBlindBoxConfig(songDb);
   }
 
   runMigrations();

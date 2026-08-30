@@ -54,7 +54,7 @@ export function createEventHandlers(deps) {
     rebuildPlaybackShuffleOrder,
     refreshSelectedMusicProviderState,
     escapeHtml,
-    value
+    value,
   } = deps;
 
   function setupEventHandlers() {
@@ -74,54 +74,108 @@ export function createEventHandlers(deps) {
   }
 
   function setupPlaybackControlButtons() {
-    document.getElementById('playbackClearQueue')?.addEventListener('click', clearPlaybackQueue);
-    document.getElementById('playbackImportSongQueue')?.addEventListener('click', importSongQueueToPlayback);
-    document.getElementById('playbackPrev')?.addEventListener('click', playbackPrevious);
-    document.getElementById('playbackNext')?.addEventListener('click', () => playbackNext(false));
-    document.getElementById('playbackPlayPause')?.addEventListener('click', togglePlayback);
-    document.getElementById('playbackAddToPlaylistBtn')?.addEventListener('click', addCurrentTrackToPlaylist);
+    document
+      .getElementById('playbackClearQueue')
+      ?.addEventListener('click', clearPlaybackQueue);
+    document
+      .getElementById('playbackImportSongQueue')
+      ?.addEventListener('click', importSongQueueToPlayback);
+    document
+      .getElementById('playbackPrev')
+      ?.addEventListener('click', playbackPrevious);
+    document
+      .getElementById('playbackNext')
+      ?.addEventListener('click', () => playbackNext(false));
+    document
+      .getElementById('playbackPlayPause')
+      ?.addEventListener('click', togglePlayback);
+    document
+      .getElementById('playbackAddToPlaylistBtn')
+      ?.addEventListener('click', addCurrentTrackToPlaylist);
   }
 
   function setupProviderButtons() {
-    document.getElementById('playbackLoginBtn')?.addEventListener('click', loginSelectedMusicProvider);
-    document.getElementById('playbackLogoutBtn')?.addEventListener('click', logoutSelectedMusicProvider);
-    document.getElementById('playbackHealthBtn')?.addEventListener('click', checkSelectedMusicProviderHealth);
-    document.getElementById('playbackClearCacheBtn')?.addEventListener('click', clearPlaybackMusicCache);
-    document.getElementById('playbackMatchBtn')?.addEventListener('click', runPlaybackMatchTest);
+    document
+      .getElementById('playbackLoginBtn')
+      ?.addEventListener('click', loginSelectedMusicProvider);
+    document
+      .getElementById('playbackLogoutBtn')
+      ?.addEventListener('click', logoutSelectedMusicProvider);
+    document
+      .getElementById('playbackHealthBtn')
+      ?.addEventListener('click', checkSelectedMusicProviderHealth);
+    document
+      .getElementById('playbackClearCacheBtn')
+      ?.addEventListener('click', clearPlaybackMusicCache);
+    document
+      .getElementById('playbackMatchBtn')
+      ?.addEventListener('click', runPlaybackMatchTest);
   }
 
   function setupPendingConfirmButtons() {
-    document.getElementById('pendingConfirmAcceptBtn')?.addEventListener('click', () => handlePlaybackPendingAction('confirm', 0));
-    document.getElementById('pendingConfirmRejectBtn')?.addEventListener('click', () => handlePlaybackPendingAction('ignore', 0));
+    document
+      .getElementById('pendingConfirmAcceptBtn')
+      ?.addEventListener('click', () =>
+        handlePlaybackPendingAction('confirm', 0),
+      );
+    document
+      .getElementById('pendingConfirmRejectBtn')
+      ?.addEventListener('click', () =>
+        handlePlaybackPendingAction('ignore', 0),
+      );
   }
 
   function setupHomeButtons() {
-    document.querySelectorAll('[data-playback-home-action]').forEach((button) => {
-      button.addEventListener('click', () => {
-        loadPlaybackHomeContent(button.dataset.playbackHomeAction || 'personalized');
+    document
+      .querySelectorAll('[data-playback-home-action]')
+      .forEach((button) => {
+        button.addEventListener('click', () => {
+          loadPlaybackHomeContent(
+            button.dataset.playbackHomeAction || 'personalized',
+          );
+        });
       });
-    });
   }
 
   function setupQueuePopupButtons() {
-    document.getElementById('playbackQueueBtn')?.addEventListener('click', toggleQueuePopup);
-    document.getElementById('queuePopupClose')?.addEventListener('click', closeQueuePopup);
-    document.getElementById('queuePopupBackdrop')?.addEventListener('click', closeQueuePopup);
+    document
+      .getElementById('playbackQueueBtn')
+      ?.addEventListener('click', toggleQueuePopup);
+    document
+      .getElementById('queuePopupClose')
+      ?.addEventListener('click', closeQueuePopup);
+    document
+      .getElementById('queuePopupBackdrop')
+      ?.addEventListener('click', closeQueuePopup);
   }
 
   function setupDrawerButtons() {
-    document.getElementById('playbackDrawerBackdrop')?.addEventListener('click', closePlaybackDrawer);
-    document.getElementById('playbackDrawerClose')?.addEventListener('click', closePlaybackDrawer);
-    document.getElementById('playbackDrawerBack')?.addEventListener('click', playbackDrawerGoBack);
-    document.getElementById('playbackDrawerRefresh')?.addEventListener('click', refreshPlaybackHomeContent);
-    document.getElementById('playbackDrawerPlayAllHeader')?.addEventListener('click', handlePlaybackDrawerHeaderPlayAll);
+    document
+      .getElementById('playbackDrawerBackdrop')
+      ?.addEventListener('click', closePlaybackDrawer);
+    document
+      .getElementById('playbackDrawerClose')
+      ?.addEventListener('click', closePlaybackDrawer);
+    document
+      .getElementById('playbackDrawerBack')
+      ?.addEventListener('click', playbackDrawerGoBack);
+    document
+      .getElementById('playbackDrawerRefresh')
+      ?.addEventListener('click', refreshPlaybackHomeContent);
+    document
+      .getElementById('playbackDrawerPlayAllHeader')
+      ?.addEventListener('click', handlePlaybackDrawerHeaderPlayAll);
 
     // 抽屉底部按钮 - 事件委托
-    document.getElementById('playbackDrawerActions')?.addEventListener('click', (event) => {
-      const target = event.target;
-      if (target.id === 'playbackDrawerPlayAll') handlePlaybackHomeBulkAction('play-all');
-      else if (target.id === 'playbackDrawerShuffleAll') handlePlaybackHomeBulkAction('shuffle-all');
-    });
+    document
+      .getElementById('playbackDrawerActions')
+      ?.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target.id === 'playbackDrawerPlayAll')
+          handlePlaybackHomeBulkAction('play-all');
+        else if (target.id === 'playbackDrawerShuffleAll')
+          handlePlaybackHomeBulkAction('shuffle-all');
+      });
 
     // 抽屉内点击事件委托
     const drawerBody = document.getElementById('playbackDrawerBody');
@@ -132,32 +186,45 @@ export function createEventHandlers(deps) {
         return;
       }
 
-      const playlistButton = event.target.closest('[data-playback-playlist-index]');
+      const playlistButton = event.target.closest(
+        '[data-playback-playlist-index]',
+      );
       if (playlistButton) {
-        loadPlaybackPlaylistTracks(Number(playlistButton.dataset.playbackPlaylistIndex));
+        loadPlaybackPlaylistTracks(
+          Number(playlistButton.dataset.playbackPlaylistIndex),
+        );
         return;
       }
 
-      const menuBtn = event.target.closest('[data-playback-home-track-menu-index]');
+      const menuBtn = event.target.closest(
+        '[data-playback-home-track-menu-index]',
+      );
       if (menuBtn) {
         toggleTrackMenu(menuBtn.dataset.playbackHomeTrackMenuIndex);
         return;
       }
 
-      const trackButton = event.target.closest('[data-playback-home-track-action][data-playback-home-track-index]');
+      const trackButton = event.target.closest(
+        '[data-playback-home-track-action][data-playback-home-track-index]',
+      );
       if (trackButton) {
         handlePlaybackHomeTrackAction(
           trackButton.dataset.playbackHomeTrackAction,
-          Number(trackButton.dataset.playbackHomeTrackIndex)
+          Number(trackButton.dataset.playbackHomeTrackIndex),
         );
         return;
       }
 
       if (event.target.closest('button, a, input, select, textarea')) return;
 
-      const trackRow = event.target.closest('[data-playback-home-track-row-index]');
+      const trackRow = event.target.closest(
+        '[data-playback-home-track-row-index]',
+      );
       if (!trackRow) return;
-      handlePlaybackHomeTrackAction('play-context', Number(trackRow.dataset.playbackHomeTrackRowIndex));
+      handlePlaybackHomeTrackAction(
+        'play-context',
+        Number(trackRow.dataset.playbackHomeTrackRowIndex),
+      );
     });
 
     drawerBody?.addEventListener('keydown', (event) => {
@@ -167,19 +234,27 @@ export function createEventHandlers(deps) {
       const currentIndex = items.indexOf(document.activeElement);
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
-        const nextIndex = event.key === 'Home' ? 0
-          : event.key === 'End' ? items.length - 1
-            : event.key === 'ArrowUp' ? Math.max(0, currentIndex - 1)
-              : Math.min(items.length - 1, currentIndex + 1);
+        const nextIndex =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? items.length - 1
+              : event.key === 'ArrowUp'
+                ? Math.max(0, currentIndex - 1)
+                : Math.min(items.length - 1, currentIndex + 1);
         items[nextIndex]?.focus();
       } else if (event.key === 'Escape') {
         event.preventDefault();
         menu.hidden = true;
         document.querySelector(`[aria-controls="${menu.id}"]`)?.focus();
-        document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+        document
+          .querySelector(`[aria-controls="${menu.id}"]`)
+          ?.setAttribute('aria-expanded', 'false');
       } else if (event.key === 'Tab') {
         menu.hidden = true;
-        document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+        document
+          .querySelector(`[aria-controls="${menu.id}"]`)
+          ?.setAttribute('aria-expanded', 'false');
       }
     });
   }
@@ -188,7 +263,12 @@ export function createEventHandlers(deps) {
     document.querySelectorAll('.source-tab').forEach((button) => {
       button.addEventListener('click', () => {
         const newSource = button.dataset.source;
-        console.log('[Playback] Tab clicked:', newSource, 'Current:', playbackState.selectedSource);
+        console.log(
+          '[Playback] Tab clicked:',
+          newSource,
+          'Current:',
+          playbackState.selectedSource,
+        );
         if (!newSource || newSource === playbackState.selectedSource) return;
 
         playbackState.selectedSource = newSource;
@@ -206,69 +286,99 @@ export function createEventHandlers(deps) {
         void refreshSelectedMusicProviderState();
         if (newSource !== 'wesing') void syncPlaybackLyricWindow(true);
 
-        console.log('[Playback] After click, selectedSource:', playbackState.selectedSource);
+        console.log(
+          '[Playback] After click, selectedSource:',
+          playbackState.selectedSource,
+        );
       });
     });
   }
 
   function setupSearchButtons() {
-    document.getElementById('playbackSearchBtn')?.addEventListener('click', runPlaybackSearch);
-    document.getElementById('playbackSearchClearBtn')?.addEventListener('click', clearPlaybackSearch);
-    document.getElementById('playbackSearchKeyword')?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') runPlaybackSearch();
-    });
+    document
+      .getElementById('playbackSearchBtn')
+      ?.addEventListener('click', runPlaybackSearch);
+    document
+      .getElementById('playbackSearchClearBtn')
+      ?.addEventListener('click', clearPlaybackSearch);
+    document
+      .getElementById('playbackSearchKeyword')
+      ?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') runPlaybackSearch();
+      });
 
-    document.getElementById('playbackSearchResults')?.addEventListener('click', async (event) => {
-      const button = event.target.closest('[data-playback-search-action][data-playback-search-index]');
-      if (!button) return;
-      await handlePlaybackSearchAction(
-        button.dataset.playbackSearchAction,
-        Number(button.dataset.playbackSearchIndex)
-      );
-    });
+    document
+      .getElementById('playbackSearchResults')
+      ?.addEventListener('click', async (event) => {
+        const button = event.target.closest(
+          '[data-playback-search-action][data-playback-search-index]',
+        );
+        if (!button) return;
+        await handlePlaybackSearchAction(
+          button.dataset.playbackSearchAction,
+          Number(button.dataset.playbackSearchIndex),
+        );
+      });
   }
 
   function setupQueueListEvents() {
-    document.getElementById('playbackQueueList')?.addEventListener('click', (event) => {
-      const clearHistBtn = event.target.closest('[data-playback-clear-display-history]');
-      if (clearHistBtn) {
-        playbackState.displayHistory = [];
-        savePlaybackState();
-        renderPlayback();
-        return;
-      }
-
-      const pendingButton = event.target.closest('[data-playback-pending-action][data-playback-pending-index]');
-      if (pendingButton) {
-        handlePlaybackPendingAction(
-          pendingButton.dataset.playbackPendingAction,
-          Number(pendingButton.dataset.playbackPendingIndex)
+    document
+      .getElementById('playbackQueueList')
+      ?.addEventListener('click', (event) => {
+        const clearHistBtn = event.target.closest(
+          '[data-playback-clear-display-history]',
         );
-        return;
-      }
+        if (clearHistBtn) {
+          playbackState.displayHistory = [];
+          savePlaybackState();
+          renderPlayback();
+          return;
+        }
 
-      const playlistJumpBtn = event.target.closest('[data-playback-playlist-jump]');
-      if (playlistJumpBtn) {
-        jumpToPlaylistTrack(Number(playlistJumpBtn.dataset.playbackPlaylistJump));
-        return;
-      }
+        const pendingButton = event.target.closest(
+          '[data-playback-pending-action][data-playback-pending-index]',
+        );
+        if (pendingButton) {
+          handlePlaybackPendingAction(
+            pendingButton.dataset.playbackPendingAction,
+            Number(pendingButton.dataset.playbackPendingIndex),
+          );
+          return;
+        }
 
-      const button = event.target.closest('[data-playback-queue][data-playback-index]');
-      if (!button) return;
-      const picked = takePlaybackQueueTrack(button.dataset.playbackQueue, Number(button.dataset.playbackIndex));
-      if (picked) {
-        playPlaybackTrack(picked.track, { origin: picked.origin });
-      }
-    });
+        const playlistJumpBtn = event.target.closest(
+          '[data-playback-playlist-jump]',
+        );
+        if (playlistJumpBtn) {
+          jumpToPlaylistTrack(
+            Number(playlistJumpBtn.dataset.playbackPlaylistJump),
+          );
+          return;
+        }
+
+        const button = event.target.closest(
+          '[data-playback-queue][data-playback-index]',
+        );
+        if (!button) return;
+        const picked = takePlaybackQueueTrack(
+          button.dataset.playbackQueue,
+          Number(button.dataset.playbackIndex),
+        );
+        if (picked) {
+          playPlaybackTrack(picked.track, { origin: picked.origin });
+        }
+      });
   }
 
   function setupModeButton() {
-    document.getElementById('playbackModeBtn')?.addEventListener('click', () => {
-      playbackState.mode = PlaybackUtils.getNextMode(playbackState.mode);
-      rebuildPlaybackShuffleOrder();
-      savePlaybackState();
-      renderPlayback();
-    });
+    document
+      .getElementById('playbackModeBtn')
+      ?.addEventListener('click', () => {
+        playbackState.mode = PlaybackUtils.getNextMode(playbackState.mode);
+        rebuildPlaybackShuffleOrder();
+        savePlaybackState();
+        renderPlayback();
+      });
   }
 
   function setupVolumeControls() {
@@ -284,19 +394,26 @@ export function createEventHandlers(deps) {
       volumeIcon?.setAttribute('aria-expanded', String(open));
     };
 
-    document.getElementById('playbackVolume')?.addEventListener('input', (event) => {
-      playbackState.volume = Math.max(0, Math.min(1, Number(event.target.value)));
-      audio.volume = playbackState.volume;
-      PlaybackComponents.updateVolumeUI(playbackState.volume);
-      savePlaybackState();
-    });
+    document
+      .getElementById('playbackVolume')
+      ?.addEventListener('input', (event) => {
+        playbackState.volume = Math.max(
+          0,
+          Math.min(1, Number(event.target.value)),
+        );
+        audio.volume = playbackState.volume;
+        PlaybackComponents.updateVolumeUI(playbackState.volume);
+        savePlaybackState();
+      });
 
     volumeIcon?.addEventListener('click', (event) => {
       event.stopPropagation();
       const shouldOpen = !volumeWrap?.classList.contains('open');
       setVolumePanelOpen(shouldOpen);
       if (shouldOpen) {
-        document.getElementById('playbackVolume')?.focus({ preventScroll: true });
+        document
+          .getElementById('playbackVolume')
+          ?.focus({ preventScroll: true });
       }
     });
 
@@ -325,9 +442,14 @@ export function createEventHandlers(deps) {
     const qualityButton = document.getElementById('playbackQualityBtn');
 
     const focusQualityOption = (option) => {
-      const options = [...(qualityPanel?.querySelectorAll('[data-playback-quality]') || [])];
+      const options = [
+        ...(qualityPanel?.querySelectorAll('[data-playback-quality]') || []),
+      ];
       if (!options.length) return;
-      const target = option || options.find(item => item.getAttribute('aria-checked') === 'true') || options[0];
+      const target =
+        option ||
+        options.find((item) => item.getAttribute('aria-checked') === 'true') ||
+        options[0];
       target.focus({ preventScroll: true });
       target.scrollIntoView?.({ block: 'nearest' });
     };
@@ -336,7 +458,8 @@ export function createEventHandlers(deps) {
       qualityWrap?.classList.toggle('open', open);
       qualityPanel?.setAttribute('aria-hidden', String(!open));
       qualityButton?.setAttribute('aria-expanded', String(open));
-      if (open && focusOption) requestAnimationFrame(() => focusQualityOption());
+      if (open && focusOption)
+        requestAnimationFrame(() => focusQualityOption());
     };
 
     qualityButton?.addEventListener('click', (event) => {
@@ -351,24 +474,35 @@ export function createEventHandlers(deps) {
       const open = !qualityWrap?.classList.contains('open');
       setQualityPanelOpen(true, open);
       if (!open) {
-        const options = [...(qualityPanel?.querySelectorAll('[data-playback-quality]') || [])];
-        const selectedIndex = options.findIndex(item => item.getAttribute('aria-checked') === 'true');
-        const nextIndex = event.key === 'ArrowUp'
-          ? Math.max(0, selectedIndex - 1)
-          : Math.min(options.length - 1, selectedIndex + 1);
+        const options = [
+          ...(qualityPanel?.querySelectorAll('[data-playback-quality]') || []),
+        ];
+        const selectedIndex = options.findIndex(
+          (item) => item.getAttribute('aria-checked') === 'true',
+        );
+        const nextIndex =
+          event.key === 'ArrowUp'
+            ? Math.max(0, selectedIndex - 1)
+            : Math.min(options.length - 1, selectedIndex + 1);
         focusQualityOption(options[nextIndex]);
       }
     });
 
     qualityPanel?.addEventListener('keydown', (event) => {
-      const options = [...qualityPanel.querySelectorAll('[data-playback-quality]')];
+      const options = [
+        ...qualityPanel.querySelectorAll('[data-playback-quality]'),
+      ];
       const currentIndex = options.indexOf(document.activeElement);
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
-        const nextIndex = event.key === 'Home' ? 0
-          : event.key === 'End' ? options.length - 1
-            : event.key === 'ArrowUp' ? Math.max(0, currentIndex - 1)
-              : Math.min(options.length - 1, currentIndex + 1);
+        const nextIndex =
+          event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? options.length - 1
+              : event.key === 'ArrowUp'
+                ? Math.max(0, currentIndex - 1)
+                : Math.min(options.length - 1, currentIndex + 1);
         focusQualityOption(options[nextIndex]);
       } else if (event.key === 'Escape') {
         event.preventDefault();
@@ -401,18 +535,26 @@ export function createEventHandlers(deps) {
 
   function setupSeekControl() {
     const audio = getPlaybackAudio();
-    document.getElementById('playbackSeek')?.addEventListener('input', (event) => {
-      if (!Number.isFinite(audio.duration)) return;
-      audio.currentTime = Math.max(0, Math.min(audio.duration, Number(event.target.value)));
-      const pct = audio.duration > 0 ? Math.round((audio.currentTime / audio.duration) * 1000) / 10 : 0;
-      event.target.style.setProperty('--seek-pos', pct + '%');
-      renderFullscreenPlayer();
-      syncPlaybackLyricWindow(true);
-      savePlaybackState();
-    });
+    document
+      .getElementById('playbackSeek')
+      ?.addEventListener('input', (event) => {
+        if (!Number.isFinite(audio.duration)) return;
+        audio.currentTime = Math.max(
+          0,
+          Math.min(audio.duration, Number(event.target.value)),
+        );
+        const pct =
+          audio.duration > 0
+            ? Math.round((audio.currentTime / audio.duration) * 1000) / 10
+            : 0;
+        event.target.style.setProperty('--seek-pos', pct + '%');
+        renderFullscreenPlayer();
+        syncPlaybackLyricWindow(true);
+        savePlaybackState();
+      });
   }
 
   return {
-    setupEventHandlers
+    setupEventHandlers,
   };
 }

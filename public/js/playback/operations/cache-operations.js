@@ -8,12 +8,7 @@
  * @returns {Object} 缓存操作函数集合
  */
 export function createCacheOperations(deps) {
-  const {
-    readJsonResponse,
-    formatBytes,
-    toast,
-    showError
-  } = deps;
+  const { readJsonResponse, formatBytes, toast, showError } = deps;
 
   /**
    * 刷新音乐缓存统计信息
@@ -41,7 +36,7 @@ export function createCacheOperations(deps) {
       const response = await fetch('/api/music/cache/clear', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: true })
+        body: JSON.stringify({ confirm: true }),
       });
       const payload = await readJsonResponse(response, '清理音乐缓存失败');
       if (!payload.ok) throw new Error(payload.error || '清理音乐缓存失败');
@@ -56,6 +51,6 @@ export function createCacheOperations(deps) {
 
   return {
     refreshPlaybackMusicCacheStats,
-    clearPlaybackMusicCache
+    clearPlaybackMusicCache,
   };
 }

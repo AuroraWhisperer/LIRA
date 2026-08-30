@@ -1,232 +1,1279 @@
-        <div id="desktopLyricPage" class="tab-page">
-          <div class="panel-body">
-            <div class="desktop-lyric-workspace">
-            <section id="desktopLyricForm" class="desktop-lyric-settings stack" aria-labelledby="desktopLyricSettingsTitle">
-              <header class="desktop-lyric-settings-header">
-                <div>
-                  <h3 id="desktopLyricSettingsTitle">歌词样式</h3>
-                </div>
-                <span id="desktopLyricAutosaveState" class="desktop-lyric-autosave-state" aria-live="polite">更改会自动保存</span>
-              </header>
-              <fieldset class="theme-section desktop-lyric-source-settings">
-                <legend>全民 K 歌在线歌词 <lira-help><span id="weSingLyricSourceHint">仅在本地 QRC 不可用；不影响 QQ 音乐和网易云音乐的歌词来源。</span></lira-help></legend>
-                <div class="desktop-lyric-source-picker">
-                  <span id="weSingLyricSourceLabel" class="desktop-lyric-source-label">首选歌词源</span>
-                  <div class="desktop-lyric-source-options" role="radiogroup" aria-labelledby="weSingLyricSourceLabel" aria-describedby="weSingLyricSourceHint">
-                    <label class="desktop-lyric-source-option">
-                      <input type="radio" name="weSingLyricSource" value="netease" checked>
-                      <span class="desktop-lyric-source-choice">
-                        <img src="/img/playback/netease-music-icon.ico" alt="" draggable="false">
-                        网易云音乐
-                      </span>
-                    </label>
-                    <label class="desktop-lyric-source-option">
-                      <input type="radio" name="weSingLyricSource" value="qq">
-                      <span class="desktop-lyric-source-choice">
-                        <img src="/img/playback/qqmusic-icon.webp" alt="" draggable="false">
-                        QQ 音乐
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                <div class="desktop-lyric-smart-match-row">
-                  <div class="desktop-lyric-smart-match-copy">
-                    <strong id="weSingSmartLyricMatchLabel">智能匹配最佳歌词 <lira-help><span id="weSingSmartLyricMatchHint">同时查询两种歌词源并选更完整的结果；结果接近时使用首选源。</span></lira-help></strong>
-                  </div>
-                  <label class="switch-control">
-                    <input id="weSingSmartLyricMatch" type="checkbox" checked aria-labelledby="weSingSmartLyricMatchLabel" aria-describedby="weSingLyricSourceHint weSingSmartLyricMatchHint">
-                    <span class="switch-track" aria-hidden="true"></span>
-                  </label>
-                </div>
-              </fieldset>
-
-              <div class="desktop-lyric-setting-groups">
-                <details class="desktop-lyric-settings-group is-basic" open>
-                  <summary><span><strong>基础样式</strong></span><span class="desktop-lyric-group-count">8 项</span></summary>
-                  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <div class="desktop-lyric-control desktop-lyric-font-control">
-                      <span class="desktop-lyric-control-copy"><strong>主字体</strong></span>
-                      <div class="desktop-lyric-font-picker">
-                        <select id="desktopLyricFontFamily" data-dropdown-variant="settings">
-                          <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
-                          <option value="Microsoft YaHei">微软雅黑（默认）</option>
-                          <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
-                          <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
-                          <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
-                          <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
-                          <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
-                          <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
-                          <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
-                          <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
-                          <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
-                        </select>
-                      </div>
-                    </div>
-                    <label class="desktop-lyric-control">
-                      <span class="desktop-lyric-control-copy"><strong>备选字体 <lira-help>主字体缺少字符时使用。</lira-help></strong></span>
-                      <input id="desktopLyricFallbackFontFamily" type="text" value="Microsoft JhengHei" placeholder="Microsoft JhengHei">
-                    </label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control">
-                      <span class="desktop-lyric-control-copy"><strong>字体大小</strong></span>
-                      <span class="range-row"><input id="desktopLyricFontSize" class="parameter-range parameter-range--scale" type="range" min="24" max="72" step="2" value="56"><input id="desktopLyricFontSizeNumber" type="number" min="24" max="72" step="2" value="56"><span class="desktop-lyric-unit">px</span></span>
-                    </label>
-                    <label class="desktop-lyric-control">
-                      <span class="desktop-lyric-control-copy"><strong>字重</strong></span>
-                      <select id="desktopLyricFontWeight" data-dropdown-variant="settings"><option value="400">正常</option><option value="500">略粗</option><option value="600">较粗</option><option value="700">粗体</option><option value="800" selected>很粗（默认）</option><option value="900">超粗</option></select>
-                    </label>
-                    <div class="desktop-lyric-control">
-                      <span class="desktop-lyric-control-copy"><strong>文字颜色</strong></span>
-                      <input id="desktopLyricTextColor" class="desktop-lyric-color" type="color" value="#000000" aria-label="文字颜色">
-                    </div>
-                    <div class="desktop-lyric-control">
-                      <span class="desktop-lyric-control-copy"><strong>对齐方式</strong></span>
-                      <div id="desktopLyricTextAlign" class="desktop-lyric-align-options" role="radiogroup" aria-label="歌词对齐方式">
-                        <label title="左对齐"><input type="radio" name="desktopLyricTextAlign" value="left" checked><span class="desktop-lyric-align-icon is-left" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">左对齐</span></label>
-                        <label title="居中"><input type="radio" name="desktopLyricTextAlign" value="center"><span class="desktop-lyric-align-icon is-center" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">居中</span></label>
-                        <label title="右对齐"><input type="radio" name="desktopLyricTextAlign" value="right"><span class="desktop-lyric-align-icon is-right" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">右对齐</span></label>
-                        <label title="两端对齐"><input type="radio" name="desktopLyricTextAlign" value="justify"><span class="desktop-lyric-align-icon is-justify" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sr-only">两端对齐</span></label>
-                      </div>
-                    </div>
-                    <label class="desktop-lyric-control desktop-lyric-range-control">
-                      <span class="desktop-lyric-control-copy"><strong>字间距</strong></span>
-                      <span class="range-row"><input id="desktopLyricLetterSpacing" class="parameter-range parameter-range--centered" type="range" min="-0.1" max="0.3" step="0.01" value="0"><input id="desktopLyricLetterSpacingNumber" type="number" min="-0.1" max="0.3" step="0.01" value="0"><span class="desktop-lyric-unit">em</span></span>
-                    </label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control">
-                      <span class="desktop-lyric-control-copy"><strong>行间距</strong></span>
-                      <span class="range-row"><input id="desktopLyricLineHeight" class="parameter-range parameter-range--scale" type="range" min="1" max="2" step="0.1" value="1.4"><input id="desktopLyricLineHeightNumber" type="number" min="100" max="200" step="10" value="140"><span class="desktop-lyric-unit">%</span></span>
-                    </label>
-                  </div>
-                </details>
-
-                <details class="desktop-lyric-settings-group is-effect">
-                  <summary><span><strong>描边与阴影</strong></span><span class="desktop-lyric-group-count">9 项</span></summary>
-                  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>文字描边</strong></span><label class="switch-control"><input id="desktopLyricStrokeEnabled" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>描边颜色</strong></span><input id="desktopLyricStrokeColor" class="desktop-lyric-color" type="color" value="#ffffff" aria-label="描边颜色"></div>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>描边宽度</strong></span><span class="range-row"><input id="desktopLyricStrokeWidth" class="parameter-range parameter-range--scale" type="range" min="0" max="6" step="0.5" value="3"><input id="desktopLyricStrokeWidthNumber" type="number" min="0" max="6" step="0.5" value="3"><span class="desktop-lyric-unit">px</span></span></label>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>文字阴影</strong></span><label class="switch-control"><input id="desktopLyricShadowEnabled" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>阴影颜色</strong></span><input id="desktopLyricShadowColor" class="desktop-lyric-color" type="color" value="#000000" aria-label="阴影颜色"></div>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>阴影强度</strong></span><span class="range-row"><input id="desktopLyricShadowIntensity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.05" value="0.35"><input id="desktopLyricShadowIntensityNumber" type="number" min="0" max="100" step="5" value="35"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>阴影模糊</strong></span><span class="range-row"><input id="desktopLyricShadowBlur" class="parameter-range parameter-range--scale" type="range" min="0" max="30" step="1" value="8"><input id="desktopLyricShadowBlurNumber" type="number" min="0" max="30" step="1" value="8"><span class="desktop-lyric-unit">px</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>阴影水平偏移</strong></span><span class="range-row"><input id="desktopLyricShadowOffsetX" class="parameter-range parameter-range--centered" type="range" min="-20" max="20" step="1" value="0"><input id="desktopLyricShadowOffsetXNumber" type="number" min="-20" max="20" step="1" value="0"><span class="desktop-lyric-unit">px</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>阴影垂直偏移</strong></span><span class="range-row"><input id="desktopLyricShadowOffsetY" class="parameter-range parameter-range--centered" type="range" min="-20" max="20" step="1" value="3"><input id="desktopLyricShadowOffsetYNumber" type="number" min="-20" max="20" step="1" value="3"><span class="desktop-lyric-unit">px</span></span></label>
-                  </div>
-                </details>
-
-                <details class="desktop-lyric-settings-group is-content" open>
-                  <summary><span><strong>显示策略</strong></span><span class="desktop-lyric-group-count">6 项</span></summary>
-                  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <section class="desktop-lyric-karaoke-card" aria-labelledby="desktopLyricKaraokeTitle">
-                      <div class="desktop-lyric-karaoke-heading">
-                        <div class="desktop-lyric-control-copy">
-                          <strong id="desktopLyricKaraokeTitle">逐字高亮方式 <lira-help><span id="desktopLyricKaraokeHint">连续填充更细腻；逐字点亮按时间点切换，更省资源。</span></lira-help></strong>
-                        </div>
-                        <span class="desktop-lyric-karaoke-badge">高亮</span>
-                      </div>
-                      <div id="desktopLyricKaraokeMode" class="desktop-lyric-karaoke-options" role="radiogroup" aria-labelledby="desktopLyricKaraokeTitle" aria-describedby="desktopLyricKaraokeHint">
-                        <label class="desktop-lyric-karaoke-option">
-                          <input type="radio" name="desktopLyricKaraokeMode" value="off">
-                          <span class="desktop-lyric-karaoke-choice"><strong>关闭</strong><small>整句显示</small></span>
-                        </label>
-                        <label class="desktop-lyric-karaoke-option">
-                          <input type="radio" name="desktopLyricKaraokeMode" value="continuous" checked>
-                          <span class="desktop-lyric-karaoke-choice"><strong>连续填充</strong><small>细腻跟随</small></span>
-                        </label>
-                        <label class="desktop-lyric-karaoke-option">
-                          <input type="radio" name="desktopLyricKaraokeMode" value="discrete">
-                          <span class="desktop-lyric-karaoke-choice"><strong>逐字点亮</strong><small>低功耗</small></span>
-                        </label>
-                      </div>
-                      <div class="desktop-lyric-karaoke-legend" aria-label="逐字高亮状态示例">
-                        <span><i class="is-complete" aria-hidden="true">唱</i>已唱</span>
-                        <span><i class="is-upcoming" aria-hidden="true">词</i>未唱</span>
-                      </div>
-                    </section>
-                    <input id="desktopLyricKaraokeEnabled" type="checkbox" hidden>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>显示翻译歌词</strong></span><label class="switch-control"><input id="desktopLyricShowTranslation" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>翻译行缩放比例</strong></span><span class="range-row"><input id="desktopLyricTranslationScale" class="parameter-range parameter-range--scale" type="range" min="0.4" max="1" step="0.05" value="0.65"><input id="desktopLyricTranslationScaleNumber" type="number" min="40" max="100" step="5" value="65"><span class="desktop-lyric-unit">%</span></span></label>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>隐藏已唱歌词</strong></span><label class="switch-control"><input id="desktopLyricHidePassedLines" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>繁体中文模式 <lira-help>优先使用字体的繁体字形。</lira-help></strong></span><label class="switch-control"><input id="desktopLyricTraditionalMode" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>间奏提示点位置</strong></span><span class="range-row"><input id="desktopLyricInterludeOffsetEm" class="parameter-range parameter-range--centered" type="range" min="-10" max="10" step="0.5" value="0"><input id="desktopLyricInterludeOffsetEmNumber" type="number" min="-10" max="10" step="0.5" value="0"><span class="desktop-lyric-unit">em</span></span></label>
-                  </div>
-                </details>
-
-                <details class="desktop-lyric-settings-group is-visibility">
-                  <summary><span><strong>可见性与同步</strong></span><span class="desktop-lyric-group-count">8 项</span></summary>
-                  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>暂停时隐藏</strong></span><label class="switch-control"><input id="desktopLyricHideOnPause" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>增强当前歌词行</strong></span><label class="switch-control"><input id="desktopLyricCurrentLineEnhanced" type="checkbox" checked><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>歌词文字不透明度</strong></span><span class="range-row"><input id="desktopLyricOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.05" value="0.95"><input id="desktopLyricOpacityNumber" type="number" min="0" max="100" step="5" value="95"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>未唱歌词不透明度</strong></span><span class="range-row"><input id="desktopLyricBaseOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.05" value="0.38"><input id="desktopLyricBaseOpacityNumber" type="number" min="0" max="100" step="5" value="38"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>翻译歌词不透明度</strong></span><span class="range-row"><input id="desktopLyricTranslationOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.05" value="0.72"><input id="desktopLyricTranslationOpacityNumber" type="number" min="0" max="100" step="5" value="72"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>时间偏移 <lira-help>正值让歌词提前；负值让歌词延后。</lira-help></strong></span><span class="range-row"><input id="desktopLyricTimeOffsetMs" class="parameter-range parameter-range--centered" type="range" min="-5000" max="5000" step="50" value="0"><input id="desktopLyricTimeOffsetMsNumber" type="number" min="-5000" max="5000" step="50" value="0"><span class="desktop-lyric-unit">ms</span></span></label>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>无歌词显示歌名</strong></span><label class="switch-control"><input id="desktopLyricShowTitleWhenNoLyric" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <label class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>无歌词提示文字 <lira-help>没有歌词和歌名时显示。</lira-help></strong></span><input id="desktopLyricNoLyricText" type="text" value="纯音乐，请欣赏" maxlength="80"></label>
-                  </div>
-                </details>
-
-                <details class="desktop-lyric-settings-group is-layout">
-                  <summary><span><strong>动画与布局</strong></span><span class="desktop-lyric-group-count">12 项</span></summary>
-                  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>弹性动画 <lira-help><span id="desktopLyricSpringHint">切换歌词时显示回弹；会持续计算位置，性能充足时再开启。</span></lira-help></strong></span><label class="switch-control"><input id="desktopLyricSpringAnimation" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>模糊效果 <lira-help><span id="desktopLyricBlurHint">模糊非当前歌词行；会增加合成压力，性能充足时再开启。</span></lira-help></strong></span><label class="switch-control"><input id="desktopLyricBlurEffect" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>缩放效果</strong></span><label class="switch-control"><input id="desktopLyricScaleEffect" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <label class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>显示歌词行数 <lira-help>0 显示整首；1 只显示当前句；偶数向下多一行。</lira-help></strong></span><input id="desktopLyricVisibleLines" type="number" min="0" max="99" step="1" value="0" inputmode="numeric"></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>整体缩放</strong></span><span class="range-row"><input id="desktopLyricScale" class="parameter-range parameter-range--scale" type="range" min="0.5" max="2" step="0.1" value="1"><input id="desktopLyricScaleNumber" type="number" min="50" max="200" step="10" value="100"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>基准对齐位置 <lira-help>控制当前歌词行的垂直位置。</lira-help></strong></span><span class="range-row"><input id="desktopLyricAlignPosition" class="parameter-range parameter-range--scale" type="range" min="0" max="1" step="0.05" value="0.5"><input id="desktopLyricAlignPositionNumber" type="number" min="0" max="100" step="5" value="50"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>基准对齐方式 <lira-help>控制当前歌词行的锚点。</lira-help></strong></span><select id="desktopLyricAlignAnchor" data-dropdown-variant="settings"><option value="start">行首</option><option value="center" selected>行中</option><option value="end">行尾</option></select></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>水平位移</strong></span><span class="range-row"><input id="desktopLyricTranslateX" class="parameter-range parameter-range--centered" type="range" min="-500" max="500" step="5" value="0"><input id="desktopLyricTranslateXNumber" type="number" min="-500" max="500" step="5" value="0"><span class="desktop-lyric-unit">px</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>垂直位移</strong></span><span class="range-row"><input id="desktopLyricTranslateY" class="parameter-range parameter-range--centered" type="range" min="-500" max="500" step="5" value="0"><input id="desktopLyricTranslateYNumber" type="number" min="-500" max="500" step="5" value="0"><span class="desktop-lyric-unit">px</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>3D 透视强度</strong></span><span class="range-row"><input id="desktopLyricPerspective" class="parameter-range parameter-range--scale" type="range" min="200" max="2000" step="50" value="800"><input id="desktopLyricPerspectiveNumber" type="number" min="200" max="2000" step="50" value="800"><span class="desktop-lyric-unit">px</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>上下倾斜角度</strong></span><span class="range-row"><input id="desktopLyricRotateX" class="parameter-range parameter-range--centered" type="range" min="-45" max="45" step="1" value="0"><input id="desktopLyricRotateXNumber" type="number" min="-45" max="45" step="1" value="0"><span class="desktop-lyric-unit">deg</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>左右倾斜角度</strong></span><span class="range-row"><input id="desktopLyricRotateY" class="parameter-range parameter-range--centered" type="range" min="-45" max="45" step="1" value="0"><input id="desktopLyricRotateYNumber" type="number" min="-45" max="45" step="1" value="0"><span class="desktop-lyric-unit">deg</span></span></label>
-                  </div>
-                </details>
-
-                <details class="desktop-lyric-settings-group is-render">
-                  <summary><span><strong>背景与渲染</strong></span><span class="desktop-lyric-group-count">7 项</span></summary>
-                  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-                    <div class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>显示背景</strong></span><label class="switch-control"><input id="desktopLyricBackgroundEnabled" type="checkbox"><span class="switch-track" aria-hidden="true"></span></label></div>
-                    <label class="desktop-lyric-control"><span class="desktop-lyric-control-copy"><strong>背景渲染器</strong></span><select id="desktopLyricBackgroundRenderer" data-dropdown-variant="settings"><option value="mesh" selected>网格渐变</option><option value="aurora">柔光渐变</option><option value="solid">纯色暗幕</option></select></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>背景不透明度 <lira-help>控制背景图层强度。</lira-help></strong></span><span class="range-row"><input id="desktopLyricBgOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.05" value="0.15"><input id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>全局不透明度 <lira-help>控制整个歌词画面的不透明度。</lira-help></strong></span><span class="range-row"><input id="desktopLyricGlobalOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.05" value="1"><input id="desktopLyricGlobalOpacityNumber" type="number" min="0" max="100" step="5" value="100"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>亮度</strong></span><span class="range-row"><input id="desktopLyricBrightness" class="parameter-range parameter-range--intensity" type="range" min="0.2" max="2" step="0.05" value="1"><input id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>对比度</strong></span><span class="range-row"><input id="desktopLyricContrast" class="parameter-range parameter-range--intensity" type="range" min="0.2" max="2" step="0.05" value="1"><input id="desktopLyricContrastNumber" type="number" min="20" max="200" step="5" value="100"><span class="desktop-lyric-unit">%</span></span></label>
-                    <label class="desktop-lyric-control desktop-lyric-range-control"><span class="desktop-lyric-control-copy"><strong>饱和度</strong></span><span class="range-row"><input id="desktopLyricSaturation" class="parameter-range parameter-range--intensity" type="range" min="0" max="2" step="0.05" value="1"><input id="desktopLyricSaturationNumber" type="number" min="0" max="200" step="5" value="100"><span class="desktop-lyric-unit">%</span></span></label>
-                  </div>
-                </details>
-
-                <section class="desktop-lyric-settings-group desktop-lyric-reset-group">
-                  <header><span><strong>操作 <lira-help>只重置桌面歌词显示，不改变全民 K 歌歌词源。</lira-help></strong></span></header>
-                  <button id="desktopLyricResetBtn" class="desktop-lyric-reset-button" type="button">恢复默认</button>
-                </section>
-              </div>
-
-            </section>
-            <section id="desktopLyricLivePreview" class="desktop-lyric-preview-card" aria-labelledby="desktopLyricPreviewTitle">
-              <header class="desktop-lyric-preview-header">
-                <div>
-                  <h3 id="desktopLyricPreviewTitle">桌面歌词实时预览</h3>
-                </div>
-                <div class="desktop-lyric-preview-tools">
-                  <div class="desktop-lyric-preview-backgrounds" aria-label="预览背景">
-                    <button class="active" type="button" data-lyric-preview-background="grid" aria-pressed="true">网格背景</button>
-                    <button type="button" data-lyric-preview-background="solid" aria-pressed="false">纯色背景</button>
-                  </div>
-                  <button id="desktopLyricCopyUrlBtn" type="button">复制桌面歌词</button>
-                  <span id="desktopLyricPreviewStatus" class="pill warn">等待播放</span>
-                </div>
-              </header>
-              <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage">
-                <div id="desktopLyricPreviewViewport" class="desktop-lyric-preview-viewport" tabindex="0" aria-label="完整歌词，可上下滚动查看">
-                  <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list">
-                    <div class="desktop-lyric-preview-empty">等待播放 · 歌词将在载入后完整显示</div>
-                  </div>
-                </div>
-                <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
-                <div class="desktop-lyric-preview-progress" aria-hidden="true"><span id="desktopLyricPreviewProgress"></span></div>
-              </div>
-            </section>
+<div id="desktopLyricPage" class="tab-page">
+  <div class="panel-body">
+    <div class="desktop-lyric-workspace">
+      <section
+        id="desktopLyricForm"
+        class="desktop-lyric-settings stack"
+        aria-labelledby="desktopLyricSettingsTitle"
+      >
+        <header class="desktop-lyric-settings-header">
+          <div>
+            <h3 id="desktopLyricSettingsTitle">歌词样式</h3>
+          </div>
+          <span
+            id="desktopLyricAutosaveState"
+            class="desktop-lyric-autosave-state"
+            aria-live="polite"
+            >更改会自动保存</span
+          >
+        </header>
+        <fieldset class="theme-section desktop-lyric-source-settings">
+          <legend>
+            全民 K 歌在线歌词
+            <lira-help
+              ><span id="weSingLyricSourceHint"
+                >仅在本地 QRC 不可用；不影响 QQ
+                音乐和网易云音乐的歌词来源。</span
+              ></lira-help
+            >
+          </legend>
+          <div class="desktop-lyric-source-picker">
+            <span id="weSingLyricSourceLabel" class="desktop-lyric-source-label"
+              >首选歌词源</span
+            >
+            <div
+              class="desktop-lyric-source-options"
+              role="radiogroup"
+              aria-labelledby="weSingLyricSourceLabel"
+              aria-describedby="weSingLyricSourceHint"
+            >
+              <label class="desktop-lyric-source-option">
+                <input
+                  type="radio"
+                  name="weSingLyricSource"
+                  value="netease"
+                  checked
+                />
+                <span class="desktop-lyric-source-choice">
+                  <img
+                    src="/img/playback/netease-music-icon.ico"
+                    alt=""
+                    draggable="false"
+                  />
+                  网易云音乐
+                </span>
+              </label>
+              <label class="desktop-lyric-source-option">
+                <input type="radio" name="weSingLyricSource" value="qq" />
+                <span class="desktop-lyric-source-choice">
+                  <img
+                    src="/img/playback/qqmusic-icon.webp"
+                    alt=""
+                    draggable="false"
+                  />
+                  QQ 音乐
+                </span>
+              </label>
             </div>
           </div>
+          <div class="desktop-lyric-smart-match-row">
+            <div class="desktop-lyric-smart-match-copy">
+              <strong id="weSingSmartLyricMatchLabel"
+                >智能匹配最佳歌词
+                <lira-help
+                  ><span id="weSingSmartLyricMatchHint"
+                    >同时查询两种歌词源并选更完整的结果；结果接近时使用首选源。</span
+                  ></lira-help
+                ></strong
+              >
+            </div>
+            <label class="switch-control">
+              <input
+                id="weSingSmartLyricMatch"
+                type="checkbox"
+                checked
+                aria-labelledby="weSingSmartLyricMatchLabel"
+                aria-describedby="weSingLyricSourceHint weSingSmartLyricMatchHint"
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="desktop-lyric-setting-groups">
+          <details class="desktop-lyric-settings-group is-basic" open>
+            <summary>
+              <span><strong>基础样式</strong></span
+              ><span class="desktop-lyric-group-count">8 项</span>
+            </summary>
+            <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+              <div class="desktop-lyric-control desktop-lyric-font-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>主字体</strong></span
+                >
+                <div class="desktop-lyric-font-picker">
+                  <select
+                    id="desktopLyricFontFamily"
+                    data-dropdown-variant="settings"
+                  >
+                    <option
+                      value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
+                    >
+                      中日英韩通用
+                    </option>
+                    <option value="Microsoft YaHei">微软雅黑（默认）</option>
+                    <option value="PingFang SC, Microsoft YaHei, sans-serif">
+                      苹方 · 现代简约
+                    </option>
+                    <option value="SimHei, Microsoft YaHei, sans-serif">
+                      黑体 · 醒目有力
+                    </option>
+                    <option value="KaiTi, STKaiti, serif">
+                      楷体 · 优雅手写
+                    </option>
+                    <option value="system-ui, -apple-system, sans-serif">
+                      系统圆体 · 圆润可爱
+                    </option>
+                    <option value="SimSun, STSong, serif">
+                      宋体 · 传统典雅
+                    </option>
+                    <option
+                      value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif"
+                    >
+                      思源黑体 · 清晰现代
+                    </option>
+                    <option value="YouYuan, STYuanti, PingFang SC, sans-serif">
+                      幼圆 · 圆润亲切
+                    </option>
+                    <option value="Georgia, Times New Roman, STSong, serif">
+                      Georgia · 优雅衬线
+                    </option>
+                    <option value="Courier New, Consolas, monospace">
+                      等宽字体 · 极客风格
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <label class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong
+                    >备选字体
+                    <lira-help>主字体缺少字符时使用。</lira-help></strong
+                  ></span
+                >
+                <input
+                  id="desktopLyricFallbackFontFamily"
+                  type="text"
+                  value="Microsoft JhengHei"
+                  placeholder="Microsoft JhengHei"
+                />
+              </label>
+              <label class="desktop-lyric-control desktop-lyric-range-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>字体大小</strong></span
+                >
+                <span class="range-row"
+                  ><input
+                    id="desktopLyricFontSize"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="24"
+                    max="72"
+                    step="2"
+                    value="56"
+                  /><input
+                    id="desktopLyricFontSizeNumber"
+                    type="number"
+                    min="24"
+                    max="72"
+                    step="2"
+                    value="56"
+                  /><span class="desktop-lyric-unit">px</span></span
+                >
+              </label>
+              <label class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>字重</strong></span
+                >
+                <select
+                  id="desktopLyricFontWeight"
+                  data-dropdown-variant="settings"
+                >
+                  <option value="400">正常</option>
+                  <option value="500">略粗</option>
+                  <option value="600">较粗</option>
+                  <option value="700">粗体</option>
+                  <option value="800" selected>很粗（默认）</option>
+                  <option value="900">超粗</option>
+                </select>
+              </label>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>文字颜色</strong></span
+                >
+                <input
+                  id="desktopLyricTextColor"
+                  class="desktop-lyric-color"
+                  type="color"
+                  value="#000000"
+                  aria-label="文字颜色"
+                />
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>对齐方式</strong></span
+                >
+                <div
+                  id="desktopLyricTextAlign"
+                  class="desktop-lyric-align-options"
+                  role="radiogroup"
+                  aria-label="歌词对齐方式"
+                >
+                  <label title="左对齐"
+                    ><input
+                      type="radio"
+                      name="desktopLyricTextAlign"
+                      value="left"
+                      checked
+                    /><span
+                      class="desktop-lyric-align-icon is-left"
+                      aria-hidden="true"
+                      ><i></i><i></i><i></i><i></i></span
+                    ><span class="sr-only">左对齐</span></label
+                  >
+                  <label title="居中"
+                    ><input
+                      type="radio"
+                      name="desktopLyricTextAlign"
+                      value="center"
+                    /><span
+                      class="desktop-lyric-align-icon is-center"
+                      aria-hidden="true"
+                      ><i></i><i></i><i></i><i></i></span
+                    ><span class="sr-only">居中</span></label
+                  >
+                  <label title="右对齐"
+                    ><input
+                      type="radio"
+                      name="desktopLyricTextAlign"
+                      value="right"
+                    /><span
+                      class="desktop-lyric-align-icon is-right"
+                      aria-hidden="true"
+                      ><i></i><i></i><i></i><i></i></span
+                    ><span class="sr-only">右对齐</span></label
+                  >
+                  <label title="两端对齐"
+                    ><input
+                      type="radio"
+                      name="desktopLyricTextAlign"
+                      value="justify"
+                    /><span
+                      class="desktop-lyric-align-icon is-justify"
+                      aria-hidden="true"
+                      ><i></i><i></i><i></i><i></i></span
+                    ><span class="sr-only">两端对齐</span></label
+                  >
+                </div>
+              </div>
+              <label class="desktop-lyric-control desktop-lyric-range-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>字间距</strong></span
+                >
+                <span class="range-row"
+                  ><input
+                    id="desktopLyricLetterSpacing"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-0.1"
+                    max="0.3"
+                    step="0.01"
+                    value="0"
+                  /><input
+                    id="desktopLyricLetterSpacingNumber"
+                    type="number"
+                    min="-0.1"
+                    max="0.3"
+                    step="0.01"
+                    value="0"
+                  /><span class="desktop-lyric-unit">em</span></span
+                >
+              </label>
+              <label class="desktop-lyric-control desktop-lyric-range-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>行间距</strong></span
+                >
+                <span class="range-row"
+                  ><input
+                    id="desktopLyricLineHeight"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="1"
+                    max="2"
+                    step="0.1"
+                    value="1.4"
+                  /><input
+                    id="desktopLyricLineHeightNumber"
+                    type="number"
+                    min="100"
+                    max="200"
+                    step="10"
+                    value="140"
+                  /><span class="desktop-lyric-unit">%</span></span
+                >
+              </label>
+            </div>
+          </details>
+
+          <details class="desktop-lyric-settings-group is-effect">
+            <summary>
+              <span><strong>描边与阴影</strong></span
+              ><span class="desktop-lyric-group-count">9 项</span>
+            </summary>
+            <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>文字描边</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricStrokeEnabled"
+                    type="checkbox"
+                    checked /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>描边颜色</strong></span
+                ><input
+                  id="desktopLyricStrokeColor"
+                  class="desktop-lyric-color"
+                  type="color"
+                  value="#ffffff"
+                  aria-label="描边颜色"
+                />
+              </div>
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>描边宽度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricStrokeWidth"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="0"
+                    max="6"
+                    step="0.5"
+                    value="3"
+                  /><input
+                    id="desktopLyricStrokeWidthNumber"
+                    type="number"
+                    min="0"
+                    max="6"
+                    step="0.5"
+                    value="3"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>文字阴影</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricShadowEnabled"
+                    type="checkbox"
+                    checked /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>阴影颜色</strong></span
+                ><input
+                  id="desktopLyricShadowColor"
+                  class="desktop-lyric-color"
+                  type="color"
+                  value="#000000"
+                  aria-label="阴影颜色"
+                />
+              </div>
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>阴影强度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricShadowIntensity"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="0.35"
+                  /><input
+                    id="desktopLyricShadowIntensityNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="35"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>阴影模糊</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricShadowBlur"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="0"
+                    max="30"
+                    step="1"
+                    value="8"
+                  /><input
+                    id="desktopLyricShadowBlurNumber"
+                    type="number"
+                    min="0"
+                    max="30"
+                    step="1"
+                    value="8"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>阴影水平偏移</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricShadowOffsetX"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-20"
+                    max="20"
+                    step="1"
+                    value="0"
+                  /><input
+                    id="desktopLyricShadowOffsetXNumber"
+                    type="number"
+                    min="-20"
+                    max="20"
+                    step="1"
+                    value="0"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>阴影垂直偏移</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricShadowOffsetY"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-20"
+                    max="20"
+                    step="1"
+                    value="3"
+                  /><input
+                    id="desktopLyricShadowOffsetYNumber"
+                    type="number"
+                    min="-20"
+                    max="20"
+                    step="1"
+                    value="3"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+            </div>
+          </details>
+
+          <details class="desktop-lyric-settings-group is-content" open>
+            <summary>
+              <span><strong>显示策略</strong></span
+              ><span class="desktop-lyric-group-count">6 项</span>
+            </summary>
+            <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+              <section
+                class="desktop-lyric-karaoke-card"
+                aria-labelledby="desktopLyricKaraokeTitle"
+              >
+                <div class="desktop-lyric-karaoke-heading">
+                  <div class="desktop-lyric-control-copy">
+                    <strong id="desktopLyricKaraokeTitle"
+                      >逐字高亮方式
+                      <lira-help
+                        ><span id="desktopLyricKaraokeHint"
+                          >连续填充更细腻；逐字点亮按时间点切换，更省资源。</span
+                        ></lira-help
+                      ></strong
+                    >
+                  </div>
+                  <span class="desktop-lyric-karaoke-badge">高亮</span>
+                </div>
+                <div
+                  id="desktopLyricKaraokeMode"
+                  class="desktop-lyric-karaoke-options"
+                  role="radiogroup"
+                  aria-labelledby="desktopLyricKaraokeTitle"
+                  aria-describedby="desktopLyricKaraokeHint"
+                >
+                  <label class="desktop-lyric-karaoke-option">
+                    <input
+                      type="radio"
+                      name="desktopLyricKaraokeMode"
+                      value="off"
+                    />
+                    <span class="desktop-lyric-karaoke-choice"
+                      ><strong>关闭</strong><small>整句显示</small></span
+                    >
+                  </label>
+                  <label class="desktop-lyric-karaoke-option">
+                    <input
+                      type="radio"
+                      name="desktopLyricKaraokeMode"
+                      value="continuous"
+                      checked
+                    />
+                    <span class="desktop-lyric-karaoke-choice"
+                      ><strong>连续填充</strong><small>细腻跟随</small></span
+                    >
+                  </label>
+                  <label class="desktop-lyric-karaoke-option">
+                    <input
+                      type="radio"
+                      name="desktopLyricKaraokeMode"
+                      value="discrete"
+                    />
+                    <span class="desktop-lyric-karaoke-choice"
+                      ><strong>逐字点亮</strong><small>低功耗</small></span
+                    >
+                  </label>
+                </div>
+                <div
+                  class="desktop-lyric-karaoke-legend"
+                  aria-label="逐字高亮状态示例"
+                >
+                  <span
+                    ><i class="is-complete" aria-hidden="true">唱</i>已唱</span
+                  >
+                  <span
+                    ><i class="is-upcoming" aria-hidden="true">词</i>未唱</span
+                  >
+                </div>
+              </section>
+              <input id="desktopLyricKaraokeEnabled" type="checkbox" hidden />
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>显示翻译歌词</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricShowTranslation"
+                    type="checkbox"
+                    checked /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>翻译行缩放比例</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricTranslationScale"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="0.4"
+                    max="1"
+                    step="0.05"
+                    value="0.65"
+                  /><input
+                    id="desktopLyricTranslationScaleNumber"
+                    type="number"
+                    min="40"
+                    max="100"
+                    step="5"
+                    value="65"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>隐藏已唱歌词</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricHidePassedLines"
+                    type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong
+                    >繁体中文模式
+                    <lira-help>优先使用字体的繁体字形。</lira-help></strong
+                  ></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricTraditionalMode"
+                    type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>间奏提示点位置</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricInterludeOffsetEm"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.5"
+                    value="0"
+                  /><input
+                    id="desktopLyricInterludeOffsetEmNumber"
+                    type="number"
+                    min="-10"
+                    max="10"
+                    step="0.5"
+                    value="0"
+                  /><span class="desktop-lyric-unit">em</span></span
+                ></label
+              >
+            </div>
+          </details>
+
+          <details class="desktop-lyric-settings-group is-visibility">
+            <summary>
+              <span><strong>可见性与同步</strong></span
+              ><span class="desktop-lyric-group-count">8 项</span>
+            </summary>
+            <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>暂停时隐藏</strong></span
+                ><label class="switch-control"
+                  ><input id="desktopLyricHideOnPause" type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>增强当前歌词行</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricCurrentLineEnhanced"
+                    type="checkbox"
+                    checked /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>歌词文字不透明度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricOpacity"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="0.95"
+                  /><input
+                    id="desktopLyricOpacityNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="95"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>未唱歌词不透明度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricBaseOpacity"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="0.38"
+                  /><input
+                    id="desktopLyricBaseOpacityNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="38"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>翻译歌词不透明度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricTranslationOpacity"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="0.72"
+                  /><input
+                    id="desktopLyricTranslationOpacityNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="72"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >时间偏移
+                    <lira-help
+                      >正值让歌词提前；负值让歌词延后。</lira-help
+                    ></strong
+                  ></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricTimeOffsetMs"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-5000"
+                    max="5000"
+                    step="50"
+                    value="0"
+                  /><input
+                    id="desktopLyricTimeOffsetMsNumber"
+                    type="number"
+                    min="-5000"
+                    max="5000"
+                    step="50"
+                    value="0"
+                  /><span class="desktop-lyric-unit">ms</span></span
+                ></label
+              >
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>无歌词显示歌名</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricShowTitleWhenNoLyric"
+                    type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <label class="desktop-lyric-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >无歌词提示文字
+                    <lira-help>没有歌词和歌名时显示。</lira-help></strong
+                  ></span
+                ><input
+                  id="desktopLyricNoLyricText"
+                  type="text"
+                  value="纯音乐，请欣赏"
+                  maxlength="80"
+              /></label>
+            </div>
+          </details>
+
+          <details class="desktop-lyric-settings-group is-layout">
+            <summary>
+              <span><strong>动画与布局</strong></span
+              ><span class="desktop-lyric-group-count">12 项</span>
+            </summary>
+            <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong
+                    >弹性动画
+                    <lira-help
+                      ><span id="desktopLyricSpringHint"
+                        >切换歌词时显示回弹；会持续计算位置，性能充足时再开启。</span
+                      ></lira-help
+                    ></strong
+                  ></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricSpringAnimation"
+                    type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong
+                    >模糊效果
+                    <lira-help
+                      ><span id="desktopLyricBlurHint"
+                        >模糊非当前歌词行；会增加合成压力，性能充足时再开启。</span
+                      ></lira-help
+                    ></strong
+                  ></span
+                ><label class="switch-control"
+                  ><input id="desktopLyricBlurEffect" type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>缩放效果</strong></span
+                ><label class="switch-control"
+                  ><input id="desktopLyricScaleEffect" type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <label class="desktop-lyric-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >显示歌词行数
+                    <lira-help
+                      >0 显示整首；1 只显示当前句；偶数向下多一行。</lira-help
+                    ></strong
+                  ></span
+                ><input
+                  id="desktopLyricVisibleLines"
+                  type="number"
+                  min="0"
+                  max="99"
+                  step="1"
+                  value="0"
+                  inputmode="numeric"
+              /></label>
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>整体缩放</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricScale"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value="1"
+                  /><input
+                    id="desktopLyricScaleNumber"
+                    type="number"
+                    min="50"
+                    max="200"
+                    step="10"
+                    value="100"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >基准对齐位置
+                    <lira-help>控制当前歌词行的垂直位置。</lira-help></strong
+                  ></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricAlignPosition"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="0.5"
+                  /><input
+                    id="desktopLyricAlignPositionNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="50"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >基准对齐方式
+                    <lira-help>控制当前歌词行的锚点。</lira-help></strong
+                  ></span
+                ><select
+                  id="desktopLyricAlignAnchor"
+                  data-dropdown-variant="settings"
+                >
+                  <option value="start">行首</option>
+                  <option value="center" selected>行中</option>
+                  <option value="end">行尾</option>
+                </select></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>水平位移</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricTranslateX"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-500"
+                    max="500"
+                    step="5"
+                    value="0"
+                  /><input
+                    id="desktopLyricTranslateXNumber"
+                    type="number"
+                    min="-500"
+                    max="500"
+                    step="5"
+                    value="0"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>垂直位移</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricTranslateY"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-500"
+                    max="500"
+                    step="5"
+                    value="0"
+                  /><input
+                    id="desktopLyricTranslateYNumber"
+                    type="number"
+                    min="-500"
+                    max="500"
+                    step="5"
+                    value="0"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>3D 透视强度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricPerspective"
+                    class="parameter-range parameter-range--scale"
+                    type="range"
+                    min="200"
+                    max="2000"
+                    step="50"
+                    value="800"
+                  /><input
+                    id="desktopLyricPerspectiveNumber"
+                    type="number"
+                    min="200"
+                    max="2000"
+                    step="50"
+                    value="800"
+                  /><span class="desktop-lyric-unit">px</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>上下倾斜角度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricRotateX"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value="0"
+                  /><input
+                    id="desktopLyricRotateXNumber"
+                    type="number"
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value="0"
+                  /><span class="desktop-lyric-unit">deg</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>左右倾斜角度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricRotateY"
+                    class="parameter-range parameter-range--centered"
+                    type="range"
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value="0"
+                  /><input
+                    id="desktopLyricRotateYNumber"
+                    type="number"
+                    min="-45"
+                    max="45"
+                    step="1"
+                    value="0"
+                  /><span class="desktop-lyric-unit">deg</span></span
+                ></label
+              >
+            </div>
+          </details>
+
+          <details class="desktop-lyric-settings-group is-render">
+            <summary>
+              <span><strong>背景与渲染</strong></span
+              ><span class="desktop-lyric-group-count">7 项</span>
+            </summary>
+            <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+              <div class="desktop-lyric-control">
+                <span class="desktop-lyric-control-copy"
+                  ><strong>显示背景</strong></span
+                ><label class="switch-control"
+                  ><input
+                    id="desktopLyricBackgroundEnabled"
+                    type="checkbox" /><span
+                    class="switch-track"
+                    aria-hidden="true"
+                  ></span
+                ></label>
+              </div>
+              <label class="desktop-lyric-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>背景渲染器</strong></span
+                ><select
+                  id="desktopLyricBackgroundRenderer"
+                  data-dropdown-variant="settings"
+                >
+                  <option value="mesh" selected>网格渐变</option>
+                  <option value="aurora">柔光渐变</option>
+                  <option value="solid">纯色暗幕</option>
+                </select></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >背景不透明度
+                    <lira-help>控制背景图层强度。</lira-help></strong
+                  ></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricBgOpacity"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="0.15"
+                  /><input
+                    id="desktopLyricBgOpacityNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="15"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong
+                    >全局不透明度
+                    <lira-help>控制整个歌词画面的不透明度。</lira-help></strong
+                  ></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricGlobalOpacity"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value="1"
+                  /><input
+                    id="desktopLyricGlobalOpacityNumber"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value="100"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>亮度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricBrightness"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0.2"
+                    max="2"
+                    step="0.05"
+                    value="1"
+                  /><input
+                    id="desktopLyricBrightnessNumber"
+                    type="number"
+                    min="20"
+                    max="200"
+                    step="5"
+                    value="100"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>对比度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricContrast"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0.2"
+                    max="2"
+                    step="0.05"
+                    value="1"
+                  /><input
+                    id="desktopLyricContrastNumber"
+                    type="number"
+                    min="20"
+                    max="200"
+                    step="5"
+                    value="100"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+              <label class="desktop-lyric-control desktop-lyric-range-control"
+                ><span class="desktop-lyric-control-copy"
+                  ><strong>饱和度</strong></span
+                ><span class="range-row"
+                  ><input
+                    id="desktopLyricSaturation"
+                    class="parameter-range parameter-range--intensity"
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.05"
+                    value="1"
+                  /><input
+                    id="desktopLyricSaturationNumber"
+                    type="number"
+                    min="0"
+                    max="200"
+                    step="5"
+                    value="100"
+                  /><span class="desktop-lyric-unit">%</span></span
+                ></label
+              >
+            </div>
+          </details>
+
+          <section
+            class="desktop-lyric-settings-group desktop-lyric-reset-group"
+          >
+            <header>
+              <span
+                ><strong
+                  >操作
+                  <lira-help
+                    >只重置桌面歌词显示，不改变全民 K 歌歌词源。</lira-help
+                  ></strong
+                ></span
+              >
+            </header>
+            <button
+              id="desktopLyricResetBtn"
+              class="desktop-lyric-reset-button"
+              type="button"
+            >
+              恢复默认
+            </button>
+          </section>
         </div>
+      </section>
+      <section
+        id="desktopLyricLivePreview"
+        class="desktop-lyric-preview-card"
+        aria-labelledby="desktopLyricPreviewTitle"
+      >
+        <header class="desktop-lyric-preview-header">
+          <div>
+            <h3 id="desktopLyricPreviewTitle">桌面歌词实时预览</h3>
+          </div>
+          <div class="desktop-lyric-preview-tools">
+            <div
+              class="desktop-lyric-preview-backgrounds"
+              aria-label="预览背景"
+            >
+              <button
+                class="active"
+                type="button"
+                data-lyric-preview-background="grid"
+                aria-pressed="true"
+              >
+                网格背景
+              </button>
+              <button
+                type="button"
+                data-lyric-preview-background="solid"
+                aria-pressed="false"
+              >
+                纯色背景
+              </button>
+            </div>
+            <button id="desktopLyricCopyUrlBtn" type="button">
+              复制桌面歌词
+            </button>
+            <span id="desktopLyricPreviewStatus" class="pill warn"
+              >等待播放</span
+            >
+          </div>
+        </header>
+        <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage">
+          <div
+            id="desktopLyricPreviewViewport"
+            class="desktop-lyric-preview-viewport"
+            tabindex="0"
+            aria-label="完整歌词，可上下滚动查看"
+          >
+            <div
+              id="desktopLyricPreviewTimeline"
+              class="desktop-lyric-preview-timeline"
+              role="list"
+            >
+              <div class="desktop-lyric-preview-empty">
+                等待播放 · 歌词将在载入后完整显示
+              </div>
+            </div>
+          </div>
+          <div
+            id="desktopLyricPreviewPlayback"
+            class="desktop-lyric-preview-playback"
+            aria-live="polite"
+          ></div>
+          <div class="desktop-lyric-preview-progress" aria-hidden="true">
+            <span id="desktopLyricPreviewProgress"></span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

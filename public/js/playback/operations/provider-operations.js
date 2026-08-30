@@ -20,7 +20,7 @@ export function createProviderOperations(deps) {
     getPlaybackAudio,
     toast,
     showError,
-    U
+    U,
   } = deps;
 
   let playbackAuthState = null;
@@ -34,7 +34,11 @@ export function createProviderOperations(deps) {
     const platform = playbackState.selectedSource;
     const refreshId = ++playbackProviderRefreshId;
     await weSingService.setSelected(platform === 'wesing');
-    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
+    if (
+      refreshId !== playbackProviderRefreshId ||
+      playbackState.selectedSource !== platform
+    )
+      return;
     if (platform === 'wesing') {
       playbackAuthState = weSingService.getAuthState();
       playbackProviderHealth = weSingService.getProviderHealth();
@@ -43,20 +47,29 @@ export function createProviderOperations(deps) {
     }
     const [authResult, healthResult] = await Promise.allSettled([
       providerManager.refreshAuthState({ platform, notify: false }),
-      providerManager.checkProviderHealth({ platform, silent: true, notify: false })
+      providerManager.checkProviderHealth({
+        platform,
+        silent: true,
+        notify: false,
+      }),
     ]);
 
-    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
-    playbackAuthState = authResult.status === 'fulfilled'
-      ? authResult.value
-      : providerManager.getAuthState(platform);
+    if (
+      refreshId !== playbackProviderRefreshId ||
+      playbackState.selectedSource !== platform
+    )
+      return;
+    playbackAuthState =
+      authResult.status === 'fulfilled'
+        ? authResult.value
+        : providerManager.getAuthState(platform);
     playbackProviderHealth = providerManager.getProviderHealth(platform);
     if (!playbackProviderHealth && healthResult.status === 'rejected') {
       playbackProviderHealth = {
         source: platform,
         ok: false,
         status: 'error',
-        message: healthResult.reason?.message || String(healthResult.reason)
+        message: healthResult.reason?.message || String(healthResult.reason),
       };
     }
     renderPlayback();
@@ -72,7 +85,10 @@ export function createProviderOperations(deps) {
       renderPlayback();
       return playbackAuthState;
     }
-    const authState = await providerManager.refreshAuthState({ platform, notify: false });
+    const authState = await providerManager.refreshAuthState({
+      platform,
+      notify: false,
+    });
     if (playbackState.selectedSource === platform) {
       playbackAuthState = authState;
       renderPlayback();
@@ -96,7 +112,7 @@ export function createProviderOperations(deps) {
       const healthState = await providerManager.checkProviderHealth({
         platform,
         silent: true,
-        notify: false
+        notify: false,
       });
       if (playbackState.selectedSource !== platform) return healthState;
       playbackProviderHealth = healthState;
@@ -107,20 +123,23 @@ export function createProviderOperations(deps) {
             key: `playback-health:${platform}`,
             title: healthOk ? '接口检查通过' : '接口状态异常',
             message: playbackProviderHealth.message || '音乐接口检查完成',
-            className: healthOk ? 'playback-health-toast-good' : 'playback-health-toast-warn',
-            duration: 3800
+            className: healthOk
+              ? 'playback-health-toast-good'
+              : 'playback-health-toast-warn',
+            duration: 3800,
           });
         } else {
           toast(playbackProviderHealth.message || '音乐接口检查完成');
         }
       }
     } catch (error) {
-      if (playbackState.selectedSource !== platform) return providerManager.getProviderHealth(platform);
+      if (playbackState.selectedSource !== platform)
+        return providerManager.getProviderHealth(platform);
       playbackProviderHealth = {
         source: platform,
         ok: false,
         status: 'error',
-        message: error.message || String(error)
+        message: error.message || String(error),
       };
       if (!options.silent) showError(error);
     }
@@ -149,7 +168,7 @@ export function createProviderOperations(deps) {
         title: 'Cookie 已刷新',
         message: `${PlaybackUtils.getSourceName(platform)}登录窗口已关闭`,
         className: 'music-cookie-refreshed-toast',
-        duration: 3600
+        duration: 3600,
       });
     } catch (error) {
       showError(error);
@@ -162,7 +181,9 @@ export function createProviderOperations(deps) {
    * 显示登录提示
    */
   function showPlaybackLoginPrompt() {
-    const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
+    const sourceName = PlaybackUtils.getSourceName(
+      playbackState.selectedSource,
+    );
     if (typeof U.showStackedToast !== 'function') {
       toast(`请先登录${sourceName}`);
       return;
@@ -174,7 +195,7 @@ export function createProviderOperations(deps) {
       message: '登录后即可播放在线音乐',
       className: 'playback-login-toast',
       duration: 5200,
-      onClick: loginSelectedMusicProvider
+      onClick: loginSelectedMusicProvider,
     });
   }
 
@@ -186,14 +207,16 @@ export function createProviderOperations(deps) {
       toast('退出音乐账号需要在桌面版里使用');
       return;
     }
-    const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
+    const sourceName = PlaybackUtils.getSourceName(
+      playbackState.selectedSource,
+    );
 
     const confirmed = await window.AdminApp.utils.logoutConfirm({
       title: '退出登录',
       platform: sourceName,
       message: '退出后将无法访问该平台的会员歌曲和个人歌单。',
       icon: '→',
-      confirmLabel: '确认退出'
+      confirmLabel: '确认退出',
     });
     if (!confirmed) return;
 
@@ -227,7 +250,7 @@ export function createProviderOperations(deps) {
       ...playbackState.normalQueue,
       ...playbackState.normalQueueTracks,
       ...playbackState.radioQueue,
-      ...playbackState.history
+      ...playbackState.history,
     ].forEach(clearTrack);
 
     if (playbackState.current && playbackState.current.source === source) {
@@ -267,6 +290,6 @@ export function createProviderOperations(deps) {
     showPlaybackLoginPrompt,
     logoutSelectedMusicProvider,
     getAuthState,
-    getProviderHealth
+    getProviderHealth,
   };
 }

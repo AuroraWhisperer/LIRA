@@ -4,7 +4,7 @@
 
 > https://api.live.bilibili.com/room/v1/Room/update
 
-*请求方式：POST*
+_请求方式：POST_
 
 认证方式：Cookie（SESSDATA）
 
@@ -12,22 +12,22 @@
 
 **正文参数（ application/x-www-form-urlencoded ）：**
 
-| 参数名  | 类型 | 内容                     | 必要性 | 备注                 |
-| ------- | ---- | ------------------------ | ------ | -------------------- |
-| room_id | num  | 直播间id                 | 必要   | 必须为自己的直播间id |
-| title   | str  | 直播间标题               |        | 最大20字符           |
-| csrf    | str  | CSRF Token（位于cookie） | 必要   |                      |
-| csrf_token | str  | CSRF Token（位于 cookie） |     |                       |
+| 参数名     | 类型 | 内容                      | 必要性 | 备注                 |
+| ---------- | ---- | ------------------------- | ------ | -------------------- |
+| room_id    | num  | 直播间id                  | 必要   | 必须为自己的直播间id |
+| title      | str  | 直播间标题                |        | 最大20字符           |
+| csrf       | str  | CSRF Token（位于cookie）  | 必要   |                      |
+| csrf_token | str  | CSRF Token（位于 cookie） |        |                      |
 
 **json回复：**
 
 根对象：
 
-| 字段    | 类型   | 内容     | 备注                                                   |
-| ------- | ------ | -------- | ------------------------------------------------------ |
-| code    | num    | 返回值   | 0：成功<br />65530：token错误（登录错误）<br />1：错误 |
-| msg     | str    | 错误信息 | 默认为ok                                               |
-| message | str    | 错误信息 | 默认为ok                                               |
+| 字段    | 类型  | 内容     | 备注                                                   |
+| ------- | ----- | -------- | ------------------------------------------------------ |
+| code    | num   | 返回值   | 0：成功<br />65530：token错误（登录错误）<br />1：错误 |
+| msg     | str   | 错误信息 | 默认为ok                                               |
+| message | str   | 错误信息 | 默认为ok                                               |
 | data    | array | 空       |                                                        |
 
 **示例：**
@@ -47,10 +47,10 @@ curl 'https://api.live.bilibili.com/room/v1/Room/update' \
 
 ```json
 {
-    "code": 0,
-    "msg": "ok",
-    "message": "ok",
-    "data": []
+  "code": 0,
+  "msg": "ok",
+  "message": "ok",
+  "data": []
 }
 ```
 
@@ -60,7 +60,7 @@ curl 'https://api.live.bilibili.com/room/v1/Room/update' \
 
 > https://api.live.bilibili.com/room/v1/Room/startLive
 
-*请求方式：POST*
+_请求方式：POST_
 
 认证方式：Cookie（SESSDATA）
 
@@ -81,12 +81,12 @@ curl 'https://api.live.bilibili.com/room/v1/Room/update' \
 
 根对象：
 
-| 字段    | 类型 | 内容     | 备注                                                         |
-| ------- | ---- | -------- | ------------------------------------------------------------ |
+| 字段    | 类型 | 内容     | 备注                                                                                                          |
+| ------- | ---- | -------- | ------------------------------------------------------------------------------------------------------------- |
 | code    | num  | 返回值   | 0：成功<br />65530：token错误（登录错误）<br />1：错误<br />60009：分区不存在<br />**（其他错误码有待补充）** |
-| msg     | str  | 错误信息 | 默认为空                                                     |
-| message | str  | 错误信息 | 默认为空                                                     |
-| data    | obj  | 信息本体 |                                                              |
+| msg     | str  | 错误信息 | 默认为空                                                                                                      |
+| message | str  | 错误信息 | 默认为空                                                                                                      |
+| data    | obj  | 信息本体 |                                                                                                               |
 
 `data`对象：
 
@@ -112,9 +112,9 @@ curl 'https://api.live.bilibili.com/room/v1/Room/update' \
 
 `data`中的`protocols`数组：
 
-| 项   | 类型 | 内容   | 备注         |
-| ---- | ---- | ------ | ------------ |
-| 0    | obj  | ？？？ | 作用尚不明确 |
+| 项  | 类型 | 内容   | 备注         |
+| --- | ---- | ------ | ------------ |
+| 0   | obj  | ？？？ | 作用尚不明确 |
 
 `data`中的`protocols`数组中的对象：
 
@@ -159,39 +159,39 @@ curl 'https://api.live.bilibili.com/room/v1/Room/startLive' \
 
 ```json
 {
-    "code": 0,
-    "msg": "",
-    "message": "",
-    "data": {
-        "change": 1,
-        "status": "LIVE",
-        "room_type": 0,
-        "rtmp": {
-            "addr": "rtmp://txy.live-send.acg.tv/live-txy/",
-            "code": "?streamname=live_293793435_1567354&key=***",
-            "new_link": "http://tcdns.myqcloud.com:8086/bilibili_redirect?up_rtmp=txy.live-send.acg.tv%2Flive-txy%2F%3Fstreamname%3Dlive_293793435_1567354%26key%3D***",
-            "provider": "txy"
-        },
-        "protocols": [
-            {
-                "protocol": "rtmp",
-                "addr": "rtmp://txy.live-send.acg.tv/live-txy/",
-                "code": "?streamname=live_293793435_1567354&key=***",
-                "new_link": "http://tcdns.myqcloud.com:8086/bilibili_redirect?up_rtmp=txy.live-send.acg.tv%2Flive-txy%2F%3Fstreamname%3Dlive_293793435_1567354%26key%3D***",
-                "provider": "txy"
-            }
-        ],
-        "try_time": "0000-00-00 00:00:00",
-        "live_key": "l:one:live:record:10352053:1589344980",
-        "notice": {
-            "type": 1,
-            "status": 0,
-            "title": "",
-            "msg": "",
-            "button_text": "",
-            "button_url": ""
-        }
+  "code": 0,
+  "msg": "",
+  "message": "",
+  "data": {
+    "change": 1,
+    "status": "LIVE",
+    "room_type": 0,
+    "rtmp": {
+      "addr": "rtmp://txy.live-send.acg.tv/live-txy/",
+      "code": "?streamname=live_293793435_1567354&key=***",
+      "new_link": "http://tcdns.myqcloud.com:8086/bilibili_redirect?up_rtmp=txy.live-send.acg.tv%2Flive-txy%2F%3Fstreamname%3Dlive_293793435_1567354%26key%3D***",
+      "provider": "txy"
+    },
+    "protocols": [
+      {
+        "protocol": "rtmp",
+        "addr": "rtmp://txy.live-send.acg.tv/live-txy/",
+        "code": "?streamname=live_293793435_1567354&key=***",
+        "new_link": "http://tcdns.myqcloud.com:8086/bilibili_redirect?up_rtmp=txy.live-send.acg.tv%2Flive-txy%2F%3Fstreamname%3Dlive_293793435_1567354%26key%3D***",
+        "provider": "txy"
+      }
+    ],
+    "try_time": "0000-00-00 00:00:00",
+    "live_key": "l:one:live:record:10352053:1589344980",
+    "notice": {
+      "type": 1,
+      "status": 0,
+      "title": "",
+      "msg": "",
+      "button_text": "",
+      "button_url": ""
     }
+  }
 }
 ```
 
@@ -201,7 +201,7 @@ curl 'https://api.live.bilibili.com/room/v1/Room/startLive' \
 
 > https://api.live.bilibili.com/room/v1/Room/stopLive
 
-*请求方式：POST*
+_请求方式：POST_
 
 认证方式：Cookie（SESSDATA）
 
@@ -218,12 +218,12 @@ curl 'https://api.live.bilibili.com/room/v1/Room/startLive' \
 
 根对象：
 
-| 字段    | 类型 | 内容     | 备注                                                         |
-| ------- | ---- | -------- | ------------------------------------------------------------ |
+| 字段    | 类型 | 内容     | 备注                                                                                          |
+| ------- | ---- | -------- | --------------------------------------------------------------------------------------------- |
 | code    | num  | 返回值   | 0：成功<br />65530：token错误（登录错误）<br />-400：没有权限<br />**（其他错误码有待补充）** |
-| msg     | str  | 错误信息 | 默认为空                                                     |
-| message | str  | 错误信息 | 默认为空                                                     |
-| data    | obj  | 信息本体 |                                                              |
+| msg     | str  | 错误信息 | 默认为空                                                                                      |
+| message | str  | 错误信息 | 默认为空                                                                                      |
+| data    | obj  | 信息本体 |                                                                                               |
 
 `data`对象：
 
@@ -248,24 +248,23 @@ curl 'https://api.live.bilibili.com/room/v1/Room/stopLive' \
 
 ```json
 {
-    "code": 0,
-    "msg": "",
-    "message": "",
-    "data": {
-        "change": 1,
-        "status": "PREPARING"
-    }
+  "code": 0,
+  "msg": "",
+  "message": "",
+  "data": {
+    "change": 1,
+    "status": "PREPARING"
+  }
 }
 ```
 
 </details>
 
-
 ## 更新直播间公告
 
 > https://api.live.bilibili.com/xlive/app-blink/v1/index/updateRoomNews
 
-*请求方式：POST*
+_请求方式：POST_
 
 认证方式：Cookie（SESSDATA）
 
@@ -273,13 +272,13 @@ curl 'https://api.live.bilibili.com/room/v1/Room/stopLive' \
 
 **正文参数（ application/x-www-form-urlencoded ）：**
 
-| 参数名  | 类型 | 内容                     | 必要性 | 备注                  |
-| ------- | ---- | ------------------------ | ------ | --------------------- |
-| room_id | num  | 直播间id                 | 必要   | 必须为自己的直播间id  |
-| uid     | num  | 用户id                   | 必要   |                       |
-| content | str  | 公告内容                 | 必要   | 最大60个字符,可以为空 |
-| csrf    | str  | CSRF Token（位于cookie） | 必要   |                       |
-| csrf_token | str  | CSRF Token（位于 cookie） |      |                         |
+| 参数名     | 类型 | 内容                      | 必要性 | 备注                  |
+| ---------- | ---- | ------------------------- | ------ | --------------------- |
+| room_id    | num  | 直播间id                  | 必要   | 必须为自己的直播间id  |
+| uid        | num  | 用户id                    | 必要   |                       |
+| content    | str  | 公告内容                  | 必要   | 最大60个字符,可以为空 |
+| csrf       | str  | CSRF Token（位于cookie）  | 必要   |                       |
+| csrf_token | str  | CSRF Token（位于 cookie） |        |                       |
 
 **json回复：**
 
@@ -311,10 +310,10 @@ curl 'https://api.live.bilibili.com/xlive/app-blink/v1/index/updateRoomNews' \
 
 ```json
 {
-    "code": 0,
-    "message": "0",
-    "ttl": 1,
-    "data": {}
+  "code": 0,
+  "message": "0",
+  "ttl": 1,
+  "data": {}
 }
 ```
 
@@ -324,7 +323,7 @@ curl 'https://api.live.bilibili.com/xlive/app-blink/v1/index/updateRoomNews' \
 
 > https://api.live.bilibili.com/room/v1/Room/update
 
-*请求方式：POST*
+_请求方式：POST_
 
 认证方式：Cookie（SESSDATA）
 
@@ -332,13 +331,13 @@ curl 'https://api.live.bilibili.com/xlive/app-blink/v1/index/updateRoomNews' \
 
 **正文参数（ application/x-www-form-urlencoded ）：**
 
-| 参数名  | 类型 | 内容                     | 必要性 | 备注                 |
-| ------- | ---- | ------------------------ | ------ | -------------------- |
-| room_id | num  | 直播间id                 | 必要   | 必须为自己的直播间id |
-| add_tag | str  | 要添加的标签             | 必要   | 最大10个字符         |
-| del_tag | str  | 要删除的标签             | 必要   |                      |
-| csrf    | str  | CSRF Token（位于cookie） | 必要   |                      |
-| csrf_token | str  | CSRF Token（位于 cookie） |     |                       |
+| 参数名     | 类型 | 内容                      | 必要性 | 备注                 |
+| ---------- | ---- | ------------------------- | ------ | -------------------- |
+| room_id    | num  | 直播间id                  | 必要   | 必须为自己的直播间id |
+| add_tag    | str  | 要添加的标签              | 必要   | 最大10个字符         |
+| del_tag    | str  | 要删除的标签              | 必要   |                      |
+| csrf       | str  | CSRF Token（位于cookie）  | 必要   |                      |
+| csrf_token | str  | CSRF Token（位于 cookie） |        |                      |
 
 **json回复：**
 
@@ -384,19 +383,20 @@ curl 'https://api.live.bilibili.com/room/v1/Room/update' \
 
 ```json
 {
-    "code": 0,
-    "msg": "ok",
-    "message": "ok",
-    "data": {
-        "sub_session_key": "",
-        "audit_info": {
-            "audit_title_reason": "",
-            "update_title": "",
-            "audit_title_status": 0
-        }
+  "code": 0,
+  "msg": "ok",
+  "message": "ok",
+  "data": {
+    "sub_session_key": "",
+    "audit_info": {
+      "audit_title_reason": "",
+      "update_title": "",
+      "audit_title_status": 0
     }
+  }
 }
 ```
+
 </details>
 
 给直播间`11996900`删除内容为`测试标签`的标签
@@ -415,17 +415,17 @@ curl 'https://api.live.bilibili.com/room/v1/Room/update' \
 
 ```json
 {
-    "code": 0,
-    "msg": "ok",
-    "message": "ok",
-    "data": {
-        "sub_session_key": "",
-        "audit_info": {
-            "audit_title_reason": "",
-            "update_title": "",
-            "audit_title_status": 0
-        }
+  "code": 0,
+  "msg": "ok",
+  "message": "ok",
+  "data": {
+    "sub_session_key": "",
+    "audit_info": {
+      "audit_title_reason": "",
+      "update_title": "",
+      "audit_title_status": 0
     }
+  }
 }
 ```
 

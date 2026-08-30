@@ -1,4 +1,12 @@
-<div id="liraOnboarding" class="lira-onboarding" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle" aria-describedby="onboardingStatus" hidden>
+<div
+  id="liraOnboarding"
+  class="lira-onboarding"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="onboardingTitle"
+  aria-describedby="onboardingStatus"
+  hidden
+>
   <div class="lira-onboarding-scrim" data-onboarding-close></div>
   <section class="lira-onboarding-dialog" role="document">
     <header class="lira-onboarding-header">
@@ -6,76 +14,193 @@
         <p class="lira-onboarding-kicker ui-eyebrow">LIRA 首次启动</p>
         <h2 id="onboardingTitle" class="ui-page-title">把直播间准备好</h2>
       </div>
-      <button id="onboardingCloseBtn" class="icon-button" type="button" aria-label="退出引导" title="退出引导">×</button>
+      <button
+        id="onboardingCloseBtn"
+        class="icon-button"
+        type="button"
+        aria-label="退出引导"
+        title="退出引导"
+      >
+        ×
+      </button>
     </header>
-    <div id="onboardingProgress" class="lira-onboarding-progress" aria-label="引导进度"></div>
-    <p id="onboardingStatus" class="lira-onboarding-status" role="status" aria-live="polite"></p>
+    <div
+      id="onboardingProgress"
+      class="lira-onboarding-progress"
+      aria-label="引导进度"
+    ></div>
+    <p
+      id="onboardingStatus"
+      class="lira-onboarding-status"
+      role="status"
+      aria-live="polite"
+    ></p>
     <div id="onboardingStepContent" class="lira-onboarding-content">
       <section data-onboarding-step="welcome">
-        <p class="lira-onboarding-eyebrow ui-eyebrow">先完成基础配置，再开始直播</p>
+        <p class="lira-onboarding-eyebrow ui-eyebrow">
+          先完成基础配置，再开始直播
+        </p>
         <h3 class="ui-section-title">欢迎使用 LIRA</h3>
-        <p>这份引导会带你确认 Bilibili 登录、直播间号、歌单入口、音乐平台登录位置和可选的 AI 弹幕姬。扫码登录需要桌面版；网页模式可以先了解步骤，之后再回到桌面版完成登录。</p>
-        <p class="lira-onboarding-note">当前步骤会在本次打开期间保留，只有最后点击完成才会记为已完成。</p>
+        <p>
+          如果是首次安装，请先在桌面端完成「登录
+          LIRA」设备授权；进入管理页后，这份引导会带你确认 Bilibili
+          登录、直播间号、歌单入口、音乐平台登录位置和可选的 AI
+          弹幕姬。扫码登录需要桌面版；网页模式可以先了解步骤，之后再回到桌面版完成登录。
+        </p>
+        <p class="lira-onboarding-note">
+          当前步骤会在本次打开期间保留，只有最后点击完成才会记为已完成。
+        </p>
       </section>
       <section data-onboarding-step="bilibili" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">必做 · 直播基础</p>
         <h3 class="ui-section-title">登录 Bilibili，连接直播间</h3>
-        <p>使用桌面版扫码登录，然后填写本直播间号。保存后点击刷新直播，让弹幕连接用上新的账号和房间。</p>
+        <p>
+          使用桌面版扫码登录，然后填写本直播间号。保存后点击刷新直播，让弹幕连接用上新的账号和房间。
+        </p>
         <div class="lira-onboarding-actions">
-          <button id="onboardingBilibiliLogin" class="primary" type="button">扫码登录 Bilibili</button>
-          <button id="onboardingBilibiliRefresh" class="secondary" type="button">刷新直播状态</button>
+          <button id="onboardingBilibiliLogin" class="primary" type="button">
+            扫码登录 Bilibili
+          </button>
+          <button
+            id="onboardingBilibiliRefresh"
+            class="secondary"
+            type="button"
+          >
+            刷新直播状态
+          </button>
         </div>
-        <label class="lira-onboarding-field">直播间号或链接<input id="onboardingRoomId" type="text" inputmode="numeric" autocomplete="off" placeholder="例如 123456"></label>
-        <p id="onboardingBilibiliState" class="lira-onboarding-inline-status"></p>
+        <label class="lira-onboarding-field"
+          >直播间号或链接<input
+            id="onboardingRoomId"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="例如 123456"
+        /></label>
+        <p
+          id="onboardingBilibiliState"
+          class="lira-onboarding-inline-status"
+        ></p>
       </section>
       <section data-onboarding-step="import" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">必做 · 歌库准备</p>
         <h3 class="ui-section-title">把歌单导入歌库</h3>
-        <p>打开「点歌 → 导入导出」，选择 XLSX、CSV、TSV 文件，或直接粘贴表格内容，然后点击「导入歌库」。向导不会替你修改歌库。</p>
-        <button id="onboardingImportOpen" class="secondary" type="button">打开导入导出</button>
-        <label class="lira-onboarding-check"><input id="onboardingImportAcknowledged" type="checkbox"> 我知道歌单导入入口和支持的格式</label>
+        <p>
+          打开「点歌 → 导入导出」，选择 XLSX、CSV、TSV
+          文件，或直接粘贴表格内容，然后点击「导入歌库」。向导不会替你修改歌库。
+        </p>
+        <button id="onboardingImportOpen" class="secondary" type="button">
+          打开导入导出
+        </button>
+        <label class="lira-onboarding-check"
+          ><input id="onboardingImportAcknowledged" type="checkbox" />
+          我知道歌单导入入口和支持的格式</label
+        >
       </section>
       <section data-onboarding-step="music" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">必做 · 登录位置</p>
         <h3 class="ui-section-title">选择你需要的音乐平台</h3>
-        <label class="lira-onboarding-field">平台<select id="onboardingMusicPlatform" data-dropdown-variant="onboarding"><option value="qq">QQ 音乐</option><option value="netease">网易云音乐</option><option value="wesing">全民 K 歌</option></select></label>
+        <label class="lira-onboarding-field"
+          >平台<select
+            id="onboardingMusicPlatform"
+            data-dropdown-variant="onboarding"
+          >
+            <option value="qq">QQ 音乐</option>
+            <option value="netease">网易云音乐</option>
+            <option value="wesing">全民 K 歌</option>
+          </select></label
+        >
         <p id="onboardingMusicDescription" class="lira-onboarding-note"></p>
-        <div class="lira-onboarding-actions"><button id="onboardingMusicQqLogin" class="secondary" type="button">在播放页登录 QQ 音乐</button><button id="onboardingMusicNeteaseLogin" class="secondary" type="button">在播放页登录网易云</button></div>
+        <div class="lira-onboarding-actions">
+          <button id="onboardingMusicQqLogin" class="secondary" type="button">
+            在播放页登录 QQ 音乐</button
+          ><button
+            id="onboardingMusicNeteaseLogin"
+            class="secondary"
+            type="button"
+          >
+            在播放页登录网易云
+          </button>
+        </div>
         <p id="onboardingMusicStatus" class="lira-onboarding-inline-status"></p>
-        <label class="lira-onboarding-check"><input id="onboardingMusicAcknowledged" type="checkbox"> 我知道所选平台的登录位置</label>
+        <label class="lira-onboarding-check"
+          ><input id="onboardingMusicAcknowledged" type="checkbox" />
+          我知道所选平台的登录位置</label
+        >
       </section>
       <section data-onboarding-step="ai" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">可选 · AI 弹幕姬</p>
         <h3 class="ui-section-title">要启用 AI 互动吗？</h3>
-        <label class="lira-onboarding-check"><input id="onboardingAiEnable" type="checkbox"> 启用 AI 弹幕姬</label>
+        <label class="lira-onboarding-check"
+          ><input id="onboardingAiEnable" type="checkbox" /> 启用 AI
+          弹幕姬</label
+        >
         <div id="onboardingAiFields" class="lira-onboarding-ai-fields" hidden>
-          <label class="lira-onboarding-field">DeepSeek API 地址<input id="onboardingAiUrl" type="url" autocomplete="url" placeholder="https://api.deepseek.com"></label>
-          <label class="lira-onboarding-field">模型<input id="onboardingAiModel" type="text" autocomplete="off" placeholder="deepseek-chat"></label>
-          <label class="lira-onboarding-field">API Key<input id="onboardingAiKey" type="password" autocomplete="new-password" spellcheck="false"></label>
-          <button id="onboardingAiTest" class="secondary" type="button">保存并测试 DeepSeek</button>
+          <label class="lira-onboarding-field"
+            >DeepSeek API 地址<input
+              id="onboardingAiUrl"
+              type="url"
+              autocomplete="url"
+              placeholder="https://api.deepseek.com"
+          /></label>
+          <label class="lira-onboarding-field"
+            >模型<input
+              id="onboardingAiModel"
+              type="text"
+              autocomplete="off"
+              placeholder="deepseek-chat"
+          /></label>
+          <label class="lira-onboarding-field"
+            >API Key<input
+              id="onboardingAiKey"
+              type="password"
+              autocomplete="new-password"
+              spellcheck="false"
+          /></label>
+          <button id="onboardingAiTest" class="secondary" type="button">
+            保存并测试 DeepSeek
+          </button>
         </div>
-        <p class="lira-onboarding-note">不启用 AI 可以点击“稍后设置”；API Key 只交给现有 AI 配置接口。</p>
+        <p class="lira-onboarding-note">
+          不启用 AI 可以点击“稍后设置”；API Key 只交给现有 AI 配置接口。
+        </p>
       </section>
       <section data-onboarding-step="docs" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">必做 · 后续入口</p>
         <h3 class="ui-section-title">完整说明都在使用文档</h3>
-        <p>在「百宝箱 → 使用文档」可以查看登录、导入、播放、投屏、DeepSeek 和常见问题。完成引导后，也可以从那里重新打开本向导。</p>
-        <button id="onboardingDocsOpen" class="secondary" type="button">打开使用文档</button>
-        <label class="lira-onboarding-check"><input id="onboardingDocsAcknowledged" type="checkbox"> 我知道使用文档在哪里</label>
+        <p>
+          在「百宝箱 → 使用文档」可以查看登录、导入、播放、投屏、DeepSeek
+          和常见问题。完成引导后，也可以从那里重新打开本向导。
+        </p>
+        <button id="onboardingDocsOpen" class="secondary" type="button">
+          打开使用文档
+        </button>
+        <label class="lira-onboarding-check"
+          ><input id="onboardingDocsAcknowledged" type="checkbox" />
+          我知道使用文档在哪里</label
+        >
       </section>
       <section data-onboarding-step="complete" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">最后一步</p>
         <h3 class="ui-section-title">准备完成</h3>
         <p>基础配置已检查。你可以随时从使用文档重新打开引导，补充可选设置。</p>
         <ul id="onboardingSummary" class="lira-onboarding-summary"></ul>
-        <button id="onboardingFinishBtn" class="primary" type="button">完成并开始使用</button>
+        <button id="onboardingFinishBtn" class="primary" type="button">
+          完成并开始使用
+        </button>
       </section>
     </div>
     <footer class="lira-onboarding-footer">
-      <button id="onboardingBackBtn" class="secondary" type="button">上一步</button>
+      <button id="onboardingBackBtn" class="secondary" type="button">
+        上一步
+      </button>
       <div class="lira-onboarding-footer-main">
-        <button id="onboardingSkipBtn" class="ghost" type="button" hidden>稍后设置</button>
-        <button id="onboardingNextBtn" class="primary" type="button">下一步</button>
+        <button id="onboardingSkipBtn" class="ghost" type="button" hidden>
+          稍后设置
+        </button>
+        <button id="onboardingNextBtn" class="primary" type="button">
+          下一步
+        </button>
       </div>
     </footer>
   </section>

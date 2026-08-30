@@ -91,15 +91,15 @@
   transition: color 200ms ease;
 }
 
-.source-tab[data-source="qq"] .source-tab-icon {
+.source-tab[data-source='qq'] .source-tab-icon {
   color: #31c27c;
 }
 
-.source-tab[data-source="netease"] .source-tab-icon {
+.source-tab[data-source='netease'] .source-tab-icon {
   color: #ec4141;
 }
 
-.source-tab[data-source="wesing"] .source-tab-icon {
+.source-tab[data-source='wesing'] .source-tab-icon {
   color: #1677e8;
 }
 
@@ -115,15 +115,15 @@
   box-shadow: 0 2px 10px rgba(22, 31, 43, 0.1);
 }
 
-.source-tab.active[data-source="qq"] {
+.source-tab.active[data-source='qq'] {
   color: #1a9a5e;
 }
 
-.source-tab.active[data-source="netease"] {
+.source-tab.active[data-source='netease'] {
   color: #d43030;
 }
 
-.source-tab.active[data-source="wesing"] {
+.source-tab.active[data-source='wesing'] {
   color: #1269cf;
 }
 

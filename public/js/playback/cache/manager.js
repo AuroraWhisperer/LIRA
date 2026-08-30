@@ -73,7 +73,10 @@ export class CacheManager {
 
     // localStorage
     try {
-      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data, timestamp }));
+      localStorage.setItem(
+        CACHE_PREFIX + key,
+        JSON.stringify({ data, timestamp }),
+      );
     } catch (error) {
       // localStorage 满了就只保留内存缓存，不影响功能
       console.warn('[CacheManager] localStorage write failed:', error.message);
@@ -88,7 +91,9 @@ export class CacheManager {
     this._mem.delete(key);
     try {
       localStorage.removeItem(CACHE_PREFIX + key);
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   /**
@@ -110,7 +115,9 @@ export class CacheManager {
         if (k && k.startsWith(fullPrefix)) keysToRemove.push(k);
       }
       for (const k of keysToRemove) localStorage.removeItem(k);
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   /**
@@ -125,7 +132,9 @@ export class CacheManager {
         if (k && k.startsWith(CACHE_PREFIX)) keysToRemove.push(k);
       }
       for (const k of keysToRemove) localStorage.removeItem(k);
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
 
   /**

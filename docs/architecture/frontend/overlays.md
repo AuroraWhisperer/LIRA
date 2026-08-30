@@ -4,6 +4,16 @@
 
 本文档描述各个叠加层页面的框架、数据消费与各自 UI。快照字段与消息类型见 [ws.md](../backend/ws.md),客户端通信行为见 [comms.md](comms.md),页面入口 URL 见 [pages.md](pages.md) §2,加班机领域状态见 [backend/overtime.md](../backend/overtime.md)。
 
+### Overlay 模块边界
+
+| 门面/入口         | 内部模块                                                                       | 所有权边界                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `queue-render.js` | `queue-theme.js`                                                               | render 拥有队列 DOM；theme 只映射设置到 CSS 变量并由 render 兼容再导出                                          |
+| `gift-effects.js` | `gift-effects-frame.js`                                                        | 入口拥有 WebSocket、去重、队列和装饰粒子；frame controller 只拥有边框 DOM/WAAPI 时间线                          |
+| `games.js`        | `games-drawing.js` / `games-drawing-geometry.js` / `games-drawing-controls.js` | 入口拥有游戏会话和通用结果；drawing 拥有画板同步，geometry 是纯形状/颜色计算，controls 只适配画板启停与撤销状态 |
+
+这些模块均由页面以 ES Module 加载；内部模块不得自行创建第二条 WebSocket 连接或重复持有会话状态。
+
 ## 1. 悬浮层框架
 
 ### 1.1 通用模式
@@ -20,30 +30,30 @@
 
 队列/歌单/盲盒叠加层在每次快照到达时调用 `applyTheme(settings)` 把 settings 值写入 `:root` CSS 变量；以下是**全部 28 个** `--overlay-*` 变量的注入来源与默认值：
 
-| CSS 变量 | 来自 settings 键 | 默认值 | 说明 |
-|---|---|---|---|
-| `--overlay-primary` | `themePrimary` | `#ff6f91` | 主色（当前歌高亮/徽标） |
-| `--overlay-primary-r/g/b` | `themePrimary` 分量 | — | 主色 RGB 分量（用于 rgba() 构造） |
-| `--overlay-accent` | `themeAccent` | `#21b6a8` | 强调色（徽章背景） |
-| `--overlay-accent-r/g/b` | `themeAccent` 分量 | — | 强调色 RGB 分量 |
-| `--overlay-text` | `themeText` | `#fff7fb` | 通用文字色 |
-| `--overlay-opacity` | `themeOpacity` | `0.76` | 面板背景不透明度（0–1） |
-| `--overlay-bg-r/g/b` | `themeBackground` 分量 | — | 背景色 RGB 分量（面板/渐变底色） |
-| `--overlay-gradient-r/g/b` | `gradientEnd` 分量 | — | 渐变终止色 RGB 分量（仅 `enableGradient=true` 时有效） |
-| `--overlay-radius` | `themeRadius` | `8px` | 面板圆角（px） |
-| `--overlay-blur` | `backdropBlur` | `0px` | 毛玻璃模糊半径（px）；须配合 `.has-backdrop-blur` 类 |
-| `--overlay-glow-size` | `glowIntensity` | `0px` | 辉光扩散半径（px） |
-| `--overlay-glow-color` | `themePrimary` × `glowIntensity` | `transparent` | 辉光颜色（rgba，透明度由 glowIntensity 换算） |
-| `--overlay-font-family` | `overlayFontFamily` | `Microsoft YaHei` | 字体栈（经 `withMultilingualFallback` 追加多语言回退） |
-| `--overlay-font-weight` | `overlayFontWeight` | `800` | 字重 |
-| `--overlay-font-scale` | `themeFontScale` | `1` | 内容区整体缩放（em 单位乘数） |
-| `--overlay-song-color` | `overlaySongColor` → 回退 `themeText` | `#fff7fb` | 歌名文字色 |
-| `--overlay-requester-color` | `overlayRequesterColor` | `''`（继承） | 请求者名字色 |
-| `--overlay-index-color` | `overlayIndexColor` | `''`（继承） | 序号色 |
-| `--overlay-song-font-size` | `queueSongFontSize`（px）→ `overlayFontScale` | 计算值 | 歌名字号（px） |
-| `--overlay-waiting-font-size` | `song-font-size × 0.65`，最小 10px | 计算值 | 等待曲目字号（px） |
-| `--overlay-title-font-size` | `queueTitleFontSize`（px）→ `overlayFontScale` | 计算值 | 标题字号（px） |
-| `--overlay-edge` | 固定值 `clamp(0px, 2vmin, 16px)` | — | 面板外边距（在 CSS 中声明，不经 JS 注入） |
+| CSS 变量                      | 来自 settings 键                               | 默认值            | 说明                                                   |
+| ----------------------------- | ---------------------------------------------- | ----------------- | ------------------------------------------------------ |
+| `--overlay-primary`           | `themePrimary`                                 | `#ff6f91`         | 主色（当前歌高亮/徽标）                                |
+| `--overlay-primary-r/g/b`     | `themePrimary` 分量                            | —                 | 主色 RGB 分量（用于 rgba() 构造）                      |
+| `--overlay-accent`            | `themeAccent`                                  | `#21b6a8`         | 强调色（徽章背景）                                     |
+| `--overlay-accent-r/g/b`      | `themeAccent` 分量                             | —                 | 强调色 RGB 分量                                        |
+| `--overlay-text`              | `themeText`                                    | `#fff7fb`         | 通用文字色                                             |
+| `--overlay-opacity`           | `themeOpacity`                                 | `0.76`            | 面板背景不透明度（0–1）                                |
+| `--overlay-bg-r/g/b`          | `themeBackground` 分量                         | —                 | 背景色 RGB 分量（面板/渐变底色）                       |
+| `--overlay-gradient-r/g/b`    | `gradientEnd` 分量                             | —                 | 渐变终止色 RGB 分量（仅 `enableGradient=true` 时有效） |
+| `--overlay-radius`            | `themeRadius`                                  | `8px`             | 面板圆角（px）                                         |
+| `--overlay-blur`              | `backdropBlur`                                 | `0px`             | 毛玻璃模糊半径（px）；须配合 `.has-backdrop-blur` 类   |
+| `--overlay-glow-size`         | `glowIntensity`                                | `0px`             | 辉光扩散半径（px）                                     |
+| `--overlay-glow-color`        | `themePrimary` × `glowIntensity`               | `transparent`     | 辉光颜色（rgba，透明度由 glowIntensity 换算）          |
+| `--overlay-font-family`       | `overlayFontFamily`                            | `Microsoft YaHei` | 字体栈（经 `withMultilingualFallback` 追加多语言回退） |
+| `--overlay-font-weight`       | `overlayFontWeight`                            | `800`             | 字重                                                   |
+| `--overlay-font-scale`        | `themeFontScale`                               | `1`               | 内容区整体缩放（em 单位乘数）                          |
+| `--overlay-song-color`        | `overlaySongColor` → 回退 `themeText`          | `#fff7fb`         | 歌名文字色                                             |
+| `--overlay-requester-color`   | `overlayRequesterColor`                        | `''`（继承）      | 请求者名字色                                           |
+| `--overlay-index-color`       | `overlayIndexColor`                            | `''`（继承）      | 序号色                                                 |
+| `--overlay-song-font-size`    | `queueSongFontSize`（px）→ `overlayFontScale`  | 计算值            | 歌名字号（px）                                         |
+| `--overlay-waiting-font-size` | `song-font-size × 0.65`，最小 10px             | 计算值            | 等待曲目字号（px）                                     |
+| `--overlay-title-font-size`   | `queueTitleFontSize`（px）→ `overlayFontScale` | 计算值            | 标题字号（px）                                         |
+| `--overlay-edge`              | 固定值 `clamp(0px, 2vmin, 16px)`               | —                 | 面板外边距（在 CSS 中声明，不经 JS 注入）              |
 
 注：`--overlay-bg-r/g/b` 用于面板背景渐变构造，`gradient-bg` 类叠加渐变时还使用 `--overlay-gradient-r/g/b`。`--overlay-glow-color` 的透明度 = `glowIntensity / 50`（最大 1）；加班机层不使用此变量集，有独立样式（见 §4）。
 
@@ -131,14 +141,14 @@ PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` �
 
 `.overtime-machine` 设 `container-type: size`,**根字号 `font-size: 2cqmin`**,全部尺寸用 em/cq 单位等比缩放:
 
-| 断点 | 行为 | 出处 |
-|---|---|---|
-| `@container (max-width: 719px)` | 门票网格切窄列(≤2 列) | [overtime.css:261-269](../../../public/css/overlays/overtime.css#L261-L269) |
-| `@container (max-width: 419px)` | 时钟面板收窄、标题小字限宽 | [overtime.css:270-273](../../../public/css/overlays/overtime.css#L270-L273) |
-| `@container (max-aspect-ratio: 1.45)` | 竖屏(高 > 宽/1.45)收紧纵向间距 | [overtime.css:274-276](../../../public/css/overlays/overtime.css#L274-L276) |
-| `@container (max-height: 239px)` | 超矮场景隐藏送礼表头、压缩间距 | [overtime.css:277-281](../../../public/css/overlays/overtime.css#L277-L281) |
-| `@supports not (font-size: 1cqmin)` | 无 cq 支持时回退 `2vmin` | [overtime.css:297-299](../../../public/css/overlays/overtime.css#L297-L299) |
-| `height: 100vh` → `100dvh` | 先声明 `100vh` 兜底：内核支持 `container-type: size`（Chrome 105+）但不认 `100dvh`（Chrome 108+）时，高度声明失效会被尺寸包含（size containment）塌成 0，整个画面不可见（如直播姬浏览器源） | [overtime.css:17-18](../../../public/css/overlays/overtime.css#L17-L18) |
+| 断点                                  | 行为                                                                                                                                                                                        | 出处                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `@container (max-width: 719px)`       | 门票网格切窄列(≤2 列)                                                                                                                                                                       | [overtime.css:261-269](../../../public/css/overlays/overtime.css#L261-L269) |
+| `@container (max-width: 419px)`       | 时钟面板收窄、标题小字限宽                                                                                                                                                                  | [overtime.css:270-273](../../../public/css/overlays/overtime.css#L270-L273) |
+| `@container (max-aspect-ratio: 1.45)` | 竖屏(高 > 宽/1.45)收紧纵向间距                                                                                                                                                              | [overtime.css:274-276](../../../public/css/overlays/overtime.css#L274-L276) |
+| `@container (max-height: 239px)`      | 超矮场景隐藏送礼表头、压缩间距                                                                                                                                                              | [overtime.css:277-281](../../../public/css/overlays/overtime.css#L277-L281) |
+| `@supports not (font-size: 1cqmin)`   | 无 cq 支持时回退 `2vmin`                                                                                                                                                                    | [overtime.css:297-299](../../../public/css/overlays/overtime.css#L297-L299) |
+| `height: 100vh` → `100dvh`            | 先声明 `100vh` 兜底：内核支持 `container-type: size`（Chrome 105+）但不认 `100dvh`（Chrome 108+）时，高度声明失效会被尺寸包含（size containment）塌成 0，整个画面不可见（如直播姬浏览器源） | [overtime.css:17-18](../../../public/css/overlays/overtime.css#L17-L18)     |
 
 ### 4.3 时钟与数字呈现
 
@@ -193,16 +203,16 @@ PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` �
 
 [overlays/clock.js](../../../public/js/overlays/clock.js) 驱动固定 `/clock`
 浏览器源，首帧从免认证只读接口 `GET /api/clock/config` 读取已保存设置，并使用
-设备本地时区显示当前时间、日期和星期。页面外层透明，内部卡片固定以 560×190
-为设计比例，并在浏览器源不足时按可用宽度缩小。
+设备本地时区显示当前时间、日期和星期。页面外层透明；横向样式使用 560×190
+设计画布，竖向时间轴使用 220×380 设计画布，并在浏览器源不足时按可用空间缩小。
 
-- 风格参数仅接受 `style=peach|starlight|soda`，非法或缺失值回退桃桃便签
-  (`peach`)；桃桃便签使用奶油蜜桃与兔耳贴纸，星夜软糖使用靛蓝果冻边框与
-  月亮云朵，汽水小鸭使用薄荷气泡卡片与奶黄鸭鸭；三套样式共享时间语义但
-  不共享视觉装饰。
+- 风格参数仅接受 `style=peach|starlight|soda|timeline-horizontal|timeline-vertical`，
+  非法或缺失值回退桃桃便签(`peach`)；前三套分别使用奶油蜜桃兔耳、靛蓝月亮云朵
+  与薄荷气泡小鸭。横向刻度和竖向刻度使用无卡片底的细线排版、年份与英文星期，
+  其中竖向款适配 240×400 Browser Source（含页面边距）。
 - `date=0|1`、`seconds=0|1`、`format=12|24` 控制日期、秒数和小时制；非法值
   回退默认显示日期/秒数与 24 小时制。`label` 合并空白并截到 16 个 Unicode
-  字符，始终通过 `textContent` 输出。
+  字符，始终通过 `textContent` 输出；透明时间轴不显示角标文案。
 - 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
   立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
 - Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
@@ -211,17 +221,17 @@ PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` �
 
 ## 7. 数据消费一览
 
-| 叠加层 | 首帧 | 实时 | 去重指纹 | 触发重载的 reason |
-|---|---|---|---|---|
-| queue | `/api/state` | snapshot | current+waiting+SC+全部主题键 | `queue:add`/`bilibili:danmaku`/`bilibili:superchat`(80ms 强刷) |
-| songs | `/api/state` + `/api/songs` | snapshot | orderKey/layoutKey/motionKey | `songs:*`/`database:clear`(220ms 重载) |
-| blindbox | `/api/state` + `/api/gifts/blind-box-stats` | snapshot(仅缓存)+ 轮询 | 统计接口每次重取 | `bilibili:gift`/`gift:sprint:reset`/`connect` |
-| overtime | `/api/state`(overtime 字段) | snapshot + `overtime:update` | `revision` 单调比较 | `overtime:update` 的 adjustment → 动画入队 |
-| gift-effects | `/gift-effects` 页面内置完整合成图 + 四方结构 PNG + 三张独立装饰 PNG | `gift:frame` | `eventId` 稳定去重 + 3 条 pending 队列 | 每个合格 final 礼物一次播放 |
-| opening | `/api/opening/config` | 无 | 无；首帧配置经枚举/文本清洗 | 页面加载一次；Admin 预览可由 URL 参数覆盖 |
-| clock | `/api/clock/config` + 设备本地时间；URL 参数可覆盖 | 本地秒边界定时器 | 无；页面恢复可见时立即校时 | 页面加载一次；不消费 WebSocket reason |
-| lyrics | `/api/settings` | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重 | 播放页按状态变化推送 |
-| danmaku | snapshot 中的 `danmakuFeed` | `danmaku:message` | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复 |
-| games | `/api/games/session` | snapshot + `game:update` + `game:draw` | 游戏入口调度器按更新频率合并渲染 | `game:update` / `game:draw` |
+| 叠加层       | 首帧                                                                 | 实时                                        | 去重指纹                                | 触发重载的 reason                                              |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------- | -------------------------------------------------------------- |
+| queue        | `/api/state`                                                         | snapshot                                    | current+waiting+SC+全部主题键           | `queue:add`/`bilibili:danmaku`/`bilibili:superchat`(80ms 强刷) |
+| songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`database:clear`(220ms 重载)                         |
+| blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(仅缓存)+ 轮询                      | 统计接口每次重取                        | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
+| overtime     | `/api/state`(overtime 字段)                                          | snapshot + `overtime:update`                | `revision` 单调比较                     | `overtime:update` 的 adjustment → 动画入队                     |
+| gift-effects | `/gift-effects` 页面内置完整合成图 + 四方结构 PNG + 三张独立装饰 PNG | `gift:frame`                                | `eventId` 稳定去重 + 3 条 pending 队列  | 每个合格 final 礼物一次播放                                    |
+| opening      | `/api/opening/config`                                                | 无                                          | 无；首帧配置经枚举/文本清洗             | 页面加载一次；Admin 预览可由 URL 参数覆盖                      |
+| clock        | `/api/clock/config` + 设备本地时间；URL 参数可覆盖                   | 本地秒边界定时器                            | 无；页面恢复可见时立即校时              | 页面加载一次；不消费 WebSocket reason                          |
+| lyrics       | `/api/settings`                                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |
+| danmaku      | snapshot 中的 `danmakuFeed`                                          | `danmaku:message`                           | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复                     |
+| games        | `/api/games/session`                                                 | snapshot + `game:update` + `game:draw`      | 游戏入口调度器按更新频率合并渲染        | `game:update` / `game:draw`                                    |
 
 消息类型与 reason 的全集定义以 [ws.md](../backend/ws.md) §3 为准;本表只描述各叠加层**消费**哪些。

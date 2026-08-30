@@ -12,16 +12,23 @@ let blindboxViewportResized = false;
 
 // URL 参数解析 — 支持短别名：t=top, w=winners, c=compact, tt=title
 const urlParams = new URLSearchParams(location.search);
-const param = (longKey, shortKey) => urlParams.get(longKey) || urlParams.get(shortKey);
+const param = (longKey, shortKey) =>
+  urlParams.get(longKey) || urlParams.get(shortKey);
 const requestedTop = Number.parseInt(param('top', 't') || '3', 10);
-const TOP_N = Number.isFinite(requestedTop) ? Math.min(10, Math.max(-1, requestedTop)) : 3;
+const TOP_N = Number.isFinite(requestedTop)
+  ? Math.min(10, Math.max(-1, requestedTop))
+  : 3;
 const SUMMARY_ONLY = TOP_N === 0;
 const COMPACT = param('compact', 'c') === '1';
-const WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
+const WINNERS_ONLY =
+  param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
 const HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
 const CUSTOM_TITLE = (param('title', 'tt') || '').trim();
 const HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
-const REFRESH_SEC = Math.max(10, parseInt(param('refresh', 'r') || '0', 10) || 0);
+const REFRESH_SEC = Math.max(
+  10,
+  parseInt(param('refresh', 'r') || '0', 10) || 0,
+);
 const NO_SCROLL = param('noScroll', 'ns') === '1';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -61,21 +68,29 @@ async function loadStateThenStats() {
     const payload = await response.json();
     if (payload.ok) state = payload.data;
   } catch (error) {
-    console.warn('[overlay-blindbox] loadState failed:', error.message || error);
+    console.warn(
+      '[overlay-blindbox] loadState failed:',
+      error.message || error,
+    );
   }
   await loadStats();
 }
 
 async function loadStats() {
   try {
-    const boxFilter = HEART_BOX_ONLY ? '?boxName=' + encodeURIComponent('心动盲盒') : '';
+    const boxFilter = HEART_BOX_ONLY
+      ? '?boxName=' + encodeURIComponent('心动盲盒')
+      : '';
     const response = await fetch('/api/gifts/blind-box-stats' + boxFilter);
     const payload = await response.json();
     if (payload.ok) {
       render(payload.data);
     }
   } catch (error) {
-    console.warn('[overlay-blindbox] loadStats failed:', error.message || error);
+    console.warn(
+      '[overlay-blindbox] loadStats failed:',
+      error.message || error,
+    );
   }
 }
 
@@ -95,7 +110,11 @@ function connectSocket() {
     if (payload.type === 'snapshot') {
       // 礼物相关更新时刷新统计数据
       const reason = payload.reason || '';
-      if (reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect') {
+      if (
+        reason.startsWith('bilibili:gift') ||
+        reason === 'gift:sprint:reset' ||
+        reason === 'connect'
+      ) {
         state = payload.state;
         loadStats();
       } else if (!reason || reason === 'live:status') {
@@ -106,7 +125,10 @@ function connectSocket() {
   });
 
   socket.addEventListener('close', () => {
-    const delay = Math.min(30000, 800 * Math.pow(2, Math.min(reconnectAttempts, 6)));
+    const delay = Math.min(
+      30000,
+      800 * Math.pow(2, Math.min(reconnectAttempts, 6)),
+    );
     reconnectAttempts += 1;
     reconnectTimer = setTimeout(() => {
       loadStats();
@@ -142,9 +164,14 @@ function render(stats) {
 
   // ── 汇总 ──
   const summaryEl = document.getElementById('blindboxSummary');
-  const summaryValues = summary || { boxCount: 0, totalCost: 0, totalProfit: 0 };
+  const summaryValues = summary || {
+    boxCount: 0,
+    totalCost: 0,
+    totalProfit: 0,
+  };
   if (SUMMARY_ONLY || summaryValues.boxCount > 0) {
-    const profitClass = summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
+    const profitClass =
+      summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
     const profitSign = summaryValues.totalProfit >= 0 ? '+' : '';
     summaryEl.innerHTML = `
       <div class="blindbox-stat-card">
@@ -188,27 +215,35 @@ function render(stats) {
       </div>
     `;
   } else {
-    const rows = users.map((user, index) => {
-      const rank = index + 1;
-      let rankClass = '';
-      let rankIcon = '';
-      if (rank === 1) { rankClass = 'rank-1'; rankIcon = '👑'; }
-      else if (rank === 2) { rankClass = 'rank-2'; rankIcon = '🥈'; }
-      else if (rank === 3) { rankClass = 'rank-3'; rankIcon = '🥉'; }
+    const rows = users
+      .map((user, index) => {
+        const rank = index + 1;
+        let rankClass = '';
+        let rankIcon = '';
+        if (rank === 1) {
+          rankClass = 'rank-1';
+          rankIcon = '👑';
+        } else if (rank === 2) {
+          rankClass = 'rank-2';
+          rankIcon = '🥈';
+        } else if (rank === 3) {
+          rankClass = 'rank-3';
+          rankIcon = '🥉';
+        }
 
-      const profitSign = user.totalProfit >= 0 ? '+' : '';
-      const profitIsUp = user.totalProfit >= 0;
-      const isLoss = user.totalProfit < 0;
+        const profitSign = user.totalProfit >= 0 ? '+' : '';
+        const profitIsUp = user.totalProfit >= 0;
+        const isLoss = user.totalProfit < 0;
 
-      // 头衔
-      let titleHtml = '';
-      if (rank === 1 && user.totalProfit > 0) {
-        titleHtml = '<span class="user-title lucky-king">欧皇</span>';
-      } else if (user.totalProfit > 20) {
-        titleHtml = '<span class="user-title lucky">好运</span>';
-      }
+        // 头衔
+        let titleHtml = '';
+        if (rank === 1 && user.totalProfit > 0) {
+          titleHtml = '<span class="user-title lucky-king">欧皇</span>';
+        } else if (user.totalProfit > 20) {
+          titleHtml = '<span class="user-title lucky">好运</span>';
+        }
 
-      return `
+        return `
         <div class="leaderboard-row ${rankClass}${isLoss ? ' is-loss' : ''}">
           <div class="rank-badge">${rank <= 3 ? rankIcon : rank}</div>
           <div class="user-info">
@@ -219,10 +254,13 @@ function render(stats) {
           <span class="profit-value ${profitIsUp ? 'is-up' : 'is-down'}">${profitSign}¥${formatMoney(Math.abs(user.totalProfit))}</span>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // 预览表头
-    const headerHtml = COMPACT ? '' : `
+    const headerHtml = COMPACT
+      ? ''
+      : `
       <div class="leaderboard-header">
         <span>排行</span>
         <span></span>
@@ -244,12 +282,18 @@ function applyTheme(settings) {
   const lowPower = overlayLowPowerEnabled(settings);
   panel.classList.toggle('low-power', lowPower);
 
-  root.style.setProperty('--overlay-primary', settings.themePrimary || '#ff6f91');
+  root.style.setProperty(
+    '--overlay-primary',
+    settings.themePrimary || '#ff6f91',
+  );
   root.style.setProperty('--overlay-accent', settings.themeAccent || '#21b6a8');
   root.style.setProperty('--overlay-text', settings.themeText || '#fff7fb');
   root.style.setProperty('--overlay-opacity', settings.themeOpacity || '0.76');
   root.style.setProperty('--overlay-radius', `${settings.themeRadius || 8}px`);
-  root.style.setProperty('--overlay-font-scale', settings.themeFontScale || '1');
+  root.style.setProperty(
+    '--overlay-font-scale',
+    settings.themeFontScale || '1',
+  );
 
   const primaryRgb = hexToRgb(settings.themePrimary || '#ff6f91');
   root.style.setProperty('--overlay-primary-r', String(primaryRgb.r));
@@ -267,34 +311,56 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-bg-b', String(bgRgb.b));
 
   const blur = lowPower ? 0 : Number(settings.backdropBlur || 0);
-  root.style.setProperty('--overlay-blur', `${Number.isFinite(blur) ? Math.max(0, blur) : 0}px`);
+  root.style.setProperty(
+    '--overlay-blur',
+    `${Number.isFinite(blur) ? Math.max(0, blur) : 0}px`,
+  );
   panel.classList.toggle('has-backdrop-blur', blur > 0);
 
   const rawGlowIntensity = Number(settings.glowIntensity || 0);
-  const glowIntensity = lowPower || !Number.isFinite(rawGlowIntensity) ? 0 : Math.max(0, rawGlowIntensity);
+  const glowIntensity =
+    lowPower || !Number.isFinite(rawGlowIntensity)
+      ? 0
+      : Math.max(0, rawGlowIntensity);
   root.style.setProperty('--overlay-glow-size', `${glowIntensity}px`);
-  root.style.setProperty('--overlay-glow-color',
+  root.style.setProperty(
+    '--overlay-glow-color',
     glowIntensity > 0
       ? `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${Math.min(0.25, glowIntensity / 80)})`
-      : 'transparent');
+      : 'transparent',
+  );
 
   const gradientEnabled = settings.enableGradient === 'true';
   panel.classList.toggle('gradient-bg', gradientEnabled);
   if (gradientEnabled) {
-    const gradRgb = hexToRgb(settings.gradientEnd || settings.themeBackground || '#181823');
+    const gradRgb = hexToRgb(
+      settings.gradientEnd || settings.themeBackground || '#181823',
+    );
     root.style.setProperty('--overlay-gradient-r', String(gradRgb.r));
     root.style.setProperty('--overlay-gradient-g', String(gradRgb.g));
     root.style.setProperty('--overlay-gradient-b', String(gradRgb.b));
   }
 
-  root.style.setProperty('--overlay-font-family', withMultilingualFallback(settings.overlayFontFamily || 'Microsoft YaHei'));
-  root.style.setProperty('--overlay-font-weight', settings.overlayFontWeight || '800');
-  root.style.setProperty('--overlay-song-color', settings.overlaySongColor || settings.themeText || '#fff7fb');
-  root.style.setProperty('--overlay-requester-color', settings.overlayRequesterColor || '');
+  root.style.setProperty(
+    '--overlay-font-family',
+    withMultilingualFallback(settings.overlayFontFamily || 'Microsoft YaHei'),
+  );
+  root.style.setProperty(
+    '--overlay-font-weight',
+    settings.overlayFontWeight || '800',
+  );
+  root.style.setProperty(
+    '--overlay-song-color',
+    settings.overlaySongColor || settings.themeText || '#fff7fb',
+  );
+  root.style.setProperty(
+    '--overlay-requester-color',
+    settings.overlayRequesterColor || '',
+  );
 
   panel.style.backgroundColor = hexToRgba(
     settings.themeBackground || '#181823',
-    settings.themeOpacity || 0.76
+    settings.themeOpacity || 0.76,
   );
 }
 
@@ -317,26 +383,33 @@ function formatMoney(value) {
 
 function hexToRgb(hex) {
   const normalized = String(hex || '#181823').replace('#', '');
-  const value = normalized.length === 3
-    ? normalized.split('').map((char) => char + char).join('')
-    : normalized;
+  const value =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : normalized;
   const number = Number.parseInt(value, 16);
   return {
     r: (number >> 16) & 255,
     g: (number >> 8) & 255,
-    b: number & 255
+    b: number & 255,
   };
 }
 
 function hexToRgba(hex, opacity) {
   const { r, g, b } = hexToRgb(hex);
   const alpha = Number(opacity);
-  const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 0.76;
+  const safeAlpha = Number.isFinite(alpha)
+    ? Math.max(0, Math.min(1, alpha))
+    : 0.76;
   return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
 }
 
 function withMultilingualFallback(fontFamily) {
-  const fallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
+  const fallback =
+    '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
   const selected = String(fontFamily || '').trim();
   if (!selected) return fallback;
   return `${selected}, ${fallback}`;

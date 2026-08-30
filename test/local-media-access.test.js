@@ -5,10 +5,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createLocalMediaAccess, hasExactOrigin } = require('../src/electron/local-media-access');
+const {
+  createLocalMediaAccess,
+  hasExactOrigin,
+} = require('../src/electron/local-media-access');
 
 test('explicit local media access survives a cold start and remains path-specific', (t) => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-request-local-media-'),
+  );
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
   const dataDir = path.join(tempRoot, 'data');
@@ -31,12 +36,18 @@ test('explicit local media access survives a cold start and remains path-specifi
   assert.equal(coldStart.isAllowed(siblingPath), false);
 });
 test('dataDir files are not implicitly allowed (security: no privilege escalation)', (t) => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-request-local-media-'),
+  );
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
   const dataDir = path.join(tempRoot, 'data');
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(path.join(dataDir, '.session-token'), 'secret-token', 'utf8');
+  fs.writeFileSync(
+    path.join(dataDir, '.session-token'),
+    'secret-token',
+    'utf8',
+  );
   fs.writeFileSync(path.join(dataDir, 'database.db'), 'db-content', 'utf8');
   fs.writeFileSync(path.join(dataDir, 'config.json'), '{}', 'utf8');
 
@@ -45,18 +56,29 @@ test('dataDir files are not implicitly allowed (security: no privilege escalatio
   assert.equal(access.isAllowed(path.join(dataDir, '.session-token')), false);
   assert.equal(access.isAllowed(path.join(dataDir, 'database.db')), false);
   assert.equal(access.isAllowed(path.join(dataDir, 'config.json')), false);
-  assert.equal(access.isAllowed(path.join(dataDir, 'local-media-access.json')), false);
+  assert.equal(
+    access.isAllowed(path.join(dataDir, 'local-media-access.json')),
+    false,
+  );
 });
 
 test('IPC sender validation compares exact origins', () => {
   const expected = 'http://127.0.0.1:3000';
-  assert.equal(hasExactOrigin('http://127.0.0.1:3000/admin?desktop=1', expected), true);
-  assert.equal(hasExactOrigin('http://127.0.0.1:3000@evil.example/admin', expected), false);
+  assert.equal(
+    hasExactOrigin('http://127.0.0.1:3000/admin?desktop=1', expected),
+    true,
+  );
+  assert.equal(
+    hasExactOrigin('http://127.0.0.1:3000@evil.example/admin', expected),
+    false,
+  );
   assert.equal(hasExactOrigin('http://127.0.0.1:3001/admin', expected), false);
 });
 
 test('only audio extensions are allowed in the whitelist', (t) => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-request-local-media-'),
+  );
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
   const dataDir = path.join(tempRoot, 'data');
@@ -83,7 +105,9 @@ test('only audio extensions are allowed in the whitelist', (t) => {
 });
 
 test('linked paths are canonicalized to prevent escape', (t) => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-request-local-media-'),
+  );
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
 
   const dataDir = path.join(tempRoot, 'data');
@@ -96,9 +120,10 @@ test('linked paths are canonicalized to prevent escape', (t) => {
   const junctionDir = path.join(tempRoot, 'link-to-music');
   fs.writeFileSync(realFile, 'fake-audio', 'utf8');
 
-  const linkedFile = process.platform === 'win32'
-    ? path.join(junctionDir, 'track.mp3')
-    : symlinkFile;
+  const linkedFile =
+    process.platform === 'win32'
+      ? path.join(junctionDir, 'track.mp3')
+      : symlinkFile;
   try {
     if (process.platform === 'win32') {
       // Directory junctions exercise the same realpath behavior without requiring elevation.

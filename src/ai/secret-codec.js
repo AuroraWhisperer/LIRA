@@ -19,14 +19,16 @@ function createElectronSecretCodec(safeStorageOverride = null) {
       return Boolean(safeStorage?.isEncryptionAvailable?.());
     },
     encrypt(value) {
-      if (!this.isAvailable()) throw new Error('当前系统无法安全加密 API Key，未保存密钥。');
+      if (!this.isAvailable())
+        throw new Error('当前系统无法安全加密 API Key，未保存密钥。');
       return safeStorage.encryptString(String(value)).toString('base64');
     },
     decrypt(value) {
       if (!value) return '';
-      if (!this.isAvailable()) throw new Error('当前系统无法解密已保存的 API Key。');
+      if (!this.isAvailable())
+        throw new Error('当前系统无法解密已保存的 API Key。');
       return safeStorage.decryptString(Buffer.from(String(value), 'base64'));
-    }
+    },
   };
 }
 

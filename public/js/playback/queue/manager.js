@@ -64,11 +64,18 @@ export class QueueManager {
       this.state.normalQueue.unshift(...items);
 
       if (this.state.queueType === 'playlist') {
-        const insertAt = Math.max(0, Math.min(
-          this.state.normalQueueTracks.length,
-          this.state.playlistIndex + 1
-        ));
-        this.state.normalQueueTracks.splice(insertAt, 0, ...items.map((track) => ({ ...track })));
+        const insertAt = Math.max(
+          0,
+          Math.min(
+            this.state.normalQueueTracks.length,
+            this.state.playlistIndex + 1,
+          ),
+        );
+        this.state.normalQueueTracks.splice(
+          insertAt,
+          0,
+          ...items.map((track) => ({ ...track })),
+        );
       } else {
         this.state.queueType = 'queue';
         this.state.queueTitle = '播放队列';
@@ -106,7 +113,12 @@ export class QueueManager {
     const activeOrigin = this.getActiveOrigin();
     const queue = queueName === activeOrigin ? this.getActiveQueue() : null;
 
-    if (!queue || !Number.isInteger(index) || index < 0 || index >= queue.length) {
+    if (
+      !queue ||
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= queue.length
+    ) {
       return null;
     }
 
@@ -115,7 +127,8 @@ export class QueueManager {
     // 如果是播放列表模式，同时从完整列表中移除
     if (this.state.queueType === 'playlist') {
       const sourceIndex = this.state.normalQueueTracks.findIndex(
-        (item, itemIndex) => itemIndex > this.state.playlistIndex && item.id === track.id
+        (item, itemIndex) =>
+          itemIndex > this.state.playlistIndex && item.id === track.id,
       );
       if (sourceIndex >= 0) {
         this.state.normalQueueTracks.splice(sourceIndex, 1);
@@ -146,11 +159,11 @@ export class QueueManager {
         if (this.state.mode === 'sequence') {
           this.state.playlistIndex = Math.min(
             this.state.normalQueueTracks.length - 1,
-            this.state.playlistIndex + 1
+            this.state.playlistIndex + 1,
           );
         } else {
           this.state.playlistIndex = this.state.normalQueueTracks.findIndex(
-            (item) => item.id === track.id
+            (item) => item.id === track.id,
           );
         }
       }
@@ -222,7 +235,11 @@ export class QueueManager {
   jumpToPlaylistTrack(index) {
     if (!this.state) return null;
     if (this.state.queueType !== 'playlist') return null;
-    if (!Number.isInteger(index) || index < 0 || index >= this.state.normalQueueTracks.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.state.normalQueueTracks.length
+    ) {
       return null;
     }
 
@@ -256,8 +273,8 @@ export class QueueManager {
         body: JSON.stringify({
           platform: this.state.selectedSource,
           action: 'radio',
-          limit: this.radioRefillBatchSize
-        })
+          limit: this.radioRefillBatchSize,
+        }),
       });
 
       const readJson = options.readJsonResponse || ((r) => r.json());
@@ -275,15 +292,21 @@ export class QueueManager {
         : [];
 
       // 去重：避免添加最近播放过的曲目
-      const recentIds = new Set(this.state.history.slice(-30).map((track) => track.id));
+      const recentIds = new Set(
+        this.state.history.slice(-30).map((track) => track.id),
+      );
 
       for (const track of tracks) {
         if (recentIds.has(track.id)) continue;
-        if (this.state.radioQueue.some((item) => item.id === track.id)) continue;
+        if (this.state.radioQueue.some((item) => item.id === track.id))
+          continue;
         this.state.radioQueue.push(track);
       }
     } catch (error) {
-      console.warn('[QueueManager] radio refill failed:', error.message || error);
+      console.warn(
+        '[QueueManager] radio refill failed:',
+        error.message || error,
+      );
     } finally {
       this.radioRefillRunning = false;
     }
@@ -298,7 +321,13 @@ export class QueueManager {
    * @param {string} sourceKey - 队列来源标识
    * @returns {Object|null} 第一首曲目
    */
-  startCollection(tracks, startIndex = 0, queueType = 'queue', title = '播放队列', sourceKey = '') {
+  startCollection(
+    tracks,
+    startIndex = 0,
+    queueType = 'queue',
+    title = '播放队列',
+    sourceKey = '',
+  ) {
     if (!this.state) return null;
 
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];

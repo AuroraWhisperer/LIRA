@@ -8,12 +8,20 @@ const { parseRandomSongTerms } = require('../music/random-song-filter');
 
 // ── 弹幕指令入口 ──
 
-function handleDanmakuMessage(context, {
-  message, userName, uid, source,
-  messageTimestamp, requesterGuardLevel,
-  requesterMedalName, requesterMedalLevel,
-  isPinned
-}) {
+function handleDanmakuMessage(
+  context,
+  {
+    message,
+    userName,
+    uid,
+    source,
+    messageTimestamp,
+    requesterGuardLevel,
+    requesterMedalName,
+    requesterMedalLevel,
+    isPinned,
+  },
+) {
   const text = cleanText(message);
   const settings = context.settings();
   const command = parseDanmakuCommand(text, settings);
@@ -26,7 +34,9 @@ function handleDanmakuMessage(context, {
   }
 
   const defaults = context.settingsStore.getDefaultSettings();
-  const cooldownSeconds = Number(settings.userCooldownSeconds || defaults.userCooldownSeconds);
+  const cooldownSeconds = Number(
+    settings.userCooldownSeconds || defaults.userCooldownSeconds,
+  );
   const cooldownKey = cleanText(uid) || cleanText(userName) || 'anonymous';
   if (context.cooldownStore?.pruneMap) {
     context.cooldownStore.pruneMap(context.state.cooldownByUser);
@@ -37,7 +47,7 @@ function handleDanmakuMessage(context, {
     return {
       accepted: false,
       reason: `用户冷却中，还需 ${Math.ceil(cooldownSeconds - elapsedSeconds)} 秒。`,
-      command
+      command,
     };
   }
 
@@ -49,13 +59,18 @@ function handleDanmakuMessage(context, {
       const reason = command.scopeText
         ? `歌库里没有同时满足全部条件「${command.scopeText}」的可随机歌曲。`
         : '歌库里还没有可随机歌曲。';
-      const autoReply = settings.enableRandomTagReply === 'true'
-        ? buildRandomScopeAutoReply(command.scopeText, {
-          ...(context.describeRandomSongScope
-            ? context.describeRandomSongScope(command.scopeText)
-            : {})
-        }, { uid, name: userName })
-        : null;
+      const autoReply =
+        settings.enableRandomTagReply === 'true'
+          ? buildRandomScopeAutoReply(
+              command.scopeText,
+              {
+                ...(context.describeRandomSongScope
+                  ? context.describeRandomSongScope(command.scopeText)
+                  : {}),
+              },
+              { uid, name: userName },
+            )
+          : null;
       return { accepted: false, reason, command, autoReply };
     }
     queueItem = context.addQueueItem({
@@ -70,7 +85,7 @@ function handleDanmakuMessage(context, {
       source: randomSourceValue(command.scopeText),
       message: text,
       messageTimestamp,
-      isPinned
+      isPinned,
     });
   } else {
     const matchedSong = context.resolveSongRequest
@@ -86,7 +101,7 @@ function handleDanmakuMessage(context, {
       source: source || 'danmaku',
       message: text,
       messageTimestamp,
-      isPinned
+      isPinned,
     });
   }
 
@@ -97,9 +112,15 @@ function handleDanmakuMessage(context, {
   // 内存 Map 是读路径，DB 只为重启后能恢复冷却；写失败不影响本次点歌
   if (context.cooldownStore) {
     try {
-      context.cooldownStore.touch(cooldownKey, { uid, userName, at: acceptedAt });
+      context.cooldownStore.touch(cooldownKey, {
+        uid,
+        userName,
+        at: acceptedAt,
+      });
     } catch (error) {
-      console.warn(`[Cooldown] persist failed: key=${cooldownKey} error=${error.message}`);
+      console.warn(
+        `[Cooldown] persist failed: key=${cooldownKey} error=${error.message}`,
+      );
     }
   }
   return { accepted: true, command, queueItem };
@@ -112,11 +133,17 @@ function parseDanmakuCommand(message, settings) {
   if (!text) return null;
 
   if (text.startsWith('随机点歌')) {
-    return { type: 'random', scopeText: normalizeRandomScopeText(text.slice('随机点歌'.length)) };
+    return {
+      type: 'random',
+      scopeText: normalizeRandomScopeText(text.slice('随机点歌'.length)),
+    };
   }
 
   if (text.startsWith('随机 ')) {
-    return { type: 'random', scopeText: normalizeRandomScopeText(text.slice('随机 '.length)) };
+    return {
+      type: 'random',
+      scopeText: normalizeRandomScopeText(text.slice('随机 '.length)),
+    };
   }
 
   if (text.startsWith('随机') && text !== '随机') {
@@ -159,43 +186,48 @@ function logDanmakuCommand(danmaku, result) {
 }
 
 function buildRandomScopeAutoReply(scopeText, details = {}, target = {}) {
-  const terms = Array.isArray(details.terms) && details.terms.length > 0
-    ? details.terms
-    : parseRandomSongTerms(scopeText);
+  const terms =
+    Array.isArray(details.terms) && details.terms.length > 0
+      ? details.terms
+      : parseRandomSongTerms(scopeText);
   if (terms.length === 0 || !cleanText(target.name)) return null;
 
   const scope = cleanText(scopeText);
-  const message = terms.length === 1
-    ? `歌库里暂时没有「${terms[0]}」这一类歌曲，请换个条件试试。`
-    : `你输入的组合条件「${scope}」暂时没有匹配歌曲，请调整组合条件后再试。`;
+  const message =
+    terms.length === 1
+      ? `歌库里暂时没有「${terms[0]}」这一类歌曲，请换个条件试试。`
+      : `你输入的组合条件「${scope}」暂时没有匹配歌曲，请调整组合条件后再试。`;
   return {
     message,
     target: {
       uid: cleanText(target.uid),
-      name: cleanText(target.name)
-    }
+      name: cleanText(target.name),
+    },
   };
 }
 
 function formatBilibiliCommandLog(danmaku, result) {
   const message = cleanText(danmaku && danmaku.message);
   const status = result && result.accepted ? 'accepted' : 'ignored';
-  const outcome = result && result.accepted
-    ? ` song=${JSON.stringify(cleanText(result.queueItem && result.queueItem.song_name))}`
-    : ` reason=${JSON.stringify(cleanText(result && result.reason))}`;
+  const outcome =
+    result && result.accepted
+      ? ` song=${JSON.stringify(cleanText(result.queueItem && result.queueItem.song_name))}`
+      : ` reason=${JSON.stringify(cleanText(result && result.reason))}`;
   const trace = {
     connectionGeneration: Number(danmaku && danmaku.connectionGeneration) || 0,
     connectionAttempt: Number(danmaku && danmaku.connectionAttempt) || 0,
-    cmd: cleanText(danmaku && danmaku.cmd)
+    cmd: cleanText(danmaku && danmaku.cmd),
   };
-  return `[Bilibili][Command] status=${status}`
-    + ` time=${formatLogTimestamp(danmaku && danmaku.messageTimestamp)}`
-    + ` source=${cleanText(danmaku && danmaku.source) || 'danmaku'}`
-    + ` user=${JSON.stringify(cleanText(danmaku && danmaku.userName))}`
-    + ` uid=${JSON.stringify(cleanText(danmaku && danmaku.uid))}`
-    + ` message=${JSON.stringify(message)}`
-    + outcome
-    + ` trace=${JSON.stringify(trace)}`;
+  return (
+    `[Bilibili][Command] status=${status}` +
+    ` time=${formatLogTimestamp(danmaku && danmaku.messageTimestamp)}` +
+    ` source=${cleanText(danmaku && danmaku.source) || 'danmaku'}` +
+    ` user=${JSON.stringify(cleanText(danmaku && danmaku.userName))}` +
+    ` uid=${JSON.stringify(cleanText(danmaku && danmaku.uid))}` +
+    ` message=${JSON.stringify(message)}` +
+    outcome +
+    ` trace=${JSON.stringify(trace)}`
+  );
 }
 
 module.exports = {
@@ -205,5 +237,5 @@ module.exports = {
   randomSourceValue,
   buildRandomScopeAutoReply,
   logDanmakuCommand,
-  formatBilibiliCommandLog
+  formatBilibiliCommandLog,
 };

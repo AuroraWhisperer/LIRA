@@ -8,13 +8,14 @@ class WebSocketConnection {
   constructor(options = {}) {
     this.ws = null;
     this.heartbeatTimer = null;
-    this.heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
+    this.heartbeatIntervalMs =
+      options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
     this.awaitingHeartbeatReply = false;
     this.eventHandlers = {
       open: [],
       message: [],
       close: [],
-      error: []
+      error: [],
     };
   }
 
@@ -35,7 +36,7 @@ class WebSocketConnection {
             code: 0,
             reason: 'heartbeat timeout',
             wasClean: false,
-            heartbeatTimeout: true
+            heartbeatTimeout: true,
           });
           return;
         }
@@ -47,9 +48,10 @@ class WebSocketConnection {
 
     ws.addEventListener('message', async (event) => {
       if (this.ws !== ws) return;
-      const data = event.data instanceof ArrayBuffer
-        ? Buffer.from(event.data)
-        : Buffer.from(await event.data.arrayBuffer());
+      const data =
+        event.data instanceof ArrayBuffer
+          ? Buffer.from(event.data)
+          : Buffer.from(await event.data.arrayBuffer());
       if (containsOperation(data, 3)) {
         this.awaitingHeartbeatReply = false;
       }
@@ -72,7 +74,7 @@ class WebSocketConnection {
         code: 0,
         reason: event && event.message ? event.message : 'websocket error',
         wasClean: false,
-        connectionError: true
+        connectionError: true,
       });
     });
 
@@ -102,13 +104,17 @@ class WebSocketConnection {
     this.heartbeatTimer = null;
     this.awaitingHeartbeatReply = false;
     this.ws = null;
-    try { ws.close(); } catch (_) {}
+    try {
+      ws.close();
+    } catch (_) {}
     this.emit('close', event);
   }
 
   sendPacket(operation, version, body) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    const payload = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+    const payload = Buffer.from(
+      typeof body === 'string' ? body : JSON.stringify(body),
+    );
     const header = Buffer.alloc(16);
     header.writeUInt32BE(16 + payload.length, 0);
     header.writeUInt16BE(16, 4);
@@ -139,7 +145,9 @@ class WebSocketConnection {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup();
-        try { ws.close(); } catch (_) {}
+        try {
+          ws.close();
+        } catch (_) {}
         reject(new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
       }, 8000);
 
@@ -173,7 +181,8 @@ function containsOperation(buffer, expectedOperation) {
   let offset = 0;
   while (offset + 16 <= buffer.length) {
     const packetLength = buffer.readUInt32BE(offset);
-    if (packetLength < 16 || offset + packetLength > buffer.length) return false;
+    if (packetLength < 16 || offset + packetLength > buffer.length)
+      return false;
     if (buffer.readUInt32BE(offset + 8) === expectedOperation) return true;
     offset += packetLength;
   }

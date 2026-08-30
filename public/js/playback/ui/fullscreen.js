@@ -70,17 +70,28 @@ export class FullscreenPlayer {
     this.bgEl = document.getElementById('playerFsBg');
     this.vinylDiscEl = document.getElementById('playerFsVinylDisc');
     this.tonearmEl = document.getElementById('playerFsTonearm');
-    if (this.tonearmEl && !String(this.tonearmEl.innerHTML || '').includes('data-player-tonearm="curved"')) {
+    if (
+      this.tonearmEl &&
+      !String(this.tonearmEl.innerHTML || '').includes(
+        'data-player-tonearm="curved"',
+      )
+    ) {
       this.tonearmEl.innerHTML = TONEARM_SVG;
     }
     this.lyricsContainer = document.getElementById('playerFsLyrics');
     this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
     this.lyricTogglesEl = document.getElementById('playerFsLyricToggles');
     this.romaToggleBtn = document.getElementById('fsRomaToggleBtn');
-    this.translationToggleBtn = document.getElementById('fsTranslationToggleBtn');
+    this.translationToggleBtn = document.getElementById(
+      'fsTranslationToggleBtn',
+    );
 
-    this.romaToggleBtn?.addEventListener('click', () => this._toggleLyricMode('roma'));
-    this.translationToggleBtn?.addEventListener('click', () => this._toggleLyricMode('trans'));
+    this.romaToggleBtn?.addEventListener('click', () =>
+      this._toggleLyricMode('roma'),
+    );
+    this.translationToggleBtn?.addEventListener('click', () =>
+      this._toggleLyricMode('trans'),
+    );
   }
 
   /**
@@ -138,7 +149,8 @@ export class FullscreenPlayer {
   renderArtwork(track) {
     if (!this.artEl) return;
 
-    const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
+    const escapeAttr =
+      window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
     const coverUrl = track && track.coverUrl ? track.coverUrl : '';
 
     this.artEl.classList.toggle('has-image', Boolean(coverUrl));
@@ -201,28 +213,38 @@ export class FullscreenPlayer {
   renderLyrics(track, audio) {
     if (!this.lyricsContainer) return;
 
-    const lines = track && track.lyrics && Array.isArray(track.lyrics.lines)
-      ? track.lyrics.lines
-      : [];
+    const lines =
+      track && track.lyrics && Array.isArray(track.lyrics.lines)
+        ? track.lyrics.lines
+        : [];
 
     // 保存歌词行引用，供 _toggleLyricMode 重渲染使用
     this._lastLyricLines = lines;
 
     if (!lines.length) {
-      this.lyricsContainer.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
+      this.lyricsContainer.innerHTML =
+        '<div class="player-fs-lyrics-empty">暂无歌词</div>';
       this.lastActiveLyricIndex = -1;
       return;
     }
 
-    const currentMs = audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
+    const currentMs =
+      audio && Number.isFinite(audio.currentTime)
+        ? audio.currentTime * 1000
+        : 0;
 
     // 找到当前行索引
     const currentIndex = this.findCurrentLyricIndex(lines, currentMs);
 
     // 重新渲染（仅在歌词变化时）
-    const existingCount = this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').length;
+    const existingCount = this.lyricsContainer.querySelectorAll(
+      '.player-fs-lyric-line',
+    ).length;
     if (existingCount !== lines.length) {
-      console.log('[fullscreen] renderLyrics: re-rendering lyrics, count:', lines.length);
+      console.log(
+        '[fullscreen] renderLyrics: re-rendering lyrics, count:',
+        lines.length,
+      );
       this.renderLyricLines(lines);
       this.lastActiveLyricIndex = -1; // 歌词列表变化，重置索引以触发初始滚动
     }
@@ -237,7 +259,7 @@ export class FullscreenPlayer {
         lastIndex: this.lastActiveLyricIndex,
         currentIndex,
         currentMs,
-        lineText: lines[currentIndex]?.text
+        lineText: lines[currentIndex]?.text,
       });
       this.scrollToActiveLyric();
       this.lastActiveLyricIndex = currentIndex;
@@ -268,12 +290,15 @@ export class FullscreenPlayer {
   renderLyricLines(lines) {
     if (!this.lyricsContainer) return;
 
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml =
+      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
     const showTrans = this.lyricMode === 'trans';
     const showRoma = this.lyricMode === 'roma';
 
-    this.lyricsContainer.innerHTML = lines.map((line, i) => `
+    this.lyricsContainer.innerHTML = lines
+      .map(
+        (line, i) => `
       <div class="player-fs-lyric-line" data-lyric-index="${i}" data-lyric-start-ms="${line.startMs || 0}">
         <button class="lyric-seek-btn" type="button" aria-label="从此处播放" title="从此处播放">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -286,11 +311,15 @@ export class FullscreenPlayer {
           ${showRoma && line.roma ? `<span class="lyric-trans">${escapeHtml(line.roma)}</span>` : ''}
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     // 绑定点击事件（仅一次）
     if (!this.lyricsInitialized) {
-      this.lyricsContainer.addEventListener('click', (event) => this.handleLyricClick(event));
+      this.lyricsContainer.addEventListener('click', (event) =>
+        this.handleLyricClick(event),
+      );
       this.lyricsInitialized = true;
     }
   }
@@ -302,9 +331,11 @@ export class FullscreenPlayer {
   updateLyricHighlight(currentIndex) {
     if (!this.lyricsContainer) return;
 
-    this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').forEach((el, i) => {
-      el.classList.toggle('active', i === currentIndex);
-    });
+    this.lyricsContainer
+      .querySelectorAll('.player-fs-lyric-line')
+      .forEach((el, i) => {
+        el.classList.toggle('active', i === currentIndex);
+      });
   }
 
   /**
@@ -312,11 +343,15 @@ export class FullscreenPlayer {
    */
   scrollToActiveLyric() {
     if (!this.lyricsContainer) {
-      console.warn('[fullscreen] scrollToActiveLyric: lyricsContainer not found');
+      console.warn(
+        '[fullscreen] scrollToActiveLyric: lyricsContainer not found',
+      );
       return;
     }
 
-    const activeLine = this.lyricsContainer.querySelector('.player-fs-lyric-line.active');
+    const activeLine = this.lyricsContainer.querySelector(
+      '.player-fs-lyric-line.active',
+    );
     if (!activeLine) {
       console.warn('[fullscreen] scrollToActiveLyric: no active line found');
       return;
@@ -336,7 +371,7 @@ export class FullscreenPlayer {
       lineHeight,
       containerHeight,
       targetScroll,
-      currentScroll: scrollContainer.scrollTop
+      currentScroll: scrollContainer.scrollTop,
     });
 
     // 直接设置 scrollTop
@@ -393,9 +428,10 @@ export class FullscreenPlayer {
   _updateLyricToggles(track) {
     if (!this.lyricTogglesEl) return;
 
-    const lines = track && track.lyrics && Array.isArray(track.lyrics.lines)
-      ? track.lyrics.lines
-      : [];
+    const lines =
+      track && track.lyrics && Array.isArray(track.lyrics.lines)
+        ? track.lyrics.lines
+        : [];
 
     const hasTranslation = lines.some((line) => line.translation);
     const hasRoma = lines.some((line) => line.roma);
@@ -403,10 +439,15 @@ export class FullscreenPlayer {
 
     // 有额外歌词数据就显示按钮
     const hasLyrics = lines.length > 0;
-    this.lyricTogglesEl.style.display = (hasLyrics && hasAnyExtra) ? 'flex' : 'none';
+    this.lyricTogglesEl.style.display =
+      hasLyrics && hasAnyExtra ? 'flex' : 'none';
 
-    if (this.romaToggleBtn) this.romaToggleBtn.style.display = hasRoma ? 'grid' : 'none';
-    if (this.translationToggleBtn) this.translationToggleBtn.style.display = hasTranslation ? 'grid' : 'none';
+    if (this.romaToggleBtn)
+      this.romaToggleBtn.style.display = hasRoma ? 'grid' : 'none';
+    if (this.translationToggleBtn)
+      this.translationToggleBtn.style.display = hasTranslation
+        ? 'grid'
+        : 'none';
 
     this._updateLyricToggleButtons();
   }
@@ -421,15 +462,23 @@ export class FullscreenPlayer {
     if (this.romaToggleBtn) {
       this.romaToggleBtn.classList.remove('mode-roma');
       if (romaActive) this.romaToggleBtn.classList.add('mode-roma');
-      this.romaToggleBtn.title = romaActive ? '当前显示罗马音，点击关闭' : '显示罗马音';
+      this.romaToggleBtn.title = romaActive
+        ? '当前显示罗马音，点击关闭'
+        : '显示罗马音';
       this.romaToggleBtn.setAttribute?.('aria-pressed', String(romaActive));
     }
 
     if (this.translationToggleBtn) {
       this.translationToggleBtn.classList.remove('mode-trans');
-      if (translationActive) this.translationToggleBtn.classList.add('mode-trans');
-      this.translationToggleBtn.title = translationActive ? '当前显示中文翻译，点击关闭' : '显示中文翻译';
-      this.translationToggleBtn.setAttribute?.('aria-pressed', String(translationActive));
+      if (translationActive)
+        this.translationToggleBtn.classList.add('mode-trans');
+      this.translationToggleBtn.title = translationActive
+        ? '当前显示中文翻译，点击关闭'
+        : '显示中文翻译';
+      this.translationToggleBtn.setAttribute?.(
+        'aria-pressed',
+        String(translationActive),
+      );
     }
   }
 

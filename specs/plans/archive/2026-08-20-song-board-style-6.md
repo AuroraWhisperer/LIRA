@@ -78,10 +78,12 @@
 ### Task 1: 建立失败回归覆盖
 
 **Files:**
+
 - Modify: `test/frontend-queue.test.js`
 - Modify: `test/queue-overlay-esm.test.js`
 
 **Interfaces:**
+
 - Consumes: `normalizeQueueStyle(style)`、`renderGoldenLilyQueue()`、`renderGoldenLilyRow(item, index)`。
 - Produces: 风格按钮、设置值、素材、DOM 字段与 ESM 链接的回归约束。
 
@@ -93,6 +95,7 @@
 ### Task 2: 接入素材、管理选择和渲染
 
 **Files:**
+
 - Create: `public/img/overlays/song-board-style-6/frame.png`
 - Create: `public/img/overlays/song-board-style-6/entry.png`
 - Modify: `public/pages/admin/song/queue-theme.html`
@@ -103,6 +106,7 @@
 - Modify: `public/js/overlays/queue-scroll.js`
 
 **Interfaces:**
+
 - Consumes: 既有 `renderIllustratedAssetQueue()`、`renderIllustratedAssetRow()`、`escapeHtml()` 与身份格式函数。
 - Produces: `renderGoldenLilyQueue(settings, current, waiting, content)` 和 `renderGoldenLilyRow(item, index)`。
 
@@ -115,12 +119,14 @@
 ### Task 3: 实现响应式素材布局
 
 **Files:**
+
 - Modify: `public/css/overlays/base.css`
 - Modify: `public/css/overlays/base/illustrated.css`
 - Create: `public/css/overlays/base/golden-lily.css`
 - Modify: `public/pages/overlays/queue.html`
 
 **Interfaces:**
+
 - Consumes: `.illustrated-*` 公共布局类与 `--identity-queue-font-size`。
 - Produces: `.queue-golden-lily` 框体、`.golden-lily-row` 词条、圆圈序号和右侧信息视口的响应式位置。
 
@@ -132,12 +138,14 @@
 ### Task 4: 更新契约并完成验证
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/backend/storage.md`
 - Modify: `specs/plans/2026-08-20-song-board-style-6.md`
 
 **Interfaces:**
+
 - Consumes: 已实现的 `golden-lily` 设置值与 DOM/CSS 行为。
 - Produces: 与运行时一致的风格枚举和验证记录。
 

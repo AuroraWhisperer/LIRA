@@ -1,253 +1,39 @@
 // 编写人：Aurora
-// 设置读写、迁移、默认值。
+// 设置读写。
 // 通过 createSettingsStore(db) 初始化，不自动假设全局数据库连接。
 'use strict';
 
-const path = require('node:path');
 const { now } = require('../shared/utils');
-const { CHECKIN_BLESSINGS, FORTUNES } = require('../shared/bot-defaults');
-const DEFAULT_BLIND_BOX_CONFIG = require('./default-blind-box-config.json');
-
-const DEFAULT_WESING_CACHE_PATH = process.platform === 'win32' && process.env.APPDATA
-  ? path.join(process.env.APPDATA, 'Tencent', 'WeSing', 'WeSingCache')
-  : '';
-
-const DEFAULT_SETTINGS = {
-  roomId: '',
-  onboardingVersion: '',
-  onboardingCompletedAt: '',
-  onboardingSkippedOptional: '',
-  toolboxSidebarCollapsed: '',
-  toolboxCollapsedFeatureGroups: '',
-  enableBilibili: 'true',
-  danmakuOverlayStyle: 'signal',
-  enableAutoUpdate: 'false',
-  enableGiftSprint: 'true',
-  enableGiftNotification: 'true',
-  giftSprintTargetRmb: '0',
-  giftFrameEnabled: 'false',
-  giftFrameThresholdRmb: '20',
-  giftFrameTheme: 'woodland-bloom',
-  giftFrameMotionMode: 'auto',
-  giftBlindBoxConfig: JSON.stringify(DEFAULT_BLIND_BOX_CONFIG),
-  paused: 'false',
-  allowCompactRequest: 'true',
-  onlyFromLibrary: 'false',
-  allowDuplicate: 'true',
-  enableRandomTagReply: 'true',
-  enableCheckinBot: 'true',
-  enableFortuneBot: 'true',
-  enableCustomReplyBot: 'true',
-  checkinBlessings: JSON.stringify(CHECKIN_BLESSINGS),
-  fortunePool: JSON.stringify(FORTUNES),
-  customReplyRules: '[]',
-  queueLimit: '50',
-  userCooldownSeconds: '0',
-  scrollSeconds: '45',
-  songScrollSpeedRangeVersion: '2',
-  queueScrollMode: 'bounce',
-  queueScrollSpeed: '80',
-  identityQueueScrollSpeed: '80',
-  queueScrollSpeedRangeVersion: '3',
-  themePrimary: '#ff6f91',
-  themeAccent: '#21b6a8',
-  themeText: '#fff7fb',
-  themeBackground: '#181823',
-  themeOpacity: '0.48',
-  themeRadius: '8',
-  themeFontScale: '1',
-  songBoardFontSize: '40',
-  queueSongFontSize: '40',
-  queueTitleFontSize: '30',
-  identityQueueFontSize: '26',
-  identityQueueScrollMode: 'bounce',
-  illustratedQueueFontFamily: 'default',
-  illustratedQueueFontWeight: 'default',
-  illustratedQueueUseCustomTextColor: 'false',
-  illustratedQueueTextColor: '#315d7d',
-  storybookQueueFontSize: '26',
-  storybookQueueFontFamily: 'default',
-  storybookQueueFontWeight: 'default',
-  storybookQueueUseCustomTextColor: 'false',
-  storybookQueueTextColor: '#315d7d',
-  storybookQueueScrollMode: 'bounce',
-  storybookQueueScrollSpeed: '80',
-  neonVinylQueueFontSize: '26',
-  neonVinylQueueFontFamily: 'default',
-  neonVinylQueueFontWeight: 'default',
-  neonVinylQueueUseCustomTextColor: 'false',
-  neonVinylQueueTextColor: '#315d7d',
-  neonVinylQueueScrollMode: 'bounce',
-  neonVinylQueueScrollSpeed: '80',
-  cherryRibbonQueueFontSize: '26',
-  cherryRibbonQueueFontFamily: 'default',
-  cherryRibbonQueueFontWeight: 'default',
-  cherryRibbonQueueUseCustomTextColor: 'false',
-  cherryRibbonQueueTextColor: '#315d7d',
-  cherryRibbonQueueScrollMode: 'bounce',
-  cherryRibbonQueueScrollSpeed: '80',
-  goldenLilyQueueFontSize: '26',
-  goldenLilyQueueFontFamily: 'default',
-  goldenLilyQueueFontWeight: 'default',
-  goldenLilyQueueUseCustomTextColor: 'false',
-  goldenLilyQueueTextColor: '#315d7d',
-  goldenLilyQueueScrollMode: 'bounce',
-  goldenLilyQueueScrollSpeed: '80',
-  queueStyleSettingsVersion: '1',
-  queueFontSizeRangeVersion: '2',
-  overlayQueueStyle: 'classic',
-  overlayLowPowerMode: 'false',
-  backdropBlur: '14',
-  glowIntensity: '2',
-  enableGradient: 'false',
-  gradientEnd: '#181823',
-  overlayFontFamily: 'Microsoft YaHei',
-  overlayFontWeight: '800',
-  overlaySongColor: '',
-  overlayRequesterColor: '',
-  overlayTitle: '',
-  overlayShowIndex: 'true',
-  overlayIndexThreshold: '0',
-  overlayIndexColor: '#fbbf24',
-  overlayPin1: '',
-  overlayPin2: '',
-  overlayPin3: '',
-  overlayRule1: '弹幕输入 点歌 歌名',
-  overlayRule2: '支持多tag随机点歌',
-  overlayRule3: 'SC ≥ 2',
-  overlayRule4: '',
-  overlayRule5: '',
-  overlayRule6: '',
-  overlayRuleColor1: '#f5b72f',
-  overlayRuleColor2: '#65aef7',
-  overlayRuleColor3: '#8d67e8',
-  overlayRuleColor4: '#f25f72',
-  overlayRuleColor5: '#21b6a8',
-  overlayRuleColor6: '#f97316',
-  overlayRuleFontSize: '10',
-  songBoardSyncTheme: 'true',
-  songBoardThemePrimary: '#ff6f91',
-  songBoardThemeAccent: '#21b6a8',
-  songBoardThemeText: '#fff7fb',
-  songBoardThemeBackground: '#181823',
-  songBoardThemeOpacity: '0.35',
-  songBoardThemeRadius: '8',
-  songBoardThemeFontScale: '1',
-  songBoardBackdropBlur: '0',
-  songBoardGlowIntensity: '0',
-  songBoardEnableGradient: 'false',
-  songBoardGradientEnd: '#181823',
-  songBoardFontFamily: 'Microsoft YaHei',
-  songBoardFontWeight: '800',
-  songBoardSongColor: '',
-  songBoardTitle: '',
-  songBoardSongFontSize: '16',
-  songBoardTitleFontSize: '15',
-  songBoardSortMode: 'initial',
-  // 桌面歌词设置
-  desktopLyricFontFamily: 'Microsoft YaHei',
-  desktopLyricFontWeight: '800',
-  desktopLyricTextColor: '#000000',
-  desktopLyricStrokeColor: '#ffffff',
-  desktopLyricFontSize: '56',
-  desktopLyricStrokeWidth: '3',
-  desktopLyricOpacity: '0.95',
-  desktopLyricBgOpacity: '0.15',
-  desktopLyricScale: '1',
-  desktopLyricLineHeight: '1.4',
-  desktopLyricShadowIntensity: '0.35',
-  desktopLyricTranslationScale: '0.65',
-  desktopLyricFallbackFontFamily: 'Microsoft JhengHei',
-  desktopLyricTextAlign: 'left',
-  desktopLyricLetterSpacing: '0',
-  desktopLyricStrokeEnabled: 'true',
-  desktopLyricShadowEnabled: 'true',
-  desktopLyricShadowColor: '#000000',
-  desktopLyricShadowBlur: '8',
-  desktopLyricShadowOffsetX: '0',
-  desktopLyricShadowOffsetY: '3',
-  desktopLyricShowTranslation: 'true',
-  desktopLyricKaraokeEnabled: 'true',
-  desktopLyricKaraokeMode: 'continuous',
-  desktopLyricHidePassedLines: 'false',
-  desktopLyricTraditionalMode: 'false',
-  desktopLyricInterludeOffsetEm: '0',
-  desktopLyricHideOnPause: 'false',
-  desktopLyricCurrentLineEnhanced: 'true',
-  desktopLyricBaseOpacity: '0.38',
-  desktopLyricTranslationOpacity: '0.72',
-  desktopLyricTimeOffsetMs: '0',
-  desktopLyricShowTitleWhenNoLyric: 'false',
-  desktopLyricNoLyricText: '纯音乐，请欣赏',
-  desktopLyricSpringAnimation: 'false',
-  desktopLyricBlurEffect: 'false',
-  desktopLyricScaleEffect: 'false',
-  desktopLyricAlignPosition: '0.5',
-  desktopLyricAlignAnchor: 'center',
-  desktopLyricTranslateX: '0',
-  desktopLyricTranslateY: '0',
-  desktopLyricPerspective: '800',
-  desktopLyricRotateX: '0',
-  desktopLyricRotateY: '0',
-  desktopLyricBackgroundEnabled: 'false',
-  desktopLyricBackgroundRenderer: 'mesh',
-  desktopLyricGlobalOpacity: '1',
-  desktopLyricBrightness: '1',
-  desktopLyricContrast: '1',
-  desktopLyricSaturation: '1',
-  desktopLyricVisibleLines: '0',
-  weSingCachePath: DEFAULT_WESING_CACHE_PATH,
-  weSingLyricOffsetMs: '0',
-  weSingLyricSource: 'netease',
-  weSingSmartLyricMatch: 'true',
-  // 数据保留期（天），0 表示不清理。默认只清理礼物原始报文，业务数据保持永久保留。
-  giftRawJsonRetentionDays: '30',
-  giftEventRetentionDays: '0',
-  requestRetentionDays: '0',
-  superChatRetentionDays: '0',
-  autoRetentionOnStartup: 'true',
-  openingEnabled: 'false',
-  openingTitle: '唱一首，在一首，给你的歌',
-  openingSubtitle: '开播准备中',
-  openingName: '',
-  openingFooter: '欢迎来到直播间',
-  openingQuality: 'normal',
-  openingTrackMotion: 'heart',
-  openingShowNotes: 'true',
-  openingShowEq: 'true',
-  openingAudioFile: '',
-  openingAudioName: '',
-  openingAudioVolume: '0.35',
-  openingCharacterFile: '',
-  openingCharacterName: '',
-  clockStyle: 'peach',
-  clockShowDate: 'true',
-  clockShowSeconds: 'true',
-  clockHourFormat: '24',
-  clockLabel: '今天也要闪闪发光'
-};
+const { DEFAULT_SETTINGS } = require('./settings-defaults');
+const settingsMigrations = require('./settings-migrations');
 
 function createSettingsStore(db) {
   // Initialize defaults into DB on first call
-  const defaultKeys = Object.keys(DEFAULT_SETTINGS);
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     if (key === 'desktopLyricKaraokeMode') {
-      const existingMode = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+      const existingMode = db
+        .prepare('SELECT value FROM settings WHERE key = ?')
+        .get(key);
       if (!existingMode) {
-        const legacyEnabled = db.prepare('SELECT value FROM settings WHERE key = ?')
+        const legacyEnabled = db
+          .prepare('SELECT value FROM settings WHERE key = ?')
           .get('desktopLyricKaraokeEnabled');
         const initialMode = legacyEnabled?.value === 'false' ? 'off' : value;
-        db.prepare(`
+        db.prepare(
+          `
           INSERT INTO settings (key, value, updated_at)
           VALUES (?, ?, ?)
-        `).run(key, initialMode, now());
+        `,
+        ).run(key, initialMode, now());
       }
       continue;
     }
-    db.prepare(`
+    db.prepare(
+      `
       INSERT OR IGNORE INTO settings (key, value, updated_at)
       VALUES (?, ?, ?)
-    `).run(key, value, now());
+    `,
+    ).run(key, value, now());
   }
 
   let cache = null;
@@ -268,289 +54,20 @@ function createSettingsStore(db) {
     },
 
     setSetting(key, value) {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO settings (key, value, updated_at)
         VALUES (?, ?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-      `).run(key, value, now());
+      `,
+      ).run(key, value, now());
       cache = null;
-    }
+    },
   };
-}
-
-// ── 启动时迁移函数 ──
-
-function clearLegacyIdentityRuleDefaults(db) {
-  const legacyRules = {
-    overlayRule3: '同一观众 10 秒冷却',
-    overlayRule4: '按队列顺序演唱'
-  };
-  const updatedAt = now();
-  for (const [key, oldValue] of Object.entries(legacyRules)) {
-    db.prepare(`
-      UPDATE settings
-      SET value = '', updated_at = ?
-      WHERE key = ? AND value = ?
-    `).run(updatedAt, key, oldValue);
-  }
-}
-
-function migrateQueueScrollSpeedSetting(db, savedVersion) {
-  if (String(savedVersion || '') === '3') return;
-  const row = db.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'queueScrollSpeed'
-  `).get();
-  const savedSpeed = Number(row && row.value);
-  const normalizedSpeed = Number.isFinite(savedSpeed) && savedSpeed > 100
-    ? Math.round(1 + ((Math.max(50, Math.min(200, savedSpeed)) - 50) / 150) * 99)
-    : Number.isFinite(savedSpeed)
-      ? Math.max(1, Math.min(100, Math.round(savedSpeed)))
-      : 80;
-  const updatedAt = now();
-  db.prepare(`
-    INSERT INTO settings (key, value, updated_at)
-    VALUES ('queueScrollSpeed', ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(String(normalizedSpeed), updatedAt);
-  db.prepare(`
-    INSERT INTO settings (key, value, updated_at)
-    VALUES ('queueScrollSpeedRangeVersion', '3', ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(updatedAt);
-}
-
-function migrateQueueFontSizeSettings(db, savedVersion) {
-  if (String(savedVersion || '') === '2') return;
-
-  const updatedAt = now();
-
-  // 读取当前字号设置
-  const songRow = db.prepare(`SELECT value FROM settings WHERE key = 'queueSongFontSize'`).get();
-  const titleRow = db.prepare(`SELECT value FROM settings WHERE key = 'queueTitleFontSize'`).get();
-
-  // 如果设置存在且在旧范围内，则翻倍
-  if (songRow) {
-    const oldValue = Number(songRow.value);
-    if (Number.isFinite(oldValue) && oldValue >= 5 && oldValue <= 35) {
-      const newValue = Math.min(70, Math.max(10, oldValue * 2));
-      db.prepare(`
-        UPDATE settings SET value = ?, updated_at = ? WHERE key = 'queueSongFontSize'
-      `).run(String(newValue), updatedAt);
-    }
-  }
-
-  if (titleRow) {
-    const oldValue = Number(titleRow.value);
-    if (Number.isFinite(oldValue) && oldValue >= 5 && oldValue <= 20) {
-      const newValue = Math.min(40, Math.max(10, oldValue * 2));
-      db.prepare(`
-        UPDATE settings SET value = ?, updated_at = ? WHERE key = 'queueTitleFontSize'
-      `).run(String(newValue), updatedAt);
-    }
-  }
-
-  // 写入版本标记
-  db.prepare(`
-    INSERT INTO settings (key, value, updated_at)
-    VALUES ('queueFontSizeRangeVersion', '2', ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(updatedAt);
-}
-
-function migrateQueueStyleSettings(db, savedVersion) {
-  if (String(savedVersion || '') === '1') return;
-
-  const readValue = (key) => {
-    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    return row ? String(row.value) : String(DEFAULT_SETTINGS[key] ?? '');
-  };
-  const sharedValues = {
-    fontSize: readValue('identityQueueFontSize'),
-    fontFamily: readValue('illustratedQueueFontFamily'),
-    fontWeight: readValue('illustratedQueueFontWeight'),
-    useCustomTextColor: readValue('illustratedQueueUseCustomTextColor'),
-    textColor: readValue('illustratedQueueTextColor'),
-    scrollMode: readValue('queueScrollMode'),
-    scrollSpeed: readValue('identityQueueScrollSpeed')
-  };
-  const values = {
-    identityQueueScrollMode: sharedValues.scrollMode
-  };
-  const prefixes = ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily'];
-  for (const prefix of prefixes) {
-    values[`${prefix}QueueFontSize`] = sharedValues.fontSize;
-    values[`${prefix}QueueFontFamily`] = sharedValues.fontFamily;
-    values[`${prefix}QueueFontWeight`] = sharedValues.fontWeight;
-    values[`${prefix}QueueUseCustomTextColor`] = sharedValues.useCustomTextColor;
-    values[`${prefix}QueueTextColor`] = sharedValues.textColor;
-    values[`${prefix}QueueScrollMode`] = sharedValues.scrollMode;
-    values[`${prefix}QueueScrollSpeed`] = sharedValues.scrollSpeed;
-  }
-  values.queueStyleSettingsVersion = '1';
-
-  const updatedAt = now();
-  const statement = db.prepare(`
-    INSERT INTO settings (key, value, updated_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `);
-  for (const [key, value] of Object.entries(values)) {
-    statement.run(key, value, updatedAt);
-  }
-}
-
-function getQueueStyleSettingsVersion(db) {
-  const row = db.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'queueStyleSettingsVersion'
-  `).get();
-  return row && row.value;
-}
-
-function migrateSongScrollSpeedSetting(db, savedVersion) {
-  if (String(savedVersion || '') === '2') return;
-
-  const row = db.prepare(`
-    SELECT value
-    FROM settings
-    WHERE key = 'scrollSeconds'
-  `).get();
-  const savedSpeed = Number(row && row.value);
-  const legacySpeed = Number.isFinite(savedSpeed)
-    ? Math.max(20, Math.min(200, savedSpeed))
-    : 20;
-  const normalizedSpeed = Number.isFinite(savedSpeed)
-    ? Math.max(1, Math.min(100, Math.round(1 + ((legacySpeed - 20) / 180) * 99)))
-    : 45;
-  const updatedAt = now();
-  db.prepare(`
-    INSERT INTO settings (key, value, updated_at)
-    VALUES ('scrollSeconds', ?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(String(normalizedSpeed), updatedAt);
-  db.prepare(`
-    INSERT INTO settings (key, value, updated_at)
-    VALUES ('songScrollSpeedRangeVersion', '2', ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(updatedAt);
-}
-
-function migrateSongBoardFontSizeSetting(db) {
-  const row = db.prepare(`
-    SELECT value FROM settings WHERE key = 'songBoardFontSize'
-  `).get();
-  if (!row || String(row.value) !== '16') return;
-  db.prepare(`
-    UPDATE settings SET value = ?, updated_at = ? WHERE key = 'songBoardFontSize'
-  `).run(DEFAULT_SETTINGS.songBoardFontSize, now());
-}
-
-function migrateBlindBoxConfig(db) {
-  const row = db.prepare(`
-    SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'
-  `).get();
-  const value = (row && row.value) || '';
-  const defaultConfig = DEFAULT_SETTINGS.giftBlindBoxConfig;
-
-  // 空配置 → 写入新默认值
-  if (value.trim() === '') {
-    if (!defaultConfig) return;
-    const updatedAt = now();
-    db.prepare(`
-      UPDATE settings SET value = ?, updated_at = ? WHERE key = 'giftBlindBoxConfig'
-    `).run(defaultConfig, updatedAt);
-    return;
-  }
-
-  // 旧格式迁移：如果 outputs 中所有条目都是纯字符串（无独立价格），自动升级为新格式
-  let config;
-  try {
-    config = JSON.parse(value);
-    if (!Array.isArray(config)) return;
-  } catch (_) {
-    return;
-  }
-
-  let changed = false;
-
-  // 旧格式升级
-  let needsUpgrade = false;
-  for (const box of config) {
-    const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
-    for (const output of outputs) {
-      if (typeof output === 'string') {
-        needsUpgrade = true;
-        break;
-      }
-    }
-    if (needsUpgrade) break;
-  }
-
-  if (needsUpgrade) {
-    // 用已知默认价格映射升级
-    const knownPrices = {
-      '心动盲盒': { '电影票': 2, '棉花糖': 9, '爱心抱枕': 16, '绮彩权杖': 40, '时空之站': 100, '神驹宝玺': 200, '浪漫城堡': 2233 },
-      '幸运盲盒': { '幸运泡泡': 1.5, '好运柚叶': 2.5, '星光铃铛': 5.2, '梦雾纸签': 10, '福灵小兽': 20, '星愿花园': 60 },
-      '小熊虫盲盒': { '虫事顺意': 9, '虫满元气': 9, '重虫出击': 9, '顺虫自然': 9, '虫容不迫': 9, '虫装镇定': 9, '一虫莫展': 9, '心事虫虫': 9 },
-      '七夕鹊匣': { '宸星定情': 1200, '星河相拥': 500, '云桥缘续': 66, '鹊语相思': 26, '锦书传意': 19, '月下牵丝': 5 }
-    };
-
-    for (const box of config) {
-      const boxName = (box && box.name) || '';
-      const outputs = Array.isArray(box && box.outputs) ? box.outputs : [];
-      const priceMap = knownPrices[boxName] || {};
-      box.outputs = outputs.map(output => {
-        if (typeof output === 'object' && output !== null) return output; // 已经是对象格式
-        const name = String(output);
-        const giftPrice = priceMap[name];
-        if (giftPrice !== undefined && giftPrice > 0) {
-          return { name, price: giftPrice };
-        }
-        return output; // 未知价格，保留原字符串
-      });
-    }
-    changed = true;
-  }
-
-  // 合并默认配置中新增的盲盒条目（用户已有配置但不包含新增的默认盲盒）
-  if (defaultConfig) {
-    try {
-      const defaults = JSON.parse(defaultConfig);
-      if (Array.isArray(defaults)) {
-        const existingNames = new Set(config.map(b => (b && b.name) || ''));
-        for (const defaultBox of defaults) {
-          const boxName = (defaultBox && defaultBox.name) || '';
-          if (!existingNames.has(boxName)) {
-            config.push(defaultBox);
-            changed = true;
-          }
-        }
-      }
-    } catch (_) {
-      // 默认配置解析失败，跳过合并
-    }
-  }
-
-  if (!changed) return;
-
-  const updatedAt = now();
-  db.prepare(`
-    UPDATE settings SET value = ?, updated_at = ? WHERE key = 'giftBlindBoxConfig'
-  `).run(JSON.stringify(config), updatedAt);
 }
 
 module.exports = {
   DEFAULT_SETTINGS,
   createSettingsStore,
-  clearLegacyIdentityRuleDefaults,
-  migrateQueueScrollSpeedSetting,
-  migrateSongScrollSpeedSetting,
-  migrateQueueFontSizeSettings,
-  getQueueStyleSettingsVersion,
-  migrateQueueStyleSettings,
-  migrateSongBoardFontSizeSetting,
-  migrateBlindBoxConfig
+  ...settingsMigrations,
 };

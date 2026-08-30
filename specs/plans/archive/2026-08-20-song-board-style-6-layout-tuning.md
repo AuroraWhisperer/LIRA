@@ -53,6 +53,7 @@
 ### Task 1: 锁定并实现风格 6 的局部对齐
 
 **Files:**
+
 - Modify: `test/frontend-queue.test.js`
 - Modify: `public/css/overlays/base/golden-lily.css`
 - Modify: `public/css/overlays/base/illustrated.css`
@@ -60,6 +61,7 @@
 - Modify: `specs/plans/2026-08-20-song-board-style-6-layout-tuning.md`
 
 **Interfaces:**
+
 - Consumes: 现有 `.queue-golden-lily`、`.golden-lily-rank`、`.golden-lily-info-viewport` CSS 类。
 - Produces: 仅风格 6 生效的目标几何值，不新增运行时接口。
 

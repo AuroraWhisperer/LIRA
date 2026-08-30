@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>激活 LIRA</title>
-    <link rel="stylesheet" href="/css/license.css">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>登录 LIRA</title>
+    <link rel="stylesheet" href="/css/license.css" />
   </head>
   <body>
     <div class="license-shell">
@@ -13,56 +13,95 @@
           <span class="license-brand-mark" aria-hidden="true">L</span>
           <span>LIRA</span>
         </a>
-        <span class="license-titlebar-label">设备授权</span>
+        <span class="license-titlebar-label">主播登录</span>
         <div class="license-window-controls" aria-label="窗口控制">
-          <button id="licenseMinimizeBtn" type="button" aria-label="最小化">−</button>
-          <button id="licenseMaximizeBtn" type="button" aria-label="最大化">□</button>
-          <button id="licenseCloseBtn" class="close" type="button" aria-label="退出 LIRA">×</button>
+          <button id="licenseMinimizeBtn" type="button" aria-label="最小化">
+            −
+          </button>
+          <button id="licenseMaximizeBtn" type="button" aria-label="最大化">
+            □
+          </button>
+          <button
+            id="licenseCloseBtn"
+            class="close"
+            type="button"
+            aria-label="退出 LIRA"
+          >
+            ×
+          </button>
         </div>
       </header>
 
       <main class="license-main">
-        <section class="license-intro" aria-labelledby="licenseHeading">
-          <p class="license-kicker">首次启动</p>
-          <h1 id="licenseHeading">欢迎使用 LIRA</h1>
-          <p class="license-lede">绑定主播账号与这台设备，开始管理直播间的点歌、播放和互动。</p>
-          <div class="license-trust" aria-label="授权说明">
-            <div class="license-trust-item">
-              <span class="license-trust-icon" aria-hidden="true">01</span>
-              <span><strong>一次绑定</strong><small>以后启动会自动验证设备</small></span>
-            </div>
-            <div class="license-trust-item">
-              <span class="license-trust-icon" aria-hidden="true">02</span>
-              <span><strong>设备专属</strong><small>密钥保存在本机安全存储中</small></span>
-            </div>
-          </div>
-        </section>
-
-        <section class="license-card" aria-labelledby="licenseFormTitle">
+        <section class="license-card" aria-labelledby="licenseHeading">
           <div class="license-card-heading">
-            <h2 id="licenseFormTitle">激活 LIRA</h2>
-            <p>请输入管理员发给你的激活密钥</p>
+            <p class="license-kicker">主播工作台</p>
+            <h1 id="licenseHeading">登录 LIRA</h1>
+            <p>首次登录需绑定这台设备</p>
           </div>
           <form id="licenseForm" novalidate>
             <label class="license-field" for="licenseAccountName">
               <span>用户名</span>
-              <input id="licenseAccountName" name="accountName" type="text" inputmode="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" placeholder="例如 mlbb" required>
-              <small>2–32 个字符，仅支持小写字母、数字和中划线</small>
+              <input
+                id="licenseAccountName"
+                name="accountName"
+                type="text"
+                inputmode="text"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                maxlength="32"
+                placeholder="例如 mlbb"
+                required
+              />
+              <small>小写字母、数字或中划线</small>
             </label>
             <label class="license-field" for="licensePassword">
               <span>密码</span>
-              <input id="licensePassword" name="password" type="password" autocomplete="new-password" maxlength="128" placeholder="至少 6 个字符" required>
+              <input
+                id="licensePassword"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                maxlength="128"
+                placeholder="至少 6 个字符"
+                required
+              />
             </label>
             <label class="license-field" for="licenseActivationCode">
               <span>激活密钥</span>
-              <input id="licenseActivationCode" name="activationCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="128" placeholder="XXXX-XXXX-XXXX-XXXX" required>
-              <small>一次性密钥，由 LIRA Admin 管理员生成</small>
+              <input
+                id="licenseActivationCode"
+                name="activationCode"
+                type="text"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                maxlength="128"
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                required
+              />
+              <small>由管理员提供的一次性密钥</small>
             </label>
-            <p id="licenseStatus" class="license-status" role="status" aria-live="polite"></p>
-            <button id="licenseSubmitBtn" class="license-submit" type="submit">激活并进入 LIRA</button>
-            <button id="licenseRetryBtn" class="license-retry" type="button" hidden>重试连接</button>
+            <p
+              id="licenseStatus"
+              class="license-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <button id="licenseSubmitBtn" class="license-submit" type="submit">
+              激活并进入 LIRA
+            </button>
+            <button
+              id="licenseRetryBtn"
+              class="license-retry"
+              type="button"
+              hidden
+            >
+              重试连接
+            </button>
           </form>
-          <p class="license-footnote">激活成功后，密码和激活密钥不会保存在本机。</p>
+          <p class="license-footnote">密码和激活密钥不会保存在本机。</p>
         </section>
       </main>
     </div>

@@ -3,14 +3,14 @@
 'use strict';
 
 import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
-import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
+import {
+  ensureSavedFontOption,
+  registerLocalFontSelect,
+} from './local-font-library.js';
 
 (function () {
   const AUTOSAVE_DELAY_MS = 500;
-  const {
-    setValue,
-    api
-  } = window.AdminApp.utils;
+  const { setValue, api } = window.AdminApp.utils;
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',
@@ -24,7 +24,7 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
     'desktopLyricSpringAnimation',
     'desktopLyricBlurEffect',
     'desktopLyricScaleEffect',
-    'desktopLyricBackgroundEnabled'
+    'desktopLyricBackgroundEnabled',
   ]);
   // 第五项把内部小数换算为数值框中的百分数。
   const RANGE_PAIRS = [
@@ -53,7 +53,7 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
     ['desktopLyricGlobalOpacity', 0, 1, 1, 100],
     ['desktopLyricBrightness', 0.2, 2, 1, 100],
     ['desktopLyricContrast', 0.2, 2, 1, 100],
-    ['desktopLyricSaturation', 0, 2, 1, 100]
+    ['desktopLyricSaturation', 0, 2, 1, 100],
   ];
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
@@ -64,9 +64,18 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
     // Range ↔ Number 双向绑定
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
-      RANGE_PAIRS.forEach(([key, minimum, maximum, fallback, displayScale = 1]) => {
-        bindRangePair(key, `${key}Number`, minimum, maximum, fallback, displayScale);
-      });
+      RANGE_PAIRS.forEach(
+        ([key, minimum, maximum, fallback, displayScale = 1]) => {
+          bindRangePair(
+            key,
+            `${key}Number`,
+            minimum,
+            maximum,
+            fallback,
+            displayScale,
+          );
+        },
+      );
     }
 
     const autosaveState = document.getElementById('desktopLyricAutosaveState');
@@ -116,9 +125,16 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
         setAutosaveState('正在读取设置…', 'is-saving');
         return;
       }
-      setAutosaveState(immediate ? '正在自动保存…' : '等待自动保存…', 'is-saving');
+      setAutosaveState(
+        immediate ? '正在自动保存…' : '等待自动保存…',
+        'is-saving',
+      );
       if (immediate) void saveDesktopLyric();
-      else autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
+      else
+        autosaveTimer = setTimeout(
+          () => void saveDesktopLyric(),
+          AUTOSAVE_DELAY_MS,
+        );
     };
 
     window.addEventListener('app:settings-state', (event) => {
@@ -131,19 +147,29 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
       }
       if (!dirty) return;
       setAutosaveState('等待自动保存…', 'is-saving');
-      autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
+      autosaveTimer = setTimeout(
+        () => void saveDesktopLyric(),
+        AUTOSAVE_DELAY_MS,
+      );
     });
 
     form.addEventListener('input', () => scheduleAutosave());
     form.addEventListener('change', () => scheduleAutosave(true));
-    document.getElementById('desktopLyricResetBtn')?.addEventListener('click', () => {
-      loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, { includeWeSing: false });
-      scheduleAutosave(true);
-    });
+    document
+      .getElementById('desktopLyricResetBtn')
+      ?.addEventListener('click', () => {
+        loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, {
+          includeWeSing: false,
+        });
+        scheduleAutosave(true);
+      });
   }
 
   function selectedWeSingLyricSource() {
-    return document.querySelector('input[name="weSingLyricSource"]:checked')?.value || 'netease';
+    return (
+      document.querySelector('input[name="weSingLyricSource"]:checked')
+        ?.value || 'netease'
+    );
   }
 
   function checkedValue(id) {
@@ -153,7 +179,7 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
   function collectDesktopLyric() {
     const settings = {
       weSingLyricSource: selectedWeSingLyricSource(),
-      weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch')
+      weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch'),
     };
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       if (key === 'desktopLyricTextAlign') {
@@ -170,41 +196,60 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
       }
       const input = document.getElementById(key);
       settings[key] = input
-        ? CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value
+        ? CHECKBOX_KEYS.has(key)
+          ? String(input.checked)
+          : input.value
         : fallback;
     });
     return settings;
   }
 
   function selectedTextAlign() {
-    return document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value || 'left';
+    return (
+      document.querySelector('input[name="desktopLyricTextAlign"]:checked')
+        ?.value || 'left'
+    );
   }
 
   function selectedKaraokeMode() {
-    return document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')?.value
-      || DESKTOP_LYRIC_DEFAULTS.desktopLyricKaraokeMode;
+    return (
+      document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')
+        ?.value || DESKTOP_LYRIC_DEFAULTS.desktopLyricKaraokeMode
+    );
   }
 
   function loadDesktopLyricSettings(settings, options = {}) {
     if (!settings) return;
 
     if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
-    const karaokeMode = ['off', 'continuous', 'discrete'].includes(settings.desktopLyricKaraokeMode)
+    const karaokeMode = ['off', 'continuous', 'discrete'].includes(
+      settings.desktopLyricKaraokeMode,
+    )
       ? settings.desktopLyricKaraokeMode
-      : settings.desktopLyricKaraokeEnabled === 'false' ? 'off' : 'continuous';
+      : settings.desktopLyricKaraokeEnabled === 'false'
+        ? 'off'
+        : 'continuous';
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       const nextValue = settings[key] ?? fallback;
       if (key === 'desktopLyricTextAlign') {
-        const textAlign = ['left', 'center', 'right', 'justify'].includes(nextValue) ? nextValue : fallback;
-        document.querySelectorAll('input[name="desktopLyricTextAlign"]').forEach((input) => {
-          input.checked = input.value === textAlign;
-        });
+        const textAlign = ['left', 'center', 'right', 'justify'].includes(
+          nextValue,
+        )
+          ? nextValue
+          : fallback;
+        document
+          .querySelectorAll('input[name="desktopLyricTextAlign"]')
+          .forEach((input) => {
+            input.checked = input.value === textAlign;
+          });
         return;
       }
       if (key === 'desktopLyricKaraokeMode') {
-        document.querySelectorAll('input[name="desktopLyricKaraokeMode"]').forEach((input) => {
-          input.checked = input.value === karaokeMode;
-        });
+        document
+          .querySelectorAll('input[name="desktopLyricKaraokeMode"]')
+          .forEach((input) => {
+            input.checked = input.value === karaokeMode;
+          });
         return;
       }
       const input = document.getElementById(key);
@@ -217,7 +262,10 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
         return;
       }
       if (key === 'desktopLyricFontFamily') {
-        ensureSavedFontOption(document.getElementById('desktopLyricFontFamily'), nextValue);
+        ensureSavedFontOption(
+          document.getElementById('desktopLyricFontFamily'),
+          nextValue,
+        );
       }
       setValue(key, nextValue);
       const rangePair = RANGE_PAIRS.find(([rangeKey]) => rangeKey === key);
@@ -233,18 +281,22 @@ import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-lib
   function loadWeSingLyricSettings(settings) {
     if (!settings) return;
 
-    const selectedSource = settings.weSingLyricSource === 'qq' ? 'qq' : 'netease';
-    document.querySelectorAll('input[name="weSingLyricSource"]').forEach((input) => {
-      input.checked = input.value === selectedSource;
-    });
+    const selectedSource =
+      settings.weSingLyricSource === 'qq' ? 'qq' : 'netease';
+    document
+      .querySelectorAll('input[name="weSingLyricSource"]')
+      .forEach((input) => {
+        input.checked = input.value === selectedSource;
+      });
     const smartLyricMatch = document.getElementById('weSingSmartLyricMatch');
-    if (smartLyricMatch) smartLyricMatch.checked = settings.weSingSmartLyricMatch !== 'false';
+    if (smartLyricMatch)
+      smartLyricMatch.checked = settings.weSingSmartLyricMatch !== 'false';
   }
 
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.desktopLyric = {
     initDesktopLyricForm,
     collectDesktopLyric,
-    loadDesktopLyricSettings
+    loadDesktopLyricSettings,
   };
 })();

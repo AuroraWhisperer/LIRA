@@ -6,12 +6,12 @@ const {
   loadWeSingLyrics,
   normalizeWeSingCachePath,
   normalizeWeSingLyricOffsetMs,
-  parseQrcDocument
+  parseQrcDocument,
 } = require('./wesing-cache');
 const { createWeSingCapture } = require('./wesing-capture-engine');
 const {
   buildPowerShellMonitorScript,
-  createPowerShellWeSingMonitor
+  createPowerShellWeSingMonitor,
 } = require('./wesing-monitor');
 
 module.exports = {
@@ -23,5 +23,5 @@ module.exports = {
   loadWeSingLyrics,
   normalizeWeSingCachePath,
   normalizeWeSingLyricOffsetMs,
-  parseQrcDocument
+  parseQrcDocument,
 };

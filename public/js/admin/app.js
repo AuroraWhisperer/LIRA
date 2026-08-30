@@ -8,7 +8,11 @@ import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { enhanceSelects } from '../shared/select-menu.js';
-import { getLegacyAdminModules, publishNavigation, publishOnboarding } from './legacy-admin-bridge.js';
+import {
+  getLegacyAdminModules,
+  publishNavigation,
+  publishOnboarding,
+} from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
 import { initGames } from './games.js';
 import { initOnboarding } from './onboarding.js';
@@ -40,7 +44,9 @@ async function initApp() {
   formsService.initTabs();
 
   // 初始化播放助手（监听模块加载完成事件）
-  window.addEventListener('playback-module-loaded', initPlaybackAssistant, { once: true });
+  window.addEventListener('playback-module-loaded', initPlaybackAssistant, {
+    once: true,
+  });
 
   // 如果模块已经加载完成（DOMContentLoaded 晚于模块加载），立即初始化
   const modules = getLegacyAdminModules();
@@ -77,7 +83,7 @@ async function initApp() {
     openUsageGuide: () => {
       modules.navigation?.setMainPage?.('otherAssistantPage');
       modules.other?.selectFeatureById?.('otherUsageGuideFeature');
-    }
+    },
   });
   publishOnboarding(onboarding);
 
@@ -87,12 +93,14 @@ async function initApp() {
 
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.({
-    persistSidebarCollapsed: (collapsed) => Utils.api('/api/settings', {
-      toolboxSidebarCollapsed: String(collapsed)
-    }),
-    persistCollapsedFeatureGroups: (groupIds) => Utils.api('/api/settings', {
-      toolboxCollapsedFeatureGroups: JSON.stringify(groupIds)
-    })
+    persistSidebarCollapsed: (collapsed) =>
+      Utils.api('/api/settings', {
+        toolboxSidebarCollapsed: String(collapsed),
+      }),
+    persistCollapsedFeatureGroups: (groupIds) =>
+      Utils.api('/api/settings', {
+        toolboxCollapsedFeatureGroups: JSON.stringify(groupIds),
+      }),
   });
   initStartAnimation();
   initClockCard();
@@ -102,7 +110,12 @@ async function initApp() {
     getLegacyAdminModules().queue?.renderState?.(state, songs);
   });
   eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
-    getLegacyAdminModules().songs?.renderSongs?.(songs, languages, artists, tags);
+    getLegacyAdminModules().songs?.renderSongs?.(
+      songs,
+      languages,
+      artists,
+      tags,
+    );
   });
 
   // 连接WebSocket和加载数据
@@ -116,10 +129,26 @@ async function initApp() {
 
   // 渲染主题预设
   if (modules.theme?.renderPresetCards) {
-    const { classicThemePresets, classicPresetLabels, classicPresetSwatches,
-            songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches } = modules.theme;
-    modules.theme.renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
-    modules.theme.renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
+    const {
+      classicThemePresets,
+      classicPresetLabels,
+      classicPresetSwatches,
+      songBoardThemePresets,
+      songBoardPresetLabels,
+      songBoardPresetSwatches,
+    } = modules.theme;
+    modules.theme.renderPresetCards(
+      'classicPresets',
+      classicThemePresets,
+      classicPresetLabels,
+      classicPresetSwatches,
+    );
+    modules.theme.renderPresetCards(
+      'songBoardPresets',
+      songBoardThemePresets,
+      songBoardPresetLabels,
+      songBoardPresetSwatches,
+    );
   }
 
   logger.debug('初始化完成');
@@ -137,7 +166,7 @@ function initPlaybackAssistant() {
       toast: Utils.toast,
       showError: Utils.showError,
       api: Utils.api,
-      readJsonResponse: Utils.readJsonResponse
+      readJsonResponse: Utils.readJsonResponse,
     });
   }
 }
@@ -156,23 +185,45 @@ function initMainPages() {
   });
 
   const hash = location.hash;
-  const initialPage = hash === '#playback' ? 'playbackAssistantPage'
-                    : hash === '#gifts' ? 'giftAssistantPage'
-                    : hash === '#other' ? 'otherAssistantPage'
-                    : 'songAssistantPage';
+  const initialPage =
+    hash === '#playback'
+      ? 'playbackAssistantPage'
+      : hash === '#gifts'
+        ? 'giftAssistantPage'
+        : hash === '#other'
+          ? 'otherAssistantPage'
+          : 'songAssistantPage';
   setMainPage(initialPage);
 
-  window.addEventListener('resize', () => {
-    syncMainPageIndicator(document.querySelector('.main-page-tab.active'));
-  }, { passive: true });
+  window.addEventListener(
+    'resize',
+    () => {
+      syncMainPageIndicator(document.querySelector('.main-page-tab.active'));
+    },
+    { passive: true },
+  );
 }
 
 // 有效的主页面 ID 列表 — 新增页面时在此注册即可
-const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage', 'otherAssistantPage'];
+const VALID_MAIN_PAGES = [
+  'songAssistantPage',
+  'playbackAssistantPage',
+  'giftAssistantPage',
+  'otherAssistantPage',
+];
 // 主页面 → URL hash 映射（songAssistantPage 为默认页，无需 hash）
-const MAIN_PAGE_HASH_MAP = { playbackAssistantPage: '#playback', giftAssistantPage: '#gifts', otherAssistantPage: '#other' };
+const MAIN_PAGE_HASH_MAP = {
+  playbackAssistantPage: '#playback',
+  giftAssistantPage: '#gifts',
+  otherAssistantPage: '#other',
+};
 // 主页面 → body dataset 标识
-const MAIN_PAGE_BODY_MAP = { playbackAssistantPage: 'playback', giftAssistantPage: 'gifts', songAssistantPage: 'songs', otherAssistantPage: 'other' };
+const MAIN_PAGE_BODY_MAP = {
+  playbackAssistantPage: 'playback',
+  giftAssistantPage: 'gifts',
+  songAssistantPage: 'songs',
+  otherAssistantPage: 'other',
+};
 
 function syncMainPageIndicator(activeButton) {
   const tabs = activeButton?.closest('.main-page-tabs');
@@ -182,7 +233,10 @@ function syncMainPageIndicator(activeButton) {
   const buttonRect = activeButton.getBoundingClientRect();
   const indicatorX = buttonRect.left - tabsRect.left;
   tabs.style.setProperty('--main-page-indicator-x', `${indicatorX}px`);
-  tabs.style.setProperty('--main-page-indicator-width', `${buttonRect.width}px`);
+  tabs.style.setProperty(
+    '--main-page-indicator-width',
+    `${buttonRect.width}px`,
+  );
   tabs.classList.add('indicator-ready');
 }
 
@@ -190,7 +244,9 @@ function syncMainPageIndicator(activeButton) {
  * 设置主页面
  */
 function setMainPage(pageId) {
-  const nextPageId = VALID_MAIN_PAGES.includes(pageId) ? pageId : 'songAssistantPage';
+  const nextPageId = VALID_MAIN_PAGES.includes(pageId)
+    ? pageId
+    : 'songAssistantPage';
 
   document.querySelectorAll('.main-page').forEach((page) => {
     page.classList.toggle('active', page.id === nextPageId);
@@ -207,7 +263,11 @@ function setMainPage(pageId) {
 
   const targetHash = MAIN_PAGE_HASH_MAP[nextPageId] || '';
   if (location.hash !== targetHash) {
-    history.replaceState(null, '', targetHash || location.pathname + location.search);
+    history.replaceState(
+      null,
+      '',
+      targetHash || location.pathname + location.search,
+    );
   }
 }
 

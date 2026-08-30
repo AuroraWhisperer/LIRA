@@ -64,9 +64,11 @@ Discovery during implementation: Electron 43 exposed `window.queryLocalFonts()`,
 ### Task 1: Regression coverage
 
 **Files:**
+
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - Consumes: `window.queryLocalFonts(): Promise<Array<{family: string}>>` after Electron resolves the permission request.
 - Produces: assertions for unique local options, repeat loading, preserved selection, and permission-denial messaging.
 
@@ -78,12 +80,14 @@ Discovery during implementation: Electron 43 exposed `window.queryLocalFonts()`,
 ### Task 2: Local font loading UI
 
 **Files:**
+
 - Modify: `public/pages/admin/song/desktop-lyric.html`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Modify: `public/js/admin/desktop-lyric.js`
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - Consumes: `FontData.family` values from `window.queryLocalFonts()`.
 - Produces: an optgroup labeled `本机字体`, safely quoted option values, button busy state, and user-visible status text.
 
@@ -96,12 +100,14 @@ Discovery during implementation: Electron 43 exposed `window.queryLocalFonts()`,
 ### Task 3: Electron permission boundary
 
 **Files:**
+
 - Create: `src/electron/desktop-permissions.js`
 - Modify: `src/electron/main.js`
 - Modify: `docs/architecture/desktop/main.md`
 - Test: `test/electron-main-modules.test.js`
 
 **Interfaces:**
+
 - Consumes: Electron's `localFonts` permission request, the running desktop `baseUrl`, and `hasExactOrigin(candidateUrl, expectedUrl)`.
 - Produces: a native allow/cancel prompt and a boolean permission callback; all unrelated permissions and foreign origins return `false`.
 

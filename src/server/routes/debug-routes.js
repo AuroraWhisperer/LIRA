@@ -21,7 +21,7 @@ const routes = {
   'POST /api/debug/gift-messages/clear'(context, request, res) {
     if (context.debug) context.debug.clearGiftMessages();
     sendJson(res, 200, { ok: true, data: { cleared: true } });
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

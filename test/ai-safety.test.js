@@ -7,7 +7,7 @@ const { buildOutputReviewPrompt } = require('../src/ai/safety');
 test('output review compares the candidate with the original question', () => {
   const prompt = buildOutputReviewPrompt(
     '推荐几首舒缓的情歌',
-    '你喜欢男声还是女声？你想听哪个年代？'
+    '你喜欢男声还是女声？你想听哪个年代？',
   );
 
   assert.match(prompt, /推荐几首舒缓的情歌/);

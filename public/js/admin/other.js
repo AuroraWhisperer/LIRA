@@ -11,7 +11,7 @@
     persistSidebarCollapsed: null,
     persistCollapsedFeatureGroups: null,
     sidebarPreferenceReconciled: false,
-    featureGroupPreferenceReconciled: false
+    featureGroupPreferenceReconciled: false,
   };
 
   function readSidebarCollapsed() {
@@ -52,7 +52,9 @@
     }
 
     getFeatureElements(root).buttons.forEach((button) => {
-      const label = button.querySelector?.('.other-feature-label strong')?.textContent?.trim();
+      const label = button
+        .querySelector?.('.other-feature-label strong')
+        ?.textContent?.trim();
       if (isCollapsed && label) button.title = label;
       else button.removeAttribute?.('title');
     });
@@ -73,11 +75,8 @@
 
     const cachedValue = readSidebarCollapsed();
     const settingValue = settings?.toolboxSidebarCollapsed;
-    const durableValue = settingValue === 'true'
-      ? true
-      : settingValue === 'false'
-        ? false
-        : null;
+    const durableValue =
+      settingValue === 'true' ? true : settingValue === 'false' ? false : null;
     const collapsed = cachedValue ?? durableValue ?? false;
 
     setSidebarCollapsed(root, collapsed);
@@ -89,7 +88,9 @@
     try {
       const parsed = JSON.parse(rawValue);
       if (!Array.isArray(parsed)) return null;
-      const storedIds = new Set(parsed.filter((value) => typeof value === 'string'));
+      const storedIds = new Set(
+        parsed.filter((value) => typeof value === 'string'),
+      );
       return getFeatureGroupElements(root)
         .map((heading) => heading.dataset.otherFeatureGroup)
         .filter((groupId) => storedIds.has(groupId));
@@ -102,7 +103,7 @@
     try {
       return parseCollapsedFeatureGroups(
         root,
-        window.localStorage?.getItem(COLLAPSED_FEATURE_GROUPS_KEY)
+        window.localStorage?.getItem(COLLAPSED_FEATURE_GROUPS_KEY),
       );
     } catch {
       return null;
@@ -111,9 +112,15 @@
 
   function storeCollapsedFeatureGroups(groupIds) {
     try {
-      window.localStorage?.setItem(COLLAPSED_FEATURE_GROUPS_KEY, JSON.stringify(groupIds));
+      window.localStorage?.setItem(
+        COLLAPSED_FEATURE_GROUPS_KEY,
+        JSON.stringify(groupIds),
+      );
     } catch (error) {
-      console.warn('[Toolbox] Failed to cache feature group preferences:', error);
+      console.warn(
+        '[Toolbox] Failed to cache feature group preferences:',
+        error,
+      );
     }
   }
 
@@ -122,10 +129,16 @@
     try {
       const request = moduleState.persistCollapsedFeatureGroups([...groupIds]);
       request?.catch?.((error) => {
-        console.warn('[Toolbox] Failed to persist feature group preferences:', error);
+        console.warn(
+          '[Toolbox] Failed to persist feature group preferences:',
+          error,
+        );
       });
     } catch (error) {
-      console.warn('[Toolbox] Failed to persist feature group preferences:', error);
+      console.warn(
+        '[Toolbox] Failed to persist feature group preferences:',
+        error,
+      );
     }
   }
 
@@ -138,7 +151,10 @@
   function applyCollapsedFeatureGroups(root, groupIds) {
     const collapsedIds = new Set(groupIds);
     getFeatureGroupElements(root).forEach((heading) => {
-      setFeatureGroupExpanded(heading, !collapsedIds.has(heading.dataset.otherFeatureGroup));
+      setFeatureGroupExpanded(
+        heading,
+        !collapsedIds.has(heading.dataset.otherFeatureGroup),
+      );
     });
   }
 
@@ -153,7 +169,10 @@
     moduleState.featureGroupPreferenceReconciled = true;
 
     const cachedValue = readCollapsedFeatureGroups(root);
-    const durableValue = parseCollapsedFeatureGroups(root, settings?.toolboxCollapsedFeatureGroups);
+    const durableValue = parseCollapsedFeatureGroups(
+      root,
+      settings?.toolboxCollapsedFeatureGroups,
+    );
     const collapsedGroups = cachedValue ?? durableValue ?? [];
 
     applyCollapsedFeatureGroups(root, collapsedGroups);
@@ -166,7 +185,7 @@
   function getFeatureElements(root) {
     return {
       buttons: Array.from(root.querySelectorAll('[data-other-feature]')),
-      panels: Array.from(root.querySelectorAll('[data-other-feature-panel]'))
+      panels: Array.from(root.querySelectorAll('[data-other-feature-panel]')),
     };
   }
 
@@ -183,7 +202,9 @@
   }
 
   function syncFeatureGroupAvailability(root) {
-    const iconOnly = root.classList?.contains?.('sidebar-collapsed') === true && !isMobileOtherLayout();
+    const iconOnly =
+      root.classList?.contains?.('sidebar-collapsed') === true &&
+      !isMobileOtherLayout();
     getFeatureGroupElements(root).forEach((heading) => {
       heading.disabled = iconOnly;
       heading.tabIndex = iconOnly ? -1 : 0;
@@ -202,14 +223,15 @@
   }
 
   function getFeatureGroupForButton(root, targetButton) {
-    return getFeatureGroupElements(root).find((heading) => (
-      getGroupButtons(heading).includes(targetButton)
-    ));
+    return getFeatureGroupElements(root).find((heading) =>
+      getGroupButtons(heading).includes(targetButton),
+    );
   }
 
   function setFeatureGroupExpanded(heading, expanded) {
     const isExpanded = Boolean(expanded);
-    const groupLabel = heading.querySelector?.('strong')?.textContent?.trim() || '功能分组';
+    const groupLabel =
+      heading.querySelector?.('strong')?.textContent?.trim() || '功能分组';
     const actionLabel = `${isExpanded ? '收起' : '展开'}${groupLabel}`;
     heading.setAttribute('aria-expanded', String(isExpanded));
     heading.setAttribute('aria-label', actionLabel);
@@ -230,7 +252,10 @@
   }
 
   function isFeatureAvailable(button, panels) {
-    return !button.hidden && panels.some((panel) => panel.id === button.dataset.otherFeature);
+    return (
+      !button.hidden &&
+      panels.some((panel) => panel.id === button.dataset.otherFeature)
+    );
   }
 
   function readSelectedFeature() {
@@ -256,10 +281,11 @@
     if (!root) return false;
 
     const { buttons, panels } = getFeatureElements(root);
-    const targetButton = buttons.find((button) => (
-      button.dataset.otherFeature === featureId
-      && panels.some((panel) => panel.id === button.dataset.otherFeature)
-    ));
+    const targetButton = buttons.find(
+      (button) =>
+        button.dataset.otherFeature === featureId &&
+        panels.some((panel) => panel.id === button.dataset.otherFeature),
+    );
     if (targetButton?.hidden) {
       const groupHeading = getFeatureGroupForButton(root, targetButton);
       if (groupHeading?.getAttribute('aria-expanded') === 'false') {
@@ -267,10 +293,12 @@
         saveCollapsedFeatureGroups(root);
       }
     }
-    const selectedButton = buttons.find((button) => (
-      button.dataset.otherFeature === featureId
-      && isFeatureAvailable(button, panels)
-    )) || buttons.find((button) => isFeatureAvailable(button, panels));
+    const selectedButton =
+      buttons.find(
+        (button) =>
+          button.dataset.otherFeature === featureId &&
+          isFeatureAvailable(button, panels),
+      ) || buttons.find((button) => isFeatureAvailable(button, panels));
 
     if (!selectedButton) return false;
 
@@ -297,18 +325,28 @@
   }
 
   function selectFeatureById(featureId) {
-    return selectFeature(document.getElementById('otherAssistantPage'), featureId);
+    return selectFeature(
+      document.getElementById('otherAssistantPage'),
+      featureId,
+    );
   }
 
   function handleFeatureKeydown(root, currentButton, event) {
-    const supportedKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+    const supportedKeys = [
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+    ];
     if (!supportedKeys.includes(event.key)) return;
 
     const { buttons, panels } = getFeatureElements(root);
     const panelIds = new Set(panels.map((panel) => panel.id));
-    const availableButtons = buttons.filter((button) => (
-      !button.hidden && panelIds.has(button.dataset.otherFeature)
-    ));
+    const availableButtons = buttons.filter(
+      (button) => !button.hidden && panelIds.has(button.dataset.otherFeature),
+    );
     const currentIndex = availableButtons.indexOf(currentButton);
     if (currentIndex < 0 || !availableButtons.length) return;
 
@@ -316,8 +354,11 @@
     if (event.key === 'Home') nextIndex = 0;
     else if (event.key === 'End') nextIndex = availableButtons.length - 1;
     else {
-      const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
-      nextIndex = (currentIndex + step + availableButtons.length) % availableButtons.length;
+      const step =
+        event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1;
+      nextIndex =
+        (currentIndex + step + availableButtons.length) %
+        availableButtons.length;
     }
 
     event.preventDefault();
@@ -330,43 +371,55 @@
     const root = document.getElementById('otherAssistantPage');
     if (!root || moduleState.initialized) return;
 
-    moduleState.persistSidebarCollapsed = typeof options.persistSidebarCollapsed === 'function'
-      ? options.persistSidebarCollapsed
-      : null;
-    moduleState.persistCollapsedFeatureGroups = typeof options.persistCollapsedFeatureGroups === 'function'
-      ? options.persistCollapsedFeatureGroups
-      : null;
+    moduleState.persistSidebarCollapsed =
+      typeof options.persistSidebarCollapsed === 'function'
+        ? options.persistSidebarCollapsed
+        : null;
+    moduleState.persistCollapsedFeatureGroups =
+      typeof options.persistCollapsedFeatureGroups === 'function'
+        ? options.persistCollapsedFeatureGroups
+        : null;
     const { buttons, panels } = getFeatureElements(root);
     const sidebarToggle = root.querySelector?.('[data-other-sidebar-toggle]');
-    const navigationLinks = Array.from(root.querySelectorAll?.('[data-main-page-link]') || []);
+    const navigationLinks = Array.from(
+      root.querySelectorAll?.('[data-main-page-link]') || [],
+    );
     setSidebarCollapsed(root, readSidebarCollapsed() ?? false, false);
     const cachedCollapsedGroups = readCollapsedFeatureGroups(root);
-    if (cachedCollapsedGroups) applyCollapsedFeatureGroups(root, cachedCollapsedGroups);
+    if (cachedCollapsedGroups)
+      applyCollapsedFeatureGroups(root, cachedCollapsedGroups);
     window.addEventListener?.('app:settings-state', (event) => {
       reconcileSidebarCollapsed(root, event.detail || {});
       reconcileCollapsedFeatureGroups(root, event.detail || {});
     });
     const mobileLayout = window.matchMedia?.('(max-width: 900px)');
-    const syncMobileGroupAvailability = () => syncFeatureGroupAvailability(root);
-    if (mobileLayout?.addEventListener) mobileLayout.addEventListener('change', syncMobileGroupAvailability);
+    const syncMobileGroupAvailability = () =>
+      syncFeatureGroupAvailability(root);
+    if (mobileLayout?.addEventListener)
+      mobileLayout.addEventListener('change', syncMobileGroupAvailability);
     else mobileLayout?.addListener?.(syncMobileGroupAvailability);
     sidebarToggle?.addEventListener('click', () => {
       const collapsed = !root.classList.contains('sidebar-collapsed');
       setSidebarCollapsed(root, collapsed);
       persistSidebarCollapsed(collapsed);
     });
-    navigationLinks.forEach((link) => link.addEventListener('click', () => {
-      window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink);
-      const targetFeature = link.dataset.otherFeatureTarget;
-      if (targetFeature) {
-        // The main page switch is synchronous; select the requested toolbox panel after it becomes visible.
-        selectFeatureById(targetFeature);
-      }
-    }));
+    navigationLinks.forEach((link) =>
+      link.addEventListener('click', () => {
+        window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink);
+        const targetFeature = link.dataset.otherFeatureTarget;
+        if (targetFeature) {
+          // The main page switch is synchronous; select the requested toolbox panel after it becomes visible.
+          selectFeatureById(targetFeature);
+        }
+      }),
+    );
 
     getFeatureGroupElements(root).forEach((heading) => {
       heading.addEventListener('click', () => {
-        setFeatureGroupExpanded(heading, heading.getAttribute('aria-expanded') !== 'true');
+        setFeatureGroupExpanded(
+          heading,
+          heading.getAttribute('aria-expanded') !== 'true',
+        );
         saveCollapsedFeatureGroups(root);
       });
     });
@@ -384,15 +437,18 @@
     window.AdminApp.aiAssistantSettings?.init();
 
     const storedFeature = readSelectedFeature();
-    const storedButton = buttons.find((button) => (
-      button.dataset.otherFeature === storedFeature
-      && isFeatureAvailable(button, panels)
-    ));
-    const initialButton = storedButton
-      || buttons.find((button) => (
-        button.getAttribute('aria-selected') === 'true'
-        && isFeatureAvailable(button, panels)
-      ));
+    const storedButton = buttons.find(
+      (button) =>
+        button.dataset.otherFeature === storedFeature &&
+        isFeatureAvailable(button, panels),
+    );
+    const initialButton =
+      storedButton ||
+      buttons.find(
+        (button) =>
+          button.getAttribute('aria-selected') === 'true' &&
+          isFeatureAvailable(button, panels),
+      );
     selectFeature(root, initialButton?.dataset.otherFeature);
     moduleState.initialized = true;
   }
@@ -402,6 +458,6 @@
     initOtherPage,
     selectFeature,
     selectFeatureById,
-    setSidebarCollapsed
+    setSidebarCollapsed,
   };
 })();

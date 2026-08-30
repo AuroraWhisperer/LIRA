@@ -22,12 +22,14 @@
 ### Task 1: Define mode resolution and regression coverage
 
 **Files:**
+
 - Modify: `public/js/admin/desktop-lyric-defaults.js`
 - Modify: `src/storage/settings-store.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - Produces `desktopLyricKaraokeMode` persisted setting with values `off`, `continuous`, and `discrete`; default `continuous`.
 - Produces `resolveDesktopLyricSettings(...).karaokeMode` with compatibility mapping: missing mode + old boolean `true` → `continuous`; old boolean `false` → `off`.
 
@@ -40,12 +42,14 @@
 ### Task 2: Implement explicit discrete word animation
 
 **Files:**
+
 - Modify: `public/js/shared/lyric-word-animator.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Modify: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - `LyricWordAnimator` accepts `mode: 'waapi' | 'manual' | 'static' | 'discrete'`.
 - In `discrete` mode, each timed token receives a `data-word-state`/state class of `upcoming` or `complete`, with no per-frame `clip-path` interpolation.
 
@@ -59,12 +63,14 @@
 ### Task 3: Redesign the settings column’s display strategy section
 
 **Files:**
+
 - Modify: `public/pages/admin/song/desktop-lyric.html`
 - Modify: `public/js/admin/desktop-lyric.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Modify: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - Replaces the ambiguous “逐字歌词模式” boolean presentation with an accessible segmented control labelled “逐字高亮方式”.
 - Keeps existing group order and all unrelated controls/IDs stable.
 
@@ -78,10 +84,10 @@
 ### Task 4: Verify the complete change
 
 **Files:**
+
 - No new source files.
 
 - [ ] **Step 1: Run `node --test test/desktop-lyrics.test.js`.**
 - [ ] **Step 2: Run `npm run check`.**
 - [ ] **Step 3: Run `npm run verify:quick`.**
 - [ ] **Step 4: Review `git diff`, `git diff --check`, and `git status --short`; confirm only the plan, lyric settings, animator, preview, styles, and focused tests changed.**
-

@@ -80,7 +80,10 @@
   padding: 2px 10px;
   border-radius: 6px;
   background: var(--surface-2);
-  transition: color 300ms ease, background-color 300ms ease, border-color 300ms ease;
+  transition:
+    color 300ms ease,
+    background-color 300ms ease,
+    border-color 300ms ease;
 }
 
 .playback-health-status.success {
@@ -91,7 +94,7 @@
 }
 
 .playback-health-status.success::before {
-  content: "✓ ";
+  content: '✓ ';
   font-weight: bold;
 }
 
@@ -103,7 +106,7 @@
 }
 
 .playback-health-status.error::before {
-  content: "✕ ";
+  content: '✕ ';
   font-weight: bold;
 }
 
@@ -115,6 +118,6 @@
 }
 
 .playback-health-status.warning::before {
-  content: "⚠ ";
+  content: '⚠ ';
   font-weight: bold;
 }

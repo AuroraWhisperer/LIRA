@@ -12,7 +12,7 @@ const OPENING_DEFAULTS = Object.freeze({
   trackMotion: 'heart',
   showNotes: true,
   showEq: true,
-  volume: 0.35
+  volume: 0.35,
 });
 
 const QUALITY_VALUES = new Set(['high', 'normal', 'low']);
@@ -26,7 +26,12 @@ const CHARACTER_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
 
 function readStartAnimationConfig(root = document) {
   const value = (id, fallback) => root.getElementById(id)?.value ?? fallback;
-  const volume = Number(value('openingAudioVolume', String(Math.round(OPENING_DEFAULTS.volume * 100))));
+  const volume = Number(
+    value(
+      'openingAudioVolume',
+      String(Math.round(OPENING_DEFAULTS.volume * 100)),
+    ),
+  );
   const trackMotion = value('openingTrackMotion', OPENING_DEFAULTS.trackMotion);
   return {
     enabled: Boolean(root.getElementById('openingEnabled')?.checked),
@@ -34,12 +39,19 @@ function readStartAnimationConfig(root = document) {
     subtitle: value('openingSubtitle', OPENING_DEFAULTS.subtitle).trim(),
     name: value('openingName', OPENING_DEFAULTS.name).trim(),
     footer: value('openingFooter', OPENING_DEFAULTS.footer).trim(),
-    quality: QUALITY_VALUES.has(value('openingQuality', OPENING_DEFAULTS.quality))
-      ? value('openingQuality', OPENING_DEFAULTS.quality) : OPENING_DEFAULTS.quality,
-    trackMotion: TRACK_MOTION_VALUES.has(trackMotion) ? trackMotion : OPENING_DEFAULTS.trackMotion,
+    quality: QUALITY_VALUES.has(
+      value('openingQuality', OPENING_DEFAULTS.quality),
+    )
+      ? value('openingQuality', OPENING_DEFAULTS.quality)
+      : OPENING_DEFAULTS.quality,
+    trackMotion: TRACK_MOTION_VALUES.has(trackMotion)
+      ? trackMotion
+      : OPENING_DEFAULTS.trackMotion,
     showNotes: Boolean(root.getElementById('openingShowNotes')?.checked),
     showEq: Boolean(root.getElementById('openingShowEq')?.checked),
-    volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume / 100)) : OPENING_DEFAULTS.volume
+    volume: Number.isFinite(volume)
+      ? Math.max(0, Math.min(1, volume / 100))
+      : OPENING_DEFAULTS.volume,
   };
 }
 
@@ -51,11 +63,26 @@ function buildOpeningUrl(origin, config) {
   params.set('subtitle', config.subtitle || OPENING_DEFAULTS.subtitle);
   params.set('name', config.name);
   params.set('footer', config.footer || OPENING_DEFAULTS.footer);
-  params.set('quality', QUALITY_VALUES.has(config.quality) ? config.quality : OPENING_DEFAULTS.quality);
-  params.set('trackMotion', TRACK_MOTION_VALUES.has(config.trackMotion) ? config.trackMotion : OPENING_DEFAULTS.trackMotion);
+  params.set(
+    'quality',
+    QUALITY_VALUES.has(config.quality)
+      ? config.quality
+      : OPENING_DEFAULTS.quality,
+  );
+  params.set(
+    'trackMotion',
+    TRACK_MOTION_VALUES.has(config.trackMotion)
+      ? config.trackMotion
+      : OPENING_DEFAULTS.trackMotion,
+  );
   params.set('showNotes', config.showNotes ? '1' : '0');
   params.set('showEq', config.showEq ? '1' : '0');
-  params.set('volume', String(Number.isFinite(config.volume) ? config.volume : OPENING_DEFAULTS.volume));
+  params.set(
+    'volume',
+    String(
+      Number.isFinite(config.volume) ? config.volume : OPENING_DEFAULTS.volume,
+    ),
+  );
   params.set('audio', 'browser');
   url.search = params.toString();
   return url.toString();
@@ -76,14 +103,15 @@ function openingSettingsPayload(config) {
     openingTrackMotion: config.trackMotion,
     openingShowNotes: config.showNotes ? 'true' : 'false',
     openingShowEq: config.showEq ? 'true' : 'false',
-    openingAudioVolume: String(config.volume)
+    openingAudioVolume: String(config.volume),
   };
 }
 
 function setFormConfig(root, config) {
   const setValue = (id, value) => {
     const element = root.getElementById(id);
-    if (element && value !== undefined && value !== null) element.value = String(value);
+    if (element && value !== undefined && value !== null)
+      element.value = String(value);
   };
   const setChecked = (id, value) => {
     const element = root.getElementById(id);
@@ -93,9 +121,17 @@ function setFormConfig(root, config) {
   setValue('openingTitle', config.title);
   setValue('openingSubtitle', config.subtitle);
   setValue('openingName', config.name);
-  setValue('openingFooter', config.footer === 'SINGING LIVE' ? OPENING_DEFAULTS.footer : config.footer);
+  setValue(
+    'openingFooter',
+    config.footer === 'SINGING LIVE' ? OPENING_DEFAULTS.footer : config.footer,
+  );
   setValue('openingQuality', config.quality);
-  setValue('openingTrackMotion', TRACK_MOTION_VALUES.has(config.trackMotion) ? config.trackMotion : OPENING_DEFAULTS.trackMotion);
+  setValue(
+    'openingTrackMotion',
+    TRACK_MOTION_VALUES.has(config.trackMotion)
+      ? config.trackMotion
+      : OPENING_DEFAULTS.trackMotion,
+  );
   setChecked('openingShowNotes', config.showNotes);
   setChecked('openingShowEq', config.showEq);
   setValue('openingAudioVolume', volumePercent(config.volume));
@@ -103,7 +139,8 @@ function setFormConfig(root, config) {
 
 function volumePercent(value) {
   const normalized = Number(value);
-  if (!Number.isFinite(normalized)) return Math.round(OPENING_DEFAULTS.volume * 100);
+  if (!Number.isFinite(normalized))
+    return Math.round(OPENING_DEFAULTS.volume * 100);
   return Math.round(Math.max(0, Math.min(1, normalized)) * 100);
 }
 
@@ -137,7 +174,8 @@ function initStartAnimation() {
   const render = (forcePreviewReload = false) => {
     const config = readStartAnimationConfig(root);
     const previewUrl = buildOpeningUrl(origin, config);
-    if (titleCount) titleCount.textContent = `${Array.from(config.title).length}/20`;
+    if (titleCount)
+      titleCount.textContent = `${Array.from(config.title).length}/20`;
     updateVolumeOutput(root, config);
     if (urlNode) urlNode.textContent = sourceUrl;
     if (preview) {
@@ -147,7 +185,8 @@ function initStartAnimation() {
       } else {
         preview.hidden = false;
         const nextPreviewUrl = forcePreviewReload
-          ? `${previewUrl}&preview=${previewVersion += 1}` : previewUrl;
+          ? `${previewUrl}&preview=${(previewVersion += 1)}`
+          : previewUrl;
         if (preview.src !== nextPreviewUrl) preview.src = nextPreviewUrl;
       }
     }
@@ -160,10 +199,12 @@ function initStartAnimation() {
     fetch(SETTINGS_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(openingSettingsPayload(config))
-    }).then((response) => {
-      if (!response.ok) throw new Error('配置保存失败');
-    }).catch((error) => toast(error.message || '配置保存失败，请重试。'));
+      body: JSON.stringify(openingSettingsPayload(config)),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error('配置保存失败');
+      })
+      .catch((error) => toast(error.message || '配置保存失败，请重试。'));
   };
 
   const schedulePersist = () => {
@@ -174,15 +215,20 @@ function initStartAnimation() {
   const updatePreviewVolume = () => {
     const config = readStartAnimationConfig(root);
     updateVolumeOutput(root, config);
-    preview?.contentWindow?.postMessage({
-      type: 'lira:opening-preview-volume',
-      volume: config.volume
-    }, origin);
+    preview?.contentWindow?.postMessage(
+      {
+        type: 'lira:opening-preview-volume',
+        volume: config.volume,
+      },
+      origin,
+    );
   };
 
   const loadSavedConfig = async () => {
     try {
-      const response = await fetch(OPENING_CONFIG_ENDPOINT, { cache: 'no-store' });
+      const response = await fetch(OPENING_CONFIG_ENDPOINT, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         hydrated = true;
         return;
@@ -193,8 +239,10 @@ function initStartAnimation() {
         return;
       }
       setFormConfig(root, payload.data);
-      if (audioName) audioName.textContent = payload.data.audioName || '默认音乐：果实';
-      if (characterName) characterName.textContent = payload.data.characterName || '默认人物图';
+      if (audioName)
+        audioName.textContent = payload.data.audioName || '默认音乐：果实';
+      if (characterName)
+        characterName.textContent = payload.data.characterName || '默认人物图';
       hydrated = true;
       render(true);
     } catch (_) {
@@ -215,91 +263,128 @@ function initStartAnimation() {
     schedulePersist();
   });
 
-  document.getElementById('openingAudioFile')?.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (audioStatus) audioStatus.textContent = '正在上传歌曲…';
-    const body = new FormData();
-    body.append('file', file, file.name);
-    try {
-      const response = await fetch(OPENING_AUDIO_ENDPOINT, { method: 'POST', body });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '歌曲上传失败');
-      if (audioName) audioName.textContent = payload.data.audioName || file.name;
-      if (audioStatus) audioStatus.textContent = '歌曲已保存到开播音乐文件夹。';
-      render(true);
-    } catch (error) {
-      if (audioStatus) audioStatus.textContent = error.message || '歌曲上传失败，请重试。';
-    } finally {
-      event.target.value = '';
-    }
-  });
+  document
+    .getElementById('openingAudioFile')
+    ?.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (audioStatus) audioStatus.textContent = '正在上传歌曲…';
+      const body = new FormData();
+      body.append('file', file, file.name);
+      try {
+        const response = await fetch(OPENING_AUDIO_ENDPOINT, {
+          method: 'POST',
+          body,
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok)
+          throw new Error(payload?.error || '歌曲上传失败');
+        if (audioName)
+          audioName.textContent = payload.data.audioName || file.name;
+        if (audioStatus)
+          audioStatus.textContent = '歌曲已保存到开播音乐文件夹。';
+        render(true);
+      } catch (error) {
+        if (audioStatus)
+          audioStatus.textContent = error.message || '歌曲上传失败，请重试。';
+      } finally {
+        event.target.value = '';
+      }
+    });
 
-  document.getElementById('openingCharacterFile')?.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const extension = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!CHARACTER_EXTENSIONS.has(extension)) {
-      if (characterStatus) characterStatus.textContent = '请选择 PNG、JPG 或 WebP 图片。';
-      event.target.value = '';
-      return;
-    }
-    if (file.size > MAX_CHARACTER_UPLOAD_BYTES) {
-      if (characterStatus) characterStatus.textContent = '图片不能超过 16 MB。';
-      event.target.value = '';
-      return;
-    }
-    if (characterStatus) characterStatus.textContent = '正在上传人物图片…';
-    const body = new FormData();
-    body.append('file', file, file.name);
-    try {
-      const response = await fetch(OPENING_CHARACTER_ENDPOINT, { method: 'POST', body });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '人物图片上传失败');
-      if (characterName) characterName.textContent = payload.data.characterName || file.name;
-      if (characterStatus) characterStatus.textContent = '人物图片已保存。';
-      render(true);
-    } catch (error) {
-      if (characterStatus) characterStatus.textContent = error.message || '人物图片上传失败，请重试。';
-    } finally {
-      event.target.value = '';
-    }
-  });
+  document
+    .getElementById('openingCharacterFile')
+    ?.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const extension = file.name.split('.').pop()?.toLowerCase() || '';
+      if (!CHARACTER_EXTENSIONS.has(extension)) {
+        if (characterStatus)
+          characterStatus.textContent = '请选择 PNG、JPG 或 WebP 图片。';
+        event.target.value = '';
+        return;
+      }
+      if (file.size > MAX_CHARACTER_UPLOAD_BYTES) {
+        if (characterStatus)
+          characterStatus.textContent = '图片不能超过 16 MB。';
+        event.target.value = '';
+        return;
+      }
+      if (characterStatus) characterStatus.textContent = '正在上传人物图片…';
+      const body = new FormData();
+      body.append('file', file, file.name);
+      try {
+        const response = await fetch(OPENING_CHARACTER_ENDPOINT, {
+          method: 'POST',
+          body,
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok)
+          throw new Error(payload?.error || '人物图片上传失败');
+        if (characterName)
+          characterName.textContent = payload.data.characterName || file.name;
+        if (characterStatus) characterStatus.textContent = '人物图片已保存。';
+        render(true);
+      } catch (error) {
+        if (characterStatus)
+          characterStatus.textContent =
+            error.message || '人物图片上传失败，请重试。';
+      } finally {
+        event.target.value = '';
+      }
+    });
 
-  document.getElementById('openingResetCharacter')?.addEventListener('click', async () => {
-    try {
-      const response = await fetch(OPENING_CHARACTER_ENDPOINT, { method: 'DELETE' });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '恢复默认人物图失败');
-      if (characterName) characterName.textContent = payload.data.characterName || '默认人物图';
-      if (characterStatus) characterStatus.textContent = '已恢复默认人物图。';
-      render(true);
-    } catch (error) {
-      if (characterStatus) characterStatus.textContent = error.message || '恢复默认人物图失败。';
-    }
-  });
+  document
+    .getElementById('openingResetCharacter')
+    ?.addEventListener('click', async () => {
+      try {
+        const response = await fetch(OPENING_CHARACTER_ENDPOINT, {
+          method: 'DELETE',
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok)
+          throw new Error(payload?.error || '恢复默认人物图失败');
+        if (characterName)
+          characterName.textContent =
+            payload.data.characterName || '默认人物图';
+        if (characterStatus) characterStatus.textContent = '已恢复默认人物图。';
+        render(true);
+      } catch (error) {
+        if (characterStatus)
+          characterStatus.textContent = error.message || '恢复默认人物图失败。';
+      }
+    });
 
-  document.getElementById('openingResetAudio')?.addEventListener('click', async () => {
-    try {
-      const response = await fetch(OPENING_AUDIO_ENDPOINT, { method: 'DELETE' });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '恢复默认音乐失败');
-      if (audioName) audioName.textContent = payload.data.audioName || '默认音乐：果实';
-      if (audioStatus) audioStatus.textContent = '已恢复默认音乐：果实。';
-      render(true);
-    } catch (error) {
-      if (audioStatus) audioStatus.textContent = error.message || '恢复默认音乐失败。';
-    }
-  });
+  document
+    .getElementById('openingResetAudio')
+    ?.addEventListener('click', async () => {
+      try {
+        const response = await fetch(OPENING_AUDIO_ENDPOINT, {
+          method: 'DELETE',
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.ok)
+          throw new Error(payload?.error || '恢复默认音乐失败');
+        if (audioName)
+          audioName.textContent = payload.data.audioName || '默认音乐：果实';
+        if (audioStatus) audioStatus.textContent = '已恢复默认音乐：果实。';
+        render(true);
+      } catch (error) {
+        if (audioStatus)
+          audioStatus.textContent = error.message || '恢复默认音乐失败。';
+      }
+    });
 
-  document.getElementById('openingCopyUrl')?.addEventListener('click', async () => {
-    try {
-      await copyText(sourceUrl);
-      toast('固定开播动画地址已复制');
-    } catch (error) {
-      toast(error.message || '复制失败，请手动复制地址。');
-    }
-  });
+  document
+    .getElementById('openingCopyUrl')
+    ?.addEventListener('click', async () => {
+      try {
+        await copyText(sourceUrl);
+        toast('固定开播动画地址已复制');
+      } catch (error) {
+        toast(error.message || '复制失败，请手动复制地址。');
+      }
+    });
   render();
   loadSavedConfig();
 }
@@ -311,5 +396,5 @@ export {
   initStartAnimation,
   readStartAnimationConfig,
   openingSettingsPayload,
-  volumePercent
+  volumePercent,
 };

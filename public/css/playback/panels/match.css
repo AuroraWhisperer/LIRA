@@ -29,7 +29,7 @@
 }
 
 .playback-match-panel .details-indicator::after {
-  content: "";
+  content: '';
   width: 7px;
   height: 7px;
   border-right: 1.5px solid currentColor;

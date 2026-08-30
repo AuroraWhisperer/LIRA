@@ -44,7 +44,16 @@ body.blindbox-overlay-body {
   box-sizing: border-box;
   padding: clamp(8px, 2.6cqw, 14px) clamp(10px, 3.4cqw, 20px);
   border-bottom-color: rgba(255, 255, 255, 0.1);
-  background: linear-gradient(90deg, rgba(var(--overlay-primary-r, 255), var(--overlay-primary-g, 111), var(--overlay-primary-b, 149), 0.14), transparent 52%);
+  background: linear-gradient(
+    90deg,
+    rgba(
+      var(--overlay-primary-r, 255),
+      var(--overlay-primary-g, 111),
+      var(--overlay-primary-b, 149),
+      0.14
+    ),
+    transparent 52%
+  );
 }
 
 .blindbox-title-group {
@@ -82,7 +91,7 @@ body.blindbox-overlay-body {
 .blindbox-stat-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas: "icon value" "icon label";
+  grid-template-areas: 'icon value' 'icon label';
   align-items: center;
   column-gap: clamp(5px, 1.8cqw, 10px);
   min-width: 0;
@@ -161,12 +170,18 @@ body.blindbox-overlay-body {
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: min(var(--overlay-radius, 8px), 7px);
   background: rgba(255, 255, 255, 0.045);
-  transition: background 160ms ease, border-color 160ms ease;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
 }
 
 .leaderboard-row.rank-1 {
   border-color: rgba(251, 191, 36, 0.32);
-  background: linear-gradient(90deg, rgba(251, 191, 36, 0.16), rgba(251, 191, 36, 0.035));
+  background: linear-gradient(
+    90deg,
+    rgba(251, 191, 36, 0.16),
+    rgba(251, 191, 36, 0.035)
+  );
 }
 
 .leaderboard-row.rank-2 {
@@ -364,7 +379,7 @@ body.blindbox-overlay-body {
 @container (max-width: 359px) {
   .blindbox-stat-card {
     grid-template-columns: 1fr;
-    grid-template-areas: "value" "label";
+    grid-template-areas: 'value' 'label';
     justify-items: center;
     text-align: center;
   }
@@ -385,7 +400,7 @@ body.blindbox-overlay-body {
 
   .leaderboard-row {
     grid-template-columns: 24px minmax(0, 1fr) auto;
-    grid-template-areas: "rank user user" "rank count profit";
+    grid-template-areas: 'rank user user' 'rank count profit';
     row-gap: 2px;
   }
 

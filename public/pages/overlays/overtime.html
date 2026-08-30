@@ -1,14 +1,18 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>直播加班机</title>
-    <link rel="stylesheet" href="/css/overlays/overtime.css?v=20260814-01">
+    <link rel="stylesheet" href="/css/overlays/overtime.css?v=20260814-01" />
   </head>
   <body>
     <main id="overtimeMachine" class="overtime-machine">
-      <div id="overtimeBackground" class="overtime-background" aria-hidden="true">
+      <div
+        id="overtimeBackground"
+        class="overtime-background"
+        aria-hidden="true"
+      >
         <div class="overtime-background-shade"></div>
       </div>
       <section class="overtime-foreground" aria-live="polite">
@@ -19,7 +23,12 @@
           </div>
           <strong id="overtimeClock" class="overtime-clock">00:00:00</strong>
         </header>
-        <section id="overtimeGiftGuide" class="overtime-gift-guide" aria-labelledby="overtimeGiftGuideTitle" hidden>
+        <section
+          id="overtimeGiftGuide"
+          class="overtime-gift-guide"
+          aria-labelledby="overtimeGiftGuideTitle"
+          hidden
+        >
           <header class="overtime-guide-heading">
             <div>
               <span aria-hidden="true">GIFT → TIME</span>
@@ -30,7 +39,11 @@
           <div id="overtimeTickets" class="overtime-ticket-grid"></div>
         </section>
       </section>
-      <div id="overtimeAdjustmentStage" class="overtime-adjustment-stage" aria-live="assertive"></div>
+      <div
+        id="overtimeAdjustmentStage"
+        class="overtime-adjustment-stage"
+        aria-live="assertive"
+      ></div>
     </main>
     <script src="/js/overlays/overtime.js?v=20260814-01"></script>
   </body>

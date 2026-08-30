@@ -1,30 +1,69 @@
-        <!-- 全部礼物流水抽屉 -->
-        <div class="gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
-        <aside class="gift-drawer" id="giftHistoryDrawer">
-          <div class="gift-drawer-head">
-            <div class="gift-drawer-title">
-              <strong class="ui-section-title">全部礼物流水</strong>
-              <span id="giftHistoryTotal" class="ui-caption">共 0 条</span>
-            </div>
-            <button id="giftHistoryClearDisplayBtn" class="secondary sm" type="button" title="清理显示（最近30条）">清理显示</button>
-            <button id="giftHistoryClearDatabaseBtn" class="danger sm" type="button" title="清空数据库全部礼物记录">清理数据库</button>
-            <button id="giftHistoryClose" class="playback-icon-btn" type="button" title="关闭" aria-label="关闭">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="gift-drawer-body">
-            <table class="gift-history-table">
-              <thead>
-                <tr><th data-sort="created_at">时间<span class="sort-arrow"></span></th><th data-sort="gift_name">礼物<span class="sort-arrow"></span></th><th>数量</th><th data-sort="price">金额<span class="sort-arrow"></span></th><th>用户</th><th data-sort="remarks">备注<span class="sort-arrow"></span></th></tr>
-              </thead>
-              <tbody id="giftHistoryBody">
-                <tr><td colspan="6" class="empty">加载中…</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="gift-drawer-footer">
-            <button id="giftHistoryPrev" type="button" disabled>← 上一页</button>
-            <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
-            <button id="giftHistoryNext" type="button" disabled>下一页 →</button>
-          </div>
-        </aside>
+<!-- 全部礼物流水抽屉 -->
+<div class="gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
+<aside class="gift-drawer" id="giftHistoryDrawer">
+  <div class="gift-drawer-head">
+    <div class="gift-drawer-title">
+      <strong class="ui-section-title">全部礼物流水</strong>
+      <span id="giftHistoryTotal" class="ui-caption">共 0 条</span>
+    </div>
+    <button
+      id="giftHistoryClearDisplayBtn"
+      class="secondary sm"
+      type="button"
+      title="清理显示（最近30条）"
+    >
+      清理显示
+    </button>
+    <button
+      id="giftHistoryClearDatabaseBtn"
+      class="danger sm"
+      type="button"
+      title="清空数据库全部礼物记录"
+    >
+      清理数据库
+    </button>
+    <button
+      id="giftHistoryClose"
+      class="playback-icon-btn"
+      type="button"
+      title="关闭"
+      aria-label="关闭"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+  </div>
+  <div class="gift-drawer-body">
+    <table class="gift-history-table">
+      <thead>
+        <tr>
+          <th data-sort="created_at">时间<span class="sort-arrow"></span></th>
+          <th data-sort="gift_name">礼物<span class="sort-arrow"></span></th>
+          <th>数量</th>
+          <th data-sort="price">金额<span class="sort-arrow"></span></th>
+          <th>用户</th>
+          <th data-sort="remarks">备注<span class="sort-arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="giftHistoryBody">
+        <tr>
+          <td colspan="6" class="empty">加载中…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="gift-drawer-footer">
+    <button id="giftHistoryPrev" type="button" disabled>← 上一页</button>
+    <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
+    <button id="giftHistoryNext" type="button" disabled>下一页 →</button>
+  </div>
+</aside>

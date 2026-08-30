@@ -3,13 +3,8 @@
 'use strict';
 
 (function () {
-  const {
-    escapeHtml,
-    escapeAttr,
-    formatTime,
-    formatMoney,
-    readJsonResponse
-  } = window.AdminApp.utils;
+  const { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } =
+    window.AdminApp.utils;
   let statsInitialized = false;
 
   /**
@@ -44,22 +39,27 @@
     // 使用 recent 模块的工具函数
     const getBlindBoxIcon = window.AdminApp.gifts.recent.getBlindBoxIcon;
 
-    container.innerHTML = config.map((item, index) => {
-      const name = escapeHtml(item.name || '未命名');
-      const price = formatMoney(item.price);
-      const outputs = Array.isArray(item.outputs) ? item.outputs.map(o => {
-        if (typeof o === 'object' && o !== null) {
-          return `<span class="bb-output">${escapeHtml(o.name)}<small>${formatMoney(o.price)}</small></span>`;
-        }
-        return escapeHtml(String(o));
-      }).join('') : '—';
+    container.innerHTML = config
+      .map((item, index) => {
+        const name = escapeHtml(item.name || '未命名');
+        const price = formatMoney(item.price);
+        const outputs = Array.isArray(item.outputs)
+          ? item.outputs
+              .map((o) => {
+                if (typeof o === 'object' && o !== null) {
+                  return `<span class="bb-output">${escapeHtml(o.name)}<small>${formatMoney(o.price)}</small></span>`;
+                }
+                return escapeHtml(String(o));
+              })
+              .join('')
+          : '—';
 
-      const icon = getBlindBoxIcon(item);
-      const iconHtml = icon
-        ? `<img class="bb-chip-icon" src="${escapeAttr(icon.src)}" alt="${escapeAttr(icon.name)}" onerror="this.style.display='none'">`
-        : `<span class="bb-chip-icon-fallback">🎁</span>`;
+        const icon = getBlindBoxIcon(item);
+        const iconHtml = icon
+          ? `<img class="bb-chip-icon" src="${escapeAttr(icon.src)}" alt="${escapeAttr(icon.name)}" onerror="this.style.display='none'">`
+          : `<span class="bb-chip-icon-fallback">🎁</span>`;
 
-      return `
+        return `
         <div class="blind-box-chip">
           ${iconHtml}
           <div class="bb-chip-body">
@@ -72,7 +72,8 @@
           <button class="chip-delete" data-blind-index="${index}" title="删除">✕</button>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
   }
 
   // ── 盲盒统计 ──
@@ -94,7 +95,9 @@
       const response = await fetch('/api/gifts/blind-box-stats');
       const payload = await readJsonResponse(response, '盲盒统计加载失败');
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || `盲盒统计加载失败（HTTP ${response.status}）`);
+        throw new Error(
+          payload.error || `盲盒统计加载失败（HTTP ${response.status}）`,
+        );
       }
       renderBlindBoxStats(payload.data);
     } catch (error) {
@@ -111,7 +114,8 @@
         `;
       }
       const body = document.getElementById('blindBoxStatsBody');
-      if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
+      if (body)
+        body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
     } finally {
       blindBoxStatsLoading = false;
       if (blindBoxStatsPending) {
@@ -144,8 +148,14 @@
           </div>
         `;
       } else {
-        const profitSign = summary.totalProfit > 0 ? '+' : summary.totalProfit < 0 ? '-' : '';
-        const profitClass = summary.totalProfit > 0 ? 'profit-up' : summary.totalProfit < 0 ? 'profit-down' : '';
+        const profitSign =
+          summary.totalProfit > 0 ? '+' : summary.totalProfit < 0 ? '-' : '';
+        const profitClass =
+          summary.totalProfit > 0
+            ? 'profit-up'
+            : summary.totalProfit < 0
+              ? 'profit-down'
+              : '';
         if (section) section.dataset.state = 'ready';
         summaryEl.innerHTML = `
           <div class="stats-summary-row">
@@ -180,10 +190,18 @@
       return;
     }
 
-    body.innerHTML = users.slice(0, 10).map((user) => {
-      const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
-      const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
-      return `
+    body.innerHTML = users
+      .slice(0, 10)
+      .map((user) => {
+        const profitSign =
+          user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
+        const profitClass =
+          user.totalProfit > 0
+            ? 'profit-up'
+            : user.totalProfit < 0
+              ? 'profit-down'
+              : '';
+        return `
         <tr class="blind-stats-user-row" tabindex="0" data-viewer="${escapeAttr(user.viewer || '')}" title="查看${escapeAttr(user.userName || '观众')}的开盒记录">
           <td class="user-cell">${escapeHtml(user.userName || '观众')}</td>
           <td>${Number(user.boxCount || 0)}</td>
@@ -193,7 +211,8 @@
           <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</td>
         </tr>
       `;
-    }).join('');
+      })
+      .join('');
   }
 
   /**
@@ -213,22 +232,35 @@
       }
     });
 
-    document.getElementById('blindBoxAnalysisOpenBtn')?.addEventListener('click', () => {
-      window.AdminApp.gifts.analysis?.open({ view: 'users' });
-    });
+    document
+      .getElementById('blindBoxAnalysisOpenBtn')
+      ?.addEventListener('click', () => {
+        window.AdminApp.gifts.analysis?.open({ view: 'users' });
+      });
 
-    document.getElementById('blindBoxStatsBody')?.addEventListener('click', (event) => {
-      const row = event.target.closest('[data-viewer]');
-      if (row) window.AdminApp.gifts.analysis?.open({ viewer: row.dataset.viewer, view: 'records' });
-    });
+    document
+      .getElementById('blindBoxStatsBody')
+      ?.addEventListener('click', (event) => {
+        const row = event.target.closest('[data-viewer]');
+        if (row)
+          window.AdminApp.gifts.analysis?.open({
+            viewer: row.dataset.viewer,
+            view: 'records',
+          });
+      });
 
-    document.getElementById('blindBoxStatsBody')?.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      const row = event.target.closest('[data-viewer]');
-      if (!row) return;
-      event.preventDefault();
-      window.AdminApp.gifts.analysis?.open({ viewer: row.dataset.viewer, view: 'records' });
-    });
+    document
+      .getElementById('blindBoxStatsBody')
+      ?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const row = event.target.closest('[data-viewer]');
+        if (!row) return;
+        event.preventDefault();
+        window.AdminApp.gifts.analysis?.open({
+          viewer: row.dataset.viewer,
+          view: 'records',
+        });
+      });
 
     if (!statsInitialized) {
       statsInitialized = true;
@@ -250,6 +282,6 @@
     renderBlindBoxList,
     loadBlindBoxStats,
     renderBlindBoxStats,
-    initBlindBoxStatsToggle
+    initBlindBoxStatsToggle,
   };
 })();

@@ -35,50 +35,53 @@ Windows PowerShell CIM, Vanilla JavaScript ES modules, native CSS, `node:test`.
 ### Task 1: Cover and implement server hardware reads
 
 **Files:**
+
 - Modify: `src/server/system-metrics.js`
 - Modify: `src/server/api-context.js`
 - Modify: `src/server/routes/system-routes.js`
 - Test: `test/system-metrics.test.js`
 
 - [x] Write focused tests for CPU and RAM normalization, cached static metadata,
-  NVIDIA-only temperature probing, and unsupported-platform fallback.
+      NVIDIA-only temperature probing, and unsupported-platform fallback.
 - [x] Add `getHardwareSummary(includeTemperatures)` and narrow PowerShell
-  helpers. Cache only static CPU, RAM, and GPU metadata; sanitize all command
-  output and never expose module serial numbers.
+      helpers. Cache only static CPU, RAM, and GPU metadata; sanitize all command
+      output and never expose module serial numbers.
 - [x] Register `GET /api/system/hardware`; accept temperatures only when the
-  query string is exactly `true`.
+      query string is exactly `true`.
 - [x] Run `node --experimental-vm-modules --test test/system-metrics.test.js`.
 
 ### Task 2: Render the hardware summary in the performance panel
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/performance.html`
 - Modify: `public/js/admin/metrics.js`
 - Modify: `public/css/admin/toasts/gifts.css`
 - Test: `test/frontend-admin-shell.test.js`
 
 - [x] Add a compact hardware summary below the six existing utilization cards,
-  with semantic labels for model, capacity, and temperature states.
+      with semantic labels for model, capacity, and temperature states.
 - [x] Fetch static data once at monitor initialization. During an explicit
-  five-second sample, refresh hardware temperatures in parallel with the
-  existing metrics request and render using `textContent`.
+      five-second sample, refresh hardware temperatures in parallel with the
+      existing metrics request and render using `textContent`.
 - [x] Add only the CSS needed for readable desktop summary rows; no animation or
-  responsive redesign.
+      responsive redesign.
 - [x] Run `node --experimental-vm-modules --test test/frontend-admin-shell.test.js`.
 
 ### Task 3: Document and verify the public contract
 
 **Files:**
+
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/architecture/backend/server-core.md`
 - Modify: `docs/architecture/frontend/app.md`
 
 - [x] Document endpoint schema, short-lived sensor reads, cache lifetime, and
-  unavailable-temperature behavior.
+      unavailable-temperature behavior.
 - [x] Run the focused tests, `npm run verify:docs`, `npm run check`, and
-  `npm run verify:architecture`.
+      `npm run verify:architecture`.
 - [x] Review `git diff --check`, `git diff`, and `git status --short`, ensuring
-  the pre-existing untracked interactive-tour plan remains untouched.
+      the pre-existing untracked interactive-tour plan remains untouched.
 
 ## Rollback Or Failure Handling
 

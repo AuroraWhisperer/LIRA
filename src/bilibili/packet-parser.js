@@ -12,18 +12,20 @@ const { parseBilibiliPackets } = require('./parsers/packet-decoder');
 const {
   extractBilibiliDanmakuTimestamp,
   extractBilibiliDanmakuAvatarUrl,
-  extractBilibiliDanmakuEmotes
+  extractBilibiliDanmakuEmotes,
 } = require('./parsers/danmaku-parser');
 
 // User metadata extraction
 const {
   extractBilibiliDanmakuUserMeta,
   extractBilibiliHistoryUserMeta,
-  extractBilibiliOnlineRankUserMeta
+  extractBilibiliOnlineRankUserMeta,
 } = require('./utils/user-meta-extractor');
 
 // SuperChat parsing
-const { extractBilibiliSuperChatMessage } = require('./parsers/superchat-parser');
+const {
+  extractBilibiliSuperChatMessage,
+} = require('./parsers/superchat-parser');
 
 // Gift parsing
 const {
@@ -35,13 +37,13 @@ const {
   extractBilibiliWebGuardGiftMessage,
   isBilibiliDuplicateGuardToast,
   isBilibiliGiftCommand,
-  isBilibiliGiftLikeCommand
+  isBilibiliGiftLikeCommand,
 } = require('./parsers/gift-parser');
 
 // Protocol Buffer decoding
 const {
   readBilibiliProtoVarint,
-  decodeBilibiliGiftV2Proto
+  decodeBilibiliGiftV2Proto,
 } = require('./protocols/protobuf-decoder');
 
 // ---------------------------------------------------------------------------
@@ -67,5 +69,5 @@ module.exports = {
   isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand,
   readBilibiliProtoVarint,
-  decodeBilibiliGiftV2Proto
+  decodeBilibiliGiftV2Proto,
 };

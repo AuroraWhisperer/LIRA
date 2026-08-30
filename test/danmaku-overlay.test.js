@@ -9,11 +9,28 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const ROOT_DIR = path.join(__dirname, '..');
 
 test('fixed danmaku overlay consumes snapshot and incremental feed events safely', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'danmaku.html'), 'utf8');
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), 'utf8');
-  const feedScript = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), 'utf8');
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'danmaku.css'), 'utf8');
-  const server = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8');
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'danmaku.html'),
+    'utf8',
+  );
+  const script = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
+    'utf8',
+  );
+  const feedScript = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
+    'utf8',
+  );
+  const styles = fs
+    .readFileSync(
+      path.join(ROOT_DIR, 'public', 'css', 'overlays', 'danmaku.css'),
+      'utf8',
+    )
+    .replace(/\s+/g, ' ');
+  const server = fs.readFileSync(
+    path.join(ROOT_DIR, 'src', 'server.js'),
+    'utf8',
+  );
 
   assert.match(html, /id="danmakuFeed"/);
   assert.match(html, /body class="danmaku-overlay-body" data-style="signal"/);
@@ -31,7 +48,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /guardLevel:\s*1/);
   assert.match(script, /guardLevel:\s*2/);
   assert.match(script, /guardLevel:\s*3/);
-  assert.equal([...script.matchAll(/\{ id: 'preview-\d+'/g)].length, 4);
+  assert.equal([...script.matchAll(/\bid:\s*'preview-\d+'/g)].length, 4);
   assert.equal([...script.matchAll(/guardLevel:\s*[123]/g)].length, 3);
   assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
   assert.match(script, /payload\.state\.liveStatus/);
@@ -39,7 +56,10 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /feed\.append/);
   assert.match(script, /requestAnimationFrame\(flushPendingItems\)/);
   assert.match(script, /autoScroll:\s*false/);
-  assert.match(server, /webSocketHub\.broadcast\(\{ type: 'danmaku:message', item \}, \{ topic: 'danmaku' \}\)/);
+  assert.match(
+    server,
+    /webSocketHub\.broadcast\(\s*\{\s*type:\s*'danmaku:message',\s*item\s*\},\s*\{\s*topic:\s*'danmaku'\s*\},?\s*\)/,
+  );
   assert.match(script, /document\.body\.dataset\.style/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.match(styles, /clip-path:/);
@@ -49,77 +69,230 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /body\[data-style='bubble'\]/);
   assert.match(styles, /body\[data-style='minimal'\]/);
   assert.match(styles, /body\[data-style='ranked'\]/);
-  assert.match(styles, /body\[data-style='signal'\] \.danmaku-signal-header \{ display: none; \}/);
-  assert.match(styles, /body\[data-style='bubble'\] \.danmaku-signal-header \{[^}]*display:\s*none;/s);
-  assert.match(styles, /body\.is-preview \{[^}]*rgba\(248, 251, 255, \.96\)[^}]*rgba\(229, 239, 248, \.9\)/s);
-  assert.match(styles, /body\.is-preview\[data-style='bubble'\] \{[^}]*rgba\(255, 252, 247, \.96\)[^}]*rgba\(237, 246, 243, \.9\)/s);
-  assert.match(styles, /body\.is-preview\[data-style='minimal'\] \{[^}]*rgba\(244, 247, 252, \.94\)[^}]*rgba\(223, 231, 242, \.88\)/s);
-  assert.match(styles, /body\.is-preview\[data-style='ranked'\] \{[^}]*rgba\(232, 237, 244, \.96\)[^}]*rgba\(207, 216, 228, \.9\)/s);
-  assert.match(styles, /\.draw-danmaku-feed \{[^}]*align-items:\s*flex-start;/s);
-  assert.match(styles, /\.draw-danmaku-item \{[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*min\(100%, 660px\);/s);
-  assert.doesNotMatch(styles, /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --signal-accent: #7d91a8;/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --signal-accent: #7d91a8;/);
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.danmaku-signal-header \{ display: none; \}/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.danmaku-signal-header \{[^}]*display:\s*none;/s,
+  );
+  assert.match(
+    styles,
+    /body\.is-preview \{[^}]*rgba\(248, 251, 255, 0?\.96\)[^}]*rgba\(229, 239, 248, 0?\.9\)/s,
+  );
+  assert.match(
+    styles,
+    /body\.is-preview\[data-style='bubble'\] \{[^}]*rgba\(255, 252, 247, 0?\.96\)[^}]*rgba\(237, 246, 243, 0?\.9\)/s,
+  );
+  assert.match(
+    styles,
+    /body\.is-preview\[data-style='minimal'\] \{[^}]*rgba\(244, 247, 252, 0?\.94\)[^}]*rgba\(223, 231, 242, 0?\.88\)/s,
+  );
+  assert.match(
+    styles,
+    /body\.is-preview\[data-style='ranked'\] \{[^}]*rgba\(232, 237, 244, 0?\.96\)[^}]*rgba\(207, 216, 228, 0?\.9\)/s,
+  );
+  assert.match(
+    styles,
+    /\.draw-danmaku-feed \{[^}]*align-items:\s*flex-start;/s,
+  );
+  assert.match(
+    styles,
+    /\.draw-danmaku-item \{[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*min\(100%, 660px\);/s,
+  );
+  assert.doesNotMatch(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --signal-accent: #7d91a8;/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --signal-accent: #7d91a8;/,
+  );
   assert.match(styles, /--guard-captain:\s*#2f9bff;/);
   assert.match(styles, /--guard-admiral:\s*#a45cff;/);
   assert.match(styles, /--guard-governor:\s*#f0445a;/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --signal-accent: var\(--guard-captain\);/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --signal-accent: var\(--guard-admiral\);/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --signal-accent: var\(--guard-governor\);/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-identity \{ padding-right: 68px; \}/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-guard \{ display: none; \}/);
-  assert.match(styles, /body\[data-style='signal'\] \.draw-danmaku-medal-level \{[^}]*right:\s*9px;[^}]*bottom:\s*0;/s);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --bubble-accent: #70ddc6;/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --bubble-accent: #70ddc6;/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: var\(--guard-captain\);[^}]*bubble-captain-frame\.png/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: var\(--guard-admiral\);[^}]*bubble-admiral-frame\.png/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: var\(--guard-governor\);[^}]*bubble-governor-frame\.png/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-guard \{ display: none; \}/);
-  assert.match(styles, /body\[data-style='bubble'\] \.draw-danmaku-medal-level \{ font-size: 14px; \}/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*height:\s*calc\(100vh - clamp/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-body \{[^}]*display:\s*grid;/s);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='captain'\] \{[^}]*nameplate-captain-divider\.png/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{[^}]*nameplate-admiral-divider\.png/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*nameplate-governor-divider\.png/);
-  assert.match(styles, /body\[data-style='minimal'\] \.draw-danmaku-item:is\([^}]*\) \.draw-danmaku-identity::after \{[^}]*background:\s*var\(--nameplate-divider\)/s);
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --signal-accent: var\(--guard-captain\);/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --signal-accent: var\(--guard-admiral\);/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --signal-accent: var\(--guard-governor\);/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-identity \{ padding-right: 68px; \}/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-guard \{ display: none; \}/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='signal'\] \.draw-danmaku-medal-level \{[^}]*right:\s*9px;[^}]*bottom:\s*0;/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='viewer'\] \{ --bubble-accent: #70ddc6;/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --bubble-accent: #70ddc6;/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: var\(--guard-captain\);[^}]*bubble-captain-frame\.png/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: var\(--guard-admiral\);[^}]*bubble-admiral-frame\.png/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: var\(--guard-governor\);[^}]*bubble-governor-frame\.png/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-guard \{ display: none; \}/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='bubble'\] \.draw-danmaku-medal-level \{ font-size: 14px; \}/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*height:\s*calc\(100vh - clamp/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='minimal'\] \.draw-danmaku-body \{[^}]*display:\s*grid;/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='captain'\] \{[^}]*nameplate-captain-divider\.png/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{[^}]*nameplate-admiral-divider\.png/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*nameplate-governor-divider\.png/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='minimal'\] \.draw-danmaku-item:is\([^}]*\) \.draw-danmaku-identity::after \{[^}]*background:\s*var\(--nameplate-divider\)/s,
+  );
   assert.match(feedScript, /draw-danmaku-medal-level/);
   assert.match(feedScript, /draw-danmaku-medal-name/);
   assert.match(styles, /--ranked-stage-width:\s*624px/);
   assert.match(styles, /--ranked-stage-height:\s*640px/);
   assert.match(styles, /--ranked-card-width:\s*600px/);
   assert.match(styles, /--ranked-card-min-height:\s*92px/);
-  assert.match(styles, /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--ranked-card-min-height\)[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*hidden[^}]*border-radius:\s*2px[^}]*background:\s*var\(--ranked-surface\)/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*align-self:\s*stretch[^}]*width:\s*100%[^}]*height:\s*auto[^}]*min-width:\s*0[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*mask-image:\s*linear-gradient\(to right, transparent 0%, #000 55%\)/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*grid-area:\s*content[^}]*min-height:\s*var\(--ranked-card-min-height\)/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff[^}]*font-size:\s*38px[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, \.34\)/s);
-  assert.doesNotMatch(styles, /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*-webkit-line-clamp/s);
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--ranked-card-min-height\)[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*hidden[^}]*border-radius:\s*2px[^}]*background:\s*var\(--ranked-surface\)/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*align-self:\s*stretch[^}]*width:\s*100%[^}]*height:\s*auto[^}]*min-width:\s*0[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*mask-image:\s*linear-gradient\(to right, transparent 0%, #000 55%\)/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*grid-area:\s*content[^}]*min-height:\s*var\(--ranked-card-min-height\)/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff[^}]*font-size:\s*38px[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
+  );
+  assert.doesNotMatch(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*-webkit-line-clamp/s,
+  );
   assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.png'\)/);
-  assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/captain\.png'\)/);
-  assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/admiral\.png'\)/);
-  assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/governor\.png'\)/);
-  assert.match(styles, /\.draw-danmaku-avatar \{[^}]*color:\s*transparent;[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*font-size:\s*0;/s);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-badge \{\s*display:\s*none;/);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='viewer'\],\s*body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --ranked-surface: rgba\(52, 59, 69, \.84\);/);
-  assert.match(styles, /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*rgba\(171, 37, 61, \.92\)/s);
+  assert.match(
+    styles,
+    /url\('\/img\/overlays\/danmaku-ranked\/captain\.png'\)/,
+  );
+  assert.match(
+    styles,
+    /url\('\/img\/overlays\/danmaku-ranked\/admiral\.png'\)/,
+  );
+  assert.match(
+    styles,
+    /url\('\/img\/overlays\/danmaku-ranked\/governor\.png'\)/,
+  );
+  assert.match(
+    styles,
+    /\.draw-danmaku-avatar \{[^}]*color:\s*transparent;[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*font-size:\s*0;/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-badge \{\s*display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='viewer'\],\s*body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --ranked-surface: rgba\(52, 59, 69, 0?\.84\);/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*rgba\(171, 37, 61, 0?\.92\)/s,
+  );
   for (const asset of [
     'bubble-captain-frame.png',
     'bubble-admiral-frame.png',
     'bubble-governor-frame.png',
     'nameplate-captain-divider.png',
     'nameplate-admiral-divider.png',
-    'nameplate-governor-divider.png'
+    'nameplate-governor-divider.png',
   ]) {
-    assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'danmaku-guard', asset)));
+    assert.ok(
+      fs.existsSync(
+        path.join(
+          ROOT_DIR,
+          'public',
+          'img',
+          'overlays',
+          'danmaku-guard',
+          asset,
+        ),
+      ),
+    );
   }
   for (const identity of ['captain', 'admiral', 'governor']) {
-    assert.match(styles, new RegExp(`body\\[data-style='ranked'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`));
+    assert.match(
+      styles,
+      new RegExp(
+        `body\\[data-style='ranked'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`,
+      ),
+    );
   }
   for (const style of ['signal', 'bubble', 'minimal', 'ranked']) {
-    for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
+    for (const identity of [
+      'viewer',
+      'fan',
+      'captain',
+      'admiral',
+      'governor',
+    ]) {
       assert.match(
         styles,
-        new RegExp(`body\\[data-style='${style}'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`)
+        new RegExp(
+          `body\\[data-style='${style}'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`,
+        ),
       );
     }
   }
@@ -132,8 +305,8 @@ test('ranked danmaku overlay preserves its 624 by 640 design viewport', async ()
       document: { addEventListener() {} },
       location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
       URL,
-      URLSearchParams
-    }
+      URLSearchParams,
+    },
   );
 
   assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
@@ -158,7 +331,9 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     append(...nodes) {
       for (const node of nodes) {
         if (node.isFragment) {
-          node.children.forEach(child => { child.parentNode = this; });
+          node.children.forEach((child) => {
+            child.parentNode = this;
+          });
           this.children.push(...node.children);
         } else {
           node.parentNode = this;
@@ -172,13 +347,17 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
       this.append(...nodes);
     }
 
-    addEventListener(type, listener) { this.listeners[type] = listener; }
+    addEventListener(type, listener) {
+      this.listeners[type] = listener;
+    }
     removeChild(node) {
-      this.children = this.children.filter(child => child !== node);
+      this.children = this.children.filter((child) => child !== node);
       node.parentNode = null;
     }
     setAttribute() {}
-    replaceWith(node) { this.replacement = node; }
+    replaceWith(node) {
+      this.replacement = node;
+    }
   }
 
   const root = new FakeNode('div');
@@ -186,25 +365,38 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
     {
       document: {
-        createElement: tagName => new FakeNode(tagName),
-        createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true })
-      }
-    }
+        createElement: (tagName) => new FakeNode(tagName),
+        createDocumentFragment: () =>
+          Object.assign(new FakeNode(), { isFragment: true }),
+      },
+    },
   );
   const feed = module.createDanmakuFeed(root, {
     maxItems: 2,
     autoScroll: false,
-    resolveEmoteUrl: url => `/proxy?url=${encodeURIComponent(url)}`
+    resolveEmoteUrl: (url) => `/proxy?url=${encodeURIComponent(url)}`,
   });
 
-  feed.render([{
-    name: '观众',
-    message: '你好[妙][打call]',
-    emotes: [
-      { text: '[妙]', url: 'https://i0.hdslb.com/bfs/emote/miao.png', width: 64, height: 64 },
-      { text: '[打call]', url: 'https://i0.hdslb.com/bfs/emote/call.gif', width: 180, height: 90 }
-    ]
-  }]);
+  feed.render([
+    {
+      name: '观众',
+      message: '你好[妙][打call]',
+      emotes: [
+        {
+          text: '[妙]',
+          url: 'https://i0.hdslb.com/bfs/emote/miao.png',
+          width: 64,
+          height: 64,
+        },
+        {
+          text: '[打call]',
+          url: 'https://i0.hdslb.com/bfs/emote/call.gif',
+          width: 180,
+          height: 90,
+        },
+      ],
+    },
+  ]);
 
   const message = root.children[0].children[1].children[1];
   assert.equal(message.children[0].textContent, '你好');
@@ -217,10 +409,18 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   const firstBubble = root.children[0];
   feed.append({ name: '第二位', message: '第二条' });
   assert.equal(root.children.length, 2);
-  assert.equal(root.children[0], firstBubble, 'incremental append must preserve existing message nodes');
+  assert.equal(
+    root.children[0],
+    firstBubble,
+    'incremental append must preserve existing message nodes',
+  );
   feed.append({ name: '第三位', message: '第三条' });
   assert.equal(root.children.length, 2);
-  assert.notEqual(root.children[0], firstBubble, 'incremental append must trim only the oldest node');
+  assert.notEqual(
+    root.children[0],
+    firstBubble,
+    'incremental append must trim only the oldest node',
+  );
 
   const identityRoot = new FakeNode('div');
   identityRoot.clientHeight = 40;
@@ -230,18 +430,19 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   const identityFeed = module.createDanmakuFeed(identityRoot, {
     maxItems: 5,
     autoScroll: false,
-    getGuardLabel: level => ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || ''
+    getGuardLabel: (level) =>
+      ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || '',
   });
   identityFeed.render([
     { message: '普通' },
     { message: '粉丝', medalName: '夜航', medalLevel: 8 },
     { message: '舰长', guardLevel: 3 },
     { message: '提督', guardLevel: 2 },
-    { message: '总督', guardLevel: 1, medalName: '夜航' }
+    { message: '总督', guardLevel: 1, medalName: '夜航' },
   ]);
   assert.deepEqual(
-    identityRoot.children.map(item => item.dataset.identity),
-    ['viewer', 'fan', 'captain', 'admiral', 'governor']
+    identityRoot.children.map((item) => item.dataset.identity),
+    ['viewer', 'fan', 'captain', 'admiral', 'governor'],
   );
 });
 
@@ -257,9 +458,11 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
     }
 
     append(...nodes) {
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         if (node.isFragment) {
-          node.children.forEach(child => { child.parentNode = this; });
+          node.children.forEach((child) => {
+            child.parentNode = this;
+          });
           this.children.push(...node.children);
         } else {
           node.parentNode = this;
@@ -274,7 +477,7 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
     }
 
     removeChild(node) {
-      this.children = this.children.filter(child => child !== node);
+      this.children = this.children.filter((child) => child !== node);
       node.parentNode = null;
     }
 
@@ -288,20 +491,21 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
     {
       document: {
-        createElement: tagName => new FakeNode(tagName),
-        createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true })
-      }
-    }
+        createElement: (tagName) => new FakeNode(tagName),
+        createDocumentFragment: () =>
+          Object.assign(new FakeNode(), { isFragment: true }),
+      },
+    },
   );
   const feed = module.createDanmakuFeed(root, {
     maxItems: 50,
     offscreenViewports: 0,
-    autoScroll: false
+    autoScroll: false,
   });
 
   feed.render([
     { name: '第一位', message: '第一条' },
-    { name: '第二位', message: '第二条' }
+    { name: '第二位', message: '第二条' },
   ]);
   const firstBubble = root.children[0];
   feed.append({ name: '第三位', message: '第三条' });
@@ -317,26 +521,50 @@ test('fixed danmaku overlay derives its label from Bilibili live status', async 
       document: { addEventListener() {} },
       location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
       URL,
-      URLSearchParams
-    }
+      URLSearchParams,
+    },
   );
 
-  assert.equal(JSON.stringify(module.describeDanmakuConnection({
-    connected: true,
-    enabled: true,
-    roomId: '123',
-    message: '已开播'
-  }, true)), JSON.stringify({ text: '已开播', connected: true }));
-  assert.equal(JSON.stringify(module.describeDanmakuConnection({
-    connected: false,
-    enabled: true,
-    roomId: '123',
-    message: '弹幕连接出现错误'
-  }, true)), JSON.stringify({ text: '弹幕连接出现错误', connected: false }));
-  assert.equal(JSON.stringify(module.describeDanmakuConnection({
-    connected: true,
-    enabled: true,
-    roomId: '123',
-    message: '已开播'
-  }, false)), JSON.stringify({ text: '连接中断 · 重试中', connected: false }));
+  assert.equal(
+    JSON.stringify(
+      module.describeDanmakuConnection(
+        {
+          connected: true,
+          enabled: true,
+          roomId: '123',
+          message: '已开播',
+        },
+        true,
+      ),
+    ),
+    JSON.stringify({ text: '已开播', connected: true }),
+  );
+  assert.equal(
+    JSON.stringify(
+      module.describeDanmakuConnection(
+        {
+          connected: false,
+          enabled: true,
+          roomId: '123',
+          message: '弹幕连接出现错误',
+        },
+        true,
+      ),
+    ),
+    JSON.stringify({ text: '弹幕连接出现错误', connected: false }),
+  );
+  assert.equal(
+    JSON.stringify(
+      module.describeDanmakuConnection(
+        {
+          connected: true,
+          enabled: true,
+          roomId: '123',
+          message: '已开播',
+        },
+        false,
+      ),
+    ),
+    JSON.stringify({ text: '连接中断 · 重试中', connected: false }),
+  );
 });

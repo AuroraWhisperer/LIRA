@@ -62,9 +62,11 @@
 ### Task 1: Lock the corrected navigation contract
 
 **Files:**
+
 - Modify: `test/frontend-admin-shell.test.js`
 
 **Interfaces:**
+
 - Consumes: the existing CSS bundle readers and `public/js/admin/app.js` source.
 - Produces: a focused regression that rejects a transparent track or per-button active fill.
 
@@ -91,12 +93,14 @@ Expected: failure because the current track is transparent, `::before` is absent
 ### Task 2: Implement one shared moving pill
 
 **Files:**
+
 - Modify: `public/css/admin/gifts/main-page-tabs.css`
 - Modify: `public/css/admin/workspace/base.css`
 - Modify: `public/css/overlays/desktop.css`
 - Modify: `public/js/admin/app.js`
 
 **Interfaces:**
+
 - Consumes: `.main-page-tabs`, `.main-page-tab.active`, and `setMainPage(pageId)`.
 - Produces: CSS variables `--main-page-indicator-x: <px>` and `--main-page-indicator-width: <px>` on the navigation element.
 
@@ -128,14 +132,24 @@ Expected: failure because the current track is transparent, `::before` is absent
   width: var(--main-page-indicator-width, 0px);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 2px 8px rgba(87, 58, 28, 0.12), inset 0 0 0 1px rgba(183, 133, 50, 0.08);
+  box-shadow:
+    0 2px 8px rgba(87, 58, 28, 0.12),
+    inset 0 0 0 1px rgba(183, 133, 50, 0.08);
   opacity: 0;
   transform: translateX(var(--main-page-indicator-x, 0px));
-  transition: opacity 120ms ease, width 220ms cubic-bezier(.2, .8, .2, 1), transform 220ms cubic-bezier(.2, .8, .2, 1);
+  transition:
+    opacity 120ms ease,
+    width 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .main-page-tabs::after {
-  transform: translateX(calc(var(--main-page-indicator-x, 0px) + (var(--main-page-indicator-width, 0px) - 22px) / 2));
+  transform: translateX(
+    calc(
+      var(--main-page-indicator-x, 0px) +
+        (var(--main-page-indicator-width, 0px) - 22px) / 2
+    )
+  );
 }
 ```
 
@@ -159,10 +173,12 @@ Expected: both matching tests pass.
 ### Task 3: Verify source Electron and packaged ASAR behavior
 
 **Files:**
+
 - No production source files beyond Task 2.
 - Generated artifacts remain under ignored packaging output or an isolated temporary directory.
 
 **Interfaces:**
+
 - Consumes: Task 2 source and the existing electron-builder configuration.
 - Produces: source-Electron and packaged-ASAR evidence without touching the live installation.
 

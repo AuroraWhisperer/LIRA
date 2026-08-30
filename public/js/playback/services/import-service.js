@@ -30,7 +30,7 @@ export class ImportService {
         imported: 0,
         pending: 0,
         skipped: 0,
-        tracks: []
+        tracks: [],
       };
     }
 
@@ -54,7 +54,10 @@ export class ImportService {
           skipped++;
         }
       } catch (error) {
-        console.warn('[ImportService] process item failed:', error.message || error);
+        console.warn(
+          '[ImportService] process item failed:',
+          error.message || error,
+        );
         skipped++;
       }
     }
@@ -63,7 +66,7 @@ export class ImportService {
       imported,
       pending,
       skipped,
-      tracks: importedTracks
+      tracks: importedTracks,
     };
   }
 
@@ -112,8 +115,8 @@ export class ImportService {
         type: 'imported',
         track: {
           ...matched.track,
-          requestedBy: item.requester_name || item.requesterName || '观众'
-        }
+          requestedBy: item.requester_name || item.requesterName || '观众',
+        },
       };
     } else {
       // 需要确认：添加到待确认列表
@@ -134,7 +137,7 @@ export class ImportService {
         imported: 0,
         pending: 0,
         skipped: 0,
-        tracks: []
+        tracks: [],
       };
     }
 
@@ -156,7 +159,10 @@ export class ImportService {
           skipped++;
         }
       } catch (error) {
-        console.warn('[ImportService] import item failed:', error.message || error);
+        console.warn(
+          '[ImportService] import item failed:',
+          error.message || error,
+        );
         skipped++;
       }
     }
@@ -165,7 +171,7 @@ export class ImportService {
       imported,
       pending,
       skipped,
-      tracks: importedTracks
+      tracks: importedTracks,
     };
   }
 }

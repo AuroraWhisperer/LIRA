@@ -8,21 +8,21 @@
 
 每个平台使用独立 **persist 持久化分区**,Cookie 互不干扰;分区目录落在 userData 下的 `Partitions/`(数据目录树见 [../backend/storage.md](../backend/storage.md) §2):
 
-| 平台 | 分区 | 出处 |
-|---|---|---|
-| QQ音乐 | `persist:music-qq` | [auth-manager.js:12](../../../src/electron/auth-manager.js#L12) |
-| 网易云音乐 | `persist:music-netease` | [auth-manager.js:21](../../../src/electron/auth-manager.js#L21) |
-| Bilibili | `persist:bilibili` | [bilibili-auth.js:12](../../../src/electron/bilibili-auth.js#L12) |
+| 平台       | 分区                    | 出处                                                              |
+| ---------- | ----------------------- | ----------------------------------------------------------------- |
+| QQ音乐     | `persist:music-qq`      | [auth-manager.js:12](../../../src/electron/auth-manager.js#L12)   |
+| 网易云音乐 | `persist:music-netease` | [auth-manager.js:21](../../../src/electron/auth-manager.js#L21)   |
+| Bilibili   | `persist:bilibili`      | [bilibili-auth.js:12](../../../src/electron/bilibili-auth.js#L12) |
 
 > 历史文档曾写 `persist:qqmusic-login` / `persist:bilibili-login`,已纠正。
 
 ## 2. 登录 URL(唯一成表处)
 
-| 平台 | 登录 URL | 出处 |
-|---|---|---|
-| QQ音乐 | `https://y.qq.com/` | [auth-manager.js:13](../../../src/electron/auth-manager.js#L13) |
-| 网易云音乐 | `https://music.163.com/` | [auth-manager.js:22](../../../src/electron/auth-manager.js#L22) |
-| Bilibili | `https://live.bilibili.com/` | [bilibili-auth.js:13](../../../src/electron/bilibili-auth.js#L13) |
+| 平台       | 登录 URL                     | 出处                                                              |
+| ---------- | ---------------------------- | ----------------------------------------------------------------- |
+| QQ音乐     | `https://y.qq.com/`          | [auth-manager.js:13](../../../src/electron/auth-manager.js#L13)   |
+| 网易云音乐 | `https://music.163.com/`     | [auth-manager.js:22](../../../src/electron/auth-manager.js#L22)   |
+| Bilibili   | `https://live.bilibili.com/` | [bilibili-auth.js:13](../../../src/electron/bilibili-auth.js#L13) |
 
 > 历史文档曾把 Bilibili 登录 URL 误写为 passport 子域下的 `/login` 页面,已纠正。`passport` 子域仍在**允许导航域名**清单内(§3),登录窗口内的实际跳转不受影响。
 
@@ -30,20 +30,20 @@
 
 平台配置(来源 [auth-manager.js:9-27](../../../src/electron/auth-manager.js#L9-L27)、[bilibili-auth.js:10-22](../../../src/electron/bilibili-auth.js#L10-L22)),**唯一成表处**:
 
-| 平台 | 允许 Cookie 域名 | 关键 Cookie(keyCookies) | 认证 Cookie(authCookies) |
-|---|---|---|---|
-| QQ音乐 | `.qq.com`、`.y.qq.com`、`y.qq.com` | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst`(任一非空) |
-| 网易云 | `.163.com`、`.music.163.com`、`music.163.com` | `MUSIC_U`、`__csrf` | 缺省 → 回退 keyCookies |
-| Bilibili | `.bilibili.com`、`bilibili.com`、`.live.bilibili.com`、`live.bilibili.com` | `DedeUserID`、`SESSDATA`、`bili_jct` | 三者缺一不可(§4) |
+| 平台     | 允许 Cookie 域名                                                           | 关键 Cookie(keyCookies)                                                                                     | 认证 Cookie(authCookies)            |
+| -------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| QQ音乐   | `.qq.com`、`.y.qq.com`、`y.qq.com`                                         | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst`(任一非空) |
+| 网易云   | `.163.com`、`.music.163.com`、`music.163.com`                              | `MUSIC_U`、`__csrf`                                                                                         | 缺省 → 回退 keyCookies              |
+| Bilibili | `.bilibili.com`、`bilibili.com`、`.live.bilibili.com`、`live.bilibili.com` | `DedeUserID`、`SESSDATA`、`bili_jct`                                                                        | 三者缺一不可(§4)                    |
 
 Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain === allowed` 或 `domain === hostAllowed`(剥离前导点)或 `domain.endsWith('.' + hostAllowed)` — 子域名通配([auth-manager.js:45-53](../../../src/electron/auth-manager.js#L45-L53)、[bilibili-auth.js:36-44](../../../src/electron/bilibili-auth.js#L36-L44))。
 
 **允许导航域名**(登录窗内跳转/外链判定,见 [windows.md](windows.md) §2-§3):
 
-| 平台 | allowedHosts |
-|---|---|
-| QQ音乐 | `y.qq.com`、`i.y.qq.com`、`graph.qq.com`、`ssl.ptlogin2.qq.com`、`xui.ptlogin2.qq.com`、`ui.ptlogin2.qq.com`、`ptlogin2.qq.com`、`qq.com` |
-| 网易云 | `music.163.com`、`interface.music.163.com`、`interface3.music.163.com`、`passport.163.com`、`reg.163.com`、`163.com` |
+| 平台     | allowedHosts                                                                                                                                                                                                                                                                                              |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QQ音乐   | `y.qq.com`、`i.y.qq.com`、`graph.qq.com`、`ssl.ptlogin2.qq.com`、`xui.ptlogin2.qq.com`、`ui.ptlogin2.qq.com`、`ptlogin2.qq.com`、`qq.com`                                                                                                                                                                 |
+| 网易云   | `music.163.com`、`interface.music.163.com`、`interface3.music.163.com`、`passport.163.com`、`reg.163.com`、`163.com`                                                                                                                                                                                      |
 | Bilibili | `bilibili.com`、`www.bilibili.com`、`live.bilibili.com`,以及 passport、`api.bilibili.com`、`api.live.bilibili.com`、`space.bilibili.com`、`message.bilibili.com`、`member.bilibili.com`、`account.bilibili.com` 子域(完整清单见 [bilibili-auth.js:14-19](../../../src/electron/bilibili-auth.js#L14-L19)) |
 
 匹配方式 `host === allowed || host.endsWith('.' + allowed)`,仅接受 `https:`/`http:`([auth-manager.js:55-64](../../../src/electron/auth-manager.js#L55-L64)、[bilibili-auth.js:46-55](../../../src/electron/bilibili-auth.js#L46-L55))。
@@ -67,11 +67,11 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 4. `safeStorage.encryptString(JSON.stringify(payload))` — Windows 上后端为 **DPAPI**(每用户/每机器绑定)
 5. `encrypted.toString('base64')` 以 UTF-8 文本写入快照文件
 
-| 平台 | 快照文件 | 出处 |
-|---|---|---|
-| QQ音乐 | `data/music-auth/qq.cookies.enc` | [auth-manager.js:41-43](../../../src/electron/auth-manager.js#L41-L43) |
-| 网易云 | `data/music-auth/netease.cookies.enc` | 同上 |
-| Bilibili | `data/bilibili-auth/cookies.enc` | [bilibili-auth.js:28-30](../../../src/electron/bilibili-auth.js#L28-L30) |
+| 平台     | 快照文件                              | 出处                                                                     |
+| -------- | ------------------------------------- | ------------------------------------------------------------------------ |
+| QQ音乐   | `data/music-auth/qq.cookies.enc`      | [auth-manager.js:41-43](../../../src/electron/auth-manager.js#L41-L43)   |
+| 网易云   | `data/music-auth/netease.cookies.enc` | 同上                                                                     |
+| Bilibili | `data/bilibili-auth/cookies.enc`      | [bilibili-auth.js:28-30](../../../src/electron/bilibili-auth.js#L28-L30) |
 
 ### 5.2 恢复
 
@@ -108,12 +108,12 @@ restoreMusicCookieSnapshots()    # Object.keys(MUSIC_LOGIN_CONFIG) → qq → ne
 
 检测语义(窗口行为见 [windows.md](windows.md) §2-§3):
 
-| 机制 | 说明 | 出处 |
-|---|---|---|
+| 机制                 | 说明                                                                                      | 出处                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | cookie change 主路径 | 每次 `cookies.on('changed')` 立即 `getAuthState()` 判定登录完成,并触发 800ms 防抖快照落盘 | [login-window.js:63-68](../../../src/electron/login-window.js#L63-L68) |
-| 1.5s 轮询安全网 | `setInterval(checkLoginComplete, 1500)` 兜底(防止漏掉 cookie 事件) | [login-window.js:73](../../../src/electron/login-window.js#L73) |
-| 自动关闭 | 检测到 `loggedIn` → 登录窗自动 `close()` | [login-window.js:52-61](../../../src/electron/login-window.js#L52-L61) |
-| 最终快照 | 窗口 `closed` 时强制 persist 一次,随 promise resolve `{snapshot, state}` | [login-window.js:75-89](../../../src/electron/login-window.js#L75-L89) |
+| 1.5s 轮询安全网      | `setInterval(checkLoginComplete, 1500)` 兜底(防止漏掉 cookie 事件)                        | [login-window.js:73](../../../src/electron/login-window.js#L73)        |
+| 自动关闭             | 检测到 `loggedIn` → 登录窗自动 `close()`                                                  | [login-window.js:52-61](../../../src/electron/login-window.js#L52-L61) |
+| 最终快照             | 窗口 `closed` 时强制 persist 一次,随 promise resolve `{snapshot, state}`                  | [login-window.js:75-89](../../../src/electron/login-window.js#L75-L89) |
 
 Bilibili 同构,另带 `loginCheckInFlight`/`loginCloseRequested` 防重入(见 [windows.md](windows.md) §3)。
 
@@ -123,10 +123,10 @@ Bilibili 同构,另带 `loginCheckInFlight`/`loginCloseRequested` 防重入(见 
 
 消费方:
 
-| 消费者 | 数据 | 文档 |
-|---|---|---|
-| 音乐 Provider 注册表(`createMusicProviderRegistry` 注入 `getAuthState/getCookieHeader`) | 每次 API 调用实时取 Cookie 头 | [../backend/music/services.md](../backend/music/services.md) |
-| Bilibili 弹幕/API 客户端 | `refreshBilibiliAuthCache` 缓存 cookieHeader + uid,供 WS 握手与 API 请求 | [../backend/bilibili/protocol.md](../backend/bilibili/protocol.md) |
+| 消费者                                                                                  | 数据                                                                     | 文档                                                               |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| 音乐 Provider 注册表(`createMusicProviderRegistry` 注入 `getAuthState/getCookieHeader`) | 每次 API 调用实时取 Cookie 头                                            | [../backend/music/services.md](../backend/music/services.md)       |
+| Bilibili 弹幕/API 客户端                                                                | `refreshBilibiliAuthCache` 缓存 cookieHeader + uid,供 WS 握手与 API 请求 | [../backend/bilibili/protocol.md](../backend/bilibili/protocol.md) |
 
 ## 11. 服务器注入契约
 
@@ -138,26 +138,26 @@ desktopRuntime.start({
   startPort: 3000,
   musicAuth: {
     getAuthState: (platform) => authMgr.getMusicAuthState(platform, dataDir),
-    getCookieHeader: (platform) => authMgr.getMusicCookieHeader(platform)
+    getCookieHeader: (platform) => authMgr.getMusicCookieHeader(platform),
   },
   bilibiliAuth: {
     getAuthState: () => bilibiliAuth.getBilibiliAuthState(dataDir),
     getCookieHeader: () => bilibiliAuth.getBilibiliCookieHeader(),
-    getUid: () => bilibiliAuth.getBilibiliUid()
-  }
-})
+    getUid: () => bilibiliAuth.getBilibiliUid(),
+  },
+});
 ```
 
 出处 [main.js:120-132](../../../src/electron/main.js#L120-L132)。独立 Web 模式无 safeStorage/Cookie 注入,降级认证(见 [server-core.md](../backend/server-core.md) §1)。
 
 ## 12. 安全要点
 
-| 项目 | 说明 | 出处 |
-|---|---|---|
-| 快照加密 | safeStorage(Windows 上 DPAPI);`isEncryptionAvailable()===false` 时 persist 抛异常、restore 返回 null、auth state 报告 `encryptionAvailable:false` | [auth-manager.js:99-101](../../../src/electron/auth-manager.js#L99-L101)、[auth-manager.js:113](../../../src/electron/auth-manager.js#L113) |
-| 登录窗 | sandbox:true、contextIsolation:true、无 preload、权限请求全拒 | [windows.md](windows.md) §2 |
-| 导航限制 | 仅 allowedHosts 内导航,其余交系统浏览器 | §3 |
-| 子域名通配 | 剥离前导点后 `endsWith('.host')` 接受所有子域名 | §3 |
-| 会话 Cookie | 无 expirationDate 的 Cookie 恢复后仍是会话 Cookie,重启可能丢失 | §5.2 |
-| 判定差异 | QQ: `qqmusic_key`/`qm_keyst` 任一非空;网易云:任一认证 Cookie;Bilibili:三键全有 | §4 |
-| 明文风险 | cookies.txt 存有完整 SESSDATA + bili_jct,设计如此 | §6 |
+| 项目        | 说明                                                                                                                                              | 出处                                                                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 快照加密    | safeStorage(Windows 上 DPAPI);`isEncryptionAvailable()===false` 时 persist 抛异常、restore 返回 null、auth state 报告 `encryptionAvailable:false` | [auth-manager.js:99-101](../../../src/electron/auth-manager.js#L99-L101)、[auth-manager.js:113](../../../src/electron/auth-manager.js#L113) |
+| 登录窗      | sandbox:true、contextIsolation:true、无 preload、权限请求全拒                                                                                     | [windows.md](windows.md) §2                                                                                                                 |
+| 导航限制    | 仅 allowedHosts 内导航,其余交系统浏览器                                                                                                           | §3                                                                                                                                          |
+| 子域名通配  | 剥离前导点后 `endsWith('.host')` 接受所有子域名                                                                                                   | §3                                                                                                                                          |
+| 会话 Cookie | 无 expirationDate 的 Cookie 恢复后仍是会话 Cookie,重启可能丢失                                                                                    | §5.2                                                                                                                                        |
+| 判定差异    | QQ: `qqmusic_key`/`qm_keyst` 任一非空;网易云:任一认证 Cookie;Bilibili:三键全有                                                                    | §4                                                                                                                                          |
+| 明文风险    | cookies.txt 存有完整 SESSDATA + bili_jct,设计如此                                                                                                 | §6                                                                                                                                          |

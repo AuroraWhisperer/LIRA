@@ -19,7 +19,10 @@ if (fs.existsSync(SOURCE_ICON_PATH)) {
   const resized = resizeNearest(square, SIZE, SIZE);
   const png = createPng(SIZE, SIZE, resized.pixels);
   fs.writeFileSync(path.join(BUILD_DIR, 'icon.png'), png);
-  fs.writeFileSync(path.join(BUILD_DIR, 'icon.ico'), createIco(png, SIZE, SIZE));
+  fs.writeFileSync(
+    path.join(BUILD_DIR, 'icon.ico'),
+    createIco(png, SIZE, SIZE),
+  );
   console.log(`Created icon from ${path.relative(ROOT_DIR, SOURCE_ICON_PATH)}`);
   process.exit(0);
 }
@@ -101,7 +104,9 @@ function paint(x, y, color) {
 }
 
 function decodePng(buffer) {
-  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const signature = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
   if (!buffer.subarray(0, 8).equals(signature)) {
     throw new Error('icon-source.png must be a PNG file.');
   }
@@ -127,7 +132,12 @@ function decodePng(buffer) {
       const compression = data[10];
       const filter = data[11];
       const interlace = data[12];
-      if (bitDepth !== 8 || compression !== 0 || filter !== 0 || interlace !== 0) {
+      if (
+        bitDepth !== 8 ||
+        compression !== 0 ||
+        filter !== 0 ||
+        interlace !== 0
+      ) {
         throw new Error('icon-source.png must be a non-interlaced 8-bit PNG.');
       }
       if (colorType !== 2 && colorType !== 6) {
@@ -222,21 +232,63 @@ function removeEdgeBackground(image, threshold) {
 
   for (let x = 0; x < image.width; x += 1) {
     queueTransparentCandidate(image, visited, queue, x, 0, threshold);
-    queueTransparentCandidate(image, visited, queue, x, image.height - 1, threshold);
+    queueTransparentCandidate(
+      image,
+      visited,
+      queue,
+      x,
+      image.height - 1,
+      threshold,
+    );
   }
   for (let y = 1; y < image.height - 1; y += 1) {
     queueTransparentCandidate(image, visited, queue, 0, y, threshold);
-    queueTransparentCandidate(image, visited, queue, image.width - 1, y, threshold);
+    queueTransparentCandidate(
+      image,
+      visited,
+      queue,
+      image.width - 1,
+      y,
+      threshold,
+    );
   }
 
   for (let index = 0; index < queue.length; index += 1) {
     const point = queue[index];
     const pixelIndex = (point.y * image.width + point.x) * 4;
     image.pixels[pixelIndex + 3] = 0;
-    queueTransparentCandidate(image, visited, queue, point.x + 1, point.y, threshold);
-    queueTransparentCandidate(image, visited, queue, point.x - 1, point.y, threshold);
-    queueTransparentCandidate(image, visited, queue, point.x, point.y + 1, threshold);
-    queueTransparentCandidate(image, visited, queue, point.x, point.y - 1, threshold);
+    queueTransparentCandidate(
+      image,
+      visited,
+      queue,
+      point.x + 1,
+      point.y,
+      threshold,
+    );
+    queueTransparentCandidate(
+      image,
+      visited,
+      queue,
+      point.x - 1,
+      point.y,
+      threshold,
+    );
+    queueTransparentCandidate(
+      image,
+      visited,
+      queue,
+      point.x,
+      point.y + 1,
+      threshold,
+    );
+    queueTransparentCandidate(
+      image,
+      visited,
+      queue,
+      point.x,
+      point.y - 1,
+      threshold,
+    );
   }
 }
 
@@ -248,9 +300,9 @@ function queueTransparentCandidate(image, visited, queue, x, y, threshold) {
   const index = key * 4;
   const alpha = image.pixels[index + 3];
   const isDark =
-    image.pixels[index] <= threshold
-    && image.pixels[index + 1] <= threshold
-    && image.pixels[index + 2] <= threshold;
+    image.pixels[index] <= threshold &&
+    image.pixels[index + 1] <= threshold &&
+    image.pixels[index + 2] <= threshold;
   if (alpha > 0 && isDark) {
     queue.push({ x, y });
   }
@@ -259,9 +311,15 @@ function queueTransparentCandidate(image, visited, queue, x, y, threshold) {
 function resizeNearest(image, width, height) {
   const pixels = Buffer.alloc(width * height * 4);
   for (let y = 0; y < height; y += 1) {
-    const sourceY = Math.min(image.height - 1, Math.floor((y / height) * image.height));
+    const sourceY = Math.min(
+      image.height - 1,
+      Math.floor((y / height) * image.height),
+    );
     for (let x = 0; x < width; x += 1) {
-      const sourceX = Math.min(image.width - 1, Math.floor((x / width) * image.width));
+      const sourceX = Math.min(
+        image.width - 1,
+        Math.floor((x / width) * image.width),
+      );
       const sourceIndex = (sourceY * image.width + sourceX) * 4;
       const targetIndex = (y * width + x) * 4;
       image.pixels.copy(pixels, targetIndex, sourceIndex, sourceIndex + 4);
@@ -282,7 +340,7 @@ function createPng(width, height, pixels) {
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     pngChunk('IHDR', createIhdr(width, height)),
     pngChunk('IDAT', zlib.deflateSync(scanlines)),
-    pngChunk('IEND', Buffer.alloc(0))
+    pngChunk('IEND', Buffer.alloc(0)),
   ]);
 }
 
@@ -344,7 +402,7 @@ function createCrc32Table() {
   return Array.from({ length: 256 }, (_, index) => {
     let value = index;
     for (let bit = 0; bit < 8; bit += 1) {
-      value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
     }
     return value >>> 0;
   });

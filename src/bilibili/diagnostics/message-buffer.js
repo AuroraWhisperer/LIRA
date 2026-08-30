@@ -3,7 +3,12 @@
 // 环形缓冲，记录最近 N 条消息的原始 CMD + 数据 + 解析结果。
 'use strict';
 
-const { cleanText, now, safeJsonStringify, safeParseJson } = require('../../shared/utils');
+const {
+  cleanText,
+  now,
+  safeJsonStringify,
+  safeParseJson,
+} = require('../../shared/utils');
 
 const DEFAULT_MAX_ENTRIES = 300;
 const MAX_DATA_LENGTH = 2000; // 每条消息 data 字段最大字符数
@@ -27,10 +32,10 @@ function createMessageBuffer(maxEntries = DEFAULT_MAX_ENTRIES) {
       index: cursor++,
       timestamp: now(),
       cmd: cleanText(opts && opts.cmd),
-      category: opts && opts.category || 'raw-packet',
+      category: (opts && opts.category) || 'raw-packet',
       rawData: truncateData(opts && opts.rawData),
       parsed: opts && opts.parsed ? summarizeParsed(opts.parsed) : null,
-      detail: cleanText(opts && opts.detail)
+      detail: cleanText(opts && opts.detail),
     };
 
     if (buffer.length >= maxEntries) {
@@ -46,10 +51,14 @@ function createMessageBuffer(maxEntries = DEFAULT_MAX_ENTRIES) {
   function getStats() {
     const entries = buffer;
     const total = entries.length;
-    const parsedOk = entries.filter(e => e.category === 'parsed-ok').length;
-    const parseFailed = entries.filter(e => e.category === 'parse-failed').length;
-    const unrecognized = entries.filter(e => e.category === 'unrecognized-cmd').length;
-    const rawPacket = entries.filter(e => e.category === 'raw-packet').length;
+    const parsedOk = entries.filter((e) => e.category === 'parsed-ok').length;
+    const parseFailed = entries.filter(
+      (e) => e.category === 'parse-failed',
+    ).length;
+    const unrecognized = entries.filter(
+      (e) => e.category === 'unrecognized-cmd',
+    ).length;
+    const rawPacket = entries.filter((e) => e.category === 'raw-packet').length;
 
     // 按 CMD 分组统计
     const byCmd = {};
@@ -73,7 +82,8 @@ function createMessageBuffer(maxEntries = DEFAULT_MAX_ENTRIES) {
       byCmd,
       maxEntries,
       oldestTimestamp: entries.length > 0 ? entries[0].timestamp : null,
-      newestTimestamp: entries.length > 0 ? entries[entries.length - 1].timestamp : null
+      newestTimestamp:
+        entries.length > 0 ? entries[entries.length - 1].timestamp : null,
     };
   }
 
@@ -89,7 +99,10 @@ function truncateData(data) {
   try {
     const text = typeof data === 'string' ? data : safeJsonStringify(data);
     if (text.length <= MAX_DATA_LENGTH) return text;
-    return text.slice(0, MAX_DATA_LENGTH) + `...[truncated, total ${text.length} chars]`;
+    return (
+      text.slice(0, MAX_DATA_LENGTH) +
+      `...[truncated, total ${text.length} chars]`
+    );
   } catch (_) {
     return `[unserializable: ${typeof data}]`;
   }
@@ -107,7 +120,7 @@ function summarizeParsed(parsed) {
     coinType: parsed.coinType || '',
     isBlindBox: parsed.isBlindBox || false,
     cmd: parsed.cmd || '',
-    platformId: (parsed.platformId || '').slice(0, 20)
+    platformId: (parsed.platformId || '').slice(0, 20),
   };
 }
 

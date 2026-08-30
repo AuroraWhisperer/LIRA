@@ -1,54 +1,94 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const os = require('node:os');
+const licenseTokenUtils = require('./license-token-utils');
+const licenseResponseUtils = require('./license-response-utils');
+const { requestDeviceActivation } = require('./license-activation');
+const { createLicenseErrorHandlers } = require('./license-error-handlers');
+const { createLicenseOperations } = require('./license-operations');
 const {
   PROTOCOL_VERSION,
   validateActivationInput,
   normalizeFingerprint,
   countFingerprintValues,
-  buildActivationPayload,
   buildAuthPayload,
-  signPayload
+  signPayload,
 } = require('./license-protocol');
-const { createRemoteLicenseClient, RemoteLicenseError } = require('./remote-license-client');
+const {
+  createRemoteLicenseClient,
+  RemoteLicenseError,
+} = require('./remote-license-client');
 const { createDeviceKeyStore } = require('./device-key-store');
 const { createLicenseStateStore } = require('./license-state-store');
 const { createHardwareFingerprint } = require('./hardware-fingerprint');
 const { getBuildInfo } = require('./build-integrity');
+const { createRetryPolicy } = require('./retry-policy');
+const {
+  LicenseState,
+  REAUTHENTICATE_CODES,
+  RETRY_CHALLENGE_CODES,
+  RENEW_EARLY_MS,
+  HEARTBEAT_INTERVAL_MS,
+  MAX_TIMER_DELAY_MS,
+} = require('./license-runtime-policy');
 
-const LicenseState = Object.freeze({
-  CHECKING: 'checking',
-  NEEDS_ACTIVATION: 'needs_activation',
-  NEEDS_CONNECTION: 'needs_connection',
-  AUTHORIZING: 'authorizing',
-  AUTHORIZED: 'authorized',
-  BLOCKED: 'blocked'
-});
-
-const BLOCKED_CODES = new Set([
-  'DEVICE_REVOKED', 'LICENSE_REVOKED', 'STREAMER_DISABLED',
-  'DEVICE_FINGERPRINT_MISMATCH', 'SIGNATURE_INVALID', 'BUILD_NOT_ALLOWED',
-  'INTEGRITY_NOT_VERIFIED', 'BUILD_ID_REQUIRED'
-]);
+const { resolveTokenExpiresAt, parseExpiresIn } = licenseTokenUtils;
+const {
+  getErrorCode,
+  isRetryableAuthError,
+  mapSongForSync,
+  sanitizeDevice,
+  sanitizeRemoteResponse,
+  sanitizeStreamer,
+} = licenseResponseUtils;
 
 function createLicenseManager(options = {}) {
   const appVersion = String(options.appVersion || '0.0.0');
-  const stateStore = options.stateStore || createLicenseStateStore({ dataDir: options.dataDir });
-  const keyStore = options.keyStore || createDeviceKeyStore({ dataDir: options.dataDir, safeStorage: options.safeStorage });
-  const fingerprintProvider = options.fingerprintProvider || createHardwareFingerprint();
-  const remote = options.remoteClient || createRemoteLicenseClient({
-    baseUrl: options.baseUrl,
-    fetchImpl: options.fetchImpl,
-    isProduction: options.isProduction,
-    allowInsecure: options.allowInsecure
-  });
-  const buildInfoProvider = options.buildInfoProvider || (() => getBuildInfo({
-    appVersion,
-    isPackaged: options.isPackaged,
-    appPath: options.appPath
-  }));
+  const stateStore =
+    options.stateStore || createLicenseStateStore({ dataDir: options.dataDir });
+  const keyStore =
+    options.keyStore ||
+    createDeviceKeyStore({
+      dataDir: options.dataDir,
+      safeStorage: options.safeStorage,
+    });
+  const fingerprintProvider =
+    options.fingerprintProvider || createHardwareFingerprint();
+  const remote =
+    options.remoteClient ||
+    createRemoteLicenseClient({
+      baseUrl: options.baseUrl,
+      fetchImpl: options.fetchImpl,
+      isProduction: options.isProduction,
+      allowInsecure: options.allowInsecure,
+    });
+  const buildInfoProvider =
+    options.buildInfoProvider ||
+    (() =>
+      getBuildInfo({
+        appVersion,
+        isPackaged: options.isPackaged,
+        appPath: options.appPath,
+      }));
   const runtimeId = String(options.runtimeId || `lira:${crypto.randomUUID()}`);
+  const randomSource =
+    typeof options.randomSource === 'function'
+      ? options.randomSource
+      : Math.random;
+  const suppliedTimers = options.timers || {};
+  const timers = {
+    setTimeout:
+      typeof suppliedTimers.setTimeout === 'function'
+        ? suppliedTimers.setTimeout
+        : setTimeout,
+    clearTimeout:
+      typeof suppliedTimers.clearTimeout === 'function'
+        ? suppliedTimers.clearTimeout
+        : clearTimeout,
+  };
+  const renewalRetryPolicy = createRetryPolicy({
+    jitter: () => randomSource(),
+  });
   let state = LicenseState.CHECKING;
   let lastError = '';
   let identity = null;
@@ -57,37 +97,62 @@ function createLicenseManager(options = {}) {
   let tokenExpiresAt = 0;
   let renewalTimer = null;
   let heartbeatTimer = null;
+  let renewalPromise = null;
+  let heartbeatPromise = null;
   let busy = null;
+  let disposed = false;
+  let lifecycleGeneration = 0;
   const listeners = new Set();
+  const { handleAuthError, handleProtectedRequestError, isBlockedCode } =
+    createLicenseErrorHandlers({
+      states: LicenseState,
+      isDisposed: () => disposed,
+      getState: () => state,
+      hasAccessToken: () => Boolean(accessToken),
+      getTokenExpiresAt: () => tokenExpiresAt,
+      clearSession,
+      resetRetryPolicy: () => renewalRetryPolicy.reset(),
+      setState,
+    });
 
-  function getState() { return state; }
+  function getState() {
+    return state;
+  }
 
   function getSnapshot() {
     return {
       state,
       error: lastError || null,
       streamer: sanitizeStreamer(profile?.streamer || identity),
-      device: profile?.device ? sanitizeDevice(profile.device) : undefined
+      device: profile?.device ? sanitizeDevice(profile.device) : undefined,
     };
   }
 
   function onStateChanged(listener) {
-    if (typeof listener !== 'function') return () => {};
+    if (disposed || typeof listener !== 'function') return () => {};
     listeners.add(listener);
     return () => listeners.delete(listener);
   }
 
   function setState(next, error = '') {
+    const normalizedError = error || '';
+    if (disposed || (state === next && lastError === normalizedError))
+      return state;
     state = next;
-    lastError = error || '';
+    lastError = normalizedError;
     const snapshot = getSnapshot();
     for (const listener of listeners) {
-      try { listener(snapshot); } catch (error) { void error; }
+      try {
+        listener(snapshot);
+      } catch (error) {
+        void error;
+      }
     }
     return state;
   }
 
   async function bootstrap() {
+    if (disposed) return state;
     if (busy) return busy;
     busy = (async () => {
       setState(LicenseState.CHECKING);
@@ -100,7 +165,10 @@ function createLicenseManager(options = {}) {
         const privateKey = keyStore.loadPrivateKey();
         if (!privateKey) {
           clearSession();
-          return setState(LicenseState.NEEDS_ACTIVATION, 'DEVICE_KEY_UNAVAILABLE');
+          return setState(
+            LicenseState.NEEDS_ACTIVATION,
+            'DEVICE_KEY_UNAVAILABLE',
+          );
         }
         await authenticate(identity, privateKey);
         return state;
@@ -108,11 +176,18 @@ function createLicenseManager(options = {}) {
         return handleAuthError(error);
       }
     })();
-    try { return await busy; } finally { busy = null; }
+    try {
+      return await busy;
+    } finally {
+      busy = null;
+    }
   }
 
   async function activate(input = {}) {
+    if (disposed)
+      return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
     if (busy) return busy;
+    const generation = lifecycleGeneration;
     busy = (async () => {
       const validated = validateActivationInput(input);
       if (!validated.ok) {
@@ -121,61 +196,44 @@ function createLicenseManager(options = {}) {
       }
       setState(LicenseState.AUTHORIZING);
       try {
-        let keyPair;
-        try { keyPair = keyStore.loadOrCreate(); } catch (error) {
-          if (typeof keyStore.createNew !== 'function') throw error;
-          keyPair = keyStore.createNew();
-        }
-        const fingerprint = normalizeFingerprint(await fingerprintProvider.collect());
-        if (countFingerprintValues(fingerprint) < 2) throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
-        const build = buildInfoProvider();
-        const deviceName = String(options.deviceName || os.hostname()).trim().slice(0, 100);
-        const platform = `${process.platform}-${process.arch}`.slice(0, 40);
-        const canonical = buildActivationPayload({
-          ...validated,
-          deviceName,
-          platform,
-          appVersion: build.appVersion,
-          buildId: build.buildId,
-          keyProtection: keyPair.keyProtection,
-          publicKeyPem: keyPair.publicKeyPem,
-          fingerprint
+        const activation = await requestDeviceActivation({
+          validated,
+          keyStore,
+          fingerprintProvider,
+          buildInfoProvider,
+          remote,
+          deviceName: options.deviceName,
+          isActive: () => isLifecycleActive(generation),
         });
-        const result = await remote.activate({
-          protocolVersion: PROTOCOL_VERSION,
-          code: validated.activationCode,
-          accountName: validated.accountName,
-          password: validated.password,
-          deviceName,
-          platform,
-          appVersion: build.appVersion,
-          buildId: build.buildId,
-          publicKey: keyPair.publicKeyPem,
-          activationSignature: signPayload(canonical, keyPair.privateKeyPem),
-          keyProtection: keyPair.keyProtection,
-          integrityStatus: build.integrityStatus,
-          fingerprint
-        });
-        identity = stateStore.write({
-          deviceId: result.deviceId,
-          licenseId: result.licenseId,
-          streamerId: result.streamerId,
-          accountName: validated.accountName,
-          subdomain: result.streamer?.subdomain || validated.accountName,
-          publicKeyPem: keyPair.publicKeyPem,
-          keyProtection: keyPair.keyProtection,
-          deviceName,
-          createdAt: new Date().toISOString()
-        });
-        await authenticate(identity, keyPair.privateKeyPem);
-        return { ok: true, state, streamer: sanitizeStreamer(profile?.streamer || result.streamer) };
+        if (!activation)
+          return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
+        identity = stateStore.write(activation.identity);
+        const authenticated = await authenticate(
+          identity,
+          activation.keyPair.privateKeyPem,
+          0,
+          generation,
+        );
+        if (!authenticated)
+          return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
+        return {
+          ok: true,
+          state,
+          streamer: sanitizeStreamer(
+            profile?.streamer || activation.result.streamer,
+          ),
+        };
       } catch (error) {
         clearSession();
         const next = handleAuthError(error);
         return { ok: false, state: next, error: getErrorCode(error) };
       }
     })();
-    try { return await busy; } finally { busy = null; }
+    try {
+      return await busy;
+    } finally {
+      busy = null;
+    }
   }
 
   async function retry() {
@@ -183,39 +241,86 @@ function createLicenseManager(options = {}) {
   }
 
   async function ensureAuthorized() {
-    if (state !== LicenseState.AUTHORIZED || !accessToken) throw new Error('LICENSE_NOT_AUTHORIZED');
+    if (disposed) throw new Error('LICENSE_NOT_AUTHORIZED');
+    if (renewalPromise) await renewalPromise;
+    if (state !== LicenseState.AUTHORIZED || !accessToken)
+      throw new Error('LICENSE_NOT_AUTHORIZED');
     if (tokenExpiresAt && tokenExpiresAt <= Date.now()) {
       const renewed = await renew();
-      if (!renewed || state !== LicenseState.AUTHORIZED || !accessToken) throw new Error('LICENSE_NOT_AUTHORIZED');
+      if (!renewed || state !== LicenseState.AUTHORIZED || !accessToken)
+        throw new Error('LICENSE_NOT_AUTHORIZED');
     }
     return accessToken;
   }
 
-  function getAccessToken() { return accessToken; }
-
-  async function getProfile() {
-    const token = await ensureAuthorized();
-    const result = await remote.profile(token);
-    profile = result;
-    return getSnapshot();
+  function getAccessToken() {
+    return accessToken;
   }
 
-  async function syncSongs(songs) {
-    if (!Array.isArray(songs) || songs.length > 5000) throw new RemoteLicenseError('SONG_LIST_INVALID', '歌库数量超出同步上限。');
-    const list = songs.map(mapSongForSync);
-    const token = await ensureAuthorized();
-    return remote.syncSongs(list, token);
+  // Internal composition roots use this validated client origin to resolve
+  // immutable public catalog assets. It is intentionally absent from IPC.
+  function getRemoteBaseUrl() {
+    return remote.baseUrl;
   }
 
-  async function createPairingCode() { return remote.createPairingCode(await ensureAuthorized()); }
-  async function listPairingCodes() { return remote.listPairingCodes(await ensureAuthorized()); }
-  async function revokePairingCode(id) { return remote.revokePairingCode(id, await ensureAuthorized()); }
+  async function withAuthorizedToken(operation, attempt = 0) {
+    const token = await ensureAuthorized();
+    try {
+      // Remote JSON is untrusted input.  Keep the device token and other
+      // credentials inside the main process even if a proxy/server echoes
+      // request fields back in a successful response.
+      return sanitizeRemoteResponse(await operation(token));
+    } catch (error) {
+      const code = getErrorCode(error);
+      if (
+        attempt < 1 &&
+        REAUTHENTICATE_CODES.has(code) &&
+        state === LicenseState.AUTHORIZED
+      ) {
+        if (token !== accessToken && accessToken) {
+          return withAuthorizedToken(operation, attempt + 1);
+        }
+        const renewed = await renew({
+          preserveValidSession: false,
+          throwOnFailure: true,
+        });
+        if (renewed && state === LicenseState.AUTHORIZED && accessToken) {
+          return withAuthorizedToken(operation, attempt + 1);
+        }
+        if (state !== LicenseState.AUTHORIZED) throw error;
+      }
+      handleProtectedRequestError(error);
+      throw error;
+    }
+  }
 
-  async function authenticate(currentIdentity, privateKeyPem, attempt = 0) {
-    const fingerprint = normalizeFingerprint(await fingerprintProvider.collect());
-    if (countFingerprintValues(fingerprint) < 2) throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
+  async function authenticate(
+    currentIdentity,
+    privateKeyPem,
+    attempt = 0,
+    generation = lifecycleGeneration,
+    expectedState = null,
+    expectedToken = null,
+  ) {
+    const isAttemptActive = () =>
+      isLifecycleActive(generation) &&
+      (!expectedState || state === expectedState) &&
+      (expectedToken === null || accessToken === expectedToken);
+    if (!isAttemptActive()) return null;
+    const fingerprint = normalizeFingerprint(
+      await fingerprintProvider.collect(),
+    );
+    if (!isAttemptActive()) return null;
+    if (countFingerprintValues(fingerprint) < 2)
+      throw new RemoteLicenseError(
+        'FINGERPRINT_UNAVAILABLE',
+        '无法读取足够的设备标识，暂时无法完成绑定。',
+      );
     const build = buildInfoProvider();
-    const challenge = await remote.challenge({ deviceId: currentIdentity.deviceId });
+    const challenge = await remote.challenge({
+      deviceId: currentIdentity.deviceId,
+    });
+    if (!isAttemptActive()) return null;
     const canonical = buildAuthPayload({
       protocolVersion: PROTOCOL_VERSION,
       deviceId: currentIdentity.deviceId,
@@ -226,7 +331,7 @@ function createLicenseManager(options = {}) {
       buildId: build.buildId,
       integrityStatus: build.integrityStatus,
       fingerprint,
-      virtualization: Boolean(options.virtualization)
+      virtualization: Boolean(options.virtualization),
     });
     let result;
     try {
@@ -241,90 +346,213 @@ function createLicenseManager(options = {}) {
         buildId: build.buildId,
         integrityStatus: build.integrityStatus,
         fingerprint,
-        environment: { virtualization: Boolean(options.virtualization) }
+        environment: { virtualization: Boolean(options.virtualization) },
       });
     } catch (error) {
-      if (getErrorCode(error) === 'CHALLENGE_EXPIRED' && attempt < 1) {
-        return authenticate(currentIdentity, privateKeyPem, attempt + 1);
+      if (RETRY_CHALLENGE_CODES.has(getErrorCode(error)) && attempt < 1) {
+        return authenticate(
+          currentIdentity,
+          privateKeyPem,
+          attempt + 1,
+          generation,
+          expectedState,
+          expectedToken,
+        );
       }
       throw error;
     }
+    if (!isAttemptActive()) return null;
     accessToken = String(result.accessToken || '');
-    if (!accessToken) throw new RemoteLicenseError('SIGNATURE_INVALID', '授权服务器未返回有效会话。');
-    tokenExpiresAt = Date.now() + parseExpiresIn(result.expiresIn);
-    profile = result.streamer ? { streamer: result.streamer, device: { id: result.deviceId, licenseId: result.licenseId } } : profile;
+    if (!accessToken)
+      throw new RemoteLicenseError(
+        'SIGNATURE_INVALID',
+        '授权服务器未返回有效会话。',
+      );
+    tokenExpiresAt = resolveTokenExpiresAt(result, Date.now());
+    profile = result.streamer
+      ? {
+          streamer: result.streamer,
+          device: { id: result.deviceId, licenseId: result.licenseId },
+        }
+      : profile;
     setState(LicenseState.AUTHORIZED);
     scheduleSessionMaintenance();
     return result;
   }
 
-  async function renew() {
-    if (!identity || state !== LicenseState.AUTHORIZED) return false;
-    try {
-      const privateKey = keyStore.loadPrivateKey();
-      await authenticate(identity, privateKey);
-      return true;
-    } catch (error) {
-      if (isRetryableAuthError(error) && accessToken && tokenExpiresAt > Date.now()) {
-        scheduleRenewalRetry();
+  async function renew({
+    preserveValidSession = true,
+    throwOnFailure = false,
+  } = {}) {
+    if (disposed) return false;
+    if (renewalPromise) return renewalPromise;
+    const operation = (async () => {
+      if (!identity || state !== LicenseState.AUTHORIZED) return false;
+      const expectedToken = accessToken;
+      try {
+        const privateKey = keyStore.loadPrivateKey();
+        const result = await authenticate(
+          identity,
+          privateKey,
+          0,
+          lifecycleGeneration,
+          LicenseState.AUTHORIZED,
+          expectedToken,
+        );
+        return Boolean(result);
+      } catch (error) {
+        const code = getErrorCode(error);
+        if (isBlockedCode(code)) {
+          handleAuthError(error);
+          if (throwOnFailure) throw error;
+          return false;
+        }
+        if (
+          preserveValidSession &&
+          isRetryableAuthError(error) &&
+          accessToken &&
+          tokenExpiresAt > Date.now()
+        ) {
+          scheduleRenewalRetry(error);
+          return false;
+        }
+        handleAuthError(error);
+        if (throwOnFailure) throw error;
         return false;
       }
-      handleAuthError(error);
-      return false;
+    })();
+    renewalPromise = operation;
+    try {
+      return await operation;
+    } finally {
+      if (renewalPromise === operation) renewalPromise = null;
     }
   }
 
-  function scheduleRenewalRetry() {
-    clearTimeout(renewalTimer);
+  function scheduleRenewalRetry(error) {
+    if (disposed) return;
+    timers.clearTimeout(renewalTimer);
+    const backoff = renewalRetryPolicy.nextDelay();
+    if (backoff === null) {
+      // Retries exhausted: stop hammering the server and surface the connection state.
+      handleAuthError(
+        error ||
+          new RemoteLicenseError(
+            'NETWORK_UNAVAILABLE',
+            '授权服务器暂时不可用。',
+            { retryable: true },
+          ),
+      );
+      return;
+    }
     const remaining = Math.max(0, tokenExpiresAt - Date.now());
-    const retryDelay = Math.min(30000, Math.max(5000, remaining));
-    renewalTimer = setTimeout(() => { renew().catch(() => {}); }, retryDelay);
+    const retryDelay = Math.max(1000, Math.min(backoff, remaining));
+    renewalTimer = timers.setTimeout(() => {
+      renew().catch(() => {});
+    }, retryDelay);
     renewalTimer.unref?.();
   }
 
   function scheduleSessionMaintenance() {
-    clearTimeout(renewalTimer);
-    clearTimeout(heartbeatTimer);
-    const renewDelay = Math.max(30000, tokenExpiresAt - Date.now() - 75000);
-    renewalTimer = setTimeout(() => { renew().catch(() => {}); }, renewDelay);
-    heartbeatTimer = setTimeout(async function heartbeat() {
-      if (state !== LicenseState.AUTHORIZED || !accessToken) return;
-      try {
-        await remote.heartbeat(accessToken);
-      } catch (error) {
-        if (!(isRetryableAuthError(error) && tokenExpiresAt > Date.now())) {
-          handleAuthError(error);
-          return;
-        }
-      }
-      heartbeatTimer = setTimeout(heartbeat, 150000);
-    }, 150000);
+    if (disposed) return;
+    renewalRetryPolicy.reset();
+    timers.clearTimeout(renewalTimer);
+    timers.clearTimeout(heartbeatTimer);
+    const renewDelay = Math.min(
+      MAX_TIMER_DELAY_MS,
+      Math.max(30000, tokenExpiresAt - Date.now() - RENEW_EARLY_MS),
+    );
+    renewalTimer = timers.setTimeout(() => {
+      renew().catch(() => {});
+    }, renewDelay);
+    scheduleHeartbeat();
     renewalTimer.unref?.();
+  }
+
+  function scheduleHeartbeat() {
+    if (disposed) return;
+    timers.clearTimeout(heartbeatTimer);
+    heartbeatTimer = timers.setTimeout(async () => {
+      heartbeatTimer = null;
+      await heartbeatNow();
+      if (!disposed && state === LicenseState.AUTHORIZED) scheduleHeartbeat();
+    }, HEARTBEAT_INTERVAL_MS);
     heartbeatTimer.unref?.();
+  }
+
+  async function heartbeatNow() {
+    if (disposed) return false;
+    if (heartbeatPromise) return heartbeatPromise;
+    const operation = (async () => {
+      if (state !== LicenseState.AUTHORIZED || !accessToken) return false;
+      try {
+        await withAuthorizedToken((token) => remote.heartbeat(token));
+        return true;
+      } catch (_) {
+        return false;
+      }
+    })();
+    heartbeatPromise = operation;
+    try {
+      return await operation;
+    } finally {
+      if (heartbeatPromise === operation) heartbeatPromise = null;
+    }
+  }
+
+  async function resume() {
+    if (disposed) return false;
+    timers.clearTimeout(heartbeatTimer);
+    heartbeatTimer = null;
+    if (state === LicenseState.NEEDS_CONNECTION) return bootstrap();
+    if (state !== LicenseState.AUTHORIZED) return false;
+    const result = await heartbeatNow();
+    if (state === LicenseState.AUTHORIZED) scheduleHeartbeat();
+    return result;
   }
 
   function clearSession() {
     accessToken = '';
     tokenExpiresAt = 0;
     profile = null;
-    clearTimeout(renewalTimer);
-    clearTimeout(heartbeatTimer);
+    timers.clearTimeout(renewalTimer);
+    timers.clearTimeout(heartbeatTimer);
     renewalTimer = null;
     heartbeatTimer = null;
   }
 
-  function handleAuthError(error) {
-    const code = getErrorCode(error);
-    clearSession();
-    if (code === 'DEVICE_KEY_CORRUPT' || code === 'DEVICE_KEY_UNAVAILABLE') return setState(LicenseState.NEEDS_ACTIVATION, code);
-    if (BLOCKED_CODES.has(code)) return setState(LicenseState.BLOCKED, code);
-    if (code === 'NETWORK_UNAVAILABLE' || code === 'REQUEST_TIMEOUT') return setState(LicenseState.NEEDS_CONNECTION, code);
-    if (code === 'CHALLENGE_EXPIRED') return setState(LicenseState.NEEDS_CONNECTION, code);
-    if (code === 'DEVICE_NOT_FOUND') return setState(LicenseState.NEEDS_ACTIVATION, code);
-    return setState(LicenseState.NEEDS_ACTIVATION, code);
+  function isLifecycleActive(generation) {
+    return !disposed && generation === lifecycleGeneration;
   }
 
-  function dispose() { clearSession(); listeners.clear(); }
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    lifecycleGeneration += 1;
+    clearSession();
+    listeners.clear();
+  }
+
+  const {
+    createPairingCode,
+    deleteSongPageBackground,
+    getCloudSongs,
+    getGiftCatalog,
+    getProfile,
+    getSongPageBackground,
+    listPairingCodes,
+    revokePairingCode,
+    syncSongs,
+    uploadSongPageBackground,
+  } = createLicenseOperations({
+    remote,
+    withAuthorizedToken,
+    isDisposed: () => disposed,
+    setProfile: (value) => {
+      profile = value;
+    },
+    getSnapshot,
+  });
 
   return {
     LicenseState,
@@ -336,66 +564,26 @@ function createLicenseManager(options = {}) {
     retry,
     ensureAuthorized,
     getAccessToken,
+    getRemoteBaseUrl,
     getProfile,
     syncSongs,
+    getCloudSongs,
+    getGiftCatalog,
+    getSongPageBackground,
+    uploadSongPageBackground,
+    deleteSongPageBackground,
     createPairingCode,
     listPairingCodes,
     revokePairingCode,
-    dispose
+    resume,
+    dispose,
   };
 }
 
-function parseExpiresIn(value) {
-  const match = String(value || '').match(/^(\d+)\s*(s|m|h)?$/i);
-  if (!match) return 10 * 60 * 1000;
-  const amount = Number(match[1]);
-  const unit = String(match[2] || 's').toLowerCase();
-  return amount * (unit === 'h' ? 3600000 : unit === 'm' ? 60000 : 1000);
-}
-
-function getErrorCode(error) { return error instanceof RemoteLicenseError ? error.code : String(error?.code || error?.message || 'NETWORK_UNAVAILABLE'); }
-
-function isRetryableAuthError(error) {
-  return error instanceof RemoteLicenseError && (
-    error.retryable || error.code === 'NETWORK_UNAVAILABLE' || error.code === 'REQUEST_TIMEOUT'
-  );
-}
-
-function sanitizeStreamer(value) {
-  if (!value || typeof value !== 'object') return undefined;
-  return {
-    accountName: String(value.accountName || '').slice(0, 32),
-    displayName: String(value.displayName || value.accountName || '').slice(0, 80),
-    subdomain: String(value.subdomain || '').slice(0, 63),
-    songPageUrl: String(value.songPageUrl || '').slice(0, 300),
-    manageUrl: String(value.manageUrl || '').slice(0, 300)
-  };
-}
-
-function sanitizeDevice(value) {
-  return {
-    id: String(value.id || '').slice(0, 128),
-    name: String(value.name || '').slice(0, 100),
-    status: String(value.status || '').slice(0, 32),
-    licenseId: String(value.licenseId || '').slice(0, 128)
-  };
-}
-
-function mapSongForSync(song = {}) {
-  const enabled = song.isEnabled ?? song.is_enabled ?? song.enabled ?? true;
-  return {
-    name: String(song.name ?? song.title ?? '').trim(),
-    artist: String(song.artist ?? '').trim(),
-    categoryName: String(song.categoryName ?? song.category_name ?? '').trim(),
-    tags: String(song.tags ?? '').trim(),
-    language: String(song.language ?? '').trim(),
-    sourcePlatform: String(song.sourcePlatform ?? song.source_platform ?? '').trim(),
-    note: String(song.note ?? '').trim(),
-    requestPrice: String(song.requestPrice ?? song.request_price ?? '').trim(),
-    songClip: String(song.songClip ?? song.song_clip ?? '').trim(),
-    isEnabled: !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false'),
-    sortOrder: Number(song.sortOrder ?? song.sort_order ?? 0) || 0
-  };
-}
-
-module.exports = { LicenseState, createLicenseManager, parseExpiresIn, mapSongForSync };
+module.exports = {
+  LicenseState,
+  createLicenseManager,
+  parseExpiresIn,
+  resolveTokenExpiresAt,
+  mapSongForSync,
+};

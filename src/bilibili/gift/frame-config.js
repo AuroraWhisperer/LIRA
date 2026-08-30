@@ -6,13 +6,14 @@ const DEFAULT_FRAME_SETTINGS = Object.freeze({
   giftFrameEnabled: 'false',
   giftFrameThresholdRmb: '20',
   giftFrameTheme: 'woodland-bloom',
-  giftFrameMotionMode: 'auto'
+  giftFrameMotionMode: 'auto',
 });
 
 let previewSequence = 0;
 
 function normalizeRmbCents(value) {
-  const parsed = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+  const parsed =
+    typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return null;
   const cents = Math.round(parsed * 100);
   return Number.isSafeInteger(cents) ? cents : null;
@@ -26,25 +27,35 @@ function normalizeThresholdRmb(value) {
 
 function normalizeFrameSettings(settings = {}) {
   const thresholdRmb = normalizeThresholdRmb(
-    settings.giftFrameThresholdRmb ?? DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb
+    settings.giftFrameThresholdRmb ??
+      DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb,
   );
   return {
-    enabled: String(settings.giftFrameEnabled ?? DEFAULT_FRAME_SETTINGS.giftFrameEnabled) === 'true',
-    thresholdRmb: thresholdRmb === null
-      ? DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb
-      : thresholdRmb,
+    enabled:
+      String(
+        settings.giftFrameEnabled ?? DEFAULT_FRAME_SETTINGS.giftFrameEnabled,
+      ) === 'true',
+    thresholdRmb:
+      thresholdRmb === null
+        ? DEFAULT_FRAME_SETTINGS.giftFrameThresholdRmb
+        : thresholdRmb,
     themeId: FRAME_THEME_IDS.includes(String(settings.giftFrameTheme || ''))
       ? String(settings.giftFrameTheme)
       : DEFAULT_FRAME_SETTINGS.giftFrameTheme,
-    motionMode: FRAME_MOTION_MODES.includes(String(settings.giftFrameMotionMode || ''))
+    motionMode: FRAME_MOTION_MODES.includes(
+      String(settings.giftFrameMotionMode || ''),
+    )
       ? String(settings.giftFrameMotionMode)
-      : DEFAULT_FRAME_SETTINGS.giftFrameMotionMode
+      : DEFAULT_FRAME_SETTINGS.giftFrameMotionMode,
   };
 }
 
 function normalizeFrameSettingValue(key, value) {
   if (key === 'giftFrameEnabled') {
-    const normalized = String(value) === 'true' || String(value) === 'false' ? String(value) : null;
+    const normalized =
+      String(value) === 'true' || String(value) === 'false'
+        ? String(value)
+        : null;
     return normalized;
   }
   if (key === 'giftFrameThresholdRmb') return normalizeThresholdRmb(value);
@@ -63,11 +74,18 @@ function buildGiftFrameEvent(item, settings = {}) {
   if (item?.detection_status && item.detection_status !== 'final') return null;
 
   const giftEventId = Number(item?.id ?? item?.giftEventId);
-  const totalPriceCents = normalizeRmbCents(item?.total_price ?? item?.totalPrice);
+  const totalPriceCents = normalizeRmbCents(
+    item?.total_price ?? item?.totalPrice,
+  );
   const thresholdCents = normalizeRmbCents(normalizedSettings.thresholdRmb);
-  if (!Number.isSafeInteger(giftEventId) || giftEventId <= 0
-    || totalPriceCents === null || totalPriceCents <= 0
-    || thresholdCents === null || totalPriceCents < thresholdCents) {
+  if (
+    !Number.isSafeInteger(giftEventId) ||
+    giftEventId <= 0 ||
+    totalPriceCents === null ||
+    totalPriceCents <= 0 ||
+    thresholdCents === null ||
+    totalPriceCents < thresholdCents
+  ) {
     return null;
   }
 
@@ -81,21 +99,28 @@ function buildGiftFrameEvent(item, settings = {}) {
     num: normalizePositiveInteger(item?.num),
     totalPriceCents,
     userName: normalizeDisplayText(item?.user_name ?? item?.userName, '观众'),
-    themeId: normalizedSettings.themeId
+    themeId: normalizedSettings.themeId,
   };
 }
 
 function buildGiftFramePreviewEvent(input = {}) {
-  const totalPriceCents = normalizeRmbCents(input.totalPriceRmb ?? input.amountRmb ?? input.totalPrice);
+  const totalPriceCents = normalizeRmbCents(
+    input.totalPriceRmb ?? input.amountRmb ?? input.totalPrice,
+  );
   if (totalPriceCents === null || totalPriceCents <= 0) {
     throw new Error('预览金额必须是大于 0 的人民币金额。');
   }
   const num = normalizePreviewInteger(input.num ?? input.quantity);
 
-  const themeId = String(input.themeId || DEFAULT_FRAME_SETTINGS.giftFrameTheme);
-  const motionMode = String(input.motionMode || DEFAULT_FRAME_SETTINGS.giftFrameMotionMode);
+  const themeId = String(
+    input.themeId || DEFAULT_FRAME_SETTINGS.giftFrameTheme,
+  );
+  const motionMode = String(
+    input.motionMode || DEFAULT_FRAME_SETTINGS.giftFrameMotionMode,
+  );
   if (!FRAME_THEME_IDS.includes(themeId)) throw new Error('礼物边框主题无效。');
-  if (!FRAME_MOTION_MODES.includes(motionMode)) throw new Error('礼物边框动效模式无效。');
+  if (!FRAME_MOTION_MODES.includes(motionMode))
+    throw new Error('礼物边框动效模式无效。');
 
   previewSequence = (previewSequence + 1) % 1000000;
   const previewSessionId = `preview-${Date.now()}-${previewSequence}`;
@@ -111,7 +136,7 @@ function buildGiftFramePreviewEvent(input = {}) {
     themeId,
     motionMode,
     preview: true,
-    previewSessionId
+    previewSessionId,
   };
 }
 
@@ -121,9 +146,11 @@ function normalizePositiveInteger(value) {
 }
 
 function normalizePreviewInteger(value) {
-  if (value === undefined || value === null || String(value).trim() === '') return 1;
+  if (value === undefined || value === null || String(value).trim() === '')
+    return 1;
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error('预览数量必须是正整数。');
+  if (!Number.isSafeInteger(parsed) || parsed <= 0)
+    throw new Error('预览数量必须是正整数。');
   return parsed;
 }
 
@@ -141,5 +168,5 @@ module.exports = {
   normalizeFrameSettings,
   normalizeFrameSettingValue,
   buildGiftFrameEvent,
-  buildGiftFramePreviewEvent
+  buildGiftFramePreviewEvent,
 };

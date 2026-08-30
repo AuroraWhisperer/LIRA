@@ -63,9 +63,11 @@ Align LIRA's guard accounting with the current Bilibili Open Platform field cont
 ### Task 1: Lock Protocol Behavior With Focused Regressions
 
 **Files:**
+
 - Modify: `test/guard-gift.test.js`
 
 **Interfaces:**
+
 - Consumes: `packetParser.extractBilibiliGiftMessage(packet)`, `createGiftService(context)`, `MessageHandlers.handleGift(packet)`.
 - Produces: regression expectations for `source`, `unit`, snapshot cardinality, and room identity.
 
@@ -77,11 +79,13 @@ Align LIRA's guard accounting with the current Bilibili Open Platform field cont
 ### Task 2: Implement Source, Unit, And Identity Rules
 
 **Files:**
+
 - Modify: `src/bilibili/parsers/gift-parser.js`
 - Modify: `src/bilibili/packet-parser.js`
 - Modify: `src/bilibili/danmaku/message-handlers.js`
 
 **Interfaces:**
+
 - Consumes: raw `USER_TOAST_MSG_V2.data.option.source`, Web `pay_info.num/unit`, Open Platform `guard_num/guard_unit`.
 - Produces: accepted paid gift objects with conservative quantities and `isBilibiliDuplicateGuardToast(packet)` for pre-dispatch filtering.
 
@@ -94,10 +98,12 @@ Align LIRA's guard accounting with the current Bilibili Open Platform field cont
 ### Task 3: Document And Verify The Contract
 
 **Files:**
+
 - Modify: `docs/architecture/backend/bilibili/protocol.md`
 - Modify: this plan with final verification results.
 
 **Interfaces:**
+
 - Consumes: verified parser behavior.
 - Produces: current protocol owner documentation and completion evidence.
 

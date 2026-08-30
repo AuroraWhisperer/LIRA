@@ -19,7 +19,7 @@ test('danmaku overlay style defaults to signal and accepts only named themes', a
   assert.equal(invalid.status, 400);
   assert.deepEqual(invalid.payload, {
     ok: false,
-    error: '设置 danmakuOverlayStyle 的值无效。'
+    error: '设置 danmakuOverlayStyle 的值无效。',
   });
   assert.deepEqual(invalid.writes, []);
   assert.equal(invalid.configureCalls, 0);
@@ -31,28 +31,50 @@ async function postSettings(body) {
   let broadcastReason = '';
   let payload = null;
   const response = {
-    writeHead(status) { this.status = status; },
-    end(value) { payload = JSON.parse(value); }
+    writeHead(status) {
+      this.status = status;
+    },
+    end(value) {
+      payload = JSON.parse(value);
+    },
   };
   const context = {
     settings: {
       defaults: { ...DEFAULT_SETTINGS, danmakuOverlayStyle: 'signal' },
-      set(key, value) { writes.push([key, value]); }
+      set(key, value) {
+        writes.push([key, value]);
+      },
     },
-    bilibili: { configure() { configureCalls += 1; } },
-    broadcastSnapshot(reason) { broadcastReason = reason; },
-    system: { getState() { return { settings: {} }; } }
+    bilibili: {
+      configure() {
+        configureCalls += 1;
+      },
+    },
+    broadcastSnapshot(reason) {
+      broadcastReason = reason;
+    },
+    system: {
+      getState() {
+        return { settings: {} };
+      },
+    },
   };
 
-  await settingsRoutes.routes['POST /api/settings'](context, {
-    async body() { return body; }
-  }, response);
+  await settingsRoutes.routes['POST /api/settings'](
+    context,
+    {
+      async body() {
+        return body;
+      },
+    },
+    response,
+  );
 
   return {
     status: response.status,
     payload,
     writes,
     configureCalls,
-    broadcastReason
+    broadcastReason,
   };
 }

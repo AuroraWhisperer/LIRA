@@ -40,7 +40,10 @@ export class ProviderManager {
     const source = options.platform ?? this.state?.selectedSource;
     try {
       // 桌面版优先使用 Electron IPC
-      if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
+      if (
+        window.musicAPI &&
+        typeof window.musicAPI.providerHealth === 'function'
+      ) {
         const healthState = await window.musicAPI.providerHealth(source);
         this.setProviderHealth(source, healthState, options);
         return healthState;
@@ -76,7 +79,10 @@ export class ProviderManager {
 
     try {
       // 桌面版优先使用 Electron IPC
-      if (window.musicAPI && typeof window.musicAPI.getAuthState === 'function') {
+      if (
+        window.musicAPI &&
+        typeof window.musicAPI.getAuthState === 'function'
+      ) {
         const authState = await window.musicAPI.getAuthState(source);
         this.setAuthState(source, authState, options);
         return authState;
@@ -92,7 +98,7 @@ export class ProviderManager {
       const response = await fetch('/api/music/auth-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: source })
+        body: JSON.stringify({ platform: source }),
       });
 
       // Web 版可能没有实现此接口，404/501 时使用空状态并标记接口不可用
@@ -116,7 +122,10 @@ export class ProviderManager {
       if (error.message && error.message.includes('Failed to fetch')) {
         this._authStateApiUnavailable.add(source);
       }
-      console.warn('[ProviderManager] refreshAuthState failed (this is normal for web version):', error.message);
+      console.warn(
+        '[ProviderManager] refreshAuthState failed (this is normal for web version):',
+        error.message,
+      );
       this.setAuthState(source, null, options);
       // Web 版没有认证接口是正常的，不需要显示错误
       return null;
@@ -131,7 +140,10 @@ export class ProviderManager {
   async checkProviderHealth(options = {}) {
     const source = options.platform ?? this.state?.selectedSource;
     try {
-      if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
+      if (
+        window.musicAPI &&
+        typeof window.musicAPI.providerHealth === 'function'
+      ) {
         const healthState = await window.musicAPI.providerHealth(source);
         this.setProviderHealth(source, healthState, options);
         return healthState;
@@ -155,7 +167,7 @@ export class ProviderManager {
         source,
         ok: false,
         status: 'error',
-        message: error.message || String(error)
+        message: error.message || String(error),
       };
       this.setProviderHealth(source, healthState, options);
       if (!options.silent) this.onError(error);
@@ -172,7 +184,7 @@ export class ProviderManager {
       const response = await fetch('/api/music/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: this.state.selectedSource })
+        body: JSON.stringify({ platform: this.state.selectedSource }),
       });
 
       const readJson = this.readJsonResponse || ((r) => r.json());
@@ -202,7 +214,7 @@ export class ProviderManager {
       const response = await fetch('/api/music/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform })
+        body: JSON.stringify({ platform }),
       });
 
       const readJson = this.readJsonResponse || ((r) => r.json());
@@ -295,7 +307,7 @@ export class ProviderManager {
     // 清除待确认请求
     if (Array.isArray(state.pendingRequests)) {
       state.pendingRequests = state.pendingRequests.filter(
-        (item) => !item.track || item.track.source !== platform
+        (item) => !item.track || item.track.source !== platform,
       );
     }
   }
@@ -320,7 +332,7 @@ export class ProviderManager {
       sourceAlbumId: track.sourceAlbumId || track.albumId || '',
       playable: track.playable !== false,
       vip: track.vip === true,
-      lyrics: track.lyrics || null
+      lyrics: track.lyrics || null,
     };
   }
 

@@ -7,7 +7,9 @@ const os = require('node:os');
 const path = require('node:path');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const PKG = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'));
+const PKG = JSON.parse(
+  fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'),
+);
 const VERSION = PKG.version;
 const TAG = `v${VERSION}`;
 const OWNER = PKG.build.publish[0].owner;
@@ -44,9 +46,12 @@ async function main() {
       // 使用本地 electron 构建，跳过下载
       run('npx', [
         'electron-builder',
-        '--win', 'nsis', '--x64',
-        '--publish', 'always',
-        '--config.electronDist=node_modules/electron/dist'
+        '--win',
+        'nsis',
+        '--x64',
+        '--publish',
+        'always',
+        '--config.electronDist=node_modules/electron/dist',
       ]);
     } catch (error) {
       log(`electron-builder exited with an error: ${error.message}`);
@@ -58,18 +63,23 @@ async function main() {
       return;
     }
 
-    log(`Missing or incomplete assets after attempt ${attempt}: ${missing.join(', ')}`);
+    log(
+      `Missing or incomplete assets after attempt ${attempt}: ${missing.join(', ')}`,
+    );
   }
 
   throw new Error(
     `Release ${TAG} is incomplete after ${MAX_PUBLISH_ATTEMPTS} attempts. ` +
-    `Check "gh release view ${TAG}" and re-run this script.`
+      `Check "gh release view ${TAG}" and re-run this script.`,
   );
 }
 
 async function resolveProxy() {
-  const fromEnv = process.env.HTTPS_PROXY || process.env.https_proxy
-    || process.env.HTTP_PROXY || process.env.http_proxy;
+  const fromEnv =
+    process.env.HTTPS_PROXY ||
+    process.env.https_proxy ||
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy;
   if (fromEnv && fromEnv.trim()) {
     log(`Using proxy from environment: ${fromEnv.trim()}`);
     return fromEnv.trim();
@@ -81,11 +91,15 @@ async function resolveProxy() {
   for (const port of LOCAL_PROXY_PORTS) {
     if (await probeProxyPort(port)) {
       const detected = `http://127.0.0.1:${port}`;
-      log(`Auto-detected local proxy ${detected}, routing GitHub uploads through it`);
+      log(
+        `Auto-detected local proxy ${detected}, routing GitHub uploads through it`,
+      );
       return detected;
     }
   }
-  log('No local proxy detected, uploading directly (may be slow). Set HTTPS_PROXY to use one.');
+  log(
+    'No local proxy detected, uploading directly (may be slow). Set HTTPS_PROXY to use one.',
+  );
   return '';
 }
 
@@ -105,7 +119,11 @@ function probeProxyPort(port) {
 }
 
 function ensureCleanEnoughGitState() {
-  const branch = runCapture('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+  const branch = runCapture('git', [
+    'rev-parse',
+    '--abbrev-ref',
+    'HEAD',
+  ]).trim();
   const head = runCapture('git', ['rev-parse', 'HEAD']).trim();
   log(`Current branch ${branch} at ${head.slice(0, 12)}`);
 }
@@ -128,20 +146,32 @@ function ensureGhToken() {
   if (process.env.GH_TOKEN) return;
   const token = tryCapture('gh', ['auth', 'token']);
   if (!token || !token.trim()) {
-    throw new Error('GH_TOKEN is not set and "gh auth token" returned nothing. Run "gh auth login" first.');
+    throw new Error(
+      'GH_TOKEN is not set and "gh auth token" returned nothing. Run "gh auth login" first.',
+    );
   }
   process.env.GH_TOKEN = token.trim();
   log('GH_TOKEN populated from "gh auth token"');
 }
 
 function ensureGithubRelease() {
-  const exists = tryCapture('gh', ['release', 'view', TAG, '--repo', `${OWNER}/${REPO}`]);
+  const exists = tryCapture('gh', [
+    'release',
+    'view',
+    TAG,
+    '--repo',
+    `${OWNER}/${REPO}`,
+  ]);
   if (exists) {
-    log(`GitHub release ${TAG} already exists, will only fill in missing assets`);
+    log(
+      `GitHub release ${TAG} already exists, will only fill in missing assets`,
+    );
     return;
   }
 
-  log(`Creating GitHub release ${TAG} up front to avoid electron-builder's create-race`);
+  log(
+    `Creating GitHub release ${TAG} up front to avoid electron-builder's create-race`,
+  );
   // Notes go through a temp file + --notes-file rather than a raw --notes arg:
   // execFileSync runs with shell:true on Windows, and release notes routinely
   // contain backticks (inline code in the changelog) that a shell would treat
@@ -150,10 +180,15 @@ function ensureGithubRelease() {
   fs.writeFileSync(notesPath, extractReleaseNotes(VERSION), 'utf8');
   try {
     run('gh', [
-      'release', 'create', TAG,
-      '--repo', `${OWNER}/${REPO}`,
-      '--title', VERSION,
-      '--notes-file', notesPath,
+      'release',
+      'create',
+      TAG,
+      '--repo',
+      `${OWNER}/${REPO}`,
+      '--title',
+      VERSION,
+      '--notes-file',
+      notesPath,
     ]);
   } finally {
     fs.rmSync(notesPath, { force: true });
@@ -180,7 +215,10 @@ function findMissingAssets() {
   // Deliberately avoid "gh api --jq ..." here: on Windows the jq expression
   // gets mangled by cmd.exe's quoting, which made this always look empty
   // and falsely report every asset as missing. Parse the plain JSON instead.
-  const raw = tryCapture('gh', ['api', `repos/${OWNER}/${REPO}/releases/tags/${TAG}`]);
+  const raw = tryCapture('gh', [
+    'api',
+    `repos/${OWNER}/${REPO}/releases/tags/${TAG}`,
+  ]);
   if (!raw) return EXPECTED_ASSETS;
 
   let release;
@@ -193,7 +231,7 @@ function findMissingAssets() {
   const uploaded = new Set(
     (release.assets || [])
       .filter((asset) => asset.state === 'uploaded')
-      .map((asset) => asset.name)
+      .map((asset) => asset.name),
   );
   return EXPECTED_ASSETS.filter((name) => !uploaded.has(name));
 }
@@ -205,21 +243,26 @@ function proxyEnv(baseEnv) {
     HTTPS_PROXY: proxyUrl,
     https_proxy: proxyUrl,
     HTTP_PROXY: proxyUrl,
-    http_proxy: proxyUrl
+    http_proxy: proxyUrl,
   };
 }
 
 function run(command, args) {
   log(`$ ${command} ${args.join(' ')}`);
   const env = proxyEnv({ ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' });
-  execFileSync(command, args, { cwd: ROOT_DIR, stdio: 'inherit', shell: process.platform === 'win32', env });
+  execFileSync(command, args, {
+    cwd: ROOT_DIR,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+    env,
+  });
 }
 
 function runCapture(command, args) {
   return execFileSync(command, args, {
     cwd: ROOT_DIR,
     shell: process.platform === 'win32',
-    env: proxyEnv(process.env)
+    env: proxyEnv(process.env),
   }).toString();
 }
 
@@ -229,7 +272,7 @@ function tryCapture(command, args) {
       cwd: ROOT_DIR,
       shell: process.platform === 'win32',
       stdio: ['ignore', 'pipe', 'ignore'],
-      env: proxyEnv(process.env)
+      env: proxyEnv(process.env),
     }).toString();
   } catch {
     return '';

@@ -9,7 +9,7 @@ function resolveMusicStream(registry, track, options = {}) {
   const provider = registry.get(normalizedTrack.source);
   return provider.resolvePlayableUrl(normalizedTrack, {
     forceRefresh: options.forceRefresh === true,
-    quality: String(options.quality || '')
+    quality: String(options.quality || ''),
   });
 }
 

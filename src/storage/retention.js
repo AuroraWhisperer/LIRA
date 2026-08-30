@@ -8,11 +8,11 @@ const { createGiftMaintenanceStore } = require('./gift-maintenance-store');
 
 // 默认保留期（天）。0 表示不清理。
 const DEFAULT_POLICY = {
-  giftRawJsonDays: 30,   // 原始报文只用于排障，过期后清空文本但保留解析结果
-  giftEventDays: 0,      // 礼物流水默认永久保留，删行要用户显式开启
-  requestDays: 0,        // 点歌流水同上
+  giftRawJsonDays: 30, // 原始报文只用于排障，过期后清空文本但保留解析结果
+  giftEventDays: 0, // 礼物流水默认永久保留，删行要用户显式开启
+  requestDays: 0, // 点歌流水同上
   superChatDays: 0,
-  cooldownDays: 1
+  cooldownDays: 1,
 };
 
 function normalizeDays(value, fallback = 0) {
@@ -40,22 +40,30 @@ function applyRetentionPolicies(databases, options = {}) {
     giftEventsDeleted: 0,
     requestsDeleted: 0,
     superChatsDeleted: 0,
-    cooldownsDeleted: 0
+    cooldownsDeleted: 0,
   };
 
   const giftRawDays = normalizeDays(policy.giftRawJsonDays);
   if (giftRawDays > 0 && databases.giftDb) {
     const threshold = isoDaysAgo(giftRawDays);
-    const countRow = databases.giftDb.prepare(`
+    const countRow = databases.giftDb
+      .prepare(
+        `
       SELECT COUNT(*) AS count FROM gift_events
       WHERE raw_json != '' AND created_at < ?
-    `).get(threshold);
+    `,
+      )
+      .get(threshold);
     result.giftRawJsonCleared = Number(countRow && countRow.count) || 0;
     if (!dryRun && result.giftRawJsonCleared > 0) {
-      databases.giftDb.prepare(`
+      databases.giftDb
+        .prepare(
+          `
         UPDATE gift_events SET raw_json = '', updated_at = ?
         WHERE raw_json != '' AND created_at < ?
-      `).run(now(), threshold);
+      `,
+        )
+        .run(now(), threshold);
     }
   }
 
@@ -68,7 +76,7 @@ function applyRetentionPolicies(databases, options = {}) {
       // Dry-run: 只统计数量
       result.giftEventsDeleted = maintenance.countGiftsByPredicate(
         'created_at < ?',
-        [threshold]
+        [threshold],
       );
     } else {
       // 实际删除：使用维护存储协调删除，确保 pending settlements 被标记为 ignored
@@ -76,7 +84,7 @@ function applyRetentionPolicies(databases, options = {}) {
         'created_at < ?',
         [threshold],
         'retention:expired',
-        now()
+        now(),
       );
       result.giftEventsDeleted = deleteResult.deletedGifts;
     }
@@ -85,26 +93,38 @@ function applyRetentionPolicies(databases, options = {}) {
   const requestDays = normalizeDays(policy.requestDays);
   if (requestDays > 0 && databases.songDb) {
     result.requestsDeleted = deleteOlderThan(
-      databases.songDb, 'requests', isoDaysAgo(requestDays), dryRun
+      databases.songDb,
+      'requests',
+      isoDaysAgo(requestDays),
+      dryRun,
     );
   }
 
   const superChatDays = normalizeDays(policy.superChatDays);
   if (superChatDays > 0 && databases.superChatDb) {
     result.superChatsDeleted = deleteOlderThan(
-      databases.superChatDb, 'super_chats', isoDaysAgo(superChatDays), dryRun
+      databases.superChatDb,
+      'super_chats',
+      isoDaysAgo(superChatDays),
+      dryRun,
     );
   }
 
   const cooldownDays = normalizeDays(policy.cooldownDays, 1);
   if (cooldownDays > 0 && databases.songDb) {
     const threshold = Date.now() - cooldownDays * 24 * 60 * 60 * 1000;
-    const countRow = databases.songDb.prepare(`
+    const countRow = databases.songDb
+      .prepare(
+        `
       SELECT COUNT(*) AS count FROM user_cooldowns WHERE last_request_at < ?
-    `).get(threshold);
+    `,
+      )
+      .get(threshold);
     result.cooldownsDeleted = Number(countRow && countRow.count) || 0;
     if (!dryRun && result.cooldownsDeleted > 0) {
-      databases.songDb.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?').run(threshold);
+      databases.songDb
+        .prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?')
+        .run(threshold);
     }
   }
 
@@ -112,7 +132,8 @@ function applyRetentionPolicies(databases, options = {}) {
 }
 
 function deleteOlderThan(db, tableName, threshold, dryRun) {
-  const countRow = db.prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE created_at < ?`)
+  const countRow = db
+    .prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE created_at < ?`)
     .get(threshold);
   const count = Number(countRow && countRow.count) || 0;
   if (!dryRun && count > 0) {
@@ -125,11 +146,23 @@ function deleteOlderThan(db, tableName, threshold, dryRun) {
 function readRetentionPolicy(settings) {
   const source = settings && typeof settings === 'object' ? settings : {};
   return {
-    giftRawJsonDays: normalizeDays(source.giftRawJsonRetentionDays, DEFAULT_POLICY.giftRawJsonDays),
-    giftEventDays: normalizeDays(source.giftEventRetentionDays, DEFAULT_POLICY.giftEventDays),
-    requestDays: normalizeDays(source.requestRetentionDays, DEFAULT_POLICY.requestDays),
-    superChatDays: normalizeDays(source.superChatRetentionDays, DEFAULT_POLICY.superChatDays),
-    cooldownDays: DEFAULT_POLICY.cooldownDays
+    giftRawJsonDays: normalizeDays(
+      source.giftRawJsonRetentionDays,
+      DEFAULT_POLICY.giftRawJsonDays,
+    ),
+    giftEventDays: normalizeDays(
+      source.giftEventRetentionDays,
+      DEFAULT_POLICY.giftEventDays,
+    ),
+    requestDays: normalizeDays(
+      source.requestRetentionDays,
+      DEFAULT_POLICY.requestDays,
+    ),
+    superChatDays: normalizeDays(
+      source.superChatRetentionDays,
+      DEFAULT_POLICY.superChatDays,
+    ),
+    cooldownDays: DEFAULT_POLICY.cooldownDays,
   };
 }
 
@@ -142,21 +175,25 @@ function getRetentionStats(databases) {
     queue: tableStats(databases.songDb, 'queue'),
     superChats: tableStats(databases.superChatDb, 'super_chats'),
     cooldowns: tableStats(databases.songDb, 'user_cooldowns', 'updated_at'),
-    playHistory: tableStats(databases.musicDb, 'play_history', 'played_at')
+    playHistory: tableStats(databases.musicDb, 'play_history', 'played_at'),
   };
 }
 
 function tableStats(db, tableName, timeColumn = 'created_at') {
   if (!db) return { rows: 0, oldest: '', newest: '' };
   try {
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT COUNT(*) AS rows, MIN(${timeColumn}) AS oldest, MAX(${timeColumn}) AS newest
       FROM ${tableName}
-    `).get();
+    `,
+      )
+      .get();
     return {
       rows: Number(row && row.rows) || 0,
       oldest: (row && row.oldest) || '',
-      newest: (row && row.newest) || ''
+      newest: (row && row.newest) || '',
     };
   } catch (_) {
     return { rows: 0, oldest: '', newest: '' };
@@ -166,13 +203,17 @@ function tableStats(db, tableName, timeColumn = 'created_at') {
 function rawJsonStats(db) {
   if (!db) return { rows: 0, bytes: 0 };
   try {
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT COUNT(*) AS rows, SUM(LENGTH(raw_json)) AS bytes
       FROM gift_events WHERE raw_json != ''
-    `).get();
+    `,
+      )
+      .get();
     return {
       rows: Number(row && row.rows) || 0,
-      bytes: Number(row && row.bytes) || 0
+      bytes: Number(row && row.bytes) || 0,
     };
   } catch (_) {
     return { rows: 0, bytes: 0 };
@@ -184,5 +225,5 @@ module.exports = {
   applyRetentionPolicies,
   readRetentionPolicy,
   getRetentionStats,
-  isoDaysAgo
+  isoDaysAgo,
 };

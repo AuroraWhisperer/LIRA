@@ -19,19 +19,23 @@ function createDanmakuSenderService(dependencies) {
     minIntervalMs = 1500,
     now = Date.now,
     delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-    log = console.log
+    log = console.log,
   } = dependencies;
   let lastSentAt = 0;
   let displayCache = {
     account: { key: '', name: '', expiresAt: 0 },
-    room: { key: '', name: '', expiresAt: 0 }
+    room: { key: '', name: '', expiresAt: 0 },
   };
 
   async function getState() {
-    const [auth, room, target] = await Promise.all([getAuth(), getRoom(), getMentionTarget()]);
+    const [auth, room, target] = await Promise.all([
+      getAuth(),
+      getRoom(),
+      getMentionTarget(),
+    ]);
     const live = getLiveStatus();
     const loggedIn = Boolean(auth && auth.loggedIn && auth.cookieHeader);
-    const roomId = String(room && room.roomId || '');
+    const roomId = String((room && room.roomId) || '');
     const state = {
       loggedIn,
       accountUid: Number(auth && auth.uid) || 0,
@@ -39,14 +43,18 @@ function createDanmakuSenderService(dependencies) {
       roomId,
       roomName: cleanText(live && live.ownerName),
       connected: Boolean(live && live.connected),
-      liveMessage: String(live && live.message || ''),
+      liveMessage: String((live && live.message) || ''),
       autoReplyEnabled: Boolean(getAutoReplyEnabled()),
       checkinBotEnabled: Boolean(getCheckinBotEnabled()),
       fortuneBotEnabled: Boolean(getFortuneBotEnabled()),
       customReplyBotEnabled: Boolean(getCustomReplyBotEnabled()),
       canSend: Boolean(loggedIn && roomId),
-      unavailableReason: !loggedIn ? '请先登录 Bilibili 账号。' : (!roomId ? '请先设置直播间号。' : ''),
-      requester: target || emptyTarget()
+      unavailableReason: !loggedIn
+        ? '请先登录 Bilibili 账号。'
+        : !roomId
+          ? '请先设置直播间号。'
+          : '',
+      requester: target || emptyTarget(),
     };
     await enrichDisplayNames(state, auth || {}, roomId, live || {});
     return state;
@@ -57,13 +65,20 @@ function createDanmakuSenderService(dependencies) {
     const client = createClient(roomId || '0', auth);
     await Promise.all([
       resolveAccountName(state, auth, client).catch(() => {}),
-      resolveRoomName(state, roomId, live, client).catch(() => {})
+      resolveRoomName(state, roomId, live, client).catch(() => {}),
     ]);
   }
 
   async function resolveAccountName(state, auth, client) {
-    const accountKey = String(Number(auth && auth.uid) || state.accountUid || '');
-    if (!state.loggedIn || !accountKey || typeof client.fetchCurrentUserName !== 'function') return;
+    const accountKey = String(
+      Number(auth && auth.uid) || state.accountUid || '',
+    );
+    if (
+      !state.loggedIn ||
+      !accountKey ||
+      typeof client.fetchCurrentUserName !== 'function'
+    )
+      return;
     const cached = getCachedDisplayName(displayCache.account, accountKey);
     if (cached) {
       state.accountName = cached;
@@ -105,18 +120,21 @@ function createDanmakuSenderService(dependencies) {
     mentionEveryChunk = false,
     intervalMs = 0,
     rateLimitIntervalMs = minIntervalMs,
-    waitForRateLimit = false
+    waitForRateLimit = false,
   }) {
     const nowMs = now();
-    const remainingWait = lastSentAt ? rateLimitIntervalMs - (nowMs - lastSentAt) : 0;
+    const remainingWait = lastSentAt
+      ? rateLimitIntervalMs - (nowMs - lastSentAt)
+      : 0;
     if (remainingWait > 0 && waitForRateLimit) await delay(remainingWait);
     else if (remainingWait > 0) throw new Error('发送过于频繁，请稍后再试。');
     const [auth, room] = await Promise.all([getAuth(), getRoom()]);
-    if (!auth || !auth.loggedIn || !auth.cookieHeader) throw new Error('请先登录 Bilibili 账号。');
+    if (!auth || !auth.loggedIn || !auth.cookieHeader)
+      throw new Error('请先登录 Bilibili 账号。');
     if (!room || !room.roomId) throw new Error('请先设置 Bilibili 直播间号。');
 
     const target = normalizeReplyTarget(
-      mentionTarget || (mentionRequester ? await getMentionTarget() : null)
+      mentionTarget || (mentionRequester ? await getMentionTarget() : null),
     );
     const messages = mentionEveryChunk
       ? splitDanmakuEveryMentionMessage(message, target)
@@ -127,8 +145,11 @@ function createDanmakuSenderService(dependencies) {
     const sentAfter = now();
     for (let index = 0; index < messages.length; index += 1) {
       if (index > 0 && intervalMs > 0) await delay(intervalMs);
-      const replyTarget = mentionEveryChunk || index === 0 ? target : emptyTarget();
-      results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
+      const replyTarget =
+        mentionEveryChunk || index === 0 ? target : emptyTarget();
+      results.push(
+        await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget),
+      );
     }
     const result = {
       message: results.map((item) => item.message).join(''),
@@ -136,11 +157,13 @@ function createDanmakuSenderService(dependencies) {
       count: results.length,
       accountUid: String(Number(auth.uid) || ''),
       sentAfter,
-      replyMid: results[0] && results[0].replyMid || '',
-      replyUname: results[0] && results[0].replyUname || ''
+      replyMid: (results[0] && results[0].replyMid) || '',
+      replyUname: (results[0] && results[0].replyUname) || '',
     };
     lastSentAt = now();
-    log(`[Bilibili][DanmakuSend] status=sent roomId=${roomInfo.roomId} accountUid=${auth.uid || 0} count=${result.count} replyUid=${JSON.stringify(result.replyMid)}`);
+    log(
+      `[Bilibili][DanmakuSend] status=sent roomId=${roomInfo.roomId} accountUid=${auth.uid || 0} count=${result.count} replyUid=${JSON.stringify(result.replyMid)}`,
+    );
     return result;
   }
 
@@ -160,7 +183,11 @@ function splitDanmakuMessage(message, limit = DANMAKU_MESSAGE_LIMIT) {
   return chunks;
 }
 
-function splitDanmakuReplyMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT) {
+function splitDanmakuReplyMessage(
+  message,
+  target,
+  limit = DANMAKU_MESSAGE_LIMIT,
+) {
   const name = cleanText(target && target.name);
   if (!name) return splitDanmakuMessage(message, limit);
 
@@ -175,7 +202,11 @@ function splitDanmakuReplyMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT
 }
 
 /** Split every chunk after reserving space for the visible `@name ` prefix. */
-function splitDanmakuEveryMentionMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT) {
+function splitDanmakuEveryMentionMessage(
+  message,
+  target,
+  limit = DANMAKU_MESSAGE_LIMIT,
+) {
   const name = cleanText(target && target.name);
   if (!name) return splitDanmakuMessage(message, limit);
   const mentionLength = splitTextIntoCharacters(`@${name} `).length;
@@ -196,7 +227,7 @@ function splitDanmakuNaturally(message, limit) {
 
 function findNaturalBreak(chars, limit) {
   const minimumChunkCount = Math.ceil(chars.length / limit);
-  const capacitySafeMinimum = chars.length - ((minimumChunkCount - 1) * limit);
+  const capacitySafeMinimum = chars.length - (minimumChunkCount - 1) * limit;
   const emoticonStart = findSplitEmoticonStart(chars, limit);
   if (emoticonStart >= Math.max(1, capacitySafeMinimum)) return emoticonStart;
 
@@ -224,7 +255,7 @@ function normalizeReplyTarget(target) {
     uid: cleanText(target.uid),
     name: cleanText(target.name),
     source: cleanText(target.source),
-    createdAt: cleanText(target.createdAt)
+    createdAt: cleanText(target.createdAt),
   };
 }
 
@@ -237,7 +268,7 @@ function createDisplayCacheEntry(key, name) {
   return {
     key,
     name,
-    expiresAt: Date.now() + DISPLAY_CACHE_TTL_MS
+    expiresAt: Date.now() + DISPLAY_CACHE_TTL_MS,
   };
 }
 
@@ -247,5 +278,5 @@ module.exports = {
   splitDanmakuMessage,
   splitDanmakuReplyMessage,
   splitDanmakuEveryMentionMessage,
-  DANMAKU_MESSAGE_LIMIT
+  DANMAKU_MESSAGE_LIMIT,
 };

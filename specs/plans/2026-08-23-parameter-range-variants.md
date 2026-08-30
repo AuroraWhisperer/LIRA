@@ -55,9 +55,11 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 ### Task 1: Lock the reusable modifier contract
 
 **Files:**
+
 - Modify: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**
+
 - Consumes: `getParameterRangeProgress(input)` and new `getParameterRangeOrigin(input)`.
 - Produces: structural coverage for `parameter-range--tempo|scale|intensity|centered` and representative HTML assignments.
 
@@ -69,10 +71,12 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 ### Task 2: Implement the component variants
 
 **Files:**
+
 - Modify: `public/js/shared/parameter-range.js`
 - Modify: `public/css/components/parameter-range.css`
 
 **Interfaces:**
+
 - Produces: `getParameterRangeOrigin(input): { zeroProgress, startProgress, lengthProgress, polarity }`.
 - Produces CSS variables: `--parameter-range-origin-start`, `--parameter-range-origin-length`, and `--parameter-range-zero-position`.
 
@@ -85,12 +89,14 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 ### Task 3: Assign variants by control meaning
 
 **Files:**
+
 - Modify: `public/pages/admin/song/queue-theme.html`
 - Modify: `public/pages/admin/song/song-board.html`
 - Modify: `public/pages/admin/song/desktop-lyric.html`
 - Modify: `public/pages/admin/playback/page.html`
 
 **Interfaces:**
+
 - Consumes: the modifier classes from Task 2.
 - Preserves: every existing input ID and numeric attribute.
 
@@ -103,10 +109,12 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 ### Task 4: Document and verify the finished module
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/pages.md`
 - Update: `specs/plans/2026-08-23-parameter-range-variants.md`
 
 **Interfaces:**
+
 - Produces: discoverable caller guidance for future Admin controls.
 
 - [x] Add the component to the CSS inventory with the exact modifier names and explain that unmodified `parameter-range` remains the default sky-blue variant.

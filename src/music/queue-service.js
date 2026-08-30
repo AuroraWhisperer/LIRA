@@ -7,7 +7,7 @@ const {
   now,
   timestampToIso,
   normalizeGuardLevel,
-  normalizePositiveInteger
+  normalizePositiveInteger,
 } = require('../shared/utils');
 
 function addQueueItem(context, input) {
@@ -18,11 +18,18 @@ function addQueueItem(context, input) {
   const defaults = context.defaults();
   const store = context.store;
   const queueLimit = Number(settings.queueLimit || defaults.queueLimit);
-  if (Number.isFinite(queueLimit) && queueLimit > 0 && store.countActive() >= queueLimit) {
+  if (
+    Number.isFinite(queueLimit) &&
+    queueLimit > 0 &&
+    store.countActive() >= queueLimit
+  ) {
     throw new Error('点歌队列已达到上限。');
   }
 
-  if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
+  if (
+    settings.allowDuplicate !== 'true' &&
+    store.findActiveBySongName(songName)
+  ) {
     throw new Error('队列里已经有这首歌。');
   }
 
@@ -33,13 +40,19 @@ function addQueueItem(context, input) {
     throw new Error('歌库里没有这首歌。');
   }
 
-  const createdAt = timestampToIso(input.messageTimestamp || input.createdAt) || now();
-  const isPinned = input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true' ? 1 : 0;
+  const createdAt =
+    timestampToIso(input.messageTimestamp || input.createdAt) || now();
+  const isPinned =
+    input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true'
+      ? 1
+      : 0;
   return store.insertRequest({
     songId: matchedSong ? matchedSong.id : null,
     songName: matchedSong ? matchedSong.name : songName,
     artist: cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
-    categoryName: cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
+    categoryName:
+      cleanText(input.categoryName) ||
+      (matchedSong ? matchedSong.category_name : ''),
     requesterUid: cleanText(input.requesterUid),
     requesterName: cleanText(input.requesterName) || '观众',
     requesterGuardLevel: normalizeGuardLevel(input.requesterGuardLevel),
@@ -50,7 +63,7 @@ function addQueueItem(context, input) {
     status: 'waiting',
     isPinned,
     pinnedAt: isPinned ? createdAt : '',
-    createdAt
+    createdAt,
   });
 }
 
@@ -73,7 +86,8 @@ function handleQueueAction(context, action, rawId) {
     return getQueueSnapshot(context);
   }
   if (action === 'delete' || action === 'done' || action === 'skip') {
-    const status = action === 'delete' ? 'deleted' : (action === 'skip' ? 'skipped' : 'done');
+    const status =
+      action === 'delete' ? 'deleted' : action === 'skip' ? 'skipped' : 'done';
     context.store.setStatus(id, status, updatedAt);
     return getQueueSnapshot(context);
   }
@@ -101,5 +115,5 @@ module.exports = {
   handleQueueAction,
   getQueueSnapshot,
   clearActiveQueueOnStartup,
-  ensureUnifiedQueue
+  ensureUnifiedQueue,
 };

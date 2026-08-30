@@ -20,10 +20,12 @@
 ### Task 1: 重排弹幕姬 Admin fragment
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Test: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**
+
 - Consumes: existing `danmaku-tool.js` element IDs and AI/library editor IDs.
 - Produces: connection section with `danmakuRefreshBtn`, a `danmakuStyleFeed` preview root, a single random-song reply group, an AI group, and a fixed-reply group containing check-in/fortune/DIY controls and editors.
 
@@ -50,12 +52,14 @@ Expected: PASS for the updated order and required IDs/text.
 ### Task 2: Render the shared bubble style in the Admin preview
 
 **Files:**
+
 - Modify: `public/js/admin/danmaku-tool.js`
 - Modify: `public/css/admin/other-features/danmaku-tool.css`
 - Modify: `public/css/admin/other-features.css` only if a shared stylesheet import is required
 - Test: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**
+
 - Consumes: `createDanmakuFeed(root, options)` from `public/js/overlays/danmaku-feed.js`.
 - Produces: a preview populated with safe sample `{ name, message, guardLevel, medalName, medalLevel }` data; no persisted setting.
 
@@ -82,6 +86,7 @@ Expected: PASS; the existing games overlay still imports and consumes the same c
 ### Task 3: Verify contracts and UI regression gates
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/usage-guide.html` if its section description/order is stale
 - Test: `test/frontend-admin-ai.test.js`, `test/games-overlay.test.js`
 

@@ -65,7 +65,10 @@
 - [x] 在三个聚焦测试文件中加入 `ranked` 合法值、Admin 入口及以下 CSS/JS 断言：
 
 ```js
-assert.match(script, /const OVERLAY_STYLES = new Set\(\['bubble', 'signal', 'minimal', 'ranked'\]\)/);
+assert.match(
+  script,
+  /const OVERLAY_STYLES = new Set\(\['bubble', 'signal', 'minimal', 'ranked'\]\)/,
+);
 assert.equal(module.calculateRankedOverlayScale(192, 640), 0.5);
 assert.match(styles, /body\[data-style='ranked'\]/);
 assert.match(styles, /--ranked-card-width:\s*360px/);

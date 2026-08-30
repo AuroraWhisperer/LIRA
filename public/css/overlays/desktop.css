@@ -12,7 +12,7 @@ html.desktop-shell {
   --accent: #c79a3b;
   --danger: #b42318;
   --warning: #946200;
-  --shadow: 0 12px 32px rgba(87, 58, 28, 0.10);
+  --shadow: 0 12px 32px rgba(87, 58, 28, 0.1);
 }
 
 body.desktop-shell {
@@ -27,9 +27,8 @@ body.desktop-shell {
   --accent: #c79a3b;
   --danger: #b42318;
   --warning: #946200;
-  --shadow: 0 12px 32px rgba(87, 58, 28, 0.10);
-  background:
-    linear-gradient(180deg, #fff7ed 0, #f7f3ef 280px, #f3f6fb 100%);
+  --shadow: 0 12px 32px rgba(87, 58, 28, 0.1);
+  background: linear-gradient(180deg, #fff7ed 0, #f7f3ef 280px, #f3f6fb 100%);
 }
 
 body.desktop-shell.player-fs-open .topbar {
@@ -61,7 +60,7 @@ body.desktop-shell button.primary:hover {
 }
 
 body.desktop-shell .panel-header h2::before {
-  content: "";
+  content: '';
   display: inline-block;
   width: 4px;
   height: 16px;
@@ -107,17 +106,17 @@ body.desktop-shell #shutdownBtn {
   white-space: pre-line;
 }
 
-#desktopUpdateStatus[data-status="checking"],
-#desktopUpdateStatus[data-status="downloading"],
-#desktopUpdateStatus[data-status="installing"] {
+#desktopUpdateStatus[data-status='checking'],
+#desktopUpdateStatus[data-status='downloading'],
+#desktopUpdateStatus[data-status='installing'] {
   color: var(--primary-strong);
 }
 
-#desktopUpdateStatus[data-status="not-available"] {
+#desktopUpdateStatus[data-status='not-available'] {
   color: var(--color-success-dark);
 }
 
-#desktopUpdateStatus[data-status="error"] {
+#desktopUpdateStatus[data-status='error'] {
   color: var(--danger);
 }
 
@@ -183,7 +182,7 @@ body.desktop-shell #shutdownBtn {
   transition: width 180ms ease;
 }
 
-body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
+body.desktop-shell .desktop-update-progress span[style='width: 0%;'] {
   background: transparent;
 }
 
@@ -207,8 +206,8 @@ body.desktop-shell .desktop-update-progress span[style="width: 0%;"] {
   border-radius: 16px;
   background: var(--surface);
   box-shadow:
-    0 20px 48px rgba(22, 31, 43, 0.10),
-    0 0 0 1px rgba(255, 255, 255, 0.60) inset;
+    0 20px 48px rgba(22, 31, 43, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
   padding: 44px 36px 36px;
 }
 
@@ -388,7 +387,11 @@ body.desktop-shell .win-btn {
   cursor: pointer;
   padding: 0;
   opacity: 0.5;
-  transition: background 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease,
+    transform 150ms ease;
 }
 
 body.desktop-shell .win-btn:hover {
@@ -483,7 +486,9 @@ body.desktop-shell .playback-play-btn {
   box-shadow: 0 5px 14px rgba(180, 35, 24, 0.34);
 }
 
-body.desktop-shell .playback-seek-wrap input[type="range"]::-webkit-slider-thumb {
+body.desktop-shell
+  .playback-seek-wrap
+  input[type='range']::-webkit-slider-thumb {
   box-shadow:
     0 0 0 3px var(--primary),
     0 3px 10px rgba(180, 35, 24, 0.34);

@@ -14,14 +14,23 @@ const songService = require('../src/music/song-service');
 const ROOT_DIR = path.join(__dirname, '..');
 
 async function loadCategoryFilterModule() {
-  const filePath = path.join(__dirname, '..', 'public', 'js', 'admin', 'song-category-filter.js');
+  const filePath = path.join(
+    __dirname,
+    '..',
+    'public',
+    'js',
+    'admin',
+    'song-category-filter.js',
+  );
   const context = vm.createContext({ console, document: {} });
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context,
-    identifier: pathToFileURL(filePath).href
+    identifier: pathToFileURL(filePath).href,
   });
   await module.link(() => {
-    throw new Error('The category filter module should not import dependencies.');
+    throw new Error(
+      'The category filter module should not import dependencies.',
+    );
   });
   await module.evaluate();
   return module.namespace;
@@ -35,14 +44,17 @@ async function loadSongsModule(globals) {
   async function load(modulePath) {
     const identifier = pathToFileURL(modulePath).href;
     if (modules.has(identifier)) return modules.get(identifier);
-    const module = new vm.SourceTextModule(fs.readFileSync(modulePath, 'utf8'), {
-      context,
-      identifier
-    });
+    const module = new vm.SourceTextModule(
+      fs.readFileSync(modulePath, 'utf8'),
+      {
+        context,
+        identifier,
+      },
+    );
     modules.set(identifier, module);
-    await module.link((specifier, referencingModule) => (
-      load(fileURLToPath(new URL(specifier, referencingModule.identifier)))
-    ));
+    await module.link((specifier, referencingModule) =>
+      load(fileURLToPath(new URL(specifier, referencingModule.identifier))),
+    );
     return module;
   }
 
@@ -52,60 +64,83 @@ async function loadSongsModule(globals) {
 }
 
 test('category filter presents each slash-separated category on its own row', async () => {
-  const { readSelectedTags, splitCategoryNames } = await loadCategoryFilterModule();
+  const { readSelectedTags, splitCategoryNames } =
+    await loadCategoryFilterModule();
 
-  const names = Array.from(splitCategoryNames([
+  const names = Array.from(
+    splitCategoryNames([
       { name: '流行 / R&B / 说唱' },
       { name: 'R&B / 古风' },
       { name: '舞曲／流行' },
-      { name: '默认' }
-    ])).sort();
+      { name: '默认' },
+    ]),
+  ).sort();
 
   assert.deepEqual(names, ['R&B', '古风', '流行', '舞曲', '说唱'].sort());
   assert.deepEqual(
-    Array.from(readSelectedTags({
-      querySelectorAll: () => [{ value: '抒情' }, { value: '治愈' }]
-    })),
-    ['抒情', '治愈']
+    Array.from(
+      readSelectedTags({
+        querySelectorAll: () => [{ value: '抒情' }, { value: '治愈' }],
+      }),
+    ),
+    ['抒情', '治愈'],
   );
 });
 
 test('song library requires every selected category and composes with other filters', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-filter-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-library-filter-'),
+  );
   const databases = createDatabases({ dataDir });
 
   try {
     songService.saveSong(databases.songDb, {
-      name: '双分类可点', artist: '歌手甲', categoryName: '流行 / R&B / 说唱', language: '国语'
+      name: '双分类可点',
+      artist: '歌手甲',
+      categoryName: '流行 / R&B / 说唱',
+      language: '国语',
     });
     songService.saveSong(databases.songDb, {
-      name: '双分类停用', artist: '歌手甲', categoryName: 'R&B / 说唱', language: '国语', isEnabled: false
+      name: '双分类停用',
+      artist: '歌手甲',
+      categoryName: 'R&B / 说唱',
+      language: '国语',
+      isEnabled: false,
     });
     songService.saveSong(databases.songDb, {
-      name: '只有R&B', artist: '歌手甲', categoryName: '流行 / R&B', language: '国语'
+      name: '只有R&B',
+      artist: '歌手甲',
+      categoryName: '流行 / R&B',
+      language: '国语',
     });
     songService.saveSong(databases.songDb, {
-      name: '语言不同', artist: '歌手甲', categoryName: 'R&B / 说唱', language: '粤语'
+      name: '语言不同',
+      artist: '歌手甲',
+      categoryName: 'R&B / 说唱',
+      language: '粤语',
     });
 
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { categories: ['R&B', '说唱'] })
+      songService
+        .listSongs(databases.songDb, { categories: ['R&B', '说唱'] })
         .map((song) => song.name)
         .sort(),
-      ['双分类停用', '双分类可点', '语言不同']
+      ['双分类停用', '双分类可点', '语言不同'],
     );
     assert.deepEqual(
-      songService.listSongs(databases.songDb, {
-        categories: ['R&B', '说唱'],
-        language: '国语',
-        artist: '歌手甲',
-        enabledOnly: true
-      }).map((song) => song.name),
-      ['双分类可点']
+      songService
+        .listSongs(databases.songDb, {
+          categories: ['R&B', '说唱'],
+          language: '国语',
+          artist: '歌手甲',
+          enabledOnly: true,
+        })
+        .map((song) => song.name),
+      ['双分类可点'],
     );
     assert.deepEqual(
       songService.listSongs(databases.songDb, { categories: ['R&B', '民谣'] }),
-      []
+      [],
     );
   } finally {
     closeDatabases(databases);
@@ -114,27 +149,40 @@ test('song library requires every selected category and composes with other filt
 });
 
 test('song library artist filter matches an individual artist in a collaboration field', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-artist-filter-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-library-artist-filter-'),
+  );
   const databases = createDatabases({ dataDir });
 
   try {
     songService.saveSong(databases.songDb, {
-      name: '合作歌曲', artist: '歌手甲 / 歌手乙', categoryName: '流行'
+      name: '合作歌曲',
+      artist: '歌手甲 / 歌手乙',
+      categoryName: '流行',
     });
     songService.saveSong(databases.songDb, {
-      name: '歌手甲独唱', artist: '歌手甲', categoryName: '流行'
+      name: '歌手甲独唱',
+      artist: '歌手甲',
+      categoryName: '流行',
     });
     songService.saveSong(databases.songDb, {
-      name: '其他歌曲', artist: '歌手丙', categoryName: '流行'
+      name: '其他歌曲',
+      artist: '歌手丙',
+      categoryName: '流行',
     });
 
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { artist: '歌手甲' }).map((song) => song.name).sort(),
-      ['合作歌曲', '歌手甲独唱'].sort()
+      songService
+        .listSongs(databases.songDb, { artist: '歌手甲' })
+        .map((song) => song.name)
+        .sort(),
+      ['合作歌曲', '歌手甲独唱'].sort(),
     );
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { artist: '歌手乙' }).map((song) => song.name),
-      ['合作歌曲']
+      songService
+        .listSongs(databases.songDb, { artist: '歌手乙' })
+        .map((song) => song.name),
+      ['合作歌曲'],
     );
   } finally {
     closeDatabases(databases);
@@ -143,27 +191,40 @@ test('song library artist filter matches an individual artist in a collaboration
 });
 
 test('song library language filter matches an individual language in a combined field', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-language-filter-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-library-language-filter-'),
+  );
   const databases = createDatabases({ dataDir });
 
   try {
     songService.saveSong(databases.songDb, {
-      name: '双语歌曲', artist: '歌手甲', language: '国语/英语'
+      name: '双语歌曲',
+      artist: '歌手甲',
+      language: '国语/英语',
     });
     songService.saveSong(databases.songDb, {
-      name: '国语歌曲', artist: '歌手乙', language: '国语'
+      name: '国语歌曲',
+      artist: '歌手乙',
+      language: '国语',
     });
     songService.saveSong(databases.songDb, {
-      name: '粤语歌曲', artist: '歌手丙', language: '粤语'
+      name: '粤语歌曲',
+      artist: '歌手丙',
+      language: '粤语',
     });
 
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { language: '国语' }).map((song) => song.name).sort(),
-      ['双语歌曲', '国语歌曲'].sort()
+      songService
+        .listSongs(databases.songDb, { language: '国语' })
+        .map((song) => song.name)
+        .sort(),
+      ['双语歌曲', '国语歌曲'].sort(),
     );
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { language: '英语' }).map((song) => song.name),
-      ['双语歌曲']
+      songService
+        .listSongs(databases.songDb, { language: '英语' })
+        .map((song) => song.name),
+      ['双语歌曲'],
     );
   } finally {
     closeDatabases(databases);
@@ -172,34 +233,50 @@ test('song library language filter matches an individual language in a combined 
 });
 
 test('song library requires every selected complete tag and composes with category filters', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-tag-filter-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-library-tag-filter-'),
+  );
   const databases = createDatabases({ dataDir });
 
   try {
     songService.saveSong(databases.songDb, {
-      name: '双标签匹配', categoryName: 'R&B / 说唱', tags: '抒情, 治愈'
+      name: '双标签匹配',
+      categoryName: 'R&B / 说唱',
+      tags: '抒情, 治愈',
     });
     songService.saveSong(databases.songDb, {
-      name: '只有抒情', categoryName: 'R&B / 说唱', tags: '抒情'
+      name: '只有抒情',
+      categoryName: 'R&B / 说唱',
+      tags: '抒情',
     });
     songService.saveSong(databases.songDb, {
-      name: '分类不同', categoryName: '民谣', tags: '抒情，治愈'
+      name: '分类不同',
+      categoryName: '民谣',
+      tags: '抒情，治愈',
     });
     songService.saveSong(databases.songDb, {
-      name: '部分文字不算标签', categoryName: 'R&B / 说唱', tags: '治愈系'
+      name: '部分文字不算标签',
+      categoryName: 'R&B / 说唱',
+      tags: '治愈系',
     });
 
-    assert.deepEqual(songService.listTags(databases.songDb), ['抒情', '治愈', '治愈系']);
+    assert.deepEqual(songService.listTags(databases.songDb), [
+      '抒情',
+      '治愈',
+      '治愈系',
+    ]);
     assert.deepEqual(
-      songService.listSongs(databases.songDb, {
-        categories: ['R&B', '说唱'],
-        tags: ['抒情', '治愈']
-      }).map((song) => song.name),
-      ['双标签匹配']
+      songService
+        .listSongs(databases.songDb, {
+          categories: ['R&B', '说唱'],
+          tags: ['抒情', '治愈'],
+        })
+        .map((song) => song.name),
+      ['双标签匹配'],
     );
     assert.deepEqual(
       songService.listSongs(databases.songDb, { tags: ['抒情', '摇滚'] }),
-      []
+      [],
     );
   } finally {
     closeDatabases(databases);
@@ -209,9 +286,15 @@ test('song library requires every selected complete tag and composes with catego
 
 test('song library table displays the language column for rows and empty results', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
-  const header = html.match(/<tbody id="songsTable"><\/tbody>[\s\S]*?<thead>|<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0]
-    ?? html.match(/<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0];
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'),
+    'utf8',
+  );
+  const header =
+    html.match(
+      /<tbody id="songsTable"><\/tbody>[\s\S]*?<thead>|<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/,
+    )?.[0] ??
+    html.match(/<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0];
 
   assert.ok(header, 'song table markup should remain present');
   assert.match(header, /<th>歌曲标签<\/th>\s*<th>语言<\/th>\s*<th>状态<\/th>/);
@@ -220,17 +303,38 @@ test('song library table displays the language column for rows and empty results
 });
 
 test('song library folds row actions into an accessible bordered menu', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'song-actions.css'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'),
+    'utf8',
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'song-actions.css'),
+    'utf8',
+  );
 
-  assert.match(source, /class="song-actions-trigger"[^>]+aria-haspopup="menu"[^>]+aria-expanded="false"/);
-  assert.match(source, /class="song-actions-list" role="menu"[^>]+popover="manual"[^>]+hidden/);
+  assert.match(
+    source,
+    /class="song-actions-trigger"[^>]+aria-haspopup="menu"[^>]+aria-expanded="false"/,
+  );
+  assert.match(
+    source,
+    /class="song-actions-list" role="menu"[^>]+popover="manual"[^>]+hidden/,
+  );
   assert.match(source, /menu\.showPopover\(\)/);
   assert.match(source, /role="menuitem" data-edit-song=/);
   assert.match(source, /role="menuitem" data-add-song=/);
-  assert.match(source, /class="danger" type="button" role="menuitem" data-delete-song=/);
-  assert.match(styles, /\.song-actions-list:popover-open\s*\{[^}]*position: fixed;/s);
-  assert.match(styles, /\.song-actions-list button\.danger\s*\{[^}]*border-color:/s);
+  assert.match(
+    source,
+    /class="danger" type="button" role="menuitem" data-delete-song=/,
+  );
+  assert.match(
+    styles,
+    /\.song-actions-list:popover-open\s*\{[^}]*position: fixed;/s,
+  );
+  assert.match(
+    styles,
+    /\.song-actions-list button\.danger\s*\{[^}]*border-color:/s,
+  );
 });
 
 test('song library hides the note column when every visible note is empty', async () => {
@@ -241,11 +345,11 @@ test('song library hides the note column when every visible note is empty', asyn
     artistFilter: { value: '', innerHTML: '' },
     tagFilterOptions: { innerHTML: '' },
     tagFilterSummary: { textContent: '' },
-    clearTagFilter: { disabled: false }
+    clearTagFilter: { disabled: false },
   };
   const document = {
-    getElementById: id => elements[id],
-    querySelectorAll: () => []
+    getElementById: (id) => elements[id],
+    querySelectorAll: () => [],
   };
   const window = {
     AdminApp: {
@@ -257,23 +361,33 @@ test('song library hides the note column when every visible note is empty', asyn
         toast() {},
         showError() {},
         api: async () => {},
-        debounce: handler => handler,
-        dangerConfirm: async () => false
-      }
-    }
+        debounce: (handler) => handler,
+        dangerConfirm: async () => false,
+      },
+    },
   };
   const songsModule = await loadSongsModule({ document, window });
   const filters = [new Set(), new Set(), new Set()];
 
-  songsModule.renderSongs([
-    { id: 1, name: '无备注歌曲', artist: '', is_enabled: true, note: '  ' }
-  ], ...filters);
+  songsModule.renderSongs(
+    [{ id: 1, name: '无备注歌曲', artist: '', is_enabled: true, note: '  ' }],
+    ...filters,
+  );
   assert.equal(elements.songNoteColumnHeader.hidden, true);
   assert.doesNotMatch(elements.songsTable.innerHTML, /<td>  <\/td>/);
 
-  songsModule.renderSongs([
-    { id: 2, name: '有备注歌曲', artist: '', is_enabled: true, note: '待核对' }
-  ], ...filters);
+  songsModule.renderSongs(
+    [
+      {
+        id: 2,
+        name: '有备注歌曲',
+        artist: '',
+        is_enabled: true,
+        note: '待核对',
+      },
+    ],
+    ...filters,
+  );
   assert.equal(elements.songNoteColumnHeader.hidden, false);
   assert.match(elements.songsTable.innerHTML, /<td>待核对<\/td>/);
 });
@@ -286,21 +400,21 @@ test('song deletion closes custom confirmation before deleting and refreshing', 
     artistFilter: { value: '', innerHTML: '' },
     tagFilterOptions: { innerHTML: '' },
     tagFilterSummary: { textContent: '' },
-    clearTagFilter: { disabled: false }
+    clearTagFilter: { disabled: false },
   };
   const deleteButton = {
     dataset: { deleteSong: '42' },
     addEventListener(eventName, handler) {
       if (eventName === 'click') this.click = handler;
-    }
+    },
   };
   const calls = [];
   const document = {
-    getElementById: id => elements[id],
+    getElementById: (id) => elements[id],
     querySelectorAll(selector) {
       if (selector === '[data-delete-song]') return [deleteButton];
       return [];
-    }
+    },
   };
   const window = {
     AdminApp: {
@@ -309,27 +423,33 @@ test('song deletion closes custom confirmation before deleting and refreshing', 
         escapeAttr: String,
         value: () => '',
         setValue() {},
-        toast: message => calls.push(['toast', message]),
+        toast: (message) => calls.push(['toast', message]),
         showError() {},
         api: async (url, body) => calls.push(['api', url, body.id]),
-        debounce: handler => handler,
-        dangerConfirm: async options => {
+        debounce: (handler) => handler,
+        dangerConfirm: async (options) => {
           calls.push(['confirm', options.title]);
           return true;
-        }
+        },
       },
       state: {
-        reloadAll: async () => calls.push(['reload'])
-      }
-    }
+        reloadAll: async () => calls.push(['reload']),
+      },
+    },
   };
   const songsModule = await loadSongsModule({ document, window });
 
-  songsModule.renderSongs([
-    { id: 42, name: 'Test song', artist: 'Test artist', is_enabled: true }
-  ], new Set(), new Set(), new Set());
+  songsModule.renderSongs(
+    [{ id: 42, name: 'Test song', artist: 'Test artist', is_enabled: true }],
+    new Set(),
+    new Set(),
+    new Set(),
+  );
   await deleteButton.click();
 
-  assert.deepEqual(calls.map(call => call[0]), ['confirm', 'api', 'toast', 'reload']);
+  assert.deepEqual(
+    calls.map((call) => call[0]),
+    ['confirm', 'api', 'toast', 'reload'],
+  );
   assert.deepEqual(calls[1], ['api', '/api/songs/delete', '42']);
 });

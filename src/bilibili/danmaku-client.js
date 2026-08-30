@@ -21,7 +21,8 @@ class BilibiliDanmakuClient {
     this.handlers = handlers;
     this.options = options;
     this.diagnostics = options.diagnostics || createEmptyDiagnostics();
-    this.runtimeGiftCommandPrefixes = options.runtimeGiftCommandPrefixes || new Set();
+    this.runtimeGiftCommandPrefixes =
+      options.runtimeGiftCommandPrefixes || new Set();
     this.messageBuffer = options.messageBuffer || null;
     this.stopped = true;
     this.connectionGeneration = 0;
@@ -37,19 +38,21 @@ class BilibiliDanmakuClient {
     const bilibiliAuth = options.bilibiliAuth || {};
     this.apiClient = new BilibiliApiClient(this.roomId, {
       cookieHeader: bilibiliAuth.cookieHeader || '',
-      uid: bilibiliAuth.uid || 0
+      uid: bilibiliAuth.uid || 0,
     });
     this.wsConnection = new WebSocketConnection();
     this.ownsUserInfoService = !options.userInfoService;
-    this.userInfoService = options.userInfoService || new UserInfoService({
-      profileProvider: new BilibiliUserProfileProvider(this.apiClient),
-      diagnostics: this.diagnostics
-    });
+    this.userInfoService =
+      options.userInfoService ||
+      new UserInfoService({
+        profileProvider: new BilibiliUserProfileProvider(this.apiClient),
+        diagnostics: this.diagnostics,
+      });
     this.deduplicator = new MessageDeduplicator();
     this.messageHandlers = new MessageHandlers(
       {
         ...this.handlers,
-        onMessage: (danmaku) => this.deliverDanmaku(danmaku)
+        onMessage: (danmaku) => this.deliverDanmaku(danmaku),
       },
       this.userInfoService,
       this.deduplicator,
@@ -58,8 +61,8 @@ class BilibiliDanmakuClient {
         runtimeGiftCommandPrefixes: this.runtimeGiftCommandPrefixes,
         startedAtMs: this.startedAtMs,
         messageBuffer: this.messageBuffer,
-        isCommandText: options.isCommandText
-      }
+        isCommandText: options.isCommandText,
+      },
     );
     this.historyPoller = new HistoryPoller(
       this.apiClient,
@@ -69,19 +72,22 @@ class BilibiliDanmakuClient {
         roomOwnerUid: '',
         isCommandText: options.isCommandText,
         deduplicator: this.deduplicator,
-        onIdentityHint: (hint, context) => this.userInfoService.ingestHint(hint, context)
-      }
+        onIdentityHint: (hint, context) =>
+          this.userInfoService.ingestHint(hint, context),
+      },
     );
     const userInfoSink = {
-      ingestHint: (hint, context) => this.userInfoService.ingestHint(hint, context),
-      replaceOnlineSnapshot: (uids, context) => this.userInfoService.replaceOnlineSnapshot(uids, context)
+      ingestHint: (hint, context) =>
+        this.userInfoService.ingestHint(hint, context),
+      replaceOnlineSnapshot: (uids, context) =>
+        this.userInfoService.replaceOnlineSnapshot(uids, context),
     };
     this.onlineRankPoller = new OnlineRankPoller(this.apiClient, userInfoSink);
     this.fansMedalPoller = new FansMedalPoller(this.apiClient, userInfoSink);
     this.liveStatusMonitor = new LiveStatusMonitor(
       this.apiClient,
       (roomId) => this.reconnectAfterLiveStarted(roomId),
-      (status) => this.handleLiveStatusChange(status)
+      (status) => this.handleLiveStatusChange(status),
     );
   }
 
@@ -104,7 +110,7 @@ class BilibiliDanmakuClient {
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: '直播弹幕长连失败，历史消息监听中'
+        message: '直播弹幕长连失败，历史消息监听中',
       });
       this.scheduleReconnect(generation);
     });
@@ -131,7 +137,7 @@ class BilibiliDanmakuClient {
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: '直播弹幕长连失败，历史消息监听中'
+        message: '直播弹幕长连失败，历史消息监听中',
       });
       this.scheduleReconnect(generation);
       throw error;
@@ -147,11 +153,15 @@ class BilibiliDanmakuClient {
     this.historyPoller.stop();
     this.onlineRankPoller.stop();
     this.fansMedalPoller.stop();
-    if (this.roomRunContext) this.userInfoService.endRoomRun(this.roomRunContext);
+    if (this.roomRunContext)
+      this.userInfoService.endRoomRun(this.roomRunContext);
     this.roomRunContext = null;
     if (this.ownsUserInfoService) this.userInfoService.dispose();
     this.liveStatusMonitor.stop();
-    if (this.messageHandlers && typeof this.messageHandlers.destroy === 'function') {
+    if (
+      this.messageHandlers &&
+      typeof this.messageHandlers.destroy === 'function'
+    ) {
       this.messageHandlers.destroy();
     }
   }
@@ -167,22 +177,28 @@ class BilibiliDanmakuClient {
   }
 
   async sendDanmaku(message, reply = {}) {
-    return this.apiClient.sendDanmaku(this.resolvedRoomId || this.roomId, message, reply);
+    return this.apiClient.sendDanmaku(
+      this.resolvedRoomId || this.roomId,
+      message,
+      reply,
+    );
   }
 
   getViewerCandidates() {
     return this.userInfoService.listOnline().map((snapshot) => {
-      const medal = snapshot.fansMedal && snapshot.fansMedal.known
-        ? snapshot.fansMedal.value
-        : null;
+      const medal =
+        snapshot.fansMedal && snapshot.fansMedal.known
+          ? snapshot.fansMedal.value
+          : null;
       return {
         uid: snapshot.uid,
         userName: snapshot.name || '观众',
         avatarUrl: snapshot.avatarUrl,
-        guardLevel: snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
+        guardLevel:
+          snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
         medalName: medal ? medal.name : '',
         medalLevel: medal ? medal.level : 0,
-        seenAt: snapshot.updatedAt
+        seenAt: snapshot.updatedAt,
       };
     });
   }
@@ -209,7 +225,7 @@ class BilibiliDanmakuClient {
       enabled: true,
       roomId: this.roomId,
       mode: 'bilibili',
-      message: '正在连接 Bilibili 弹幕服务'
+      message: '正在连接 Bilibili 弹幕服务',
     });
 
     const roomInfo = await this.apiClient.resolveRoomInfo();
@@ -219,13 +235,16 @@ class BilibiliDanmakuClient {
     this.ownerUid = String(roomInfo.uid || '');
     const roomScope = this.userInfoService.setRoom({
       roomId: roomInfo.roomId,
-      ownerUid: roomInfo.uid
+      ownerUid: roomInfo.uid,
     });
-    if (!this.roomRunContext
-      || this.roomRunContext.roomId !== roomScope.roomId
-      || this.roomRunContext.ownerUid !== roomScope.ownerUid
-      || this.roomRunContext.generation !== roomScope.generation) {
-      if (this.roomRunContext) this.userInfoService.endRoomRun(this.roomRunContext);
+    if (
+      !this.roomRunContext ||
+      this.roomRunContext.roomId !== roomScope.roomId ||
+      this.roomRunContext.ownerUid !== roomScope.ownerUid ||
+      this.roomRunContext.generation !== roomScope.generation
+    ) {
+      if (this.roomRunContext)
+        this.userInfoService.endRoomRun(this.roomRunContext);
       this.roomRunContext = this.userInfoService.beginRoomRun();
     }
     this.messageHandlers.updateRoomOwnerUid(roomInfo.uid);
@@ -253,18 +272,20 @@ class BilibiliDanmakuClient {
       protover: 3,
       platform: 'web',
       type: 2,
-      key: danmuInfo.token
+      key: danmuInfo.token,
     };
 
     // 存储解析后的房间号供后续使用
     this.resolvedRoomId = roomInfo.roomId;
-    console.log(`[Bilibili][Connection] action=connecting trace=${JSON.stringify({
-      connectionGeneration: generation,
-      connectionAttempt,
-      roomInput: this.roomId,
-      roomId: roomInfo.roomId,
-      endpoint: `${host.host}:${host.wss_port || 443}`
-    })}`);
+    console.log(
+      `[Bilibili][Connection] action=connecting trace=${JSON.stringify({
+        connectionGeneration: generation,
+        connectionAttempt,
+        roomInput: this.roomId,
+        roomId: roomInfo.roomId,
+        endpoint: `${host.host}:${host.wss_port || 443}`,
+      })}`,
+    );
 
     // 清理旧的事件处理器，防止重连后消息重复处理
     this.wsConnection.clearHandlers();
@@ -272,11 +293,13 @@ class BilibiliDanmakuClient {
     // 设置 WebSocket 事件处理
     this.wsConnection.on('open', () => {
       if (!this.isConnectionCurrent(generation)) return;
-      console.log(`[Bilibili][Connection] action=open trace=${JSON.stringify({
-        connectionGeneration: generation,
-        connectionAttempt,
-        roomId: roomInfo.roomId
-      })}`);
+      console.log(
+        `[Bilibili][Connection] action=open trace=${JSON.stringify({
+          connectionGeneration: generation,
+          connectionAttempt,
+          roomId: roomInfo.roomId,
+        })}`,
+      );
       this.reconnecting = false;
       if (isLive && !this.options.alwaysHistory) {
         this.historyPoller.stop();
@@ -287,12 +310,12 @@ class BilibiliDanmakuClient {
         roomId: this.roomId,
         mode: 'bilibili',
         ownerName: this.ownerName,
-        message: isLive
-          ? `已开播`
-          : `未开播，历史消息监听中`
+        message: isLive ? `已开播` : `未开播，历史消息监听中`,
       });
       if (!isLive) {
-        console.warn(`[Bilibili] room ${roomInfo.roomId} is not live. live_status=${roomInfo.liveStatus}. History polling fallback is enabled.`);
+        console.warn(
+          `[Bilibili] room ${roomInfo.roomId} is not live. live_status=${roomInfo.liveStatus}. History polling fallback is enabled.`,
+        );
       }
     });
 
@@ -307,14 +330,16 @@ class BilibiliDanmakuClient {
 
     this.wsConnection.on('close', (event) => {
       if (this.isConnectionCurrent(generation)) {
-        console.log(`[Bilibili][Connection] action=close trace=${JSON.stringify({
-          connectionGeneration: generation,
-          connectionAttempt,
-          roomId: this.resolvedRoomId || this.roomId,
-          code: Number(event && event.code) || 0,
-          reason: cleanText(event && event.reason),
-          wasClean: Boolean(event && event.wasClean)
-        })}`);
+        console.log(
+          `[Bilibili][Connection] action=close trace=${JSON.stringify({
+            connectionGeneration: generation,
+            connectionAttempt,
+            roomId: this.resolvedRoomId || this.roomId,
+            code: Number(event && event.code) || 0,
+            reason: cleanText(event && event.reason),
+            wasClean: Boolean(event && event.wasClean),
+          })}`,
+        );
         const reconnectDelayMs = this.reconnecting ? 5000 : 0;
         this.reconnecting = true;
         this.historyPoller.start(this.roomRunContext);
@@ -324,7 +349,9 @@ class BilibiliDanmakuClient {
           roomId: this.roomId,
           mode: 'bilibili',
           ownerName: this.ownerName,
-          message: this.historyPoller.timer ? '弹幕长连已断开，历史消息监听中' : '弹幕连接已断开，等待重连'
+          message: this.historyPoller.timer
+            ? '弹幕长连已断开，历史消息监听中'
+            : '弹幕连接已断开，等待重连',
         });
         this.scheduleReconnect(generation, reconnectDelayMs);
       }
@@ -332,20 +359,26 @@ class BilibiliDanmakuClient {
 
     this.wsConnection.on('error', (event) => {
       if (!this.isConnectionCurrent(generation)) return;
-      console.warn(`[Bilibili][Connection] action=error trace=${JSON.stringify({
-        connectionGeneration: generation,
-        connectionAttempt,
-        roomId: this.resolvedRoomId || this.roomId,
-        endpoint: `${host.host}:${host.wss_port || 443}`,
-        readyState: this.wsConnection.ws ? this.wsConnection.ws.readyState : null,
-        message: cleanText(event && (event.message || (event.error && event.error.message)))
-      })}`);
+      console.warn(
+        `[Bilibili][Connection] action=error trace=${JSON.stringify({
+          connectionGeneration: generation,
+          connectionAttempt,
+          roomId: this.resolvedRoomId || this.roomId,
+          endpoint: `${host.host}:${host.wss_port || 443}`,
+          readyState: this.wsConnection.ws
+            ? this.wsConnection.ws.readyState
+            : null,
+          message: cleanText(
+            event && (event.message || (event.error && event.error.message)),
+          ),
+        })}`,
+      );
       this.report({
         connected: false,
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: '弹幕连接出现错误'
+        message: '弹幕连接出现错误',
       });
     });
 
@@ -354,7 +387,10 @@ class BilibiliDanmakuClient {
 
   handleHistoryMessage(messageData) {
     if (this.stopped) return;
-    const requester = compatibilityRequester(messageData.identitySnapshot, messageData);
+    const requester = compatibilityRequester(
+      messageData.identitySnapshot,
+      messageData,
+    );
     this.deliverDanmaku({
       message: messageData.message,
       uid: requester.uid,
@@ -367,7 +403,7 @@ class BilibiliDanmakuClient {
       messageTimestamp: messageData.messageTimestamp,
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
-      cmd: 'HISTORY'
+      cmd: 'HISTORY',
     });
   }
 
@@ -377,12 +413,13 @@ class BilibiliDanmakuClient {
       this.ownerName = status.ownerName;
     }
     this.report({
-      connected: Boolean(this.wsConnection.ws) || Boolean(this.historyPoller.timer),
+      connected:
+        Boolean(this.wsConnection.ws) || Boolean(this.historyPoller.timer),
       enabled: true,
       roomId: this.roomId,
       mode: 'bilibili',
       ownerName: this.ownerName,
-      message: status.message
+      message: status.message,
     });
   }
 
@@ -401,7 +438,7 @@ class BilibiliDanmakuClient {
       roomId: this.roomId,
       mode: 'bilibili',
       ownerName: this.ownerName,
-      message: `已开播，正在重连礼物监听`
+      message: `已开播，正在重连礼物监听`,
     });
 
     try {
@@ -411,7 +448,9 @@ class BilibiliDanmakuClient {
       await this.connect({}, generation);
     } catch (error) {
       if (!this.isConnectionCurrent(generation)) return;
-      console.warn(`[Bilibili] reconnect after live start failed: ${error.message}`);
+      console.warn(
+        `[Bilibili] reconnect after live start failed: ${error.message}`,
+      );
       this.reconnecting = true;
       this.report({
         connected: Boolean(this.historyPoller.timer),
@@ -421,7 +460,7 @@ class BilibiliDanmakuClient {
         ownerName: this.ownerName,
         message: this.historyPoller.timer
           ? '已开播，但弹幕长连重连失败，历史消息监听中'
-          : publicBilibiliErrorMessage(error, true)
+          : publicBilibiliErrorMessage(error, true),
       });
       this.scheduleReconnect(generation);
     } finally {
@@ -446,7 +485,7 @@ class BilibiliDanmakuClient {
             ownerName: this.ownerName,
             message: historyFallbackActive
               ? '直播弹幕长连重连失败，历史消息监听中'
-              : publicBilibiliErrorMessage(error, true)
+              : publicBilibiliErrorMessage(error, true),
           });
           this.scheduleReconnect(generation);
         });
@@ -464,18 +503,25 @@ class BilibiliDanmakuClient {
 }
 
 function compatibilityRequester(snapshot, fallback = {}) {
-  const medal = snapshot && snapshot.fansMedal && snapshot.fansMedal.known
-    ? snapshot.fansMedal.value
-    : null;
+  const medal =
+    snapshot && snapshot.fansMedal && snapshot.fansMedal.known
+      ? snapshot.fansMedal.value
+      : null;
   return {
     uid: cleanText(snapshot && snapshot.uid) || cleanText(fallback.uid),
-    userName: cleanText(snapshot && snapshot.name) || cleanText(fallback.userName) || '观众',
-    avatarUrl: cleanText(snapshot && snapshot.avatarUrl) || cleanText(fallback.avatarUrl),
-    guardLevel: snapshot && snapshot.guard && snapshot.guard.known
-      ? snapshot.guard.level
-      : Number(fallback.requesterGuardLevel) || 0,
+    userName:
+      cleanText(snapshot && snapshot.name) ||
+      cleanText(fallback.userName) ||
+      '观众',
+    avatarUrl:
+      cleanText(snapshot && snapshot.avatarUrl) ||
+      cleanText(fallback.avatarUrl),
+    guardLevel:
+      snapshot && snapshot.guard && snapshot.guard.known
+        ? snapshot.guard.level
+        : Number(fallback.requesterGuardLevel) || 0,
     medalName: medal ? medal.name : cleanText(fallback.requesterMedalName),
-    medalLevel: medal ? medal.level : Number(fallback.requesterMedalLevel) || 0
+    medalLevel: medal ? medal.level : Number(fallback.requesterMedalLevel) || 0,
   };
 }
 
@@ -488,7 +534,7 @@ function createEmptyDiagnostics() {
     unparsedGiftCount: 0,
     commandCounts: {},
     recentCommands: [],
-    recentGiftLikeCommands: []
+    recentGiftLikeCommands: [],
   };
 }
 

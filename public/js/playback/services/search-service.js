@@ -39,8 +39,8 @@ export class SearchService {
         body: JSON.stringify({
           platform: this.state.selectedSource,
           keyword: keyword.trim(),
-          limit: Number(limit) || 9
-        })
+          limit: Number(limit) || 9,
+        }),
       });
 
       const payload = await this.readJsonResponse(response, '在线搜索失败');
@@ -77,7 +77,11 @@ export class SearchService {
    * @returns {Object|null}
    */
   getResultByIndex(index) {
-    if (!Number.isInteger(index) || index < 0 || index >= this.searchResults.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.searchResults.length
+    ) {
       return null;
     }
     return this.searchResults[index];

@@ -1,101 +1,204 @@
-            <section
-              id="otherOvertimeMachineFeature"
-              class="other-feature-panel"
-              role="tabpanel"
-              aria-labelledby="otherOvertimeMachineFeatureTab"
-              data-other-feature-panel
-              hidden
+<section
+  id="otherOvertimeMachineFeature"
+  class="other-feature-panel"
+  role="tabpanel"
+  aria-labelledby="otherOvertimeMachineFeatureTab"
+  data-other-feature-panel
+  hidden
+>
+  <div id="overtimePanel" class="other-feature-panel-body overtime-admin">
+    <section class="overtime-console" aria-labelledby="overtimeClockLabel">
+      <div class="overtime-clock-block">
+        <span id="overtimeClockLabel" class="overtime-clock-status"
+          >未启用</span
+        >
+        <strong id="overtimeClockValue" class="overtime-clock-value"
+          >00:00:00</strong
+        >
+      </div>
+      <div class="overtime-control-stack">
+        <div class="overtime-consumer-status" aria-label="收礼服务状态">
+          <span id="overtimeCoreStatus" class="pill warn"
+            >共享收礼核心：未运行</span
+          >
+          <span id="overtimeGiftStatsStatus" class="pill">礼物统计：关闭</span>
+          <span id="overtimeConsumerStatus" class="pill">加班机：关闭</span>
+        </div>
+        <div class="overtime-actions">
+          <button id="overtimeEnableBtn" type="button">启用加班机</button>
+          <button id="overtimeStartBtn" type="button">开始</button>
+          <button id="overtimePauseBtn" class="secondary" type="button">
+            暂停
+          </button>
+          <button id="overtimeResetBtn" class="secondary" type="button">
+            重置
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overtime-admin-section overtime-time-editor">
+      <div class="overtime-section-heading">
+        <div>
+          <h3 class="ui-section-title">
+            初始时长
+            <lira-help
+              >可手动输入或选择时间；设置后倒计时会重置并暂停。</lira-help
             >
-              <div id="overtimePanel" class="other-feature-panel-body overtime-admin">
-                <section class="overtime-console" aria-labelledby="overtimeClockLabel">
-                  <div class="overtime-clock-block">
-                    <span id="overtimeClockLabel" class="overtime-clock-status">未启用</span>
-                    <strong id="overtimeClockValue" class="overtime-clock-value">00:00:00</strong>
-                  </div>
-                  <div class="overtime-control-stack">
-                    <div class="overtime-consumer-status" aria-label="收礼服务状态">
-                      <span id="overtimeCoreStatus" class="pill warn">共享收礼核心：未运行</span>
-                      <span id="overtimeGiftStatsStatus" class="pill">礼物统计：关闭</span>
-                      <span id="overtimeConsumerStatus" class="pill">加班机：关闭</span>
-                    </div>
-                    <div class="overtime-actions">
-                      <button id="overtimeEnableBtn" type="button">启用加班机</button>
-                      <button id="overtimeStartBtn" type="button">开始</button>
-                      <button id="overtimePauseBtn" class="secondary" type="button">暂停</button>
-                      <button id="overtimeResetBtn" class="secondary" type="button">重置</button>
-                    </div>
-                  </div>
-                </section>
+          </h3>
+        </div>
+      </div>
+      <label class="overtime-manual-duration">
+        <span>手动输入 <lira-help>格式：时:分。</lira-help></span>
+        <input
+          id="overtimeInitialTime"
+          value="00:00"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="例如 02:30"
+          autocomplete="off"
+        />
+      </label>
+      <fieldset class="overtime-duration-selectors">
+        <legend>选择时长</legend>
+        <label
+          >小时<select
+            id="overtimeInitialHours"
+            aria-label="初始时长的小时数"
+            data-dropdown-variant="overtime"
+          ></select
+        ></label>
+        <label
+          >分钟<select
+            id="overtimeInitialMinutes"
+            aria-label="初始时长的分钟数"
+            data-dropdown-variant="overtime"
+          ></select
+        ></label>
+      </fieldset>
+      <button id="overtimeApplyTimeBtn" type="button">设置初始时间</button>
+    </section>
 
-                <section class="overtime-admin-section overtime-time-editor">
-                  <div class="overtime-section-heading">
-                    <div><h3 class="ui-section-title">初始时长 <lira-help>可手动输入或选择时间；设置后倒计时会重置并暂停。</lira-help></h3></div>
-                  </div>
-                  <label class="overtime-manual-duration">
-                    <span>手动输入 <lira-help>格式：时:分。</lira-help></span>
-                    <input id="overtimeInitialTime" value="00:00" inputmode="numeric" maxlength="6" placeholder="例如 02:30" autocomplete="off">
-                  </label>
-                  <fieldset class="overtime-duration-selectors">
-                    <legend>选择时长</legend>
-                    <label>小时<select id="overtimeInitialHours" aria-label="初始时长的小时数" data-dropdown-variant="overtime"></select></label>
-                    <label>分钟<select id="overtimeInitialMinutes" aria-label="初始时长的分钟数" data-dropdown-variant="overtime"></select></label>
-                  </fieldset>
-                  <button id="overtimeApplyTimeBtn" type="button">设置初始时间</button>
-                </section>
+    <section class="overtime-admin-section">
+      <div class="overtime-section-heading">
+        <div>
+          <div class="overtime-rules-heading-title">
+            <h3>礼物时间规则</h3>
+            <span id="overtimePendingCount" class="pill">待结算 0</span>
+          </div>
+        </div>
+        <div class="overtime-heading-actions">
+          <span
+            id="overtimeGiftCatalogStatus"
+            class="overtime-gift-catalog-status"
+            role="status"
+            >服务器目录：未同步</span
+          >
+          <button
+            id="overtimeRefreshGiftsBtn"
+            class="secondary overtime-refresh-gifts-action"
+            type="button"
+          >
+            同步服务器礼物
+          </button>
+          <button
+            id="overtimeAddGiftBtn"
+            class="overtime-add-gift-action"
+            type="button"
+          >
+            ＋ 添加礼物
+          </button>
+          <button
+            id="overtimeSaveRulesBtn"
+            class="secondary overtime-save-rules-action"
+            type="button"
+            aria-live="polite"
+            disabled
+          >
+            ✓ 已保存
+          </button>
+        </div>
+      </div>
+      <div
+        id="overtimeRules"
+        class="overtime-rule-list"
+        aria-live="polite"
+      ></div>
+    </section>
 
-                <section class="overtime-admin-section">
-                  <div class="overtime-section-heading">
-                    <div>
-                      <div class="overtime-rules-heading-title">
-                        <h3>礼物时间规则</h3>
-                        <span id="overtimePendingCount" class="pill">待结算 0</span>
-                      </div>
-                    </div>
-                    <div class="overtime-heading-actions">
-                      <span id="overtimeGiftCatalogStatus" class="overtime-gift-catalog-status" role="status">在售目录：未刷新</span>
-                      <button id="overtimeRefreshGiftsBtn" class="secondary overtime-refresh-gifts-action" type="button">刷新在售礼物</button>
-                      <button id="overtimeAddGiftBtn" class="overtime-add-gift-action" type="button">＋ 添加礼物</button>
-                      <button id="overtimeSaveRulesBtn" class="secondary overtime-save-rules-action" type="button" aria-live="polite" disabled>✓ 已保存</button>
-                    </div>
-                  </div>
-                  <div id="overtimeRules" class="overtime-rule-list" aria-live="polite"></div>
-                </section>
+    <section class="overtime-admin-section overtime-screen-section">
+      <div class="overtime-section-heading">
+        <div>
+          <h3>
+            直播画面
+            <lira-help>背景与前景独立；透明背景适合叠加到 OBS。</lira-help>
+          </h3>
+        </div>
+      </div>
+      <label
+        >背景
+        <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
+          <option value="">透明</option>
+          <option value="/img/overtime-machine/midnight-grid.svg">
+            深夜票券
+          </option>
+        </select>
+      </label>
+      <label
+        >适配
+        <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
+          <option value="cover">铺满</option>
+          <option value="contain">完整显示</option>
+          <option value="fill">拉伸</option>
+        </select>
+      </label>
+      <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">
+        保存画面
+      </button>
+      <button id="overtimeOpenOverlayBtn" class="secondary" type="button">
+        打开画面
+      </button>
+      <button id="overtimeCopyOverlayBtn" type="button">复制地址</button>
+      <iframe
+        id="overtimePreview"
+        class="overtime-preview"
+        title="加班机实时预览"
+        loading="lazy"
+      ></iframe>
+    </section>
 
-                <section class="overtime-admin-section overtime-screen-section">
-                  <div class="overtime-section-heading"><div><h3>直播画面 <lira-help>背景与前景独立；透明背景适合叠加到 OBS。</lira-help></h3></div></div>
-                  <label>背景
-                    <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
-                      <option value="">透明</option>
-                      <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
-                    </select>
-                  </label>
-                  <label>适配
-                    <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
-                      <option value="cover">铺满</option>
-                      <option value="contain">完整显示</option>
-                      <option value="fill">拉伸</option>
-                    </select>
-                  </label>
-                  <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">保存画面</button>
-                  <button id="overtimeOpenOverlayBtn" class="secondary" type="button">打开画面</button>
-                  <button id="overtimeCopyOverlayBtn" type="button">复制地址</button>
-                  <iframe id="overtimePreview" class="overtime-preview" title="加班机实时预览" loading="lazy"></iframe>
-                </section>
+    <section class="overtime-admin-section">
+      <div class="overtime-section-heading">
+        <div>
+          <h3>
+            最近结算 <lira-help>显示最近 20 组已完成或忽略的礼物。</lira-help>
+          </h3>
+        </div>
+      </div>
+      <div id="overtimeSettlements" class="overtime-settlement-list"></div>
+    </section>
+  </div>
 
-                <section class="overtime-admin-section">
-                  <div class="overtime-section-heading"><div><h3>最近结算 <lira-help>显示最近 20 组已完成或忽略的礼物。</lira-help></h3></div></div>
-                  <div id="overtimeSettlements" class="overtime-settlement-list"></div>
-                </section>
-              </div>
-
-              <dialog id="overtimeGiftPicker" class="overtime-gift-picker">
-                <form method="dialog" class="overtime-picker-shell">
-                  <header><h3>添加礼物</h3><button class="secondary" value="cancel" type="submit">取消</button></header>
-                  <div class="overtime-gift-search-row">
-                    <input id="overtimeGiftSearch" type="search" aria-label="搜索礼物" placeholder="输入礼物名称或 ID" autocomplete="off" maxlength="100">
-                    <button id="overtimeLocalGiftSearchBtn" class="secondary" type="button">搜索本地礼物</button>
-                  </div>
-                  <div id="overtimeGiftResults" class="overtime-gift-results"></div>
-                </form>
-              </dialog>
-            </section>
+  <dialog id="overtimeGiftPicker" class="overtime-gift-picker">
+    <form method="dialog" class="overtime-picker-shell">
+      <header>
+        <h3>添加礼物</h3>
+        <button class="secondary" value="cancel" type="submit">取消</button>
+      </header>
+      <div class="overtime-gift-search-row">
+        <input
+          id="overtimeGiftSearch"
+          type="search"
+          aria-label="搜索礼物"
+          placeholder="输入礼物名称或 ID"
+          autocomplete="off"
+          maxlength="100"
+        />
+        <button id="overtimeLocalGiftSearchBtn" class="secondary" type="button">
+          搜索本地礼物
+        </button>
+      </div>
+      <div id="overtimeGiftResults" class="overtime-gift-results"></div>
+    </form>
+  </dialog>
+</section>

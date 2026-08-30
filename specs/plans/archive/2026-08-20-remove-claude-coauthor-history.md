@@ -77,6 +77,7 @@ if (git log -1 --format=%B | Select-String -Quiet -Pattern '(?i)^Co-Authored-By:
 ```powershell
 git filter-repo --force --refs refs/heads/main refs/tags/v3.5.11 refs/tags/v3.5.12 refs/tags/v3.5.13 refs/tags/v3.5.14 refs/tags/v3.5.15 refs/tags/v3.5.16 refs/tags/v3.5.17 refs/tags/v3.5.18 refs/tags/v3.6.0 refs/tags/v3.6.1 refs/tags/v3.6.2 refs/tags/v3.6.3 refs/tags/v3.6.4 --message-callback "return re.sub(br'(?im)^Co-Authored-By: Claude[^\r\n]*(?:\r?\n)?', b'', message)"
 ```
+
 - [x] Verify `git log main --regexp-ignore-case --grep=claude` returns no commit whose body contains a Claude co-author trailer.
 - [x] Compare raw old and new commit objects using `filter-repo/commit-map`; verification confirmed 13 rewritten commits with only parent-ID substitutions and exactly 5 removed trailers.
 - [x] Verify the five affected messages lost only the trailer, the remaining messages are byte-equivalent, and all thirteen tags remain annotated with the same tagger name, email, date, and subject.

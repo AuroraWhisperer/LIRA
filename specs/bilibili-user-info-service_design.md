@@ -191,12 +191,12 @@ Evidence 只服务于字段级合并、诊断和测试，不成为 HTTP/WS/IPC �
 
 ### Field ownership
 
-| 字段 | 作用域 | 可写来源 | 规则 |
-|---|---|---|---|
-| `name` | UID 全局 | message、history、online/fans snapshot、profile | 完整名优先于掩码名；缺失不覆盖；同质量按 freshness 再按来源优先级决定 |
-| `avatarUrl` | UID 全局 | message、SC `user_info.face`、history、online/fans snapshot、profile | 只接受已归一化的可信 HTTPS URL；空值不覆盖有效值 |
-| `guard` | 当前 `{roomId, ownerUid}` | 已验证的 DANMU_MSG、SC、Gift、history、online/fans snapshot | 未验证来源不能写入；`guardKnown: true, guardLevel: 0` 可以清除旧值 |
-| `fansMedal` | 当前 `{roomId, ownerUid}` | 已验证的 DANMU_MSG、SC、history、online/fans snapshot | 非空值的 `targetUid` 必须等于 `ownerUid`；`medalKnown: true, fansMedal: null` 可以清除旧值 |
+| 字段        | 作用域                    | 可写来源                                                             | 规则                                                                                       |
+| ----------- | ------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `name`      | UID 全局                  | message、history、online/fans snapshot、profile                      | 完整名优先于掩码名；缺失不覆盖；同质量按 freshness 再按来源优先级决定                      |
+| `avatarUrl` | UID 全局                  | message、SC `user_info.face`、history、online/fans snapshot、profile | 只接受已归一化的可信 HTTPS URL；空值不覆盖有效值                                           |
+| `guard`     | 当前 `{roomId, ownerUid}` | 已验证的 DANMU_MSG、SC、Gift、history、online/fans snapshot          | 未验证来源不能写入；`guardKnown: true, guardLevel: 0` 可以清除旧值                         |
+| `fansMedal` | 当前 `{roomId, ownerUid}` | 已验证的 DANMU_MSG、SC、history、online/fans snapshot                | 非空值的 `targetUid` 必须等于 `ownerUid`；`medalKnown: true, fansMedal: null` 可以清除旧值 |
 
 初始来源优先级按字段处理，而不是一个全局排行榜。source 分值为 `danmaku`/`superchat`/`gift` 30、`history` 20、`fans_rank` 10、`online_rank` 5、`profile` 0；优先级是字段级 evidence metadata，不出现在公开模型。`source` 不是所有字段的无条件第一排序键：
 
@@ -209,15 +209,17 @@ room field comparator 固定为以下顺序，实施不得另行解释：
 ```js
 function mergeRoomField(current, incoming, nowMs) {
   if (!incoming.verified) return current;
-  if (incoming.field === 'fansMedal'
-      && incoming.value !== null
-      && incoming.targetUid !== currentScope.ownerUid) {
-      return current; // 仅丢弃该 room field；hint 的其他合法字段仍可合并
+  if (
+    incoming.field === 'fansMedal' &&
+    incoming.value !== null &&
+    incoming.targetUid !== currentScope.ownerUid
+  ) {
+    return current; // 仅丢弃该 room field；hint 的其他合法字段仍可合并
   }
   if (!current || isExpired(current, nowMs)) return incoming;
 
-  const authorityDelta = roomFieldAuthority(incoming.source)
-    - roomFieldAuthority(current.source);
+  const authorityDelta =
+    roomFieldAuthority(incoming.source) - roomFieldAuthority(current.source);
   if (authorityDelta !== 0) return authorityDelta > 0 ? incoming : current;
   return incoming.observedAt >= current.observedAt ? incoming : current;
 }
@@ -356,11 +358,11 @@ class UserInfoService {
 const roomScope = {
   roomId: '100',
   ownerUid: '999',
-  generation: 4
+  generation: 4,
 };
 const activeRoomRun = {
   ...roomScope,
-  runToken: 7
+  runToken: 7,
 };
 ```
 
@@ -414,7 +416,8 @@ Parser 只从协议输入提取字段，不调用 cache、网络、service 或�
 ```js
 new OnlineRankPoller(apiClient, {
   ingestHint: (hint, context) => userInfoService.ingestHint(hint, context),
-  replaceOnlineSnapshot: (uids, context) => userInfoService.replaceOnlineSnapshot(uids, context)
+  replaceOnlineSnapshot: (uids, context) =>
+    userInfoService.replaceOnlineSnapshot(uids, context),
 });
 ```
 
@@ -452,6 +455,7 @@ poller 的每个 context 必须是组合根一次 `beginRoomRun()` 返回的共�
   ```
 
   游戏不直接依赖 `BilibiliApiClient`、`IdentityCache` 或 `src/bilibili/users/` 私有路径。
+
 - `/api/games/winner-profile`、现有游戏事件和头像代理的响应形状保持不变；只替换其内部资料来源。
 - 不向 preload 暴露新的 UserInfoService API。第一阶段 renderer 继续消费现有 HTTP/WS 载荷；未来若确实需要桌面桥，另立契约和 ADR。
 
@@ -547,13 +551,13 @@ poller 的每个 context 必须是组合根一次 `beginRoomRun()` 返回的共�
 
 这些默认值随本稿一并接受；若实施需要改变，必须先更新规格并重新评审受影响的契约：
 
-| 问题 | 建议 | 原因 |
-|---|---|---|
-| `avatarUrl` 是否持久化 | 不持久化，仅内存缓存 | 避免新增 schema、旧头像长期滞留和数据迁移 |
-| profile/identity TTL | 先沿用 10 分钟；失败负缓存 30 秒 | 最小化行为变化并防止失败重试风暴 |
-| 主动刷新 | 第一阶段不提供业务公开的 force refresh | 避免绕过去重和 TTL；以后可另立契约 |
-| guard/fans medal 历史 | 不做，只提供当前 room state | 历史身份是独立的审计/分析需求 |
-| preload 暴露 | 不暴露；仅后端 service | 保持 renderer 权限面和现有 HTTP/WS 边界 |
+| 问题                   | 建议                                   | 原因                                      |
+| ---------------------- | -------------------------------------- | ----------------------------------------- |
+| `avatarUrl` 是否持久化 | 不持久化，仅内存缓存                   | 避免新增 schema、旧头像长期滞留和数据迁移 |
+| profile/identity TTL   | 先沿用 10 分钟；失败负缓存 30 秒       | 最小化行为变化并防止失败重试风暴          |
+| 主动刷新               | 第一阶段不提供业务公开的 force refresh | 避免绕过去重和 TTL；以后可另立契约        |
+| guard/fans medal 历史  | 不做，只提供当前 room state            | 历史身份是独立的审计/分析需求             |
+| preload 暴露           | 不暴露；仅后端 service                 | 保持 renderer 权限面和现有 HTTP/WS 边界   |
 
 ## Verification Plan
 

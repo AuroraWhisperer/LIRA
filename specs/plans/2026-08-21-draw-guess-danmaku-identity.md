@@ -56,10 +56,12 @@
 ## Task 1: 用失败测试固定公开消息身份字段
 
 **Files:**
+
 - Modify: `test/games.test.js`
 - Modify: `test/games-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: Bilibili 入站字段 `requesterGuardLevel`, `requesterMedalName`, `requesterMedalLevel`, `avatarUrl`。
 - Produces: 画猜公开弹幕项 `{uid, name, message, avatarUrl, guardLevel, medalName, medalLevel, timestamp}`。
 
@@ -76,11 +78,14 @@ requesterMedalLevel: 22
 并断言：
 
 ```js
-assert.deepEqual({
-  guardLevel: service.getSession().danmaku[0].guardLevel,
-  medalName: service.getSession().danmaku[0].medalName,
-  medalLevel: service.getSession().danmaku[0].medalLevel
-}, { guardLevel: 3, medalName: '凉呆皮', medalLevel: 22 });
+assert.deepEqual(
+  {
+    guardLevel: service.getSession().danmaku[0].guardLevel,
+    medalName: service.getSession().danmaku[0].medalName,
+    medalLevel: service.getSession().danmaku[0].medalLevel,
+  },
+  { guardLevel: 3, medalName: '凉呆皮', medalLevel: 22 },
+);
 ```
 
 - [x] **Step 2: 固定安全归一化与页面渲染钩子**
@@ -96,6 +101,7 @@ Expected: 新增字段/渲染钩子断言失败，既有测试保持通过。
 ## Task 2: 保留身份字段并渲染紧凑徽标
 
 **Files:**
+
 - Modify: `src/games/game-session-service.js`
 - Modify: `src/bilibili/parsers/danmaku-parser.js`
 - Modify: `public/js/overlays/games.js`
@@ -103,6 +109,7 @@ Expected: 新增字段/渲染钩子断言失败，既有测试保持通过。
 - Test: `test/bilibili-danmaku-parser.test.js`
 
 **Interfaces:**
+
 - Consumes: Task 1 固定的入站字段和公开消息形状。
 - Produces: `game:update.session.danmaku[]` 的附加 `guardLevel/medalName/medalLevel` 字段，以及安全 DOM 徽标。
 
@@ -112,7 +119,9 @@ Expected: 新增字段/渲染钩子断言失败，既有测试保持通过。
 
 ```js
 const requestedGuardLevel = Number(danmaku.requesterGuardLevel);
-const guardLevel = [1, 2, 3].includes(requestedGuardLevel) ? requestedGuardLevel : 0;
+const guardLevel = [1, 2, 3].includes(requestedGuardLevel)
+  ? requestedGuardLevel
+  : 0;
 const requestedMedalLevel = Math.trunc(Number(danmaku.requesterMedalLevel));
 const medalLevel = Number.isFinite(requestedMedalLevel)
   ? Math.max(0, Math.min(999, requestedMedalLevel))
@@ -138,12 +147,14 @@ Expected: 全部通过。
 ## Task 3: 更新公共契约并完成验证
 
 **Files:**
+
 - Modify: `specs/danmaku-draw-guess_design.md`
 - Modify: `docs/architecture/backend/ws.md`
 - Modify: `docs/architecture/frontend/pages.md`
 - Modify: `specs/plans/2026-08-21-draw-guess-danmaku-identity.md`
 
 **Interfaces:**
+
 - Documents: `game:update.session.danmaku[]` 附加身份字段及覆盖层显示行为。
 
 - [x] **Step 1: 更新规格和 owner 文档**

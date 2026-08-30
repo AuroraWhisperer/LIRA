@@ -4,43 +4,86 @@ const { decryptQrc } = require('qrc-decoder');
 
 function mapQQSong(song) {
   if (!song) return null;
-  const sourceTrackId = String(song.mid || song.songmid || song.song_mid || song.SongMid || song.songMid || '').trim();
-  const title = String(song.title || song.name || song.songname || song.SongName || song.SongTitle || '').trim();
+  const sourceTrackId = String(
+    song.mid ||
+      song.songmid ||
+      song.song_mid ||
+      song.SongMid ||
+      song.songMid ||
+      '',
+  ).trim();
+  const title = String(
+    song.title ||
+      song.name ||
+      song.songname ||
+      song.SongName ||
+      song.SongTitle ||
+      '',
+  ).trim();
   if (!sourceTrackId || !title) return null;
   const album = song.album || {};
   const singers = Array.isArray(song.singer)
     ? song.singer
-    : (Array.isArray(song.singers) ? song.singers : []);
+    : Array.isArray(song.singers)
+      ? song.singers
+      : [];
   const singerName = String(song.SingerName || song.SingerTitle || '').trim();
-  const albumMid = album && (album.mid || album.pmid)
-    ? String(album.mid || album.pmid)
-    : String(song.albummid || song.AlbumMid || '');
+  const albumMid =
+    album && (album.mid || album.pmid)
+      ? String(album.mid || album.pmid)
+      : String(song.albummid || song.AlbumMid || '');
   const sourceMediaId = String(
-    song.file && (song.file.media_mid || song.file.mediaMid)
-      || song.media_mid
-      || song.mediaMid
-      || sourceTrackId
+    (song.file && (song.file.media_mid || song.file.mediaMid)) ||
+      song.media_mid ||
+      song.mediaMid ||
+      sourceTrackId,
   ).trim();
-  const numericSongId = Number(song.id || song.songid || song.songId || song.song_id || song.SongId || song.SongID || 0);
+  const numericSongId = Number(
+    song.id ||
+      song.songid ||
+      song.songId ||
+      song.song_id ||
+      song.SongId ||
+      song.SongID ||
+      0,
+  );
   const sourceSongType = normalizeQQSongType(
-    song.type ?? song.songtype ?? song.songType ?? song.SongType
+    song.type ?? song.songtype ?? song.songType ?? song.SongType,
   );
   return {
     id: `qq:${sourceTrackId}`,
     source: 'qq',
     sourceTrackId,
     sourceMediaId,
-    sourceSongId: Number.isSafeInteger(numericSongId) && numericSongId > 0 ? numericSongId : 0,
+    sourceSongId:
+      Number.isSafeInteger(numericSongId) && numericSongId > 0
+        ? numericSongId
+        : 0,
     sourceSongType,
-    sourceAlbumId: album && (album.mid || album.id) ? String(album.mid || album.id) : albumMid,
+    sourceAlbumId:
+      album && (album.mid || album.id)
+        ? String(album.mid || album.id)
+        : albumMid,
     title,
-    artists: singers.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean)
+    artists: singers
+      .map((artist) => String((artist && artist.name) || '').trim())
+      .filter(Boolean)
       .concat(singerName ? [singerName] : []),
-    album: String(album && (album.title || album.name) || song.albumname || song.albumdesc || song.AlbumName || song.AlbumTitle || '').trim(),
-    durationMs: Math.max(0, Number(song.interval || song.SongPlayTime || 0) * 1000),
+    album: String(
+      (album && (album.title || album.name)) ||
+        song.albumname ||
+        song.albumdesc ||
+        song.AlbumName ||
+        song.AlbumTitle ||
+        '',
+    ).trim(),
+    durationMs: Math.max(
+      0,
+      Number(song.interval || song.SongPlayTime || 0) * 1000,
+    ),
     coverUrl: extractQQCoverUrl(song, albumMid),
     playable: true,
-    vip: Number(song.pay && song.pay.pay_play || song.Vip || 0) > 0
+    vip: Number((song.pay && song.pay.pay_play) || song.Vip || 0) > 0,
   };
 }
 
@@ -51,20 +94,71 @@ function normalizeQQSongType(value) {
 
 function mapQQPlaylist(playlist) {
   if (!playlist) return null;
-  const id = playlist.content_id || playlist.dissid || playlist.tid || playlist.id;
-  const title = playlist.title || playlist.dissname || playlist.diss_name || playlist.name || playlist.dirName;
+  const id =
+    playlist.content_id || playlist.dissid || playlist.tid || playlist.id;
+  const title =
+    playlist.title ||
+    playlist.dissname ||
+    playlist.diss_name ||
+    playlist.name ||
+    playlist.dirName;
   if (!id || !title) return null;
   return {
     id: String(id),
     source: 'qq',
     title: String(title || '').trim(),
-    description: String(playlist.desc || playlist.subtitle || playlist.rcmdcontent || '').trim(),
-    coverUrl: String(playlist.cover || playlist.picurl || playlist.imgurl || playlist.logo || playlist.diss_cover || playlist.picUrl || playlist.bigpicUrl || ''),
-    trackCount: Math.max(0, Number(playlist.song_cnt || playlist.songnum || playlist.songNum || playlist.total_song_num || playlist.count || 0)),
-    playCount: Math.max(0, Number(playlist.listen_num || playlist.listennum || playlist.playcnt || playlist.play_cnt || playlist.access_num || 0)),
-    creatorUserId: playlist.uin || playlist.hostuin ? String(playlist.uin || playlist.hostuin) : '',
-    dirId: playlist.dirid != null ? String(playlist.dirid) : (playlist.dirId != null ? String(playlist.dirId) : ''),
-    tid: String(playlist.tid || playlist.content_id || playlist.dissid || playlist.id || '')
+    description: String(
+      playlist.desc || playlist.subtitle || playlist.rcmdcontent || '',
+    ).trim(),
+    coverUrl: String(
+      playlist.cover ||
+        playlist.picurl ||
+        playlist.imgurl ||
+        playlist.logo ||
+        playlist.diss_cover ||
+        playlist.picUrl ||
+        playlist.bigpicUrl ||
+        '',
+    ),
+    trackCount: Math.max(
+      0,
+      Number(
+        playlist.song_cnt ||
+          playlist.songnum ||
+          playlist.songNum ||
+          playlist.total_song_num ||
+          playlist.count ||
+          0,
+      ),
+    ),
+    playCount: Math.max(
+      0,
+      Number(
+        playlist.listen_num ||
+          playlist.listennum ||
+          playlist.playcnt ||
+          playlist.play_cnt ||
+          playlist.access_num ||
+          0,
+      ),
+    ),
+    creatorUserId:
+      playlist.uin || playlist.hostuin
+        ? String(playlist.uin || playlist.hostuin)
+        : '',
+    dirId:
+      playlist.dirid != null
+        ? String(playlist.dirid)
+        : playlist.dirId != null
+          ? String(playlist.dirId)
+          : '',
+    tid: String(
+      playlist.tid ||
+        playlist.content_id ||
+        playlist.dissid ||
+        playlist.id ||
+        '',
+    ),
   };
 }
 
@@ -79,12 +173,14 @@ function mapRecommendCard(card) {
     trackCount: 0,
     playCount: Math.max(0, Number(card.cnt || 0)),
     creatorUserId: '',
-    dirId: ''
+    dirId: '',
   };
 }
 
 function extractSourceTrackId(track) {
-  const sourceTrackId = String(track && (track.sourceTrackId || track.id) || '')
+  const sourceTrackId = String(
+    (track && (track.sourceTrackId || track.id)) || '',
+  )
     .replace(/^qq:/, '')
     .trim();
   if (!sourceTrackId) throw new Error('缺少 QQ 音乐歌曲 ID。');
@@ -93,7 +189,9 @@ function extractSourceTrackId(track) {
 
 function extractSourceSongId(track) {
   const sourceSongId = Number(track && (track.sourceSongId || track.songId));
-  return Number.isSafeInteger(sourceSongId) && sourceSongId > 0 ? sourceSongId : 0;
+  return Number.isSafeInteger(sourceSongId) && sourceSongId > 0
+    ? sourceSongId
+    : 0;
 }
 
 /**
@@ -104,13 +202,19 @@ function decodeQQPlayableLyric(value, encrypted) {
   const text = String(value || '').trim();
   if (!text) return '';
   if (!encrypted) return decodeQQBase64(text);
-  if (text.length > 2 * 1024 * 1024 || text.length % 16 !== 0 || !/^[0-9a-f]+$/i.test(text)) {
+  if (
+    text.length > 2 * 1024 * 1024 ||
+    text.length % 16 !== 0 ||
+    !/^[0-9a-f]+$/i.test(text)
+  ) {
     throw new Error('QQ 音乐返回了无效的加密歌词。');
   }
   try {
     return extractQrcLyricContent(decryptQrc(text));
   } catch (error) {
-    throw new Error(`QQ 音乐歌词解密失败：${error && error.message ? error.message : String(error)}`);
+    throw new Error(
+      `QQ 音乐歌词解密失败：${error && error.message ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -123,7 +227,9 @@ function extractQrcLyricContent(value) {
 
 function decodeXmlEntities(value) {
   return String(value || '')
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    )
     .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
@@ -149,7 +255,8 @@ function stripJsonp(text) {
 }
 
 function extractRadioSongs(data) {
-  const radioData = data && data.songlist && data.songlist.data ? data.songlist.data : {};
+  const radioData =
+    data && data.songlist && data.songlist.data ? data.songlist.data : {};
   if (Array.isArray(radioData.tracks)) return radioData.tracks;
   if (Array.isArray(radioData.track_list)) return radioData.track_list;
   if (Array.isArray(radioData.songlist)) return radioData.songlist;
@@ -158,27 +265,29 @@ function extractRadioSongs(data) {
 
 function buildQQCoverUrl(albumMid) {
   const mid = String(albumMid || '').trim();
-  return mid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${mid}.jpg` : '';
+  return mid
+    ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${mid}.jpg`
+    : '';
 }
 
 function extractQQCoverUrl(song, albumMid) {
   const album = song && song.album ? song.album : {};
-  const directUrl = song && (
-    song.coverUrl
-    || song.cover
-    || song.picurl
-    || song.imgurl
-    || song.albumcover
-    || song.AlbumPic
-    || song.AlbumPic150X150
-    || song.AlbumPic300X300
-    || song.AlbumPic500X500
-    || song.SingerPic
-    || song.SingerPic300X300
-    || album.picUrl
-    || album.picurl
-    || album.imgurl
-  );
+  const directUrl =
+    song &&
+    (song.coverUrl ||
+      song.cover ||
+      song.picurl ||
+      song.imgurl ||
+      song.albumcover ||
+      song.AlbumPic ||
+      song.AlbumPic150X150 ||
+      song.AlbumPic300X300 ||
+      song.AlbumPic500X500 ||
+      song.SingerPic ||
+      song.SingerPic300X300 ||
+      album.picUrl ||
+      album.picurl ||
+      album.imgurl);
   const text = String(directUrl || '').trim();
   if (/^https?:\/\//i.test(text)) return text;
   return buildQQCoverUrl(albumMid);
@@ -194,22 +303,36 @@ function extractQQRecentSongs(data, limit) {
   return [];
 }
 
-function collectQQRecentSongContainers(value, output = [], inRecentContainer = false) {
+function collectQQRecentSongContainers(
+  value,
+  output = [],
+  inRecentContainer = false,
+) {
   if (!value || typeof value !== 'object') return output;
   if (Array.isArray(value)) {
-    for (const item of value) collectQQRecentSongContainers(item, output, inRecentContainer);
+    for (const item of value)
+      collectQQRecentSongContainers(item, output, inRecentContainer);
     return output;
   }
 
-  const type = Number(value.Type || value.type || value.ResourceType || value.resourceType || 0);
+  const type = Number(
+    value.Type || value.type || value.ResourceType || value.resourceType || 0,
+  );
   if (type === 2 && value.Detail) output.push(value.Detail);
 
   for (const [key, child] of Object.entries(value)) {
     const isRecentKey = /recent|playhistory|history/i.test(key);
-    if ((inRecentContainer || isRecentKey) && /songlist|song_list|list|items|detail/i.test(key)) {
+    if (
+      (inRecentContainer || isRecentKey) &&
+      /songlist|song_list|list|items|detail/i.test(key)
+    ) {
       output.push(child);
     }
-    collectQQRecentSongContainers(child, output, inRecentContainer || isRecentKey);
+    collectQQRecentSongContainers(
+      child,
+      output,
+      inRecentContainer || isRecentKey,
+    );
   }
   return output;
 }
@@ -236,17 +359,21 @@ function collectQQSongsFromObject(value, output = [], seen = new Set()) {
     seen.add(song.id);
     output.push(song);
   }
-  for (const child of Object.values(value)) collectQQSongsFromObject(child, output, seen);
+  for (const child of Object.values(value))
+    collectQQSongsFromObject(child, output, seen);
   return output;
 }
 
 function normalizeQQPlaylistWriteTarget(playlist) {
-  if (!playlist || typeof playlist !== 'object') throw new Error('缺少 QQ 音乐歌单信息。');
+  if (!playlist || typeof playlist !== 'object')
+    throw new Error('缺少 QQ 音乐歌单信息。');
   const dirId = Number(playlist.dirId);
   const tid = Number(playlist.tid || playlist.id);
   const dirName = String(playlist.title || playlist.dirName || '').trim();
-  if (!Number.isSafeInteger(dirId) || dirId <= 0) throw new Error('QQ 音乐歌单 dirId 无效。');
-  if (!Number.isSafeInteger(tid) || tid <= 0) throw new Error('QQ 音乐歌单 tid 无效。');
+  if (!Number.isSafeInteger(dirId) || dirId <= 0)
+    throw new Error('QQ 音乐歌单 dirId 无效。');
+  if (!Number.isSafeInteger(tid) || tid <= 0)
+    throw new Error('QQ 音乐歌单 tid 无效。');
   if (!dirName) throw new Error('QQ 音乐歌单名称不能为空。');
   return { dirId, tid, dirName };
 }
@@ -257,11 +384,13 @@ function normalizeQQPlaylistSongInfo(tracks) {
   const songs = [];
   for (const track of input.slice(0, 100)) {
     const songId = Number(track && (track.sourceSongId || track.songId));
-    if (!Number.isSafeInteger(songId) || songId <= 0 || seen.has(songId)) continue;
+    if (!Number.isSafeInteger(songId) || songId <= 0 || seen.has(songId))
+      continue;
     seen.add(songId);
     songs.push({ songId, songType: 0 });
   }
-  if (songs.length === 0) throw new Error('缺少 QQ 音乐数值 songId，无法修改歌单。');
+  if (songs.length === 0)
+    throw new Error('缺少 QQ 音乐数值 songId，无法修改歌单。');
   return songs;
 }
 
@@ -282,20 +411,27 @@ function extractQQGtkSource(cookieHeader) {
 function readQQModuleData(data, callKey, action) {
   const inner = data && data[callKey];
   if (Number(data && data.code) !== 0 || Number(inner && inner.code) !== 0) {
-    const code = inner && inner.code != null ? inner.code : (data && data.code);
-    throw new Error(`QQ 音乐${action}失败（code=${code == null ? 'unknown' : code}）。`);
+    const code = inner && inner.code != null ? inner.code : data && data.code;
+    throw new Error(
+      `QQ 音乐${action}失败（code=${code == null ? 'unknown' : code}）。`,
+    );
   }
-  return inner && inner.data && typeof inner.data === 'object' ? inner.data : {};
+  return inner && inner.data && typeof inner.data === 'object'
+    ? inner.data
+    : {};
 }
 
 function hasQQMusicAuthCookie(cookieHeader) {
-  return ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey'].some((name) => Boolean(extractCookieValue(cookieHeader, name)));
+  return ['qqmusic_key', 'qm_keyst', 'p_skey', 'skey'].some((name) =>
+    Boolean(extractCookieValue(cookieHeader, name)),
+  );
 }
 
 function calcQQGtk(value) {
   let hash = 5381;
   const text = String(value || '');
-  for (let i = 0; i < text.length; i++) hash += (hash << 5) + text.charCodeAt(i);
+  for (let i = 0; i < text.length; i++)
+    hash += (hash << 5) + text.charCodeAt(i);
   return hash & 0x7fffffff;
 }
 
@@ -308,7 +444,9 @@ function extractUin(cookieHeader) {
 
   // 第一优先级：精确匹配 qqmusic_uin、uin、o_cookie（最可靠的 QQ 号来源）
   // 使用单个正则按 cookie 字符串出现顺序匹配，避免 p_uin 等干扰项
-  const primaryMatch = text.match(/(?:^|;\s*)(qqmusic_uin|uin|o_cookie)=o?(\d{5,15})/i);
+  const primaryMatch = text.match(
+    /(?:^|;\s*)(qqmusic_uin|uin|o_cookie)=o?(\d{5,15})/i,
+  );
   if (primaryMatch) return primaryMatch[2];
 
   // 第二优先级：WeChat uin（如果通过微信登录）
@@ -338,9 +476,11 @@ function sanitizeAuthState(auth) {
   return {
     loggedIn: Boolean(auth && auth.loggedIn),
     cookieCount: Number(auth && auth.cookieCount) || 0,
-    keyCookieNames: Array.isArray(auth && auth.keyCookieNames) ? auth.keyCookieNames : [],
+    keyCookieNames: Array.isArray(auth && auth.keyCookieNames)
+      ? auth.keyCookieNames
+      : [],
     encryptedSnapshotExists: Boolean(auth && auth.encryptedSnapshotExists),
-    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : ''
+    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : '',
   };
 }
 
@@ -365,5 +505,5 @@ module.exports = {
   normalizeQQSongType,
   readQQModuleData,
   sanitizeAuthState,
-  stripJsonp
+  stripJsonp,
 };

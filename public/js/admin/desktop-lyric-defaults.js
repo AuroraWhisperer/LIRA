@@ -51,5 +51,5 @@ export const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
   desktopLyricBrightness: '1',
   desktopLyricContrast: '1',
   desktopLyricSaturation: '1',
-  desktopLyricVisibleLines: '0'
+  desktopLyricVisibleLines: '0',
 });

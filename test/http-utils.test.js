@@ -13,7 +13,10 @@ test('sendStableError maps malformed JSON to 400', () => {
   assert.equal(mockRes.statusCode, 400);
   assert.equal(mockRes.body.ok, false);
   assert.equal(mockRes.body.error, 'Request body must be valid JSON.');
-  assert.ok(!mockRes.body.error.includes('stack'), 'Should not leak stack trace');
+  assert.ok(
+    !mockRes.body.error.includes('stack'),
+    'Should not leak stack trace',
+  );
 });
 
 test('sendStableError maps oversized body to 413', () => {
@@ -29,15 +32,23 @@ test('sendStableError maps oversized body to 413', () => {
 
 test('sendStableError maps unexpected exceptions to 500 without details', () => {
   const mockRes = createMockResponse();
-  const error = new Error('Unexpected database connection failed at /internal/path/db.js:42');
+  const error = new Error(
+    'Unexpected database connection failed at /internal/path/db.js:42',
+  );
 
   httpUtils.sendStableError(mockRes, error);
 
   assert.equal(mockRes.statusCode, 500);
   assert.equal(mockRes.body.ok, false);
   assert.equal(mockRes.body.error, 'Internal server error.');
-  assert.ok(!mockRes.body.error.includes('database'), 'Should not leak internal details');
-  assert.ok(!mockRes.body.error.includes('/internal/path'), 'Should not leak file paths');
+  assert.ok(
+    !mockRes.body.error.includes('database'),
+    'Should not leak internal details',
+  );
+  assert.ok(
+    !mockRes.body.error.includes('/internal/path'),
+    'Should not leak file paths',
+  );
 });
 
 test('sendStableError handles null/undefined error', () => {
@@ -53,32 +64,37 @@ test('sendStableError handles null/undefined error', () => {
 test('sendStableError handles error with stack trace without leaking', () => {
   const mockRes = createMockResponse();
   const error = new Error('Critical failure');
-  error.stack = 'Error: Critical failure\n    at Object.<anonymous> (/app/src/secret-module.js:10:15)';
+  error.stack =
+    'Error: Critical failure\n    at Object.<anonymous> (/app/src/secret-module.js:10:15)';
 
   httpUtils.sendStableError(mockRes, error);
 
   assert.equal(mockRes.statusCode, 500);
-  assert.ok(!JSON.stringify(mockRes.body).includes('secret-module'), 'Should not leak stack trace paths');
-  assert.ok(!JSON.stringify(mockRes.body).includes('Critical failure'), 'Should not leak internal error message');
+  assert.ok(
+    !JSON.stringify(mockRes.body).includes('secret-module'),
+    'Should not leak stack trace paths',
+  );
+  assert.ok(
+    !JSON.stringify(mockRes.body).includes('Critical failure'),
+    'Should not leak internal error message',
+  );
 });
 
 test('readJsonBody rejects oversized payload', async () => {
   const mockReq = createMockRequest('{"data": "large payload"}');
   const maxBytes = 10; // Smaller than the payload
 
-  await assert.rejects(
-    async () => httpUtils.readJsonBody(mockReq, maxBytes),
-    { message: 'Request body is too large.' }
-  );
+  await assert.rejects(async () => httpUtils.readJsonBody(mockReq, maxBytes), {
+    message: 'Request body is too large.',
+  });
 });
 
 test('readJsonBody rejects invalid JSON', async () => {
   const mockReq = createMockRequest('not valid json {]');
 
-  await assert.rejects(
-    async () => httpUtils.readJsonBody(mockReq, 1000),
-    { message: 'Invalid JSON body.' }
-  );
+  await assert.rejects(async () => httpUtils.readJsonBody(mockReq, 1000), {
+    message: 'Invalid JSON body.',
+  });
 });
 
 test('readJsonBody accepts valid JSON', async () => {
@@ -111,7 +127,7 @@ function createMockResponse() {
       if (data) {
         this.body = JSON.parse(data);
       }
-    }
+    },
   };
   return res;
 }
@@ -121,7 +137,7 @@ function createMockRequest(data) {
   const { EventEmitter } = require('node:events');
   const req = new EventEmitter();
 
-  req.destroy = function() {
+  req.destroy = function () {
     this.emit('close');
   };
 

@@ -17,7 +17,7 @@ export function bufferPixels(viewportHeight, beforeViewports, afterViewports) {
   const height = Math.max(1, Number(viewportHeight) || 1);
   return [
     height * Math.max(0, Number(beforeViewports) || 0),
-    height * Math.max(0, Number(afterViewports) || 0)
+    height * Math.max(0, Number(afterViewports) || 0),
   ];
 }
 
@@ -34,10 +34,12 @@ export class SongVirtualScroller {
     beforeViewports = 1,
     afterViewports = 1.5,
     requestFrame = (callback) => globalThis.requestAnimationFrame(callback),
-    cancelFrame = (frameId) => globalThis.cancelAnimationFrame(frameId)
+    cancelFrame = (frameId) => globalThis.cancelAnimationFrame(frameId),
   }) {
     if (!viewport || !content || typeof createNode !== 'function') {
-      throw new TypeError('SongVirtualScroller requires viewport, content, and createNode.');
+      throw new TypeError(
+        'SongVirtualScroller requires viewport, content, and createNode.',
+      );
     }
 
     this.viewport = viewport;
@@ -74,12 +76,14 @@ export class SongVirtualScroller {
     if (children.length === 0) return null;
 
     const scrollTop = Number(this.viewport.scrollTop) || 0;
-    const node = children.find((child) => this.recordTop(child) + child.offsetHeight > scrollTop)
-      ?? children.at(-1);
+    const node =
+      children.find(
+        (child) => this.recordTop(child) + child.offsetHeight > scrollTop,
+      ) ?? children.at(-1);
     return {
       key: node.dataset?.recordKey ?? '',
       index: Number(node.dataset?.recordIndex) || 0,
-      offset: scrollTop - this.recordTop(node)
+      offset: scrollTop - this.recordTop(node),
     };
   }
 
@@ -118,11 +122,14 @@ export class SongVirtualScroller {
     if (!this.running || !this.isScrollable) return;
 
     if (this.lastFrameTime !== null) {
-      const elapsed = Math.min(MAX_FRAME_GAP_MS, Math.max(0, timestamp - this.lastFrameTime));
-      const distance = pixelsPerSecond(
-        this.viewport.clientHeight,
-        this.secondsPerViewport
-      ) * elapsed / 1000;
+      const elapsed = Math.min(
+        MAX_FRAME_GAP_MS,
+        Math.max(0, timestamp - this.lastFrameTime),
+      );
+      const distance =
+        (pixelsPerSecond(this.viewport.clientHeight, this.secondsPerViewport) *
+          elapsed) /
+        1000;
       this.advanceBy(distance);
     }
     this.lastFrameTime = timestamp;
@@ -156,9 +163,12 @@ export class SongVirtualScroller {
     const [beforeBuffer] = bufferPixels(
       viewportHeight,
       this.beforeViewports,
-      this.afterViewports
+      this.afterViewports,
     );
-    const beforeLimit = Math.max(1, this.records.length * (this.beforeViewports + 1));
+    const beforeLimit = Math.max(
+      1,
+      this.records.length * (this.beforeViewports + 1),
+    );
     let beforeHeight = 0;
     let previousIndex = wrapIndex(anchorIndex - 1, this.records.length);
     let additions = 0;
@@ -171,7 +181,10 @@ export class SongVirtualScroller {
       additions += 1;
     }
 
-    const targetScrollTop = Math.max(0, beforeHeight + Number(anchor?.offset ?? 0));
+    const targetScrollTop = Math.max(
+      0,
+      beforeHeight + Number(anchor?.offset ?? 0),
+    );
     this.fillAfterBuffer(targetScrollTop);
     this.viewport.scrollTop = targetScrollTop;
     this.isScrollable = true;
@@ -193,15 +206,21 @@ export class SongVirtualScroller {
     const [, afterBuffer] = bufferPixels(
       viewportHeight,
       this.beforeViewports,
-      this.afterViewports
+      this.afterViewports,
     );
     const requiredBelow = viewportHeight + afterBuffer;
     const limit = Math.max(1, this.records.length * (this.afterViewports + 2));
     let additions = 0;
 
-    while (this.content.scrollHeight - scrollTop < requiredBelow && additions < limit) {
-      const lastIndex = Number(this.content.lastElementChild?.dataset?.recordIndex) || 0;
-      this.content.append(this.createRecordNode(wrapIndex(lastIndex + 1, this.records.length)));
+    while (
+      this.content.scrollHeight - scrollTop < requiredBelow &&
+      additions < limit
+    ) {
+      const lastIndex =
+        Number(this.content.lastElementChild?.dataset?.recordIndex) || 0;
+      this.content.append(
+        this.createRecordNode(wrapIndex(lastIndex + 1, this.records.length)),
+      );
       additions += 1;
     }
   }
@@ -211,7 +230,7 @@ export class SongVirtualScroller {
     const [beforeBuffer] = bufferPixels(
       viewportHeight,
       this.beforeViewports,
-      this.afterViewports
+      this.afterViewports,
     );
 
     while ((this.content.children?.length ?? 0) > 1) {
@@ -220,18 +239,29 @@ export class SongVirtualScroller {
       if (firstBottom > this.viewport.scrollTop - beforeBuffer) break;
 
       const next = this.content.children[1];
-      const removedHeight = Math.max(1, this.recordTop(next) - this.recordTop(first));
-      const lastIndex = Number(this.content.lastElementChild?.dataset?.recordIndex) || 0;
+      const removedHeight = Math.max(
+        1,
+        this.recordTop(next) - this.recordTop(first),
+      );
+      const lastIndex =
+        Number(this.content.lastElementChild?.dataset?.recordIndex) || 0;
       first.remove();
-      this.viewport.scrollTop = Math.max(0, this.viewport.scrollTop - removedHeight);
-      this.content.append(this.createRecordNode(wrapIndex(lastIndex + 1, this.records.length)));
+      this.viewport.scrollTop = Math.max(
+        0,
+        this.viewport.scrollTop - removedHeight,
+      );
+      this.content.append(
+        this.createRecordNode(wrapIndex(lastIndex + 1, this.records.length)),
+      );
     }
   }
 
   resolveAnchorIndex(anchor) {
     if (anchor?.key !== undefined && anchor?.key !== null) {
       const key = String(anchor.key);
-      const index = this.records.findIndex((record) => String(this.keyOf(record)) === key);
+      const index = this.records.findIndex(
+        (record) => String(this.keyOf(record)) === key,
+      );
       if (index >= 0) return index;
     }
     return wrapIndex(Number(anchor?.index) || 0, this.records.length);
@@ -249,9 +279,14 @@ export class SongVirtualScroller {
   }
 
   recordTop(node) {
-    if (typeof node.getBoundingClientRect === 'function'
-        && typeof this.content.getBoundingClientRect === 'function') {
-      return node.getBoundingClientRect().top - this.content.getBoundingClientRect().top;
+    if (
+      typeof node.getBoundingClientRect === 'function' &&
+      typeof this.content.getBoundingClientRect === 'function'
+    ) {
+      return (
+        node.getBoundingClientRect().top -
+        this.content.getBoundingClientRect().top
+      );
     }
     return node.offsetTop - (Number(this.content.offsetTop) || 0);
   }

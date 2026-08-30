@@ -22,9 +22,11 @@
 ### Task 1: Lock the waveform and responsive contracts in tests
 
 **Files:**
+
 - Modify: `test/opening-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: current `/opening` HTML, CSS, and JS source.
 - Produces: assertions for SVG motion-path heart, 16:9 container sizing, title count/scaling, empty name, browser audio, and Toolbox scrolling.
 
@@ -34,11 +36,13 @@
 ### Task 2: Refine overlay motion and layout
 
 **Files:**
+
 - Modify: `public/pages/overlays/opening.html`
 - Modify: `public/css/overlays/opening.css`
 - Modify: `public/js/overlays/opening.js`
 
 **Interfaces:**
+
 - Consumes: `title`, `name`, and `audio` URL parameters.
 - Produces: `titleSizeForLength(length): number`, a centered 16:9 stage, an SVG heart that travels from path start to end, and an optional hidden name row.
 
@@ -51,11 +55,13 @@
 ### Task 3: Compact the Toolbox editor
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/start-animation.html`
 - Modify: `public/css/admin/other-features/start-animation.css`
 - Modify: `public/js/admin/start-animation.js`
 
 **Interfaces:**
+
 - Consumes: editor inputs and `localOverlayOrigin(location)`.
 - Produces: compact scroll-safe editor, `openingTitleCount`, and URLs with `audio=browser`.
 
@@ -66,9 +72,11 @@
 ### Task 4: Verify the refinement
 
 **Files:**
+
 - Test: `test/opening-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: Tasks 1–3.
 - Produces: verified behavior without unrelated file changes.
 

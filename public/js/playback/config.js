@@ -24,5 +24,5 @@ export const PlaybackConfig = {
   DISPLAY_HISTORY_MAX_SIZE: 200,
 
   // UI 相关
-  FULLSCREEN_BG_THEME_COUNT: 30
+  FULLSCREEN_BG_THEME_COUNT: 30,
 };

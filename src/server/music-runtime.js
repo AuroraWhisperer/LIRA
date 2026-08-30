@@ -5,21 +5,40 @@ const { createLyricsService } = require('../music/lyrics-service');
 const { normalizeLyricTimeline } = require('../music/lyric-timeline');
 const { normalizeLyricState } = require('../music/lyric-state');
 const { createWeSingCapture } = require('../music/wesing-capture');
-const { createWeSingOnlineLyricResolver } = require('../music/wesing-online-lyrics');
+const {
+  createWeSingOnlineLyricResolver,
+} = require('../music/wesing-online-lyrics');
 
-function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub }) {
+function buildMusicRuntime({
+  dataDir,
+  runtimeOptions = {},
+  settingsStore,
+  webSocketHub,
+}) {
   const lyricsService = createLyricsService({
     apiCacheDir: dataDir.apiCacheDir,
-    lyricCacheDir: dataDir.lyricCacheDir
+    lyricCacheDir: dataDir.lyricCacheDir,
   });
   let musicRegistry = createMusicProviderRegistry();
   let lyricState = {
-    trackTitle: '', artists: [], lineText: '', translation: '', words: [],
-    currentMs: 0, progress: 0, playing: false, locked: false,
-    generation: 0, sequence: 0, status: 'idle'
+    trackTitle: '',
+    artists: [],
+    lineText: '',
+    translation: '',
+    words: [],
+    currentMs: 0,
+    progress: 0,
+    playing: false,
+    locked: false,
+    generation: 0,
+    sequence: 0,
+    status: 'idle',
   };
   let lyricTimeline = {
-    trackTitle: '', artists: [], status: 'idle', lines: []
+    trackTitle: '',
+    artists: [],
+    status: 'idle',
+    lines: [],
   };
   let lyricGeneration = 0;
   let lyricSequence = 0;
@@ -31,8 +50,11 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     const incomingSequence = state.sequence;
     const hasClientVersion = incomingGeneration > 0 || incomingSequence > 0;
     if (hasClientVersion) {
-      if (incomingGeneration < lyricGeneration
-          || (incomingGeneration === lyricGeneration && incomingSequence <= lyricSequence)) {
+      if (
+        incomingGeneration < lyricGeneration ||
+        (incomingGeneration === lyricGeneration &&
+          incomingSequence <= lyricSequence)
+      ) {
         return null;
       }
       lyricGeneration = incomingGeneration;
@@ -49,9 +71,9 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       const settings = settingsStore.getSettings();
       return {
         preferredPlatform: settings.weSingLyricSource,
-        smartMatch: settings.weSingSmartLyricMatch
+        smartMatch: settings.weSingSmartLyricMatch,
       };
-    }
+    },
   });
   const publishLyricTimeline = (input) => {
     const nextTimeline = normalizeLyricTimeline(input);
@@ -70,7 +92,8 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
     platform: runtimeOptions.weSingPlatform || process.platform,
     monitorFactory: runtimeOptions.weSingMonitorFactory,
-    resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
+    resolveFallbackLyrics:
+      runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
     saveCachePath(cachePath) {
       settingsStore.setSetting('weSingCachePath', cachePath);
     },
@@ -87,7 +110,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     },
     onTimeline(timeline) {
       if (timeline.active) publishLyricTimeline(timeline);
-    }
+    },
   });
 
   return {
@@ -106,7 +129,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       webSocketHub.broadcast({ type: 'lyric-state', state: versionedState });
       return lyricState;
     },
-    publishLyricTimeline
+    publishLyricTimeline,
   };
 }
 

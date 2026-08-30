@@ -8,13 +8,14 @@
 
 实现代码签名需要以下决策,**仅所有者能提供**:
 
-| 决策项 | 说明 | 示例 |
-|---|---|---|
-| **发布者名称(Publisher Name)** | 证书主题(CN)中的名称,安装时向用户显示。必须与购买/生成的代码签名证书完全匹配。 | `Aurora`、`AuroraWhisperer`、`LIRA Dev Team` |
-| **证书存储方式** | 选项 1:文件存储(.pfx 文件路径 + 密码环境变量名)<br>选项 2:Windows 证书存储区(证书指纹 thumbprint) | 文件:`WINDOWS_CERT_FILE` + `WINDOWS_CERT_PASSWORD`<br>存储区:`WINDOWS_CERT_THUMBPRINT` |
-| **CI/自动化构建中的签名策略** | 是否在 CI 中强制签名检查,或仅在手动发布脚本中执行。CI 需配置证书访问权限。 | 手动发布:仅 `release:win` 验证<br>CI 强制:所有 `dist:win` 构建必须签名 |
+| 决策项                         | 说明                                                                                              | 示例                                                                                   |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **发布者名称(Publisher Name)** | 证书主题(CN)中的名称,安装时向用户显示。必须与购买/生成的代码签名证书完全匹配。                    | `Aurora`、`AuroraWhisperer`、`LIRA Dev Team`                                           |
+| **证书存储方式**               | 选项 1:文件存储(.pfx 文件路径 + 密码环境变量名)<br>选项 2:Windows 证书存储区(证书指纹 thumbprint) | 文件:`WINDOWS_CERT_FILE` + `WINDOWS_CERT_PASSWORD`<br>存储区:`WINDOWS_CERT_THUMBPRINT` |
+| **CI/自动化构建中的签名策略**  | 是否在 CI 中强制签名检查,或仅在手动发布脚本中执行。CI 需配置证书访问权限。                        | 手动发布:仅 `release:win` 验证<br>CI 强制:所有 `dist:win` 构建必须签名                 |
 
 **证书获取途径**:
+
 - 正式证书:通过 SSL.com、DigiCert、Sectigo 等 CA 购买 EV Code Signing Certificate(Extended Validation,最高可信度)或标准 Code Signing Certificate
 - 测试证书:使用 PowerShell `New-SelfSignedCertificate` 生成自签名证书(仅测试,Windows SmartScreen 仍会警告)
 
@@ -34,11 +35,11 @@
 }
 ```
 
-| 字段 | 说明 |
-|---|---|
-| `signingHashAlgorithms` | 签名哈希算法,使用 SHA-256(Windows 10+ 推荐) |
-| `certificateSubjectName` | 证书主题中的发布者名称,必须与证书 CN 精确匹配 |
-| `sign` | 自定义签名脚本路径,electron-builder 在打包时调用 |
+| 字段                     | 说明                                             |
+| ------------------------ | ------------------------------------------------ |
+| `signingHashAlgorithms`  | 签名哈希算法,使用 SHA-256(Windows 10+ 推荐)      |
+| `certificateSubjectName` | 证书主题中的发布者名称,必须与证书 CN 精确匹配    |
+| `sign`                   | 自定义签名脚本路径,electron-builder 在打包时调用 |
 
 `sign` 脚本接收 electron-builder 传入的参数:`{configuration, path, outDir}`(见 §3)。
 
@@ -47,31 +48,35 @@
 **当前状态**:骨架已创建,证书加载与 signtool 调用逻辑等待所有者输入后实现。
 
 脚本职责:
+
 1. 从环境变量加载证书配置(文件路径 + 密码,或证书存储区指纹)
 2. 调用 Windows SDK 的 `signtool.exe` 对传入的可执行文件签名
 3. 使用时间戳服务器(Timestamp Server)确保签名长期有效
 
 签名命令模板:
+
 ```powershell
 signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f <cert_file> /p <password> <exe_path>
 # 或使用证书存储区:
 signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /sha1 <thumbprint> <exe_path>
 ```
 
-| 参数 | 说明 |
-|---|---|
-| `/fd SHA256` | 文件摘要算法 SHA-256 |
-| `/tr <url>` | RFC 3161 时间戳服务器 URL(DigiCert 提供免费服务) |
-| `/td SHA256` | 时间戳摘要算法 SHA-256 |
-| `/f <file>` | .pfx 证书文件路径 |
-| `/p <password>` | 证书密码 |
-| `/sha1 <thumbprint>` | 从 Windows 证书存储区按指纹选择证书 |
+| 参数                 | 说明                                             |
+| -------------------- | ------------------------------------------------ |
+| `/fd SHA256`         | 文件摘要算法 SHA-256                             |
+| `/tr <url>`          | RFC 3161 时间戳服务器 URL(DigiCert 提供免费服务) |
+| `/td SHA256`         | 时间戳摘要算法 SHA-256                           |
+| `/f <file>`          | .pfx 证书文件路径                                |
+| `/p <password>`      | 证书密码                                         |
+| `/sha1 <thumbprint>` | 从 Windows 证书存储区按指纹选择证书              |
 
 **环境变量约定**(所有者决策后确定):
+
 - 文件方式:`WINDOWS_CERT_FILE`(绝对路径)+ `WINDOWS_CERT_PASSWORD`(密码)
 - 存储区方式:`WINDOWS_CERT_THUMBPRINT`(40 位十六进制指纹)
 
 时间戳服务器备选:
+
 - DigiCert:`http://timestamp.digicert.com`(推荐)
 - Sectigo:`http://timestamp.sectigo.com`
 - GlobalSign:`http://timestamp.globalsign.com`
@@ -81,12 +86,14 @@ signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /sha1 
 **当前状态**:骨架已创建,PowerShell `Get-AuthenticodeSignature` 检查逻辑已设计。
 
 验证流程:
+
 1. 使用 PowerShell `Get-AuthenticodeSignature` 读取可执行文件的签名信息
 2. 检查签名状态:`$sig.Status` 必须为 `Valid`
 3. 检查发布者名称:`$sig.SignerCertificate.Subject` 必须包含预期的 `certificateSubjectName`
 4. 验证失败则抛出错误,阻止发布流程继续
 
 PowerShell 验证逻辑:
+
 ```powershell
 param([string]$FilePath, [string]$ExpectedPublisher)
 
@@ -122,17 +129,25 @@ if (!expectedPublisher) {
 
 log(`Verifying code signature for ${exePath}`);
 try {
-  execFileSync('powershell', [
-    '-ExecutionPolicy', 'Bypass',
-    '-File', path.join(ROOT_DIR, 'scripts', 'verify-windows-release.js'),
-    '-FilePath', exePath,
-    '-ExpectedPublisher', expectedPublisher
-  ], { cwd: ROOT_DIR, stdio: 'inherit' });
+  execFileSync(
+    'powershell',
+    [
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      path.join(ROOT_DIR, 'scripts', 'verify-windows-release.js'),
+      '-FilePath',
+      exePath,
+      '-ExpectedPublisher',
+      expectedPublisher,
+    ],
+    { cwd: ROOT_DIR, stdio: 'inherit' },
+  );
 } catch (error) {
   throw new Error(
     `Release gate failed: ${exePath} 签名验证失败。\n` +
-    `拒绝发布未签名或发布者不匹配的构建产物。\n` +
-    `请检查签名配置和证书是否正确。`
+      `拒绝发布未签名或发布者不匹配的构建产物。\n` +
+      `请检查签名配置和证书是否正确。`,
   );
 }
 ```
@@ -162,20 +177,22 @@ $cert.Thumbprint
 ```
 
 测试证书生成后:
+
 - 文件方式测试:设置 `WINDOWS_CERT_FILE=<path-to-test-cert.pfx>` + `WINDOWS_CERT_PASSWORD=test123`
 - 存储区方式测试:设置 `WINDOWS_CERT_THUMBPRINT=<thumbprint>`
 
 ### 6.2 测试用例
 
-| 场景 | 配置 | 预期结果 |
-|---|---|---|
-| 正常签名 | 配置有效证书 + `certificateSubjectName="LIRA Test"` | `npm run dist:win` 成功,`verify-windows-release.js` 验证通过 |
-| 缺失证书 | 未设置证书环境变量 | `sign-windows.js` 报错,electron-builder 失败 |
-| 发布者不匹配 | 证书 CN 为 `LIRA Test`,`certificateSubjectName` 配置为 `Wrong Publisher` | `verify-windows-release.js` 验证失败,exit code 1 |
-| 无签名构建 | 不配置 `build.win.sign` | `verify-windows-release.js` 检测到 `Status: NotSigned`,验证失败 |
-| 签名损坏 | 手动修改已签名的 .exe 二进制 | `Get-AuthenticodeSignature` 返回 `Status: HashMismatch`,验证失败 |
+| 场景         | 配置                                                                     | 预期结果                                                         |
+| ------------ | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| 正常签名     | 配置有效证书 + `certificateSubjectName="LIRA Test"`                      | `npm run dist:win` 成功,`verify-windows-release.js` 验证通过     |
+| 缺失证书     | 未设置证书环境变量                                                       | `sign-windows.js` 报错,electron-builder 失败                     |
+| 发布者不匹配 | 证书 CN 为 `LIRA Test`,`certificateSubjectName` 配置为 `Wrong Publisher` | `verify-windows-release.js` 验证失败,exit code 1                 |
+| 无签名构建   | 不配置 `build.win.sign`                                                  | `verify-windows-release.js` 检测到 `Status: NotSigned`,验证失败  |
+| 签名损坏     | 手动修改已签名的 .exe 二进制                                             | `Get-AuthenticodeSignature` 返回 `Status: HashMismatch`,验证失败 |
 
 测试步骤:
+
 1. 安装测试证书(见 §6.1)
 2. 配置 `package.json`:设置 `certificateSubjectName="LIRA Test"` + `sign="./scripts/sign-windows.js"`
 3. 运行 `npm run dist:win`(或 `dist:win:local`)
@@ -187,6 +204,7 @@ $cert.Thumbprint
 ### 6.3 CI 集成测试
 
 若所有者决定在 CI 中启用签名:
+
 1. 将证书与密码存为 GitHub Secrets:`WINDOWS_CERT_FILE_BASE64`(Base64 编码的 .pfx)+ `WINDOWS_CERT_PASSWORD`
 2. CI workflow 中解码证书:`echo $WINDOWS_CERT_FILE_BASE64 | base64 -d > cert.pfx`
 3. 设置环境变量后运行 `npm run dist:win`
@@ -195,11 +213,13 @@ $cert.Thumbprint
 ## 7. 当前完整性保护机制
 
 **已存在的保护**(无需代码签名):
+
 - **SHA-512 哈希验证**:electron-updater 在下载更新后,根据 `latest.yml` 中的 `sha512` 字段验证安装包完整性([update-manager.js:161-173](../../../src/electron/update-manager.js#L161-L173)的 `checksum mismatch` 错误映射)
 - **HTTPS 传输**:GitHub Releases 通过 HTTPS 下载,防止中间人篡改
 - **GitHub 基础设施保护**:Releases 产物由 GitHub Actions 或授权账户上传,受 GitHub 访问控制保护
 
 **代码签名的附加价值**:
+
 - **Windows SmartScreen 信誉**:正式 EV 证书签名的应用不会触发 SmartScreen 警告,提升用户安装体验
 - **发布者身份验证**:用户可通过签名证书验证应用确实来自声明的发布者
 - **企业环境兼容性**:部分企业 IT 策略仅允许安装已签名的应用
@@ -211,22 +231,23 @@ $cert.Thumbprint
 
 一旦所有者提供必需输入并实现签名功能,需更新以下文档:
 
-| 文档 | 更新内容 |
-|---|---|
-| [build.md](build.md) | 更新 §3 `build.win` 配置表,添加 `signingHashAlgorithms`、`certificateSubjectName`、`sign` 行;更新 §7 发布流程,插入签名验证步骤 |
-| [../desktop/update.md](../desktop/update.md) | §7 当前完整性保护机制,补充代码签名已启用,更新 §5 错误映射(若签名验证失败有新错误码) |
-| 本文档 | 移除 §1 阻塞状态,更新 §3、§4 为实际实现,补充实际证书提供商与指纹示例 |
+| 文档                                         | 更新内容                                                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [build.md](build.md)                         | 更新 §3 `build.win` 配置表,添加 `signingHashAlgorithms`、`certificateSubjectName`、`sign` 行;更新 §7 发布流程,插入签名验证步骤 |
+| [../desktop/update.md](../desktop/update.md) | §7 当前完整性保护机制,补充代码签名已启用,更新 §5 错误映射(若签名验证失败有新错误码)                                            |
+| 本文档                                       | 移除 §1 阻塞状态,更新 §3、§4 为实际实现,补充实际证书提供商与指纹示例                                                           |
 
 ## 9. 安全注意事项
 
-| 风险 | 缓解措施 |
-|---|---|
-| 证书私钥泄露 | **绝不**将 .pfx 文件或密码提交到 Git 仓库;使用环境变量或密钥管理服务(如 Azure Key Vault);定期轮换证书 |
+| 风险             | 缓解措施                                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 证书私钥泄露     | **绝不**将 .pfx 文件或密码提交到 Git 仓库;使用环境变量或密钥管理服务(如 Azure Key Vault);定期轮换证书              |
 | 签名脚本权限过高 | `sign-windows.js` 仅接受 electron-builder 传入的参数,不读取外部配置文件;限制证书访问权限(文件权限或证书存储区 ACL) |
-| 时间戳服务不可用 | 签名时必须成功获取时间戳,否则证书过期后签名失效;配置重试逻辑或备用时间戳服务器 |
-| 测试证书混入生产 | 发布脚本验证 `certificateSubjectName` 是否与生产证书匹配;CI 中使用不同的环境变量前缀区分测试/生产证书 |
+| 时间戳服务不可用 | 签名时必须成功获取时间戳,否则证书过期后签名失效;配置重试逻辑或备用时间戳服务器                                     |
+| 测试证书混入生产 | 发布脚本验证 `certificateSubjectName` 是否与生产证书匹配;CI 中使用不同的环境变量前缀区分测试/生产证书              |
 
 **证书存储最佳实践**:
+
 - 本地开发:使用 Windows 证书存储区(无需文件管理,密码由系统保护)
 - CI/CD:使用加密的 Secrets 存储 Base64 编码的 .pfx + 密码,构建时临时解码到内存或临时文件
 - 生产发布:由受信任的发布者在本地机器上执行,证书私钥不离开该机器

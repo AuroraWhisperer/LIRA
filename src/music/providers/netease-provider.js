@@ -1,26 +1,35 @@
 'use strict';
 
-const crypto = require('node:crypto');
 const { parseLyricResult } = require('../lyrics');
+const { encryptNeteaseWeapiPayload } = require('./netease-weapi');
+const {
+  clampInteger,
+  extractCookieValue,
+  extractSourceTrackId,
+  mapNeteasePlaylist,
+  mapNeteaseSong,
+  normalizeNeteasePlaylistTrackIds,
+  normalizeTrialTimeMs,
+  sanitizeAuthState,
+  sliceByPage,
+} = require('./netease-mappers');
 
 const NETEASE_BASE_URL = 'https://music.163.com';
 const REQUEST_TIMEOUT_MS = 10000;
 const STREAM_TTL_MS = 5 * 60 * 1000;
-const WEAPI_NONCE = '0CoJUm6Qyw8W8jud';
-const WEAPI_IV = '0102030405060708';
-const WEAPI_PUBLIC_KEY = '010001';
-const WEAPI_MODULUS = '00e0b509f6259df8642dbc35662901477df22677ec152b5f5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741ad8f16f4353b8b1cb4d20a7e1cdde46f';
 
 class NeteaseMusicProvider {
   constructor(options = {}) {
     this.source = 'netease';
     this.name = '网易云音乐';
-    this.getAuthState = typeof options.getAuthState === 'function'
-      ? options.getAuthState
-      : () => null;
-    this.getCookieHeader = typeof options.getCookieHeader === 'function'
-      ? options.getCookieHeader
-      : () => '';
+    this.getAuthState =
+      typeof options.getAuthState === 'function'
+        ? options.getAuthState
+        : () => null;
+    this.getCookieHeader =
+      typeof options.getCookieHeader === 'function'
+        ? options.getCookieHeader
+        : () => '';
   }
 
   async healthCheck() {
@@ -30,7 +39,7 @@ class NeteaseMusicProvider {
         s: '晴天',
         type: '1',
         limit: '1',
-        offset: '0'
+        offset: '0',
       });
       const loggedIn = Boolean(auth && auth.loggedIn);
       return {
@@ -41,7 +50,7 @@ class NeteaseMusicProvider {
         message: loggedIn
           ? '网易云音乐接口可用，已读取登录 Cookie。'
           : '网易云音乐公开搜索接口可用，未检测到登录 Cookie。',
-        auth: sanitizeAuthState(auth)
+        auth: sanitizeAuthState(auth),
       };
     } catch (error) {
       return {
@@ -50,7 +59,7 @@ class NeteaseMusicProvider {
         ok: false,
         status: 'api-error',
         message: `网易云音乐接口检查失败：${error.message || String(error)}`,
-        auth: sanitizeAuthState(auth)
+        auth: sanitizeAuthState(auth),
       };
     }
   }
@@ -65,40 +74,54 @@ class NeteaseMusicProvider {
       s: query,
       type: '1',
       limit: String(limit),
-      offset: String(offset)
+      offset: String(offset),
     });
-    const songs = data && data.result && Array.isArray(data.result.songs)
-      ? data.result.songs
-      : [];
+    const songs =
+      data && data.result && Array.isArray(data.result.songs)
+        ? data.result.songs
+        : [];
     return this.mapTracksWithArtwork(songs);
   }
 
   async mapTracksWithArtwork(songs) {
     const list = Array.isArray(songs) ? songs : [];
     const coverUrls = await this.getMissingCoverUrls(list);
-    return list.map((song) => mapNeteaseSong(song, coverUrls.get(String(song && song.id)))).filter(Boolean);
+    return list
+      .map((song) =>
+        mapNeteaseSong(song, coverUrls.get(String(song && song.id))),
+      )
+      .filter(Boolean);
   }
 
   async getMissingCoverUrls(songs) {
-    const ids = [...new Set((Array.isArray(songs) ? songs : [])
-      .filter((song) => {
-        const album = song && (song.album || song.al);
-        return !String(album && (album.picUrl || album.pic_url) || '').trim();
-      })
-      .map((song) => song && song.id)
-      .filter((id) => /^\d+$/.test(String(id))))];
+    const ids = [
+      ...new Set(
+        (Array.isArray(songs) ? songs : [])
+          .filter((song) => {
+            const album = song && (song.album || song.al);
+            return !String(
+              (album && (album.picUrl || album.pic_url)) || '',
+            ).trim();
+          })
+          .map((song) => song && song.id)
+          .filter((id) => /^\d+$/.test(String(id))),
+      ),
+    ];
     const coverUrls = new Map();
     for (let index = 0; index < ids.length; index += 100) {
       const batch = ids.slice(index, index + 100);
       try {
         const data = await this.requestJson('/api/song/detail', {
-          ids: JSON.stringify(batch)
+          ids: JSON.stringify(batch),
         });
         const detailSongs = data && Array.isArray(data.songs) ? data.songs : [];
         for (const song of detailSongs) {
           const album = song && (song.album || song.al);
-          const coverUrl = String(album && (album.picUrl || album.pic_url) || '').trim();
-          if (song && song.id && coverUrl) coverUrls.set(String(song.id), coverUrl);
+          const coverUrl = String(
+            (album && (album.picUrl || album.pic_url)) || '',
+          ).trim();
+          if (song && song.id && coverUrl)
+            coverUrls.set(String(song.id), coverUrl);
         }
       } catch (_) {
         // Preserve list results when one detail batch is unavailable.
@@ -110,7 +133,7 @@ class NeteaseMusicProvider {
   async getPersonalizedPlaylists(options = {}) {
     const limit = clampInteger(options.limit, 1, 30, 9);
     const data = await this.requestJson('/api/personalized/playlist', {
-      limit: String(limit)
+      limit: String(limit),
     });
     const playlists = data && Array.isArray(data.result) ? data.result : [];
     return playlists.map(mapNeteasePlaylist).filter(Boolean);
@@ -121,9 +144,10 @@ class NeteaseMusicProvider {
     const limit = clampInteger(options.limit, 1, 100, 30);
     const page = clampInteger(options.page, 1, 50, 1);
     const data = await this.requestJson('/api/v1/discovery/recommend/songs');
-    const songs = data && data.recommend && Array.isArray(data.recommend)
-      ? data.recommend
-      : [];
+    const songs =
+      data && data.recommend && Array.isArray(data.recommend)
+        ? data.recommend
+        : [];
     // 网易云每日推荐是「当天固定一份」，接口不分页。这里按 page 开窗口往后取，
     // 取完就绕回开头 —— 换一批只能在当天这份列表里换，不会有全新的歌。
     return this.mapTracksWithArtwork(sliceByPage(songs, limit, page));
@@ -134,11 +158,12 @@ class NeteaseMusicProvider {
     const page = clampInteger(options.page, 1, 50, 1);
     // newsong 接口忽略 offset，但支持 limit 到 100，所以一次多拿再按 page 切窗口。
     const data = await this.requestJson('/api/personalized/newsong', {
-      limit: '100'
+      limit: '100',
     });
-    const songs = data && Array.isArray(data.result)
-      ? data.result.map((item) => item && (item.song || item))
-      : [];
+    const songs =
+      data && Array.isArray(data.result)
+        ? data.result.map((item) => item && (item.song || item))
+        : [];
     return this.mapTracksWithArtwork(sliceByPage(songs, limit, page));
   }
 
@@ -147,10 +172,16 @@ class NeteaseMusicProvider {
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const profile = await this.getUserProfile();
-    const playlists = await this.getUserPlaylists(profile.userId, { limit: 50 });
-    const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title));
+    const playlists = await this.getUserPlaylists(profile.userId, {
+      limit: 50,
+    });
+    const likedPlaylist = playlists.find((playlist) =>
+      /喜欢/.test(playlist.title),
+    );
     if (!likedPlaylist) {
-      throw new Error('没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。');
+      throw new Error(
+        '没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。',
+      );
     }
     return this.getPlaylistTracks(likedPlaylist.id, { limit, offset });
   }
@@ -159,18 +190,22 @@ class NeteaseMusicProvider {
     await this.requireLogin('我的歌单需要先登录网易云音乐。');
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: clampInteger(options.limit, 1, 500, 200)
+      limit: clampInteger(options.limit, 1, 500, 200),
     });
-    return playlists.filter((playlist) => playlist.creatorUserId === profile.userId);
+    return playlists.filter(
+      (playlist) => playlist.creatorUserId === profile.userId,
+    );
   }
 
   async getCollectedPlaylists(options = {}) {
     await this.requireLogin('收藏歌单需要先登录网易云音乐。');
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: clampInteger(options.limit, 1, 500, 200)
+      limit: clampInteger(options.limit, 1, 500, 200),
     });
-    return playlists.filter((playlist) => playlist.creatorUserId !== profile.userId);
+    return playlists.filter(
+      (playlist) => playlist.creatorUserId !== profile.userId,
+    );
   }
 
   async getRecentTracks(options = {}) {
@@ -178,15 +213,15 @@ class NeteaseMusicProvider {
     const limit = clampInteger(options.limit, 1, 100, 50);
     const data = await this.requestJson('/api/play-record', {
       uid: (await this.getUserProfile()).userId,
-      type: '1'
+      type: '1',
     });
-    const rows = data && Array.isArray(data.weekData)
-      ? data.weekData
-      : [];
-    return this.mapTracksWithArtwork(rows
-      .map((row) => row && row.song)
-      .filter(Boolean)
-      .slice(0, limit));
+    const rows = data && Array.isArray(data.weekData) ? data.weekData : [];
+    return this.mapTracksWithArtwork(
+      rows
+        .map((row) => row && row.song)
+        .filter(Boolean)
+        .slice(0, limit),
+    );
   }
 
   async getPlaylistTracks(playlistId, options = {}) {
@@ -197,11 +232,12 @@ class NeteaseMusicProvider {
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
       n: String(limit),
-      s: String(offset)
+      s: String(offset),
     });
-    const tracks = data && data.playlist && Array.isArray(data.playlist.tracks)
-      ? data.playlist.tracks
-      : [];
+    const tracks =
+      data && data.playlist && Array.isArray(data.playlist.tracks)
+        ? data.playlist.tracks
+        : [];
     return this.mapTracksWithArtwork(tracks);
   }
 
@@ -212,13 +248,16 @@ class NeteaseMusicProvider {
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
       n: '0',
-      s: '0'
+      s: '0',
     });
-    const trackIds = data && data.playlist && Array.isArray(data.playlist.trackIds)
-      ? data.playlist.trackIds
-      : null;
+    const trackIds =
+      data && data.playlist && Array.isArray(data.playlist.trackIds)
+        ? data.playlist.trackIds
+        : null;
     if (trackIds) {
-      return trackIds.some((item) => String(item && (item.id || item)) === trackId);
+      return trackIds.some(
+        (item) => String(item && (item.id || item)) === trackId,
+      );
     }
     const tracks = await this.getPlaylistTracks(id, { limit: 5000 });
     return tracks.some((item) => extractSourceTrackId(item) === trackId);
@@ -231,7 +270,7 @@ class NeteaseMusicProvider {
     const data = await this.requestJson('/api/user/playlist', {
       uid,
       limit: String(limit),
-      offset: '0'
+      offset: '0',
     });
     const playlists = data && Array.isArray(data.playlist) ? data.playlist : [];
     return playlists.map(mapNeteasePlaylist).filter(Boolean);
@@ -247,30 +286,35 @@ class NeteaseMusicProvider {
 
   async writePlaylistTracks(operation, playlist, tracks) {
     await this.requireLogin('修改网易云音乐歌单需要先登录。');
-    const playlistId = String(playlist && playlist.id || '').trim();
+    const playlistId = String((playlist && playlist.id) || '').trim();
     if (!/^\d+$/.test(playlistId)) throw new Error('缺少网易云歌单 ID。');
     const trackIds = normalizeNeteasePlaylistTrackIds(tracks);
-    const data = await this.requestWeapiJson('/weapi/playlist/manipulate/tracks', {
-      op: operation,
-      pid: playlistId,
-      trackIds: JSON.stringify(trackIds),
-      imme: 'true',
-      tracks: JSON.stringify(trackIds.map((id) => ({ type: 3, id })))
-    });
+    const data = await this.requestWeapiJson(
+      '/weapi/playlist/manipulate/tracks',
+      {
+        op: operation,
+        pid: playlistId,
+        trackIds: JSON.stringify(trackIds),
+        imme: 'true',
+        tracks: JSON.stringify(trackIds.map((id) => ({ type: 3, id }))),
+      },
+    );
     const code = Number(data && data.code);
     if (operation === 'add' && code === 502) {
       return {
         playlistId,
-        songlist: trackIds.map((songId) => ({ songId, existed: 1 }))
+        songlist: trackIds.map((songId) => ({ songId, existed: 1 })),
       };
     }
     if (code !== 200) {
       const message = data && (data.message || data.msg);
-      throw new Error(`网易云音乐歌单写入失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`);
+      throw new Error(
+        `网易云音乐歌单写入失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`,
+      );
     }
     return {
       playlistId,
-      songlist: trackIds.map((songId) => ({ songId, existed: 0 }))
+      songlist: trackIds.map((songId) => ({ songId, existed: 0 })),
     };
   }
 
@@ -282,7 +326,7 @@ class NeteaseMusicProvider {
       kv: '-1',
       tv: '-1',
       rv: '-1',
-      ytv: '-1'
+      ytv: '-1',
     });
     return {
       source: this.source,
@@ -291,25 +335,38 @@ class NeteaseMusicProvider {
         data && data.lrc ? data.lrc.lyric : '',
         data && data.tlyric ? data.tlyric.lyric : '',
         data && data.yrc ? data.yrc.lyric : '',
-        data && data.romalrc ? data.romalrc.lyric : ''
-      )
+        data && data.romalrc ? data.romalrc.lyric : '',
+      ),
     };
   }
 
   async resolvePlayableUrl(track, options = {}) {
     const sourceTrackId = extractSourceTrackId(track);
-    if (!/^\d+$/.test(sourceTrackId)) throw new Error('网易云歌曲 ID 必须是正整数。');
-    const supportedLevels = new Set(['standard', 'higher', 'exhigh', 'lossless', 'hires']);
-    const requestedQuality = supportedLevels.has(options.quality) ? options.quality : 'standard';
-    const encodeType = requestedQuality === 'lossless' || requestedQuality === 'hires' ? 'flac' : 'mp3';
+    if (!/^\d+$/.test(sourceTrackId))
+      throw new Error('网易云歌曲 ID 必须是正整数。');
+    const supportedLevels = new Set([
+      'standard',
+      'higher',
+      'exhigh',
+      'lossless',
+      'hires',
+    ]);
+    const requestedQuality = supportedLevels.has(options.quality)
+      ? options.quality
+      : 'standard';
+    const encodeType =
+      requestedQuality === 'lossless' || requestedQuality === 'hires'
+        ? 'flac'
+        : 'mp3';
 
     const payload = await this.requestJson('/api/song/enhance/player/url/v1', {
       ids: JSON.stringify([Number(sourceTrackId)]),
       level: requestedQuality,
-      encodeType
+      encodeType,
     });
-    const stream = payload && Array.isArray(payload.data) ? payload.data[0] : null;
-    const streamUrl = String(stream && stream.url || '').trim();
+    const stream =
+      payload && Array.isArray(payload.data) ? payload.data[0] : null;
+    const streamUrl = String((stream && stream.url) || '').trim();
     if (!streamUrl) {
       throw new Error('当前网易云音乐账号无法播放或试听该歌曲。');
     }
@@ -325,14 +382,15 @@ class NeteaseMusicProvider {
     }
 
     const expiresInSeconds = Number(stream.expi);
-    const expiresAt = Date.now() + (
-      Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+    const expiresAt =
+      Date.now() +
+      (Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
         ? expiresInSeconds * 1000
-        : STREAM_TTL_MS
-    );
-    const trialInfo = stream.freeTrialInfo && typeof stream.freeTrialInfo === 'object'
-      ? stream.freeTrialInfo
-      : null;
+        : STREAM_TTL_MS);
+    const trialInfo =
+      stream.freeTrialInfo && typeof stream.freeTrialInfo === 'object'
+        ? stream.freeTrialInfo
+        : null;
     return {
       source: this.source,
       sourceTrackId,
@@ -345,7 +403,7 @@ class NeteaseMusicProvider {
       requestedQuality,
       quality: String(stream.level || requestedQuality),
       level: String(stream.level || ''),
-      type: String(stream.type || stream.encodeType || '')
+      type: String(stream.type || stream.encodeType || ''),
     };
   }
 
@@ -358,7 +416,7 @@ class NeteaseMusicProvider {
     const headers = {
       Accept: 'application/json,text/plain,*/*',
       Referer: `${NETEASE_BASE_URL}/`,
-      'User-Agent': 'Mozilla/5.0 SongAssistant/1.0'
+      'User-Agent': 'Mozilla/5.0 SongAssistant/1.0',
     };
     const cookieHeader = await this.getSafeCookieHeader();
     if (cookieHeader) headers.Cookie = cookieHeader;
@@ -367,7 +425,7 @@ class NeteaseMusicProvider {
       method: 'GET',
       headers,
       redirect: 'follow',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const text = await response.text();
     if (!response.ok) {
@@ -385,7 +443,7 @@ class NeteaseMusicProvider {
     const csrfToken = extractCookieValue(cookieHeader, '__csrf');
     const encrypted = encryptNeteaseWeapiPayload({
       ...payload,
-      csrf_token: csrfToken
+      csrf_token: csrfToken,
     });
     const url = new URL(pathname, NETEASE_BASE_URL);
     url.searchParams.set('csrf_token', csrfToken);
@@ -397,11 +455,11 @@ class NeteaseMusicProvider {
         Cookie: cookieHeader,
         Origin: NETEASE_BASE_URL,
         Referer: `${NETEASE_BASE_URL}/`,
-        'User-Agent': 'Mozilla/5.0 SongAssistant/1.0'
+        'User-Agent': 'Mozilla/5.0 SongAssistant/1.0',
       },
       body: new URLSearchParams(encrypted).toString(),
       redirect: 'follow',
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const text = await response.text();
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -422,7 +480,7 @@ class NeteaseMusicProvider {
 
   async getSafeCookieHeader() {
     try {
-      return String(await this.getCookieHeader(this.source) || '');
+      return String((await this.getCookieHeader(this.source)) || '');
     } catch (_) {
       return '';
     }
@@ -443,145 +501,11 @@ class NeteaseMusicProvider {
     if (!userId) throw new Error('未能读取网易云用户资料，请重新登录后再试。');
     return {
       userId,
-      nickname: profile.nickname || ''
+      nickname: profile.nickname || '',
     };
   }
 }
 
-function mapNeteaseSong(song, searchCoverUrl) {
-  if (!song || !song.id || !song.name) return null;
-  const album = song.album || song.al || {};
-  const artists = Array.isArray(song.artists)
-    ? song.artists
-    : (Array.isArray(song.ar) ? song.ar : []);
-  const sourceTrackId = String(song.id);
-
-  // 封面来源优先级：
-  // 1. 搜索详情中的专辑 picUrl
-  // 2. 当前歌曲中的专辑 picUrl（歌单/推荐等接口有）
-  // 3. 第一位艺术家的头像（搜索详情缺失或请求失败时的回退）
-  var coverUrl = String(searchCoverUrl || '').trim();
-  if (!coverUrl) coverUrl = String(album && (album.picUrl || album.pic_url) || '');
-  if (!coverUrl && artists.length > 0) {
-    coverUrl = String(artists[0].img1v1Url || '');
-  }
-
-  return {
-    id: `netease:${sourceTrackId}`,
-    source: 'netease',
-    sourceTrackId,
-    sourceAlbumId: album && album.id ? String(album.id) : '',
-    title: String(song.name || '').trim(),
-    artists: artists.map((artist) => String(artist && artist.name || '').trim()).filter(Boolean),
-    album: String(album && album.name || '').trim(),
-    durationMs: Math.max(0, Number(song.duration || song.dt || 0)),
-    coverUrl: coverUrl,
-    playable: song.status !== -1,
-    vip: Number(song.fee) === 1 || Number(song.fee) === 4
-  };
-}
-
-function mapNeteasePlaylist(playlist) {
-  if (!playlist || !playlist.id || !playlist.name) return null;
-  return {
-    id: String(playlist.id),
-    source: 'netease',
-    title: String(playlist.name || '').trim(),
-    description: String(playlist.copywriter || playlist.description || '').trim(),
-    coverUrl: String(playlist.picUrl || playlist.coverImgUrl || ''),
-    trackCount: Math.max(0, Number(playlist.trackCount || 0)),
-    playCount: Math.max(0, Number(playlist.playCount || 0)),
-    creatorUserId: playlist.creator && playlist.creator.userId ? String(playlist.creator.userId) : ''
-  };
-}
-
-function extractSourceTrackId(track) {
-  const sourceTrackId = String(track && (track.sourceTrackId || track.id) || '')
-    .replace(/^netease:/, '')
-    .trim();
-  if (!sourceTrackId) throw new Error('缺少网易云歌曲 ID。');
-  return sourceTrackId;
-}
-
-function normalizeNeteasePlaylistTrackIds(tracks) {
-  const trackIds = (Array.isArray(tracks) ? tracks : []).map((track) => extractSourceTrackId(track));
-  if (trackIds.length === 0) throw new Error('缺少网易云歌曲 ID。');
-  if (trackIds.some((id) => !/^\d+$/.test(id))) throw new Error('网易云歌曲 ID 必须是正整数。');
-  return trackIds;
-}
-
-function normalizeTrialTimeMs(value) {
-  const seconds = Number(value);
-  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : 0;
-}
-
-function extractCookieValue(cookieHeader, name) {
-  const pair = String(cookieHeader || '')
-    .split(';')
-    .map((item) => item.trim())
-    .find((item) => item.startsWith(`${name}=`));
-  return pair ? pair.slice(name.length + 1) : '';
-}
-
-function encryptNeteaseWeapiPayload(payload) {
-  const secretKey = crypto.randomBytes(16).toString('hex').slice(0, 16);
-  return {
-    params: aesEncrypt(aesEncrypt(JSON.stringify(payload), WEAPI_NONCE), secretKey),
-    encSecKey: rsaEncrypt(secretKey)
-  };
-}
-
-function aesEncrypt(text, key) {
-  const cipher = crypto.createCipheriv('aes-128-cbc', Buffer.from(key), Buffer.from(WEAPI_IV));
-  return Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]).toString('base64');
-}
-
-function rsaEncrypt(secretKey) {
-  const reversedHex = Buffer.from(secretKey).reverse().toString('hex');
-  return modularPower(BigInt(`0x${reversedHex}`), BigInt(`0x${WEAPI_PUBLIC_KEY}`), BigInt(`0x${WEAPI_MODULUS}`))
-    .toString(16)
-    .padStart(256, '0');
-}
-
-function modularPower(base, exponent, modulus) {
-  let result = 1n;
-  let factor = base % modulus;
-  let power = exponent;
-  while (power > 0n) {
-    if (power & 1n) result = (result * factor) % modulus;
-    factor = (factor * factor) % modulus;
-    power >>= 1n;
-  }
-  return result;
-}
-
-function clampInteger(value, min, max, fallback) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return fallback;
-  return Math.max(min, Math.min(max, Math.trunc(number)));
-}
-
-// 从固定长度的列表里按页取一段，超出末尾就绕回开头，保证永远有内容返回。
-function sliceByPage(list, limit, page) {
-  const items = Array.isArray(list) ? list : [];
-  if (items.length === 0) return [];
-  if (items.length <= limit) return items.slice(0, limit);
-  const start = ((page - 1) * limit) % items.length;
-  const window = items.slice(start, start + limit);
-  if (window.length >= limit) return window;
-  return window.concat(items.slice(0, limit - window.length));
-}
-
-function sanitizeAuthState(auth) {
-  return {
-    loggedIn: Boolean(auth && auth.loggedIn),
-    cookieCount: Number(auth && auth.cookieCount) || 0,
-    keyCookieNames: Array.isArray(auth && auth.keyCookieNames) ? auth.keyCookieNames : [],
-    encryptedSnapshotExists: Boolean(auth && auth.encryptedSnapshotExists),
-    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : ''
-  };
-}
-
 module.exports = {
-  NeteaseMusicProvider
+  NeteaseMusicProvider,
 };

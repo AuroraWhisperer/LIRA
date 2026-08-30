@@ -8,12 +8,7 @@
  * @returns {Object} 匹配测试函数集合
  */
 export function createMatchHandler(deps) {
-  const {
-    matchService,
-    showError,
-    value,
-    renderPlaybackMatchResults
-  } = deps;
+  const { matchService, showError, value, renderPlaybackMatchResults } = deps;
 
   /**
    * 执行匹配测试
@@ -36,6 +31,6 @@ export function createMatchHandler(deps) {
   }
 
   return {
-    runPlaybackMatchTest
+    runPlaybackMatchTest,
   };
 }

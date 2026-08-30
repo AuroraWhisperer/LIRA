@@ -21,11 +21,13 @@
 ### Task 1: Lock the new contract with tests
 
 **Files:**
+
 - Modify: `test/song-file-codec.test.js`
 - Modify: `test/song-import-table.test.js`
 - Modify: `test/database-maintenance.test.js`
 
 **Interfaces:**
+
 - Consumes: `buildSongsCsv`, `buildSongsWorkbook`, `parseSongsFromXlsx`, `normalizeImportedSongRow`, `songService.importSongs`, `songService.saveSong`, `createDatabases`.
 - Produces: regression coverage for column ten, persistence, edit preservation, and v5 legacy migration.
 
@@ -46,6 +48,7 @@ Expected: FAIL because the tenth column, `song_clip` schema, and v5 migration do
 ### Task 2: Implement the permanent column
 
 **Files:**
+
 - Modify: `src/music/song-import-schema.js`
 - Modify: `src/music/song-file-codec.js`
 - Modify: `public/js/admin/import.js`
@@ -54,13 +57,14 @@ Expected: FAIL because the tenth column, `song_clip` schema, and v5 migration do
 - Modify: `src/storage/database.js`
 
 **Interfaces:**
+
 - Consumes: import keys `songClip` / `song_clip` and database row property `song_clip`.
 - Produces: header `歌切`, normalized `songClip`, persistent `songs.song_clip`, and export mapping.
 
 - [x] **Step 1: Append header and aliases**
 
 ```js
-songClip: ['songClip', 'song_clip', '歌切', '歌切链接', '歌曲切片', '切片链接']
+songClip: ['songClip', 'song_clip', '歌切', '歌切链接', '歌曲切片', '切片链接'];
 ```
 
 - [x] **Step 2: Extend workbook, CSV, and text row mapping**
@@ -86,11 +90,13 @@ Expected: PASS.
 ### Task 3: Synchronize documentation and verify the generated template
 
 **Files:**
+
 - Modify: `docs/architecture/backend/storage.md`
 - Modify: `docs/architecture/backend/music/services.md`
 - Modify: `docs/architecture/frontend/app.md`
 
 **Interfaces:**
+
 - Consumes: final ten-column order, aliases, storage column, and migration version.
 - Produces: owner documentation matching code and a visually verified template.
 

@@ -49,14 +49,14 @@ Required direction:
 
 ### 2.1 Directory Roles
 
-| Code location | Architecture role | Allowed dependencies | Prohibited dependencies |
-|---|---|---|---|
-| `src/server.js`, `src/electron/main.js`, frontend entrypoints | Composition Root | Public factories and adapters from internal modules | Reverse imports from internal modules |
-| `src/server/routes/`, `src/electron/ipc/`, DOM handlers | Transport / UI Adapter | Application facades, stable contracts, pure helpers | SQLite handles, domain internal state |
-| `src/server/*-runtime.js`, frontend controllers | Application | Domain services, ports, public infrastructure factories | Entrypoints, undeclared globals |
-| `src/music/`, `src/bilibili/`, `src/overtime/`, `src/ai/` | Domain | Domain-local modules, narrow ports, pure shared contracts | Entrypoints, Electron, DOM, direct SQL |
-| `src/storage/`, provider clients, Electron adapters | Infrastructure | Domain contracts, pure shared helpers, platform APIs | Mutable composition-root state |
-| `src/shared/`, `public/js/shared/` | Stable Shared | Standard APIs and same-topic pure helpers | Domain services, entrypoints, runtime resources |
+| Code location                                                 | Architecture role      | Allowed dependencies                                      | Prohibited dependencies                         |
+| ------------------------------------------------------------- | ---------------------- | --------------------------------------------------------- | ----------------------------------------------- |
+| `src/server.js`, `src/electron/main.js`, frontend entrypoints | Composition Root       | Public factories and adapters from internal modules       | Reverse imports from internal modules           |
+| `src/server/routes/`, `src/electron/ipc/`, DOM handlers       | Transport / UI Adapter | Application facades, stable contracts, pure helpers       | SQLite handles, domain internal state           |
+| `src/server/*-runtime.js`, frontend controllers               | Application            | Domain services, ports, public infrastructure factories   | Entrypoints, undeclared globals                 |
+| `src/music/`, `src/bilibili/`, `src/overtime/`, `src/ai/`     | Domain                 | Domain-local modules, narrow ports, pure shared contracts | Entrypoints, Electron, DOM, direct SQL          |
+| `src/storage/`, provider clients, Electron adapters           | Infrastructure         | Domain contracts, pure shared helpers, platform APIs      | Mutable composition-root state                  |
+| `src/shared/`, `public/js/shared/`                            | Stable Shared          | Standard APIs and same-topic pure helpers                 | Domain services, entrypoints, runtime resources |
 
 Expose a cross-directory capability through a clearly named public factory,
 facade, consumer, or port. Consumers must not import another domain's private
@@ -132,15 +132,15 @@ Status meanings:
 - `Migration Target`: desired direction is documented but not comprehensively
   machine-enforced.
 
-| Rule ID | Rule | Status | Enforcement |
-|---|---|---|---|
-| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle | Incrementally Enforced | Selected composition-root assertions plus review |
-| `MOD-STORAGE-001` | Domain services do not issue SQL | Incrementally Enforced | Receiver-aware SQL debt budget |
-| `MOD-STORAGE-002` | Stores own transaction boundaries | Incrementally Enforced | Selected store atomicity tests plus review |
-| `MOD-ADMIN-001` | New Admin code does not add global-state access | Incrementally Enforced | `window.AdminApp` debt budget |
-| `MOD-FRONTEND-001` | New frontend code uses explicit ESM boundaries | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
-| `MOD-SHARED-001` | Shared utilities remain domain-neutral | Migration Target | Selected regression assertions |
-| `MOD-CONTRACT-001` | Public contracts remain compatible by default | Incrementally Enforced | Existing regression tests; full inventory deferred |
+| Rule ID               | Rule                                                 | Status                 | Enforcement                                                                                                                                                                      |
+| --------------------- | ---------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle | Incrementally Enforced | Selected composition-root assertions plus review                                                                                                                                 |
+| `MOD-STORAGE-001`     | Domain services do not issue SQL                     | Incrementally Enforced | Receiver-aware SQL debt budget                                                                                                                                                   |
+| `MOD-STORAGE-002`     | Stores own transaction boundaries                    | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
+| `MOD-ADMIN-001`       | New Admin code does not add global-state access      | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
+| `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries       | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
+| `MOD-SHARED-001`      | Shared utilities remain domain-neutral               | Migration Target       | Selected regression assertions                                                                                                                                                   |
+| `MOD-CONTRACT-001`    | Public contracts remain compatible by default        | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
 
 Review-only or partial coverage must not be labeled `Enforced`.
 

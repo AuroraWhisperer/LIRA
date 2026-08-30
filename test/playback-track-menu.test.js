@@ -9,7 +9,7 @@ const { readCssBundle } = require('./helpers/css-bundle');
 test('playback panel styles load feature-owned stylesheets in order', () => {
   const panelEntry = fs.readFileSync(
     path.join(__dirname, '..', 'public', 'css', 'playback', 'panels.css'),
-    'utf8'
+    'utf8',
   );
 
   assert.match(panelEntry, /@import url\('\.\/panels\/search\.css'\);/);
@@ -20,6 +20,6 @@ test('an open track menu keeps its song row above hovered siblings', () => {
 
   assert.match(
     styles,
-    /\.playback-home-row:has\(\.track-menu:not\(\[hidden\]\)\)\s*\{[^}]*z-index:\s*[1-9]\d*;/
+    /\.playback-home-row:has\(\.track-menu:not\(\[hidden\]\)\)\s*\{[^}]*z-index:\s*[1-9]\d*;/,
   );
 });

@@ -23,6 +23,7 @@
 ### Task 1: 解析并传递 Bilibili 表情元数据
 
 **Files:**
+
 - Modify: `src/bilibili/parsers/danmaku-parser.js`
 - Modify: `src/bilibili/packet-parser.js`
 - Modify: `src/bilibili/danmaku/message-handlers.js`
@@ -30,18 +31,21 @@
 - Test: `test/danmaku-client.test.js`
 
 **Interfaces:**
+
 - Consumes: `DANMU_MSG.info`, including `info[0][15].emoticon`, `info[0][15].emots`, and JSON-encoded `info[0][15].extra`.
 - Produces: `extractBilibiliDanmakuEmotes(info) -> Array<{text:string,url:string,width:number,height:number}>` and `onMessage({ ..., emotes })`.
 
 - [x] **Step 1: Write parser regressions for whole-message and inline emotes**
 
 ```js
-assert.deepEqual(extractBilibiliDanmakuEmotes(info), [{
-  text: '[妙]',
-  url: 'https://i0.hdslb.com/bfs/emote/miao.png',
-  width: 64,
-  height: 64
-}]);
+assert.deepEqual(extractBilibiliDanmakuEmotes(info), [
+  {
+    text: '[妙]',
+    url: 'https://i0.hdslb.com/bfs/emote/miao.png',
+    width: 64,
+    height: 64,
+  },
+]);
 ```
 
 - [x] **Step 2: Run the focused parser tests and confirm the new export is missing**
@@ -73,12 +77,14 @@ Expected: PASS with ordinary messages still returning an empty `emotes` array.
 ### Task 2: Publish a bounded live danmaku feed
 
 **Files:**
+
 - Create: `src/bilibili/danmaku/feed-buffer.js`
 - Modify: `src/server/bilibili-client.js`
 - Modify: `src/server.js`
 - Test: `test/danmaku-feed-buffer.test.js`
 
 **Interfaces:**
+
 - Consumes: normalized `onMessage(danmaku)` payload and active `roomId`.
 - Produces: `createDanmakuFeedBuffer({limit}).setRoom(roomId)`, `.push(danmaku)`, `.getSnapshot()`, `.clear()`; WebSocket `danmaku:message` with `{item}`; snapshot `state.danmakuFeed`.
 
@@ -115,6 +121,7 @@ Expected: PASS without changing current command, game, gift, or sender contracts
 ### Task 3: Build the fixed `/danmaku` signal-feed Overlay
 
 **Files:**
+
 - Create: `public/pages/overlays/danmaku.html`
 - Create: `public/js/overlays/danmaku.js`
 - Create: `public/css/overlays/danmaku.css`
@@ -126,6 +133,7 @@ Expected: PASS without changing current command, game, gift, or sender contracts
 - Test: `test/admin-page-composition.test.js`
 
 **Interfaces:**
+
 - Consumes: snapshot `state.danmakuFeed`, incremental `danmaku:message`, and shared `createDanmakuFeed(root, {resolveAvatarUrl, resolveEmoteUrl, ...})`.
 - Produces: fixed frameable `/danmaku` page; safe mixed text/image message DOM; `?preview=1` deterministic preview mode.
 
@@ -160,6 +168,7 @@ Expected: PASS; `/games` still renders its existing bubble style while gaining e
 ### Task 4: Separate Admin preview and sender, then update contracts
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/danmaku-tool.js`
 - Modify: `public/css/admin/other-features/danmaku-tool.css`
@@ -171,6 +180,7 @@ Expected: PASS; `/games` still renders its existing bubble style while gaining e
 - Test: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**
+
 - Consumes: `localOverlayOrigin()`, `copyText()`, fixed `/danmaku?preview=1` iframe, and existing sender form IDs.
 - Produces: a standalone “弹幕姬” section with read-only URL/copy/open controls and exact preview; a sibling “发送弹幕” section with unchanged send behavior.
 

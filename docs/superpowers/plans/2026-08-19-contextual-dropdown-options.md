@@ -18,6 +18,7 @@
 ### Task 1: Shared Select Renderer
 
 **Files:**
+
 - Create: `public/js/shared/select-menu.js`
 - Create: `public/css/components/select-menu.css`
 - Modify: `public/js/admin/app.js`
@@ -25,6 +26,7 @@
 - Modify: `public/js/admin/onboarding.js`
 
 **Interfaces:**
+
 - Produces `enhanceSelects(root)` and `refreshEnhancedSelect(select)`.
 - Consumes only native DOM select/option APIs and `data-dropdown-variant` attributes.
 
@@ -37,11 +39,13 @@
 ### Task 2: Context Markup And Dynamic Synchronization
 
 **Files:**
+
 - Modify: native select fragments under `public/pages/admin/`
 - Modify: `public/js/admin/games.js`
 - Modify: `public/js/admin/todo.js`
 
 **Interfaces:**
+
 - Each select declares `data-dropdown-variant` or inherits a variant from its nearest semantic container.
 - Dynamic option rendering remains unchanged except for an explicit `refreshEnhancedSelect(select)` call where options are replaced.
 
@@ -52,6 +56,7 @@
 ### Task 3: Regression Tests And Runtime Checks
 
 **Files:**
+
 - Modify: `test/ui-surface.test.js`
 
 - [x] Assert the shared select contract, listbox roles, keyboard markers, variant hooks, and native value preservation.

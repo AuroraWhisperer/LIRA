@@ -18,7 +18,10 @@ test('礼物姬 owns frame toggle, threshold, motion controls, preview, and over
   const moduleSource = read('public/js/admin/gift-frame.js');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
-  assert.match(html, /id="otherGiftFeature"[^>]+data-other-feature-panel[\s\S]*?id="giftFrameEnabled"/);
+  assert.match(
+    html,
+    /id="otherGiftFeature"[^>]+data-other-feature-panel[\s\S]*?id="giftFrameEnabled"/,
+  );
   assert.match(html, /id="giftFrameThresholdRmb"[^>]+type="number"/);
   assert.match(html, /id="giftFrameTheme"/);
   assert.match(html, /id="giftFrameMotionMode"/);

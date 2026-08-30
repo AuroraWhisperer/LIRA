@@ -1,11 +1,12 @@
 .queue-neon-vinyl {
   aspect-ratio: 1122 / 1402;
   color: #6f2449;
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
 }
 
 .queue-neon-vinyl::before {
-  background: url('/img/overlays/song-board-style-4/frame.webp') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-4/frame.webp') center / 100%
+    100% no-repeat;
 }
 
 .queue-neon-vinyl::after {
@@ -35,14 +36,33 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.neon-vinyl-row.medal-blue-purple { --medal-bg: #91305f; }
-.neon-vinyl-row.medal-light-blue { --medal-bg: #a93669; }
-.neon-vinyl-row.medal-deep-blue { --medal-bg: #77234f; }
-.neon-vinyl-row.medal-purple { --medal-bg: #96295e; }
-.neon-vinyl-row.medal-red { --medal-bg: #a92d51; }
-.neon-vinyl-row.guard-1 { --identity-bg: #f25f72; --medal-bg: #f25f72; }
-.neon-vinyl-row.guard-2 { --identity-bg: #8d67e8; --medal-bg: #8d67e8; }
-.neon-vinyl-row.guard-3 { --identity-bg: #4b91e8; --medal-bg: #4b91e8; }
+.neon-vinyl-row.medal-blue-purple {
+  --medal-bg: #91305f;
+}
+.neon-vinyl-row.medal-light-blue {
+  --medal-bg: #a93669;
+}
+.neon-vinyl-row.medal-deep-blue {
+  --medal-bg: #77234f;
+}
+.neon-vinyl-row.medal-purple {
+  --medal-bg: #96295e;
+}
+.neon-vinyl-row.medal-red {
+  --medal-bg: #a92d51;
+}
+.neon-vinyl-row.guard-1 {
+  --identity-bg: #f25f72;
+  --medal-bg: #f25f72;
+}
+.neon-vinyl-row.guard-2 {
+  --identity-bg: #8d67e8;
+  --medal-bg: #8d67e8;
+}
+.neon-vinyl-row.guard-3 {
+  --identity-bg: #4b91e8;
+  --medal-bg: #4b91e8;
+}
 
 .neon-vinyl-info-viewport {
   top: 30%;

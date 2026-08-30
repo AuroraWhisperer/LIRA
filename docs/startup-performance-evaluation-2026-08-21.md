@@ -38,14 +38,14 @@
 
 ## 3. 测试环境与方法
 
-| 项目 | 环境 |
-|---|---|
-| 操作系统 | Windows x64 |
-| Node.js | v24.15.0 |
-| 桌面运行时 | Electron 43.2.0 |
-| 后端 | 同进程 Node.js + `node:http` + `node:sqlite` `DatabaseSync` |
-| 前端 | Vanilla JavaScript ES modules + 原生 CSS |
-| 测试日期 | 2026-08-21 |
+| 项目       | 环境                                                        |
+| ---------- | ----------------------------------------------------------- |
+| 操作系统   | Windows x64                                                 |
+| Node.js    | v24.15.0                                                    |
+| 桌面运行时 | Electron 43.2.0                                             |
+| 后端       | 同进程 Node.js + `node:http` + `node:sqlite` `DatabaseSync` |
+| 前端       | Vanilla JavaScript ES modules + 原生 CSS                    |
+| 测试日期   | 2026-08-21                                                  |
 
 本次采用三类证据：
 
@@ -57,18 +57,18 @@
 
 ## 4. 综合测评
 
-| 维度 | 评价 | 证据置信度 | 结论 |
-|---|---|---:|---|
-| 空库后端启动 | 良好 | 高 | 3 次隔离启动均低于 70 ms |
-| 桌面启动稳定性 | 待改善 | 中 | 中位数 681 ms，但有 8.799 s、9.577 s 长尾，根因未分段 |
-| Admin 服务端拼页 | 良好 | 高 | 32 个 fragment、257,040 bytes，组合中位数 2.490 ms |
-| Admin 首次数据加载 | 较差 | 高 | 存在重复 state/songs 请求和多次完整状态渲染 |
-| 实时状态更新效率 | 较差 | 高 | 每个 snapshot 都会完整 `getState()`，renderer 对所有 snapshot 安排歌曲重载 |
-| 多客户端 WebSocket | 中等风险 | 高 | 同轮快照会合并，但 JSON 仍按 socket 重复序列化，未处理写入背压 |
-| 礼物峰值处理 | 中高风险 | 中 | 同步 SQLite 和同步日志已确认，实际峰值影响未压测 |
-| 常驻 renderer 任务 | 中等风险 | 中 | 加班机 RAF 常驻；游戏闲置定时器开销很低 |
-| 全屏视觉效果 | 待验证 | 低 | 80 px blur 存在，但没有 GPU trace |
-| 性能可观测性 | 较差 | 高 | 缺少端口、Cookie、数据库、窗口和 ready-to-show 分段耗时 |
+| 维度               | 评价     | 证据置信度 | 结论                                                                       |
+| ------------------ | -------- | ---------: | -------------------------------------------------------------------------- |
+| 空库后端启动       | 良好     |         高 | 3 次隔离启动均低于 70 ms                                                   |
+| 桌面启动稳定性     | 待改善   |         中 | 中位数 681 ms，但有 8.799 s、9.577 s 长尾，根因未分段                      |
+| Admin 服务端拼页   | 良好     |         高 | 32 个 fragment、257,040 bytes，组合中位数 2.490 ms                         |
+| Admin 首次数据加载 | 较差     |         高 | 存在重复 state/songs 请求和多次完整状态渲染                                |
+| 实时状态更新效率   | 较差     |         高 | 每个 snapshot 都会完整 `getState()`，renderer 对所有 snapshot 安排歌曲重载 |
+| 多客户端 WebSocket | 中等风险 |         高 | 同轮快照会合并，但 JSON 仍按 socket 重复序列化，未处理写入背压             |
+| 礼物峰值处理       | 中高风险 |         中 | 同步 SQLite 和同步日志已确认，实际峰值影响未压测                           |
+| 常驻 renderer 任务 | 中等风险 |         中 | 加班机 RAF 常驻；游戏闲置定时器开销很低                                    |
+| 全屏视觉效果       | 待验证   |         低 | 80 px blur 存在，但没有 GPU trace                                          |
+| 性能可观测性       | 较差     |         高 | 缺少端口、Cookie、数据库、窗口和 ready-to-show 分段耗时                    |
 
 综合等级 `B-` 表示：**当前小数据量下的基础响应并不慢，但启动长尾、Admin 刷新放大和高频同步 I/O 会降低可预测性；还缺少运行时 profiling 来确认用户感知卡顿的占比。**
 
@@ -76,10 +76,10 @@
 
 ### 5.1 当前本地数据规模
 
-| 数据库 | 主文件大小 | 当前行数 |
-|---|---:|---:|
-| `song-request-data.db` / `songs` | 196,608 bytes | 1 |
-| `gift-data.db` / `gift_events` | 102,400 bytes | 2 |
+| 数据库                           |    主文件大小 | 当前行数 |
+| -------------------------------- | ------------: | -------: |
+| `song-request-data.db` / `songs` | 196,608 bytes |        1 |
+| `gift-data.db` / `gift_events`   | 102,400 bytes |        2 |
 
 两个 WAL 文件测量时均为 0 bytes。这个样本只能说明当前工作区数据很小，不能代表长期直播后的数据库规模。
 
@@ -87,26 +87,26 @@
 
 ### 5.2 隔离空库后端基线
 
-| 样本 | 后端启动 | `/api/state` | `/api/songs` |
-|---:|---:|---:|---:|
-| 1 | 69.87 ms | 13.33 ms | 3.14 ms |
-| 2 | 38.47 ms | 5.37 ms | 2.17 ms |
-| 3 | 38.73 ms | 3.68 ms | 2.24 ms |
-| **中位数** | **38.73 ms** | **5.37 ms** | **2.24 ms** |
+|       样本 |     后端启动 | `/api/state` | `/api/songs` |
+| ---------: | -----------: | -----------: | -----------: |
+|          1 |     69.87 ms |     13.33 ms |      3.14 ms |
+|          2 |     38.47 ms |      5.37 ms |      2.17 ms |
+|          3 |     38.73 ms |      3.68 ms |      2.24 ms |
+| **中位数** | **38.73 ms** |  **5.37 ms** |  **2.24 ms** |
 
 该基线只覆盖 Node 后端，不包含 Electron 初始化、Cookie 恢复、Admin 解析、ES 模块加载和 `ready-to-show`，因此不能直接当作完整桌面启动时间。
 
 ### 5.3 Admin HTML 组合
 
-| 指标 | 结果 |
-|---|---:|
-| Fragment 数量 | 32 |
+| 指标              |                        结果 |
+| ----------------- | --------------------------: |
+| Fragment 数量     |                          32 |
 | 组合后 UTF-8 大小 | 257,040 bytes（251.02 KiB） |
-| 连续测量次数 | 30 |
-| 最小耗时 | 2.109 ms |
-| 中位数 | 2.490 ms |
-| P95 | 3.252 ms |
-| 最大耗时 | 3.826 ms |
+| 连续测量次数      |                          30 |
+| 最小耗时          |                    2.109 ms |
+| 中位数            |                    2.490 ms |
+| P95               |                    3.252 ms |
+| 最大耗时          |                    3.826 ms |
 
 结论：同步读取 32 个 fragment 的设计值得维护，但**以当前磁盘缓存和页面规模看，服务端组合本身不是 8–10 秒启动长尾的解释**。页面在 renderer 中的解析和初始化仍需独立测量。
 
@@ -118,11 +118,11 @@
 224, 236, 244, 623, 681, 970, 1274, 8799, 9577 ms
 ```
 
-| 指标 | `START → READY` |
-|---|---:|
-| 最快 | 224 ms |
-| 中位数 | 681 ms |
-| 最慢 | 9,577 ms |
+| 指标     |    `START → READY` |
+| -------- | -----------------: |
+| 最快     |             224 ms |
+| 中位数   |             681 ms |
+| 最慢     |           9,577 ms |
 | 明显长尾 | 8,799 ms、9,577 ms |
 
 这组数据说明启动慢是**长尾问题而不是每次都慢**。`READY` 在 `BrowserWindow` 创建后记录，但主窗口还要等 `ready-to-show` 才展示，所以它不是最终可交互时间。
@@ -143,7 +143,12 @@ const PORT_CLEANUP_POLL_MS = 120;
 清理旧服务时先等待一次；如果旧服务没有退出，会发送 `SIGTERM`，随后再等待一次：
 
 ```js
-await requestLocalShutdown(port, host, readSessionToken(options.dataDir), fetchImpl);
+await requestLocalShutdown(
+  port,
+  host,
+  readSessionToken(options.dataDir),
+  fetchImpl,
+);
 if (await waitForPortRelease(port, host, options)) {
   if (runtimeForPort) removeRuntimeInfo(options.dataDir, runtimeForPort);
   return;
@@ -166,7 +171,7 @@ await restoreBilibiliCookieSnapshot();
 
 lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
   dataDir: pathState.dataDir,
-  safeStorage
+  safeStorage,
 });
 
 var serverInfo = await lifecycleState.runtime.start(serverOptions);
@@ -237,9 +242,9 @@ runStartupRetention();
 
 ```js
 function composeAdminHtml(publicDir) {
-  return ADMIN_FRAGMENT_PATHS
-    .map(relativePath => fs.readFileSync(path.join(publicDir, relativePath), 'utf8'))
-    .join('');
+  return ADMIN_FRAGMENT_PATHS.map((relativePath) =>
+    fs.readFileSync(path.join(publicDir, relativePath), 'utf8'),
+  ).join('');
 }
 ```
 
@@ -331,7 +336,7 @@ function renderState(appState, songs) {
   list.innerHTML = queueItems.map(/* ... */).join('');
 
   document.querySelectorAll('[data-action]').forEach((button) => {
-    button.addEventListener('click', /* ... */);
+    button.addEventListener('click' /* ... */);
   });
 }
 ```
@@ -370,7 +375,11 @@ function broadcastSnapshot(context, reason) {
     const next = pendingSnapshot;
     pendingSnapshot = null;
     if (!next || sockets.size === 0) return;
-    const payload = { type: 'snapshot', reason: next.reason, state: next.context.getState() };
+    const payload = {
+      type: 'snapshot',
+      reason: next.reason,
+      state: next.context.getState(),
+    };
     for (const socket of Array.from(sockets)) {
       sendWebSocket(socket, payload);
     }
@@ -419,10 +428,12 @@ function getState() {
 每个成功解析的礼物至少记录一条可读日志：
 
 ```js
-console.log(formatBilibiliGiftLog(gift, {
-  connectionGeneration: this.connectionGeneration,
-  connectionAttempt: this.connectionAttempt
-}));
+console.log(
+  formatBilibiliGiftLog(gift, {
+    connectionGeneration: this.connectionGeneration,
+    connectionAttempt: this.connectionAttempt,
+  }),
+);
 ```
 
 来源：[src/bilibili/danmaku/message-handlers.js](../src/bilibili/danmaku/message-handlers.js#L222-L226)
@@ -430,11 +441,15 @@ console.log(formatBilibiliGiftLog(gift, {
 Electron 会把 `console.log/info/debug/warn/error` 包装为同步文件追加：
 
 ```js
-fs.appendFileSync(filePath, formatLogLine({
-  timestamp: context.now(),
-  // ...
-  message: redactedMessage
-}), 'utf8');
+fs.appendFileSync(
+  filePath,
+  formatLogLine({
+    timestamp: context.now(),
+    // ...
+    message: redactedMessage,
+  }),
+  'utf8',
+);
 ```
 
 来源：[src/electron/terminal-log.js](../src/electron/terminal-log.js#L41-L53)
@@ -450,7 +465,7 @@ if (row) {
   giftDb.prepare(/* UPDATE */).run(detectedAtMs, Number(row.id));
   row = readGift(giftDb, row.id);
 } else {
-  row = insertProgressGift(giftDb, gift, /* ... */);
+  row = insertProgressGift(giftDb, gift /* ... */);
 }
 ```
 
@@ -482,9 +497,12 @@ function updateClock(nowMs) {
 setInterval(updateDrawClock, 250);
 
 function updateDrawClock() {
-  if (activeGameSession?.game !== 'draw-guess'
-      || activeGameSession.state?.phase !== 'drawing'
-      || !drawClock) return;
+  if (
+    activeGameSession?.game !== 'draw-guess' ||
+    activeGameSession.state?.phase !== 'drawing' ||
+    !drawClock
+  )
+    return;
   // ...
 }
 ```
@@ -508,23 +526,23 @@ RAF 是明确的持续工作；游戏闲置 timer 的单次成本很低；模糊
 
 ## 7. 对原性能结论的真实性复核
 
-| 原结论 | 判定 | 修正 |
-|---|---|---|
-| 当前数据库规模不是启动慢主因 | 成立 | 当前样本和隔离基线均支持 |
-| 旧端口清理会造成启动长尾 | 可能成立 | 路径真实，但当前日志没有阶段证据 |
-| 旧端口清理最多等待 7.5 秒 | 不成立 | 极端情况下可等待两轮，接近 15–16 秒 |
-| Electron 等后端完成后才建窗口 | 成立 | 其前还有串行 Cookie 恢复，原结论不完整 |
-| 升级分区迁移可能同步阻塞 | 成立 | 仅旧目录存在且新目录不存在时触发，不是每次启动 |
-| Admin 由 32 个 fragment、约 257 KB 组成 | 成立 | 数字复核一致 |
-| Admin 服务端拼页是明显启动瓶颈 | 不成立 | 本机中位数 2.490 ms，只能继续怀疑 renderer 初始化 |
-| Admin 首次加载有重复 state 请求 | 成立 | `reloadAll()` 固定产生两次 state |
-| 任意 snapshot 都会安排歌曲重载 | 成立 | 未按 snapshot reason 过滤 |
-| 快照会引发完整状态重绘 | 成立 | 队列、SC、表单、礼物和盲盒统计均参与 |
-| 每轮广播重新构造完整状态 | 成立 | 同一轮会合并，`getState()` 每次 flush 执行一次 |
-| 每个 socket 重复 JSON 序列化 | 成立 | `sendWebSocket()` 内部 stringify |
-| 礼物高峰叠加同步日志与 SQLite | 成立 | 实际卡顿程度未压测 |
-| 游戏 250 ms timer 会持续造成明显负载 | 证据不足 | 闲置时立即返回，预计影响很低 |
-| 全屏 blur 会造成 GPU 卡顿 | 待验证 | 代码风险存在，没有 GPU trace |
+| 原结论                                  | 判定     | 修正                                              |
+| --------------------------------------- | -------- | ------------------------------------------------- |
+| 当前数据库规模不是启动慢主因            | 成立     | 当前样本和隔离基线均支持                          |
+| 旧端口清理会造成启动长尾                | 可能成立 | 路径真实，但当前日志没有阶段证据                  |
+| 旧端口清理最多等待 7.5 秒               | 不成立   | 极端情况下可等待两轮，接近 15–16 秒               |
+| Electron 等后端完成后才建窗口           | 成立     | 其前还有串行 Cookie 恢复，原结论不完整            |
+| 升级分区迁移可能同步阻塞                | 成立     | 仅旧目录存在且新目录不存在时触发，不是每次启动    |
+| Admin 由 32 个 fragment、约 257 KB 组成 | 成立     | 数字复核一致                                      |
+| Admin 服务端拼页是明显启动瓶颈          | 不成立   | 本机中位数 2.490 ms，只能继续怀疑 renderer 初始化 |
+| Admin 首次加载有重复 state 请求         | 成立     | `reloadAll()` 固定产生两次 state                  |
+| 任意 snapshot 都会安排歌曲重载          | 成立     | 未按 snapshot reason 过滤                         |
+| 快照会引发完整状态重绘                  | 成立     | 队列、SC、表单、礼物和盲盒统计均参与              |
+| 每轮广播重新构造完整状态                | 成立     | 同一轮会合并，`getState()` 每次 flush 执行一次    |
+| 每个 socket 重复 JSON 序列化            | 成立     | `sendWebSocket()` 内部 stringify                  |
+| 礼物高峰叠加同步日志与 SQLite           | 成立     | 实际卡顿程度未压测                                |
+| 游戏 250 ms timer 会持续造成明显负载    | 证据不足 | 闲置时立即返回，预计影响很低                      |
+| 全屏 blur 会造成 GPU 卡顿               | 待验证   | 代码风险存在，没有 GPU trace                      |
 
 ## 8. 风险优先级
 
@@ -577,15 +595,15 @@ RAF 是明确的持续工作；游戏闲置 timer 的单次成本很低；模糊
 
 后续优化完成后，应至少用以下场景验收，而不是只看一次启动：
 
-| 场景 | 采样要求 | 主要指标 |
-|---|---|---|
-| 正常桌面启动 | 连续 20 次 | `START → ready-to-show` P50/P95/最大值、各阶段耗时 |
-| 旧服务占用端口 | 优雅关闭、无法关闭各 5 次 | 两轮等待是否触发、最终启动耗时和错误语义 |
-| 首次升级迁移 | 小/中/大 Chromium 分区副本 | 迁移耗时、窗口出现时间、数据完整性 |
-| Admin 首次加载 | 空库和中等数据各 5 次 | 请求数、JS 执行、DOM、Long Task、可交互时间 |
-| 高频 snapshot | 多种 reason、1/5/10 个客户端 | `getState()`、序列化、payload、Event Loop delay |
-| 礼物峰值 | 明确的阶梯事件速率 | SQLite、日志、snapshot、Long Task、丢包和重复处理 |
-| 全屏播放 | blur 开/关 | FPS、GPU/Raster 时间、renderer CPU |
+| 场景           | 采样要求                     | 主要指标                                           |
+| -------------- | ---------------------------- | -------------------------------------------------- |
+| 正常桌面启动   | 连续 20 次                   | `START → ready-to-show` P50/P95/最大值、各阶段耗时 |
+| 旧服务占用端口 | 优雅关闭、无法关闭各 5 次    | 两轮等待是否触发、最终启动耗时和错误语义           |
+| 首次升级迁移   | 小/中/大 Chromium 分区副本   | 迁移耗时、窗口出现时间、数据完整性                 |
+| Admin 首次加载 | 空库和中等数据各 5 次        | 请求数、JS 执行、DOM、Long Task、可交互时间        |
+| 高频 snapshot  | 多种 reason、1/5/10 个客户端 | `getState()`、序列化、payload、Event Loop delay    |
+| 礼物峰值       | 明确的阶梯事件速率           | SQLite、日志、snapshot、Long Task、丢包和重复处理  |
+| 全屏播放       | blur 开/关                   | FPS、GPU/Raster 时间、renderer CPU                 |
 
 推荐的 Admin 行为验收条件：
 

@@ -10,16 +10,23 @@
    * @param {Object} sprint - 冲刺数据
    */
   function renderSprintStats(sprint) {
-    document.getElementById('giftSprintTarget').textContent = formatMoney(sprint.targetRmb);
-    document.getElementById('giftSprintReceived').textContent = formatMoney(sprint.receivedRmb);
-    document.getElementById('giftSprintRemaining').textContent = formatMoney(sprint.remainingRmb);
-    document.getElementById('giftSprintCrystalBalls').textContent = `${Number(sprint.remainingCrystalBalls || 0)} 个`;
+    document.getElementById('giftSprintTarget').textContent = formatMoney(
+      sprint.targetRmb,
+    );
+    document.getElementById('giftSprintReceived').textContent = formatMoney(
+      sprint.receivedRmb,
+    );
+    document.getElementById('giftSprintRemaining').textContent = formatMoney(
+      sprint.remainingRmb,
+    );
+    document.getElementById('giftSprintCrystalBalls').textContent =
+      `${Number(sprint.remainingCrystalBalls || 0)} 个`;
   }
 
   // 导出
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.gifts = window.AdminApp.gifts || {};
   window.AdminApp.gifts.sprint = {
-    renderSprintStats
+    renderSprintStats,
   };
 })();

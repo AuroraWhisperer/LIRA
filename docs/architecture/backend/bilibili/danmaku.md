@@ -8,13 +8,13 @@
 
 `BilibiliDanmakuClient` 通过 handlers 与外部通信([danmaku-client.js:16-67](../../../../src/bilibili/danmaku-client.js#L16-L67)),四个回调由 [server.js:609-712](../../../../src/server.js#L609-L712) 的 `createBilibiliClient` 装配:
 
-| 回调 | 触发 | server.js 消费 |
-|---|---|---|
-| `onMessage(danmaku)` | 每条实时弹幕、SC 命令文本、历史轮询命令 | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
-| `UserInfoService` 更新 | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知 |
-| `onSuperChat(superChat)` | 每条 SC 到达 | `superChats.add` 入库,成功则广播 `bilibili:superchat`([server.js:671-690](../../../../src/server.js#L671-L690),入库见 [gift.md](gift.md) §7) |
-| `onGift(gift)` | 解析有效的礼物事件 | `gifts.add` → 礼物检测管道([server.js:692-700](../../../../src/server.js#L692-L700),见 [gift.md](gift.md) §2) |
-| `onStatus(liveStatus)` | 连接状态变化 | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720)) |
+| 回调                     | 触发                                                                                  | server.js 消费                                                                                                                                                                                                                                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `onMessage(danmaku)`     | 每条实时弹幕、SC 命令文本、历史轮询命令                                               | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
+| `UserInfoService` 更新   | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知                                                                                                                                                                                                                                  |
+| `onSuperChat(superChat)` | 每条 SC 到达                                                                          | `superChats.add` 入库,成功则广播 `bilibili:superchat`([server.js:671-690](../../../../src/server.js#L671-L690),入库见 [gift.md](gift.md) §7)                                                                                                                                                                                                |
+| `onGift(gift)`           | 解析有效的礼物事件                                                                    | `gifts.add` → 礼物检测管道([server.js:692-700](../../../../src/server.js#L692-L700),见 [gift.md](gift.md) §2)                                                                                                                                                                                                                               |
+| `onStatus(liveStatus)`   | 连接状态变化                                                                          | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720))                                                                                                                                                                                    |
 
 客户端构造时还注入 `diagnostics`(§8)、`runtimeGiftCommandPrefixes`(可增补礼物前缀)、`messageBuffer` 与 `isCommandText`([server.js:702-711](../../../../src/server.js#L702-L711))。
 
@@ -24,11 +24,11 @@
 
 ### 2.1 start / restart / stop
 
-| 方法 | 语义 | 出处 |
-|---|---|---|
-| `start()` | `stopped=false`、递增 `connectionGeneration`、重置 `startedAtMs`;**不等待握手**即返回;首连失败 → 启动历史轮询 + `scheduleReconnect` | [danmaku-client.js:69-92](../../../../src/bilibili/danmaku-client.js#L69-L92) |
-| `restart()` | 同 start,但 `connect({waitForOpen: true})` **等待握手完成**才 resolve;失败仍安排重连后 rethrow | [danmaku-client.js:94-120](../../../../src/bilibili/danmaku-client.js#L94-L120) |
-| `stop()` | `stopped=true`、递增 generation(使在途异步失效)、清重连定时器、关 WS、停全部轮询器、销毁 MessageHandlers | [danmaku-client.js:122-134](../../../../src/bilibili/danmaku-client.js#L122-L134) |
+| 方法        | 语义                                                                                                                                | 出处                                                                              |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `start()`   | `stopped=false`、递增 `connectionGeneration`、重置 `startedAtMs`;**不等待握手**即返回;首连失败 → 启动历史轮询 + `scheduleReconnect` | [danmaku-client.js:69-92](../../../../src/bilibili/danmaku-client.js#L69-L92)     |
+| `restart()` | 同 start,但 `connect({waitForOpen: true})` **等待握手完成**才 resolve;失败仍安排重连后 rethrow                                      | [danmaku-client.js:94-120](../../../../src/bilibili/danmaku-client.js#L94-L120)   |
+| `stop()`    | `stopped=true`、递增 generation(使在途异步失效)、清重连定时器、关 WS、停全部轮询器、销毁 MessageHandlers                            | [danmaku-client.js:122-134](../../../../src/bilibili/danmaku-client.js#L122-L134) |
 
 `connectionGeneration` 是**代际屏障**:所有异步回调先过 `isConnectionCurrent(generation)`([danmaku-client.js:399-401](../../../../src/bilibili/danmaku-client.js#L399-L401))防止旧连接的消息/回调串扰新连接。
 
@@ -44,24 +44,24 @@
 
 ### 2.3 断线重连与退避
 
-| 场景 | 延迟 | 出处 |
-|---|---|---|
-| WS close 时**首次**断开(`reconnecting=false`) | **0ms 立即重连** | [danmaku-client.js:250](../../../../src/bilibili/danmaku-client.js#L250) |
-| 后续重连失败 / 已在重连中再断开 | 固定 **5000ms**(`scheduleReconnect(generation, delayMs)` 默认值) | [danmaku-client.js:374-397](../../../../src/bilibili/danmaku-client.js#L374-L397) |
+| 场景                                            | 延迟                                                                        | 出处                                                                              |
+| ----------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| WS close 时**首次**断开(`reconnecting=false`)   | **0ms 立即重连**                                                            | [danmaku-client.js:250](../../../../src/bilibili/danmaku-client.js#L250)          |
+| 后续重连失败 / 已在重连中再断开                 | 固定 **5000ms**(`scheduleReconnect(generation, delayMs)` 默认值)            | [danmaku-client.js:374-397](../../../../src/bilibili/danmaku-client.js#L374-L397) |
 | 开播检测触发的重连(`reconnectAfterLiveStarted`) | 取消既有重连定时器、停历史轮询、重置 `startedAtMs` 后**立即**走完整 connect | [danmaku-client.js:331-372](../../../../src/bilibili/danmaku-client.js#L331-L372) |
 
 重连失败路径:报告状态(`connected: historyFallbackActive`)→ 再次 `scheduleReconnect` 无限循环,直到 `stop()`([danmaku-client.js:376-396](../../../../src/bilibili/danmaku-client.js#L376-L396))。
 
 ## 3. 轮询器与缓存(全部间隔速查)
 
-| 组件 | 间隔/容量 | 行为 | 出处 |
-|---|---|---|---|
-| HistoryPoller | **2.5s**(首轮立即) | 拉 `gethistory`(`data.admin` + `data.room` 按 timeline 排序),只处理命令文本且通过可捕获窗口的消息;产出 `source:'history'` | [history-poller.js:26-31](../../../../src/bilibili/danmaku/history-poller.js#L26-L31)、[history-poller.js:42-74](../../../../src/bilibili/danmaku/history-poller.js#L42-L74) |
-| OnlineRankPoller | **60s**,pageSize **50**,最多 **3 页** | 逐页拉高能榜写入 IdentityCache;停止条件:items 空 / `items.length < pageSize` / `page*pageSize >= onlineNum`;每轮结束 `identityCache.cleanup()` | [online-rank-poller.js:9-11](../../../../src/bilibili/danmaku/online-rank-poller.js#L9-L11)、[online-rank-poller.js:42-63](../../../../src/bilibili/danmaku/online-rank-poller.js#L42-L63) |
-| FansMedalPoller | **5min**,pageSize **30** | 逐页拉 `getFansMembersRank` 的全量本房粉丝牌成员(`data.num` 为总数),写入 IdentityCache;最多 10000 页防止异常响应;快照优先级低于点歌弹幕/SC/历史消息 | [fans-medal-poller.js:8-11](../../../../src/bilibili/danmaku/fans-medal-poller.js#L8-L11)、[fans-medal-poller.js:49-75](../../../../src/bilibili/danmaku/fans-medal-poller.js#L49-L75) |
-| LiveStatusMonitor | **10min**,`timer.unref()` | **仅未开播时**启动;检测到 `live_status` 0→1 触发 `reconnectAfterLiveStarted`;`checkInFlight/reconnectInFlight` 防重入 | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93) |
-| UserInfoService + IdentityCache adapter | service 内存 TTL **10min**; cache 只保存 service 已合并的最终状态和 audience index | `DANMU_MSG`/SC/历史消息/礼物/榜单统一提交 `IdentityHint`; service 按字段质量/验证/authority/freshness 合并、投影和订阅；cache 不再决定覆盖策略 | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js) |
-| MessageDeduplicator | key = `uid\|秒桶\|文本`;跨源匹配窗 **1.5s**;过期 **30min**;容量超 **1000** 触发修剪至 **500** | 重复 key 拒绝(记录 rejectedSources 日志);跨源去重(同一人 1.5s 内同文本)拒绝 | [message-deduplicator.js:8-10](../../../../src/bilibili/danmaku/message-deduplicator.js#L8-L10)、[message-deduplicator.js:18-74](../../../../src/bilibili/danmaku/message-deduplicator.js#L18-L74)、[message-deduplicator.js:76-90](../../../../src/bilibili/danmaku/message-deduplicator.js#L76-L90) |
+| 组件                                    | 间隔/容量                                                                                     | 行为                                                                                                                                                | 出处                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HistoryPoller                           | **2.5s**(首轮立即)                                                                            | 拉 `gethistory`(`data.admin` + `data.room` 按 timeline 排序),只处理命令文本且通过可捕获窗口的消息;产出 `source:'history'`                           | [history-poller.js:26-31](../../../../src/bilibili/danmaku/history-poller.js#L26-L31)、[history-poller.js:42-74](../../../../src/bilibili/danmaku/history-poller.js#L42-L74)                                                                                                                          |
+| OnlineRankPoller                        | **60s**,pageSize **50**,最多 **3 页**                                                         | 逐页拉高能榜写入 IdentityCache;停止条件:items 空 / `items.length < pageSize` / `page*pageSize >= onlineNum`;每轮结束 `identityCache.cleanup()`      | [online-rank-poller.js:9-11](../../../../src/bilibili/danmaku/online-rank-poller.js#L9-L11)、[online-rank-poller.js:42-63](../../../../src/bilibili/danmaku/online-rank-poller.js#L42-L63)                                                                                                            |
+| FansMedalPoller                         | **5min**,pageSize **30**                                                                      | 逐页拉 `getFansMembersRank` 的全量本房粉丝牌成员(`data.num` 为总数),写入 IdentityCache;最多 10000 页防止异常响应;快照优先级低于点歌弹幕/SC/历史消息 | [fans-medal-poller.js:8-11](../../../../src/bilibili/danmaku/fans-medal-poller.js#L8-L11)、[fans-medal-poller.js:49-75](../../../../src/bilibili/danmaku/fans-medal-poller.js#L49-L75)                                                                                                                |
+| LiveStatusMonitor                       | **10min**,`timer.unref()`                                                                     | **仅未开播时**启动;检测到 `live_status` 0→1 触发 `reconnectAfterLiveStarted`;`checkInFlight/reconnectInFlight` 防重入                               | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93)              |
+| UserInfoService + IdentityCache adapter | service 内存 TTL **10min**; cache 只保存 service 已合并的最终状态和 audience index            | `DANMU_MSG`/SC/历史消息/礼物/榜单统一提交 `IdentityHint`; service 按字段质量/验证/authority/freshness 合并、投影和订阅；cache 不再决定覆盖策略      | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)                                                                                                                                                  |
+| MessageDeduplicator                     | key = `uid\|秒桶\|文本`;跨源匹配窗 **1.5s**;过期 **30min**;容量超 **1000** 触发修剪至 **500** | 重复 key 拒绝(记录 rejectedSources 日志);跨源去重(同一人 1.5s 内同文本)拒绝                                                                         | [message-deduplicator.js:8-10](../../../../src/bilibili/danmaku/message-deduplicator.js#L8-L10)、[message-deduplicator.js:18-74](../../../../src/bilibili/danmaku/message-deduplicator.js#L18-L74)、[message-deduplicator.js:76-90](../../../../src/bilibili/danmaku/message-deduplicator.js#L76-L90) |
 
 **消息可捕获窗口** `isCapturableBilibiliTimestamp(ts, startedAtMs)`([helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50)):
 
@@ -105,13 +105,13 @@ text.startsWith('点歌') || text.startsWith('随机')
 
 `parseDanmakuCommand(text, settings)`([bilibili-message-handler.js:105-131](../../../../src/bilibili/bilibili-message-handler.js#L105-L131)):
 
-| 输入 | 结果 |
-|---|---|
-| `随机点歌{scope}` | `{type:'random', scopeText}` |
-| `随机 {scope}` | `{type:'random', scopeText}` |
+| 输入                                 | 结果                         |
+| ------------------------------------ | ---------------------------- |
+| `随机点歌{scope}`                    | `{type:'random', scopeText}` |
+| `随机 {scope}`                       | `{type:'random', scopeText}` |
 | `随机{scope}`(scope ≠ 空且 ≠ `点歌`) | `{type:'random', scopeText}` |
-| `点歌{songName}` | `{type:'request', songName}` |
-| 其他 | `null`(非命令) |
+| `点歌{songName}`                     | `{type:'request', songName}` |
+| 其他                                 | `null`(非命令)               |
 
 `normalizeRandomScopeText` 循环剥掉前导 `+ ＋ : ： - —` 字符([bilibili-message-handler.js:135-141](../../../../src/bilibili/bilibili-message-handler.js#L135-L141));`randomSourceValue` 生成 `random:{scope}`/`random` 来源标记([bilibili-message-handler.js:143-146](../../../../src/bilibili/bilibili-message-handler.js#L143-L146))。
 
@@ -132,37 +132,37 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 
 ### 6.1 签到(checkin-service)
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 命令 | 精确 `签到`(`CHECKIN_COMMAND`) | [checkin-service.js:8](../../../../src/bilibili/checkin-service.js#L8) |
-| 开关 | `enableCheckinBot === 'true'`,否则 `checkin-disabled` | [checkin-service.js:30-32](../../../../src/bilibili/checkin-service.js#L30-L32) |
-| uid 要求 | 缺失或 `'0'` → `missing-uid` | [checkin-service.js:34-37](../../../../src/bilibili/checkin-service.js#L34-L37) |
-| 日期键 | **北京时间**(UTC+8)日期 `YYYY-MM-DD`(`CHINA_OFFSET_MS = 8h`) | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)、[checkin-service.js:69-72](../../../../src/bilibili/checkin-service.js#L69-L72) |
-| 累计 | `total_days` 按天累加,同日重复签到不加天数、标记 `alreadyCheckedToday`(库表见 [storage.md](../storage.md) §3.5) | [checkin-store.js:40-41](../../../../src/storage/checkin-store.js#L40-L41) |
-| 回复 | `今天已经签到过啦，已累计 N 天。` / `已签到 N 天。` + 祝福语 | [checkin-service.js:61-67](../../../../src/bilibili/checkin-service.js#L61-L67) |
+| 事实     | 值                                                                                                              | 出处                                                                                                                                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 命令     | 精确 `签到`(`CHECKIN_COMMAND`)                                                                                  | [checkin-service.js:8](../../../../src/bilibili/checkin-service.js#L8)                                                                                  |
+| 开关     | `enableCheckinBot === 'true'`,否则 `checkin-disabled`                                                           | [checkin-service.js:30-32](../../../../src/bilibili/checkin-service.js#L30-L32)                                                                         |
+| uid 要求 | 缺失或 `'0'` → `missing-uid`                                                                                    | [checkin-service.js:34-37](../../../../src/bilibili/checkin-service.js#L34-L37)                                                                         |
+| 日期键   | **北京时间**(UTC+8)日期 `YYYY-MM-DD`(`CHINA_OFFSET_MS = 8h`)                                                    | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)、[checkin-service.js:69-72](../../../../src/bilibili/checkin-service.js#L69-L72) |
+| 累计     | `total_days` 按天累加,同日重复签到不加天数、标记 `alreadyCheckedToday`(库表见 [storage.md](../storage.md) §3.5) | [checkin-store.js:40-41](../../../../src/storage/checkin-store.js#L40-L41)                                                                              |
+| 回复     | `今天已经签到过啦，已累计 N 天。` / `已签到 N 天。` + 祝福语                                                    | [checkin-service.js:61-67](../../../../src/bilibili/checkin-service.js#L61-L67)                                                                         |
 
 祝福语池 `CHECKIN_BLESSINGS` 共 **30 句**([checkin-blessings.js:5-36](../../../../src/bilibili/checkin-blessings.js#L5-L36));`checkinBlessings` 设置可覆盖(JSON 数组,无效时回退内置池),每次**随机**取一句([checkin-blessings.js:38-59](../../../../src/bilibili/checkin-blessings.js#L38-L59))。
 
 ### 6.2 抽签(fortune-service)
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 命令 | 精确 `抽签`(`FORTUNE_COMMAND`) | [fortune-service.js:8](../../../../src/bilibili/fortune-service.js#L8) |
-| 开关 | `enableFortuneBot === 'true'` | [fortune-service.js:46-49](../../../../src/bilibili/fortune-service.js#L46-L49) |
-| 签池 | `FORTUNES` 内置 **20 签**(上上/上吉/中吉/小吉/平) | [fortune-service.js:10-31](../../../../src/bilibili/fortune-service.js#L10-L31) |
-| 抽签规则 | **确定性**:FNV-1a 哈希 `dateKey:uid` 对签池取模 —— 同一观众当天同签,跨天变化 | [fortune-service.js:93-106](../../../../src/bilibili/fortune-service.js#L93-L106) |
-| 回复 | `{level}·{name}｜{text}。{advice}。` | [fortune-service.js:108-110](../../../../src/bilibili/fortune-service.js#L108-L110) |
+| 事实     | 值                                                                           | 出处                                                                                |
+| -------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 命令     | 精确 `抽签`(`FORTUNE_COMMAND`)                                               | [fortune-service.js:8](../../../../src/bilibili/fortune-service.js#L8)              |
+| 开关     | `enableFortuneBot === 'true'`                                                | [fortune-service.js:46-49](../../../../src/bilibili/fortune-service.js#L46-L49)     |
+| 签池     | `FORTUNES` 内置 **20 签**(上上/上吉/中吉/小吉/平)                            | [fortune-service.js:10-31](../../../../src/bilibili/fortune-service.js#L10-L31)     |
+| 抽签规则 | **确定性**:FNV-1a 哈希 `dateKey:uid` 对签池取模 —— 同一观众当天同签,跨天变化 | [fortune-service.js:93-106](../../../../src/bilibili/fortune-service.js#L93-L106)   |
+| 回复     | `{level}·{name}｜{text}。{advice}。`                                         | [fortune-service.js:108-110](../../../../src/bilibili/fortune-service.js#L108-L110) |
 
 `fortunePool` 设置可覆盖签池(每项须含 level/name/text/advice,[fortune-service.js:73-91](../../../../src/bilibili/fortune-service.js#L73-L91))。
 
 ### 6.3 自定义回复(custom-reply-service)
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 开关 | `enableCustomReplyBot === 'true'`,否则不匹配 | [custom-reply-service.js:47](../../../../src/bilibili/custom-reply-service.js#L47) |
-| 匹配 | 消息小写后 `includes(rule.keyword 小写)`,`enabled !== false`;命中即回复(**无需点歌前缀**) | [custom-reply-service.js:45-53](../../../../src/bilibili/custom-reply-service.js#L45-L53) |
-| 规则上限 | `MAX_CUSTOM_REPLY_RULES = 30` | [custom-reply-service.js:7](../../../../src/bilibili/custom-reply-service.js#L7) |
-| 字段上限 | 关键词 `30` 字符、回复 `120` 字符(`truncateText`) | [custom-reply-service.js:8-9](../../../../src/bilibili/custom-reply-service.js#L8-L9) |
+| 事实     | 值                                                                                        | 出处                                                                                      |
+| -------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 开关     | `enableCustomReplyBot === 'true'`,否则不匹配                                              | [custom-reply-service.js:47](../../../../src/bilibili/custom-reply-service.js#L47)        |
+| 匹配     | 消息小写后 `includes(rule.keyword 小写)`,`enabled !== false`;命中即回复(**无需点歌前缀**) | [custom-reply-service.js:45-53](../../../../src/bilibili/custom-reply-service.js#L45-L53) |
+| 规则上限 | `MAX_CUSTOM_REPLY_RULES = 30`                                                             | [custom-reply-service.js:7](../../../../src/bilibili/custom-reply-service.js#L7)          |
+| 字段上限 | 关键词 `30` 字符、回复 `120` 字符(`truncateText`)                                         | [custom-reply-service.js:8-9](../../../../src/bilibili/custom-reply-service.js#L8-L9)     |
 
 `customReplyRules` 设置为规则数组;`isCommandText(message)` 暴露给入口识别([custom-reply-service.js:39-42](../../../../src/bilibili/custom-reply-service.js#L39-L42)),使自定义关键词也能参与去重窗口。
 
@@ -185,22 +185,22 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 
 `createDanmakuSenderService(dependencies)`([sender-service.js:8-148](../../../../src/bilibili/danmaku/sender-service.js#L8-L148)),server.js 装配时注入 `getMentionTarget = requesterTargets.getLatestRandomRequester` 与四个机器人开关读取([server.js:226-231](../../../../src/server.js#L226-L231))。
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 单条弹幕上限 | `DANMAKU_MESSAGE_LIMIT = 40` 字符(按 grapheme 切分)，由 `danmaku/contract.js` 统一提供给发送器与 AI 回复预算 | [contract.js](../../../../src/bilibili/danmaku/contract.js) |
-| 限速 | `minIntervalMs = 1500`(可注入);未到间隔再发:默认抛 `发送过于频繁`;`waitForRateLimit=true` 时等待 | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:110-113](../../../../src/bilibili/danmaku/sender-service.js#L110-L113) |
-| 切分 | 超长按 40 字符切块;有提及目标时首块预留 `@名字 ` 长度;`mentionEveryChunk` 每块都提及;块间可选 `intervalMs` 间隔;自然断句优先(标点 `。！？!?；;，,、～~` 与括号表情) | [sender-service.js:163-219](../../../../src/bilibili/danmaku/sender-service.js#L163-L219) |
-| 显示名缓存 | 账号名/房间名 `DISPLAY_CACHE_TTL_MS = 10min` | [sender-service.js:6](../../../../src/bilibili/danmaku/sender-service.js#L6)、[sender-service.js:64-99](../../../../src/bilibili/danmaku/sender-service.js#L64-L99) |
-| 状态 | `getState()` 返回 `loggedIn/accountUid/roomId/roomName/connected/canSend/requester/各机器人开关` 等 | [sender-service.js:30-53](../../../../src/bilibili/danmaku/sender-service.js#L30-L53) |
+| 事实         | 值                                                                                                                                                                  | 出处                                                                                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 单条弹幕上限 | `DANMAKU_MESSAGE_LIMIT = 40` 字符(按 grapheme 切分)，由 `danmaku/contract.js` 统一提供给发送器与 AI 回复预算                                                        | [contract.js](../../../../src/bilibili/danmaku/contract.js)                                                                                                               |
+| 限速         | `minIntervalMs = 1500`(可注入);未到间隔再发:默认抛 `发送过于频繁`;`waitForRateLimit=true` 时等待                                                                    | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:110-113](../../../../src/bilibili/danmaku/sender-service.js#L110-L113) |
+| 切分         | 超长按 40 字符切块;有提及目标时首块预留 `@名字 ` 长度;`mentionEveryChunk` 每块都提及;块间可选 `intervalMs` 间隔;自然断句优先(标点 `。！？!?；;，,、～~` 与括号表情) | [sender-service.js:163-219](../../../../src/bilibili/danmaku/sender-service.js#L163-L219)                                                                                 |
+| 显示名缓存   | 账号名/房间名 `DISPLAY_CACHE_TTL_MS = 10min`                                                                                                                        | [sender-service.js:6](../../../../src/bilibili/danmaku/sender-service.js#L6)、[sender-service.js:64-99](../../../../src/bilibili/danmaku/sender-service.js#L64-L99)       |
+| 状态         | `getState()` 返回 `loggedIn/accountUid/roomId/roomName/connected/canSend/requester/各机器人开关` 等                                                                 | [sender-service.js:30-53](../../../../src/bilibili/danmaku/sender-service.js#L30-L53)                                                                                     |
 
 **自动回复路径**(server.js `onMessage` 内,全部 `void danmakuSender.send({message, mentionTarget})`):
 
-| 回复 | 触发 | 出处 |
-|---|---|---|
-| `result.autoReply` | 随机点歌无匹配且 `enableRandomTagReply==='true'`(§5.3) | [server.js:632-639](../../../../src/server.js#L632-L639) |
-| `result.checkinReply` | 签到命令接受后 | [server.js:640-647](../../../../src/server.js#L640-L647) |
-| `result.fortuneReply` | 抽签命令接受后 | [server.js:648-655](../../../../src/server.js#L648-L655) |
-| `result.customReplyReply` | 自定义关键词命中 | [server.js:656-663](../../../../src/server.js#L656-L663) |
+| 回复                      | 触发                                                   | 出处                                                     |
+| ------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| `result.autoReply`        | 随机点歌无匹配且 `enableRandomTagReply==='true'`(§5.3) | [server.js:632-639](../../../../src/server.js#L632-L639) |
+| `result.checkinReply`     | 签到命令接受后                                         | [server.js:640-647](../../../../src/server.js#L640-L647) |
+| `result.fortuneReply`     | 抽签命令接受后                                         | [server.js:648-655](../../../../src/server.js#L648-L655) |
+| `result.customReplyReply` | 自定义关键词命中                                       | [server.js:656-663](../../../../src/server.js#L656-L663) |
 
 另有一条独立发送通道:AI 互动助手回复经 `aiAssistant` 走 `danmakuSender.send({waitForRateLimit: true})`([server.js:260-261](../../../../src/server.js#L260-L261)),见 [ai.md](../ai.md)。
 
@@ -211,16 +211,16 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 
 ## 9. 关键常数速查
 
-| 参数 | 值 | 出处 |
-|---|---|---|
-| 历史轮询间隔 | 2.5s | [history-poller.js:30](../../../../src/bilibili/danmaku/history-poller.js#L30) |
-| 高能榜轮询 | 60s × 50/页 × 3 页 | [online-rank-poller.js:9-11](../../../../src/bilibili/danmaku/online-rank-poller.js#L9-L11) |
-| 全量粉丝牌轮询 | 5min × 30/页 × 最多 10000 页 | [fans-medal-poller.js:8-11](../../../../src/bilibili/danmaku/fans-medal-poller.js#L8-L11) |
-| 开播检测 | 10min(unref) | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5) |
-| 身份缓存 TTL / 清理 | 10min / 5min | [identity-cache.js:7](../../../../src/bilibili/danmaku/identity-cache.js#L7)、[message-handlers.js:31](../../../../src/bilibili/danmaku/message-handlers.js#L31) |
-| 去重:跨源窗 / 保留 / 上限 | 1.5s / 30min / 1000→500 | [message-deduplicator.js:8-10](../../../../src/bilibili/danmaku/message-deduplicator.js#L8-L10) |
-| 重连延迟 | 首次 0ms,其后 5000ms 固定 | [danmaku-client.js:250](../../../../src/bilibili/danmaku-client.js#L250)、[danmaku-client.js:374](../../../../src/bilibili/danmaku-client.js#L374) |
-| 可捕获窗口 | 启动前 5s ~ 30min 前 ~ 未来 5min | [helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50) |
-| 发送限速 / 单条上限 | 1.5s / 40 字符 | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:5](../../../../src/bilibili/danmaku/sender-service.js#L5) |
-| 签到/抽签日期 | 北京时间 UTC+8 | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9) |
-| 自定义回复上限 | 30 条 / 关键词 30 / 文本 120 | [custom-reply-service.js:7-9](../../../../src/bilibili/custom-reply-service.js#L7-L9) |
+| 参数                      | 值                               | 出处                                                                                                                                                             |
+| ------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 历史轮询间隔              | 2.5s                             | [history-poller.js:30](../../../../src/bilibili/danmaku/history-poller.js#L30)                                                                                   |
+| 高能榜轮询                | 60s × 50/页 × 3 页               | [online-rank-poller.js:9-11](../../../../src/bilibili/danmaku/online-rank-poller.js#L9-L11)                                                                      |
+| 全量粉丝牌轮询            | 5min × 30/页 × 最多 10000 页     | [fans-medal-poller.js:8-11](../../../../src/bilibili/danmaku/fans-medal-poller.js#L8-L11)                                                                        |
+| 开播检测                  | 10min(unref)                     | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)                                                                           |
+| 身份缓存 TTL / 清理       | 10min / 5min                     | [identity-cache.js:7](../../../../src/bilibili/danmaku/identity-cache.js#L7)、[message-handlers.js:31](../../../../src/bilibili/danmaku/message-handlers.js#L31) |
+| 去重:跨源窗 / 保留 / 上限 | 1.5s / 30min / 1000→500          | [message-deduplicator.js:8-10](../../../../src/bilibili/danmaku/message-deduplicator.js#L8-L10)                                                                  |
+| 重连延迟                  | 首次 0ms,其后 5000ms 固定        | [danmaku-client.js:250](../../../../src/bilibili/danmaku-client.js#L250)、[danmaku-client.js:374](../../../../src/bilibili/danmaku-client.js#L374)               |
+| 可捕获窗口                | 启动前 5s ~ 30min 前 ~ 未来 5min | [helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50)                                                                                                  |
+| 发送限速 / 单条上限       | 1.5s / 40 字符                   | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:5](../../../../src/bilibili/danmaku/sender-service.js#L5)     |
+| 签到/抽签日期             | 北京时间 UTC+8                   | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)                                                                                           |
+| 自定义回复上限            | 30 条 / 关键词 30 / 文本 120     | [custom-reply-service.js:7-9](../../../../src/bilibili/custom-reply-service.js#L7-L9)                                                                            |

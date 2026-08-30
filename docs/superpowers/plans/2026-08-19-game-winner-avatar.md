@@ -30,10 +30,12 @@
 ### Task 1: Preserve Winning Viewer Identity
 
 **Files:**
+
 - Modify: `src/games/game-session-service.js`
 - Test: `test/games.test.js`
 
 **Interfaces:**
+
 - Consumes: `handleDanmaku({ uid, userName, message })`.
 - Produces: `getSession().winner = { role, uid, name }` after a winning move, with empty `uid` for the host.
 
@@ -42,10 +44,19 @@
 ```js
 test('game session retains the viewer identity that wins', () => {
   const service = createGameSessionService();
-  service.start({ game: 'number-bomb', mode: 'single', targetUid: '42', targetName: 'Alice' });
+  service.start({
+    game: 'number-bomb',
+    mode: 'single',
+    targetUid: '42',
+    targetName: 'Alice',
+  });
   service.move({ value: 50 }, 'host');
   service.handleDanmaku({ uid: '42', userName: 'Alice', message: '1' });
-  assert.deepEqual(service.getSession().winner, { role: 'viewer', uid: '42', name: 'Alice' });
+  assert.deepEqual(service.getSession().winner, {
+    role: 'viewer',
+    uid: '42',
+    name: 'Alice',
+  });
 });
 ```
 
@@ -63,7 +74,7 @@ function move(input = {}, player = 'host', playerIdentity = {}) {
     winner = {
       role: result.state.winner,
       uid: result.state.winner === 'viewer' ? cleanUid(playerIdentity.uid) : '',
-      name: cleanName(playerIdentity.name)
+      name: cleanName(playerIdentity.name),
     };
   }
 }
@@ -77,6 +88,7 @@ Expected: PASS.
 ### Task 2: Resolve A Result Avatar On Demand
 
 **Files:**
+
 - Modify: `src/bilibili/danmaku/api-client.js`
 - Modify: `src/server/bilibili-runtime.js`
 - Modify: `src/server.js`
@@ -85,6 +97,7 @@ Expected: PASS.
 - Test: `test/game-routes.test.js`
 
 **Interfaces:**
+
 - Consumes: `GET /api/games/winner-profile`.
 - Produces: `{ ok: true, data: { avatarUrl, name } }`, or an empty `avatarUrl` if Bilibili cannot provide an image.
 - The resolver performs no memoization or persistence.
@@ -93,9 +106,22 @@ Expected: PASS.
 
 ```js
 test('game avatar route validates viewer uid and returns transient profile data', async () => {
-  const context = { games: { getWinnerProfile: async () => ({ avatarUrl: 'https://i0.hdslb.com/a.jpg', name: 'Alice' }) } };
-  const result = await invokeGameAvatarRoute(context, { role: 'viewer', uid: '42' });
-  assert.deepEqual(result.payload.data, { avatarUrl: 'https://i0.hdslb.com/a.jpg', name: 'Alice' });
+  const context = {
+    games: {
+      getWinnerProfile: async () => ({
+        avatarUrl: 'https://i0.hdslb.com/a.jpg',
+        name: 'Alice',
+      }),
+    },
+  };
+  const result = await invokeGameAvatarRoute(context, {
+    role: 'viewer',
+    uid: '42',
+  });
+  assert.deepEqual(result.payload.data, {
+    avatarUrl: 'https://i0.hdslb.com/a.jpg',
+    name: 'Alice',
+  });
 });
 ```
 
@@ -123,12 +149,14 @@ Expected: PASS.
 ### Task 3: Render And Clear The Result Avatar
 
 **Files:**
+
 - Modify: `public/pages/overlays/games.html`
 - Modify: `public/js/overlays/games.js`
 - Modify: `public/css/overlays/games.css`
 - Test: `test/games-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: the additive `session.winner` metadata and `GET /api/games/winner-profile`.
 - Produces: a circular `<img>` immediately before the winner name, with a role fallback when no avatar is available.
 
@@ -169,6 +197,7 @@ Expected: PASS.
 ### Task 4: Verify The Scoped Change
 
 **Files:**
+
 - Verify: `test/games.test.js`
 - Verify: `test/game-routes.test.js`
 - Verify: `test/games-overlay.test.js`

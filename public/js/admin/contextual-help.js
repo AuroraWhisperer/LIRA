@@ -9,14 +9,21 @@ function clamp(value, minimum, maximum) {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 }
 
-export function calculateContextualHelpPosition(anchorRect, tooltipSize, viewport) {
-  const centeredLeft = anchorRect.left + ((anchorRect.right - anchorRect.left) - tooltipSize.width) / 2;
+export function calculateContextualHelpPosition(
+  anchorRect,
+  tooltipSize,
+  viewport,
+) {
+  const centeredLeft =
+    anchorRect.left +
+    (anchorRect.right - anchorRect.left - tooltipSize.width) / 2;
   const left = clamp(
     centeredLeft,
     VIEWPORT_INSET,
-    viewport.width - tooltipSize.width - VIEWPORT_INSET
+    viewport.width - tooltipSize.width - VIEWPORT_INSET,
   );
-  const fitsAbove = anchorRect.top - TOOLTIP_GAP - tooltipSize.height >= VIEWPORT_INSET;
+  const fitsAbove =
+    anchorRect.top - TOOLTIP_GAP - tooltipSize.height >= VIEWPORT_INSET;
   const placement = fitsAbove ? 'top' : 'bottom';
   const preferredTop = fitsAbove
     ? anchorRect.top - TOOLTIP_GAP - tooltipSize.height
@@ -24,13 +31,13 @@ export function calculateContextualHelpPosition(anchorRect, tooltipSize, viewpor
   const top = clamp(
     preferredTop,
     VIEWPORT_INSET,
-    viewport.height - tooltipSize.height - VIEWPORT_INSET
+    viewport.height - tooltipSize.height - VIEWPORT_INSET,
   );
 
   return {
     left: Math.round(left),
     top: Math.round(top),
-    placement
+    placement,
   };
 }
 
@@ -52,12 +59,15 @@ class LiraHelpElement extends HTMLElement {
   connectedCallback() {
     if (this.dataset.helpReady !== 'true') {
       const descriptionNodes = [...this.childNodes];
-      const preservedDescription = descriptionNodes.length === 1
-        && descriptionNodes[0]?.nodeType === 1
-        ? descriptionNodes[0]
-        : null;
+      const preservedDescription =
+        descriptionNodes.length === 1 && descriptionNodes[0]?.nodeType === 1
+          ? descriptionNodes[0]
+          : null;
       const tooltip = preservedDescription || document.createElement('span');
-      const tooltipId = tooltip.id || this.getAttribute('tooltip-id') || `lira-help-${++helpId}`;
+      const tooltipId =
+        tooltip.id ||
+        this.getAttribute('tooltip-id') ||
+        `lira-help-${++helpId}`;
       if (!preservedDescription) tooltip.append(...descriptionNodes);
 
       const mark = document.createElement('span');
@@ -146,7 +156,7 @@ class LiraHelpElement extends HTMLElement {
     const position = calculateContextualHelpPosition(
       anchorRect,
       { width: tooltipRect.width, height: tooltipRect.height },
-      { width: window.innerWidth, height: window.innerHeight }
+      { width: window.innerWidth, height: window.innerHeight },
     );
     this.tooltip.style.left = `${position.left}px`;
     this.tooltip.style.top = `${position.top}px`;
@@ -175,7 +185,11 @@ class LiraHelpElement extends HTMLElement {
 }
 
 export function initializeContextualHelp() {
-  if (typeof customElements === 'undefined' || typeof HTMLElement === 'undefined') return;
+  if (
+    typeof customElements === 'undefined' ||
+    typeof HTMLElement === 'undefined'
+  )
+    return;
   if (!customElements.get(HELP_ELEMENT_NAME)) {
     customElements.define(HELP_ELEMENT_NAME, LiraHelpElement);
   }

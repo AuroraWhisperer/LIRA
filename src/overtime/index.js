@@ -9,5 +9,5 @@ module.exports = {
   ...contract,
   createOvertimeService,
   createOvertimeStore,
-  createOvertimeConsumer
+  createOvertimeConsumer,
 };

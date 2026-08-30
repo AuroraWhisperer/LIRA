@@ -13,7 +13,7 @@ const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 const {
   createLyricToggleButton,
   loadModuleExports,
-  response
+  response,
 } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -21,34 +21,57 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('toast stack stays below the top application bar', () => {
   const layoutStyles = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'),
-    'utf8'
+    'utf8',
   );
   const toastStyles = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'system.css'),
-    'utf8'
+    'utf8',
   );
-  const topbarHeight = Number(layoutStyles.match(/\.topbar\s*\{[\s\S]*?min-height:\s*(\d+)px/)?.[1]);
-  const toastOffset = Number(toastStyles.match(/\.toast-stack\s*\{[\s\S]*?top:\s*(\d+)px/)?.[1]);
+  const topbarHeight = Number(
+    layoutStyles.match(/\.topbar\s*\{[\s\S]*?min-height:\s*(\d+)px/)?.[1],
+  );
+  const toastOffset = Number(
+    toastStyles.match(/\.toast-stack\s*\{[\s\S]*?top:\s*(\d+)px/)?.[1],
+  );
 
-  assert.ok(topbarHeight > 0, 'top application bar height should remain defined');
-  assert.ok(toastOffset >= topbarHeight + 8, 'toast stack should clear the top application bar');
+  assert.ok(
+    topbarHeight > 0,
+    'top application bar height should remain defined',
+  );
+  assert.ok(
+    toastOffset >= topbarHeight + 8,
+    'toast stack should clear the top application bar',
+  );
 });
 
 test('live refresh toast resolves its migrated image from the nested stylesheet', () => {
   const source = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'system.css'),
-    'utf8'
+    'utf8',
   );
-  const imagePath = path.join(ROOT_DIR, 'public', 'img', 'shared', 'live-refresh-icon.webp');
+  const imagePath = path.join(
+    ROOT_DIR,
+    'public',
+    'img',
+    'shared',
+    'live-refresh-icon.webp',
+  );
 
-  assert.match(source, /url\('\.\.\/\.\.\/\.\.\/img\/shared\/live-refresh-icon\.webp'\)/);
+  assert.match(
+    source,
+    /url\('\.\.\/\.\.\/\.\.\/img\/shared\/live-refresh-icon\.webp'\)/,
+  );
   assert.equal(fs.existsSync(imagePath), true);
 });
 
 test('queue headers share a fixed minimum height and song queue controls stay compact', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const headerRule = source.match(/\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/)?.[0];
-  const buttonRule = source.match(/\.queues-row \.song-queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/)?.[0];
+  const headerRule = source.match(
+    /\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const buttonRule = source.match(
+    /\.queues-row \.song-queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(headerRule, 'queue header sizing should remain defined');
   assert.match(headerRule, /min-height:\s*72px/);
@@ -57,24 +80,47 @@ test('queue headers share a fixed minimum height and song queue controls stay co
 });
 
 test('minimum-height desktop reclaims space before the point-song page heading', () => {
-  const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const workspaceSource = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'workspace.css',
+  );
   const responsiveSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
-    'utf8'
+    'utf8',
   );
-  const baseQueueRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
+  const baseQueueRule = workspaceSource.match(
+    /\.queues-row\s*\{[\s\S]*?\n\}/,
+  )?.[0];
   const compactDesktopRule = responsiveSource.match(
-    /@media \(min-width: 901px\) and \(max-height: 700px\) \{\s*(\.queues-row\s*\{[\s\S]*?\n\s*\})\s*\}/
+    /@media \(min-width: 901px\) and \(max-height: 700px\) \{\s*(\.queues-row\s*\{[\s\S]*?\n\s*\})\s*\}/,
   )?.[1];
   const baseHeight = Number(baseQueueRule?.match(/height:\s*(\d+)px/)?.[1]);
-  const compactHeight = Number(compactDesktopRule?.match(/height:\s*(\d+)px/)?.[1]);
-  const compactBasis = Number(compactDesktopRule?.match(/flex-basis:\s*(\d+)px/)?.[1]);
+  const compactHeight = Number(
+    compactDesktopRule?.match(/height:\s*(\d+)px/)?.[1],
+  );
+  const compactBasis = Number(
+    compactDesktopRule?.match(/flex-basis:\s*(\d+)px/)?.[1],
+  );
 
-  assert.ok(baseQueueRule, 'default desktop queue sizing should remain defined');
-  assert.ok(compactDesktopRule, 'minimum-height desktop queue sizing should be height-scoped');
+  assert.ok(
+    baseQueueRule,
+    'default desktop queue sizing should remain defined',
+  );
+  assert.ok(
+    compactDesktopRule,
+    'minimum-height desktop queue sizing should be height-scoped',
+  );
   assert.equal(compactHeight, compactBasis);
-  assert.ok(baseHeight - compactHeight >= 32, 'minimum-height desktop should reclaim at least one page-heading row');
-  assert.doesNotMatch(compactDesktopRule, /panel-header|queue-list|font-|line-height/);
+  assert.ok(
+    baseHeight - compactHeight >= 32,
+    'minimum-height desktop should reclaim at least one page-heading row',
+  );
+  assert.doesNotMatch(
+    compactDesktopRule,
+    /panel-header|queue-list|font-|line-height/,
+  );
 });
 
 test('point-song subviews rely on tabs instead of repeated page headings', () => {
@@ -86,25 +132,36 @@ test('point-song subviews rely on tabs instead of repeated page headings', () =>
     'displayPage',
     'overlayPage',
     'importPage',
-    'desktopLyricPage'
+    'desktopLyricPage',
   ];
 
   for (const id of views) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.doesNotMatch(html, /class="song-subview-header"/);
-  assert.doesNotMatch(html, /<h2 class="ui-page-title">(?:歌库|设置|点歌板|展示板|浏览器源|导入导出|桌面歌词)<\/h2>/);
+  assert.doesNotMatch(
+    html,
+    /<h2 class="ui-page-title">(?:歌库|设置|点歌板|展示板|浏览器源|导入导出|桌面歌词)<\/h2>/,
+  );
 });
 
 test('colored action buttons use solid or frameless treatments', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-base.css'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'styles-base.css'),
+    'utf8',
+  );
   const primaryRule = source.match(/button\.primary\s*\{[\s\S]*?\n\}/)?.[0];
-  const primaryHoverRule = source.match(/button\.primary:hover\s*\{[\s\S]*?\n\}/)?.[0];
+  const primaryHoverRule = source.match(
+    /button\.primary:hover\s*\{[\s\S]*?\n\}/,
+  )?.[0];
   const secondaryRule = source.match(/button\.secondary\s*\{[\s\S]*?\n\}/)?.[0];
   const dangerRule = source.match(/button\.danger\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(primaryRule, 'primary button styling should remain defined');
-  assert.ok(primaryHoverRule, 'primary button hover styling should remain defined');
+  assert.ok(
+    primaryHoverRule,
+    'primary button hover styling should remain defined',
+  );
   assert.ok(secondaryRule, 'secondary button styling should remain defined');
   assert.ok(dangerRule, 'danger button styling should remain defined');
   assert.match(primaryRule, /border-color:\s*transparent/);
@@ -118,22 +175,49 @@ test('colored action buttons use solid or frameless treatments', () => {
 
 test('top navigation keeps its outer track and colored moving active capsule', () => {
   const mainTabs = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts', 'main-page-tabs.css'),
-    'utf8'
+    path.join(
+      ROOT_DIR,
+      'public',
+      'css',
+      'admin',
+      'gifts',
+      'main-page-tabs.css',
+    ),
+    'utf8',
   );
   const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const desktop = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'desktop.css'), 'utf8');
-  const appSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const desktop = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'overlays', 'desktop.css'),
+    'utf8',
+  );
+  const appSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
+    'utf8',
+  );
   const tabsRule = mainTabs.match(/\.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0];
-  const movingLayersRule = workspace.match(/\.main-page-tabs::before,\s*\.main-page-tabs::after\s*\{[\s\S]*?\n\}/)?.[0];
-  const pillRule = workspace.match(/\.main-page-tabs::before\s*\{[\s\S]*?\n\}/)?.[0];
-  const railRule = Array.from(workspace.matchAll(/\.main-page-tabs::after\s*\{[\s\S]*?\n\}/g))
-    .map(match => match[0])
-    .find(rule => /background:/.test(rule));
-  const readyRule = workspace.match(/\.main-page-tabs\.indicator-ready::before,\s*\.main-page-tabs\.indicator-ready::after\s*\{[\s\S]*?\n\}/)?.[0];
-  const activeRule = workspace.match(/\.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
-  const desktopTabsRule = desktop.match(/body\.desktop-shell \.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0];
-  const desktopActiveRule = desktop.match(/body\.desktop-shell \.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
+  const movingLayersRule = workspace.match(
+    /\.main-page-tabs::before,\s*\.main-page-tabs::after\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const pillRule = workspace.match(
+    /\.main-page-tabs::before\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const railRule = Array.from(
+    workspace.matchAll(/\.main-page-tabs::after\s*\{[\s\S]*?\n\}/g),
+  )
+    .map((match) => match[0])
+    .find((rule) => /background:/.test(rule));
+  const readyRule = workspace.match(
+    /\.main-page-tabs\.indicator-ready::before,\s*\.main-page-tabs\.indicator-ready::after\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const activeRule = workspace.match(
+    /\.main-page-tab\.active\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const desktopTabsRule = desktop.match(
+    /body\.desktop-shell \.main-page-tabs\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const desktopActiveRule = desktop.match(
+    /body\.desktop-shell \.main-page-tab\.active\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(tabsRule, 'top navigation layout should remain defined');
   assert.match(tabsRule, /gap:\s*8px/);
@@ -141,16 +225,37 @@ test('top navigation keeps its outer track and colored moving active capsule', (
   assert.match(tabsRule, /background:\s*#fffaf1/);
   assert.match(tabsRule, /border-radius:\s*12px/);
   assert.match(tabsRule, /padding:\s*3px/);
-  assert.ok(movingLayersRule, 'top navigation moving layers should share the active geometry');
-  assert.match(movingLayersRule, /width:\s*var\(--main-page-indicator-width,\s*0px\)/);
-  assert.match(movingLayersRule, /transform:\s*translateX\(var\(--main-page-indicator-x,\s*0px\)\)/);
-  assert.ok(pillRule, 'top navigation should use one shared moving active capsule');
-  assert.match(pillRule, /linear-gradient\(135deg,\s*#fff0d2 0%,\s*#ffd99a 100%\)/);
+  assert.ok(
+    movingLayersRule,
+    'top navigation moving layers should share the active geometry',
+  );
+  assert.match(
+    movingLayersRule,
+    /width:\s*var\(--main-page-indicator-width,\s*0px\)/,
+  );
+  assert.match(
+    movingLayersRule,
+    /transform:\s*translateX\(var\(--main-page-indicator-x,\s*0px\)\)/,
+  );
+  assert.ok(
+    pillRule,
+    'top navigation should use one shared moving active capsule',
+  );
+  assert.match(
+    pillRule,
+    /linear-gradient\(135deg,\s*#fff0d2 0%,\s*#ffd99a 100%\)/,
+  );
   assert.match(pillRule, /inset 0 0 0 1px rgba\(183, 133, 50, 0\.34\)/);
   assert.match(pillRule, /transition:[\s\S]*width[\s\S]*transform/);
-  assert.ok(railRule, 'top navigation should keep the accent rail inside the colored capsule');
+  assert.ok(
+    railRule,
+    'top navigation should keep the accent rail inside the colored capsule',
+  );
   assert.match(railRule, /center bottom 3px \/ 22px 3px no-repeat/);
-  assert.ok(readyRule, 'top navigation capsule should appear after positioning');
+  assert.ok(
+    readyRule,
+    'top navigation capsule should appear after positioning',
+  );
   assert.match(readyRule, /opacity:\s*1/);
   assert.match(activeRule, /background:\s*transparent/);
   assert.match(activeRule, /box-shadow:\s*none/);
@@ -163,35 +268,57 @@ test('top navigation keeps its outer track and colored moving active capsule', (
 });
 
 test('desktop live status and refresh control keep visible separation', () => {
-  const layout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'), 'utf8');
+  const layout = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'),
+    'utf8',
+  );
   const statusStripRule = layout.match(/\.status-strip\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.ok(statusStripRule, 'desktop status strip layout should remain defined');
+  assert.ok(
+    statusStripRule,
+    'desktop status strip layout should remain defined',
+  );
   assert.match(statusStripRule, /gap:\s*8px/);
 });
 
 test('accent actions do not add a colored frame around their fill or active state', () => {
-  const layout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'), 'utf8');
+  const layout = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'),
+    'utf8',
+  );
   const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const lyric = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
-    'utf8'
+    'utf8',
   );
-  const responsive = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
+  const responsive = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
+    'utf8',
+  );
   const toolbox = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const playback = readCssBundle('public', 'css', 'styles-playback.css');
   const rules = [
     layout.match(/\.status-strip button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
-    workspace.match(/\.queues-row \.song-queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
+    workspace.match(
+      /\.queues-row \.song-queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/,
+    )?.[0],
     lyric.match(/\.desktop-lyric-reset-button\s*\{[\s\S]*?\n\}/)?.[0],
     responsive.match(/\.gift-history-open-btn\s*\{[\s\S]*?\n\}/)?.[0],
     toolbox.match(/\.other-feature-button\.active\s*\{[\s\S]*?\n\}/)?.[0],
-    toolbox.match(/\.opening-upload-button, \.button-quiet\s*\{[\s\S]*?\n\}/)?.[0],
-    toolbox.match(/\.usage-guide-hero-actions a,\s*\.usage-guide-hero-actions button\s*\{[\s\S]*?\n\}/)?.[0],
-    playback.match(/\.playback-quality-btn\s*\{[\s\S]*?\n\}/)?.[0]
+    toolbox.match(
+      /\.opening-upload-button,\s*\.button-quiet\s*\{[\s\S]*?\n\}/,
+    )?.[0],
+    toolbox.match(
+      /\.usage-guide-hero-actions a,\s*\.usage-guide-hero-actions button\s*\{[\s\S]*?\n\}/,
+    )?.[0],
+    playback.match(/\.playback-quality-btn\s*\{[\s\S]*?\n\}/)?.[0],
   ];
 
-  assert.equal(rules.every(Boolean), true, 'all audited accent action rules should remain defined');
+  assert.equal(
+    rules.every(Boolean),
+    true,
+    'all audited accent action rules should remain defined',
+  );
   for (const rule of rules) {
     assert.match(rule, /border(?:-color)?:\s*(?:0|transparent)/);
   }
@@ -200,41 +327,90 @@ test('accent actions do not add a colored frame around their fill or active stat
 test('SuperChat clear control lives in the SC queue header', () => {
   const queueShell = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'shell-start.html'),
-    'utf8'
+    'utf8',
   );
   const importPage = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'song', 'import-export.html'),
-    'utf8'
+    path.join(
+      ROOT_DIR,
+      'public',
+      'pages',
+      'admin',
+      'song',
+      'import-export.html',
+    ),
+    'utf8',
   );
-  const scPanel = queueShell.match(/<section class="panel queue-panel sc-queue-panel">[\s\S]*?<\/section>/)?.[0];
+  const scPanel = queueShell.match(
+    /<section class="panel queue-panel sc-queue-panel">[\s\S]*?<\/section>/,
+  )?.[0];
 
   assert.ok(scPanel, 'SC queue panel should remain present');
-  assert.match(scPanel, /id="clearSuperChatsBtn"[^>]*>清空 SC 记录<\/button>/);
+  assert.match(
+    scPanel,
+    /id="clearSuperChatsBtn"[^>]*>\s*清空 SC 记录\s*<\/button>/,
+  );
   assert.doesNotMatch(importPage, /id="clearSuperChatsBtn"/);
 });
 
 test('toolbox owns independent settings, overtime, streamer planner, start animation, performance, usage guide, and update features', () => {
   const html = readAdminHtml();
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'), 'utf8');
-  const tabStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'), 'utf8');
-  const featureStyles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const performanceHtml = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'performance.html'),
-    'utf8'
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'styles-admin.css'),
+    'utf8',
   );
-  const managementTabs = html.match(/<div class="tabs" role="tablist">([\s\S]*?)<\/div>/)?.[1];
+  const tabStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'tabs.css'),
+    'utf8',
+  );
+  const featureStyles = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'other-features.css',
+  );
+  const performanceHtml = fs.readFileSync(
+    path.join(
+      ROOT_DIR,
+      'public',
+      'pages',
+      'admin',
+      'toolbox',
+      'performance.html',
+    ),
+    'utf8',
+  );
+  const managementTabs = html.match(
+    /<div class="tabs" role="tablist">([\s\S]*?)<\/div>/,
+  )?.[1];
   const directTabRule = tabStyles.match(/\.tabs > \.tab\s*\{[\s\S]*?\n\}/)?.[0];
-  const overtimePosition = html.indexOf('data-other-feature="otherOvertimeMachineFeature"');
-  const dailyTodoPosition = html.indexOf('data-other-feature="otherDailyTodoFeature"');
-  const startAnimationPosition = html.indexOf('data-other-feature="otherStartAnimationFeature"');
-  const performancePosition = html.indexOf('data-other-feature="otherPerformanceFeature"');
-  const settingsPosition = html.indexOf('data-other-feature="otherSettingsFeature"');
-  const usageGuidePosition = html.indexOf('data-other-feature="otherUsageGuideFeature"');
-  const updatePosition = html.indexOf('data-other-feature="otherDesktopUpdateFeature"');
+  const overtimePosition = html.indexOf(
+    'data-other-feature="otherOvertimeMachineFeature"',
+  );
+  const dailyTodoPosition = html.indexOf(
+    'data-other-feature="otherDailyTodoFeature"',
+  );
+  const startAnimationPosition = html.indexOf(
+    'data-other-feature="otherStartAnimationFeature"',
+  );
+  const performancePosition = html.indexOf(
+    'data-other-feature="otherPerformanceFeature"',
+  );
+  const settingsPosition = html.indexOf(
+    'data-other-feature="otherSettingsFeature"',
+  );
+  const usageGuidePosition = html.indexOf(
+    'data-other-feature="otherUsageGuideFeature"',
+  );
+  const updatePosition = html.indexOf(
+    'data-other-feature="otherDesktopUpdateFeature"',
+  );
 
   assert.doesNotMatch(html, /data-tab="performancePage"/);
   assert.doesNotMatch(html, /id="performancePage"/);
-  assert.match(html, /data-main-page="otherAssistantPage"[\s\S]*?<span>百宝箱<\/span>/);
+  assert.match(
+    html,
+    /data-main-page="otherAssistantPage"[\s\S]*?<span>百宝箱<\/span>/,
+  );
   assert.ok(managementTabs, 'song management tabs should remain present');
   assert.equal(managementTabs.match(/data-tab=/g)?.length, 7);
   assert.doesNotMatch(managementTabs, /<details|更多|desktopUpdate/);
@@ -243,13 +419,25 @@ test('toolbox owns independent settings, overtime, streamer planner, start anima
   assert.match(directTabRule, /min-width:\s*0/);
   assert.doesNotMatch(tabStyles, /tab-overflow/);
   assert.match(html, /data-other-feature="otherOvertimeMachineFeature"/);
-  assert.match(html, /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel/);
+  assert.match(
+    html,
+    /id="otherOvertimeMachineFeature"[^>]+data-other-feature-panel/,
+  );
   assert.match(html, /data-other-feature="otherDailyTodoFeature"/);
-  assert.match(html, /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[\s\S]*?id="streamerPlanner"[\s\S]*?id="plannerTaskForm"/);
+  assert.match(
+    html,
+    /id="otherDailyTodoFeature"[^>]+data-other-feature-panel[\s\S]*?id="streamerPlanner"[\s\S]*?id="plannerTaskForm"/,
+  );
   assert.match(html, /data-other-feature="otherStartAnimationFeature"/);
-  assert.match(html, /id="otherStartAnimationFeature"[^>]+data-other-feature-panel/);
+  assert.match(
+    html,
+    /id="otherStartAnimationFeature"[^>]+data-other-feature-panel/,
+  );
   assert.match(html, /data-other-feature="otherPerformanceFeature"/);
-  assert.match(html, /id="otherPerformanceFeature"[^>]+data-other-feature-panel/);
+  assert.match(
+    html,
+    /id="otherPerformanceFeature"[^>]+data-other-feature-panel/,
+  );
   assert.match(html, /data-other-feature="otherSettingsFeature"/);
   assert.match(html, /id="otherSettingsFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /id="licenseAccountDevice"[^>]+hidden/);
@@ -259,32 +447,71 @@ test('toolbox owns independent settings, overtime, streamer planner, start anima
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-panel/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-faq-grid/);
-  assert.match(html, /id="otherDesktopUpdateFeature"[^>]+data-other-feature-panel/);
-  assert.ok(overtimePosition < performancePosition, 'overtime machine should be first in the toolbox');
-  assert.ok(dailyTodoPosition > overtimePosition, 'daily todo should follow overtime machine in the toolbox');
-  assert.ok(dailyTodoPosition < performancePosition, 'daily todo should precede performance in the toolbox');
-  assert.ok(startAnimationPosition < performancePosition, 'start animation should precede performance in the toolbox');
-  assert.ok(usageGuidePosition > performancePosition, 'usage guide should follow performance in the toolbox');
-  assert.ok(updatePosition > performancePosition, 'desktop update should follow performance in the toolbox');
-  assert.ok(settingsPosition < performancePosition, 'settings should precede performance in the toolbox');
+  assert.match(
+    html,
+    /id="otherDesktopUpdateFeature"[^>]+data-other-feature-panel/,
+  );
+  assert.ok(
+    overtimePosition < performancePosition,
+    'overtime machine should be first in the toolbox',
+  );
+  assert.ok(
+    dailyTodoPosition > overtimePosition,
+    'daily todo should follow overtime machine in the toolbox',
+  );
+  assert.ok(
+    dailyTodoPosition < performancePosition,
+    'daily todo should precede performance in the toolbox',
+  );
+  assert.ok(
+    startAnimationPosition < performancePosition,
+    'start animation should precede performance in the toolbox',
+  );
+  assert.ok(
+    usageGuidePosition > performancePosition,
+    'usage guide should follow performance in the toolbox',
+  );
+  assert.ok(
+    updatePosition > performancePosition,
+    'desktop update should follow performance in the toolbox',
+  );
+  assert.ok(
+    settingsPosition < performancePosition,
+    'settings should precede performance in the toolbox',
+  );
   assert.equal(performanceHtml.match(/<button/g)?.length, 1);
   assert.doesNotMatch(performanceHtml, /<input|metricsToggle/);
-  assert.match(performanceHtml, /id="metricsCountdown"[^>]*role="timer"[^>]*aria-label="每次检测采样 5 秒"/);
+  assert.match(
+    performanceHtml,
+    /id="metricsCountdown"[^>]*role="timer"[^>]*aria-label="每次检测采样 5 秒"/,
+  );
   assert.match(performanceHtml, /id="metricsCountdownValue">5<\/strong>/);
-  assert.match(performanceHtml, /class="monitor-status">[\s\S]*?<span>检测状态<\/span>[\s\S]*?id="metricsStatus">未检测<\/p>/);
-  assert.match(performanceHtml, /id="metricsRefreshBtn"[^>]*>开始检测<\/button>/);
+  assert.match(
+    performanceHtml,
+    /class="monitor-status">[\s\S]*?<span>检测状态<\/span>[\s\S]*?id="metricsStatus">未检测<\/p>/,
+  );
+  assert.match(
+    performanceHtml,
+    /id="metricsRefreshBtn"[^>]*>\s*开始检测\s*<\/button>/,
+  );
   assert.equal(html.match(/id="desktopCheckUpdateBtn"/g)?.length, 1);
-  assert.match(html, /class="desktop-current-version">[\s\S]*?<span>当前版本<\/span>[\s\S]*?id="desktopVersionPill">--<\/strong>/);
+  assert.match(
+    html,
+    /class="desktop-current-version">[\s\S]*?<span>当前版本<\/span>[\s\S]*?id="desktopVersionPill">--<\/strong>/,
+  );
   assert.match(styles, /@import url\('\.\/admin\/other-features\.css'\);/);
   assert.match(
     featureStyles,
-    /\.other-feature-panel-body\.stack\s*\{[^}]*grid-auto-rows:\s*max-content;/
+    /\.other-feature-panel-body\.stack\s*\{[^}]*grid-auto-rows:\s*max-content;/,
   );
 });
 
 test('hardware summary hides memory temperature and renders missing CPU temperature as unknown', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'metrics.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'metrics.js'),
+    'utf8',
+  );
   const elements = new Map();
   const getElementById = (id) => {
     if (!elements.has(id)) elements.set(id, { textContent: '' });
@@ -299,37 +526,65 @@ test('hardware summary hides memory temperature and renders missing CPU temperat
           formatBytes: (value) => `${value} B`,
           formatDuration: String,
           toast() {},
-          showError() {}
-        }
-      }
-    }
+          showError() {},
+        },
+      },
+    },
   };
 
   vm.runInNewContext(source, sandbox);
-  sandbox.window.AdminApp.metrics.renderHardwareSummary({
-    cpu: {
-      model: 'Example CPU',
-      physicalCores: 8,
-      logicalCores: 16,
-      temperatureCelsius: null,
-      temperatureMessage: 'Windows 未提供可靠的 CPU 温度'
+  sandbox.window.AdminApp.metrics.renderHardwareSummary(
+    {
+      cpu: {
+        model: 'Example CPU',
+        physicalCores: 8,
+        logicalCores: 16,
+        temperatureCelsius: null,
+        temperatureMessage: 'Windows 未提供可靠的 CPU 温度',
+      },
+      memory: { totalBytes: 16, modules: [] },
+      gpus: [],
     },
-    memory: { totalBytes: 16, modules: [] },
-    gpus: []
-  }, false);
+    false,
+  );
 
   assert.equal(elements.get('hardwareCpuTemperature').textContent, '未知');
   assert.doesNotMatch(html, /id="hardwareMemoryTemperature"/);
 });
 
 test('first-run onboarding fragment is hidden by default and wired into the admin shell', () => {
-  const page = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'admin-page.js'), 'utf8');
-  const onboarding = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'onboarding.html'), 'utf8');
-  const css = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'), 'utf8');
-  const app = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const page = fs.readFileSync(
+    path.join(ROOT_DIR, 'src', 'server', 'admin-page.js'),
+    'utf8',
+  );
+  const onboarding = fs.readFileSync(
+    path.join(
+      ROOT_DIR,
+      'public',
+      'pages',
+      'admin',
+      'toolbox',
+      'onboarding.html',
+    ),
+    'utf8',
+  );
+  const css = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
+    'utf8',
+  );
+  const app = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
+    'utf8',
+  );
   assert.match(page, /pages\/admin\/toolbox\/onboarding\.html/);
   assert.match(onboarding, /id="liraOnboarding"[^>]*role="dialog"[^>]*hidden/);
-  for (const id of ['onboardingStepContent', 'onboardingProgress', 'onboardingNextBtn', 'onboardingFinishBtn', 'onboardingAiTest']) {
+  for (const id of [
+    'onboardingStepContent',
+    'onboardingProgress',
+    'onboardingNextBtn',
+    'onboardingFinishBtn',
+    'onboardingAiTest',
+  ]) {
     assert.match(onboarding, new RegExp(`id="${id}"`));
   }
   assert.match(css, /other-features\/onboarding\.css/);
@@ -342,36 +597,65 @@ test('wheel expand control optically centers its plus mark', () => {
   const iconRule = styles.match(/\.wheel-expand-icon\s*\{[^}]*\}/)?.[0];
   const markRule = styles.match(/\.wheel-expand-mark\s*\{[^}]*\}/)?.[0];
 
-  assert.match(html, /<span class="wheel-expand-icon" aria-hidden="true"><span class="wheel-expand-mark">＋<\/span><\/span>/);
+  assert.match(
+    html,
+    /<span\b[^>]*class=["']wheel-expand-icon["'][^>]*>[\s\S]*?<span\b[^>]*class=["']wheel-expand-mark["'][^>]*>\s*＋\s*<\/span>[\s\S]*?<\/span>/,
+  );
   assert.ok(iconRule, 'wheel expand icon styles should remain defined');
   assert.match(iconRule, /display:\s*grid/);
   assert.match(iconRule, /place-items:\s*center/);
-  assert.ok(markRule, 'wheel expand mark should have an optical alignment rule');
+  assert.ok(
+    markRule,
+    'wheel expand mark should have an optical alignment rule',
+  );
   assert.match(markRule, /transform:\s*translateY\(-1px\)/);
 });
 
 test('interactive tour close control optically centers its exit mark', () => {
   const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
-    'utf8'
+    path.join(
+      ROOT_DIR,
+      'public',
+      'css',
+      'admin',
+      'other-features',
+      'interactive-tour.css',
+    ),
+    'utf8',
   );
-  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
+  const script = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'interactive-tour.js'),
+    'utf8',
+  );
   const closeRule = styles.match(/\.lira-tour-close\s*\{[\s\S]*?\n\}/)?.[0];
-  const closeMarkRule = styles.match(/\.lira-tour-close-mark\s*\{[\s\S]*?\n\}/)?.[0];
+  const closeMarkRule = styles.match(
+    /\.lira-tour-close-mark\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
-  assert.ok(closeRule, 'interactive tour close control styles should remain defined');
+  assert.ok(
+    closeRule,
+    'interactive tour close control styles should remain defined',
+  );
   assert.match(closeRule, /display:\s*inline-flex/);
   assert.match(closeRule, /align-items:\s*center/);
   assert.match(closeRule, /justify-content:\s*center/);
-  assert.ok(closeMarkRule, 'interactive tour close mark should have an optical alignment rule');
+  assert.ok(
+    closeMarkRule,
+    'interactive tour close mark should have an optical alignment rule',
+  );
   assert.match(closeMarkRule, /transform:\s*translateY\(-1px\)/);
-  assert.match(script, /<span class="lira-tour-close-mark" aria-hidden="true">×<\/span>/);
+  assert.match(
+    script,
+    /<span class="lira-tour-close-mark" aria-hidden="true">×<\/span>/,
+  );
 });
 
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];
-  const markerRule = source.match(/\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/)?.[0];
+  const markerRule = source.match(
+    /\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(stepRule, 'usage guide step layout should remain defined');
   assert.ok(markerRule, 'usage guide step marker should remain defined');
@@ -386,7 +670,9 @@ test('usage guide fills the available panel and lead width in both sidebar state
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const panelRule = source.match(/\.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
   const leadRule = source.match(/\.usage-guide-lead\s*\{[\s\S]*?\n\}/)?.[0];
-  const collapsedRule = source.match(/\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
+  const collapsedRule = source.match(
+    /\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(panelRule, 'usage guide panel sizing should remain defined');
   assert.ok(leadRule, 'usage guide lead sizing should remain defined');
@@ -399,22 +685,34 @@ test('usage guide fills the available panel and lead width in both sidebar state
 test('usage guide presents overlays for both live companion and OBS users', () => {
   const html = readAdminHtml();
 
-  assert.match(html, />直播姬 \/ OBS 投屏<\/a>/);
-  assert.match(html, />直播姬 \/ OBS 投屏设置<\/h3>/);
-  assert.match(html, /添加到直播姬的「浏览器」或 OBS 的「浏览器源」/);
+  assert.match(html, />\s*直播姬 \/ OBS 投屏\s*<\/a>/);
+  assert.match(html, />\s*直播姬 \/ OBS 投屏设置\s*<\/h3>/);
+  assert.match(html, /添加到直播姬的「浏览器」或\s*OBS\s*的「浏览器源」/);
   assert.match(html, />直播姬 \/ OBS 投屏画面不显示或尺寸不对<\/strong>/);
 });
 
 test('usage guide defers image loading and avoids sticky backdrop blur', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const images = html.match(/<img[^>]+class="usage-guide-image"[^>]+>/g) || [];
+  const images =
+    html.match(/<img\b[^>]*class="usage-guide-image"[^>]*>/g) || [];
   const tocRule = styles.match(/\.usage-guide-toc\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.equal(images.length, 9);
-  assert.equal(images.every((image) => /loading="lazy"/.test(image)), true);
-  assert.equal(images.every((image) => /decoding="async"/.test(image)), true);
-  assert.equal(images.every((image) => /width="\d+" height="\d+"/.test(image)), true);
+  assert.equal(
+    images.every((image) => /loading="lazy"/.test(image)),
+    true,
+  );
+  assert.equal(
+    images.every((image) => /decoding="async"/.test(image)),
+    true,
+  );
+  assert.equal(
+    images.every(
+      (image) => /\bwidth="\d+"/.test(image) && /\bheight="\d+"/.test(image),
+    ),
+    true,
+  );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
   assert.match(tocRule, /background:\s*var\(--surface\)/);
   assert.doesNotMatch(tocRule, /backdrop-filter/);
@@ -424,11 +722,14 @@ test('usage guide names the AI assistant section without removing the DeepSeek a
   const html = readAdminHtml();
 
   assert.match(html, /href="#ug-deepseek"[^>]*>配置 AI 助手<\/a>/);
-  assert.match(html, /id="ug-deepseek"[^>]*>[\s\S]*?>配置 AI 助手<\/h3>/);
+  assert.match(html, /id="ug-deepseek"[^>]*>[\s\S]*?>\s*配置 AI 助手\s*<\/h3>/);
 });
 
 test('other feature navigation selects panels without feature-specific dependencies', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'),
+    'utf8',
+  );
   const createNode = ({ id = '', feature = '', hidden = false } = {}) => {
     const classes = new Set();
     const attributes = new Map();
@@ -440,42 +741,57 @@ test('other feature navigation selects panels without feature-specific dependenc
       tabIndex: -1,
       focused: false,
       classList: {
-        contains(name) { return classes.has(name); },
+        contains(name) {
+          return classes.has(name);
+        },
         toggle(name, enabled) {
           if (enabled) classes.add(name);
           else classes.delete(name);
-        }
+        },
       },
-      addEventListener(name, listener) { listeners.set(name, listener); },
-      dispatch(name, event) { listeners.get(name)?.(event); },
-      focus() { this.focused = true; },
-      setAttribute(name, value) { attributes.set(name, value); },
-      getAttribute(name) { return attributes.get(name); }
+      addEventListener(name, listener) {
+        listeners.set(name, listener);
+      },
+      dispatch(name, event) {
+        listeners.get(name)?.(event);
+      },
+      focus() {
+        this.focused = true;
+      },
+      setAttribute(name, value) {
+        attributes.set(name, value);
+      },
+      getAttribute(name) {
+        return attributes.get(name);
+      },
     };
   };
   const buttons = [
     createNode({ feature: 'performanceFeature' }),
     createNode({ feature: 'diagnosticsFeature' }),
-    createNode({ feature: 'desktopFeature', hidden: true })
+    createNode({ feature: 'desktopFeature', hidden: true }),
   ];
   const panels = [
     createNode({ id: 'performanceFeature' }),
     createNode({ id: 'diagnosticsFeature' }),
-    createNode({ id: 'desktopFeature', hidden: true })
+    createNode({ id: 'desktopFeature', hidden: true }),
   ];
   const root = {
     querySelectorAll(selector) {
       return selector === '[data-other-feature]' ? buttons : panels;
-    }
+    },
   };
   const sandbox = {
     console,
     document: { getElementById: () => root },
-    window: { AdminApp: {} }
+    window: { AdminApp: {} },
   };
 
   vm.runInNewContext(source, sandbox);
-  const selected = sandbox.window.AdminApp.other.selectFeature(root, 'diagnosticsFeature');
+  const selected = sandbox.window.AdminApp.other.selectFeature(
+    root,
+    'diagnosticsFeature',
+  );
 
   assert.equal(selected, true);
   assert.equal(buttons[0].classList.contains('active'), false);
@@ -491,7 +807,9 @@ test('other feature navigation selects panels without feature-specific dependenc
   let prevented = false;
   buttons[1].dispatch('keydown', {
     key: 'ArrowUp',
-    preventDefault() { prevented = true; }
+    preventDefault() {
+      prevented = true;
+    },
   });
   assert.equal(prevented, true);
   assert.equal(buttons[0].focused, true);
@@ -505,7 +823,10 @@ test('other feature navigation selects panels without feature-specific dependenc
 });
 
 test('desktop update opens its toolbox feature through module APIs', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'desktop.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'desktop.js'),
+    'utf8',
+  );
   let showUpdatePage;
   let selectedPage = '';
   let selectedFeature = '';
@@ -514,7 +835,7 @@ test('desktop update opens its toolbox feature through module APIs', () => {
     document: {
       body: { classList: { add() {} } },
       getElementById: () => null,
-      querySelectorAll: () => []
+      querySelectorAll: () => [],
     },
     window: {
       AdminApp: {
@@ -522,17 +843,27 @@ test('desktop update opens its toolbox feature through module APIs', () => {
           toast() {},
           showStackedToast() {},
           showError() {},
-          api: async () => ({})
+          api: async () => ({}),
         },
-        navigation: { setMainPage(pageId) { selectedPage = pageId; } },
-        other: { selectFeatureById(featureId) { selectedFeature = featureId; } }
+        navigation: {
+          setMainPage(pageId) {
+            selectedPage = pageId;
+          },
+        },
+        other: {
+          selectFeatureById(featureId) {
+            selectedFeature = featureId;
+          },
+        },
       },
       songAssistantDesktop: {
-        onShowUpdatePage(callback) { showUpdatePage = callback; },
+        onShowUpdatePage(callback) {
+          showUpdatePage = callback;
+        },
         onUpdateState() {},
-        getInfo: () => new Promise(() => {})
-      }
-    }
+        getInfo: () => new Promise(() => {}),
+      },
+    },
   };
 
   vm.runInNewContext(source, sandbox);
@@ -547,7 +878,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
   const html = readAdminHtml();
   const displaySource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
-    'utf8'
+    'utf8',
   );
   const sources = [
     ['queueUrl', '/queue'],
@@ -560,70 +891,144 @@ test('browser source tab classifies and exposes every overlay address', () => {
     ['liveOvertimeUrl', '/overtime'],
     ['liveGiftEffectsUrl', '/gift-effects'],
     ['liveOpeningUrl', '/opening'],
-    ['liveClockUrl', '/clock']
+    ['liveClockUrl', '/clock'],
   ];
 
-  assert.match(html, /data-tab="overlayPage"[^>]*>浏览器源<\/button>/);
+  assert.match(html, /data-tab="overlayPage"[^>]*>\s*浏览器源\s*<\/button>/);
   for (const [id, route] of sources) {
     assert.match(html, new RegExp(`id="${id}"`));
     assert.match(html, new RegExp(`data-copy-url="${id}"`));
-    const assignment = `document.getElementById('${id}').textContent = \`\${origin}${route}\`;`;
-    assert.ok(displaySource.includes(assignment), `${route} should be initialized in the live screen tab`);
+    const assignmentPattern = new RegExp(
+      'document\\s*\\.\\s*getElementById\\(\\s*[\'\"]' +
+        id +
+        '[\'\"]\\s*\\)\\s*\\.textContent\\s*=\\s*`\\$\\{origin\\}' +
+        route +
+        '`;',
+    );
+    assert.match(
+      displaySource,
+      assignmentPattern,
+      `${route} should be initialized in the live screen tab`,
+    );
   }
-  assert.match(html, />点歌与音乐<\/h3>/);
-  assert.match(html, />直播互动<\/h3>/);
-  assert.match(html, />场景与氛围<\/h3>/);
+  assert.match(html, />\s*点歌与音乐\s*<\/h3\s*>/);
+  assert.match(html, />\s*直播互动\s*<\/h3\s*>/);
+  assert.match(html, />\s*场景与氛围\s*<\/h3\s*>/);
   assert.doesNotMatch(html, /playbackLyricBtn|playbackLyricLockBtn/);
 });
 
 test('song board defaults to a clear frosted glass theme', () => {
-  const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
-  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'), 'utf8');
+  const themeSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
+    'utf8',
+  );
+  const defaultsSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'),
+    'utf8',
+  );
 
   assert.match(defaultsSource, /themeOpacity: '0\.48'/);
   assert.match(defaultsSource, /backdropBlur: '14'/);
   assert.match(defaultsSource, /glowIntensity: '2'/);
   assert.match(themeSource, /if \(!Object\.keys\(defaultThemeLook\)\.length\)/);
-  assert.match(themeSource, /const resetValues = \{ \.\.\.defaultThemeLook \};/);
-  assert.match(themeSource, /bindRangePair\('backdropBlur', 'backdropBlurNumber', 0, 30, 14\)/);
-  assert.match(themeSource, /bindRangePair\('glowIntensity', 'glowIntensityNumber', 0, 20, 2\)/);
+  assert.match(
+    themeSource,
+    /const resetValues = \{\s*\.\.\.defaultThemeLook\s*\};/,
+  );
+  assert.match(
+    themeSource,
+    /bindRangePair\(\s*'backdropBlur',\s*'backdropBlurNumber',\s*0,\s*30,\s*14\s*\)/,
+  );
+  assert.match(
+    themeSource,
+    /bindRangePair\(\s*'glowIntensity',\s*'glowIntensityNumber',\s*0,\s*20,\s*2\s*\)/,
+  );
 });
 
 test('gift workspace rows keep their content height inside the scroll container', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
+  const giftWorkspaceRule = source.match(
+    /\.gift-workspace\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
-  assert.match(giftWorkspaceRule, /grid-template-rows:\s*repeat\(7, max-content\)/);
+  assert.match(
+    giftWorkspaceRule,
+    /grid-template-rows:\s*repeat\(7, max-content\)/,
+  );
 });
 
 test('song workspace scrolls within the viewport above the player dock', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const songWorkspaceRule = source.match(/\.song-workspace\s*\{[\s\S]*?\n\}/)?.[0];
-  const expandedRule = source.match(/body\.player-dock-expanded \.song-workspace\s*\{[\s\S]*?\n\}/)?.[0];
+  const songWorkspaceRule = source.match(
+    /\.song-workspace\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const expandedRule = source.match(
+    /body\.player-dock-expanded \.song-workspace\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(songWorkspaceRule, 'song workspace styles should remain defined');
   assert.ok(expandedRule, 'expanded player sizing should remain defined');
-  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(
+    songWorkspaceRule,
+    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
+  );
   assert.match(songWorkspaceRule, /overflow-y:\s*auto/);
-  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 218px\)\)/);
+  assert.match(
+    expandedRule,
+    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 218px\)\)/,
+  );
 });
 
 test('player dock exposes a collapse handle and shares its height with route workspaces', () => {
   const html = readAdminHtml();
-  const playerStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'), 'utf8');
-  const playbackLayout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'layout.css'), 'utf8');
-  const adminWorkspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const otherWorkspace = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const playerStyles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'),
+    'utf8',
+  );
+  const playbackLayout = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'playback', 'layout.css'),
+    'utf8',
+  );
+  const adminWorkspace = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'workspace.css',
+  );
+  const otherWorkspace = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'other-features.css',
+  );
 
-  assert.match(html, /id="playerDockToggle"[^>]*aria-expanded="true"[^>]*aria-controls="playbackPlayerBody"/);
-  assert.match(html, /id="playbackPlayerBody" class="panel-body playback-player"/);
+  assert.match(
+    html,
+    /id="playerDockToggle"[^>]*aria-expanded="true"[^>]*aria-controls="playbackPlayerBody"/,
+  );
+  assert.match(
+    html,
+    /id="playbackPlayerBody" class="panel-body playback-player"/,
+  );
   assert.match(playerStyles, /--player-dock-collapsed-height:\s*0px/);
   assert.match(playerStyles, /body\.player-dock-collapsed\s*\{/);
-  assert.match(playerStyles, /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/);
-  assert.match(playbackLayout, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
-  assert.match(adminWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
-  assert.match(otherWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(
+    playerStyles,
+    /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/,
+  );
+  assert.match(
+    playbackLayout,
+    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
+  );
+  assert.match(
+    adminWorkspace,
+    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
+  );
+  assert.match(
+    otherWorkspace,
+    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
+  );
 });
 
 test('player dock starts collapsed and toggles open without opening fullscreen', async () => {
@@ -644,7 +1049,7 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
       },
       contains(value) {
         return names.has(value);
-      }
+      },
     };
   };
   const makeElement = () => {
@@ -666,7 +1071,7 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
       },
       closest() {
         return null;
-      }
+      },
     };
   };
 
@@ -682,7 +1087,7 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
     playbackVolumeIcon: makeElement(),
     queuePopup: makeElement(),
     queuePopupBackdrop: makeElement(),
-    playbackQueueBtn: makeElement()
+    playbackQueueBtn: makeElement(),
   };
   const body = { classList: makeClassList() };
   const document = {
@@ -693,13 +1098,13 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
     },
     getElementById(id) {
       return elements[id] || null;
-    }
+    },
   };
   const window = { AdminApp: {} };
 
   const { FormsService } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'),
-    { document, window }
+    { document, window },
   );
   const service = new FormsService();
   let fullscreenOpened = false;
@@ -719,8 +1124,8 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
     target: {
       closest(selector) {
         return selector.includes('button') ? dockToggle : null;
-      }
-    }
+      },
+    },
   });
   assert.equal(fullscreenOpened, false);
 
@@ -734,17 +1139,35 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
 });
 
 test('queue panels remain the same height on desktop', () => {
-  const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
-  const queueRowRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
+  const workspaceSource = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'workspace.css',
+  );
+  const responsiveSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
+    'utf8',
+  );
+  const queueRowRule = workspaceSource.match(
+    /\.queues-row\s*\{[\s\S]*?\n\}/,
+  )?.[0];
   const responsiveQueueRule = responsiveSource.match(
-    /@media \(max-width: 900px\) \{[\s\S]*?(\.queues-row\s*\{[\s\S]*?\n\s*\})/
+    /@media \(max-width: 900px\) \{[\s\S]*?(\.queues-row\s*\{[\s\S]*?\n\s*\})/,
   )?.[1];
-  const responsivePanelRule = responsiveSource.match(/\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/)?.[0];
+  const responsivePanelRule = responsiveSource.match(
+    /\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/,
+  )?.[0];
 
   assert.ok(queueRowRule, 'desktop queue row styles should remain defined');
-  assert.ok(responsiveQueueRule, 'responsive queue row styles should remain defined');
-  assert.ok(responsivePanelRule, 'narrow-layout queue panel sizing should remain defined');
+  assert.ok(
+    responsiveQueueRule,
+    'responsive queue row styles should remain defined',
+  );
+  assert.ok(
+    responsivePanelRule,
+    'narrow-layout queue panel sizing should remain defined',
+  );
   assert.match(queueRowRule, /flex:\s*0 0 450px/);
   assert.match(queueRowRule, /height:\s*450px/);
   assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
@@ -754,10 +1177,19 @@ test('queue panels remain the same height on desktop', () => {
 
 test('admin queue cards have enough height for their text and metadata', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const collapsibleSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
-  const queueListRule = source.match(/\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/)?.[0];
-  const scListRule = source.match(/\.queues-row \.queue-panel \.sc-list\s*\{[\s\S]*?\n\}/)?.[0];
-  const queueItemRule = source.match(/\.queues-row \.queue-panel \.queue-row\s*\{[\s\S]*?\n\}/)?.[0];
+  const collapsibleSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'),
+    'utf8',
+  );
+  const queueListRule = source.match(
+    /\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const scListRule = source.match(
+    /\.queues-row \.queue-panel \.sc-list\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const queueItemRule = source.match(
+    /\.queues-row \.queue-panel \.queue-row\s*\{[\s\S]*?\n\}/,
+  )?.[0];
   const scRowRule = collapsibleSource.match(/\.sc-row\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(queueListRule, 'queue list styles should remain defined');
@@ -773,20 +1205,31 @@ test('admin queue cards have enough height for their text and metadata', () => {
 });
 
 test('assisted super chat cards keep a single status color on hover', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
-  const assistedHoverRule = source.match(/\.sc-row\.assisted:hover::before\s*\{[\s\S]*?\n\}/)?.[0];
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'),
+    'utf8',
+  );
+  const assistedHoverRule = source.match(
+    /\.sc-row\.assisted:hover::before\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
-  assert.ok(assistedHoverRule, 'assisted SC hover override should remain defined');
+  assert.ok(
+    assistedHoverRule,
+    'assisted SC hover override should remain defined',
+  );
   assert.match(assistedHoverRule, /opacity:\s*0/);
 });
 
 test('admin queue wheel scrolls overflowing lists and releases the page at their edges', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'),
+    'utf8',
+  );
   const makeTarget = () => ({
     listeners: new Map(),
     addEventListener(type, listener) {
       this.listeners.set(type, listener);
-    }
+    },
   });
   const superChatPanel = makeTarget();
   const queuePanel = makeTarget();
@@ -794,19 +1237,19 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     clientHeight: 100,
     scrollHeight: 100,
     scrollTop: 0,
-    closest: () => superChatPanel
+    closest: () => superChatPanel,
   };
   const queueList = {
     clientHeight: 100,
     scrollHeight: 100,
     scrollTop: 0,
-    closest: () => queuePanel
+    closest: () => queuePanel,
   };
   const elements = {
     nextBtn: makeTarget(),
     clearBtn: makeTarget(),
     superChatList,
-    queueList
+    queueList,
   };
   const sandbox = {
     console,
@@ -823,10 +1266,10 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
           formatSuperChatPrice: String,
           withMultilingualFallback: String,
           toast() {},
-          api: async () => ({})
-        }
-      }
-    }
+          api: async () => ({}),
+        },
+      },
+    },
   };
 
   vm.runInNewContext(source, sandbox);
@@ -834,30 +1277,76 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
   const wheel = superChatPanel.listeners.get('wheel');
   const dispatchWheel = (deltaY) => {
     let prevented = false;
-    wheel({ deltaY, deltaMode: 0, preventDefault() { prevented = true; } });
+    wheel({
+      deltaY,
+      deltaMode: 0,
+      preventDefault() {
+        prevented = true;
+      },
+    });
     return prevented;
   };
 
-  assert.equal(dispatchWheel(120), false, 'a non-overflowing queue should leave page scrolling alone');
+  assert.equal(
+    dispatchWheel(120),
+    false,
+    'a non-overflowing queue should leave page scrolling alone',
+  );
   superChatList.scrollHeight = 300;
-  assert.equal(dispatchWheel(120), true, 'an overflowing queue should consume downward wheel input');
+  assert.equal(
+    dispatchWheel(120),
+    true,
+    'an overflowing queue should consume downward wheel input',
+  );
   assert.equal(superChatList.scrollTop, 36);
   superChatList.scrollTop = 200;
-  assert.equal(dispatchWheel(120), false, 'the bottom edge should release downward input to the page');
-  assert.equal(dispatchWheel(-120), true, 'the list should still consume input away from the bottom edge');
+  assert.equal(
+    dispatchWheel(120),
+    false,
+    'the bottom edge should release downward input to the page',
+  );
+  assert.equal(
+    dispatchWheel(-120),
+    true,
+    'the list should still consume input away from the bottom edge',
+  );
   superChatList.scrollTop = 0;
-  assert.equal(dispatchWheel(-120), false, 'the top edge should release upward input to the page');
+  assert.equal(
+    dispatchWheel(-120),
+    false,
+    'the top edge should release upward input to the page',
+  );
 });
 
 test('desktop admin keeps scrolling on the workspace instead of nesting it in tabs', () => {
-  const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
-  const activeTabRule = workspaceSource.match(/\.song-management-panel > \.tab-page\.active\s*\{[\s\S]*?\n\}/)?.[0];
-  const desktopBodyRule = responsiveSource.match(/@media \(min-width: 901px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/)?.[0];
-  const mobileBodyRule = responsiveSource.match(/@media \(max-width: 900px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/)?.[0];
+  const workspaceSource = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'workspace.css',
+  );
+  const responsiveSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
+    'utf8',
+  );
+  const activeTabRule = workspaceSource.match(
+    /\.song-management-panel > \.tab-page\.active\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  const desktopBodyRule = responsiveSource.match(
+    /@media \(min-width: 901px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/,
+  )?.[0];
+  const mobileBodyRule = responsiveSource.match(
+    /@media \(max-width: 900px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/,
+  )?.[0];
 
-  assert.ok(activeTabRule, 'active management tab styles should remain defined');
-  assert.ok(desktopBodyRule, 'desktop body overflow rule should remain defined');
+  assert.ok(
+    activeTabRule,
+    'active management tab styles should remain defined',
+  );
+  assert.ok(
+    desktopBodyRule,
+    'desktop body overflow rule should remain defined',
+  );
   assert.ok(mobileBodyRule, 'mobile body overflow rule should remain defined');
   assert.match(activeTabRule, /overflow:\s*visible/);
   assert.match(desktopBodyRule, /overflow:\s*hidden/);
@@ -866,14 +1355,22 @@ test('desktop admin keeps scrolling on the workspace instead of nesting it in ta
 
 test('hidden switches and the narrow player do not widen the page', () => {
   const adminSource = readCssBundle('public', 'css', 'admin', 'toasts.css');
-  const playbackSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'responsive.css'), 'utf8');
-  const switchInputRule = adminSource.match(/\.switch-control input\s*\{[\s\S]*?\n\}/)?.[0];
+  const playbackSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'playback', 'responsive.css'),
+    'utf8',
+  );
+  const switchInputRule = adminSource.match(
+    /\.switch-control input\s*\{[\s\S]*?\n\}/,
+  )?.[0];
   const narrowPlayerRule = playbackSource.match(
-    /@media \(max-width: 900px\)[\s\S]*?\.playback-progress-row\s*\{[\s\S]*?\n\s*\}/
+    /@media \(max-width: 900px\)[\s\S]*?\.playback-progress-row\s*\{[\s\S]*?\n\s*\}/,
   )?.[0];
 
   assert.ok(switchInputRule, 'switch input styles should remain defined');
-  assert.ok(narrowPlayerRule, 'narrow player progress styles should remain defined');
+  assert.ok(
+    narrowPlayerRule,
+    'narrow player progress styles should remain defined',
+  );
   assert.match(switchInputRule, /width:\s*1px/);
   assert.match(switchInputRule, /height:\s*1px/);
   assert.match(narrowPlayerRule, /width:\s*auto/);
@@ -882,38 +1379,54 @@ test('hidden switches and the narrow player do not widen the page', () => {
 
 test('playback labels scroll independently without resizing the progress slot', async () => {
   const html = readAdminHtml();
-  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'), 'utf8');
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'),
+    'utf8',
+  );
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 180px\) minmax\(520px, 1fr\)/);
+  assert.match(
+    nowPlayingRule,
+    /grid-template-columns:\s*minmax\(0, 180px\) minmax\(520px, 1fr\)/,
+  );
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
   const { PlaybackBar } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'playback-bar.js')
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'playback-bar.js'),
   );
   const player = new PlaybackBar();
   const classes = new Set();
   let animationKeyframes = null;
   let animationOptions = null;
   let cancelled = false;
-  const animation = { cancel() { cancelled = true; } };
+  const animation = {
+    cancel() {
+      cancelled = true;
+    },
+  };
   const textElement = {
     scrollWidth: 260,
     animate(keyframes, options) {
       animationKeyframes = keyframes;
       animationOptions = options;
       return animation;
-    }
+    },
   };
   const element = {
     clientWidth: 100,
-    querySelector() { return textElement; },
+    querySelector() {
+      return textElement;
+    },
     classList: {
-      add(name) { classes.add(name); },
-      remove(name) { classes.delete(name); }
-    }
+      add(name) {
+        classes.add(name);
+      },
+      remove(name) {
+        classes.delete(name);
+      },
+    },
   };
 
   player.updateMarquee(element);
@@ -924,12 +1437,18 @@ test('playback labels scroll independently without resizing the progress slot', 
   assert.equal(animationKeyframes[3].transform, 'translateX(-160px)');
   assert.equal(animationKeyframes[4].transform, 'translateX(0)');
   assert.equal(
-    Math.round((animationKeyframes[1].offset - animationKeyframes[0].offset) * animationOptions.duration),
-    1000
+    Math.round(
+      (animationKeyframes[1].offset - animationKeyframes[0].offset) *
+        animationOptions.duration,
+    ),
+    1000,
   );
   assert.equal(
-    Math.round((animationKeyframes[3].offset - animationKeyframes[2].offset) * animationOptions.duration),
-    1000
+    Math.round(
+      (animationKeyframes[3].offset - animationKeyframes[2].offset) *
+        animationOptions.duration,
+    ),
+    1000,
   );
 
   element.clientWidth = 300;
@@ -939,72 +1458,178 @@ test('playback labels scroll independently without resizing the progress slot', 
 });
 
 test('admin state events render queue empty states and song data', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
+    'utf8',
+  );
 
   assert.match(source, /eventBus\.on\(Events\.STATE_LOADED/);
-  assert.match(source, /getLegacyAdminModules\(\)\.queue\?\.renderState\?\.\(state, songs\)/);
+  assert.match(
+    source,
+    /getLegacyAdminModules\(\)\.queue\?\.renderState\?\.\(state, songs\)/,
+  );
   assert.match(source, /eventBus\.on\(Events\.SONG_UPDATED/);
-  assert.match(source, /getLegacyAdminModules\(\)\.songs\?\.renderSongs\?\.\(songs, languages, artists, tags\)/);
+  assert.match(
+    source,
+    /getLegacyAdminModules\(\)\s*\.\s*songs\s*\?\.\s*renderSongs\s*\?\.\s*\(\s*songs\s*,\s*languages\s*,\s*artists\s*,\s*tags\s*,?\s*\)/,
+  );
+});
+
+test('overtime picker consumes the cached server catalog update channel', () => {
+  const stateSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'),
+    'utf8',
+  );
+  const overtimeSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'),
+    'utf8',
+  );
+  const html = readAdminHtml();
+
+  assert.match(stateSource, /payload\.type === ["']gift-catalog:update["']/);
+  assert.match(stateSource, /Events\.GIFT_CATALOG_UPDATED/);
+  assert.match(overtimeSource, /eventBus\.on\(Events\.GIFT_CATALOG_UPDATED/);
+  assert.match(
+    overtimeSource,
+    /requestGeneration !== giftCatalogApplyGeneration/,
+  );
+  assert.match(overtimeSource, /source === ["']server["']/);
+  assert.match(overtimeSource, /if \(picker\?\.open\) renderGiftPicker\(\)/);
+  assert.match(overtimeSource, /没有找到这个服务器目录礼物/);
+  assert.match(
+    html,
+    /id="overtimeGiftCatalogStatus"[^>]*>\s*服务器目录：未同步\s*<\/span\s*>/,
+  );
+  assert.match(
+    html,
+    /id="overtimeRefreshGiftsBtn"[^>]*>\s*同步服务器礼物\s*<\/button>/,
+  );
 });
 
 test('admin initialization waits for sibling module scripts at interactive ready state', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
+    'utf8',
+  );
 
   assert.match(source, /document\.readyState === 'complete'/);
-  assert.match(source, /document\.addEventListener\('DOMContentLoaded', initApp, \{ once: true \}\)/);
+  assert.match(
+    source,
+    /document\.addEventListener\('DOMContentLoaded', initApp, \{ once: true \}\)/,
+  );
 });
 
 test('admin state loading avoids duplicate state requests and filters song reloads by snapshot reason', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'),
+    'utf8',
+  );
   assert.match(source, /await this\.reloadSongs\(\{ reloadState: false \}\);/);
-  assert.match(source, /if \(options\.reloadState !== false\) \{\s*await this\.reloadState\(\);/);
-  assert.match(source, /if \(isSongsSnapshotReason\(payload\.reason\)\) \{\s*this\.scheduleSongReload\(\);/);
+  assert.match(
+    source,
+    /if \(options\.reloadState !== false\) \{\s*await this\.reloadState\(\);/,
+  );
+  assert.match(
+    source,
+    /if \(isSongsSnapshotReason\(payload\.reason\)\) \{\s*this\.scheduleSongReload\(\);/,
+  );
   assert.match(source, /function isSongsSnapshotReason\(reason\)/);
 });
 
 test('admin idle timers are lifecycle-bound', () => {
-  const overtime = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');
-  const games = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), 'utf8');
-  assert.match(overtime, /document\.addEventListener\('visibilitychange', syncClockLoop\)/);
+  const overtime = ['overtime.js', 'overtime-status-view.js']
+    .map((file) =>
+      fs.readFileSync(
+        path.join(ROOT_DIR, 'public', 'js', 'admin', file),
+        'utf8',
+      ),
+    )
+    .join('\n');
+  const games = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'),
+    'utf8',
+  );
+  assert.match(
+    overtime,
+    /document\.addEventListener\(["']visibilitychange["'], syncClockLoop\)/,
+  );
   assert.match(overtime, /cancelAnimationFrame\(clockRafId\)/);
   assert.match(games, /let drawClockTimer = null;/);
   assert.match(games, /function syncDrawClockTimer\(\)/);
-  assert.doesNotMatch(games, /setInterval\(updateDrawClock, 250\);\s*Promise\.all/);
+  assert.doesNotMatch(
+    games,
+    /setInterval\(updateDrawClock, 250\);\s*Promise\.all/,
+  );
 });
 
 test('blind-box statistics are not reloaded for every state render', () => {
-  const queue = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), 'utf8');
-  const blindbox = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
+  const queue = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'),
+    'utf8',
+  );
+  const blindbox = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
+    'utf8',
+  );
   assert.doesNotMatch(queue, /loadBlindBoxStats\(\)/);
-  assert.match(blindbox, /if \(!statsInitialized\) \{[\s\S]*?loadBlindBoxStats\(\);/);
+  assert.match(
+    blindbox,
+    /if \(!statsInitialized\) \{[\s\S]*?loadBlindBoxStats\(\);/,
+  );
 });
 
 test('admin loads theme presets before initializing theme forms', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
+    'utf8',
+  );
   const loadPosition = source.indexOf('await Theme.loadThemeConfig()');
   const themeFormPosition = source.indexOf('modules.theme?.initThemeForm?.()');
-  const displayFormPosition = source.indexOf('modules.display.initDisplayForm()');
+  const displayFormPosition = source.indexOf(
+    'modules.display.initDisplayForm()',
+  );
 
   assert.ok(loadPosition >= 0, 'theme configuration should be loaded');
-  assert.ok(loadPosition < themeFormPosition, 'theme presets should load before the theme form');
-  assert.ok(loadPosition < displayFormPosition, 'theme presets should load before the display form');
+  assert.ok(
+    loadPosition < themeFormPosition,
+    'theme presets should load before the theme form',
+  );
+  assert.ok(
+    loadPosition < displayFormPosition,
+    'theme presets should load before the display form',
+  );
 });
 
 test('song request and display board forms autosave every parameter change', () => {
   const themeSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
-    'utf8'
+    'utf8',
   );
   const displaySource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
-    'utf8'
+    'utf8',
   );
 
-  assert.match(themeSource, /themeForm\.addEventListener\('input', scheduleThemeAutosave\)/);
-  assert.match(themeSource, /themeForm\.addEventListener\('change', scheduleThemeAutosave\)/);
-  assert.match(themeSource, /autosaveTheme\(normalizePersistedQueueStyle\(value\('overlayQueueStyle'\)\)\)/);
-  assert.match(displaySource, /displayForm\.addEventListener\('input', autosaveDisplay\)/);
-  assert.match(displaySource, /displayForm\.addEventListener\('change', autosaveDisplay\)/);
+  assert.match(
+    themeSource,
+    /themeForm\.addEventListener\('input', scheduleThemeAutosave\)/,
+  );
+  assert.match(
+    themeSource,
+    /themeForm\.addEventListener\('change', scheduleThemeAutosave\)/,
+  );
+  assert.match(
+    themeSource,
+    /autosaveTheme\(normalizePersistedQueueStyle\(value\('overlayQueueStyle'\)\)\)/,
+  );
+  assert.match(
+    displaySource,
+    /displayForm\.addEventListener\('input', autosaveDisplay\)/,
+  );
+  assert.match(
+    displaySource,
+    /displayForm\.addEventListener\('change', autosaveDisplay\)/,
+  );
   assert.match(displaySource, /await copyText\(url\)/);
   assert.doesNotMatch(displaySource, /navigator\.clipboard\.writeText\(url\)/);
 
@@ -1012,23 +1637,28 @@ test('song request and display board forms autosave every parameter change', () 
   assert.match(themeSource, /quickBeautifyBtn[\s\S]*?await saveTheme\(\)/);
   assert.match(themeSource, /resetClassicTheme[\s\S]*?await saveTheme\(\)/);
   assert.match(displaySource, /songBoardPresets[\s\S]*?await saveDisplay\(\)/);
-  assert.match(displaySource, /songBoardResetTheme[\s\S]*?await saveDisplay\(\)/);
+  assert.match(
+    displaySource,
+    /songBoardResetTheme[\s\S]*?await saveDisplay\(\)/,
+  );
   assert.doesNotMatch(themeSource, /保存后生效/);
   assert.doesNotMatch(displaySource, /保存后生效/);
 });
 
 test('early theme preset references receive asynchronously loaded data', async () => {
-  const config = JSON.parse(fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'),
-    'utf8'
-  ));
+  const config = JSON.parse(
+    fs.readFileSync(
+      path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'),
+      'utf8',
+    ),
+  );
   const browserWindow = { AdminApp: {} };
   const themeModule = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'theme.js'),
     {
       window: browserWindow,
-      fetch: async () => ({ ok: true, json: async () => config })
-    }
+      fetch: async () => ({ ok: true, json: async () => config }),
+    },
   );
   const earlyClassicPresets = themeModule.getAllClassicPresets();
   const earlySongBoardPresets = themeModule.getAllSongBoardPresets();
@@ -1042,13 +1672,26 @@ test('early theme preset references receive asynchronously loaded data', async (
 });
 
 test('tracked theme defaults match first-run storage defaults', () => {
-  const config = JSON.parse(fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'),
-    'utf8'
-  ));
+  const config = JSON.parse(
+    fs.readFileSync(
+      path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'),
+      'utf8',
+    ),
+  );
 
-  for (const key of ['themePrimary', 'themeAccent', 'themeText', 'themeBackground', 'themeOpacity', 'themeRadius']) {
-    assert.equal(config.default[key], DEFAULT_SETTINGS[key], `${key} should have one default value`);
+  for (const key of [
+    'themePrimary',
+    'themeAccent',
+    'themeText',
+    'themeBackground',
+    'themeOpacity',
+    'themeRadius',
+  ]) {
+    assert.equal(
+      config.default[key],
+      DEFAULT_SETTINGS[key],
+      `${key} should have one default value`,
+    );
   }
 });
 
@@ -1058,22 +1701,29 @@ test('shared theme compatibility keeps admin theme form methods', async () => {
 
   await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'theme.js'),
-    { window: browserWindow }
+    { window: browserWindow },
   );
 
   assert.equal(browserWindow.AdminApp.theme.initThemeForm, initThemeForm);
   assert.equal(typeof browserWindow.AdminApp.theme.loadThemeConfig, 'function');
   const defaultThemeDescriptor = Object.getOwnPropertyDescriptor(
     browserWindow.AdminApp.theme,
-    'defaultThemeLook'
+    'defaultThemeLook',
   );
   assert.equal(typeof defaultThemeDescriptor.get, 'function');
 });
 
 test('debug gift data attributes escape quotes, apostrophes, and backticks', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html'), 'utf8');
-  const escapeHtmlSource = source.match(/function escHtml\(s\) \{[\s\S]*?\n\}/)?.[0];
-  const escapeAttrSource = source.match(/function escAttr\(s\) \{[\s\S]*?\n\}/)?.[0];
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html'),
+    'utf8',
+  );
+  const escapeHtmlSource = source.match(
+    /function escHtml\(s\)\s*\{[\s\S]*?\n\s*\}/,
+  )?.[0];
+  const escapeAttrSource = source.match(
+    /function escAttr\(s\)\s*\{[\s\S]*?\n\s*\}/,
+  )?.[0];
 
   assert.ok(escapeHtmlSource, 'escHtml should remain defined');
   assert.ok(escapeAttrSource, 'escAttr should be defined for data attributes');
@@ -1083,21 +1733,23 @@ test('debug gift data attributes escape quotes, apostrophes, and backticks', () 
       createElement() {
         let text = '';
         return {
-          set textContent(value) { text = String(value); },
+          set textContent(value) {
+            text = String(value);
+          },
           get innerHTML() {
             return text
               .replaceAll('&', '&amp;')
               .replaceAll('<', '&lt;')
               .replaceAll('>', '&gt;');
-          }
+          },
         };
-      }
-    }
+      },
+    },
   };
   vm.runInNewContext(`${escapeHtmlSource}\n${escapeAttrSource}`, sandbox);
 
   assert.equal(
     sandbox.escAttr('"quoted\' `value`'),
-    '&quot;quoted&#39; &#96;value&#96;'
+    '&quot;quoted&#39; &#96;value&#96;',
   );
 });

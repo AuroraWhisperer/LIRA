@@ -42,15 +42,19 @@ function appendTerminalLine(filePath, args, method, context) {
   try {
     const message = util.format(...args);
     const redactedMessage = redactCredentials(message);
-    fs.appendFileSync(filePath, formatLogLine({
-      timestamp: context.now(),
-      runId: context.runId,
-      sequence: context.nextSequence(),
-      pid: context.pid,
-      processType: context.processType,
-      source: `terminal:${method}`,
-      message: redactedMessage
-    }), 'utf8');
+    fs.appendFileSync(
+      filePath,
+      formatLogLine({
+        timestamp: context.now(),
+        runId: context.runId,
+        sequence: context.nextSequence(),
+        pid: context.pid,
+        processType: context.processType,
+        source: `terminal:${method}`,
+        message: redactedMessage,
+      }),
+      'utf8',
+    );
   } catch (_) {
     // Logging must never interfere with the application.
   }
@@ -62,17 +66,29 @@ function normalizeLogContext(options) {
     runId: String(options.runId || 'unknown'),
     pid: Number(options.pid) || process.pid,
     processType: String(options.processType || process.type || 'node'),
-    now: typeof options.now === 'function' ? options.now : () => new Date().toISOString(),
-    nextSequence: typeof options.nextSequence === 'function'
-      ? options.nextSequence
-      : () => {
-        fallbackSequence += 1;
-        return fallbackSequence;
-      }
+    now:
+      typeof options.now === 'function'
+        ? options.now
+        : () => new Date().toISOString(),
+    nextSequence:
+      typeof options.nextSequence === 'function'
+        ? options.nextSequence
+        : () => {
+            fallbackSequence += 1;
+            return fallbackSequence;
+          },
   };
 }
 
-function formatLogLine({ timestamp, runId, sequence, pid, processType, source, message }) {
+function formatLogLine({
+  timestamp,
+  runId,
+  sequence,
+  pid,
+  processType,
+  source,
+  message,
+}) {
   const safeTimestamp = String(timestamp || new Date().toISOString());
   const safeRunId = String(runId || 'unknown');
   const safeSequence = Math.max(0, Number(sequence) || 0);

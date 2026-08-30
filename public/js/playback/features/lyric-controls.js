@@ -8,10 +8,7 @@
  * @returns {Object} 歌词控制函数集合
  */
 export function createLyricControls(deps) {
-  const {
-    playbackState,
-    lyricService
-  } = deps;
+  const { playbackState, lyricService } = deps;
 
   /**
    * 同步歌词窗口
@@ -25,6 +22,6 @@ export function createLyricControls(deps) {
   }
 
   return {
-    syncPlaybackLyricWindow
+    syncPlaybackLyricWindow,
   };
 }

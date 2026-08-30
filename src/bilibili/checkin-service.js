@@ -13,7 +13,8 @@ function createCheckinService(dependencies = {}) {
     store,
     settings,
     nowMs = Date.now,
-    pickBlessing = (_record, currentSettings) => pickCheckinBlessing(currentSettings.checkinBlessings)
+    pickBlessing = (_record, currentSettings) =>
+      pickCheckinBlessing(currentSettings.checkinBlessings),
   } = dependencies;
   if (!store || typeof store.checkIn !== 'function') {
     throw new Error('checkin store is required.');
@@ -28,12 +29,20 @@ function createCheckinService(dependencies = {}) {
 
       const currentSettings = typeof settings === 'function' ? settings() : {};
       if (currentSettings.enableCheckinBot !== 'true') {
-        return { accepted: false, reason: 'checkin-disabled', command: { type: 'checkin' } };
+        return {
+          accepted: false,
+          reason: 'checkin-disabled',
+          command: { type: 'checkin' },
+        };
       }
 
       const uid = cleanText(danmaku.uid);
       if (!uid || uid === '0') {
-        return { accepted: false, reason: 'missing-uid', command: { type: 'checkin' } };
+        return {
+          accepted: false,
+          reason: 'missing-uid',
+          command: { type: 'checkin' },
+        };
       }
 
       const currentMs = Number(nowMs()) || Date.now();
@@ -42,7 +51,7 @@ function createCheckinService(dependencies = {}) {
         uid,
         userName,
         dateKey: chinaDateKey(currentMs),
-        atIso: new Date(currentMs).toISOString()
+        atIso: new Date(currentMs).toISOString(),
       });
       const blessing = cleanText(pickBlessing(record, currentSettings)) || '';
       return {
@@ -51,18 +60,19 @@ function createCheckinService(dependencies = {}) {
         record,
         autoReply: {
           message: buildCheckinReply(record, blessing),
-          target: { uid, name: userName }
-        }
+          target: { uid, name: userName },
+        },
       };
-    }
+    },
   };
 }
 
 function buildCheckinReply(record, blessing = '') {
   const totalDays = Math.max(1, Number(record && record.totalDays) || 1);
-  const prefix = record && record.alreadyCheckedToday
-    ? `今天已经签到过啦，已累计 ${totalDays} 天。`
-    : `已签到 ${totalDays} 天。`;
+  const prefix =
+    record && record.alreadyCheckedToday
+      ? `今天已经签到过啦，已累计 ${totalDays} 天。`
+      : `已签到 ${totalDays} 天。`;
   return `${prefix}${cleanText(blessing)}`;
 }
 
@@ -80,5 +90,5 @@ module.exports = {
   createCheckinService,
   buildCheckinReply,
   chinaDateKey,
-  isCheckinCommand
+  isCheckinCommand,
 };

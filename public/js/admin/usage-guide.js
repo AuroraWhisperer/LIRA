@@ -13,8 +13,12 @@ export function initUsageGuide() {
   const links = Array.from(panel.querySelectorAll('[data-usage-guide-link]'));
   if (!scroller || !links.length) return;
 
-  const reduceMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-  const sections = Array.from(panel.querySelectorAll('.usage-guide-section[id]'));
+  const reduceMotionQuery = window.matchMedia?.(
+    '(prefers-reduced-motion: reduce)',
+  );
+  const sections = Array.from(
+    panel.querySelectorAll('.usage-guide-section[id]'),
+  );
   if (!sections.length) return;
 
   function setActiveLink(id) {
@@ -33,14 +37,17 @@ export function initUsageGuide() {
       else break;
     }
     // 内部滚动到底（桌面布局）或窗口滚动到底（窄屏布局）时，直接标记最后一节
-    const scrollerAtBottom = scroller.scrollHeight - scroller.clientHeight > 4
-      && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4;
+    const scrollerAtBottom =
+      scroller.scrollHeight - scroller.clientHeight > 4 &&
+      scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4;
     const doc = document.documentElement;
     // 桌面布局里窗口本身不可滚动（scrollHeight == innerHeight），此时跳过窗口判底，
     // 否则任何滚动都会被误判为「到底」，把高亮锁死在最后一节
-    const windowAtBottom = doc.scrollHeight > window.innerHeight + 4
-      && window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
-    if (scrollerAtBottom || windowAtBottom) current = sections[sections.length - 1];
+    const windowAtBottom =
+      doc.scrollHeight > window.innerHeight + 4 &&
+      window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
+    if (scrollerAtBottom || windowAtBottom)
+      current = sections[sections.length - 1];
     setActiveLink(current.id);
   }
 
@@ -65,14 +72,17 @@ export function initUsageGuide() {
         const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
         target.scrollIntoView({
           behavior,
-          block: 'start'
+          block: 'start',
         });
         window.clearTimeout(navigationCorrectionTimer);
-        navigationCorrectionTimer = window.setTimeout(() => {
-          target.scrollIntoView({ behavior: 'auto', block: 'start' });
-          panel.classList.remove('usage-guide-render-all');
-          navigationCorrectionTimer = null;
-        }, behavior === 'smooth' ? 700 : 0);
+        navigationCorrectionTimer = window.setTimeout(
+          () => {
+            target.scrollIntoView({ behavior: 'auto', block: 'start' });
+            panel.classList.remove('usage-guide-render-all');
+            navigationCorrectionTimer = null;
+          },
+          behavior === 'smooth' ? 700 : 0,
+        );
       });
     });
   });

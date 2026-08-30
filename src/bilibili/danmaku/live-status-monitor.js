@@ -64,7 +64,7 @@ class LiveStatusMonitor {
         roomId: roomInfo.roomId,
         isLive: false,
         ownerName: this.ownerName,
-        message: `未开播，历史消息监听中`
+        message: `未开播，历史消息监听中`,
       });
     } finally {
       this.checkInFlight = false;
@@ -82,7 +82,7 @@ class LiveStatusMonitor {
       roomId,
       isLive: true,
       ownerName: this.ownerName,
-      message: `已开播，正在重连礼物监听`
+      message: `已开播，正在重连礼物监听`,
     });
 
     try {

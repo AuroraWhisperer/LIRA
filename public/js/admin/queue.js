@@ -12,17 +12,19 @@
     withMultilingualFallback,
     toast,
     api,
-    dangerConfirm
+    dangerConfirm,
   } = window.AdminApp.utils;
 
   function initQueueForm() {
-    document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
+    document
+      .getElementById('nextBtn')
+      .addEventListener('click', () => queueAction('next'));
     document.getElementById('clearBtn').addEventListener('click', async () => {
       const confirmed = await dangerConfirm({
         title: '清空全部队列',
         message: '当前歌曲和所有等待中的歌曲都会被移除，此操作不可撤销。',
         deletes: ['当前播放歌曲', '全部等待队列'],
-        confirmLabel: '确认清空队列'
+        confirmLabel: '确认清空队列',
       });
       if (confirmed) await queueAction('clear');
     });
@@ -30,9 +32,12 @@
     // 将 wheel 事件的 deltaY 归一化为像素值（Windows 普通鼠标报告行模式 deltaMode=1）
     function normalizedWheelDelta(event, el) {
       switch (event.deltaMode) {
-        case 1: return event.deltaY * 40;          // 行模式：行高约 40px
-        case 2: return event.deltaY * el.clientHeight; // 页模式：按容器高度换算
-        default: return event.deltaY;              // 像素模式：直接使用
+        case 1:
+          return event.deltaY * 40; // 行模式：行高约 40px
+        case 2:
+          return event.deltaY * el.clientHeight; // 页模式：按容器高度换算
+        default:
+          return event.deltaY; // 像素模式：直接使用
       }
     }
 
@@ -40,17 +45,26 @@
     function bindQueueWheel(list) {
       if (!list) return;
       const panel = list.closest('.queue-panel') || list;
-      panel.addEventListener('wheel', (event) => {
-        const delta = normalizedWheelDelta(event, list);
-        const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
-        const canScroll = maxScrollTop > 0 && (
-          delta < 0 ? list.scrollTop > 0 : delta > 0 && list.scrollTop < maxScrollTop
-        );
-        if (!canScroll) return;
+      panel.addEventListener(
+        'wheel',
+        (event) => {
+          const delta = normalizedWheelDelta(event, list);
+          const maxScrollTop = Math.max(
+            0,
+            list.scrollHeight - list.clientHeight,
+          );
+          const canScroll =
+            maxScrollTop > 0 &&
+            (delta < 0
+              ? list.scrollTop > 0
+              : delta > 0 && list.scrollTop < maxScrollTop);
+          if (!canScroll) return;
 
-        event.preventDefault();
-        list.scrollTop += delta * 0.3;
-      }, { passive: false });
+          event.preventDefault();
+          list.scrollTop += delta * 0.3;
+        },
+        { passive: false },
+      );
     }
 
     bindQueueWheel(document.getElementById('superChatList'));
@@ -63,11 +77,14 @@
     const waiting = appState.queue.waiting || [];
     const queueItems = [current].concat(waiting).filter(Boolean);
     const settings = appState.settings || {};
-    const superChats = Array.isArray(appState.superChats) ? appState.superChats : [];
+    const superChats = Array.isArray(appState.superChats)
+      ? appState.superChats
+      : [];
     const gifts = appState.gifts || {};
     const giftSprint = appState.giftSprint || {};
 
-    document.getElementById('songCount').textContent = `歌库共 ${appState.songCount || 0} 首`;
+    document.getElementById('songCount').textContent =
+      `歌库共 ${appState.songCount || 0} 首`;
     const totalCount = queueItems.length;
     document.getElementById('queueSize').textContent = `${totalCount} 首`;
     renderSuperChatQueue(superChats);
@@ -84,12 +101,20 @@
     if (autoUpdateToggle) {
       autoUpdateToggle.checked = settings.enableAutoUpdate === 'true';
       if (autoUpdateLabel) {
-        autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
+        autoUpdateLabel.textContent = autoUpdateToggle.checked
+          ? '已开启'
+          : '已关闭';
       }
     }
 
     if (window.AdminApp.gifts && window.AdminApp.gifts.renderGiftPanel) {
-      window.AdminApp.gifts.renderGiftPanel(gifts, giftSprint, appState.liveStatus || {}, appState.bilibiliDiagnostics || {}, settings);
+      window.AdminApp.gifts.renderGiftPanel(
+        gifts,
+        giftSprint,
+        appState.liveStatus || {},
+        appState.bilibiliDiagnostics || {},
+        settings,
+      );
     }
 
     const live = appState.liveStatus || {};
@@ -111,7 +136,11 @@
       html += ` <span class="room-id-hint">· ${escapeHtml(roomId)}</span>`;
     }
     liveStatus.innerHTML = html;
-    liveStatus.className = isLive ? 'pill good' : (live.enabled ? 'pill warn' : 'pill');
+    liveStatus.className = isLive
+      ? 'pill good'
+      : live.enabled
+        ? 'pill warn'
+        : 'pill';
 
     const list = document.getElementById('queueList');
     applyAdminQueueFontPreview(settings);
@@ -124,23 +153,25 @@
         </div>
       `;
     } else {
-      list.innerHTML = queueItems.map((item, index) => {
-        const pinButton = index === 0 && !item.is_pinned
-          ? ''
-          : `
+      list.innerHTML = queueItems
+        .map((item, index) => {
+          const pinButton =
+            index === 0 && !item.is_pinned
+              ? ''
+              : `
                 <button class="icon" title="${item.is_pinned ? '取消置顶' : '置顶'}" type="button" data-action="${item.is_pinned ? 'unpin' : 'pin'}" data-id="${item.id}">${item.is_pinned ? '↧' : '↑'}</button>`;
 
-        // 根据歌曲名长度决定字体大小
-        const songText = `${item.is_pinned ? '📌 ' : ''}${index + 1}. ${escapeHtml(item.song_name)}`;
-        const textLength = (item.song_name || '').length;
-        let lengthAttr = '';
-        if (textLength > 35) {
-          lengthAttr = ' data-length="very-long"';
-        } else if (textLength > 20) {
-          lengthAttr = ' data-length="long"';
-        }
+          // 根据歌曲名长度决定字体大小
+          const songText = `${item.is_pinned ? '📌 ' : ''}${index + 1}. ${escapeHtml(item.song_name)}`;
+          const textLength = (item.song_name || '').length;
+          let lengthAttr = '';
+          if (textLength > 35) {
+            lengthAttr = ' data-length="very-long"';
+          } else if (textLength > 20) {
+            lengthAttr = ' data-length="long"';
+          }
 
-        return `
+          return `
             <div class="queue-row">
               <div>
                 <div class="song"${lengthAttr}>${songText}</div>
@@ -153,7 +184,8 @@
               </div>
             </div>
           `;
-      }).join('');
+        })
+        .join('');
     }
 
     if (window.AdminApp.songs && window.AdminApp.songs.renderCategoryFilter) {
@@ -162,7 +194,9 @@
     }
 
     document.querySelectorAll('[data-action]').forEach((button) => {
-      button.addEventListener('click', () => queueAction(button.dataset.action, button.dataset.id));
+      button.addEventListener('click', () =>
+        queueAction(button.dataset.action, button.dataset.id),
+      );
     });
     document.querySelectorAll('[data-copy]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -189,7 +223,9 @@
       return;
     }
 
-    list.innerHTML = items.map((item, index) => `
+    list.innerHTML = items
+      .map(
+        (item, index) => `
       <div class="queue-row sc-row ${item.status === 'assisted' ? 'assisted' : ''}">
         <div>
           <div class="song">
@@ -204,19 +240,30 @@
           <button class="icon" title="删除 SC" type="button" data-sc-action="delete" data-id="${item.id}">×</button>
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
     document.querySelectorAll('[data-sc-action]').forEach((button) => {
-      button.addEventListener('click', () => superChatAction(button.dataset.scAction, button.dataset.id));
+      button.addEventListener('click', () =>
+        superChatAction(button.dataset.scAction, button.dataset.id),
+      );
     });
   }
 
   function applyAdminQueueFontPreview(settings = {}) {
     const list = document.getElementById('queueList');
     if (!list) return;
-    const fontFamily = settings.overlayFontFamily || value('overlayFontFamily') || 'Microsoft YaHei';
-    const fontWeight = settings.overlayFontWeight || value('overlayFontWeight') || '700';
-    list.style.setProperty('--admin-queue-font-family', withMultilingualFallback(fontFamily));
+    const fontFamily =
+      settings.overlayFontFamily ||
+      value('overlayFontFamily') ||
+      'Microsoft YaHei';
+    const fontWeight =
+      settings.overlayFontWeight || value('overlayFontWeight') || '700';
+    list.style.setProperty(
+      '--admin-queue-font-family',
+      withMultilingualFallback(fontFamily),
+    );
     list.style.setProperty('--admin-queue-font-weight', fontWeight);
   }
 
@@ -244,7 +291,8 @@
   }
 
   function sourceLabel(itemOrSource) {
-    const item = typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
+    const item =
+      typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
     const source = item ? item.source : itemOrSource;
     if (source === 'random' || String(source || '').startsWith('random:')) {
       const scope = String(source || '').startsWith('random:')
@@ -252,16 +300,22 @@
         : randomScopeLabel(item && item.request_message);
       return scope ? `随机点歌 · ${scope}` : '随机点歌';
     }
-    return {
-      admin: '手动',
-      danmaku: '弹幕',
-      superchat: '醒目留言',
-      history: '历史补偿',
-    }[source] || source || '未知';
+    return (
+      {
+        admin: '手动',
+        danmaku: '弹幕',
+        superchat: '醒目留言',
+        history: '历史补偿',
+      }[source] ||
+      source ||
+      '未知'
+    );
   }
 
   function randomScopeLabel(message) {
-    const text = String(message || '').trim().replace(/\s+/g, ' ');
+    const text = String(message || '')
+      .trim()
+      .replace(/\s+/g, ' ');
     if (!text.startsWith('随机')) return '';
     if (text.startsWith('随机点歌')) {
       return stripRandomScopePrefix(text.slice('随机点歌'.length));
@@ -290,6 +344,6 @@
     queueAction,
     superChatAction,
     requesterLabel,
-    sourceLabel
+    sourceLabel,
   };
 })();

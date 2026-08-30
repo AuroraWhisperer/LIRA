@@ -14,9 +14,13 @@ const SUBSCRIPTION_TOPICS = new Set(['danmaku']);
 
 function createWebSocketHub(options = {}) {
   const sockets = new Set();
-  const heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
+  const heartbeatIntervalMs =
+    options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
   const socketTimeoutMs = options.socketTimeoutMs || SOCKET_TIMEOUT_MS;
-  const maxPendingBytes = Math.max(1, Math.trunc(Number(options.maxPendingBytes)) || MAX_PENDING_BYTES);
+  const maxPendingBytes = Math.max(
+    1,
+    Math.trunc(Number(options.maxPendingBytes)) || MAX_PENDING_BYTES,
+  );
   let heartbeatTimer = null;
   let snapshotFlushQueued = false;
   let pendingSnapshot = null;
@@ -31,7 +35,9 @@ function createWebSocketHub(options = {}) {
     // Origin validation: Check Origin header if present (browser requests)
     const origin = req.headers.origin;
     if (origin && context.allowedOrigins) {
-      const allowed = context.allowedOrigins.some(allowed => origin === allowed);
+      const allowed = context.allowedOrigins.some(
+        (allowed) => origin === allowed,
+      );
       if (!allowed) {
         socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
         socket.destroy();
@@ -39,7 +45,10 @@ function createWebSocketHub(options = {}) {
       }
     }
 
-    const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
+    const requestUrl = new URL(
+      req.url,
+      `http://${req.headers.host || '127.0.0.1'}`,
+    );
 
     // Token 校验：检查 URL query param 中的 token
     const token = context.sessionToken;
@@ -52,16 +61,17 @@ function createWebSocketHub(options = {}) {
       }
     }
 
-    const accept = crypto.createHash('sha1')
+    const accept = crypto
+      .createHash('sha1')
       .update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
       .digest('base64');
 
     socket.write(
       'HTTP/1.1 101 Switching Protocols\r\n' +
-      'Upgrade: websocket\r\n' +
-      'Connection: Upgrade\r\n' +
-      `Sec-WebSocket-Accept: ${accept}\r\n` +
-      '\r\n'
+        'Upgrade: websocket\r\n' +
+        'Connection: Upgrade\r\n' +
+        `Sec-WebSocket-Accept: ${accept}\r\n` +
+        '\r\n',
     );
 
     // Per-socket state for frame reassembly and heartbeat
@@ -75,7 +85,8 @@ function createWebSocketHub(options = {}) {
     socket._wsMaxPendingBytes = maxPendingBytes;
 
     sockets.add(socket);
-    if (context.state && context.state.sockets) context.state.sockets.add(socket);
+    if (context.state && context.state.sockets)
+      context.state.sockets.add(socket);
     socket._wsContext = context;
     socket.on('close', () => cleanupSocket(socket));
     socket.on('error', () => cleanupSocket(socket));
@@ -84,15 +95,20 @@ function createWebSocketHub(options = {}) {
 
     ensureHeartbeat();
 
-    if (!sendWebSocket(socket, {
-      type: 'snapshot',
-      reason: 'connect',
-      state: context.getState()
-    })) dropSocket(socket);
+    if (
+      !sendWebSocket(socket, {
+        type: 'snapshot',
+        reason: 'connect',
+        state: context.getState(),
+      })
+    )
+      dropSocket(socket);
   }
 
   function dropSocket(socket) {
-    try { socket.destroy(); } catch (_) {}
+    try {
+      socket.destroy();
+    } catch (_) {}
     cleanupSocket(socket);
   }
 
@@ -103,7 +119,11 @@ function createWebSocketHub(options = {}) {
     if (socket._wsDataHandler) socket.off('data', socket._wsDataHandler);
     socket._wsDataHandler = null;
     sockets.delete(socket);
-    if (socket._wsContext && socket._wsContext.state && socket._wsContext.state.sockets) {
+    if (
+      socket._wsContext &&
+      socket._wsContext.state &&
+      socket._wsContext.state.sockets
+    ) {
       socket._wsContext.state.sockets.delete(socket);
     }
     socket._wsContext = null;
@@ -115,11 +135,17 @@ function createWebSocketHub(options = {}) {
   }
 
   function handleSocketData(socket, chunk) {
-    if (socket._wsCleanedUp || !sockets.has(socket) || socket._wsBuffer === null) return;
+    if (
+      socket._wsCleanedUp ||
+      !sockets.has(socket) ||
+      socket._wsBuffer === null
+    )
+      return;
 
-    socket._wsBuffer = socket._wsBuffer.length === 0
-      ? chunk
-      : Buffer.concat([socket._wsBuffer, chunk]);
+    socket._wsBuffer =
+      socket._wsBuffer.length === 0
+        ? chunk
+        : Buffer.concat([socket._wsBuffer, chunk]);
     processBufferedFrames(socket);
   }
 
@@ -166,7 +192,9 @@ function createWebSocketHub(options = {}) {
 
       // Extract and unmask payload
       const payloadStart = headerSize + maskSize;
-      const payload = Buffer.from(buffer.subarray(payloadStart, payloadStart + length));
+      const payload = Buffer.from(
+        buffer.subarray(payloadStart, payloadStart + length),
+      );
       if (masked && maskKey) {
         for (let i = 0; i < payload.length; i++) {
           payload[i] ^= maskKey[i % 4];
@@ -187,12 +215,12 @@ function createWebSocketHub(options = {}) {
 
       if (opcode === 0x9) {
         // Ping: reply with pong, echoing payload
-        sendWebSocketFrame(socket, payload, 0xA);
+        sendWebSocketFrame(socket, payload, 0xa);
         // Continue loop (more frames may follow in same buffer)
         continue;
       }
 
-      if (opcode === 0xA) {
+      if (opcode === 0xa) {
         // Pong: update heartbeat timestamp
         socket._lastPongAt = Date.now();
         continue;
@@ -239,7 +267,8 @@ function createWebSocketHub(options = {}) {
         if (now - socket._lastPongAt > socketTimeoutMs) {
           dropSocket(socket);
         } else {
-          if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9)) dropSocket(socket);
+          if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9))
+            dropSocket(socket);
         }
       }
     }, heartbeatIntervalMs);
@@ -256,10 +285,15 @@ function createWebSocketHub(options = {}) {
       const next = pendingSnapshot;
       pendingSnapshot = null;
       if (!next || sockets.size === 0) return;
-      const payload = { type: 'snapshot', reason: next.reason, state: next.context.getState() };
+      const payload = {
+        type: 'snapshot',
+        reason: next.reason,
+        state: next.context.getState(),
+      };
       const encodedPayload = Buffer.from(JSON.stringify(payload));
       for (const socket of Array.from(sockets)) {
-        if (!sendWebSocketFrame(socket, encodedPayload, 0x1)) dropSocket(socket);
+        if (!sendWebSocketFrame(socket, encodedPayload, 0x1))
+          dropSocket(socket);
       }
     });
   }
@@ -282,16 +316,24 @@ function createWebSocketHub(options = {}) {
     }
     for (const socket of Array.from(sockets)) {
       try {
-        if (options.shutdownPayload) sendWebSocket(socket, options.shutdownPayload);
+        if (options.shutdownPayload)
+          sendWebSocket(socket, options.shutdownPayload);
         socket.end();
       } catch (_) {
-        try { socket.destroy(); } catch (_) {}
+        try {
+          socket.destroy();
+        } catch (_) {}
       }
       cleanupSocket(socket);
     }
   }
 
-  return { handleUpgrade: handleWebSocketUpgrade, broadcastSnapshot, broadcast, stop };
+  return {
+    handleUpgrade: handleWebSocketUpgrade,
+    broadcastSnapshot,
+    broadcast,
+    stop,
+  };
 }
 
 function sendWebSocket(socket, payload) {
@@ -316,8 +358,12 @@ function sendWebSocketFrame(socket, payload, opcode) {
   }
   const frame = Buffer.concat([header, payload]);
   const pendingBytes = Math.max(0, Number(socket.writableLength) || 0);
-  const maxPendingBytes = Math.max(1, Number(socket._wsMaxPendingBytes) || MAX_PENDING_BYTES);
-  if (socket.destroyed || pendingBytes + frame.length > maxPendingBytes) return false;
+  const maxPendingBytes = Math.max(
+    1,
+    Number(socket._wsMaxPendingBytes) || MAX_PENDING_BYTES,
+  );
+  if (socket.destroyed || pendingBytes + frame.length > maxPendingBytes)
+    return false;
   try {
     socket.write(frame);
     return true;
@@ -357,5 +403,5 @@ module.exports = {
   createWebSocketHub,
   handleWebSocketUpgrade,
   broadcastSnapshot,
-  sendWebSocket
+  sendWebSocket,
 };

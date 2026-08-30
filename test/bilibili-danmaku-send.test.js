@@ -11,18 +11,18 @@ test('sends danmaku with visible mention and Bilibili reply metadata', async () 
     request = { url, options };
     return new Response(JSON.stringify({ code: 0, data: {} }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   };
 
   try {
     const client = new BilibiliApiClient('123', {
       cookieHeader: 'DedeUserID=9; SESSDATA=session; bili_jct=csrf-token',
-      uid: 9
+      uid: 9,
     });
     const result = await client.sendDanmaku(123, '随机到这首歌', {
       uid: '456',
-      name: 'Alice'
+      name: 'Alice',
     });
     const form = new URLSearchParams(request.options.body);
 
@@ -45,10 +45,10 @@ test('rejects danmaku sending without a logged-in cookie', async () => {
 test('rejects invalid reply uid before calling Bilibili', async () => {
   const client = new BilibiliApiClient('123', {
     cookieHeader: 'DedeUserID=9; SESSDATA=session; bili_jct=csrf-token',
-    uid: 9
+    uid: 9,
   });
   await assert.rejects(
     client.sendDanmaku(123, 'hello', { uid: 'not-a-uid', name: 'Alice' }),
-    /UID/
+    /UID/,
   );
 });

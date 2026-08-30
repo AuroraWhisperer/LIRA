@@ -12,7 +12,7 @@ function createFortuneService(dependencies = {}) {
   const {
     settings,
     nowMs = Date.now,
-    pickFortune = pickDailyFortune
+    pickFortune = pickDailyFortune,
   } = dependencies;
 
   return {
@@ -23,12 +23,20 @@ function createFortuneService(dependencies = {}) {
 
       const currentSettings = typeof settings === 'function' ? settings() : {};
       if (currentSettings.enableFortuneBot !== 'true') {
-        return { accepted: false, reason: 'fortune-disabled', command: { type: 'fortune' } };
+        return {
+          accepted: false,
+          reason: 'fortune-disabled',
+          command: { type: 'fortune' },
+        };
       }
 
       const uid = cleanText(danmaku.uid);
       if (!uid || uid === '0') {
-        return { accepted: false, reason: 'missing-uid', command: { type: 'fortune' } };
+        return {
+          accepted: false,
+          reason: 'missing-uid',
+          command: { type: 'fortune' },
+        };
       }
 
       const dateKey = chinaDateKey(Number(nowMs()) || Date.now());
@@ -41,10 +49,10 @@ function createFortuneService(dependencies = {}) {
         fortune,
         autoReply: {
           message: buildFortuneReply(fortune),
-          target: { uid, name: userName }
-        }
+          target: { uid, name: userName },
+        },
       };
-    }
+    },
   };
 }
 
@@ -59,18 +67,21 @@ function parseFortunePool(value) {
   }
   if (!Array.isArray(parsed)) return [...FORTUNES];
 
-  const fortunes = parsed.map((item) => ({
-    level: cleanText(item && item.level),
-    name: cleanText(item && item.name),
-    text: cleanText(item && item.text),
-    advice: cleanText(item && item.advice)
-  })).filter((item) => item.level && item.name && item.text && item.advice);
+  const fortunes = parsed
+    .map((item) => ({
+      level: cleanText(item && item.level),
+      name: cleanText(item && item.name),
+      text: cleanText(item && item.text),
+      advice: cleanText(item && item.advice),
+    }))
+    .filter((item) => item.level && item.name && item.text && item.advice);
   return fortunes.length > 0 ? fortunes : [...FORTUNES];
 }
 
 function pickDailyFortune(uid, dateKey, value) {
   const fortunes = parseFortunePool(value);
-  const index = stableHash(`${cleanText(dateKey)}:${cleanText(uid)}`) % fortunes.length;
+  const index =
+    stableHash(`${cleanText(dateKey)}:${cleanText(uid)}`) % fortunes.length;
   return fortunes[index];
 }
 
@@ -98,5 +109,5 @@ module.exports = {
   parseFortunePool,
   pickDailyFortune,
   buildFortuneReply,
-  isFortuneCommand
+  isFortuneCommand,
 };

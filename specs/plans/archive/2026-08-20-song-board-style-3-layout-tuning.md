@@ -43,9 +43,11 @@
 ### Task 1: 锁定新布局契约
 
 **Files:**
+
 - Modify: `test/frontend-queue.test.js`
 
 **Interfaces:**
+
 - Consumes: 打包后的 `storybook.css` 与仓库内 `entry.png`
 - Produces: 风格 3 新 inset、视口边界和 PNG alpha 回归断言
 
@@ -62,10 +64,12 @@
 ### Task 2: 生成并接入微调后的词条
 
 **Files:**
+
 - Modify: `public/img/overlays/song-board-style-3/entry.png`
 - Modify: `public/css/overlays/base/storybook.css`
 
 **Interfaces:**
+
 - Consumes: `renderStorybookRow()` 现有 rank 与连续身份内容 DOM
 - Produces: 同 URL 的 RGBA 词条素材和更窄的固定内容视口
 
@@ -86,9 +90,11 @@
 ### Task 3: 桌面画面验证与收尾
 
 **Files:**
+
 - Modify: `specs/plans/2026-08-20-song-board-style-3-layout-tuning.md`
 
 **Interfaces:**
+
 - Consumes: Electron/Chromium 实际 CSS 布局与 PNG alpha
 - Produces: 完成记录与验证证据
 

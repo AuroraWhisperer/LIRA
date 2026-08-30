@@ -2,7 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createDanmakuDeliveryVerifier } = require('../src/ai/danmaku-delivery-verifier');
+const {
+  createDanmakuDeliveryVerifier,
+} = require('../src/ai/danmaku-delivery-verifier');
 
 test('delivery verifier requires every AI reply chunk from the sending account', async () => {
   let currentTime = 1000;
@@ -12,13 +14,16 @@ test('delivery verifier requires every AI reply chunk from the sending account',
   currentTime += 1;
   verifier.observe({ uid: '9', userName: 'Bot', message: 'second' });
 
-  assert.equal(await verifier.waitForDelivery({
-    accountUid: '9',
-    mentionName: 'Alice',
-    messages: ['first', 'second'],
-    sentAfter: 1000,
-    timeoutMs: 5
-  }), true);
+  assert.equal(
+    await verifier.waitForDelivery({
+      accountUid: '9',
+      mentionName: 'Alice',
+      messages: ['first', 'second'],
+      sentAfter: 1000,
+      timeoutMs: 5,
+    }),
+    true,
+  );
 });
 
 test('delivery verifier rejects partial, duplicate, and wrong-account echoes', async () => {
@@ -29,12 +34,15 @@ test('delivery verifier rejects partial, duplicate, and wrong-account echoes', a
   verifier.observe({ uid: '9', userName: 'Bot', message: 'same' });
   verifier.observe({ uid: '9', userName: 'Bot', message: 'different' });
 
-  assert.equal(await verifier.waitForDelivery({
-    accountUid: 9,
-    messages: ['same', 'same'],
-    sentAfter: 2000,
-    timeoutMs: 5
-  }), false);
+  assert.equal(
+    await verifier.waitForDelivery({
+      accountUid: 9,
+      messages: ['same', 'same'],
+      sentAfter: 2000,
+      timeoutMs: 5,
+    }),
+    false,
+  );
 });
 
 test('delivery verifier can complete a pending wait from later room events', async () => {
@@ -44,7 +52,7 @@ test('delivery verifier can complete a pending wait from later room events', asy
     accountUid: '9',
     messages: ['one', 'two'],
     sentAfter,
-    timeoutMs: 50
+    timeoutMs: 50,
   });
 
   verifier.observe({ uid: '9', message: 'one' });
@@ -59,14 +67,19 @@ test('delivery verifier dispose clears pending timers and rejects new waits', as
     accountUid: '9',
     messages: ['never-arrives'],
     sentAfter: Date.now(),
-    timeoutMs: 60000
+    timeoutMs: 60000,
   });
 
   verifier.dispose();
 
   assert.equal(await pending, false);
-  assert.equal(await verifier.waitForDelivery({
-    accountUid: '9', messages: ['late'], timeoutMs: 60000
-  }), false);
+  assert.equal(
+    await verifier.waitForDelivery({
+      accountUid: '9',
+      messages: ['late'],
+      timeoutMs: 60000,
+    }),
+    false,
+  );
   verifier.dispose();
 });

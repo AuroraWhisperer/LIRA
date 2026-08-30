@@ -15,7 +15,10 @@ export class LocalFileManager {
    * @returns {Promise<Array>} 本地文件列表
    */
   async loadRecentHistory() {
-    if (!window.musicAPI || typeof window.musicAPI.getRecentLocalFiles !== 'function') {
+    if (
+      !window.musicAPI ||
+      typeof window.musicAPI.getRecentLocalFiles !== 'function'
+    ) {
       return [];
     }
 
@@ -34,7 +37,7 @@ export class LocalFileManager {
         durationMs: file.duration ? file.duration * 1000 : 0,
         fileName: file.name || '',
         filePath: file.path || '',
-        objectUrl: null // 需要重新选择文件
+        objectUrl: null, // 需要重新选择文件
       }));
     } catch (error) {
       console.error('[LocalFileManager] loadRecentHistory failed:', error);
@@ -48,7 +51,10 @@ export class LocalFileManager {
    * @returns {Promise<Array>} 选中的文件列表
    */
   async selectLocalFiles() {
-    if (!window.musicAPI || typeof window.musicAPI.selectLocalFiles !== 'function') {
+    if (
+      !window.musicAPI ||
+      typeof window.musicAPI.selectLocalFiles !== 'function'
+    ) {
       throw new Error('本地文件功能不可用');
     }
 
@@ -59,7 +65,7 @@ export class LocalFileManager {
         if (result && result.canceled) {
           return [];
         }
-        throw new Error(result && result.error || '选择文件失败');
+        throw new Error((result && result.error) || '选择文件失败');
       }
 
       const files = Array.isArray(result.files) ? result.files : [];
@@ -67,9 +73,14 @@ export class LocalFileManager {
       // Resolve file URLs via IPC
       const paths = files.map((f) => f.path).filter(Boolean);
       let urls = {};
-      if (paths.length && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
+      if (
+        paths.length &&
+        window.musicAPI &&
+        typeof window.musicAPI.resolveLocalMediaUrls === 'function'
+      ) {
         try {
-          const resolveResult = await window.musicAPI.resolveLocalMediaUrls(paths);
+          const resolveResult =
+            await window.musicAPI.resolveLocalMediaUrls(paths);
           urls = (resolveResult && resolveResult.results) || {};
         } catch (_) {}
       }
@@ -85,7 +96,7 @@ export class LocalFileManager {
         durationMs: file.duration ? file.duration * 1000 : 0,
         fileName: file.name || '',
         filePath: file.path || '',
-        objectUrl: (urls[file.path] && urls[file.path].url) || ''
+        objectUrl: (urls[file.path] && urls[file.path].url) || '',
       }));
     } catch (error) {
       console.error('[LocalFileManager] selectLocalFiles failed:', error);
@@ -104,7 +115,10 @@ export class LocalFileManager {
       return null;
     }
 
-    if (!window.musicAPI || typeof window.musicAPI.selectLocalFiles !== 'function') {
+    if (
+      !window.musicAPI ||
+      typeof window.musicAPI.selectLocalFiles !== 'function'
+    ) {
       throw new Error('本地文件功能不可用');
     }
 
@@ -123,10 +137,19 @@ export class LocalFileManager {
       // 使用第一个选中的文件，并通过 IPC 获取实际 URL
       const file = files[0];
       let objectUrl = '';
-      if (file.path && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
+      if (
+        file.path &&
+        window.musicAPI &&
+        typeof window.musicAPI.resolveLocalMediaUrls === 'function'
+      ) {
         try {
-          const resolveResult = await window.musicAPI.resolveLocalMediaUrls([file.path]);
-          const entry = resolveResult && resolveResult.results && resolveResult.results[file.path];
+          const resolveResult = await window.musicAPI.resolveLocalMediaUrls([
+            file.path,
+          ]);
+          const entry =
+            resolveResult &&
+            resolveResult.results &&
+            resolveResult.results[file.path];
           if (entry && entry.ok && entry.url) {
             objectUrl = entry.url;
           }
@@ -141,7 +164,7 @@ export class LocalFileManager {
         durationMs: file.duration ? file.duration * 1000 : track.durationMs,
         fileName: file.name || track.fileName,
         filePath: file.path || track.filePath,
-        objectUrl: objectUrl
+        objectUrl: objectUrl,
       };
     } catch (error) {
       console.error('[LocalFileManager] reselectLocalFile failed:', error);
@@ -156,7 +179,11 @@ export class LocalFileManager {
    * @returns {boolean}
    */
   needsReselect(track) {
-    return track && track.source === 'local' && (!track.objectUrl || track.fileMissing);
+    return (
+      track &&
+      track.source === 'local' &&
+      (!track.objectUrl || track.fileMissing)
+    );
   }
 
   /**
@@ -177,7 +204,7 @@ export class LocalFileManager {
       durationMs: track.durationMs || 0,
       fileName: track.fileName || '',
       filePath: track.filePath || '',
-      objectUrl: track.objectUrl || null
+      objectUrl: track.objectUrl || null,
     };
   }
 

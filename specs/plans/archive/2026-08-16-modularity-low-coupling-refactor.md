@@ -22,10 +22,12 @@
 ### Task 1: Architecture Fitness Tests
 
 **Files:**
+
 - Create: `test/module-boundaries.test.js`
 - Modify: `docs/architecture/engineering/test.md`
 
 **Interfaces:**
+
 - Consumes: repository source files as UTF-8 text.
 - Produces: structural assertions for the five migration boundaries.
 
@@ -46,12 +48,14 @@ Run the test after each task; only assertions owned by that task should turn gre
 ### Task 2: Split Spreadsheet and ZIP Utilities
 
 **Files:**
+
 - Create: `src/shared/xlsx-codec.js`
 - Modify: `src/shared/utils.js`
 - Modify: `src/music/song-file-codec.js`
 - Modify: `test/song-file-codec.test.js`
 
 **Interfaces:**
+
 - Produces: `createZip(entries)`, `readZipFiles(buffer)`, `columnName(index)`, `parseSharedStrings(xml)`, `parseWorksheetXml(xml, sharedStrings)`, and `escapeXml(value)` from `xlsx-codec.js`.
 - Consumes: `cleanText` from `shared/utils.js` for worksheet row filtering.
 
@@ -66,6 +70,7 @@ Expected: spreadsheet behavior passes and the shared-utils boundary assertion is
 ### Task 3: Introduce Queue and SuperChat Stores
 
 **Files:**
+
 - Create: `src/storage/queue-store.js`
 - Create: `src/storage/superchat-store.js`
 - Modify: `src/music/queue-service.js`
@@ -75,6 +80,7 @@ Expected: spreadsheet behavior passes and the shared-utils boundary assertion is
 - Create: `test/superchat-store.test.js`
 
 **Interfaces:**
+
 - `createQueueStore(songDb)` produces `countActive()`, `findActiveBySongName(name)`, `insertRequest(input)`, `completeNext(updatedAt)`, `clearActive(updatedAt)`, `setPinned(id, pinned, updatedAt)`, `setStatus(id, status, updatedAt)`, `listActive()`, and `normalizeCurrentToWaiting(updatedAt)`.
 - `createSuperChatStore(superChatDb)` produces `findByPlatformId(id)`, `insert(input)`, `setStatus(id, status, updatedAt)`, and `listActive()`.
 - Services consume `{ store, settings, defaults, findSong }` rather than `{ db, settingsStore }`.
@@ -91,11 +97,13 @@ Expected: service modules contain no SQLite calls and database atomicity remains
 ### Task 4: Narrow Playback Controller Dependencies
 
 **Files:**
+
 - Modify: `public/js/playback/controller.js`
 - Modify: `test/playback-queue-behavior.test.js`
 - Modify: `test/playback-quality.test.js`
 
 **Interfaces:**
+
 - Controller-local named callback functions provide `renderPlayback`, `playPlaybackTrack`, and `ensurePlaybackRadioQueueFilled` without mutable forward declarations.
 - Each `create*` factory receives an object containing only fields destructured by that factory.
 
@@ -110,12 +118,14 @@ Expected: no fat dependency bag remains and all playback behavior is unchanged.
 ### Task 5: Isolate Admin Legacy Globals
 
 **Files:**
+
 - Create: `public/js/admin/legacy-admin-bridge.js`
 - Modify: `public/js/admin/app.js`
 - Modify: `public/js/admin/index.js`
 - Modify: `test/frontend-admin-shell.test.js`
 
 **Interfaces:**
+
 - `getLegacyAdminModules()` returns the current `window.AdminApp` facade.
 - `publishNavigation(navigation)` is the only application-entry write to the legacy global.
 - New Admin code imports explicit ESM services; only the bridge touches `window.AdminApp` for compatibility.
@@ -131,6 +141,7 @@ Expected: Admin behavior stays compatible while global access has one named boun
 ### Task 6: Reduce Composition-Root Responsibilities
 
 **Files:**
+
 - Create: `src/server/bilibili-runtime.js`
 - Modify: `src/server.js`
 - Create: `src/electron/desktop-state.js`
@@ -139,6 +150,7 @@ Expected: Admin behavior stays compatible while global access has one named boun
 - Modify: `test/electron-main-modules.test.js`
 
 **Interfaces:**
+
 - `createBilibiliRuntime(options)` owns auth cache, live status, client replacement serialization, reconnect, status publication, and stop.
 - `createDesktopState()` owns mutable desktop references and exposes explicit getters/setters used by startup and IPC registration.
 
@@ -153,6 +165,7 @@ Expected: entrypoints retain wiring and lifecycle ownership while domain-specifi
 ### Task 7: Documentation and Full Verification
 
 **Files:**
+
 - Modify: `docs/architecture/README.md`
 - Modify: `docs/architecture/backend/server-core.md`
 - Modify: `docs/architecture/frontend/app.md`
@@ -160,6 +173,7 @@ Expected: entrypoints retain wiring and lifecycle ownership while domain-specifi
 - Modify: `docs/architecture/engineering/test.md`
 
 **Interfaces:**
+
 - Consumes: final source structure and test names.
 - Produces: accurate architecture navigation and boundary documentation.
 

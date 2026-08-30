@@ -15,15 +15,19 @@ let _testToken = '';
 async function requestJson(baseUrl, pathname, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers || {})
+    ...(options.headers || {}),
   };
   if (_testToken) headers['Authorization'] = `Bearer ${_testToken}`;
   const response = await fetch(`${baseUrl}${pathname}`, {
     ...options,
-    headers
+    headers,
   });
   const payload = await response.json();
-  assert.equal(response.ok, true, payload.error || `${pathname} returned ${response.status}`);
+  assert.equal(
+    response.ok,
+    true,
+    payload.error || `${pathname} returned ${response.status}`,
+  );
   assert.equal(payload.ok, true);
   return payload.data;
 }
@@ -31,7 +35,7 @@ async function requestJson(baseUrl, pathname, options = {}) {
 function postJson(baseUrl, pathname, body) {
   return requestJson(baseUrl, pathname, {
     method: 'POST',
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 }
 
@@ -42,7 +46,7 @@ function findAvailablePort() {
     probe.listen(0, '127.0.0.1', () => {
       const address = probe.address();
       const port = address && typeof address === 'object' ? address.port : 0;
-      probe.close((error) => error ? reject(error) : resolve(port));
+      probe.close((error) => (error ? reject(error) : resolve(port)));
     });
   });
 }
@@ -69,20 +73,30 @@ function readInitialWebSocketSnapshot(baseUrl) {
       reject(new Error('Timed out waiting for WebSocket snapshot'));
     }, 2000);
 
-    socket.addEventListener('message', (event) => {
-      clearTimeout(timeout);
-      socket.close();
-      resolve(JSON.parse(String(event.data)));
-    }, { once: true });
-    socket.addEventListener('error', () => {
-      clearTimeout(timeout);
-      reject(new Error('WebSocket connection failed'));
-    }, { once: true });
+    socket.addEventListener(
+      'message',
+      (event) => {
+        clearTimeout(timeout);
+        socket.close();
+        resolve(JSON.parse(String(event.data)));
+      },
+      { once: true },
+    );
+    socket.addEventListener(
+      'error',
+      () => {
+        clearTimeout(timeout);
+        reject(new Error('WebSocket connection failed'));
+      },
+      { once: true },
+    );
   });
 }
 
 function readInjectedApiAnchor(html, baseUrl, href) {
-  const match = html.match(/<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/);
+  const match = html.match(
+    /<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/,
+  );
   assert.ok(match, 'the page should contain the injected session script');
   const anchor = {
     href,
@@ -91,29 +105,36 @@ function readInjectedApiAnchor(html, baseUrl, href) {
     },
     setAttribute(name, value) {
       if (name === 'href') this.href = value;
-    }
+    },
   };
   const NativeWebSocket = function NativeWebSocket() {};
   NativeWebSocket.prototype = {};
-  Object.assign(NativeWebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+  Object.assign(NativeWebSocket, {
+    CONNECTING: 0,
+    OPEN: 1,
+    CLOSING: 2,
+    CLOSED: 3,
+  });
   const window = { fetch() {}, WebSocket: NativeWebSocket };
   vm.runInNewContext(match[0].slice(8, -9), {
     window,
     document: {
       readyState: 'complete',
       querySelectorAll: () => [anchor],
-      addEventListener() {}
+      addEventListener() {},
     },
     location: new URL(`${baseUrl}/admin`),
     URL,
     Headers,
-    encodeURIComponent
+    encodeURIComponent,
   });
   return anchor.href;
 }
 
 test('server runtime construction performs no data-directory I/O', async () => {
-  const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lazy-runtime-'));
+  const parentDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lazy-runtime-'),
+  );
   const dataDir = path.join(parentDir, 'not-created-yet');
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
@@ -128,7 +149,9 @@ test('server runtime construction performs no data-directory I/O', async () => {
 });
 
 test('server normalizes localhost to the IPv4 loopback address', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-loopback-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-loopback-'),
+  );
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -144,24 +167,26 @@ test('server normalizes localhost to the IPv4 loopback address', async () => {
 });
 
 test('server rejects non-loopback host addresses', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-reject-host-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-reject-host-'),
+  );
   const { createServerRuntime } = require('../src/server');
 
   try {
     // Host validation happens during createServerRuntime construction
     assert.throws(
       () => createServerRuntime({ dataDir, host: '0.0.0.0' }),
-      /Host must be '127\.0\.0\.1' or 'localhost'/
+      /Host must be '127\.0\.0\.1' or 'localhost'/,
     );
 
     assert.throws(
       () => createServerRuntime({ dataDir, host: '192.168.1.100' }),
-      /Host must be '127\.0\.0\.1' or 'localhost'/
+      /Host must be '127\.0\.0\.1' or 'localhost'/,
     );
 
     assert.throws(
       () => createServerRuntime({ dataDir, host: 'example.com' }),
-      /Host must be '127\.0\.0\.1' or 'localhost'/
+      /Host must be '127\.0\.0\.1' or 'localhost'/,
     );
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -169,7 +194,9 @@ test('server rejects non-loopback host addresses', async () => {
 });
 
 test('server rejects requests with mismatched Host header', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-host-header-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-host-header-'),
+  );
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -180,16 +207,19 @@ test('server rejects requests with mismatched Host header', async () => {
 
     // Use http.request to set a custom Host header (fetch normalizes it)
     const response = await new Promise((resolve, reject) => {
-      const req = http.request({
-        hostname: '127.0.0.1',
-        port,
-        path: '/api/state',
-        method: 'GET',
-        headers: {
-          'Host': 'evil.com',
-          'Authorization': `Bearer ${_testToken}`
-        }
-      }, resolve);
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port,
+          path: '/api/state',
+          method: 'GET',
+          headers: {
+            Host: 'evil.com',
+            Authorization: `Bearer ${_testToken}`,
+          },
+        },
+        resolve,
+      );
       req.on('error', reject);
       req.end();
     });
@@ -222,10 +252,10 @@ test('server rejects state-changing requests with wrong Origin', async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${_testToken}`,
-        'Origin': 'http://evil.com'
+        Authorization: `Bearer ${_testToken}`,
+        Origin: 'http://evil.com',
       },
-      body: JSON.stringify({ queueLimit: 5 })
+      body: JSON.stringify({ queueLimit: 5 }),
     });
     assert.equal(response.status, 403);
     const payload = await response.json();
@@ -237,7 +267,9 @@ test('server rejects state-changing requests with wrong Origin', async () => {
 });
 
 test('server allows requests without Origin header (non-browser clients)', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-no-origin-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-no-origin-'),
+  );
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -251,10 +283,10 @@ test('server allows requests without Origin header (non-browser clients)', async
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${_testToken}`
+        Authorization: `Bearer ${_testToken}`,
         // No Origin header
       },
-      body: JSON.stringify({ queueLimit: 7 })
+      body: JSON.stringify({ queueLimit: 7 }),
     });
     assert.equal(response.status, 200);
     const payload = await response.json();
@@ -266,17 +298,24 @@ test('server allows requests without Origin header (non-browser clients)', async
 });
 
 test('server quiesce rejects new API work and retains the port until cleanup finishes', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-quiesce-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-quiesce-'),
+  );
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
   let releaseHook;
   let hookStartedResolve;
-  const hookStarted = new Promise((resolve) => { hookStartedResolve = resolve; });
-  runtime.setPreShutdownHook(() => new Promise((resolve) => {
-    releaseHook = resolve;
-    hookStartedResolve();
-  }));
+  const hookStarted = new Promise((resolve) => {
+    hookStartedResolve = resolve;
+  });
+  runtime.setPreShutdownHook(
+    () =>
+      new Promise((resolve) => {
+        releaseHook = resolve;
+        hookStartedResolve();
+      }),
+  );
 
   try {
     const app = await runtime.start({ host: '127.0.0.1', startPort: port });
@@ -284,14 +323,14 @@ test('server quiesce rejects new API work and retains the port until cleanup fin
     await hookStarted;
 
     const response = await fetch(`${app.baseUrl}/api/state`, {
-      headers: { Authorization: `Bearer ${runtime.getApiToken()}` }
+      headers: { Authorization: `Bearer ${runtime.getApiToken()}` },
     });
     assert.equal(response.status, 503);
 
     const contender = http.createServer();
     await assert.rejects(
       lifecycle.listenExactly(contender, { port, host: '127.0.0.1' }),
-      { code: 'EADDRINUSE' }
+      { code: 'EADDRINUSE' },
     );
 
     releaseHook();
@@ -319,9 +358,13 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
       return originalFetch(input, options);
     }
     if (url.hostname === 'raw.githubusercontent.com') {
-      return Promise.resolve(new Response("'SEND_GIFT' 'COMBO_SEND'", { status: 200 }));
+      return Promise.resolve(
+        new Response("'SEND_GIFT' 'COMBO_SEND'", { status: 200 }),
+      );
     }
-    return Promise.reject(new Error(`Unexpected external request in smoke test: ${url.hostname}`));
+    return Promise.reject(
+      new Error(`Unexpected external request in smoke test: ${url.hostname}`),
+    );
   };
 
   try {
@@ -329,7 +372,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     shutdownApplication = serverModule.shutdownApplication;
     const app = await serverModule.startServer({
       host: '127.0.0.1',
-      startPort: 38471
+      startPort: 38471,
     });
 
     _testToken = serverModule.getApiToken();
@@ -342,7 +385,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
 
     const blindBoxAnalysis = await requestJson(
       app.baseUrl,
-      '/api/gifts/blind-box-analysis?view=records&page=1&limit=25'
+      '/api/gifts/blind-box-analysis?view=records&page=1&limit=25',
     );
     assert.equal(blindBoxAnalysis.summary.boxCount, 0);
     assert.deepEqual(blindBoxAnalysis.items, []);
@@ -355,28 +398,50 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
         const html = await response.text();
         assert.equal(
           readInjectedApiAnchor(html, app.baseUrl, '/api/songs/export.xlsx'),
-          `/api/songs/export.xlsx?token=${encodeURIComponent(_testToken)}`
+          `/api/songs/export.xlsx?token=${encodeURIComponent(_testToken)}`,
         );
         assert.equal(
-          readInjectedApiAnchor(html, app.baseUrl, `${app.baseUrl}/api/songs/template.xlsx`),
-          `${app.baseUrl}/api/songs/template.xlsx?token=${encodeURIComponent(_testToken)}`
+          readInjectedApiAnchor(
+            html,
+            app.baseUrl,
+            `${app.baseUrl}/api/songs/template.xlsx`,
+          ),
+          `${app.baseUrl}/api/songs/template.xlsx?token=${encodeURIComponent(_testToken)}`,
         );
         assert.equal(
-          readInjectedApiAnchor(html, app.baseUrl, 'https://example.com/api/export'),
-          'https://example.com/api/export'
+          readInjectedApiAnchor(
+            html,
+            app.baseUrl,
+            'https://example.com/api/export',
+          ),
+          'https://example.com/api/export',
         );
       }
     }
 
-    for (const pathname of ['/api/songs/template.xlsx', '/api/songs/export.xlsx']) {
+    for (const pathname of [
+      '/api/songs/template.xlsx',
+      '/api/songs/export.xlsx',
+    ]) {
       const unauthorized = await fetch(`${app.baseUrl}${pathname}`);
-      assert.equal(unauthorized.status, 401, `${pathname} should reject a missing token`);
+      assert.equal(
+        unauthorized.status,
+        401,
+        `${pathname} should reject a missing token`,
+      );
 
       const authorized = await fetch(
-        `${app.baseUrl}${pathname}?token=${encodeURIComponent(_testToken)}`
+        `${app.baseUrl}${pathname}?token=${encodeURIComponent(_testToken)}`,
       );
-      assert.equal(authorized.status, 200, `${pathname} should accept its tokenized anchor URL`);
-      assert.ok((await authorized.arrayBuffer()).byteLength > 0, `${pathname} should return a workbook`);
+      assert.equal(
+        authorized.status,
+        200,
+        `${pathname} should accept its tokenized anchor URL`,
+      );
+      assert.ok(
+        (await authorized.arrayBuffer()).byteLength > 0,
+        `${pathname} should return a workbook`,
+      );
     }
 
     const initialSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
@@ -385,37 +450,48 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(initialSnapshot.state.lyricState.status, 'idle');
     assert.equal(initialSnapshot.state.lyricTimeline.status, 'idle');
 
-    const publishedLyric = await postJson(app.baseUrl, '/api/playback/lyric-state', {
-      trackTitle: 'Smoke Song',
-      artists: ['Smoke Artist'],
-      lineText: 'Smoke lyric',
-      progress: 0.4,
-      playing: true,
-      status: 'ready'
-    });
+    const publishedLyric = await postJson(
+      app.baseUrl,
+      '/api/playback/lyric-state',
+      {
+        trackTitle: 'Smoke Song',
+        artists: ['Smoke Artist'],
+        lineText: 'Smoke lyric',
+        progress: 0.4,
+        playing: true,
+        status: 'ready',
+      },
+    );
     assert.equal(publishedLyric.lineText, 'Smoke lyric');
     const lyricSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
     assert.equal(lyricSnapshot.state.lyricState.lineText, 'Smoke lyric');
 
-    const publishedTimeline = await postJson(app.baseUrl, '/api/playback/lyric-timeline', {
-      trackTitle: 'Smoke Song',
-      artists: ['Smoke Artist'],
-      status: 'ready',
-      lines: [
-        { startMs: 0, text: '出品：Smoke Studio' },
-        { startMs: 9000, text: 'Smoke lyric' }
-      ]
-    });
+    const publishedTimeline = await postJson(
+      app.baseUrl,
+      '/api/playback/lyric-timeline',
+      {
+        trackTitle: 'Smoke Song',
+        artists: ['Smoke Artist'],
+        status: 'ready',
+        lines: [
+          { startMs: 0, text: '出品：Smoke Studio' },
+          { startMs: 9000, text: 'Smoke lyric' },
+        ],
+      },
+    );
     assert.equal(publishedTimeline.lines.length, 2);
     const timelineSnapshot = await readInitialWebSocketSnapshot(app.baseUrl);
-    assert.equal(timelineSnapshot.state.lyricTimeline.lines[0].text, '出品：Smoke Studio');
+    assert.equal(
+      timelineSnapshot.state.lyricTimeline.lines[0].text,
+      '出品：Smoke Studio',
+    );
 
     const settingsState = await postJson(app.baseUrl, '/api/settings', {
       enableBilibili: false,
       queueLimit: 3,
       onboardingVersion: '1',
       onboardingCompletedAt: '2026-08-19T00:00:00.000Z',
-      onboardingSkippedOptional: 'ai'
+      onboardingSkippedOptional: 'ai',
     });
     assert.equal(settingsState.settings.enableBilibili, 'false');
     assert.equal(settingsState.settings.queueLimit, '3');
@@ -425,7 +501,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     const savedSong = await postJson(app.baseUrl, '/api/songs/save', {
       name: 'Smoke Song',
       artist: 'Smoke Artist',
-      categoryName: 'Smoke Category'
+      categoryName: 'Smoke Category',
     });
     assert.equal(savedSong.name, 'Smoke Song');
 
@@ -437,8 +513,8 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
       rows: [
         { name: 'Smoke Song', artist: 'Smoke Artist' },
         { name: 'Imported Song', artist: 'Imported Artist' },
-        { name: '' }
-      ]
+        { name: '' },
+      ],
     });
     assert.equal(imported.duplicate, 1);
     assert.equal(imported.inserted, 1);
@@ -451,7 +527,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
       requesterUid: 'smoke-user',
       requesterGuardLevel: 2,
       requesterMedalName: 'Smoke Medal',
-      requesterMedalLevel: 12
+      requesterMedalLevel: 12,
     });
     assert.equal(queueItem.requester_name, 'Smoke User');
     assert.equal(queueItem.requester_guard_level, 2);
@@ -460,12 +536,12 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
 
     const pinnedQueue = await postJson(app.baseUrl, '/api/queue/action', {
       action: 'pin',
-      id: queueItem.id
+      id: queueItem.id,
     });
     assert.equal(pinnedQueue.waiting[0].is_pinned, true);
 
     const clearedLibrary = await postJson(app.baseUrl, '/api/database/clear', {
-      confirm: true
+      confirm: true,
     });
     assert.equal(clearedLibrary.scope, 'song-library');
 
@@ -473,15 +549,20 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(stateAfterLibraryClear.songCount, 0);
     assert.equal(stateAfterLibraryClear.queue.waiting.length, 1);
     assert.equal(stateAfterLibraryClear.queue.waiting[0].song_id, null);
-    assert.equal(stateAfterLibraryClear.categories.some((category) => category.name === '默认'), true);
+    assert.equal(
+      stateAfterLibraryClear.categories.some(
+        (category) => category.name === '默认',
+      ),
+      true,
+    );
 
     const nextQueue = await postJson(app.baseUrl, '/api/queue/action', {
-      action: 'next'
+      action: 'next',
     });
     assert.equal(nextQueue.waiting.length, 0);
 
     const cleared = await postJson(app.baseUrl, '/api/database/clear-all', {
-      confirm: true
+      confirm: true,
     });
     assert.equal(cleared.scope, 'all');
 
@@ -490,8 +571,14 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     assert.equal(finalState.queue.waiting.length, 0);
     assert.equal(finalState.settings.queueLimit, '3');
     assert.equal(finalState.settings.onboardingVersion, '1');
-    assert.equal(finalState.settings.onboardingCompletedAt, '2026-08-19T00:00:00.000Z');
-    assert.deepEqual(finalState.categories.map((category) => category.name), ['默认']);
+    assert.equal(
+      finalState.settings.onboardingCompletedAt,
+      '2026-08-19T00:00:00.000Z',
+    );
+    assert.deepEqual(
+      finalState.categories.map((category) => category.name),
+      ['默认'],
+    );
   } finally {
     if (shutdownApplication) {
       await shutdownApplication({ exitProcess: false });
@@ -503,8 +590,12 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
 });
 
 test('server runtimes isolate sequential data directories', async () => {
-  const firstDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-first-'));
-  const secondDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-second-'));
+  const firstDataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-runtime-first-'),
+  );
+  const secondDataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-runtime-second-'),
+  );
   const { createServerRuntime } = require('../src/server');
   let firstRuntime;
   let secondRuntime;
@@ -513,21 +604,33 @@ test('server runtimes isolate sequential data directories', async () => {
     firstRuntime = createServerRuntime({ dataDir: firstDataDir });
     await firstRuntime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort()
+      startPort: await findAvailablePort(),
     });
     assert.equal(firstRuntime.getSetting('queueLimit'), '50');
-    assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), true);
+    assert.equal(
+      fs.existsSync(path.join(firstDataDir, '.session-token')),
+      true,
+    );
     await firstRuntime.stop({ exitProcess: false });
-    assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), false);
+    assert.equal(
+      fs.existsSync(path.join(firstDataDir, '.session-token')),
+      false,
+    );
 
     secondRuntime = createServerRuntime({ dataDir: secondDataDir });
     await secondRuntime.start({
       host: '127.0.0.1',
-      startPort: await findAvailablePort()
+      startPort: await findAvailablePort(),
     });
-    assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), true);
+    assert.equal(
+      fs.existsSync(path.join(secondDataDir, '.session-token')),
+      true,
+    );
     await secondRuntime.stop({ exitProcess: false });
-    assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), false);
+    assert.equal(
+      fs.existsSync(path.join(secondDataDir, '.session-token')),
+      false,
+    );
   } finally {
     if (firstRuntime) await firstRuntime.stop({ exitProcess: false });
     if (secondRuntime) await secondRuntime.stop({ exitProcess: false });
@@ -537,7 +640,9 @@ test('server runtimes isolate sequential data directories', async () => {
 });
 
 test('server runtime closes cleanly when stop races with start', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-race-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-runtime-race-'),
+  );
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -557,7 +662,9 @@ test('server runtime closes cleanly when stop races with start', async () => {
 });
 
 test('server startup rolls back an ephemeral listener when runtime info fails', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-rollback-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-runtime-rollback-'),
+  );
   const lifecycle = require('../src/server/lifecycle');
   const originalWriteRuntimeInfo = lifecycle.writeRuntimeInfo;
   const { createServerRuntime } = require('../src/server');
@@ -573,12 +680,15 @@ test('server startup rolls back an ephemeral listener when runtime info fails', 
   try {
     await assert.rejects(
       runtime.start({ host: '127.0.0.1', startPort: 0 }),
-      /forced runtime info failure/
+      /forced runtime info failure/,
     );
     assert.ok(assignedPort > 0);
     assert.equal(await canConnect(assignedPort), false);
     assert.equal(fs.existsSync(path.join(dataDir, '.session-token')), false);
-    assert.equal(fs.existsSync(path.join(dataDir, '.server-runtime.json')), false);
+    assert.equal(
+      fs.existsSync(path.join(dataDir, '.server-runtime.json')),
+      false,
+    );
   } finally {
     lifecycle.writeRuntimeInfo = originalWriteRuntimeInfo;
     await runtime.stop();

@@ -7,44 +7,92 @@ const { now, cleanText, safeParseJson } = require('../shared/utils');
 
 // 直播间叠加层外观键
 const OVERLAY_THEME_KEYS = [
-  'themePrimary', 'themeAccent', 'themeText', 'themeBackground',
-  'themeOpacity', 'themeRadius', 'themeFontScale',
-  'queueSongFontSize', 'queueTitleFontSize', 'identityQueueFontSize',
-  'identityQueueScrollMode', 'identityQueueScrollSpeed',
-  'illustratedQueueFontFamily', 'illustratedQueueFontWeight',
-  'illustratedQueueUseCustomTextColor', 'illustratedQueueTextColor',
-  'storybookQueueFontSize', 'storybookQueueFontFamily', 'storybookQueueFontWeight',
-  'storybookQueueUseCustomTextColor', 'storybookQueueTextColor',
-  'storybookQueueScrollMode', 'storybookQueueScrollSpeed',
-  'neonVinylQueueFontSize', 'neonVinylQueueFontFamily', 'neonVinylQueueFontWeight',
-  'neonVinylQueueUseCustomTextColor', 'neonVinylQueueTextColor',
-  'neonVinylQueueScrollMode', 'neonVinylQueueScrollSpeed',
-  'cherryRibbonQueueFontSize', 'cherryRibbonQueueFontFamily', 'cherryRibbonQueueFontWeight',
-  'cherryRibbonQueueUseCustomTextColor', 'cherryRibbonQueueTextColor',
-  'cherryRibbonQueueScrollMode', 'cherryRibbonQueueScrollSpeed',
-  'goldenLilyQueueFontSize', 'goldenLilyQueueFontFamily', 'goldenLilyQueueFontWeight',
-  'goldenLilyQueueUseCustomTextColor', 'goldenLilyQueueTextColor',
-  'goldenLilyQueueScrollMode', 'goldenLilyQueueScrollSpeed',
-  'overlayQueueStyle', 'overlayLowPowerMode',
-  'backdropBlur', 'glowIntensity', 'enableGradient', 'gradientEnd',
-  'overlayFontFamily', 'overlayFontWeight',
-  'overlaySongColor', 'overlayRequesterColor',
-  'overlayShowIndex', 'overlayIndexThreshold', 'overlayIndexColor',
-  'overlayRuleColor1', 'overlayRuleColor2', 'overlayRuleColor3',
-  'overlayRuleColor4', 'overlayRuleColor5', 'overlayRuleColor6',
-  'overlayRuleFontSize'
+  'themePrimary',
+  'themeAccent',
+  'themeText',
+  'themeBackground',
+  'themeOpacity',
+  'themeRadius',
+  'themeFontScale',
+  'queueSongFontSize',
+  'queueTitleFontSize',
+  'identityQueueFontSize',
+  'identityQueueScrollMode',
+  'identityQueueScrollSpeed',
+  'illustratedQueueFontFamily',
+  'illustratedQueueFontWeight',
+  'illustratedQueueUseCustomTextColor',
+  'illustratedQueueTextColor',
+  'storybookQueueFontSize',
+  'storybookQueueFontFamily',
+  'storybookQueueFontWeight',
+  'storybookQueueUseCustomTextColor',
+  'storybookQueueTextColor',
+  'storybookQueueScrollMode',
+  'storybookQueueScrollSpeed',
+  'neonVinylQueueFontSize',
+  'neonVinylQueueFontFamily',
+  'neonVinylQueueFontWeight',
+  'neonVinylQueueUseCustomTextColor',
+  'neonVinylQueueTextColor',
+  'neonVinylQueueScrollMode',
+  'neonVinylQueueScrollSpeed',
+  'cherryRibbonQueueFontSize',
+  'cherryRibbonQueueFontFamily',
+  'cherryRibbonQueueFontWeight',
+  'cherryRibbonQueueUseCustomTextColor',
+  'cherryRibbonQueueTextColor',
+  'cherryRibbonQueueScrollMode',
+  'cherryRibbonQueueScrollSpeed',
+  'goldenLilyQueueFontSize',
+  'goldenLilyQueueFontFamily',
+  'goldenLilyQueueFontWeight',
+  'goldenLilyQueueUseCustomTextColor',
+  'goldenLilyQueueTextColor',
+  'goldenLilyQueueScrollMode',
+  'goldenLilyQueueScrollSpeed',
+  'overlayQueueStyle',
+  'overlayLowPowerMode',
+  'backdropBlur',
+  'glowIntensity',
+  'enableGradient',
+  'gradientEnd',
+  'overlayFontFamily',
+  'overlayFontWeight',
+  'overlaySongColor',
+  'overlayRequesterColor',
+  'overlayShowIndex',
+  'overlayIndexThreshold',
+  'overlayIndexColor',
+  'overlayRuleColor1',
+  'overlayRuleColor2',
+  'overlayRuleColor3',
+  'overlayRuleColor4',
+  'overlayRuleColor5',
+  'overlayRuleColor6',
+  'overlayRuleFontSize',
 ];
 
 // 歌单板外观键
 const SONG_BOARD_THEME_KEYS = [
   'songBoardSyncTheme',
   'songBoardFontSize',
-  'songBoardThemePrimary', 'songBoardThemeAccent', 'songBoardThemeText',
-  'songBoardThemeBackground', 'songBoardThemeOpacity', 'songBoardThemeRadius',
-  'songBoardThemeFontScale', 'songBoardBackdropBlur', 'songBoardGlowIntensity',
-  'songBoardEnableGradient', 'songBoardGradientEnd',
-  'songBoardFontFamily', 'songBoardFontWeight', 'songBoardSongColor',
-  'songBoardSongFontSize', 'songBoardTitleFontSize'
+  'songBoardThemePrimary',
+  'songBoardThemeAccent',
+  'songBoardThemeText',
+  'songBoardThemeBackground',
+  'songBoardThemeOpacity',
+  'songBoardThemeRadius',
+  'songBoardThemeFontScale',
+  'songBoardBackdropBlur',
+  'songBoardGlowIntensity',
+  'songBoardEnableGradient',
+  'songBoardGradientEnd',
+  'songBoardFontFamily',
+  'songBoardFontWeight',
+  'songBoardSongColor',
+  'songBoardSongFontSize',
+  'songBoardTitleFontSize',
 ];
 
 const ALL_THEME_KEYS = [...OVERLAY_THEME_KEYS, ...SONG_BOARD_THEME_KEYS];
@@ -53,12 +101,14 @@ const ALL_THEME_KEYS = [...OVERLAY_THEME_KEYS, ...SONG_BOARD_THEME_KEYS];
 const SCOPE_KEYS = {
   all: ALL_THEME_KEYS,
   overlay: OVERLAY_THEME_KEYS,
-  songBoard: SONG_BOARD_THEME_KEYS
+  songBoard: SONG_BOARD_THEME_KEYS,
 };
 
 function normalizeScope(scope) {
   const value = cleanText(scope) || 'all';
-  return Object.prototype.hasOwnProperty.call(SCOPE_KEYS, value) ? value : 'all';
+  return Object.prototype.hasOwnProperty.call(SCOPE_KEYS, value)
+    ? value
+    : 'all';
 }
 
 function keysForScope(scope) {
@@ -78,15 +128,22 @@ function extractThemePayload(settings, scope) {
 function createThemeStore(db, settingsStore) {
   return {
     list() {
-      return db.prepare(`
+      return db
+        .prepare(
+          `
         SELECT id, name, scope, payload, is_builtin, sort_order, created_at, updated_at
         FROM theme_presets
         ORDER BY is_builtin DESC, sort_order ASC, id ASC
-      `).all().map(mapPresetRow);
+      `,
+        )
+        .all()
+        .map(mapPresetRow);
     },
 
     get(id) {
-      const row = db.prepare('SELECT * FROM theme_presets WHERE id = ?').get(Number(id) || 0);
+      const row = db
+        .prepare('SELECT * FROM theme_presets WHERE id = ?')
+        .get(Number(id) || 0);
       return row ? mapPresetRow(row) : null;
     },
 
@@ -98,25 +155,45 @@ function createThemeStore(db, settingsStore) {
       const payload = extractThemePayload(settingsStore.getSettings(), scope);
       const timestamp = now();
 
-      const existing = db.prepare('SELECT id, is_builtin FROM theme_presets WHERE name = ?').get(name);
+      const existing = db
+        .prepare('SELECT id, is_builtin FROM theme_presets WHERE name = ?')
+        .get(name);
       if (existing && Number(existing.is_builtin) === 1) {
         throw new Error('内置预设不能覆盖，请换一个名称。');
       }
 
       if (existing) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE theme_presets
           SET scope = ?, payload = ?, updated_at = ?
           WHERE id = ?
-        `).run(scope, JSON.stringify(payload), timestamp, existing.id);
+        `,
+        ).run(scope, JSON.stringify(payload), timestamp, existing.id);
         return this.get(existing.id);
       }
 
-      const nextOrder = (db.prepare('SELECT MAX(sort_order) AS max FROM theme_presets').get() || {}).max || 0;
-      const result = db.prepare(`
+      const nextOrder =
+        (
+          db
+            .prepare('SELECT MAX(sort_order) AS max FROM theme_presets')
+            .get() || {}
+        ).max || 0;
+      const result = db
+        .prepare(
+          `
         INSERT INTO theme_presets (name, scope, payload, is_builtin, sort_order, created_at, updated_at)
         VALUES (?, ?, ?, 0, ?, ?, ?)
-      `).run(name, scope, JSON.stringify(payload), Number(nextOrder) + 1, timestamp, timestamp);
+      `,
+        )
+        .run(
+          name,
+          scope,
+          JSON.stringify(payload),
+          Number(nextOrder) + 1,
+          timestamp,
+          timestamp,
+        );
       return this.get(result.lastInsertRowid);
     },
 
@@ -148,12 +225,15 @@ function createThemeStore(db, settingsStore) {
       if (preset.isBuiltin) throw new Error('内置预设不能重命名。');
       const name = cleanText(nextName).slice(0, 60);
       if (!name) throw new Error('缺少预设名称。');
-      const clash = db.prepare('SELECT id FROM theme_presets WHERE name = ? AND id != ?').get(name, preset.id);
+      const clash = db
+        .prepare('SELECT id FROM theme_presets WHERE name = ? AND id != ?')
+        .get(name, preset.id);
       if (clash) throw new Error('已有同名预设。');
-      db.prepare('UPDATE theme_presets SET name = ?, updated_at = ? WHERE id = ?')
-        .run(name, now(), preset.id);
+      db.prepare(
+        'UPDATE theme_presets SET name = ?, updated_at = ? WHERE id = ?',
+      ).run(name, now(), preset.id);
       return this.get(preset.id);
-    }
+    },
   };
 }
 
@@ -166,7 +246,7 @@ function mapPresetRow(row) {
     isBuiltin: Number(row.is_builtin) === 1,
     sortOrder: Number(row.sort_order) || 0,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
   };
 }
 
@@ -179,11 +259,13 @@ function mapPresetRow(row) {
 function seedThemePresets(db, defaultSettings) {
   const timestamp = now();
   const builtinPayload = extractThemePayload(defaultSettings, 'all');
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO theme_presets
       (name, scope, payload, is_builtin, sort_order, created_at, updated_at)
     VALUES (?, 'all', ?, 1, 0, ?, ?)
-  `).run('默认粉色', JSON.stringify(builtinPayload), timestamp, timestamp);
+  `,
+  ).run('默认粉色', JSON.stringify(builtinPayload), timestamp, timestamp);
 
   // settings 表此时可能还没建好或为空，读不到就跳过留档
   let currentRows = [];
@@ -199,15 +281,18 @@ function seedThemePresets(db, defaultSettings) {
   const currentPayload = extractThemePayload(current, 'all');
 
   const differs = ALL_THEME_KEYS.some(
-    (key) => String(currentPayload[key] ?? '') !== String(builtinPayload[key] ?? '')
+    (key) =>
+      String(currentPayload[key] ?? '') !== String(builtinPayload[key] ?? ''),
   );
   if (!differs) return;
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO theme_presets
       (name, scope, payload, is_builtin, sort_order, created_at, updated_at)
     VALUES (?, 'all', ?, 0, 1, ?, ?)
-  `).run('我的配置', JSON.stringify(currentPayload), timestamp, timestamp);
+  `,
+  ).run('我的配置', JSON.stringify(currentPayload), timestamp, timestamp);
 }
 
 module.exports = {
@@ -216,5 +301,5 @@ module.exports = {
   ALL_THEME_KEYS,
   extractThemePayload,
   createThemeStore,
-  seedThemePresets
+  seedThemePresets,
 };

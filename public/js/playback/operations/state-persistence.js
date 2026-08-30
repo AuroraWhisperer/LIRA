@@ -10,10 +10,7 @@ import { PlaybackConfig } from '../config.js';
  * @returns {Object} 状态持久化函数集合
  */
 export function createStatePersistence(deps) {
-  const {
-    playbackState,
-    getPlaybackAudio
-  } = deps;
+  const { playbackState, getPlaybackAudio } = deps;
 
   const playbackClientId = PlaybackConfig.CLIENT_ID;
   const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
@@ -38,15 +35,19 @@ export function createStatePersistence(deps) {
       filePath: track.filePath || '',
       sourceTrackId: track.sourceTrackId,
       sourceMediaId: track.sourceMediaId || '',
-      sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-      sourceSongType: Number.isSafeInteger(sourceSongType) && sourceSongType >= 0
-        ? sourceSongType
-        : 0,
+      sourceSongId: Math.max(
+        0,
+        Number(track.sourceSongId || track.songId) || 0,
+      ),
+      sourceSongType:
+        Number.isSafeInteger(sourceSongType) && sourceSongType >= 0
+          ? sourceSongType
+          : 0,
       sourceAlbumId: track.sourceAlbumId,
       playable: track.playable,
       vip: track.vip,
       unavailable: (track.source === 'local' && !track.objectUrl) || false,
-      playedAt: track.playedAt || 0
+      playedAt: track.playedAt || 0,
     };
   }
 
@@ -58,27 +59,44 @@ export function createStatePersistence(deps) {
     const payload = {
       current: serializeTrack(playbackState.current),
       currentOrigin: playbackState.currentOrigin,
-      requestedQueue: playbackState.requestedQueue.map(serializeTrack).filter(Boolean),
-      normalQueue: playbackState.normalQueue.map(serializeTrack).filter(Boolean),
-      normalQueueTracks: playbackState.normalQueueTracks.map(serializeTrack).filter(Boolean),
+      requestedQueue: playbackState.requestedQueue
+        .map(serializeTrack)
+        .filter(Boolean),
+      normalQueue: playbackState.normalQueue
+        .map(serializeTrack)
+        .filter(Boolean),
+      normalQueueTracks: playbackState.normalQueueTracks
+        .map(serializeTrack)
+        .filter(Boolean),
       radioQueue: playbackState.radioQueue.map(serializeTrack).filter(Boolean),
       queueType: playbackState.queueType,
       queueTitle: playbackState.queueTitle,
       queueSourceKey: playbackState.queueSourceKey,
       playlistIndex: playbackState.playlistIndex,
-      pendingRequests: playbackState.pendingRequests.map((item) => ({
-        ...item,
-        track: serializeTrack(item.track)
-      })).filter((item) => item.track),
-      currentTime: audio && audio.readyState >= 1 && Number.isFinite(audio.currentTime) ? audio.currentTime : playbackState.restoredTime,
+      pendingRequests: playbackState.pendingRequests
+        .map((item) => ({
+          ...item,
+          track: serializeTrack(item.track),
+        }))
+        .filter((item) => item.track),
+      currentTime:
+        audio && audio.readyState >= 1 && Number.isFinite(audio.currentTime)
+          ? audio.currentTime
+          : playbackState.restoredTime,
       volume: playbackState.volume,
       mode: playbackState.mode,
       selectedSource: playbackState.selectedSource,
       qualityPreferences: playbackState.qualityPreferences,
       shuffleOrder: playbackState.shuffleOrder,
       shuffleCursor: playbackState.shuffleCursor,
-      history: playbackState.history.slice(-50).map(serializeTrack).filter(Boolean),
-      displayHistory: playbackState.displayHistory.slice(0, 200).map(serializeTrack).filter(Boolean)
+      history: playbackState.history
+        .slice(-50)
+        .map(serializeTrack)
+        .filter(Boolean),
+      displayHistory: playbackState.displayHistory
+        .slice(0, 200)
+        .map(serializeTrack)
+        .filter(Boolean),
     };
     schedulePlaybackStateSave(payload);
   }
@@ -104,7 +122,7 @@ export function createStatePersistence(deps) {
       await fetch('/api/playback/queue-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: playbackClientId, payload })
+        body: JSON.stringify({ clientId: playbackClientId, payload }),
       });
     } catch (_) {}
   }
@@ -130,10 +148,17 @@ export function createStatePersistence(deps) {
     if (!payload) return;
 
     // 优先使用桌面端的同步保存 API
-    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
+    if (
+      window.musicAPI &&
+      typeof window.musicAPI.savePlaybackState === 'function'
+    ) {
       try {
-        const saveResult = window.musicAPI.savePlaybackState(playbackClientId, payload);
-        if (saveResult && typeof saveResult.catch === 'function') saveResult.catch(() => {});
+        const saveResult = window.musicAPI.savePlaybackState(
+          playbackClientId,
+          payload,
+        );
+        if (saveResult && typeof saveResult.catch === 'function')
+          saveResult.catch(() => {});
       } catch (_) {}
     }
 
@@ -148,7 +173,7 @@ export function createStatePersistence(deps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
-        keepalive: true
+        keepalive: true,
       }).catch(() => {});
     }
   }
@@ -161,9 +186,15 @@ export function createStatePersistence(deps) {
     const payload = takePendingPayload();
     if (!payload) return;
 
-    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
+    if (
+      window.musicAPI &&
+      typeof window.musicAPI.savePlaybackState === 'function'
+    ) {
       try {
-        const result = await window.musicAPI.savePlaybackState(playbackClientId, payload);
+        const result = await window.musicAPI.savePlaybackState(
+          playbackClientId,
+          payload,
+        );
         if (!result || result.ok !== false) return;
       } catch (_) {}
     }
@@ -173,7 +204,7 @@ export function createStatePersistence(deps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: playbackClientId, payload }),
-        keepalive: true
+        keepalive: true,
       });
     } catch (_) {}
   }
@@ -182,6 +213,6 @@ export function createStatePersistence(deps) {
     savePlaybackState,
     flushPlaybackStateSave,
     flushPlaybackStateOnUnload,
-    flushPlaybackStateForShutdown
+    flushPlaybackStateForShutdown,
   };
 }

@@ -2,19 +2,22 @@
 'use strict';
 
 const LIBRARY_TAG_ALIASES = {
-  '抒情': ['情歌', '抒情歌', '抒情歌曲', '慢情歌'],
-  '治愈': ['治愈系', '治愈向', '治愈歌曲', '暖心'],
-  '怀旧': ['怀旧歌', '怀旧歌曲', '回忆杀', '经典老歌', '老歌'],
-  '国风': ['中国风'],
-  '小甜歌': ['甜歌'],
-  '影视OST': ['OST', '影视原声', '原声带'],
-  'K-Pop': ['KPOP', 'K POP', '韩国流行', '韩流']
+  抒情: ['情歌', '抒情歌', '抒情歌曲', '慢情歌'],
+  治愈: ['治愈系', '治愈向', '治愈歌曲', '暖心'],
+  怀旧: ['怀旧歌', '怀旧歌曲', '回忆杀', '经典老歌', '老歌'],
+  国风: ['中国风'],
+  小甜歌: ['甜歌'],
+  影视OST: ['OST', '影视原声', '原声带'],
+  'K-Pop': ['KPOP', 'K POP', '韩国流行', '韩流'],
 };
 
 const LIBRARY_TAG_BY_VIEWER_ALIAS = new Map();
 for (const [libraryTag, aliases] of Object.entries(LIBRARY_TAG_ALIASES)) {
   for (const alias of aliases) {
-    LIBRARY_TAG_BY_VIEWER_ALIAS.set(normalizeTag(alias), normalizeTag(libraryTag));
+    LIBRARY_TAG_BY_VIEWER_ALIAS.set(
+      normalizeTag(alias),
+      normalizeTag(libraryTag),
+    );
   }
 }
 
@@ -27,7 +30,10 @@ function matchesLibraryTag(libraryTag, viewerTerm) {
   const normalizedViewerTerm = normalizeTag(viewerTerm);
   if (!normalizedLibraryTag || !normalizedViewerTerm) return false;
   if (normalizedLibraryTag === normalizedViewerTerm) return true;
-  return LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm) === normalizedLibraryTag;
+  return (
+    LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm) ===
+    normalizedLibraryTag
+  );
 }
 
 function normalizeTag(value) {

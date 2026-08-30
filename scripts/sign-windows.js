@@ -24,14 +24,14 @@ const path = require('node:path');
 const TIMESTAMP_SERVERS = [
   'http://timestamp.digicert.com',
   'http://timestamp.sectigo.com',
-  'http://timestamp.globalsign.com'
+  'http://timestamp.globalsign.com',
 ];
 
 // signtool.exe 通常位于 Windows SDK 中,搜索路径
 const SIGNTOOL_SEARCH_PATHS = [
   'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64\\signtool.exe',
   'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.22621.0\\x64\\signtool.exe',
-  'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.22000.0\\x64\\signtool.exe'
+  'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.22000.0\\x64\\signtool.exe',
 ];
 
 /**
@@ -54,9 +54,9 @@ exports.default = async function sign(configuration) {
   if (!certFile && !certThumbprint) {
     throw new Error(
       'Windows code signing certificate not configured.\n' +
-      'Set either WINDOWS_CERT_FILE + WINDOWS_CERT_PASSWORD (for .pfx file)\n' +
-      'or WINDOWS_CERT_THUMBPRINT (for Windows certificate store).\n' +
-      'See docs/architecture/engineering/code-signing.md for details.'
+        'Set either WINDOWS_CERT_FILE + WINDOWS_CERT_PASSWORD (for .pfx file)\n' +
+        'or WINDOWS_CERT_THUMBPRINT (for Windows certificate store).\n' +
+        'See docs/architecture/engineering/code-signing.md for details.',
     );
   }
 
@@ -65,7 +65,7 @@ exports.default = async function sign(configuration) {
   if (!signtool) {
     throw new Error(
       'signtool.exe not found. Install Windows SDK from:\n' +
-      'https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/'
+        'https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/',
     );
   }
 
@@ -82,7 +82,9 @@ exports.default = async function sign(configuration) {
       args.push('/p', certPassword);
     }
   } else {
-    console.log(`[sign-windows] Using certificate from store: ${certThumbprint}`);
+    console.log(
+      `[sign-windows] Using certificate from store: ${certThumbprint}`,
+    );
     args.push('/sha1', certThumbprint);
   }
 
@@ -97,24 +99,27 @@ exports.default = async function sign(configuration) {
 
       execFileSync(signtool, tsArgs, {
         stdio: 'inherit',
-        shell: false
+        shell: false,
       });
 
       timestampSuccess = true;
-      console.log(`[sign-windows] ✅ Signed successfully with timestamp from ${tsUrl}`);
+      console.log(
+        `[sign-windows] ✅ Signed successfully with timestamp from ${tsUrl}`,
+      );
       break;
-
     } catch (error) {
       lastTimestampError = error;
-      console.warn(`[sign-windows] ⚠️  Timestamp server ${tsUrl} failed: ${error.message}`);
+      console.warn(
+        `[sign-windows] ⚠️  Timestamp server ${tsUrl} failed: ${error.message}`,
+      );
     }
   }
 
   if (!timestampSuccess) {
     throw new Error(
       `Failed to sign with timestamp after trying all servers.\n` +
-      `Last error: ${lastTimestampError?.message || 'unknown'}\n` +
-      `Signing without timestamp is not recommended (signature expires with certificate).`
+        `Last error: ${lastTimestampError?.message || 'unknown'}\n` +
+        `Signing without timestamp is not recommended (signature expires with certificate).`,
     );
   }
 };
@@ -144,8 +149,14 @@ function findSigntool() {
   try {
     const result = execFileSync(
       'cmd',
-      ['/c', 'dir', '/s', '/b', 'C:\\Program Files (x86)\\Windows Kits\\*signtool.exe'],
-      { encoding: 'utf8', shell: false, timeout: 10000 }
+      [
+        '/c',
+        'dir',
+        '/s',
+        '/b',
+        'C:\\Program Files (x86)\\Windows Kits\\*signtool.exe',
+      ],
+      { encoding: 'utf8', shell: false, timeout: 10000 },
     );
     const lines = result.trim().split('\n');
     if (lines.length > 0 && lines[0].trim()) {

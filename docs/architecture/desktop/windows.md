@@ -8,12 +8,12 @@
 
 `loginMusicAccount(mainWindow, platform, dataDir)`([login-window.js:9-90](../../../src/electron/login-window.js#L9-L90))为**通用实现**,平台参数来自 `auth-manager.js` 的 `MUSIC_LOGIN_CONFIG`(分区、登录 URL、允许域名见 [auth.md](auth.md) §1-§3):
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 窗口 | 1000×720,parent 主窗口,modal:false | [login-window.js:11-15](../../../src/electron/login-window.js#L11-L15) |
+| 事实           | 值                                                                                                             | 出处                                                                   |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 窗口           | 1000×720,parent 主窗口,modal:false                                                                             | [login-window.js:11-15](../../../src/electron/login-window.js#L11-L15) |
 | webPreferences | 指定平台 partition(登录态隔离),`nodeIntegration:false`、`contextIsolation:true`、`sandbox:true`,**无 preload** | [login-window.js:16-21](../../../src/electron/login-window.js#L16-L21) |
-| 权限 | `setPermissionRequestHandler` 一律拒绝 | [login-window.js:25](../../../src/electron/login-window.js#L25) |
-| 初始 URL | 平台登录 URL(见 [auth.md](auth.md) §2) | [login-window.js:70](../../../src/electron/login-window.js#L70) |
+| 权限           | `setPermissionRequestHandler` 一律拒绝                                                                         | [login-window.js:25](../../../src/electron/login-window.js#L25)        |
+| 初始 URL       | 平台登录 URL(见 [auth.md](auth.md) §2)                                                                         | [login-window.js:70](../../../src/electron/login-window.js#L70)        |
 
 **导航白名单**:`setWindowOpenHandler`([login-window.js:27-34](../../../src/electron/login-window.js#L27-L34))与 `will-navigate`([login-window.js:36-40](../../../src/electron/login-window.js#L36-L40))两条路径均用 `isAllowedMusicLoginUrl(platform, url)` 判定:命中平台允许域名 → 当前窗口内 `loadURL`;未命中 → `shell.openExternal` 交系统浏览器。`setWindowOpenHandler` 一律返回 `{action:'deny'}`,绝不弹新的 Electron 窗口。
 
@@ -23,13 +23,13 @@
 
 `openBilibiliLoginWindow(options)`([bilibili-login-window.js:3-131](../../../src/electron/bilibili-login-window.js#L3-L131))依赖注入式实现(BrowserWindow/shell/auth 由 main.js 传入),与音乐登录窗同构:
 
-| 事实 | 值 | 出处 |
-|---|---|---|
-| 初始 URL | `https://live.bilibili.com/`(登录 URL 唯一成表处:[auth.md](auth.md) §2) | [bilibili-login-window.js:120](../../../src/electron/bilibili-login-window.js#L120) |
-| partition | Bilibili 持久化登录分区([auth.md](auth.md) §1) | [bilibili-login-window.js:23](../../../src/electron/bilibili-login-window.js#L23) |
-| 默认禁音 | `webContents.setAudioMuted(true)` — 登录页(直播首页)可能自动播放带声音的直播流,静音为 webContents 级属性,跨页内导航持续生效 | [bilibili-login-window.js:31](../../../src/electron/bilibili-login-window.js#L31) |
-| 权限 | 拒绝所有权限请求 | [bilibili-login-window.js:34](../../../src/electron/bilibili-login-window.js#L34) |
-| 导航 | `isAllowedBilibiliLoginUrl` 白名单(域名清单见 [auth.md](auth.md) §3),外部链接走系统浏览器 | [bilibili-login-window.js:40-53](../../../src/electron/bilibili-login-window.js#L40-L53) |
+| 事实      | 值                                                                                                                          | 出处                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 初始 URL  | `https://live.bilibili.com/`(登录 URL 唯一成表处:[auth.md](auth.md) §2)                                                     | [bilibili-login-window.js:120](../../../src/electron/bilibili-login-window.js#L120)      |
+| partition | Bilibili 持久化登录分区([auth.md](auth.md) §1)                                                                              | [bilibili-login-window.js:23](../../../src/electron/bilibili-login-window.js#L23)        |
+| 默认禁音  | `webContents.setAudioMuted(true)` — 登录页(直播首页)可能自动播放带声音的直播流,静音为 webContents 级属性,跨页内导航持续生效 | [bilibili-login-window.js:31](../../../src/electron/bilibili-login-window.js#L31)        |
+| 权限      | 拒绝所有权限请求                                                                                                            | [bilibili-login-window.js:34](../../../src/electron/bilibili-login-window.js#L34)        |
+| 导航      | `isAllowedBilibiliLoginUrl` 白名单(域名清单见 [auth.md](auth.md) §3),外部链接走系统浏览器                                   | [bilibili-login-window.js:40-53](../../../src/electron/bilibili-login-window.js#L40-L53) |
 
 与音乐登录窗的差异:
 

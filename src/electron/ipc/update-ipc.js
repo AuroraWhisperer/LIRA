@@ -16,14 +16,18 @@ function registerUpdateIpc({
   getShutdownApplication,
   getMainWindow,
   normalizeGiftDisplayTrace,
-  writeLog
+  writeLog,
 }) {
   ipcMain.handle('desktop:get-info', function () {
     return {
-      version: app.getVersion(), isPackaged: app.isPackaged,
-      platform: process.platform, dataDir: getDataDir(), logFile: getLogFile(),
+      version: app.getVersion(),
+      isPackaged: app.isPackaged,
+      platform: process.platform,
+      dataDir: getDataDir(),
+      logFile: getLogFile(),
       terminalLogFile: getTerminalLogFile(),
-      githubRepoUrl, updateState: getUpdateState()
+      githubRepoUrl,
+      updateState: getUpdateState(),
     };
   });
   ipcMain.handle('desktop:check-for-updates', function () {
@@ -38,17 +42,26 @@ function registerUpdateIpc({
     writeLog('ipc', { action: 'install-update' });
     return installUpdate();
   });
-  ipcMain.handle('desktop:open-data-dir', function () { return getDataDir() ? shell.openPath(getDataDir()) : ''; });
+  ipcMain.handle('desktop:open-data-dir', function () {
+    return getDataDir() ? shell.openPath(getDataDir()) : '';
+  });
   ipcMain.handle('desktop:open-log-dir', function () {
     return getLogDir() ? shell.openPath(getLogDir()) : '';
   });
-  ipcMain.handle('desktop:open-github', function () { return shell.openExternal(githubRepoUrl); });
+  ipcMain.handle('desktop:open-github', function () {
+    return shell.openExternal(githubRepoUrl);
+  });
   ipcMain.handle('desktop:set-auto-update', function (_event, enabled) {
-    writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
+    writeLog(
+      'settings',
+      'enableAutoUpdate set to: ' + String(Boolean(enabled)),
+    );
   });
   ipcMain.handle('desktop:gift-display', function (_event, gift) {
     const trace = normalizeGiftDisplayTrace(gift);
-    console.log(`[Bilibili][GiftDisplay] action=toast-requested trace=${JSON.stringify(trace)}`);
+    console.log(
+      `[Bilibili][GiftDisplay] action=toast-requested trace=${JSON.stringify(trace)}`,
+    );
     writeLog('gift-display', trace);
     return { ok: true };
   });
@@ -56,7 +69,8 @@ function registerUpdateIpc({
     writeLog('ipc', { action: 'restart' });
     try {
       const shutdownApplication = getShutdownApplication();
-      if (shutdownApplication) await shutdownApplication({ exitProcess: false });
+      if (shutdownApplication)
+        await shutdownApplication({ exitProcess: false });
     } catch (_) {
       // Server may already be stopped.
     }

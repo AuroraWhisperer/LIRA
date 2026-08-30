@@ -1,213 +1,356 @@
-      <section id="giftAssistantPage" class="main-page gift-page">
-        <div class="gift-workspace">
-          <section class="panel gift-detection-panel">
-            <div class="panel-header">
-              <h2 class="gift-section-title ui-section-title">礼物检测</h2>
-              <span id="giftSprintStatus" class="pill warn">未开启</span>
-            </div>
-            <div class="panel-body stack">
-              <label class="switch-control">
-                <input id="giftDetectToggle" type="checkbox" checked>
-                <span class="switch-track"></span>
-                <span id="giftDetectLabel">已开启</span>
-              </label>
-              <div id="giftStatusLine" class="hint">等待直播消息…</div>
-            </div>
+<section id="giftAssistantPage" class="main-page gift-page">
+  <div class="gift-workspace">
+    <section class="panel gift-detection-panel">
+      <div class="panel-header">
+        <h2 class="gift-section-title ui-section-title">礼物检测</h2>
+        <span id="giftSprintStatus" class="pill warn">未开启</span>
+      </div>
+      <div class="panel-body stack">
+        <label class="switch-control">
+          <input id="giftDetectToggle" type="checkbox" checked />
+          <span class="switch-track"></span>
+          <span id="giftDetectLabel">已开启</span>
+        </label>
+        <div id="giftStatusLine" class="hint">等待直播消息…</div>
+      </div>
+    </section>
+
+    <section class="panel gift-notification-panel">
+      <div class="panel-header">
+        <h2 class="gift-section-title ui-section-title">礼物提示</h2>
+      </div>
+      <div class="panel-body stack">
+        <label class="switch-control">
+          <input id="enableGiftNotification" type="checkbox" checked />
+          <span class="switch-track"></span>
+          <span id="giftNotificationLabel">显示礼物提示</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel gift-recent-panel" data-state="ready">
+      <div class="panel-header">
+        <div class="gift-recent-heading" id="giftRecentHeading">
+          <span class="gift-recent-heading-icon" aria-hidden="true">
+            <img
+              src="/img/admin/gifts/gift-section-icon.webp?v=20260801-01"
+              alt=""
+            />
+          </span>
+          <h2 class="gift-section-title ui-section-title">最近礼物</h2>
+        </div>
+        <div class="actions">
+          <button
+            type="button"
+            id="giftHistoryOpenBtn"
+            class="gift-history-open-btn"
+            title="查看全部礼物流水"
+          >
+            <span>查看全部</span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M4 10h11m-4-4 4 4-4 4"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            id="giftRecentToggle"
+            class="section-toggle"
+            type="button"
+            aria-expanded="true"
+            title="折叠最近礼物"
+          >
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="m6 12 4-4 4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="giftRecentCollapsible" class="gift-recent-collapsible">
+        <div class="panel-body">
+          <div id="giftRecentList" class="gift-cards"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel gift-sprint-panel">
+      <div class="panel-header">
+        <h2 class="gift-section-title ui-section-title">月底冲刺</h2>
+      </div>
+      <div class="panel-body stack">
+        <div class="gift-sprint-grid">
+          <section class="gift-stat">
+            <span>目标</span>
+            <strong id="giftSprintTarget" class="ui-metric">¥0.00</strong>
           </section>
-
-          <section class="panel gift-notification-panel">
-            <div class="panel-header">
-              <h2 class="gift-section-title ui-section-title">礼物提示</h2>
-            </div>
-            <div class="panel-body stack">
-              <label class="switch-control">
-                <input id="enableGiftNotification" type="checkbox" checked>
-                <span class="switch-track"></span>
-                <span id="giftNotificationLabel">显示礼物提示</span>
-              </label>
-            </div>
+          <section class="gift-stat">
+            <span>已收</span>
+            <strong id="giftSprintReceived" class="ui-metric">¥0.00</strong>
           </section>
-
-          <section class="panel gift-recent-panel" data-state="ready">
-            <div class="panel-header">
-              <div class="gift-recent-heading" id="giftRecentHeading">
-                <span class="gift-recent-heading-icon" aria-hidden="true">
-                  <img src="/img/admin/gifts/gift-section-icon.webp?v=20260801-01" alt="">
-                </span>
-                <h2 class="gift-section-title ui-section-title">最近礼物</h2>
-              </div>
-              <div class="actions">
-                <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物流水">
-                  <span>查看全部</span>
-                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-                <button id="giftRecentToggle" class="section-toggle" type="button" aria-expanded="true" title="折叠最近礼物">
-                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 12 4-4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-            </div>
-            <div id="giftRecentCollapsible" class="gift-recent-collapsible">
-              <div class="panel-body">
-                <div id="giftRecentList" class="gift-cards"></div>
-              </div>
-            </div>
+          <section class="gift-stat">
+            <span>还差</span>
+            <strong id="giftSprintRemaining" class="ui-metric">¥0.00</strong>
           </section>
-
-          <section class="panel gift-sprint-panel">
-            <div class="panel-header">
-              <h2 class="gift-section-title ui-section-title">月底冲刺</h2>
-            </div>
-            <div class="panel-body stack">
-              <div class="gift-sprint-grid">
-                <section class="gift-stat">
-                  <span>目标</span>
-                  <strong id="giftSprintTarget" class="ui-metric">¥0.00</strong>
-                </section>
-                <section class="gift-stat">
-                  <span>已收</span>
-                  <strong id="giftSprintReceived" class="ui-metric">¥0.00</strong>
-                </section>
-                <section class="gift-stat">
-                  <span>还差</span>
-                  <strong id="giftSprintRemaining" class="ui-metric">¥0.00</strong>
-                </section>
-                <section class="gift-stat highlight">
-                  <span>≈ 水晶球</span>
-                  <strong id="giftSprintCrystalBalls" class="ui-metric">0 个</strong>
-                </section>
-              </div>
-              <form id="giftSprintForm" class="gift-sprint-form-row">
-                <label>
-                  冲刺目标(元)
-                  <input id="giftSprintTargetRmb" type="number" min="0" step="0.01" placeholder="例如：10000">
-                </label>
-                <div class="gift-form-actions">
-                  <button class="primary" type="submit">保存</button>
-                  <button id="giftSprintResetBtn" type="button">重置本轮</button>
-                </div>
-              </form>
-            </div>
+          <section class="gift-stat highlight">
+            <span>≈ 水晶球</span>
+            <strong id="giftSprintCrystalBalls" class="ui-metric">0 个</strong>
           </section>
+        </div>
+        <form id="giftSprintForm" class="gift-sprint-form-row">
+          <label>
+            冲刺目标(元)
+            <input
+              id="giftSprintTargetRmb"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="例如：10000"
+            />
+          </label>
+          <div class="gift-form-actions">
+            <button class="primary" type="submit">保存</button>
+            <button id="giftSprintResetBtn" type="button">重置本轮</button>
+          </div>
+        </form>
+      </div>
+    </section>
 
-          <section class="panel gift-blindbox-panel" data-state="loading">
-            <div class="panel-header">
-              <div class="blind-stats-heading" id="blindBoxStatsHeading">
-                <span class="blind-stats-heading-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M4 19V9m6 10V5m6 14v-7m4 7H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </span>
-                <h2 class="gift-section-title ui-section-title">今日盲盒盈亏</h2>
-              </div>
-              <div class="actions">
-                <button type="button" id="blindBoxAnalysisOpenBtn" class="gift-history-open-btn" title="查看完整盲盒分析">
-                  <span>查看全部</span>
-                  <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-                <button id="blindBoxStatsToggle" class="section-toggle" type="button" aria-expanded="true" title="折叠盲盒盈亏">
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 14 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
+    <section class="panel gift-blindbox-panel" data-state="loading">
+      <div class="panel-header">
+        <div class="blind-stats-heading" id="blindBoxStatsHeading">
+          <span class="blind-stats-heading-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 19V9m6 10V5m6 14v-7m4 7H2"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <h2 class="gift-section-title ui-section-title">今日盲盒盈亏</h2>
+        </div>
+        <div class="actions">
+          <button
+            type="button"
+            id="blindBoxAnalysisOpenBtn"
+            class="gift-history-open-btn"
+            title="查看完整盲盒分析"
+          >
+            <span>查看全部</span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M4 10h11m-4-4 4 4-4 4"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            id="blindBoxStatsToggle"
+            class="section-toggle"
+            type="button"
+            aria-expanded="true"
+            title="折叠盲盒盈亏"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="m7 14 5-5 5 5"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="blindBoxStatsCollapsible" class="blind-stats-collapsible">
+        <div class="panel-body">
+          <div class="gift-blind-stats-summary" id="blindBoxStatsSummary">
+            <div class="blind-stats-status" role="status">
+              <span
+                class="blind-stats-status-icon is-loading"
+                aria-hidden="true"
+              ></span>
+              <strong class="ui-card-title">正在加载统计</strong>
+              <span class="ui-caption">马上就好…</span>
             </div>
-            <div id="blindBoxStatsCollapsible" class="blind-stats-collapsible">
-              <div class="panel-body">
-                <div class="gift-blind-stats-summary" id="blindBoxStatsSummary">
-                  <div class="blind-stats-status" role="status">
-                    <span class="blind-stats-status-icon is-loading" aria-hidden="true"></span>
-                    <strong class="ui-card-title">正在加载统计</strong>
-                    <span class="ui-caption">马上就好…</span>
-                  </div>
-                </div>
-                <div class="gift-blind-stats-table-wrap" style="max-height: 420px; overflow-y: auto;">
-                  <table class="blind-stats-table" id="blindBoxStatsTable">
-                    <thead>
-                      <tr>
-                        <th>观众</th>
-                        <th>盒数</th>
-                        <th>盒型</th>
-                        <th>总成本</th>
-                        <th>开出价值</th>
-                        <th>观众盈亏</th>
-                      </tr>
-                    </thead>
-                    <tbody id="blindBoxStatsBody">
-                      <tr><td colspan="6" class="empty">暂无数据</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </section>
+          </div>
+          <div
+            class="gift-blind-stats-table-wrap"
+            style="max-height: 420px; overflow-y: auto"
+          >
+            <table class="blind-stats-table" id="blindBoxStatsTable">
+              <thead>
+                <tr>
+                  <th>观众</th>
+                  <th>盒数</th>
+                  <th>盒型</th>
+                  <th>总成本</th>
+                  <th>开出价值</th>
+                  <th>观众盈亏</th>
+                </tr>
+              </thead>
+              <tbody id="blindBoxStatsBody">
+                <tr>
+                  <td colspan="6" class="empty">暂无数据</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
 
-          <section class="panel gift-blindbox-broadcast-panel">
-            <div class="panel-header">
-              <div>
-                <span class="panel-kicker ui-eyebrow">观众画面</span>
-                <h2 class="gift-section-title ui-section-title">盲盒盈亏榜</h2>
-              </div>
-              <a id="blindboxLiveLink" class="blindbox-live-link" href="/blindbox" target="_blank" rel="noopener">打开画面</a>
-            </div>
-            <div class="panel-body blindbox-builder">
-              <div class="blindbox-builder-intro">
-                <strong>直播姬与 OBS 通用 <lira-help>设置内容后复制链接；画面会自动适配捕捉窗口。</lira-help></strong>
-              </div>
+    <section class="panel gift-blindbox-broadcast-panel">
+      <div class="panel-header">
+        <div>
+          <span class="panel-kicker ui-eyebrow">观众画面</span>
+          <h2 class="gift-section-title ui-section-title">盲盒盈亏榜</h2>
+        </div>
+        <a
+          id="blindboxLiveLink"
+          class="blindbox-live-link"
+          href="/blindbox"
+          target="_blank"
+          rel="noopener"
+          >打开画面</a
+        >
+      </div>
+      <div class="panel-body blindbox-builder">
+        <div class="blindbox-builder-intro">
+          <strong
+            >直播姬与 OBS 通用
+            <lira-help
+              >设置内容后复制链接；画面会自动适配捕捉窗口。</lira-help
+            ></strong
+          >
+        </div>
 
-              <div class="blindbox-builder-row">
-                <label>
-                  <span class="blindbox-builder-label">投屏标题 <lira-help>留空时显示默认标题。</lira-help></span>
-                  <input id="blindboxOverlayTitle" type="text" placeholder="默认：今日盲盒盈亏">
-                </label>
-                <label>
-                  <span class="blindbox-builder-label">排行人数 <lira-help>-1 显示全部，0 仅显示汇总，1-10 显示对应人数。</lira-help></span>
-                  <input id="blindboxOverlayTop" type="number" min="-1" max="10" value="3" placeholder="3">
-                </label>
-              </div>
+        <div class="blindbox-builder-row">
+          <label>
+            <span class="blindbox-builder-label"
+              >投屏标题 <lira-help>留空时显示默认标题。</lira-help></span
+            >
+            <input
+              id="blindboxOverlayTitle"
+              type="text"
+              placeholder="默认：今日盲盒盈亏"
+            />
+          </label>
+          <label>
+            <span class="blindbox-builder-label"
+              >排行人数
+              <lira-help
+                >-1 显示全部，0 仅显示汇总，1-10 显示对应人数。</lira-help
+              ></span
+            >
+            <input
+              id="blindboxOverlayTop"
+              type="number"
+              min="-1"
+              max="10"
+              value="3"
+              placeholder="3"
+            />
+          </label>
+        </div>
 
-              <div class="blindbox-builder-switches">
-                <label class="blindbox-switch">
-                  <input id="blindboxWinnersOnly" type="checkbox" checked>
-                  <span>仅显示盈利 <lira-help>只统计并显示盈利观众。</lira-help></span>
-                </label>
-                <label class="blindbox-switch">
-                  <input id="blindboxHeartBoxOnly" type="checkbox">
-                  <span>仅显示心动盲盒 <lira-help>汇总和排行只统计心动盲盒。</lira-help></span>
-                </label>
-              </div>
+        <div class="blindbox-builder-switches">
+          <label class="blindbox-switch">
+            <input id="blindboxWinnersOnly" type="checkbox" checked />
+            <span
+              >仅显示盈利 <lira-help>只统计并显示盈利观众。</lira-help></span
+            >
+          </label>
+          <label class="blindbox-switch">
+            <input id="blindboxHeartBoxOnly" type="checkbox" />
+            <span
+              >仅显示心动盲盒
+              <lira-help>汇总和排行只统计心动盲盒。</lira-help></span
+            >
+          </label>
+        </div>
 
-              <div class="blindbox-url-bar">
-                <div class="blindbox-url-copy">
-                  <span class="blindbox-url-label">捕捉链接</span>
-                  <code id="blindboxOverlayUrl"></code>
-                </div>
-                <div class="blindbox-url-actions">
-                  <button id="blindboxCopyUrlBtn" class="primary" type="button">复制链接</button>
-                </div>
-              </div>
-            </div>
-          </section>
+        <div class="blindbox-url-bar">
+          <div class="blindbox-url-copy">
+            <span class="blindbox-url-label">捕捉链接</span>
+            <code id="blindboxOverlayUrl"></code>
+          </div>
+          <div class="blindbox-url-actions">
+            <button id="blindboxCopyUrlBtn" class="primary" type="button">
+              复制链接
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
 
-          <section class="panel gift-blindbox-mapping-panel">
-            <div class="panel-header">
-              <h2 class="gift-section-title ui-section-title">盲盒映射</h2>
-              <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
-            </div>
-            <div class="panel-body stack">
-              <div class="blind-box-form-row">
-                <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒">
-                <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本(元)">
-                <input id="blindBoxOutputs" type="text" placeholder="礼物:价格，如 电影票:2, 棉花糖:9">
-                <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
-              </div>
-              <div id="blindBoxList" class="blind-box-list"></div>
-              <div id="blindBoxAdvanced" hidden>
-                <textarea id="giftBlindBoxConfig" rows="6" placeholder='[
+    <section class="panel gift-blindbox-mapping-panel">
+      <div class="panel-header">
+        <h2 class="gift-section-title ui-section-title">盲盒映射</h2>
+        <button
+          id="blindBoxAdvancedToggle"
+          class="secondary"
+          type="button"
+          title="高级编辑"
+        >
+          高级 ▾
+        </button>
+      </div>
+      <div class="panel-body stack">
+        <div class="blind-box-form-row">
+          <input
+            id="blindBoxName"
+            type="text"
+            placeholder="盲盒名，如 星光盲盒"
+          />
+          <input
+            id="blindBoxPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="成本(元)"
+          />
+          <input
+            id="blindBoxOutputs"
+            type="text"
+            placeholder="礼物:价格，如 电影票:2, 棉花糖:9"
+          />
+          <button id="blindBoxAddBtn" class="primary" type="button">
+            + 添加
+          </button>
+        </div>
+        <div id="blindBoxList" class="blind-box-list"></div>
+        <div id="blindBoxAdvanced" hidden>
+          <textarea
+            id="giftBlindBoxConfig"
+            rows="6"
+            placeholder='[
               { "name": "心动盲盒", "price": 15, "outputs": [{"name":"电影票","price":2},{"name":"棉花糖","price":9},{"name":"爱心抱枕","price":16},{"name":"绮彩权杖","price":40},{"name":"时空之站","price":100},{"name":"神驹宝玺","price":200},{"name":"浪漫城堡","price":2233}] },
               { "name": "幸运盲盒", "price": 5, "outputs": [{"name":"幸运泡泡","price":1.5},{"name":"好运柚叶","price":2.5},{"name":"星光铃铛","price":5.2},{"name":"梦雾纸签","price":10},{"name":"福灵小兽","price":20},{"name":"星愿花园","price":60}] },
               { "name": "小熊虫盲盒", "price": 9, "outputs": [{"name":"虫事顺意","price":9},{"name":"虫满元气","price":9},{"name":"重虫出击","price":9},{"name":"顺虫自然","price":9},{"name":"虫容不迫","price":9},{"name":"虫装镇定","price":9},{"name":"一虫莫展","price":9},{"name":"心事虫虫","price":9}] }
-            ]'></textarea>
-                <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
-              </div>
-            </div>
-          </section>
+            ]'
+          ></textarea>
+          <button id="giftBlindBoxSaveBtn" class="primary" type="button">
+            保存 JSON
+          </button>
         </div>
-      </section>
+      </div>
+    </section>
+  </div>
+</section>

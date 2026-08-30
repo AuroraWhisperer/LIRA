@@ -10,7 +10,7 @@ const ONLINE_CONTROL_TITLES = {
   playbackNext: '下一首',
   playbackSeek: '',
   playbackQueueBtn: '播放队列',
-  playbackQualityBtn: '选择播放音质'
+  playbackQualityBtn: '选择播放音质',
 };
 
 export function createRenderer(deps) {
@@ -21,11 +21,14 @@ export function createRenderer(deps) {
     searchService,
     homeService,
     weSingService,
-    escapeHtml
+    escapeHtml,
   } = deps;
 
   function renderPlayback(playbackAuthState, playbackProviderHealth) {
-    console.log('[Playback] renderPlayback called, selectedSource:', playbackState.selectedSource);
+    console.log(
+      '[Playback] renderPlayback called, selectedSource:',
+      playbackState.selectedSource,
+    );
     const audio = getPlaybackAudio();
 
     // 使用 UI 渲染器渲染所有界面
@@ -33,20 +36,29 @@ export function createRenderer(deps) {
     renderSourceView();
 
     // 渲染音乐源状态
-    console.log('[Playback] Calling renderProviderState with:', playbackState.selectedSource);
+    console.log(
+      '[Playback] Calling renderProviderState with:',
+      playbackState.selectedSource,
+    );
     uiRenderer.renderProviderState(
       playbackAuthState,
       playbackProviderHealth,
-      playbackState.selectedSource
+      playbackState.selectedSource,
     );
 
     // 更新"添加到歌单"按钮状态
-    const addToPlaylistBtn = document.getElementById('playbackAddToPlaylistBtn');
+    const addToPlaylistBtn = document.getElementById(
+      'playbackAddToPlaylistBtn',
+    );
     if (addToPlaylistBtn) {
       const track = playbackState.current;
-      const canAdd = playbackState.selectedSource !== 'wesing' && canAddTrackToPlaylist(track);
+      const canAdd =
+        playbackState.selectedSource !== 'wesing' &&
+        canAddTrackToPlaylist(track);
       addToPlaylistBtn.disabled = !canAdd;
-      addToPlaylistBtn.title = canAdd ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单` : '当前歌曲无法添加到歌单';
+      addToPlaylistBtn.title = canAdd
+        ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单`
+        : '当前歌曲无法添加到歌单';
     }
 
     // 渲染搜索结果和待确认弹窗
@@ -60,31 +72,45 @@ export function createRenderer(deps) {
   // Online providers share discovery/search panels; WeSing owns a separate capture workspace.
   function renderSourceView() {
     const isWeSing = playbackState.selectedSource === 'wesing';
-    document.querySelectorAll('[data-online-source-view]').forEach((element) => {
-      element.hidden = isWeSing;
-    });
+    document
+      .querySelectorAll('[data-online-source-view]')
+      .forEach((element) => {
+        element.hidden = isWeSing;
+      });
     const weSingView = document.getElementById('playbackWeSingView');
     if (weSingView) weSingView.hidden = !isWeSing;
-    document.querySelector('.playback-player-panel')?.classList.toggle('is-external-source', isWeSing);
-    ['playbackPrev', 'playbackPlayPause', 'playbackNext', 'playbackSeek', 'playbackModeBtn', 'playbackQueueBtn', 'playbackQualityBtn']
-      .forEach((id) => {
-        const control = document.getElementById(id);
-        if (!control) return;
-        control.disabled = isWeSing;
-        if (isWeSing) {
-          control.title = '全民 K歌播放请在全民 K歌客户端中控制';
-        } else if (Object.hasOwn(ONLINE_CONTROL_TITLES, id)) {
-          // Play and mode titles are dynamic and have already been restored by renderAll().
-          control.title = ONLINE_CONTROL_TITLES[id];
-        }
-      });
+    document
+      .querySelector('.playback-player-panel')
+      ?.classList.toggle('is-external-source', isWeSing);
+    [
+      'playbackPrev',
+      'playbackPlayPause',
+      'playbackNext',
+      'playbackSeek',
+      'playbackModeBtn',
+      'playbackQueueBtn',
+      'playbackQualityBtn',
+    ].forEach((id) => {
+      const control = document.getElementById(id);
+      if (!control) return;
+      control.disabled = isWeSing;
+      if (isWeSing) {
+        control.title = '全民 K歌播放请在全民 K歌客户端中控制';
+      } else if (Object.hasOwn(ONLINE_CONTROL_TITLES, id)) {
+        // Play and mode titles are dynamic and have already been restored by renderAll().
+        control.title = ONLINE_CONTROL_TITLES[id];
+      }
+    });
     if (isWeSing) weSingService.render();
   }
 
   function canAddTrackToPlaylist(track) {
     if (!track) return false;
     if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
+    if (track.source === 'netease')
+      return /^\d+$/.test(
+        String(track.sourceTrackId || '').replace(/^netease:/, ''),
+      );
     return false;
   }
 
@@ -98,7 +124,9 @@ export function createRenderer(deps) {
       return;
     }
 
-    resultNode.innerHTML = searchResults.map((track, index) => `
+    resultNode.innerHTML = searchResults
+      .map(
+        (track, index) => `
       <div class="queue-row playback-search-row">
         <div class="playback-row-main">
           ${PlaybackUtils.renderArtwork(track)}
@@ -111,12 +139,16 @@ export function createRenderer(deps) {
           <button type="button" data-playback-search-action="normal" data-playback-search-index="${index}" title="添加到播放队列末尾">入队</button>
           <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>
           <button type="button" data-playback-search-action="play" data-playback-search-index="${index}" title="立即播放这首歌">播放</button>
-          ${canAddTrackToPlaylist(track)
-            ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到音乐歌单">歌单</button>`
-            : ''}
+          ${
+            canAddTrackToPlaylist(track)
+              ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到音乐歌单">歌单</button>`
+              : ''
+          }
         </div>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
   }
 
   function renderPendingConfirmPopup() {
@@ -137,28 +169,45 @@ export function createRenderer(deps) {
 
     if (songName) songName.textContent = pending.songName || track.title || '';
     if (matchInfo) {
-      const reasons = Array.isArray(pending.reasons) ? pending.reasons.join('；') : '';
+      const reasons = Array.isArray(pending.reasons)
+        ? pending.reasons.join('；')
+        : '';
       matchInfo.textContent = `匹配：${track.title || ''} · ${PlaybackUtils.formatTrackMeta(track)} · ${pending.score || 0} 分${reasons ? ' · ' + reasons : ''}`;
     }
-    if (requester) requester.textContent = `点歌人：${pending.requesterName || '观众'}`;
-    if (count) count.textContent = playbackState.pendingRequests.length > 1 ? `+${playbackState.pendingRequests.length - 1}` : '';
+    if (requester)
+      requester.textContent = `点歌人：${pending.requesterName || '观众'}`;
+    if (count)
+      count.textContent =
+        playbackState.pendingRequests.length > 1
+          ? `+${playbackState.pendingRequests.length - 1}`
+          : '';
 
     popup.classList.add('visible');
   }
 
   function renderPlaybackProgress() {
     const audio = getPlaybackAudio();
-    const trackDurationMs = playbackState.current ? playbackState.current.durationMs : 0;
-    uiRenderer.renderProgress(audio, playbackState.restoredTime, trackDurationMs);
+    const trackDurationMs = playbackState.current
+      ? playbackState.current.durationMs
+      : 0;
+    uiRenderer.renderProgress(
+      audio,
+      playbackState.restoredTime,
+      trackDurationMs,
+    );
     uiRenderer.updateMediaSessionPosition(audio);
   }
 
-  function updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext) {
+  function updatePlaybackMediaSession(
+    togglePlayback,
+    playbackPrevious,
+    playbackNext,
+  ) {
     const audio = getPlaybackAudio();
     uiRenderer.updateMediaSession(playbackState.current, audio, {
       onTogglePlayback: togglePlayback,
       onPrevious: playbackPrevious,
-      onNext: () => playbackNext(false)
+      onNext: () => playbackNext(false),
     });
   }
 
@@ -169,34 +218,41 @@ export function createRenderer(deps) {
 
   function renderPlaybackHomeResults(action = '', title = '') {
     const homeState = homeService.getHomeState();
-    uiRenderer.getDrawer().renderContent(
-      homeState.items,
-      homeState.itemType,
-      action,
-      title,
-      homeState.page
-    );
+    uiRenderer
+      .getDrawer()
+      .renderContent(
+        homeState.items,
+        homeState.itemType,
+        action,
+        title,
+        homeState.page,
+      );
   }
 
   function renderPlaybackMatchResults(data) {
     const resultNode = document.getElementById('playbackMatchResults');
     if (!resultNode) return;
-    const results = data && Array.isArray(data.results) ? data.results.slice(0, 5) : [];
+    const results =
+      data && Array.isArray(data.results) ? data.results.slice(0, 5) : [];
     if (!results.length) {
       resultNode.innerHTML = '没有找到候选歌曲。';
       return;
     }
-    resultNode.innerHTML = results.map((item) => {
-      const track = item.track || {};
-      const reasons = Array.isArray(item.reasons) ? item.reasons.join('；') : '';
-      return `
+    resultNode.innerHTML = results
+      .map((item) => {
+        const track = item.track || {};
+        const reasons = Array.isArray(item.reasons)
+          ? item.reasons.join('；')
+          : '';
+        return `
         <div class="match-result-row${item.autoAccept ? ' accepted' : ''}">
           <strong>${escapeHtml(track.title || '')}</strong>
           <span>${escapeHtml((track.artists || []).join(' / ') || '未知歌手')} · ${Number(item.score || 0)} 分 · ${item.autoAccept ? '可自动匹配' : '待确认'}</span>
           <small>${escapeHtml(reasons || '无命中原因')}</small>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
   }
 
   return {
@@ -207,6 +263,6 @@ export function createRenderer(deps) {
     updatePlaybackMediaSession,
     renderFullscreenPlayer,
     renderPlaybackHomeResults,
-    renderPlaybackMatchResults
+    renderPlaybackMatchResults,
   };
 }

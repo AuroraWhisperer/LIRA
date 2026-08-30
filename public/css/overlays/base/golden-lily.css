@@ -1,11 +1,12 @@
 .queue-golden-lily {
   aspect-ratio: 1122 / 1402;
   color: #6f4a24;
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
 }
 
 .queue-golden-lily::before {
-  background: url('/img/overlays/song-board-style-6/frame.webp') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-6/frame.webp') center / 100%
+    100% no-repeat;
 }
 
 .queue-golden-lily::after {
@@ -41,14 +42,33 @@
   text-shadow: 0 1px 0 rgba(255, 253, 236, 0.9);
 }
 
-.golden-lily-row.medal-blue-purple { --medal-bg: #596b34; }
-.golden-lily-row.medal-light-blue { --medal-bg: #708444; }
-.golden-lily-row.medal-deep-blue { --medal-bg: #46582a; }
-.golden-lily-row.medal-purple { --medal-bg: #65773b; }
-.golden-lily-row.medal-red { --medal-bg: #9a6730; }
-.golden-lily-row.guard-1 { --identity-bg: #f25f72; --medal-bg: #f25f72; }
-.golden-lily-row.guard-2 { --identity-bg: #8d67e8; --medal-bg: #8d67e8; }
-.golden-lily-row.guard-3 { --identity-bg: #4b91e8; --medal-bg: #4b91e8; }
+.golden-lily-row.medal-blue-purple {
+  --medal-bg: #596b34;
+}
+.golden-lily-row.medal-light-blue {
+  --medal-bg: #708444;
+}
+.golden-lily-row.medal-deep-blue {
+  --medal-bg: #46582a;
+}
+.golden-lily-row.medal-purple {
+  --medal-bg: #65773b;
+}
+.golden-lily-row.medal-red {
+  --medal-bg: #9a6730;
+}
+.golden-lily-row.guard-1 {
+  --identity-bg: #f25f72;
+  --medal-bg: #f25f72;
+}
+.golden-lily-row.guard-2 {
+  --identity-bg: #8d67e8;
+  --medal-bg: #8d67e8;
+}
+.golden-lily-row.guard-3 {
+  --identity-bg: #4b91e8;
+  --medal-bg: #4b91e8;
+}
 
 .golden-lily-rank {
   position: absolute;
@@ -60,12 +80,14 @@
   display: grid;
   place-items: center;
   color: #6f4a24;
-  font-family: Bahnschrift, "Microsoft YaHei", sans-serif;
+  font-family: Bahnschrift, 'Microsoft YaHei', sans-serif;
   font-size: 1.5em;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  text-shadow: 0 1px 0 #fff8df, 0 0 6px rgba(216, 170, 85, 0.32);
+  text-shadow:
+    0 1px 0 #fff8df,
+    0 0 6px rgba(216, 170, 85, 0.32);
 }
 
 .golden-lily-info-viewport {

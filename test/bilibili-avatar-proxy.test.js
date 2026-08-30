@@ -12,13 +12,15 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
     requests.push({ url, options });
     return new Response(Buffer.from([1, 2, 3]), {
       status: 200,
-      headers: { 'Content-Type': 'image/jpeg' }
+      headers: { 'Content-Type': 'image/jpeg' },
     });
   };
   const client = new BilibiliApiClient('123');
 
   try {
-    const image = await client.fetchAvatarImage('https://i0.hdslb.com/bfs/face/viewer.jpg');
+    const image = await client.fetchAvatarImage(
+      'https://i0.hdslb.com/bfs/face/viewer.jpg',
+    );
     assert.equal(image.contentType, 'image/jpeg');
     assert.deepEqual(image.data, Buffer.from([1, 2, 3]));
     assert.equal(requests[0].url, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
@@ -26,11 +28,11 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
 
     await assert.rejects(
       client.fetchAvatarImage('http://i0.hdslb.com/bfs/face/viewer.jpg'),
-      /头像地址无效/
+      /头像地址无效/,
     );
     await assert.rejects(
       client.fetchAvatarImage('https://hdslb.com.attacker.test/avatar.jpg'),
-      /头像地址无效/
+      /头像地址无效/,
     );
     assert.equal(requests.length, 1);
   } finally {
@@ -40,16 +42,22 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
 
 test('Bilibili avatar route returns an inline cacheable image', async () => {
   const response = createResponseRecorder();
-  await routes['GET /api/bilibili/avatar']({
-    bilibili: {
-      fetchAvatarImage: async (url) => {
-        assert.equal(url, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
-        return { contentType: 'image/png', data: Buffer.from([4, 5, 6]) };
-      }
-    }
-  }, {
-    query: new URLSearchParams({ url: 'https://i0.hdslb.com/bfs/face/viewer.jpg' })
-  }, response);
+  await routes['GET /api/bilibili/avatar'](
+    {
+      bilibili: {
+        fetchAvatarImage: async (url) => {
+          assert.equal(url, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
+          return { contentType: 'image/png', data: Buffer.from([4, 5, 6]) };
+        },
+      },
+    },
+    {
+      query: new URLSearchParams({
+        url: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
+      }),
+    },
+    response,
+  );
 
   assert.equal(response.status, 200);
   assert.equal(response.headers['Content-Type'], 'image/png');
@@ -69,6 +77,6 @@ function createResponseRecorder() {
     },
     end(body) {
       this.body = body;
-    }
+    },
   };
 }

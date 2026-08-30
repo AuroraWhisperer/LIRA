@@ -20,7 +20,10 @@ async function sendProviderResult(res, fallbackMessage, run) {
 const routes = {
   async 'GET /api/music/health'(context, request, res) {
     const platform = request.query.get('platform') || '';
-    sendJson(res, 200, { ok: true, data: await getMusicProviderHealth(context.music.registry, platform) });
+    sendJson(res, 200, {
+      ok: true,
+      data: await getMusicProviderHealth(context.music.registry, platform),
+    });
   },
 
   'GET /api/music/cache'(context, request, res) {
@@ -31,12 +34,12 @@ const routes = {
     const body = await request.body();
     await sendProviderResult(res, '在线音源 Provider 尚未接入。', async () => {
       const stream = await resolveMusicStream(
-      context.music.registry,
-      body.track,
-      {
-        forceRefresh: body.forceRefresh === true,
-        quality: String(body.quality || '')
-      }
+        context.music.registry,
+        body.track,
+        {
+          forceRefresh: body.forceRefresh === true,
+          quality: String(body.quality || ''),
+        },
       );
       if (stream && stream.encrypted && stream.url && context.sessionToken) {
         const url = new URL(stream.url, 'http://lira.local');
@@ -49,68 +52,75 @@ const routes = {
 
   async 'GET /api/music/qq-encrypted-stream'(context, request, res) {
     const provider = context.music.registry.get('qq');
-    await provider.serveEncryptedStream(request.query.get('id'), request.req, res);
+    await provider.serveEncryptedStream(
+      request.query.get('id'),
+      request.req,
+      res,
+    );
   },
 
   async 'POST /api/music/search'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '搜索 Provider 尚未接入。', () => context.music.lyrics.searchMusicTracks(
-      context.music.registry,
-      body
-    ));
+    await sendProviderResult(res, '搜索 Provider 尚未接入。', () =>
+      context.music.lyrics.searchMusicTracks(context.music.registry, body),
+    );
   },
 
   async 'POST /api/music/home'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '音乐首页 Provider 尚未接入。', () => context.music.lyrics.getMusicHomeContent(
-      context.music.registry,
-      body
-    ));
+    await sendProviderResult(res, '音乐首页 Provider 尚未接入。', () =>
+      context.music.lyrics.getMusicHomeContent(context.music.registry, body),
+    );
   },
 
   async 'POST /api/music/playlists/tracks/add'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '添加到音乐歌单失败。', () => context.music.lyrics.writeMusicPlaylistTracks(
-      context.music.registry,
-      body,
-      'add'
-    ));
+    await sendProviderResult(res, '添加到音乐歌单失败。', () =>
+      context.music.lyrics.writeMusicPlaylistTracks(
+        context.music.registry,
+        body,
+        'add',
+      ),
+    );
   },
 
   async 'POST /api/music/playlists/tracks/remove'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '从音乐歌单删除失败。', () => context.music.lyrics.writeMusicPlaylistTracks(
-      context.music.registry,
-      body,
-      'remove'
-    ));
+    await sendProviderResult(res, '从音乐歌单删除失败。', () =>
+      context.music.lyrics.writeMusicPlaylistTracks(
+        context.music.registry,
+        body,
+        'remove',
+      ),
+    );
   },
 
   async 'POST /api/music/lyrics'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '在线歌词 Provider 尚未接入。', () => context.music.lyrics.getMusicTrackLyrics(
-      context.music.registry,
-      body
-    ));
+    await sendProviderResult(res, '在线歌词 Provider 尚未接入。', () =>
+      context.music.lyrics.getMusicTrackLyrics(context.music.registry, body),
+    );
   },
 
   async 'POST /api/music/lyrics/parse'(context, request, res) {
     sendJson(res, 200, {
       ok: true,
-      data: context.music.lyrics.parseLyricPayload(await request.body())
+      data: context.music.lyrics.parseLyricPayload(await request.body()),
     });
   },
 
   async 'POST /api/music/match-track'(context, request, res) {
     sendJson(res, 200, {
       ok: true,
-      data: context.music.lyrics.matchMusicTrackCandidates(await request.body())
+      data: context.music.lyrics.matchMusicTrackCandidates(
+        await request.body(),
+      ),
     });
   },
 
   'POST /api/music/cache/clear'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.music.clearCache() });
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

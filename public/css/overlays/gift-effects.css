@@ -11,11 +11,15 @@
 .gift-effects-overlay-body.is-debug {
   background-color: #11131a;
   background-image:
-    linear-gradient(45deg, rgba(255, 255, 255, .045) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 255, 255, .045) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, .045) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, .045) 75%);
-  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    linear-gradient(45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%);
+  background-position:
+    0 0,
+    0 12px,
+    12px -12px,
+    -12px 0;
   background-size: 24px 24px;
 }
 
@@ -36,14 +40,22 @@
   opacity: 0;
   visibility: hidden;
   color: #173b2b;
-  font-family: "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
 }
 
-#giftFrame.is-playing { visibility: visible; }
+#giftFrame.is-playing {
+  visibility: visible;
+}
 
-.gift-frame-artwork { z-index: 1; }
-.gift-frame-accents { z-index: 2; }
-#particleStage { z-index: 3; }
+.gift-frame-artwork {
+  z-index: 1;
+}
+.gift-frame-accents {
+  z-index: 2;
+}
+#particleStage {
+  z-index: 3;
+}
 
 .gift-frame-composite {
   position: absolute;
@@ -56,7 +68,7 @@
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 7px 14px rgba(6, 26, 15, .2));
+  filter: drop-shadow(0 7px 14px rgba(6, 26, 15, 0.2));
 }
 
 .gift-frame-accent {
@@ -67,7 +79,7 @@
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 5px 9px rgba(6, 26, 15, .2));
+  filter: drop-shadow(0 5px 9px rgba(6, 26, 15, 0.2));
 }
 
 .gift-frame-accent-branch {
@@ -109,7 +121,7 @@
   opacity: 0;
   text-align: center;
   box-sizing: border-box;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, .72);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .gift-info-primary,
@@ -118,7 +130,7 @@
   align-items: baseline;
   justify-content: center;
   min-width: 0;
-  gap: min(.68vw, 1.21vh);
+  gap: min(0.68vw, 1.21vh);
 }
 
 .gift-info-primary {
@@ -126,13 +138,13 @@
   font-size: min(1.34vw, 2.38vh);
   font-weight: 800;
   line-height: 1.15;
-  letter-spacing: .01em;
+  letter-spacing: 0.01em;
 }
 
 .gift-info-secondary {
-  margin-top: min(.16vw, .28vh);
-  color: rgba(31, 67, 48, .76);
-  font-size: min(.75vw, 1.33vh);
+  margin-top: min(0.16vw, 0.28vh);
+  color: rgba(31, 67, 48, 0.76);
+  font-size: min(0.75vw, 1.33vh);
   font-weight: 700;
   line-height: 1.2;
 }
@@ -156,7 +168,7 @@
 .gift-info-amount {
   color: #7c541d;
   font-variant-numeric: tabular-nums;
-  letter-spacing: .02em;
+  letter-spacing: 0.02em;
 }
 
 .gift-effect-layer {
@@ -172,15 +184,19 @@
   bottom: 18px;
   max-width: min(520px, calc(100vw - 36px));
   padding: 10px 14px;
-  border: 1px solid rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 10px;
-  background: rgba(16, 18, 25, .82);
+  background: rgba(16, 18, 25, 0.82);
   color: #f8f9ff;
-  font: 600 13px/1.5 "Microsoft YaHei", sans-serif;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, .28);
+  font:
+    600 13px/1.5 'Microsoft YaHei',
+    sans-serif;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gift-effect-layer,
-  #giftFrame { animation: none; }
+  #giftFrame {
+    animation: none;
+  }
 }

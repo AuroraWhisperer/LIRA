@@ -14,7 +14,7 @@ function createTestDatabases(prefix) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   return {
     dataDir,
-    databases: createDatabases({ dataDir })
+    databases: createDatabases({ dataDir }),
   };
 }
 
@@ -35,10 +35,19 @@ test('unique song-name matching prefers exact names and ignores disabled or ambi
     songService.saveSong(songDb, { name: '100%真心', artist: '测试歌手' });
     songService.saveSong(songDb, { name: '1000真心', artist: '测试歌手' });
 
-    assert.equal(songService.findUniqueSongNameMatch(songDb, '不醉不会').name, '不醉不会');
+    assert.equal(
+      songService.findUniqueSongNameMatch(songDb, '不醉不会').name,
+      '不醉不会',
+    );
     assert.equal(songService.findUniqueSongNameMatch(songDb, '不醉'), null);
-    assert.equal(songService.findUniqueSongNameMatch(songDb, '比尔').name, '1022比尔的歌');
-    assert.equal(songService.findUniqueSongNameMatch(songDb, '100%').name, '100%真心');
+    assert.equal(
+      songService.findUniqueSongNameMatch(songDb, '比尔').name,
+      '1022比尔的歌',
+    );
+    assert.equal(
+      songService.findUniqueSongNameMatch(songDb, '100%').name,
+      '100%真心',
+    );
   } finally {
     closeTestDatabases(testContext);
   }
@@ -52,18 +61,18 @@ test('danmaku requests enqueue the complete unique library name and preserve the
     settingsStore.setSetting('onlyFromLibrary', 'true');
     const services = createDomainServices({
       db: testContext.databases,
-      settingsStore
+      settingsStore,
     });
     services.songs.save({
       name: '1022比尔的歌',
       artist: 'Bomb比尔',
-      categoryName: '流行'
+      categoryName: '流行',
     });
 
     const result = services.messages.handleDanmaku({
       message: '点歌 比尔',
       userName: '观众',
-      uid: '123'
+      uid: '123',
     });
 
     assert.equal(result.accepted, true);
@@ -71,9 +80,10 @@ test('danmaku requests enqueue the complete unique library name and preserve the
     assert.equal(result.queueItem.artist, 'Bomb比尔');
     assert.equal(result.queueItem.category_name, '流行');
     assert.equal(
-      testContext.databases.songDb.prepare('SELECT message FROM requests WHERE queue_id = ?')
+      testContext.databases.songDb
+        .prepare('SELECT message FROM requests WHERE queue_id = ?')
         .get(result.queueItem.id).message,
-      '点歌 比尔'
+      '点歌 比尔',
     );
   } finally {
     closeTestDatabases(testContext);
@@ -81,13 +91,15 @@ test('danmaku requests enqueue the complete unique library name and preserve the
 });
 
 test('danmaku requests preserve the submitted name when multiple library songs match', () => {
-  const testContext = createTestDatabases('song-plugin-autocomplete-ambiguous-');
+  const testContext = createTestDatabases(
+    'song-plugin-autocomplete-ambiguous-',
+  );
   const settingsStore = createSettingsStore(testContext.databases.songDb);
 
   try {
     const services = createDomainServices({
       db: testContext.databases,
-      settingsStore
+      settingsStore,
     });
     services.songs.save({ name: '不醉不会', artist: '田馥甄' });
     services.songs.save({ name: '不醉不归', artist: '测试歌手' });
@@ -95,7 +107,7 @@ test('danmaku requests preserve the submitted name when multiple library songs m
     const result = services.messages.handleDanmaku({
       message: '点歌 不醉',
       userName: '观众',
-      uid: '456'
+      uid: '456',
     });
 
     assert.equal(result.accepted, true);

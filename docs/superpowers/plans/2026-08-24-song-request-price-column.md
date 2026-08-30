@@ -21,10 +21,12 @@
 ### Task 1: Lock the import/export contract with tests
 
 **Files:**
+
 - Modify: `test/song-file-codec.test.js`
 - Create: `test/song-import-table.test.js`
 
 **Interfaces:**
+
 - Consumes: `buildSongsCsv(rows)`, `buildSongsWorkbook(rows)`, `parseSongsFromXlsx(buffer)`, `normalizeImportedSongRow(row)`.
 - Produces: a regression proving `request_price: '30元SC'` exports under `点歌价格` and normalizes to `requestPrice: '30元SC'`.
 - Produces: a regression proving headered and positional CSV/TSV parsing retains the ninth column.
@@ -32,7 +34,7 @@
 - [x] **Step 1: Extend the existing codec round-trip fixture**
 
 ```js
-request_price: '30元SC'
+request_price: '30元SC';
 ```
 
 Add `requestPrice: '30元SC'` to the normalized expected object and assert the CSV contains the new header/value.
@@ -46,12 +48,14 @@ Expected: FAIL because the current schema has no `点歌价格` column or `reque
 ### Task 2: Add compatible persistence
 
 **Files:**
+
 - Modify: `src/storage/schema.js`
 - Modify: `src/storage/database.js`
 - Modify: `src/music/song-service.js`
 - Modify: `test/database-maintenance.test.js`
 
 **Interfaces:**
+
 - Consumes: `createDatabases({ dataDir })`, the append-only `song_db` migration list, and song service inputs with optional `requestPrice` / `request_price`.
 - Produces: `songs.request_price TEXT NOT NULL DEFAULT ''` on fresh and upgraded databases; save/import paths persist it.
 
@@ -64,7 +68,7 @@ Update the pre-v1 upgrade test to expect `songDb: 4`, select `request_price`, an
 ```js
 (db) => {
   ensureSongRequestPriceColumn(db);
-}
+};
 ```
 
 The helper checks `PRAGMA table_info(songs)` before running:
@@ -86,18 +90,27 @@ Expected: PASS, including two consecutive database startups and `PRAGMA integrit
 ### Task 3: Extend the workbook/CSV schema
 
 **Files:**
+
 - Modify: `src/music/song-import-schema.js`
 - Modify: `src/music/song-file-codec.js`
 - Modify: `public/js/admin/import.js`
 
 **Interfaces:**
+
 - Consumes: database/API row property `request_price` and import aliases.
 - Produces: ninth header `点歌价格`, normalized property `requestPrice`, and sample values illustrating supported free-text entries.
 
 - [x] **Step 1: Append the header and aliases**
 
 ```js
-requestPrice: ['requestPrice', 'request_price', '点歌价格', '点歌价', '点歌门槛', '点歌要求']
+requestPrice: [
+  'requestPrice',
+  'request_price',
+  '点歌价格',
+  '点歌价',
+  '点歌门槛',
+  '点歌要求',
+];
 ```
 
 Append `点歌价格` after `核对备注` to avoid shifting the eight existing positional columns.
@@ -115,11 +128,13 @@ Expected: PASS for CSV and XLSX round trips.
 ### Task 4: Synchronize owner documentation and verify
 
 **Files:**
+
 - Modify: `docs/architecture/backend/storage.md`
 - Modify: `docs/architecture/backend/music/services.md`
 - Modify: `docs/architecture/frontend/app.md`
 
 **Interfaces:**
+
 - Consumes: final migration number, column name, header order, and aliases.
 - Produces: owner documentation matching the implemented persistence and import/export contracts.
 

@@ -20,11 +20,13 @@
 ### Task 1: Add open-state overflow escape rules for audited cards
 
 **Files:**
+
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Modify: `public/css/admin/other-features/ai-assistant.css`
 - Modify: `public/css/admin/other-features/streamer-planner.css`
 
 **Interfaces:**
+
 - Consumes: the shared `.lira-select.is-open` state emitted by `public/js/shared/select-menu.js`.
 - Produces: card-level `z-index` and `overflow: visible` while a select menu is open, without changing closed-card clipping or scroll containers.
 
@@ -54,9 +56,11 @@ Expected: the new audit assertions pass for lyric settings, AI settings, planner
 ### Task 2: Lock the overflow audit into regression coverage
 
 **Files:**
+
 - Create: `test/frontend-select-menu-overflow.test.js`
 
 **Interfaces:**
+
 - Consumes: the four owning CSS files and the shared select-menu stylesheet.
 - Produces: deterministic source-level coverage that each known clipping card has an open-state escape rule and that the shared menu remains absolutely positioned for the existing local stacking model.
 
@@ -73,6 +77,7 @@ Expected: PASS after Task 1; a missing rule or accidental removal reports the ow
 ### Task 3: Verify the affected frontend gates and final diff
 
 **Files:**
+
 - Modify: `specs/plans/2026-08-22-select-menu-overflow-audit.md` (record verification results)
 
 - [x] **Step 1: Run syntax and focused admin tests**

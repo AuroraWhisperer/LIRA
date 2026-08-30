@@ -1,358 +1,610 @@
-        <div id="themePage" class="tab-page">
-          <div class="panel-body stack">
-            <form id="themeForm" class="stack">
-              <!-- 风格选择器 — 始终可见 -->
-              <div class="style-picker">
-                <input id="overlayQueueStyle" type="hidden" value="classic">
-                <button class="style-option active" type="button" data-overlay-style="classic">
-                  <strong>点歌板风格 1</strong>
-                  <span>经典队列展示</span>
-                </button>
-                <button class="style-option" type="button" data-overlay-style="identity">
-                  <strong>点歌板风格 2</strong>
-                  <span>透明榜单身份样式</span>
-                </button>
-                <button class="style-option" type="button" data-overlay-style="storybook">
-                  <strong>点歌板风格 3</strong>
-                  <span>奶油蓝甜点画框</span>
-                </button>
-                <button class="style-option" type="button" data-overlay-style="neon-vinyl">
-                  <strong>点歌板风格 4</strong>
-                  <span>甜粉麦克风舞台</span>
-                </button>
-                <button class="style-option" type="button" data-overlay-style="cherry-ribbon">
-                  <strong>点歌板风格 5</strong>
-                  <span>紫金星月梦境</span>
-                </button>
-                <button class="style-option" type="button" data-overlay-style="golden-lily">
-                  <strong>点歌板风格 6</strong>
-                  <span>奶油金唱片铃兰</span>
-                </button>
-              </div>
+<div id="themePage" class="tab-page">
+  <div class="panel-body stack">
+    <form id="themeForm" class="stack">
+      <!-- 风格选择器 — 始终可见 -->
+      <div class="style-picker">
+        <input id="overlayQueueStyle" type="hidden" value="classic" />
+        <button
+          class="style-option active"
+          type="button"
+          data-overlay-style="classic"
+        >
+          <strong>点歌板风格 1</strong>
+          <span>经典队列展示</span>
+        </button>
+        <button
+          class="style-option"
+          type="button"
+          data-overlay-style="identity"
+        >
+          <strong>点歌板风格 2</strong>
+          <span>透明榜单身份样式</span>
+        </button>
+        <button
+          class="style-option"
+          type="button"
+          data-overlay-style="storybook"
+        >
+          <strong>点歌板风格 3</strong>
+          <span>奶油蓝甜点画框</span>
+        </button>
+        <button
+          class="style-option"
+          type="button"
+          data-overlay-style="neon-vinyl"
+        >
+          <strong>点歌板风格 4</strong>
+          <span>甜粉麦克风舞台</span>
+        </button>
+        <button
+          class="style-option"
+          type="button"
+          data-overlay-style="cherry-ribbon"
+        >
+          <strong>点歌板风格 5</strong>
+          <span>紫金星月梦境</span>
+        </button>
+        <button
+          class="style-option"
+          type="button"
+          data-overlay-style="golden-lily"
+        >
+          <strong>点歌板风格 6</strong>
+          <span>奶油金唱片铃兰</span>
+        </button>
+      </div>
 
-              <!-- ====== 点歌板风格 1 专属设置 ====== -->
-              <div id="classicThemeArea" class="theme-area">
-
-                <fieldset class="theme-section">
-                  <legend>队列布局</legend>
-                  <div class="grid-2">
-                    <label>
-                      队列滚动模式
-                      <select id="queueScrollMode" data-dropdown-variant="settings">
-                        <option value="loop">循环滚动（首尾相接）</option>
-                        <option value="bounce">往返滚动（到底后返回）</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>点歌板滚动速率 <lira-help>1 最慢，100 最快。</lira-help></span>
-                      <span class="range-row">
-                        <input id="queueScrollSpeedRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
-                        <input id="queueScrollSpeed" type="number" min="1" max="100" step="1">
-                      </span>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>配色方案</legend>
-                  <div class="preset-grid" id="classicPresets"></div>
-                  <div class="swatch-row" style="margin-top:16px">
-                    <label>
-                      主色
-                      <input id="themePrimary" type="color">
-                    </label>
-                    <label>
-                      辅助色
-                      <input id="themeAccent" type="color">
-                    </label>
-                    <label>
-                      文字色
-                      <input id="themeText" type="color">
-                    </label>
-                    <label>
-                      背景色
-                      <input id="themeBackground" type="color">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>文字设置</legend>
-                  <div class="grid-2">
-                    <label>
-                      字体
-                      <select id="overlayFontFamily" data-dropdown-variant="settings">
-                        <option value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif">中日英韩通用</option>
-                        <option value="Microsoft YaHei">微软雅黑（默认）</option>
-                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代简约</option>
-                        <option value="SimHei, Microsoft YaHei, sans-serif">黑体 · 醒目有力</option>
-                        <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
-                        <option value="system-ui, -apple-system, sans-serif">系统圆体 · 圆润可爱</option>
-                        <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
-                        <option value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif">思源黑体 · 清晰现代</option>
-                        <option value="YouYuan, STYuanti, PingFang SC, sans-serif">幼圆 · 圆润亲切</option>
-                        <option value="STLiti, FZLiShu, KaiTi, serif">隶书 · 古朴庄重</option>
-                        <option value="Georgia, Times New Roman, STSong, serif">Georgia · 优雅衬线</option>
-                        <option value="Courier New, Consolas, monospace">等宽字体 · 极客风格</option>
-                        <option value="STHupo, KaiTi, cursive">琥珀体 · 创意醒目</option>
-                        <option value="Hannotate SC, KaiTi, serif">手札体 · 文艺清新</option>
-                      </select>
-                    </label>
-                    <label>
-                      字重
-                      <select id="overlayFontWeight" data-dropdown-variant="settings">
-                        <option value="600">较细</option>
-                        <option value="700">中等</option>
-                        <option value="800" selected>粗体（默认）</option>
-                        <option value="900">超粗</option>
-                      </select>
-                    </label>
-                    <label>
-                      点歌内容字号
-                      <span class="range-row">
-                        <input id="queueSongFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="70" step="1">
-                        <input id="queueSongFontSizeNumber" type="number" min="10" max="70" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      队列标题字号
-                      <span class="range-row">
-                        <input id="queueTitleFontSize" class="parameter-range parameter-range--scale" type="range" min="10" max="40" step="1">
-                        <input id="queueTitleFontSizeNumber" type="number" min="10" max="40" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
-                      <input id="overlaySongColor" type="color" value="">
-                    </label>
-                    <label>
-                      <span>点歌人颜色 <lira-help>留空时使用较淡的文字色。</lira-help></span>
-                      <input id="overlayRequesterColor" type="color" value="">
-                    </label>
-                    <label style="grid-column: 1 / -1;">
-                      <span>面板标题 <lira-help>修改点歌板顶部标题；留空时使用默认标题。</lira-help></span>
-                      <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>序号显示</legend>
-                  <div class="grid-2">
-                    <label>
-                      显示歌曲序号
-                      <select id="overlayShowIndex" data-dropdown-variant="settings">
-                        <option value="true">显示</option>
-                        <option value="false">隐藏</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>序号颜色 <lira-help>留空时使用辅助色。</lira-help></span>
-                      <input id="overlayIndexColor" type="color" value="">
-                    </label>
-                    <label style="grid-column: 1 / -1;">
-                      <span>仅在歌曲超过此数量时显示 <lira-help>选择“始终显示”时不受歌曲数量限制。</lira-help></span>
-                      <select id="overlayIndexThreshold" data-dropdown-variant="settings">
-                        <option value="0">始终显示</option>
-                        <option value="2">超过 2 首</option>
-                        <option value="3">超过 3 首</option>
-                        <option value="4">超过 4 首</option>
-                        <option value="5">超过 5 首</option>
-                      </select>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>面板外观</legend>
-                  <div class="grid-2">
-                    <label>
-                      <span>前台低占用模式 <lira-help>关闭毛玻璃、发光和重阴影，保留滚动效果。</lira-help></span>
-                      <select id="overlayLowPowerMode" data-dropdown-variant="settings">
-                        <option value="false">关闭（默认，保留原效果）</option>
-                        <option value="true">开启（关闭毛玻璃和发光）</option>
-                      </select>
-                    </label>
-                    <label>
-                      背景透明度
-                      <span class="range-row">
-                        <input id="themeOpacity" class="parameter-range parameter-range--intensity" type="range" min="0" max="1" step="0.01">
-                        <input id="themeOpacityNumber" type="number" min="0" max="1" step="0.01">
-                      </span>
-                    </label>
-                    <label>
-                      <span>圆角大小</span>
-                      <input id="themeRadius" type="number" min="0" max="24">
-                    </label>
-                    <label>
-                      <span>背景模糊 <lira-help>数值越大，毛玻璃越明显；0 表示关闭。</lira-help></span>
-                      <span class="range-row">
-                        <input id="backdropBlur" class="parameter-range parameter-range--intensity" type="range" min="0" max="30" step="1">
-                        <input id="backdropBlurNumber" type="number" min="0" max="30" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      <span>发光强度 <lira-help>控制辅助色发光；0 表示关闭。</lira-help></span>
-                      <span class="range-row">
-                        <input id="glowIntensity" class="parameter-range parameter-range--intensity" type="range" min="0" max="20" step="1">
-                        <input id="glowIntensityNumber" type="number" min="0" max="20" step="1">
-                      </span>
-                    </label>
-                    <label>
-                      启用渐变背景
-                      <select id="enableGradient" data-dropdown-variant="settings">
-                        <option value="false">关闭（纯色背景）</option>
-                        <option value="true">开启（渐变背景）</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>渐变结束色 <lira-help>与背景色组成双色渐变，建议使用相近色。</lira-help></span>
-                      <input id="gradientEnd" type="color">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <div class="actions">
-                  <button id="quickBeautifyBtn" class="primary" type="button">✨ 一键毛玻璃美化</button>
-                  <button id="resetClassicTheme" type="button">恢复默认</button>
-                </div>
-              </div>
-
-              <!-- ====== 点歌板风格 2 / 3 / 4 / 5 / 6 共用设置 ====== -->
-              <div id="identityThemeArea" class="theme-area" hidden>
-                <fieldset class="theme-section">
-                  <legend>文字设置</legend>
-                  <label>
-                    <span>点歌内容字号 <lira-help>控制点歌板全部队列文字，默认 26 px。</lira-help></span>
-                    <span class="range-row">
-                      <input id="identityQueueFontSize" class="parameter-range parameter-range--scale" type="range" min="9" max="78" step="1" value="26">
-                      <input id="identityQueueFontSizeNumber" type="number" min="9" max="78" step="1" value="26">
-                    </span>
-                  </label>
-                </fieldset>
-
-                <fieldset class="theme-section" data-illustrated-only>
-                  <legend>插画文字</legend>
-                  <div class="grid-2">
-                    <label>
-                      字体
-                      <select id="illustratedQueueFontFamily" data-dropdown-variant="settings">
-                        <option value="default">幼圆</option>
-                        <option value="Microsoft YaHei, PingFang SC, sans-serif">微软雅黑 · 清晰</option>
-                        <option value="YouYuan, Microsoft YaHei, sans-serif">幼圆 · 圆润</option>
-                        <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方 · 现代</option>
-                        <option value="KaiTi, STKaiti, serif">楷体 · 手写</option>
-                      </select>
-                    </label>
-                    <label>
-                      字重
-                      <select id="illustratedQueueFontWeight" data-dropdown-variant="settings">
-                        <option value="default">粗体</option>
-                        <option value="600">较细</option>
-                        <option value="700">中等</option>
-                        <option value="800">粗体</option>
-                        <option value="900">超粗</option>
-                      </select>
-                    </label>
-                    <label>
-                      自定义文字颜色
-                      <select id="illustratedQueueUseCustomTextColor" data-dropdown-variant="settings">
-                        <option value="false">关闭（使用风格默认颜色）</option>
-                        <option value="true">开启</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>文字颜色 <lira-help>用于歌名、点歌人、序号和空状态文字。</lira-help></span>
-                      <input id="illustratedQueueTextColor" type="color" value="#315d7d">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section">
-                  <legend>队列滚动</legend>
-                  <div class="grid-2">
-                    <label>
-                      队列滚动模式
-                      <select id="identityQueueScrollMode" data-dropdown-variant="settings">
-                        <option value="loop">循环滚动（首尾相接）</option>
-                        <option value="bounce">往返滚动（到底后返回）</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span>上下滚动速率 <lira-help>1 最慢，100 最快；仅影响当前风格。</lira-help></span>
-                      <span class="range-row">
-                        <input id="identityQueueScrollSpeedRange" class="parameter-range parameter-range--tempo" type="range" min="1" max="100" step="1">
-                        <input id="identityQueueScrollSpeed" type="number" min="1" max="100" step="1">
-                      </span>
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section" data-identity-only>
-                  <legend>置顶公告</legend>
-                  <div class="grid-1">
-                    <label>
-                      置顶内容 1
-                      <input id="overlayPin1" placeholder="留空则不显示，显示在点歌板2最上方">
-                    </label>
-                    <label>
-                      置顶内容 2
-                      <input id="overlayPin2" placeholder="留空则不显示，显示在点歌板2最上方">
-                    </label>
-                    <label>
-                      置顶内容 3
-                      <input id="overlayPin3" placeholder="留空则不显示，显示在点歌板2最上方">
-                    </label>
-                  </div>
-                </fieldset>
-
-                <fieldset class="theme-section" data-identity-only>
-                  <legend>规则展示</legend>
-                  <div class="identity-rule-panel">
-                    <label class="identity-rule-font">
-                      规则小块字号
-                      <span class="range-row">
-                        <input id="overlayRuleFontSize" class="parameter-range parameter-range--scale" type="range" min="8" max="18" step="1">
-                        <input id="overlayRuleFontSizeNumber" type="number" min="8" max="18" step="1">
-                      </span>
-                    </label>
-                    <div class="identity-rule-settings">
-                      <label class="identity-rule-setting">
-                        <span>规则 1</span>
-                        <input id="overlayRule1" placeholder="例如：弹幕输入 点歌 歌名">
-                        <input id="overlayRuleColor1" type="color">
-                      </label>
-                      <label class="identity-rule-setting">
-                        <span>规则 2</span>
-                        <input id="overlayRule2" placeholder="留空则不显示">
-                        <input id="overlayRuleColor2" type="color">
-                      </label>
-                      <label class="identity-rule-setting">
-                        <span>规则 3</span>
-                        <input id="overlayRule3" placeholder="例如：SC ≥ 2">
-                        <input id="overlayRuleColor3" type="color">
-                      </label>
-                      <label class="identity-rule-setting">
-                        <span>规则 4</span>
-                        <input id="overlayRule4" placeholder="留空则不显示">
-                        <input id="overlayRuleColor4" type="color">
-                      </label>
-                      <label class="identity-rule-setting">
-                        <span>规则 5</span>
-                        <input id="overlayRule5" placeholder="留空则不显示">
-                        <input id="overlayRuleColor5" type="color">
-                      </label>
-                      <label class="identity-rule-setting">
-                        <span>规则 6</span>
-                        <input id="overlayRule6" placeholder="留空则不显示">
-                        <input id="overlayRuleColor6" type="color">
-                      </label>
-                    </div>
-                  </div>
-                </fieldset>
-              </div>
-
-              <button class="primary" type="submit">保存点歌板主题</button>
-            </form>
+      <!-- ====== 点歌板风格 1 专属设置 ====== -->
+      <div id="classicThemeArea" class="theme-area">
+        <fieldset class="theme-section">
+          <legend>队列布局</legend>
+          <div class="grid-2">
+            <label>
+              队列滚动模式
+              <select id="queueScrollMode" data-dropdown-variant="settings">
+                <option value="loop">循环滚动（首尾相接）</option>
+                <option value="bounce">往返滚动（到底后返回）</option>
+              </select>
+            </label>
+            <label>
+              <span
+                >点歌板滚动速率 <lira-help>1 最慢，100 最快。</lira-help></span
+              >
+              <span class="range-row">
+                <input
+                  id="queueScrollSpeedRange"
+                  class="parameter-range parameter-range--tempo"
+                  type="range"
+                  min="1"
+                  max="100"
+                  step="1"
+                />
+                <input
+                  id="queueScrollSpeed"
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                />
+              </span>
+            </label>
           </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>配色方案</legend>
+          <div class="preset-grid" id="classicPresets"></div>
+          <div class="swatch-row" style="margin-top: 16px">
+            <label>
+              主色
+              <input id="themePrimary" type="color" />
+            </label>
+            <label>
+              辅助色
+              <input id="themeAccent" type="color" />
+            </label>
+            <label>
+              文字色
+              <input id="themeText" type="color" />
+            </label>
+            <label>
+              背景色
+              <input id="themeBackground" type="color" />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>文字设置</legend>
+          <div class="grid-2">
+            <label>
+              字体
+              <select id="overlayFontFamily" data-dropdown-variant="settings">
+                <option
+                  value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
+                >
+                  中日英韩通用
+                </option>
+                <option value="Microsoft YaHei">微软雅黑（默认）</option>
+                <option value="PingFang SC, Microsoft YaHei, sans-serif">
+                  苹方 · 现代简约
+                </option>
+                <option value="SimHei, Microsoft YaHei, sans-serif">
+                  黑体 · 醒目有力
+                </option>
+                <option value="KaiTi, STKaiti, serif">楷体 · 优雅手写</option>
+                <option value="system-ui, -apple-system, sans-serif">
+                  系统圆体 · 圆润可爱
+                </option>
+                <option value="SimSun, STSong, serif">宋体 · 传统典雅</option>
+                <option
+                  value="Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif"
+                >
+                  思源黑体 · 清晰现代
+                </option>
+                <option value="YouYuan, STYuanti, PingFang SC, sans-serif">
+                  幼圆 · 圆润亲切
+                </option>
+                <option value="STLiti, FZLiShu, KaiTi, serif">
+                  隶书 · 古朴庄重
+                </option>
+                <option value="Georgia, Times New Roman, STSong, serif">
+                  Georgia · 优雅衬线
+                </option>
+                <option value="Courier New, Consolas, monospace">
+                  等宽字体 · 极客风格
+                </option>
+                <option value="STHupo, KaiTi, cursive">
+                  琥珀体 · 创意醒目
+                </option>
+                <option value="Hannotate SC, KaiTi, serif">
+                  手札体 · 文艺清新
+                </option>
+              </select>
+            </label>
+            <label>
+              字重
+              <select id="overlayFontWeight" data-dropdown-variant="settings">
+                <option value="600">较细</option>
+                <option value="700">中等</option>
+                <option value="800" selected>粗体（默认）</option>
+                <option value="900">超粗</option>
+              </select>
+            </label>
+            <label>
+              点歌内容字号
+              <span class="range-row">
+                <input
+                  id="queueSongFontSize"
+                  class="parameter-range parameter-range--scale"
+                  type="range"
+                  min="10"
+                  max="70"
+                  step="1"
+                />
+                <input
+                  id="queueSongFontSizeNumber"
+                  type="number"
+                  min="10"
+                  max="70"
+                  step="1"
+                />
+              </span>
+            </label>
+            <label>
+              队列标题字号
+              <span class="range-row">
+                <input
+                  id="queueTitleFontSize"
+                  class="parameter-range parameter-range--scale"
+                  type="range"
+                  min="10"
+                  max="40"
+                  step="1"
+                />
+                <input
+                  id="queueTitleFontSizeNumber"
+                  type="number"
+                  min="10"
+                  max="40"
+                  step="1"
+                />
+              </span>
+            </label>
+            <label>
+              <span>歌名颜色 <lira-help>留空时使用文字色。</lira-help></span>
+              <input id="overlaySongColor" type="color" value="" />
+            </label>
+            <label>
+              <span
+                >点歌人颜色
+                <lira-help>留空时使用较淡的文字色。</lira-help></span
+              >
+              <input id="overlayRequesterColor" type="color" value="" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <span
+                >面板标题
+                <lira-help
+                  >修改点歌板顶部标题；留空时使用默认标题。</lira-help
+                ></span
+              >
+              <input
+                id="overlayTitle"
+                placeholder="留空显示默认：可点歌单 / 点歌队列"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>序号显示</legend>
+          <div class="grid-2">
+            <label>
+              显示歌曲序号
+              <select id="overlayShowIndex" data-dropdown-variant="settings">
+                <option value="true">显示</option>
+                <option value="false">隐藏</option>
+              </select>
+            </label>
+            <label>
+              <span>序号颜色 <lira-help>留空时使用辅助色。</lira-help></span>
+              <input id="overlayIndexColor" type="color" value="" />
+            </label>
+            <label style="grid-column: 1 / -1">
+              <span
+                >仅在歌曲超过此数量时显示
+                <lira-help>选择“始终显示”时不受歌曲数量限制。</lira-help></span
+              >
+              <select
+                id="overlayIndexThreshold"
+                data-dropdown-variant="settings"
+              >
+                <option value="0">始终显示</option>
+                <option value="2">超过 2 首</option>
+                <option value="3">超过 3 首</option>
+                <option value="4">超过 4 首</option>
+                <option value="5">超过 5 首</option>
+              </select>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>面板外观</legend>
+          <div class="grid-2">
+            <label>
+              <span
+                >前台低占用模式
+                <lira-help
+                  >关闭毛玻璃、发光和重阴影，保留滚动效果。</lira-help
+                ></span
+              >
+              <select id="overlayLowPowerMode" data-dropdown-variant="settings">
+                <option value="false">关闭（默认，保留原效果）</option>
+                <option value="true">开启（关闭毛玻璃和发光）</option>
+              </select>
+            </label>
+            <label>
+              背景透明度
+              <span class="range-row">
+                <input
+                  id="themeOpacity"
+                  class="parameter-range parameter-range--intensity"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                />
+                <input
+                  id="themeOpacityNumber"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                />
+              </span>
+            </label>
+            <label>
+              <span>圆角大小</span>
+              <input id="themeRadius" type="number" min="0" max="24" />
+            </label>
+            <label>
+              <span
+                >背景模糊
+                <lira-help
+                  >数值越大，毛玻璃越明显；0 表示关闭。</lira-help
+                ></span
+              >
+              <span class="range-row">
+                <input
+                  id="backdropBlur"
+                  class="parameter-range parameter-range--intensity"
+                  type="range"
+                  min="0"
+                  max="30"
+                  step="1"
+                />
+                <input
+                  id="backdropBlurNumber"
+                  type="number"
+                  min="0"
+                  max="30"
+                  step="1"
+                />
+              </span>
+            </label>
+            <label>
+              <span
+                >发光强度
+                <lira-help>控制辅助色发光；0 表示关闭。</lira-help></span
+              >
+              <span class="range-row">
+                <input
+                  id="glowIntensity"
+                  class="parameter-range parameter-range--intensity"
+                  type="range"
+                  min="0"
+                  max="20"
+                  step="1"
+                />
+                <input
+                  id="glowIntensityNumber"
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="1"
+                />
+              </span>
+            </label>
+            <label>
+              启用渐变背景
+              <select id="enableGradient" data-dropdown-variant="settings">
+                <option value="false">关闭（纯色背景）</option>
+                <option value="true">开启（渐变背景）</option>
+              </select>
+            </label>
+            <label>
+              <span
+                >渐变结束色
+                <lira-help
+                  >与背景色组成双色渐变，建议使用相近色。</lira-help
+                ></span
+              >
+              <input id="gradientEnd" type="color" />
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button id="quickBeautifyBtn" class="primary" type="button">
+            ✨ 一键毛玻璃美化
+          </button>
+          <button id="resetClassicTheme" type="button">恢复默认</button>
         </div>
+      </div>
+
+      <!-- ====== 点歌板风格 2 / 3 / 4 / 5 / 6 共用设置 ====== -->
+      <div id="identityThemeArea" class="theme-area" hidden>
+        <fieldset class="theme-section">
+          <legend>文字设置</legend>
+          <label>
+            <span
+              >点歌内容字号
+              <lira-help>控制点歌板全部队列文字，默认 26 px。</lira-help></span
+            >
+            <span class="range-row">
+              <input
+                id="identityQueueFontSize"
+                class="parameter-range parameter-range--scale"
+                type="range"
+                min="9"
+                max="78"
+                step="1"
+                value="26"
+              />
+              <input
+                id="identityQueueFontSizeNumber"
+                type="number"
+                min="9"
+                max="78"
+                step="1"
+                value="26"
+              />
+            </span>
+          </label>
+        </fieldset>
+
+        <fieldset class="theme-section" data-illustrated-only>
+          <legend>插画文字</legend>
+          <div class="grid-2">
+            <label>
+              字体
+              <select
+                id="illustratedQueueFontFamily"
+                data-dropdown-variant="settings"
+              >
+                <option value="default">幼圆</option>
+                <option value="Microsoft YaHei, PingFang SC, sans-serif">
+                  微软雅黑 · 清晰
+                </option>
+                <option value="YouYuan, Microsoft YaHei, sans-serif">
+                  幼圆 · 圆润
+                </option>
+                <option value="PingFang SC, Microsoft YaHei, sans-serif">
+                  苹方 · 现代
+                </option>
+                <option value="KaiTi, STKaiti, serif">楷体 · 手写</option>
+              </select>
+            </label>
+            <label>
+              字重
+              <select
+                id="illustratedQueueFontWeight"
+                data-dropdown-variant="settings"
+              >
+                <option value="default">粗体</option>
+                <option value="600">较细</option>
+                <option value="700">中等</option>
+                <option value="800">粗体</option>
+                <option value="900">超粗</option>
+              </select>
+            </label>
+            <label>
+              自定义文字颜色
+              <select
+                id="illustratedQueueUseCustomTextColor"
+                data-dropdown-variant="settings"
+              >
+                <option value="false">关闭（使用风格默认颜色）</option>
+                <option value="true">开启</option>
+              </select>
+            </label>
+            <label>
+              <span
+                >文字颜色
+                <lira-help
+                  >用于歌名、点歌人、序号和空状态文字。</lira-help
+                ></span
+              >
+              <input
+                id="illustratedQueueTextColor"
+                type="color"
+                value="#315d7d"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>队列滚动</legend>
+          <div class="grid-2">
+            <label>
+              队列滚动模式
+              <select
+                id="identityQueueScrollMode"
+                data-dropdown-variant="settings"
+              >
+                <option value="loop">循环滚动（首尾相接）</option>
+                <option value="bounce">往返滚动（到底后返回）</option>
+              </select>
+            </label>
+            <label>
+              <span
+                >上下滚动速率
+                <lira-help>1 最慢，100 最快；仅影响当前风格。</lira-help></span
+              >
+              <span class="range-row">
+                <input
+                  id="identityQueueScrollSpeedRange"
+                  class="parameter-range parameter-range--tempo"
+                  type="range"
+                  min="1"
+                  max="100"
+                  step="1"
+                />
+                <input
+                  id="identityQueueScrollSpeed"
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                />
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section" data-identity-only>
+          <legend>置顶公告</legend>
+          <div class="grid-1">
+            <label>
+              置顶内容 1
+              <input
+                id="overlayPin1"
+                placeholder="留空则不显示，显示在点歌板2最上方"
+              />
+            </label>
+            <label>
+              置顶内容 2
+              <input
+                id="overlayPin2"
+                placeholder="留空则不显示，显示在点歌板2最上方"
+              />
+            </label>
+            <label>
+              置顶内容 3
+              <input
+                id="overlayPin3"
+                placeholder="留空则不显示，显示在点歌板2最上方"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section" data-identity-only>
+          <legend>规则展示</legend>
+          <div class="identity-rule-panel">
+            <label class="identity-rule-font">
+              规则小块字号
+              <span class="range-row">
+                <input
+                  id="overlayRuleFontSize"
+                  class="parameter-range parameter-range--scale"
+                  type="range"
+                  min="8"
+                  max="18"
+                  step="1"
+                />
+                <input
+                  id="overlayRuleFontSizeNumber"
+                  type="number"
+                  min="8"
+                  max="18"
+                  step="1"
+                />
+              </span>
+            </label>
+            <div class="identity-rule-settings">
+              <label class="identity-rule-setting">
+                <span>规则 1</span>
+                <input
+                  id="overlayRule1"
+                  placeholder="例如：弹幕输入 点歌 歌名"
+                />
+                <input id="overlayRuleColor1" type="color" />
+              </label>
+              <label class="identity-rule-setting">
+                <span>规则 2</span>
+                <input id="overlayRule2" placeholder="留空则不显示" />
+                <input id="overlayRuleColor2" type="color" />
+              </label>
+              <label class="identity-rule-setting">
+                <span>规则 3</span>
+                <input id="overlayRule3" placeholder="例如：SC ≥ 2" />
+                <input id="overlayRuleColor3" type="color" />
+              </label>
+              <label class="identity-rule-setting">
+                <span>规则 4</span>
+                <input id="overlayRule4" placeholder="留空则不显示" />
+                <input id="overlayRuleColor4" type="color" />
+              </label>
+              <label class="identity-rule-setting">
+                <span>规则 5</span>
+                <input id="overlayRule5" placeholder="留空则不显示" />
+                <input id="overlayRuleColor5" type="color" />
+              </label>
+              <label class="identity-rule-setting">
+                <span>规则 6</span>
+                <input id="overlayRule6" placeholder="留空则不显示" />
+                <input id="overlayRuleColor6" type="color" />
+              </label>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <button class="primary" type="submit">保存点歌板主题</button>
+    </form>
+  </div>
+</div>

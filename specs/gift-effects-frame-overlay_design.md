@@ -246,15 +246,15 @@ stateDiagram-v2
 
 顶层状态只表示会话阶段。`entering` 内部是一个并行动画编排：
 
-| Enter offset | 视觉行为 |
-|---:|---|
-| `0.00` | 四角出现，枝条和叶片以很小位移进入；不产生大面积光晕 |
-| `0.12` | 上、下、左、右四条边分别从对应方向短距离进入，并开始 mask/path reveal |
-| `0.45` | 四边逐段连接到四角，连接点出现一次柔和亮点 |
-| `0.62` | 底边中央形成缺口，礼物信息底座上升 8–12px |
-| `0.82` | 礼物名与金额出现，随后淡入观众名和数量 |
-| `0.90` | 框体基本完成，进入稳定的 holding |
-| `1.00` | entering 完成 |
+| Enter offset | 视觉行为                                                              |
+| -----------: | --------------------------------------------------------------------- |
+|       `0.00` | 四角出现，枝条和叶片以很小位移进入；不产生大面积光晕                  |
+|       `0.12` | 上、下、左、右四条边分别从对应方向短距离进入，并开始 mask/path reveal |
+|       `0.45` | 四边逐段连接到四角，连接点出现一次柔和亮点                            |
+|       `0.62` | 底边中央形成缺口，礼物信息底座上升 8–12px                             |
+|       `0.82` | 礼物名与金额出现，随后淡入观众名和数量                                |
+|       `0.90` | 框体基本完成，进入稳定的 holding                                      |
+|       `1.00` | entering 完成                                                         |
 
 时长只有一个权威来源。V1 使用冻结的本地配置：
 
@@ -395,19 +395,19 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 
 ## Security and Failure Handling
 
-| 情况 | 影响 | 处理 |
-|---|---|---|
-| 礼物名称或观众名包含 HTML | 可能注入 Overlay DOM | 只用 `textContent` 创建文本节点 |
-| 长文本、Emoji 或混合文字 | 底座溢出或金额被挤压 | 约束文本列、CSS ellipsis，金额列固定且完整显示 |
-| 主题 ID 被篡改 | 加载任意本地/远程资源 | 只接受内置主题 allowlist |
-| 任一组件 PNG 加载失败 | 边框缺失或断边 | 切换到本地 `frame-composite.png` 完整合成图和文字信息 |
-| 任一独立装饰 PNG 加载失败 | 局部装饰缺失 | 只隐藏该装饰，不影响结构图、信息、粒子和播放生命周期 |
-| WebSocket 断开 | 收不到新事件 | 沿用指数退避重连，清理过期连接定时器 |
-| Canvas context 不可用 | 粒子层缺失 | 不影响 PNG、文字和生命周期 |
-| 礼物事件短时间爆发 | 延迟或内存增长 | 队列上限、去重和可观测的丢弃计数 |
-| 金额无效、为零或单位混用 | 错误触发或漏触发 | 只读取 final RMB 金额，在 Adapter 转整数分并要求 `> 0` |
-| WAAPI/timer 未完成或控制器抛错 | 队列永久卡住 | PlaybackSession watchdog + AbortController + `finally` 强制清理 |
-| 直播姬与 LIRA 不在同一台机器 | 本地 URL 不可访问 | 第一版要求同机运行，不通过放宽 Host 绑定解决 |
+| 情况                           | 影响                  | 处理                                                            |
+| ------------------------------ | --------------------- | --------------------------------------------------------------- |
+| 礼物名称或观众名包含 HTML      | 可能注入 Overlay DOM  | 只用 `textContent` 创建文本节点                                 |
+| 长文本、Emoji 或混合文字       | 底座溢出或金额被挤压  | 约束文本列、CSS ellipsis，金额列固定且完整显示                  |
+| 主题 ID 被篡改                 | 加载任意本地/远程资源 | 只接受内置主题 allowlist                                        |
+| 任一组件 PNG 加载失败          | 边框缺失或断边        | 切换到本地 `frame-composite.png` 完整合成图和文字信息           |
+| 任一独立装饰 PNG 加载失败      | 局部装饰缺失          | 只隐藏该装饰，不影响结构图、信息、粒子和播放生命周期            |
+| WebSocket 断开                 | 收不到新事件          | 沿用指数退避重连，清理过期连接定时器                            |
+| Canvas context 不可用          | 粒子层缺失            | 不影响 PNG、文字和生命周期                                      |
+| 礼物事件短时间爆发             | 延迟或内存增长        | 队列上限、去重和可观测的丢弃计数                                |
+| 金额无效、为零或单位混用       | 错误触发或漏触发      | 只读取 final RMB 金额，在 Adapter 转整数分并要求 `> 0`          |
+| WAAPI/timer 未完成或控制器抛错 | 队列永久卡住          | PlaybackSession watchdog + AbortController + `finally` 强制清理 |
+| 直播姬与 LIRA 不在同一台机器   | 本地 URL 不可访问     | 第一版要求同机运行，不通过放宽 Host 绑定解决                    |
 
 不应为了让远程直播姬访问 Overlay 而把本地服务暴露到 LAN；这会触及 LIRA 现有本地服务和 token 安全边界，需要单独的架构决策。
 
@@ -471,13 +471,13 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 
 ## Ownership and Compatibility
 
-| 责任 | Owner | 现有契约/消费者 |
-|---|---|---|
-| 礼物 final 生命周期与总金额 | `src/bilibili/gift/` | `docs/architecture/backend/bilibili/gift.md` |
-| 礼物 frame 事件构造、RMB→整数分和阈值 | `src/bilibili/gift/` 的具名 Frame Adapter | 新增 `gift-frame` focused tests |
-| Overlay 页面与动画 | `public/pages/overlays/`、`public/js/overlays/`、`public/css/overlays/` | `docs/architecture/frontend/overlays.md`、`test/gift-effects-overlay.test.js` |
-| 浏览器源 URL 与预览 | `public/js/admin/gift-effects.js`、`src/server/routes/gift-routes.js` | `/gift-effects`、新增 `/api/gifts/frame/preview` |
-| settings 持久化 | `src/storage/settings-store.js` | `docs/architecture/backend/storage.md` |
+| 责任                                  | Owner                                                                   | 现有契约/消费者                                                               |
+| ------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 礼物 final 生命周期与总金额           | `src/bilibili/gift/`                                                    | `docs/architecture/backend/bilibili/gift.md`                                  |
+| 礼物 frame 事件构造、RMB→整数分和阈值 | `src/bilibili/gift/` 的具名 Frame Adapter                               | 新增 `gift-frame` focused tests                                               |
+| Overlay 页面与动画                    | `public/pages/overlays/`、`public/js/overlays/`、`public/css/overlays/` | `docs/architecture/frontend/overlays.md`、`test/gift-effects-overlay.test.js` |
+| 浏览器源 URL 与预览                   | `public/js/admin/gift-effects.js`、`src/server/routes/gift-routes.js`   | `/gift-effects`、新增 `/api/gifts/frame/preview`                              |
+| settings 持久化                       | `src/storage/settings-store.js`                                         | `docs/architecture/backend/storage.md`                                        |
 
 兼容性约束：
 

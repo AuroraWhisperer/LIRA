@@ -8,7 +8,7 @@ const {
   timestampToIso,
   normalizeSuperChatPrice,
   normalizeGuardLevel,
-  normalizePositiveInteger
+  normalizePositiveInteger,
 } = require('../shared/utils');
 
 const SUPER_CHAT_PIN_THRESHOLD = 2;
@@ -31,10 +31,14 @@ function addSuperChatItem(context, input) {
     userName: cleanText(input && input.userName) || '观众',
     price,
     message: cleanText(input && input.message),
-    requesterGuardLevel: normalizeGuardLevel(input && input.requesterGuardLevel),
+    requesterGuardLevel: normalizeGuardLevel(
+      input && input.requesterGuardLevel,
+    ),
     requesterMedalName: cleanText(input && input.requesterMedalName),
-    requesterMedalLevel: normalizePositiveInteger(input && input.requesterMedalLevel),
-    createdAt
+    requesterMedalLevel: normalizePositiveInteger(
+      input && input.requesterMedalLevel,
+    ),
+    createdAt,
   });
 }
 
@@ -47,7 +51,11 @@ function handleSuperChatAction(context, action, rawId) {
     return getSuperChatSnapshot(context);
   }
   if (action === 'assist' || action === 'unassist') {
-    context.store.setStatus(id, action === 'assist' ? 'assisted' : 'active', now());
+    context.store.setStatus(
+      id,
+      action === 'assist' ? 'assisted' : 'active',
+      now(),
+    );
     return getSuperChatSnapshot(context);
   }
 
@@ -63,5 +71,5 @@ module.exports = {
   SUPER_CHAT_DISPLAY_THRESHOLD,
   addSuperChatItem,
   handleSuperChatAction,
-  getSuperChatSnapshot
+  getSuperChatSnapshot,
 };

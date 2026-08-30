@@ -10,13 +10,22 @@ const vm = require('node:vm');
 const { pathToFileURL } = require('node:url');
 
 async function loadCategoryFilterModule() {
-  const filePath = path.join(__dirname, '..', 'public', 'js', 'admin', 'song-category-filter.js');
+  const filePath = path.join(
+    __dirname,
+    '..',
+    'public',
+    'js',
+    'admin',
+    'song-category-filter.js',
+  );
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context: vm.createContext({ console, document: {} }),
-    identifier: pathToFileURL(filePath).href
+    identifier: pathToFileURL(filePath).href,
   });
   await module.link(() => {
-    throw new Error('The category filter module should not import dependencies.');
+    throw new Error(
+      'The category filter module should not import dependencies.',
+    );
   });
   await module.evaluate();
   return module.namespace;
@@ -25,8 +34,14 @@ async function loadCategoryFilterModule() {
 test('song library multi-select filters allow only one open menu', () => {
   const html = readAdminHtml();
 
-  assert.match(html, /<details id="categoryFilter"[^>]* name="songLibraryFilter">/);
-  assert.match(html, /<details id="tagFilter"[^>]* name="songLibraryFilter">/);
+  assert.match(
+    html,
+    /<details\b(?=[^>]*\bid="categoryFilter")(?=[^>]*\bname="songLibraryFilter")[^>]*>/,
+  );
+  assert.match(
+    html,
+    /<details\b(?=[^>]*\bid="tagFilter")(?=[^>]*\bname="songLibraryFilter")[^>]*>/,
+  );
 });
 
 test('song library filter menus close only when clicking outside', async () => {
@@ -35,7 +50,7 @@ test('song library filter menus close only when clicking outside', async () => {
   const outsideTarget = {};
   const filter = {
     open: true,
-    contains: (target) => target === insideTarget
+    contains: (target) => target === insideTarget,
   };
 
   closeFilterMenusOnOutsideClick({ target: insideTarget }, [filter]);

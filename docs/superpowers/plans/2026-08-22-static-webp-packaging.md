@@ -21,10 +21,12 @@
 ### Task 1: Generate lossless WebP siblings
 
 **Files:**
+
 - Create: `public/img/**/*.webp` for every static PNG under `public/img/`, excluding `public/img/bilibili-gifts/31140.png`.
 - Preserve: Existing `public/img/**/*.png` files.
 
 **Interfaces:**
+
 - Consumes: Existing static PNG assets.
 - Produces: Same-path WebP siblings with identical dimensions and pixel data.
 
@@ -39,10 +41,12 @@
 ### Task 2: Switch renderer references and package filters
 
 **Files:**
+
 - Modify: `public/pages/`, `public/js/`, and `public/css/` references to converted static PNGs.
 - Modify: `package.json:48-52` electron-builder `files` patterns.
 
 **Interfaces:**
+
 - Consumes: WebP siblings from Task 1.
 - Produces: Renderer URLs ending in `.webp`; packaged app excludes only converted static PNGs.
 
@@ -61,10 +65,12 @@
 ### Task 3: Build and regression verification
 
 **Files:**
+
 - Modify: None beyond Tasks 1–2.
 - Verify: `release/win-unpacked/resources/app.asar` and the generated installer.
 
 **Interfaces:**
+
 - Consumes: Updated assets and packaging patterns.
 - Produces: A verified Windows package with no missing static images.
 

@@ -1,0 +1,22 @@
+# Generated, runtime, dependency, and private-analysis data are not source inputs.
+/node_modules/
+/data/
+/release/
+/tmp/
+/.tmp*/
+/build/
+/.claude/
+/logs/
+*.log
+tools/qq-music-analyzer/captures/
+tools/qq-music-analyzer/*.har
+tools/qq-music-analyzer/*.jsonl
+tools/qq-music-analyzer/analysis-report.json
+tools/qq-music-analyzer/recommend-feed-response.json
+
+# These HTML fragments are intentionally incomplete: the server composes them
+# with the matching shell-start/page-end fragments before serving a document.
+public/pages/admin/document-end.html
+public/pages/admin/main-end.html
+public/pages/admin/song/shell-end.html
+public/pages/admin/toolbox/shell-end.html

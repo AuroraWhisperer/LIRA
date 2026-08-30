@@ -67,7 +67,10 @@ function createOrderedAsyncCoordinator(options = {}) {
             await onError(error, job.item);
           } catch (onErrorError) {
             // onError 自身抛错不能阻断投递循环，否则剩余回复永远无法送达。
-            console.warn('[async-coordinator] onError threw:', onErrorError && onErrorError.message);
+            console.warn(
+              '[async-coordinator] onError threw:',
+              onErrorError && onErrorError.message,
+            );
           }
         }
       }
@@ -83,7 +86,7 @@ function createOrderedAsyncCoordinator(options = {}) {
       waiting: waiting.length,
       generating: active,
       ready: completed.size,
-      delivering
+      delivering,
     };
   }
 

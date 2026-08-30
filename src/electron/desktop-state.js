@@ -4,28 +4,27 @@ function createDesktopState() {
   return {
     window: {
       main: null,
-      baseUrl: ''
+      baseUrl: '',
     },
     lifecycle: {
       runtime: null,
       shutdown: null,
       gracefulQuitStarted: false,
-      forceQuitTimer: null
+      forceQuitTimer: null,
     },
     media: {
       headersConfigured: false,
       localAccess: null,
-      providerRegistry: null
     },
     paths: {
       dataDir: '',
       logDir: '',
       logFile: '',
-      terminalLogFile: ''
+      terminalLogFile: '',
     },
     logging: {
       runId: '',
-      sequence: 0
+      sequence: 0,
     },
     update: {
       value: {
@@ -35,10 +34,10 @@ function createDesktopState() {
         canDownload: false,
         canInstall: false,
         progress: null,
-        updateVersion: ''
+        updateVersion: '',
       },
-      lastStatus: ''
-    }
+      lastStatus: '',
+    },
   };
 }
 

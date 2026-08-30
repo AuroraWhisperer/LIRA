@@ -11,13 +11,13 @@ const {
   createOvertimeService,
   validateBackground,
   validateRules,
-  validateTimeInput
+  validateTimeInput,
 } = require('../src/overtime');
 const {
   clearGiftData,
   closeDatabases,
   createDatabases,
-  getSchemaVersions
+  getSchemaVersions,
 } = require('../src/storage/database');
 
 test('gift database v7 creates overtime tables and safe singleton defaults', () => {
@@ -25,14 +25,18 @@ test('gift database v7 creates overtime tables and safe singleton defaults', () 
   try {
     assert.equal(getSchemaVersions(fixture.db).giftDb, 7);
     const tables = new Set(
-      fixture.db.giftDb.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all()
-        .map(row => row.name)
+      fixture.db.giftDb
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .all()
+        .map((row) => row.name),
     );
     assert.equal(tables.has('overtime_machine_state'), true);
     assert.equal(tables.has('overtime_gift_rules'), true);
     assert.equal(tables.has('overtime_settlements'), true);
 
-    const state = fixture.db.giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
+    const state = fixture.db.giftDb
+      .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
+      .get();
     assert.equal(state.enabled, 0);
     assert.equal(state.enable_epoch, 0);
     assert.equal(state.initial_seconds, 0);
@@ -47,7 +51,9 @@ test('gift database v7 creates overtime tables and safe singleton defaults', () 
 });
 
 test('gift database v7 preserves v5 overtime state while widening its bounds', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-migration-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-overtime-migration-'),
+  );
   let db = createDatabases({ dataDir });
   try {
     db.giftDb.exec(`
@@ -74,13 +80,18 @@ test('gift database v7 preserves v5 overtime state while widening its bounds', (
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    const state = db.giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
+    const state = db.giftDb
+      .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
+      .get();
     assert.equal(getSchemaVersions(db).giftDb, 7);
     assert.equal(state.enabled, 1);
     assert.equal(state.enable_epoch, 7);
     assert.equal(state.remaining_ms, 2_700_000);
     assert.equal(state.background_fit, 'contain');
-    db.giftDb.prepare('UPDATE overtime_machine_state SET remaining_ms = ? WHERE id = 1')
+    db.giftDb
+      .prepare(
+        'UPDATE overtime_machine_state SET remaining_ms = ? WHERE id = 1',
+      )
       .run(MAX_OVERTIME_SECONDS * 1000);
   } finally {
     closeDatabases(db);
@@ -91,7 +102,9 @@ test('gift database v7 preserves v5 overtime state while widening its bounds', (
 test('running time uses a monotonic anchor and pauses without further drift', () => {
   const fixture = createFixture();
   const updates = [];
-  const service = fixture.createService({ onUpdate: message => updates.push(message) });
+  const service = fixture.createService({
+    onUpdate: (message) => updates.push(message),
+  });
 
   try {
     service.act('enable');
@@ -104,7 +117,10 @@ test('running time uses a monotonic anchor and pauses without further drift', ()
     fixture.clock.advance(10_000);
     assert.equal(service.getSnapshot().effectiveRemainingMs, 590_000);
     assert.equal(service.getSnapshot().status, 'paused');
-    assert.deepEqual(updates.map(update => update.reason), ['manual', 'manual', 'manual', 'manual']);
+    assert.deepEqual(
+      updates.map((update) => update.reason),
+      ['manual', 'manual', 'manual', 'manual'],
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -114,7 +130,9 @@ test('running time uses a monotonic anchor and pauses without further drift', ()
 test('natural zero persists finished once and increments the revision', () => {
   const fixture = createFixture();
   const updates = [];
-  const service = fixture.createService({ onUpdate: message => updates.push(message) });
+  const service = fixture.createService({
+    onUpdate: (message) => updates.push(message),
+  });
 
   try {
     service.act('enable');
@@ -127,10 +145,16 @@ test('natural zero persists finished once and increments the revision', () => {
     assert.equal(snapshot.effectiveRemainingMs, 0);
     assert.equal(snapshot.status, 'finished');
     assert.equal(snapshot.revision, before + 1);
-    assert.equal(updates.filter(update => update.reason === 'finished').length, 1);
+    assert.equal(
+      updates.filter((update) => update.reason === 'finished').length,
+      1,
+    );
 
     fixture.clock.advance(10_000);
-    assert.equal(updates.filter(update => update.reason === 'finished').length, 1);
+    assert.equal(
+      updates.filter((update) => update.reason === 'finished').length,
+      1,
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -188,95 +212,179 @@ test('restart deducts offline elapsed time and never gains time after wall-clock
 
 test('time, background, and rules validation enforce server limits', () => {
   assert.equal(MAX_OVERTIME_SECONDS, 9_999 * 365 * 24 * 60 * 60);
-  assert.deepEqual(validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS }), {
-    remainingSeconds: MAX_OVERTIME_SECONDS
-  });
+  assert.deepEqual(
+    validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS }),
+    {
+      remainingSeconds: MAX_OVERTIME_SECONDS,
+    },
+  );
   assert.throws(
     () => validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS + 1 }),
-    /remainingSeconds/
+    /remainingSeconds/,
   );
-  assert.deepEqual(validateBackground({ path: '', fit: 'contain' }), { path: '', fit: 'contain' });
+  assert.deepEqual(validateBackground({ path: '', fit: 'contain' }), {
+    path: '',
+    fit: 'contain',
+  });
   assert.deepEqual(
-    validateBackground({ path: '/img/overtime-machine/night.webp', fit: 'cover' }),
-    { path: '/img/overtime-machine/night.webp', fit: 'cover' }
+    validateBackground({
+      path: '/img/overtime-machine/night.webp',
+      fit: 'cover',
+    }),
+    { path: '/img/overtime-machine/night.webp', fit: 'cover' },
   );
-  assert.throws(() => validateBackground({ path: '../secret', fit: 'cover' }), /path/);
-  assert.throws(() => validateBackground({ path: 'https://example.test/a.png', fit: 'cover' }), /path/);
+  assert.throws(
+    () => validateBackground({ path: '../secret', fit: 'cover' }),
+    /path/,
+  );
+  assert.throws(
+    () =>
+      validateBackground({ path: 'https://example.test/a.png', fit: 'cover' }),
+    /path/,
+  );
 
   const rules = validateRules([
     {
-      giftId: '35521', giftName: '心动时刻', imagePath: '/img/bilibili-gifts/a.webp',
-      mode: 'fixed', fixedSeconds: 300, enabled: true, sortOrder: 0
+      giftId: '35521',
+      giftName: '心动时刻',
+      imagePath: '/img/bilibili-gifts/a.webp',
+      mode: 'fixed',
+      fixedSeconds: 300,
+      enabled: true,
+      sortOrder: 0,
     },
     {
-      giftId: '1', giftName: '盲盒', imagePath: '', mode: 'random', enabled: false,
-      outcomes: [{ seconds: 60, weight: 2 }, { seconds: -30, weight: 1 }], sortOrder: 1
+      giftId: '1',
+      giftName: '盲盒',
+      imagePath: '',
+      mode: 'random',
+      enabled: false,
+      outcomes: [
+        { seconds: 60, weight: 2 },
+        { seconds: -30, weight: 1 },
+      ],
+      sortOrder: 1,
     },
     {
-      giftId: '2', giftName: '翻倍', imagePath: '', mode: 'fixed', enabled: false,
-      fixedEffect: { operation: 'multiply', value: 8 }, sortOrder: 2
-    }
+      giftId: '2',
+      giftName: '翻倍',
+      imagePath: '',
+      mode: 'fixed',
+      enabled: false,
+      fixedEffect: { operation: 'multiply', value: 8 },
+      sortOrder: 2,
+    },
   ]);
   assert.equal(rules[0].fixedSeconds, 300);
   assert.deepEqual(rules[0].fixedEffect, { operation: 'add', value: 300 });
   assert.deepEqual(rules[1].outcomes, [
     { operation: 'add', value: 60, weight: 2 },
-    { operation: 'subtract', value: 30, weight: 1 }
+    { operation: 'subtract', value: 30, weight: 1 },
   ]);
   assert.deepEqual(rules[2].fixedEffect, { operation: 'multiply', value: 8 });
   assert.equal(rules[2].fixedSeconds, null);
-  assert.deepEqual(rules.map(rule => rule.quantityMode), ['group', 'group', 'group']);
-  const guardRule = validateRules([{
-    giftId: 'guard-1', mode: 'fixed', imagePath: '/img/admin/gifts/bilibili-guard-governor.webp', fixedSeconds: 300
-  }]);
-  assert.equal(guardRule[0].imagePath, '/img/admin/gifts/bilibili-guard-governor.webp');
-  const itemRule = validateRules([{
-    giftId: 'quantity-item', mode: 'fixed', quantityMode: 'item', fixedSeconds: 1
-  }]);
+  assert.deepEqual(
+    rules.map((rule) => rule.quantityMode),
+    ['group', 'group', 'group'],
+  );
+  const guardRule = validateRules([
+    {
+      giftId: 'guard-1',
+      mode: 'fixed',
+      imagePath: '/img/admin/gifts/bilibili-guard-governor.webp',
+      fixedSeconds: 300,
+    },
+  ]);
+  assert.equal(
+    guardRule[0].imagePath,
+    '/img/admin/gifts/bilibili-guard-governor.webp',
+  );
+  const itemRule = validateRules([
+    {
+      giftId: 'quantity-item',
+      mode: 'fixed',
+      quantityMode: 'item',
+      fixedSeconds: 1,
+    },
+  ]);
   assert.equal(itemRule[0].quantityMode, 'item');
-  const displayRule = validateRules([{
-    giftId: 'display-gift', mode: 'display', displayText: '谢谢支持', enabled: true
-  }]);
+  const displayRule = validateRules([
+    {
+      giftId: 'display-gift',
+      mode: 'display',
+      displayText: '谢谢支持',
+      enabled: true,
+    },
+  ]);
   assert.equal(displayRule[0].displayText, '谢谢支持');
   assert.throws(
-    () => validateRules([{ giftId: 'too-long', mode: 'display', displayText: '七个文字超长度' }]),
-    /displayText/
+    () =>
+      validateRules([
+        { giftId: 'too-long', mode: 'display', displayText: '七个文字超长度' },
+      ]),
+    /displayText/,
   );
   assert.throws(
-    () => validateRules([{ giftId: 'control', mode: 'display', displayText: '好\n' }]),
-    /displayText/
+    () =>
+      validateRules([
+        { giftId: 'control', mode: 'display', displayText: '好\n' },
+      ]),
+    /displayText/,
   );
   assert.throws(
-    () => validateRules([{
-      giftId: 'bad-quantity-mode', mode: 'fixed', quantityMode: 'price', fixedSeconds: 1
-    }]),
-    /quantityMode/
+    () =>
+      validateRules([
+        {
+          giftId: 'bad-quantity-mode',
+          mode: 'fixed',
+          quantityMode: 'price',
+          fixedSeconds: 1,
+        },
+      ]),
+    /quantityMode/,
   );
   assert.throws(
-    () => validateRules([{
-      giftId: 'bad-factor', mode: 'fixed', fixedEffect: { operation: 'divide', value: 1 }
-    }]),
-    /value/
+    () =>
+      validateRules([
+        {
+          giftId: 'bad-factor',
+          mode: 'fixed',
+          fixedEffect: { operation: 'divide', value: 1 },
+        },
+      ]),
+    /value/,
   );
   assert.throws(
-    () => validateRules(Array.from({ length: 9 }, (_, index) => ({
-      giftId: String(index), mode: 'fixed', fixedSeconds: 1, enabled: true
-    }))),
-    /enabled rules/
+    () =>
+      validateRules(
+        Array.from({ length: 9 }, (_, index) => ({
+          giftId: String(index),
+          mode: 'fixed',
+          fixedSeconds: 1,
+          enabled: true,
+        })),
+      ),
+    /enabled rules/,
   );
 });
 
 test('group quantity mode applies a fixed rule once for the finalized combo', () => {
   const fixture = createFixture();
   const updates = [];
-  const service = fixture.createService({ onUpdate: update => updates.push(update) });
+  const service = fixture.createService({
+    onUpdate: (update) => updates.push(update),
+  });
   const consumer = createOvertimeConsumer({ service });
 
   try {
     service.act('enable');
     service.setTime({ remainingSeconds: 120 });
     service.replaceRules([fixedRule('gift-a', 300)]);
-    const event = fixture.insertFinalGift({ giftId: 'gift-a', num: 100, overtimeEpoch: 1 });
+    const event = fixture.insertFinalGift({
+      giftId: 'gift-a',
+      num: 100,
+      overtimeEpoch: 1,
+    });
 
     consumer.handle(event);
     consumer.handle(event);
@@ -288,7 +396,10 @@ test('group quantity mode applies a fixed rule once for the finalized combo', ()
     assert.equal(settlement.requested_delta_seconds, 300);
     assert.equal(settlement.applied_delta_seconds, 300);
     assert.equal(fixture.countSettlements(event.giftEventId), 1);
-    assert.equal(updates.filter(update => update.reason === 'gift').length, 1);
+    assert.equal(
+      updates.filter((update) => update.reason === 'gift').length,
+      1,
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -304,7 +415,11 @@ test('item quantity mode applies a fixed rule once per gift in the finalized com
     service.act('enable');
     service.setTime({ remainingSeconds: 120 });
     service.replaceRules([fixedRule('gift-a', 300, 0, 'item')]);
-    const event = fixture.insertFinalGift({ giftId: 'gift-a', num: 100, overtimeEpoch: 1 });
+    const event = fixture.insertFinalGift({
+      giftId: 'gift-a',
+      num: 100,
+      overtimeEpoch: 1,
+    });
 
     consumer.handle(event);
     consumer.handle(event);
@@ -324,17 +439,31 @@ test('item quantity mode applies a fixed rule once per gift in the finalized com
 test('display gift settlement keeps time unchanged and remains idempotent', () => {
   const fixture = createFixture();
   const updates = [];
-  const service = fixture.createService({ onUpdate: update => updates.push(update) });
+  const service = fixture.createService({
+    onUpdate: (update) => updates.push(update),
+  });
   const consumer = createOvertimeConsumer({ service });
 
   try {
     service.act('enable');
     service.setTime({ remainingSeconds: 120 });
-    service.replaceRules([{
-      giftId: 'display-gift', giftName: '展示礼物', imagePath: '', mode: 'display',
-      displayText: '谢谢支持', quantityMode: 'item', enabled: true, sortOrder: 0
-    }]);
-    const event = fixture.insertFinalGift({ giftId: 'display-gift', num: 100, overtimeEpoch: 1 });
+    service.replaceRules([
+      {
+        giftId: 'display-gift',
+        giftName: '展示礼物',
+        imagePath: '',
+        mode: 'display',
+        displayText: '谢谢支持',
+        quantityMode: 'item',
+        enabled: true,
+        sortOrder: 0,
+      },
+    ]);
+    const event = fixture.insertFinalGift({
+      giftId: 'display-gift',
+      num: 100,
+      overtimeEpoch: 1,
+    });
 
     consumer.handle(event);
     consumer.handle(event);
@@ -346,7 +475,10 @@ test('display gift settlement keeps time unchanged and remains idempotent', () =
     assert.equal(settlement.requested_delta_seconds, 0);
     assert.equal(settlement.applied_delta_seconds, 0);
     assert.equal(fixture.countSettlements(event.giftEventId), 1);
-    assert.equal(updates.filter(update => update.reason === 'gift').length, 1);
+    assert.equal(
+      updates.filter((update) => update.reason === 'gift').length,
+      1,
+    );
     assert.equal(updates.at(-1).adjustment.displayText, '谢谢支持');
   } finally {
     service.dispose();
@@ -364,27 +496,52 @@ test('guard purchases and room gift aliases share the three canonical guard rule
     service.replaceRules([
       fixedRule('guard-1', 100, 0, 'item'),
       fixedRule('guard-2', 10, 1, 'item'),
-      fixedRule('guard-3', 1, 2, 'item')
+      fixedRule('guard-3', 1, 2, 'item'),
     ]);
 
     let expectedSeconds = 0;
     for (const [giftId, seconds] of [
-      ['guard-1', 100], ['10001', 100], ['33909', 100], ['34639', 100],
-      ['guard-2', 10], ['10002', 10], ['33908', 10], ['34638', 10],
-      ['guard-3', 1], ['10003', 1], ['34637', 1], ['33972', 1],
-      ['33978', 1], ['34636', 1]
+      ['guard-1', 100],
+      ['10001', 100],
+      ['33909', 100],
+      ['34639', 100],
+      ['guard-2', 10],
+      ['10002', 10],
+      ['33908', 10],
+      ['34638', 10],
+      ['guard-3', 1],
+      ['10003', 1],
+      ['34637', 1],
+      ['33972', 1],
+      ['33978', 1],
+      ['34636', 1],
     ]) {
       const event = fixture.insertFinalGift({ giftId, overtimeEpoch: 1 });
       consumer.handle(event);
       expectedSeconds += seconds;
-      assert.equal(service.getSnapshot().effectiveRemainingMs, expectedSeconds * 1000, giftId);
-      assert.equal(fixture.getSettlement(event.giftEventId).status, 'applied', giftId);
+      assert.equal(
+        service.getSnapshot().effectiveRemainingMs,
+        expectedSeconds * 1000,
+        giftId,
+      );
+      assert.equal(
+        fixture.getSettlement(event.giftEventId).status,
+        'applied',
+        giftId,
+      );
     }
 
-    const multiMonth = fixture.insertFinalGift({ giftId: '10003', num: 12, overtimeEpoch: 1 });
+    const multiMonth = fixture.insertFinalGift({
+      giftId: '10003',
+      num: 12,
+      overtimeEpoch: 1,
+    });
     consumer.handle(multiMonth);
     expectedSeconds += 12;
-    assert.equal(service.getSnapshot().effectiveRemainingMs, expectedSeconds * 1000);
+    assert.equal(
+      service.getSnapshot().effectiveRemainingMs,
+      expectedSeconds * 1000,
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -399,31 +556,46 @@ test('random gift groups persist one weighted result and never redraw', () => {
       draws += 1;
       assert.equal(totalWeight, 3);
       return 2;
-    }
+    },
   });
   const consumer = createOvertimeConsumer({ service });
 
   try {
     service.act('enable');
     service.setTime({ remainingSeconds: 120 });
-    service.replaceRules([{
-      giftId: 'blind', giftName: 'Blind', imagePath: '', mode: 'random',
-      outcomes: [{ seconds: 60, weight: 2 }, { seconds: -30, weight: 1 }],
-      enabled: true, sortOrder: 0
-    }]);
-    const event = fixture.insertFinalGift({ giftId: 'blind', overtimeEpoch: 1 });
+    service.replaceRules([
+      {
+        giftId: 'blind',
+        giftName: 'Blind',
+        imagePath: '',
+        mode: 'random',
+        outcomes: [
+          { seconds: 60, weight: 2 },
+          { seconds: -30, weight: 1 },
+        ],
+        enabled: true,
+        sortOrder: 0,
+      },
+    ]);
+    const event = fixture.insertFinalGift({
+      giftId: 'blind',
+      overtimeEpoch: 1,
+    });
 
     consumer.handle(event);
     consumer.handle(event);
 
     assert.equal(draws, 1);
     assert.equal(service.getSnapshot().effectiveRemainingMs, 90_000);
-    assert.deepEqual(JSON.parse(fixture.getSettlement(event.giftEventId).outcomes_json), {
-      version: 2,
-      selectedIndex: 1,
-      selectedEffect: { operation: 'subtract', value: 30 },
-      totalWeight: 3
-    });
+    assert.deepEqual(
+      JSON.parse(fixture.getSettlement(event.giftEventId).outcomes_json),
+      {
+        version: 2,
+        selectedIndex: 1,
+        selectedEffect: { operation: 'subtract', value: 30 },
+        totalWeight: 3,
+      },
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -439,24 +611,41 @@ test('item quantity mode draws one random result per gift and persists every sel
   try {
     service.act('enable');
     service.setTime({ remainingSeconds: 120 });
-    service.replaceRules([{
-      giftId: 'blind', giftName: 'Blind', imagePath: '', mode: 'random', quantityMode: 'item',
-      outcomes: [{ seconds: 60, weight: 2 }, { seconds: -30, weight: 1 }],
-      enabled: true, sortOrder: 0
-    }]);
-    const event = fixture.insertFinalGift({ giftId: 'blind', num: 3, overtimeEpoch: 1 });
+    service.replaceRules([
+      {
+        giftId: 'blind',
+        giftName: 'Blind',
+        imagePath: '',
+        mode: 'random',
+        quantityMode: 'item',
+        outcomes: [
+          { seconds: 60, weight: 2 },
+          { seconds: -30, weight: 1 },
+        ],
+        enabled: true,
+        sortOrder: 0,
+      },
+    ]);
+    const event = fixture.insertFinalGift({
+      giftId: 'blind',
+      num: 3,
+      overtimeEpoch: 1,
+    });
 
     consumer.handle(event);
     consumer.handle(event);
 
     assert.equal(draws.length, 0);
     assert.equal(service.getSnapshot().effectiveRemainingMs, 210_000);
-    assert.deepEqual(JSON.parse(fixture.getSettlement(event.giftEventId).outcomes_json), {
-      version: 3,
-      quantity: 3,
-      selectedIndexes: [0, 1, 0],
-      totalWeight: 3
-    });
+    assert.deepEqual(
+      JSON.parse(fixture.getSettlement(event.giftEventId).outcomes_json),
+      {
+        version: 3,
+        quantity: 3,
+        selectedIndexes: [0, 1, 0],
+        totalWeight: 3,
+      },
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -466,7 +655,9 @@ test('item quantity mode draws one random result per gift and persists every sel
 test('gift rules apply add, subtract, multiply, divide, and clear in constant time', () => {
   const fixture = createFixture();
   const updates = [];
-  const service = fixture.createService({ onUpdate: update => updates.push(update) });
+  const service = fixture.createService({
+    onUpdate: (update) => updates.push(update),
+  });
   const consumer = createOvertimeConsumer({ service });
 
   try {
@@ -477,7 +668,7 @@ test('gift rules apply add, subtract, multiply, divide, and clear in constant ti
       effectRule('divide', 'divide', 2, 1),
       effectRule('subtract', 'subtract', 20, 2),
       effectRule('add', 'add', 10, 3),
-      effectRule('clear', 'clear', 0, 4)
+      effectRule('clear', 'clear', 0, 4),
     ]);
 
     for (const [giftId, expectedSeconds] of [
@@ -485,16 +676,20 @@ test('gift rules apply add, subtract, multiply, divide, and clear in constant ti
       ['divide', 187],
       ['subtract', 167],
       ['add', 177],
-      ['clear', 0]
+      ['clear', 0],
     ]) {
       consumer.handle(fixture.insertFinalGift({ giftId, overtimeEpoch: 1 }));
-      assert.equal(service.getSnapshot().effectiveRemainingMs, expectedSeconds * 1000);
+      assert.equal(
+        service.getSnapshot().effectiveRemainingMs,
+        expectedSeconds * 1000,
+      );
     }
 
-    const giftUpdates = updates.filter(update => update.reason === 'gift');
-    assert.deepEqual(giftUpdates.map(update => update.adjustment.effect.operation), [
-      'multiply', 'divide', 'subtract', 'add', 'clear'
-    ]);
+    const giftUpdates = updates.filter((update) => update.reason === 'gift');
+    assert.deepEqual(
+      giftUpdates.map((update) => update.adjustment.effect.operation),
+      ['multiply', 'divide', 'subtract', 'add', 'clear'],
+    );
     assert.equal(service.getSnapshot().status, 'finished');
   } finally {
     service.dispose();
@@ -509,13 +704,24 @@ test('multiplication saturates at 9,999 years without overflowing storage', () =
 
   try {
     service.act('enable');
-    service.setTime({ remainingSeconds: Math.floor(MAX_OVERTIME_SECONDS / 2) + 1 });
+    service.setTime({
+      remainingSeconds: Math.floor(MAX_OVERTIME_SECONDS / 2) + 1,
+    });
     service.replaceRules([effectRule('multiply', 'multiply', 3)]);
-    const event = fixture.insertFinalGift({ giftId: 'multiply', overtimeEpoch: 1 });
+    const event = fixture.insertFinalGift({
+      giftId: 'multiply',
+      overtimeEpoch: 1,
+    });
     consumer.handle(event);
 
-    assert.equal(service.getSnapshot().effectiveRemainingMs, MAX_OVERTIME_SECONDS * 1000);
-    assert.equal(fixture.getSettlement(event.giftEventId).applied_delta_seconds > 0, true);
+    assert.equal(
+      service.getSnapshot().effectiveRemainingMs,
+      MAX_OVERTIME_SECONDS * 1000,
+    );
+    assert.equal(
+      fixture.getSettlement(event.giftEventId).applied_delta_seconds > 0,
+      true,
+    );
   } finally {
     service.dispose();
     fixture.close();
@@ -531,12 +737,18 @@ test('negative gifts clamp at zero and a positive gift restarts a finished clock
     service.act('enable');
     service.setTime({ remainingSeconds: 120 });
     service.replaceRules([fixedRule('minus', -300), fixedRule('plus', 60, 1)]);
-    const minus = fixture.insertFinalGift({ giftId: 'minus', overtimeEpoch: 1 });
+    const minus = fixture.insertFinalGift({
+      giftId: 'minus',
+      overtimeEpoch: 1,
+    });
     consumer.handle(minus);
 
     assert.equal(service.getSnapshot().effectiveRemainingMs, 0);
     assert.equal(service.getSnapshot().status, 'finished');
-    assert.equal(fixture.getSettlement(minus.giftEventId).applied_delta_seconds, -120);
+    assert.equal(
+      fixture.getSettlement(minus.giftEventId).applied_delta_seconds,
+      -120,
+    );
 
     const plus = fixture.insertFinalGift({ giftId: 'plus', overtimeEpoch: 1 });
     consumer.handle(plus);
@@ -556,7 +768,10 @@ test('progress creates pending, disable ignores it, and old epochs never reopen 
   try {
     service.act('enable');
     service.replaceRules([fixedRule('gift-a', 60)]);
-    const progress = fixture.insertProgressGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    const progress = fixture.insertProgressGift({
+      giftId: 'gift-a',
+      overtimeEpoch: 1,
+    });
     consumer.handle(progress);
     assert.equal(fixture.getSettlement(progress.giftEventId).status, 'pending');
 
@@ -582,7 +797,10 @@ test('startup compensation settles an eligible final event missing its checkpoin
     service.act('enable');
     service.setTime({ remainingSeconds: 10 });
     service.replaceRules([fixedRule('gift-a', 30)]);
-    const event = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    const event = fixture.insertFinalGift({
+      giftId: 'gift-a',
+      overtimeEpoch: 1,
+    });
     service.dispose();
 
     service = fixture.createService();
@@ -602,19 +820,31 @@ test('a failed settlement rolls back time and retries after one second', () => {
       attempts += 1;
       if (attempts === 1) throw new Error('simulated random failure');
       return 0;
-    }
+    },
   });
   const consumer = createOvertimeConsumer({ service });
 
   try {
     service.act('enable');
     service.setTime({ remainingSeconds: 10 });
-    service.replaceRules([{
-      giftId: 'blind', giftName: 'Blind', imagePath: '', mode: 'random',
-      outcomes: [{ seconds: 60, weight: 1 }, { seconds: -30, weight: 1 }],
-      enabled: true, sortOrder: 0
-    }]);
-    const event = fixture.insertFinalGift({ giftId: 'blind', overtimeEpoch: 1 });
+    service.replaceRules([
+      {
+        giftId: 'blind',
+        giftName: 'Blind',
+        imagePath: '',
+        mode: 'random',
+        outcomes: [
+          { seconds: 60, weight: 1 },
+          { seconds: -30, weight: 1 },
+        ],
+        enabled: true,
+        sortOrder: 0,
+      },
+    ]);
+    const event = fixture.insertFinalGift({
+      giftId: 'blind',
+      overtimeEpoch: 1,
+    });
 
     assert.throws(() => consumer.handle(event), /simulated random failure/);
     assert.equal(service.getSnapshot().effectiveRemainingMs, 10_000);
@@ -640,15 +870,25 @@ test('clearing gifts also clears settlements while preserving overtime configura
     service.act('enable');
     service.setTime({ remainingSeconds: 10 });
     service.replaceRules([fixedRule('gift-a', 30)]);
-    const event = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    const event = fixture.insertFinalGift({
+      giftId: 'gift-a',
+      overtimeEpoch: 1,
+    });
     consumer.handle(event);
 
     clearGiftData(fixture.db.giftDb);
 
-    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 0);
     assert.equal(
-      fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count,
-      0
+      fixture.db.giftDb
+        .prepare('SELECT COUNT(*) AS count FROM gift_events')
+        .get().count,
+      0,
+    );
+    assert.equal(
+      fixture.db.giftDb
+        .prepare('SELECT COUNT(*) AS count FROM overtime_settlements')
+        .get().count,
+      0,
     );
     assert.equal(service.getSnapshot().enabled, true);
     assert.equal(service.getSnapshot().rules.length, 1);
@@ -659,7 +899,9 @@ test('clearing gifts also clears settlements while preserving overtime configura
 });
 
 function createFixture() {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-overtime-'),
+  );
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   return {
@@ -672,40 +914,66 @@ function createFixture() {
         monotonicNow: clock.monotonicNow,
         setTimeout: clock.setTimeout,
         clearTimeout: clock.clearTimeout,
-        ...options
+        ...options,
       });
     },
     insertProgressGift(options = {}) {
-      return insertGift(db.giftDb, clock.now(), { ...options, phase: 'progress' });
+      return insertGift(db.giftDb, clock.now(), {
+        ...options,
+        phase: 'progress',
+      });
     },
     insertFinalGift(options = {}) {
       return insertGift(db.giftDb, clock.now(), { ...options, phase: 'final' });
     },
     finalizeGift(id) {
-      db.giftDb.prepare(`
+      db.giftDb
+        .prepare(
+          `
         UPDATE gift_events SET detection_status = 'final', finalized_at_ms = ? WHERE id = ?
-      `).run(clock.now(), id);
+      `,
+        )
+        .run(clock.now(), id);
     },
     getSettlement(id) {
-      return db.giftDb.prepare(
-        'SELECT * FROM overtime_settlements WHERE gift_event_id = ?'
-      ).get(id) || null;
+      return (
+        db.giftDb
+          .prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?')
+          .get(id) || null
+      );
     },
     countSettlements(id) {
-      return Number(db.giftDb.prepare(
-        'SELECT COUNT(*) AS count FROM overtime_settlements WHERE gift_event_id = ?'
-      ).get(id)?.count) || 0;
+      return (
+        Number(
+          db.giftDb
+            .prepare(
+              'SELECT COUNT(*) AS count FROM overtime_settlements WHERE gift_event_id = ?',
+            )
+            .get(id)?.count,
+        ) || 0
+      );
     },
     close() {
       closeDatabases(db);
       fs.rmSync(dataDir, { recursive: true, force: true });
-    }
+    },
   };
 }
-function fixedRule(giftId, fixedSeconds, sortOrder = 0, quantityMode = 'group') {
+function fixedRule(
+  giftId,
+  fixedSeconds,
+  sortOrder = 0,
+  quantityMode = 'group',
+) {
   return {
-    giftId, giftName: giftId, imagePath: '', mode: 'fixed', fixedSeconds,
-    quantityMode, enabled: true, sortOrder
+    giftId,
+    giftName: giftId,
+    imagePath: '',
+    mode: 'fixed',
+    fixedSeconds,
+    quantityMode,
+    enabled: true,
+    sortOrder,
   };
 }
 
@@ -717,7 +985,7 @@ function effectRule(giftId, operation, value, sortOrder = 0) {
     mode: 'fixed',
     fixedEffect: { operation, value },
     enabled: true,
-    sortOrder
+    sortOrder,
   };
 }
 
@@ -726,7 +994,9 @@ function insertGift(giftDb, nowMs, options) {
   const createdAt = new Date(nowMs).toISOString();
   const giftId = String(options.giftId || 'gift-a');
   const num = Number(options.num) || 1;
-  const result = giftDb.prepare(`
+  const result = giftDb
+    .prepare(
+      `
     INSERT INTO gift_events (
       platform_id, cmd, gift_id, gift_name, uid, user_name, num,
       unit_price, total_price, coin_type, detection_status,
@@ -735,20 +1005,22 @@ function insertGift(giftDb, nowMs, options) {
       status, raw_json, created_at, updated_at
     ) VALUES (?, 'SEND_GIFT', ?, ?, '1', 'viewer', ?, 0.1, ?, 'gold', ?, ?, ?, ?,
       0, 0, ?, 'active', '', ?, ?)
-  `).run(
-    `platform-${giftId}-${nowMs}-${Math.random()}`,
-    giftId,
-    options.giftName || giftId,
-    num,
-    num * 0.1,
-    phase,
-    nowMs,
-    nowMs,
-    phase === 'final' ? nowMs : 0,
-    Number(options.overtimeEpoch) || 0,
-    createdAt,
-    createdAt
-  );
+  `,
+    )
+    .run(
+      `platform-${giftId}-${nowMs}-${Math.random()}`,
+      giftId,
+      options.giftName || giftId,
+      num,
+      num * 0.1,
+      phase,
+      nowMs,
+      nowMs,
+      phase === 'final' ? nowMs : 0,
+      Number(options.overtimeEpoch) || 0,
+      createdAt,
+      createdAt,
+    );
   const id = Number(result.lastInsertRowid);
   return {
     phase,
@@ -759,9 +1031,12 @@ function insertGift(giftDb, nowMs, options) {
       num,
       totalPrice: num * 0.1,
       createdAt,
-      updatedAt: createdAt
+      updatedAt: createdAt,
     },
-    eligibility: { giftStatistics: false, overtimeEpoch: Number(options.overtimeEpoch) || 0 }
+    eligibility: {
+      giftStatistics: false,
+      overtimeEpoch: Number(options.overtimeEpoch) || 0,
+    },
   };
 }
 
@@ -774,7 +1049,7 @@ function createFakeClock(startMs) {
   function runDueTimers() {
     while (true) {
       const due = [...timers.values()]
-        .filter(timer => timer.at <= monotonicMs)
+        .filter((timer) => timer.at <= monotonicMs)
         .sort((left, right) => left.at - right.at || left.id - right.id)[0];
       if (!due) return;
       timers.delete(due.id);
@@ -786,7 +1061,12 @@ function createFakeClock(startMs) {
     now: () => wallMs,
     monotonicNow: () => monotonicMs,
     setTimeout(callback, delay) {
-      const timer = { id: nextId, at: monotonicMs + delay, callback, unref() {} };
+      const timer = {
+        id: nextId,
+        at: monotonicMs + delay,
+        callback,
+        unref() {},
+      };
       nextId += 1;
       timers.set(timer.id, timer);
       return timer;
@@ -805,6 +1085,6 @@ function createFakeClock(startMs) {
     resetMonotonic() {
       monotonicMs = 0;
       timers.clear();
-    }
+    },
   };
 }

@@ -4,14 +4,24 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { isAllowedExternal, isAllowedLocalUrl, isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
+const {
+  isAllowedExternal,
+  isAllowedLocalUrl,
+  isAllowedLoginNavigation,
+} = require('../src/electron/external-url-policy');
 
 describe('external-url-policy', () => {
   describe('isAllowedExternal', () => {
     it('allows https:// URLs', () => {
       assert.strictEqual(isAllowedExternal('https://example.com'), true);
-      assert.strictEqual(isAllowedExternal('https://github.com/user/repo'), true);
-      assert.strictEqual(isAllowedExternal('https://sub.domain.example.com/path?query=1'), true);
+      assert.strictEqual(
+        isAllowedExternal('https://github.com/user/repo'),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedExternal('https://sub.domain.example.com/path?query=1'),
+        true,
+      );
     });
 
     it('rejects http:// URLs', () => {
@@ -19,7 +29,10 @@ describe('external-url-policy', () => {
     });
 
     it('rejects file:// URLs', () => {
-      assert.strictEqual(isAllowedExternal('file:///C:/Windows/System32/calc.exe'), false);
+      assert.strictEqual(
+        isAllowedExternal('file:///C:/Windows/System32/calc.exe'),
+        false,
+      );
       assert.strictEqual(isAllowedExternal('file:///etc/passwd'), false);
     });
 
@@ -28,7 +41,10 @@ describe('external-url-policy', () => {
     });
 
     it('rejects data: URLs', () => {
-      assert.strictEqual(isAllowedExternal('data:text/html,<script>alert(1)</script>'), false);
+      assert.strictEqual(
+        isAllowedExternal('data:text/html,<script>alert(1)</script>'),
+        false,
+      );
     });
 
     it('rejects ms-settings: URLs', () => {
@@ -51,78 +67,159 @@ describe('external-url-policy', () => {
     const testDomains = ['example.com', 'login.example.com', 'bilibili.com'];
 
     it('allows https:// URLs with exact hostname match', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://example.com', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://example.com/login', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://bilibili.com', testDomains), true);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://example.com', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://example.com/login', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://bilibili.com', testDomains),
+        true,
+      );
     });
 
     it('allows https:// URLs with subdomain match', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://api.example.com', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://www.example.com', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://passport.bilibili.com', testDomains), true);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://api.example.com', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://www.example.com', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://passport.bilibili.com', testDomains),
+        true,
+      );
     });
 
     it('rejects http:// URLs even with allowed domains', () => {
-      assert.strictEqual(isAllowedLoginNavigation('http://example.com', testDomains), false);
-      assert.strictEqual(isAllowedLoginNavigation('http://bilibili.com', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('http://example.com', testDomains),
+        false,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('http://bilibili.com', testDomains),
+        false,
+      );
     });
 
     it('rejects URLs with disallowed hostnames', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://evil.com', testDomains), false);
-      assert.strictEqual(isAllowedLoginNavigation('https://notexample.com', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://evil.com', testDomains),
+        false,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://notexample.com', testDomains),
+        false,
+      );
     });
 
     it('rejects URLs that only partially match allowed domains', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://fakeexample.com', testDomains), false);
-      assert.strictEqual(isAllowedLoginNavigation('https://example.com.evil.com', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://fakeexample.com', testDomains),
+        false,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://example.com.evil.com', testDomains),
+        false,
+      );
     });
 
     it('rejects file:// URLs even if hostname matches', () => {
-      assert.strictEqual(isAllowedLoginNavigation('file:///example.com/path', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('file:///example.com/path', testDomains),
+        false,
+      );
     });
 
     it('rejects javascript: URLs', () => {
-      assert.strictEqual(isAllowedLoginNavigation('javascript:alert(1)', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('javascript:alert(1)', testDomains),
+        false,
+      );
     });
 
     it('rejects data: URLs', () => {
-      assert.strictEqual(isAllowedLoginNavigation('data:text/html,<h1>Test</h1>', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('data:text/html,<h1>Test</h1>', testDomains),
+        false,
+      );
     });
 
     it('rejects invalid URLs', () => {
-      assert.strictEqual(isAllowedLoginNavigation('not a url', testDomains), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('not a url', testDomains),
+        false,
+      );
       assert.strictEqual(isAllowedLoginNavigation('', testDomains), false);
     });
 
     it('handles case-insensitive hostname matching', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://EXAMPLE.COM', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://Example.Com', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://API.EXAMPLE.COM', testDomains), true);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://EXAMPLE.COM', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://Example.Com', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://API.EXAMPLE.COM', testDomains),
+        true,
+      );
     });
 
     it('handles empty domain list', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://example.com', []), false);
-      assert.strictEqual(isAllowedLoginNavigation('https://any.com', []), false);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://example.com', []),
+        false,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://any.com', []),
+        false,
+      );
     });
 
     it('allows nested subdomains', () => {
-      assert.strictEqual(isAllowedLoginNavigation('https://a.b.c.example.com', testDomains), true);
-      assert.strictEqual(isAllowedLoginNavigation('https://deep.sub.bilibili.com', testDomains), true);
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://a.b.c.example.com', testDomains),
+        true,
+      );
+      assert.strictEqual(
+        isAllowedLoginNavigation('https://deep.sub.bilibili.com', testDomains),
+        true,
+      );
     });
   });
 
   describe('isAllowedLocalUrl', () => {
     it('allows local HTTP overlay URLs', () => {
       assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1/overtime'), true);
-      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1:4312/overtime?quality=low'), true);
+      assert.strictEqual(
+        isAllowedLocalUrl('http://127.0.0.1:4312/overtime?quality=low'),
+        true,
+      );
     });
 
     it('rejects non-loopback or credential-bearing URLs', () => {
       assert.strictEqual(isAllowedLocalUrl('http://localhost/overtime'), false);
       assert.strictEqual(isAllowedLocalUrl('http://127.0.0.2/overtime'), false);
-      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1.evil.example/overtime'), false);
-      assert.strictEqual(isAllowedLocalUrl('http://user:pass@127.0.0.1/overtime'), false);
-      assert.strictEqual(isAllowedLocalUrl('https://127.0.0.1/overtime'), false);
+      assert.strictEqual(
+        isAllowedLocalUrl('http://127.0.0.1.evil.example/overtime'),
+        false,
+      );
+      assert.strictEqual(
+        isAllowedLocalUrl('http://user:pass@127.0.0.1/overtime'),
+        false,
+      );
+      assert.strictEqual(
+        isAllowedLocalUrl('https://127.0.0.1/overtime'),
+        false,
+      );
     });
   });
 });

@@ -7,26 +7,29 @@ const {
   closestTarget,
   createPlaybackApp,
   flushAsyncWork,
-  track
+  track,
 } = require('./helpers/playback-app');
 
 test('empty playback uses the latest authenticated provider state', async () => {
-  const app = await createPlaybackApp({
-    current: null,
-    currentOrigin: '',
-    requestedQueue: [],
-    normalQueue: [],
-    normalQueueTracks: [],
-    radioQueue: [],
-    history: [],
-    mode: 'sequence',
-    selectedSource: 'qq',
-    queueType: 'queue',
-    queueTitle: '播放队列',
-    volume: 0.75
-  }, {
-    authState: { platform: 'qq', loggedIn: true }
-  });
+  const app = await createPlaybackApp(
+    {
+      current: null,
+      currentOrigin: '',
+      requestedQueue: [],
+      normalQueue: [],
+      normalQueueTracks: [],
+      radioQueue: [],
+      history: [],
+      mode: 'sequence',
+      selectedSource: 'qq',
+      queueType: 'queue',
+      queueTitle: '播放队列',
+      volume: 0.75,
+    },
+    {
+      authState: { platform: 'qq', loggedIn: true },
+    },
+  );
 
   await app.init();
   await flushAsyncWork();
@@ -38,19 +41,22 @@ test('empty playback uses the latest authenticated provider state', async () => 
 });
 
 test('pagehide beacon includes the injected API token', async () => {
-  const app = await createPlaybackApp({
-    current: track('current', 'Current'),
-    currentOrigin: 'normal',
-    requestedQueue: [],
-    normalQueue: [],
-    normalQueueTracks: [],
-    radioQueue: [],
-    mode: 'sequence',
-    selectedSource: 'qq',
-    queueType: 'queue',
-    queueTitle: '播放队列',
-    volume: 0.75
-  }, { apiToken: 'token with & symbols' });
+  const app = await createPlaybackApp(
+    {
+      current: track('current', 'Current'),
+      currentOrigin: 'normal',
+      requestedQueue: [],
+      normalQueue: [],
+      normalQueueTracks: [],
+      radioQueue: [],
+      mode: 'sequence',
+      selectedSource: 'qq',
+      queueType: 'queue',
+      queueTitle: '播放队列',
+      volume: 0.75,
+    },
+    { apiToken: 'token with & symbols' },
+  );
 
   await app.init();
   await flushAsyncWork();
@@ -58,7 +64,7 @@ test('pagehide beacon includes the injected API token', async () => {
 
   assert.equal(
     app.beaconUrls().at(-1),
-    '/api/playback/queue-state?token=token%20with%20%26%20symbols'
+    '/api/playback/queue-state?token=token%20with%20%26%20symbols',
   );
 });
 
@@ -66,7 +72,7 @@ test('playback persistence retains the numeric QQ song ID', async () => {
   const current = {
     ...track('000w1gfs48CBnw', '해볼래 (试试看)'),
     sourceSongId: 107402287,
-    sourceSongType: 1
+    sourceSongType: 1,
   };
   const app = await createPlaybackApp({
     current,
@@ -80,7 +86,7 @@ test('playback persistence retains the numeric QQ song ID', async () => {
     queueType: 'playlist',
     queueTitle: '我喜欢',
     playlistIndex: 0,
-    volume: 0.75
+    volume: 0.75,
   });
 
   await app.init();
@@ -102,7 +108,7 @@ test('cold start restores the server queue and playback progress without local s
     normalQueue: [track('restored-next', '恢复的下一首')],
     normalQueueTracks: [
       track('restored-current', '恢复的歌曲'),
-      track('restored-next', '恢复的下一首')
+      track('restored-next', '恢复的下一首'),
     ],
     radioQueue: [],
     mode: 'sequence',
@@ -111,7 +117,7 @@ test('cold start restores the server queue and playback progress without local s
     queueTitle: '恢复的歌单',
     playlistIndex: 0,
     currentTime: 42,
-    volume: 0.75
+    volume: 0.75,
   };
   const app = await createPlaybackApp(savedState, { localState: null });
 
@@ -138,7 +144,7 @@ test('desktop shutdown awaits the pending playback state IPC save', async () => 
     queueTitle: '退出前队列',
     playlistIndex: 0,
     currentTime: 37,
-    volume: 0.75
+    volume: 0.75,
   };
   const app = await createPlaybackApp(savedState, { localState: null });
 
@@ -153,24 +159,27 @@ test('desktop shutdown awaits the pending playback state IPC save', async () => 
 
 test('pagehide preserves personal playlist caches for the next desktop start', async () => {
   const sharedStorage = new Map();
-  const app = await createPlaybackApp({
-    current: null,
-    currentOrigin: '',
-    requestedQueue: [],
-    normalQueue: [],
-    normalQueueTracks: [],
-    radioQueue: [],
-    mode: 'sequence',
-    selectedSource: 'qq',
-    queueType: 'queue',
-    queueTitle: '播放队列',
-    volume: 0.75
-  }, {
-    storage: sharedStorage,
-    authState: { platform: 'qq', loggedIn: true },
-    homeAction: 'liked',
-    homeTracks: [track('cached-liked', '缓存歌曲')]
-  });
+  const app = await createPlaybackApp(
+    {
+      current: null,
+      currentOrigin: '',
+      requestedQueue: [],
+      normalQueue: [],
+      normalQueueTracks: [],
+      radioQueue: [],
+      mode: 'sequence',
+      selectedSource: 'qq',
+      queueType: 'queue',
+      queueTitle: '播放队列',
+      volume: 0.75,
+    },
+    {
+      storage: sharedStorage,
+      authState: { platform: 'qq', loggedIn: true },
+      homeAction: 'liked',
+      homeTracks: [track('cached-liked', '缓存歌曲')],
+    },
+  );
 
   await app.init();
   await flushAsyncWork();

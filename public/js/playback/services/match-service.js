@@ -44,7 +44,11 @@ export class MatchService {
           fallbackMatch = matched;
         }
       } catch (error) {
-        console.warn('[MatchService] match failed on platform:', platform, error.message || error);
+        console.warn(
+          '[MatchService] match failed on platform:',
+          platform,
+          error.message || error,
+        );
       }
     }
 
@@ -68,14 +72,19 @@ export class MatchService {
       body: JSON.stringify({
         platform,
         keyword: artist ? `${songName} ${artist}` : songName,
-        limit: 10
-      })
+        limit: 10,
+      }),
     });
 
-    const searchPayload = await this.readJsonResponse(searchResponse, '搜索点歌候选失败');
+    const searchPayload = await this.readJsonResponse(
+      searchResponse,
+      '搜索点歌候选失败',
+    );
     if (!searchResponse.ok || !searchPayload.ok) return null;
 
-    const candidates = Array.isArray(searchPayload.data && searchPayload.data.tracks)
+    const candidates = Array.isArray(
+      searchPayload.data && searchPayload.data.tracks,
+    )
       ? searchPayload.data.tracks
       : [];
 
@@ -85,15 +94,19 @@ export class MatchService {
     const matchResponse = await fetch('/api/music/match-track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ songName, artist, candidates })
+      body: JSON.stringify({ songName, artist, candidates }),
     });
 
-    const matchPayload = await this.readJsonResponse(matchResponse, '点歌匹配失败');
+    const matchPayload = await this.readJsonResponse(
+      matchResponse,
+      '点歌匹配失败',
+    );
     if (!matchResponse.ok || !matchPayload.ok) return null;
 
-    const best = matchPayload.data && Array.isArray(matchPayload.data.results)
-      ? matchPayload.data.results[0]
-      : null;
+    const best =
+      matchPayload.data && Array.isArray(matchPayload.data.results)
+        ? matchPayload.data.results[0]
+        : null;
 
     if (!best || !best.track) return null;
 
@@ -101,7 +114,7 @@ export class MatchService {
       autoAccept: Boolean(best.autoAccept),
       score: Number(best.score || 0),
       reasons: Array.isArray(best.reasons) ? best.reasons : [],
-      track: PlaybackUtils.normalizeOnlineTrack(best.track)
+      track: PlaybackUtils.normalizeOnlineTrack(best.track),
     };
   }
 
@@ -123,8 +136,8 @@ export class MatchService {
       body: JSON.stringify({
         songName,
         artist,
-        durationMs: Number(durationMs || 0)
-      })
+        durationMs: Number(durationMs || 0),
+      }),
     });
 
     const payload = await this.readJsonResponse(response, '点歌匹配测试失败');
@@ -151,7 +164,7 @@ export class MatchService {
       requesterName: item.requester_name || item.requesterName || '观众',
       score: matched.score,
       reasons: matched.reasons,
-      track: matched.track
+      track: matched.track,
     };
 
     this.state.pendingRequests.push(pendingRequest);
@@ -164,7 +177,11 @@ export class MatchService {
    */
   confirmPendingRequest(index) {
     if (!this.state) return null;
-    if (!Number.isInteger(index) || index < 0 || index >= this.state.pendingRequests.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.state.pendingRequests.length
+    ) {
       return null;
     }
 
@@ -173,7 +190,7 @@ export class MatchService {
 
     return {
       ...item.track,
-      requestedBy: item.requesterName || '观众'
+      requestedBy: item.requesterName || '观众',
     };
   }
 
@@ -184,7 +201,11 @@ export class MatchService {
    */
   ignorePendingRequest(index) {
     if (!this.state) return false;
-    if (!Number.isInteger(index) || index < 0 || index >= this.state.pendingRequests.length) {
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= this.state.pendingRequests.length
+    ) {
       return false;
     }
 

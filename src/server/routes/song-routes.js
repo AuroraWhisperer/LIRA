@@ -7,10 +7,11 @@ const {
   buildSongsCsv,
   buildSongsWorkbook,
   parseSongsFromXlsx,
-  templateSongs
+  templateSongs,
 } = require('../../music/song-file-codec');
 
-const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XLSX_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const prefixes = ['/api/songs', '/api/categories'];
 
 const routes = {
@@ -29,25 +30,45 @@ const routes = {
         tags: request.query.getAll('tag').length
           ? request.query.getAll('tag')
           : request.query.get('tags') || '',
-        enabledOnly: request.query.get('enabledOnly') === 'true'
-      })
+        enabledOnly: request.query.get('enabledOnly') === 'true',
+      }),
     });
   },
 
   'GET /api/songs/template.csv'(context, request, res) {
-    sendCsv(res, 'song-import-template.csv', `\uFEFF${buildSongsCsv(templateSongs())}\n`);
+    sendCsv(
+      res,
+      'song-import-template.csv',
+      `\uFEFF${buildSongsCsv(templateSongs())}\n`,
+    );
   },
 
   'GET /api/songs/template.xlsx'(context, request, res) {
-    sendBuffer(res, 200, XLSX_CONTENT_TYPE, 'song-import-template.xlsx', buildSongsWorkbook(templateSongs()));
+    sendBuffer(
+      res,
+      200,
+      XLSX_CONTENT_TYPE,
+      'song-import-template.xlsx',
+      buildSongsWorkbook(templateSongs()),
+    );
   },
 
   'GET /api/songs/export.csv'(context, request, res) {
-    sendCsv(res, 'songs-export.csv', `\uFEFF${buildSongsCsv(context.songs.list({}))}\n`);
+    sendCsv(
+      res,
+      'songs-export.csv',
+      `\uFEFF${buildSongsCsv(context.songs.list({}))}\n`,
+    );
   },
 
   'GET /api/songs/export.xlsx'(context, request, res) {
-    sendBuffer(res, 200, XLSX_CONTENT_TYPE, 'songs-export.xlsx', buildSongsWorkbook(context.songs.list({})));
+    sendBuffer(
+      res,
+      200,
+      XLSX_CONTENT_TYPE,
+      'songs-export.xlsx',
+      buildSongsWorkbook(context.songs.list({})),
+    );
   },
 
   async 'POST /api/songs/save'(context, request, res) {
@@ -76,7 +97,9 @@ const routes = {
 
   async 'POST /api/songs/import'(context, request, res) {
     const body = await request.body();
-    const result = context.songs.import(Array.isArray(body.rows) ? body.rows : []);
+    const result = context.songs.import(
+      Array.isArray(body.rows) ? body.rows : [],
+    );
     context.broadcastSnapshot('songs:import');
     sendJson(res, 200, { ok: true, data: result });
   },
@@ -87,7 +110,7 @@ const routes = {
     const result = context.songs.import(parseSongsFromXlsx(buffer));
     context.broadcastSnapshot('songs:import-xlsx');
     sendJson(res, 200, { ok: true, data: result });
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

@@ -1,11 +1,12 @@
 .queue-cherry-ribbon {
   aspect-ratio: 1086 / 1448;
   color: #5d397e;
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
 }
 
 .queue-cherry-ribbon::before {
-  background: url('/img/overlays/song-board-style-5/frame.webp') center / 100% 100% no-repeat;
+  background: url('/img/overlays/song-board-style-5/frame.webp') center / 100%
+    100% no-repeat;
 }
 
 .queue-cherry-ribbon::after {
@@ -17,7 +18,8 @@
 .queue-cherry-ribbon .overlay-content {
   --cherry-ribbon-top-trim: 0px;
   --cherry-ribbon-bottom-trim: 30px;
-  inset: calc(15% + var(--cherry-ribbon-top-trim)) 10% calc(9.5% + var(--cherry-ribbon-bottom-trim));
+  inset: calc(15% + var(--cherry-ribbon-top-trim)) 10%
+    calc(9.5% + var(--cherry-ribbon-bottom-trim));
   z-index: 4;
   overflow: visible;
   clip-path: inset(0% 0 -1%);
@@ -44,14 +46,33 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-.cherry-ribbon-row.medal-blue-purple { --medal-bg: #7955a4; }
-.cherry-ribbon-row.medal-light-blue { --medal-bg: #9572be; }
-.cherry-ribbon-row.medal-deep-blue { --medal-bg: #68488e; }
-.cherry-ribbon-row.medal-purple { --medal-bg: #8a61b7; }
-.cherry-ribbon-row.medal-red { --medal-bg: #c06b87; }
-.cherry-ribbon-row.guard-1 { --identity-bg: #f25f72; --medal-bg: #f25f72; }
-.cherry-ribbon-row.guard-2 { --identity-bg: #8d67e8; --medal-bg: #8d67e8; }
-.cherry-ribbon-row.guard-3 { --identity-bg: #4b91e8; --medal-bg: #4b91e8; }
+.cherry-ribbon-row.medal-blue-purple {
+  --medal-bg: #7955a4;
+}
+.cherry-ribbon-row.medal-light-blue {
+  --medal-bg: #9572be;
+}
+.cherry-ribbon-row.medal-deep-blue {
+  --medal-bg: #68488e;
+}
+.cherry-ribbon-row.medal-purple {
+  --medal-bg: #8a61b7;
+}
+.cherry-ribbon-row.medal-red {
+  --medal-bg: #c06b87;
+}
+.cherry-ribbon-row.guard-1 {
+  --identity-bg: #f25f72;
+  --medal-bg: #f25f72;
+}
+.cherry-ribbon-row.guard-2 {
+  --identity-bg: #8d67e8;
+  --medal-bg: #8d67e8;
+}
+.cherry-ribbon-row.guard-3 {
+  --identity-bg: #4b91e8;
+  --medal-bg: #4b91e8;
+}
 
 .cherry-ribbon-info-viewport {
   top: 41%;

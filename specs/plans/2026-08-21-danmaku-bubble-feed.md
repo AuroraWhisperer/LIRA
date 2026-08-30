@@ -21,10 +21,12 @@
 ### Task 1: 建立可复用弹幕气泡模块
 
 **Files:**
+
 - Create: `public/js/overlays/danmaku-feed.js`
 - Test: `test/games-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: `{ uid, name, message, avatarUrl, guardLevel, medalName, medalLevel }` 弹幕对象，以及 `resolveAvatarUrl`、`getGuardLabel` 两个注入回调。
 - Produces: `createDanmakuFeed(root, options).render(items)`、`.destroy()` 和 `measureDanmakuText(message)`；渲染出的每条消息带 `--danmaku-width`、`--danmaku-height`、`--danmaku-lines` CSS 变量。
 
@@ -51,12 +53,14 @@
 ### Task 2: 将你画我猜接入组件并完成视觉容器
 
 **Files:**
+
 - Modify: `public/js/overlays/games.js`
 - Modify: `public/pages/overlays/games.html`
 - Modify: `public/css/overlays/games.css`
 - Test: `test/games-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: Task 1 的 `createDanmakuFeed`；游戏入口继续调用 `renderDrawDanmaku(items)`，不改变会话状态结构。
 - Produces: “弹幕画廊”标题、实时状态点、左右错落的气泡布局，以及在窄桌面/移动宽度下不溢出的降级布局。
 
@@ -85,6 +89,7 @@
 ### Task 3: 完成快速门禁与差异审查
 
 **Files:**
+
 - Inspect only: `git diff`, `git diff --check`, `git status --short`
 
 - [x] **Step 1: 运行快速验证**

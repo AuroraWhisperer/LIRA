@@ -3,7 +3,9 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const { buildGiftFramePreviewEvent } = require('../../bilibili/gift/frame-config');
+const {
+  buildGiftFramePreviewEvent,
+} = require('../../bilibili/gift/frame-config');
 
 const prefixes = ['/api/gifts/'];
 
@@ -19,7 +21,12 @@ const routes = {
     const limit = Number(request.query.get('limit')) || 50;
     const sortField = request.query.get('sortField') || 'created_at';
     const sortDirection = request.query.get('sortDirection') || 'desc';
-    const data = context.gifts.getHistory({ page, limit, sortField, sortDirection });
+    const data = context.gifts.getHistory({
+      page,
+      limit,
+      sortField,
+      sortDirection,
+    });
     sendJson(res, 200, { ok: true, data });
   },
 
@@ -38,7 +45,7 @@ const routes = {
       page: query.get('page') || '1',
       limit: query.get('limit') || '25',
       sort: query.get('sort') || '',
-      direction: query.get('direction') || 'desc'
+      direction: query.get('direction') || 'desc',
     });
     sendJson(res, 200, { ok: true, data });
   },
@@ -58,11 +65,18 @@ const routes = {
 
   async 'GET /api/gifts/effects/resolve'(context, request, res) {
     const giftId = parseGiftEffectId(request.query.get('giftId'));
-    if (!giftId) return sendJson(res, 400, { ok: false, error: '礼物 ID 必须是 1 至 12 位正整数。' });
+    if (!giftId)
+      return sendJson(res, 400, {
+        ok: false,
+        error: '礼物 ID 必须是 1 至 12 位正整数。',
+      });
 
     const effect = await context.gifts.resolveEffect(giftId);
     if (!effect) {
-      sendJson(res, 404, { ok: false, error: '这个礼物暂时没有可播放的 MP4 全屏特效。' });
+      sendJson(res, 404, {
+        ok: false,
+        error: '这个礼物暂时没有可播放的 MP4 全屏特效。',
+      });
       return;
     }
     sendJson(res, 200, { ok: true, data: { giftId, effect } });
@@ -71,14 +85,27 @@ const routes = {
   async 'POST /api/gifts/effects/preview'(context, request, res) {
     const body = await request.body();
     const giftId = parseGiftEffectId(body.giftId);
-    if (!giftId) return sendJson(res, 400, { ok: false, error: '礼物 ID 必须是 1 至 12 位正整数。' });
+    if (!giftId)
+      return sendJson(res, 400, {
+        ok: false,
+        error: '礼物 ID 必须是 1 至 12 位正整数。',
+      });
 
     const effect = await context.gifts.resolveEffect(giftId);
     if (!effect) {
-      sendJson(res, 404, { ok: false, error: '这个礼物暂时没有可播放的 MP4 全屏特效。' });
+      sendJson(res, 404, {
+        ok: false,
+        error: '这个礼物暂时没有可播放的 MP4 全屏特效。',
+      });
       return;
     }
-    context.gifts.previewEffect({ type: 'gift:effect', eventId: 0, giftId, effect, preview: true });
+    context.gifts.previewEffect({
+      type: 'gift:effect',
+      eventId: 0,
+      giftId,
+      effect,
+      preview: true,
+    });
     sendJson(res, 200, { ok: true, data: { giftId, effect } });
   },
 
@@ -88,7 +115,10 @@ const routes = {
     try {
       event = buildGiftFramePreviewEvent(body);
     } catch (error) {
-      sendJson(res, 400, { ok: false, error: error.message || '礼物边框预览参数无效。' });
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message || '礼物边框预览参数无效。',
+      });
       return;
     }
     context.gifts.previewFrame(event);
@@ -104,7 +134,7 @@ const routes = {
     const result = context.gifts.clearRecent();
     context.broadcastSnapshot('gift:clear-recent');
     sendJson(res, 200, { ok: true, data: result });
-  }
+  },
 };
 
 function parseGiftEffectId(value) {

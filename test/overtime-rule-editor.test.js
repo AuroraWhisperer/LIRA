@@ -10,7 +10,14 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
-const EDITOR_ENTRY = path.join(__dirname, '..', 'public', 'js', 'admin', 'overtime-rule-editor.js');
+const EDITOR_ENTRY = path.join(
+  __dirname,
+  '..',
+  'public',
+  'js',
+  'admin',
+  'overtime-rule-editor.js',
+);
 
 function createFakeElement() {
   const element = {
@@ -34,33 +41,60 @@ function createFakeElement() {
       add() {},
       remove() {},
       toggle() {},
-      contains() { return false; }
+      contains() {
+        return false;
+      },
     },
     children: [],
     listeners: {},
-    append(...nodes) { this.children.push(...nodes); return this; },
-    appendChild(node) { this.children.push(node); return node; },
-    replaceChildren(...nodes) { this.children = [...nodes]; },
-    addEventListener(type, handler) { this.listeners[type] = handler; },
+    append(...nodes) {
+      this.children.push(...nodes);
+      return this;
+    },
+    appendChild(node) {
+      this.children.push(node);
+      return node;
+    },
+    replaceChildren(...nodes) {
+      this.children = [...nodes];
+    },
+    addEventListener(type, handler) {
+      this.listeners[type] = handler;
+    },
     setAttribute() {},
-    querySelector() { return createFakeElement(); },
-    querySelectorAll() { return []; },
-    closest() { return null; },
+    querySelector() {
+      return createFakeElement();
+    },
+    querySelectorAll() {
+      return [];
+    },
+    closest() {
+      return null;
+    },
     insertBefore() {},
-    remove() {}
+    remove() {},
   };
   return element;
 }
 
 function createFakeDocument() {
   return {
-    createElement() { return createFakeElement(); },
-    createTextNode(text) { return { text }; }
+    createElement() {
+      return createFakeElement();
+    },
+    createTextNode(text) {
+      return { text };
+    },
   };
 }
 
 function findByClass(root, className) {
-  if (String(root.className || '').split(/\s+/).includes(className)) return root;
+  if (
+    String(root.className || '')
+      .split(/\s+/)
+      .includes(className)
+  )
+    return root;
   for (const child of root.children || []) {
     const match = findByClass(child, className);
     if (match) return match;
@@ -70,23 +104,36 @@ function findByClass(root, className) {
 
 function findAllByDataset(root, key) {
   const matches = root.dataset?.[key] === 'true' ? [root] : [];
-  for (const child of root.children || []) matches.push(...findAllByDataset(child, key));
+  for (const child of root.children || [])
+    matches.push(...findAllByDataset(child, key));
   return matches;
 }
 
 test('rule editor exposes createRule and appends a fixed-mode rule row', async () => {
-  const namespace = await loadModuleExports(EDITOR_ENTRY, { document: createFakeDocument() });
+  const namespace = await loadModuleExports(EDITOR_ENTRY, {
+    document: createFakeDocument(),
+  });
   const dirtyCalls = [];
   const root = createFakeElement();
-  const editor = namespace.createOvertimeRuleEditor(root, () => dirtyCalls.push(true));
-  editor.setLimits({ maxEnabledRules: 8, minRandomOutcomes: 2, maxRandomOutcomes: 10 });
+  const editor = namespace.createOvertimeRuleEditor(root, () =>
+    dirtyCalls.push(true),
+  );
+  editor.setLimits({
+    maxEnabledRules: 8,
+    minRandomOutcomes: 2,
+    maxRandomOutcomes: 10,
+  });
 
   assert.equal(typeof editor.createRule, 'function');
   assert.equal(typeof editor.readRules, 'function');
   assert.equal(typeof editor.renderRules, 'function');
   assert.equal(typeof editor.setLimits, 'function');
 
-  const row = editor.createRule({ id: 'guard-1', name: '总督', imagePath: 'guard.png' });
+  const row = editor.createRule({
+    id: 'guard-1',
+    name: '总督',
+    imagePath: 'guard.png',
+  });
   assert.ok(row);
   assert.equal(row.dataset.giftId, 'guard-1');
   assert.equal(row.dataset.giftName, '总督');
@@ -103,34 +150,59 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   assert.equal(newRuleBody.hidden, true);
   assert.equal(toggle.textContent, '展开设置');
   const guardQuantityOptions = findAllByDataset(row, 'ruleQuantityMode');
-  assert.equal(guardQuantityOptions.find(option => option.value === 'item').checked, true);
-  assert.equal(guardQuantityOptions.find(option => option.value === 'group').checked, false);
+  assert.equal(
+    guardQuantityOptions.find((option) => option.value === 'item').checked,
+    true,
+  );
+  assert.equal(
+    guardQuantityOptions.find((option) => option.value === 'group').checked,
+    false,
+  );
 
-  editor.renderRules([{
-    giftId: '33988',
-    giftName: '人气票',
-    mode: 'fixed',
-    enabled: true,
-    fixedEffect: { operation: 'add', value: 300 }
-  }]);
+  editor.renderRules([
+    {
+      giftId: '33988',
+      giftName: '人气票',
+      mode: 'fixed',
+      enabled: true,
+      fixedEffect: { operation: 'add', value: 300 },
+    },
+  ]);
   const savedRuleBody = findByClass(root.children[0], 'overtime-rule-body');
   const summary = findByClass(root.children[0], 'overtime-rule-summary');
   assert.equal(savedRuleBody.hidden, true);
   assert.equal(summary.textContent, '增加 5 分钟 · 按连击组');
-  const savedQuantityOptions = findAllByDataset(root.children[0], 'ruleQuantityMode');
-  assert.equal(savedQuantityOptions.find(option => option.value === 'group').checked, true);
+  const savedQuantityOptions = findAllByDataset(
+    root.children[0],
+    'ruleQuantityMode',
+  );
+  assert.equal(
+    savedQuantityOptions.find((option) => option.value === 'group').checked,
+    true,
+  );
 
-  editor.renderRules([{
-    giftId: 'display-gift',
-    giftName: '展示礼物',
-    mode: 'display',
-    displayText: '谢谢支持',
-    enabled: true,
-    quantityMode: 'group'
-  }]);
+  editor.renderRules([
+    {
+      giftId: 'display-gift',
+      giftName: '展示礼物',
+      mode: 'display',
+      displayText: '谢谢支持',
+      enabled: true,
+      quantityMode: 'group',
+    },
+  ]);
   const displayRow = root.children[0];
   const displayOptions = findAllByDataset(displayRow, 'ruleMode');
-  assert.equal(displayOptions.find(option => option.value === 'display').checked, true);
-  assert.equal(findAllByDataset(displayRow, 'displayText')[0].value, '谢谢支持');
-  assert.match(findByClass(displayRow, 'overtime-rule-summary').textContent, /文字展板/);
+  assert.equal(
+    displayOptions.find((option) => option.value === 'display').checked,
+    true,
+  );
+  assert.equal(
+    findAllByDataset(displayRow, 'displayText')[0].value,
+    '谢谢支持',
+  );
+  assert.match(
+    findByClass(displayRow, 'overtime-rule-summary').textContent,
+    /文字展板/,
+  );
 });

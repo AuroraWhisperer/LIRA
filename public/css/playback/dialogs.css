@@ -26,7 +26,9 @@
   width: 100%;
   transform: scale(0.9);
   opacity: 0;
-  transition: transform 200ms ease, opacity 200ms ease;
+  transition:
+    transform 200ms ease,
+    opacity 200ms ease;
 }
 
 .playback-confirm-dialog.show {
@@ -63,7 +65,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 140ms ease, color 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
 }
 
 .playback-confirm-close:hover {

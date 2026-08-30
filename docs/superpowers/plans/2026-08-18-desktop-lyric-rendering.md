@@ -73,12 +73,14 @@
 ### Task 1: 建立共享时间锚点和 30fps 调度器
 
 **Files:**
+
 - Create: `public/js/shared/lyric-clock.js`
 - Create: `public/js/shared/lyric-frame-scheduler.js`
 - Modify: `public/js/shared/lyric-word-renderer.js`
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - `LyricClock.setState(state, { force })`、`getPosition(now)`、`pause()`、`dispose()`。
 - `LyricFrameScheduler.start(callback)`、`stop()`、`setTargetFps(fps)`，默认 30fps，仅在页面可见且播放中运行。
 - `LyricWordRenderer` 保持现有构造参数和 `setState/getPosition/dispose` 公共接口，内部改为复用共享 clock/scheduler。
@@ -91,6 +93,7 @@
 ### Task 2: 实现 WAAPI 当前行逐字动画器
 
 **Files:**
+
 - Create: `public/js/shared/lyric-word-animator.js`
 - Modify: `public/js/shared/lyric-word-renderer.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
@@ -98,6 +101,7 @@
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - `LyricWordAnimator.mount(lineElement, words, options)` 创建当前行词节点和动画。
 - `LyricWordAnimator.sync(position, { playing, force })` 对齐 WAAPI currentTime/播放状态。
 - `LyricWordAnimator.clear({ commit })` 提交或清理旧行并释放 Animation 对象。
@@ -111,12 +115,14 @@
 ### Task 3: 消除桌面歌词的重复逐字渲染
 
 **Files:**
+
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/pages/overlays/lyric-window.html`
 - Modify: `public/js/overlays/lyric-window.js`
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - 桌面时间轴渲染器成为当前行唯一视觉逐字渲染源。
 - `desktopLyricPreviewPlayback` 只在行切换/状态变化时更新可访问文本，不再交给共享逐字 renderer 每帧更新。
 
@@ -128,11 +134,13 @@
 ### Task 4: 启用浏览器原生可视区域懒绘制
 
 **Files:**
+
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - 保持现有 `rowElements`、`findActiveLyricIndex`、跟随滚动和 `visibleLines` 接口。
 - 每行使用 `content-visibility: auto` 和 `contain-intrinsic-size`；不默认增加可能改变 flex/宽度测量语义的显式 layout containment。JS 只在当前行变化、字体加载、resize、设置变化时更新必要 class/样式。
 
@@ -145,6 +153,7 @@
 ### Task 5: 增加性能档位和效果降级
 
 **Files:**
+
 - Create: `public/js/shared/lyric-performance.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/js/shared/lyric-word-animator.js`
@@ -152,6 +161,7 @@
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - `createLyricPerformanceProfile({ onChange })` 返回 `profile`、`recordFrame(duration)`、`setVisible(visible)`、`dispose()`。
 - Profile 至少包含 `targetFps`、`wordAnimation`、`effects` 三项；档位切换具有滞后，不暴露新的持久化设置。
 
@@ -163,10 +173,12 @@
 ### Task 6: 将歌词状态发布改为最新值优先
 
 **Files:**
+
 - Modify: `public/js/playback/services/lyric-service.js`
 - Test: `test/desktop-lyrics.test.js`
 
 **Interfaces:**
+
 - 保持 `publishBrowserState(state, force)` 和 `syncWindow(track, audio, force)` 签名不变。
 - 内部只保留一个在途请求；新状态覆盖待发送旧状态；强制状态按顺序完成。
 
@@ -177,6 +189,7 @@
 ### Task 7: 完成文档、回归和手工性能验收
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/playback.md`
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/engineering/test.md`

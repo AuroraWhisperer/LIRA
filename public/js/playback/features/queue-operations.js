@@ -11,14 +11,23 @@ export function createQueueOperations(deps) {
     savePlaybackState,
     renderPlayback,
     getPlaybackAudio,
-    syncPlaybackLyricWindow
+    syncPlaybackLyricWindow,
   } = deps;
 
-  function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
+  function startPlaybackCollection(
+    tracks,
+    selectedIndex,
+    queueType,
+    queueTitle = '',
+    queueSourceKey = '',
+  ) {
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
     if (!items.length) return;
 
-    const index = Math.max(0, Math.min(items.length - 1, Number(selectedIndex) || 0));
+    const index = Math.max(
+      0,
+      Math.min(items.length - 1, Number(selectedIndex) || 0),
+    );
     const type = queueType === 'radio' ? 'radio' : 'playlist';
     const audio = getPlaybackAudio();
     if (audio) {
@@ -34,7 +43,8 @@ export function createQueueOperations(deps) {
     playbackState.normalQueueTracks = [];
     playbackState.radioQueue = [];
     playbackState.queueType = type;
-    playbackState.queueTitle = queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
+    playbackState.queueTitle =
+      queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
     playbackState.queueSourceKey = String(queueSourceKey || '');
     playbackState.playlistIndex = type === 'playlist' ? index : -1;
     playbackState.pendingRequests = [];
@@ -44,12 +54,19 @@ export function createQueueOperations(deps) {
 
     if (type === 'playlist') {
       playbackState.normalQueueTracks = items.map((track) => ({ ...track }));
-      playbackState.normalQueue = items.slice(index + 1).map((track) => ({ ...track }));
+      playbackState.normalQueue = items
+        .slice(index + 1)
+        .map((track) => ({ ...track }));
     } else {
-      playbackState.radioQueue = items.slice(index + 1).map((track) => ({ ...track }));
+      playbackState.radioQueue = items
+        .slice(index + 1)
+        .map((track) => ({ ...track }));
     }
 
-    return { track: items[index], origin: type === 'radio' ? 'radio' : 'normal' };
+    return {
+      track: items[index],
+      origin: type === 'radio' ? 'radio' : 'normal',
+    };
   }
 
   function appendPlaybackTracks(tracks) {
@@ -69,7 +86,9 @@ export function createQueueOperations(deps) {
       playbackState.normalQueueTracks = [];
       playbackState.playlistIndex = -1;
     } else {
-      playbackState.normalQueueTracks.push(...items.map((track) => ({ ...track })));
+      playbackState.normalQueueTracks.push(
+        ...items.map((track) => ({ ...track })),
+      );
     }
     playbackState.radioQueue = [];
     playbackState.normalQueue.push(...items);
@@ -86,19 +105,27 @@ export function createQueueOperations(deps) {
     const origin = 'normal';
 
     if (playbackState.queueType === 'playlist' && playbackState.current) {
-      const insertAt = Math.max(0, Math.min(
-        playbackState.normalQueueTracks.length,
-        playbackState.playlistIndex + 1
-      ));
+      const insertAt = Math.max(
+        0,
+        Math.min(
+          playbackState.normalQueueTracks.length,
+          playbackState.playlistIndex + 1,
+        ),
+      );
       playbackState.normalQueueTracks.splice(insertAt, 0, { ...track });
       playbackState.playlistIndex = insertAt;
       playbackState.radioQueue = [];
     } else if (playbackState.queueType === 'radio') {
       const historyTracks = [
         track,
-        ...playbackState.displayHistory.filter((item) => item.id !== track.id)
+        ...playbackState.displayHistory.filter((item) => item.id !== track.id),
       ];
-      return { shouldStartCollection: true, tracks: historyTracks, queueType: 'playlist', title: '历史播放' };
+      return {
+        shouldStartCollection: true,
+        tracks: historyTracks,
+        queueType: 'playlist',
+        title: '历史播放',
+      };
     } else {
       playbackState.queueType = 'queue';
       playbackState.queueTitle = '播放队列';
@@ -112,7 +139,10 @@ export function createQueueOperations(deps) {
   }
 
   function takeNextPlaybackTrack(takeNextShuffleNormalTrack) {
-    if (playbackState.queueType !== 'radio' && playbackState.normalQueue.length > 0) {
+    if (
+      playbackState.queueType !== 'radio' &&
+      playbackState.normalQueue.length > 0
+    ) {
       let track;
       if (playbackState.mode === 'shuffle') {
         track = takeNextShuffleNormalTrack();
@@ -123,16 +153,22 @@ export function createQueueOperations(deps) {
         if (playbackState.mode === 'sequence') {
           playbackState.playlistIndex = Math.min(
             playbackState.normalQueueTracks.length - 1,
-            playbackState.playlistIndex + 1
+            playbackState.playlistIndex + 1,
           );
         } else {
-          playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex((item) => item.id === track.id);
+          playbackState.playlistIndex =
+            playbackState.normalQueueTracks.findIndex(
+              (item) => item.id === track.id,
+            );
         }
       }
       if (track) return { origin: 'normal', track };
     }
 
-    if (playbackState.queueType === 'radio' && playbackState.radioQueue.length > 0) {
+    if (
+      playbackState.queueType === 'radio' &&
+      playbackState.radioQueue.length > 0
+    ) {
       const track = playbackState.radioQueue.shift();
       return { origin: 'radio', track };
     }
@@ -143,22 +179,31 @@ export function createQueueOperations(deps) {
   function takePlaybackQueueTrack(origin, index) {
     const queueName = String(origin || '');
     const activeOrigin = queueManager.getActiveOrigin();
-    const queue = queueName === activeOrigin ? queueManager.getActiveQueue() : null;
-    if (!queue || !Number.isInteger(index) || index < 0 || index >= queue.length) return null;
+    const queue =
+      queueName === activeOrigin ? queueManager.getActiveQueue() : null;
+    if (
+      !queue ||
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= queue.length
+    )
+      return null;
 
     const track = queue.splice(index, 1)[0];
     if (playbackState.queueType === 'playlist') {
       const sourceIndex = playbackState.normalQueueTracks.findIndex(
-        (item, itemIndex) => itemIndex > playbackState.playlistIndex && item.id === track.id
+        (item, itemIndex) =>
+          itemIndex > playbackState.playlistIndex && item.id === track.id,
       );
-      if (sourceIndex >= 0) playbackState.normalQueueTracks.splice(sourceIndex, 1);
+      if (sourceIndex >= 0)
+        playbackState.normalQueueTracks.splice(sourceIndex, 1);
       const insertAt = playbackState.playlistIndex + 1;
       playbackState.normalQueueTracks.splice(insertAt, 0, { ...track });
       playbackState.playlistIndex = insertAt;
     }
     return {
       origin: activeOrigin,
-      track
+      track,
     };
   }
 
@@ -209,7 +254,9 @@ export function createQueueOperations(deps) {
     while (playbackState.shuffleCursor < playbackState.shuffleOrder.length) {
       const nextId = playbackState.shuffleOrder[playbackState.shuffleCursor];
       playbackState.shuffleCursor += 1;
-      const index = playbackState.normalQueue.findIndex((track) => track.id === nextId);
+      const index = playbackState.normalQueue.findIndex(
+        (track) => track.id === nextId,
+      );
       if (index >= 0) {
         return playbackState.normalQueue.splice(index, 1)[0];
       }
@@ -227,6 +274,6 @@ export function createQueueOperations(deps) {
     clearPlaybackQueue,
     jumpToPlaylistTrack,
     rebuildPlaybackShuffleOrder,
-    takeNextShuffleNormalTrack
+    takeNextShuffleNormalTrack,
   };
 }

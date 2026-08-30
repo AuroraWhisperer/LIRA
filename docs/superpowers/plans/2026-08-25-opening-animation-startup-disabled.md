@@ -20,10 +20,12 @@
 ### Task 1: Reset the opening-animation master switch during settings bootstrap
 
 **Files:**
+
 - Modify: `src/server/settings-bootstrap.js`
 - Test: `test/opening-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: `settingsStore.setSetting(key, value)` from `src/storage/settings-store.js`.
 - Produces: `prepareSettingsBootstrap(...)` returns a settings store whose `openingEnabled` value is `'false'` at the start of every application session.
 
@@ -31,14 +33,25 @@
 
 ```js
 test('opening animation starts disabled for every application session', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-startup-'));
-  const databases = createDatabases({ dataDir, defaultSettings: DEFAULT_SETTINGS });
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-opening-startup-'),
+  );
+  const databases = createDatabases({
+    dataDir,
+    defaultSettings: DEFAULT_SETTINGS,
+  });
 
   try {
-    const firstSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
+    const firstSession = prepareSettingsBootstrap(
+      databases.songDb,
+      settingsStoreModule,
+    ).settingsStore;
     firstSession.setSetting('openingEnabled', 'true');
 
-    const nextSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
+    const nextSession = prepareSettingsBootstrap(
+      databases.songDb,
+      settingsStoreModule,
+    ).settingsStore;
     assert.equal(nextSession.getSettings().openingEnabled, 'false');
   } finally {
     closeDatabases(databases);
@@ -56,9 +69,9 @@ Expected: the new test reports `'true' !== 'false'` before the implementation.
 - [x] **Step 3: Reset only `openingEnabled` at the existing bootstrap boundary**
 
 ```js
-  runMigrations();
-  settingsStore.setSetting('openingEnabled', 'false');
-  return { settingsStore };
+runMigrations();
+settingsStore.setSetting('openingEnabled', 'false');
+return { settingsStore };
 ```
 
 - [x] **Step 4: Run focused and static verification**

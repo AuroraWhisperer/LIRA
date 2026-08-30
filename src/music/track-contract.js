@@ -32,10 +32,13 @@ function normalizeMusicTrackForProvider(track) {
     sourceTrackId,
     sourceMediaId: cleanText(track.sourceMediaId),
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-    sourceSongType: Number.isSafeInteger(sourceSongType) && sourceSongType >= 0 ? sourceSongType : 0,
+    sourceSongType:
+      Number.isSafeInteger(sourceSongType) && sourceSongType >= 0
+        ? sourceSongType
+        : 0,
     sourceAlbumId: cleanText(track.sourceAlbumId),
     playable: track.playable !== false,
-    vip: track.vip === true
+    vip: track.vip === true,
   };
 }
 

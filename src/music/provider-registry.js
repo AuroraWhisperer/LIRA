@@ -7,11 +7,13 @@ const SUPPORTED_MUSIC_PLATFORMS = new Set(['qq', 'netease']);
 
 const PROVIDER_LABELS = {
   qq: 'QQ音乐',
-  netease: '网易云音乐'
+  netease: '网易云音乐',
 };
 
 function normalizeMusicPlatform(value) {
-  const platform = String(value || '').trim().toLowerCase();
+  const platform = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!SUPPORTED_MUSIC_PLATFORMS.has(platform)) {
     throw new Error('音乐平台只能是 qq 或 netease。');
   }
@@ -19,22 +21,24 @@ function normalizeMusicPlatform(value) {
 }
 
 function createMusicProviderRegistry(options = {}) {
-  const authStateProvider = typeof options.getAuthState === 'function'
-    ? options.getAuthState
-    : () => null;
-  const cookieHeaderProvider = typeof options.getCookieHeader === 'function'
-    ? options.getCookieHeader
-    : () => '';
+  const authStateProvider =
+    typeof options.getAuthState === 'function'
+      ? options.getAuthState
+      : () => null;
+  const cookieHeaderProvider =
+    typeof options.getCookieHeader === 'function'
+      ? options.getCookieHeader
+      : () => '';
 
   const providers = {
     qq: new QQMusicProvider({
       getAuthState: authStateProvider,
-      getCookieHeader: cookieHeaderProvider
+      getCookieHeader: cookieHeaderProvider,
     }),
     netease: new NeteaseMusicProvider({
       getAuthState: authStateProvider,
-      getCookieHeader: cookieHeaderProvider
-    })
+      getCookieHeader: cookieHeaderProvider,
+    }),
   };
 
   return {
@@ -45,14 +49,23 @@ function createMusicProviderRegistry(options = {}) {
       return Object.values(providers);
     },
     async healthCheck(platform) {
-      if (platform) return providers[normalizeMusicPlatform(platform)].healthCheck();
-      return Promise.all(Object.values(providers).map((provider) => provider.healthCheck()));
+      if (platform)
+        return providers[normalizeMusicPlatform(platform)].healthCheck();
+      return Promise.all(
+        Object.values(providers).map((provider) => provider.healthCheck()),
+      );
     },
     async getHealthyFallback(preferredPlatform) {
-      const preferred = preferredPlatform ? normalizeMusicPlatform(preferredPlatform) : '';
-      const health = await Promise.all(Object.values(providers).map((provider) => provider.healthCheck()));
-      return health.find((item) => item.ok && item.source !== preferred) || null;
-    }
+      const preferred = preferredPlatform
+        ? normalizeMusicPlatform(preferredPlatform)
+        : '';
+      const health = await Promise.all(
+        Object.values(providers).map((provider) => provider.healthCheck()),
+      );
+      return (
+        health.find((item) => item.ok && item.source !== preferred) || null
+      );
+    },
   };
 }
 
@@ -74,7 +87,7 @@ class PlaceholderMusicProvider {
       message: loggedIn
         ? `${this.name} 登录 Cookie 已保存，接口 Provider 尚未接入。`
         : `${this.name} Provider 尚未接入，请先用桌面端完成最小登录验证。`,
-      auth: auth ? sanitizeAuthState(auth) : null
+      auth: auth ? sanitizeAuthState(auth) : null,
     };
   }
 
@@ -115,9 +128,11 @@ function sanitizeAuthState(auth) {
   return {
     loggedIn: Boolean(auth && auth.loggedIn),
     cookieCount: Number(auth && auth.cookieCount) || 0,
-    keyCookieNames: Array.isArray(auth && auth.keyCookieNames) ? auth.keyCookieNames : [],
+    keyCookieNames: Array.isArray(auth && auth.keyCookieNames)
+      ? auth.keyCookieNames
+      : [],
     encryptedSnapshotExists: Boolean(auth && auth.encryptedSnapshotExists),
-    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : ''
+    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : '',
   };
 }
 
@@ -125,5 +140,5 @@ module.exports = {
   PROVIDER_LABELS,
   SUPPORTED_MUSIC_PLATFORMS,
   createMusicProviderRegistry,
-  normalizeMusicPlatform
+  normalizeMusicPlatform,
 };

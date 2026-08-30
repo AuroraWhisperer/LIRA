@@ -5,11 +5,12 @@ const PARAMETER_RANGE_SELECTOR = 'input.parameter-range[type="range"]';
 const DEFAULT_THUMB_SIZE = 18;
 const initializedInputs = new WeakSet();
 
-const resizeObserver = typeof ResizeObserver === 'undefined'
-  ? null
-  : new ResizeObserver((entries) => {
-    entries.forEach(({ target }) => refreshParameterRange(target));
-  });
+const resizeObserver =
+  typeof ResizeObserver === 'undefined'
+    ? null
+    : new ResizeObserver((entries) => {
+        entries.forEach(({ target }) => refreshParameterRange(target));
+      });
 
 function isParameterRange(input) {
   return Boolean(input?.matches?.(PARAMETER_RANGE_SELECTOR));
@@ -21,9 +22,10 @@ function getFiniteNumber(value, fallback) {
 }
 
 function getThumbSize(input) {
-  const value = typeof getComputedStyle === 'function'
-    ? getComputedStyle(input).getPropertyValue('--parameter-range-thumb-size')
-    : '';
+  const value =
+    typeof getComputedStyle === 'function'
+      ? getComputedStyle(input).getPropertyValue('--parameter-range-thumb-size')
+      : '';
   return Math.max(0, getFiniteNumber(parseFloat(value), DEFAULT_THUMB_SIZE));
 }
 
@@ -53,7 +55,12 @@ export function getParameterRangeOrigin(input) {
   const min = getFiniteNumber(input.min, 0);
   const max = getFiniteNumber(input.max, 100);
   if (max <= min) {
-    return { zeroProgress: 0, startProgress: 0, lengthProgress: 0, polarity: 'neutral' };
+    return {
+      zeroProgress: 0,
+      startProgress: 0,
+      lengthProgress: 0,
+      polarity: 'neutral',
+    };
   }
 
   const value = Math.min(max, Math.max(min, getFiniteNumber(input.value, min)));
@@ -66,7 +73,7 @@ export function getParameterRangeOrigin(input) {
     zeroProgress,
     startProgress: Math.min(valueProgress, zeroProgress),
     lengthProgress: Math.abs(valueProgress - zeroProgress),
-    polarity: value < zero ? 'negative' : value > zero ? 'positive' : 'neutral'
+    polarity: value < zero ? 'negative' : value > zero ? 'positive' : 'neutral',
   };
 }
 
@@ -86,17 +93,28 @@ export function refreshParameterRange(input) {
   const width = getFiniteNumber(input.getBoundingClientRect?.().width, 0);
   const trackLength = Math.max(0, width - thumbSize);
   const fillLength = trackLength * (progress / 100);
-  const originStart = (thumbSize / 2) + (trackLength * (origin.startProgress / 100));
+  const originStart =
+    thumbSize / 2 + trackLength * (origin.startProgress / 100);
   const originLength = trackLength * (origin.lengthProgress / 100);
-  const zeroPosition = (thumbSize / 2) + (trackLength * (origin.zeroProgress / 100));
+  const zeroPosition =
+    thumbSize / 2 + trackLength * (origin.zeroProgress / 100);
 
   input.style.setProperty('--parameter-range-progress', `${progress}%`);
-  input.style.setProperty('--parameter-range-track-inset', `${thumbSize / 2}px`);
+  input.style.setProperty(
+    '--parameter-range-track-inset',
+    `${thumbSize / 2}px`,
+  );
   input.style.setProperty('--parameter-range-track-length', `${trackLength}px`);
   input.style.setProperty('--parameter-range-fill-length', `${fillLength}px`);
   input.style.setProperty('--parameter-range-origin-start', `${originStart}px`);
-  input.style.setProperty('--parameter-range-origin-length', `${originLength}px`);
-  input.style.setProperty('--parameter-range-zero-position', `${zeroPosition}px`);
+  input.style.setProperty(
+    '--parameter-range-origin-length',
+    `${originLength}px`,
+  );
+  input.style.setProperty(
+    '--parameter-range-zero-position',
+    `${zeroPosition}px`,
+  );
   if (input.dataset) input.dataset.rangePolarity = origin.polarity;
 }
 

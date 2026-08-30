@@ -7,9 +7,10 @@ const MAX_LIMIT = 200;
 
 function createDanmakuFeedBuffer(options = {}) {
   const requestedLimit = Math.trunc(Number(options.limit));
-  const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
-    ? Math.min(requestedLimit, MAX_LIMIT)
-    : DEFAULT_LIMIT;
+  const limit =
+    Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, MAX_LIMIT)
+      : DEFAULT_LIMIT;
   let activeRoomId = '';
   let nextId = 1;
   let items = [];
@@ -31,11 +32,19 @@ function createDanmakuFeedBuffer(options = {}) {
       name: String(danmaku.userName || danmaku.name || '观众').trim() || '观众',
       message,
       avatarUrl: normalizeBilibiliImageUrl(danmaku.avatarUrl),
-      guardLevel: normalizeGuardLevel(danmaku.requesterGuardLevel ?? danmaku.guardLevel),
-      medalName: String(danmaku.requesterMedalName || danmaku.medalName || '').trim(),
-      medalLevel: normalizeNonNegativeInteger(danmaku.requesterMedalLevel ?? danmaku.medalLevel),
-      timestamp: normalizeTimestamp(danmaku.messageTimestamp ?? danmaku.timestamp),
-      emotes: normalizeEmotes(danmaku.emotes)
+      guardLevel: normalizeGuardLevel(
+        danmaku.requesterGuardLevel ?? danmaku.guardLevel,
+      ),
+      medalName: String(
+        danmaku.requesterMedalName || danmaku.medalName || '',
+      ).trim(),
+      medalLevel: normalizeNonNegativeInteger(
+        danmaku.requesterMedalLevel ?? danmaku.medalLevel,
+      ),
+      timestamp: normalizeTimestamp(
+        danmaku.messageTimestamp ?? danmaku.timestamp,
+      ),
+      emotes: normalizeEmotes(danmaku.emotes),
     };
     nextId += 1;
     items.push(item);
@@ -59,7 +68,7 @@ function normalizeEmotes(value) {
   const seen = new Set();
   const result = [];
   for (const emote of value) {
-    const text = String(emote && emote.text || '').trim();
+    const text = String((emote && emote.text) || '').trim();
     const url = normalizeBilibiliImageUrl(emote && emote.url);
     if (!text || !url || seen.has(text)) continue;
     seen.add(text);
@@ -67,7 +76,7 @@ function normalizeEmotes(value) {
       text,
       url,
       width: normalizeNonNegativeInteger(emote.width),
-      height: normalizeNonNegativeInteger(emote.height)
+      height: normalizeNonNegativeInteger(emote.height),
     });
   }
   return result;
@@ -85,13 +94,15 @@ function normalizeNonNegativeInteger(value) {
 
 function normalizeTimestamp(value) {
   const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? Math.trunc(number) : Date.now();
+  return Number.isFinite(number) && number > 0
+    ? Math.trunc(number)
+    : Date.now();
 }
 
 function cloneItem(item) {
   return {
     ...item,
-    emotes: item.emotes.map(emote => ({ ...emote }))
+    emotes: item.emotes.map((emote) => ({ ...emote })),
   };
 }
 

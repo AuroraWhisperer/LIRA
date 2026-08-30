@@ -1,31 +1,115 @@
-        <div id="importPage" class="tab-page">
-          <div class="panel-body stack">
-            <div class="actions">
-              <a href="/api/songs/template.xlsx"><button type="button">下载导入模板</button></a>
-              <a href="/api/songs/export.xlsx"><button type="button">导出歌库 Excel</button></a>
-              <button id="clearDatabaseBtn" class="danger" type="button">清空歌库</button>
-              <button id="clearAllBtn" class="danger" type="button" style="border-color:#c0392b;color:#fff;background:#c0392b;">清空全部数据</button>
-            </div>
-            <label>
-              选择 Excel / CSV / TSV 文件
-              <input id="importFile" type="file" accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values">
-            </label>
-            <label>
-              或从 Excel 复制表格后粘贴
-              <textarea id="importText" placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	点歌价格	歌切	核对平台	核对备注"></textarea>
-            </label>
-            <button id="importBtn" class="primary" type="button">导入歌库</button>
-            <p class="hint">支持 XLSX/CSV/TSV 或粘贴表格，兼容常用表头。多歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。清空歌库不影响其他设置。</p>
-            <div id="importResult" class="hint"></div>
-            <fieldset id="licenseSongSync" class="theme-section" hidden>
-              <legend>云端歌单</legend>
-              <p id="licenseProfileStatus" class="hint">正在读取授权账号…</p>
-              <p class="hint">同步会以当前本地歌库覆盖网页歌单。</p>
-              <div class="actions">
-                <a id="licenseSongPageLink" href="#" target="_blank" rel="noreferrer" hidden>打开网页歌单</a>
-                <button id="licenseSyncSongsBtn" class="primary" type="button">同步当前歌单到网页</button>
-              </div>
-              <p id="licenseSyncResult" class="hint" role="status" aria-live="polite"></p>
-            </fieldset>
-          </div>
-        </div>
+<div id="importPage" class="tab-page">
+  <div class="panel-body stack">
+    <div class="actions">
+      <a href="/api/songs/template.xlsx"
+        ><button type="button">下载导入模板</button></a
+      >
+      <a href="/api/songs/export.xlsx"
+        ><button type="button">导出歌库 Excel</button></a
+      >
+      <button id="clearDatabaseBtn" class="danger" type="button">
+        清空歌库
+      </button>
+      <button
+        id="clearAllBtn"
+        class="danger"
+        type="button"
+        style="border-color: #c0392b; color: #fff; background: #c0392b"
+      >
+        清空全部数据
+      </button>
+    </div>
+    <label>
+      选择 Excel / CSV / TSV 文件
+      <input
+        id="importFile"
+        type="file"
+        accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values"
+      />
+    </label>
+    <label>
+      或从 Excel 复制表格后粘贴
+      <textarea
+        id="importText"
+        placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	点歌价格	歌切	核对平台	核对备注"
+      ></textarea>
+    </label>
+    <button id="importBtn" class="primary" type="button">导入歌库</button>
+    <p class="hint">
+      支持 XLSX/CSV/TSV
+      或粘贴表格，兼容常用表头。多歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。清空歌库不影响其他设置。
+    </p>
+    <div id="importResult" class="hint"></div>
+    <fieldset id="licenseSongSync" class="theme-section" hidden>
+      <legend>云端歌单</legend>
+      <p id="licenseProfileStatus" class="hint">正在读取授权账号…</p>
+      <p id="licenseCloudCount" class="hint"></p>
+      <p id="licenseLastCloudSync" class="hint"></p>
+      <p class="hint">
+        同步会以当前本地歌库整体覆盖网页歌单，覆盖前会再次确认。
+      </p>
+      <div class="actions">
+        <a
+          id="licenseSongPageLink"
+          href="#"
+          target="_blank"
+          rel="noreferrer"
+          hidden
+          >打开网页歌单</a
+        >
+        <button id="licenseSyncSongsBtn" class="primary" type="button">
+          同步当前歌单到网页
+        </button>
+      </div>
+      <p
+        id="licenseSyncResult"
+        class="hint"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </fieldset>
+    <fieldset id="licenseSongBackground" class="theme-section" hidden>
+      <legend>歌单页背景</legend>
+      <p class="hint">
+        自定义公开歌单网页的背景图，仅保留最新一张，上传即覆盖。
+      </p>
+      <div class="song-bg-preview-wrap">
+        <img
+          id="licenseSongBgPreview"
+          class="song-bg-preview"
+          alt="当前背景预览"
+          hidden
+        />
+        <p id="licenseSongBgEmpty" class="hint">
+          未设置背景，歌单页使用默认水彩背景。
+        </p>
+      </div>
+      <p id="licenseSongBgMeta" class="hint"></p>
+      <div class="actions">
+        <input
+          id="licenseSongBgFile"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          hidden
+        />
+        <button id="licenseSongBgPickBtn" class="primary" type="button">
+          选择图片
+        </button>
+        <button
+          id="licenseSongBgDeleteBtn"
+          class="secondary"
+          type="button"
+          hidden
+        >
+          删除背景
+        </button>
+      </div>
+      <p
+        id="licenseSongBgResult"
+        class="hint"
+        role="status"
+        aria-live="polite"
+      ></p>
+    </fieldset>
+  </div>
+</div>

@@ -10,7 +10,17 @@ const LANGUAGE_ALIAS_GROUPS = [
   ['韩语', '韩文', '韩国语', '韩语歌', '韩文歌', 'ko', 'kr', 'korean'],
   ['英语', '英文', '英语歌', '英文歌', 'en', 'english'],
   ['粤语', '粤文', '粤语歌', '粤文歌', 'cantonese'],
-  ['国语', '中文', '汉语', '普通话', '华语', '国语歌', '中文歌', 'mandarin', 'chinese']
+  [
+    '国语',
+    '中文',
+    '汉语',
+    '普通话',
+    '华语',
+    '国语歌',
+    '中文歌',
+    'mandarin',
+    'chinese',
+  ],
 ];
 
 const CATEGORY_ALIAS_GROUPS = [
@@ -20,7 +30,7 @@ const CATEGORY_ALIAS_GROUPS = [
   ['摇滚', 'rock'],
   ['民谣', 'folk'],
   ['舞曲', 'dance'],
-  ['影视原声', '影视']
+  ['影视原声', '影视'],
 ];
 
 /**
@@ -41,16 +51,20 @@ function parseRandomSongTerms(scopeText) {
 function filterRandomSongCandidates(songs, scopeText) {
   const terms = parseRandomSongTerms(scopeText);
   if (terms.length === 0) return songs.slice();
-  return songs.filter((song) => terms.every((term) => songMatchesScopeTerm(song, term)));
+  return songs.filter((song) =>
+    terms.every((term) => songMatchesScopeTerm(song, term)),
+  );
 }
 
 function describeRandomSongScope(songs, scopeText) {
   const terms = parseRandomSongTerms(scopeText);
-  const unmatchedTerms = terms.filter((term) => !songs.some((song) => songMatchesScopeTerm(song, term)));
+  const unmatchedTerms = terms.filter(
+    (term) => !songs.some((song) => songMatchesScopeTerm(song, term)),
+  );
   return {
     terms,
     unmatchedTerms,
-    hasCandidates: filterRandomSongCandidates(songs, scopeText).length > 0
+    hasCandidates: filterRandomSongCandidates(songs, scopeText).length > 0,
   };
 }
 
@@ -61,25 +75,33 @@ function describeRandomSongScope(songs, scopeText) {
 function songMatchesScopeTerm(song, term) {
   if (songMatchesTerm(song, term)) return true;
   const spaceSeparatedTerms = cleanText(term).split(/\s+/).filter(Boolean);
-  return spaceSeparatedTerms.length > 1
-    && spaceSeparatedTerms.every((item) => songMatchesTerm(song, item));
+  return (
+    spaceSeparatedTerms.length > 1 &&
+    spaceSeparatedTerms.every((item) => songMatchesTerm(song, item))
+  );
 }
 
 function songMatchesTerm(song, term) {
   const normalizedTerm = normalizeComparable(term);
   if (!normalizedTerm) return true;
 
-  const artistMatches = normalizeComparable(song.artist) === normalizedTerm
-    || splitSongArtists(song.artist)
-      .some((artist) => normalizeComparable(artist) === normalizedTerm);
+  const artistMatches =
+    normalizeComparable(song.artist) === normalizedTerm ||
+    splitSongArtists(song.artist).some(
+      (artist) => normalizeComparable(artist) === normalizedTerm,
+    );
   const languageAliases = randomLanguageAliases(term);
-  const languageMatches = splitSongLanguages(song.language)
-    .some((language) => languageAliases.includes(normalizeComparable(language)));
-  const categoryMatches = song.category_is_enabled !== 0
-    && splitSongCategories(song.category_name)
-      .some((category) => randomCategoryAliases(term).includes(normalizeComparable(category)));
-  const tagMatches = splitSongTags(song.tags)
-    .some((tag) => matchesLibraryTag(tag, term));
+  const languageMatches = splitSongLanguages(song.language).some((language) =>
+    languageAliases.includes(normalizeComparable(language)),
+  );
+  const categoryMatches =
+    song.category_is_enabled !== 0 &&
+    splitSongCategories(song.category_name).some((category) =>
+      randomCategoryAliases(term).includes(normalizeComparable(category)),
+    );
+  const tagMatches = splitSongTags(song.tags).some((tag) =>
+    matchesLibraryTag(tag, term),
+  );
 
   return artistMatches || languageMatches || categoryMatches || tagMatches;
 }
@@ -116,7 +138,7 @@ function splitSongTags(value) {
 function randomLanguageAliases(scopeText) {
   const scope = normalizeComparable(scopeText);
   const matchedGroup = LANGUAGE_ALIAS_GROUPS.find((group) =>
-    group.some((alias) => normalizeComparable(alias) === scope)
+    group.some((alias) => normalizeComparable(alias) === scope),
   );
   return (matchedGroup || [scopeText]).map((item) => normalizeComparable(item));
 }
@@ -124,7 +146,7 @@ function randomLanguageAliases(scopeText) {
 function randomCategoryAliases(scopeText) {
   const scope = normalizeComparable(scopeText);
   const matchedGroup = CATEGORY_ALIAS_GROUPS.find((group) =>
-    group.some((alias) => normalizeComparable(alias) === scope)
+    group.some((alias) => normalizeComparable(alias) === scope),
   );
   return (matchedGroup || [scopeText]).map((item) => normalizeComparable(item));
 }
@@ -138,5 +160,5 @@ module.exports = {
   describeRandomSongScope,
   parseRandomSongTerms,
   randomLanguageAliases,
-  splitSongTags
+  splitSongTags,
 };

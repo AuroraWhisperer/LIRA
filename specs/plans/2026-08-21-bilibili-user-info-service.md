@@ -41,10 +41,12 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 ### Task 1: Lock the service contract with focused tests
 
 **Files:**
+
 - Create: `test/bilibili-user-info-service.test.js`
 - Modify: `test/bilibili-identity-cache.test.js`
 
 **Interfaces:**
+
 - Produces: `new UserInfoService({ identityCache, profileProvider, now, diagnostics })`
 - Produces: `peek`, `ingestHint`, `ensure`, `listRecent`, `listOnline`, `replaceOnlineSnapshot`, `subscribe`, `setRoom`, `beginRoomRun`, `endRoomRun`, `dispose`
 
@@ -55,18 +57,26 @@ The implementation replaces distributed identity merging and implicit avatar hyd
   ```js
   const scope = service.setRoom({ roomId: '100', ownerUid: '999' });
   const run = service.beginRoomRun();
-  service.ingestHint({ uid: '123', name: 'Alice' }, { ...run, source: 'danmaku' });
-  assert.deepEqual(service.peek('123', { fields: ['name'] }), { uid: '123', name: 'Alice' });
+  service.ingestHint(
+    { uid: '123', name: 'Alice' },
+    { ...run, source: 'danmaku' },
+  );
+  assert.deepEqual(service.peek('123', { fields: ['name'] }), {
+    uid: '123',
+    name: 'Alice',
+  });
   ```
 
 ### Task 2: Implement the facade and storage adapter
 
 **Files:**
+
 - Create: `src/bilibili/users/user-info-service.js`
 - Create: `src/bilibili/users/profile-provider.js`
 - Modify: `src/bilibili/danmaku/identity-cache.js`
 
 **Interfaces:**
+
 - `BilibiliUserProfileProvider.fetchProfile(uid) -> Promise<{ name?, avatarUrl? }>`
 - `IdentityCache.storeMerged(identity, { recent })`, `readMerged(uid)`, `listRecentUids()`, `replaceOnlineSnapshot(uids)`, `listOnlineUids()`, `clearRoomIndexes()`
 
@@ -79,6 +89,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 ### Task 3: Normalize producers and poller ports
 
 **Files:**
+
 - Modify: `src/bilibili/parsers/superchat-parser.js`
 - Modify: `src/bilibili/utils/user-meta-extractor.js`
 - Modify: `src/bilibili/danmaku/message-handlers.js`
@@ -88,6 +99,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 - Modify tests for these modules
 
 **Interfaces:**
+
 - Poller sink: `{ ingestHint(hint, context), replaceOnlineSnapshot?(uids, context) }`
 - Poller start: `start(roomRunContext)` where context is the frozen value returned by `beginRoomRun()`
 
@@ -100,6 +112,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 ### Task 4: Coordinate the room runtime and explicit avatar flow
 
 **Files:**
+
 - Modify: `src/bilibili/danmaku-client.js`
 - Modify: `src/server/bilibili-client.js`
 - Modify: `src/server/bilibili-runtime.js`
@@ -108,6 +121,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 - Modify: `test/bilibili-runtime.test.js`
 
 **Interfaces:**
+
 - `BilibiliDanmakuClient.ensureUserInfo(uid, options)` delegates to the facade.
 - Runtime game resolver consumes `userInfoService.ensure(uid, { fields: ['name', 'avatarUrl'] })`.
 
@@ -120,6 +134,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 ### Task 5: Synchronize architecture facts and lifecycle evidence
 
 **Files:**
+
 - Modify: `docs/architecture/backend/bilibili/danmaku.md`
 - Modify: `docs/architecture/backend/bilibili/protocol.md`
 - Modify: `docs/architecture/engineering/ai-workflow.md`

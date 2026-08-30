@@ -18,7 +18,7 @@ export function createPlaylistOperations(deps) {
     showError,
     readJsonResponse,
     renderPlayback,
-    escapeHtml
+    escapeHtml,
   } = deps;
 
   /**
@@ -27,21 +27,30 @@ export function createPlaylistOperations(deps) {
   function canAddTrackToPlaylist(track) {
     if (!track) return false;
     if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
+    if (track.source === 'netease')
+      return /^\d+$/.test(
+        String(track.sourceTrackId || '').replace(/^netease:/, ''),
+      );
     return false;
   }
 
   /**
    * 显示确认对话框
    */
-  function showConfirmDialog(title, message, trackName, confirmText = '确认', cancelText = '取消') {
+  function showConfirmDialog(
+    title,
+    message,
+    trackName,
+    confirmText = '确认',
+    cancelText = '取消',
+  ) {
     return PlaybackComponents.showConfirmDialog({
       title,
       message,
       trackName,
       confirmText,
       cancelText,
-      variant: confirmText === '删除' ? 'destructive' : 'normal'
+      variant: confirmText === '删除' ? 'destructive' : 'normal',
     });
   }
 
@@ -54,7 +63,9 @@ export function createPlaylistOperations(deps) {
       backdrop.className = 'playlist-picker-backdrop';
       backdrop.setAttribute('role', 'dialog');
       backdrop.setAttribute('aria-modal', 'true');
-      const availableCount = playlists.filter((item) => item.containsTrack === false).length;
+      const availableCount = playlists.filter(
+        (item) => item.containsTrack === false,
+      ).length;
       backdrop.innerHTML = `
         <div class="playlist-picker-dialog">
           <div class="playlist-picker-header">
@@ -65,18 +76,24 @@ export function createPlaylistOperations(deps) {
             <button type="button" class="playlist-picker-close" aria-label="关闭">×</button>
           </div>
           <div class="playlist-picker-list">
-            ${playlists.map((item, index) => {
-              const isAdded = item.containsTrack === true;
-              const checkFailed = item.containsTrack == null;
-              const status = isAdded ? '已添加' : (checkFailed ? '检查失败' : '可添加');
-              return `
+            ${playlists
+              .map((item, index) => {
+                const isAdded = item.containsTrack === true;
+                const checkFailed = item.containsTrack == null;
+                const status = isAdded
+                  ? '已添加'
+                  : checkFailed
+                    ? '检查失败'
+                    : '可添加';
+                return `
                 <button type="button" class="playlist-picker-item${isAdded ? ' is-added' : ''}" data-playlist-picker-index="${index}" ${isAdded || checkFailed ? 'disabled' : ''}>
                   ${PlaybackUtils.renderArtwork(item, { fallback: '单' })}
                   <span class="playlist-picker-name">${escapeHtml(item.title || item.id)}</span>
                   <span class="playlist-picker-status">${status}</span>
                 </button>
               `;
-            }).join('')}
+              })
+              .join('')}
           </div>
           <div class="playlist-picker-footer">
             <span>已添加的歌单不可重复选择</span>
@@ -97,7 +114,12 @@ export function createPlaylistOperations(deps) {
         if (event.key === 'Escape') close();
       };
       backdrop.addEventListener('click', (event) => {
-        if (event.target === backdrop || event.target.closest('.playlist-picker-close, .playlist-picker-cancel')) {
+        if (
+          event.target === backdrop ||
+          event.target.closest(
+            '.playlist-picker-close, .playlist-picker-cancel',
+          )
+        ) {
           close();
           return;
         }
@@ -107,7 +129,11 @@ export function createPlaylistOperations(deps) {
       });
       document.addEventListener('keydown', handleKeydown);
       document.body.appendChild(backdrop);
-      backdrop.querySelector('.playlist-picker-item:not(:disabled), .playlist-picker-close')?.focus();
+      backdrop
+        .querySelector(
+          '.playlist-picker-item:not(:disabled), .playlist-picker-close',
+        )
+        ?.focus();
     });
   }
 
@@ -127,7 +153,7 @@ export function createPlaylistOperations(deps) {
         '确认要删除这首歌曲吗？',
         track.title || '当前歌曲',
         '删除',
-        '取消'
+        '取消',
       );
       if (!confirmed) return;
 
@@ -139,11 +165,12 @@ export function createPlaylistOperations(deps) {
           body: JSON.stringify({
             platform,
             playlist: { id: 'liked' },
-            tracks: [track]
-          })
+            tracks: [track],
+          }),
         });
         const payload = await readJsonResponse(response, `从我喜欢删除失败`);
-        if (!response.ok || !payload.ok) throw new Error(payload.error || `从我喜欢删除失败`);
+        if (!response.ok || !payload.ok)
+          throw new Error(payload.error || `从我喜欢删除失败`);
 
         toast('已从我喜欢中删除');
         await homeService.refreshContent();
@@ -166,7 +193,7 @@ export function createPlaylistOperations(deps) {
         `确认从「${currentPlaylist.title || '歌单'}」中删除这首歌曲吗？`,
         track.title || '当前歌曲',
         '删除',
-        '取消'
+        '取消',
       );
       if (!confirmed) return;
 
@@ -178,11 +205,15 @@ export function createPlaylistOperations(deps) {
           body: JSON.stringify({
             platform,
             playlist: currentPlaylist,
-            tracks: [track]
-          })
+            tracks: [track],
+          }),
         });
-        const payload = await readJsonResponse(response, `从${platformLabel}歌单删除失败`);
-        if (!response.ok || !payload.ok) throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
+        const payload = await readJsonResponse(
+          response,
+          `从${platformLabel}歌单删除失败`,
+        );
+        if (!response.ok || !payload.ok)
+          throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
 
         toast(`已从「${currentPlaylist.title || '歌单'}」中删除`);
         await homeService.refreshContent();
@@ -211,42 +242,69 @@ export function createPlaylistOperations(deps) {
       const listResponse = await fetch('/api/music/home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform, action: 'created-playlists', limit: 500, refresh: true, track })
+        body: JSON.stringify({
+          platform,
+          action: 'created-playlists',
+          limit: 500,
+          refresh: true,
+          track,
+        }),
       });
-      const listPayload = await readJsonResponse(listResponse, `加载${platformLabel}歌单失败`);
-      if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
-      const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
-        ? listPayload.data.playlists.filter((item) => item && (
-          platform === 'qq'
-            ? item.dirId && (item.tid || item.id)
-            : item.id
-        ))
+      const listPayload = await readJsonResponse(
+        listResponse,
+        `加载${platformLabel}歌单失败`,
+      );
+      if (!listResponse.ok || !listPayload.ok)
+        throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
+      const playlists = Array.isArray(
+        listPayload.data && listPayload.data.playlists,
+      )
+        ? listPayload.data.playlists.filter(
+            (item) =>
+              item &&
+              (platform === 'qq'
+                ? item.dirId && (item.tid || item.id)
+                : item.id),
+          )
         : [];
-      if (playlists.length === 0) throw new Error(`没有找到可写入的${platformLabel}歌单`);
-      const playlist = await choosePlaylistForTrack(platformLabel, playlists, track);
+      if (playlists.length === 0)
+        throw new Error(`没有找到可写入的${platformLabel}歌单`);
+      const playlist = await choosePlaylistForTrack(
+        platformLabel,
+        playlists,
+        track,
+      );
       if (!playlist) return;
       const confirmed = await PlaybackComponents.showConfirmDialog({
         title: `添加到${platformLabel}歌单`,
         message: `确认将「${track.title || '当前歌曲'}」添加到「${playlist.title || playlist.id}」？`,
         confirmText: '确定',
-        cancelText: '取消'
+        cancelText: '取消',
       });
       if (!confirmed) return;
 
       const writeResponse = await fetch('/api/music/playlists/tracks/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform, playlist, tracks: [track] })
+        body: JSON.stringify({ platform, playlist, tracks: [track] }),
       });
-      const writePayload = await readJsonResponse(writeResponse, `添加到${platformLabel}歌单失败`);
-      if (!writeResponse.ok || !writePayload.ok) throw new Error(writePayload.error || `添加到${platformLabel}歌单失败`);
-      const song = writePayload.data && writePayload.data.result
-        && Array.isArray(writePayload.data.result.songlist)
-        ? writePayload.data.result.songlist[0]
-        : null;
-      toast(song && Number(song.existed) === 1
-        ? `歌曲已在「${playlist.title}」中`
-        : `已添加到「${playlist.title}」`);
+      const writePayload = await readJsonResponse(
+        writeResponse,
+        `添加到${platformLabel}歌单失败`,
+      );
+      if (!writeResponse.ok || !writePayload.ok)
+        throw new Error(writePayload.error || `添加到${platformLabel}歌单失败`);
+      const song =
+        writePayload.data &&
+        writePayload.data.result &&
+        Array.isArray(writePayload.data.result.songlist)
+          ? writePayload.data.result.songlist[0]
+          : null;
+      toast(
+        song && Number(song.existed) === 1
+          ? `歌曲已在「${playlist.title}」中`
+          : `已添加到「${playlist.title}」`,
+      );
     } catch (error) {
       showError(error);
     }
@@ -268,6 +326,6 @@ export function createPlaylistOperations(deps) {
     canAddTrackToPlaylist,
     removeTrackFromPlaylist,
     addTrackToPlaylist,
-    addCurrentTrackToPlaylist
+    addCurrentTrackToPlaylist,
   };
 }

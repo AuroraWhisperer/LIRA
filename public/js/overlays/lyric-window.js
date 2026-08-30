@@ -36,14 +36,16 @@ function connectSocket(desktopLyricPreview) {
       console.warn('[lyrics] invalid WebSocket message:', error);
     }
   });
-  socket.addEventListener('close', () => scheduleReconnect(desktopLyricPreview));
+  socket.addEventListener('close', () =>
+    scheduleReconnect(desktopLyricPreview),
+  );
   socket.addEventListener('error', () => socket.close());
 }
 
 function scheduleReconnect(desktopLyricPreview) {
   document.body.classList.add('is-disconnected');
   reconnectAttempts += 1;
-  const delay = Math.min(1000 * (2 ** Math.min(reconnectAttempts - 1, 4)), 15000);
+  const delay = Math.min(1000 * 2 ** Math.min(reconnectAttempts - 1, 4), 15000);
   clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(() => connectSocket(desktopLyricPreview), delay);
 }
@@ -53,7 +55,8 @@ async function loadSettings(desktopLyricPreview) {
     const response = await fetch('/api/settings');
     if (!response.ok) return;
     const payload = await response.json();
-    if (payload.ok && payload.data) desktopLyricPreview.applySettings(payload.data);
+    if (payload.ok && payload.data)
+      desktopLyricPreview.applySettings(payload.data);
   } catch (error) {
     console.warn('[lyrics] settings unavailable:', error);
   }

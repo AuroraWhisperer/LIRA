@@ -4,7 +4,10 @@
 
 import { showError, value } from '../shared/utils.js';
 import { eventBus, Events } from '../shared/event-bus.js';
-import { readSelectedCategories, readSelectedTags } from './song-category-filter.js';
+import {
+  readSelectedCategories,
+  readSelectedTags,
+} from './song-category-filter.js';
 
 /**
  * 状态管理服务
@@ -22,6 +25,7 @@ export class StateService {
     this.songTags = new Set();
     this.ws = null;
     this.lyricVersion = { generation: null, sequence: 0 };
+    this.giftCatalogVersion = '';
   }
 
   /**
@@ -52,12 +56,15 @@ export class StateService {
         if (lyricAccepted) {
           dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
         }
-        dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
+        dispatchRealtimeState(
+          'app:lyric-timeline',
+          this.appState?.lyricTimeline,
+        );
         dispatchRealtimeState('app:settings-state', this.appState?.settings);
         // 发布事件而非直接调用其他模块
         eventBus.emit(Events.STATE_LOADED, {
           state: this.appState,
-          songs: this.songs
+          songs: this.songs,
         });
         if (isGiftSnapshotReason(payload.reason)) {
           eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
@@ -72,6 +79,32 @@ export class StateService {
         this.appState = this.appState || {};
         this.appState.overtime = payload.state;
         eventBus.emit(Events.OVERTIME_UPDATED, payload);
+      } else if (payload.type === 'gift-catalog:update') {
+        const snapshot = payload.snapshot;
+        if (
+          !snapshot ||
+          typeof snapshot !== 'object' ||
+          !Array.isArray(snapshot.gifts)
+        )
+          return;
+        const version = String(snapshot.version || '').trim();
+        // A catalog update without a revision cannot be safely ordered or
+        // deduplicated. Ignore malformed wire messages instead of replacing a
+        // usable picker state with an anonymous payload.
+        if (!version) return;
+        // A catalog revision can keep the same version while its freshness
+        // metadata changes (for example, crossing the server's stale cutoff).
+        // Deduplicate the full observable signature instead of dropping those
+        // updates based on version alone.
+        const signature = JSON.stringify({
+          version,
+          updatedAt: String(snapshot.updatedAt || snapshot.refreshedAt || ''),
+          stale: parseBooleanLike(snapshot.stale),
+          sources: snapshot.sources || null,
+        });
+        if (signature === this.giftCatalogVersion) return;
+        this.giftCatalogVersion = signature;
+        eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot });
       } else if (payload.type === 'wesing-state') {
         this.appState = this.appState || {};
         this.appState.weSing = payload.state;
@@ -125,7 +158,10 @@ export class StateService {
 
     const previousLyricState = this.appState?.lyricState;
     this.appState = payload.data;
-    if (!this.acceptLyricState(this.appState?.lyricState) && previousLyricState) {
+    if (
+      !this.acceptLyricState(this.appState?.lyricState) &&
+      previousLyricState
+    ) {
       this.appState.lyricState = previousLyricState;
     }
     dispatchRealtimeState('app:settings-state', this.appState?.settings);
@@ -139,7 +175,7 @@ export class StateService {
     // 发布状态更新事件
     eventBus.emit(Events.STATE_LOADED, {
       state: this.appState,
-      songs: this.songs
+      songs: this.songs,
     });
   }
 
@@ -152,7 +188,8 @@ export class StateService {
     for (const category of readSelectedCategories()) {
       params.append('category', category);
     }
-    if (value('languageFilter')) params.set('language', value('languageFilter'));
+    if (value('languageFilter'))
+      params.set('language', value('languageFilter'));
     if (value('artistFilter')) params.set('artist', value('artistFilter'));
     for (const tag of readSelectedTags()) {
       params.append('tag', tag);
@@ -173,7 +210,7 @@ export class StateService {
       songs: this.songs,
       languages: this.songLanguages,
       artists: this.songArtists,
-      tags: this.songTags
+      tags: this.songTags,
     });
   }
 
@@ -236,14 +273,29 @@ export class StateService {
     if (!Number.isFinite(generation) || !Number.isFinite(sequence)) {
       return this.lyricVersion.generation === null;
     }
-    if (this.lyricVersion.generation === null || generation > this.lyricVersion.generation) {
+    if (
+      this.lyricVersion.generation === null ||
+      generation > this.lyricVersion.generation
+    ) {
       this.lyricVersion = { generation, sequence };
       return true;
     }
-    if (generation < this.lyricVersion.generation || sequence <= this.lyricVersion.sequence) return false;
+    if (
+      generation < this.lyricVersion.generation ||
+      sequence <= this.lyricVersion.sequence
+    )
+      return false;
     this.lyricVersion.sequence = sequence;
     return true;
   }
+}
+
+function parseBooleanLike(value) {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0 || value === null || value === undefined)
+    return false;
+  const text = String(value).trim().toLowerCase();
+  return text === 'true' || text === '1' || text === 'yes';
 }
 
 function dispatchRealtimeState(eventName, state, allowEmpty = false) {
@@ -252,10 +304,12 @@ function dispatchRealtimeState(eventName, state, allowEmpty = false) {
 }
 
 function isGiftSnapshotReason(reason) {
-  return reason === 'bilibili:gift'
-    || reason === 'gift:clear-recent'
-    || reason === 'database:clear-gifts'
-    || reason === 'database:clear-all';
+  return (
+    reason === 'bilibili:gift' ||
+    reason === 'gift:clear-recent' ||
+    reason === 'database:clear-gifts' ||
+    reason === 'database:clear-all'
+  );
 }
 
 function isSongsSnapshotReason(reason) {
@@ -280,6 +334,6 @@ if (typeof window !== 'undefined') {
     getCategories: () => stateService.getCategories(),
     getSongLanguages: () => stateService.getSongLanguages(),
     getSongArtists: () => stateService.getSongArtists(),
-    setShuttingDown: (v) => stateService.setShuttingDown(v)
+    setShuttingDown: (v) => stateService.setShuttingDown(v),
   };
 }

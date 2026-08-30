@@ -1,6 +1,10 @@
 'use strict';
 
-import { createBlessingEditor, createCustomReplyEditor, createFortuneEditor } from './danmaku-libraries.js';
+import {
+  createBlessingEditor,
+  createCustomReplyEditor,
+  createFortuneEditor,
+} from './danmaku-libraries.js';
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
 
 let initialized = false;
@@ -11,7 +15,7 @@ const DANMAKU_OVERLAY_STYLES = Object.freeze({
   bubble: '聊天气泡',
   signal: '直播信号带',
   minimal: '航海铭牌',
-  ranked: '身份横卡'
+  ranked: '身份横卡',
 });
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,21 +29,29 @@ function init() {
     const response = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [key]: value })
+      body: JSON.stringify({ [key]: value }),
     });
     const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || '保存设置失败');
+    if (!response.ok || !payload.ok)
+      throw new Error(payload.error || '保存设置失败');
     return payload.data;
   };
   const blessingEditor = createBlessingEditor({ document, saveSetting, toast });
   const fortuneEditor = createFortuneEditor({ document, saveSetting, toast });
-  const customReplyEditor = createCustomReplyEditor({ document, saveSetting, toast });
+  const customReplyEditor = createCustomReplyEditor({
+    document,
+    saveSetting,
+    toast,
+  });
   if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
   const overlayUrl = `${localOverlayOrigin()}/danmaku`;
   elements.overlayUrl.value = overlayUrl;
   let currentOverlayStyle = renderOverlayStyle(elements, 'signal');
   window.addEventListener('app:settings-state', (event) => {
-    currentOverlayStyle = renderOverlayStyle(elements, event.detail?.danmakuOverlayStyle);
+    currentOverlayStyle = renderOverlayStyle(
+      elements,
+      event.detail?.danmakuOverlayStyle,
+    );
   });
   elements.styleButtons.forEach((button) => {
     button.addEventListener('click', async () => {
@@ -48,17 +60,22 @@ function init() {
       if (nextStyle === currentOverlayStyle) return;
       currentOverlayStyle = renderOverlayStyle(elements, nextStyle);
       elements.styleSaveState.textContent = '正在保存并同步到弹幕姬…';
-      elements.styleButtons.forEach((item) => { item.disabled = true; });
+      elements.styleButtons.forEach((item) => {
+        item.disabled = true;
+      });
       try {
         await saveSetting('danmakuOverlayStyle', nextStyle);
         elements.styleSaveState.textContent = `已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}，打开中的弹幕姬会同步更新。`;
         toast(`弹幕姬已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}`);
       } catch (error) {
         currentOverlayStyle = renderOverlayStyle(elements, previousStyle);
-        elements.styleSaveState.textContent = error.message || '样式保存失败，请重试。';
+        elements.styleSaveState.textContent =
+          error.message || '样式保存失败，请重试。';
         toast(error.message || '弹幕姬样式保存失败');
       } finally {
-        elements.styleButtons.forEach((item) => { item.disabled = false; });
+        elements.styleButtons.forEach((item) => {
+          item.disabled = false;
+        });
       }
     });
   });
@@ -70,7 +87,9 @@ function init() {
       toast(error.message || '复制链接失败');
     }
   });
-  elements.openOverlayButton.addEventListener('click', () => window.open(overlayUrl, '_blank', 'noopener'));
+  elements.openOverlayButton.addEventListener('click', () =>
+    window.open(overlayUrl, '_blank', 'noopener'),
+  );
   initialized = true;
 
   const updateCounter = () => {
@@ -86,7 +105,8 @@ function init() {
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
+      if (!response.ok || !payload.ok)
+        throw new Error(payload.error || '获取发送状态失败');
       let state = payload.data || {};
       if (reconnectIfDisconnected && !state.connected) {
         await window.AdminApp.settings?.reconnectBilibili?.();
@@ -97,7 +117,11 @@ function init() {
         }
         state = refreshedPayload.data || {};
       }
-      renderState(elements, state, { blessingEditor, fortuneEditor, customReplyEditor });
+      renderState(elements, state, {
+        blessingEditor,
+        fortuneEditor,
+        customReplyEditor,
+      });
     } catch (error) {
       elements.accountState.textContent = '状态未知';
       elements.roomState.textContent = '状态未知';
@@ -120,28 +144,28 @@ function init() {
     onText: '随机点歌自动回复已开启',
     offText: '随机点歌自动回复已关闭',
     saveSetting,
-    toast
+    toast,
   });
   bindSettingToggle(elements.checkinToggle, {
     key: 'enableCheckinBot',
     onText: '签到机器人已开启',
     offText: '签到机器人已关闭',
     saveSetting,
-    toast
+    toast,
   });
   bindSettingToggle(elements.fortuneToggle, {
     key: 'enableFortuneBot',
     onText: '抽签机器人已开启',
     offText: '抽签机器人已关闭',
     saveSetting,
-    toast
+    toast,
   });
   bindSettingToggle(elements.customReplyToggle, {
     key: 'enableCustomReplyBot',
     onText: 'DIY 关键词回复已开启',
     offText: 'DIY 关键词回复已关闭',
     saveSetting,
-    toast
+    toast,
   });
   elements.form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -153,15 +177,27 @@ function init() {
       const response = await fetch('/api/bilibili/danmaku/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '发送弹幕失败');
+      if (!response.ok || !payload.ok)
+        throw new Error(payload.error || '发送弹幕失败');
       elements.message.value = '';
       updateCounter();
       const count = Number(payload.data?.count) || 1;
-      setResult(count > 1 ? `已拆成 ${count} 条弹幕发送。` : `已发送：${payload.data?.message || text}`, 'good');
-      toast(count > 1 ? `弹幕已拆成 ${count} 条发送` : (payload.data?.replyUname ? `弹幕已发送并 @${payload.data.replyUname}` : '弹幕已发送'));
+      setResult(
+        count > 1
+          ? `已拆成 ${count} 条弹幕发送。`
+          : `已发送：${payload.data?.message || text}`,
+        'good',
+      );
+      toast(
+        count > 1
+          ? `弹幕已拆成 ${count} 条发送`
+          : payload.data?.replyUname
+            ? `弹幕已发送并 @${payload.data.replyUname}`
+            : '弹幕已发送',
+      );
     } catch (error) {
       setResult(error.message || '发送弹幕失败', 'warn');
       toast(error.message || '发送弹幕失败');
@@ -176,7 +212,8 @@ function init() {
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
+      if (!response.ok || !payload.ok)
+        throw new Error(payload.error || '获取发送状态失败');
       const state = payload.data || {};
       if (!state.loggedIn) {
         toast('未登录账号，请先登录后再使用自动发送');
@@ -191,17 +228,20 @@ function init() {
         return;
       }
       const queue = [...Array(10).fill('钓鱼'), ...Array(5).fill('打劫')];
-      toast(`开始自动发送：钓鱼 ×10、打劫 ×5，每 5 秒一条（共 ${queue.length} 条）`);
+      toast(
+        `开始自动发送：钓鱼 ×10、打劫 ×5，每 5 秒一条（共 ${queue.length} 条）`,
+      );
       for (let index = 0; index < queue.length; index += 1) {
         const message = queue[index];
         setResult(`自动发送中 ${index + 1}/${queue.length}：${message}`);
         const sendResponse = await fetch('/api/bilibili/danmaku/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ message }),
         });
         const sendPayload = await sendResponse.json();
-        if (!sendResponse.ok || !sendPayload.ok) throw new Error(sendPayload.error || '发送弹幕失败');
+        if (!sendResponse.ok || !sendPayload.ok)
+          throw new Error(sendPayload.error || '发送弹幕失败');
         if (index < queue.length - 1) await wait(5000);
       }
       setResult('自动发送完成：钓鱼 ×10、打劫 ×5', 'good');
@@ -237,10 +277,15 @@ function getElements() {
     styleChip: document.getElementById('danmakuStyleChip'),
     styleSaveState: document.getElementById('danmakuStyleSaveState'),
     stylePreviewFrame: document.getElementById('danmakuStylePreviewFrame'),
-    resultState: document.getElementById('danmakuSendResult')
+    resultState: document.getElementById('danmakuSendResult'),
   };
-  elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
-  return Object.values(elements).some((element) => !element) || elements.styleButtons.length !== 4 ? null : elements;
+  elements.styleButtons = Array.from(
+    document.querySelectorAll('[data-danmaku-style]'),
+  );
+  return Object.values(elements).some((element) => !element) ||
+    elements.styleButtons.length !== 4
+    ? null
+    : elements;
 }
 
 function normalizeOverlayStyle(value) {
@@ -251,7 +296,10 @@ function renderOverlayStyle(elements, value) {
   const style = normalizeOverlayStyle(value);
   const label = DANMAKU_OVERLAY_STYLES[style];
   elements.styleButtons.forEach((button) => {
-    button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === style));
+    button.setAttribute(
+      'aria-pressed',
+      String(button.dataset.danmakuStyle === style),
+    );
   });
   elements.styleChip.textContent = `当前样式 · ${label}`;
   const previewUrl = `/danmaku?preview=1&style=${style}`;
@@ -263,9 +311,14 @@ function renderOverlayStyle(elements, value) {
 }
 
 function renderState(elements, state, editors) {
-  elements.accountState.textContent = state.loggedIn ? (state.accountName || `UID ${state.accountUid || '-'}`) : '未登录';
-  elements.accountState.title = state.loggedIn && state.accountUid ? `UID ${state.accountUid}` : '';
-  elements.roomState.textContent = state.roomId ? (state.roomName || `房间 ${state.roomId}`) : '未设置';
+  elements.accountState.textContent = state.loggedIn
+    ? state.accountName || `UID ${state.accountUid || '-'}`
+    : '未登录';
+  elements.accountState.title =
+    state.loggedIn && state.accountUid ? `UID ${state.accountUid}` : '';
+  elements.roomState.textContent = state.roomId
+    ? state.roomName || `房间 ${state.roomId}`
+    : '未设置';
   elements.roomState.title = state.roomId ? `房间 ${state.roomId}` : '';
   elements.replyToggle.checked = state.autoReplyEnabled === true;
   elements.replyToggle.disabled = !state.canSend;
@@ -279,10 +332,14 @@ function renderState(elements, state, editors) {
   editors.fortuneEditor.load(state.fortunePool);
   editors.customReplyEditor.load(state.customReplyRules);
   elements.status.textContent = state.canSend
-    ? (state.connected ? '可发送，监听已连接' : '可发送，监听未连接')
+    ? state.connected
+      ? '可发送，监听已连接'
+      : '可发送，监听未连接'
     : state.unavailableReason;
   elements.status.className = state.canSend
-    ? (state.connected ? 'connection-good' : 'connection-bad')
+    ? state.connected
+      ? 'connection-good'
+      : 'connection-bad'
     : 'warn';
   elements.sendButton.disabled = !state.canSend;
   elements.autoButton.disabled = autoBotRunning || !state.canSend;

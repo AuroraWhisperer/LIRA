@@ -51,10 +51,12 @@
 ### Task 1: Add focused motion regressions
 
 **Files:**
+
 - Modify: `test/opening-overlay.test.js`
 - Test: `test/opening-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: the current opening scene CSS and HTML as text fixtures.
 - Produces: assertions that define the visual defect boundaries without changing runtime contracts.
 
@@ -66,9 +68,15 @@ assert.doesNotMatch(css, /@keyframes\s+track-glint/);
 assert.doesNotMatch(css, /mic-glint/);
 assert.match(css, /@keyframes\s+character-float[^\n]*-\.45cqw/);
 assert.match(css, /@keyframes\s+character-breathe[^\n]*scale\(1\.008\)/);
-assert.match(css, /@keyframes\s+note-drift[^\n]*0%,\s*100%\s*\{\s*opacity:\s*0/);
+assert.match(
+  css,
+  /@keyframes\s+note-drift[^\n]*0%,\s*100%\s*\{\s*opacity:\s*0/,
+);
 assert.match(css, /\.opening-stage\.is-paused\s+\*::before/);
-assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/);
+assert.match(
+  css,
+  /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/,
+);
 assert.match(html, /<animateMotion dur="7\.2s"/);
 ```
 
@@ -81,11 +89,13 @@ Expected: FAIL on the retained track sweep, large character amplitude, microphon
 ### Task 2: Restrain and synchronize the scene motion
 
 **Files:**
+
 - Modify: `public/css/overlays/opening.css`
 - Modify: `public/pages/overlays/opening.html`
 - Test: `test/opening-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: existing class names and the `#openingTrackPath` SMIL motion path.
 - Produces: the same `/opening` DOM/query contract with calmer CSS/SMIL timing.
 
@@ -118,12 +128,14 @@ Expected: 5 tests pass.
 ### Task 3: Visual and repository verification
 
 **Files:**
+
 - Review: `public/css/overlays/opening.css`
 - Review: `public/pages/overlays/opening.html`
 - Review: `test/opening-overlay.test.js`
 - Update/archive: `specs/plans/2026-08-23-opening-animation-motion-polish.md`
 
 **Interfaces:**
+
 - Consumes: the polished overlay at `http://127.0.0.1:3000/opening?enabled=1&audio=none`.
 - Produces: visual QA evidence and a reviewed task-scoped diff.
 

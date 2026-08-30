@@ -21,7 +21,7 @@ let updateState = {
   canDownload: false,
   canInstall: false,
   progress: null,
-  updateVersion: ''
+  updateVersion: '',
 };
 
 let lastProgressTime = 0;
@@ -40,26 +40,46 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
 
   configuredUpdater.on('checking-for-update', () => {
     log('update', { event: 'checking' });
-    setUpdateState({
-      status: 'checking', message: '正在连接 GitHub 检查新版本...',
-      canDownload: false, canInstall: false, progress: null
-    }, onStateChange);
+    setUpdateState(
+      {
+        status: 'checking',
+        message: '正在连接 GitHub 检查新版本...',
+        canDownload: false,
+        canInstall: false,
+        progress: null,
+      },
+      onStateChange,
+    );
   });
 
   configuredUpdater.on('update-available', (info) => {
     log('update', { event: 'available', version: info.version || '' });
-    setUpdateState({
-      status: 'available', message: `发现新版本 ${info.version}，可以下载更新。`,
-      canDownload: true, canInstall: false, progress: null, updateVersion: info.version || ''
-    }, onStateChange);
+    setUpdateState(
+      {
+        status: 'available',
+        message: `发现新版本 ${info.version}，可以下载更新。`,
+        canDownload: true,
+        canInstall: false,
+        progress: null,
+        updateVersion: info.version || '',
+      },
+      onStateChange,
+    );
   });
 
   configuredUpdater.on('update-not-available', () => {
     log('update', { event: 'not-available' });
-    setUpdateState({
-      status: 'not-available', message: '当前已经是最新版本。',
-      canDownload: false, canInstall: false, progress: null, updateVersion: ''
-    }, onStateChange);
+    setUpdateState(
+      {
+        status: 'not-available',
+        message: '当前已经是最新版本。',
+        canDownload: false,
+        canInstall: false,
+        progress: null,
+        updateVersion: '',
+      },
+      onStateChange,
+    );
   });
 
   configuredUpdater.on('download-progress', (progress) => {
@@ -78,30 +98,48 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
     lastProgressTime = now;
     lastTransferred = transferred;
 
-    setUpdateState({
-      status: 'downloading', message: `正在下载更新：${percent.toFixed(1)}%`,
-      canDownload: false, canInstall: false,
-      progress: { percent, transferred, total, speed }
-    }, onStateChange);
+    setUpdateState(
+      {
+        status: 'downloading',
+        message: `正在下载更新：${percent.toFixed(1)}%`,
+        canDownload: false,
+        canInstall: false,
+        progress: { percent, transferred, total, speed },
+      },
+      onStateChange,
+    );
   });
 
   configuredUpdater.on('update-downloaded', (info) => {
-    log('update', { event: 'downloaded', version: info.version || updateState.updateVersion || '' });
-    setUpdateState({
-      status: 'downloaded',
-      message: `更新 ${info.version || updateState.updateVersion} 已下载，重启后完成安装。`,
-      canDownload: false, canInstall: true,
-      progress: { percent: 100 }, updateVersion: info.version || updateState.updateVersion || ''
-    }, onStateChange);
+    log('update', {
+      event: 'downloaded',
+      version: info.version || updateState.updateVersion || '',
+    });
+    setUpdateState(
+      {
+        status: 'downloaded',
+        message: `更新 ${info.version || updateState.updateVersion} 已下载，重启后完成安装。`,
+        canDownload: false,
+        canInstall: true,
+        progress: { percent: 100 },
+        updateVersion: info.version || updateState.updateVersion || '',
+      },
+      onStateChange,
+    );
   });
 
   configuredUpdater.on('error', (error) => {
     log('update-error', error);
     const friendly = friendlyUpdateError(error);
-    setUpdateState({
-      status: friendly.status, message: friendly.message,
-      canDownload: false, canInstall: false
-    }, onStateChange);
+    setUpdateState(
+      {
+        status: friendly.status,
+        message: friendly.message,
+        canDownload: false,
+        canInstall: false,
+      },
+      onStateChange,
+    );
   });
 }
 
@@ -115,15 +153,21 @@ function setUpdateState(nextState, onStateChange) {
 async function checkForUpdates() {
   if (!app.isPackaged) {
     setUpdateState({
-      status: 'dev-disabled', message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
-      canDownload: false, canInstall: false
+      status: 'dev-disabled',
+      message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
+      canDownload: false,
+      canInstall: false,
     });
     return updateState;
   }
-  try { await getAutoUpdater().checkForUpdates(); } catch (error) {
+  try {
+    await getAutoUpdater().checkForUpdates();
+  } catch (error) {
     setUpdateState({
-      status: 'error', message: friendlyUpdateError(error).message,
-      canDownload: false, canInstall: false
+      status: 'error',
+      message: friendlyUpdateError(error).message,
+      canDownload: false,
+      canInstall: false,
     });
   }
   return updateState;
@@ -135,13 +179,19 @@ async function downloadUpdate() {
   lastProgressTime = 0;
   lastTransferred = 0;
   setUpdateState({
-    status: 'downloading', message: '正在准备下载 GitHub 最新安装包...',
-    canDownload: false, canInstall: false
+    status: 'downloading',
+    message: '正在准备下载 GitHub 最新安装包...',
+    canDownload: false,
+    canInstall: false,
   });
-  try { await getAutoUpdater().downloadUpdate(); } catch (error) {
+  try {
+    await getAutoUpdater().downloadUpdate();
+  } catch (error) {
     setUpdateState({
-      status: 'error', message: friendlyUpdateError(error).message,
-      canDownload: false, canInstall: false
+      status: 'error',
+      message: friendlyUpdateError(error).message,
+      canDownload: false,
+      canInstall: false,
     });
   }
   return updateState;
@@ -150,8 +200,10 @@ async function downloadUpdate() {
 function installUpdate() {
   if (!updateState.canInstall) return updateState;
   setUpdateState({
-    status: 'installing', message: '正在重启并静默更新...',
-    canDownload: false, canInstall: false
+    status: 'installing',
+    message: '正在重启并静默更新...',
+    canDownload: false,
+    canInstall: false,
   });
   app.releaseSingleInstanceLock();
   getAutoUpdater().quitAndInstall(true, true);
@@ -161,15 +213,35 @@ function installUpdate() {
 function friendlyUpdateError(error) {
   const text = `${error && error.message ? error.message : ''}\n${String(error || '')}`;
   if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
-    return { status: 'not-available', message: '当前 GitHub Releases 里还没有可用更新包。' };
+    return {
+      status: 'not-available',
+      message: '当前 GitHub Releases 里还没有可用更新包。',
+    };
   }
   if (/checksum mismatch|sha512|sha256|hash mismatch/i.test(text)) {
-    return { status: 'error', message: '更新包校验失败，请前往 GitHub Releases 手动下载最新安装包。' };
+    return {
+      status: 'error',
+      message: '更新包校验失败，请前往 GitHub Releases 手动下载最新安装包。',
+    };
   }
-  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_NETWORK|ERR_INTERNET|network|timeout/i.test(text)) {
-    return { status: 'error', message: '暂时无法连接 GitHub 更新服务，请稍后再试。' };
+  if (
+    /ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_NETWORK|ERR_INTERNET|network|timeout/i.test(
+      text,
+    )
+  ) {
+    return {
+      status: 'error',
+      message: '暂时无法连接 GitHub 更新服务，请稍后再试。',
+    };
   }
   return { status: 'error', message: '暂时无法检查更新，详细原因已写入日志。' };
 }
 
-module.exports = { configureAutoUpdater, checkForUpdates, downloadUpdate, installUpdate, getUpdateState: () => updateState, friendlyUpdateError };
+module.exports = {
+  configureAutoUpdater,
+  checkForUpdates,
+  downloadUpdate,
+  installUpdate,
+  getUpdateState: () => updateState,
+  friendlyUpdateError,
+};

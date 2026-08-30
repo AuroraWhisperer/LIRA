@@ -10,16 +10,14 @@
   let giftArtworkLoadPromise = null;
   let latestRecentGiftItems = [];
 
-  const {
-    escapeHtml,
-    formatTime,
-    formatMoney
-  } = window.AdminApp.utils;
+  const { escapeHtml, formatTime, formatMoney } = window.AdminApp.utils;
 
   function limitRecentGiftRows(list) {
-    const columns = window.getComputedStyle(list).gridTemplateColumns
-      .split(/\s+/)
-      .filter(Boolean).length || 1;
+    const columns =
+      window
+        .getComputedStyle(list)
+        .gridTemplateColumns.split(/\s+/)
+        .filter(Boolean).length || 1;
     const visibleCardCount = columns * MAX_RECENT_GIFT_ROWS;
 
     list.querySelectorAll('.gift-card').forEach((card, index) => {
@@ -29,7 +27,9 @@
 
   function observeRecentGiftGrid(list) {
     if (recentGiftResizeObserver || !window.ResizeObserver) return;
-    recentGiftResizeObserver = new window.ResizeObserver(() => limitRecentGiftRows(list));
+    recentGiftResizeObserver = new window.ResizeObserver(() =>
+      limitRecentGiftRows(list),
+    );
     recentGiftResizeObserver.observe(list);
   }
 
@@ -58,13 +58,21 @@
 
     giftArtworkById = await giftArtworkLoadPromise;
     giftArtworkLoadPromise = null;
-    if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
+    if (latestRecentGiftItems.length > 0)
+      renderGiftRecentList(latestRecentGiftItems);
     return giftArtworkById;
   }
 
   function normalizeGiftArtworkPath(value) {
-    const imagePath = String(value ?? '').trim().replace(/^\/+/, '');
-    if (!/^bilibili-gifts\/[a-z0-9-]+\/[a-z0-9._-]+\.(?:webp|png|jpe?g)$/i.test(imagePath)) return '';
+    const imagePath = String(value ?? '')
+      .trim()
+      .replace(/^\/+/, '');
+    if (
+      !/^bilibili-gifts\/[a-z0-9-]+\/[a-z0-9._-]+\.(?:webp|png|jpe?g)$/i.test(
+        imagePath,
+      )
+    )
+      return '';
     return `/img/${imagePath}`;
   }
 
@@ -93,39 +101,52 @@
       return;
     }
 
-    list.innerHTML = items.map((item) => {
-      const sprintPrice = item.sprint_count_price ?? item.total_price;
-      const blindProfit = item.blind_profit;
-      const giftName = escapeHtml(item.gift_name || '未知礼物');
-      const userName = escapeHtml(item.user_name || '观众');
-      const guardBadge = getGuardBadge(item);
-      const blindBoxIcon = getBlindBoxIcon(item);
-      const isHighValueTotal = Number(item.total_price) >= HIGH_VALUE_GIFT_MIN_RMB;
-      const highValueGiftArtwork = getHighValueGiftArtwork(item);
-      const typeIcon = guardBadge
-        ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
-        : blindBoxIcon
-          ? `<img class="gift-type-icon gift-blind-box-icon" src="${blindBoxIcon.src}" alt="${blindBoxIcon.name}图标" title="${blindBoxIcon.name}">`
-          : highValueGiftArtwork
-            ? `<img class="gift-type-icon gift-high-value-icon" src="${highValueGiftArtwork.src}" alt="${giftName}照片" title="${giftName}">`
-          : '';
-      let cardClass = 'gift-card';
-      let blindLine = '';
+    list.innerHTML = items
+      .map((item) => {
+        const sprintPrice = item.sprint_count_price ?? item.total_price;
+        const blindProfit = item.blind_profit;
+        const giftName = escapeHtml(item.gift_name || '未知礼物');
+        const userName = escapeHtml(item.user_name || '观众');
+        const guardBadge = getGuardBadge(item);
+        const blindBoxIcon = getBlindBoxIcon(item);
+        const isHighValueTotal =
+          Number(item.total_price) >= HIGH_VALUE_GIFT_MIN_RMB;
+        const highValueGiftArtwork = getHighValueGiftArtwork(item);
+        const typeIcon = guardBadge
+          ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
+          : blindBoxIcon
+            ? `<img class="gift-type-icon gift-blind-box-icon" src="${blindBoxIcon.src}" alt="${blindBoxIcon.name}图标" title="${blindBoxIcon.name}">`
+            : highValueGiftArtwork
+              ? `<img class="gift-type-icon gift-high-value-icon" src="${highValueGiftArtwork.src}" alt="${giftName}照片" title="${giftName}">`
+              : '';
+        let cardClass = 'gift-card';
+        let blindLine = '';
 
-      if (typeIcon) cardClass += ' has-type-icon';
-      if (guardBadge) cardClass += ` guard-card guard-${guardBadge.level}`;
-      if (blindBoxIcon) cardClass += ` blind-box-card ${blindBoxIcon.className}`;
-      if (isHighValueTotal && !guardBadge && !blindBoxIcon) cardClass += ' high-value-gift-card';
+        if (typeIcon) cardClass += ' has-type-icon';
+        if (guardBadge) cardClass += ` guard-card guard-${guardBadge.level}`;
+        if (blindBoxIcon)
+          cardClass += ` blind-box-card ${blindBoxIcon.className}`;
+        if (isHighValueTotal && !guardBadge && !blindBoxIcon)
+          cardClass += ' high-value-gift-card';
 
-      if (item.is_blind_box && item.blind_box_name) {
-        const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
-        const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : 'profit-neutral';
-        blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
-      } else if (item.is_blind_box && item.blind_box_price !== null && item.blind_box_price !== undefined) {
-        blindLine = `<span class="gift-result">开出 ${formatMoney(item.total_price)}</span>`;
-      }
+        if (item.is_blind_box && item.blind_box_name) {
+          const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
+          const profitClass =
+            blindProfit > 0
+              ? 'profit-up'
+              : blindProfit < 0
+                ? 'profit-down'
+                : 'profit-neutral';
+          blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
+        } else if (
+          item.is_blind_box &&
+          item.blind_box_price !== null &&
+          item.blind_box_price !== undefined
+        ) {
+          blindLine = `<span class="gift-result">开出 ${formatMoney(item.total_price)}</span>`;
+        }
 
-      return `
+        return `
         <div class="${cardClass}">
           <div class="gift-card-content">
             <div class="gift-name" title="${giftName}">${giftName} x${Number(item.num || 1)}</div>
@@ -139,7 +160,8 @@
           ${typeIcon}
         </div>
       `;
-    }).join('');
+      })
+      .join('');
     limitRecentGiftRows(list);
     observeRecentGiftGrid(list);
   }
@@ -150,17 +172,46 @@
    * @returns {Object|null} 徽章信息 {name, src}
    */
   function getGuardBadge(item) {
-    const giftName = String(item && item.gift_name || '').trim().toLowerCase();
-    const giftId = String(item && item.gift_id || '').trim().toLowerCase();
+    const giftName = String((item && item.gift_name) || '')
+      .trim()
+      .toLowerCase();
+    const giftId = String((item && item.gift_id) || '')
+      .trim()
+      .toLowerCase();
 
-    if (giftName.includes('总督') || giftName.includes('governor') || giftId === 'guard-1') {
-      return { name: '总督', level: 1, src: '/img/admin/gifts/bilibili-guard-governor.webp' };
+    if (
+      giftName.includes('总督') ||
+      giftName.includes('governor') ||
+      giftId === 'guard-1'
+    ) {
+      return {
+        name: '总督',
+        level: 1,
+        src: '/img/admin/gifts/bilibili-guard-governor.webp',
+      };
     }
-    if (giftName.includes('提督') || giftName.includes('prefect') || giftName.includes('admiral') || giftId === 'guard-2') {
-      return { name: '提督', level: 2, src: '/img/admin/gifts/bilibili-guard-prefect.webp' };
+    if (
+      giftName.includes('提督') ||
+      giftName.includes('prefect') ||
+      giftName.includes('admiral') ||
+      giftId === 'guard-2'
+    ) {
+      return {
+        name: '提督',
+        level: 2,
+        src: '/img/admin/gifts/bilibili-guard-prefect.webp',
+      };
     }
-    if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
-      return { name: '舰长', level: 3, src: '/img/admin/gifts/bilibili-guard-captain.webp' };
+    if (
+      giftName.includes('舰长') ||
+      giftName.includes('captain') ||
+      giftId === 'guard-3'
+    ) {
+      return {
+        name: '舰长',
+        level: 3,
+        src: '/img/admin/gifts/bilibili-guard-captain.webp',
+      };
     }
     return null;
   }
@@ -171,21 +222,43 @@
    * @returns {Object|null} 图标信息 {name, src}
    */
   function getBlindBoxIcon(item) {
-    const blindBoxName = String(item && (item.blind_box_name || item.name || item.gift_name) || '').trim();
+    const blindBoxName = String(
+      (item && (item.blind_box_name || item.name || item.gift_name)) || '',
+    ).trim();
     if (blindBoxName.includes('心动盲盒')) {
-      return { name: '心动盲盒', className: 'blind-box-heart', src: '/img/bilibili-gifts/blind-box/32251.webp' };
+      return {
+        name: '心动盲盒',
+        className: 'blind-box-heart',
+        src: '/img/bilibili-gifts/blind-box/32251.webp',
+      };
     }
     if (blindBoxName.includes('幸运盲盒')) {
-      return { name: '幸运盲盒', className: 'blind-box-lucky', src: '/img/bilibili-gifts/blind-box/35206.webp' };
+      return {
+        name: '幸运盲盒',
+        className: 'blind-box-lucky',
+        src: '/img/bilibili-gifts/blind-box/35206.webp',
+      };
     }
     if (blindBoxName.includes('小熊虫盲盒')) {
-      return { name: '小熊虫盲盒', className: 'blind-box-bear', src: '/img/bilibili-gifts/blind-box/35800.webp' };
+      return {
+        name: '小熊虫盲盒',
+        className: 'blind-box-bear',
+        src: '/img/bilibili-gifts/blind-box/35800.webp',
+      };
     }
     if (blindBoxName.includes('七夕鹊匣')) {
-      return { name: '七夕鹊匣', className: 'blind-box-qixi', src: '/img/bilibili-gifts/blind-box/35786.webp' };
+      return {
+        name: '七夕鹊匣',
+        className: 'blind-box-qixi',
+        src: '/img/bilibili-gifts/blind-box/35786.webp',
+      };
     }
     if (blindBoxName.includes('羁绊宝盒')) {
-      return { name: '羁绊宝盒', className: 'blind-box-bond', src: '/img/bilibili-gifts/blind-box/35461.webp' };
+      return {
+        name: '羁绊宝盒',
+        className: 'blind-box-bond',
+        src: '/img/bilibili-gifts/blind-box/35461.webp',
+      };
     }
     return null;
   }
@@ -194,7 +267,12 @@
     const unitPrice = Number(item?.unit_price);
     const giftId = String(item?.gift_id ?? '').trim();
     const artworkPath = giftArtworkById?.get(giftId);
-    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB || !artworkPath) return null;
+    if (
+      !Number.isFinite(unitPrice) ||
+      unitPrice < HIGH_VALUE_GIFT_MIN_RMB ||
+      !artworkPath
+    )
+      return null;
     return { src: artworkPath };
   }
 
@@ -206,10 +284,10 @@
     getGuardBadge,
     getBlindBoxIcon,
     getHighValueGiftArtwork,
-    loadGiftArtworkCatalog
+    loadGiftArtworkCatalog,
   };
 
-  loadGiftArtworkCatalog().catch(error => {
+  loadGiftArtworkCatalog().catch((error) => {
     console.warn('初始化礼物图片目录失败：', error);
   });
 })();

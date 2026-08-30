@@ -61,12 +61,14 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 ### Task 1: Lock the help component contract
 
 **Files:**
+
 - Create: `test/contextual-help.test.js`
 - Modify: `test/frontend-admin-ai.test.js`
 - Modify: `test/desktop-lyrics.test.js`
 - Modify: `test/overtime-rule-editor.test.js`
 
 **Interfaces:**
+
 - Produces assertions for `<lira-help>`, `role="tooltip"`, `popover="manual"`, `aria-describedby`, keyboard activation, and representative migrated consumers.
 
 - [x] Add `test/contextual-help.test.js` with source and pure-position assertions, including that `public/js/admin/index.js` imports `./contextual-help.js` before feature modules.
@@ -78,12 +80,14 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 ### Task 2: Implement the reusable top-layer tooltip
 
 **Files:**
+
 - Create: `public/js/admin/contextual-help.js`
 - Create: `public/css/components/contextual-help.css`
 - Modify: `public/js/admin/index.js`
 - Modify: `public/css/styles-admin.css`
 
 **Interfaces:**
+
 - Produces: `initializeContextualHelp(): void`.
 - Produces: `<lira-help label="字段名">说明节点</lira-help>` with generated or preserved description IDs.
 
@@ -97,6 +101,7 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 ### Task 3: Migrate Admin explanations
 
 **Files:**
+
 - Modify: `public/pages/admin/song/settings.html`
 - Modify: `public/pages/admin/song/queue-theme.html`
 - Modify: `public/pages/admin/song/song-board.html`
@@ -110,6 +115,7 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 - Modify: `public/js/admin/overtime-rule-editor.js`
 
 **Interfaces:**
+
 - Consumes: `<lira-help>` from Task 2.
 - Preserves: all current control and status IDs.
 
@@ -123,10 +129,12 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 ### Task 4: Document and verify the result
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/pages.md`
 - Update: `specs/plans/2026-08-23-contextual-help-tooltips.md`
 
 **Interfaces:**
+
 - Produces discoverable guidance for future Admin settings.
 
 - [x] Document `<lira-help>` in the shared Admin component inventory and state that it is for optional explanation only, never status, validation, warning, or required instructions.

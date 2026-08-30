@@ -9,7 +9,7 @@ class BilibiliUserProfileProvider {
     const profile = await this.apiClient.fetchUserProfile(uid);
     return {
       name: profile && profile.name,
-      avatarUrl: profile && profile.avatarUrl
+      avatarUrl: profile && profile.avatarUrl,
     };
   }
 }

@@ -43,7 +43,7 @@ const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/gifts/history.html',
   'pages/admin/main-end.html',
   'pages/admin/shared/song-confirmation.html',
-  'pages/admin/document-end.html'
+  'pages/admin/document-end.html',
 ]);
 
 function isAdminPageRoute(pathname) {
@@ -54,9 +54,9 @@ function composeAdminHtml(publicDir) {
   const cacheKey = path.resolve(String(publicDir));
   const cached = composedHtmlCache.get(cacheKey);
   if (cached !== undefined) return cached;
-  const html = ADMIN_FRAGMENT_PATHS
-    .map(relativePath => fs.readFileSync(path.join(publicDir, relativePath), 'utf8'))
-    .join('');
+  const html = ADMIN_FRAGMENT_PATHS.map((relativePath) =>
+    fs.readFileSync(path.join(publicDir, relativePath), 'utf8'),
+  ).join('');
   composedHtmlCache.set(cacheKey, html);
   return html;
 }

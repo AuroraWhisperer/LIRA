@@ -2,40 +2,57 @@
 
 const { normalizeGiftRow } = require('./normalizer');
 const { now, normalizeMoney } = require('../../shared/utils');
-const { createGiftMaintenanceStore } = require('../../storage/gift-maintenance-store');
+const {
+  createGiftMaintenanceStore,
+} = require('../../storage/gift-maintenance-store');
 
 const CRYSTAL_BALL_VALUE_RMB = 100;
 
 function resetGiftSprintProgress(context) {
   const giftDb = context.db.giftDb;
-  const result = giftDb.prepare(`
+  const result = giftDb
+    .prepare(
+      `
     UPDATE gift_events SET counted_in_sprint = 0, updated_at = ?
     WHERE counted_in_sprint = 1
-  `).run(now());
+  `,
+    )
+    .run(now());
   return {
     reset: true,
     changedCount: Number(result.changes || 0),
-    giftSprint: getGiftSprintSnapshot(context)
+    giftSprint: getGiftSprintSnapshot(context),
   };
 }
 
 function getGiftSnapshot(context) {
-  const recent = context.db.giftDb.prepare(`
+  const recent = context.db.giftDb
+    .prepare(
+      `
     SELECT * FROM gift_events
     WHERE status = 'active' AND total_price > 0
       AND detection_status = 'final' AND gift_stats_eligible = 1
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 30
-  `).all().map(normalizeGiftRow);
+  `,
+    )
+    .all()
+    .map(normalizeGiftRow);
   return { recent };
 }
 
 function getGiftHistory(context, options = {}) {
   const giftDb = context.db.giftDb;
-  const limit = Math.min(100, Math.max(1, Math.floor(Number(options.limit) || 50)));
+  const limit = Math.min(
+    100,
+    Math.max(1, Math.floor(Number(options.limit) || 50)),
+  );
   const page = Math.max(1, Math.floor(Number(options.page) || 1));
   const sortField = String(options.sortField || 'created_at');
-  const sortDirection = String(options.sortDirection || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+  const sortDirection =
+    String(options.sortDirection || 'desc').toLowerCase() === 'asc'
+      ? 'ASC'
+      : 'DESC';
 
   let orderByClause = '';
   switch (sortField) {
@@ -61,13 +78,18 @@ function getGiftHistory(context, options = {}) {
       break;
   }
 
-  const displayLimitIds = giftDb.prepare(`
+  const displayLimitIds = giftDb
+    .prepare(
+      `
     SELECT id FROM gift_events
     WHERE status = 'active' AND total_price > 0
       AND detection_status = 'final' AND gift_stats_eligible = 1
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 3000
-  `).all().map(row => row.id);
+  `,
+    )
+    .all()
+    .map((row) => row.id);
 
   if (displayLimitIds.length === 0) {
     return { items: [], total: 0, page: 1, limit, totalPages: 1 };
@@ -75,24 +97,34 @@ function getGiftHistory(context, options = {}) {
 
   const minId = Math.min(...displayLimitIds);
   const maxId = Math.max(...displayLimitIds);
-  const totalRow = giftDb.prepare(`
+  const totalRow =
+    giftDb
+      .prepare(
+        `
     SELECT COUNT(*) AS count
     FROM gift_events
     WHERE status = 'active' AND total_price > 0
       AND detection_status = 'final' AND gift_stats_eligible = 1
       AND id >= ? AND id <= ?
-  `).get(minId, maxId) || {};
+  `,
+      )
+      .get(minId, maxId) || {};
   const total = Number(totalRow.count || 0);
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const safePage = Math.min(page, totalPages);
-  const items = giftDb.prepare(`
+  const items = giftDb
+    .prepare(
+      `
     SELECT * FROM gift_events
     WHERE status = 'active' AND total_price > 0
       AND detection_status = 'final' AND gift_stats_eligible = 1
       AND id >= ? AND id <= ?
     ORDER BY ${orderByClause}
     LIMIT ? OFFSET ?
-  `).all(minId, maxId, limit, (safePage - 1) * limit).map(normalizeGiftRow);
+  `,
+    )
+    .all(minId, maxId, limit, (safePage - 1) * limit)
+    .map(normalizeGiftRow);
 
   return { items, total, page: safePage, limit, totalPages };
 }
@@ -100,14 +132,19 @@ function getGiftHistory(context, options = {}) {
 function getGiftSprintSnapshot(context) {
   const settings = context.settings();
   const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
-  const row = context.db.giftDb.prepare(`
+  const row =
+    context.db.giftDb
+      .prepare(
+        `
     SELECT
       COALESCE(SUM(total_price), 0) AS receivedRmb,
       COUNT(*) AS countedGiftCount
     FROM gift_events
     WHERE status = 'active' AND counted_in_sprint = 1
       AND detection_status = 'final' AND gift_stats_eligible = 1
-  `).get() || {};
+  `,
+      )
+      .get() || {};
   const receivedRmb = normalizeMoney(row.receivedRmb);
   const remainingRmb = Math.max(0, normalizeMoney(targetRmb - receivedRmb));
 
@@ -118,7 +155,7 @@ function getGiftSprintSnapshot(context) {
     remainingRmb,
     crystalBallValueRmb: CRYSTAL_BALL_VALUE_RMB,
     remainingCrystalBalls: Math.ceil(remainingRmb / CRYSTAL_BALL_VALUE_RMB),
-    countedGiftCount: Number(row.countedGiftCount || 0)
+    countedGiftCount: Number(row.countedGiftCount || 0),
   };
 }
 
@@ -140,7 +177,10 @@ function searchGifts(context, { from, to, limit = 100 }) {
   }
   sql += ` ORDER BY datetime(created_at) DESC, id DESC LIMIT ?`;
   params.push(Math.min(limit, 500));
-  return giftDb.prepare(sql).all(...params).map(normalizeGiftRow);
+  return giftDb
+    .prepare(sql)
+    .all(...params)
+    .map(normalizeGiftRow);
 }
 
 function clearRecentGifts(context) {
@@ -165,13 +205,13 @@ function clearRecentGifts(context) {
     whereClause,
     [],
     'manual:clear-recent',
-    timestamp
+    timestamp,
   );
 
   return {
     cleared: true,
     scope: 'display-gifts',
-    deletedCount: result.deletedGifts
+    deletedCount: result.deletedGifts,
   };
 }
 
@@ -182,5 +222,5 @@ module.exports = {
   getGiftHistory,
   getGiftSprintSnapshot,
   searchGifts,
-  clearRecentGifts
+  clearRecentGifts,
 };

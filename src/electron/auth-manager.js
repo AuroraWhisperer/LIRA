@@ -11,23 +11,52 @@ const MUSIC_LOGIN_CONFIG = {
     name: 'QQ音乐',
     partition: 'persist:music-qq',
     loginUrl: 'https://y.qq.com/',
-    allowedHosts: ['y.qq.com', 'i.y.qq.com', 'graph.qq.com', 'ssl.ptlogin2.qq.com', 'xui.ptlogin2.qq.com', 'ui.ptlogin2.qq.com', 'ptlogin2.qq.com', 'qq.com'],
+    allowedHosts: [
+      'y.qq.com',
+      'i.y.qq.com',
+      'graph.qq.com',
+      'ssl.ptlogin2.qq.com',
+      'xui.ptlogin2.qq.com',
+      'ui.ptlogin2.qq.com',
+      'ptlogin2.qq.com',
+      'qq.com',
+    ],
     cookieDomains: ['.qq.com', '.y.qq.com', 'y.qq.com'],
-    keyCookies: ['uin', 'qqmusic_uin', 'qqmusic_key', 'qm_keyst', 'p_skey', 'skey', 'wxuin', 'p_uin', 'pt2gguin', 'superuin'],
-    authCookies: ['qqmusic_key', 'qm_keyst']
+    keyCookies: [
+      'uin',
+      'qqmusic_uin',
+      'qqmusic_key',
+      'qm_keyst',
+      'p_skey',
+      'skey',
+      'wxuin',
+      'p_uin',
+      'pt2gguin',
+      'superuin',
+    ],
+    authCookies: ['qqmusic_key', 'qm_keyst'],
   },
   netease: {
     name: '网易云音乐',
     partition: 'persist:music-netease',
     loginUrl: 'https://music.163.com/',
-    allowedHosts: ['music.163.com', 'interface.music.163.com', 'interface3.music.163.com', 'passport.163.com', 'reg.163.com', '163.com'],
+    allowedHosts: [
+      'music.163.com',
+      'interface.music.163.com',
+      'interface3.music.163.com',
+      'passport.163.com',
+      'reg.163.com',
+      '163.com',
+    ],
     cookieDomains: ['.163.com', '.music.163.com', 'music.163.com'],
-    keyCookies: ['MUSIC_U', '__csrf']
-  }
+    keyCookies: ['MUSIC_U', '__csrf'],
+  },
 };
 
 function normalizeMusicPlatform(value) {
-  const platform = String(value || '').trim().toLowerCase();
+  const platform = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!MUSIC_LOGIN_CONFIG[platform]) {
     throw new Error('音乐平台只能是 qq 或 netease。');
   }
@@ -48,13 +77,21 @@ function isAllowedMusicCookie(platform, cookie) {
   return config.cookieDomains.some((allowed) => {
     const cleanAllowed = allowed.toLowerCase();
     const hostAllowed = cleanAllowed.replace(/^\./, '');
-    return domain === cleanAllowed || domain === hostAllowed || domain.endsWith(`.${hostAllowed}`);
+    return (
+      domain === cleanAllowed ||
+      domain === hostAllowed ||
+      domain.endsWith(`.${hostAllowed}`)
+    );
   });
 }
 
 function isAllowedMusicLoginUrl(platform, rawUrl) {
   let parsed;
-  try { parsed = new URL(rawUrl); } catch (_) { return false; }
+  try {
+    parsed = new URL(rawUrl);
+  } catch (_) {
+    return false;
+  }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
   const host = parsed.hostname.toLowerCase();
   const config = MUSIC_LOGIN_CONFIG[platform];
@@ -66,16 +103,22 @@ function isAllowedMusicLoginUrl(platform, rawUrl) {
 }
 
 async function getAllowedMusicCookies(platform) {
-  const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
+  const loginSession = session.fromPartition(
+    MUSIC_LOGIN_CONFIG[platform].partition,
+  );
   const cookies = await loginSession.cookies.get({});
   return cookies.filter((cookie) => isAllowedMusicCookie(platform, cookie));
 }
 
 function toSerializableCookie(cookie) {
   return {
-    name: cookie.name, value: cookie.value, domain: cookie.domain,
-    path: cookie.path || '/', secure: cookie.secure === true,
-    httpOnly: cookie.httpOnly === true, expirationDate: cookie.expirationDate
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.domain,
+    path: cookie.path || '/',
+    secure: cookie.secure === true,
+    httpOnly: cookie.httpOnly === true,
+    expirationDate: cookie.expirationDate,
   };
 }
 
@@ -84,9 +127,12 @@ function toElectronCookieDetails(cookie) {
   const protocol = cookie.secure === false ? 'http' : 'https';
   const details = {
     url: `${protocol}://${domain}${cookie.path || '/'}`,
-    name: cookie.name, value: cookie.value, domain: cookie.domain,
-    path: cookie.path || '/', secure: cookie.secure === true,
-    httpOnly: cookie.httpOnly === true
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.domain,
+    path: cookie.path || '/',
+    secure: cookie.secure === true,
+    httpOnly: cookie.httpOnly === true,
   };
   if (Number.isFinite(Number(cookie.expirationDate))) {
     details.expirationDate = Number(cookie.expirationDate);
@@ -96,16 +142,26 @@ function toElectronCookieDetails(cookie) {
 
 async function persistMusicCookieSnapshot(platform, dataDir) {
   const cookies = await getAllowedMusicCookies(platform);
-  const payload = { platform, savedAt: new Date().toISOString(), cookies: cookies.map(toSerializableCookie) };
+  const payload = {
+    platform,
+    savedAt: new Date().toISOString(),
+    cookies: cookies.map(toSerializableCookie),
+  };
 
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。');
+    throw new Error(
+      'safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。',
+    );
   }
 
   const authDir = getMusicAuthDir(dataDir);
   fs.mkdirSync(authDir, { recursive: true });
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
-  fs.writeFileSync(getMusicCookieSnapshotPath(dataDir, platform), encrypted.toString('base64'), 'utf8');
+  fs.writeFileSync(
+    getMusicCookieSnapshotPath(dataDir, platform),
+    encrypted.toString('base64'),
+    'utf8',
+  );
   return { savedAt: payload.savedAt, cookieCount: payload.cookies.length };
 }
 
@@ -115,44 +171,71 @@ async function restoreMusicCookieSnapshot(platform, dataDir) {
   if (!safeStorage.isEncryptionAvailable()) return null;
 
   try {
-    const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
+    const encrypted = Buffer.from(
+      fs.readFileSync(snapshotPath, 'utf8'),
+      'base64',
+    );
     const payload = JSON.parse(safeStorage.decryptString(encrypted));
-    const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
-    for (const cookie of Array.isArray(payload.cookies) ? payload.cookies : []) {
+    const loginSession = session.fromPartition(
+      MUSIC_LOGIN_CONFIG[platform].partition,
+    );
+    for (const cookie of Array.isArray(payload.cookies)
+      ? payload.cookies
+      : []) {
       await loginSession.cookies.set(toElectronCookieDetails(cookie));
     }
-    return { savedAt: payload.savedAt || '', cookieCount: Array.isArray(payload.cookies) ? payload.cookies.length : 0 };
-  } catch (_) { return null; }
+    return {
+      savedAt: payload.savedAt || '',
+      cookieCount: Array.isArray(payload.cookies) ? payload.cookies.length : 0,
+    };
+  } catch (_) {
+    return null;
+  }
 }
 
 async function getMusicAuthState(platform, dataDir) {
   const config = MUSIC_LOGIN_CONFIG[platform];
   const cookies = await getAllowedMusicCookies(platform);
   const cookieNames = new Set(cookies.map((c) => c.name));
-  const presentKeyCookies = config.keyCookies.filter((name) => cookieNames.has(name));
-  const authCookieNames = Array.isArray(config.authCookies) ? config.authCookies : config.keyCookies;
-  const loggedIn = authCookieNames.some((name) => cookies.some((cookie) => (
-    cookie.name === name && typeof cookie.value === 'string' && cookie.value.length > 0
-  )));
+  const presentKeyCookies = config.keyCookies.filter((name) =>
+    cookieNames.has(name),
+  );
+  const authCookieNames = Array.isArray(config.authCookies)
+    ? config.authCookies
+    : config.keyCookies;
+  const loggedIn = authCookieNames.some((name) =>
+    cookies.some(
+      (cookie) =>
+        cookie.name === name &&
+        typeof cookie.value === 'string' &&
+        cookie.value.length > 0,
+    ),
+  );
 
   let snapshotMeta = { exists: false, savedAt: '' };
   const snapshotPath = getMusicCookieSnapshotPath(dataDir, platform);
   if (fs.existsSync(snapshotPath) && safeStorage.isEncryptionAvailable()) {
     try {
-      const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
+      const encrypted = Buffer.from(
+        fs.readFileSync(snapshotPath, 'utf8'),
+        'base64',
+      );
       const payload = JSON.parse(safeStorage.decryptString(encrypted));
       snapshotMeta = { exists: true, savedAt: payload.savedAt || '' };
-    } catch (_) { snapshotMeta.exists = true; }
+    } catch (_) {
+      snapshotMeta.exists = true;
+    }
   }
 
   return {
-    platform, name: config.name,
+    platform,
+    name: config.name,
     loggedIn,
     cookieCount: cookies.length,
     keyCookieNames: presentKeyCookies,
     encryptedSnapshotExists: snapshotMeta.exists,
     lastSavedAt: snapshotMeta.savedAt,
-    encryptionAvailable: safeStorage.isEncryptionAvailable()
+    encryptionAvailable: safeStorage.isEncryptionAvailable(),
   };
 }
 
@@ -165,19 +248,29 @@ async function getMusicCookieHeader(platform) {
 }
 
 async function logoutMusicAccount(platform, dataDir) {
-  const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
-  await loginSession.clearStorageData({ storages: ['cookies', 'localstorage', 'indexdb', 'websql'] });
+  const loginSession = session.fromPartition(
+    MUSIC_LOGIN_CONFIG[platform].partition,
+  );
+  await loginSession.clearStorageData({
+    storages: ['cookies', 'localstorage', 'indexdb', 'websql'],
+  });
   const snapshotPath = getMusicCookieSnapshotPath(dataDir, platform);
   if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
   return getMusicAuthState(platform, dataDir);
 }
 
-async function clearMusicBrowserCache(platforms = Object.keys(MUSIC_LOGIN_CONFIG)) {
+async function clearMusicBrowserCache(
+  platforms = Object.keys(MUSIC_LOGIN_CONFIG),
+) {
   const cleared = [];
   for (const value of platforms) {
     const platform = normalizeMusicPlatform(value);
-    const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
-    await loginSession.clearStorageData({ storages: ['cache', 'cachestorage'] });
+    const loginSession = session.fromPartition(
+      MUSIC_LOGIN_CONFIG[platform].partition,
+    );
+    await loginSession.clearStorageData({
+      storages: ['cache', 'cachestorage'],
+    });
     cleared.push(platform);
   }
   return { cleared };
@@ -193,5 +286,5 @@ module.exports = {
   restoreMusicCookieSnapshot,
   getAllowedMusicCookies,
   logoutMusicAccount,
-  clearMusicBrowserCache
+  clearMusicBrowserCache,
 };

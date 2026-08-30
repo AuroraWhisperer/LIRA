@@ -20,12 +20,14 @@
 ### Task 1: Persisted per-style settings and migration
 
 **Files:**
+
 - Modify: `src/storage/settings-store.js`
 - Modify: `src/server/settings-bootstrap.js`
 - Modify: `src/storage/theme-store.js`
 - Test: `test/frontend-queue.test.js`
 
 **Interfaces:**
+
 - Consumes: legacy `identityQueueFontSize`, `identityQueueScrollSpeed`, `queueScrollMode`, and `illustratedQueue*` values.
 - Produces: `identityQueueScrollMode`; four illustrated style prefixes with `QueueFontSize`, `QueueFontFamily`, `QueueFontWeight`, `QueueUseCustomTextColor`, `QueueTextColor`, `QueueScrollMode`, and `QueueScrollSpeed`; `queueStyleSettingsVersion=1`.
 
@@ -37,12 +39,14 @@
 ### Task 2: Shared frontend style-settings contract and OBS resolution
 
 **Files:**
+
 - Create: `public/js/shared/queue-style-settings.js`
 - Modify: `public/js/overlays/queue.js`
 - Test: `test/queue-overlay-esm.test.js`
 - Test: `test/frontend-queue.test.js`
 
 **Interfaces:**
+
 - Produces: `normalizePersistedQueueStyle(style)`, `readQueueStyleSettings(settings, style)`, `queueStyleSettingsPayload(style, values)`, and `resolveQueueStyleSettings(settings, style)`.
 - Consumes: the persisted flat keys from Task 1 and legacy shared keys as read-only fallback values.
 
@@ -54,12 +58,14 @@
 ### Task 3: Admin active-style hydration and scoped saving
 
 **Files:**
+
 - Modify: `public/pages/admin/song/queue-theme.html`
 - Modify: `public/js/admin/theme.js`
 - Modify: `public/js/admin/forms.js`
 - Test: `test/frontend-queue.test.js`
 
 **Interfaces:**
+
 - Consumes: `readQueueStyleSettings()` and `queueStyleSettingsPayload()` from Task 2.
 - Produces: one shared style 2–6 form that hydrates from the selected style and posts only that style's mapped keys.
 
@@ -72,6 +78,7 @@
 ### Task 4: Contracts and verification
 
 **Files:**
+
 - Modify: `docs/architecture/backend/storage.md`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/frontend/overlays.md`
@@ -80,6 +87,7 @@
 - Move after completion: `specs/plans/2026-08-23-queue-style-settings-isolation.md` to `specs/plans/archive/2026-08-23-queue-style-settings-isolation.md`
 
 **Interfaces:**
+
 - Consumes: implemented setting keys and verified runtime behavior from Tasks 1–3.
 - Produces: owner-contract documentation and lifecycle evidence consistent with the code.
 

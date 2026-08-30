@@ -39,10 +39,12 @@ function isAllowedLocalUrl(rawUrl) {
     return false;
   }
 
-  return parsed.protocol === 'http:' &&
+  return (
+    parsed.protocol === 'http:' &&
     parsed.hostname === '127.0.0.1' &&
     !parsed.username &&
-    !parsed.password;
+    !parsed.password
+  );
 }
 
 /**
@@ -85,5 +87,5 @@ function isAllowedLoginNavigation(rawUrl, providerDomains) {
 module.exports = {
   isAllowedExternal,
   isAllowedLocalUrl,
-  isAllowedLoginNavigation
+  isAllowedLoginNavigation,
 };

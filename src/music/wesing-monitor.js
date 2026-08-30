@@ -1,7 +1,9 @@
 'use strict';
 
 const childProcess = require('node:child_process');
-const { WESING_NATIVE_MONITOR_SOURCE } = require('./wesing-native-monitor-source');
+const {
+  WESING_NATIVE_MONITOR_SOURCE,
+} = require('./wesing-native-monitor-source');
 
 function createPowerShellWeSingMonitor(onSample, options = {}) {
   const spawn = options.spawn || childProcess.spawn;
@@ -16,9 +18,19 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
     const script = buildPowerShellMonitorScript(options);
     const encoded = Buffer.from(script, 'utf8').toString('base64');
     const command = `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')) | Invoke-Expression`;
-    child = spawn('powershell.exe', [
-      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command
-    ], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    child = spawn(
+      'powershell.exe',
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        command,
+      ],
+      { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
       pending += chunk;
@@ -26,7 +38,9 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
       pending = rows.pop() || '';
       for (const row of rows) {
         if (!row.trim()) continue;
-        try { onSample(JSON.parse(row)); } catch (_) {}
+        try {
+          onSample(JSON.parse(row));
+        } catch (_) {}
       }
     });
     child.stderr.setEncoding('utf8');
@@ -49,7 +63,9 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
   function stop() {
     stopping = true;
     if (child) {
-      try { child.kill(); } catch (_) {}
+      try {
+        child.kill();
+      } catch (_) {}
       child = null;
     }
   }
@@ -58,7 +74,8 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
 }
 
 function buildPowerShellMonitorScript(options = {}) {
-  const includeDiagnostics = options.includeDiagnostics === true ? '$true' : '$false';
+  const includeDiagnostics =
+    options.includeDiagnostics === true ? '$true' : '$false';
   const requestedIntervalMs = Math.round(Number(options.pollIntervalMs));
   const pollIntervalMs = Number.isFinite(requestedIntervalMs)
     ? Math.min(5000, Math.max(100, requestedIntervalMs))
@@ -159,5 +176,5 @@ while ($true) {
 
 module.exports = {
   buildPowerShellMonitorScript,
-  createPowerShellWeSingMonitor
+  createPowerShellWeSingMonitor,
 };

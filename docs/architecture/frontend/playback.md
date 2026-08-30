@@ -15,23 +15,23 @@ js/playback.js          兼容层,仅 import playback/index.js
 
 模块树([controller.js:5-51](../../../public/js/playback/controller.js#L5-L51)):
 
-| 目录 | 模块 | 职责 |
-|---|---|---|
-| `core/` | initializer / renderer / event-handlers | 初始化时序(UI→音频→恢复状态→事件);渲染协调;DOM 事件绑定 |
-| `state/` | manager / storage | `StateManager` 响应式状态(createInitialState/validateState/normalizeState);`StorageManager` 状态恢复(服务端优先→localStorage v2→v1 迁移) |
-| `provider/` | manager | 平台选择(QQ/网易云/WeSing)、健康检查、登录态;桌面走 IPC、Web 回退 HTTP(见 [comms.md](comms.md) §4) |
-| `player/` | controller | `PlayerController`:audio 元素状态机(load/play/pause/seek/next/volume/mode),事件绑定 `play/pause/ended/timeupdate/volumechange/error/loadedmetadata` |
-| `queue/` | manager | `QueueManager`:普通/电台/歌单三种队列、shuffle 顺序、电台自动补量 |
-| `services/` | search / stream / lyric / match / import / home / wesing | 业务服务(§4) |
-| `features/` | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler | UI 操作处理器,注入渲染回调与队列回调 |
-| `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations | 横切操作:登录登出、状态持久化、收藏/歌单、缓存统计 |
-| `ui/` | index / components / playback-bar / queue-popup / drawer / fullscreen | `UIRenderer` + 各 UI 组件(DOM 渲染主控) |
-| `content/` | loader | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService._applyBackgroundUpdate` 更新并 toast) |
-| `local/` | manager | 本地音频文件(选择/最近历史/URL 解析) |
-| `cache/` | manager | "我喜欢"/歌单 24h localStorage 缓存(`playbackCache:` 前缀,内存→localStorage 两级,过期失效,登录态变化清缓存) |
-| — | config.js / utils.js | 配置常量(§2);工具(轨道归一化/序列化/洗牌/本地判定/URL 可用性/时长与元数据格式化/封面渲染/背景主题选取 `pickBackgroundTheme`) |
+| 目录          | 模块                                                                                                                                                                   | 职责                                                                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/`       | initializer / renderer / event-handlers / queue-coordinator / action-adapters                                                                                          | 初始化时序、渲染与 DOM 事件；队列/播放委托接线；把控制器依赖收窄为各功能实际需要的动作适配器                                                        |
+| `state/`      | manager / storage                                                                                                                                                      | `StateManager` 响应式状态(createInitialState/validateState/normalizeState);`StorageManager` 状态恢复(服务端优先→localStorage v2→v1 迁移)            |
+| `provider/`   | manager                                                                                                                                                                | 平台选择(QQ/网易云/WeSing)、健康检查、登录态;桌面走 IPC、Web 回退 HTTP(见 [comms.md](comms.md) §4)                                                  |
+| `player/`     | controller                                                                                                                                                             | `PlayerController`:audio 元素状态机(load/play/pause/seek/next/volume/mode),事件绑定 `play/pause/ended/timeupdate/volumechange/error/loadedmetadata` |
+| `queue/`      | manager                                                                                                                                                                | `QueueManager`:普通/电台/歌单三种队列、shuffle 顺序、电台自动补量                                                                                   |
+| `services/`   | search / stream / lyric / match / import / home / wesing                                                                                                               | 业务服务(§4)                                                                                                                                        |
+| `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler | UI 操作处理器,注入渲染回调与队列回调                                                                                                                |
+| `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations                                                                                       | 横切操作:登录登出、状态持久化、收藏/歌单、缓存统计                                                                                                  |
+| `ui/`         | index / components / playback-bar / queue-popup / drawer / fullscreen                                                                                                  | `UIRenderer` + 各 UI 组件(DOM 渲染主控)                                                                                                             |
+| `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService._applyBackgroundUpdate` 更新并 toast)                 |
+| `local/`      | manager                                                                                                                                                                | 本地音频文件(选择/最近历史/URL 解析)                                                                                                                |
+| `cache/`      | manager                                                                                                                                                                | "我喜欢"/歌单 24h localStorage 缓存(`playbackCache:` 前缀,内存→localStorage 两级,过期失效,登录态变化清缓存)                                         |
+| —             | config.js / utils.js                                                                                                                                                   | 配置常量(§2);工具(轨道归一化/序列化/洗牌/本地判定/URL 可用性/时长与元数据格式化/封面渲染/背景主题选取 `pickBackgroundTheme`)                        |
 
-**依赖注入方式**:`controller.js` 是播放域的组合根,功能模块通过 `create*(deps)` 工厂只接收自身实际使用的字段。播放、渲染和电台之间的初始化顺序由命名委托函数延迟绑定,不使用可变前向声明或通用 `sharedDeps` 依赖包;工厂参数因此可以从源码直接审计。
+**依赖注入方式**:`controller.js` 是播放域的组合根,功能模块通过 `create*(deps)` 工厂只接收自身实际使用的字段。`queue-coordinator.js` 集中建立队列/播放/电台间的命名委托，`action-adapters.js` 把控制器能力裁剪为各功能所需动作；两者不持有 DOM 或业务状态。播放、渲染和电台之间的初始化顺序由命名委托函数延迟绑定,不使用可变前向声明或通用 `sharedDeps` 依赖包;工厂参数因此可以从源码直接审计。
 
 ## 2. 播放主流程
 
@@ -59,37 +59,37 @@ PlayerController.setAudio → audio.load()/play()
 
 **PlayerController 状态机细节**([player/controller.js](../../../public/js/playback/player/controller.js)):
 
-| 操作 | 行为 |
-|---|---|
-| `togglePlayback` | 无当前曲目时先 `queueManager.takeNext()`;音频源与 track 不匹配(`dataset.trackId`)则重新 `playTrack`;否则 play/pause 切换 |
-| `previous` | 当前播放 >5s 则回到 0;否则从 `history` 弹出上一首(origin=history) |
-| `next(fromEnded)` | 单曲循环 → 队列下一首 → 列表循环回绕 → `fromEnded` 时卸载 src 并暂停 |
-| `cycleMode` | sequence → loop → single → shuffle 轮换;进 shuffle 时重建乱序 |
-| `seek/setVolume/stop` | 钳制边界后写 audio 与 state,统一 `onStateChange` |
-| 播放历史维护 | `playTrack` 时把旧 current 压入 `history`(50 上限)、`displayHistory` 去重头插(200 上限) |
+| 操作                  | 行为                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `togglePlayback`      | 无当前曲目时先 `queueManager.takeNext()`;音频源与 track 不匹配(`dataset.trackId`)则重新 `playTrack`;否则 play/pause 切换 |
+| `previous`            | 当前播放 >5s 则回到 0;否则从 `history` 弹出上一首(origin=history)                                                        |
+| `next(fromEnded)`     | 单曲循环 → 队列下一首 → 列表循环回绕 → `fromEnded` 时卸载 src 并暂停                                                     |
+| `cycleMode`           | sequence → loop → single → shuffle 轮换;进 shuffle 时重建乱序                                                            |
+| `seek/setVolume/stop` | 钳制边界后写 audio 与 state,统一 `onStateChange`                                                                         |
+| 播放历史维护          | `playTrack` 时把旧 current 压入 `history`(50 上限)、`displayHistory` 去重头插(200 上限)                                  |
 
 **播放历史**:前端不直接写 `play_history` 表——每次状态落盘时把 `history/displayHistory`(各 50/200 条上限)放进 queue-state 载荷,服务端 `playback-store.recordPlay` 按 `(client_id, track_key)` 幂等累加 `play_count`(见 [storage.md](../backend/storage.md) §3.4)。
 
 ## 3. 歌词链路
 
-| 环节 | 实现 |
-|---|---|
-| 获取 | `LyricService.loadLyrics(track)` → `POST /api/music/lyrics`(按 source 走 QQ/网易云解析,本地与已缓存跳过) |
-| 行定位 | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88)) |
-| 逐字进度 | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal,按性能档位回退到 30fps 手动 reveal/静态高亮 |
-| **上报** | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
-| 桌面歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染 |
+| 环节             | 实现                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 获取             | `LyricService.loadLyrics(track)` → `POST /api/music/lyrics`(按 source 走 QQ/网易云解析,本地与已缓存跳过)                                                                                                                                                                                                                                                           |
+| 行定位           | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88))                                                                                                                                                                                                                                   |
+| 逐字进度         | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal,按性能档位回退到 30fps 手动 reveal/静态高亮                                                                                                                                             |
+| **上报**         | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
+| 桌面歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染                                                                                                                                                                                                                                   |
 
 ## 4. 服务层(services/)
 
-| 服务 | 职责与端点(定义见 [api.md](../backend/api.md)) |
-|---|---|
-| search-service | 在线搜索 `POST /api/music/search`(platform/keyword/limit,默认 9 条),`searchGeneration` 防串号(旧请求结果丢弃) |
-| stream-service | 播放流解析 `POST /api/music/resolve-stream`(`forceRefresh` + `quality`),URL 缓存 + 30s 刷新边距 + 1 次重试;Provider 返回的实际 `quality` 回写 track,用于展示权益降级 |
-| lyric-service | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3) |
-| match-service | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗) |
-| import-service | 点歌队列导入:读 `/api/state` 的 queue 快照 → 按 track 结构转换后插入播放队列 |
-| home-service | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新") |
+| 服务           | 职责与端点(定义见 [api.md](../backend/api.md))                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| search-service | 在线搜索 `POST /api/music/search`(platform/keyword/limit,默认 9 条),`searchGeneration` 防串号(旧请求结果丢弃)                                                                                                                                    |
+| stream-service | 播放流解析 `POST /api/music/resolve-stream`(`forceRefresh` + `quality`),URL 缓存 + 30s 刷新边距 + 1 次重试;Provider 返回的实际 `quality` 回写 track,用于展示权益降级                                                                             |
+| lyric-service  | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3)                                                                                                                                                                                         |
+| match-service  | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配,未匹配进入 `pendingRequests` 待确认(弹确认弹窗)                                                                                                                           |
+| import-service | 点歌队列导入:读 `/api/state` 的 queue 快照 → 按 track 结构转换后插入播放队列                                                                                                                                                                     |
+| home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
 
 ## 5. 队列、电台与歌单
@@ -102,11 +102,11 @@ PlayerController.setAudio → audio.load()/play()
 
 ## 6. 状态持久化(play_queue_state)
 
-| 通道 | 触发点 | 说明 |
-|---|---|---|
-| HTTP `POST /api/playback/queue-state` | 常规保存(1500ms 防抖)、卸载 `sendBeacon`(带 token)、关机前 `keepalive` fetch | 服务端写 `musicDb.play_queue_state`(client_id PK,见 [storage.md](../backend/storage.md) §3.4) |
-| IPC `musicAPI.savePlaybackState` | 卸载/关机刷新(桌面优先,IPC 失败回退 HTTP) | 通道见 [desktop/preload.md](../desktop/preload.md);Electron 关机钩子 `onPrepareShutdown → flushPlaybackStateForShutdown → confirmShutdownFlush`([initializer.js:117-129](../../../public/js/playback/core/initializer.js#L117-L129)) |
-| localStorage `playbackState:v2` | `StorageManager._doSave` 防抖 1500ms | 仅作本地镜像与 v1(`songAssistantPlaybackState:v1`)迁移源 |
+| 通道                                  | 触发点                                                                       | 说明                                                                                                                                                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HTTP `POST /api/playback/queue-state` | 常规保存(1500ms 防抖)、卸载 `sendBeacon`(带 token)、关机前 `keepalive` fetch | 服务端写 `musicDb.play_queue_state`(client_id PK,见 [storage.md](../backend/storage.md) §3.4)                                                                                                                                        |
+| IPC `musicAPI.savePlaybackState`      | 卸载/关机刷新(桌面优先,IPC 失败回退 HTTP)                                    | 通道见 [desktop/preload.md](../desktop/preload.md);Electron 关机钩子 `onPrepareShutdown → flushPlaybackStateForShutdown → confirmShutdownFlush`([initializer.js:117-129](../../../public/js/playback/core/initializer.js#L117-L129)) |
+| localStorage `playbackState:v2`       | `StorageManager._doSave` 防抖 1500ms                                         | 仅作本地镜像与 v1(`songAssistantPlaybackState:v1`)迁移源                                                                                                                                                                             |
 
 **恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移([state/storage.js:97-120](../../../public/js/playback/state/storage.js#L97-L120))。`currentTime` 恢复为 `restoredTime`(不保存播放位置,见 [state/storage.js:81](../../../public/js/playback/state/storage.js#L81))。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
 

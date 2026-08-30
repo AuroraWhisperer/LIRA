@@ -12,7 +12,7 @@ export function createInitialState() {
     currentOrigin: '',
     requestedQueue: [],
     normalQueue: [],
-    normalQueueTracks: [],  // 完整歌单备份，用于循环重播
+    normalQueueTracks: [], // 完整歌单备份，用于循环重播
     radioQueue: [],
     queueType: 'queue',
     queueTitle: '播放队列',
@@ -27,7 +27,7 @@ export function createInitialState() {
     qualityPreferences: { qq: 'standard', netease: 'standard' },
     shuffleOrder: [],
     shuffleCursor: 0,
-    restoredTime: 0
+    restoredTime: 0,
   };
 }
 
@@ -46,7 +46,15 @@ export function validateState(state) {
   }
 
   // 验证数组字段
-  const arrayFields = ['requestedQueue', 'normalQueue', 'radioQueue', 'pendingRequests', 'history', 'displayHistory', 'shuffleOrder'];
+  const arrayFields = [
+    'requestedQueue',
+    'normalQueue',
+    'radioQueue',
+    'pendingRequests',
+    'history',
+    'displayHistory',
+    'shuffleOrder',
+  ];
   for (const field of arrayFields) {
     if (field in state && !Array.isArray(state[field])) return false;
   }
@@ -56,7 +64,8 @@ export function validateState(state) {
   if (!validModes.includes(state.mode)) return false;
 
   // 验证音量范围
-  if (typeof state.volume !== 'number' || state.volume < 0 || state.volume > 1) return false;
+  if (typeof state.volume !== 'number' || state.volume < 0 || state.volume > 1)
+    return false;
 
   // 验证音乐源
   const validSources = ['qq', 'netease', 'wesing'];
@@ -84,7 +93,16 @@ export function normalizeState(state) {
   });
 
   // 确保数组字段
-  const arrayFields = ['requestedQueue', 'normalQueue', 'normalQueueTracks', 'radioQueue', 'pendingRequests', 'history', 'displayHistory', 'shuffleOrder'];
+  const arrayFields = [
+    'requestedQueue',
+    'normalQueue',
+    'normalQueueTracks',
+    'radioQueue',
+    'pendingRequests',
+    'history',
+    'displayHistory',
+    'shuffleOrder',
+  ];
   arrayFields.forEach((field) => {
     if (!Array.isArray(normalized[field])) {
       normalized[field] = [];
@@ -92,7 +110,11 @@ export function normalizeState(state) {
   });
 
   // 确保音量在合法范围
-  if (typeof normalized.volume !== 'number' || normalized.volume < 0 || normalized.volume > 1) {
+  if (
+    typeof normalized.volume !== 'number' ||
+    normalized.volume < 0 ||
+    normalized.volume > 1
+  ) {
     normalized.volume = 0.3;
   }
 
@@ -108,14 +130,22 @@ export function normalizeState(state) {
     normalized.selectedSource = 'qq';
   }
 
-  const qualityPreferences = normalized.qualityPreferences && typeof normalized.qualityPreferences === 'object'
-    ? normalized.qualityPreferences
-    : {};
+  const qualityPreferences =
+    normalized.qualityPreferences &&
+    typeof normalized.qualityPreferences === 'object'
+      ? normalized.qualityPreferences
+      : {};
   normalized.qualityPreferences = {
-    qq: ['standard', 'high', 'lossless', 'premium', 'immersive'].includes(qualityPreferences.qq) ? qualityPreferences.qq : 'standard',
-    netease: ['standard', 'higher', 'exhigh', 'lossless', 'hires'].includes(qualityPreferences.netease)
+    qq: ['standard', 'high', 'lossless', 'premium', 'immersive'].includes(
+      qualityPreferences.qq,
+    )
+      ? qualityPreferences.qq
+      : 'standard',
+    netease: ['standard', 'higher', 'exhigh', 'lossless', 'hires'].includes(
+      qualityPreferences.netease,
+    )
       ? qualityPreferences.netease
-      : 'standard'
+      : 'standard',
   };
 
   // 确保 queueType 合法
@@ -135,7 +165,10 @@ export function normalizeState(state) {
   }
 
   // 确保 restoredTime 是数字
-  if (typeof normalized.restoredTime !== 'number' || !Number.isFinite(normalized.restoredTime)) {
+  if (
+    typeof normalized.restoredTime !== 'number' ||
+    !Number.isFinite(normalized.restoredTime)
+  ) {
     normalized.restoredTime = 0;
   }
 

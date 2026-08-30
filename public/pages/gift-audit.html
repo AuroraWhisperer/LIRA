@@ -1,154 +1,194 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>礼物审计 · 气泡×WebSocket 交叉对比</title>
-<link rel="stylesheet" href="/css/gift-audit.css?v=20260814">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>礼物审计 · 气泡×WebSocket 交叉对比</title>
+    <link rel="stylesheet" href="/css/gift-audit.css?v=20260814" />
+  </head>
+  <body>
+    <h1>🔍 礼物审计 · 气泡 × WebSocket 交叉对比</h1>
+    <p class="subtitle">
+      粘贴 Bilibili 直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与
+      WebSocket 捕获记录交叉对比
+      <span id="connInfo" style="margin-left: 12px; color: var(--text2)"
+        >连接中...</span
+      >
+    </p>
 
-<h1>🔍 礼物审计 · 气泡 × WebSocket 交叉对比</h1>
-<p class="subtitle">
-  粘贴 Bilibili 直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与 WebSocket 捕获记录交叉对比
-  <span id="connInfo" style="margin-left:12px;color:var(--text2)">连接中...</span>
-</p>
-
-<div class="conn-bar" id="connBar">
-  <span style="color:var(--text2)">加载中...</span>
-</div>
-
-<!-- 操作区 -->
-<div class="panel" style="margin-bottom:14px">
-  <div class="panel-header">
-    <span>📋 气泡 HTML 输入</span>
-    <span class="hint">从 Bilibili 直播间 DevTools 复制 <code>.bubble-list</code> 元素的 outerHTML</span>
-  </div>
-  <div class="panel-body">
-    <div class="quick-actions">
-      <button id="setTimeNowBtn" title="将下方时间设为当前时间">🕐 设为当前时间</button>
-      <button id="setTime1MinAgoBtn">⏪ 1分钟前</button>
-      <button id="setTime5MinAgoBtn">⏪ 5分钟前</button>
-      <button id="loadExampleBtn">📝 加载示例</button>
+    <div class="conn-bar" id="connBar">
+      <span style="color: var(--text2)">加载中...</span>
     </div>
-    <div class="toolbar">
-      <label style="font-size:0.8rem;color:var(--text2)">捕获时间</label>
-      <input type="datetime-local" id="captureTime" style="width:220px">
-    </div>
-    <textarea id="bubbleHtml" placeholder="在此粘贴 Bilibili 直播间气泡 HTML...
 
-从浏览器 DevTools 中找到 .bubble-list 元素，右键 → Copy → Copy outerHTML，然后粘贴到这里"></textarea>
-    <div class="toolbar">
-      <button class="primary" id="parseAndCompareBtn">🔍 解析并对比</button>
-      <button id="clearAllBtn">🗑️ 清空</button>
-      <button id="btnFetchServer">📡 拉取服务器礼物记录</button>
-      <span id="serverStatus" class="hint"></span>
-    </div>
-  </div>
-</div>
+    <!-- 操作区 -->
+    <div class="panel" style="margin-bottom: 14px">
+      <div class="panel-header">
+        <span>📋 气泡 HTML 输入</span>
+        <span class="hint"
+          >从 Bilibili 直播间 DevTools 复制 <code>.bubble-list</code> 元素的
+          outerHTML</span
+        >
+      </div>
+      <div class="panel-body">
+        <div class="quick-actions">
+          <button id="setTimeNowBtn" title="将下方时间设为当前时间">
+            🕐 设为当前时间
+          </button>
+          <button id="setTime1MinAgoBtn">⏪ 1分钟前</button>
+          <button id="setTime5MinAgoBtn">⏪ 5分钟前</button>
+          <button id="loadExampleBtn">📝 加载示例</button>
+        </div>
+        <div class="toolbar">
+          <label style="font-size: 0.8rem; color: var(--text2)">捕获时间</label>
+          <input type="datetime-local" id="captureTime" style="width: 220px" />
+        </div>
+        <textarea
+          id="bubbleHtml"
+          placeholder="在此粘贴 Bilibili 直播间气泡 HTML...
 
-<!-- 统计 -->
-<div class="stats-row" id="statsRow" style="display:none">
-  <div class="stat-chip info"><div class="val" id="statBubble">0</div><div class="lbl">气泡礼物数</div></div>
-  <div class="stat-chip info"><div class="val" id="statServer">0</div><div class="lbl">WebSocket 记录数</div></div>
-  <div class="stat-chip match"><div class="val" id="statMatch">0</div><div class="lbl">✅ 双边匹配</div></div>
-  <div class="stat-chip miss"><div class="val" id="statMiss">0</div><div class="lbl">⚠️ 仅气泡 (漏记)</div></div>
-  <div class="stat-chip extra"><div class="val" id="statExtra">0</div><div class="lbl">📡 仅WebSocket</div></div>
-</div>
+从浏览器 DevTools 中找到 .bubble-list 元素，右键 → Copy → Copy outerHTML，然后粘贴到这里"
+        ></textarea>
+        <div class="toolbar">
+          <button class="primary" id="parseAndCompareBtn">🔍 解析并对比</button>
+          <button id="clearAllBtn">🗑️ 清空</button>
+          <button id="btnFetchServer">📡 拉取服务器礼物记录</button>
+          <span id="serverStatus" class="hint"></span>
+        </div>
+      </div>
+    </div>
 
-<!-- 双栏对比 -->
-<div class="main-grid">
-  <!-- 气泡解析结果 -->
-  <div class="panel">
-    <div class="panel-header">
-      <span>💬 气泡解析结果</span>
-      <span class="hint" id="bubbleCount">0 条</span>
+    <!-- 统计 -->
+    <div class="stats-row" id="statsRow" style="display: none">
+      <div class="stat-chip info">
+        <div class="val" id="statBubble">0</div>
+        <div class="lbl">气泡礼物数</div>
+      </div>
+      <div class="stat-chip info">
+        <div class="val" id="statServer">0</div>
+        <div class="lbl">WebSocket 记录数</div>
+      </div>
+      <div class="stat-chip match">
+        <div class="val" id="statMatch">0</div>
+        <div class="lbl">✅ 双边匹配</div>
+      </div>
+      <div class="stat-chip miss">
+        <div class="val" id="statMiss">0</div>
+        <div class="lbl">⚠️ 仅气泡 (漏记)</div>
+      </div>
+      <div class="stat-chip extra">
+        <div class="val" id="statExtra">0</div>
+        <div class="lbl">📡 仅WebSocket</div>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:35px">#</th>
-            <th>用户</th>
-            <th>礼物名</th>
-            <th style="width:55px">连击</th>
-            <th style="width:50px">状态</th>
-          </tr>
-        </thead>
-        <tbody id="bubbleTableBody">
-          <tr><td colspan="5" class="empty-state">等待解析...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 
-  <!-- 服务器记录 -->
-  <div class="panel">
-    <div class="panel-header">
-      <span>📡 WebSocket 捕获记录</span>
-      <span class="hint" id="serverCount">0 条</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:40px">#</th>
-            <th>时间</th>
-            <th>用户</th>
-            <th>礼物名</th>
-            <th style="width:45px">数量</th>
-            <th style="width:55px">金额</th>
-            <th style="width:50px">状态</th>
-          </tr>
-        </thead>
-        <tbody id="serverTableBody">
-          <tr><td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+    <!-- 双栏对比 -->
+    <div class="main-grid">
+      <!-- 气泡解析结果 -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>💬 气泡解析结果</span>
+          <span class="hint" id="bubbleCount">0 条</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 35px">#</th>
+                <th>用户</th>
+                <th>礼物名</th>
+                <th style="width: 55px">连击</th>
+                <th style="width: 50px">状态</th>
+              </tr>
+            </thead>
+            <tbody id="bubbleTableBody">
+              <tr>
+                <td colspan="5" class="empty-state">等待解析...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-<!-- 详细对比结果 -->
-<div class="comparison-section" id="comparisonSection" style="display:none">
-  <div class="panel">
-    <div class="panel-header">
-      <span>🔬 逐条对比详情</span>
-      <span class="hint">气泡礼物与 WebSocket 记录的匹配状态</span>
+      <!-- 服务器记录 -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>📡 WebSocket 捕获记录</span>
+          <span class="hint" id="serverCount">0 条</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px">#</th>
+                <th>时间</th>
+                <th>用户</th>
+                <th>礼物名</th>
+                <th style="width: 45px">数量</th>
+                <th style="width: 55px">金额</th>
+                <th style="width: 50px">状态</th>
+              </tr>
+            </thead>
+            <tbody id="serverTableBody">
+              <tr>
+                <td colspan="7" class="empty-state">
+                  点击「拉取服务器记录」获取 WebSocket 捕获数据
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:35px">#</th>
-            <th>来源</th>
-            <th>用户</th>
-            <th>礼物名 (Gift ID)</th>
-            <th style="width:50px">数量</th>
-            <th style="width:55px">金额</th>
-            <th>匹配信息</th>
-            <th style="width:60px">状态</th>
-          </tr>
-        </thead>
-        <tbody id="comparisonBody"></tbody>
-      </table>
+
+    <!-- 详细对比结果 -->
+    <div
+      class="comparison-section"
+      id="comparisonSection"
+      style="display: none"
+    >
+      <div class="panel">
+        <div class="panel-header">
+          <span>🔬 逐条对比详情</span>
+          <span class="hint">气泡礼物与 WebSocket 记录的匹配状态</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 35px">#</th>
+                <th>来源</th>
+                <th>用户</th>
+                <th>礼物名 (Gift ID)</th>
+                <th style="width: 50px">数量</th>
+                <th style="width: 55px">金额</th>
+                <th>匹配信息</th>
+                <th style="width: 60px">状态</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<!-- 帮助 -->
-<div class="help-section">
-  <strong>🛠️ 使用说明</strong><br>
-  1. 在 Bilibili 直播间页面按 <code>F12</code> 打开 DevTools<br>
-  2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在 <code>#player-section</code> 内）<br>
-  3. 右键 → <code>Copy → Copy outerHTML</code><br>
-  4. 粘贴到上方文本框，设置捕获时间，点击 <strong>解析并对比</strong><br>
-  5. <strong style="color:var(--red)">⚠️ 仅气泡</strong> = WebSocket 可能漏记的礼物；<strong style="color:var(--green)">✅ 双边匹配</strong> = 正常捕获<br>
-  <br>
-  <strong>💡 技巧：</strong>可以多次（每隔几分钟）复制气泡 HTML 并解析，观察漏记规律。
-  配合 <a href="/debug-gifts" style="color:var(--blue)">/debug-gifts</a> 实时监控 WebSocket 收包情况。
-</div>
+    <!-- 帮助 -->
+    <div class="help-section">
+      <strong>🛠️ 使用说明</strong><br />
+      1. 在 Bilibili 直播间页面按 <code>F12</code> 打开 DevTools<br />
+      2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在
+      <code>#player-section</code> 内）<br />
+      3. 右键 → <code>Copy → Copy outerHTML</code><br />
+      4. 粘贴到上方文本框，设置捕获时间，点击 <strong>解析并对比</strong><br />
+      5. <strong style="color: var(--red)">⚠️ 仅气泡</strong> = WebSocket
+      可能漏记的礼物；<strong style="color: var(--green)">✅ 双边匹配</strong> =
+      正常捕获<br />
+      <br />
+      <strong>💡 技巧：</strong>可以多次（每隔几分钟）复制气泡 HTML
+      并解析，观察漏记规律。 配合
+      <a href="/debug-gifts" style="color: var(--blue)">/debug-gifts</a>
+      实时监控 WebSocket 收包情况。
+    </div>
 
-<script type="module" src="/js/gift-audit/index.js?v=20260814"></script>
-</body>
+    <script type="module" src="/js/gift-audit/index.js?v=20260814"></script>
+  </body>
 </html>

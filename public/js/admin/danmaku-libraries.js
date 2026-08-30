@@ -1,6 +1,7 @@
 'use strict';
 
-const DELETE_ICON = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DELETE_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 export function createBlessingEditor({ document, saveSetting, toast }) {
   const elements = {
@@ -9,7 +10,7 @@ export function createBlessingEditor({ document, saveSetting, toast }) {
     input: document.getElementById('danmakuBlessingInput'),
     addButton: document.getElementById('danmakuBlessingAddBtn'),
     saveButton: document.getElementById('danmakuBlessingSaveBtn'),
-    status: document.getElementById('danmakuBlessingStatus')
+    status: document.getElementById('danmakuBlessingStatus'),
   };
   if (Object.values(elements).some((element) => !element)) return null;
 
@@ -46,11 +47,15 @@ export function createBlessingEditor({ document, saveSetting, toast }) {
         items[index] = input.value;
         markDirty();
       });
-      const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条祝福语`, () => {
-        items.splice(index, 1);
-        render();
-        markDirty();
-      });
+      const deleteButton = createDeleteButton(
+        document,
+        `删除第 ${index + 1} 条祝福语`,
+        () => {
+          items.splice(index, 1);
+          render();
+          markDirty();
+        },
+      );
       row.append(number, input, deleteButton);
       elements.list.appendChild(row);
     });
@@ -107,7 +112,7 @@ export function createBlessingEditor({ document, saveSetting, toast }) {
       render();
       elements.saveButton.disabled = true;
       setStatus(`已读取 ${items.length} 条`, 'good');
-    }
+    },
   };
 }
 
@@ -121,11 +126,16 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
     adviceInput: document.getElementById('danmakuFortuneAdviceInput'),
     addButton: document.getElementById('danmakuFortuneAddBtn'),
     saveButton: document.getElementById('danmakuFortuneSaveBtn'),
-    status: document.getElementById('danmakuFortuneStatus')
+    status: document.getElementById('danmakuFortuneStatus'),
   };
   if (Object.values(elements).some((element) => !element)) return null;
 
-  const addInputs = [elements.levelInput, elements.nameInput, elements.textInput, elements.adviceInput];
+  const addInputs = [
+    elements.levelInput,
+    elements.nameInput,
+    elements.textInput,
+    elements.adviceInput,
+  ];
   let items = [];
   let dirty = false;
 
@@ -166,11 +176,15 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
       row.className = 'danmaku-fortune-row';
       const heading = document.createElement('div');
       heading.className = 'danmaku-fortune-row-heading';
-      const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条签文`, () => {
-        items.splice(index, 1);
-        render();
-        markDirty();
-      });
+      const deleteButton = createDeleteButton(
+        document,
+        `删除第 ${index + 1} 条签文`,
+        () => {
+          items.splice(index, 1);
+          render();
+          markDirty();
+        },
+      );
       heading.append(createIndex(document, index), deleteButton);
       const fields = document.createElement('div');
       fields.className = 'danmaku-fortune-fields';
@@ -178,7 +192,7 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
         createField(fortune, index, 'level', '签级', 16),
         createField(fortune, index, 'name', '签名', 24),
         createField(fortune, index, 'text', '签文', 80),
-        createField(fortune, index, 'advice', '建议', 80)
+        createField(fortune, index, 'advice', '建议', 80),
       );
       row.append(heading, fields);
       elements.list.appendChild(row);
@@ -192,8 +206,15 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
       addInputs[missingIndex].focus();
       return;
     }
-    items.push({ level: values[0], name: values[1], text: values[2], advice: values[3] });
-    addInputs.forEach((input) => { input.value = ''; });
+    items.push({
+      level: values[0],
+      name: values[1],
+      text: values[2],
+      advice: values[3],
+    });
+    addInputs.forEach((input) => {
+      input.value = '';
+    });
     render();
     markDirty();
     elements.levelInput.focus();
@@ -209,7 +230,10 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
   });
   elements.saveButton.addEventListener('click', async () => {
     const cleaned = items.map(normalizeFortune);
-    if (cleaned.length === 0 || cleaned.some((item) => !isCompleteFortune(item))) {
+    if (
+      cleaned.length === 0 ||
+      cleaned.some((item) => !isCompleteFortune(item))
+    ) {
       toast('请至少保留一条填写完整的签文');
       setStatus('每条签文都需要填写完整', 'warn');
       return;
@@ -233,11 +257,13 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
   return {
     load(rawValue) {
       if (dirty) return;
-      items = parseJsonArray(rawValue).map(normalizeFortune).filter(isCompleteFortune);
+      items = parseJsonArray(rawValue)
+        .map(normalizeFortune)
+        .filter(isCompleteFortune);
       render();
       elements.saveButton.disabled = true;
       setStatus(`已读取 ${items.length} 条`, 'good');
-    }
+    },
   };
 }
 
@@ -249,7 +275,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     replyInput: document.getElementById('danmakuCustomReplyInput'),
     addButton: document.getElementById('danmakuCustomReplyAddBtn'),
     saveButton: document.getElementById('danmakuCustomReplySaveBtn'),
-    status: document.getElementById('danmakuCustomReplyStatus')
+    status: document.getElementById('danmakuCustomReplyStatus'),
   };
   if (Object.values(elements).some((element) => !element)) return null;
 
@@ -272,7 +298,10 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     input.type = 'text';
     input.maxLength = maxLength;
     input.value = rule[field];
-    input.setAttribute('aria-label', `第 ${index + 1} 条 DIY 回复的${labelText}`);
+    input.setAttribute(
+      'aria-label',
+      `第 ${index + 1} 条 DIY 回复的${labelText}`,
+    );
     input.addEventListener('input', () => {
       items[index][field] = input.value;
       markDirty();
@@ -295,13 +324,17 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
       fields.className = 'danmaku-custom-reply-fields';
       fields.append(
         createField(rule, index, 'keyword', '关键词', 30),
-        createField(rule, index, 'reply', '回复内容', 120)
+        createField(rule, index, 'reply', '回复内容', 120),
       );
-      const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条 DIY 回复`, () => {
-        items.splice(index, 1);
-        render();
-        markDirty();
-      });
+      const deleteButton = createDeleteButton(
+        document,
+        `删除第 ${index + 1} 条 DIY 回复`,
+        () => {
+          items.splice(index, 1);
+          render();
+          markDirty();
+        },
+      );
       row.append(createIndex(document, index), fields, deleteButton);
       elements.list.appendChild(row);
     });
@@ -331,7 +364,9 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     });
   });
   elements.saveButton.addEventListener('click', async () => {
-    const cleaned = items.map(normalizeCustomReply).filter((item) => item.keyword && item.reply);
+    const cleaned = items
+      .map(normalizeCustomReply)
+      .filter((item) => item.keyword && item.reply);
     elements.saveButton.disabled = true;
     setStatus('正在保存');
     try {
@@ -351,11 +386,13 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
   return {
     load(rawValue) {
       if (dirty) return;
-      items = parseJsonArray(rawValue).map(normalizeCustomReply).filter((item) => item.keyword && item.reply);
+      items = parseJsonArray(rawValue)
+        .map(normalizeCustomReply)
+        .filter((item) => item.keyword && item.reply);
       render();
       elements.saveButton.disabled = true;
       setStatus(`已读取 ${items.length} 条`, 'good');
-    }
+    },
   };
 }
 
@@ -372,14 +409,17 @@ function normalizeCustomReply(item = {}) {
   return {
     keyword: truncateUnicodeText(String(item?.keyword || '').trim(), 30),
     reply: truncateUnicodeText(String(item?.reply || '').trim(), 120),
-    enabled: item?.enabled === false ? false : true
+    enabled: item?.enabled === false ? false : true,
   };
 }
 
 function truncateUnicodeText(value, limit) {
   const text = String(value || '');
   if (typeof Intl.Segmenter === 'function') {
-    return Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text), (item) => item.segment)
+    return Array.from(
+      new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text),
+      (item) => item.segment,
+    )
       .slice(0, limit)
       .join('');
   }
@@ -391,7 +431,7 @@ function normalizeFortune(item = {}) {
     level: String(item?.level || '').trim(),
     name: String(item?.name || '').trim(),
     text: String(item?.text || '').trim(),
-    advice: String(item?.advice || '').trim()
+    advice: String(item?.advice || '').trim(),
   };
 }
 

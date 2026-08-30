@@ -17,7 +17,9 @@ function runMigrations(db, key, steps) {
     )
   `);
 
-  const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
+  const row = db
+    .prepare('SELECT version FROM schema_version WHERE key = ?')
+    .get(key);
   const current = row ? Number(row.version) || 0 : 0;
   const target = steps.length;
 
@@ -38,7 +40,9 @@ function runMigrations(db, key, steps) {
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
-      throw new Error(`[Schema] ${key} migration to v${version} failed: ${error.message}`);
+      throw new Error(
+        `[Schema] ${key} migration to v${version} failed: ${error.message}`,
+      );
     }
     applied += 1;
   }
@@ -47,16 +51,20 @@ function runMigrations(db, key, steps) {
 }
 
 function writeSchemaVersion(db, key, version) {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO schema_version (key, version) VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET version = excluded.version
     WHERE version < excluded.version
-  `).run(key, version);
+  `,
+  ).run(key, version);
 }
 
 function getSchemaVersion(db, key) {
   try {
-    const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
+    const row = db
+      .prepare('SELECT version FROM schema_version WHERE key = ?')
+      .get(key);
     return row ? Number(row.version) || 0 : 0;
   } catch (_) {
     return 0;
@@ -490,5 +498,5 @@ module.exports = {
   GIFT_INDEX_SCHEMA,
   GIFT_SCHEMA,
   MUSIC_SCHEMA,
-  CHECKIN_SCHEMA
+  CHECKIN_SCHEMA,
 };

@@ -5,7 +5,7 @@ const test = require('node:test');
 
 const {
   extractBilibiliDanmakuAvatarUrl,
-  extractBilibiliDanmakuEmotes
+  extractBilibiliDanmakuEmotes,
 } = require('../src/bilibili/parsers/danmaku-parser');
 
 function createInfo(user) {
@@ -18,13 +18,19 @@ function createInfo(user) {
 test('danmaku avatar parser reads the live room user face', () => {
   const avatarUrl = 'https://i0.hdslb.com/bfs/face/example.webp';
 
-  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: avatarUrl })), avatarUrl);
+  assert.equal(
+    extractBilibiliDanmakuAvatarUrl(createInfo({ face: avatarUrl })),
+    avatarUrl,
+  );
 });
 
 test('danmaku avatar parser supports the nested base face field', () => {
   const avatarUrl = 'https://i1.hdslb.com/bfs/face/example.jpg';
 
-  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ base: { face: avatarUrl } })), avatarUrl);
+  assert.equal(
+    extractBilibiliDanmakuAvatarUrl(createInfo({ base: { face: avatarUrl } })),
+    avatarUrl,
+  );
 });
 
 test('danmaku avatar parser supports JSON encoded user metadata', () => {
@@ -38,11 +44,23 @@ test('danmaku avatar parser supports JSON encoded user metadata', () => {
 
 test('danmaku avatar parser upgrades official HTTP avatars and rejects other hosts', () => {
   assert.equal(
-    extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' })),
-    'https://i0.hdslb.com/bfs/face/example.jpg'
+    extractBilibiliDanmakuAvatarUrl(
+      createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' }),
+    ),
+    'https://i0.hdslb.com/bfs/face/example.jpg',
   );
-  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://example.com/avatar.jpg' })), '');
-  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://hdslb.com/avatar.jpg' })), '');
+  assert.equal(
+    extractBilibiliDanmakuAvatarUrl(
+      createInfo({ face: 'https://example.com/avatar.jpg' }),
+    ),
+    '',
+  );
+  assert.equal(
+    extractBilibiliDanmakuAvatarUrl(
+      createInfo({ face: 'https://hdslb.com/avatar.jpg' }),
+    ),
+    '',
+  );
 });
 
 test('danmaku emote parser reads inline emotes from JSON encoded extra metadata', () => {
@@ -53,17 +71,19 @@ test('danmaku emote parser reads inline emotes from JSON encoded extra metadata'
         emotion_unique: 'emoji_1',
         url: 'https://i0.hdslb.com/bfs/emote/miao.png',
         width: 64,
-        height: 64
-      }
-    }
+        height: 64,
+      },
+    },
   });
 
-  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [{
-    text: '[妙]',
-    url: 'https://i0.hdslb.com/bfs/emote/miao.png',
-    width: 64,
-    height: 64
-  }]);
+  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [
+    {
+      text: '[妙]',
+      url: 'https://i0.hdslb.com/bfs/emote/miao.png',
+      width: 64,
+      height: 64,
+    },
+  ]);
 });
 
 test('danmaku emote parser reads whole-message emoticons and upgrades trusted HTTP images', () => {
@@ -73,33 +93,45 @@ test('danmaku emote parser reads whole-message emoticons and upgrades trusted HT
     text: '[打call]',
     url: 'http://i1.hdslb.com/bfs/emote/call.gif',
     width: 180,
-    height: 90
+    height: 90,
   };
 
-  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [{
-    text: '[打call]',
-    url: 'https://i1.hdslb.com/bfs/emote/call.gif',
-    width: 180,
-    height: 90
-  }]);
+  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [
+    {
+      text: '[打call]',
+      url: 'https://i1.hdslb.com/bfs/emote/call.gif',
+      width: 180,
+      height: 90,
+    },
+  ]);
 });
 
 test('danmaku emote parser rejects untrusted images and deduplicates trigger text', () => {
   const info = createInfo({});
   info[0][15].emots = {
-    '[安全]': { url: 'https://i0.hdslb.com/bfs/emote/safe.webp', width: 40, height: 40 },
-    '[坏]': { url: 'https://example.com/bad.png', width: 40, height: 40 }
+    '[安全]': {
+      url: 'https://i0.hdslb.com/bfs/emote/safe.webp',
+      width: 40,
+      height: 40,
+    },
+    '[坏]': { url: 'https://example.com/bad.png', width: 40, height: 40 },
   };
   info[0][15].extra = JSON.stringify({
     emots: {
-      '[安全]': { url: 'https://i1.hdslb.com/bfs/emote/duplicate.webp', width: 80, height: 80 }
-    }
+      '[安全]': {
+        url: 'https://i1.hdslb.com/bfs/emote/duplicate.webp',
+        width: 80,
+        height: 80,
+      },
+    },
   });
 
-  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [{
-    text: '[安全]',
-    url: 'https://i0.hdslb.com/bfs/emote/safe.webp',
-    width: 40,
-    height: 40
-  }]);
+  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [
+    {
+      text: '[安全]',
+      url: 'https://i0.hdslb.com/bfs/emote/safe.webp',
+      width: 40,
+      height: 40,
+    },
+  ]);
 });

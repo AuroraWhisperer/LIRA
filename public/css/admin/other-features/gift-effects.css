@@ -27,7 +27,11 @@
 
 .gift-effect-address-card {
   background:
-    radial-gradient(circle at 88% 12%, rgba(217, 75, 112, 0.11), transparent 34%),
+    radial-gradient(
+      circle at 88% 12%,
+      rgba(217, 75, 112, 0.11),
+      transparent 34%
+    ),
     var(--surface);
 }
 
@@ -85,21 +89,21 @@
   display: none;
 }
 
-.gift-effect-match-summary[data-state="success"] {
+.gift-effect-match-summary[data-state='success'] {
   border-color: rgba(33, 182, 168, 0.34);
   color: #147f75;
 }
 
-.gift-effect-match-summary[data-state="error"] {
+.gift-effect-match-summary[data-state='error'] {
   border-color: rgba(217, 75, 112, 0.34);
   color: var(--primary-strong);
 }
 
-#giftEffectLookupState[data-state="success"] {
+#giftEffectLookupState[data-state='success'] {
   color: #147f75;
 }
 
-#giftEffectLookupState[data-state="error"] {
+#giftEffectLookupState[data-state='error'] {
   color: var(--primary-strong);
 }
 
@@ -137,41 +141,131 @@
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(248, 243, 232, .88), var(--surface));
+  background: linear-gradient(
+    135deg,
+    rgba(248, 243, 232, 0.88),
+    var(--surface)
+  );
 }
 
 .gift-frame-settings-heading,
 .gift-frame-settings-actions,
-.gift-frame-url-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.gift-frame-settings-heading h3 { margin: 3px 0 4px; color: var(--text); font-size: var(--type-size-section-title); }
-.gift-frame-settings-heading p { margin: 0; color: var(--muted); font-size: var(--type-size-caption); }
+.gift-frame-url-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.gift-frame-settings-heading h3 {
+  margin: 3px 0 4px;
+  color: var(--text);
+  font-size: var(--type-size-section-title);
+}
+.gift-frame-settings-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
 .gift-frame-settings-grid,
-.gift-frame-preview-grid { display: grid; grid-template-columns: minmax(200px, 1.2fr) repeat(3, minmax(140px, 1fr)); gap: 14px; margin-top: 20px; }
-.gift-frame-preview-grid { grid-template-columns: repeat(4, minmax(120px, 1fr)); margin-top: 14px; }
+.gift-frame-preview-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.2fr) repeat(3, minmax(140px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+.gift-frame-preview-grid {
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  margin-top: 14px;
+}
 .gift-frame-settings-grid label:not(.switch-control),
-.gift-frame-preview-grid label { display: grid; gap: 6px; color: var(--muted); font-size: var(--type-size-control); font-weight: 700; }
-.gift-frame-settings-grid label small { color: var(--muted); font-size: var(--type-size-caption); font-weight: 500; }
-.gift-frame-switch { align-self: start; min-height: 42px; }
-.gift-frame-settings-actions { justify-content: flex-start; margin-top: 18px; }
-.gift-frame-settings-actions .hint[data-state="error"] { color: var(--primary-strong); }
-.gift-frame-settings-actions .hint[data-state="success"] { color: #147f75; }
-.gift-frame-url-row { align-items: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
-.gift-frame-url-row > div:first-child { min-width: 0; flex: 1 1 auto; }
-.gift-frame-url-row > div:first-child > span { display: block; margin-bottom: 6px; color: var(--muted); font-size: var(--type-size-control); font-weight: 700; }
-.gift-frame-url-row code { display: block; min-height: 32px; padding: 6px 9px; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 8px; background: rgba(255,255,255,.68); color: var(--text); font-size: var(--type-size-caption); }
-.gift-frame-url-actions { display: flex; gap: 8px; }
+.gift-frame-preview-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  font-weight: 700;
+}
+.gift-frame-settings-grid label small {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: 500;
+}
+.gift-frame-switch {
+  align-self: start;
+  min-height: 42px;
+}
+.gift-frame-settings-actions {
+  justify-content: flex-start;
+  margin-top: 18px;
+}
+.gift-frame-settings-actions .hint[data-state='error'] {
+  color: var(--primary-strong);
+}
+.gift-frame-settings-actions .hint[data-state='success'] {
+  color: #147f75;
+}
+.gift-frame-url-row {
+  align-items: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.gift-frame-url-row > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.gift-frame-url-row > div:first-child > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  font-weight: 700;
+}
+.gift-frame-url-row code {
+  display: block;
+  min-height: 32px;
+  padding: 6px 9px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--text);
+  font-size: var(--type-size-caption);
+}
+.gift-frame-url-actions {
+  display: flex;
+  gap: 8px;
+}
 
 @media (max-width: 900px) {
-  .gift-frame-settings-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
-  .gift-frame-preview-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+  .gift-frame-settings-grid {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+  .gift-frame-preview-grid {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
-  .gift-frame-settings-card { padding: 16px; }
-  .gift-frame-settings-heading, .gift-frame-settings-actions, .gift-frame-url-row { align-items: stretch; flex-direction: column; }
-  .gift-frame-settings-grid, .gift-frame-preview-grid { grid-template-columns: 1fr; }
-  .gift-frame-url-actions { width: 100%; }
-  .gift-frame-url-actions button { flex: 1 1 0; }
+  .gift-frame-settings-card {
+    padding: 16px;
+  }
+  .gift-frame-settings-heading,
+  .gift-frame-settings-actions,
+  .gift-frame-url-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .gift-frame-settings-grid,
+  .gift-frame-preview-grid {
+    grid-template-columns: 1fr;
+  }
+  .gift-frame-url-actions {
+    width: 100%;
+  }
+  .gift-frame-url-actions button {
+    flex: 1 1 0;
+  }
 }
 
 @media (max-width: 1200px) {

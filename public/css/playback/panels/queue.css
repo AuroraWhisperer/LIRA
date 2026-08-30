@@ -52,19 +52,27 @@
 .playback-queue-row {
   border: none !important;
   border-radius: 10px !important;
-  box-shadow: 0 1px 4px rgba(22, 31, 43, 0.07), 0 0 0 1px rgba(217, 224, 232, 0.65);
-  transition: box-shadow 160ms ease, background 160ms ease;
+  box-shadow:
+    0 1px 4px rgba(22, 31, 43, 0.07),
+    0 0 0 1px rgba(217, 224, 232, 0.65);
+  transition:
+    box-shadow 160ms ease,
+    background 160ms ease;
 }
 
 .playback-queue-row:hover {
-  box-shadow: 0 3px 10px rgba(22, 31, 43, 0.10), 0 0 0 1px rgba(200, 210, 220, 0.9);
+  box-shadow:
+    0 3px 10px rgba(22, 31, 43, 0.1),
+    0 0 0 1px rgba(200, 210, 220, 0.9);
   background: #fafcff !important;
 }
 
 /* 正在播放 */
 .playback-queue-row.active {
   background: linear-gradient(135deg, #fff3ee 0%, #fff8f5 100%) !important;
-  box-shadow: 0 2px 12px rgba(217, 75, 112, 0.14), 0 0 0 1.5px rgba(217, 75, 112, 0.32) !important;
+  box-shadow:
+    0 2px 12px rgba(217, 75, 112, 0.14),
+    0 0 0 1.5px rgba(217, 75, 112, 0.32) !important;
 }
 
 .playback-queue-row.active:hover {
@@ -74,7 +82,9 @@
 /* 待确认点歌 */
 .playback-queue-row.pending {
   background: #fffbeb;
-  box-shadow: 0 1px 4px rgba(180, 130, 0, 0.08), 0 0 0 1px rgba(251, 191, 36, 0.42) !important;
+  box-shadow:
+    0 1px 4px rgba(180, 130, 0, 0.08),
+    0 0 0 1px rgba(251, 191, 36, 0.42) !important;
 }
 
 /* 队列行操作按钮 */

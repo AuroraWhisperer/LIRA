@@ -31,21 +31,29 @@ function createGiftMaintenanceStore(giftDb) {
     giftDb.exec('BEGIN IMMEDIATE');
     try {
       // 第一步：将待删除礼物的 pending settlements 标记为 ignored
-      const pendingCount = giftDb.prepare(`
+      const pendingCount = giftDb
+        .prepare(
+          `
         UPDATE overtime_settlements
         SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
             last_error = ?, updated_at = ?
         WHERE gift_event_id IN (${placeholders})
           AND status = 'pending'
-      `).run(reason, updatedAt, ...giftEventIds).changes;
+      `,
+        )
+        .run(reason, updatedAt, ...giftEventIds).changes;
 
       // 第二步：保留 applied/ignored 结算记录（不删除，用于审计）
       // 无需操作 - 已完成的结算会自然保留
 
       // 第三步：删除礼物事件本身
-      const deletedCount = giftDb.prepare(`
+      const deletedCount = giftDb
+        .prepare(
+          `
         DELETE FROM gift_events WHERE id IN (${placeholders})
-      `).run(...giftEventIds).changes;
+      `,
+        )
+        .run(...giftEventIds).changes;
 
       giftDb.exec('COMMIT');
       return { deletedGifts: deletedCount, ignoredSettlements: pendingCount };
@@ -70,9 +78,10 @@ function createGiftMaintenanceStore(giftDb) {
     }
 
     // 先查找符合条件的礼物 ID
-    const ids = giftDb.prepare(
-      `SELECT id FROM gift_events WHERE ${whereClause}`
-    ).all(...params).map(row => Number(row.id));
+    const ids = giftDb
+      .prepare(`SELECT id FROM gift_events WHERE ${whereClause}`)
+      .all(...params)
+      .map((row) => Number(row.id));
 
     // 委托给 ID 删除方法
     return ids.length > 0
@@ -90,9 +99,9 @@ function createGiftMaintenanceStore(giftDb) {
   function countGiftsByPredicate(whereClause, params) {
     if (!whereClause) return 0;
 
-    const result = giftDb.prepare(
-      `SELECT COUNT(*) AS count FROM gift_events WHERE ${whereClause}`
-    ).get(...params);
+    const result = giftDb
+      .prepare(`SELECT COUNT(*) AS count FROM gift_events WHERE ${whereClause}`)
+      .get(...params);
 
     return Number(result?.count) || 0;
   }
@@ -100,7 +109,7 @@ function createGiftMaintenanceStore(giftDb) {
   return {
     deleteGiftsWithSettlements,
     deleteGiftsByPredicate,
-    countGiftsByPredicate
+    countGiftsByPredicate,
   };
 }
 

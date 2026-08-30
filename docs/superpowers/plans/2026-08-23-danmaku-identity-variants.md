@@ -22,10 +22,12 @@
 ### Task 1: 输出五身份语义
 
 **Files:**
+
 - Modify: `public/js/overlays/danmaku-feed.js`
 - Test: `test/danmaku-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: `{ guardLevel, medalName }`。
 - Produces: 每个 `.draw-danmaku-item` 的 `data-identity="viewer|fan|captain|admiral|governor"`。
 
@@ -37,11 +39,12 @@ feed.render([
   { message: '粉丝', medalName: '夜航', medalLevel: 8 },
   { message: '舰长', guardLevel: 3 },
   { message: '提督', guardLevel: 2 },
-  { message: '总督', guardLevel: 1, medalName: '夜航' }
+  { message: '总督', guardLevel: 1, medalName: '夜航' },
 ]);
-assert.deepEqual(root.children.map(item => item.dataset.identity), [
-  'viewer', 'fan', 'captain', 'admiral', 'governor'
-]);
+assert.deepEqual(
+  root.children.map((item) => item.dataset.identity),
+  ['viewer', 'fan', 'captain', 'admiral', 'governor'],
+);
 ```
 
 - [x] **Step 2: 运行聚焦测试并确认 `dataset.identity` 断言失败**
@@ -70,10 +73,12 @@ Expected: PASS.
 ### Task 2: 三套弹幕姬独立身份视觉
 
 **Files:**
+
 - Modify: `public/css/overlays/danmaku.css`
 - Test: `test/danmaku-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: `body[data-style]` 与 `.draw-danmaku-item[data-identity]`。
 - Produces: signal 的军衔刻度、bubble 的会员胶囊、minimal 的单字符身份签。
 
@@ -82,7 +87,12 @@ Expected: PASS.
 ```js
 for (const style of ['signal', 'bubble', 'minimal']) {
   for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
-    assert.match(styles, new RegExp(`body\\[data-style='${style}'\\][\\s\\S]+data-identity='${identity}'`));
+    assert.match(
+      styles,
+      new RegExp(
+        `body\\[data-style='${style}'\\][\\s\\S]+data-identity='${identity}'`,
+      ),
+    );
   }
 }
 ```
@@ -96,9 +106,18 @@ Expected: FAIL on the first missing theme/identity selector.
 - [x] **Step 3: 为每个主题实现独立的身份 token、徽标轮廓与高阶身份强调**
 
 ```css
-body[data-style='signal'] .draw-danmaku-item[data-identity='captain'] { --signal-accent: #54c8f3; --signal-rank: 'CPT · III'; }
-body[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] { --bubble-accent: #b7adff; --bubble-role: '♥'; }
-body[data-style='minimal'] .draw-danmaku-item[data-identity='governor'] { --minimal-accent: #f4c567; --minimal-role: '总'; }
+body[data-style='signal'] .draw-danmaku-item[data-identity='captain'] {
+  --signal-accent: #54c8f3;
+  --signal-rank: 'CPT · III';
+}
+body[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] {
+  --bubble-accent: #b7adff;
+  --bubble-role: '♥';
+}
+body[data-style='minimal'] .draw-danmaku-item[data-identity='governor'] {
+  --minimal-accent: #f4c567;
+  --minimal-role: '总';
+}
 ```
 
 - [x] **Step 4: 运行弹幕姬测试确认通过**
@@ -110,12 +129,14 @@ Expected: PASS.
 ### Task 3: 画我猜固定气泡身份视觉
 
 **Files:**
+
 - Modify: `public/pages/overlays/games.html`
 - Modify: `public/css/overlays/games.css`
 - Modify: `docs/architecture/frontend/overlays.md`
 - Test: `test/games-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: 共享 renderer 输出的 `data-identity`。
 - Produces: `#drawDanmakuFeed[data-style='bubble']` 及画猜窄栏专属五身份气泡效果。
 
@@ -124,7 +145,10 @@ Expected: PASS.
 ```js
 assert.match(html, /id="drawDanmakuFeed"[^>]+data-style="bubble"/);
 for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
-  assert.match(styles, new RegExp(`data-style='bubble'[\\s\\S]+data-identity='${identity}'`));
+  assert.match(
+    styles,
+    new RegExp(`data-style='bubble'[\\s\\S]+data-identity='${identity}'`),
+  );
 }
 ```
 
@@ -137,7 +161,13 @@ Expected: FAIL because the draw-guess feed has no explicit bubble style marker.
 - [x] **Step 3: 给画猜 feed 添加固定标记，并在 `games.css` 增加窄栏气泡身份样式**
 
 ```html
-<div id="drawDanmakuFeed" class="draw-danmaku-feed" data-style="bubble" role="log" aria-live="polite">
+<div
+  id="drawDanmakuFeed"
+  class="draw-danmaku-feed"
+  data-style="bubble"
+  role="log"
+  aria-live="polite"
+></div>
 ```
 
 - [x] **Step 4: 更新 Overlay 事实文档并运行聚焦与快速门禁**

@@ -96,6 +96,25 @@
   white-space: nowrap;
 }
 
+.license-pairing-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.license-pairing-item > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.license-pairing-meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .license-pairing-list button {
   flex: 0 0 auto;
   min-height: 28px;
@@ -107,7 +126,11 @@
   align-items: flex-start;
   gap: 12px;
   border-color: rgba(183, 133, 50, 0.24);
-  background: linear-gradient(135deg, rgba(255, 241, 207, 0.58), rgba(255, 250, 241, 0.86));
+  background: linear-gradient(
+    135deg,
+    rgba(255, 241, 207, 0.58),
+    rgba(255, 250, 241, 0.86)
+  );
 }
 
 .license-account-note-icon {

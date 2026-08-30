@@ -6,7 +6,7 @@ const test = require('node:test');
 const {
   extractBilibiliDanmakuUserMeta,
   extractBilibiliHistoryUserMeta,
-  extractBilibiliOnlineRankUserMeta
+  extractBilibiliOnlineRankUserMeta,
 } = require('../src/bilibili/utils/user-meta-extractor');
 
 test('danmaku metadata keeps a medal-only requester out of the guard tiers', () => {
@@ -17,12 +17,12 @@ test('danmaku metadata keeps a medal-only requester out of the guard tiers', () 
       medal: {
         name: 'imilly',
         level: 26,
-        guard_level: 0
+        guard_level: 0,
       },
       guard: {
-        level: 0
-      }
-    }
+        level: 0,
+      },
+    },
   };
   info[3] = [26, 'imilly', 123, 456, 0, '', 0, 0, 0, 0, 0, 1, 789];
   info[7] = 3;
@@ -30,7 +30,7 @@ test('danmaku metadata keeps a medal-only requester out of the guard tiers', () 
   assert.deepEqual(extractBilibiliDanmakuUserMeta(info), {
     guardLevel: 0,
     medalName: 'imilly',
-    medalLevel: 26
+    medalLevel: 26,
   });
 });
 
@@ -42,51 +42,60 @@ test('danmaku metadata still reads legacy guard levels when the medal tuple has 
   assert.deepEqual(extractBilibiliDanmakuUserMeta(info), {
     guardLevel: 3,
     medalName: '其他灯牌',
-    medalLevel: 12
+    medalLevel: 12,
   });
 });
 
 test('online rank metadata uses the current room guard instead of the worn medal guard', () => {
-  assert.deepEqual(extractBilibiliOnlineRankUserMeta({
-    uid: 123,
-    name: '点歌人',
-    guard_level: 3,
-    medalInfo: {
-      guardLevel: 2,
-      medalName: '其他房间灯牌',
-      level: 30,
-      targetId: 999
+  assert.deepEqual(
+    extractBilibiliOnlineRankUserMeta(
+      {
+        uid: 123,
+        name: '点歌人',
+        guard_level: 3,
+        medalInfo: {
+          guardLevel: 2,
+          medalName: '其他房间灯牌',
+          level: 30,
+          targetId: 999,
+        },
+        uinfo: {
+          guard: { level: 3 },
+        },
+      },
+      456,
+    ),
+    {
+      uid: '123',
+      userName: '点歌人',
+      guardLevel: 3,
+      medalName: '',
+      medalLevel: 0,
+      currentRoomVerified: true,
     },
-    uinfo: {
-      guard: { level: 3 }
-    }
-  }, 456), {
-    uid: '123',
-    userName: '点歌人',
-    guardLevel: 3,
-    medalName: '',
-    medalLevel: 0,
-    currentRoomVerified: true
-  });
+  );
 });
 
 test('online rank metadata carries the viewer avatar into the identity cache input', () => {
-  assert.deepEqual(extractBilibiliOnlineRankUserMeta({
-    uid: 123,
-    name: '点歌人',
-    uinfo: {
-      base: {
-        face: 'https://i0.hdslb.com/bfs/face/viewer.jpg'
-      }
-    }
-  }), {
-    uid: '123',
-    userName: '点歌人',
-    avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
-    guardLevel: 0,
-    medalName: '',
-    medalLevel: 0
-  });
+  assert.deepEqual(
+    extractBilibiliOnlineRankUserMeta({
+      uid: 123,
+      name: '点歌人',
+      uinfo: {
+        base: {
+          face: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
+        },
+      },
+    }),
+    {
+      uid: '123',
+      userName: '点歌人',
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
+      guardLevel: 0,
+      medalName: '',
+      medalLevel: 0,
+    },
+  );
 });
 
 test('danmaku metadata ignores a worn medal that belongs to another room', () => {
@@ -98,12 +107,12 @@ test('danmaku metadata ignores a worn medal that belongs to another room', () =>
         name: '其他房间灯牌',
         level: 30,
         guard_level: 2,
-        ruid: 999
+        ruid: 999,
       },
       guard: {
-        level: 3
-      }
-    }
+        level: 3,
+      },
+    },
   };
   info[3] = [30, '其他房间灯牌', '其他主播', 789, 0, '', 0, 0, 0, 0, 2, 1, 999];
   info[7] = 2;
@@ -112,7 +121,7 @@ test('danmaku metadata ignores a worn medal that belongs to another room', () =>
     guardLevel: 3,
     medalName: '',
     medalLevel: 0,
-    currentRoomVerified: true
+    currentRoomVerified: true,
   });
 });
 
@@ -124,12 +133,12 @@ test('danmaku metadata keeps the current-room medal when nested worn medal belon
       medal: {
         name: '别家牌子',
         level: 30,
-        ruid: 999
+        ruid: 999,
       },
       guard: {
-        level: 0
-      }
-    }
+        level: 0,
+      },
+    },
   };
   info[3] = [28, 'imilly', '当前主播', 123, 0, '', 0, 0, 0, 0, 0, 1, 456];
 
@@ -137,22 +146,28 @@ test('danmaku metadata keeps the current-room medal when nested worn medal belon
     guardLevel: 0,
     medalName: 'imilly',
     medalLevel: 28,
-    currentRoomVerified: true
+    currentRoomVerified: true,
   });
 });
 
 test('history metadata drops a medal explicitly belonging to another room', () => {
-  assert.deepEqual(extractBilibiliHistoryUserMeta({
-    guard_level: 2,
-    medal: {
-      medal_name: '别家牌子',
-      medal_level: 30,
-      target_id: 999
-    }
-  }, 456), {
-    guardLevel: 2,
-    medalName: '',
-    medalLevel: 0,
-    currentRoomVerified: true
-  });
+  assert.deepEqual(
+    extractBilibiliHistoryUserMeta(
+      {
+        guard_level: 2,
+        medal: {
+          medal_name: '别家牌子',
+          medal_level: 30,
+          target_id: 999,
+        },
+      },
+      456,
+    ),
+    {
+      guardLevel: 2,
+      medalName: '',
+      medalLevel: 0,
+      currentRoomVerified: true,
+    },
+  );
 });

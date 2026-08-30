@@ -25,8 +25,8 @@ async function requestJson(url, token, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
-      ...(options.headers || {})
-    }
+      ...(options.headers || {}),
+    },
   });
   return { response, payload: await response.json() };
 }
@@ -43,70 +43,104 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
     weSingPlatform: 'win32',
     weSingMonitorFactory() {
       return {
-        start() { monitorStarts += 1; },
-        stop() { monitorStops += 1; }
+        start() {
+          monitorStarts += 1;
+        },
+        stop() {
+          monitorStops += 1;
+        },
       };
-    }
+    },
   });
   t.after(async () => {
     await runtime.stop({ exitProcess: false });
     fs.rmSync(root, { recursive: true, force: true });
   });
 
-  const app = await runtime.start({ host: '127.0.0.1', startPort: await findAvailablePort() });
+  const app = await runtime.start({
+    host: '127.0.0.1',
+    startPort: await findAvailablePort(),
+  });
   const token = runtime.getApiToken();
   const unauthorized = await fetch(`${app.baseUrl}/api/music/wesing/status`);
   assert.equal(unauthorized.status, 401);
 
-  const configured = await requestJson(`${app.baseUrl}/api/music/wesing/configure`, token, {
-    method: 'POST',
-    body: JSON.stringify({ cachePath })
-  });
+  const configured = await requestJson(
+    `${app.baseUrl}/api/music/wesing/configure`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ cachePath }),
+    },
+  );
   assert.equal(configured.response.status, 200);
   assert.equal(configured.payload.ok, true);
   assert.equal(configured.payload.data.cachePath, cachePath);
   assert.equal(configured.payload.data.cacheReady, true);
   assert.equal(runtime.getSetting('weSingCachePath'), cachePath);
 
-  const offset = await requestJson(`${app.baseUrl}/api/music/wesing/offset`, token, {
-    method: 'POST',
-    body: JSON.stringify({ offsetMs: -250 })
-  });
+  const offset = await requestJson(
+    `${app.baseUrl}/api/music/wesing/offset`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ offsetMs: -250 }),
+    },
+  );
   assert.equal(offset.response.status, 200);
   assert.equal(offset.payload.data.lyricOffsetMs, -250);
   assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '-250');
 
-  const invalidOffset = await requestJson(`${app.baseUrl}/api/music/wesing/offset`, token, {
-    method: 'POST',
-    body: JSON.stringify({ offsetMs: 3001 })
-  });
+  const invalidOffset = await requestJson(
+    `${app.baseUrl}/api/music/wesing/offset`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ offsetMs: 3001 }),
+    },
+  );
   assert.equal(invalidOffset.response.status, 400);
   assert.match(invalidOffset.payload.error, /-3000.*3000/);
   assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '-250');
 
-  const activated = await requestJson(`${app.baseUrl}/api/music/wesing/active`, token, {
-    method: 'POST',
-    body: JSON.stringify({ active: true })
-  });
+  const activated = await requestJson(
+    `${app.baseUrl}/api/music/wesing/active`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ active: true }),
+    },
+  );
   assert.equal(activated.payload.data.active, true);
   assert.equal(monitorStarts, 1);
 
-  const status = await requestJson(`${app.baseUrl}/api/music/wesing/status`, token);
+  const status = await requestJson(
+    `${app.baseUrl}/api/music/wesing/status`,
+    token,
+  );
   assert.equal(status.payload.data.active, true);
   assert.equal(status.payload.data.supported, true);
   assert.equal('rawLog' in status.payload.data, false);
 
-  const invalid = await requestJson(`${app.baseUrl}/api/music/wesing/configure`, token, {
-    method: 'POST',
-    body: JSON.stringify({ cachePath: path.join(root, 'Other') })
-  });
+  const invalid = await requestJson(
+    `${app.baseUrl}/api/music/wesing/configure`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ cachePath: path.join(root, 'Other') }),
+    },
+  );
   assert.equal(invalid.response.status, 400);
   assert.match(invalid.payload.error, /WeSingCache/);
 
-  const deactivated = await requestJson(`${app.baseUrl}/api/music/wesing/active`, token, {
-    method: 'POST',
-    body: JSON.stringify({ active: false })
-  });
+  const deactivated = await requestJson(
+    `${app.baseUrl}/api/music/wesing/active`,
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify({ active: false }),
+    },
+  );
   assert.equal(deactivated.payload.data.active, false);
   assert.equal(monitorStops, 1);
 });

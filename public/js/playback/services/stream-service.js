@@ -2,7 +2,11 @@
 // 流媒体服务 - 负责播放 URL 解析、刷新和错误重试
 'use strict';
 
-import { isLocalTrack, hasUsableUrl, serializeTrackForProvider } from '../utils.js';
+import {
+  isLocalTrack,
+  hasUsableUrl,
+  serializeTrackForProvider,
+} from '../utils.js';
 
 /**
  * 流媒体服务类
@@ -38,16 +42,18 @@ export class StreamService {
     const requestedQuality = String(options.quality || 'standard');
 
     // 如果不强制刷新、URL 仍可用且请求档位未变化，直接返回
-    if (!options.forceRefresh
-      && track.requestedPlaybackQuality === requestedQuality
-      && hasUsableUrl(track, this.refreshMarginMs)) {
+    if (
+      !options.forceRefresh &&
+      track.requestedPlaybackQuality === requestedQuality &&
+      hasUsableUrl(track, this.refreshMarginMs)
+    ) {
       return track.playUrl;
     }
 
     // 解析新的播放地址
     const stream = await this.resolveStream(track, {
       forceRefresh: options.forceRefresh === true,
-      quality: requestedQuality
+      quality: requestedQuality,
     });
 
     if (!stream || !stream.url) {
@@ -57,9 +63,15 @@ export class StreamService {
 
     // 更新曲目的播放信息
     track.playUrl = stream.url;
-    track.playUrlExpireAt = Number(stream.expireAt || stream.playUrlExpireAt || 0);
-    track.requestedPlaybackQuality = String(stream.requestedQuality || requestedQuality);
-    track.playbackQuality = String(stream.quality || stream.level || requestedQuality);
+    track.playUrlExpireAt = Number(
+      stream.expireAt || stream.playUrlExpireAt || 0,
+    );
+    track.requestedPlaybackQuality = String(
+      stream.requestedQuality || requestedQuality,
+    );
+    track.playbackQuality = String(
+      stream.quality || stream.level || requestedQuality,
+    );
     track.playbackTrial = stream.trial === true;
     track.playbackTrialStartMs = Math.max(0, Number(stream.trialStartMs || 0));
     track.playbackTrialEndMs = Math.max(0, Number(stream.trialEndMs || 0));
@@ -86,14 +98,16 @@ export class StreamService {
       body: JSON.stringify({
         track: payloadTrack,
         forceRefresh: options.forceRefresh === true,
-        quality: String(options.quality || 'standard')
-      })
+        quality: String(options.quality || 'standard'),
+      }),
     });
 
     const payload = await this.readJsonResponse(response, '解析播放地址失败');
 
     if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || `解析播放地址失败（HTTP ${response.status}）`);
+      throw new Error(
+        payload.error || `解析播放地址失败（HTTP ${response.status}）`,
+      );
     }
 
     return payload.data;
@@ -126,7 +140,8 @@ export class StreamService {
 
     // 尝试刷新播放地址
     this.retryCount++;
-    const resumeAt = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const resumeAt =
+      audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
 
     try {
       const newUrl = await this.getTrackUrl(track, { forceRefresh: true });
@@ -151,5 +166,4 @@ export class StreamService {
   resetRetryCount() {
     this.retryCount = 0;
   }
-
 }

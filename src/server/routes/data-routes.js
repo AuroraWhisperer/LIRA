@@ -24,16 +24,31 @@ function resumeClearAllWriters(context) {
   if (context.gifts && typeof context.gifts.resumeDetection === 'function') {
     context.gifts.resumeDetection();
   }
-  if (context.overtime && typeof context.overtime.resumeRecovery === 'function') {
+  if (
+    context.overtime &&
+    typeof context.overtime.resumeRecovery === 'function'
+  ) {
     context.overtime.resumeRecovery();
   }
 }
 
 const routes = {
-  'POST /api/database/clear': clearRoute((context) => context.data.clearSongLibrary(), 'database:clear'),
-  'POST /api/database/clear-superchats': clearRoute((context) => context.data.clearSuperChats(), 'database:clear-superchats'),
-  'POST /api/database/clear-playback': clearRoute((context) => context.data.clearPlayback(), 'database:clear-playback'),
-  'POST /api/database/clear-gifts': clearRoute((context) => context.data.clearGifts(), 'database:clear-gifts'),
+  'POST /api/database/clear': clearRoute(
+    (context) => context.data.clearSongLibrary(),
+    'database:clear',
+  ),
+  'POST /api/database/clear-superchats': clearRoute(
+    (context) => context.data.clearSuperChats(),
+    'database:clear-superchats',
+  ),
+  'POST /api/database/clear-playback': clearRoute(
+    (context) => context.data.clearPlayback(),
+    'database:clear-playback',
+  ),
+  'POST /api/database/clear-gifts': clearRoute(
+    (context) => context.data.clearGifts(),
+    'database:clear-gifts',
+  ),
 
   // 清空全部：需要静默异步写入器并处理部分失败
   async 'POST /api/database/clear-all'(context, request, res) {
@@ -47,7 +62,10 @@ const routes = {
     if (context.gifts && typeof context.gifts.pauseDetection === 'function') {
       context.gifts.pauseDetection();
     }
-    if (context.overtime && typeof context.overtime.pauseRecovery === 'function') {
+    if (
+      context.overtime &&
+      typeof context.overtime.pauseRecovery === 'function'
+    ) {
       context.overtime.pauseRecovery();
     }
 
@@ -61,7 +79,11 @@ const routes = {
 
     // 清空全部数据时同步清理音乐 API / 歌词缓存；缓存失败不影响数据库清理结果。
     if (context.music && typeof context.music.clearCache === 'function') {
-      try { context.music.clearCache(); } catch (_) { /* cache cleanup is best-effort */ }
+      try {
+        context.music.clearCache();
+      } catch (_) {
+        /* cache cleanup is best-effort */
+      }
     }
 
     // 处理部分失败：某些数据库提交成功，某些失败
@@ -70,7 +92,7 @@ const routes = {
         ok: false,
         partial: true,
         error: result.error,
-        data: result
+        data: result,
       });
       return;
     }
@@ -88,8 +110,8 @@ const routes = {
       ok: true,
       data: {
         schemaVersions: context.data.getSchemaVersions(),
-        tables: context.data.getRetentionStats()
-      }
+        tables: context.data.getRetentionStats(),
+      },
     });
   },
 
@@ -104,7 +126,7 @@ const routes = {
     const result = context.data.runRetention({ dryRun, policy: body.policy });
     if (!dryRun) context.broadcastSnapshot('database:retention');
     sendJson(res, 200, { ok: true, data: result });
-  }
+  },
 };
 
 module.exports = { prefixes, routes };

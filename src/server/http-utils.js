@@ -51,7 +51,7 @@ function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-store',
   });
   res.end(body);
 }
@@ -60,7 +60,8 @@ function verifyToken(context, req, requestUrl) {
   const token = context.sessionToken;
   if (!token) return true; // 未启用 token 时不拦截（向后兼容）
   const authHeader = req.headers.authorization || '';
-  if (authHeader.startsWith('Bearer ') && authHeader.slice(7) === token) return true;
+  if (authHeader.startsWith('Bearer ') && authHeader.slice(7) === token)
+    return true;
   const queryToken = requestUrl.searchParams.get('token');
   if (queryToken === token) return true;
   return false;
@@ -70,7 +71,7 @@ function sendCsv(res, filename, content) {
   res.writeHead(200, {
     'Content-Type': 'text/csv; charset=utf-8',
     'Content-Disposition': `attachment; filename="${filename}"`,
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-store',
   });
   res.end(content);
 }
@@ -80,14 +81,18 @@ function sendBuffer(res, status, contentTypeValue, filename, content) {
     'Content-Type': contentTypeValue,
     'Content-Disposition': `attachment; filename="${filename}"`,
     'Content-Length': content.length,
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-store',
   });
   res.end(content);
 }
 
 function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '静态资源仅支持 GET 请求' });
+    sendJson(res, 405, {
+      ok: false,
+      error: '请求方法不支持',
+      details: '静态资源仅支持 GET 请求',
+    });
     return;
   }
 
@@ -104,14 +109,18 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
     ['/danmaku', 'pages/overlays/danmaku.html'],
     ['/wheel', 'pages/overlays/wheel.html'],
     ['/opening', 'pages/overlays/opening.html'],
-    ['/clock', 'pages/overlays/clock.html']
+    ['/clock', 'pages/overlays/clock.html'],
   ]);
-  const assetPath = pageMap.get(requestUrl.pathname)
-    || requestUrl.pathname.replace(/^\/+/, '');
+  const assetPath =
+    pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
   const resolvedPath = isAdminPage
     ? path.join(publicDir, 'pages', 'admin', 'shell-start.html')
     : path.resolve(publicDir, assetPath);
-  if (!isAdminPage && resolvedPath !== publicDir && !resolvedPath.startsWith(publicDir + path.sep)) {
+  if (
+    !isAdminPage &&
+    resolvedPath !== publicDir &&
+    !resolvedPath.startsWith(publicDir + path.sep)
+  ) {
     sendJson(res, 403, { ok: false, error: 'Forbidden.' });
     return;
   }
@@ -122,42 +131,50 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
       return;
     }
     let body = content;
-    if (injectToken && typeof injectToken === 'string' && injectToken.length > 0
-        && resolvedPath.endsWith('.html')) {
+    if (
+      injectToken &&
+      typeof injectToken === 'string' &&
+      injectToken.length > 0 &&
+      resolvedPath.endsWith('.html')
+    ) {
       const tokenScript = Buffer.from(
         `\n<script>(function(){` +
-        `var t=${JSON.stringify(injectToken)};window.__API_TOKEN__=t;` +
-        // Native anchor navigation cannot carry an Authorization header.
-        `var patchApiAnchors=function(){` +
-        `var links=document.querySelectorAll("a[href]");` +
-        `for(var i=0;i<links.length;i++){var a=links[i],h=a.getAttribute("href");` +
-        `if(typeof h!=="string")continue;var u;try{u=new URL(h,location.href);}catch(_){continue;}` +
-        `if(u.origin===location.origin&&u.pathname.startsWith("/api/")&&!u.searchParams.has("token")){` +
-        `u.searchParams.set("token",t);a.setAttribute("href",h.startsWith("/")?u.pathname+u.search+u.hash:u.href);}}};` +
-        `if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",patchApiAnchors,{once:true});` +
-        `else patchApiAnchors();` +
-        // Patch fetch to auto-add Authorization header
-        `var _fetch=window.fetch;` +
-        `window.fetch=function(u,o){o=o||{};o.headers=o.headers||{};` +
-        `if(typeof u==="string"&&u.startsWith("/api/")&&u!=="/api/health"&&!o.headers.Authorization&&!o.headers.authorization)` +
-        `{o.headers=new Headers(o.headers);o.headers.set("Authorization","Bearer "+t);}` +
-        `return _fetch.call(this,u,o);};` +
-        // Patch WebSocket to append ?token= for /ws connections
-        `var _WS=window.WebSocket;` +
-        `window.WebSocket=function(u,p){` +
-        `if(typeof u==="string"&&u.indexOf("/ws")!==-1&&u.indexOf("?token=")===-1)` +
-        `{u=u+(u.indexOf("?")===-1?"?":"&")+"token="+encodeURIComponent(t);}` +
-        `return p?new _WS(u,p):new _WS(u);};` +
-        `window.WebSocket.prototype=_WS.prototype;` +
-        `window.WebSocket.CONNECTING=_WS.CONNECTING;` +
-        `window.WebSocket.OPEN=_WS.OPEN;` +
-        `window.WebSocket.CLOSING=_WS.CLOSING;` +
-        `window.WebSocket.CLOSED=_WS.CLOSED;` +
-        `})();</script>\n`
+          `var t=${JSON.stringify(injectToken)};window.__API_TOKEN__=t;` +
+          // Native anchor navigation cannot carry an Authorization header.
+          `var patchApiAnchors=function(){` +
+          `var links=document.querySelectorAll("a[href]");` +
+          `for(var i=0;i<links.length;i++){var a=links[i],h=a.getAttribute("href");` +
+          `if(typeof h!=="string")continue;var u;try{u=new URL(h,location.href);}catch(_){continue;}` +
+          `if(u.origin===location.origin&&u.pathname.startsWith("/api/")&&!u.searchParams.has("token")){` +
+          `u.searchParams.set("token",t);a.setAttribute("href",h.startsWith("/")?u.pathname+u.search+u.hash:u.href);}}};` +
+          `if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",patchApiAnchors,{once:true});` +
+          `else patchApiAnchors();` +
+          // Patch fetch to auto-add Authorization header
+          `var _fetch=window.fetch;` +
+          `window.fetch=function(u,o){o=o||{};o.headers=o.headers||{};` +
+          `if(typeof u==="string"&&u.startsWith("/api/")&&u!=="/api/health"&&!o.headers.Authorization&&!o.headers.authorization)` +
+          `{o.headers=new Headers(o.headers);o.headers.set("Authorization","Bearer "+t);}` +
+          `return _fetch.call(this,u,o);};` +
+          // Patch WebSocket to append ?token= for /ws connections
+          `var _WS=window.WebSocket;` +
+          `window.WebSocket=function(u,p){` +
+          `if(typeof u==="string"&&u.indexOf("/ws")!==-1&&u.indexOf("?token=")===-1)` +
+          `{u=u+(u.indexOf("?")===-1?"?":"&")+"token="+encodeURIComponent(t);}` +
+          `return p?new _WS(u,p):new _WS(u);};` +
+          `window.WebSocket.prototype=_WS.prototype;` +
+          `window.WebSocket.CONNECTING=_WS.CONNECTING;` +
+          `window.WebSocket.OPEN=_WS.OPEN;` +
+          `window.WebSocket.CLOSING=_WS.CLOSING;` +
+          `window.WebSocket.CLOSED=_WS.CLOSED;` +
+          `})();</script>\n`,
       );
       const headEnd = body.indexOf(Buffer.from('</head>'));
       if (headEnd !== -1) {
-        body = Buffer.concat([body.subarray(0, headEnd), tokenScript, body.subarray(headEnd)]);
+        body = Buffer.concat([
+          body.subarray(0, headEnd),
+          tokenScript,
+          body.subarray(headEnd),
+        ]);
       }
     }
 
@@ -168,7 +185,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
 
     res.writeHead(200, {
       'Content-Type': contentType(resolvedPath),
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
     });
     if (req.method === 'HEAD') {
       res.end();
@@ -191,22 +208,42 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
 
 function serveOpeningMedia(dataDir, req, res, requestUrl, getCurrentFileName) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '开播音乐仅支持 GET 请求' });
+    sendJson(res, 405, {
+      ok: false,
+      error: '请求方法不支持',
+      details: '开播音乐仅支持 GET 请求',
+    });
     return;
   }
   const encodedName = requestUrl.pathname.slice('/opening-media/'.length);
   let fileName = '';
-  try { fileName = decodeURIComponent(encodedName); } catch (_) { fileName = ''; }
-  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
+  try {
+    fileName = decodeURIComponent(encodedName);
+  } catch (_) {
+    fileName = '';
+  }
+  if (
+    !fileName ||
+    path.basename(fileName) !== fileName ||
+    fileName !== String(getCurrentFileName?.() || '')
+  ) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
   const extension = path.extname(fileName).toLowerCase();
-  if (!new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']).has(extension)) {
+  if (
+    !new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']).has(
+      extension,
+    )
+  ) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
-  const filePath = path.join(path.resolve(String(dataDir || '')), 'opening-music', fileName);
+  const filePath = path.join(
+    path.resolve(String(dataDir || '')),
+    'opening-music',
+    fileName,
+  );
   fs.stat(filePath, (statError, stats) => {
     if (statError || !stats.isFile()) {
       sendJson(res, 404, { ok: false, error: 'Not found.' });
@@ -215,22 +252,40 @@ function serveOpeningMedia(dataDir, req, res, requestUrl, getCurrentFileName) {
     res.writeHead(200, {
       'Content-Type': contentType(filePath),
       'Content-Length': stats.size,
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
     });
     if (req.method === 'HEAD') res.end();
     else fs.createReadStream(filePath).pipe(res);
   });
 }
 
-function serveOpeningCharacter(dataDir, req, res, requestUrl, getCurrentFileName) {
+function serveOpeningCharacter(
+  dataDir,
+  req,
+  res,
+  requestUrl,
+  getCurrentFileName,
+) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    sendJson(res, 405, { ok: false, error: '请求方法不支持', details: '开播人物图仅支持 GET 请求' });
+    sendJson(res, 405, {
+      ok: false,
+      error: '请求方法不支持',
+      details: '开播人物图仅支持 GET 请求',
+    });
     return;
   }
   const encodedName = requestUrl.pathname.slice('/opening-character/'.length);
   let fileName = '';
-  try { fileName = decodeURIComponent(encodedName); } catch (_) { fileName = ''; }
-  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
+  try {
+    fileName = decodeURIComponent(encodedName);
+  } catch (_) {
+    fileName = '';
+  }
+  if (
+    !fileName ||
+    path.basename(fileName) !== fileName ||
+    fileName !== String(getCurrentFileName?.() || '')
+  ) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
@@ -239,7 +294,11 @@ function serveOpeningCharacter(dataDir, req, res, requestUrl, getCurrentFileName
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
-  const filePath = path.join(path.resolve(String(dataDir || '')), 'opening-character', fileName);
+  const filePath = path.join(
+    path.resolve(String(dataDir || '')),
+    'opening-character',
+    fileName,
+  );
   fs.stat(filePath, (statError, stats) => {
     if (statError || !stats.isFile()) {
       sendJson(res, 404, { ok: false, error: 'Not found.' });
@@ -248,7 +307,7 @@ function serveOpeningCharacter(dataDir, req, res, requestUrl, getCurrentFileName
     res.writeHead(200, {
       'Content-Type': contentType(filePath),
       'Content-Length': stats.size,
-      'Cache-Control': 'no-store'
+      'Cache-Control': 'no-store',
     });
     if (req.method === 'HEAD') res.end();
     else fs.createReadStream(filePath).pipe(res);
@@ -275,7 +334,7 @@ function contentType(filePath) {
     '.aac': 'audio/aac',
     '.m4a': 'audio/mp4',
     '.wma': 'audio/x-ms-wma',
-    '.ico': 'image/x-icon'
+    '.ico': 'image/x-icon',
   };
   return mimeTypes[ext] || 'application/octet-stream';
 }
@@ -297,12 +356,24 @@ function validateOrigin(req, allowedOrigins) {
   if (!origin) return true;
 
   // Check against allowed origins
-  return allowedOrigins.some(allowed => origin === allowed);
+  return allowedOrigins.some((allowed) => origin === allowed);
 }
 
 function addFrameProtectionHeaders(res, pathname) {
   // Exclude overlay pages - they need to be frameable for OBS
-  const overlayPaths = ['/queue', '/songlist', '/blindbox', '/overtime', '/gift-effects', '/lyrics', '/games', '/wheel', '/opening', '/danmaku', '/clock'];
+  const overlayPaths = [
+    '/queue',
+    '/songlist',
+    '/blindbox',
+    '/overtime',
+    '/gift-effects',
+    '/lyrics',
+    '/games',
+    '/wheel',
+    '/opening',
+    '/danmaku',
+    '/clock',
+  ];
   const isOverlay = overlayPaths.includes(pathname);
 
   if (!isOverlay) {
@@ -322,12 +393,21 @@ function sendStableError(res, error) {
 
   // Map known error patterns to stable 4xx responses
   if (message === 'Invalid JSON body.' || message.includes('JSON')) {
-    sendJson(res, 400, { ok: false, error: 'Request body must be valid JSON.' });
+    sendJson(res, 400, {
+      ok: false,
+      error: 'Request body must be valid JSON.',
+    });
     return;
   }
 
-  if (message === 'Request body is too large.' || message.includes('too large')) {
-    sendJson(res, 413, { ok: false, error: 'Request body exceeds size limit.' });
+  if (
+    message === 'Request body is too large.' ||
+    message.includes('too large')
+  ) {
+    sendJson(res, 413, {
+      ok: false,
+      error: 'Request body exceeds size limit.',
+    });
     return;
   }
 
@@ -349,5 +429,5 @@ module.exports = {
   validateRequestHost,
   validateOrigin,
   addFrameProtectionHeaders,
-  sendStableError
+  sendStableError,
 };

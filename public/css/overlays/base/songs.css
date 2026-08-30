@@ -13,7 +13,9 @@
 }
 
 .song-board .overlay-title {
-  font-size: calc(var(--overlay-title-font-size, 15px) * var(--overlay-font-scale, 1));
+  font-size: calc(
+    var(--overlay-title-font-size, 15px) * var(--overlay-font-scale, 1)
+  );
 }
 
 .song-board .overlay-empty {
@@ -67,7 +69,10 @@
 .song-card strong {
   flex: 1 1 auto;
   min-width: 0;
-  color: var(--overlay-song-color, var(--overlay-text, var(--color-text-light)));
+  color: var(
+    --overlay-song-color,
+    var(--overlay-text, var(--color-text-light))
+  );
   overflow-wrap: anywhere;
   font-size: calc(16px * var(--overlay-font-scale, 1));
   word-break: break-word;
@@ -79,7 +84,11 @@
   min-width: 0;
   max-width: min(32.4%, 9em);
   overflow: hidden;
-  color: color-mix(in srgb, var(--overlay-text, var(--color-text-light)), transparent 26%);
+  color: color-mix(
+    in srgb,
+    var(--overlay-text, var(--color-text-light)),
+    transparent 26%
+  );
   font-size: calc(10.5px * var(--overlay-font-scale, 1));
   text-overflow: ellipsis;
   white-space: nowrap;

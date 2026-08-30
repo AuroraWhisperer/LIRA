@@ -19,9 +19,11 @@ function createNode(tagName) {
     },
     remove() {
       if (!this.parentNode) return;
-      this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+      this.parentNode.children = this.parentNode.children.filter(
+        (child) => child !== this,
+      );
       this.parentNode = null;
-    }
+    },
   };
 }
 
@@ -36,12 +38,17 @@ function createSelect(value, builtIns) {
   select.value = value;
   select.querySelector = (selector) => {
     if (selector !== 'optgroup[data-local-fonts="true"]') return null;
-    return select.children.find((child) => child.dataset?.localFonts === 'true') || null;
+    return (
+      select.children.find((child) => child.dataset?.localFonts === 'true') ||
+      null
+    );
   };
   Object.defineProperty(select, 'options', {
     get() {
-      return this.children.flatMap((child) => child.tagName === 'OPTGROUP' ? child.children : [child]);
-    }
+      return this.children.flatMap((child) =>
+        child.tagName === 'OPTGROUP' ? child.children : [child],
+      );
+    },
   });
   return select;
 }
@@ -51,10 +58,13 @@ test('shared local font library queries once and populates both registered selec
   const createElement = (tagName) => createNode(tagName);
   const illustratedSelect = createSelect('default', [
     { value: 'default', label: '幼圆' },
-    { value: 'Microsoft YaHei, PingFang SC, sans-serif', label: '微软雅黑 · 清晰' }
+    {
+      value: 'Microsoft YaHei, PingFang SC, sans-serif',
+      label: '微软雅黑 · 清晰',
+    },
   ]);
   const lyricSelect = createSelect('Microsoft YaHei', [
-    { value: 'Microsoft YaHei', label: '微软雅黑（默认）' }
+    { value: 'Microsoft YaHei', label: '微软雅黑（默认）' },
   ]);
   const sandbox = {
     console,
@@ -68,14 +78,14 @@ test('shared local font library queries once and populates both registered selec
           { family: ' Cascadia Code ' },
           { family: 'Arial' },
           { family: 'arial' },
-          { family: '' }
+          { family: '' },
         ];
-      }
-    }
+      },
+    },
   };
   const library = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
-    sandbox
+    sandbox,
   );
 
   library.registerLocalFontSelect(illustratedSelect);
@@ -86,25 +96,29 @@ test('shared local font library queries once and populates both registered selec
   for (const select of [illustratedSelect, lyricSelect]) {
     const group = select.querySelector('optgroup[data-local-fonts="true"]');
     assert.equal(group.label, '本机字体');
-    assert.deepEqual(group.children.map((option) => option.textContent), ['Arial', 'Cascadia Code']);
-    assert.deepEqual(group.children.map((option) => option.value), ['"Arial"', '"Cascadia Code"']);
+    assert.deepEqual(
+      group.children.map((option) => option.textContent),
+      ['Arial', 'Cascadia Code'],
+    );
+    assert.deepEqual(
+      group.children.map((option) => option.value),
+      ['"Arial"', '"Cascadia Code"'],
+    );
   }
   assert.equal(illustratedSelect.value, 'default');
   assert.equal(lyricSelect.value, 'Microsoft YaHei');
 });
 
 test('shared local font library preserves a saved option missing from the current machine', async () => {
-  const select = createSelect('default', [
-    { value: 'default', label: '幼圆' }
-  ]);
+  const select = createSelect('default', [{ value: 'default', label: '幼圆' }]);
   const sandbox = {
     console,
     document: { createElement: (tagName) => createNode(tagName) },
-    window: {}
+    window: {},
   };
   const library = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
-    sandbox
+    sandbox,
   );
 
   library.ensureSavedFontOption(select, '"Example Local Font"');
@@ -118,16 +132,18 @@ test('shared local font library preserves a saved option missing from the curren
 
 test('shared local font library retries a security error after the first user gesture', async () => {
   const listeners = new Map();
-  const select = createSelect('default', [
-    { value: 'default', label: '幼圆' }
-  ]);
+  const select = createSelect('default', [{ value: 'default', label: '幼圆' }]);
   let queryCount = 0;
   const sandbox = {
     console,
     document: { createElement: (tagName) => createNode(tagName) },
     window: {
-      addEventListener(type, listener) { listeners.set(type, listener); },
-      removeEventListener(type) { listeners.delete(type); },
+      addEventListener(type, listener) {
+        listeners.set(type, listener);
+      },
+      removeEventListener(type) {
+        listeners.delete(type);
+      },
       queryLocalFonts() {
         queryCount += 1;
         if (queryCount === 1) {
@@ -136,12 +152,12 @@ test('shared local font library retries a security error after the first user ge
           throw error;
         }
         return Promise.resolve([{ family: 'Cascadia Code' }]);
-      }
-    }
+      },
+    },
   };
   const library = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
-    sandbox
+    sandbox,
   );
 
   library.registerLocalFontSelect(select);
@@ -154,7 +170,9 @@ test('shared local font library retries a security error after the first user ge
 
   assert.equal(queryCount, 2);
   assert.deepEqual(
-    select.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.textContent),
-    ['Cascadia Code']
+    select
+      .querySelector('optgroup[data-local-fonts="true"]')
+      .children.map((option) => option.textContent),
+    ['Cascadia Code'],
   );
 });

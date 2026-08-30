@@ -6,7 +6,14 @@
   // 等待所有子模块加载完成
   function ensureModulesLoaded() {
     const gifts = window.AdminApp.gifts;
-    return gifts.notification && gifts.detection && gifts.sprint && gifts.recent && gifts.blindbox && gifts.history;
+    return (
+      gifts.notification &&
+      gifts.detection &&
+      gifts.sprint &&
+      gifts.recent &&
+      gifts.blindbox &&
+      gifts.history
+    );
   }
 
   /**
@@ -23,13 +30,21 @@
       return;
     }
 
-    const { notification, detection, sprint: sprintModule, recent, blindbox } = window.AdminApp.gifts;
+    const {
+      notification,
+      detection,
+      sprint: sprintModule,
+      recent,
+      blindbox,
+    } = window.AdminApp.gifts;
 
     // 礼物检测状态
     detection.renderDetectionStatus(sprint, live);
 
     // 礼物提示 toggle
-    const notificationToggle = document.getElementById('enableGiftNotification');
+    const notificationToggle = document.getElementById(
+      'enableGiftNotification',
+    );
     if (notificationToggle) {
       notificationToggle.checked = settings.enableGiftNotification !== 'false';
     }
@@ -58,44 +73,46 @@
     renderGiftPanel,
 
     // 通知模块兼容接口
-    notifyNewGift: function() {
+    notifyNewGift: function () {
       return window.AdminApp.gifts.notification.notifyNewGift(...arguments);
     },
 
     // 最近礼物模块兼容接口
-    renderGiftRecentList: function() {
+    renderGiftRecentList: function () {
       return window.AdminApp.gifts.recent.renderGiftRecentList(...arguments);
     },
 
     // 盲盒模块兼容接口
-    renderBlindBoxList: function() {
+    renderBlindBoxList: function () {
       return window.AdminApp.gifts.blindbox.renderBlindBoxList(...arguments);
     },
-    loadBlindBoxStats: function() {
+    loadBlindBoxStats: function () {
       return window.AdminApp.gifts.blindbox.loadBlindBoxStats(...arguments);
     },
-    renderBlindBoxStats: function() {
+    renderBlindBoxStats: function () {
       return window.AdminApp.gifts.blindbox.renderBlindBoxStats(...arguments);
     },
-    initBlindBoxStatsToggle: function() {
-      return window.AdminApp.gifts.blindbox.initBlindBoxStatsToggle(...arguments);
+    initBlindBoxStatsToggle: function () {
+      return window.AdminApp.gifts.blindbox.initBlindBoxStatsToggle(
+        ...arguments,
+      );
     },
 
     // 历史模块兼容接口
-    initGiftHistoryDrawer: function() {
+    initGiftHistoryDrawer: function () {
       return window.AdminApp.gifts.history.initGiftHistoryDrawer(...arguments);
     },
-    openGiftHistoryDrawer: function() {
+    openGiftHistoryDrawer: function () {
       return window.AdminApp.gifts.history.openGiftHistoryDrawer(...arguments);
     },
-    closeGiftHistoryDrawer: function() {
+    closeGiftHistoryDrawer: function () {
       return window.AdminApp.gifts.history.closeGiftHistoryDrawer(...arguments);
     },
-    loadGiftHistory: function() {
+    loadGiftHistory: function () {
       return window.AdminApp.gifts.history.loadGiftHistory(...arguments);
     },
-    initGiftRecentToggle: function() {
+    initGiftRecentToggle: function () {
       return window.AdminApp.gifts.history.initGiftRecentToggle(...arguments);
-    }
+    },
   });
 })();

@@ -1,16 +1,31 @@
-        <!-- 播放队列弹窗 -->
-        <div class="queue-popup-backdrop" id="queuePopupBackdrop"></div>
-        <div class="queue-popup" id="queuePopup">
-          <div class="queue-popup-head">
-            <strong id="queuePopupTitle" class="ui-section-title">播放队列</strong>
-            <span id="queuePopupSize" class="pill ui-caption">0 首</span>
-            <div class="queue-popup-actions">
-              <button id="playbackImportSongQueue" type="button">导入点歌</button>
-              <button id="playbackClearQueue" class="danger" type="button">清空</button>
-            </div>
-            <button id="queuePopupClose" class="playback-icon-btn" type="button" title="关闭">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="queue-popup-body" id="playbackQueueList"></div>
-        </div>
+<!-- 播放队列弹窗 -->
+<div class="queue-popup-backdrop" id="queuePopupBackdrop"></div>
+<div class="queue-popup" id="queuePopup">
+  <div class="queue-popup-head">
+    <strong id="queuePopupTitle" class="ui-section-title">播放队列</strong>
+    <span id="queuePopupSize" class="pill ui-caption">0 首</span>
+    <div class="queue-popup-actions">
+      <button id="playbackImportSongQueue" type="button">导入点歌</button>
+      <button id="playbackClearQueue" class="danger" type="button">清空</button>
+    </div>
+    <button
+      id="queuePopupClose"
+      class="playback-icon-btn"
+      type="button"
+      title="关闭"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+  </div>
+  <div class="queue-popup-body" id="playbackQueueList"></div>
+</div>

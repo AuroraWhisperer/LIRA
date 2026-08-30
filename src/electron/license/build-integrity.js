@@ -9,13 +9,28 @@ function getBuildInfo(options = {}) {
   const isPackaged = options.isPackaged === true;
   const appPath = options.appPath || '';
   if (!isPackaged || !appPath || !fs.existsSync(appPath)) {
-    return { appVersion, buildId: `LIRA/${appVersion}/dev`, integrityStatus: 'unverified' };
+    return {
+      appVersion,
+      buildId: `LIRA/${appVersion}/dev`,
+      integrityStatus: 'unverified',
+    };
   }
   try {
-    const digest = crypto.createHash('sha256').update(fs.readFileSync(appPath)).digest('hex');
-    return { appVersion, buildId: `LIRA/${appVersion}/${digest}`, integrityStatus: 'verified' };
+    const digest = crypto
+      .createHash('sha256')
+      .update(fs.readFileSync(appPath))
+      .digest('hex');
+    return {
+      appVersion,
+      buildId: `LIRA/${appVersion}/${digest}`,
+      integrityStatus: 'verified',
+    };
   } catch (_) {
-    return { appVersion, buildId: `LIRA/${appVersion}/unverified`, integrityStatus: 'unverified' };
+    return {
+      appVersion,
+      buildId: `LIRA/${appVersion}/unverified`,
+      integrityStatus: 'unverified',
+    };
   }
 }
 

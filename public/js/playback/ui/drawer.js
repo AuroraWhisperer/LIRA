@@ -34,7 +34,9 @@ export class Drawer {
     this.actionsEl = document.getElementById('playbackDrawerActions');
     this.backBtn = document.getElementById('playbackDrawerBack');
     this.refreshBtn = document.getElementById('playbackDrawerRefresh');
-    this.headerPlayAllBtn = document.getElementById('playbackDrawerPlayAllHeader');
+    this.headerPlayAllBtn = document.getElementById(
+      'playbackDrawerPlayAllHeader',
+    );
   }
 
   /**
@@ -83,7 +85,13 @@ export class Drawer {
     }
 
     const prev = this.history.pop();
-    this.renderContent(prev.items, prev.itemType, prev.action, prev.title, prev.page);
+    this.renderContent(
+      prev.items,
+      prev.itemType,
+      prev.action,
+      prev.title,
+      prev.page,
+    );
 
     if (this.backBtn) {
       this.backBtn.style.display = this.history.length > 0 ? '' : 'none';
@@ -104,7 +112,7 @@ export class Drawer {
       itemType,
       action,
       title,
-      page
+      page,
     });
   }
 
@@ -115,7 +123,8 @@ export class Drawer {
   setLoading(message, hint = '') {
     if (!this.bodyEl) return;
 
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml =
+      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
     const hintHtml = hint ? `<small>${escapeHtml(hint)}</small>` : '';
     this.bodyEl.innerHTML = `<div class="playback-drawer-loading ui-body"><span>${escapeHtml(message)}</span>${hintHtml}</div>`;
     this.updateActions(false);
@@ -128,7 +137,8 @@ export class Drawer {
   setError(message) {
     if (!this.bodyEl) return;
 
-    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml =
+      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
     this.bodyEl.innerHTML = `<p class="playback-drawer-state playback-drawer-error ui-caption">${escapeHtml(message)}</p>`;
     this.updateActions(false);
   }
@@ -145,7 +155,8 @@ export class Drawer {
     if (!this.bodyEl) return;
 
     if (!items || !items.length) {
-      this.bodyEl.innerHTML = '<p class="playback-drawer-state playback-drawer-empty ui-caption">暂无内容</p>';
+      this.bodyEl.innerHTML =
+        '<p class="playback-drawer-state playback-drawer-empty ui-caption">暂无内容</p>';
       this.updateActions(false, action);
       return;
     }
@@ -156,9 +167,10 @@ export class Drawer {
 
     // 更新副标题
     if (this.subtitleEl) {
-      this.subtitleEl.textContent = itemType === 'playlist'
-        ? `${items.length} 个歌单`
-        : `${items.length} 首`;
+      this.subtitleEl.textContent =
+        itemType === 'playlist'
+          ? `${items.length} 个歌单`
+          : `${items.length} 首`;
     }
 
     // 渲染内容
@@ -179,7 +191,9 @@ export class Drawer {
     if (!this.bodyEl) return;
 
     const html = playlists
-      .map((playlist, index) => UIComponents.renderPlaylistCard(playlist, index))
+      .map((playlist, index) =>
+        UIComponents.renderPlaylistCard(playlist, index),
+      )
       .join('');
 
     this.bodyEl.innerHTML = html;
@@ -194,7 +208,9 @@ export class Drawer {
     if (!this.bodyEl) return;
 
     const html = tracks
-      .map((track, index) => UIComponents.renderHomeTrackRow(track, index, 'home', action))
+      .map((track, index) =>
+        UIComponents.renderHomeTrackRow(track, index, 'home', action),
+      )
       .join('');
 
     this.bodyEl.innerHTML = html;
@@ -224,8 +240,10 @@ export class Drawer {
     this.actionsEl.innerHTML = '';
 
     if (showPlayAll) {
-      this.actionsEl.innerHTML += '<button id="playbackDrawerPlayAll" type="button">播放全部</button>';
-      this.actionsEl.innerHTML += '<button id="playbackDrawerShuffleAll" type="button">随机播放</button>';
+      this.actionsEl.innerHTML +=
+        '<button id="playbackDrawerPlayAll" type="button">播放全部</button>';
+      this.actionsEl.innerHTML +=
+        '<button id="playbackDrawerShuffleAll" type="button">随机播放</button>';
     }
 
     this.actionsEl.hidden = !showPlayAll;

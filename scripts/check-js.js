@@ -26,7 +26,7 @@ for (const sourceDir of sourceDirs) {
 
 for (const filePath of files.sort()) {
   const result = spawnSync(process.execPath, ['--check', filePath], {
-    stdio: 'inherit'
+    stdio: 'inherit',
   });
   if (result.status !== 0) process.exit(result.status || 1);
 }

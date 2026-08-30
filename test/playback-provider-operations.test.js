@@ -13,18 +13,25 @@ test('NetEase login closure names the selected music provider', async () => {
   const notifications = [];
   const button = { disabled: false };
   const { createProviderOperations } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'operations', 'provider-operations.js'),
+    path.join(
+      ROOT_DIR,
+      'public',
+      'js',
+      'playback',
+      'operations',
+      'provider-operations.js',
+    ),
     {
       document: { getElementById: () => button },
-      window: { musicAPI: { login: async () => {} } }
-    }
+      window: { musicAPI: { login: async () => {} } },
+    },
   );
   const operations = createProviderOperations({
     playbackState: { selectedSource: 'netease' },
     providerManager: {
       refreshAuthState: async () => ({ platform: 'netease', loggedIn: false }),
       checkProviderHealth: async () => ({ source: 'netease', ok: true }),
-      getProviderHealth: () => ({ source: 'netease', ok: true })
+      getProviderHealth: () => ({ source: 'netease', ok: true }),
     },
     weSingService: { setSelected: async () => {} },
     savePlaybackState: () => {},
@@ -32,7 +39,7 @@ test('NetEase login closure names the selected music provider', async () => {
     getPlaybackAudio: () => null,
     toast: () => {},
     showError: () => {},
-    U: { showStackedToast: (notification) => notifications.push(notification) }
+    U: { showStackedToast: (notification) => notifications.push(notification) },
   });
 
   await operations.loginSelectedMusicProvider();
@@ -50,11 +57,13 @@ async function loadModuleExports(entryPath, globals = {}) {
     if (modules.has(identifier)) return modules.get(identifier);
     const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
       context,
-      identifier
+      identifier,
     });
     modules.set(identifier, module);
     await module.link((specifier, referencingModule) => {
-      return load(fileURLToPath(new URL(specifier, referencingModule.identifier)));
+      return load(
+        fileURLToPath(new URL(specifier, referencingModule.identifier)),
+      );
     });
     return module;
   }

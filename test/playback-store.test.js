@@ -19,7 +19,7 @@ test('partial play-history updates preserve existing non-empty metadata', () => 
       artists: ['完整歌手'],
       album: '完整专辑',
       coverUrl: 'https://example.test/cover.jpg',
-      durationMs: 180000
+      durationMs: 180000,
     });
 
     store.recordPlay({ source: 'qq', id: '123' });

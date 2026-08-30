@@ -47,6 +47,7 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 ## Task 1: Configuration contract and endpoint owner
 
 **Files:**
+
 - Create: `src/ai/model-endpoint.js`
 - Modify: `src/ai/config.js`
 - Modify: `src/ai/config-store.js`
@@ -55,6 +56,7 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 - Test: `test/ai-routes.test.js`
 
 **Interfaces:**
+
 - `resolveModelEndpoint(url, protocolPreference)` returns `{url, protocol, adapted, officialDeepSeek}`.
 - `resolveModelsEndpoint(url)` returns the model-list URL.
 - `describeModelEndpoint(url, protocolPreference)` returns the public capability enums defined by the specification.
@@ -67,11 +69,13 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 ## Task 2: Protocol and reasoning request behavior
 
 **Files:**
+
 - Modify: `src/ai/deepseek-client.js`
 - Test: `test/ai-provider-adapters.test.js`
 - Test: `test/third-party-api-compatibility.test.js`
 
 **Interfaces:**
+
 - Consumes the endpoint helpers from Task 1.
 - Responses reasoning uses `reasoningEnabled` plus `reasoningEffort`; Chat behavior remains provider-safe.
 
@@ -83,12 +87,14 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 ## Task 3: Capability-aware Admin interface
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/ai-assistant-settings.js`
 - Modify: `public/css/admin/other-features/ai-assistant.css`
 - Test: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**
+
 - Reads `modelApiProtocol`, `reasoningEffort`, and server-derived `modelEndpoint` from the existing config response.
 - Submits new fields through the existing autosave flow.
 
@@ -100,6 +106,7 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 ## Task 4: Contracts and gates
 
 **Files:**
+
 - Modify: `docs/architecture/backend/ai.md`
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/third-party-api-support.md`

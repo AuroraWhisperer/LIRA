@@ -4,14 +4,16 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 test('server compatibility wrappers reuse one runtime and preserve stop defaults', async () => {
-  const { createServerCompatibility } = require('../src/server/compatibility-runtime');
+  const {
+    createServerCompatibility,
+  } = require('../src/server/compatibility-runtime');
   const calls = [];
   const runtime = {
     start: (options) => calls.push(['start', options]),
     stop: (options) => calls.push(['stop', options]),
     setPreShutdownHook: (hook) => calls.push(['hook', hook]),
     persistPlaybackSnapshot: (payload, clientId) => ({ payload, clientId }),
-    getApiToken: () => 'token'
+    getApiToken: () => 'token',
   };
   let factoryCalls = 0;
   const compatibility = createServerCompatibility((options) => {
@@ -31,7 +33,7 @@ test('server compatibility wrappers reuse one runtime and preserve stop defaults
     ['factory', { dataDir: 'data-a' }],
     ['start', { dataDir: 'data-a', startPort: 0 }],
     ['hook', hook],
-    ['stop', { exitProcess: true }]
+    ['stop', { exitProcess: true }],
   ]);
 });
 
@@ -40,25 +42,43 @@ test('server API context keeps route domains explicit and publishes lyric state'
   const noop = () => {};
   const domainServices = {
     songs: {
-      list: noop, save: noop, delete: noop, toggle: noop, import: noop,
-      listCategories: noop, count: noop
+      list: noop,
+      save: noop,
+      delete: noop,
+      toggle: noop,
+      import: noop,
+      listCategories: noop,
+      count: noop,
     },
     queue: { add: noop, handleAction: noop },
     superChats: { handleAction: noop },
     gifts: {
-      resetSprint: noop, getHistory: noop, getBlindBoxStats: noop,
-      getBlindBoxAnalysis: noop, search: noop, clearRecent: noop
+      resetSprint: noop,
+      getHistory: noop,
+      getBlindBoxStats: noop,
+      getBlindBoxAnalysis: noop,
+      search: noop,
+      clearRecent: noop,
     },
     overtime: {
-      getOverview: noop, setTime: noop, act: noop, setBackground: noop, replaceRules: noop
+      getOverview: noop,
+      setTime: noop,
+      act: noop,
+      setBackground: noop,
+      replaceRules: noop,
     },
     data: {
-      clearSongLibrary: noop, clearSuperChats: noop, clearPlayback: noop,
-      clearGifts: noop, clearAll: noop, getSchemaVersions: () => ({ song: 3 }),
-      getRetentionStats: noop, runRetention: noop
+      clearSongLibrary: noop,
+      clearSuperChats: noop,
+      clearPlayback: noop,
+      clearGifts: noop,
+      clearAll: noop,
+      getSchemaVersions: () => ({ song: 3 }),
+      getRetentionStats: noop,
+      runRetention: noop,
     },
     playback: { saveQueueState: noop },
-    theme: { get: noop }
+    theme: { get: noop },
   };
   const published = [];
   const context = createApiContext({
@@ -70,22 +90,51 @@ test('server API context keeps route domains explicit and publishes lyric state'
     publishLyricState: (state) => published.push(state),
     publishLyricTimeline: noop,
     weSingCapture: {
-      getStatus: noop, setCachePath: noop, setLyricOffsetMs: noop, setActive: noop, refresh: noop
+      getStatus: noop,
+      setCachePath: noop,
+      setLyricOffsetMs: noop,
+      setActive: noop,
+      refresh: noop,
     },
     bilibili: {
-      liveStatus: { connected: false }, configure: noop, reconnect: noop,
-      updateStatus: noop, auth: null, danmakuSender: { getState: noop, send: noop }
+      liveStatus: { connected: false },
+      configure: noop,
+      reconnect: noop,
+      updateStatus: noop,
+      auth: null,
+      danmakuSender: { getState: noop, send: noop },
     },
-    ai: { configStore: { getPublicConfig: noop, updateConfig: noop }, service: {
-      getStatus: noop, listModels: noop, testConfiguration: noop, testProvider: noop
-    } },
-    settings: { defaults: { theme: 'default' }, store: { getSettings: noop, setSetting: noop } },
+    ai: {
+      configStore: { getPublicConfig: noop, updateConfig: noop },
+      service: {
+        getStatus: noop,
+        listModels: noop,
+        testConfiguration: noop,
+        testProvider: noop,
+      },
+    },
+    settings: {
+      defaults: { theme: 'default' },
+      store: { getSettings: noop, setSetting: noop },
+    },
     system: {
-      rootDir: 'root', dataDir: 'data', songDbPath: 'song.db', superChatDbPath: 'sc.db',
-      giftDbPath: 'gift.db', musicDbPath: 'music.db', checkinDbPath: 'checkin.db',
-      liveStatus: { connected: false }, getState: noop, shutdown: noop
+      rootDir: 'root',
+      dataDir: 'data',
+      songDbPath: 'song.db',
+      superChatDbPath: 'sc.db',
+      giftDbPath: 'gift.db',
+      musicDbPath: 'music.db',
+      checkinDbPath: 'checkin.db',
+      liveStatus: { connected: false },
+      getState: noop,
+      shutdown: noop,
     },
-    music: { registry: {}, lyrics: {}, apiCacheDir: 'api-cache', lyricCacheDir: 'lyric-cache' }
+    music: {
+      registry: {},
+      lyrics: {},
+      apiCacheDir: 'api-cache',
+      lyricCacheDir: 'lyric-cache',
+    },
   });
 
   assert.equal(context.maxBodyBytes, 1024);
@@ -97,4 +146,3 @@ test('server API context keeps route domains explicit and publishes lyric state'
   assert.deepEqual(published, [{ trackTitle: '测试' }]);
   assert.deepEqual(context.system.getHealth().schemaVersions, { song: 3 });
 });
-

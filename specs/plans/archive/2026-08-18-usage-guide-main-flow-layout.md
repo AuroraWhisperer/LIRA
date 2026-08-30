@@ -89,7 +89,9 @@ Add a focused test beside the existing toolbox/usage-guide assertions:
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];
-  const markerRule = source.match(/\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/)?.[0];
+  const markerRule = source.match(
+    /\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/,
+  )?.[0];
 
   assert.ok(stepRule, 'usage guide step layout should remain defined');
   assert.ok(markerRule, 'usage guide step marker should remain defined');

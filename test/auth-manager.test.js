@@ -11,9 +11,9 @@ function loadAuthManager(cookies) {
     safeStorage: { isEncryptionAvailable: () => false },
     session: {
       fromPartition: () => ({
-        cookies: { get: async () => cookies }
-      })
-    }
+        cookies: { get: async () => cookies },
+      }),
+    },
   };
 
   try {
@@ -45,7 +45,7 @@ test('QQ auth does not treat generic QQ session cookies as music login', async (
   for (const name of ['p_skey', 'skey']) {
     const authManager = loadAuthManager([
       qqCookie(name, 'token'),
-      qqCookie('uin', 'o123456')
+      qqCookie('uin', 'o123456'),
     ]);
     const state = await authManager.getMusicAuthState('qq', 'test-data');
     assert.equal(state.loggedIn, false, name);
@@ -58,15 +58,23 @@ test('QQ auth ignores empty auth cookies and unrelated key cookies', async () =>
     qqCookie('qm_keyst', ''),
     qqCookie('p_skey', ''),
     qqCookie('skey', ''),
-    qqCookie('uin', 'o123456')
+    qqCookie('uin', 'o123456'),
   ]);
   const state = await authManager.getMusicAuthState('qq', 'test-data');
   assert.equal(state.loggedIn, false);
-  assert.deepEqual(state.keyCookieNames, ['uin', 'qqmusic_key', 'qm_keyst', 'p_skey', 'skey']);
+  assert.deepEqual(state.keyCookieNames, [
+    'uin',
+    'qqmusic_key',
+    'qm_keyst',
+    'p_skey',
+    'skey',
+  ]);
 });
 
 test('QQ auth still filters auth cookies outside the allowed domains', async () => {
-  const authManager = loadAuthManager([qqCookie('qqmusic_key', 'token', '.evil.example')]);
+  const authManager = loadAuthManager([
+    qqCookie('qqmusic_key', 'token', '.evil.example'),
+  ]);
   const state = await authManager.getMusicAuthState('qq', 'test-data');
   assert.equal(state.loggedIn, false);
   assert.equal(state.cookieCount, 0);

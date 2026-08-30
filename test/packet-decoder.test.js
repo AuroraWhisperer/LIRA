@@ -2,7 +2,9 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { parseBilibiliPackets } = require('../src/bilibili/parsers/packet-decoder');
+const {
+  parseBilibiliPackets,
+} = require('../src/bilibili/parsers/packet-decoder');
 
 test('malformed packet stops parsing and discards later packets in the same buffer', () => {
   const malformed = Buffer.alloc(16);

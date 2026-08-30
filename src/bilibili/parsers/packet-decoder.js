@@ -50,7 +50,12 @@ function parseBilibiliPackets(buffer) {
     const packetLength = buffer.readUInt32BE(offset);
     const headerLength = buffer.readUInt16BE(offset + 4);
     // 畸形包防护：长度不合法时中止解析，避免 subarray 越界抛 RangeError 中断整个 buffer。
-    if (packetLength < 16 || headerLength < 16 || headerLength > packetLength || offset + packetLength > buffer.length) {
+    if (
+      packetLength < 16 ||
+      headerLength < 16 ||
+      headerLength > packetLength ||
+      offset + packetLength > buffer.length
+    ) {
       break;
     }
     const protocolVersion = buffer.readUInt16BE(offset + 6);
@@ -62,7 +67,9 @@ function parseBilibiliPackets(buffer) {
     if (operation === 5) {
       if (protocolVersion === 3) {
         try {
-          messages.push(...parseBilibiliPackets(zlib.brotliDecompressSync(body)));
+          messages.push(
+            ...parseBilibiliPackets(zlib.brotliDecompressSync(body)),
+          );
         } catch (error) {
           console.warn(`Bilibili brotli decode failed: ${error.message}`);
         }
@@ -91,5 +98,5 @@ function parseBilibiliPackets(buffer) {
 
 module.exports = {
   splitJsonObjects,
-  parseBilibiliPackets
+  parseBilibiliPackets,
 };

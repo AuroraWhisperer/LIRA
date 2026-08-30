@@ -9,7 +9,7 @@ const CACHEABLE_ACTIONS = new Set([
   'liked',
   'created-playlists',
   'collected-playlists',
-  'playlist-tracks'
+  'playlist-tracks',
 ]);
 
 /**
@@ -54,7 +54,8 @@ export class ContentLoader {
    */
   _restoreFromCache(cached, action) {
     this.homeItems = Array.isArray(cached.items) ? cached.items : [];
-    this.homeItemType = cached.itemType || (action === 'liked' ? 'track' : 'playlist');
+    this.homeItemType =
+      cached.itemType || (action === 'liked' ? 'track' : 'playlist');
     this.homeAction = cached.action || action;
     this.homePage = 1;
   }
@@ -90,7 +91,7 @@ export class ContentLoader {
           itemType: this.homeItemType,
           action: this.homeAction,
           title: title,
-          fromCache: true
+          fromCache: true,
         };
       }
     }
@@ -105,7 +106,7 @@ export class ContentLoader {
       this.cacheManager.set(cacheKey, {
         items: this.homeItems,
         itemType: this.homeItemType,
-        action: this.homeAction
+        action: this.homeAction,
       });
     }
 
@@ -158,7 +159,7 @@ export class ContentLoader {
         this.cacheManager.set(cacheKey, {
           items: freshResult.items,
           itemType: freshResult.itemType,
-          action: freshResult.action
+          action: freshResult.action,
         });
       }
 
@@ -175,7 +176,7 @@ export class ContentLoader {
           items: freshResult.items,
           itemType: freshResult.itemType,
           title: title,
-          changed: true
+          changed: true,
         });
       }
     } catch (_) {
@@ -198,13 +199,21 @@ export class ContentLoader {
 
     // 歌单列表：对比 id 列表
     if (action === 'created-playlists' || action === 'collected-playlists') {
-      const oldIds = oldItems.map((item) => item.id).sort().join(',');
-      const newIds = newItems.map((item) => item.id).sort().join(',');
+      const oldIds = oldItems
+        .map((item) => item.id)
+        .sort()
+        .join(',');
+      const newIds = newItems
+        .map((item) => item.id)
+        .sort()
+        .join(',');
       return oldIds !== newIds;
     }
 
     // 曲目列表：对比前 3 首和最后 1 首的 id
-    const sampleIndices = [0, 1, 2, oldItems.length - 1].filter((i) => i >= 0 && i < oldItems.length);
+    const sampleIndices = [0, 1, 2, oldItems.length - 1].filter(
+      (i) => i >= 0 && i < oldItems.length,
+    );
     for (const i of sampleIndices) {
       const oldId = oldItems[i] && oldItems[i].id;
       const newId = newItems[i] && newItems[i].id;
@@ -236,8 +245,8 @@ export class ContentLoader {
           platform: this.state.selectedSource,
           action: 'liked',
           limit: BATCH_SIZE,
-          offset: offset
-        })
+          offset: offset,
+        }),
       });
 
       const payload = await this.readJsonResponse(response, '加载我喜欢失败');
@@ -250,11 +259,13 @@ export class ContentLoader {
         ? payload.data.tracks
         : [];
 
-      const pageSignature = JSON.stringify(tracks.map((track) => [
-        track?.source ?? '',
-        track?.id ?? track?.sourceTrackId ?? '',
-        track?.title ?? ''
-      ]));
+      const pageSignature = JSON.stringify(
+        tracks.map((track) => [
+          track?.source ?? '',
+          track?.id ?? track?.sourceTrackId ?? '',
+          track?.title ?? '',
+        ]),
+      );
       if (tracks.length > 0 && seenPages.has(pageSignature)) break;
       if (tracks.length > 0) seenPages.add(pageSignature);
 
@@ -275,7 +286,7 @@ export class ContentLoader {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      title: title
+      title: title,
     };
   }
 
@@ -293,8 +304,8 @@ export class ContentLoader {
         platform: this.state.selectedSource,
         action: 'playlist-tracks',
         playlistId: playlistId,
-        limit: 5000
-      })
+        limit: 5000,
+      }),
     });
 
     const payload = await this.readJsonResponse(response, '打开歌单失败');
@@ -312,7 +323,7 @@ export class ContentLoader {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      title: title
+      title: title,
     };
   }
 
@@ -329,8 +340,8 @@ export class ContentLoader {
       body: JSON.stringify({
         platform: this.state.selectedSource,
         action: action,
-        limit: 5000
-      })
+        limit: 5000,
+      }),
     });
 
     const payload = await this.readJsonResponse(response, '加载内容失败');
@@ -347,7 +358,10 @@ export class ContentLoader {
     } else if (action === 'daily' || action === 'radio') {
       this.homeItems = Array.isArray(data.tracks) ? data.tracks : [];
       this.homeItemType = 'track';
-    } else if (action === 'created-playlists' || action === 'collected-playlists') {
+    } else if (
+      action === 'created-playlists' ||
+      action === 'collected-playlists'
+    ) {
       this.homeItems = Array.isArray(data.playlists) ? data.playlists : [];
       this.homeItemType = 'playlist';
     }
@@ -359,7 +373,7 @@ export class ContentLoader {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      title: title
+      title: title,
     };
   }
 
@@ -379,7 +393,7 @@ export class ContentLoader {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
-      page: this.homePage
+      page: this.homePage,
     };
   }
 

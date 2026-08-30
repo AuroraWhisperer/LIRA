@@ -14,7 +14,10 @@ test('confirmation dialog keeps one accessible shared contract', () => {
 
   assert.match(source, /variant = \['normal', 'caution', 'destructive'\]/);
   assert.match(source, /role="dialog" aria-modal="true"/);
-  assert.match(source, /aria-labelledby="\$\{titleId\}" aria-describedby="\$\{descriptionId\}"/);
+  assert.match(
+    source,
+    /aria-labelledby="\$\{titleId\}" aria-describedby="\$\{descriptionId\}"/,
+  );
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /event\.key !== 'Tab'/);
   assert.match(source, /element\.inert = true/);
@@ -30,32 +33,68 @@ test('transient surfaces use the shared typography hierarchy without orphan decl
     ['public', 'css', 'admin', 'toasts', 'system.css'],
     ['public', 'css', 'admin', 'toasts', 'gifts.css'],
     ['public', 'css', 'admin', 'other-features', 'interactive-tour.css'],
-    ['public', 'css', 'overlays', 'desktop.css']
+    ['public', 'css', 'overlays', 'desktop.css'],
   ];
-  const styles = files.map(parts => read(...parts)).join('\n');
-  const settings = read('public', 'js', 'admin', 'settings.js');
+  const styles = files.map((parts) => read(...parts)).join('\n');
+  const settings = read('public', 'js', 'admin', 'settings-operations.js');
 
   assert.doesNotMatch(styles, /^\s*;\s*$/m);
-  assert.match(styles, /\.lira-confirm-heading h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
-  assert.match(styles, /\.desktop-update-toast strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
-  assert.match(styles, /\.lira-tour-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
-  assert.match(styles, /\.shutdown-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-page-title\)/);
+  assert.match(
+    styles,
+    /\.lira-confirm-heading h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/,
+  );
+  assert.match(
+    styles,
+    /\.desktop-update-toast strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/,
+  );
+  assert.match(
+    styles,
+    /\.lira-tour-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/,
+  );
+  assert.match(
+    styles,
+    /\.shutdown-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-page-title\)/,
+  );
   assert.match(settings, /class="shutdown-title ui-page-title"/);
   assert.match(settings, /class="shutdown-hint ui-caption"/);
 });
 
 test('native selects and custom menus use the control accent without replacing semantics', () => {
   const baseStyles = read('public', 'css', 'styles-base.css');
-  const blindboxHtml = read('public', 'pages', 'admin', 'gifts', 'blindbox-analysis.html');
-  const blindboxJs = read('public', 'js', 'admin', 'gifts', 'blindbox-analysis.js');
-  const qualityJs = read('public', 'js', 'playback', 'core', 'event-handlers.js');
+  const blindboxHtml = read(
+    'public',
+    'pages',
+    'admin',
+    'gifts',
+    'blindbox-analysis.html',
+  );
+  const blindboxJs = read(
+    'public',
+    'js',
+    'admin',
+    'gifts',
+    'blindbox-analysis.js',
+  );
+  const qualityJs = read(
+    'public',
+    'js',
+    'playback',
+    'core',
+    'event-handlers.js',
+  );
   const qualityUi = read('public', 'js', 'playback', 'ui', 'playback-bar.js');
   const qualityHtml = read('public', 'pages', 'admin', 'playback', 'page.html');
   const aiHtml = read('public', 'pages', 'admin', 'toolbox', 'danmaku.html');
-  const aiJs = read('public', 'js', 'admin', 'ai-assistant-settings.js');
+  const aiJs = [
+    read('public', 'js', 'admin', 'ai-assistant-settings.js'),
+    read('public', 'js', 'admin', 'ai-assistant-config-view.js'),
+  ].join('\n');
 
   assert.match(baseStyles, /select\s*\{[\s\S]*appearance:\s*none/);
-  assert.match(baseStyles, /select:focus-visible\s*\{[\s\S]*var\(--color-control-focus\)/);
+  assert.match(
+    baseStyles,
+    /select:focus-visible\s*\{[\s\S]*var\(--color-control-focus\)/,
+  );
   assert.match(blindboxHtml, /aria-haspopup="listbox"/);
   assert.match(blindboxHtml, /role="listbox"/);
   assert.match(blindboxJs, /event\.key === 'Escape'/);
@@ -63,7 +102,10 @@ test('native selects and custom menus use the control accent without replacing s
   assert.match(qualityHtml, /role="menu"/);
   assert.match(qualityJs, /focusQualityOption/);
   assert.match(qualityUi, /role="menuitemradio"/);
-  assert.match(aiHtml, /role="combobox" aria-autocomplete="list" aria-haspopup="listbox"/);
+  assert.match(
+    aiHtml,
+    /role="combobox"\s+aria-autocomplete="list"\s+aria-haspopup="listbox"/,
+  );
   assert.match(aiJs, /modelMenu\.addEventListener\('keydown'/);
 });
 
@@ -91,18 +133,33 @@ test('native select options are rendered through contextual listbox panels', () 
   assert.match(settings, /data-dropdown-variant="settings"/);
   assert.match(filters, /data-dropdown-variant="filter"/);
   assert.match(games, /data-dropdown-variant="game"/);
-  assert.match(onboarding, /select:not\(\[disabled\]\):not\(\.lira-select-native\)/);
+  assert.match(
+    onboarding,
+    /select:not\(\[disabled\]\):not\(\.lira-select-native\)/,
+  );
 });
 
 test('shared select toggles closed from its trigger and uses a centered CSS chevron', () => {
   const source = read('public', 'js', 'shared', 'select-menu.js');
   const styles = read('public', 'css', 'components', 'select-menu.css');
 
-  assert.match(source, /setTimeout\(\(\) => \{[\s\S]*state\.open && !wrapper\.contains\(document\.activeElement\)/);
+  assert.match(
+    source,
+    /setTimeout\(\(\) => \{[\s\S]*state\.open && !wrapper\.contains\(document\.activeElement\)/,
+  );
   assert.doesNotMatch(source, /chevron\.textContent/);
-  assert.match(styles, /\.lira-select-chevron\s*\{[\s\S]*display:\s*grid[\s\S]*place-items:\s*center/);
-  assert.match(styles, /\.lira-select-chevron::before\s*\{[\s\S]*border-right:[\s\S]*border-bottom:/);
-  assert.match(styles, /\.lira-select\.is-open \.lira-select-chevron\s*\{[\s\S]*transform:\s*rotate\(180deg\)/);
+  assert.match(
+    styles,
+    /\.lira-select-chevron\s*\{[\s\S]*display:\s*grid[\s\S]*place-items:\s*center/,
+  );
+  assert.match(
+    styles,
+    /\.lira-select-chevron::before\s*\{[\s\S]*border-right:[\s\S]*border-bottom:/,
+  );
+  assert.match(
+    styles,
+    /\.lira-select\.is-open \.lira-select-chevron\s*\{[\s\S]*transform:\s*rotate\(180deg\)/,
+  );
 });
 
 test('admin runtime no longer composes the obsolete restart confirmation fragment', () => {
@@ -114,7 +171,10 @@ test('admin runtime no longer composes the obsolete restart confirmation fragmen
 });
 
 test('renderer code has no native confirm calls', () => {
-  const roots = [path.join(ROOT, 'public', 'js'), path.join(ROOT, 'src', 'electron')];
+  const roots = [
+    path.join(ROOT, 'public', 'js'),
+    path.join(ROOT, 'src', 'electron'),
+  ];
   const files = [];
   const visit = (directory) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -126,6 +186,10 @@ test('renderer code has no native confirm calls', () => {
   roots.forEach(visit);
   const nativeConfirmPattern = /\bconfirm\s*\(/;
   for (const file of files) {
-    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), nativeConfirmPattern, path.relative(ROOT, file));
+    assert.doesNotMatch(
+      fs.readFileSync(file, 'utf8'),
+      nativeConfirmPattern,
+      path.relative(ROOT, file),
+    );
   }
 });

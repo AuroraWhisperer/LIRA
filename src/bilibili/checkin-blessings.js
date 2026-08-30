@@ -27,4 +27,8 @@ function pickCheckinBlessing(value) {
   return blessings[index] || blessings[0];
 }
 
-module.exports = { CHECKIN_BLESSINGS, parseCheckinBlessings, pickCheckinBlessing };
+module.exports = {
+  CHECKIN_BLESSINGS,
+  parseCheckinBlessings,
+  pickCheckinBlessing,
+};

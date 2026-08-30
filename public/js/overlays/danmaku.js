@@ -1,6 +1,6 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 
-'use strict';
+('use strict');
 
 const MAX_ITEMS = 50;
 const OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked']);
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     autoScroll: false,
     resolveAvatarUrl: bilibiliImageSource,
     resolveEmoteUrl: bilibiliImageSource,
-    getGuardLabel: guardLabel
+    getGuardLabel: guardLabel,
   });
   syncRankedOverlayScale();
   window.addEventListener('resize', syncRankedOverlayScale);
@@ -44,7 +44,9 @@ function connectSocket() {
   clearTimeout(reconnectTimer);
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
-  const query = token ? `?token=${encodeURIComponent(token)}&topic=danmaku` : '?topic=danmaku';
+  const query = token
+    ? `?token=${encodeURIComponent(token)}&topic=danmaku`
+    : '?topic=danmaku';
   const url = `${protocol}//${location.host}/ws${query}`;
   socket = new WebSocket(url);
   socket.addEventListener('open', () => {
@@ -53,7 +55,7 @@ function connectSocket() {
     lastLiveStatus = null;
     applyLiveStatus();
   });
-  socket.addEventListener('message', event => {
+  socket.addEventListener('message', (event) => {
     let payload;
     try {
       payload = JSON.parse(event.data);
@@ -61,18 +63,22 @@ function connectSocket() {
       return;
     }
     if (payload.type === 'snapshot' && payload.state) {
-      const style = payload.state.settings ? payload.state.settings.danmakuOverlayStyle : '';
+      const style = payload.state.settings
+        ? payload.state.settings.danmakuOverlayStyle
+        : '';
       applyStyle(style);
-      if (Array.isArray(payload.state.danmakuFeed)) applyItems(payload.state.danmakuFeed);
+      if (Array.isArray(payload.state.danmakuFeed))
+        applyItems(payload.state.danmakuFeed);
       applyLiveStatus(payload.state.liveStatus);
       return;
     }
-    if (payload.type === 'danmaku:message' && payload.item) appendItem(payload.item);
+    if (payload.type === 'danmaku:message' && payload.item)
+      appendItem(payload.item);
   });
   socket.addEventListener('close', () => {
     localSocketConnected = false;
     applyLiveStatus();
-    const delay = Math.min(30000, 800 * (2 ** Math.min(reconnectAttempts, 6)));
+    const delay = Math.min(30000, 800 * 2 ** Math.min(reconnectAttempts, 6));
     reconnectAttempts += 1;
     reconnectTimer = setTimeout(connectSocket, delay);
   });
@@ -84,7 +90,7 @@ function applyItems(nextItems) {
   renderFrame = null;
   const seen = new Set();
   items = (Array.isArray(nextItems) ? nextItems : [])
-    .filter(item => {
+    .filter((item) => {
       const key = itemKey(item);
       if (seen.has(key)) return false;
       seen.add(key);
@@ -96,17 +102,18 @@ function applyItems(nextItems) {
 
 function appendItem(item) {
   const key = itemKey(item);
-  if (items.some(current => itemKey(current) === key)) return;
+  if (items.some((current) => itemKey(current) === key)) return;
   items = [...items, item].slice(-MAX_ITEMS);
   pendingItems = [...pendingItems, item].slice(-MAX_ITEMS);
-  if (renderFrame === null) renderFrame = requestAnimationFrame(flushPendingItems);
+  if (renderFrame === null)
+    renderFrame = requestAnimationFrame(flushPendingItems);
 }
 
 function flushPendingItems() {
   const nextItems = pendingItems;
   pendingItems = [];
   renderFrame = null;
-  nextItems.forEach(item => feed.append(item));
+  nextItems.forEach((item) => feed.append(item));
   renderMessageCount();
 }
 
@@ -116,11 +123,16 @@ function render() {
 }
 
 function renderMessageCount() {
-  document.getElementById('danmakuMessageCount').textContent = String(items.length).padStart(2, '0');
+  document.getElementById('danmakuMessageCount').textContent = String(
+    items.length,
+  ).padStart(2, '0');
 }
 
 function itemKey(item = {}) {
-  return String(item.id || `${item.uid || ''}:${item.timestamp || ''}:${item.message || ''}`);
+  return String(
+    item.id ||
+      `${item.uid || ''}:${item.timestamp || ''}:${item.message || ''}`,
+  );
 }
 
 function applyStyle(value) {
@@ -129,7 +141,10 @@ function applyStyle(value) {
 }
 
 function syncRankedOverlayScale() {
-  const scale = calculateRankedOverlayScale(window.innerWidth, window.innerHeight);
+  const scale = calculateRankedOverlayScale(
+    window.innerWidth,
+    window.innerHeight,
+  );
   document.documentElement.style.setProperty('--ranked-scale', String(scale));
 }
 
@@ -143,7 +158,8 @@ export function calculateRankedOverlayScale(viewportWidth, viewportHeight) {
 function bilibiliImageSource(value) {
   try {
     const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) return '';
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com'))
+      return '';
     const token = String(window.__API_TOKEN__ || '');
     return `/api/bilibili/avatar?url=${encodeURIComponent(url.toString())}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
   } catch (_) {
@@ -186,15 +202,42 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
   const connected = Boolean(liveStatus.connected);
   return {
     text: message || (connected ? '弹幕接收中' : 'B站弹幕连接中'),
-    connected
+    connected,
   };
 }
 
 function previewItems() {
   return [
-    { id: 'preview-1', name: '金色航线', message: '今晚也一起守到最后！这段副歌听完还想再循环一遍～', guardLevel: 1, medalName: '夜航', medalLevel: 28 },
-    { id: 'preview-2', name: '云端来信', message: '这一段的情绪太稳了', guardLevel: 2, medalName: '星频', medalLevel: 23 },
-    { id: 'preview-3', name: '阿沐', message: '前奏一响就知道是今晚的歌', guardLevel: 3, medalName: '夜航', medalLevel: 18 },
-    { id: 'preview-4', name: '晚风信号', message: '这个转音好稳 ✦', medalName: '星频', medalLevel: 9 }
+    {
+      id: 'preview-1',
+      name: '金色航线',
+      message: '今晚也一起守到最后！这段副歌听完还想再循环一遍～',
+      guardLevel: 1,
+      medalName: '夜航',
+      medalLevel: 28,
+    },
+    {
+      id: 'preview-2',
+      name: '云端来信',
+      message: '这一段的情绪太稳了',
+      guardLevel: 2,
+      medalName: '星频',
+      medalLevel: 23,
+    },
+    {
+      id: 'preview-3',
+      name: '阿沐',
+      message: '前奏一响就知道是今晚的歌',
+      guardLevel: 3,
+      medalName: '夜航',
+      medalLevel: 18,
+    },
+    {
+      id: 'preview-4',
+      name: '晚风信号',
+      message: '这个转音好稳 ✦',
+      medalName: '星频',
+      medalLevel: 9,
+    },
   ];
 }

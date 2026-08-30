@@ -4,7 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { once } = require('node:events');
 const { BilibiliApiClient } = require('../src/bilibili/danmaku/api-client');
-const { WebSocketConnection } = require('../src/bilibili/danmaku/websocket-connection');
+const {
+  WebSocketConnection,
+} = require('../src/bilibili/danmaku/websocket-connection');
 const packetParser = require('../src/bilibili/packet-parser');
 const { cleanText } = require('../src/shared/utils');
 
@@ -13,7 +15,13 @@ const DEFAULT_DURATION_SECONDS = 300;
 function parseArguments(argv, cwd = process.cwd()) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
 
-  const allowedOptions = new Set(['--room', '--duration', '--output', '--gift-only', '--bilibili-user-data']);
+  const allowedOptions = new Set([
+    '--room',
+    '--duration',
+    '--output',
+    '--gift-only',
+    '--bilibili-user-data',
+  ]);
   for (const argument of argv) {
     if (argument.startsWith('--') && !allowedOptions.has(argument)) {
       throw new Error(`Unknown option: ${argument}`);
@@ -21,7 +29,9 @@ function parseArguments(argv, cwd = process.cwd()) {
   }
 
   const roomId = readRequiredOption(argv, '--room');
-  const durationSeconds = Number(readOption(argv, '--duration') || DEFAULT_DURATION_SECONDS);
+  const durationSeconds = Number(
+    readOption(argv, '--duration') || DEFAULT_DURATION_SECONDS,
+  );
   if (!Number.isInteger(durationSeconds) || durationSeconds <= 0) {
     throw new Error('--duration must be a positive whole number of seconds');
   }
@@ -34,7 +44,9 @@ function parseArguments(argv, cwd = process.cwd()) {
     durationMs: durationSeconds * 1000,
     outputPath: path.resolve(cwd, outputOption || defaultOutputName()),
     giftOnly: argv.includes('--gift-only'),
-    bilibiliUserDataPath: bilibiliUserDataOption ? path.resolve(cwd, bilibiliUserDataOption) : ''
+    bilibiliUserDataPath: bilibiliUserDataOption
+      ? path.resolve(cwd, bilibiliUserDataOption)
+      : '',
   };
 }
 
@@ -48,7 +60,8 @@ function readOption(argv, option) {
   const index = argv.indexOf(option);
   if (index === -1) return '';
   const value = argv[index + 1];
-  if (!value || value.startsWith('--')) throw new Error(`${option} requires a value`);
+  if (!value || value.startsWith('--'))
+    throw new Error(`${option} requires a value`);
   return value;
 }
 
@@ -62,24 +75,31 @@ function buildCaptureRecord(message, receivedAt) {
     type: 'event',
     receivedAt,
     cmd: cleanText(message && message.cmd),
-    data: message && message.data && typeof message.data === 'object' ? message.data : {}
+    data:
+      message && message.data && typeof message.data === 'object'
+        ? message.data
+        : {},
   };
 }
 
 function shouldCaptureMessage(message, giftOnly) {
   if (!giftOnly) return true;
-  return packetParser.isBilibiliGiftLikeCommand(message && message.cmd, new Set());
+  return packetParser.isBilibiliGiftLikeCommand(
+    message && message.cmd,
+    new Set(),
+  );
 }
 
 async function captureEvents(options) {
   const apiClient = new BilibiliApiClient(options.roomId, {
     cookieHeader: options.cookieHeader || process.env.BILIBILI_COOKIE || '',
-    uid: Number(options.uid || process.env.BILIBILI_UID || 0)
+    uid: Number(options.uid || process.env.BILIBILI_UID || 0),
   });
   const roomInfo = await apiClient.resolveRoomInfo();
   const danmuInfo = await apiClient.resolveDanmuInfo(roomInfo.roomId);
   const host = (danmuInfo.host_list || [])[0];
-  if (!host) throw new Error('Bilibili did not provide a danmaku WebSocket host');
+  if (!host)
+    throw new Error('Bilibili did not provide a danmaku WebSocket host');
 
   fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
   const writer = fs.createWriteStream(options.outputPath, { flags: 'wx' });
@@ -90,7 +110,7 @@ async function captureEvents(options) {
     reason: '',
     eventCount: 0,
     commandCounts: {},
-    parseErrorCount: 0
+    parseErrorCount: 0,
   };
   let timer = null;
   let stopping = false;
@@ -118,7 +138,9 @@ async function captureEvents(options) {
   }
 
   function onSignal() {
-    stop('interrupted').catch((error) => console.error(`[Capture] shutdown failed: ${error.message}`));
+    stop('interrupted').catch((error) =>
+      console.error(`[Capture] shutdown failed: ${error.message}`),
+    );
   }
 
   connection.on('message', (buffer) => {
@@ -136,21 +158,28 @@ async function captureEvents(options) {
     }
   });
   connection.on('close', () => {
-    if (!stopping) stop('connection-closed').catch((error) => console.error(`[Capture] shutdown failed: ${error.message}`));
+    if (!stopping)
+      stop('connection-closed').catch((error) =>
+        console.error(`[Capture] shutdown failed: ${error.message}`),
+      );
   });
   connection.on('error', () => {
     console.warn('[Capture] WebSocket reported an error');
   });
 
   try {
-    await connection.connect(`wss://${host.host}:${host.wss_port || 443}/sub`, {
-      uid: apiClient.uid || 0,
-      roomid: roomInfo.roomId,
-      protover: 3,
-      platform: 'web',
-      type: 2,
-      key: danmuInfo.token
-    }, { waitForOpen: true });
+    await connection.connect(
+      `wss://${host.host}:${host.wss_port || 443}/sub`,
+      {
+        uid: apiClient.uid || 0,
+        roomid: roomInfo.roomId,
+        protover: 3,
+        platform: 'web',
+        type: 2,
+        key: danmuInfo.token,
+      },
+      { waitForOpen: true },
+    );
 
     writeRecord({
       type: 'meta',
@@ -158,11 +187,13 @@ async function captureEvents(options) {
       roomId: String(roomInfo.roomId),
       giftOnly: options.giftOnly,
       authenticated: Boolean(apiClient.cookieHeader && apiClient.uid),
-      uid: apiClient.uid || 0
+      uid: apiClient.uid || 0,
     });
     process.once('SIGINT', onSignal);
     timer = setTimeout(() => {
-      stop('duration-elapsed').catch((error) => console.error(`[Capture] shutdown failed: ${error.message}`));
+      stop('duration-elapsed').catch((error) =>
+        console.error(`[Capture] shutdown failed: ${error.message}`),
+      );
     }, options.durationMs);
     await completion;
   } catch (error) {
@@ -177,7 +208,9 @@ async function captureEvents(options) {
 async function loadBilibiliDesktopAuth(userDataPath) {
   if (!userDataPath) return null;
   if (!process.versions.electron) {
-    throw new Error('--bilibili-user-data requires running this script with Electron');
+    throw new Error(
+      '--bilibili-user-data requires running this script with Electron',
+    );
   }
 
   const { app } = require('electron');
@@ -193,14 +226,20 @@ async function loadBilibiliDesktopAuth(userDataPath) {
   return {
     cookieHeader: await auth.getBilibiliCookieHeader(),
     uid: await auth.getBilibiliUid(),
-    close: () => app.quit()
+    close: () => app.quit(),
   };
 }
 
 function printUsage() {
-  console.log('Usage: node scripts/capture-bilibili-events.js --room <roomId> [--duration <seconds>] [--output <path>] [--gift-only]');
-  console.log('Logged-in desktop capture: electron scripts/bilibili-capture-electron ... --bilibili-user-data <Electron userData path>');
-  console.log('Set BILIBILI_COOKIE when the room requires a logged-in danmaku connection.');
+  console.log(
+    'Usage: node scripts/capture-bilibili-events.js --room <roomId> [--duration <seconds>] [--output <path>] [--gift-only]',
+  );
+  console.log(
+    'Logged-in desktop capture: electron scripts/bilibili-capture-electron ... --bilibili-user-data <Electron userData path>',
+  );
+  console.log(
+    'Set BILIBILI_COOKIE when the room requires a logged-in danmaku connection.',
+  );
 }
 
 async function main() {
@@ -217,9 +256,13 @@ async function main() {
       options.cookieHeader = desktopAuth.cookieHeader;
       options.uid = desktopAuth.uid;
     }
-    console.log(`[Capture] room=${options.roomId} duration=${options.durationMs / 1000}s output=${options.outputPath} giftOnly=${options.giftOnly} authenticated=${Boolean(options.cookieHeader || process.env.BILIBILI_COOKIE)}`);
+    console.log(
+      `[Capture] room=${options.roomId} duration=${options.durationMs / 1000}s output=${options.outputPath} giftOnly=${options.giftOnly} authenticated=${Boolean(options.cookieHeader || process.env.BILIBILI_COOKIE)}`,
+    );
     const summary = await captureEvents(options);
-    console.log(`[Capture] finished reason=${summary.reason} events=${summary.eventCount} output=${options.outputPath}`);
+    console.log(
+      `[Capture] finished reason=${summary.reason} events=${summary.eventCount} output=${options.outputPath}`,
+    );
   } finally {
     if (desktopAuth) desktopAuth.close();
   }
@@ -237,5 +280,5 @@ module.exports = {
   buildCaptureRecord,
   shouldCaptureMessage,
   loadBilibiliDesktopAuth,
-  main
+  main,
 };

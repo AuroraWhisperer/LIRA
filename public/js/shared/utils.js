@@ -5,19 +5,23 @@
 import {
   dangerConfirm,
   logoutConfirm,
-  showConfirmationDialog
+  showConfirmationDialog,
 } from './confirmation-dialog.js';
 
 export { dangerConfirm, logoutConfirm, showConfirmationDialog };
 
-const multilingualFontFallback = '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
+const multilingualFontFallback =
+  '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
 let activeToastKeys = new Set();
 
 export function escapeHtml(value) {
   return String(value || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function escapeAttr(value) {
@@ -101,7 +105,9 @@ export function formatDuration(seconds) {
 export function formatSuperChatPrice(v) {
   const number = Number(v);
   if (!Number.isFinite(number)) return '0';
-  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return Number.isInteger(number)
+    ? String(number)
+    : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 export function formatMoney(v) {
@@ -112,8 +118,10 @@ export function formatMoney(v) {
 
 export function formatCompactNumber(v) {
   const number = Math.max(0, Number(v) || 0);
-  if (number >= 100000000) return `${(number / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
-  if (number >= 10000) return `${(number / 10000).toFixed(1).replace(/\.0$/, '')}万`;
+  if (number >= 100000000)
+    return `${(number / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
+  if (number >= 10000)
+    return `${(number / 10000).toFixed(1).replace(/\.0$/, '')}万`;
   return String(Math.round(number));
 }
 
@@ -130,7 +138,8 @@ export function toast(message) {
 export function showStackedToast(options) {
   const container = document.getElementById('toast');
   if (!container) return;
-  const key = options.key || `toast:${options.title || ''}:${options.message || ''}`;
+  const key =
+    options.key || `toast:${options.title || ''}:${options.message || ''}`;
   if (activeToastKeys.has(key)) return;
   activeToastKeys.add(key);
 
@@ -156,7 +165,8 @@ export function showStackedToast(options) {
   container.prepend(node);
 
   // 限制礼物通知最多同时显示6个
-  const isGiftNotification = options.className && options.className.includes('gift-notify-toast');
+  const isGiftNotification =
+    options.className && options.className.includes('gift-notify-toast');
   if (isGiftNotification) {
     const giftToasts = container.querySelectorAll('.gift-notify-toast');
     if (giftToasts.length > 6) {
@@ -165,7 +175,9 @@ export function showStackedToast(options) {
         const oldToast = giftToasts[i];
         oldToast.classList.remove('show');
         setTimeout(() => {
-          const oldKey = Array.from(activeToastKeys).find(k => k.startsWith('gift:'));
+          const oldKey = Array.from(activeToastKeys).find((k) =>
+            k.startsWith('gift:'),
+          );
           if (oldKey) activeToastKeys.delete(oldKey);
           oldToast.remove();
         }, 180);
@@ -175,10 +187,15 @@ export function showStackedToast(options) {
 
   void node.offsetWidth;
   node.classList.add('show');
-  const duration = Number.isFinite(Number(options.duration)) ? Number(options.duration) : 2600;
+  const duration = Number.isFinite(Number(options.duration))
+    ? Number(options.duration)
+    : 2600;
   setTimeout(() => {
     node.classList.remove('show');
-    setTimeout(() => { activeToastKeys.delete(key); node.remove(); }, 180);
+    setTimeout(() => {
+      activeToastKeys.delete(key);
+      node.remove();
+    }, 180);
   }, duration);
 }
 
@@ -190,7 +207,7 @@ export async function api(url, body) {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body || {})
+      body: JSON.stringify(body || {}),
     });
     const payload = await readJsonResponse(response, '请求失败');
     if (!payload.ok) {
@@ -209,12 +226,17 @@ export async function api(url, body) {
 export async function readJsonResponse(response, fallbackMessage) {
   const text = await response.text();
   if (!text) {
-    if (!response.ok) throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
+    if (!response.ok)
+      throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
     return {};
   }
-  try { return JSON.parse(text); } catch (_) {
+  try {
+    return JSON.parse(text);
+  } catch (_) {
     const preview = text.replace(/\s+/g, ' ').slice(0, 80);
-    throw new Error(`${fallbackMessage}：服务返回了非 JSON 内容（HTTP ${response.status}${preview ? `，${preview}` : ''}）`);
+    throw new Error(
+      `${fallbackMessage}：服务返回了非 JSON 内容（HTTP ${response.status}${preview ? `，${preview}` : ''}）`,
+    );
   }
 }
 
@@ -264,7 +286,7 @@ export const utils = {
   normalizeRangeValue,
   showConfirmationDialog,
   logoutConfirm,
-  dangerConfirm
+  dangerConfirm,
 };
 
 // 【过渡期兼容层】- 保持window.AdminApp.utils可用

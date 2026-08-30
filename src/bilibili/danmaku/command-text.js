@@ -8,9 +8,13 @@ const { isFortuneCommand } = require('../fortune-service');
 
 function isBilibiliCommandText(message, customMatcher = null) {
   const text = cleanText(message);
-  return text.startsWith('点歌') || text.startsWith('随机')
-    || isCheckinCommand(text) || isFortuneCommand(text)
-    || (typeof customMatcher === 'function' && customMatcher(text) === true);
+  return (
+    text.startsWith('点歌') ||
+    text.startsWith('随机') ||
+    isCheckinCommand(text) ||
+    isFortuneCommand(text) ||
+    (typeof customMatcher === 'function' && customMatcher(text) === true)
+  );
 }
 
 module.exports = { isBilibiliCommandText };

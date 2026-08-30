@@ -9,13 +9,13 @@ function jsonResponse(payload, status = 200) {
     ok: status >= 200 && status < 300,
     status,
     headers: { get: () => null },
-    text: async () => JSON.stringify(payload)
+    text: async () => JSON.stringify(payload),
   };
 }
 
 for (const [configuredUrl, expectedUrl] of [
   ['https://gcli.ggchan.dev/', 'https://gcli.ggchan.dev/v1/chat/completions'],
-  ['https://gcli.ggchan.dev/v1', 'https://gcli.ggchan.dev/v1/chat/completions']
+  ['https://gcli.ggchan.dev/v1', 'https://gcli.ggchan.dev/v1/chat/completions'],
 ]) {
   test(`third-party OpenAI base ${configuredUrl} uses Chat Completions`, async () => {
     let captured;
@@ -25,17 +25,19 @@ for (const [configuredUrl, expectedUrl] of [
         return jsonResponse({
           id: 'chatcmpl-third-party',
           object: 'chat.completion',
-          choices: [{
-            message: {
-              role: 'assistant',
-              content: '第三方接口连接正常',
-              reasoning_content: 'extra provider field'
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: '第三方接口连接正常',
+                reasoning_content: 'extra provider field',
+              },
+              finish_reason: 'stop',
             },
-            finish_reason: 'stop'
-          }],
-          usage: { prompt_tokens: 5, completion_tokens: 8 }
+          ],
+          usage: { prompt_tokens: 5, completion_tokens: 8 },
         });
-      }
+      },
     });
 
     const result = await client.createResponse({
@@ -44,12 +46,12 @@ for (const [configuredUrl, expectedUrl] of [
         deepseekApiKey: 'temporary-test-key',
         model: 'agy-gemini-3.7-flash-medium',
         requestTimeoutMs: 3000,
-        reasoningEnabled: false
+        reasoningEnabled: false,
       },
       instructions: '简短回复。',
       input: '你好',
       tools: [],
-      maxOutputTokens: 128
+      maxOutputTokens: 128,
     });
 
     assert.equal(captured.url, expectedUrl);
@@ -57,7 +59,7 @@ for (const [configuredUrl, expectedUrl] of [
     assert.equal(captured.body.thinking, undefined);
     assert.deepEqual(captured.body.messages, [
       { role: 'system', content: '简短回复。' },
-      { role: 'user', content: '你好' }
+      { role: 'user', content: '你好' },
     ]);
     assert.equal(result.text, '第三方接口连接正常');
     assert.deepEqual(result.usage, { inputTokens: 5, outputTokens: 8 });
@@ -70,17 +72,21 @@ test('complete third-party Chat Completions URL remains unchanged', async () => 
     fetchImpl: async (url) => {
       capturedUrl = String(url);
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
-    }
+    },
   });
 
   const result = await client.testConnection({
-    deepseekResponsesUrl: 'https://gateway.example.test/openai/v1/chat/completions',
+    deepseekResponsesUrl:
+      'https://gateway.example.test/openai/v1/chat/completions',
     deepseekApiKey: 'temporary-test-key',
     model: 'custom-model',
-    requestTimeoutMs: 3000
+    requestTimeoutMs: 3000,
   });
 
-  assert.equal(capturedUrl, 'https://gateway.example.test/openai/v1/chat/completions');
+  assert.equal(
+    capturedUrl,
+    'https://gateway.example.test/openai/v1/chat/completions',
+  );
   assert.equal(result.reply, 'ok');
   assert.equal(result.endpointAdapted, true);
 });
@@ -91,13 +97,13 @@ test('third-party site root derives the conventional v1 models endpoint', async 
     fetchImpl: async (url) => {
       capturedUrl = String(url);
       return jsonResponse({ data: [{ id: 'custom-model' }] });
-    }
+    },
   });
 
   const result = await client.listModels({
     apiKey: 'temporary-test-key',
     responsesUrl: 'https://gcli.ggchan.dev/',
-    requestTimeoutMs: 3000
+    requestTimeoutMs: 3000,
   });
 
   assert.equal(capturedUrl, 'https://gcli.ggchan.dev/v1/models');
@@ -110,7 +116,7 @@ test('explicit Responses protocol adapts a third-party root and sends reasoning 
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ id: 'resp_custom', output_text: 'ok' });
-    }
+    },
   });
 
   await client.createResponse({
@@ -121,11 +127,11 @@ test('explicit Responses protocol adapts a third-party root and sends reasoning 
       model: 'gpt-5.6-sol',
       reasoningEnabled: true,
       reasoningEffort: 'high',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
     instructions: '简短回复。',
     input: '你好',
-    tools: []
+    tools: [],
   });
 
   assert.equal(captured.url, 'https://www.aiyoyoo.com/v1/responses');
@@ -139,7 +145,7 @@ test('explicit Chat Completions protocol adapts a third-party root without reaso
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
-    }
+    },
   });
 
   await client.createResponse({
@@ -150,13 +156,16 @@ test('explicit Chat Completions protocol adapts a third-party root without reaso
       model: 'custom-reasoning-model',
       reasoningEnabled: true,
       reasoningEffort: 'high',
-      requestTimeoutMs: 3000
+      requestTimeoutMs: 3000,
     },
     input: '你好',
-    tools: []
+    tools: [],
   });
 
-  assert.equal(captured.url, 'https://gateway.example.test/v1/chat/completions');
+  assert.equal(
+    captured.url,
+    'https://gateway.example.test/v1/chat/completions',
+  );
   assert.equal(captured.body.reasoning, undefined);
   assert.equal(captured.body.thinking, undefined);
 });

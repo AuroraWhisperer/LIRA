@@ -1,23 +1,38 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>转转盘</title>
-    <link rel="stylesheet" href="/css/overlays/wheel.css?v=20260819-02">
+    <link rel="stylesheet" href="/css/overlays/wheel.css?v=20260819-02" />
   </head>
   <body>
     <main id="wheelStage" class="wheel-stage" aria-live="polite">
       <div class="wheel-wrap">
-        <svg id="wheelSvg" class="wheel-svg" viewBox="0 0 600 600" role="img" aria-label="直播转盘">
+        <svg
+          id="wheelSvg"
+          class="wheel-svg"
+          viewBox="0 0 600 600"
+          role="img"
+          aria-label="直播转盘"
+        >
           <g id="wheelGroup" class="wheel-group">
             <circle class="wheel-shadow" cx="300" cy="300" r="276"></circle>
             <g id="wheelSegments"></g>
             <circle class="wheel-rim" cx="300" cy="300" r="276"></circle>
           </g>
-          <g id="wheelCenterButton" class="wheel-center-button" role="button" tabindex="0" aria-label="开始转动">
+          <g
+            id="wheelCenterButton"
+            class="wheel-center-button"
+            role="button"
+            tabindex="0"
+            aria-label="开始转动"
+          >
             <circle class="wheel-center" cx="300" cy="300" r="50"></circle>
-            <path class="wheel-center-arrow" d="M300 267 288 281h8v13h8v-13h8Z"></path>
+            <path
+              class="wheel-center-arrow"
+              d="M300 267 288 281h8v13h8v-13h8Z"
+            ></path>
             <text class="wheel-center-label" x="300" y="321">GO</text>
           </g>
         </svg>

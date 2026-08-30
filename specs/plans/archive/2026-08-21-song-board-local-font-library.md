@@ -50,11 +50,13 @@ The illustrated queue selector in `public/pages/admin/song/queue-theme.html` con
 ## Task 1: Establish local-font sharing regressions
 
 **Files:**
+
 - Create: `test/local-font-library.test.js`
 - Modify: `test/frontend-queue.test.js`
 - Modify: `test/electron-main-modules.test.js`
 
 **Interfaces:**
+
 - Consumes: `window.queryLocalFonts(): Promise<Array<{ family: string }>>`.
 - Produces: failing coverage for `registerLocalFontSelect(select)` and `ensureSavedFontOption(select, value)`.
 
@@ -67,12 +69,14 @@ The illustrated queue selector in `public/pages/admin/song/queue-theme.html` con
 ## Task 2: Share automatic local-font discovery
 
 **Files:**
+
 - Create: `public/js/admin/local-font-library.js`
 - Modify: `public/js/admin/theme.js`
 - Modify: `public/js/admin/desktop-lyric.js`
 - Modify: `public/js/admin/forms.js`
 
 **Interfaces:**
+
 - `registerLocalFontSelect(select: HTMLSelectElement | null): void` registers a consumer and populates all registered consumers from one memoized local-font query.
 - `ensureSavedFontOption(select: HTMLSelectElement | null, value: string): void` preserves a stored selection that is absent from current built-ins and discovered options.
 
@@ -87,11 +91,13 @@ The illustrated queue selector in `public/pages/admin/song/queue-theme.html` con
 ## Task 3: Keep permission disclosure and contracts accurate
 
 **Files:**
+
 - Modify: `src/electron/desktop-permissions.js`
 - Modify: `docs/architecture/desktop/main.md`
 - Modify: `docs/architecture/frontend/app.md`
 
 **Interfaces:**
+
 - Consumes: the existing exact-origin `localFonts` permission handler.
 - Produces: accurate user disclosure and owner documentation; no permission or IPC shape changes.
 

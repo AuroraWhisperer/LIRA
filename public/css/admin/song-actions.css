@@ -22,11 +22,14 @@
   font-weight: var(--type-weight-bold);
   line-height: 1;
   letter-spacing: 1px;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .song-actions-trigger:hover,
-.song-actions-trigger[aria-expanded="true"] {
+.song-actions-trigger[aria-expanded='true'] {
   border-color: var(--accent);
   background: var(--surface-2);
   color: var(--accent);

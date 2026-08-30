@@ -18,10 +18,13 @@ export function renderConnBar(state) {
 export function renderBubbleTable(gifts) {
   const tbody = document.getElementById('bubbleTableBody');
   if (gifts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">未解析到礼物（请检查 HTML 格式）</td></tr>';
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="empty-state">未解析到礼物（请检查 HTML 格式）</td></tr>';
     return;
   }
-  tbody.innerHTML = gifts.map((g, i) => `
+  tbody.innerHTML = gifts
+    .map(
+      (g, i) => `
     <tr>
       <td>${i + 1}</td>
       <td><span class="user-name-display">${escHtml(g.userName)}</span></td>
@@ -29,17 +32,22 @@ export function renderBubbleTable(gifts) {
       <td>×${g.comboCount}</td>
       <td><span class="badge badge-info">气泡</span></td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join('');
   document.getElementById('bubbleCount').textContent = gifts.length + ' 条';
 }
 
 export function renderServerTable(gifts) {
   const tbody = document.getElementById('serverTableBody');
   if (gifts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无 WebSocket 记录</td></tr>';
+    tbody.innerHTML =
+      '<tr><td colspan="7" class="empty-state">暂无 WebSocket 记录</td></tr>';
     return;
   }
-  tbody.innerHTML = gifts.map((g, i) => `
+  tbody.innerHTML = gifts
+    .map(
+      (g, i) => `
     <tr>
       <td>${i + 1}</td>
       <td>${(g.created_at || '').slice(11, 19)}</td>
@@ -49,14 +57,17 @@ export function renderServerTable(gifts) {
       <td>¥${(g.total_price || 0).toFixed(2)}</td>
       <td><span class="badge badge-info">WS</span></td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join('');
   document.getElementById('serverCount').textContent = gifts.length + ' 条';
 }
 
 export function renderComparison(results) {
   const tbody = document.getElementById('comparisonBody');
   if (results.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">无对比数据</td></tr>';
+    tbody.innerHTML =
+      '<tr><td colspan="8" class="empty-state">无对比数据</td></tr>';
     return;
   }
 
@@ -66,26 +77,27 @@ export function renderComparison(results) {
     return (order[a.status] || 3) - (order[b.status] || 3);
   });
 
-  tbody.innerHTML = sorted.map((r, i) => {
-    let statusBadge, rowClass;
-    switch (r.status) {
-      case 'match':
-        statusBadge = '<span class="badge badge-match">✅ 匹配</span>';
-        rowClass = '';
-        break;
-      case 'miss':
-        statusBadge = '<span class="badge badge-miss">⚠️ 仅气泡</span>';
-        rowClass = 'diff-highlight';
-        break;
-      case 'extra':
-        statusBadge = '<span class="badge badge-extra">📡 仅WS</span>';
-        rowClass = 'row-fade';
-        break;
-      default:
-        statusBadge = '<span class="badge badge-info">—</span>';
-        rowClass = '';
-    }
-    return `
+  tbody.innerHTML = sorted
+    .map((r, i) => {
+      let statusBadge, rowClass;
+      switch (r.status) {
+        case 'match':
+          statusBadge = '<span class="badge badge-match">✅ 匹配</span>';
+          rowClass = '';
+          break;
+        case 'miss':
+          statusBadge = '<span class="badge badge-miss">⚠️ 仅气泡</span>';
+          rowClass = 'diff-highlight';
+          break;
+        case 'extra':
+          statusBadge = '<span class="badge badge-extra">📡 仅WS</span>';
+          rowClass = 'row-fade';
+          break;
+        default:
+          statusBadge = '<span class="badge badge-info">—</span>';
+          rowClass = '';
+      }
+      return `
       <tr class="${rowClass}">
         <td>${i + 1}</td>
         <td>${r.source === 'bubble' ? '💬 气泡' : '📡 WS'}</td>
@@ -97,14 +109,15 @@ export function renderComparison(results) {
         <td>${statusBadge}</td>
       </tr>
     `;
-  }).join('');
+    })
+    .join('');
 }
 
 export function updateStats({ bubbleCount, serverCount, results }) {
   const total = results.length;
-  const match = results.filter(r => r.status === 'match').length;
-  const miss = results.filter(r => r.status === 'miss').length;
-  const extra = results.filter(r => r.status === 'extra').length;
+  const match = results.filter((r) => r.status === 'match').length;
+  const miss = results.filter((r) => r.status === 'miss').length;
+  const extra = results.filter((r) => r.status === 'extra').length;
 
   document.getElementById('statBubble').textContent = bubbleCount;
   document.getElementById('statServer').textContent = serverCount;

@@ -38,10 +38,12 @@ The restrained treatment is intentional: another segmented control or card layer
 ### Task 1: Lock the grouping contract with a focused regression
 
 **Files:**
+
 - Modify: `test/toolbox-sidebar.test.js`
 - Test: `test/toolbox-sidebar.test.js`
 
 **Interfaces:**
+
 - Consumes: the composed Admin HTML returned by `readAdminHtml()`.
 - Produces: assertions for four ordered `data-other-feature-group` regions and the unchanged feature IDs assigned to each region.
 
@@ -51,10 +53,31 @@ Add a test that extracts the navigation fragment and checks this exact mapping:
 
 ```js
 const expectedGroups = [
-  ['live-interaction', '直播互动', ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature']],
-  ['live-scene', '直播画面', ['otherOvertimeMachineFeature', 'otherGiftEffectsFeature', 'otherStartAnimationFeature', 'otherClockFeature']],
+  [
+    'live-interaction',
+    '直播互动',
+    ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature'],
+  ],
+  [
+    'live-scene',
+    '直播画面',
+    [
+      'otherOvertimeMachineFeature',
+      'otherGiftEffectsFeature',
+      'otherStartAnimationFeature',
+      'otherClockFeature',
+    ],
+  ],
   ['streamer-work', '主播工作', ['otherDailyTodoFeature']],
-  ['software-help', '软件与帮助', ['otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature']]
+  [
+    'software-help',
+    '软件与帮助',
+    [
+      'otherPerformanceFeature',
+      'otherUsageGuideFeature',
+      'otherDesktopUpdateFeature',
+    ],
+  ],
 ];
 ```
 
@@ -75,6 +98,7 @@ Expected: the new group-contract test fails because `data-other-feature-group` a
 ### Task 2: Group the existing navigation without changing behavior
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/shell-start.html`
 - Modify: `public/css/admin/other-features/shell.css`
 - Modify: `public/css/admin/other-features/usage-guide.css`
@@ -82,6 +106,7 @@ Expected: the new group-contract test fails because `data-other-feature-group` a
 - Test: `test/frontend-admin-shell.test.js`
 
 **Interfaces:**
+
 - Consumes: `other.js` queries for `[data-other-feature]`, existing panel IDs, and current desktop/mobile toolbox layout.
 - Produces: four presentational group headings and the same feature buttons in a clearer order; no JavaScript API changes.
 
@@ -90,7 +115,11 @@ Expected: the new group-contract test fails because `data-other-feature-group` a
 Remove the separate `.other-sidebar-page-links` container. Keep one `<nav class="other-feature-menu" role="tablist" ...>` and insert headings with this exact structure:
 
 ```html
-<div class="other-feature-group-heading" data-other-feature-group="live-interaction" role="presentation">
+<div
+  class="other-feature-group-heading"
+  data-other-feature-group="live-interaction"
+  role="presentation"
+>
   <strong>直播互动</strong>
   <small>和观众实时发生</small>
 </div>
@@ -98,12 +127,12 @@ Remove the separate `.other-sidebar-page-links` container. Keep one `<nav class=
 
 Repeat with:
 
-| Group key | Heading | Explanation | Existing feature buttons, in order |
-|---|---|---|---|
-| `live-interaction` | 直播互动 | 和观众实时发生 | `otherDanmakuFeature`, `otherGiftFeature`, `otherGamesFeature` |
-| `live-scene` | 直播画面 | 投到直播姬或 OBS | `otherOvertimeMachineFeature`, `otherGiftEffectsFeature`, `otherStartAnimationFeature`, `otherClockFeature` |
-| `streamer-work` | 主播工作 | 只在主播端使用 | `otherDailyTodoFeature` |
-| `software-help` | 软件与帮助 | 本机维护与说明 | `otherPerformanceFeature`, `otherUsageGuideFeature`, `otherDesktopUpdateFeature` |
+| Group key          | Heading    | Explanation      | Existing feature buttons, in order                                                                          |
+| ------------------ | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| `live-interaction` | 直播互动   | 和观众实时发生   | `otherDanmakuFeature`, `otherGiftFeature`, `otherGamesFeature`                                              |
+| `live-scene`       | 直播画面   | 投到直播姬或 OBS | `otherOvertimeMachineFeature`, `otherGiftEffectsFeature`, `otherStartAnimationFeature`, `otherClockFeature` |
+| `streamer-work`    | 主播工作   | 只在主播端使用   | `otherDailyTodoFeature`                                                                                     |
+| `software-help`    | 软件与帮助 | 本机维护与说明   | `otherPerformanceFeature`, `otherUsageGuideFeature`, `otherDesktopUpdateFeature`                            |
 
 Give the existing 弹幕姬 and 礼物姬 buttons stable tab IDs plus their existing panel IDs as `aria-controls`, and keep every other button attribute and SVG unchanged.
 
@@ -147,11 +176,13 @@ Expected: all tests pass, including keyboard/storage regressions and the new exa
 ### Task 3: Align user help and owner documentation
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/usage-guide.html`
 - Modify: `docs/architecture/frontend/app.md`
 - Test: `test/toolbox-sidebar.test.js`
 
 **Interfaces:**
+
 - Consumes: the four visible navigation group names.
 - Produces: user-facing help and the Admin owner document that describe the same grouping without changing any runtime contract.
 

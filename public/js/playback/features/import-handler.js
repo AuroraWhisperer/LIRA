@@ -10,12 +10,7 @@ import * as PlaybackUtils from '../utils.js';
  * @returns {Object} 导入处理函数集合
  */
 export function createImportHandler(deps) {
-  const {
-    playbackState,
-    importService,
-    showError,
-    toast
-  } = deps;
+  const { playbackState, importService, showError, toast } = deps;
 
   /**
    * 从点歌队列导入歌曲
@@ -29,11 +24,15 @@ export function createImportHandler(deps) {
     if (button) button.disabled = true;
 
     try {
-      const currentSource = playbackState.current && playbackState.current.source;
-      const platforms = PlaybackUtils.preferredPlatforms(currentSource, playbackState.selectedSource);
+      const currentSource =
+        playbackState.current && playbackState.current.source;
+      const platforms = PlaybackUtils.preferredPlatforms(
+        currentSource,
+        playbackState.selectedSource,
+      );
       const result = await importService.importFromSongQueue({
         maxItems: 30,
-        platforms: platforms
+        platforms: platforms,
       });
 
       if (result.tracks.length > 0) {
@@ -42,7 +41,9 @@ export function createImportHandler(deps) {
         callbacks.renderPlayback();
       }
 
-      toast(`已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`);
+      toast(
+        `已导入 ${result.imported} 首，待确认 ${result.pending} 首，跳过 ${result.skipped} 首`,
+      );
     } catch (error) {
       showError(error);
     } finally {
@@ -51,6 +52,6 @@ export function createImportHandler(deps) {
   }
 
   return {
-    importSongQueueToPlayback
+    importSongQueueToPlayback,
   };
 }

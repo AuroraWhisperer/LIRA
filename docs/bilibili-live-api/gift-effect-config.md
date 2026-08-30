@@ -16,15 +16,15 @@ GET https://api.live.bilibili.com/xlive/general-interface/v1/fullScSpecialEffect
 
 常用字段：
 
-| 字段 | 说明 |
-| --- | --- |
-| `id` | 特效 ID；同一礼物关联多条记录时取数值最大的最新记录 |
-| `type` | 特效类型 |
-| `bind_gift_ids` | 与该特效绑定的礼物 ID 数组，`0` 表示未绑定 |
-| `web_mp4` | Web 直播间使用的全屏 MP4 素材 |
-| `web_mp4_json` | MP4 内彩色画面与 alpha 遮罩的官方坐标配置 |
-| `web_mp4_md5` | MP4 的 MD5 信息 |
-| `web_mp4_file_size` | MP4 文件大小 |
+| 字段                | 说明                                                |
+| ------------------- | --------------------------------------------------- |
+| `id`                | 特效 ID；同一礼物关联多条记录时取数值最大的最新记录 |
+| `type`              | 特效类型                                            |
+| `bind_gift_ids`     | 与该特效绑定的礼物 ID 数组，`0` 表示未绑定          |
+| `web_mp4`           | Web 直播间使用的全屏 MP4 素材                       |
+| `web_mp4_json`      | MP4 内彩色画面与 alpha 遮罩的官方坐标配置           |
+| `web_mp4_md5`       | MP4 的 MD5 信息                                     |
+| `web_mp4_file_size` | MP4 文件大小                                        |
 
 `web_mp4` 为空的旧 SVGA 特效暂不播放。MP4 和坐标 JSON 必须同时存在，并且只接受 HTTPS 且位于 B站相关 CDN 域名下的素材；坐标拉取或校验失败时直接跳过该特效，避免把辅助区当成画面，也避免将 lookup API 变成任意远程视频入口。
 

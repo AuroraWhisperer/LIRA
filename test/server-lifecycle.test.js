@@ -20,7 +20,7 @@ function cleanupOptions(dataDir, fetchImpl, canConnectToPort) {
     cleanupPollMs: 1,
     sleep: () => Promise.resolve(),
     fetch: fetchImpl,
-    canConnectToPort
+    canConnectToPort,
   };
 }
 
@@ -28,72 +28,98 @@ function createPreviousServerFetch(dataDir, requests) {
   return async (url, options = {}) => {
     requests.push({ url: String(url), options });
     if (String(url).endsWith('/api/health')) {
-      return new Response(JSON.stringify({
-        ok: true,
-        data: {
-          rootDir: path.resolve(__dirname, '..'),
-          dataDir,
-          pid: 12345
-        }
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            rootDir: path.resolve(__dirname, '..'),
+            dataDir,
+            pid: 12345,
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
     }
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   };
 }
 
 test('cleanup sends the persisted session token to the previous instance', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
   const requests = [];
   let released = false;
 
   try {
-    fs.writeFileSync(path.join(dataDir, '.session-token'), 'previous-token\n', 'utf8');
+    fs.writeFileSync(
+      path.join(dataDir, '.session-token'),
+      'previous-token\n',
+      'utf8',
+    );
     const fetchImpl = async (url, options) => {
-      const response = await createPreviousServerFetch(dataDir, requests)(url, options);
+      const response = await createPreviousServerFetch(dataDir, requests)(
+        url,
+        options,
+      );
       if (String(url).endsWith('/api/system/shutdown')) released = true;
       return response;
     };
 
-    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
-      dataDir,
-      fetchImpl,
-      async () => !released
-    ));
+    await lifecycle.cleanupOwnPortOccupant(
+      cleanupOptions(dataDir, fetchImpl, async () => !released),
+    );
 
-    const shutdown = requests.find((request) => request.url.endsWith('/api/system/shutdown'));
-    assert.ok(shutdown, 'the previous instance should receive a shutdown request');
-    assert.equal(shutdown.options.headers.Authorization, 'Bearer previous-token');
+    const shutdown = requests.find((request) =>
+      request.url.endsWith('/api/system/shutdown'),
+    );
+    assert.ok(
+      shutdown,
+      'the previous instance should receive a shutdown request',
+    );
+    assert.equal(
+      shutdown.options.headers.Authorization,
+      'Bearer previous-token',
+    );
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('cleanup remains compatible with a previous instance that has no token file', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
   const requests = [];
   let released = false;
 
   try {
     const fetchImpl = async (url, options) => {
-      const response = await createPreviousServerFetch(dataDir, requests)(url, options);
+      const response = await createPreviousServerFetch(dataDir, requests)(
+        url,
+        options,
+      );
       if (String(url).endsWith('/api/system/shutdown')) released = true;
       return response;
     };
 
-    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
-      dataDir,
-      fetchImpl,
-      async () => !released
-    ));
+    await lifecycle.cleanupOwnPortOccupant(
+      cleanupOptions(dataDir, fetchImpl, async () => !released),
+    );
 
-    const shutdown = requests.find((request) => request.url.endsWith('/api/system/shutdown'));
-    assert.ok(shutdown, 'the previous instance should receive a shutdown request');
+    const shutdown = requests.find((request) =>
+      request.url.endsWith('/api/system/shutdown'),
+    );
+    assert.ok(
+      shutdown,
+      'the previous instance should receive a shutdown request',
+    );
     assert.equal(shutdown.options.headers.Authorization, undefined);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -101,33 +127,41 @@ test('cleanup remains compatible with a previous instance that has no token file
 });
 
 test('cleanup checks the requested port when runtime info points to a fallback port', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
   const requests = [];
   let released = false;
 
   try {
-    lifecycle.writeRuntimeInfo(dataDir, { pid: 12345, port: 3001, host: 'localhost' });
+    lifecycle.writeRuntimeInfo(dataDir, {
+      pid: 12345,
+      port: 3001,
+      host: 'localhost',
+    });
     const fetchImpl = async (url, options) => {
-      const response = await createPreviousServerFetch(dataDir, requests)(url, options);
+      const response = await createPreviousServerFetch(dataDir, requests)(
+        url,
+        options,
+      );
       if (String(url).endsWith('/api/system/shutdown')) released = true;
       return response;
     };
 
-    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
-      dataDir,
-      fetchImpl,
-      async () => !released
-    ));
+    await lifecycle.cleanupOwnPortOccupant(
+      cleanupOptions(dataDir, fetchImpl, async () => !released),
+    );
 
     assert.match(requests[0].url, /:3000\/api\/health$/);
     assert.match(
-      requests.find((request) => request.url.endsWith('/api/system/shutdown')).url,
-      /:3000\/api\/system\/shutdown$/
+      requests.find((request) => request.url.endsWith('/api/system/shutdown'))
+        .url,
+      /:3000\/api\/system\/shutdown$/,
     );
     assert.deepEqual(lifecycle.readRuntimeInfo(dataDir), {
       pid: 12345,
       port: 3001,
-      host: 'localhost'
+      host: 'localhost',
     });
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -135,7 +169,9 @@ test('cleanup checks the requested port when runtime info points to a fallback p
 });
 
 test('cleanup matches the same application across different data directories', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
   const requests = [];
   let released = false;
 
@@ -143,65 +179,76 @@ test('cleanup matches the same application across different data directories', a
     const fetchImpl = async (url, options = {}) => {
       requests.push({ url: String(url), options });
       if (String(url).endsWith('/api/health')) {
-        return new Response(JSON.stringify({
-          ok: true,
-          data: {
-            serviceId: lifecycle.SERVICE_ID,
-            dataDir: path.join(dataDir, 'previous-instance'),
-            pid: 12345
-          }
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              serviceId: lifecycle.SERVICE_ID,
+              dataDir: path.join(dataDir, 'previous-instance'),
+              pid: 12345,
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
       }
       released = true;
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
     };
 
-    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
-      dataDir,
-      fetchImpl,
-      async () => !released
-    ));
+    await lifecycle.cleanupOwnPortOccupant(
+      cleanupOptions(dataDir, fetchImpl, async () => !released),
+    );
 
-    assert.ok(requests.some((request) => request.url.endsWith('/api/system/shutdown')));
+    assert.ok(
+      requests.some((request) => request.url.endsWith('/api/system/shutdown')),
+    );
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('cleanup leaves an unrelated service on port 3000 untouched', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
   const requests = [];
 
   try {
     const fetchImpl = async (url, options = {}) => {
       requests.push({ url: String(url), options });
-      return new Response(JSON.stringify({
-        ok: true,
-        data: {
-          serviceId: 'other-application',
-          dataDir: path.join(dataDir, 'other-application'),
-          pid: 12345
-        }
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            serviceId: 'other-application',
+            dataDir: path.join(dataDir, 'other-application'),
+            pid: 12345,
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
     };
 
-    await lifecycle.cleanupOwnPortOccupant(cleanupOptions(
-      dataDir,
-      fetchImpl,
-      async () => true
-    ));
+    await lifecycle.cleanupOwnPortOccupant(
+      cleanupOptions(dataDir, fetchImpl, async () => true),
+    );
 
-    assert.equal(requests.some((request) => request.url.endsWith('/api/system/shutdown')), false);
+    assert.equal(
+      requests.some((request) => request.url.endsWith('/api/system/shutdown')),
+      false,
+    );
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('session token cleanup never removes a token file owned by another instance', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
 
   try {
     const tokenPath = lifecycle.writeSessionToken(dataDir, 'current-token');
@@ -212,8 +259,14 @@ test('session token cleanup never removes a token file owned by another instance
 
     fs.writeFileSync(tokenPath, 'replacement-token\n', 'utf8');
     assert.equal(lifecycle.removeSessionToken(dataDir, 'current-token'), false);
-    assert.equal(fs.readFileSync(tokenPath, 'utf8').trim(), 'replacement-token');
-    assert.equal(lifecycle.removeSessionToken(dataDir, 'replacement-token'), true);
+    assert.equal(
+      fs.readFileSync(tokenPath, 'utf8').trim(),
+      'replacement-token',
+    );
+    assert.equal(
+      lifecycle.removeSessionToken(dataDir, 'replacement-token'),
+      true,
+    );
     assert.equal(fs.existsSync(tokenPath), false);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -225,7 +278,7 @@ test('listenWithFallback asks the OS for a free port when startPort is zero', as
   try {
     const port = await lifecycle.listenWithFallback(server, {
       startPort: 0,
-      host: '127.0.0.1'
+      host: '127.0.0.1',
     });
     assert.ok(Number.isInteger(port));
     assert.ok(port > 0);
@@ -240,7 +293,7 @@ test('listenExactly reports the OS-assigned port when port is zero', async () =>
   try {
     const port = await lifecycle.listenExactly(server, {
       port: 0,
-      host: '127.0.0.1'
+      host: '127.0.0.1',
     });
     assert.ok(Number.isInteger(port));
     assert.ok(port > 0);
@@ -260,7 +313,7 @@ test('listenExactly rejects when the requested port is already in use', async ()
 
     await assert.rejects(
       lifecycle.listenExactly(second, { port, host: '127.0.0.1' }),
-      { code: 'EADDRINUSE' }
+      { code: 'EADDRINUSE' },
     );
   } finally {
     await new Promise((resolve) => first.close(resolve));
@@ -268,14 +321,28 @@ test('listenExactly rejects when the requested port is already in use', async ()
 });
 
 test('runtime info records the previous pid and port and removes only its own record', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-runtime-'),
+  );
   try {
-    lifecycle.writeRuntimeInfo(dataDir, { pid: 1234, port: 4567, host: '127.0.0.1' });
-    assert.deepEqual(lifecycle.readRuntimeInfo(dataDir), {
-      pid: 1234, port: 4567, host: '127.0.0.1'
+    lifecycle.writeRuntimeInfo(dataDir, {
+      pid: 1234,
+      port: 4567,
+      host: '127.0.0.1',
     });
-    assert.equal(lifecycle.removeRuntimeInfo(dataDir, { pid: 9999, port: 4567 }), false);
-    assert.equal(lifecycle.removeRuntimeInfo(dataDir, { pid: 1234, port: 4567 }), true);
+    assert.deepEqual(lifecycle.readRuntimeInfo(dataDir), {
+      pid: 1234,
+      port: 4567,
+      host: '127.0.0.1',
+    });
+    assert.equal(
+      lifecycle.removeRuntimeInfo(dataDir, { pid: 9999, port: 4567 }),
+      false,
+    );
+    assert.equal(
+      lifecycle.removeRuntimeInfo(dataDir, { pid: 1234, port: 4567 }),
+      true,
+    );
     assert.equal(lifecycle.readRuntimeInfo(dataDir), null);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -283,26 +350,40 @@ test('runtime info records the previous pid and port and removes only its own re
 });
 
 test('cleanup reports bounded phase timings without exposing credentials', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
+  );
   const phases = [];
   let released = false;
 
   try {
-    fs.writeFileSync(path.join(dataDir, '.session-token'), 'secret-token\n', 'utf8');
+    fs.writeFileSync(
+      path.join(dataDir, '.session-token'),
+      'secret-token\n',
+      'utf8',
+    );
     const fetchImpl = async (url, options) => {
-      const response = await createPreviousServerFetch(dataDir, [])(url, options);
+      const response = await createPreviousServerFetch(dataDir, [])(
+        url,
+        options,
+      );
       if (String(url).endsWith('/api/system/shutdown')) released = true;
       return response;
     };
     await lifecycle.cleanupOwnPortOccupant({
       ...cleanupOptions(dataDir, fetchImpl, async () => !released),
-      onPhase: (phase, durationMs, extra) => phases.push({ phase, durationMs, extra })
+      onPhase: (phase, durationMs, extra) =>
+        phases.push({ phase, durationMs, extra }),
     });
 
-    assert.ok(phases.some(entry => entry.phase === 'port-health-check'));
-    assert.ok(phases.some(entry => entry.phase === 'port-graceful-wait'));
-    assert.ok(phases.some(entry => entry.phase === 'port-cleanup'));
-    assert.ok(phases.every(entry => Number.isFinite(entry.durationMs) && entry.durationMs >= 0));
+    assert.ok(phases.some((entry) => entry.phase === 'port-health-check'));
+    assert.ok(phases.some((entry) => entry.phase === 'port-graceful-wait'));
+    assert.ok(phases.some((entry) => entry.phase === 'port-cleanup'));
+    assert.ok(
+      phases.every(
+        (entry) => Number.isFinite(entry.durationMs) && entry.durationMs >= 0,
+      ),
+    );
     assert.doesNotMatch(JSON.stringify(phases), /secret-token/);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -312,17 +393,22 @@ test('cleanup reports bounded phase timings without exposing credentials', async
 test('inflight tracker rejects new work and drains already accepted handlers', async () => {
   const tracker = createInflightTracker();
   let release;
-  const accepted = tracker.run(() => new Promise((resolve) => {
-    release = resolve;
-  }));
+  const accepted = tracker.run(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
 
   tracker.quiesce();
   const drain = tracker.drain();
   let drained = false;
-  drain.then(() => { drained = true; });
+  drain.then(() => {
+    drained = true;
+  });
   await assert.rejects(
     tracker.run(() => Promise.resolve()),
-    (error) => error.code === 'SERVER_QUIESCING'
+    (error) => error.code === 'SERVER_QUIESCING',
   );
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(drained, false);

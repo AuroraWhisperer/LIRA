@@ -1,295 +1,901 @@
-            <section id="otherDanmakuFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>
-              <div class="other-feature-panel-body stack danmaku-tool-panel">
-                <section class="danmaku-feature-section danmaku-connection-section" aria-labelledby="danmakuConnectionTitle">
-                  <div class="danmaku-section-heading">
-                    <div>
-                      <h3 id="danmakuConnectionTitle" class="ui-section-title">连接状态</h3>
-                    </div>
-                    <button id="danmakuRefreshBtn" class="icon" type="button" title="刷新发送状态" aria-label="刷新发送状态">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                  </div>
-                  <div class="danmaku-status-grid">
-                    <div><span>发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
-                    <div><span>直播间</span><strong id="danmakuRoomState">检查中</strong></div>
-                    <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
-                  </div>
-                </section>
-                <section class="danmaku-feature-section danmaku-style-section" aria-labelledby="danmakuStyleTitle">
-                  <div class="danmaku-section-heading">
-                    <div>
-                      <h3 id="danmakuStyleTitle">弹幕姬 <lira-help>独立接收直播消息；将固定链接添加到 OBS 或直播姬浏览器源。</lira-help></h3>
-                    </div>
-                    <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 直播信号带</span>
-                  </div>
-                  <div class="danmaku-overlay-link">
-                    <label><span>固定网页链接</span><input id="danmakuOverlayUrl" type="text" readonly></label>
-                    <div class="danmaku-overlay-actions">
-                      <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button">复制链接</button>
-                      <button id="danmakuOpenOverlayBtn" class="secondary" type="button">打开网页</button>
-                    </div>
-                  </div>
-                  <div class="danmaku-style-picker">
-                    <div class="danmaku-style-options" role="group" aria-label="选择弹幕姬样式">
-                      <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
-                        <span class="danmaku-style-option-visual is-bubble" aria-hidden="true"><i></i><i></i><i></i></span>
-                        <span class="danmaku-style-option-copy"><strong>聊天气泡</strong><small>轻松圆润，适合聊天互动</small></span>
-                      </button>
-                      <button class="danmaku-style-option" type="button" data-danmaku-style="signal" aria-pressed="true">
-                        <span class="danmaku-style-option-visual is-signal" aria-hidden="true"><i></i><i></i><i></i></span>
-                        <span class="danmaku-style-option-copy"><strong>直播信号带</strong><small>层次清晰，适合信息密集场景</small></span>
-                      </button>
-                      <button class="danmaku-style-option" type="button" data-danmaku-style="minimal" aria-pressed="false">
-                        <span class="danmaku-style-option-visual is-minimal" aria-hidden="true"><i></i><i></i><i></i></span>
-                        <span class="danmaku-style-option-copy"><strong>航海铭牌</strong><small>名字在上，三级身份各有装饰</small></span>
-                      </button>
-                      <button class="danmaku-style-option" type="button" data-danmaku-style="ranked" aria-pressed="false">
-                        <span class="danmaku-style-option-visual is-ranked" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-                        <span class="danmaku-style-option-copy"><strong>身份横卡</strong><small>右侧头像，四档身份配色</small></span>
-                      </button>
-                    </div>
-                    <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite">选择后自动保存，已打开的弹幕姬会同步切换。</p>
-                  </div>
-                  <div id="danmakuStylePreview" class="danmaku-style-preview" aria-label="弹幕姬网页预览">
-                    <iframe id="danmakuStylePreviewFrame" src="/danmaku?preview=1&amp;style=signal" title="弹幕姬样式预览" loading="lazy"></iframe>
-                  </div>
-                </section>
-                <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
-                  <div class="danmaku-section-heading">
-                    <div>
-                      <h3 id="danmakuComposeTitle" class="ui-section-title">发送弹幕 <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help></h3>
-                    </div>
-                  </div>
-                  <form id="danmakuSendForm" class="stack">
-                    <label>弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea></label>
-                    <div class="form-actions-row"><span id="danmakuCounter" class="hint">0 字</span><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">自动钓鱼/打劫</button><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button></div>
-                  </form>
-                  <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">发送结果会显示在这里</div>
-                </section>
-                <section id="xiaomiAiSection" class="danmaku-feature-section xiaomi-ai-section" aria-labelledby="xiaomiAiTitle">
-                  <div class="xiaomi-ai-heading">
-                    <div class="xiaomi-ai-title-wrap">
-                      <span class="xiaomi-ai-cat" aria-hidden="true"><i></i></span>
-                      <div><h3 id="xiaomiAiTitle">AI 互动助手</h3></div>
-                    </div>
-                    <label class="switch-control"><input id="xiaomiAiEnabled" type="checkbox" checked><span class="switch-track"></span><span>启用 AI</span></label>
-                  </div>
-                  <div class="xiaomi-ai-status-grid" aria-label="AI 互动助手状态">
-                    <div><span>配置状态</span><strong id="xiaomiAiConfigState">正在读取</strong></div>
-                    <div><span>等待队列</span><strong id="xiaomiAiQueueState">0</strong></div>
-                    <div><span>运行模型</span><strong id="xiaomiAiModelState">未配置</strong></div>
-                  </div>
-                  <form id="xiaomiAiForm" class="xiaomi-ai-form">
-                    <fieldset class="xiaomi-ai-primary-config">
-                      <legend>模型服务</legend>
-                      <div class="xiaomi-ai-provider-note">
-                        <span class="xiaomi-ai-provider-label"><span id="xiaomiAiProviderBadge">自动识别</span><lira-help><span id="xiaomiAiProviderNote">可选官方预设，也可使用自定义 OpenAI 兼容地址。</span></lira-help></span>
-                      </div>
-                      <div class="xiaomi-ai-field-grid">
-                        <label><span>模型供应商 <lira-help>官方预设会锁定正确地址和推荐协议。</lira-help></span>
-                          <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
-                            <option value="auto">自动识别（兼容旧设置）</option>
-                            <option value="deepseek">DeepSeek 官方</option>
-                            <option value="openai">OpenAI 官方</option>
-                            <option value="anthropic">Claude 官方兼容</option>
-                            <option value="gemini">Gemini 官方兼容</option>
-                            <option value="custom">自定义 / 第三方兼容</option>
-                          </select>
-                        </label>
-                        <label>API Key<input id="xiaomiAiDeepSeekKey" type="password" autocomplete="off" spellcheck="false" data-ai-secret placeholder="填写当前模型服务的 API Key"><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label>
-                        <label id="xiaomiAiEndpointControl" class="wide"><span>API 请求地址 <lira-help><span id="xiaomiAiEndpointHelp">接受服务根地址、v1 地址或完整接口地址。</span></lira-help></span><input id="xiaomiAiDeepSeekUrl" type="url" autocomplete="off" placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"></label>
-                        <label id="xiaomiAiProtocolControl"><span>接口协议 <lira-help>文档明确指定 wire_api 时手动选择；否则保持自动。</lira-help></span>
-                          <select id="xiaomiAiModelApiProtocol" data-dropdown-variant="toolbox">
-                            <option value="auto">自动识别</option>
-                            <option value="responses">Responses API</option>
-                            <option value="chat_completions">Chat Completions</option>
-                          </select>
-                        </label>
-                        <label class="wide">模型
-                          <span class="xiaomi-ai-model-picker">
-                            <span class="xiaomi-ai-model-input-wrap">
-                              <input id="xiaomiAiModel" type="text" maxlength="80" autocomplete="off" placeholder="填写模型 ID" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="xiaomiAiModelMenu" aria-expanded="false">
-                              <span id="xiaomiAiModelMenu" class="xiaomi-ai-model-menu" role="listbox" aria-label="可用模型" hidden></span>
-                            </span>
-                            <button id="xiaomiAiFetchModelsBtn" class="secondary" type="button" aria-controls="xiaomiAiModelMenu" aria-expanded="false">获取模型</button>
-                          </span>
-                          <small id="xiaomiAiModelFetchState">可直接填写模型 ID，或从当前服务获取可用模型。</small>
-                        </label>
-                      </div>
-                    </fieldset>
-                    <fieldset class="xiaomi-ai-reply-config">
-                      <legend>回复规则</legend>
-                      <div class="xiaomi-ai-field-grid">
-                        <label><span>触发关键词 <lira-help>弹幕包含该昵称时唤醒助手。</lira-help></span><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="例如：小米"></label>
-                        <label><span>回复长度偏好 <lira-help>优先一条；内容较多时两条，必要时三条。</lira-help></span><input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"></label>
-                      </div>
-                      <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
-                        <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
-                        <div><span>联网</span><strong id="xiaomiAiWebSearchCapability">等待配置</strong></div>
-                        <div><span>推理</span><strong id="xiaomiAiReasoningCapability">等待配置</strong></div>
-                      </div>
-                      <div class="xiaomi-ai-toggle-row">
-                        <label class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control">
-                          <input id="xiaomiAiWebSearch" type="checkbox" role="switch" checked>
-                          <span class="switch-track" aria-hidden="true"></span>
-                          <span class="xiaomi-ai-control-copy"><span><b id="xiaomiAiWebSearchLabel">联网搜索</b><lira-help><span id="xiaomiAiWebSearchHelp">根据当前协议选择联网方式。</span></lira-help></span><small>使用当前服务支持的方式检索信息。</small></span>
-                        </label>
-                        <label id="xiaomiAiReasoningControl" class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control" hidden>
-                          <input id="xiaomiAiReasoning" type="checkbox" role="switch">
-                          <span class="switch-track" aria-hidden="true"></span>
-                          <span class="xiaomi-ai-control-copy"><span><b id="xiaomiAiReasoningLabel">模型推理</b><lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help></span><small>让模型在回答前进行额外思考。</small></span>
-                        </label>
-                        <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control xiaomi-ai-effort-control" hidden>
-                          <span class="xiaomi-ai-control-copy"><b>推理强度</b><small>开启推理后可调整。</small></span>
-                          <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
-                            <option value="auto">服务默认</option>
-                            <option value="minimal">Minimal</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="xhigh">XHigh</option>
-                            <option value="max">Max</option>
-                          </select>
-                        </label>
-                        <p id="xiaomiAiProviderManagedReasoning" class="xiaomi-ai-provider-managed" hidden>当前 Chat Completions 服务的思考能力由模型 ID 或供应商决定，LIRA 不发送非标准参数。</p>
-                      </div>
-                    </fieldset>
-                    <details class="xiaomi-ai-collapsible">
-                      <summary>
-                        <span><strong>扩展能力</strong></span>
-                        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      </summary>
-                      <div class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid">
-                        <section aria-labelledby="xiaomiAiWeatherTitle">
-                          <div class="xiaomi-ai-subheading"><h4 id="xiaomiAiWeatherTitle">和风天气</h4><span>天气</span></div>
-                          <div class="xiaomi-ai-field-grid">
-                            <label class="wide">专属 API Host（无需 https://）<input id="xiaomiAiQWeatherHost" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="nn7mdbwku9.re.qweatherapi.com"></label>
-                            <label class="wide">API Key<input id="xiaomiAiQWeatherKey" type="password" autocomplete="off" spellcheck="false" data-ai-secret placeholder="直接粘贴和风天气 API Key"><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label>
-                          </div>
-                        </section>
-                        <section aria-labelledby="xiaomiAiAmapTitle">
-                          <div class="xiaomi-ai-subheading"><h4 id="xiaomiAiAmapTitle">高德地图</h4><span>地点 · 路线</span></div>
-                          <div class="xiaomi-ai-field-grid">
-                            <label class="wide">Web 服务 API Host<input id="xiaomiAiAmapHost" type="url" autocomplete="off" placeholder="留空，填写你的高德 API Host"></label>
-                            <label class="wide">Web 服务 Key<input id="xiaomiAiAmapKey" type="password" autocomplete="off" spellcheck="false" data-ai-secret placeholder="留空，填写高德 Web 服务 Key"><small id="xiaomiAiAmapKeyHint">尚未保存</small></label>
-                          </div>
-                        </section>
-                      </div>
-                    </details>
-                    <details class="xiaomi-ai-collapsible xiaomi-ai-advanced">
-                      <summary>
-                        <span><strong>高级设置</strong></span>
-                        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                      </summary>
-                      <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
-                        <label>并行查询数<input id="xiaomiAiConcurrency" type="number" min="1" max="5" value="3"></label>
-                        <label>发送间隔（毫秒）<input type="text" value="不同回复随机 500–2000 毫秒；同一回复分段随机 500–1000 毫秒" readonly></label>
-                        <label>单用户冷却（秒）<input id="xiaomiAiUserCooldown" type="number" min="0" max="3600" value="0"></label>
-                        <label>全房间每分钟上限<input id="xiaomiAiRoomLimit" type="number" min="1" max="120" value="20"></label>
-                        <label class="wide">小猫人格预设<textarea id="xiaomiAiSystemPrompt" rows="10" minlength="20" maxlength="8000"></textarea></label>
-                      </div>
-                    </details>
-                    <div class="xiaomi-ai-actions">
-                      <span id="xiaomiAiSaveState" class="hint" role="status" aria-live="polite">修改后自动保存，也可手动保存；密钥会加密存储且不会显示。</span>
-                      <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
-                        <button id="xiaomiAiSaveBtn" class="primary" type="submit">保存配置</button>
-                        <button id="xiaomiAiTestBtn" class="secondary" type="button">测试模型服务</button>
-                        <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">测试和风天气</button>
-                        <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">测试高德地图</button>
-                      </div>
-                    </div>
-                  </form>
-                </section>
-                <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle">
-                  <div class="danmaku-section-heading">
-                    <div>
-                      <h3 id="danmakuFixedReplyTitle">固定回复</h3>
-                    </div>
-                  </div>
-                  <div class="danmaku-bot-switch-grid">
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuReplyTitle">随机点歌回复 <lira-help>条件不匹配时自动回复点歌人。</lira-help></strong></div>
-                      <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用回复</span></label>
-                    </div>
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuCheckinTitle">签到机器人 <lira-help><span id="danmakuCheckinTarget">收到“签到”后回复累计天数。</span></lira-help></strong></div>
-                      <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox"><span class="switch-track"></span><span>启用签到</span></label>
-                    </div>
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuFortuneTitle">抽签机器人 <lira-help>收到“抽签”后回复每日一签。</lira-help></strong></div>
-                      <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox"><span class="switch-track"></span><span>启用抽签</span></label>
-                    </div>
-                    <div class="danmaku-reply-target danmaku-bot-switch-card">
-                      <div><strong id="danmakuCustomReplyTitle">DIY 关键词回复 <lira-help>收到自定义关键词后回复固定文案。</lira-help></strong></div>
-                      <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox"><span class="switch-track"></span><span>启用 DIY</span></label>
-                    </div>
-                  </div>
-                <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
-                  <summary>
-                    <div>
-                      <h3>DIY 关键词回复 <lira-help>弹幕包含关键词时自动回复。</lira-help></h3>
-                      <p><span id="danmakuCustomReplyCount">0 条</span></p>
-                    </div>
-                    <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </summary>
-                  <div class="danmaku-blessings-body">
-                    <div id="danmakuCustomReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
-                    <div class="danmaku-custom-reply-add-grid">
-                      <label>关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：菜单"></label>
-                      <label>回复内容<input id="danmakuCustomReplyInput" type="text" maxlength="120" placeholder="例如：点歌格式是 点歌 歌名"></label>
-                      <button id="danmakuCustomReplyAddBtn" class="secondary" type="button">添加回复</button>
-                    </div>
-                    <div class="danmaku-blessing-actions">
-                      <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取 DIY 回复</span>
-                      <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存 DIY 回复</button>
-                    </div>
-                  </div>
-                </details>
-                <details id="danmakuBlessingsPanel" class="danmaku-blessings-section">
-                  <summary>
-                    <div>
-                      <h3>签到祝福语 <lira-help>签到时随机发送一条。</lira-help></h3>
-                      <p><span id="danmakuBlessingCount">0 条</span></p>
-                    </div>
-                    <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </summary>
-                  <div class="danmaku-blessings-body">
-                    <div id="danmakuBlessingList" class="danmaku-blessing-list" aria-live="polite"></div>
-                    <div class="danmaku-blessing-add-row">
-                      <input id="danmakuBlessingInput" type="text" maxlength="60" placeholder="输入一条祝福语" aria-label="新增签到祝福语">
-                      <button id="danmakuBlessingAddBtn" class="icon" type="button" title="添加祝福语" aria-label="添加祝福语">
-                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                      </button>
-                    </div>
-                    <div class="danmaku-blessing-actions">
-                      <span id="danmakuBlessingStatus" class="hint" role="status" aria-live="polite">正在读取祝福语</span>
-                      <button id="danmakuBlessingSaveBtn" class="primary" type="button">保存祝福语</button>
-                    </div>
-                  </div>
-                </details>
-                <details id="danmakuFortunesPanel" class="danmaku-blessings-section">
-                  <summary>
-                    <div>
-                      <h3>抽签机器人词库 <lira-help>同一观众每天固定抽取一条。</lira-help></h3>
-                      <p><span id="danmakuFortuneCount">0 条</span></p>
-                    </div>
-                    <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </summary>
-                  <div class="danmaku-blessings-body">
-                    <div id="danmakuFortuneList" class="danmaku-fortune-list" aria-live="polite"></div>
-                    <div class="danmaku-fortune-add-grid">
-                      <label>签级<input id="danmakuFortuneLevelInput" type="text" maxlength="16" placeholder="例如：上上签"></label>
-                      <label>签名<input id="danmakuFortuneNameInput" type="text" maxlength="24" placeholder="例如：云开见日"></label>
-                      <label>签文<input id="danmakuFortuneTextInput" type="text" maxlength="80" placeholder="输入签文"></label>
-                      <label>建议<input id="danmakuFortuneAdviceInput" type="text" maxlength="80" placeholder="例如：宜……，忌……"></label>
-                      <button id="danmakuFortuneAddBtn" class="secondary" type="button">添加一签</button>
-                    </div>
-                    <div class="danmaku-blessing-actions">
-                      <span id="danmakuFortuneStatus" class="hint" role="status" aria-live="polite">正在读取抽签词库</span>
-                      <button id="danmakuFortuneSaveBtn" class="primary" type="button">保存抽签词库</button>
-                    </div>
-                  </div>
-                </details>
-                </section>
+<section
+  id="otherDanmakuFeature"
+  class="other-feature-panel"
+  role="tabpanel"
+  data-other-feature-panel
+  hidden
+>
+  <div class="other-feature-panel-body stack danmaku-tool-panel">
+    <section
+      class="danmaku-feature-section danmaku-connection-section"
+      aria-labelledby="danmakuConnectionTitle"
+    >
+      <div class="danmaku-section-heading">
+        <div>
+          <h3 id="danmakuConnectionTitle" class="ui-section-title">连接状态</h3>
+        </div>
+        <button
+          id="danmakuRefreshBtn"
+          class="icon"
+          type="button"
+          title="刷新发送状态"
+          aria-label="刷新发送状态"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+      <div class="danmaku-status-grid">
+        <div>
+          <span>发送账号</span><strong id="danmakuAccountState">检查中</strong>
+        </div>
+        <div>
+          <span>直播间</span><strong id="danmakuRoomState">检查中</strong>
+        </div>
+        <div>
+          <span>发送状态</span><strong id="danmakuToolStatus">检查中</strong>
+        </div>
+      </div>
+    </section>
+    <section
+      class="danmaku-feature-section danmaku-style-section"
+      aria-labelledby="danmakuStyleTitle"
+    >
+      <div class="danmaku-section-heading">
+        <div>
+          <h3 id="danmakuStyleTitle">
+            弹幕姬
+            <lira-help
+              >独立接收直播消息；将固定链接添加到 OBS
+              或直播姬浏览器源。</lira-help
+            >
+          </h3>
+        </div>
+        <span id="danmakuStyleChip" class="danmaku-style-chip"
+          >当前样式 · 直播信号带</span
+        >
+      </div>
+      <div class="danmaku-overlay-link">
+        <label
+          ><span>固定网页链接</span
+          ><input id="danmakuOverlayUrl" type="text" readonly
+        /></label>
+        <div class="danmaku-overlay-actions">
+          <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button">
+            复制链接
+          </button>
+          <button id="danmakuOpenOverlayBtn" class="secondary" type="button">
+            打开网页
+          </button>
+        </div>
+      </div>
+      <div class="danmaku-style-picker">
+        <div
+          class="danmaku-style-options"
+          role="group"
+          aria-label="选择弹幕姬样式"
+        >
+          <button
+            class="danmaku-style-option"
+            type="button"
+            data-danmaku-style="bubble"
+            aria-pressed="false"
+          >
+            <span
+              class="danmaku-style-option-visual is-bubble"
+              aria-hidden="true"
+              ><i></i><i></i><i></i
+            ></span>
+            <span class="danmaku-style-option-copy"
+              ><strong>聊天气泡</strong
+              ><small>轻松圆润，适合聊天互动</small></span
+            >
+          </button>
+          <button
+            class="danmaku-style-option"
+            type="button"
+            data-danmaku-style="signal"
+            aria-pressed="true"
+          >
+            <span
+              class="danmaku-style-option-visual is-signal"
+              aria-hidden="true"
+              ><i></i><i></i><i></i
+            ></span>
+            <span class="danmaku-style-option-copy"
+              ><strong>直播信号带</strong
+              ><small>层次清晰，适合信息密集场景</small></span
+            >
+          </button>
+          <button
+            class="danmaku-style-option"
+            type="button"
+            data-danmaku-style="minimal"
+            aria-pressed="false"
+          >
+            <span
+              class="danmaku-style-option-visual is-minimal"
+              aria-hidden="true"
+              ><i></i><i></i><i></i
+            ></span>
+            <span class="danmaku-style-option-copy"
+              ><strong>航海铭牌</strong
+              ><small>名字在上，三级身份各有装饰</small></span
+            >
+          </button>
+          <button
+            class="danmaku-style-option"
+            type="button"
+            data-danmaku-style="ranked"
+            aria-pressed="false"
+          >
+            <span
+              class="danmaku-style-option-visual is-ranked"
+              aria-hidden="true"
+              ><i></i><i></i><i></i><i></i
+            ></span>
+            <span class="danmaku-style-option-copy"
+              ><strong>身份横卡</strong
+              ><small>右侧头像，四档身份配色</small></span
+            >
+          </button>
+        </div>
+        <p
+          id="danmakuStyleSaveState"
+          class="danmaku-style-save-state"
+          role="status"
+          aria-live="polite"
+        >
+          选择后自动保存，已打开的弹幕姬会同步切换。
+        </p>
+      </div>
+      <div
+        id="danmakuStylePreview"
+        class="danmaku-style-preview"
+        aria-label="弹幕姬网页预览"
+      >
+        <iframe
+          id="danmakuStylePreviewFrame"
+          src="/danmaku?preview=1&amp;style=signal"
+          title="弹幕姬样式预览"
+          loading="lazy"
+        ></iframe>
+      </div>
+    </section>
+    <section
+      class="danmaku-feature-section danmaku-compose-section"
+      aria-labelledby="danmakuComposeTitle"
+    >
+      <div class="danmaku-section-heading">
+        <div>
+          <h3 id="danmakuComposeTitle" class="ui-section-title">
+            发送弹幕
+            <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help>
+          </h3>
+        </div>
+      </div>
+      <form id="danmakuSendForm" class="stack">
+        <label
+          >弹幕内容<textarea
+            id="danmakuMessage"
+            rows="4"
+            required
+            placeholder="输入内容，Ctrl + Enter 发送"
+          ></textarea>
+        </label>
+        <div class="form-actions-row">
+          <span id="danmakuCounter" class="hint">0 字</span
+          ><button
+            id="danmakuAutoBtn"
+            class="secondary"
+            type="button"
+            title="自动发送 钓鱼×10、打劫×5，每 5 秒一条"
+          >
+            自动钓鱼/打劫</button
+          ><button id="danmakuSendBtn" class="primary" type="submit">
+            发送弹幕
+          </button>
+        </div>
+      </form>
+      <div
+        id="danmakuSendResult"
+        class="danmaku-send-result"
+        role="status"
+        aria-live="polite"
+      >
+        发送结果会显示在这里
+      </div>
+    </section>
+    <section
+      id="xiaomiAiSection"
+      class="danmaku-feature-section xiaomi-ai-section"
+      aria-labelledby="xiaomiAiTitle"
+    >
+      <div class="xiaomi-ai-heading">
+        <div class="xiaomi-ai-title-wrap">
+          <span class="xiaomi-ai-cat" aria-hidden="true"><i></i></span>
+          <div><h3 id="xiaomiAiTitle">AI 互动助手</h3></div>
+        </div>
+        <label class="switch-control"
+          ><input id="xiaomiAiEnabled" type="checkbox" checked /><span
+            class="switch-track"
+          ></span
+          ><span>启用 AI</span></label
+        >
+      </div>
+      <div class="xiaomi-ai-status-grid" aria-label="AI 互动助手状态">
+        <div>
+          <span>配置状态</span
+          ><strong id="xiaomiAiConfigState">正在读取</strong>
+        </div>
+        <div>
+          <span>等待队列</span><strong id="xiaomiAiQueueState">0</strong>
+        </div>
+        <div>
+          <span>运行模型</span><strong id="xiaomiAiModelState">未配置</strong>
+        </div>
+      </div>
+      <form id="xiaomiAiForm" class="xiaomi-ai-form">
+        <fieldset class="xiaomi-ai-primary-config">
+          <legend>模型服务</legend>
+          <div class="xiaomi-ai-provider-note">
+            <span class="xiaomi-ai-provider-label"
+              ><span id="xiaomiAiProviderBadge">自动识别</span
+              ><lira-help
+                ><span id="xiaomiAiProviderNote"
+                  >可选官方预设，也可使用自定义 OpenAI 兼容地址。</span
+                ></lira-help
+              ></span
+            >
+          </div>
+          <div class="xiaomi-ai-field-grid">
+            <label
+              ><span
+                >模型供应商
+                <lira-help>官方预设会锁定正确地址和推荐协议。</lira-help></span
+              >
+              <select
+                id="xiaomiAiModelProvider"
+                data-dropdown-variant="toolbox"
+              >
+                <option value="auto">自动识别（兼容旧设置）</option>
+                <option value="deepseek">DeepSeek 官方</option>
+                <option value="openai">OpenAI 官方</option>
+                <option value="anthropic">Claude 官方兼容</option>
+                <option value="gemini">Gemini 官方兼容</option>
+                <option value="custom">自定义 / 第三方兼容</option>
+              </select>
+            </label>
+            <label
+              >API Key<input
+                id="xiaomiAiDeepSeekKey"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                data-ai-secret
+                placeholder="填写当前模型服务的 API Key"
+              /><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label
+            >
+            <label id="xiaomiAiEndpointControl" class="wide"
+              ><span
+                >API 请求地址
+                <lira-help
+                  ><span id="xiaomiAiEndpointHelp"
+                    >接受服务根地址、v1 地址或完整接口地址。</span
+                  ></lira-help
+                ></span
+              ><input
+                id="xiaomiAiDeepSeekUrl"
+                type="url"
+                autocomplete="off"
+                placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"
+            /></label>
+            <label id="xiaomiAiProtocolControl"
+              ><span
+                >接口协议
+                <lira-help
+                  >文档明确指定 wire_api 时手动选择；否则保持自动。</lira-help
+                ></span
+              >
+              <select
+                id="xiaomiAiModelApiProtocol"
+                data-dropdown-variant="toolbox"
+              >
+                <option value="auto">自动识别</option>
+                <option value="responses">Responses API</option>
+                <option value="chat_completions">Chat Completions</option>
+              </select>
+            </label>
+            <label class="wide"
+              >模型
+              <span class="xiaomi-ai-model-picker">
+                <span class="xiaomi-ai-model-input-wrap">
+                  <input
+                    id="xiaomiAiModel"
+                    type="text"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="填写模型 ID"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-haspopup="listbox"
+                    aria-controls="xiaomiAiModelMenu"
+                    aria-expanded="false"
+                  />
+                  <span
+                    id="xiaomiAiModelMenu"
+                    class="xiaomi-ai-model-menu"
+                    role="listbox"
+                    aria-label="可用模型"
+                    hidden
+                  ></span>
+                </span>
+                <button
+                  id="xiaomiAiFetchModelsBtn"
+                  class="secondary"
+                  type="button"
+                  aria-controls="xiaomiAiModelMenu"
+                  aria-expanded="false"
+                >
+                  获取模型
+                </button>
+              </span>
+              <small id="xiaomiAiModelFetchState"
+                >可直接填写模型 ID，或从当前服务获取可用模型。</small
+              >
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="xiaomi-ai-reply-config">
+          <legend>回复规则</legend>
+          <div class="xiaomi-ai-field-grid">
+            <label
+              ><span
+                >触发关键词
+                <lira-help>弹幕包含该昵称时唤醒助手。</lira-help></span
+              ><input
+                id="xiaomiAiTrigger"
+                type="text"
+                maxlength="12"
+                placeholder="例如：小米"
+            /></label>
+            <label
+              ><span
+                >回复长度偏好
+                <lira-help
+                  >优先一条；内容较多时两条，必要时三条。</lira-help
+                ></span
+              ><input
+                id="xiaomiAiReplyMaxChars"
+                type="number"
+                min="10"
+                max="50"
+                value="50"
+            /></label>
+          </div>
+          <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
+            <div>
+              <span>协议</span
+              ><strong id="xiaomiAiProtocolCapability">等待配置</strong>
+            </div>
+            <div>
+              <span>联网</span
+              ><strong id="xiaomiAiWebSearchCapability">等待配置</strong>
+            </div>
+            <div>
+              <span>推理</span
+              ><strong id="xiaomiAiReasoningCapability">等待配置</strong>
+            </div>
+          </div>
+          <div class="xiaomi-ai-toggle-row">
+            <label
+              class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control"
+            >
+              <input
+                id="xiaomiAiWebSearch"
+                type="checkbox"
+                role="switch"
+                checked
+              />
+              <span class="switch-track" aria-hidden="true"></span>
+              <span class="xiaomi-ai-control-copy"
+                ><span
+                  ><b id="xiaomiAiWebSearchLabel">联网搜索</b
+                  ><lira-help
+                    ><span id="xiaomiAiWebSearchHelp"
+                      >根据当前协议选择联网方式。</span
+                    ></lira-help
+                  ></span
+                ><small>使用当前服务支持的方式检索信息。</small></span
+              >
+            </label>
+            <label
+              id="xiaomiAiReasoningControl"
+              class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control"
+              hidden
+            >
+              <input id="xiaomiAiReasoning" type="checkbox" role="switch" />
+              <span class="switch-track" aria-hidden="true"></span>
+              <span class="xiaomi-ai-control-copy"
+                ><span
+                  ><b id="xiaomiAiReasoningLabel">模型推理</b
+                  ><lira-help
+                    ><span id="xiaomiAiReasoningHelp"></span></lira-help></span
+                ><small>让模型在回答前进行额外思考。</small></span
+              >
+            </label>
+            <label
+              id="xiaomiAiReasoningEffortControl"
+              class="xiaomi-ai-capability-control xiaomi-ai-effort-control"
+              hidden
+            >
+              <span class="xiaomi-ai-control-copy"
+                ><b>推理强度</b><small>开启推理后可调整。</small></span
+              >
+              <select
+                id="xiaomiAiReasoningEffort"
+                data-dropdown-variant="toolbox"
+              >
+                <option value="auto">服务默认</option>
+                <option value="minimal">Minimal</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="xhigh">XHigh</option>
+                <option value="max">Max</option>
+              </select>
+            </label>
+            <p
+              id="xiaomiAiProviderManagedReasoning"
+              class="xiaomi-ai-provider-managed"
+              hidden
+            >
+              当前 Chat Completions 服务的思考能力由模型 ID 或供应商决定，LIRA
+              不发送非标准参数。
+            </p>
+          </div>
+        </fieldset>
+        <details class="xiaomi-ai-collapsible">
+          <summary>
+            <span><strong>扩展能力</strong></span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="m5 8 5 5 5-5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </summary>
+          <div class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid">
+            <section aria-labelledby="xiaomiAiWeatherTitle">
+              <div class="xiaomi-ai-subheading">
+                <h4 id="xiaomiAiWeatherTitle">和风天气</h4>
+                <span>天气</span>
+              </div>
+              <div class="xiaomi-ai-field-grid">
+                <label class="wide"
+                  >专属 API Host（无需 https://）<input
+                    id="xiaomiAiQWeatherHost"
+                    type="text"
+                    inputmode="url"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="nn7mdbwku9.re.qweatherapi.com"
+                /></label>
+                <label class="wide"
+                  >API Key<input
+                    id="xiaomiAiQWeatherKey"
+                    type="password"
+                    autocomplete="off"
+                    spellcheck="false"
+                    data-ai-secret
+                    placeholder="直接粘贴和风天气 API Key"
+                  /><small id="xiaomiAiQWeatherKeyHint">尚未保存</small></label
+                >
               </div>
             </section>
+            <section aria-labelledby="xiaomiAiAmapTitle">
+              <div class="xiaomi-ai-subheading">
+                <h4 id="xiaomiAiAmapTitle">高德地图</h4>
+                <span>地点 · 路线</span>
+              </div>
+              <div class="xiaomi-ai-field-grid">
+                <label class="wide"
+                  >Web 服务 API Host<input
+                    id="xiaomiAiAmapHost"
+                    type="url"
+                    autocomplete="off"
+                    placeholder="留空，填写你的高德 API Host"
+                /></label>
+                <label class="wide"
+                  >Web 服务 Key<input
+                    id="xiaomiAiAmapKey"
+                    type="password"
+                    autocomplete="off"
+                    spellcheck="false"
+                    data-ai-secret
+                    placeholder="留空，填写高德 Web 服务 Key"
+                  /><small id="xiaomiAiAmapKeyHint">尚未保存</small></label
+                >
+              </div>
+            </section>
+          </div>
+        </details>
+        <details class="xiaomi-ai-collapsible xiaomi-ai-advanced">
+          <summary>
+            <span><strong>高级设置</strong></span>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="m5 8 5 5 5-5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </summary>
+          <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
+            <label
+              >并行查询数<input
+                id="xiaomiAiConcurrency"
+                type="number"
+                min="1"
+                max="5"
+                value="3"
+            /></label>
+            <label
+              >发送间隔（毫秒）<input
+                type="text"
+                value="不同回复随机 500–2000 毫秒；同一回复分段随机 500–1000 毫秒"
+                readonly
+            /></label>
+            <label
+              >单用户冷却（秒）<input
+                id="xiaomiAiUserCooldown"
+                type="number"
+                min="0"
+                max="3600"
+                value="0"
+            /></label>
+            <label
+              >全房间每分钟上限<input
+                id="xiaomiAiRoomLimit"
+                type="number"
+                min="1"
+                max="120"
+                value="20"
+            /></label>
+            <label class="wide"
+              >小猫人格预设<textarea
+                id="xiaomiAiSystemPrompt"
+                rows="10"
+                minlength="20"
+                maxlength="8000"
+              ></textarea>
+            </label>
+          </div>
+        </details>
+        <div class="xiaomi-ai-actions">
+          <span
+            id="xiaomiAiSaveState"
+            class="hint"
+            role="status"
+            aria-live="polite"
+            >修改后自动保存，也可手动保存；密钥会加密存储且不会显示。</span
+          >
+          <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
+            <button id="xiaomiAiSaveBtn" class="primary" type="submit">
+              保存配置
+            </button>
+            <button id="xiaomiAiTestBtn" class="secondary" type="button">
+              测试模型服务
+            </button>
+            <button
+              id="xiaomiAiQWeatherTestBtn"
+              class="secondary"
+              type="button"
+            >
+              测试和风天气
+            </button>
+            <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">
+              测试高德地图
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+    <section
+      class="danmaku-feature-section danmaku-fixed-reply-section"
+      aria-labelledby="danmakuFixedReplyTitle danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle"
+    >
+      <div class="danmaku-section-heading">
+        <div>
+          <h3 id="danmakuFixedReplyTitle">固定回复</h3>
+        </div>
+      </div>
+      <div class="danmaku-bot-switch-grid">
+        <div class="danmaku-reply-target danmaku-bot-switch-card">
+          <div>
+            <strong id="danmakuReplyTitle"
+              >随机点歌回复
+              <lira-help>条件不匹配时自动回复点歌人。</lira-help></strong
+            >
+          </div>
+          <label class="switch-control"
+            ><input id="danmakuReplyToggle" type="checkbox" /><span
+              class="switch-track"
+            ></span
+            ><span>启用回复</span></label
+          >
+        </div>
+        <div class="danmaku-reply-target danmaku-bot-switch-card">
+          <div>
+            <strong id="danmakuCheckinTitle"
+              >签到机器人
+              <lira-help
+                ><span id="danmakuCheckinTarget"
+                  >收到“签到”后回复累计天数。</span
+                ></lira-help
+              ></strong
+            >
+          </div>
+          <label class="switch-control"
+            ><input id="danmakuCheckinToggle" type="checkbox" /><span
+              class="switch-track"
+            ></span
+            ><span>启用签到</span></label
+          >
+        </div>
+        <div class="danmaku-reply-target danmaku-bot-switch-card">
+          <div>
+            <strong id="danmakuFortuneTitle"
+              >抽签机器人
+              <lira-help>收到“抽签”后回复每日一签。</lira-help></strong
+            >
+          </div>
+          <label class="switch-control"
+            ><input id="danmakuFortuneToggle" type="checkbox" /><span
+              class="switch-track"
+            ></span
+            ><span>启用抽签</span></label
+          >
+        </div>
+        <div class="danmaku-reply-target danmaku-bot-switch-card">
+          <div>
+            <strong id="danmakuCustomReplyTitle"
+              >DIY 关键词回复
+              <lira-help>收到自定义关键词后回复固定文案。</lira-help></strong
+            >
+          </div>
+          <label class="switch-control"
+            ><input id="danmakuCustomReplyToggle" type="checkbox" /><span
+              class="switch-track"
+            ></span
+            ><span>启用 DIY</span></label
+          >
+        </div>
+      </div>
+      <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
+        <summary>
+          <div>
+            <h3>
+              DIY 关键词回复 <lira-help>弹幕包含关键词时自动回复。</lira-help>
+            </h3>
+            <p><span id="danmakuCustomReplyCount">0 条</span></p>
+          </div>
+          <svg
+            class="danmaku-details-chevron"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </summary>
+        <div class="danmaku-blessings-body">
+          <div
+            id="danmakuCustomReplyList"
+            class="danmaku-custom-reply-list"
+            aria-live="polite"
+          ></div>
+          <div class="danmaku-custom-reply-add-grid">
+            <label
+              >关键词<input
+                id="danmakuCustomKeywordInput"
+                type="text"
+                maxlength="30"
+                placeholder="例如：菜单"
+            /></label>
+            <label
+              >回复内容<input
+                id="danmakuCustomReplyInput"
+                type="text"
+                maxlength="120"
+                placeholder="例如：点歌格式是 点歌 歌名"
+            /></label>
+            <button
+              id="danmakuCustomReplyAddBtn"
+              class="secondary"
+              type="button"
+            >
+              添加回复
+            </button>
+          </div>
+          <div class="danmaku-blessing-actions">
+            <span
+              id="danmakuCustomReplyStatus"
+              class="hint"
+              role="status"
+              aria-live="polite"
+              >正在读取 DIY 回复</span
+            >
+            <button
+              id="danmakuCustomReplySaveBtn"
+              class="primary"
+              type="button"
+            >
+              保存 DIY 回复
+            </button>
+          </div>
+        </div>
+      </details>
+      <details id="danmakuBlessingsPanel" class="danmaku-blessings-section">
+        <summary>
+          <div>
+            <h3>签到祝福语 <lira-help>签到时随机发送一条。</lira-help></h3>
+            <p><span id="danmakuBlessingCount">0 条</span></p>
+          </div>
+          <svg
+            class="danmaku-details-chevron"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </summary>
+        <div class="danmaku-blessings-body">
+          <div
+            id="danmakuBlessingList"
+            class="danmaku-blessing-list"
+            aria-live="polite"
+          ></div>
+          <div class="danmaku-blessing-add-row">
+            <input
+              id="danmakuBlessingInput"
+              type="text"
+              maxlength="60"
+              placeholder="输入一条祝福语"
+              aria-label="新增签到祝福语"
+            />
+            <button
+              id="danmakuBlessingAddBtn"
+              class="icon"
+              type="button"
+              title="添加祝福语"
+              aria-label="添加祝福语"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <div class="danmaku-blessing-actions">
+            <span
+              id="danmakuBlessingStatus"
+              class="hint"
+              role="status"
+              aria-live="polite"
+              >正在读取祝福语</span
+            >
+            <button id="danmakuBlessingSaveBtn" class="primary" type="button">
+              保存祝福语
+            </button>
+          </div>
+        </div>
+      </details>
+      <details id="danmakuFortunesPanel" class="danmaku-blessings-section">
+        <summary>
+          <div>
+            <h3>
+              抽签机器人词库 <lira-help>同一观众每天固定抽取一条。</lira-help>
+            </h3>
+            <p><span id="danmakuFortuneCount">0 条</span></p>
+          </div>
+          <svg
+            class="danmaku-details-chevron"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </summary>
+        <div class="danmaku-blessings-body">
+          <div
+            id="danmakuFortuneList"
+            class="danmaku-fortune-list"
+            aria-live="polite"
+          ></div>
+          <div class="danmaku-fortune-add-grid">
+            <label
+              >签级<input
+                id="danmakuFortuneLevelInput"
+                type="text"
+                maxlength="16"
+                placeholder="例如：上上签"
+            /></label>
+            <label
+              >签名<input
+                id="danmakuFortuneNameInput"
+                type="text"
+                maxlength="24"
+                placeholder="例如：云开见日"
+            /></label>
+            <label
+              >签文<input
+                id="danmakuFortuneTextInput"
+                type="text"
+                maxlength="80"
+                placeholder="输入签文"
+            /></label>
+            <label
+              >建议<input
+                id="danmakuFortuneAdviceInput"
+                type="text"
+                maxlength="80"
+                placeholder="例如：宜……，忌……"
+            /></label>
+            <button id="danmakuFortuneAddBtn" class="secondary" type="button">
+              添加一签
+            </button>
+          </div>
+          <div class="danmaku-blessing-actions">
+            <span
+              id="danmakuFortuneStatus"
+              class="hint"
+              role="status"
+              aria-live="polite"
+              >正在读取抽签词库</span
+            >
+            <button id="danmakuFortuneSaveBtn" class="primary" type="button">
+              保存抽签词库
+            </button>
+          </div>
+        </div>
+      </details>
+    </section>
+  </div>
+</section>

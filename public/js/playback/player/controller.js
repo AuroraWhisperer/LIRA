@@ -49,7 +49,7 @@ export class PlayerController {
     if (!this.audio.src || this.audio.dataset.trackId !== track.id) {
       await this.playTrack(track, {
         origin: this.state.currentOrigin,
-        startAt: this.state.restoredTime
+        startAt: this.state.restoredTime,
       });
       return;
     }
@@ -82,7 +82,11 @@ export class PlayerController {
     const fromHistory = options.fromHistory || false;
 
     // 保存历史记录
-    if (!fromHistory && this.state.current && this.state.current.id !== track.id) {
+    if (
+      !fromHistory &&
+      this.state.current &&
+      this.state.current.id !== track.id
+    ) {
       this.state.history.push(this.state.current);
       if (this.state.history.length > 50) {
         this.state.history.shift();
@@ -94,13 +98,15 @@ export class PlayerController {
     this.state.currentOrigin = origin;
 
     // 添加到显示历史（去重）
-    const existingIndex = this.state.displayHistory.findIndex((item) => item.id === track.id);
+    const existingIndex = this.state.displayHistory.findIndex(
+      (item) => item.id === track.id,
+    );
     if (existingIndex >= 0) {
       this.state.displayHistory.splice(existingIndex, 1);
     }
     this.state.displayHistory.unshift({
       ...track,
-      playedAt: Date.now()
+      playedAt: Date.now(),
     });
     if (this.state.displayHistory.length > 20) {
       this.state.displayHistory.pop();
@@ -172,7 +178,7 @@ export class PlayerController {
     if (previousTrack) {
       this.playTrack(previousTrack, {
         fromHistory: true,
-        origin: 'history'
+        origin: 'history',
       });
     }
   }
@@ -187,7 +193,7 @@ export class PlayerController {
     // 单曲循环
     if (this.state.mode === 'single' && this.state.current) {
       this.playTrack(this.state.current, {
-        origin: this.state.currentOrigin
+        origin: this.state.currentOrigin,
       });
       return;
     }
@@ -234,7 +240,7 @@ export class PlayerController {
         playing: false,
         currentTime: 0,
         duration: 0,
-        volume: 0.3
+        volume: 0.3,
       };
     }
 
@@ -242,7 +248,7 @@ export class PlayerController {
       playing: !this.audio.paused,
       currentTime: this.audio.currentTime || 0,
       duration: this.audio.duration || 0,
-      volume: Number.isFinite(this.audio.volume) ? this.audio.volume : 0.3
+      volume: Number.isFinite(this.audio.volume) ? this.audio.volume : 0.3,
     };
   }
 
@@ -271,16 +277,18 @@ export class PlayerController {
       onTimeUpdate,
       onVolumeChange,
       onError,
-      onLoadedMetadata
+      onLoadedMetadata,
     } = handlers;
 
     if (onPlay) this.audio.addEventListener('play', onPlay);
     if (onPause) this.audio.addEventListener('pause', onPause);
     if (onEnded) this.audio.addEventListener('ended', onEnded);
     if (onTimeUpdate) this.audio.addEventListener('timeupdate', onTimeUpdate);
-    if (onVolumeChange) this.audio.addEventListener('volumechange', onVolumeChange);
+    if (onVolumeChange)
+      this.audio.addEventListener('volumechange', onVolumeChange);
     if (onError) this.audio.addEventListener('error', onError);
-    if (onLoadedMetadata) this.audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    if (onLoadedMetadata)
+      this.audio.addEventListener('loadedmetadata', onLoadedMetadata);
   }
 
   /**
@@ -297,15 +305,18 @@ export class PlayerController {
       onTimeUpdate,
       onVolumeChange,
       onError,
-      onLoadedMetadata
+      onLoadedMetadata,
     } = handlers;
 
     if (onPlay) this.audio.removeEventListener('play', onPlay);
     if (onPause) this.audio.removeEventListener('pause', onPause);
     if (onEnded) this.audio.removeEventListener('ended', onEnded);
-    if (onTimeUpdate) this.audio.removeEventListener('timeupdate', onTimeUpdate);
-    if (onVolumeChange) this.audio.removeEventListener('volumechange', onVolumeChange);
+    if (onTimeUpdate)
+      this.audio.removeEventListener('timeupdate', onTimeUpdate);
+    if (onVolumeChange)
+      this.audio.removeEventListener('volumechange', onVolumeChange);
     if (onError) this.audio.removeEventListener('error', onError);
-    if (onLoadedMetadata) this.audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+    if (onLoadedMetadata)
+      this.audio.removeEventListener('loadedmetadata', onLoadedMetadata);
   }
 }

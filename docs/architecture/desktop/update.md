@@ -6,12 +6,12 @@
 
 ## 1. 职责边界
 
-| 侧 | 事实 | 出处 |
-|---|---|---|
-| 运行时 | `electron-updater` 6.x 的 `autoUpdater`;延迟加载(`getAutoUpdater` 首次调用才 require,避免 ready 前初始化) | [update-manager.js:10-15](../../../src/electron/update-manager.js#L10-L15) |
-| 版本来源 | GitHub `AuroraWhisperer/LIRA` Releases 的 `latest.yml` | [../engineering/build.md](../engineering/build.md) |
-| 开关 | 设置 `enableAutoUpdate === 'true'`(设置存储见 [../backend/storage.md](../backend/storage.md) §7) | [main.js:677-685](../../../src/electron/main.js#L677-L685) |
-| 触发 | 主窗口 `ready-to-show` 后,仅**打包版且开关开启**时延迟 **1s** 首查 | [main.js:339-343](../../../src/electron/main.js#L339-L343) |
+| 侧       | 事实                                                                                                      | 出处                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 运行时   | `electron-updater` 6.x 的 `autoUpdater`;延迟加载(`getAutoUpdater` 首次调用才 require,避免 ready 前初始化) | [update-manager.js:10-15](../../../src/electron/update-manager.js#L10-L15) |
+| 版本来源 | GitHub `AuroraWhisperer/LIRA` Releases 的 `latest.yml`                                                    | [../engineering/build.md](../engineering/build.md)                         |
+| 开关     | 设置 `enableAutoUpdate === 'true'`(设置存储见 [../backend/storage.md](../backend/storage.md) §7)          | [main.js:677-685](../../../src/electron/main.js#L677-L685)                 |
+| 触发     | 主窗口 `ready-to-show` 后,仅**打包版且开关开启**时延迟 **1s** 首查                                        | [main.js:339-343](../../../src/electron/main.js#L339-L343)                 |
 
 ## 2. 状态机
 
@@ -25,17 +25,17 @@ checking ──无新版本──▶ not-available
 !app.isPackaged ──▶ dev-disabled(开发模式直入,不联网)
 ```
 
-| status | 含义 | canDownload / canInstall | 进入方式 | 出处 |
-|---|---|---|---|---|
-| `idle` | 初始 | false / false | 启动 | [update-manager.js:17-25](../../../src/electron/update-manager.js#L17-L25) |
-| `checking` | 检查中 | false / false | autoUpdater `checking-for-update` 事件 | [update-manager.js:41-47](../../../src/electron/update-manager.js#L41-L47) |
-| `available` | 发现新版本 | **true** / false | `update-available` 事件 | [update-manager.js:49-55](../../../src/electron/update-manager.js#L49-L55) |
-| `not-available` | 已是最新 | false / false | `update-not-available` 事件 / 404 兜底映射(§5) | [update-manager.js:57-63](../../../src/electron/update-manager.js#L57-L63) |
-| `downloading` | 下载中 | false / false | `download-progress` 事件 / `downloadUpdate()` | [update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86) |
-| `downloaded` | 下载完成 | false / **true** | `update-downloaded` 事件 | [update-manager.js:88-96](../../../src/electron/update-manager.js#L88-L96) |
-| `installing` | 安装中(重启) | false / false | `installUpdate()` | [update-manager.js:150-159](../../../src/electron/update-manager.js#L150-L159) |
-| `error` | 失败 | false / false | autoUpdater `error` 事件 / 各函数 catch | [update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105) |
-| `dev-disabled` | 开发模式禁用 | false / false | `checkForUpdates()` 且未打包 / 启动即置位 | [update-manager.js:116-122](../../../src/electron/update-manager.js#L116-L122) |
+| status          | 含义         | canDownload / canInstall | 进入方式                                       | 出处                                                                           |
+| --------------- | ------------ | ------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------ |
+| `idle`          | 初始         | false / false            | 启动                                           | [update-manager.js:17-25](../../../src/electron/update-manager.js#L17-L25)     |
+| `checking`      | 检查中       | false / false            | autoUpdater `checking-for-update` 事件         | [update-manager.js:41-47](../../../src/electron/update-manager.js#L41-L47)     |
+| `available`     | 发现新版本   | **true** / false         | `update-available` 事件                        | [update-manager.js:49-55](../../../src/electron/update-manager.js#L49-L55)     |
+| `not-available` | 已是最新     | false / false            | `update-not-available` 事件 / 404 兜底映射(§5) | [update-manager.js:57-63](../../../src/electron/update-manager.js#L57-L63)     |
+| `downloading`   | 下载中       | false / false            | `download-progress` 事件 / `downloadUpdate()`  | [update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86)     |
+| `downloaded`    | 下载完成     | false / **true**         | `update-downloaded` 事件                       | [update-manager.js:88-96](../../../src/electron/update-manager.js#L88-L96)     |
+| `installing`    | 安装中(重启) | false / false            | `installUpdate()`                              | [update-manager.js:150-159](../../../src/electron/update-manager.js#L150-L159) |
+| `error`         | 失败         | false / false            | autoUpdater `error` 事件 / 各函数 catch        | [update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105)   |
+| `dev-disabled`  | 开发模式禁用 | false / false            | `checkForUpdates()` 且未打包 / 启动即置位      | [update-manager.js:116-122](../../../src/electron/update-manager.js#L116-L122) |
 
 > 状态名以代码为准:`available` / `not-available`(旧文档写的 `update-available` / `no-update` 已纠正);`progress` 仅在 downloading / downloaded 非空。
 
@@ -43,24 +43,24 @@ checking ──无新版本──▶ not-available
 
 `configureAutoUpdater({onStateChange, writeLog, updater})`([update-manager.js:31-106](../../../src/electron/update-manager.js#L31-L106)):
 
-| 配置 | 值 | 说明 |
-|---|---|---|
-| `autoDownload` | true | 检查到新版本后自动开始下载 |
-| `autoInstallOnAppQuit` | true | 退出应用时自动完成安装 |
-| `allowPrerelease` | false | 只接受正式版 |
-| `disableDifferentialDownload` | true | 禁用增量下载,整包下载 |
+| 配置                          | 值    | 说明                       |
+| ----------------------------- | ----- | -------------------------- |
+| `autoDownload`                | true  | 检查到新版本后自动开始下载 |
+| `autoInstallOnAppQuit`        | true  | 退出应用时自动完成安装     |
+| `allowPrerelease`             | false | 只接受正式版               |
+| `disableDifferentialDownload` | true  | 禁用增量下载,整包下载      |
 
 订阅的 electron-updater 事件 → 状态迁移:checking-for-update / update-available / update-not-available / download-progress / update-downloaded / error(错误映射见 §5)。`download-progress` 中计算下载速度 `speed = bytesDiff / timeDiff`(首帧为 0),percent 钳制 0-100([update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86))。
 
 ## 4. IPC 与 UI 同步
 
-| 通道 | 方向 | 说明 | 出处 |
-|---|---|---|---|
-| `desktop:check-for-updates` | 渲染→主 | 手动检查 | [main.js:388-391](../../../src/electron/main.js#L388-L391) |
-| `desktop:download-update` | 渲染→主 | 手动下载(`autoDownload=true` 下通常已自动开始) | [main.js:392-395](../../../src/electron/main.js#L392-L395) |
-| `desktop:install-update` | 渲染→主 | 安装并重启 | [main.js:396-399](../../../src/electron/main.js#L396-L399) |
-| `desktop:set-auto-update` | 渲染→主 | **仅记日志**(持久化走 `/api/settings`) | [main.js:403-406](../../../src/electron/main.js#L403-L406) |
-| `desktop:update-state` | 主→渲染 | 状态推送(`onUpdateStateChange` → `sendUpdateState`) | [main.js:695-710](../../../src/electron/main.js#L695-L710) |
+| 通道                        | 方向    | 说明                                                | 出处                                                       |
+| --------------------------- | ------- | --------------------------------------------------- | ---------------------------------------------------------- |
+| `desktop:check-for-updates` | 渲染→主 | 手动检查                                            | [main.js:388-391](../../../src/electron/main.js#L388-L391) |
+| `desktop:download-update`   | 渲染→主 | 手动下载(`autoDownload=true` 下通常已自动开始)      | [main.js:392-395](../../../src/electron/main.js#L392-L395) |
+| `desktop:install-update`    | 渲染→主 | 安装并重启                                          | [main.js:396-399](../../../src/electron/main.js#L396-L399) |
+| `desktop:set-auto-update`   | 渲染→主 | **仅记日志**(持久化走 `/api/settings`)              | [main.js:403-406](../../../src/electron/main.js#L403-L406) |
+| `desktop:update-state`      | 主→渲染 | 状态推送(`onUpdateStateChange` → `sendUpdateState`) | [main.js:695-710](../../../src/electron/main.js#L695-L710) |
 
 `desktop:update-state` 载荷:`{status, message, version(当前应用版本), canDownload, canInstall, progress, updateVersion}`,其中:
 
@@ -76,12 +76,12 @@ checking ──无新版本──▶ not-available
 
 `friendlyUpdateError(error)`([update-manager.js:161-173](../../../src/electron/update-manager.js#L161-L173))按错误文本正则归类(唯一成表处):
 
-| 匹配 | status | 用户文案 |
-|---|---|---|
-| `404` + `releases.atom` / `latest.yml` / `github` | `not-available` | 当前 GitHub Releases 里还没有可用更新包。 |
-| `checksum mismatch` / `sha512` / `sha256` / `hash mismatch` | `error` | 更新包校验失败,请前往 GitHub Releases 手动下载最新安装包。 |
-| `ENOTFOUND` / `ECONNRESET` / `ETIMEDOUT` / `EAI_AGAIN` / `ERR_CONNECTION` / `ERR_NETWORK` / `ERR_INTERNET` / `network` / `timeout` | `error` | 暂时无法连接 GitHub 更新服务,请稍后再试。 |
-| 其他 | `error` | 暂时无法检查更新,详细原因已写入日志。 |
+| 匹配                                                                                                                               | status          | 用户文案                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------- |
+| `404` + `releases.atom` / `latest.yml` / `github`                                                                                  | `not-available` | 当前 GitHub Releases 里还没有可用更新包。                  |
+| `checksum mismatch` / `sha512` / `sha256` / `hash mismatch`                                                                        | `error`         | 更新包校验失败,请前往 GitHub Releases 手动下载最新安装包。 |
+| `ENOTFOUND` / `ECONNRESET` / `ETIMEDOUT` / `EAI_AGAIN` / `ERR_CONNECTION` / `ERR_NETWORK` / `ERR_INTERNET` / `network` / `timeout` | `error`         | 暂时无法连接 GitHub 更新服务,请稍后再试。                  |
+| 其他                                                                                                                               | `error`         | 暂时无法检查更新,详细原因已写入日志。                      |
 
 消费点:autoUpdater `error` 事件与 `checkForUpdates`/`downloadUpdate` 的 catch 均走该映射([update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105)、[115-148](../../../src/electron/update-manager.js#L115-L148));main.js `setUpdateError` 同样调用并下推状态([main.js:712-721](../../../src/electron/main.js#L712-L721))。
 
@@ -90,6 +90,7 @@ checking ──无新版本──▶ not-available
 **SHA-512 哈希验证**(当前已实现):electron-updater 在下载完成后,根据 `latest.yml` 中记录的 `sha512` 字段验证安装包完整性。校验失败映射到 `checksum mismatch` 错误(见 §5),阻止损坏或被篡改的更新包安装。
 
 **Windows 代码签名**(设计完成,阻塞于所有者输入):通过 Authenticode 数字签名验证发布者身份与 Windows 生态集成。完整设计见 [../engineering/code-signing.md](../engineering/code-signing.md)。签名后的附加价值:
+
 - **Windows SmartScreen 信誉**:正式 EV 证书签名的应用不触发 SmartScreen 警告
 - **发布者身份验证**:用户可验证应用确实来自声明的发布者
 - **企业环境兼容性**:部分企业 IT 策略仅允许安装已签名应用

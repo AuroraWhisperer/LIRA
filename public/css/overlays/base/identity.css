@@ -154,7 +154,8 @@
 }
 
 .identity-list.scrolling-bounce {
-  animation: identity-scroll-bounce var(--scroll-seconds, 42s) ease-in-out infinite;
+  animation: identity-scroll-bounce var(--scroll-seconds, 42s) ease-in-out
+    infinite;
 }
 
 .identity-row {
@@ -370,7 +371,10 @@
   background: rgba(0, 0, 0, 0.18);
   color: rgba(255, 255, 255, 0.92);
   padding: 2px 6px;
-  font-size: var(--identity-rule-font-size, calc(10px * var(--overlay-font-scale, 1)));
+  font-size: var(
+    --identity-rule-font-size,
+    calc(10px * var(--overlay-font-scale, 1))
+  );
   font-weight: 720;
   line-height: 1.1;
   text-shadow: none;
@@ -388,11 +392,21 @@
   animation-play-state: paused;
 }
 
-.identity-rules .identity-rule-1 { background: var(--identity-rule-1-bg, #f5b72f); }
-.identity-rules .identity-rule-2 { background: var(--identity-rule-2-bg, #65aef7); }
-.identity-rules .identity-rule-3 { background: var(--identity-rule-3-bg, #8d67e8); }
-.identity-rules .identity-rule-4 { background: var(--identity-rule-4-bg, #f25f72); }
-.identity-rules .identity-rule-5 { background: var(--identity-rule-5-bg, #21b6a8); }
+.identity-rules .identity-rule-1 {
+  background: var(--identity-rule-1-bg, #f5b72f);
+}
+.identity-rules .identity-rule-2 {
+  background: var(--identity-rule-2-bg, #65aef7);
+}
+.identity-rules .identity-rule-3 {
+  background: var(--identity-rule-3-bg, #8d67e8);
+}
+.identity-rules .identity-rule-4 {
+  background: var(--identity-rule-4-bg, #f25f72);
+}
+.identity-rules .identity-rule-5 {
+  background: var(--identity-rule-5-bg, #21b6a8);
+}
 .identity-rules .identity-rule-6 {
   background: var(--identity-rule-6-bg, rgba(255, 255, 255, 0.86));
   color: #273142;

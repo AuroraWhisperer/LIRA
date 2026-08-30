@@ -5,7 +5,7 @@ import {
   renderConnBar,
   renderServerTable,
   showToast,
-  updateStats
+  updateStats,
 } from './view.js';
 
 // ── 全局状态 ──
@@ -19,7 +19,13 @@ let serverGiftCache = []; // 累积的服务器礼物
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
-  ws = new WebSocket(proto + '//' + location.host + '/ws' + (token ? '?token=' + encodeURIComponent(token) : ''));
+  ws = new WebSocket(
+    proto +
+      '//' +
+      location.host +
+      '/ws' +
+      (token ? '?token=' + encodeURIComponent(token) : ''),
+  );
   ws.onopen = () => {
     document.getElementById('connInfo').textContent = 'WebSocket 已连接';
     document.getElementById('connInfo').style.color = 'var(--green)';
@@ -32,18 +38,20 @@ function connectWs() {
         // 自动更新服务器礼物缓存
         if (msg.data.gifts && Array.isArray(msg.data.gifts.recent)) {
           for (const g of msg.data.gifts.recent) {
-            if (!serverGiftCache.find(s => s.id === g.id)) {
+            if (!serverGiftCache.find((s) => s.id === g.id)) {
               serverGiftCache.push(g);
             }
           }
           // 限制缓存大小
-          if (serverGiftCache.length > 500) serverGiftCache = serverGiftCache.slice(-300);
+          if (serverGiftCache.length > 500)
+            serverGiftCache = serverGiftCache.slice(-300);
         }
       }
-    } catch(e) {}
+    } catch (e) {}
   };
   ws.onclose = () => {
-    document.getElementById('connInfo').textContent = 'WebSocket 断开 · 重新连接中';
+    document.getElementById('connInfo').textContent =
+      'WebSocket 断开 · 重新连接中';
     document.getElementById('connInfo').style.color = 'var(--yellow)';
     setTimeout(connectWs, 2000);
   };
@@ -55,7 +63,7 @@ async function fetchConnBar() {
     const resp = await fetch('/api/state');
     const json = await resp.json();
     if (json.ok) renderConnBar(json.data);
-  } catch(e) {}
+  } catch (e) {}
 }
 
 // ── 时间工具 ──
@@ -72,8 +80,8 @@ function setTime5MinAgo() {
   document.getElementById('captureTime').value = toLocalDateTime(d);
 }
 function toLocalDateTime(date) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 // ── 从服务器拉取礼物 ──
@@ -90,7 +98,7 @@ async function fetchServerGifts() {
     const recent = Array.isArray(gifts.recent) ? gifts.recent : [];
     // 合并到缓存
     for (const g of recent) {
-      if (!serverGiftCache.find(s => s.id === g.id)) {
+      if (!serverGiftCache.find((s) => s.id === g.id)) {
         serverGiftCache.push(g);
       }
     }
@@ -98,7 +106,7 @@ async function fetchServerGifts() {
     status.style.color = 'var(--green)';
     serverGifts = recent;
     renderServerTable(recent);
-  } catch(e) {
+  } catch (e) {
     status.textContent = '加载失败: ' + e.message;
     status.style.color = 'var(--red)';
   } finally {
@@ -116,7 +124,8 @@ async function parseAndCompare() {
 
   // 解析气泡
   bubbleGifts = parseBubbleHtml(html);
-  document.getElementById('bubbleCount').textContent = bubbleGifts.length + ' 条';
+  document.getElementById('bubbleCount').textContent =
+    bubbleGifts.length + ' 条';
   renderBubbleTable(bubbleGifts);
 
   // 确保有服务器数据
@@ -126,23 +135,27 @@ async function parseAndCompare() {
 
   // 执行对比
   const captureTimeStr = document.getElementById('captureTime').value;
-  const captureTime = captureTimeStr ? new Date(captureTimeStr).getTime() : Date.now();
+  const captureTime = captureTimeStr
+    ? new Date(captureTimeStr).getTime()
+    : Date.now();
 
   comparisonResults = crossReference(bubbleGifts, serverGiftCache, captureTime);
   renderComparison(comparisonResults);
   updateStats({
     bubbleCount: bubbleGifts.length,
     serverCount: serverGiftCache.length,
-    results: comparisonResults
+    results: comparisonResults,
   });
 
   document.getElementById('comparisonSection').style.display = 'block';
   document.getElementById('statsRow').style.display = 'flex';
 
   // 滚动到对比结果
-  document.getElementById('comparisonSection').scrollIntoView({ behavior: 'smooth' });
+  document
+    .getElementById('comparisonSection')
+    .scrollIntoView({ behavior: 'smooth' });
 
-  const missed = comparisonResults.filter(r => r.status === 'miss').length;
+  const missed = comparisonResults.filter((r) => r.status === 'miss').length;
   if (missed > 0) {
     showToast(`⚠️ 发现 ${missed} 条疑似漏记礼物`, 'warn');
   } else {
@@ -156,8 +169,10 @@ function clearAll() {
   bubbleGifts = [];
   serverGifts = [];
   comparisonResults = [];
-  document.getElementById('bubbleTableBody').innerHTML = '<tr><td colspan="5" class="empty-state">等待解析...</td></tr>';
-  document.getElementById('serverTableBody').innerHTML = '<tr><td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td></tr>';
+  document.getElementById('bubbleTableBody').innerHTML =
+    '<tr><td colspan="5" class="empty-state">等待解析...</td></tr>';
+  document.getElementById('serverTableBody').innerHTML =
+    '<tr><td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td></tr>';
   document.getElementById('comparisonBody').innerHTML = '';
   document.getElementById('comparisonSection').style.display = 'none';
   document.getElementById('statsRow').style.display = 'none';
@@ -166,7 +181,8 @@ function clearAll() {
 }
 
 function loadExample() {
-  document.getElementById('bubbleHtml').value = `<!-- 示例：Bilibili 直播气泡 HTML -->
+  document.getElementById('bubbleHtml').value =
+    `<!-- 示例：Bilibili 直播气泡 HTML -->
 <!-- 请替换为从 DevTools 复制的真实 .bubble-list outerHTML -->
 <div class="bubble-list">
   <div class="super-gift-item">
@@ -188,12 +204,22 @@ function loadExample() {
 
 // ── 事件与启动 ──
 document.getElementById('setTimeNowBtn').addEventListener('click', setTimeNow);
-document.getElementById('setTime1MinAgoBtn').addEventListener('click', setTime1MinAgo);
-document.getElementById('setTime5MinAgoBtn').addEventListener('click', setTime5MinAgo);
-document.getElementById('loadExampleBtn').addEventListener('click', loadExample);
-document.getElementById('parseAndCompareBtn').addEventListener('click', parseAndCompare);
+document
+  .getElementById('setTime1MinAgoBtn')
+  .addEventListener('click', setTime1MinAgo);
+document
+  .getElementById('setTime5MinAgoBtn')
+  .addEventListener('click', setTime5MinAgo);
+document
+  .getElementById('loadExampleBtn')
+  .addEventListener('click', loadExample);
+document
+  .getElementById('parseAndCompareBtn')
+  .addEventListener('click', parseAndCompare);
 document.getElementById('clearAllBtn').addEventListener('click', clearAll);
-document.getElementById('btnFetchServer').addEventListener('click', fetchServerGifts);
+document
+  .getElementById('btnFetchServer')
+  .addEventListener('click', fetchServerGifts);
 
 setTimeNow();
 connectWs();

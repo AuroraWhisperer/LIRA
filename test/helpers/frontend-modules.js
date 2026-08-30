@@ -20,8 +20,8 @@ function createLyricToggleButton() {
       },
       contains(name) {
         return classes.has(name);
-      }
-    }
+      },
+    },
   };
 }
 
@@ -30,13 +30,15 @@ async function loadModuleExports(entryPath, globals = {}) {
     console,
     fetch: globals.fetch,
     window: {},
-    ...globals
+    ...globals,
   });
 
   if (typeof vm.SourceTextModule !== 'function') {
     const source = fs.readFileSync(entryPath, 'utf8');
     const exportNames = [];
-    for (const match of source.matchAll(/^export\s+(?:(?:async)\s+)?(?:class|function|const|let|var)\s+([\w$]+)/gm)) {
+    for (const match of source.matchAll(
+      /^export\s+(?:(?:async)\s+)?(?:class|function|const|let|var)\s+([\w$]+)/gm,
+    )) {
       exportNames.push([match[1], match[1]]);
     }
     for (const match of source.matchAll(/^export\s*\{([^}]+)\}\s*;?/gm)) {
@@ -45,13 +47,23 @@ async function loadModuleExports(entryPath, globals = {}) {
         if (localName) exportNames.push([exportedName || localName, localName]);
       }
     }
-    const namespaceExpression = `{${exportNames.map(([exportedName, localName]) =>
-      `${JSON.stringify(exportedName)}: typeof ${localName} === 'undefined' ? undefined : ${localName}`
-    ).join(',')}}`;
-    const bundle = readJsModuleBundle(...path.relative(path.resolve(__dirname, '..', '..'), entryPath).split(path.sep));
-    const script = new vm.Script(`${bundle}\nglobalThis.__moduleNamespace = ${namespaceExpression};`, {
-      filename: entryPath
-    });
+    const namespaceExpression = `{${exportNames
+      .map(
+        ([exportedName, localName]) =>
+          `${JSON.stringify(exportedName)}: typeof ${localName} === 'undefined' ? undefined : ${localName}`,
+      )
+      .join(',')}}`;
+    const bundle = readJsModuleBundle(
+      ...path
+        .relative(path.resolve(__dirname, '..', '..'), entryPath)
+        .split(path.sep),
+    );
+    const script = new vm.Script(
+      `${bundle}\nglobalThis.__moduleNamespace = ${namespaceExpression};`,
+      {
+        filename: entryPath,
+      },
+    );
     script.runInContext(context);
     return context.__moduleNamespace;
   }
@@ -63,7 +75,7 @@ async function loadModuleExports(entryPath, globals = {}) {
     if (modules.has(identifier)) return modules.get(identifier);
     const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
       context,
-      identifier
+      identifier,
     });
     modules.set(identifier, module);
     await module.link((specifier, referencingModule) => {
@@ -85,5 +97,5 @@ function response(payload) {
 module.exports = {
   createLyricToggleButton,
   loadModuleExports,
-  response
+  response,
 };

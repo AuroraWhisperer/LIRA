@@ -8,15 +8,15 @@ const QUALITY_OPTIONS = {
     { id: 'high', label: 'HQ', detail: '最高 320kbps' },
     { id: 'lossless', label: 'SQ', detail: '无损 FLAC' },
     { id: 'premium', label: '臻品', detail: 'Q0 无损（本地解密）' },
-    { id: 'immersive', label: '全景声', detail: 'O8 Ogg（不含专有 DSP）' }
+    { id: 'immersive', label: '全景声', detail: 'O8 Ogg（不含专有 DSP）' },
   ],
   netease: [
     { id: 'standard', label: '标准', detail: '128kbps' },
     { id: 'higher', label: '较高', detail: '最高 192kbps' },
     { id: 'exhigh', label: '极高', detail: '最高 320kbps' },
     { id: 'lossless', label: '无损', detail: '无损 FLAC' },
-    { id: 'hires', label: 'Hi-Res', detail: '高解析度无损' }
-  ]
+    { id: 'hires', label: 'Hi-Res', detail: '高解析度无损' },
+  ],
 };
 
 export function getQualityOptions(source) {
@@ -29,7 +29,10 @@ export function normalizeQuality(source, quality) {
 }
 
 export function getQualityLabel(source, quality) {
-  return getQualityOptions(source).find((item) => item.id === quality)?.label || '标准';
+  return (
+    getQualityOptions(source).find((item) => item.id === quality)?.label ||
+    '标准'
+  );
 }
 
 function normalizeSourceSongType(value) {
@@ -44,7 +47,10 @@ function normalizeSourceSongType(value) {
  */
 export function normalizeOnlineTrack(track) {
   const source = track.source === 'netease' ? 'netease' : 'qq';
-  const sourceTrackId = String(track.sourceTrackId || track.id || '').replace(`${source}:`, '');
+  const sourceTrackId = String(track.sourceTrackId || track.id || '').replace(
+    `${source}:`,
+    '',
+  );
   return {
     id: track.id || `${source}:${sourceTrackId}`,
     source,
@@ -56,10 +62,12 @@ export function normalizeOnlineTrack(track) {
     sourceTrackId,
     sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-    sourceSongType: normalizeSourceSongType(track.sourceSongType ?? track.songType),
+    sourceSongType: normalizeSourceSongType(
+      track.sourceSongType ?? track.songType,
+    ),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
-    vip: track.vip === true
+    vip: track.vip === true,
   };
 }
 
@@ -80,10 +88,12 @@ export function serializeTrackForProvider(track) {
     sourceTrackId: track.sourceTrackId || track.id,
     sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-    sourceSongType: normalizeSourceSongType(track.sourceSongType ?? track.songType),
+    sourceSongType: normalizeSourceSongType(
+      track.sourceSongType ?? track.songType,
+    ),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
-    vip: track.vip === true
+    vip: track.vip === true,
   };
 }
 
@@ -129,9 +139,10 @@ export function hasUsableUrl(track, refreshMarginMs = 30000) {
  * @returns {Array<string>} 平台列表，优先级从高到低
  */
 export function preferredPlatforms(currentSource, selectedSource) {
-  const preferred = currentSource === 'qq' || currentSource === 'netease'
-    ? currentSource
-    : selectedSource;
+  const preferred =
+    currentSource === 'qq' || currentSource === 'netease'
+      ? currentSource
+      : selectedSource;
   return preferred === 'qq' ? ['qq', 'netease'] : ['netease', 'qq'];
 }
 
@@ -153,13 +164,14 @@ export function formatTime(seconds) {
  * @returns {string} 格式化后的元信息字符串
  */
 export function formatTrackMeta(track) {
-  const artists = Array.isArray(track.artists) && track.artists.length
-    ? track.artists.join(' / ')
-    : '未知歌手';
+  const artists =
+    Array.isArray(track.artists) && track.artists.length
+      ? track.artists.join(' / ')
+      : '未知歌手';
   const parts = [
     artists,
     track.album || '',
-    formatTime((track.durationMs || 0) / 1000)
+    formatTime((track.durationMs || 0) / 1000),
   ].filter(Boolean);
   if (track.vip) parts.push('VIP');
   if (track.playable === false) parts.push('可能不可播');
@@ -175,7 +187,8 @@ export function formatPlaylistMeta(playlist) {
   const parts = [];
   if (playlist.trackCount) parts.push(`${playlist.trackCount} 首`);
   if (playlist.playCount) {
-    const formatCompactNumber = window.AdminApp?.utils?.formatCompactNumber || ((n) => n);
+    const formatCompactNumber =
+      window.AdminApp?.utils?.formatCompactNumber || ((n) => n);
     parts.push(`${formatCompactNumber(playlist.playCount)} 次播放`);
   }
   if (playlist.description) parts.push(playlist.description);
@@ -190,9 +203,11 @@ export function formatPlaylistMeta(playlist) {
  * @returns {string} 封面 HTML 字符串
  */
 export function renderArtwork(item, options = {}) {
-  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
-  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-  const coverUrl = String(item && item.coverUrl || '').trim();
+  const escapeAttr =
+    window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
+  const escapeHtml =
+    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const coverUrl = String((item && item.coverUrl) || '').trim();
   const fallback = options.fallback || '音';
   return `
     <div class="playback-artwork${coverUrl ? ' has-image' : ''}" aria-hidden="true">
@@ -218,8 +233,8 @@ export function normalizeSavedPendingRequest(item) {
     reasons: Array.isArray(item.reasons) ? item.reasons : [],
     track: {
       ...item.track,
-      objectUrl: ''
-    }
+      objectUrl: '',
+    },
   };
 }
 
@@ -234,7 +249,7 @@ export function normalizeSavedTrack(track) {
     objectUrl: '',
     fileName: track.fileName || '',
     filePath: track.filePath || '',
-    fileMissing: track.fileMissing || false
+    fileMissing: track.fileMissing || false,
   };
 }
 
@@ -246,7 +261,9 @@ export function normalizeSavedTrack(track) {
  */
 export function pickBackgroundTheme(track, themeCount = 30) {
   const seed = track
-    ? String(track.id || `${track.title || ''}|${(track.artists || []).join(',')}`)
+    ? String(
+        track.id || `${track.title || ''}|${(track.artists || []).join(',')}`,
+      )
     : '';
   if (!seed) return 1;
   let hash = 0;
@@ -262,16 +279,18 @@ export function pickBackgroundTheme(track, themeCount = 30) {
  * @returns {string} 显示标题
  */
 export function getHomeActionTitle(action) {
-  return {
-    personalized: '为你推荐',
-    daily: '每日推荐',
-    radio: '心动 / 电台',
-    liked: '我喜欢',
-    'created-playlists': '我的歌单',
-    'collected-playlists': '收藏歌单',
-    recent: '最近播放',
-    'playlist-tracks': '歌单详情'
-  }[action] || '音乐内容';
+  return (
+    {
+      personalized: '为你推荐',
+      daily: '每日推荐',
+      radio: '心动 / 电台',
+      liked: '我喜欢',
+      'created-playlists': '我的歌单',
+      'collected-playlists': '收藏歌单',
+      recent: '最近播放',
+      'playlist-tracks': '歌单详情',
+    }[action] || '音乐内容'
+  );
 }
 
 /**
@@ -280,11 +299,13 @@ export function getHomeActionTitle(action) {
  * @returns {string} 显示标签
  */
 export function getModeLabel(mode) {
-  return {
-    'sequence': '顺序',
-    'shuffle': '随机',
-    'repeat-one': '单曲'
-  }[mode] || '顺序';
+  return (
+    {
+      sequence: '顺序',
+      shuffle: '随机',
+      'repeat-one': '单曲',
+    }[mode] || '顺序'
+  );
 }
 
 /**
@@ -293,11 +314,13 @@ export function getModeLabel(mode) {
  * @returns {string} 提示文本
  */
 export function getModeHint(mode) {
-  return {
-    'sequence': '顺序播放（点击切换到随机）',
-    'shuffle': '随机播放（点击切换到单曲循环）',
-    'repeat-one': '单曲循环（点击切换到顺序）'
-  }[mode] || '播放模式';
+  return (
+    {
+      sequence: '顺序播放（点击切换到随机）',
+      shuffle: '随机播放（点击切换到单曲循环）',
+      'repeat-one': '单曲循环（点击切换到顺序）',
+    }[mode] || '播放模式'
+  );
 }
 
 /**

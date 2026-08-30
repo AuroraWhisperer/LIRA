@@ -7,10 +7,10 @@
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
-    "head"
-    "discovery"
-    "search"
-    "match";
+    'head'
+    'discovery'
+    'search'
+    'match';
   grid-template-rows: repeat(4, max-content);
   align-content: start;
   gap: 12px;

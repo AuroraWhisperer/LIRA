@@ -5,16 +5,21 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { isBilibiliCommandText } = require('../src/bilibili/danmaku/command-text');
+const {
+  isBilibiliCommandText,
+} = require('../src/bilibili/danmaku/command-text');
 const {
   createCustomReplyService,
   findCustomReplyRule,
   parseCustomReplyRules,
-  normalizeCustomReplyRule
+  normalizeCustomReplyRule,
 } = require('../src/bilibili/custom-reply-service');
 const { createDomainServices } = require('../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
-const { DEFAULT_SETTINGS, createSettingsStore } = require('../src/storage/settings-store');
+const {
+  DEFAULT_SETTINGS,
+  createSettingsStore,
+} = require('../src/storage/settings-store');
 
 test('all danmaku reply bots are enabled by default', () => {
   assert.deepEqual(
@@ -22,9 +27,9 @@ test('all danmaku reply bots are enabled by default', () => {
       DEFAULT_SETTINGS.enableRandomTagReply,
       DEFAULT_SETTINGS.enableCheckinBot,
       DEFAULT_SETTINGS.enableFortuneBot,
-      DEFAULT_SETTINGS.enableCustomReplyBot
+      DEFAULT_SETTINGS.enableCustomReplyBot,
     ],
-    ['true', 'true', 'true', 'true']
+    ['true', 'true', 'true', 'true'],
   );
 });
 
@@ -35,21 +40,27 @@ test('custom reply rules normalize and match enabled keyword replies', () => {
       { keyword: ' 菜单 ', reply: ' 点歌格式：点歌 歌名 ', enabled: true },
       { keyword: '晚安', reply: '好梦。', enabled: false },
       { keyword: '', reply: 'empty keyword' },
-      { keyword: 'empty reply', reply: '' }
-    ])
+      { keyword: 'empty reply', reply: '' },
+    ]),
   };
 
   assert.deepEqual(parseCustomReplyRules(settings.customReplyRules), [
     { keyword: '菜单', reply: '点歌格式：点歌 歌名', enabled: true },
-    { keyword: '晚安', reply: '好梦。', enabled: false }
+    { keyword: '晚安', reply: '好梦。', enabled: false },
   ]);
   assert.deepEqual(findCustomReplyRule('主播菜单在哪', settings), {
     keyword: '菜单',
     reply: '点歌格式：点歌 歌名',
-    enabled: true
+    enabled: true,
   });
   assert.equal(findCustomReplyRule('晚安主播', settings), null);
-  assert.equal(findCustomReplyRule('主播菜单在哪', { ...settings, enableCustomReplyBot: 'false' }), null);
+  assert.equal(
+    findCustomReplyRule('主播菜单在哪', {
+      ...settings,
+      enableCustomReplyBot: 'false',
+    }),
+    null,
+  );
 });
 
 test('custom replies preserve special symbols when applying the length limit', () => {
@@ -66,42 +77,54 @@ test('custom reply service creates targeted automatic replies', () => {
   const service = createCustomReplyService({
     settings: () => ({
       enableCustomReplyBot: 'true',
-      customReplyRules: '[{"keyword":"菜单","reply":"点歌格式：点歌 歌名"}]'
-    })
+      customReplyRules: '[{"keyword":"菜单","reply":"点歌格式：点歌 歌名"}]',
+    }),
   });
 
-  const result = service.handleDanmaku({ message: '菜单看看', uid: '123', userName: 'Alice' });
+  const result = service.handleDanmaku({
+    message: '菜单看看',
+    uid: '123',
+    userName: 'Alice',
+  });
   assert.equal(result.accepted, true);
   assert.deepEqual(result.command, { type: 'custom-reply', keyword: '菜单' });
   assert.deepEqual(result.autoReply, {
     message: '点歌格式：点歌 歌名',
-    target: { uid: '123', name: 'Alice' }
+    target: { uid: '123', name: 'Alice' },
   });
-  assert.equal(service.handleDanmaku({ message: '路过', uid: '123' }).reason, 'not-custom-reply');
+  assert.equal(
+    service.handleDanmaku({ message: '路过', uid: '123' }).reason,
+    'not-custom-reply',
+  );
   assert.equal(isBilibiliCommandText('菜单看看', service.isCommandText), true);
 });
 
 test('domain services attach a custom reply after built-in commands decline', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-custom-reply-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-custom-reply-'),
+  );
   const databases = createDatabases({ dataDir });
   const settingsStore = createSettingsStore(databases.songDb);
   settingsStore.setSetting('enableCustomReplyBot', 'true');
-  settingsStore.setSetting('customReplyRules', JSON.stringify([
-    { keyword: '菜单', reply: '点歌格式：点歌 歌名', enabled: true },
-    { keyword: '签到', reply: '不会覆盖签到', enabled: true },
-    { keyword: '随机点歌', reply: '不会抢占随机点歌', enabled: true }
-  ]));
+  settingsStore.setSetting(
+    'customReplyRules',
+    JSON.stringify([
+      { keyword: '菜单', reply: '点歌格式：点歌 歌名', enabled: true },
+      { keyword: '签到', reply: '不会覆盖签到', enabled: true },
+      { keyword: '随机点歌', reply: '不会抢占随机点歌', enabled: true },
+    ]),
+  );
   const services = createDomainServices({
     db: databases,
     settingsStore,
-    onGiftFlushed() {}
+    onGiftFlushed() {},
   });
 
   try {
     const random = services.messages.handleDanmaku({
       message: '随机点歌',
       uid: '456',
-      userName: 'Bob'
+      userName: 'Bob',
     });
     assert.equal(random.command.type, 'random');
     assert.equal(random.customReply, undefined);
@@ -110,17 +133,20 @@ test('domain services attach a custom reply after built-in commands decline', ()
     const custom = services.messages.handleDanmaku({
       message: '看看菜单',
       uid: '456',
-      userName: 'Bob'
+      userName: 'Bob',
     });
     assert.equal(custom.accepted, false);
     assert.equal(custom.customReply.accepted, true);
     assert.equal(custom.customReplyReply.message, '点歌格式：点歌 歌名');
-    assert.deepEqual(custom.customReplyReply.target, { uid: '456', name: 'Bob' });
+    assert.deepEqual(custom.customReplyReply.target, {
+      uid: '456',
+      name: 'Bob',
+    });
 
     const checkin = services.messages.handleDanmaku({
       message: '签到',
       uid: '456',
-      userName: 'Bob'
+      userName: 'Bob',
     });
     assert.equal(checkin.checkin.accepted, true);
     assert.equal(checkin.customReplyReply, undefined);

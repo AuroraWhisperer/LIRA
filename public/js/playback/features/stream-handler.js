@@ -8,7 +8,7 @@ export function createStreamHandler(deps) {
     playbackState,
     getPlaybackAudio,
     playPlaybackTrack,
-    playbackNext
+    playbackNext,
   } = deps;
 
   async function getPlaybackTrackUrl(track, options = {}) {
@@ -27,18 +27,18 @@ export function createStreamHandler(deps) {
         playPlaybackTrack(track, {
           origin: playbackState.currentOrigin,
           isRetry: true,
-          startAt: resumeAt
+          startAt: resumeAt,
         });
       },
       () => {
         // 重试失败回调
         return playbackNext(false);
-      }
+      },
     );
   }
 
   return {
     getPlaybackTrackUrl,
-    handlePlaybackError
+    handlePlaybackError,
   };
 }

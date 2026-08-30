@@ -19,12 +19,14 @@
 ### Task 1: Frame event contract and persisted settings
 
 **Files:**
+
 - Modify: `src/storage/settings-store.js`
 - Create: `src/bilibili/gift/frame-config.js`
 - Modify: `src/server.js`, `src/server/api-context.js`, `src/server/routes/gift-routes.js`
 - Test: `test/gift-frame-config.test.js`
 
 **Interfaces:**
+
 - `buildGiftFrameEvent(item, settings)` returns a plain event or `null`.
 - `normalizeFrameSettings(settings)` returns validated `{ enabled, thresholdRmb, themeId, motionMode }`.
 - `POST /api/gifts/frame/preview` accepts `{ userName, giftName, num, totalPriceRmb, themeId, motionMode }` and broadcasts a `preview: true` frame event without consulting settings or the live dedupe set.
@@ -39,12 +41,14 @@
 ### Task 2: Inline frame renderer and playback lifecycle
 
 **Files:**
+
 - Modify: `public/pages/overlays/gift-effects.html`
 - Modify: `public/css/overlays/gift-effects.css`
 - Replace/modify: `public/js/overlays/gift-effects.js`
 - Test: `test/gift-effects-overlay.test.js`, `test/gift-frame-overlay-runtime.test.js`
 
 **Interfaces:**
+
 - `GiftFrameController.handle(payload)` validates `gift:frame` payloads and owns queue/dedupe.
 - `FrameController.prepare(payload, motionMode)`, `playEnterTimeline(session)`, `playExitTimeline(session)`, `reset()` own only SVG/DOM visuals.
 - `ParticleController.start(theme)`, `stop()`, `resize(width, height)` are optional and capped at six particles.
@@ -59,6 +63,7 @@
 ### Task 3: 礼物姬 controls and preview workflow
 
 **Files:**
+
 - Modify: `public/pages/admin/toolbox/gift.html`
 - Create: `public/js/admin/gift-frame.js`
 - Modify: `public/js/admin/index.js`
@@ -66,6 +71,7 @@
 - Test: `test/gift-frame-admin.test.js`
 
 **Interfaces:**
+
 - `window.AdminApp.giftFrame.init()` binds the Gift 姬 form and renders from `app:settings-state`.
 - The form saves only `giftFrameEnabled`, `giftFrameThresholdRmb`, `giftFrameTheme`, and `giftFrameMotionMode` through `/api/settings`.
 
@@ -78,6 +84,7 @@
 ### Task 4: Documentation and layered verification
 
 **Files:**
+
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/backend/bilibili/gift.md`
 - Modify: `docs/architecture/backend/storage.md`

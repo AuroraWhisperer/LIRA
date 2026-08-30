@@ -39,15 +39,15 @@
 
 ## User Route
 
-| Step | Visible goal | Completion gate | Skip policy | Next action |
-|---|---|---|---|---|
-| `welcome` | 知道引导范围和桌面版要求 | 用户点击开始 | 不适用 | 进入 Bilibili |
-| `bilibili` | 登录 Bilibili、填写房间号 | `loggedIn`、非空规范化房间号，点击刷新直播后连接状态不为配置缺失 | 不允许 | 进入歌单导入 |
-| `import` | 知道如何导入歌单 | 用户打开或确认「点歌 → 导入导出」入口及 XLSX/CSV/TSV/粘贴方式 | 不允许 | 进入音乐登录位置 |
-| `music` | 选择并了解音乐平台登录位置 | 用户选择需要了解的平台并确认说明已读；QQ/网易云说明 LIRA 播放页内置登录，全民 K 歌说明宿主客户端登录 | 不允许 | 进入 AI |
-| `ai` | 选择是否启用 AI 并测试 DeepSeek | 未启用可直接通过；启用要求 `hasDeepSeekApiKey`、地址/模型有效且测试成功 | 可跳过 | 进入完成 |
-| `docs` | 知道完整说明文档在哪里 | 用户确认已知道「百宝箱 → 使用文档」入口 | 不允许 | 进入完成 |
-| `complete` | 检查摘要和后续入口 | 用户点击完成 | 不适用 | 保存完成状态并关闭 |
+| Step       | Visible goal                    | Completion gate                                                                                      | Skip policy | Next action        |
+| ---------- | ------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------- | ------------------ |
+| `welcome`  | 知道引导范围和桌面版要求        | 用户点击开始                                                                                         | 不适用      | 进入 Bilibili      |
+| `bilibili` | 登录 Bilibili、填写房间号       | `loggedIn`、非空规范化房间号，点击刷新直播后连接状态不为配置缺失                                     | 不允许      | 进入歌单导入       |
+| `import`   | 知道如何导入歌单                | 用户打开或确认「点歌 → 导入导出」入口及 XLSX/CSV/TSV/粘贴方式                                        | 不允许      | 进入音乐登录位置   |
+| `music`    | 选择并了解音乐平台登录位置      | 用户选择需要了解的平台并确认说明已读；QQ/网易云说明 LIRA 播放页内置登录，全民 K 歌说明宿主客户端登录 | 不允许      | 进入 AI            |
+| `ai`       | 选择是否启用 AI 并测试 DeepSeek | 未启用可直接通过；启用要求 `hasDeepSeekApiKey`、地址/模型有效且测试成功                              | 可跳过      | 进入完成           |
+| `docs`     | 知道完整说明文档在哪里          | 用户确认已知道「百宝箱 → 使用文档」入口                                                              | 不允许      | 进入完成           |
+| `complete` | 检查摘要和后续入口              | 用户点击完成                                                                                         | 不适用      | 保存完成状态并关闭 |
 
 ## Proposed Files And Interfaces
 
@@ -90,7 +90,7 @@ api('/api/settings', { roomId });
 api('/api/settings', {
   onboardingVersion: String(ONBOARDING_VERSION),
   onboardingCompletedAt: new Date().toISOString(),
-  onboardingSkippedOptional: skippedIds.join(',')
+  onboardingSkippedOptional: skippedIds.join(','),
 });
 ```
 
@@ -159,7 +159,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 
 **Interfaces:**
 
-  - Consumes: existing Admin utility `api`, `toast`, `showError`, existing state service, Bilibili/music preload bridges and AI endpoints.
+- Consumes: existing Admin utility `api`, `toast`, `showError`, existing state service, Bilibili/music preload bridges and AI endpoints.
 - Produces: exported gate helpers and `window.AdminApp.onboarding` controller described above.
 
 - [ ] Write failing unit tests for: Bilibili gate rejection without desktop bridge; room ID normalization requirement; import acknowledgment; music platform-location acknowledgment; Quanmin host-login copy; AI disabled/enabled branches; documentation-location acknowledgment; completed-version suppression; next/previous bounds; optional skip tracking.

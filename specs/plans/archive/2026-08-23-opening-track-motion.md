@@ -62,4 +62,3 @@ baseline; no database schema rollback is required.
 - Invalid submissions return 400 and invalid read/render values fall back to heart.
 - New loops have no hard seam and stop under low-quality/reduced-motion conditions.
 - Focused tests, docs, syntax, quick gates, visual QA, and final diff review pass.
-

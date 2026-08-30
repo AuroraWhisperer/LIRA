@@ -28,7 +28,10 @@
   padding: 12px 14px;
   background: linear-gradient(135deg, #fdfdff 0%, #f7f8fc 100%);
   box-shadow: 0 1px 3px rgba(23, 32, 42, 0.04);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 120ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
 }
 
 .blind-box-chip:hover {
@@ -49,121 +52,121 @@
 }
 
 /* 心动盲盒专属样式 — 珊瑚红配色取自盲盒图标 */
-.blind-box-chip:has(img[alt*="心动盲盒"]) {
+.blind-box-chip:has(img[alt*='心动盲盒']) {
   border-color: #f3a2aa;
   background: linear-gradient(135deg, #fff6f7 0%, #fde9ec 100%);
 }
 
-.blind-box-chip:has(img[alt*="心动盲盒"]):hover {
+.blind-box-chip:has(img[alt*='心动盲盒']):hover {
   border-color: #d85e6d;
   box-shadow: 0 4px 12px rgba(216, 94, 109, 0.18);
 }
 
-.blind-box-chip:has(img[alt*="心动盲盒"]) .bb-chip-icon {
+.blind-box-chip:has(img[alt*='心动盲盒']) .bb-chip-icon {
   background: linear-gradient(135deg, #fff0f2 0%, #fbd8dd 100%);
 }
 
-.blind-box-chip:has(img[alt*="心动盲盒"]) .bb-chip-name {
+.blind-box-chip:has(img[alt*='心动盲盒']) .bb-chip-name {
   color: #b54555;
 }
 
-.blind-box-chip:has(img[alt*="心动盲盒"]) .bb-chip-price {
+.blind-box-chip:has(img[alt*='心动盲盒']) .bb-chip-price {
   color: #c94f60;
   background: rgba(201, 79, 96, 0.09);
 }
 
 /* 幸运盲盒专属样式 — 嫩叶绿配色取自盲盒图标 */
-.blind-box-chip:has(img[alt*="幸运盲盒"]) {
+.blind-box-chip:has(img[alt*='幸运盲盒']) {
   border-color: #b8d983;
   background: linear-gradient(135deg, #fbfff4 0%, #edf7dc 100%);
 }
 
-.blind-box-chip:has(img[alt*="幸运盲盒"]):hover {
+.blind-box-chip:has(img[alt*='幸运盲盒']):hover {
   border-color: #78a83f;
   box-shadow: 0 4px 12px rgba(120, 168, 63, 0.18);
 }
 
-.blind-box-chip:has(img[alt*="幸运盲盒"]) .bb-chip-icon {
+.blind-box-chip:has(img[alt*='幸运盲盒']) .bb-chip-icon {
   background: linear-gradient(135deg, #f6fce9 0%, #e3f1c9 100%);
 }
 
-.blind-box-chip:has(img[alt*="幸运盲盒"]) .bb-chip-name {
+.blind-box-chip:has(img[alt*='幸运盲盒']) .bb-chip-name {
   color: #56852d;
 }
 
-.blind-box-chip:has(img[alt*="幸运盲盒"]) .bb-chip-price {
+.blind-box-chip:has(img[alt*='幸运盲盒']) .bb-chip-price {
   color: #669735;
   background: rgba(102, 151, 53, 0.1);
 }
 
 /* 小熊虫盲盒专属样式 — 配色取自盲盒图标（蜜桃粉 #f5a6cb / 暖金 #fede82 / 深玫瑰 #d1568e）*/
-.blind-box-chip:has(img[alt*="小熊虫"]) {
+.blind-box-chip:has(img[alt*='小熊虫']) {
   border-color: #f5a6cb;
   background: linear-gradient(135deg, #fff5f9 0%, #fde8ef 100%);
 }
 
-.blind-box-chip:has(img[alt*="小熊虫"]):hover {
+.blind-box-chip:has(img[alt*='小熊虫']):hover {
   border-color: #d1568e;
   box-shadow: 0 4px 12px rgba(209, 86, 142, 0.18);
 }
 
-.blind-box-chip:has(img[alt*="小熊虫"]) .bb-chip-icon {
+.blind-box-chip:has(img[alt*='小熊虫']) .bb-chip-icon {
   background: linear-gradient(135deg, #fdedf3 0%, #fcd5e4 100%);
 }
 
-.blind-box-chip:has(img[alt*="小熊虫"]) .bb-chip-name {
+.blind-box-chip:has(img[alt*='小熊虫']) .bb-chip-name {
   color: #b34068;
 }
 
-.blind-box-chip:has(img[alt*="小熊虫"]) .bb-chip-price {
+.blind-box-chip:has(img[alt*='小熊虫']) .bb-chip-price {
   color: #c94b84;
   background: rgba(201, 75, 132, 0.09);
 }
 
 /* 七夕鹊匣专属样式 — 樱粉向雾紫过渡，呼应鹊匣的七夕主题 */
-.blind-box-chip:has(img[alt*="七夕鹊匣"]) {
+.blind-box-chip:has(img[alt*='七夕鹊匣']) {
   border-color: #d786dc;
   background: linear-gradient(135deg, #fff2fb 0%, #f3e8ff 100%);
 }
 
-.blind-box-chip:has(img[alt*="七夕鹊匣"]):hover {
+.blind-box-chip:has(img[alt*='七夕鹊匣']):hover {
   border-color: #bb63c4;
   box-shadow: 0 4px 12px rgba(155, 63, 166, 0.18);
 }
 
-.blind-box-chip:has(img[alt*="七夕鹊匣"]) .bb-chip-icon {
+.blind-box-chip:has(img[alt*='七夕鹊匣']) .bb-chip-icon {
   background: linear-gradient(135deg, #ffe8f7 0%, #eadcff 100%);
 }
 
-.blind-box-chip:has(img[alt*="七夕鹊匣"]) .bb-chip-name {
+.blind-box-chip:has(img[alt*='七夕鹊匣']) .bb-chip-name {
   color: #9b3fa6;
 }
 
-.blind-box-chip:has(img[alt*="七夕鹊匣"]) .bb-chip-price {
+.blind-box-chip:has(img[alt*='七夕鹊匣']) .bb-chip-price {
   color: #a94db4;
   background: rgba(169, 77, 180, 0.1);
 }
 
 /* 羁绊宝盒专属样式 — 亮粉与青蓝呼应盒面配色 */
-.blind-box-chip:has(img[alt*="羁绊宝盒"]) {
+.blind-box-chip:has(img[alt*='羁绊宝盒']) {
   border-color: #ff6fb8;
   background: linear-gradient(135deg, #fff0fa 0%, #eefbff 100%);
 }
 
-.blind-box-chip:has(img[alt*="羁绊宝盒"]):hover {
+.blind-box-chip:has(img[alt*='羁绊宝盒']):hover {
   border-color: #e84e9f;
   box-shadow: 0 4px 12px rgba(232, 78, 159, 0.18);
 }
 
-.blind-box-chip:has(img[alt*="羁绊宝盒"]) .bb-chip-icon {
+.blind-box-chip:has(img[alt*='羁绊宝盒']) .bb-chip-icon {
   background: linear-gradient(135deg, #ffe7f5 0%, #dcf8ff 100%);
 }
 
-.blind-box-chip:has(img[alt*="羁绊宝盒"]) .bb-chip-name {
+.blind-box-chip:has(img[alt*='羁绊宝盒']) .bb-chip-name {
   color: #b43f89;
 }
 
-.blind-box-chip:has(img[alt*="羁绊宝盒"]) .bb-chip-price {
+.blind-box-chip:has(img[alt*='羁绊宝盒']) .bb-chip-price {
   color: #2a87b7;
   background: rgba(42, 135, 183, 0.1);
 }
@@ -176,7 +179,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  ;
   background: linear-gradient(135deg, #f0e6ff 0%, #fce4ec 100%);
 }
 
@@ -249,14 +251,15 @@
   cursor: pointer;
   color: #94a3b8;
   font-weight: 700;
-  ;
   line-height: 1;
   padding: 4px 6px;
   border: none;
   background: none;
   border-radius: 4px;
   flex-shrink: 0;
-  transition: color 150ms ease, background 150ms ease;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
 }
 
 .blind-box-chip .chip-delete:hover {

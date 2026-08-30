@@ -1,23 +1,45 @@
 // 编写人：Aurora
 'use strict';
 
-import { applyTheme, renderCherryRibbonQueue, renderClassicQueue, renderGoldenLilyQueue, renderIdentityQueue, renderNeonVinylQueue, renderStorybookQueue } from './queue-render.js';
-import { captureScrollAnimation, configureClassicVerticalScroll, configureIdentityVerticalScroll, originalQueueRowsHtml, scheduleIdentityContentScroll, scheduleIdentityRuleScroll, scheduleIdentitySuperChatScroll, scheduleScrollAnimationRestore } from './queue-scroll.js';
+import {
+  applyTheme,
+  renderCherryRibbonQueue,
+  renderClassicQueue,
+  renderGoldenLilyQueue,
+  renderIdentityQueue,
+  renderNeonVinylQueue,
+  renderStorybookQueue,
+} from './queue-render.js';
+import {
+  captureScrollAnimation,
+  configureClassicVerticalScroll,
+  configureIdentityVerticalScroll,
+  originalQueueRowsHtml,
+  scheduleIdentityContentScroll,
+  scheduleIdentityRuleScroll,
+  scheduleIdentitySuperChatScroll,
+  scheduleScrollAnimationRestore,
+} from './queue-scroll.js';
 import { syncQueuePanelViewport } from './queue-viewport.js';
-import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
+import {
+  normalizePersistedQueueStyle,
+  resolveQueueStyleSettings,
+} from '../shared/queue-style-settings.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
   'neon-vinyl': renderNeonVinylQueue,
   'cherry-ribbon': renderCherryRibbonQueue,
-  'golden-lily': renderGoldenLilyQueue
+  'golden-lily': renderGoldenLilyQueue,
 };
-const ILLUSTRATED_QUEUE_STYLES = new Set(Object.keys(ILLUSTRATED_QUEUE_RENDERERS));
+const ILLUSTRATED_QUEUE_STYLES = new Set(
+  Object.keys(ILLUSTRATED_QUEUE_RENDERERS),
+);
 const ILLUSTRATED_QUEUE_ROW_GAPS = {
   storybook: 7,
   'neon-vinyl': 8,
   'cherry-ribbon': 8,
-  'golden-lily': 4
+  'golden-lily': 4,
 };
 
 let state = null;
@@ -96,7 +118,10 @@ function connectSocket() {
   });
 
   socket.addEventListener('close', () => {
-    const delay = Math.min(30000, 800 * Math.pow(2, Math.min(reconnectAttempts, 6)));
+    const delay = Math.min(
+      30000,
+      800 * Math.pow(2, Math.min(reconnectAttempts, 6)),
+    );
     reconnectAttempts += 1;
     reconnectTimer = setTimeout(() => {
       loadState();
@@ -106,11 +131,9 @@ function connectSocket() {
 }
 
 function isSongRequestSnapshotReason(reason) {
-  return [
-    'queue:add',
-    'bilibili:danmaku',
-    'bilibili:superchat'
-  ].includes(reason);
+  return ['queue:add', 'bilibili:danmaku', 'bilibili:superchat'].includes(
+    reason,
+  );
 }
 
 function scheduleStateRefresh() {
@@ -124,32 +147,80 @@ function scheduleStateRefresh() {
 function computeStateKey(nextState) {
   var queue = nextState.queue || {};
   var rawSettings = nextState.settings || {};
-  var settings = resolveQueueStyleSettings(rawSettings, normalizeQueueStyle(rawSettings.overlayQueueStyle));
+  var settings = resolveQueueStyleSettings(
+    rawSettings,
+    normalizeQueueStyle(rawSettings.overlayQueueStyle),
+  );
   var current = queue.current;
   var waiting = queue.waiting || [];
   var superChats = nextState.superChats || [];
   return JSON.stringify([
-    current ? current.song_name + '|' + (current.requester_name || '') + '|' + (current.is_pinned ? '1' : '0') : '',
-    waiting.map(function (item) { return item.song_name + '|' + (item.requester_name || '') + '|' + (item.is_pinned ? '1' : '0'); }),
-    superChats.map(function (item) { return (item.price || 0) + '|' + (item.message || ''); }),
+    current
+      ? current.song_name +
+        '|' +
+        (current.requester_name || '') +
+        '|' +
+        (current.is_pinned ? '1' : '0')
+      : '',
+    waiting.map(function (item) {
+      return (
+        item.song_name +
+        '|' +
+        (item.requester_name || '') +
+        '|' +
+        (item.is_pinned ? '1' : '0')
+      );
+    }),
+    superChats.map(function (item) {
+      return (item.price || 0) + '|' + (item.message || '');
+    }),
     settings.overlayQueueStyle,
-    settings.themePrimary, settings.themeAccent, settings.themeText, settings.themeBackground,
-    settings.themeOpacity, settings.themeRadius, settings.backdropBlur, settings.glowIntensity,
-    settings.enableGradient, settings.gradientEnd,
-    settings.overlayFontFamily, settings.overlayFontWeight,
-    settings.overlaySongColor, settings.overlayRequesterColor, settings.overlayIndexColor,
-    settings.illustratedQueueFontFamily, settings.illustratedQueueFontWeight,
-    settings.illustratedQueueUseCustomTextColor, settings.illustratedQueueTextColor,
-    settings.queueSongFontSize, settings.queueTitleFontSize, settings.identityQueueFontSize,
-    settings.queueScrollMode, settings.queueScrollSpeed, settings.identityQueueScrollSpeed,
-    settings.overlayShowIndex, settings.overlayIndexThreshold,
-    settings.overlayTitle, settings.overlayLowPowerMode, settings.themeFontScale,
-    settings.overlayPin1, settings.overlayPin2, settings.overlayPin3,
-    settings.overlayRule1, settings.overlayRule2, settings.overlayRule3,
-    settings.overlayRule4, settings.overlayRule5, settings.overlayRule6,
-    settings.overlayRuleColor1, settings.overlayRuleColor2, settings.overlayRuleColor3,
-    settings.overlayRuleColor4, settings.overlayRuleColor5, settings.overlayRuleColor6,
-    settings.overlayRuleFontSize
+    settings.themePrimary,
+    settings.themeAccent,
+    settings.themeText,
+    settings.themeBackground,
+    settings.themeOpacity,
+    settings.themeRadius,
+    settings.backdropBlur,
+    settings.glowIntensity,
+    settings.enableGradient,
+    settings.gradientEnd,
+    settings.overlayFontFamily,
+    settings.overlayFontWeight,
+    settings.overlaySongColor,
+    settings.overlayRequesterColor,
+    settings.overlayIndexColor,
+    settings.illustratedQueueFontFamily,
+    settings.illustratedQueueFontWeight,
+    settings.illustratedQueueUseCustomTextColor,
+    settings.illustratedQueueTextColor,
+    settings.queueSongFontSize,
+    settings.queueTitleFontSize,
+    settings.identityQueueFontSize,
+    settings.queueScrollMode,
+    settings.queueScrollSpeed,
+    settings.identityQueueScrollSpeed,
+    settings.overlayShowIndex,
+    settings.overlayIndexThreshold,
+    settings.overlayTitle,
+    settings.overlayLowPowerMode,
+    settings.themeFontScale,
+    settings.overlayPin1,
+    settings.overlayPin2,
+    settings.overlayPin3,
+    settings.overlayRule1,
+    settings.overlayRule2,
+    settings.overlayRule3,
+    settings.overlayRule4,
+    settings.overlayRule5,
+    settings.overlayRule6,
+    settings.overlayRuleColor1,
+    settings.overlayRuleColor2,
+    settings.overlayRuleColor3,
+    settings.overlayRuleColor4,
+    settings.overlayRuleColor5,
+    settings.overlayRuleColor6,
+    settings.overlayRuleFontSize,
   ]);
 }
 
@@ -170,7 +241,13 @@ function render() {
   if (illustratedRenderer) {
     illustratedRenderer(settings, current, waiting, content);
   } else if (style === 'identity') {
-    renderIdentityQueue(settings, current, waiting, content, state.superChats || []);
+    renderIdentityQueue(
+      settings,
+      current,
+      waiting,
+      content,
+      state.superChats || [],
+    );
   } else {
     renderClassicQueue(settings, current, waiting, content);
   }
@@ -196,15 +273,36 @@ function relayoutQueue() {
     const viewport = content.querySelector(`.${style}-list-window`);
     const list = viewport && viewport.querySelector(`.${style}-list`);
     const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS[style] ?? 8;
-    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), rowGap);
+    if (viewport && list)
+      configureIdentityVerticalScroll(
+        viewport,
+        list,
+        settings,
+        originalQueueRowsHtml(list),
+        rowGap,
+      );
   } else if (style === 'identity') {
     const viewport = content.querySelector('.identity-list-window');
     const list = viewport && viewport.querySelector('.identity-list');
-    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 4);
+    if (viewport && list)
+      configureIdentityVerticalScroll(
+        viewport,
+        list,
+        settings,
+        originalQueueRowsHtml(list),
+        4,
+      );
   } else {
     const viewport = content.querySelector('.classic-list-window');
     const list = viewport && viewport.querySelector('.classic-list');
-    if (viewport && list) configureClassicVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 5);
+    if (viewport && list)
+      configureClassicVerticalScroll(
+        viewport,
+        list,
+        settings,
+        originalQueueRowsHtml(list),
+        5,
+      );
   }
 
   scheduleIdentityContentScroll(content);
@@ -220,6 +318,8 @@ export function normalizeQueueStyle(style) {
 
 export function queueStyleChanged(currentState, nextState) {
   if (!currentState || !nextState) return false;
-  return normalizeQueueStyle(currentState.settings?.overlayQueueStyle)
-    !== normalizeQueueStyle(nextState.settings?.overlayQueueStyle);
+  return (
+    normalizeQueueStyle(currentState.settings?.overlayQueueStyle) !==
+    normalizeQueueStyle(nextState.settings?.overlayQueueStyle)
+  );
 }

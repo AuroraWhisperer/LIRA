@@ -30,11 +30,13 @@
 ## Task 1: Extract The Winner Profile Resolver
 
 **Files:**
+
 - Create: `src/bilibili/users/game-winner-profile.js`
 - Modify: `src/server/bilibili-runtime.js:1-110`
 - Test: `test/bilibili-game-winner-profile.test.js`
 
 **Interfaces:**
+
 - Consumes: `{ role: 'viewer'|'host', uid?, name? }`, `ensureProfile(uid, { fields: ['name', 'avatarUrl'] })`, connected host identity, and a room-info fallback.
 - Produces: `Promise<{ avatarUrl: string, name: string }>` with empty fields when the winner is invalid or profile lookup fails.
 
@@ -46,12 +48,20 @@ test('winner resolver uses the recorded viewer uid', async () => {
     ensureProfile: async (uid, options) => {
       assert.equal(uid, '42');
       assert.deepEqual(options.fields, ['name', 'avatarUrl']);
-      return { uid: '42', name: 'Alice', avatarUrl: 'https://i0.hdslb.com/a.jpg' };
-    }
+      return {
+        uid: '42',
+        name: 'Alice',
+        avatarUrl: 'https://i0.hdslb.com/a.jpg',
+      };
+    },
   });
-  assert.deepEqual(await resolver({ role: 'viewer', uid: '42', name: '弹幕名' }), {
-    avatarUrl: 'https://i0.hdslb.com/a.jpg', name: 'Alice'
-  });
+  assert.deepEqual(
+    await resolver({ role: 'viewer', uid: '42', name: '弹幕名' }),
+    {
+      avatarUrl: 'https://i0.hdslb.com/a.jpg',
+      name: 'Alice',
+    },
+  );
 });
 
 test('winner resolver captures the host from the connected identity or room fallback', async () => {
@@ -62,10 +72,11 @@ test('winner resolver captures the host from the connected identity or room fall
     ensureProfile: async (uid) => {
       calls.push(uid);
       return { name: '主播', avatarUrl: 'https://i0.hdslb.com/b.jpg' };
-    }
+    },
   });
   assert.deepEqual(await resolver({ role: 'host' }), {
-    avatarUrl: 'https://i0.hdslb.com/b.jpg', name: '主播'
+    avatarUrl: 'https://i0.hdslb.com/b.jpg',
+    name: '主播',
   });
   assert.deepEqual(calls, ['99']);
 });
@@ -88,7 +99,7 @@ In `createBilibiliRuntime()`, construct the resolver once with:
 const resolveGameWinnerProfile = createGameWinnerProfileResolver({
   getHostIdentity: () => ({ uid: client?.ownerUid, name: client?.ownerName }),
   resolveRoomInfo: () => getGameApiClient().resolveRoomInfo(),
-  ensureProfile: (uid, fields) => userInfoService.ensure(uid, fields)
+  ensureProfile: (uid, fields) => userInfoService.ensure(uid, fields),
 });
 ```
 
@@ -102,11 +113,13 @@ Expected: PASS, including existing winner-profile route and winner identity regr
 ## Task 2: Make The Result Avatar Legible In All Desktop Game Viewports
 
 **Files:**
+
 - Modify: `public/css/overlays/games.css:106-107`
 - Modify: `public/pages/overlays/games.html:6,139`
 - Test: `test/games-overlay.test.js`
 
 **Interfaces:**
+
 - Consumes: `profile.avatarUrl` returned by `GET /api/games/winner-profile`.
 - Produces: a circular, square-cropped avatar that scales from compact browser-source sizes to desktop game canvases without changing game layout.
 
@@ -131,6 +144,7 @@ Expected: PASS with the existing DOM-safe and cache-buster assertions.
 ## Task 3: Verify The Unified Contract
 
 **Files:**
+
 - Verify: `src/bilibili/users/game-winner-profile.js`
 - Verify: `src/server/bilibili-runtime.js`
 - Verify: `public/js/overlays/games.js`
