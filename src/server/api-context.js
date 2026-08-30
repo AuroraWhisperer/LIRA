@@ -13,6 +13,7 @@ function createApiContext(options) {
     sessionToken,
     broadcastSnapshot,
     broadcastGiftEffectPreview,
+    requestCloudSync,
     domainServices,
     messageBuffer,
     publishLyricState,
@@ -34,6 +35,10 @@ function createApiContext(options) {
     maxBodyBytes,
     sessionToken,
     broadcastSnapshot,
+    cloudSync: {
+      request:
+        typeof requestCloudSync === 'function' ? requestCloudSync : () => {},
+    },
     songs: {
       list: domainServices.songs.list,
       save: domainServices.songs.save,

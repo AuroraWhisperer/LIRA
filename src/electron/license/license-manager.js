@@ -263,13 +263,14 @@ function createLicenseManager(options = {}) {
     return remote.baseUrl;
   }
 
-  async function withAuthorizedToken(operation, attempt = 0) {
+  async function withAuthorizedToken(operation, attempt = 0, sanitize = true) {
     const token = await ensureAuthorized();
     try {
       // Remote JSON is untrusted input.  Keep the device token and other
       // credentials inside the main process even if a proxy/server echoes
       // request fields back in a successful response.
-      return sanitizeRemoteResponse(await operation(token));
+      const result = await operation(token);
+      return sanitize ? sanitizeRemoteResponse(result) : result;
     } catch (error) {
       const code = getErrorCode(error);
       if (
@@ -278,14 +279,14 @@ function createLicenseManager(options = {}) {
         state === LicenseState.AUTHORIZED
       ) {
         if (token !== accessToken && accessToken) {
-          return withAuthorizedToken(operation, attempt + 1);
+          return withAuthorizedToken(operation, attempt + 1, sanitize);
         }
         const renewed = await renew({
           preserveValidSession: false,
           throwOnFailure: true,
         });
         if (renewed && state === LicenseState.AUTHORIZED && accessToken) {
-          return withAuthorizedToken(operation, attempt + 1);
+          return withAuthorizedToken(operation, attempt + 1, sanitize);
         }
         if (state !== LicenseState.AUTHORIZED) throw error;
       }
@@ -535,18 +536,25 @@ function createLicenseManager(options = {}) {
 
   const {
     createPairingCode,
+    clearBilibiliCredentialsInternal,
     deleteSongPageBackground,
+    getBilibiliCredentialsInternal,
     getCloudSongs,
+    getCloudState,
     getGiftCatalog,
     getProfile,
     getSongPageBackground,
     listPairingCodes,
     revokePairingCode,
+    setBilibiliCredentialsInternal,
     syncSongs,
+    updateCloudSettings,
     uploadSongPageBackground,
   } = createLicenseOperations({
     remote,
     withAuthorizedToken,
+    withAuthorizedSecret: (operation) =>
+      withAuthorizedToken(operation, 0, false),
     isDisposed: () => disposed,
     setProfile: (value) => {
       profile = value;
@@ -566,6 +574,8 @@ function createLicenseManager(options = {}) {
     getAccessToken,
     getRemoteBaseUrl,
     getProfile,
+    getCloudState,
+    updateCloudSettings,
     syncSongs,
     getCloudSongs,
     getGiftCatalog,
@@ -575,6 +585,9 @@ function createLicenseManager(options = {}) {
     createPairingCode,
     listPairingCodes,
     revokePairingCode,
+    getBilibiliCredentialsInternal,
+    setBilibiliCredentialsInternal,
+    clearBilibiliCredentialsInternal,
     resume,
     dispose,
   };

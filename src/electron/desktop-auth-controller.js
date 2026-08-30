@@ -76,6 +76,13 @@ function createDesktopAuthController({
     return bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir());
   }
 
+  function replaceBilibiliCookieHeader(cookieHeader) {
+    return bilibiliAuth.replaceBilibiliCookieHeader(
+      getDataDir(),
+      cookieHeader,
+    );
+  }
+
   async function loginBilibiliAccount() {
     writeLog('window', { event: 'create', window: 'bilibili-login' });
     try {
@@ -108,6 +115,7 @@ function createDesktopAuthController({
     getBilibiliCookieHeader,
     getBilibiliUid,
     restoreBilibiliCookieSnapshot,
+    replaceBilibiliCookieHeader,
     loginBilibiliAccount,
     logoutBilibiliAccount,
   };

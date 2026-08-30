@@ -161,3 +161,11 @@ desktopRuntime.start({
 | 会话 Cookie | 无 expirationDate 的 Cookie 恢复后仍是会话 Cookie,重启可能丢失                                                                                    | §5.2                                                                                                                                        |
 | 判定差异    | QQ: `qqmusic_key`/`qm_keyst` 任一非空;网易云:任一认证 Cookie;Bilibili:三键全有                                                                    | §4                                                                                                                                          |
 | 明文风险    | cookies.txt 存有完整 SESSDATA + bili_jct,设计如此                                                                                                 | §6                                                                                                                                          |
+
+## 13. 云端 Bilibili 凭据同步边界
+
+远端网页登录成功后的 Cookie 只通过 DeviceBearer 的 `GET /api/device/bilibili-credentials` 返回给 `licenseManager.getBilibiliCredentialsInternal()`；该方法使用不做响应清洗的 `withAuthorizedSecret`，但只由 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在 Electron main process 内调用，不注册 IPC，也不进入 preload、renderer、本地 HTTP、URL 或日志。Streamer 网页只能获得登录状态、UID、revision 和二维码状态。
+
+云端导入调用 `replaceBilibiliCookieHeader(dataDir, cookieHeader)`：先拒绝空值、超过 12000 字符、CR/LF/NUL、非法 Cookie 名或缺少 `DedeUserID` / `SESSDATA` / `bili_jct` 的 header；再清空 `persist:bilibili` 的 Cookie/localStorage/indexDB/webSQL，把解析出的 Cookie 写到 `.bilibili.com`，最后立即调用 `persistBilibiliCookieSnapshot` 生成 `safeStorage` 加密快照。云端解绑调用既有 `logoutBilibiliAccount`，清除分区、加密快照和兼容明文导出文件。
+
+本地扫码登录完成或本地退出后，main process 将 Bilibili scope 标记 dirty：已登录时读取分区 Cookie header 上传，退出时调用 Device `DELETE`。上传失败保留 dirty 并重试；云端应用不会再次触发本地登录/退出 IPC，因此不会产生同步回声。凭据 wire contract 见 [../backend/api.md](../backend/api.md) §0.3，轮询与生命周期见 [main.md](main.md) §2.2。

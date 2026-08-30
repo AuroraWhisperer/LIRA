@@ -17,6 +17,7 @@ const {
   powerMonitor,
 } = require('electron');
 const { createDesktopAuthController } = require('./desktop-auth-controller');
+const { createCloudSyncController } = require('./cloud-sync-controller');
 const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const {
@@ -85,6 +86,7 @@ const {
   getBilibiliCookieHeader,
   getBilibiliUid,
   restoreBilibiliCookieSnapshot,
+  replaceBilibiliCookieHeader,
   loginBilibiliAccount,
   logoutBilibiliAccount,
 } = desktopAuth;
@@ -107,6 +109,7 @@ const {
 } = desktopUpdate;
 var licenseManager = null;
 var licenseResumeController = null;
+var cloudSyncController = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -161,6 +164,8 @@ app.on('before-quit', function (event) {
   event.preventDefault();
   lifecycleState.gracefulQuitStarted = true;
   licenseResumeController?.unregister();
+  cloudSyncController?.dispose();
+  cloudSyncController = null;
   writeLog('lifecycle', { event: 'QUIT_BEGIN' });
   lifecycleState.forceQuitTimer = setTimeout(function () {
     writeLog('lifecycle', { event: 'QUIT_TIMEOUT' });
@@ -245,8 +250,16 @@ async function startDesktopApp() {
   registerBilibiliIpc({
     ipcMain,
     getAuthState: getBilibiliAuthState,
-    login: loginBilibiliAccount,
-    logout: logoutBilibiliAccount,
+    login: async () => {
+      const result = await loginBilibiliAccount();
+      cloudSyncController?.markDirty('bilibili');
+      return result;
+    },
+    logout: async () => {
+      const result = await logoutBilibiliAccount();
+      cloudSyncController?.markDirty('bilibili');
+      return result;
+    },
   });
   configureMusicMediaRequestHeaders(session.defaultSession, mediaState);
   configureBilibiliMediaRequestHeaders(session.defaultSession);
@@ -331,9 +344,20 @@ async function startDesktopApp() {
     event: 'bootstrap',
     ...licenseManager.getSnapshot(),
   });
+  cloudSyncController = createCloudSyncController({
+    licenseManager,
+    runtime: lifecycleState.runtime,
+    bilibiliAuth: {
+      getAuthState: getBilibiliAuthState,
+      getCookieHeader: getBilibiliCookieHeader,
+      replaceCookieHeader: replaceBilibiliCookieHeader,
+      logout: logoutBilibiliAccount,
+    },
+  });
   licenseResumeController = createLicenseResumeHandler({
     powerMonitor,
     getLicenseManager: () => licenseManager,
+    afterResume: () => cloudSyncController?.syncNow(),
     writeLog,
   });
   licenseResumeController.register();
@@ -358,7 +382,9 @@ async function startDesktopApp() {
     });
     if (!windowState.main || windowState.main.isDestroyed()) return;
     if (snapshot.state === LicenseState.AUTHORIZED) {
-      const resumePromise = lifecycleState.runtime.resumeAuthorizedWork?.();
+      const resumePromise = cloudSyncController
+        ?.whenIdle()
+        .then(() => lifecycleState.runtime.resumeAuthorizedWork?.());
       if (resumePromise?.catch)
         resumePromise.catch((error) => writeLog('license-resume', error));
       windowState.main
@@ -375,7 +401,10 @@ async function startDesktopApp() {
     }
   });
   if (licenseManager.getState() === LicenseState.AUTHORIZED) {
-    const resumePromise = lifecycleState.runtime.resumeAuthorizedWork?.();
+    const resumePromise = cloudSyncController
+      .start()
+      .catch((error) => writeLog('cloud-sync', error))
+      .then(() => lifecycleState.runtime.resumeAuthorizedWork?.());
     if (resumePromise?.catch)
       resumePromise.catch((error) => writeLog('license-resume', error));
   }

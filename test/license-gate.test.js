@@ -62,7 +62,7 @@ test('Electron startup restores authorized work and owns the system-resume liste
   );
   assert.match(
     source,
-    /createLicenseResumeHandler\(\{\s*powerMonitor,\s*getLicenseManager: \(\) => licenseManager,\s*writeLog,?\s*\}\)/,
+    /createLicenseResumeHandler\(\{\s*powerMonitor,\s*getLicenseManager: \(\) => licenseManager,\s*afterResume: \(\) => cloudSyncController\?\.syncNow\(\),\s*writeLog,?\s*\}\)/,
   );
   assert.match(source, /licenseResumeController\.register\(\)/);
   assert.match(

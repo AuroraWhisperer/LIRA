@@ -9,6 +9,7 @@
 function createLicenseResumeHandler({
   powerMonitor,
   getLicenseManager,
+  afterResume = () => {},
   writeLog = () => {},
 } = {}) {
   if (!powerMonitor) throw new Error('powerMonitor is required');
@@ -19,11 +20,14 @@ function createLicenseResumeHandler({
 
   function register() {
     unregister();
-    resumeHandler = () => {
+    resumeHandler = async () => {
       const manager = getLicenseManager();
-      const resumePromise = manager?.resume?.();
-      if (resumePromise?.catch)
-        resumePromise.catch((error) => writeLog('license-resume-check', error));
+      try {
+        await manager?.resume?.();
+        await afterResume();
+      } catch (error) {
+        writeLog('license-resume-check', error);
+      }
     };
     powerMonitor.on('resume', resumeHandler);
   }

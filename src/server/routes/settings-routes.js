@@ -42,6 +42,7 @@ const routes = {
   async 'POST /api/settings'(context, request, res) {
     const body = await request.body();
     const allowedKeys = new Set(Object.keys(context.settings.defaults));
+    let changed = false;
     for (const [key, rawValue] of Object.entries(body || {})) {
       if (allowedKeys.has(key)) {
         const value = normalizeSettingValue(key, rawValue);
@@ -50,10 +51,12 @@ const routes = {
           return;
         }
         context.settings.set(key, value);
+        changed = true;
       }
     }
     context.bilibili.configure();
     context.broadcastSnapshot('settings');
+    if (changed) context.cloudSync?.request?.('settings');
     sendJson(res, 200, { ok: true, data: context.system.getState() });
   },
 };

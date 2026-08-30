@@ -74,6 +74,7 @@ const routes = {
   async 'POST /api/songs/save'(context, request, res) {
     const result = context.songs.save(await request.body());
     context.broadcastSnapshot('songs:save');
+    context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });
   },
 
@@ -81,6 +82,7 @@ const routes = {
     const id = Number((await request.body()).id);
     context.songs.delete(id);
     context.broadcastSnapshot('songs:delete');
+    context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: { id } });
   },
 
@@ -92,6 +94,7 @@ const routes = {
       return;
     }
     context.broadcastSnapshot('songs:toggle');
+    context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: { id } });
   },
 
@@ -101,6 +104,7 @@ const routes = {
       Array.isArray(body.rows) ? body.rows : [],
     );
     context.broadcastSnapshot('songs:import');
+    context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });
   },
 
@@ -109,6 +113,7 @@ const routes = {
     const buffer = Buffer.from(String(body.base64 || ''), 'base64');
     const result = context.songs.import(parseSongsFromXlsx(buffer));
     context.broadcastSnapshot('songs:import-xlsx');
+    context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });
   },
 };

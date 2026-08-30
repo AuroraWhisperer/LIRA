@@ -38,6 +38,26 @@ function createDesktopRuntime(serverModule, options = {}) {
       typeof serverModule.getSetting === 'function'
         ? (key) => serverModule.getSetting(key)
         : () => undefined,
+    getCloudSettingsSnapshot:
+      typeof serverModule.getCloudSettingsSnapshot === 'function'
+        ? () => serverModule.getCloudSettingsSnapshot()
+        : null,
+    applyCloudSettingsSnapshot:
+      typeof serverModule.applyCloudSettingsSnapshot === 'function'
+        ? (settings) => serverModule.applyCloudSettingsSnapshot(settings)
+        : null,
+    getCloudSongsSnapshot:
+      typeof serverModule.getCloudSongsSnapshot === 'function'
+        ? () => serverModule.getCloudSongsSnapshot()
+        : null,
+    replaceCloudSongsSnapshot:
+      typeof serverModule.replaceCloudSongsSnapshot === 'function'
+        ? (songs) => serverModule.replaceCloudSongsSnapshot(songs)
+        : null,
+    onCloudSyncRequested:
+      typeof serverModule.onCloudSyncRequested === 'function'
+        ? (listener) => serverModule.onCloudSyncRequested(listener)
+        : () => () => {},
   };
 }
 

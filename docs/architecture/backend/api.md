@@ -54,6 +54,22 @@
 
 ---
 
+## 0.3 LIRA Server 云端权威主播同步
+
+Electron main process 通过 [remote-license-client.js](../../../src/electron/license/remote-license-client.js) 调用以下固定 DeviceBearer 端点；租户只由已验证设备会话确定，body 中的 `streamerId` 不参与选择。完整字段、状态码和重试语义以 lira-server 的 `docs/protocol/device-api.openapi.json` 与 `docs/protocol/client-server-api.md` 为准。
+
+| 端点 | main-process 用途 |
+| ---- | ----------------- |
+| `GET /api/device/cloud-state` | 一次读取 settings、songs、Bilibili 三个 scope 的 `initialized` / `revision` 元数据及完整 settings。 |
+| `PUT /api/device/cloud-settings` | 上传直播间、监听开关及点歌设置的完整 scope。 |
+| `GET /api/device/songs` | revision 变化后拉取最多 5000 首的完整云端歌库。 |
+| `PUT /api/device/songs/sync` | 上传本地完整歌库并推进云端 song revision。 |
+| `GET/PUT/DELETE /api/device/bilibili-credentials` | 在 Electron main 与云端间读取、上传或清除 Bilibili 登录凭据；这些方法不进入本地 HTTP、preload 或 renderer。 |
+
+本地 renderer 仍只调用既有 `/api/settings`、`/api/songs/*` 与 `/api/database/clear`。这些写入成功后通过运行时内部 `requestCloudSync(scope)` 通知 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 标记 dirty；云端应用使用 `applyCloudSettingsSnapshot` / `replaceCloudSongsSnapshot` 直接写本地 owner，不再发出 dirty 回声。授权后立即同步、60 秒轮询、resume 同步和冲突规则见 [../desktop/main.md](../desktop/main.md) §2.2。
+
+---
+
 ## 1. 系统域(system)
 
 > 模块文件:[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)

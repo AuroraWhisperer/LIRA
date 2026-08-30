@@ -296,7 +296,9 @@ function findRecentGiftCommandDuplicate(context, gift, giftEventStore = null) {
   const createdAtMs = Date.parse(gift.createdAt) || Date.now();
   const startIso = new Date(createdAtMs - 5000).toISOString();
   const endIso = new Date(createdAtMs + 5000).toISOString();
-  const incomingComboKey = extractComboRootKey(gift.comboId || gift.platformId);
+  const incomingComboKey =
+    cleanText(gift && (gift.comboId || gift.combo_id)) ||
+    extractComboRootKey(gift && (gift.platformId || gift.platform_id));
   const crossCmdRows = context.db.giftDb
     .prepare(
       `
@@ -329,10 +331,13 @@ function findRecentGiftCommandDuplicate(context, gift, giftEventStore = null) {
     // An explicit incoming combo identity must never absorb a legacy row that
     // has no combo identity (or belongs to another batch).  Without an
     // incoming identity we retain the historical cross-command fallback.
-    return incomingComboKey ? storedComboKey === incomingComboKey : true;
+    return incomingComboKey
+      ? storedComboKey === incomingComboKey ||
+          cleanText(row.platform_id) === incomingComboKey
+      : true;
   });
   if (crossCmdRow) return normalizeGiftRow(crossCmdRow);
-  if (extractComboRootKey(gift.comboId || gift.platformId)) return null;
+  if (incomingComboKey) return null;
 
   if (
     !giftEventStore ||

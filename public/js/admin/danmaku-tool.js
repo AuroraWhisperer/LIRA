@@ -15,7 +15,7 @@ const DANMAKU_OVERLAY_STYLES = Object.freeze({
   bubble: '聊天气泡',
   signal: '直播信号带',
   minimal: '航海铭牌',
-  ranked: '身份横卡',
+  ranked: '直播气泡',
 });
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

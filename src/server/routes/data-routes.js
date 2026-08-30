@@ -16,6 +16,7 @@ function clearRoute(clear, reason) {
     }
     const result = clear(context);
     context.broadcastSnapshot(reason);
+    if (reason === 'database:clear') context.cloudSync?.request?.('songs');
     sendJson(res, 200, { ok: true, data: result });
   };
 }
@@ -101,6 +102,7 @@ const routes = {
     if (result.cleared) resumeClearAllWriters(context);
 
     context.broadcastSnapshot('database:clear-all');
+    context.cloudSync?.request?.('songs');
     sendJson(res, 200, { ok: true, data: result });
   },
 

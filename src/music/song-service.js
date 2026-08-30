@@ -327,7 +327,19 @@ function findUniqueSongNameMatch(db, songName) {
 
 /** 按 id 删除歌曲；调用方不需要了解表结构 */
 function deleteSong(db, id) {
-  db.prepare('DELETE FROM songs WHERE id = ?').run(Number(id));
+  const songId = Number(id);
+  db.exec('BEGIN');
+  try {
+    db.prepare('UPDATE queue SET song_id = NULL WHERE song_id = ?').run(songId);
+    db.prepare('UPDATE requests SET song_id = NULL WHERE song_id = ?').run(
+      songId,
+    );
+    db.prepare('DELETE FROM songs WHERE id = ?').run(songId);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 /** 切换歌曲启用状态，返回 { ok: true/false } */
@@ -485,6 +497,50 @@ function importSongs(db, rows) {
   };
 }
 
+function replaceCloudSongs(db, rows) {
+  if (!Array.isArray(rows)) throw new Error('云端歌库格式无效。');
+  if (rows.length > 5000) throw new Error('云端歌库超过 5000 首限制。');
+
+  const byIdentity = new Map();
+  for (const rawRow of rows) {
+    const row = normalizeImportedSongRow({
+      ...rawRow,
+      name: rawRow?.name ?? rawRow?.title,
+    });
+    if (!row.name) throw new Error('云端歌库包含空歌名。');
+    const enabled = rawRow?.isEnabled ?? rawRow?.enabled ?? rawRow?.is_enabled;
+    if (enabled !== undefined) {
+      row.isEnabled = !(
+        enabled === false ||
+        enabled === 0 ||
+        String(enabled).toLowerCase() === 'false'
+      );
+    }
+    byIdentity.set(`${row.name}\u0000${row.artist}`, row);
+  }
+
+  const songs = [...byIdentity.values()];
+  db.exec('BEGIN');
+  try {
+    db.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
+    db.prepare('UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL').run();
+    db.prepare('DELETE FROM songs').run();
+    db.prepare('DELETE FROM song_categories').run();
+    ensureCategory(db, '默认');
+    for (const song of songs) saveSong(db, song);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
+  return {
+    total: rows.length,
+    count: songs.length,
+    duplicate: rows.length - songs.length,
+  };
+}
+
 // ── 随机点歌 ──
 
 function pickRandomSong(db, scopeText) {
@@ -564,6 +620,7 @@ module.exports = {
   listTags,
   ensureCategory,
   importSongs,
+  replaceCloudSongs,
   normalizeImportedSongRow,
   pickRandomSong,
   listRandomSongCandidates,

@@ -26,6 +26,7 @@ function createFakePowerMonitor() {
 function createHarness({ resumeError = null } = {}) {
   const powerMonitor = createFakePowerMonitor();
   const logs = [];
+  let afterResumeCalls = 0;
   const manager = {
     resumeCalls: 0,
     resume: async () => {
@@ -37,9 +38,18 @@ function createHarness({ resumeError = null } = {}) {
   const controller = createLicenseResumeHandler({
     powerMonitor,
     getLicenseManager: () => manager,
+    afterResume: async () => {
+      afterResumeCalls += 1;
+    },
     writeLog: (event, payload) => logs.push({ event, payload }),
   });
-  return { powerMonitor, logs, manager, controller };
+  return {
+    powerMonitor,
+    logs,
+    manager,
+    controller,
+    getAfterResumeCalls: () => afterResumeCalls,
+  };
 }
 
 test('register attaches a resume listener exactly once', () => {
@@ -54,19 +64,22 @@ test('register attaches a resume listener exactly once', () => {
 });
 
 test('system resume triggers licenseManager.resume via the latest reference', async () => {
-  const { powerMonitor, manager, controller } = createHarness();
+  const { powerMonitor, manager, controller, getAfterResumeCalls } =
+    createHarness();
   controller.register();
   powerMonitor.emit('resume');
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(manager.resumeCalls, 1);
+  assert.equal(getAfterResumeCalls(), 1);
   powerMonitor.emit('resume');
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(manager.resumeCalls, 2);
+  assert.equal(getAfterResumeCalls(), 2);
   controller.unregister();
 });
 
 test('resume rejection is logged instead of crashing', async () => {
-  const { powerMonitor, logs, controller } = createHarness({
+  const { powerMonitor, logs, controller, getAfterResumeCalls } = createHarness({
     resumeError: new Error('boom'),
   });
   controller.register();
@@ -74,6 +87,7 @@ test('resume rejection is logged instead of crashing', async () => {
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(logs.length, 1);
   assert.equal(logs[0].event, 'license-resume-check');
+  assert.equal(getAfterResumeCalls(), 0);
   controller.unregister();
 });
 

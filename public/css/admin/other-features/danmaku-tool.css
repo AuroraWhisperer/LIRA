@@ -243,38 +243,53 @@
   width: 78%;
 }
 .danmaku-style-option-visual.is-ranked {
-  background: linear-gradient(145deg, #e9eef4, #cfd8e4);
+  background: linear-gradient(145deg, #f4fbfc, #dcecf2);
 }
 .danmaku-style-option-visual.is-ranked i {
-  right: 10px;
-  left: 10px;
+  right: 8px;
+  left: 27px;
   height: 14px;
-  background: #343b45;
+  border-radius: 3px 9px 9px 9px;
+  background: var(--preview-rank);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--preview-rank) 28%, transparent);
+}
+.danmaku-style-option-visual.is-ranked i::before {
+  position: absolute;
+  top: 0;
+  left: -20px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.84);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--preview-rank) 74%, white);
   box-shadow: 0 2px 4px rgba(26, 33, 43, 0.16);
+  content: '';
 }
 .danmaku-style-option-visual.is-ranked i::after {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 14px;
-  height: 14px;
+  top: 4px;
+  right: 8px;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.68);
   content: '';
 }
 .danmaku-style-option-visual.is-ranked i:nth-child(1) {
+  --preview-rank: #6ed6dc;
   top: 6px;
 }
 .danmaku-style-option-visual.is-ranked i:nth-child(2) {
   top: 24px;
-  background: #2478a6;
+  --preview-rank: #2f9bff;
 }
 .danmaku-style-option-visual.is-ranked i:nth-child(3) {
   top: 42px;
-  background: #784996;
+  --preview-rank: #a45cff;
 }
 .danmaku-style-option-visual.is-ranked i:nth-child(4) {
   top: 60px;
-  background: #ab253d;
+  --preview-rank: #f0445a;
 }
 .danmaku-style-option-copy {
   display: grid;

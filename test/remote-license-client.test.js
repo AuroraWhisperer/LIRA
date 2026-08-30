@@ -228,3 +228,51 @@ test('remote client reads the public flat gift catalog with conditional etag req
   assert.equal(requests[1].init.headers['If-None-Match'], '"catalog-42"');
   assert.equal(requests[1].init.headers.Authorization, undefined);
 });
+
+test('cloud sync client keeps settings and Bilibili credentials on fixed Device endpoints', async () => {
+  const requests = [];
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.lirahub.cn',
+    isProduction: true,
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      const body = url.endsWith('/bilibili-credentials') && init.method === 'GET'
+        ? {
+            initialized: true,
+            revision: 2,
+            loggedIn: true,
+            cookie: 'DedeUserID=1; SESSDATA=secret; bili_jct=csrf',
+          }
+        : { ok: true, revision: 2 };
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+
+  await client.getCloudState('device-token');
+  await client.updateCloudSettings({ roomId: '123' }, 'device-token');
+  const credentials = await client.getBilibiliCredentials('device-token');
+  await client.setBilibiliCredentials(credentials.cookie, 'device-token');
+  await client.clearBilibiliCredentials('device-token');
+
+  assert.deepEqual(
+    requests.map(({ url, init }) => [
+      init.method,
+      new URL(url).pathname,
+      init.headers.Authorization,
+    ]),
+    [
+      ['GET', '/api/device/cloud-state', 'Bearer device-token'],
+      ['PUT', '/api/device/cloud-settings', 'Bearer device-token'],
+      ['GET', '/api/device/bilibili-credentials', 'Bearer device-token'],
+      ['PUT', '/api/device/bilibili-credentials', 'Bearer device-token'],
+      ['DELETE', '/api/device/bilibili-credentials', 'Bearer device-token'],
+    ],
+  );
+  assert.equal(requests.every(({ url }) => !url.includes('secret')), true);
+  assert.deepEqual(JSON.parse(requests[3].init.body), {
+    cookie: credentials.cookie,
+  });
+});

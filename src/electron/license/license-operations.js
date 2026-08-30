@@ -11,12 +11,54 @@ const {
 function createLicenseOperations(options = {}) {
   const remote = options.remote;
   const withAuthorizedToken = options.withAuthorizedToken;
+  const withAuthorizedSecret = options.withAuthorizedSecret;
 
   async function getProfile() {
     const result = await withAuthorizedToken((token) => remote.profile(token));
     if (options.isDisposed()) throw new Error('LICENSE_NOT_AUTHORIZED');
     options.setProfile(result);
     return options.getSnapshot();
+  }
+
+  async function getCloudState() {
+    return withAuthorizedToken((token) => remote.getCloudState(token));
+  }
+
+  async function updateCloudSettings(settings) {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      throw new RemoteLicenseError(
+        'INVALID_SYNC_SETTINGS',
+        '云端同步设置格式无效。',
+      );
+    }
+    return withAuthorizedToken((token) =>
+      remote.updateCloudSettings(settings, token),
+    );
+  }
+
+  async function getBilibiliCredentialsInternal() {
+    return withAuthorizedSecret((token) =>
+      remote.getBilibiliCredentials(token),
+    );
+  }
+
+  async function setBilibiliCredentialsInternal(cookie) {
+    const value = String(cookie || '').trim();
+    if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
+      throw new RemoteLicenseError(
+        'BILIBILI_CREDENTIALS_INVALID',
+        'Bilibili 登录凭据无效。',
+      );
+    }
+    return withAuthorizedToken((token) =>
+      remote.setBilibiliCredentials(value, token),
+    );
+  }
+
+  async function clearBilibiliCredentialsInternal() {
+    return withAuthorizedToken((token) =>
+      remote.clearBilibiliCredentials(token),
+    );
   }
 
   async function syncSongs(songs) {
@@ -104,14 +146,19 @@ function createLicenseOperations(options = {}) {
 
   return {
     createPairingCode,
+    clearBilibiliCredentialsInternal,
     deleteSongPageBackground,
+    getBilibiliCredentialsInternal,
     getCloudSongs,
+    getCloudState,
     getGiftCatalog,
     getProfile,
     getSongPageBackground,
     listPairingCodes,
     revokePairingCode,
+    setBilibiliCredentialsInternal,
     syncSongs,
+    updateCloudSettings,
     uploadSongPageBackground,
   };
 }

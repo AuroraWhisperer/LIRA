@@ -15,6 +15,7 @@ function createRuntimeApiContextFactory(options = {}) {
       sessionToken: options.getSessionToken(),
       broadcastSnapshot: options.broadcastSnapshot,
       broadcastGiftEffectPreview: options.broadcastGiftEffectPreview,
+      requestCloudSync: options.requestCloudSync,
       domainServices,
       messageBuffer: options.getMessageBuffer(),
       publishLyricState: musicRuntime.publishLyricState,

@@ -211,3 +211,11 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 完整键表以 [settings-store.js:15-124](../../../src/storage/settings-store.js#L15-L124) 为准;设置经 WS 快照 `settings` 字段全量下发(见 [ws.md](ws.md))。
 
 其他 store 模块:`theme-store`(presets 增删改查/应用/内置播种)、`playback-store`(saveQueueState/loadQueueState/播放历史/收藏/歌单)、`cooldown-store`(`loadInto` 重启恢复 + `COOLDOWN_RETENTION_MS`)、`checkin-store`(签到读写)、`gift-event-store`(无 combo/batch 标识礼物的近期同命令查重)。关闭时统一 `optimizeDatabases`(PRAGMA optimize)→ `closeDatabases`(见 [server-core.md](server-core.md) §6.2)。
+
+## 8. 云端 scope 的本地落盘
+
+云端 revision 保存在独立 lira-server，本地 SQLite 不复制 revision；[cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在当前授权进程内维护 `settings`、`songs`、`bilibili` 三个已应用 revision 和 dirty 标志。应用云端 settings 时，`applyCloudSettingsSnapshot` 只写 `roomId`、`enableBilibili`、`paused`、`queueLimit`、`userCooldownSeconds`、`onlyFromLibrary`、`allowDuplicate`，随后重新配置本地 Bilibili runtime 并广播 `cloud:settings` 快照。
+
+应用云端歌库由 `song-service.replaceCloudSongs` 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。由于本地已有 `(name, artist)` 唯一索引，同一云端快照的重复身份按输入顺序最后一项获胜。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。
+
+本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。云端应用路径不发 dirty 通知，避免写回回声；网络失败时 dirty 内容留在本地数据库，并由下一次同步继续上传。

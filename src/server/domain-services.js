@@ -98,6 +98,7 @@ function createDomainServices(options) {
     listTags: () => songService.listTags(db.songDb),
     ensureCategory: (name) => songService.ensureCategory(db.songDb, name),
     import: (rows) => songService.importSongs(db.songDb, rows),
+    replaceCloud: (rows) => songService.replaceCloudSongs(db.songDb, rows),
     // 下面三个原来在 facade 层写了内联 SQL，现统一委托给 song-service
     count: () => songService.countSongs(db.songDb),
     delete: (id) => songService.deleteSong(db.songDb, id),

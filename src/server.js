@@ -48,6 +48,57 @@ const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
+const CLOUD_SETTING_KEYS = [
+  'roomId',
+  'enableBilibili',
+  'paused',
+  'queueLimit',
+  'userCooldownSeconds',
+  'onlyFromLibrary',
+  'allowDuplicate',
+];
+
+function normalizeCloudBoolean(value) {
+  if (value === true || value === false) return value;
+  if (value === 'true' || value === '1' || value === 1) return true;
+  if (value === 'false' || value === '0' || value === 0) return false;
+  throw new Error('云端同步设置包含无效布尔值。');
+}
+
+function normalizeCloudInteger(value, min, max) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < min || number > max) {
+    throw new Error('云端同步设置包含无效整数。');
+  }
+  return number;
+}
+
+function normalizeCloudSettingsSnapshot(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('云端同步设置格式无效。');
+  }
+  for (const key of CLOUD_SETTING_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(input, key)) {
+      throw new Error(`云端同步设置缺少 ${key}。`);
+    }
+  }
+  const rawRoomId = String(input.roomId || '').trim();
+  const roomId = sharedUtils.normalizeRoomInput(rawRoomId);
+  if (rawRoomId && !roomId) throw new Error('云端直播间号无效。');
+  return {
+    roomId,
+    enableBilibili: normalizeCloudBoolean(input.enableBilibili),
+    paused: normalizeCloudBoolean(input.paused),
+    queueLimit: normalizeCloudInteger(input.queueLimit, 1, 300),
+    userCooldownSeconds: normalizeCloudInteger(
+      input.userCooldownSeconds,
+      0,
+      3600,
+    ),
+    onlyFromLibrary: normalizeCloudBoolean(input.onlyFromLibrary),
+    allowDuplicate: normalizeCloudBoolean(input.allowDuplicate),
+  };
+}
 
 function createServerRuntime(runtimeOptions = {}) {
   const {
@@ -87,6 +138,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let startPromise = null;
   let shutdownPromise = null;
   let sessionToken = '';
+  const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
   const licenseGate = runtimeOptions.licenseGate || {
     isAuthorized: () => true,
@@ -264,6 +316,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getSessionToken: () => sessionToken,
     broadcastSnapshot,
     broadcastGiftEffectPreview: (payload) => webSocketHub.broadcast(payload),
+    requestCloudSync,
     getDomainServices: () => domainServices,
     getMessageBuffer: () => messageBuffer,
     getMusicRuntime: () => musicRuntime,
@@ -552,6 +605,61 @@ function createServerRuntime(runtimeOptions = {}) {
       : DEFAULT_SETTINGS[key];
   }
 
+  function getCloudSettingsSnapshot() {
+    if (!settingsStore) throw new Error('Settings store not ready.');
+    const settings = settingsStore.getSettings();
+    return {
+      roomId: sharedUtils.normalizeRoomInput(settings.roomId),
+      enableBilibili: settings.enableBilibili === 'true',
+      paused: settings.paused === 'true',
+      queueLimit: Number(settings.queueLimit),
+      userCooldownSeconds: Number(settings.userCooldownSeconds),
+      onlyFromLibrary: settings.onlyFromLibrary === 'true',
+      allowDuplicate: settings.allowDuplicate === 'true',
+    };
+  }
+
+  function applyCloudSettingsSnapshot(input) {
+    if (!settingsStore || !bilibiliRuntime) {
+      throw new Error('Application runtime not ready.');
+    }
+    const settings = normalizeCloudSettingsSnapshot(input);
+    for (const [key, value] of Object.entries(settings)) {
+      settingsStore.setSetting(key, String(value));
+    }
+    bilibiliRuntime.configure();
+    broadcastSnapshot('cloud:settings');
+    return getCloudSettingsSnapshot();
+  }
+
+  function getCloudSongsSnapshot() {
+    if (!domainServices) throw new Error('Song library not ready.');
+    return domainServices.songs.list({});
+  }
+
+  function replaceCloudSongsSnapshot(songs) {
+    if (!domainServices) throw new Error('Song library not ready.');
+    const result = domainServices.songs.replaceCloud(songs);
+    broadcastSnapshot('cloud:songs');
+    return result;
+  }
+
+  function requestCloudSync(scope) {
+    for (const listener of cloudSyncListeners) {
+      try {
+        listener(scope);
+      } catch (error) {
+        void error;
+      }
+    }
+  }
+
+  function onCloudSyncRequested(listener) {
+    if (typeof listener !== 'function') return () => {};
+    cloudSyncListeners.add(listener);
+    return () => cloudSyncListeners.delete(listener);
+  }
+
   return {
     start: startServer,
     stop: shutdownApplication,
@@ -559,6 +667,11 @@ function createServerRuntime(runtimeOptions = {}) {
     persistPlaybackSnapshot,
     resumeAuthorizedWork,
     pauseAuthorizedWork,
+    getCloudSettingsSnapshot,
+    applyCloudSettingsSnapshot,
+    getCloudSongsSnapshot,
+    replaceCloudSongsSnapshot,
+    onCloudSyncRequested,
     getApiToken: () => sessionToken,
     getSetting,
   };

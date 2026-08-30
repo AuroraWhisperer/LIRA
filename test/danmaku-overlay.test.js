@@ -196,31 +196,43 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(feedScript, /draw-danmaku-medal-name/);
   assert.match(styles, /--ranked-stage-width:\s*624px/);
   assert.match(styles, /--ranked-stage-height:\s*640px/);
-  assert.match(styles, /--ranked-card-width:\s*600px/);
-  assert.match(styles, /--ranked-card-min-height:\s*92px/);
+  assert.match(styles, /--ranked-bubble-max-width:\s*600px/);
+  assert.match(styles, /--ranked-avatar-size:\s*68px/);
   assert.match(
     styles,
     /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--ranked-card-min-height\)[^}]*width:\s*var\(--ranked-card-width\)[^}]*min-height:\s*var\(--ranked-card-min-height\)[^}]*overflow:\s*hidden[^}]*border-radius:\s*2px[^}]*background:\s*var\(--ranked-surface\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*--ranked-accent:\s*#6ed6dc;[^}]*grid-template-columns:\s*var\(--ranked-avatar-size\) minmax\(0, 1fr\)[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*var\(--ranked-bubble-max-width\)[^}]*background:\s*transparent;[^}]*clip-path:\s*none;/s,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*grid-area:\s*avatar[^}]*align-self:\s*stretch[^}]*width:\s*100%[^}]*height:\s*auto[^}]*min-width:\s*0[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*mask-image:\s*linear-gradient\(to right, transparent 0%, #000 55%\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*align-self:\s*start;[^}]*width:\s*var\(--ranked-avatar-size\);[^}]*height:\s*var\(--ranked-avatar-size\);[^}]*border-radius:\s*50%;[^}]*background:\s*var\(--danmaku-avatar-art\)[^}]*clip-path:\s*none;/s,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*grid-area:\s*content[^}]*min-height:\s*var\(--ranked-card-min-height\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-body \{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*gap:\s*5px;[^}]*min-width:\s*0;[^}]*max-width:\s*calc\( var\(--ranked-bubble-max-width\) - var\(--ranked-avatar-size\) - 9px \);/s,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff[^}]*font-size:\s*38px[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-identity \{[^}]*display:\s*flex;[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*999px;[^}]*background:\s*color-mix\(in srgb, var\(--ranked-accent\) 82%, white\)/s,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-guard,\s*body\[data-style='ranked'\] \.draw-danmaku-medal-name \{ display:\s*none;/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*5px 18px 18px 18px;[^}]*color:\s*#fff[^}]*font-size:\s*38px[^}]*background:\s*var\(--ranked-accent\)[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
   );
   assert.doesNotMatch(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*-webkit-line-clamp/s,
+    /body\[data-style='ranked'\][\s\S]*grid-template-areas:\s*'content avatar'/,
+  );
+  assert.doesNotMatch(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*mask-image:/s,
   );
   assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.png'\)/);
   assert.match(
@@ -241,15 +253,23 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-badge \{\s*display:\s*none;/,
+    /body\[data-style='ranked'\] \.draw-danmaku-medal \{[^}]*display:\s*inline-flex;[^}]*margin-left:\s*auto;[^}]*border-radius:\s*999px;/s,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='viewer'\],\s*body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --ranked-surface: rgba\(52, 59, 69, 0?\.84\);/,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='viewer'\],\s*body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='fan'\] \{ --ranked-accent: #6ed6dc;/,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*rgba\(171, 37, 61, 0?\.92\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --ranked-accent: var\(--guard-captain\);/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --ranked-accent: var\(--guard-admiral\);/,
+  );
+  assert.match(
+    styles,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --ranked-accent: var\(--guard-governor\);/,
   );
   for (const asset of [
     'bubble-captain-frame.png',

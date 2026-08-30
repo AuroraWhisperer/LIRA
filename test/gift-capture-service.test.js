@@ -900,6 +900,127 @@ test('same platform id and uid deduplicate even when the user name changes', () 
   }
 });
 
+test('distinct UUID combo ids remain separate within the legacy deduplication window', () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-uuid-combo-distinct-'),
+  );
+  const db = createDatabases({ dataDir });
+  const service = createGiftService(
+    {
+      db,
+      state: { giftComboPending: new Map(), blindBoxCache: null },
+      settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' }),
+    },
+    {
+      giftEventStore: createGiftEventStore(db.giftDb),
+    },
+  );
+
+  try {
+    const first = service.add({
+      platformId: '1800000000000000001',
+      comboId: '11111111-1111-4111-8111-111111111111',
+      cmd: 'SEND_GIFT',
+      giftId: '1',
+      giftName: '幸运盲盒结果',
+      isBlindBox: true,
+      blindBoxName: '幸运盲盒',
+      blindBoxPrice: 2.5,
+      uid: '42',
+      userName: 'Alice',
+      num: 1,
+      unitPrice: 2.5,
+      totalPrice: 2.5,
+      messageTimestamp: 1_800_000_000_000,
+    });
+    const second = service.add({
+      platformId: '1800000000000000002',
+      comboId: '22222222-2222-4222-8222-222222222222',
+      cmd: 'SEND_GIFT',
+      giftId: '1',
+      giftName: '幸运盲盒结果',
+      isBlindBox: true,
+      blindBoxName: '幸运盲盒',
+      blindBoxPrice: 2.5,
+      uid: '42',
+      userName: 'Alice',
+      num: 1,
+      unitPrice: 2.5,
+      totalPrice: 2.5,
+      messageTimestamp: 1_800_000_000_100,
+    });
+
+    assert.notEqual(second.id, first.id);
+    assert.equal(first.detection_status, 'final');
+    assert.equal(second.detection_status, 'final');
+    assert.deepEqual(
+      db.giftDb
+        .prepare(
+          'SELECT platform_id FROM gift_events ORDER BY id ASC',
+        )
+        .all()
+        .map((row) => row.platform_id),
+      [
+        '11111111-1111-4111-8111-111111111111',
+        '22222222-2222-4222-8222-222222222222',
+      ],
+    );
+  } finally {
+    service.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('repeated UUID combo ids still deduplicate to one final event', () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-gift-uuid-combo-repeat-'),
+  );
+  const db = createDatabases({ dataDir });
+  const service = createGiftService({
+    db,
+    state: { giftComboPending: new Map(), blindBoxCache: null },
+    settings: () => ({ enableGiftSprint: 'true', giftBlindBoxConfig: '' }),
+  });
+
+  try {
+    const comboId = '33333333-3333-4333-8333-333333333333';
+    const base = {
+      comboId,
+      cmd: 'SEND_GIFT',
+      giftId: '1',
+      giftName: '幸运盲盒结果',
+      isBlindBox: true,
+      blindBoxName: '幸运盲盒',
+      blindBoxPrice: 2.5,
+      uid: '42',
+      userName: 'Alice',
+      num: 1,
+      unitPrice: 2.5,
+      totalPrice: 2.5,
+      messageTimestamp: 1_800_000_000_000,
+    };
+    const first = service.add({ ...base, platformId: '1800000000000000003' });
+    const duplicate = service.add({
+      ...base,
+      platformId: '1800000000000000004',
+      messageTimestamp: 1_800_000_000_100,
+    });
+
+    assert.equal(duplicate.id, first.id);
+    assert.equal(duplicate.detection_status, 'final');
+    assert.equal(
+      db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get()
+        .count,
+      1,
+    );
+  } finally {
+    service.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('different explicit combo batches do not cross-command deduplicate', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-gift-cross-batch-'),

@@ -765,13 +765,19 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     html,
-    /data-danmaku-style="ranked"[\s\S]*?class="danmaku-style-option-visual is-ranked"[\s\S]*?<strong>\s*身份横卡\s*<\/strong\s*>/,
+    /data-danmaku-style="ranked"[\s\S]*?class="danmaku-style-option-visual is-ranked"[\s\S]*?<strong>\s*直播气泡\s*<\/strong\s*>[\s\S]*?<small>\s*左侧头像，昵称灯牌在上\s*<\/small\s*>/,
   );
   assert.match(
     html,
     /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options"/,
   );
   assert.match(styles, /\.danmaku-style-option-visual\.is-ranked\s*\{/);
+  assert.match(
+    styles,
+    /\.danmaku-style-option-visual\.is-ranked i::before\s*\{[^}]*border-radius:\s*50%;/s,
+  );
+  for (const color of ['#6ed6dc', '#2f9bff', '#a45cff', '#f0445a'])
+    assert.match(styles, new RegExp(`--preview-rank:\\s*${color};`));
   assert.match(
     styles,
     /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/,

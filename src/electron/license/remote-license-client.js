@@ -70,7 +70,11 @@ function createRemoteLicenseClient(options = {}) {
         };
       }
       const text = await response.text();
-      if (text.length > 1024 * 1024) {
+      const maxResponseBytes = Math.max(
+        1024,
+        Number(requestOptions.maxResponseBytes) || 1024 * 1024,
+      );
+      if (text.length > maxResponseBytes) {
         throw new RemoteLicenseError(
           'RESPONSE_TOO_LARGE',
           '授权服务器响应过大。',
@@ -144,13 +148,14 @@ function createRemoteLicenseClient(options = {}) {
     }
   }
 
-  async function request(method, pathname, payload, token) {
+  async function request(method, pathname, payload, token, requestOptions) {
     return requestWithBody(
       method,
       pathname,
       payload === undefined ? undefined : JSON.stringify(payload),
       payload === undefined ? '' : 'application/json',
       token,
+      requestOptions,
     );
   }
 
@@ -183,10 +188,27 @@ function createRemoteLicenseClient(options = {}) {
     verify: (body) => request('POST', '/api/device/verify', body),
     heartbeat: (token) => request('POST', '/api/device/heartbeat', {}, token),
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
+    getCloudState: (token) =>
+      request('GET', '/api/device/cloud-state', undefined, token),
+    updateCloudSettings: (settings, token) =>
+      request('PUT', '/api/device/cloud-settings', settings, token),
     syncSongs: (songs, token) =>
       request('PUT', '/api/device/songs/sync', { songs }, token),
     getCloudSongs: (token) =>
-      request('GET', '/api/device/songs', undefined, token),
+      request('GET', '/api/device/songs', undefined, token, {
+        maxResponseBytes: 4 * 1024 * 1024,
+      }),
+    getBilibiliCredentials: (token) =>
+      request('GET', '/api/device/bilibili-credentials', undefined, token),
+    setBilibiliCredentials: (cookie, token) =>
+      request('PUT', '/api/device/bilibili-credentials', { cookie }, token),
+    clearBilibiliCredentials: (token) =>
+      request(
+        'DELETE',
+        '/api/device/bilibili-credentials',
+        undefined,
+        token,
+      ),
     getGiftCatalog: (etag, token) => requestGiftCatalog(etag, token),
     getSongPageBackground: (token) =>
       request('GET', '/api/device/song-page/background', undefined, token),

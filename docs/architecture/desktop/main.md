@@ -1,10 +1,10 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
-> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
+> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
-**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
+**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、轮询和应用，`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
 
 ## 1. 进程形态与入口
 
@@ -35,9 +35,10 @@
 9. `desktopRuntime = createDesktopRuntime(serverRuntimeModule, { dataDir, safeStorage })` + `setPreShutdownHook(requestPlaybackFlush)`([main.js:133-137](../../../src/electron/main.js#L133-L137))
 10. `await desktopRuntime.start(serverOptions)` — 启动内嵌 HTTP 服务(注入契约见 [auth.md](auth.md) §11,[server-core.md](../backend/server-core.md) §6.1)
 11. 创建 `licenseManager`,注册 license IPC,再 `await licenseManager.bootstrap()`;本地服务此时仍通过动态 `licenseGate` 拒绝 Admin、业务 API 和 WebSocket
-12. 由 `license/license-resume.js` 的 `createLicenseResumeHandler` 注册 `powerMonitor` 的 `resume` 监听;系统唤醒时由 main process 立即调用 `licenseManager.resume()` 重新确认设备会话
-13. `registerLocalFontPermissionHandler(...)` — 将本机字体权限限制为内嵌服务的精确 origin,并用原生对话框取得用户明确同意(§4)
-14. 按最终授权状态加载 `/admin?desktop=1` 或 `/license`;若启动验证已成功,显式调用一次 `resumeAuthorizedWork()` 恢复 Bilibili 工作
+12. 创建 `cloudSyncController`，注入授权 manager、本地 runtime 与仅 main process 可访问的 Bilibili Cookie 适配器；已授权时先完成一次同步再恢复本地 Bilibili 工作
+13. 由 `license/license-resume.js` 的 `createLicenseResumeHandler` 注册 `powerMonitor` 的 `resume` 监听;系统唤醒时由 main process 立即调用 `licenseManager.resume()` 重新确认设备会话，并在成功后请求云端同步
+14. `registerLocalFontPermissionHandler(...)` — 将本机字体权限限制为内嵌服务的精确 origin,并用原生对话框取得用户明确同意(§4)
+15. 按最终授权状态加载 `/admin?desktop=1` 或 `/license`;若启动验证已成功,显式调用一次 `cloudSyncController.start()`，完成后恢复 Bilibili 工作
 
 `createDesktopRuntime`([main.js:156-180](../../../src/electron/main.js#L156-L180))是兼容适配器:若传入模块已是运行时(具备 `start/stop/setPreShutdownHook`)直接返回;若暴露 `createServerRuntime(options)` 则调用之;否则退化为包装 `startServer`/`shutdownApplication` 的旧兼容层。
 
@@ -54,6 +55,12 @@
 - HTTP 408/429/5xx、DNS 和 timeout 在 token 已失效时进入 `NEEDS_CONNECTION`,但不删除设备身份;仍有效 token 的单次网络失败保持 `AUTHORIZED`
 - Device/License/Streamer 撤销和 Session 拒绝立即清空内存 token、停止维护定时器并进入 `BLOCKED`;main 监听状态后暂停授权业务并切回 `/license`
 - 系统唤醒时立即 heartbeat;若此前为 `NEEDS_CONNECTION`,则重新执行 challenge/verify
+
+### 2.2 云端同步生命周期
+
+`cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步，之后使用可 `unref()` 的 60 秒单次 timer 轮询；每轮结束（包括读取失败）都会重新调度。系统 resume 在设备会话恢复后调用 `syncNow()`。授权离开 `AUTHORIZED` 时停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
+
+三个 scope 各自跟踪 revision 和 dirty。成功的本地 mutation 先标记 dirty 并立即串行上传；失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；Bilibili scope 按本地登录态播种凭据或明确的未登录状态。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。
 
 ## 3. 数据目录决策
 
@@ -139,9 +146,10 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒
 
 1. `gracefulQuitStarted` 防重入;首次进入 `event.preventDefault()` 接管关闭
 2. `licenseResumeController.unregister()` 移除 `powerMonitor` resume 监听(`license/license-resume.js`),防止关闭阶段再启动授权请求
-3. 5s 兜底定时器 → 释放单实例锁 + `app.exit(0)`(渲染进程卡死不阻塞退出)
-4. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
-5. 完成后释放授权维护 timer、清兜底定时器、释放单实例锁、`app.exit(0)`
+3. `cloudSyncController.dispose()` 停止同步 timer 并移除 listener，不把客户端退出解释为云端 monitor stop
+4. 5s 兜底定时器 → 释放单实例锁 + `app.exit(0)`(渲染进程卡死不阻塞退出)
+5. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
+6. 完成后释放授权维护 timer、清兜底定时器、释放单实例锁、`app.exit(0)`
 
 **播放状态冲刷握手**([playback-flush.js](../../../src/electron/playback-flush.js)):
 

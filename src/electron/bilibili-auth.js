@@ -235,6 +235,51 @@ async function getBilibiliUid() {
   return dede ? Number(dede.value) : 0;
 }
 
+function parseBilibiliCookieHeader(cookieHeader) {
+  const value = String(cookieHeader || '').trim();
+  if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
+    throw new Error('BILIBILI_CREDENTIALS_INVALID');
+  }
+  const cookies = [];
+  const names = new Set();
+  for (const part of value.split(';')) {
+    const separator = part.indexOf('=');
+    if (separator <= 0) continue;
+    const name = part.slice(0, separator).trim();
+    const cookieValue = part.slice(separator + 1).trim();
+    if (!/^[A-Za-z0-9_.-]{1,80}$/u.test(name) || !cookieValue) continue;
+    cookies.push({ name, value: cookieValue });
+    names.add(name);
+  }
+  if (
+    BILIBILI_LOGIN_CONFIG.keyCookies.some((name) => !names.has(name))
+  ) {
+    throw new Error('BILIBILI_CREDENTIALS_INVALID');
+  }
+  return cookies;
+}
+
+async function replaceBilibiliCookieHeader(dataDir, cookieHeader) {
+  const cookies = parseBilibiliCookieHeader(cookieHeader);
+  const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
+  await loginSession.clearStorageData({
+    storages: ['cookies', 'localstorage', 'indexdb', 'websql'],
+  });
+  for (const cookie of cookies) {
+    await loginSession.cookies.set({
+      url: 'https://www.bilibili.com/',
+      name: cookie.name,
+      value: cookie.value,
+      domain: '.bilibili.com',
+      path: '/',
+      secure: true,
+      httpOnly: cookie.name === 'SESSDATA',
+    });
+  }
+  await persistBilibiliCookieSnapshot(dataDir);
+  return getBilibiliAuthState(dataDir);
+}
+
 async function logoutBilibiliAccount(dataDir) {
   const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
   await loginSession.clearStorageData({
@@ -256,6 +301,8 @@ module.exports = {
   getBilibiliUid,
   persistBilibiliCookieSnapshot,
   restoreBilibiliCookieSnapshot,
+  replaceBilibiliCookieHeader,
   logoutBilibiliAccount,
+  parseBilibiliCookieHeader,
   getBilibiliCookieExportPath,
 };

@@ -66,8 +66,14 @@ function createGiftDetectionService(context, options = {}) {
       return null;
     }
 
-    const comboKey = extractComboRootKey(gift.comboId || gift.platformId);
-    if (comboKey) gift.platformId = comboKey;
+    // comboId is the stable batch identity even when Bilibili uses a UUID.
+    // Keep the legacy text-only combo key separate because it controls whether
+    // SEND_GIFT stays open for progress packets before quiet-window finalizing.
+    const comboKey = gift.comboId
+      ? extractComboRootKey(gift.comboId)
+      : extractComboRootKey(gift.platformId);
+    if (gift.comboId) gift.platformId = gift.comboId;
+    else if (comboKey) gift.platformId = comboKey;
     // Some V2 packets carry only the cumulative combo amount. Apply those
     // fields before deciding whether the event is a paid gift; otherwise a
     // valid final combo with a zero per-packet amount is dropped permanently.
