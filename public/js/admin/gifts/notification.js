@@ -87,7 +87,7 @@
     // 价格徽章
     let priceBadge = '';
     if (sprintPrice > 0) {
-      priceBadge = `<span class="gift-price-badge">¥${formatMoney(sprintPrice)}</span>`;
+      priceBadge = `<span class="gift-price-badge">${formatMoney(sprintPrice)}</span>`;
     }
 
     // 构建内容

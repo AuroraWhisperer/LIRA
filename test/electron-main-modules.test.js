@@ -9,6 +9,7 @@ const test = require('node:test');
 test('desktop runtime adapts the legacy server API without changing calls', async () => {
   const { createDesktopRuntime } = require('../src/electron/desktop-runtime');
   const calls = [];
+  const importedEvents = [];
   const legacy = {
     startServer(options) {
       calls.push(['start', options]);
@@ -25,6 +26,10 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     },
     getSetting(key) {
       return `setting:${key}`;
+    },
+    importProcessedGiftEvent(event) {
+      importedEvents.push(event);
+      return { imported: event.eventId };
     },
   };
   const runtime = createDesktopRuntime(legacy);
@@ -43,6 +48,17 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     },
   );
   assert.equal(runtime.getSetting('theme'), 'setting:theme');
+  const processedEvent = {
+    eventId: 'gift-1',
+    phase: 'final',
+    cursor: 1,
+    gift: { giftName: '小花花', totalPrice: 1 },
+  };
+  assert.deepEqual(
+    await runtime.importProcessedGiftEvent(processedEvent),
+    { imported: 'gift-1' },
+  );
+  assert.deepEqual(importedEvents, [processedEvent]);
   assert.deepEqual(calls, [
     ['start', { host: '127.0.0.1' }],
     ['stop', { exitProcess: false }],

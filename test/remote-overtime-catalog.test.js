@@ -8,7 +8,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../src/server');
 
-test('uses the remote catalog for local overtime reads and broadcasts changed snapshots', async () => {
+test('keeps the current room catalog primary and uses the server catalog only for search', async () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'lira-remote-overtime-'),
   );
@@ -18,6 +18,23 @@ test('uses the remote catalog for local overtime reads and broadcasts changed sn
   const runtime = createServerRuntime({
     dataDir,
     giftSalePublicDir,
+    giftSaleGetRoomId: () => '22637261',
+    giftSaleFetchJson: async (name) => {
+      if (name === 'gift_data') {
+        return {
+          code: 0,
+          data: { room_gift_list: { gold_list: [{ gift_id: 35793 }] } },
+        };
+      }
+      return {
+        code: 0,
+        data: {
+          list: [
+            { id: 35793, name: '直播间礼物', price: 100, coin_type: 'gold' },
+          ],
+        },
+      };
+    },
     licenseGate: { isAuthorized: () => true },
   });
 
@@ -53,34 +70,41 @@ test('uses the remote catalog for local overtime reads and broadcasts changed sn
             ],
           };
         },
+        fetchImage: async () => new Response(webpBytes()),
       },
     });
     const token = runtime.getApiToken();
-
-    const updatePromise = readNextWebSocketMessage(
-      app.baseUrl,
-      token,
-      () => runtime.resumeAuthorizedWork(),
-      (message) => message.type === 'gift-catalog:update',
-    );
-    const update = await updatePromise;
-    assert.equal(update.snapshot.source, 'server');
-    assert.equal(update.snapshot.version, 'remote-1');
-    assert.equal(
-      update.snapshot.gifts[0].imagePath,
-      'https://api.lirahub.cn/gift-media/images/server.webp',
-    );
 
     const response = await fetch(`${app.baseUrl}/api/overtime/gifts`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     assert.equal(response.status, 200);
     const payload = await response.json();
-    assert.equal(payload.data.source, 'server');
     assert.equal(payload.data.cached, true);
-    assert.deepEqual(
-      payload.data.gifts.map((gift) => gift.id),
-      ['987654321'],
+    assert.deepEqual(payload.data.gifts, []);
+    assert.equal(remoteCalls, 0);
+
+    const refreshed = await postJson(
+      app.baseUrl,
+      token,
+      '/api/overtime/gifts/refresh',
+      {},
+    );
+    assert.equal(refreshed.response.status, 200);
+    assert.deepEqual(refreshed.payload.data.gifts.map((gift) => gift.id), ['35793']);
+    assert.equal(remoteCalls, 0);
+
+    const searched = await postJson(
+      app.baseUrl,
+      token,
+      '/api/overtime/gifts/server/search',
+      { query: '服务器' },
+    );
+    assert.equal(searched.response.status, 200);
+    assert.deepEqual(searched.payload.data.gifts.map((gift) => gift.id), ['987654321']);
+    assert.equal(
+      searched.payload.data.gifts[0].imagePath,
+      '/overtime-gift-images/server.webp',
     );
     assert.equal(remoteCalls, 1);
     assert.equal(receivedEtag, '');
@@ -94,7 +118,7 @@ test('uses the remote catalog for local overtime reads and broadcasts changed sn
           {
             giftId: '987654321',
             giftName: '服务器礼物',
-            imagePath: 'https://api.lirahub.cn/gift-media/images/server.webp',
+            imagePath: '/overtime-gift-images/server.webp',
             mode: 'fixed',
             fixedSeconds: 60,
             quantityMode: 'item',
@@ -105,7 +129,7 @@ test('uses the remote catalog for local overtime reads and broadcasts changed sn
     assert.equal(savedRemoteRule.response.status, 200);
     assert.equal(
       savedRemoteRule.payload.data.rules[0].imagePath,
-      'https://api.lirahub.cn/gift-media/images/server.webp',
+      '/overtime-gift-images/server.webp',
     );
   } finally {
     await runtime.stop({ exitProcess: false });
@@ -113,7 +137,7 @@ test('uses the remote catalog for local overtime reads and broadcasts changed sn
   }
 });
 
-test('manual catalog sync bypasses the remote backoff after a failed request', async () => {
+test('server search forces a refresh and falls back to the previous remote cache', async () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'lira-remote-overtime-force-'),
   );
@@ -156,8 +180,8 @@ test('manual catalog sync bypasses the remote backoff after a failed request', a
     const first = await postJson(
       app.baseUrl,
       token,
-      '/api/overtime/gifts/refresh',
-      {},
+      '/api/overtime/gifts/server/search',
+      { query: '手动同步' },
     );
     assert.equal(first.response.status, 200);
     assert.equal(remoteCalls, 1);
@@ -166,10 +190,10 @@ test('manual catalog sync bypasses the remote backoff after a failed request', a
     const failed = await postJson(
       app.baseUrl,
       token,
-      '/api/overtime/gifts/refresh',
-      {},
+      '/api/overtime/gifts/server/search',
+      { query: '手动同步' },
     );
-    assert.equal(failed.response.status, 400);
+    assert.equal(failed.response.status, 200);
     assert.equal(remoteCalls, 2);
 
     // A second click immediately after the failure must issue another forced
@@ -177,10 +201,10 @@ test('manual catalog sync bypasses the remote backoff after a failed request', a
     const retried = await postJson(
       app.baseUrl,
       token,
-      '/api/overtime/gifts/refresh',
-      {},
+      '/api/overtime/gifts/server/search',
+      { query: '手动同步' },
     );
-    assert.equal(retried.response.status, 400);
+    assert.equal(retried.response.status, 200);
     assert.equal(remoteCalls, 3);
   } finally {
     await runtime.stop({ exitProcess: false });
@@ -214,46 +238,6 @@ function createGiftSalePublicFixture(root) {
   return publicDir;
 }
 
-function readNextWebSocketMessage(baseUrl, token, afterOpen, predicate) {
-  return new Promise((resolve, reject) => {
-    const socket = new WebSocket(
-      `${baseUrl.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`,
-    );
-    const timeout = setTimeout(() => {
-      socket.close();
-      reject(new Error('Timed out waiting for remote catalog update.'));
-    }, 3000);
-    socket.addEventListener('message', async (event) => {
-      const message = JSON.parse(String(event.data));
-      if (!predicate(message)) return;
-      clearTimeout(timeout);
-      socket.close();
-      resolve(message);
-    });
-    socket.addEventListener(
-      'open',
-      async () => {
-        try {
-          await afterOpen?.();
-        } catch (error) {
-          clearTimeout(timeout);
-          socket.close();
-          reject(error);
-        }
-      },
-      { once: true },
-    );
-    socket.addEventListener(
-      'error',
-      () => {
-        clearTimeout(timeout);
-        reject(new Error('Remote catalog WebSocket connection failed.'));
-      },
-      { once: true },
-    );
-  });
-}
-
 function findAvailablePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -263,4 +247,12 @@ function findAvailablePort() {
       server.close((error) => (error ? reject(error) : resolve(address.port)));
     });
   });
+}
+
+function webpBytes() {
+  const bytes = Buffer.alloc(16);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.writeUInt32LE(8, 4);
+  bytes.write('WEBP', 8, 'ascii');
+  return bytes;
 }

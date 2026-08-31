@@ -1026,6 +1026,103 @@ body[data-style='ranked'] .draw-danmaku-empty {
   background: rgba(110, 214, 220, 0.72);
   clip-path: none;
 }
+/* 全屏随机：只展示发送者和正文，位置由弹幕组件在插入后计算。 */
+body[data-style='outline'] .danmaku-signal-stage {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+}
+body[data-style='outline'] .danmaku-signal-header {
+  display: none;
+}
+body[data-style='outline'] .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  overflow: hidden;
+}
+body[data-style='outline'] .draw-danmaku-item {
+  position: absolute;
+  --outline-accent: #fff;
+  display: block;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  min-height: 0;
+  padding: 13px 18px 8px;
+  border: 1px solid var(--outline-accent);
+  border-radius: 7px;
+  color: #fff;
+  background: rgba(9, 15, 27, 0.72);
+  box-shadow: 0 5px 16px rgba(2, 6, 16, 0.24);
+  clip-path: none;
+  animation: outlineMessageIn 220ms ease-out both;
+}
+body[data-style='outline'] .draw-danmaku-item::after,
+body[data-style='outline'] .draw-danmaku-avatar,
+body[data-style='outline'] .draw-danmaku-guard,
+body[data-style='outline'] .draw-danmaku-medal {
+  display: none;
+}
+body[data-style='outline'] .draw-danmaku-item[data-identity='viewer'],
+body[data-style='outline'] .draw-danmaku-item[data-identity='fan'],
+body[data-style='outline'] .draw-danmaku-item[data-identity='captain'],
+body[data-style='outline'] .draw-danmaku-item[data-identity='admiral'],
+body[data-style='outline'] .draw-danmaku-item[data-identity='governor'] {
+  --outline-accent: #fff;
+}
+body[data-style='outline'] .draw-danmaku-body {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+body[data-style='outline'] .draw-danmaku-identity {
+  position: absolute;
+  top: -0.72em;
+  left: 50%;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100% - 18px);
+  padding: 0 8px;
+  color: #fff;
+  background: transparent;
+  transform: translateX(-50%);
+}
+body[data-style='outline'] .draw-danmaku-identity strong {
+  max-width: 100%;
+  color: #fff;
+  font:
+    700 13px/1.25 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-style='outline'] .draw-danmaku-body p {
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  color: #fff;
+  font-size: clamp(16px, 2.2vw, 18px);
+  font-weight: 700;
+  line-height: 1.38;
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.52);
+}
+body.is-preview[data-style='outline'] {
+  background:
+    radial-gradient(
+      circle at 82% 14%,
+      rgba(47, 155, 255, 0.2),
+      transparent 34%
+    ),
+    linear-gradient(145deg, #101628, #070b17 76%);
+}
 body.is-preview[data-style='bubble'] {
   background:
     radial-gradient(
@@ -1103,6 +1200,16 @@ body.is-preview[data-style='ranked'] {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+@keyframes outlineMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

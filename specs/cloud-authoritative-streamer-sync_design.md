@@ -81,8 +81,10 @@ is the cookie-backed account identity required by server-side Bilibili requests.
 
 ### Desktop main process
 
-- A single sync controller polls lightweight cloud metadata every 60 seconds and
-  immediately after authorization/resume.
+- A single sync controller keeps one authenticated SSE stream for revision-only
+  invalidations and reads authoritative cloud metadata immediately after
+  authorization, resume, or stream reconnection. A 10-minute metadata poll is
+  retained only as an automatic fault fallback.
 - Per-scope dirty flags serialize writes. A dirty local scope is retried and is
   not overwritten by polling until its upload succeeds.
 - Cloud settings are written into the local settings store and reconfigure the
@@ -151,6 +153,10 @@ write. This limitation is visible in the specification and tests.
    that dirty scope with an older cloud snapshot.
 7. Closing Electron stops only its local listener; the independently deployed
    server monitor remains eligible and running.
+8. An online Streamer web write emits only the changed scope revision and causes
+   Electron to reconcile without waiting for fallback polling. Offline Devices
+   have no server-side notification queue and reconcile current revisions after
+   startup or reconnection.
 
 ## Done When
 

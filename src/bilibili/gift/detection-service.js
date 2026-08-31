@@ -2,6 +2,9 @@
 
 const { normalizeGiftInput, normalizeGiftRow } = require('./normalizer');
 const {
+  normalizeProcessedGiftEvent,
+} = require('../../shared/processed-gift-contract');
+const {
   extractComboRootKey,
   applyComboTotals,
   applyBlindBoxMetadata,
@@ -12,6 +15,7 @@ const {
 } = require('./event-service');
 const GIFT_FINALIZE_QUIET_MS = 10 * 1000;
 const CONSUMER_RETRY_MAX_MS = 30 * 1000;
+const REMOTE_GIFT_COMMAND = 'LIRA_SERVER_GIFT';
 
 function createGiftDetectionService(context, options = {}) {
   const giftDb = context?.db?.giftDb;
@@ -127,6 +131,59 @@ function createGiftDetectionService(context, options = {}) {
     return row;
   }
 
+  function importProcessedEvent(input) {
+    if (disposed) return null;
+
+    const event = normalizeProcessedGiftEvent(input);
+    const platformId = `lira-server:${event.eventId}`;
+    let row = giftDb
+      .prepare(
+        `
+      SELECT * FROM gift_events
+      WHERE platform_id = ? AND cmd = ?
+      ORDER BY id ASC LIMIT 1
+    `,
+      )
+      .get(platformId, REMOTE_GIFT_COMMAND);
+    if (row?.status === 'deleted' || row?.detection_status === 'final') {
+      return normalizeGiftRow(row);
+    }
+
+    const detectedAtMs = Math.floor(nowMs());
+    const gift = normalizeGiftInput({
+      ...event.gift,
+      platformId,
+      cmd: REMOTE_GIFT_COMMAND,
+      uid: '',
+      rawJson: '',
+    });
+    gift.blindProfit = event.gift.blindProfit;
+    if (!row) {
+      const giftStatisticsEligible =
+        context.settings().enableGiftSprint === 'true';
+      const overtimeEpoch = Math.max(
+        0,
+        Math.floor(Number(getOvertimeEpoch()) || 0),
+      );
+      // Server-processed events are already authoritative. Always persist the
+      // projection so the remote cursor can advance without losing a final
+      // event merely because local consumers are currently disabled.
+      row = insertProgressGift(giftDb, gift, {
+        detectedAtMs,
+        giftStatisticsEligible,
+        overtimeEpoch,
+      });
+      if (event.phase === 'progress') dispatch(row, 'progress');
+    } else {
+      updateProcessedGift(giftDb, row.id, gift, detectedAtMs);
+      row = readGift(giftDb, row.id);
+    }
+
+    if (event.phase === 'progress') return row;
+    updateProcessedGift(giftDb, row.id, gift, detectedAtMs);
+    return finalizeDetected(row.id, detectedAtMs);
+  }
+
   function finalizeDetected(giftEventId, finalizedAtMs = Math.floor(nowMs())) {
     const id = Number(giftEventId) || 0;
     if (id <= 0) return null;
@@ -170,11 +227,11 @@ function createGiftDetectionService(context, options = {}) {
       .prepare(
         `
       SELECT * FROM gift_events
-      WHERE detection_status = 'progress'
+      WHERE detection_status = 'progress' AND cmd != ?
       ORDER BY id ASC
     `,
       )
-      .all();
+      .all(REMOTE_GIFT_COMMAND);
     const currentMs = Math.floor(nowMs());
     for (const row of rows) {
       if (
@@ -285,12 +342,43 @@ function createGiftDetectionService(context, options = {}) {
   recover();
   return {
     detect,
+    importProcessedEvent,
     recover,
     flushPending,
     finalizeDetected,
     getStatus,
     dispose,
   };
+}
+
+function updateProcessedGift(giftDb, id, gift, detectedAtMs) {
+  giftDb
+    .prepare(
+      `
+    UPDATE gift_events
+    SET gift_id = ?, gift_name = ?, user_name = ?, num = ?,
+        unit_price = ?, total_price = ?, coin_type = ?, is_blind_box = ?,
+        blind_box_name = ?, blind_box_price = ?, blind_profit = ?,
+        last_platform_at_ms = ?, raw_json = '', updated_at = ?
+    WHERE id = ? AND detection_status = 'progress'
+  `,
+    )
+    .run(
+      gift.giftId,
+      gift.giftName,
+      gift.userName,
+      gift.num,
+      gift.unitPrice,
+      gift.totalPrice,
+      gift.coinType,
+      gift.isBlindBox ? 1 : 0,
+      gift.blindBoxName,
+      gift.blindBoxPrice,
+      gift.blindProfit,
+      detectedAtMs,
+      gift.createdAt,
+      Number(id),
+    );
 }
 
 function insertProgressGift(giftDb, gift, eligibility) {
@@ -362,6 +450,7 @@ function readGift(giftDb, id) {
 
 module.exports = {
   GIFT_FINALIZE_QUIET_MS,
+  REMOTE_GIFT_COMMAND,
   createGiftDetectionService,
   toStandardEvent,
 };

@@ -271,6 +271,88 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
   }
 });
 
+test('server gift search caches images and serves them from a fixed local path', async () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-overtime-server-search-'),
+  );
+  const giftSalePublicDir = createGiftSalePublicFixture(dataDir);
+  let remoteCalls = 0;
+  let imageCalls = 0;
+  const runtime = createServerRuntime({ dataDir, giftSalePublicDir });
+  try {
+    const app = await runtime.start({
+      host: '127.0.0.1',
+      startPort: await findAvailablePort(),
+      remoteGiftCatalog: {
+        imageBaseUrl: 'https://api.example.test',
+        fetch: async () => {
+          remoteCalls += 1;
+          return {
+            ok: true,
+            version: String(remoteCalls),
+            updatedAt: '2026-08-29T08:00:00.000Z',
+            gifts: [
+              {
+                id: '8001',
+                name: '服务器搜索礼物',
+                priceRaw: 100,
+                coinType: 'gold',
+                imageUrl: '/gift-media/images/search.webp',
+              },
+            ],
+          };
+        },
+        fetchImage: async () => {
+          imageCalls += 1;
+          return new Response(webpBytes());
+        },
+      },
+    });
+    const token = runtime.getApiToken();
+
+    const search = await postJson(
+      app.baseUrl,
+      token,
+      '/api/overtime/gifts/server/search',
+      { query: '服务器' },
+    );
+    assert.equal(search.response.status, 200);
+    assert.deepEqual(search.payload.data.gifts.map((gift) => gift.id), ['8001']);
+    assert.equal(
+      search.payload.data.gifts[0].imagePath,
+      '/overtime-gift-images/search.webp',
+    );
+    assert.equal(remoteCalls, 1);
+    assert.equal(imageCalls, 1);
+
+    const image = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`);
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get('content-type'), 'image/webp');
+    assert.equal(image.headers.get('x-content-type-options'), 'nosniff');
+    assert.match(image.headers.get('cache-control'), /immutable/);
+    assert.equal(Buffer.from(await image.arrayBuffer()).equals(webpBytes()), true);
+
+    const head = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`, {
+      method: 'HEAD',
+    });
+    assert.equal(head.status, 200);
+    assert.equal(Number(head.headers.get('content-length')), webpBytes().length);
+    assert.equal((await head.arrayBuffer()).byteLength, 0);
+
+    const traversal = await fetch(
+      `${app.baseUrl}/overtime-gift-images/%2e%2e%2fsearch.webp`,
+    );
+    assert.equal(traversal.status, 404);
+    const unsupported = await fetch(
+      `${app.baseUrl}/overtime-gift-images/search.svg`,
+    );
+    assert.equal(unsupported.status, 404);
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 function createGiftSalePublicFixture(root) {
   const publicDir = path.join(root, 'public-fixture');
   const giftDir = path.join(publicDir, 'img', 'bilibili-gifts');
@@ -298,6 +380,14 @@ function createGiftSalePublicFixture(root) {
   fs.writeFileSync(path.join(giftDir, 'gift-mapping-100-above.md'), gold);
   fs.writeFileSync(path.join(giftDir, 'silver-free-mapping.md'), silver);
   return publicDir;
+}
+
+function webpBytes() {
+  const bytes = Buffer.alloc(16);
+  bytes.write('RIFF', 0, 'ascii');
+  bytes.writeUInt32LE(8, 4);
+  bytes.write('WEBP', 8, 'ascii');
+  return bytes;
 }
 
 async function requestJson(baseUrl, token, pathname, options = {}) {

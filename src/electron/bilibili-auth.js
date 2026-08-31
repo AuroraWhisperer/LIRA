@@ -6,6 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { safeStorage, session } = require('electron');
+const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 
 const BILIBILI_LOGIN_CONFIG = {
   name: 'Bilibili',
@@ -235,6 +236,24 @@ async function getBilibiliUid() {
   return dede ? Number(dede.value) : 0;
 }
 
+async function getBilibiliAccountProfile(dataDir) {
+  const state = await getBilibiliAuthState(dataDir);
+  if (!state.loggedIn || !state.uid) {
+    return { uid: Number(state.uid) || 0, name: '', avatarUrl: '' };
+  }
+
+  const cookieHeader = await getBilibiliCookieHeader();
+  const profile = await new BilibiliApiClient('0', {
+    cookieHeader,
+    uid: state.uid,
+  }).fetchUserProfile(state.uid);
+  return {
+    uid: state.uid,
+    name: profile.name || '',
+    avatarUrl: profile.avatarUrl || '',
+  };
+}
+
 function parseBilibiliCookieHeader(cookieHeader) {
   const value = String(cookieHeader || '').trim();
   if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
@@ -297,6 +316,7 @@ module.exports = {
   BILIBILI_LOGIN_CONFIG,
   isAllowedBilibiliLoginUrl,
   getBilibiliAuthState,
+  getBilibiliAccountProfile,
   getBilibiliCookieHeader,
   getBilibiliUid,
   persistBilibiliCookieSnapshot,

@@ -166,7 +166,7 @@ test('gift notifications detect delayed records that are not first in the list',
       AdminApp: {
         utils: {
           escapeHtml: (value) => String(value),
-          formatMoney: (value) => String(value),
+          formatMoney: (value) => `¥${Number(value).toFixed(2)}`,
           showStackedToast: (options) => toasts.push(options),
         },
       },
@@ -202,6 +202,8 @@ test('gift notifications detect delayed records that are not first in the list',
   assert.equal(toasts.length, 1);
   assert.equal(toasts[0].key, 'gift:11:1:2');
   assert.match(toasts[0].html, /Delayed Gift/);
+  assert.match(toasts[0].html, />¥2\.00<\/span>/);
+  assert.doesNotMatch(toasts[0].html, /¥¥/);
 });
 
 test('admin overlay links always use the IPv4 loopback host and current port', () => {

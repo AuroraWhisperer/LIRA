@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld('musicAPI', {
 
 contextBridge.exposeInMainWorld('bilibiliAuth', {
   getAuthState: () => ipcRenderer.invoke('bilibili:get-auth-state'),
+  getProfile: () => ipcRenderer.invoke('bilibili:get-profile'),
   login: () => ipcRenderer.invoke('bilibili:login'),
   logout: () => ipcRenderer.invoke('bilibili:logout'),
 });
@@ -90,10 +91,6 @@ contextBridge.exposeInMainWorld('liraLicense', {
     }),
   deleteSongPageBackground: () =>
     ipcRenderer.invoke('license:delete-song-page-background'),
-  createPairingCode: () => ipcRenderer.invoke('license:create-pairing-code'),
-  listPairingCodes: () => ipcRenderer.invoke('license:list-pairing-codes'),
-  revokePairingCode: (id) =>
-    ipcRenderer.invoke('license:revoke-pairing-code', id),
   onStateChanged: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const listener = (_event, snapshot) => callback(snapshot);

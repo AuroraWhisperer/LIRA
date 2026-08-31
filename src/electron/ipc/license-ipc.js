@@ -34,33 +34,6 @@ const SONG_PUBLIC_FIELDS = [
   'createdAt',
   'updatedAt',
 ];
-const PAIRING_PUBLIC_FIELDS = [
-  'id',
-  'codePrefix',
-  'code_prefix',
-  'codeType',
-  'code_type',
-  'status',
-  'effectiveStatus',
-  'expiresAt',
-  'expires_at',
-  'usedAt',
-  'used_at',
-  'usedByDeviceId',
-  'used_by_device_id',
-  'createdAt',
-  'created_at',
-  'createdByDeviceId',
-  'created_by_device_id',
-  'revokedAt',
-  'revoked_at',
-  'creatorDeviceName',
-  'creator_device_name',
-  'usedDeviceName',
-  'used_device_name',
-  'usedByDeviceName',
-];
-
 function registerLicenseIpc(options = {}) {
   const {
     ipcMain,
@@ -180,24 +153,6 @@ function registerLicenseIpc(options = {}) {
       .deleteSongPageBackground()
       .then((result) => sanitizeBackgroundResponse(result)),
   );
-  safeHandle('license:create-pairing-code', () =>
-    licenseManager
-      .createPairingCode()
-      .then((result) => sanitizePairingCreateResponse(result)),
-  );
-  safeHandle('license:list-pairing-codes', () =>
-    licenseManager
-      .listPairingCodes()
-      .then((result) => sanitizePairingListResponse(result)),
-  );
-  safeHandle('license:revoke-pairing-code', (id) => {
-    const pairingId = parsePairingCodeId(id);
-    if (pairingId === null)
-      return { ok: false, error: 'PAIRING_CODE_ID_INVALID' };
-    return licenseManager
-      .revokePairingCode(pairingId)
-      .then(() => ({ ok: true }));
-  });
 
   return licenseManager.onStateChanged((snapshot) => {
     const window = getMainWindow();
@@ -320,54 +275,6 @@ function sanitizeBackgroundInfo(value) {
   copyPrimitiveField(result, value, 'bytes');
   copyPrimitiveField(result, value, 'updatedAt');
   return Object.keys(result).length ? result : null;
-}
-
-function sanitizePairingCreateResponse(value = {}) {
-  const result = {};
-  for (const key of [
-    'id',
-    'code',
-    'codePrefix',
-    'expiresAt',
-    'ttlMinutes',
-    'accountName',
-  ]) {
-    copyPrimitiveField(result, value, key);
-  }
-  return result;
-}
-
-function sanitizePairingListResponse(value = {}) {
-  const rawPairingCodes = Array.isArray(value)
-    ? value
-    : Array.isArray(value?.pairingCodes)
-      ? value.pairingCodes
-      : Array.isArray(value?.items)
-        ? value.items
-        : [];
-  const pairingCodes = rawPairingCodes
-    .map(sanitizePairingRecord)
-    .filter(Boolean);
-  return { pairingCodes };
-}
-
-function parsePairingCodeId(value) {
-  if (typeof value === 'number') {
-    return Number.isSafeInteger(value) && value > 0 ? value : null;
-  }
-  if (typeof value !== 'string') return null;
-  const text = value.trim();
-  if (!/^[1-9]\d*$/.test(text)) return null;
-  const parsed = Number(text);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function sanitizePairingRecord(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const result = {};
-  for (const key of PAIRING_PUBLIC_FIELDS)
-    copyPrimitiveField(result, value, key);
-  return result;
 }
 
 function copyPrimitiveField(target, source, key) {

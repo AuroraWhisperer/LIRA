@@ -175,6 +175,61 @@
   letter-spacing: var(--type-tracking-normal);
 }
 
+.bilibili-auth-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.bilibili-auth-profile[hidden],
+.bilibili-auth-avatar[hidden] {
+  display: none;
+}
+
+.bilibili-auth-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--color-bg-tertiary);
+  object-fit: cover;
+}
+
+.bilibili-auth-identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bilibili-auth-name,
+.bilibili-auth-uid {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bilibili-auth-name {
+  max-width: 160px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
+}
+
+.bilibili-auth-name:empty {
+  display: none;
+}
+
+.bilibili-auth-uid {
+  max-width: 160px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .bilibili-auth-row button.danger {
   border-color: color-mix(in srgb, var(--danger) 38%, var(--border));
   background: var(--surface);

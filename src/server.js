@@ -36,6 +36,9 @@ const {
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
+const {
+  normalizeGiftBlindBoxConfig,
+} = require('./bilibili/gift/blind-box-config');
 const giftEffectModule = require('./bilibili/gift/effect-config');
 const giftFrameModule = require('./bilibili/gift/frame-config');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
@@ -48,6 +51,7 @@ const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
+const LOCAL_GIFT_DETECTION_ENABLED = false;
 const CLOUD_SETTING_KEYS = [
   'roomId',
   'enableBilibili',
@@ -85,7 +89,7 @@ function normalizeCloudSettingsSnapshot(input) {
   const rawRoomId = String(input.roomId || '').trim();
   const roomId = sharedUtils.normalizeRoomInput(rawRoomId);
   if (rawRoomId && !roomId) throw new Error('云端直播间号无效。');
-  return {
+  const settings = {
     roomId,
     enableBilibili: normalizeCloudBoolean(input.enableBilibili),
     paused: normalizeCloudBoolean(input.paused),
@@ -98,6 +102,12 @@ function normalizeCloudSettingsSnapshot(input) {
     onlyFromLibrary: normalizeCloudBoolean(input.onlyFromLibrary),
     allowDuplicate: normalizeCloudBoolean(input.allowDuplicate),
   };
+  if (Object.prototype.hasOwnProperty.call(input, 'giftBlindBoxConfig')) {
+    settings.giftBlindBoxConfig = normalizeGiftBlindBoxConfig(
+      input.giftBlindBoxConfig,
+    );
+  }
+  return settings;
 }
 
 function createServerRuntime(runtimeOptions = {}) {
@@ -255,6 +265,7 @@ function createServerRuntime(runtimeOptions = {}) {
         buildClient(roomId, context) {
           return buildBilibiliClient(roomId, {
             ...context,
+            giftDetectionEnabled: LOCAL_GIFT_DETECTION_ENABLED,
             aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
             domainServices,
             aiAssistant: aiRuntime.service,
@@ -605,6 +616,13 @@ function createServerRuntime(runtimeOptions = {}) {
       : DEFAULT_SETTINGS[key];
   }
 
+  function importProcessedGiftEvent(event) {
+    if (!domainServices?.gifts?.importProcessedEvent) {
+      throw new Error('Gift service not ready.');
+    }
+    return domainServices.gifts.importProcessedEvent(event);
+  }
+
   function getCloudSettingsSnapshot() {
     if (!settingsStore) throw new Error('Settings store not ready.');
     const settings = settingsStore.getSettings();
@@ -616,6 +634,9 @@ function createServerRuntime(runtimeOptions = {}) {
       userCooldownSeconds: Number(settings.userCooldownSeconds),
       onlyFromLibrary: settings.onlyFromLibrary === 'true',
       allowDuplicate: settings.allowDuplicate === 'true',
+      giftBlindBoxConfig: normalizeGiftBlindBoxConfig(
+        JSON.parse(settings.giftBlindBoxConfig),
+      ),
     };
   }
 
@@ -625,7 +646,10 @@ function createServerRuntime(runtimeOptions = {}) {
     }
     const settings = normalizeCloudSettingsSnapshot(input);
     for (const [key, value] of Object.entries(settings)) {
-      settingsStore.setSetting(key, String(value));
+      settingsStore.setSetting(
+        key,
+        key === 'giftBlindBoxConfig' ? JSON.stringify(value) : String(value),
+      );
     }
     bilibiliRuntime.configure();
     broadcastSnapshot('cloud:settings');
@@ -667,6 +691,7 @@ function createServerRuntime(runtimeOptions = {}) {
     persistPlaybackSnapshot,
     resumeAuthorizedWork,
     pauseAuthorizedWork,
+    importProcessedGiftEvent,
     getCloudSettingsSnapshot,
     applyCloudSettingsSnapshot,
     getCloudSongsSnapshot,

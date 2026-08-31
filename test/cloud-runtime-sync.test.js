@@ -10,6 +10,14 @@ const { createServerRuntime } = require('../src/server');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createQueueStore } = require('../src/storage/queue-store');
 
+const TEST_BLIND_BOX_CONFIG = [
+  {
+    name: '测试盲盒',
+    price: 2.345,
+    outputs: [{ name: '测试礼物', price: 3.456 }, '无定价礼物'],
+  },
+];
+
 test('cloud song replacement is atomic, deduplicates local identities, and preserves history text', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-songs-'));
   const databases = createDatabases({ dataDir });
@@ -100,6 +108,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
 
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const localBlindBoxConfig = runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
     runtime.applyCloudSettingsSnapshot({
       roomId: 'https://live.bilibili.com/1963694209',
       enableBilibili: false,
@@ -117,7 +126,61 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       userCooldownSeconds: 12,
       onlyFromLibrary: true,
       allowDuplicate: false,
+      giftBlindBoxConfig: localBlindBoxConfig,
     });
+
+    runtime.applyCloudSettingsSnapshot({
+      roomId: '1963694209',
+      enableBilibili: false,
+      paused: true,
+      queueLimit: 75,
+      userCooldownSeconds: 12,
+      onlyFromLibrary: true,
+      allowDuplicate: false,
+      giftBlindBoxConfig: TEST_BLIND_BOX_CONFIG,
+    });
+    assert.deepEqual(runtime.getCloudSettingsSnapshot().giftBlindBoxConfig, [
+      {
+        name: '测试盲盒',
+        price: 2.35,
+        outputs: [{ name: '测试礼物', price: 3.46 }, '无定价礼物'],
+      },
+    ]);
+    assert.deepEqual(
+      JSON.parse(runtime.getSetting('giftBlindBoxConfig')),
+      runtime.getCloudSettingsSnapshot().giftBlindBoxConfig,
+    );
+
+    const beforeInvalid = runtime.getSetting('giftBlindBoxConfig');
+    assert.throws(
+      () =>
+        runtime.applyCloudSettingsSnapshot({
+          roomId: '1963694209',
+          enableBilibili: false,
+          paused: true,
+          queueLimit: 75,
+          userCooldownSeconds: 12,
+          onlyFromLibrary: true,
+          allowDuplicate: false,
+          giftBlindBoxConfig: [
+            { name: '非法盲盒', price: 1, outputs: [] },
+          ],
+        }),
+      /INVALID_GIFT_BLIND_BOX_CONFIG/,
+    );
+    assert.equal(runtime.getSetting('giftBlindBoxConfig'), beforeInvalid);
+
+    runtime.applyCloudSettingsSnapshot({
+      roomId: '1963694209',
+      enableBilibili: false,
+      paused: true,
+      queueLimit: 75,
+      userCooldownSeconds: 12,
+      onlyFromLibrary: true,
+      allowDuplicate: false,
+      giftBlindBoxConfig: [],
+    });
+    assert.deepEqual(runtime.getCloudSettingsSnapshot().giftBlindBoxConfig, []);
     runtime.replaceCloudSongsSnapshot([{ title: '云端初始化', enabled: true }]);
     assert.equal(runtime.getCloudSongsSnapshot()[0].name, '云端初始化');
     assert.deepEqual(dirty, []);

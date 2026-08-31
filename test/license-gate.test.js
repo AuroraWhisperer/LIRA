@@ -62,7 +62,7 @@ test('Electron startup restores authorized work and owns the system-resume liste
   );
   assert.match(
     source,
-    /createLicenseResumeHandler\(\{\s*powerMonitor,\s*getLicenseManager: \(\) => licenseManager,\s*afterResume: \(\) => cloudSyncController\?\.syncNow\(\),\s*writeLog,?\s*\}\)/,
+    /createLicenseResumeHandler\(\{\s*powerMonitor,\s*getLicenseManager: \(\) => licenseManager,\s*afterResume: async \(\) => \{[^]*?cloudSyncController\?\.syncNow\(\)[^]*?remoteGiftController\?\.resume\(\)[^]*?\},\s*writeLog,?\s*\}\)/,
   );
   assert.match(source, /licenseResumeController\.register\(\)/);
   assert.match(
@@ -72,5 +72,43 @@ test('Electron startup restores authorized work and owns the system-resume liste
   assert.match(
     source,
     /app\.on\(["']before-quit["'][^]*?licenseResumeController\?\.unregister\(\)/,
+  );
+  const initialStart = source.indexOf(
+    'cloudSyncController\n      .start()',
+    initialResumeIndex,
+  );
+  const initialStartThen = source.indexOf('.then(()', initialStart);
+  const initialGiftStart = source.indexOf(
+    'remoteGiftController?.start()',
+    initialStartThen,
+  );
+  assert.ok(initialStart > initialResumeIndex);
+  assert.ok(initialStartThen > initialStart);
+  assert.ok(initialGiftStart > initialStartThen);
+  assert.match(source, /remoteGiftController\?\.stop\(\)/);
+
+  const resumeSync = source.indexOf('cloudSyncController?.syncNow()');
+  const resumeGifts = source.indexOf('remoteGiftController?.resume()');
+  assert.ok(resumeSync >= 0 && resumeGifts > resumeSync);
+  assert.match(
+    source,
+    /licenseResumeController\?\.unregister\(\)[^]*?remoteGiftController\?\.dispose\(\)/,
+  );
+
+  const preload = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'preload.js'),
+    'utf8',
+  );
+  assert.doesNotMatch(
+    preload,
+    /remoteGift|gift-events|watchGiftEvents|accessToken|Authorization|EventSource/u,
+  );
+  const licenseIpc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'ipc', 'license-ipc.js'),
+    'utf8',
+  );
+  assert.doesNotMatch(
+    licenseIpc,
+    /getGiftEventsInternal|watchGiftEventsInternal|gift-events/u,
   );
 });

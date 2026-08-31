@@ -769,9 +769,18 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     html,
+    /data-danmaku-style="outline"[\s\S]*?class="danmaku-style-option-visual is-outline"[\s\S]*?<strong>\s*全屏随机\s*<\/strong\s*>[\s\S]*?<small>\s*只显示发送者和正文，随机散布\s*<\/small\s*>/,
+  );
+  assert.match(html, /danmaku-style-group-fixed[\s\S]*固定区域/);
+  assert.match(html, /danmaku-style-group-fullscreen[\s\S]*全屏随机/);
+  assert.match(html, /id="danmakuFullscreenDurationSeconds"/);
+  assert.match(
+    html,
     /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options"/,
   );
   assert.match(styles, /\.danmaku-style-option-visual\.is-ranked\s*\{/);
+  assert.match(styles, /\.danmaku-style-option-visual\.is-outline\s*\{/);
+  assert.match(styles, /\.danmaku-style-group/);
   assert.match(
     styles,
     /\.danmaku-style-option-visual\.is-ranked i::before\s*\{[^}]*border-radius:\s*50%;/s,

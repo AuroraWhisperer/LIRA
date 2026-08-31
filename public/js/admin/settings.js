@@ -80,8 +80,6 @@ const settingsForm = createSettingsForm({
     initLicenseAccountDeviceImpl({
       documentRef,
       licenseBridge: windowRef.liraLicense,
-      navigatorRef,
-      dangerConfirm,
     }),
   blindboxSettings,
   ...operations,
@@ -103,8 +101,6 @@ export const initLicenseAccountDevice = () =>
   initLicenseAccountDeviceImpl({
     documentRef,
     licenseBridge: windowRef.liraLicense,
-    navigatorRef,
-    dangerConfirm,
   });
 export const {
   clearDatabase,

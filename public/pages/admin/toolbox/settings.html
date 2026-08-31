@@ -10,8 +10,8 @@
     <header class="license-account-header">
       <div>
         <p class="license-account-kicker ui-eyebrow">账号中心</p>
-        <h2 class="ui-page-title">登录与设备</h2>
-        <p>查看当前 LIRA 授权账号和设备，并为其他电脑生成一次性授权码。</p>
+        <h2 class="ui-page-title">账户与安全</h2>
+        <p>查看当前 LIRA 登录账户和本机授权状态。账户与设备授权由服务器管理员统一管理。</p>
       </div>
       <span class="license-account-badge">安全存储</span>
     </header>
@@ -31,30 +31,28 @@
         </div>
         <span class="pill good">已授权</span>
       </div>
-      <p id="licenseDeviceProfile" class="hint">正在读取授权账号…</p>
-      <div class="actions">
-        <button id="licenseCreatePairingCodeBtn" class="primary" type="button">
-          为另一台电脑生成授权码
-        </button>
-        <button
-          id="licenseRefreshPairingCodesBtn"
-          class="secondary"
-          type="button"
-        >
-          刷新授权码记录
-        </button>
-      </div>
-      <p
-        id="licensePairingCodeResult"
-        class="hint"
-        role="status"
-        aria-live="polite"
-      ></p>
-      <ul
-        id="licensePairingCodes"
-        class="hint license-pairing-list"
-        aria-label="最近授权码"
-      ></ul>
+      <dl class="license-account-details">
+        <div>
+          <dt>登录账户</dt>
+          <dd id="licenseAccountName">正在读取…</dd>
+        </div>
+        <div>
+          <dt>登录密码</dt>
+          <dd>已设置，为保护账户安全不可查看</dd>
+        </div>
+        <div>
+          <dt>首次授权</dt>
+          <dd>已完成，激活密钥不会保存在本机</dd>
+        </div>
+        <div>
+          <dt>当前设备</dt>
+          <dd id="licenseDeviceName">正在读取…</dd>
+        </div>
+        <div>
+          <dt>设备管理</dt>
+          <dd>由服务器管理员统一处理</dd>
+        </div>
+      </dl>
     </section>
 
     <section
@@ -65,7 +63,7 @@
       <div>
         <strong>登录状态会自动恢复</strong>
         <p>
-          账号、设备和授权状态会保存在本机；设备私钥由系统安全存储保护。密码和激活密钥不会保存，也不会在此页面展示。
+          本机会保存账号、设备和授权状态；设备私钥由系统安全存储保护。密码和激活密钥不会保存，也不会在此页面展示。更换设备或重置密码请联系服务器管理员。
         </p>
       </div>
     </section>

@@ -47,6 +47,8 @@
 - **乐观 UI**:管理页所有变更操作(POST 后)立即调用 `reloadState()/reloadAll()` 重取,不等待 WS 广播;快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
 - **错误呈现分工**:表单/操作类错误 → `showError`(toast);`reconnectBilibili` 等直接 fetch 的调用自己解析 `{ok}` 信封并处理 404/网络类错误;静默上报类(歌词状态、队列状态落盘)失败只丢弃不打扰用户。
 
+**礼物数据边界:** 服务端权威礼物由 Electron main 的 `remote-gift-controller` 通过独立 DeviceBearer SSE 与 final cursor pull 接收；main 完成校验、恢复和幂等投影后，renderer 只消费本地 `/api/state`、历史接口与 WebSocket `gift:frame`/snapshot。renderer 不接触远端礼物流、Device token、UID 或原始 B 站报文；SSE 仅在线加速，final cursor pull 才是恢复真相源。
+
 ## 3. WebSocket 客户端
 
 ### 3.1 连接与快照处理
@@ -103,6 +105,7 @@
 服务端业务变更 ──→ WS 全量 snapshot ──→ 各页面整体替换本地 state ──→ 指纹去重后重渲染
        ↑                                                    │
        └────── fetch POST /api/*(命令) ◀── 用户操作/乐观刷新 ◀─┘
+       B站礼物: lira-server detector ──→ main SSE/cursor importer ──→ 本地 gift service ──→ snapshot/WS gift:frame
        播放页:本地 StateManager 先行,state-persistence 防抖落盘(HTTP + IPC 双通道)
 ```
 

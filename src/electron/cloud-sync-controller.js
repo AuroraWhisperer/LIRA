@@ -1,6 +1,8 @@
 'use strict';
 
-const DEFAULT_INTERVAL_MS = 60_000;
+const DEFAULT_INTERVAL_MS = 600_000;
+const STREAM_RETRY_MIN_MS = 1_000;
+const STREAM_RETRY_MAX_MS = 60_000;
 const VALID_SCOPES = new Set(['settings', 'songs', 'bilibili']);
 
 function createCloudSyncController(options = {}) {
@@ -25,6 +27,10 @@ function createCloudSyncController(options = {}) {
   let disposed = false;
   let active = false;
   let operation = Promise.resolve();
+  let streamAbortController = null;
+  let streamReconnectTimer = null;
+  let streamRetryMs = STREAM_RETRY_MIN_MS;
+  let streamConnections = 0;
 
   const removeLocalListener = runtime.onCloudSyncRequested?.((scope) => {
     markDirty(scope);
@@ -52,6 +58,12 @@ function createCloudSyncController(options = {}) {
     timer = null;
   }
 
+  function clearStreamReconnectTimer() {
+    if (!streamReconnectTimer) return;
+    timers.clearTimeout(streamReconnectTimer);
+    streamReconnectTimer = null;
+  }
+
   function schedule() {
     clearTimer();
     if (!active || !isAuthorized()) return;
@@ -70,6 +82,79 @@ function createCloudSyncController(options = {}) {
       void error;
     });
     return next;
+  }
+
+  function hasNewCloudRevision(event) {
+    return Object.entries(event?.scopes || {}).some(([scope, revision]) => {
+      if (!VALID_SCOPES.has(scope)) return false;
+      const incoming = Number(revision);
+      const current = revisions[scope];
+      return (
+        Number.isSafeInteger(incoming) &&
+        incoming >= 0 &&
+        (current === null || incoming > current)
+      );
+    });
+  }
+
+  function scheduleStreamReconnect() {
+    clearStreamReconnectTimer();
+    if (!active || !isAuthorized()) return;
+    const delay = streamRetryMs;
+    streamRetryMs = Math.min(STREAM_RETRY_MAX_MS, streamRetryMs * 2);
+    streamReconnectTimer = timers.setTimeout(() => {
+      streamReconnectTimer = null;
+      startEventStream();
+    }, delay);
+    streamReconnectTimer.unref?.();
+  }
+
+  function startEventStream() {
+    if (
+      streamAbortController ||
+      !active ||
+      !isAuthorized() ||
+      typeof licenseManager.watchCloudStateChangesInternal !== 'function'
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    streamAbortController = controller;
+    licenseManager
+      .watchCloudStateChangesInternal({
+        signal: controller.signal,
+        onOpen() {
+          streamRetryMs = STREAM_RETRY_MIN_MS;
+          streamConnections += 1;
+          if (streamConnections > 1) {
+            syncNow().catch((error) => {
+              void error;
+            });
+          }
+        },
+        onChange(event) {
+          if (!hasNewCloudRevision(event)) return;
+          syncNow().catch((error) => {
+            void error;
+          });
+        },
+      })
+      .catch((error) => {
+        void error;
+      })
+      .finally(() => {
+        if (streamAbortController !== controller) return;
+        streamAbortController = null;
+        if (!controller.signal.aborted) scheduleStreamReconnect();
+      });
+  }
+
+  function stopEventStream() {
+    clearStreamReconnectTimer();
+    streamAbortController?.abort();
+    streamAbortController = null;
+    streamRetryMs = STREAM_RETRY_MIN_MS;
+    streamConnections = 0;
   }
 
   async function flushScope(scope) {
@@ -134,8 +219,14 @@ function createCloudSyncController(options = {}) {
       return;
     }
     if (!shouldApply('settings', state.revision)) return;
-    await runtime.applyCloudSettingsSnapshot(state.values || {});
+    const values = state.values || {};
+    const isMissingBlindBoxConfig = !Object.prototype.hasOwnProperty.call(
+      values,
+      'giftBlindBoxConfig',
+    );
+    await runtime.applyCloudSettingsSnapshot(values);
     revisions.settings = Number(state.revision) || 0;
+    if (isMissingBlindBoxConfig) await seedScope('settings');
   }
 
   async function reconcileSongs(state) {
@@ -195,12 +286,14 @@ function createCloudSyncController(options = {}) {
   function start() {
     if (disposed) return Promise.resolve(false);
     active = true;
+    startEventStream();
     return syncNow();
   }
 
   function stop() {
     active = false;
     clearTimer();
+    stopEventStream();
   }
 
   function markDirty(scope) {

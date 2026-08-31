@@ -231,7 +231,8 @@ export function createSettingsOperations({
         showStackedToast({
           key: 'live-refresh-ok',
           title: '直播状态已刷新',
-          message: '弹幕连接已重新建立',
+          message:
+            payload.data.liveStatus.message || '弹幕连接已重新建立',
           className: 'admin-live-refresh-toast',
           duration: 2800,
         });

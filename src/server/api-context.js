@@ -75,6 +75,12 @@ function createApiContext(options) {
       getGiftCatalog: overtimeGiftCatalog.getSnapshot,
       refreshGiftCatalog: overtimeGiftCatalog.refresh,
       searchLocalGifts: overtimeGiftCatalog.searchLocal,
+      searchServerGifts:
+        typeof overtimeGiftCatalog.searchRemote === 'function'
+          ? overtimeGiftCatalog.searchRemote
+          : () => {
+              throw new Error('服务器礼物搜索服务未配置。');
+            },
     },
     debug: {
       getGiftMessages: () => messageBuffer.getAll(),

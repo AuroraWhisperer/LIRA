@@ -147,6 +147,11 @@ function createHttpServer(options = {}) {
         return;
       }
 
+      if (requestUrl.pathname.startsWith('/overtime-gift-images/')) {
+        httpUtils.serveOvertimeGiftImage(dataDir, req, res, requestUrl);
+        return;
+      }
+
       servePageOrAsset(req, res, requestUrl);
     } catch (error) {
       if (error?.code === 'SERVER_QUIESCING' || getPhase() !== 'ready') {

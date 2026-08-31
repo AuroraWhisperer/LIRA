@@ -1,6 +1,6 @@
 # preload 桥与 IPC 全量注册表
 
-> 涉及文件:[src/electron/preload.js](../../../src/electron/preload.js)、[src/electron/main.js](../../../src/electron/main.js)(handler 注册)
+> 涉及文件:[src/electron/preload.js](../../../src/electron/preload.js)、[src/electron/main.js](../../../src/electron/main.js)(handler 注册)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/remote-gift-cursor-store.js](../../../src/electron/remote-gift-cursor-store.js)
 
 本文档是 IPC 的**唯一事实源**:所有通道、方向、载荷、handler 摘要只在此成表,其他文档一律链接此处。窗口生命周期见 [main.md](main.md) / [windows.md](windows.md),更新语义见 [update.md](update.md),登录语义见 [auth.md](auth.md)。
 
@@ -15,6 +15,8 @@
 | 来源校验    | `music:resolve-local-media-urls` / `music:select-wesing-cache` 以及全部 `license:*` invoke 校验 `senderFrame.url` 的 origin 与 desktopBaseUrl 一致;授权 IPC 还要求 sender 为当前主窗口 webContents | [local-media-access.js](../../../src/electron/local-media-access.js)、[license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
 
 `liraLicense` 只暴露经过参数约束的设备授权操作。access token、设备私钥、原始硬件标识和可配置远端 URL 均不进入桥接返回值;背景响应仅附带由 main process 从可信服务 origin 与相对路径解析出的 `previewUrl`。远端 HTTPS 请求、签名、续期、heartbeat 和错误状态收敛全部由 main process 的 `license-manager.js` 完成。
+
+服务端权威礼物流同样只属于 Electron main：`remote-gift-controller.js` 在 main process 持有 DeviceBearer、SSE reader、cursor 对账和 `remote-gift-cursor.json`；`preload.js` 不新增 remote gift/token/SSE handle 的 IPC。renderer 继续通过本地 HTTP/WS 的 snapshot 与 `gift:frame` 消费已投影的礼物数据，不能直接访问 lira-server 礼物接口。
 
 ## 2. IPC 全量注册表(唯一成表处)
 
@@ -53,10 +55,8 @@
 | `license:get-song-page-background`    | —                                                                       | `{ok:true, background:null\|{url,bytes,updatedAt}}`                                              | 通过设备授权查询云端歌单页背景                                             | [license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
 | `license:upload-song-page-background` | `{bytes: Uint8Array, fileName: string}`                                 | `{ok:true, background:{url,bytes,updatedAt}}`                                                    | IPC 边界限制 5MB 后，通过设备授权上传原始图片字节                          | [license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
 | `license:delete-song-page-background` | —                                                                       | `{ok:true, background:null}`                                                                     | 通过设备授权删除云端歌单页背景                                             | [license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
-| `license:create-pairing-code`         | —                                                                       | `{ok:true, id, code, expiresAt}`                                                                 | 生成新设备短效授权码(完整码仅此一次返回)                                   | [license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
-| `license:list-pairing-codes`          | —                                                                       | `{items:[{id, codePrefix, status, createdAt, expiresAt, usedAt, usedByDeviceName}]}`             | 列出授权码(不含完整码)                                                     | [license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
-| `license:revoke-pairing-code`         | `id: number`(IPC 校验为正整数)                                          | `{ok:true}` 或 `{ok:false, error}`                                                               | 撤销未使用的授权码                                                         | [license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
 | `bilibili:get-auth-state`             | —                                                                       | Bilibili auth state([auth.md](auth.md) §4)                                                       | 读 Bilibili 登录分区判定登录态                                             | [main.js:548](../../../src/electron/main.js#L548)          |
+| `bilibili:get-profile`                | —                                                                       | `{uid, name, avatarUrl}`                                                                         | 读取当前登录 UID 对应的公开账号昵称与可信头像地址                         | [bilibili-ipc.js](../../../src/electron/ipc/bilibili-ipc.js) |
 | `bilibili:login`                      | —                                                                       | `{snapshot, state}`                                                                              | 打开 B站登录窗并等待关闭([windows.md](windows.md) §3)                      | [main.js:549](../../../src/electron/main.js#L549)          |
 | `bilibili:logout`                     | —                                                                       | 最新 auth state                                                                                  | 清分区 + 删快照 + 删明文导出                                               | [main.js:550](../../../src/electron/main.js#L550)          |
 
@@ -70,6 +70,8 @@
 | `license:state-changed`    | `{state, error, streamer?, device?}`(脱敏快照)                                                                   | 授权状态机每次迁移                                     | 所有窗口 `liraLicense.onStateChanged`           | [license-ipc.js](../../../src/electron/ipc/license-ipc.js)          |
 
 > `desktop:show-update-page` 在 preload 注册了监听([preload.js:19-25](../../../src/electron/preload.js#L19-L25)),但当前 main 进程未发送此事件,属预留通道。
+
+> 礼物远程接收没有对应的 renderer IPC 通道：progress/final 事件由 main 导入内嵌 runtime 后，沿既有本地 snapshot、历史和 WebSocket `gift:frame` 路径到达页面。
 
 ## 3. 播放状态持久化流
 
@@ -96,8 +98,7 @@
 | `musicAPI`             | selectWeSingCacheDirectory                                                                                                                            | 播放页 `js/playback/services/wesing-service.js`(全民K歌设置)                              | 同上,WeSing 语义见 [../backend/music/wesing.md](../backend/music/wesing.md) |
 | `musicAPI`             | savePlaybackState / onPrepareShutdown / confirmShutdownFlush                                                                                          | 播放页 `js/playback/operations/state-persistence.js`、`js/playback/core/initializer.js`   | 同上                                                                        |
 | `liraLicense`          | getState / activate / retry / onStateChanged                                                                                                          | 激活页 `js/license.js`                                                                    | [../frontend/pages.md](../frontend/pages.md)                                |
-| `liraLicense`          | getProfile / syncSongs / getCloudSongs / getSongPageBackground / uploadSongPageBackground / deleteSongPageBackground                                  | 管理页 `js/admin/import.js`(云端歌单同步 + 歌单页背景面板)                                | [../frontend/pages.md](../frontend/pages.md)                                |
-| `liraLicense`          | getProfile / createPairingCode / listPairingCodes / revokePairingCode                                                                                 | 管理页 `js/admin/settings.js`(账号中心多设备授权码)                                       | 同上                                                                        |
-| `bilibiliAuth`         | getAuthState / login / logout                                                                                                                         | 管理页 `js/admin/settings.js`(Bilibili 登录区)                                            | 同上                                                                        |
+| `liraLicense`          | getProfile / syncSongs / getCloudSongs / getSongPageBackground / uploadSongPageBackground / deleteSongPageBackground                                  | 管理页 `js/admin/import.js`(云端歌单同步 + 歌单页背景面板)和 `js/admin/settings.js`(只读账户资料) | [../frontend/pages.md](../frontend/pages.md)                                |
+| `bilibiliAuth`         | getAuthState / getProfile / login / logout                                                                                                            | 管理页 `js/admin/settings.js`(Bilibili 登录区)                                            | 同上                                                                        |
 
 > 前端另有一处对 `musicAPI.getRecentLocalFiles` 的调用(`js/playback/local/manager.js:18`),preload 未提供该方法,属被 `typeof` 守卫的残留调用(不生效)。

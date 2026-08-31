@@ -210,31 +210,6 @@ test('license IPC allowlists remote responses before crossing into the renderer'
       background: null,
       token: 'drop',
     }),
-    createPairingCode: async () => ({
-      id: 1,
-      code: 'PAIR-SECRET',
-      codePrefix: 'PAIR',
-      expiresAt: '2026-08-29T01:00:00.000Z',
-      ttlMinutes: 60,
-      accountName: 'mlbb',
-      accessToken: 'drop',
-    }),
-    listPairingCodes: async () => ({
-      pairingCodes: [
-        {
-          id: 1,
-          code: 'FULL-CODE-MUST-NOT-RETURN',
-          code_prefix: 'PAIR',
-          status: 'unused',
-          expires_at: '2026-08-29T01:00:00.000Z',
-          used_at: null,
-          used_device_name: '',
-          privateKeyPem: 'drop',
-        },
-      ],
-      token: 'drop',
-    }),
-    revokePairingCode: async (id) => ({ ok: true, id, accessToken: 'drop' }),
     onStateChanged: (listener) => {
       stateChanged = listener;
       return () => {};
@@ -252,6 +227,10 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     hasExactOrigin: (candidate, expected) =>
       new URL(candidate).origin === new URL(expected).origin,
   });
+
+  assert.equal(handlers.has('license:create-pairing-code'), false);
+  assert.equal(handlers.has('license:list-pairing-codes'), false);
+  assert.equal(handlers.has('license:revoke-pairing-code'), false);
 
   assert.deepEqual(await handlers.get('license:sync-songs')(trustedEvent, []), {
     ok: true,
@@ -317,40 +296,6 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     ok: false,
     count: 0,
   });
-  assert.deepEqual(
-    await handlers.get('license:create-pairing-code')(trustedEvent),
-    {
-      id: 1,
-      code: 'PAIR-SECRET',
-      codePrefix: 'PAIR',
-      expiresAt: '2026-08-29T01:00:00.000Z',
-      ttlMinutes: 60,
-      accountName: 'mlbb',
-    },
-  );
-  assert.deepEqual(
-    await handlers.get('license:list-pairing-codes')(trustedEvent),
-    {
-      pairingCodes: [
-        {
-          id: 1,
-          code_prefix: 'PAIR',
-          status: 'unused',
-          expires_at: '2026-08-29T01:00:00.000Z',
-          used_at: null,
-          used_device_name: '',
-        },
-      ],
-    },
-  );
-  assert.deepEqual(
-    await handlers.get('license:revoke-pairing-code')(trustedEvent, 1),
-    { ok: true },
-  );
-
-  // The server contract has used both `items` and `pairingCodes` during the
-  // rollout; the IPC boundary must not silently turn a valid list into []
-  // (and must reject coercive/non-safe numeric ids).
   licenseManager.getCloudSongs = async () => [
     { title: 'Array song', token: 'drop' },
   ];
@@ -369,27 +314,6 @@ test('license IPC allowlists remote responses before crossing into the renderer'
       songs: [{ title: 'Items song' }],
     },
   );
-  licenseManager.listPairingCodes = async () => ({
-    items: [{ id: 2, status: 'active', code: 'drop' }],
-  });
-  assert.deepEqual(
-    await handlers.get('license:list-pairing-codes')(trustedEvent),
-    {
-      pairingCodes: [{ id: 2, status: 'active' }],
-    },
-  );
-  for (const invalidId of ['', '1e3', '0x10', '9007199254740992', true, 1.5]) {
-    assert.deepEqual(
-      await handlers.get('license:revoke-pairing-code')(
-        trustedEvent,
-        invalidId,
-      ),
-      {
-        ok: false,
-        error: 'PAIRING_CODE_ID_INVALID',
-      },
-    );
-  }
 
   const snapshot = await handlers.get('license:get-state')(trustedEvent);
   assert.deepEqual(snapshot, {

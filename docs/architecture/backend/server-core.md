@@ -13,7 +13,7 @@
 - HTTP API(`/api/*`)
 - 静态前端页面服务(`public/` 目录)
 - WebSocket 推送(`/ws`,见 [ws.md](ws.md))
-- Bilibili 弹幕监听客户端(见 [bilibili/danmaku.md](bilibili/danmaku.md))
+- Bilibili 弹幕监听客户端(实现保留；仅本地礼物 detector 暂停，弹幕/点歌/SC/用户信息/小游戏仍处理；见 [bilibili/danmaku.md](bilibili/danmaku.md))
 - 全部业务领域服务
 
 两种运行形态:
@@ -113,7 +113,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 **启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `repairGiftV2Events` → `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
 
-**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。
+**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`;组合根只向客户端传入 `giftDetectionEnabled:false`,因此仅本地 `onGift → gifts.add()` 回调被抑制，弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 `D:/Work/lira-server` 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。`enableBilibili` 设置和本地客户端实现保持不变，云端仍可据此控制租户 `RoomMonitor`。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 
@@ -124,7 +124,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 3. `listenExactly` 绑定精确端口，phase 进入 `starting`;此时仅最小 `/api/health` 可用，其余请求返回 503。
 4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认分类、队列清理和 retention。
 5. 生成 `sessionToken`,写入 `.session-token` 与 `.server-runtime.json`，原子切换 phase 为 `ready`。
-6. `AUTO_OPEN_ADMIN=1` 时打开管理页；最后调用 `bilibiliRuntime.reconnect()` 开放外部直播入口。
+6. `AUTO_OPEN_ADMIN=1` 时打开管理页；最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物消息，仅由 `giftDetectionEnabled:false` 抑制本地礼物 detector。
 
 启动失败时按已创建资源逆序停止 runtime、关闭数据库、关闭 listener，再删除本实例拥有的 token/runtime 文件并重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 

@@ -54,6 +54,22 @@ function createFakeLicenseServer() {
     return null;
   }
 
+  function issuePairingCode() {
+    const id = nextPairingId++;
+    const code = `PAIR-${String(id).padStart(4, '0')}`;
+    pairingCodes.set(id, {
+      id,
+      code,
+      codePrefix: code.slice(0, 4),
+      status: 'active',
+      createdAt: '2026-08-29T10:00:00.000Z',
+      expiresAt: '2026-08-30T10:00:00.000Z',
+      usedAt: null,
+      usedByDeviceName: '',
+    });
+    return code;
+  }
+
   function requireSession(token) {
     const supersededDeviceId = supersededTokens.get(token);
     if (supersededDeviceId) {
@@ -267,54 +283,12 @@ function createFakeLicenseServer() {
       requireSession(token);
       return { ok: true, background: null };
     },
-    createPairingCode: async (token) => {
-      ensureNetwork();
-      requireSession(token);
-      const id = nextPairingId++;
-      const code = `PAIR-${String(id).padStart(4, '0')}`;
-      pairingCodes.set(id, {
-        id,
-        code,
-        codePrefix: code.slice(0, 4),
-        status: 'active',
-        createdAt: '2026-08-29T10:00:00.000Z',
-        expiresAt: '2026-08-30T10:00:00.000Z',
-        usedAt: null,
-        usedByDeviceName: '',
-      });
-      return { ok: true, id, code, expiresAt: '2026-08-30T10:00:00.000Z' };
-    },
-    listPairingCodes: async (token) => {
-      ensureNetwork();
-      requireSession(token);
-      return {
-        items: [...pairingCodes.values()].map(({ code, ...rest }) => rest),
-      };
-    },
-    revokePairingCode: async (id, token) => {
-      ensureNetwork();
-      requireSession(token);
-      const record = pairingCodes.get(Number(id));
-      if (!record)
-        throw new RemoteLicenseError(
-          'PAIRING_CODE_NOT_FOUND',
-          'PAIRING_CODE_NOT_FOUND',
-          { status: 404 },
-        );
-      if (record.status !== 'active')
-        throw new RemoteLicenseError(
-          'PAIRING_CODE_ALREADY_CONSUMED',
-          'PAIRING_CODE_ALREADY_CONSUMED',
-          { status: 409 },
-        );
-      record.status = 'revoked';
-      return { ok: true };
-    },
   };
 
   return {
     remoteClient,
     calls,
+    issuePairingCode,
     getLastVerifyBody: () => lastVerifyBody,
     getCloudSongsSnapshot: () => [...cloudSongs],
     setExpiresIn: (value) => {
@@ -525,19 +499,18 @@ test('network outage degrades to needs_connection and recovers with the preserve
   offline.manager.dispose();
 });
 
-test('pairing codes let a second device join and can be revoked', async () => {
+test('an administrator-issued pairing code lets a second device join once', async () => {
   const server = createFakeLicenseServer();
   const first = createClient({ server, runtimeId: 'rt-1' });
   await first.manager.activate(ACTIVATION);
 
-  const created = await first.manager.createPairingCode();
-  assert.ok(created.code, 'server must return the one-time pairing code');
+  const pairingCode = server.issuePairingCode();
 
-  // Second device: fresh identity store and fresh device key, activated with the pairing code.
+  // The server administrator issues the code; the desktop client only consumes it.
   const second = createClient({ server, runtimeId: 'rt-b' });
   const joined = await second.manager.activate({
     ...ACTIVATION,
-    activationCode: created.code,
+    activationCode: pairingCode,
   });
   assert.equal(joined.ok, true);
   assert.equal(second.manager.getState(), LicenseState.AUTHORIZED);
@@ -548,27 +521,10 @@ test('pairing codes let a second device join and can be revoked', async () => {
   assert.equal(cloudForSecond.songs.length, 1);
   assert.equal(cloudForSecond.songs[0].name, '共享歌');
 
-  const listed = await first.manager.listPairingCodes();
-  assert.equal(listed.items.length, 1);
-  assert.equal(listed.items[0].status, 'used');
-  assert.ok(
-    listed.items[0].usedByDeviceName,
-    'the consuming device name must be recorded',
-  );
-
-  // A fresh code can be revoked, and a revoked code cannot activate another device.
-  const spare = await first.manager.createPairingCode();
-  await first.manager.revokePairingCode(spare.id);
-  const afterRevoke = await first.manager.listPairingCodes();
-  assert.equal(
-    afterRevoke.items.find((item) => item.id === spare.id).status,
-    'revoked',
-  );
-
   const third = createClient({ server, runtimeId: 'rt-c' });
   const rejected = await third.manager.activate({
     ...ACTIVATION,
-    activationCode: spare.code,
+    activationCode: pairingCode,
   });
   assert.equal(rejected.ok, false);
   assert.equal(rejected.error, 'PAIRING_CODE_ALREADY_CONSUMED');

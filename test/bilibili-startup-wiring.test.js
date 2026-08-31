@@ -22,6 +22,22 @@ test('server startup uses the same forced Bilibili reconnect as refresh live', (
   assert.match(startupBlock[0], /startup reconnect failed/);
 });
 
+test('server composition pauses only local gift detection', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'src', 'server.js'),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /const LOCAL_GIFT_DETECTION_ENABLED = false;/,
+  );
+  assert.match(
+    source,
+    /buildBilibiliClient\(roomId, \{[\s\S]*?giftDetectionEnabled: LOCAL_GIFT_DETECTION_ENABLED,/,
+  );
+});
+
 test('desktop injects Electron safeStorage into the server AI secret boundary', () => {
   const source = fs.readFileSync(
     path.join(ROOT_DIR, 'src', 'electron', 'main.js'),

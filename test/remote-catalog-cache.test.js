@@ -566,8 +566,8 @@ test('retains the validated image origin when later snapshots omit the optional 
   }
 });
 
-test('hybrid catalog accepts an injected remote service and refreshes local fallback', async () => {
-  const calls = { local: 0, remote: 0 };
+test('hybrid catalog keeps local room catalog primary and exposes remote search separately', async () => {
+  const calls = { local: 0, remote: 0, search: 0 };
   const local = {
     getSnapshot: () => ({ source: 'local', gifts: [{ id: '1' }] }),
     refresh: async () => {
@@ -577,10 +577,18 @@ test('hybrid catalog accepts an injected remote service and refreshes local fall
     searchLocal: () => ({ gifts: [] }),
   };
   const remote = {
-    getSnapshot: () => null,
+    getSnapshot: () => ({
+      source: 'server',
+      version: '1',
+      gifts: [
+        { id: '21', name: '服务器礼物', imagePath: '' },
+        { id: '22', name: '另一个礼物', imagePath: '' },
+      ],
+    }),
     refresh: async () => {
       calls.remote += 1;
-      return null;
+      calls.search += 1;
+      return remote.getSnapshot();
     },
   };
   const hybrid = createHybridGiftSaleCatalogService({
@@ -591,10 +599,31 @@ test('hybrid catalog accepts an injected remote service and refreshes local fall
     source: 'local',
     gifts: [{ id: '1' }],
   });
-  assert.equal(calls.remote, 1);
   assert.equal(calls.local, 1);
   assert.deepEqual(hybrid.getSnapshot(), {
     source: 'local',
     gifts: [{ id: '1' }],
   });
+  const search = await hybrid.searchRemote('服务器');
+  assert.deepEqual(search.gifts.map((gift) => gift.id), ['21']);
+  assert.equal(calls.remote, 1);
+  assert.equal(calls.search, 1);
+});
+
+test('hybrid server search reports unavailable when refresh has no cache', async () => {
+  const hybrid = createHybridGiftSaleCatalogService({
+    local: {
+      getSnapshot: () => ({ source: 'local', gifts: [] }),
+      refresh: async () => ({ source: 'local', gifts: [] }),
+      searchLocal: () => ({ gifts: [] }),
+    },
+    remoteCatalog: {
+      getSnapshot: () => null,
+      refresh: async () => null,
+    },
+  });
+  await assert.rejects(
+    hybrid.searchRemote('礼物'),
+    /服务器礼物目录尚未同步或当前不可用/,
+  );
 });

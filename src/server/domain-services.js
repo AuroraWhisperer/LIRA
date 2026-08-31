@@ -169,6 +169,9 @@ function createDomainServices(options) {
           pollIntervalMs: options.remoteGiftCatalog.pollIntervalMs,
           imageBaseUrl: options.remoteGiftCatalog.imageBaseUrl,
           remoteCatalog: options.remoteGiftCatalog.remoteCatalog,
+          remoteImageCache: options.remoteGiftCatalog.remoteImageCache,
+          fetchImage: options.remoteGiftCatalog.fetchImage,
+          imageConcurrency: options.remoteGiftCatalog.imageConcurrency,
         })
       : localOvertimeGiftCatalog;
   const overtimeConsumer = createOvertimeConsumer({ service: overtime });

@@ -326,6 +326,14 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /data-danmaku-style="minimal"/);
   assert.match(
     html,
+    /data-danmaku-style="outline"[\s\S]*class="danmaku-style-option-visual is-outline"[\s\S]*<strong>全屏随机<\/strong\s*>[\s\S]*<small>只显示发送者和正文，随机散布<\/small\s*>/,
+  );
+  assert.match(html, /固定区域/);
+  assert.match(html, /全屏随机/);
+  assert.match(html, /id="danmakuFullscreenDurationSeconds"[^>]+type="number"[^>]+min="2"[^>]+max="30"[^>]+step="1"/);
+  assert.match(html, /id="danmakuFullscreenDurationField"[^>]+hidden/);
+  assert.match(
+    html,
     /id="danmakuStylePreviewFrame"[^>]+src="\/danmaku\?preview=1&amp;style=signal"/,
   );
   const styleSectionStart = html.indexOf(
@@ -362,8 +370,14 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(source, /app:settings-state/);
   assert.match(source, /danmakuOverlayStyle/);
   assert.match(source, /saveSetting\('danmakuOverlayStyle'/);
+  assert.match(source, /outline:\s*'全屏随机'/);
+  assert.match(source, /danmakuFullscreenDurationSeconds/);
+  assert.match(source, /Number\.isSafeInteger/);
   assert.match(source, /\?preview=1&style=/);
   assert.match(styles, /\.danmaku-style-options/);
+  assert.doesNotMatch(styles, /grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.danmaku-style-group/);
+  assert.match(styles, /\.danmaku-style-option-visual\.is-outline/);
   assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
   assert.match(styles, /\.danmaku-style-preview/);
   assert.doesNotMatch(styles, /\.danmaku-style-preview \.draw-danmaku-item/);

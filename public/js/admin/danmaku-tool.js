@@ -16,7 +16,10 @@ const DANMAKU_OVERLAY_STYLES = Object.freeze({
   signal: '直播信号带',
   minimal: '航海铭牌',
   ranked: '直播气泡',
+  outline: '全屏随机',
 });
+
+const DEFAULT_FULLSCREEN_DURATION_SECONDS = 6;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -47,10 +50,19 @@ function init() {
   const overlayUrl = `${localOverlayOrigin()}/danmaku`;
   elements.overlayUrl.value = overlayUrl;
   let currentOverlayStyle = renderOverlayStyle(elements, 'signal');
+  let currentFullscreenDurationSeconds = renderFullscreenDuration(
+    elements,
+    DEFAULT_FULLSCREEN_DURATION_SECONDS,
+  );
   window.addEventListener('app:settings-state', (event) => {
+    const settings = event.detail || {};
     currentOverlayStyle = renderOverlayStyle(
       elements,
-      event.detail?.danmakuOverlayStyle,
+      settings.danmakuOverlayStyle,
+    );
+    currentFullscreenDurationSeconds = renderFullscreenDuration(
+      elements,
+      settings.danmakuFullscreenDurationSeconds,
     );
   });
   elements.styleButtons.forEach((button) => {
@@ -78,6 +90,35 @@ function init() {
         });
       }
     });
+  });
+  elements.fullscreenDuration.addEventListener('change', async () => {
+    const previousDuration = currentFullscreenDurationSeconds;
+    const nextDuration = normalizeFullscreenDuration(
+      elements.fullscreenDuration.value,
+    );
+    if (nextDuration === null) {
+      elements.fullscreenDuration.value = String(previousDuration);
+      elements.styleSaveState.textContent = '停留时间请输入 2～30 秒的整数。';
+      return;
+    }
+    elements.fullscreenDuration.value = String(nextDuration);
+    elements.fullscreenDuration.disabled = true;
+    elements.styleSaveState.textContent = '正在保存全屏随机停留时间…';
+    try {
+      await saveSetting(
+        'danmakuFullscreenDurationSeconds',
+        String(nextDuration),
+      );
+      currentFullscreenDurationSeconds = nextDuration;
+      elements.styleSaveState.textContent = `已保存全屏随机，每条停留 ${nextDuration} 秒。`;
+    } catch (error) {
+      elements.fullscreenDuration.value = String(previousDuration);
+      elements.styleSaveState.textContent =
+        error.message || '停留时间保存失败，请重试。';
+      toast(error.message || '全屏随机停留时间保存失败');
+    } finally {
+      elements.fullscreenDuration.disabled = false;
+    }
   });
   elements.copyOverlayUrlButton.addEventListener('click', async () => {
     try {
@@ -277,19 +318,36 @@ function getElements() {
     styleChip: document.getElementById('danmakuStyleChip'),
     styleSaveState: document.getElementById('danmakuStyleSaveState'),
     stylePreviewFrame: document.getElementById('danmakuStylePreviewFrame'),
+    fullscreenDurationField: document.getElementById(
+      'danmakuFullscreenDurationField',
+    ),
+    fullscreenDuration: document.getElementById(
+      'danmakuFullscreenDurationSeconds',
+    ),
     resultState: document.getElementById('danmakuSendResult'),
   };
   elements.styleButtons = Array.from(
     document.querySelectorAll('[data-danmaku-style]'),
   );
   return Object.values(elements).some((element) => !element) ||
-    elements.styleButtons.length !== 4
+    elements.styleButtons.length !== 5
     ? null
     : elements;
 }
 
 function normalizeOverlayStyle(value) {
   return Object.hasOwn(DANMAKU_OVERLAY_STYLES, value) ? value : 'signal';
+}
+
+function normalizeFullscreenDuration(value) {
+  let duration;
+  if (typeof value === 'number') duration = value;
+  else if (typeof value === 'string' && /^\d+$/.test(value.trim()))
+    duration = Number(value.trim());
+  else return null;
+  return Number.isSafeInteger(duration) && duration >= 2 && duration <= 30
+    ? duration
+    : null;
 }
 
 function renderOverlayStyle(elements, value) {
@@ -307,7 +365,15 @@ function renderOverlayStyle(elements, value) {
     elements.stylePreviewFrame.setAttribute('src', previewUrl);
   }
   elements.stylePreviewFrame.title = `弹幕姬${label}样式预览`;
+  elements.fullscreenDurationField.hidden = style !== 'outline';
   return style;
+}
+
+function renderFullscreenDuration(elements, value) {
+  const duration =
+    normalizeFullscreenDuration(value) || DEFAULT_FULLSCREEN_DURATION_SECONDS;
+  elements.fullscreenDuration.value = String(duration);
+  return duration;
 }
 
 function renderState(elements, state, editors) {

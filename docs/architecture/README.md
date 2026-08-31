@@ -6,7 +6,7 @@
 
 ## 进程模型
 
-- **后端服务**(Node ≥ 24,零框架 `node:http`):承载 HTTP API、静态页面、WebSocket 推送、Bilibili 弹幕长连与全部领域服务,端口 **3000**(`127.0.0.1`)。详见 [backend/server-core.md](backend/server-core.md)。
+- **后端服务**(Node ≥ 24,零框架 `node:http`):承载 HTTP API、静态页面、WebSocket 推送与全部领域服务；Bilibili 弹幕长连实现保留但当前本地获取通道暂停,端口 **3000**(`127.0.0.1`)。详见 [backend/server-core.md](backend/server-core.md)。
 - **桌面壳**(Electron 43):main 进程**同进程**内嵌后端服务,提供窗口、登录 Cookie 分区、`local-media://` 协议、自动更新。详见 [desktop/main.md](desktop/main.md)。
 - **前端**(无框架 Vanilla JS ES 模块):由后端同源服务的静态页面,含管理后台、播放助手与 5 个 OBS 悬浮层。详见 [frontend/pages.md](frontend/pages.md)。
 

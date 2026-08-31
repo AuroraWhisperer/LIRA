@@ -34,6 +34,10 @@ function createDesktopRuntime(serverModule, options = {}) {
       typeof serverModule.pauseAuthorizedWork === 'function'
         ? () => serverModule.pauseAuthorizedWork()
         : null,
+    importProcessedGiftEvent:
+      typeof serverModule.importProcessedGiftEvent === 'function'
+        ? (event) => serverModule.importProcessedGiftEvent(event)
+        : null,
     getSetting:
       typeof serverModule.getSetting === 'function'
         ? (key) => serverModule.getSetting(key)

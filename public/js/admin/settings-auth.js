@@ -13,9 +13,53 @@ export function initBilibiliAuth({
   logoutConfirm,
 }) {
   const statusEl = documentRef.getElementById('bilibiliAuthStatus');
+  const profileEl = documentRef.getElementById('bilibiliAuthProfile');
+  const avatarEl = documentRef.getElementById('bilibiliAuthAvatar');
+  const nameEl = documentRef.getElementById('bilibiliAuthName');
   const uidEl = documentRef.getElementById('bilibiliAuthUid');
   const loginBtn = documentRef.getElementById('bilibiliLoginBtn');
   const logoutBtn = documentRef.getElementById('bilibiliLogoutBtn');
+  let refreshRequest = 0;
+
+  function clearProfile() {
+    profileEl.hidden = true;
+    avatarEl.hidden = true;
+    avatarEl.alt = '';
+    avatarEl.removeAttribute('src');
+    nameEl.textContent = '';
+    nameEl.removeAttribute('title');
+    uidEl.textContent = '';
+  }
+
+  function renderProfile(profile, fallbackUid) {
+    const uid = Number(profile?.uid) || Number(fallbackUid) || 0;
+    const name = String(profile?.name || '').trim();
+    const avatarSource = bilibiliAvatarSource(
+      profile?.avatarUrl,
+      windowRef.__API_TOKEN__,
+    );
+
+    profileEl.hidden = !uid && !name && !avatarSource;
+    uidEl.textContent = uid ? `UID: ${uid}` : '';
+    nameEl.textContent = name;
+    if (name) nameEl.title = name;
+    else nameEl.removeAttribute('title');
+
+    avatarEl.hidden = !avatarSource;
+    avatarEl.alt = avatarSource
+      ? name
+        ? `${name}的头像`
+        : 'Bilibili 账号头像'
+      : '';
+    if (avatarSource) avatarEl.src = avatarSource;
+    else avatarEl.removeAttribute('src');
+  }
+
+  avatarEl.addEventListener('error', () => {
+    avatarEl.hidden = true;
+    avatarEl.alt = '';
+    avatarEl.removeAttribute('src');
+  });
 
   const isDesktop = Boolean(windowRef.bilibiliAuth);
   if (!isDesktop) {
@@ -27,25 +71,42 @@ export function initBilibiliAuth({
   }
 
   async function refreshAuthState() {
+    const requestId = ++refreshRequest;
     try {
       const state = await windowRef.bilibiliAuth.getAuthState();
+      if (requestId !== refreshRequest) return;
       if (state?.loggedIn) {
         statusEl.textContent = '已登录';
         statusEl.className = 'pill good';
-        uidEl.textContent = state.uid ? `UID: ${state.uid}` : '';
+        renderProfile(null, state.uid);
         loginBtn.style.display = 'none';
         logoutBtn.style.display = '';
+        void refreshProfile(requestId, state.uid);
       } else {
         statusEl.textContent = '未登录';
         statusEl.className = 'pill warn';
-        uidEl.textContent = '';
+        clearProfile();
         loginBtn.style.display = '';
         logoutBtn.style.display = 'none';
       }
     } catch (error) {
       void error;
+      if (requestId !== refreshRequest) return;
       statusEl.textContent = '状态未知';
       statusEl.className = 'pill';
+      clearProfile();
+    }
+  }
+
+  async function refreshProfile(requestId, uid) {
+    if (typeof windowRef.bilibiliAuth.getProfile !== 'function') return;
+    try {
+      const profile = await windowRef.bilibiliAuth.getProfile();
+      if (requestId !== refreshRequest) return;
+      renderProfile(profile, uid);
+    } catch (error) {
+      void error;
+      // Keep the authenticated UID visible when Bilibili profile lookup fails.
     }
   }
 
@@ -96,4 +157,19 @@ export function initBilibiliAuth({
   });
 
   void refreshAuthState();
+}
+
+export function bilibiliAvatarSource(value, token = '') {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) {
+      return '';
+    }
+    const query = new URLSearchParams({ url: url.toString() });
+    const apiToken = String(token || '').trim();
+    if (apiToken) query.set('token', apiToken);
+    return `/api/bilibili/avatar?${query.toString()}`;
+  } catch (_) {
+    return '';
+  }
 }

@@ -12,11 +12,18 @@
         <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px"
           >未登录</span
         >
-        <span
-          id="bilibiliAuthUid"
-          class="ui-caption"
-          style="color: #888"
-        ></span>
+        <span id="bilibiliAuthProfile" class="bilibili-auth-profile" hidden>
+          <img
+            id="bilibiliAuthAvatar"
+            class="bilibili-auth-avatar"
+            alt=""
+            hidden
+          />
+          <span class="bilibili-auth-identity">
+            <strong id="bilibiliAuthName" class="bilibili-auth-name"></strong>
+            <span id="bilibiliAuthUid" class="bilibili-auth-uid ui-caption"></span>
+          </span>
+        </span>
         <button
           id="bilibiliLoginBtn"
           class="primary"

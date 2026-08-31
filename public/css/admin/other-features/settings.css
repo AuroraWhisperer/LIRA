@@ -65,60 +65,33 @@
   flex: 0 0 auto;
 }
 
-.license-account-card > .hint {
-  min-height: 1.5em;
+.license-account-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
 }
 
-.license-pairing-list {
-  margin: 12px 0 0;
-  padding: 10px 12px 10px 28px;
+.license-account-details > div {
+  min-width: 0;
+  padding: 11px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
 
-.license-pairing-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 5px 0;
-}
-
-.license-pairing-list li::marker {
+.license-account-details dt {
+  margin-bottom: 3px;
   color: var(--muted);
+  font-size: var(--type-size-caption);
 }
 
-.license-pairing-list li > span {
-  min-width: 0;
+.license-account-details dd {
+  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.license-pairing-item {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.license-pairing-item > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.license-pairing-meta {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.license-pairing-list button {
-  flex: 0 0 auto;
-  min-height: 28px;
-  padding: 3px 9px;
+  color: var(--text);
 }
 
 .license-account-note {
@@ -160,5 +133,9 @@
   .license-account-card-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .license-account-details {
+    grid-template-columns: 1fr;
   }
 }

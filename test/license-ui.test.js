@@ -134,39 +134,25 @@ test('song background controls wait for the initial response before accepting ch
   );
 });
 
-test('pairing code UI confirms revocation, shows lifecycle timestamps and maps error codes', () => {
+test('account settings show non-sensitive profile data without device-management controls', () => {
   const script = fs.readFileSync(
     path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'),
     'utf8',
   );
-  const confirmIndex = script.indexOf('dangerConfirm(');
-  const revokeIndex = script.indexOf('licenseBridge.revokePairingCode(');
-  assert.ok(confirmIndex >= 0, 'revocation must ask for confirmation');
-  assert.ok(
-    revokeIndex > confirmIndex,
-    'dangerConfirm must gate the revoke call',
+  const html = fs.readFileSync(
+    path.join(ROOT, 'public', 'pages', 'admin', 'toolbox', 'settings.html'),
+    'utf8',
   );
-  assert.match(
-    script,
-    /createdAt \|\| item\.created_at|created_at \|\| item\.createdAt/,
+  const preload = fs.readFileSync(
+    path.join(ROOT, 'src', 'electron', 'preload.js'),
+    'utf8',
   );
-  assert.match(
-    script,
-    /expiresAt \|\| item\.expires_at|expires_at \|\| item\.expiresAt/,
-  );
-  assert.match(script, /usedAt \|\| item\.used_at|used_at \|\| item\.usedAt/);
-  assert.match(script, /usedDeviceName\s*\|\|\s*item\.used_device_name/);
-  assert.match(script, /PAIRING_CODE_ALREADY_CONSUMED/);
-  assert.match(script, /TOO_MANY_ACTIVE_PAIRING_CODES/);
-  assert.match(script, /TOO_MANY_PAIRING_CODE_REQUESTS/);
-  assert.match(script, /payload\?\.pairingCodes/);
-  assert.match(script, /response\?\.ok === false/);
-  assert.match(
-    script,
-    /assertPairingResponse\(await licenseBridge\.getProfile\(\)\)/,
-  );
-  assert.match(
-    script,
-    /renderCodes\([\s\S]*?assertPairingResponse\(await licenseBridge\.listPairingCodes\(\)\)/,
-  );
+
+  assert.match(script, /await licenseBridge\.getProfile\(\)/);
+  assert.match(script, /accountEl\.textContent/);
+  assert.match(script, /deviceEl\.textContent/);
+  assert.match(html, /登录密码[\s\S]*?为保护账户安全不可查看/);
+  assert.match(html, /设备管理[\s\S]*?由服务器管理员统一处理/);
+  assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
+  assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);
 });

@@ -441,9 +441,11 @@ test('toolbox owns independent settings, overtime, streamer planner, start anima
   assert.match(html, /data-other-feature="otherSettingsFeature"/);
   assert.match(html, /id="otherSettingsFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /id="licenseAccountDevice"[^>]+hidden/);
-  assert.match(html, /id="licenseDeviceProfile"/);
+  assert.match(html, /id="licenseAccountName"/);
+  assert.match(html, /id="licenseDeviceName"/);
   assert.match(html, /设备私钥由系统安全存储保护/);
   assert.match(html, /密码和激活密钥不会保存/);
+  assert.match(html, /设备管理[\s\S]*?由服务器管理员统一处理/);
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-panel/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-faq-grid/);
@@ -1475,7 +1477,7 @@ test('admin state events render queue empty states and song data', () => {
   );
 });
 
-test('overtime picker consumes the cached server catalog update channel', () => {
+test('overtime picker keeps the room catalog primary when the server cache updates', () => {
   const stateSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'),
     'utf8',
@@ -1493,16 +1495,24 @@ test('overtime picker consumes the cached server catalog update channel', () => 
     overtimeSource,
     /requestGeneration !== giftCatalogApplyGeneration/,
   );
-  assert.match(overtimeSource, /source === ["']server["']/);
+  assert.match(
+    overtimeSource,
+    /snapshot\?\.source !== ["']server["'][\s\S]*applyGiftCatalog\(snapshot\)/,
+  );
+  assert.match(
+    overtimeSource,
+    /function openGiftPicker\(\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/,
+  );
   assert.match(overtimeSource, /if \(picker\?\.open\) renderGiftPicker\(\)/);
-  assert.match(overtimeSource, /没有找到这个服务器目录礼物/);
+  assert.match(overtimeSource, /服务器目录中没有匹配礼物/);
+  assert.match(overtimeSource, /没有找到当前在售礼物/);
   assert.match(
     html,
-    /id="overtimeGiftCatalogStatus"[^>]*>\s*服务器目录：未同步\s*<\/span\s*>/,
+    /id="overtimeGiftCatalogStatus"[^>]*>\s*在售目录：未刷新\s*<\/span\s*>/,
   );
   assert.match(
     html,
-    /id="overtimeRefreshGiftsBtn"[^>]*>\s*同步服务器礼物\s*<\/button>/,
+    /id="overtimeRefreshGiftsBtn"[^>]*>\s*刷新在售礼物\s*<\/button>/,
   );
 });
 

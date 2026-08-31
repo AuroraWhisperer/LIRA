@@ -121,6 +121,8 @@ Bilibili 同构,另带 `loginCheckInFlight`/`loginCloseRequested` 防重入(见 
 
 `getMusicCookieHeader(platform)`([auth-manager.js:155-161](../../../src/electron/auth-manager.js#L155-L161)) / `getBilibiliCookieHeader()`([bilibili-auth.js:165-171](../../../src/electron/bilibili-auth.js#L165-L171)):实时从平台分区读取允许域名内的全部 Cookie,过滤空 name/value 后拼接 `"name1=value1; name2=value2; ..."`。`getBilibiliUid()`([bilibili-auth.js:173-177](../../../src/electron/bilibili-auth.js#L173-L177)):返回 `DedeUserID` 数值。
 
+`getBilibiliAccountProfile(dataDir)` 先复用上述登录态判定，再用当前 UID 和 Cookie 调用 Bilibili 用户卡片接口；只向 renderer 返回 `{uid, name, avatarUrl}`，其中头像地址仍经过 `hdslb.com` HTTPS 白名单归一化，不返回 Cookie。资料查询独立于登录态 IPC，接口失败不会阻塞登录窗口完成或改变登录判定。
+
 消费方:
 
 | 消费者                                                                                  | 数据                                                                     | 文档                                                               |

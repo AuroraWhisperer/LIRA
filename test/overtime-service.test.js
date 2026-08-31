@@ -242,6 +242,14 @@ test('time, background, and rules validation enforce server limits', () => {
       validateBackground({ path: 'https://example.test/a.png', fit: 'cover' }),
     /path/,
   );
+  assert.throws(
+    () =>
+      validateBackground({
+        path: '/overtime-gift-images/server.webp',
+        fit: 'cover',
+      }),
+    /path/,
+  );
 
   const rules = validateRules([
     {
@@ -283,6 +291,28 @@ test('time, background, and rules validation enforce server limits', () => {
   ]);
   assert.deepEqual(rules[2].fixedEffect, { operation: 'multiply', value: 8 });
   assert.equal(rules[2].fixedSeconds, null);
+  const cachedImageRule = validateRules([
+    {
+      giftId: 'cached',
+      giftName: '缓存礼物',
+      imagePath: '/overtime-gift-images/server.webp',
+      mode: 'fixed',
+      fixedSeconds: 1,
+    },
+  ]);
+  assert.equal(cachedImageRule[0].imagePath, '/overtime-gift-images/server.webp');
+  assert.throws(
+    () =>
+      validateRules([
+        {
+          giftId: 'invalid-cached-image',
+          imagePath: '/overtime-gift-images/server.svg',
+          mode: 'fixed',
+          fixedSeconds: 1,
+        },
+      ]),
+    /imagePath/,
+  );
   assert.deepEqual(
     rules.map((rule) => rule.quantityMode),
     ['group', 'group', 'group'],

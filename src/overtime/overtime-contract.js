@@ -92,7 +92,12 @@ function validateRule(input, index, allowedRemoteImageOrigins = []) {
     imagePath &&
     !isAllowedImagePath(
       imagePath,
-      ['admin/gifts', 'bilibili-gifts', 'overtime-machine'],
+      [
+        'admin/gifts',
+        'bilibili-gifts',
+        'overtime-machine',
+        'overtime-gift-images',
+      ],
       allowedRemoteImageOrigins,
     )
   ) {
@@ -288,6 +293,14 @@ function parseOutcomes(value) {
 function isAllowedImagePath(value, roots, allowedRemoteImageOrigins = []) {
   if (value.includes('..') || value.includes('\\')) return false;
   if (!/^(?:[a-z]+:|\/\/)/i.test(value)) {
+    if (
+      roots.includes('overtime-gift-images') &&
+      /^\/overtime-gift-images\/[A-Za-z0-9._-]+\.(?:gif|jpe?g|png|webp)$/iu.test(
+        value,
+      )
+    ) {
+      return true;
+    }
     return roots.some((root) =>
       new RegExp(`^/img/${root}(?:/[A-Za-z0-9._-]+)+$`).test(value),
     );

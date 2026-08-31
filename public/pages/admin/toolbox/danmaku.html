@@ -77,76 +77,132 @@
         </div>
       </div>
       <div class="danmaku-style-picker">
-        <div
-          class="danmaku-style-options"
-          role="group"
-          aria-label="选择弹幕姬样式"
+        <section
+          class="danmaku-style-group danmaku-style-group-fixed"
+          aria-labelledby="danmakuFixedStyleTitle"
         >
-          <button
-            class="danmaku-style-option"
-            type="button"
-            data-danmaku-style="bubble"
-            aria-pressed="false"
+          <div class="danmaku-style-group-heading">
+            <strong id="danmakuFixedStyleTitle">固定区域</strong>
+            <small>弹幕按顺序排列，适合持续展示直播互动。</small>
+          </div>
+          <div
+            class="danmaku-style-options"
+            role="group"
+            aria-label="选择固定区域弹幕姬样式"
           >
-            <span
-              class="danmaku-style-option-visual is-bubble"
-              aria-hidden="true"
-              ><i></i><i></i><i></i
-            ></span>
-            <span class="danmaku-style-option-copy"
-              ><strong>聊天气泡</strong
-              ><small>轻松圆润，适合聊天互动</small></span
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="bubble"
+              aria-pressed="false"
             >
-          </button>
-          <button
-            class="danmaku-style-option"
-            type="button"
-            data-danmaku-style="signal"
-            aria-pressed="true"
+              <span
+                class="danmaku-style-option-visual is-bubble"
+                aria-hidden="true"
+                ><i></i><i></i><i></i
+              ></span>
+              <span class="danmaku-style-option-copy"
+                ><strong>聊天气泡</strong
+                ><small>轻松圆润，适合聊天互动</small></span
+              >
+            </button>
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="signal"
+              aria-pressed="true"
+            >
+              <span
+                class="danmaku-style-option-visual is-signal"
+                aria-hidden="true"
+                ><i></i><i></i><i></i
+              ></span>
+              <span class="danmaku-style-option-copy"
+                ><strong>直播信号带</strong
+                ><small>层次清晰，适合信息密集场景</small></span
+              >
+            </button>
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="minimal"
+              aria-pressed="false"
+            >
+              <span
+                class="danmaku-style-option-visual is-minimal"
+                aria-hidden="true"
+                ><i></i><i></i><i></i
+              ></span>
+              <span class="danmaku-style-option-copy"
+                ><strong>航海铭牌</strong
+                ><small>名字在上，三级身份各有装饰</small></span
+              >
+            </button>
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="ranked"
+              aria-pressed="false"
+            >
+              <span
+                class="danmaku-style-option-visual is-ranked"
+                aria-hidden="true"
+                ><i></i><i></i><i></i><i></i
+              ></span>
+              <span class="danmaku-style-option-copy"
+                ><strong>直播气泡</strong
+                ><small>左侧头像，昵称灯牌在上</small></span
+              >
+            </button>
+          </div>
+        </section>
+        <section
+          class="danmaku-style-group danmaku-style-group-fullscreen"
+          aria-labelledby="danmakuFullscreenStyleTitle"
+        >
+          <div class="danmaku-style-group-heading">
+            <strong id="danmakuFullscreenStyleTitle">全屏随机</strong>
+            <small>只显示发送者和正文，随机散布在整个画面。</small>
+          </div>
+          <div
+            class="danmaku-style-options danmaku-style-options-fullscreen"
+            role="group"
+            aria-label="选择全屏随机弹幕姬样式"
           >
-            <span
-              class="danmaku-style-option-visual is-signal"
-              aria-hidden="true"
-              ><i></i><i></i><i></i
-            ></span>
-            <span class="danmaku-style-option-copy"
-              ><strong>直播信号带</strong
-              ><small>层次清晰，适合信息密集场景</small></span
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="outline"
+              aria-pressed="false"
             >
-          </button>
-          <button
-            class="danmaku-style-option"
-            type="button"
-            data-danmaku-style="minimal"
-            aria-pressed="false"
+              <span
+                class="danmaku-style-option-visual is-outline"
+                aria-hidden="true"
+                ><i></i><i></i><i></i><i></i
+              ></span>
+              <span class="danmaku-style-option-copy"
+                ><strong>全屏随机</strong
+                ><small>只显示发送者和正文，随机散布</small></span
+              >
+            </button>
+          </div>
+          <label
+            id="danmakuFullscreenDurationField"
+            class="danmaku-fullscreen-duration"
+            hidden
           >
-            <span
-              class="danmaku-style-option-visual is-minimal"
-              aria-hidden="true"
-              ><i></i><i></i><i></i
-            ></span>
-            <span class="danmaku-style-option-copy"
-              ><strong>航海铭牌</strong
-              ><small>名字在上，三级身份各有装饰</small></span
-            >
-          </button>
-          <button
-            class="danmaku-style-option"
-            type="button"
-            data-danmaku-style="ranked"
-            aria-pressed="false"
-          >
-            <span
-              class="danmaku-style-option-visual is-ranked"
-              aria-hidden="true"
-              ><i></i><i></i><i></i><i></i
-            ></span>
-            <span class="danmaku-style-option-copy"
-              ><strong>直播气泡</strong
-              ><small>左侧头像，昵称灯牌在上</small></span
-            >
-          </button>
-        </div>
+            <span>单条停留时间（秒）</span>
+            <input
+              id="danmakuFullscreenDurationSeconds"
+              type="number"
+              min="2"
+              max="30"
+              step="1"
+              value="6"
+              inputmode="numeric"
+            />
+          </label>
+        </section>
         <p
           id="danmakuStyleSaveState"
           class="danmaku-style-save-state"

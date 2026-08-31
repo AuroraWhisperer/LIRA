@@ -36,6 +36,7 @@ const DANMAKU_OVERLAY_STYLES = new Set([
   'signal',
   'minimal',
   'ranked',
+  'outline',
 ]);
 
 const routes = {
@@ -70,6 +71,10 @@ function normalizeSettingValue(key, rawValue) {
     const value = String(rawValue || '').trim();
     return DANMAKU_OVERLAY_STYLES.has(value) ? value : null;
   }
+  if (key === 'danmakuFullscreenDurationSeconds') {
+    const value = normalizeFullscreenDurationSeconds(rawValue);
+    return value === null ? null : String(value);
+  }
   if (key === 'openingTrackMotion')
     return normalizeOpeningTrackMotion(rawValue);
   if (key === 'roomId') return normalizeRoomInput(rawValue);
@@ -80,6 +85,17 @@ function normalizeSettingValue(key, rawValue) {
     return typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue);
   }
   return String(rawValue);
+}
+
+function normalizeFullscreenDurationSeconds(rawValue) {
+  let value;
+  if (typeof rawValue === 'number') value = rawValue;
+  else if (typeof rawValue === 'string' && /^\d+$/.test(rawValue.trim()))
+    value = Number(rawValue.trim());
+  else return null;
+  return Number.isSafeInteger(value) && value >= 2 && value <= 30
+    ? value
+    : null;
 }
 
 module.exports = { prefixes, routes };

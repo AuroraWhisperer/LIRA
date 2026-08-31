@@ -7,8 +7,9 @@ const settingsRoutes = require('../src/server/routes/settings-routes');
 
 test('danmaku overlay style defaults to signal and accepts only named themes', async () => {
   assert.equal(DEFAULT_SETTINGS.danmakuOverlayStyle, 'signal');
+  assert.equal(DEFAULT_SETTINGS.danmakuFullscreenDurationSeconds, '6');
 
-  for (const style of ['bubble', 'signal', 'minimal', 'ranked']) {
+  for (const style of ['bubble', 'signal', 'minimal', 'ranked', 'outline']) {
     const result = await postSettings({ danmakuOverlayStyle: ` ${style} ` });
     assert.equal(result.status, 200);
     assert.deepEqual(result.writes, [['danmakuOverlayStyle', style]]);
@@ -23,6 +24,41 @@ test('danmaku overlay style defaults to signal and accepts only named themes', a
   });
   assert.deepEqual(invalid.writes, []);
   assert.equal(invalid.configureCalls, 0);
+});
+
+test('fullscreen danmaku duration accepts safe integer seconds from 2 through 30', async () => {
+  for (const value of [2, 30, '2', '30']) {
+    const result = await postSettings({
+      danmakuFullscreenDurationSeconds: value,
+    });
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.writes, [
+      ['danmakuFullscreenDurationSeconds', String(value)],
+    ]);
+    assert.equal(result.broadcastReason, 'settings');
+  }
+
+  for (const value of [
+    '',
+    null,
+    undefined,
+    true,
+    [2],
+    '2.0',
+    '2e0',
+    '0x2',
+    1,
+    31,
+    2.5,
+    NaN,
+  ]) {
+    const result = await postSettings({
+      danmakuFullscreenDurationSeconds: value,
+    });
+    assert.equal(result.status, 400, `expected ${String(value)} to fail`);
+    assert.deepEqual(result.writes, []);
+    assert.equal(result.configureCalls, 0);
+  }
 });
 
 async function postSettings(body) {

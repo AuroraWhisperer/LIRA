@@ -2,6 +2,68 @@
 
 const { cleanText, normalizeMoney } = require('../../shared/utils');
 
+const MAX_CONFIG_BYTES = 64 * 1024;
+const MAX_BOXES = 100;
+const MAX_OUTPUTS_PER_BOX = 200;
+const MAX_NAME_LENGTH = 100;
+const MAX_PRICE = 1_000_000;
+
+function invalidConfig() {
+  return new Error('INVALID_GIFT_BLIND_BOX_CONFIG');
+}
+
+function normalizeName(value) {
+  const name = String(value || '').trim();
+  if (!name || name.length > MAX_NAME_LENGTH || /[\0\r\n]/u.test(name)) {
+    throw invalidConfig();
+  }
+  return name;
+}
+
+function normalizePrice(value) {
+  const price = Number(value);
+  if (!Number.isFinite(price) || price <= 0 || price > MAX_PRICE) {
+    throw invalidConfig();
+  }
+  return Math.round(price * 100) / 100;
+}
+
+function normalizeGiftBlindBoxConfig(input) {
+  if (!Array.isArray(input) || input.length > MAX_BOXES) throw invalidConfig();
+  const boxes = input.map((box) => {
+    if (!box || typeof box !== 'object' || Array.isArray(box)) {
+      throw invalidConfig();
+    }
+    if (
+      !Array.isArray(box.outputs) ||
+      box.outputs.length === 0 ||
+      box.outputs.length > MAX_OUTPUTS_PER_BOX
+    ) {
+      throw invalidConfig();
+    }
+    const outputs = box.outputs.map((output) => {
+      if (typeof output === 'string') return normalizeName(output);
+      if (!output || typeof output !== 'object' || Array.isArray(output)) {
+        throw invalidConfig();
+      }
+      const normalized = { name: normalizeName(output.name) };
+      if (output.price !== undefined && output.price !== null) {
+        normalized.price = normalizePrice(output.price);
+      }
+      return normalized;
+    });
+    return {
+      name: normalizeName(box.name),
+      price: normalizePrice(box.price),
+      outputs,
+    };
+  });
+  if (Buffer.byteLength(JSON.stringify(boxes), 'utf8') > MAX_CONFIG_BYTES) {
+    throw invalidConfig();
+  }
+  return boxes;
+}
+
 function loadBlindBoxMap(context) {
   const settings = context.settings();
   const raw = cleanText(settings.giftBlindBoxConfig);
@@ -50,4 +112,4 @@ function matchBlindBox(context, giftName) {
   return map.get(cleanText(giftName)) || null;
 }
 
-module.exports = { matchBlindBox };
+module.exports = { matchBlindBox, normalizeGiftBlindBoxConfig };

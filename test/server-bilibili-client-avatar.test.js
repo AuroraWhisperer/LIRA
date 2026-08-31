@@ -70,3 +70,48 @@ test('server Bilibili client explicitly requests and applies avatar hydration on
     client.stop();
   }
 });
+
+test('server Bilibili client can suppress gifts without suppressing danmaku', () => {
+  let gifts = 0;
+  let danmaku = 0;
+  const client = createBilibiliClient('123', {
+    isShuttingDown: () => false,
+    giftDetectionEnabled: false,
+    aiDanmakuDeliveryVerifier: { observe() {} },
+    domainServices: {
+      messages: {
+        handleDanmaku: () => {
+          danmaku += 1;
+          return { accepted: false };
+        },
+        logDanmaku() {},
+      },
+      customReplies: { isCommandText: () => false },
+      superChats: { add() {} },
+      gifts: { add: () => (gifts += 1) },
+    },
+    aiAssistant: { handleDanmaku() {} },
+    danmakuSender: { send: async () => {} },
+    broadcastSnapshot() {},
+    updateLiveStatus() {},
+    bilibiliDiagnostics: {},
+    runtimeGiftCommandPrefixes: new Set(),
+    messageBuffer: null,
+    bilibiliAuthCache: { cookieHeader: '', uid: 0 },
+    logGiftDelivery() {},
+  });
+
+  try {
+    client.handlers.onGift({ giftName: '礼物' });
+    client.handlers.onMessage({
+      uid: '42',
+      userName: 'Alice',
+      message: '点歌 测试',
+      source: 'danmaku',
+    });
+    assert.equal(gifts, 0);
+    assert.equal(danmaku, 1);
+  } finally {
+    client.stop();
+  }
+});

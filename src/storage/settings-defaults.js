@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
   toolboxCollapsedFeatureGroups: '',
   enableBilibili: 'true',
   danmakuOverlayStyle: 'signal',
+  danmakuFullscreenDurationSeconds: '6',
   enableAutoUpdate: 'false',
   enableGiftSprint: 'true',
   enableGiftNotification: 'true',

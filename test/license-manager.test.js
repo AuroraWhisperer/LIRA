@@ -29,6 +29,8 @@ function createHarness({
     heartbeatTokens: [],
     syncTokens: [],
     catalog: [],
+    giftEventRequests: [],
+    giftWatchRequests: [],
   };
   const generated = crypto.generateKeyPairSync('ec', {
     namedCurve: 'prime256v1',
@@ -114,6 +116,13 @@ function createHarness({
         ],
         etag: '"catalog-1"',
       };
+    },
+    getGiftEvents: async (after, limit, token) => {
+      calls.giftEventRequests.push({ after, limit, token });
+      return { ok: true, events: [], nextCursor: after ?? 0, hasMore: false };
+    },
+    watchGiftEvents: async (token, options) => {
+      calls.giftWatchRequests.push({ token, options });
     },
     getSongPageBackground: async (token) => ({
       ok: true,
@@ -290,6 +299,31 @@ test('gift catalog refresh is authorization-gated but uses the public endpoint w
   assert.deepEqual(calls.catalog, [
     { etag: '"old-catalog"', token: undefined },
   ]);
+  manager.dispose();
+});
+
+test('internal gift operations use the current authorized token and bypass public IPC', async () => {
+  const { manager, calls } = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+  });
+  await manager.bootstrap();
+  const signal = new AbortController().signal;
+
+  const page = await manager.getGiftEventsInternal({ after: 4, limit: 17 });
+  await manager.watchGiftEventsInternal({ signal, onEvent() {} });
+
+  assert.deepEqual(page, {
+    ok: true,
+    events: [],
+    nextCursor: 4,
+    hasMore: false,
+  });
+  assert.deepEqual(calls.giftEventRequests, [
+    { after: 4, limit: 17, token: 'token' },
+  ]);
+  assert.equal(calls.giftWatchRequests.length, 1);
+  assert.equal(calls.giftWatchRequests[0].token, 'token');
+  assert.equal(calls.giftWatchRequests[0].options.signal, signal);
   manager.dispose();
 });
 

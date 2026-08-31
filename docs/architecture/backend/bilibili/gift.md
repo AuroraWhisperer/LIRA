@@ -2,15 +2,15 @@
 
 > 涉及文件:[gift/detection-service.js](../../../../src/bilibili/gift/detection-service.js)、[gift/event-service.js](../../../../src/bilibili/gift/event-service.js)、[gift/consumer-registry.js](../../../../src/bilibili/gift/consumer-registry.js)、[gift/statistics-consumer.js](../../../../src/bilibili/gift/statistics-consumer.js)、[gift/normalizer.js](../../../../src/bilibili/gift/normalizer.js)、[gift/query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift/blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js)、[gift/blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js)、[gift/index.js](../../../../src/bilibili/gift/index.js)、[gift-event-store.js](../../../../src/storage/gift-event-store.js)、[superchat-service.js](../../../../src/bilibili/superchat-service.js)、[domain-services.js](../../../../src/server/domain-services.js) 的 gifts/superChats 段
 
-本文档是 **礼物检测管道与醒目留言服务**的唯一事实源:检测生命周期、消费者扇出、盲盒与冲刺统计、SC 状态机只在此成表。协议层解析(5 条礼物路径)见 [protocol.md](protocol.md) §6;`gift_events`/`super_chats` 表结构见 [storage.md](../storage.md) §3.3/§3.2;快照 `gifts/giftSprint/giftDetection/superChats` 字段见 [ws.md](../ws.md) §2;礼物与 SC 的 `/api/*` 端点清单见 [api.md](../api.md)。架构决策见 ADR [0006-shared-gift-detection-core](../../adr/0006-shared-gift-detection-core.md)。
+本文档是 **礼物检测投影与醒目留言服务** 的客户端事实源:本地账本、消费者扇出、盲盒与冲刺统计、SC 状态机只在此成表。原始 B 站礼物解析与权威检测已迁移到 `D:/Work/lira-server`;本地只接收经服务器处理的 DTO 并投影到现有消费者。协议层解析(5 条礼物路径)见 [protocol.md](protocol.md) §6;`gift_events`/`super_chats` 表结构见 [storage.md](../storage.md) §3.3/§3.2;快照 `gifts/giftSprint/giftDetection/superChats` 字段见 [ws.md](../ws.md) §2;礼物与 SC 的 `/api/*` 端点清单见 [api.md](../api.md)。客户端投影与服务器协议详见 [server-authoritative-gift-detection_design.md](../../../specs/server-authoritative-gift-detection_design.md)。
 
 **目录内模块边界:** `gift/sale-catalog.js` 拥有缓存、刷新与服务门面，`gift/sale-catalog-parser.js` 只做目录响应的纯解析/归一化；`users/user-info-service.js` 拥有网络、缓存与失败策略，`users/user-info-evidence.js` 只做用户证据和风险字段归一化。解析模块不得持有服务生命周期或重复缓存。
 
 ## 1. 架构总览
 
 ```
-MessageHandlers.handleGift (协议解析, 见 protocol.md §6.4-6.7)
-  │ onGift (server.js)
+MessageHandlers.handleGift (本地兼容解析, 见 protocol.md §6.4-6.7)
+  │ onGift (本地礼物回调已暂停)
   ▼
 createGiftService (gift/index.js)                    ← domainServices.gifts
   ├─ GiftDetectionService (detection-service.js)     检测核心: progress→final 生命周期
@@ -29,7 +29,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 零金额或低于阈值的行不广播。管理页预览通过 `/api/gifts/frame/preview` 使用独立的预览 ID，
 不污染实时去重集合。
 
-装配点:`domainServices` 创建 `createGiftService(baseContext, {onGiftFlushed, consumers:[overtimeConsumer], getOvertimeEpoch})`([domain-services.js:89-95](../../../../src/server/domain-services.js#L89-L95));`index.js` 把 `createGiftStatisticsConsumer` 与注入的加班机消费者一起注册([index.js:29-53](../../../../src/bilibili/gift/index.js#L29-L53))。原始礼物**只从 `onGift` 一处进入**,即 `detectionService.detect`(暴露为 `gifts.add`,[index.js:43](../../../../src/bilibili/gift/index.js#L43))。
+装配点:`domainServices` 创建 `createGiftService(baseContext, {onGiftFlushed, consumers:[overtimeConsumer], getOvertimeEpoch})`([domain-services.js:89-95](../../../../src/server/domain-services.js#L89-L95));`index.js` 把 `createGiftStatisticsConsumer` 与注入的加班机消费者一起注册([index.js:29-53](../../../../src/bilibili/gift/index.js#L29-L53))。迁移后本地 B 站客户端仍保持连接,但 `onGift` 回调在 `LOCAL_GIFT_DETECTION_ENABLED=false` 时只返回;服务器事件经 `importProcessedGiftEvent` 进入 `importProcessedEvent`,不调用本地 `detect`(见 §6.1)。
 
 ## 2. 检测核心(GiftDetectionService)
 
@@ -99,6 +99,16 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 - WS 快照 `gifts`(礼物事件列表)/ `giftSprint`(冲刺状态,含 `crystalBallValueRmb`)/ `giftDetection`(`getStatus()` 的 `coreActive/pendingCount` 等)由本服务产出(见 [ws.md](../ws.md) §2);`superChats` 见 §7。
 - 礼物/SC 的 `/api/*` 端点组(`gifts`、`superChat` 两组 context,见 [server.js:312-325](../../../../src/server.js#L312-L325))完整清单见 [api.md](../api.md),此处不复表。
+
+## 6.1 服务器权威礼物与客户端投影
+
+原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 10 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
+
+Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/gift-events` 和 `GET /api/device/gift-events/stream`。传输 DTO 仅允许 `eventId/cursor/phase/gift` 及礼物展示字段(`giftId/giftName/userName/num/unitPrice/totalPrice/coinType/isBlindBox/blindBoxName/blindBoxPrice/blindProfit/createdAt`),不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。每组最多一条 `progress` 和一条 `final`;progress 的 cursor 为 null,补拉只返回 final 且单页最多 200 条。
+
+首次没有本地游标时只保存服务器最新 cursor,不回放历史;SSE 建立后立即按游标补拉以覆盖建立竞态。SSE 断线、进程崩溃或漏包时,final cursor pull 才是恢复真相源,progress 不补拉。main process 将事件交给 `importProcessedGiftEvent`→`importProcessedEvent`,本地幂等键为 `lira-server:<eventId>`;重复 final 只推进游标,不会重复统计、加班结算、历史/快照或 `gift:frame`。
+
+本地 B 站连接仍负责弹幕、点歌、SC、用户信息和小游戏;仅礼物 detector 回调暂停。B 站上游 WebSocket/REST 断线发生在服务器收到事件之前时没有历史重放或零丢失保证。单进程 broker 不承诺多实例 fan-out,多实例部署需另行设计。
 
 ## 7. 醒目留言服务(superchat-service)
 

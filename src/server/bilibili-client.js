@@ -20,6 +20,7 @@ function createBilibiliClient(roomId, context) {
     logGiftDelivery,
     games,
     userInfoService,
+    giftDetectionEnabled = true,
   } = context;
   let client = null;
   client = new BilibiliDanmakuClient(
@@ -160,7 +161,7 @@ function createBilibiliClient(roomId, context) {
         }
       },
       onGift: (gift) => {
-        if (isShuttingDown()) return;
+        if (isShuttingDown() || !giftDetectionEnabled) return;
         try {
           const item = domainServices.gifts.add(gift);
           if (item) logGiftDelivery(item.detection_status || 'detected', item);

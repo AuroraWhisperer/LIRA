@@ -42,12 +42,12 @@ let rulesSaving = false;
 let backgroundDirty = false;
 let backgroundSaving = false;
 let catalogRefreshing = false;
-let localGiftSearchPending = false;
+let serverGiftSearchPending = false;
 let giftCatalogSnapshot = null;
 let giftCatalogApplyGeneration = 0;
 let catalogLiveStatus = null;
 let saleGiftIds = new Set();
-let localGiftMatches = [];
+let serverGiftMatches = [];
 let giftPickerSource = 'sale';
 let ruleEditor = null;
 
@@ -100,7 +100,7 @@ function init() {
     if (payload.adjustment) refresh().catch(showError);
   });
   eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot }) => {
-    applyGiftCatalog(snapshot);
+    if (snapshot?.source !== 'server') applyGiftCatalog(snapshot);
   });
   eventBus.on('app:shutdown', stopClockLoop);
   document.addEventListener('visibilitychange', syncClockLoop);
@@ -145,9 +145,9 @@ function bindControls() {
     'keydown',
     handleGiftSearchKeydown,
   );
-  byId('overtimeLocalGiftSearchBtn').addEventListener(
+  byId('overtimeServerGiftSearchBtn').addEventListener(
     'click',
-    searchLocalGifts,
+    searchServerGifts,
   );
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
@@ -274,20 +274,20 @@ async function loadCatalog() {
   // flight. Do not let a slower, older response roll the picker back.
   const requestGeneration = giftCatalogApplyGeneration;
   const response = await fetch('/api/overtime/gifts');
-  const payload = await readJsonResponse(response, '读取服务器礼物目录失败');
-  if (!payload.ok) throw new Error(payload.error || '读取服务器礼物目录失败');
+  const payload = await readJsonResponse(response, '读取在售礼物目录失败');
+  if (!payload.ok) throw new Error(payload.error || '读取在售礼物目录失败');
   if (requestGeneration !== giftCatalogApplyGeneration) return;
   applyGiftCatalog(payload.data);
 }
 
-async function refreshGiftCatalog() {
+async function refreshGiftCatalog({ notify = true } = {}) {
   if (catalogRefreshing) return;
   catalogRefreshing = true;
   syncCatalogRefreshButton();
   try {
     const result = await api('/api/overtime/gifts/refresh', {});
     applyGiftCatalog(result.data);
-    toast(`已同步 ${giftCatalogSnapshot.count} 个服务器礼物`);
+    if (notify) toast(`已刷新 ${giftCatalogSnapshot.count} 个在售礼物`);
   } catch (error) {
     showError(error);
   } finally {
@@ -332,7 +332,7 @@ function applyGiftCatalog(snapshot) {
   renderGiftCatalogStatus();
   syncRuleAvailability();
   // Keep an already-open picker in sync with a pushed catalog revision.
-  // Local-search mode remains selected; only its availability labels are
+  // Server-search mode remains selected; only its availability labels are
   // refreshed, so an update cannot discard the user's current query.
   const picker = byId('overtimeGiftPicker');
   if (picker?.open) renderGiftPicker();
@@ -341,7 +341,7 @@ function applyGiftCatalog(snapshot) {
 function renderGiftCatalogStatus() {
   const status = byId('overtimeGiftCatalogStatus');
   if (!giftCatalogSnapshot?.refreshedAt) {
-    status.textContent = '服务器目录：未同步';
+    status.textContent = '在售目录：未刷新';
     return;
   }
   const refreshedAt = new Date(giftCatalogSnapshot.refreshedAt);
@@ -355,13 +355,8 @@ function renderGiftCatalogStatus() {
         hour: '2-digit',
         minute: '2-digit',
       });
-  const isServerCatalog = giftCatalogSnapshot.source === 'server';
-  const sourceLabel = isServerCatalog
-    ? giftCatalogSnapshot.stale
-      ? '服务器快照（可能过期）'
-      : '服务器快照'
-    : catalogRoomLabel(giftCatalogSnapshot, catalogLiveStatus);
-  status.textContent = `${isServerCatalog ? '服务器目录' : '在售目录'}：${Number(giftCatalogSnapshot.count) || 0} 个 · ${sourceLabel}${timeLabel ? ` · ${timeLabel}` : ''}`;
+  const sourceLabel = catalogRoomLabel(giftCatalogSnapshot, catalogLiveStatus);
+  status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · ${sourceLabel}${timeLabel ? ` · ${timeLabel}` : ''}`;
 }
 
 function catalogRoomLabel(snapshot, liveStatus) {
@@ -377,7 +372,7 @@ function syncCatalogRefreshButton() {
   const button = byId('overtimeRefreshGiftsBtn');
   if (!button) return;
   button.disabled = catalogRefreshing;
-  button.textContent = catalogRefreshing ? '同步中…' : '同步服务器礼物';
+  button.textContent = catalogRefreshing ? '刷新中…' : '刷新在售礼物';
 }
 
 function syncRuleAvailability() {
@@ -405,11 +400,15 @@ function syncRuleAvailability() {
 function openGiftPicker() {
   const search = byId('overtimeGiftSearch');
   search.value = '';
-  localGiftMatches = [];
+  serverGiftMatches = [];
   giftPickerSource = 'sale';
   renderGiftPicker();
   byId('overtimeGiftPicker').showModal();
   search.focus();
+  // Refresh the room's live sale list whenever the picker opens. The backend
+  // coalesces/throttles requests, so repeated opens do not spam Bilibili, while
+  // a changed room is picked up without requiring a separate button click.
+  refreshGiftCatalog({ notify: false }).catch(() => {});
 }
 
 function handleGiftSearchInput() {
@@ -420,21 +419,21 @@ function handleGiftSearchInput() {
 function handleGiftSearchKeydown(event) {
   if (event.key !== 'Enter') return;
   event.preventDefault();
-  searchLocalGifts();
+  searchServerGifts();
 }
 
-async function searchLocalGifts() {
-  if (localGiftSearchPending) return;
+async function searchServerGifts() {
+  if (serverGiftSearchPending) return;
   const query = byId('overtimeGiftSearch').value.trim();
   if (!query || Array.from(query).length > 100) {
     showError(new Error('请输入 1–100 个字符的礼物名称或 ID。'));
     return;
   }
-  localGiftSearchPending = true;
-  syncLocalGiftSearchButton();
+  serverGiftSearchPending = true;
+  syncServerGiftSearchButton();
   try {
-    const result = await api('/api/overtime/gifts/local/search', { query });
-    localGiftMatches = (
+    const result = await api('/api/overtime/gifts/server/search', { query });
+    serverGiftMatches = (
       Array.isArray(result.data?.gifts) ? result.data.gifts : []
     ).map((gift) => ({
       id: String(gift.id),
@@ -442,20 +441,20 @@ async function searchLocalGifts() {
       rmb: Number(gift.rmb) || 0,
       imagePath: String(gift.imagePath || ''),
     }));
-    giftPickerSource = 'local';
+    giftPickerSource = 'server';
     renderGiftPicker();
   } catch (_) {
   } finally {
-    localGiftSearchPending = false;
-    syncLocalGiftSearchButton();
+    serverGiftSearchPending = false;
+    syncServerGiftSearchButton();
   }
 }
 
-function syncLocalGiftSearchButton() {
-  const button = byId('overtimeLocalGiftSearchBtn');
+function syncServerGiftSearchButton() {
+  const button = byId('overtimeServerGiftSearchBtn');
   if (!button) return;
-  button.disabled = localGiftSearchPending;
-  button.textContent = localGiftSearchPending ? '搜索中…' : '搜索本地礼物';
+  button.disabled = serverGiftSearchPending;
+  button.textContent = serverGiftSearchPending ? '搜索中…' : '搜索服务器礼物';
 }
 
 function renderGiftPicker() {
@@ -466,7 +465,7 @@ function renderGiftPicker() {
       byId('overtimeRules').querySelectorAll('[data-overtime-rule]'),
     ).map((row) => row.dataset.giftId),
   );
-  const source = giftPickerSource === 'local' ? localGiftMatches : catalog;
+  const source = giftPickerSource === 'server' ? serverGiftMatches : catalog;
   const matches = source.filter(
     (gift) =>
       !selectedIds.has(gift.id) &&
@@ -475,11 +474,12 @@ function renderGiftPicker() {
         gift.name.toLocaleLowerCase().includes(query)),
   );
   root.replaceChildren();
-  if (giftPickerSource === 'local' && matches.length) {
+  if (giftPickerSource === 'server' && matches.length) {
+    const cachedImages = matches.filter((gift) => gift.imagePath).length;
     root.append(
       createMessage(
         'overtime-rule-empty overtime-local-gift-search-status',
-        `本地匹配 ${matches.length} 个；这些礼物可手动加入，不要求当前在售。`,
+        `服务器匹配 ${matches.length} 个，已缓存 ${cachedImages} 张图片；这些礼物可手动加入，不要求当前在售。`,
       ),
     );
   }
@@ -504,7 +504,7 @@ function renderGiftPicker() {
     if (!gift.id.startsWith('guard-')) {
       const meta = document.createElement('small');
       const availability =
-        giftPickerSource === 'local'
+        giftPickerSource === 'server'
           ? saleGiftIds.has(gift.id)
             ? '目录中'
             : '当前未在售（目录外）'
@@ -520,9 +520,9 @@ function renderGiftPicker() {
     root.append(
       createMessage(
         'overtime-rule-empty',
-        giftPickerSource === 'local'
-          ? '本地没有已下载图片的匹配礼物。'
-          : '没有找到这个服务器目录礼物。',
+        giftPickerSource === 'server'
+          ? '服务器目录中没有匹配礼物。'
+          : '没有找到当前在售礼物。',
       ),
     );
 }

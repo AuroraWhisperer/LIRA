@@ -2,6 +2,9 @@
 
 const { RemoteLicenseError } = require('./remote-license-client');
 const {
+  normalizeProcessedGiftPage,
+} = require('../../shared/processed-gift-contract');
+const {
   SONG_BACKGROUND_MAX_BYTES,
   SONG_BACKGROUND_TYPES,
   addSongBackgroundPreviewUrl,
@@ -22,6 +25,60 @@ function createLicenseOperations(options = {}) {
 
   async function getCloudState() {
     return withAuthorizedToken((token) => remote.getCloudState(token));
+  }
+
+  async function watchCloudStateChangesInternal(options = {}) {
+    return withAuthorizedToken(
+      (token) => remote.watchCloudStateChanges(token, options),
+      0,
+      false,
+    );
+  }
+
+  async function getGiftEventsInternal(input = {}) {
+    const after = input.after;
+    const limit = input.limit === undefined ? 200 : Number(input.limit);
+    if (
+      (after !== null &&
+        after !== undefined &&
+        (!Number.isSafeInteger(Number(after)) || Number(after) < 0)) ||
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 200
+    ) {
+      throw new RemoteLicenseError(
+        'INVALID_GIFT_CURSOR',
+        '礼物事件游标无效。',
+      );
+    }
+    return withAuthorizedToken(
+      async (token) => {
+        const result = await remote.getGiftEvents(
+          after === null || after === undefined ? null : Number(after),
+          limit,
+          token,
+        );
+        try {
+          return normalizeProcessedGiftPage(result);
+        } catch {
+          throw new RemoteLicenseError(
+            'INVALID_RESPONSE',
+            '授权服务器返回无效响应。',
+            { retryable: true },
+          );
+        }
+      },
+      0,
+      false,
+    );
+  }
+
+  async function watchGiftEventsInternal(options = {}) {
+    return withAuthorizedToken(
+      (token) => remote.watchGiftEvents(token, options),
+      0,
+      false,
+    );
   }
 
   async function updateCloudSettings(settings) {
@@ -132,34 +189,22 @@ function createLicenseOperations(options = {}) {
     );
   }
 
-  async function createPairingCode() {
-    return withAuthorizedToken((token) => remote.createPairingCode(token));
-  }
-
-  async function listPairingCodes() {
-    return withAuthorizedToken((token) => remote.listPairingCodes(token));
-  }
-
-  async function revokePairingCode(id) {
-    return withAuthorizedToken((token) => remote.revokePairingCode(id, token));
-  }
-
   return {
-    createPairingCode,
     clearBilibiliCredentialsInternal,
     deleteSongPageBackground,
     getBilibiliCredentialsInternal,
     getCloudSongs,
     getCloudState,
     getGiftCatalog,
+    getGiftEventsInternal,
     getProfile,
     getSongPageBackground,
-    listPairingCodes,
-    revokePairingCode,
     setBilibiliCredentialsInternal,
     syncSongs,
     updateCloudSettings,
     uploadSongPageBackground,
+    watchCloudStateChangesInternal,
+    watchGiftEventsInternal,
   };
 }
 

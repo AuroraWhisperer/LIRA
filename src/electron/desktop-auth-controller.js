@@ -68,6 +68,10 @@ function createDesktopAuthController({
     return bilibiliAuth.getBilibiliCookieHeader();
   }
 
+  function getBilibiliAccountProfile() {
+    return bilibiliAuth.getBilibiliAccountProfile(getDataDir());
+  }
+
   function getBilibiliUid() {
     return bilibiliAuth.getBilibiliUid();
   }
@@ -112,6 +116,7 @@ function createDesktopAuthController({
     clearMusicBrowserCache,
     restoreMusicCookieSnapshots,
     getBilibiliAuthState,
+    getBilibiliAccountProfile,
     getBilibiliCookieHeader,
     getBilibiliUid,
     restoreBilibiliCookieSnapshot,

@@ -82,10 +82,50 @@
   display: grid;
   gap: 8px;
 }
+.danmaku-style-group {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 68%, var(--surface));
+}
+.danmaku-style-group-heading {
+  display: grid;
+  gap: 3px;
+}
+.danmaku-style-group-heading strong {
+  color: var(--text);
+  font-size: var(--type-size-card-title);
+}
+.danmaku-style-group-heading small {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.4;
+}
 .danmaku-style-options {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+.danmaku-style-options-fullscreen {
+  grid-template-columns: minmax(0, 240px);
+}
+.danmaku-fullscreen-duration {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px);
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  font-weight: 700;
+}
+.danmaku-fullscreen-duration[hidden] {
+  display: none;
+}
+.danmaku-fullscreen-duration input {
+  width: 100%;
 }
 .danmaku-style-option {
   display: grid;
@@ -290,6 +330,67 @@
 .danmaku-style-option-visual.is-ranked i:nth-child(4) {
   top: 60px;
   --preview-rank: #f0445a;
+}
+.danmaku-style-option-visual.is-outline {
+  background:
+    radial-gradient(
+      circle at 82% 18%,
+      rgba(47, 155, 255, 0.22),
+      transparent 38%
+    ),
+    linear-gradient(145deg, #101628, #070b17 76%);
+}
+.danmaku-style-option-visual.is-outline i {
+  left: 10px;
+  width: 76%;
+  height: 15px;
+  border: 1px solid var(--preview-rank);
+  border-radius: 5px;
+  background: rgba(9, 15, 27, 0.2);
+}
+.danmaku-style-option-visual.is-outline i::before {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 30%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--preview-rank);
+  box-shadow: 0 0 0 3px #101628;
+  content: '';
+  transform: translateX(-50%);
+}
+.danmaku-style-option-visual.is-outline i::after {
+  position: absolute;
+  top: 5px;
+  left: 20%;
+  width: 60%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--preview-rank);
+  content: '';
+}
+.danmaku-style-option-visual.is-outline i:nth-child(1) {
+  --preview-rank: #fff;
+  top: 6px;
+  width: 68%;
+}
+.danmaku-style-option-visual.is-outline i:nth-child(2) {
+  --preview-rank: #fff;
+  top: 24px;
+  left: 18%;
+  width: 76%;
+}
+.danmaku-style-option-visual.is-outline i:nth-child(3) {
+  --preview-rank: #fff;
+  top: 42px;
+  width: 62%;
+}
+.danmaku-style-option-visual.is-outline i:nth-child(4) {
+  --preview-rank: #fff;
+  top: 60px;
+  left: 18%;
+  width: 72%;
 }
 .danmaku-style-option-copy {
   display: grid;
@@ -512,6 +613,12 @@
     align-self: flex-start;
   }
   .danmaku-style-options {
+    grid-template-columns: 1fr;
+  }
+  .danmaku-style-options-fullscreen {
+    grid-template-columns: 1fr;
+  }
+  .danmaku-fullscreen-duration {
     grid-template-columns: 1fr;
   }
   .danmaku-overlay-link {

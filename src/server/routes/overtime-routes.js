@@ -39,6 +39,13 @@ const routes = {
     },
   ),
 
+  'POST /api/overtime/gifts/server/search': overtimeRoute(
+    async (overtime, request) => {
+      const body = await request.body();
+      return overtime.searchServerGifts(body.query);
+    },
+  ),
+
   'POST /api/overtime/time': overtimeRoute(async (overtime, request) => {
     return overtime.setTime(await request.body());
   }),

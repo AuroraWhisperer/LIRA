@@ -3,7 +3,14 @@ import { createDanmakuFeed } from './danmaku-feed.js';
 ('use strict');
 
 const MAX_ITEMS = 50;
-const OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked']);
+const DEFAULT_FULLSCREEN_DURATION_SECONDS = 6;
+const OVERLAY_STYLES = new Set([
+  'bubble',
+  'signal',
+  'minimal',
+  'ranked',
+  'outline',
+]);
 const RANKED_STAGE_WIDTH = 624;
 const RANKED_STAGE_HEIGHT = 640;
 const params = new URLSearchParams(location.search);
@@ -18,21 +25,16 @@ let localSocketConnected = false;
 let lastLiveStatus = null;
 let pendingItems = [];
 let renderFrame = null;
+let currentOverlayStyle = 'signal';
+let currentFullscreenDurationSeconds = DEFAULT_FULLSCREEN_DURATION_SECONDS;
 
 document.addEventListener('DOMContentLoaded', () => {
-  feed = createDanmakuFeed(document.getElementById('danmakuFeed'), {
-    maxItems: MAX_ITEMS,
-    offscreenViewports: 0,
-    autoScroll: false,
-    resolveAvatarUrl: bilibiliImageSource,
-    resolveEmoteUrl: bilibiliImageSource,
-    getGuardLabel: guardLabel,
-  });
+  createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
   syncRankedOverlayScale();
   window.addEventListener('resize', syncRankedOverlayScale);
   if (previewMode) {
     document.body.classList.add('is-preview');
-    applyStyle(params.get('style'));
+    applyConfiguration(params.get('style'), currentFullscreenDurationSeconds);
     applyItems(previewItems());
     setConnectionState('样式预览', true);
     return;
@@ -66,7 +68,10 @@ function connectSocket() {
       const style = payload.state.settings
         ? payload.state.settings.danmakuOverlayStyle
         : '';
-      applyStyle(style);
+      const duration = payload.state.settings
+        ? payload.state.settings.danmakuFullscreenDurationSeconds
+        : '';
+      applyConfiguration(style, duration);
       if (Array.isArray(payload.state.danmakuFeed))
         applyItems(payload.state.danmakuFeed);
       applyLiveStatus(payload.state.liveStatus);
@@ -128,16 +133,57 @@ function renderMessageCount() {
   ).padStart(2, '0');
 }
 
+function createOverlayFeed(style, durationSeconds) {
+  feed?.destroy();
+  const options = {
+    maxItems: MAX_ITEMS,
+    offscreenViewports: 0,
+    autoScroll: false,
+    resolveAvatarUrl: bilibiliImageSource,
+    resolveEmoteUrl: bilibiliImageSource,
+    getGuardLabel: guardLabel,
+  };
+  if (style === 'outline') {
+    options.layout = 'fullscreen-random';
+    options.itemLifetimeMs = durationSeconds * 1000;
+    options.expireItems = !previewMode;
+  }
+  feed = createDanmakuFeed(
+    document.getElementById('danmakuFeed'),
+    options,
+  );
+}
+
+function normalizeFullscreenDuration(value) {
+  let duration;
+  if (typeof value === 'number') duration = value;
+  else if (typeof value === 'string' && /^\d+$/.test(value.trim()))
+    duration = Number(value.trim());
+  else return DEFAULT_FULLSCREEN_DURATION_SECONDS;
+  return Number.isSafeInteger(duration) && duration >= 2 && duration <= 30
+    ? duration
+    : DEFAULT_FULLSCREEN_DURATION_SECONDS;
+}
+
+function applyConfiguration(styleValue, durationValue) {
+  const style = OVERLAY_STYLES.has(styleValue) ? styleValue : 'signal';
+  const duration = normalizeFullscreenDuration(durationValue);
+  const changed =
+    style !== currentOverlayStyle ||
+    (style === 'outline' &&
+      duration !== currentFullscreenDurationSeconds);
+  currentOverlayStyle = style;
+  currentFullscreenDurationSeconds = duration;
+  document.body.dataset.style = style;
+  if (changed) createOverlayFeed(style, duration);
+  syncRankedOverlayScale();
+}
+
 function itemKey(item = {}) {
   return String(
     item.id ||
       `${item.uid || ''}:${item.timestamp || ''}:${item.message || ''}`,
   );
-}
-
-function applyStyle(value) {
-  document.body.dataset.style = OVERLAY_STYLES.has(value) ? value : 'signal';
-  syncRankedOverlayScale();
 }
 
 function syncRankedOverlayScale() {
@@ -209,7 +255,7 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
 function previewItems() {
   return [
     {
-      id: 'preview-1',
+      id: 'preview-1091',
       name: '金色航线',
       message: '今晚也一起守到最后！这段副歌听完还想再循环一遍～',
       guardLevel: 1,
@@ -217,7 +263,7 @@ function previewItems() {
       medalLevel: 28,
     },
     {
-      id: 'preview-2',
+      id: 'preview-1822',
       name: '云端来信',
       message: '这一段的情绪太稳了',
       guardLevel: 2,
@@ -225,7 +271,7 @@ function previewItems() {
       medalLevel: 23,
     },
     {
-      id: 'preview-3',
+      id: 'preview-4714',
       name: '阿沐',
       message: '前奏一响就知道是今晚的歌',
       guardLevel: 3,
@@ -233,7 +279,7 @@ function previewItems() {
       medalLevel: 18,
     },
     {
-      id: 'preview-4',
+      id: 'preview-565',
       name: '晚风信号',
       message: '这个转音好稳 ✦',
       medalName: '星频',

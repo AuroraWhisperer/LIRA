@@ -2,7 +2,7 @@
 
 ## 目标与范围
 
-加班姬礼物选择器需要使用服务器维护的全局礼物目录，而不是每次依赖本地房间礼物面板。此设计只改变“选择器元数据和图片来源”；礼物事件接收、加班规则持久化、结算和 overlay 仍由本地运行时负责。
+加班姬礼物选择器的主目录使用当前配置直播间的礼物面板、盲盒和当前账号可用背包；服务器维护的全局礼物目录只用于弹窗中的手动名称/ID 搜索。此设计只增加“服务器搜索元数据和图片缓存来源”；礼物事件接收、加班规则持久化、结算和 overlay 仍由本地运行时负责。
 
 同时支持两种部署入口：
 
@@ -20,10 +20,15 @@ flowchart LR
   Query --> HTTP[GET /api/public/gifts/catalog + ETag]
   HTTP --> Main[Electron main remote client]
   Main --> Cache[data/overtime-gift-catalog.json]
-  Cache --> Local[Local /api/overtime/gifts]
+  Cache --> Search[Local /api/overtime/gifts/server/search]
+  HTTP --> ImageCache[Local data/overtime-gift-images]
+  ImageCache --> Search
   Main --> LocalRuntime[Local runtime callback]
   LocalRuntime --> WS[local /ws gift-catalog:update]
-  WS --> Picker[Admin overtime picker]
+  WS --> Search
+  Room[Bilibili room gift panel/backpack] --> Local[Local /api/overtime/gifts]
+  Local --> Picker[Admin overtime picker]
+  Search --> Picker
   HTTP --> Web[ICP/SSH public gifts page]
 ```
 
@@ -68,25 +73,26 @@ Electron main process sends the conditional request. The access token remains in
 
 Cache rules:
 
-1. Local `/api/overtime/gifts` synchronously returns the last remote snapshot if present, so opening the picker does not wait for the network.
+1. Local `/api/overtime/gifts` synchronously returns the last successful current-room snapshot, so opening the picker never changes to a global server catalog.
 2. A refresh is single-flight and uses `If-None-Match`; `304` updates the check time without replacing gifts.
-3. A changed `version` atomically replaces the cache and emits one local `gift-catalog:update` message.
+3. A changed `version` atomically replaces the remote search cache and emits one local `gift-catalog:update` message; Admin must not apply that snapshot as the primary current-room catalog.
 4. Network/HTTP failure never overwrites a valid cache. The UI can continue using stale gifts and the explicit refresh action reports the failure.
 5. After authorization, a forced first refresh runs once; while authorized, a low-frequency timer performs conditional checks. The timer is stopped with the local runtime.
-6. If no remote callback is configured (legacy web/test mode), the existing Bilibili room catalog service remains the fallback implementation. Local Markdown search remains an explicit offline/manual source.
+6. Server search first performs a forced conditional refresh, then filters the available remote snapshot by gift name or ID. If refresh fails but a prior snapshot exists, search may continue from that stale snapshot; without any remote snapshot it reports an understandable error.
+7. Only matched server gifts have their immutable `/gift-media/images/<basename>` bytes downloaded to `data/overtime-gift-images/`. Valid files are reused, one failed image falls back to the built-in placeholder without failing the other matches, and the renderer receives only `/overtime-gift-images/<basename>`.
 
-Remote image URLs are resolved only against the configured, already validated API base. When a desktop user saves a server gift as an overtime rule, the local rule contract permits only that same validated origin and a single immutable `/gift-media/images/<basename>` path; existing `/img/...` paths remain unchanged. Renderer code accepts text and image `src` values from the normalized local response; gift names are rendered with `textContent`, and invalid URLs use the existing placeholder.
+Remote image URLs are resolved only against the configured, already validated API base. The local runtime downloads matched server images with redirects disabled, a 15-second timeout, a 5 MiB limit, raster signature validation and atomic writes. When a desktop user saves a searched server gift as an overtime rule, the rule stores the same-origin `/overtime-gift-images/<basename>` path; existing `/img/...` and previously stored validated server URLs remain compatible. Gift names are rendered with `textContent`, and missing or invalid images use the existing placeholder.
 
 ## Security and failure boundaries
 
 - The public endpoint contains no streamer-private data; it reuses the existing public limiter and immutable server image cache. Device and streamer authorization boundaries are not weakened.
-- The local runtime still requires its existing license/session gate. Client input cannot choose a server URL, room id, tenant, filesystem path, or SQL fragment.
+- The local runtime still requires its existing license/session gate. Client input can provide only a 1–100 character search query and cannot choose a server URL, room id, tenant, image basename, filesystem path, or SQL fragment.
 - ETags are length-limited and header-safe. Remote JSON is size-limited and normalized to an allowlist of fields. Relative image paths reject traversal, credentials, query credentials, and cross-origin values.
 - Server-side sync retention remains authoritative: a failed or suspicious upstream sync cannot publish an empty/bad snapshot.
-- No remote WebSocket/SSE is added. The existing local WebSocket carries the normalized catalog update to already connected Admin pages; HTTP/ETag remains the cross-host transport that works for both SSH and ICP. The current catalog is bounded below the local outbound queue limit; if the global catalog grows materially, the notification can be reduced to a version-only signal without changing the HTTP contract.
+- No remote WebSocket/SSE is added. The existing local WebSocket carries a normalized server-search cache update to connected Admin pages, which do not apply it as the current-room catalog; HTTP/ETag remains the cross-host transport that works for both SSH and ICP. The current catalog is bounded below the local outbound queue limit; if the global catalog grows materially, the notification can be reduced to a version-only signal without changing the HTTP contract.
 
 ## Verification
 
-- Server: `node --test test/gift-public-routes.test.js test/gift-catalog-service.test.js`; `npm run docs:check`.
-- Client: `node --test test/remote-catalog-cache.test.js test/remote-license-client.test.js test/overtime-routes.test.js`; `npm run check`; `npm run verify:architecture`.
-- Final review: `git diff --check` in both repositories and inspect status for secrets/runtime files.
+- Server contract evidence: `node --test test/gift-public-routes.test.js test/gift-catalog-service.test.js` in lira-server when that repository changes.
+- Client: `node --test test/remote-gift-image-cache.test.js test/remote-catalog-cache.test.js test/remote-overtime-catalog.test.js test/overtime-routes.test.js test/frontend-admin-shell.test.js test/frontend-queue.test.js`.
+- Final review: `git diff --check` and inspect status for secrets/runtime files.
