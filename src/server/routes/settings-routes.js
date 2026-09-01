@@ -10,6 +10,9 @@ const {
 const {
   normalizeFrameSettingValue,
 } = require('../../bilibili/gift/frame-config');
+const {
+  normalizeGiftBlindBoxConfig,
+} = require('../../bilibili/gift/blind-box-config');
 const { normalizeOpeningTrackMotion } = require('../opening-contract');
 const {
   CLOCK_SETTING_KEYS,
@@ -21,7 +24,6 @@ const prefixes = ['/api/settings'];
 // 这些 key 的默认值本身就是 JSON 字符串；前端若以数组/对象提交，必须显式序列化，
 // 否则 String(rawValue) 会得到 "[object Object]"。
 const JSON_SETTING_KEYS = new Set([
-  'giftBlindBoxConfig',
   'checkinBlessings',
   'fortunePool',
 ]);
@@ -80,6 +82,16 @@ function normalizeSettingValue(key, rawValue) {
   if (key === 'roomId') return normalizeRoomInput(rawValue);
   if (key === 'customReplyRules')
     return JSON.stringify(parseCustomReplyRules(rawValue));
+  if (key === 'giftBlindBoxConfig') {
+    try {
+      const input =
+        typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      return JSON.stringify(normalizeGiftBlindBoxConfig(input));
+    } catch (error) {
+      void error;
+      return null;
+    }
+  }
   if (JSON_SETTING_KEYS.has(key)) {
     if (rawValue === null || rawValue === undefined) return String(rawValue);
     return typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue);

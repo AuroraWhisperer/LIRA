@@ -286,6 +286,23 @@ test('blindbox broadcast settings expose audience filters and one open action', 
   assert.doesNotMatch(source, /add\("compact"|add\("noScroll"|add\("quality"/);
 });
 
+test('blind-box settings persist an explicit empty JSON array', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(
+    source,
+    /config\.length\s*\?\s*JSON\.stringify\(config,[^)]+\)\s*:\s*''/,
+  );
+  assert.match(
+    source,
+    /const newRaw = JSON\.stringify\(config, null, 2\)/,
+  );
+  assert.match(source, /let raw = textarea\.value\.trim\(\) \|\| '\[\]'/);
+});
+
 test('blindbox ranking count supports all, summary-only, and one-to-ten modes', () => {
   const html = readAdminHtml();
   const settingsSource = fs.readFileSync(

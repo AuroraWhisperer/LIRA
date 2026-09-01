@@ -326,6 +326,145 @@ test('a failed dirty upload is retried and blocks an older cloud pull', async ()
   fixture.controller.dispose();
 });
 
+test('a mutation during upload remains dirty and uploads the newer snapshot', async () => {
+  let localSongs = [{ name: 'First local song' }];
+  let releaseFirstUpload;
+  let signalFirstUpload;
+  let attempts = 0;
+  const firstUploadStarted = new Promise((resolve) => {
+    signalFirstUpload = resolve;
+  });
+  const firstUploadBlocked = new Promise((resolve) => {
+    releaseFirstUpload = resolve;
+  });
+  const fixture = createFixture({
+    licenseManager: {
+      syncSongs: async (songs) => {
+        attempts += 1;
+        fixture.calls.push(['push-songs', songs]);
+        if (attempts === 1) {
+          signalFirstUpload();
+          await firstUploadBlocked;
+        }
+        return { initialized: true, revision: 5 + attempts };
+      },
+    },
+    runtime: {
+      getCloudSongsSnapshot: () => localSongs,
+    },
+  });
+
+  fixture.emitLocal('songs');
+  await firstUploadStarted;
+  localSongs = [{ name: 'Newer local song' }];
+  fixture.emitLocal('songs');
+  releaseFirstUpload();
+  await fixture.controller.whenIdle();
+
+  assert.deepEqual(
+    fixture.calls
+      .filter((call) => call[0] === 'push-songs')
+      .map((call) => call[1]),
+    [[{ name: 'First local song' }], [{ name: 'Newer local song' }]],
+  );
+  fixture.controller.dispose();
+});
+
+test('a local song mutation during a cloud pull blocks the stale replacement', async () => {
+  let localSongs = [{ name: 'Original local song' }];
+  let releaseCloudSongs;
+  let signalCloudSongs;
+  const cloudSongsStarted = new Promise((resolve) => {
+    signalCloudSongs = resolve;
+  });
+  const cloudSongsBlocked = new Promise((resolve) => {
+    releaseCloudSongs = resolve;
+  });
+  const fixture = createFixture({
+    licenseManager: {
+      getCloudSongs: async () => {
+        signalCloudSongs();
+        await cloudSongsBlocked;
+        return {
+          songs: [{ title: 'Stale cloud song', artist: 'Cloud' }],
+          initialized: true,
+          revision: 3,
+        };
+      },
+    },
+    runtime: {
+      getCloudSongsSnapshot: () => localSongs,
+    },
+  });
+
+  const initialSync = fixture.controller.start();
+  await cloudSongsStarted;
+  localSongs = [{ name: 'New local song' }];
+  fixture.emitLocal('songs');
+  releaseCloudSongs();
+  await initialSync;
+  await fixture.controller.whenIdle();
+
+  assert.equal(
+    fixture.calls.some((call) => call[0] === 'apply-songs'),
+    false,
+  );
+  assert.deepEqual(
+    fixture.calls.find((call) => call[0] === 'push-songs')?.[1],
+    [{ name: 'New local song' }],
+  );
+  fixture.controller.dispose();
+});
+
+test('a local Bilibili mutation during a cloud pull blocks stale credentials', async () => {
+  let localCookie = 'DedeUserID=288594073; SESSDATA=local-new';
+  let releaseCloudCredentials;
+  let signalCloudCredentials;
+  const cloudCredentialsStarted = new Promise((resolve) => {
+    signalCloudCredentials = resolve;
+  });
+  const cloudCredentialsBlocked = new Promise((resolve) => {
+    releaseCloudCredentials = resolve;
+  });
+  const fixture = createFixture({
+    licenseManager: {
+      getBilibiliCredentialsInternal: async () => {
+        signalCloudCredentials();
+        await cloudCredentialsBlocked;
+        return {
+          initialized: true,
+          revision: 4,
+          loggedIn: true,
+          uid: '288594073',
+          cookie: 'DedeUserID=288594073; SESSDATA=stale-cloud',
+        };
+      },
+    },
+    bilibiliAuth: {
+      getAuthState: async () => ({ loggedIn: true, uid: 288594073 }),
+      getCookieHeader: async () => localCookie,
+    },
+  });
+
+  const initialSync = fixture.controller.start();
+  await cloudCredentialsStarted;
+  localCookie = 'DedeUserID=288594073; SESSDATA=local-latest';
+  fixture.emitLocal('bilibili');
+  releaseCloudCredentials();
+  await initialSync;
+  await fixture.controller.whenIdle();
+
+  assert.equal(
+    fixture.calls.some((call) => call[0] === 'apply-bilibili'),
+    false,
+  );
+  assert.deepEqual(
+    fixture.calls.find((call) => call[0] === 'push-bilibili'),
+    ['push-bilibili', 'DedeUserID=288594073; SESSDATA=local-latest'],
+  );
+  fixture.controller.dispose();
+});
+
 test('authorization loss stops polling and dispose removes both subscriptions', async () => {
   const fixture = createFixture();
   await fixture.controller.start();

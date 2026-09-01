@@ -31,6 +31,7 @@ function normalizeProcessedGiftEvent(input) {
   const num = Number(source.num);
   const unitPrice = Number(source.unitPrice);
   const totalPrice = Number(source.totalPrice);
+  const normalizedTotalPrice = normalizeMoney(totalPrice);
   const createdAtMs = Date.parse(String(source.createdAt || ''));
   if (
     (!giftId && !giftName) ||
@@ -38,7 +39,7 @@ function normalizeProcessedGiftEvent(input) {
     num < 1 ||
     !isValidMoney(unitPrice) ||
     !isValidMoney(totalPrice) ||
-    totalPrice <= 0 ||
+    normalizedTotalPrice <= 0 ||
     !Number.isFinite(createdAtMs)
   ) {
     throw invalidEvent();
@@ -54,7 +55,7 @@ function normalizeProcessedGiftEvent(input) {
       userName,
       num,
       unitPrice: normalizeMoney(unitPrice),
-      totalPrice: normalizeMoney(totalPrice),
+      totalPrice: normalizedTotalPrice,
       coinType: boundedText(source.coinType, 32),
       isBlindBox: source.isBlindBox === true,
       blindBoxName: boundedText(source.blindBoxName, 100),

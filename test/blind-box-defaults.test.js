@@ -10,6 +10,10 @@ const {
 } = require('../src/server/settings-bootstrap');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const settingsStoreModule = require('../src/storage/settings-store');
+const settingsRoutes = require('../src/server/routes/settings-routes');
+const {
+  normalizeGiftBlindBoxConfig,
+} = require('../src/bilibili/gift/blind-box-config');
 const defaultBlindBoxConfig = require('../src/storage/default-blind-box-config.json');
 const { DEFAULT_SETTINGS, migrateBlindBoxConfig } = settingsStoreModule;
 
@@ -155,6 +159,149 @@ test('blind-box migration does not duplicate existing default entries', () => {
   migrateBlindBoxConfig(db);
 
   assert.equal(updates.length, 0);
+});
+
+test('blind-box migration preserves an explicit empty configuration', () => {
+  for (const [storedValue, expectedUpdates] of [
+    ['', ['[]']],
+    ['[]', []],
+  ]) {
+    const updates = [];
+    const db = {
+      prepare(sql) {
+        if (sql.includes('SELECT value FROM settings')) {
+          return { get: () => ({ value: storedValue }) };
+        }
+        if (sql.includes('UPDATE settings SET value')) {
+          return {
+            run: (value) => updates.push(value),
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+
+    migrateBlindBoxConfig(db);
+    assert.deepEqual(updates, expectedUpdates);
+  }
+});
+
+test('an empty blind-box configuration survives repeated settings bootstrap', () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-empty-blind-box-bootstrap-'),
+  );
+  const databases = createDatabases({
+    dataDir,
+    defaultSettings: DEFAULT_SETTINGS,
+  });
+
+  try {
+    const first = prepareSettingsBootstrap(
+      databases.songDb,
+      settingsStoreModule,
+    );
+    first.settingsStore.setSetting('giftBlindBoxConfig', '[]');
+
+    const second = prepareSettingsBootstrap(
+      databases.songDb,
+      settingsStoreModule,
+    );
+    assert.equal(second.settingsStore.getSettings().giftBlindBoxConfig, '[]');
+
+    const third = prepareSettingsBootstrap(
+      databases.songDb,
+      settingsStoreModule,
+    );
+    assert.equal(third.settingsStore.getSettings().giftBlindBoxConfig, '[]');
+  } finally {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('settings route rejects malformed blind-box values and stores normalized JSON', async () => {
+  const writes = [];
+  const context = {
+    settings: {
+      defaults: DEFAULT_SETTINGS,
+      set(key, value) {
+        writes.push([key, value]);
+      },
+    },
+    bilibili: { configure() {} },
+    broadcastSnapshot() {},
+    cloudSync: { request() {} },
+    system: { getState: () => ({ settings: {} }) },
+  };
+
+  async function post(value) {
+    const response = {
+      writeHead(status) {
+        this.status = status;
+      },
+      end(payload) {
+        this.payload = JSON.parse(payload);
+      },
+    };
+    await settingsRoutes.routes['POST /api/settings'](
+      context,
+      { body: async () => ({ giftBlindBoxConfig: value }) },
+      response,
+    );
+    return response;
+  }
+
+  for (const invalid of [
+    '',
+    '{invalid',
+    [{ name: '空奖池', price: 1, outputs: [] }],
+    [{ name: '错误奖池', price: 1, outputs: [{ price: 2 }] }],
+  ]) {
+    const response = await post(invalid);
+    assert.equal(response.status, 400);
+  }
+  assert.deepEqual(writes, []);
+
+  const response = await post([
+    {
+      name: ' 测试盲盒 ',
+      price: 1.234,
+      outputs: [{ name: ' 测试礼物 ', price: 2.345 }],
+    },
+  ]);
+  assert.equal(response.status, 200);
+  assert.deepEqual(writes, [
+    [
+      'giftBlindBoxConfig',
+      JSON.stringify([
+        {
+          name: '测试盲盒',
+          price: 1.23,
+          outputs: [{ name: '测试礼物', price: 2.35 }],
+        },
+      ]),
+    ],
+  ]);
+});
+
+test('blind-box prices must remain positive after two-decimal normalization', () => {
+  const config = (price, outputPrice = 0.01) => [
+    {
+      name: '测试盲盒',
+      price,
+      outputs: [{ name: '测试礼物', price: outputPrice }],
+    },
+  ];
+
+  assert.throws(
+    () => normalizeGiftBlindBoxConfig(config(0.001)),
+    /INVALID_GIFT_BLIND_BOX_CONFIG/,
+  );
+  assert.throws(
+    () => normalizeGiftBlindBoxConfig(config(0.01, 0.001)),
+    /INVALID_GIFT_BLIND_BOX_CONFIG/,
+  );
+  assert.deepEqual(normalizeGiftBlindBoxConfig(config(0.01)), config(0.01));
 });
 
 test('event blind-box artwork uses RMB value folders', () => {

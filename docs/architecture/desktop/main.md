@@ -60,7 +60,7 @@
 
 `cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步并建立一条 main-process DeviceBearer SSE；事件只含 scope revision，收到更新 revision 后通过既有 GET 对账。SSE 正常结束或失败后按 1–60 秒有界退避重连，重连成功立即同步。系统 resume 在设备会话恢复后调用 `syncNow()`。可 `unref()` 的 10 分钟单次 timer 只作为代理假在线或漏通知的自动兜底，每轮结束（包括读取失败）都会重新调度。授权离开 `AUTHORIZED` 时 abort SSE 并停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
 
-三个 scope 各自跟踪 revision 和 dirty。成功的本地 mutation 先标记 dirty 并立即串行上传；失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；Bilibili scope 按本地登录态播种凭据或明确的未登录状态。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
+三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传；上传只在完成时代次仍未变化的情况下清除 dirty，因此上传期间出现的新修改会再上传一次。失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。songs/Bilibili 在等待远端内容后、写入本地 owner 前再次检查 dirty 与 revision，避免首次判断后发生的本地修改被旧拉取覆盖。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；Bilibili scope 按本地登录态播种凭据或明确的未登录状态。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
 
 ### 2.3 服务端权威礼物接收生命周期
 
@@ -154,8 +154,9 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒
 2. `licenseResumeController.unregister()` 移除 `powerMonitor` resume 监听(`license/license-resume.js`),防止关闭阶段再启动授权请求
 3. `remoteGiftController.dispose()` abort 礼物 SSE 并清理重连 timer；`cloudSyncController.dispose()` 停止同步 timer 并移除 listener，不把客户端退出解释为云端 monitor stop
 4. 5s 兜底定时器 → 释放单实例锁 + `app.exit(0)`(渲染进程卡死不阻塞退出)
-5. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
-6. 完成后释放授权维护 timer、清兜底定时器、释放单实例锁、`app.exit(0)`
+5. `Promise.all(controller.whenIdle())` 等待两个控制器已排队的 cursor、礼物投影和云同步操作结束；此时 runtime/SQLite 仍保持可用
+6. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
+7. 完成后释放授权维护 timer、清兜底定时器、释放单实例锁、`app.exit(0)`
 
 **播放状态冲刷握手**([playback-flush.js](../../../src/electron/playback-flush.js)):
 

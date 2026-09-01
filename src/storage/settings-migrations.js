@@ -228,18 +228,18 @@ function migrateBlindBoxConfig(db) {
   `,
     )
     .get();
-  const value = (row && row.value) || '';
+  if (!row) return;
+  const value = String(row.value ?? '');
   const defaultConfig = DEFAULT_SETTINGS.giftBlindBoxConfig;
 
-  // 空配置 → 写入新默认值
+  // 历史空字符串与 [] 都表示用户明确清空，不再恢复默认盲盒。
   if (value.trim() === '') {
-    if (!defaultConfig) return;
     const updatedAt = now();
     db.prepare(
       `
       UPDATE settings SET value = ?, updated_at = ? WHERE key = 'giftBlindBoxConfig'
     `,
-    ).run(defaultConfig, updatedAt);
+    ).run('[]', updatedAt);
     return;
   }
 
@@ -251,6 +251,7 @@ function migrateBlindBoxConfig(db) {
   } catch (_) {
     return;
   }
+  if (config.length === 0) return;
 
   let changed = false;
 

@@ -85,8 +85,11 @@ is the cookie-backed account identity required by server-side Bilibili requests.
   invalidations and reads authoritative cloud metadata immediately after
   authorization, resume, or stream reconnection. A 10-minute metadata poll is
   retained only as an automatic fault fallback.
-- Per-scope dirty flags serialize writes. A dirty local scope is retried and is
-  not overwritten by polling until its upload succeeds.
+- Per-scope dirty flags and local mutation generations serialize writes. A
+  dirty local scope is retried and is not overwritten by polling until its
+  latest upload succeeds. A mutation that occurs during an upload remains dirty
+  for another upload, and a remote payload is checked again after any awaited
+  content fetch before it may replace local state.
 - Cloud settings are written into the local settings store and reconfigure the
   local Bilibili runtime. Cloud songs replace the local library transactionally.
 - Cloud Bilibili cookies are imported into `persist:bilibili`, saved with
@@ -149,8 +152,9 @@ write. This limitation is visible in the specification and tests.
    renderer.
 5. Web song add/edit/delete and desktop song mutations advance a revision and
    converge to the same complete library, with no partial replacement.
-6. A pending transient desktop upload is retried and polling does not replace
-   that dirty scope with an older cloud snapshot.
+6. A pending transient desktop upload is retried, a mutation during upload is
+   uploaded again, and polling/content fetches do not replace that dirty scope
+   with an older cloud snapshot.
 7. Closing Electron stops only its local listener; the independently deployed
    server monitor remains eligible and running.
 8. An online Streamer web write emits only the changed scope revision and causes

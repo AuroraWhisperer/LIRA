@@ -25,7 +25,9 @@ function normalizePrice(value) {
   if (!Number.isFinite(price) || price <= 0 || price > MAX_PRICE) {
     throw invalidConfig();
   }
-  return Math.round(price * 100) / 100;
+  const normalized = Math.round(price * 100) / 100;
+  if (normalized <= 0) throw invalidConfig();
+  return normalized;
 }
 
 function normalizeGiftBlindBoxConfig(input) {

@@ -92,7 +92,7 @@ test('Electron startup restores authorized work and owns the system-resume liste
   assert.ok(resumeSync >= 0 && resumeGifts > resumeSync);
   assert.match(
     source,
-    /licenseResumeController\?\.unregister\(\)[^]*?remoteGiftController\?\.dispose\(\)/,
+    /licenseResumeController\?\.unregister\(\)[^]*?const controllersToDrain = \[remoteGiftController, cloudSyncController\][^]*?controller\.dispose\(\)/,
   );
 
   const preload = fs.readFileSync(

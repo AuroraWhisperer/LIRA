@@ -127,15 +127,6 @@
   }
 }
 
-@keyframes identity-sc-marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .identity-rule-text {
     transform: none !important;

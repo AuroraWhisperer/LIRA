@@ -104,7 +104,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 10 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
 
-Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/gift-events` 和 `GET /api/device/gift-events/stream`。传输 DTO 仅允许 `eventId/cursor/phase/gift` 及礼物展示字段(`giftId/giftName/userName/num/unitPrice/totalPrice/coinType/isBlindBox/blindBoxName/blindBoxPrice/blindProfit/createdAt`),不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。每组最多一条 `progress` 和一条 `final`;progress 的 cursor 为 null,补拉只返回 final 且单页最多 200 条。
+Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/gift-events` 和 `GET /api/device/gift-events/stream`。传输 DTO 仅允许 `eventId/cursor/phase/gift` 及礼物展示字段(`giftId/giftName/userName/num/unitPrice/totalPrice/coinType/isBlindBox/blindBoxName/blindBoxPrice/blindProfit/createdAt`),不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。金额规范化为两位小数，要求为正的 `totalPrice` 在规范化后仍必须大于 0；`0.001` 不得作为 `0` 进入本地账本。每组最多一条 `progress` 和一条 `final`;progress 的 cursor 为 null,补拉只返回 final 且单页最多 200 条。
 
 首次没有本地游标时只保存服务器最新 cursor,不回放历史;SSE 建立后立即按游标补拉以覆盖建立竞态。SSE 断线、进程崩溃或漏包时,final cursor pull 才是恢复真相源,progress 不补拉。main process 将事件交给 `importProcessedGiftEvent`→`importProcessedEvent`,本地幂等键为 `lira-server:<eventId>`;重复 final 只推进游标,不会重复统计、加班结算、历史/快照或 `gift:frame`。
 

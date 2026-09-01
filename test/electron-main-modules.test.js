@@ -6,6 +6,30 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
+test('desktop shutdown drains sync controllers before stopping the runtime', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.js'),
+    'utf8',
+  );
+  const start = source.indexOf("app.on('before-quit'");
+  const end = source.indexOf('// ---- startup ----', start);
+  const shutdown = source.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.match(
+    shutdown,
+    /const controllersToDrain = \[remoteGiftController, cloudSyncController\]/,
+  );
+  assert.match(
+    shutdown,
+    /Promise\.all\([\s\S]*?controller\.whenIdle\(\)[\s\S]*?\)[\s\S]*?\.then\([\s\S]*?lifecycleState[\s\S]*?\.shutdown\(\{ exitProcess: false \}\)/,
+  );
+  assert.ok(
+    shutdown.indexOf('controller.whenIdle()') <
+      shutdown.indexOf('lifecycleState.shutdown({ exitProcess: false })'),
+  );
+});
+
 test('desktop runtime adapts the legacy server API without changing calls', async () => {
   const { createDesktopRuntime } = require('../src/electron/desktop-runtime');
   const calls = [];

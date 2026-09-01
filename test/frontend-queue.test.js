@@ -367,20 +367,20 @@ test('identity queue colors Super Chats by price tier', () => {
   );
   const sandbox = {};
   vm.runInNewContext(
-    `${source}\nthis.renderIdentitySuperChat = renderIdentitySuperChat;\nthis.renderIdentitySuperChatRow = renderIdentitySuperChatRow;`,
+    `${source}\nthis.renderIdentitySuperChatRow = renderIdentitySuperChatRow;`,
     sandbox,
   );
 
   assert.match(
-    sandbox.renderIdentitySuperChat({ price: 99, message: '蓝色' }),
+    sandbox.renderIdentitySuperChatRow({ price: 99, message: '蓝色' }),
     /identity-sc-price identity-sc-price-blue/,
   );
   assert.match(
-    sandbox.renderIdentitySuperChat({ price: 100, message: '黄色' }),
+    sandbox.renderIdentitySuperChatRow({ price: 100, message: '黄色' }),
     /identity-sc-price identity-sc-price-yellow/,
   );
   assert.match(
-    sandbox.renderIdentitySuperChat({ price: 999, message: '黄色' }),
+    sandbox.renderIdentitySuperChatRow({ price: 999, message: '黄色' }),
     /identity-sc-price identity-sc-price-yellow/,
   );
   assert.match(

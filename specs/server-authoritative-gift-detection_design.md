@@ -110,6 +110,9 @@ The stream event name is `gift-event`. The JSON allowlist is:
 `progress` uses `cursor: null`; cursor pull returns final events only. The wire
 contract excludes UID, room ID, Streamer ID, command names, platform/combo IDs,
 raw packets, cookies, CSRF values, access tokens, and internal database IDs.
+Money fields are normalized to two decimals. A positive `totalPrice` must remain
+positive after that normalization, so a source value such as `0.001` is rejected
+instead of crossing the boundary as zero; `unitPrice` may still be zero.
 
 ### Electron main process
 

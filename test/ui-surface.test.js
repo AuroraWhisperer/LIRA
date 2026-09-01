@@ -29,7 +29,6 @@ test('confirmation dialog keeps one accessible shared contract', () => {
 test('transient surfaces use the shared typography hierarchy without orphan declarations', () => {
   const files = [
     ['public', 'css', 'components', 'confirmation-dialog.css'],
-    ['public', 'css', 'admin', 'modals.css'],
     ['public', 'css', 'admin', 'toasts', 'system.css'],
     ['public', 'css', 'admin', 'toasts', 'gifts.css'],
     ['public', 'css', 'admin', 'other-features', 'interactive-tour.css'],

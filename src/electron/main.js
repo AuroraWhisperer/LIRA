@@ -170,9 +170,11 @@ app.on('before-quit', function (event) {
   event.preventDefault();
   lifecycleState.gracefulQuitStarted = true;
   licenseResumeController?.unregister();
-  remoteGiftController?.dispose();
+  const controllersToDrain = [remoteGiftController, cloudSyncController].filter(
+    Boolean,
+  );
+  for (const controller of controllersToDrain) controller.dispose();
   remoteGiftController = null;
-  cloudSyncController?.dispose();
   cloudSyncController = null;
   writeLog('lifecycle', { event: 'QUIT_BEGIN' });
   lifecycleState.forceQuitTimer = setTimeout(function () {
@@ -180,8 +182,12 @@ app.on('before-quit', function (event) {
     app.releaseSingleInstanceLock();
     app.exit(0);
   }, 5000);
-  lifecycleState
-    .shutdown({ exitProcess: false })
+  Promise.all(
+    controllersToDrain.map((controller) => controller.whenIdle()),
+  )
+    .then(function () {
+      return lifecycleState.shutdown({ exitProcess: false });
+    })
     .catch(function (error) {
       writeLog('shutdown-error', error);
       console.warn('Shutdown failed:', error.message);

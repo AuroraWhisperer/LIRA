@@ -221,6 +221,14 @@ test('processed importer rejects malformed or privacy-sensitive transport shapes
         }),
       /INVALID_PROCESSED_GIFT_EVENT/,
     );
+    assert.throws(
+      () =>
+        fixture.detection.importProcessedEvent({
+          ...makeEvent('final', 1),
+          gift: { ...makeEvent('final', 1).gift, totalPrice: 0.001 },
+        }),
+      /INVALID_PROCESSED_GIFT_EVENT/,
+    );
 
     const imported = fixture.detection.importProcessedEvent({
       ...makeEvent('final', 13),

@@ -23,6 +23,7 @@ function createCloudSyncController(options = {}) {
   );
   const revisions = { settings: null, songs: null, bilibili: null };
   const dirty = new Set();
+  const dirtyGenerations = { settings: 0, songs: 0, bilibili: 0 };
   let timer = null;
   let disposed = false;
   let active = false;
@@ -159,6 +160,7 @@ function createCloudSyncController(options = {}) {
 
   async function flushScope(scope) {
     if (!dirty.has(scope) || !isAuthorized()) return false;
+    const dirtyGeneration = dirtyGenerations[scope];
     if (scope === 'settings') {
       const result = await licenseManager.updateCloudSettings(
         runtime.getCloudSettingsSnapshot(),
@@ -180,7 +182,7 @@ function createCloudSyncController(options = {}) {
       }
       revisions.bilibili = Number(result?.revision) || revisions.bilibili;
     }
-    dirty.delete(scope);
+    if (dirtyGenerations[scope] === dirtyGeneration) dirty.delete(scope);
     return true;
   }
 
@@ -197,7 +199,7 @@ function createCloudSyncController(options = {}) {
   }
 
   async function seedScope(scope) {
-    dirty.add(scope);
+    markScopeDirty(scope);
     try {
       await flushScope(scope);
     } catch (error) {
@@ -211,6 +213,11 @@ function createCloudSyncController(options = {}) {
     const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
     return current === null || incoming > current;
+  }
+
+  function markScopeDirty(scope) {
+    dirtyGenerations[scope] += 1;
+    dirty.add(scope);
   }
 
   async function reconcileSettings(state) {
@@ -236,13 +243,15 @@ function createCloudSyncController(options = {}) {
     }
     if (!shouldApply('songs', state.revision)) return;
     const result = await licenseManager.getCloudSongs();
-    await runtime.replaceCloudSongsSnapshot(
-      Array.isArray(result?.songs) ? result.songs : [],
-    );
-    revisions.songs = Math.max(
+    const cloudRevision = Math.max(
       Number(state.revision) || 0,
       Number(result?.revision) || 0,
     );
+    if (!shouldApply('songs', cloudRevision)) return;
+    await runtime.replaceCloudSongsSnapshot(
+      Array.isArray(result?.songs) ? result.songs : [],
+    );
+    revisions.songs = cloudRevision;
   }
 
   async function reconcileBilibili(state) {
@@ -252,15 +261,17 @@ function createCloudSyncController(options = {}) {
     }
     if (!shouldApply('bilibili', state.revision)) return;
     const result = await licenseManager.getBilibiliCredentialsInternal();
+    const cloudRevision = Math.max(
+      Number(state.revision) || 0,
+      Number(result?.revision) || 0,
+    );
+    if (!shouldApply('bilibili', cloudRevision)) return;
     if (result?.loggedIn && result.cookie) {
       await bilibiliAuth.replaceCookieHeader(result.cookie);
     } else {
       await bilibiliAuth.logout();
     }
-    revisions.bilibili = Math.max(
-      Number(state.revision) || 0,
-      Number(result?.revision) || 0,
-    );
+    revisions.bilibili = cloudRevision;
   }
 
   async function runSync() {
@@ -298,7 +309,7 @@ function createCloudSyncController(options = {}) {
 
   function markDirty(scope) {
     if (disposed || !VALID_SCOPES.has(scope)) return;
-    dirty.add(scope);
+    markScopeDirty(scope);
     if (isAuthorized()) {
       active = true;
       syncNow().catch((error) => {

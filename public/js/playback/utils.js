@@ -218,42 +218,6 @@ export function renderArtwork(item, options = {}) {
 }
 
 /**
- * 标准化保存的待确认点歌请求
- * @param {Object} item - 待确认点歌项
- * @returns {Object|null} 标准化后的对象，无效则返回 null
- */
-export function normalizeSavedPendingRequest(item) {
-  if (!item || !item.track) return null;
-  return {
-    id: item.id || `pending:${Date.now()}:${Math.random()}`,
-    songName: item.songName || '',
-    artist: item.artist || '',
-    requesterName: item.requesterName || '观众',
-    score: Math.max(0, Number(item.score) || 0),
-    reasons: Array.isArray(item.reasons) ? item.reasons : [],
-    track: {
-      ...item.track,
-      objectUrl: '',
-    },
-  };
-}
-
-/**
- * 标准化保存的轨道数据（移除 objectUrl）
- * @param {Object} track - 轨道对象
- * @returns {Object} 标准化后的轨道对象
- */
-export function normalizeSavedTrack(track) {
-  return {
-    ...track,
-    objectUrl: '',
-    fileName: track.fileName || '',
-    filePath: track.filePath || '',
-    fileMissing: track.fileMissing || false,
-  };
-}
-
-/**
  * 根据轨道信息选择全屏播放器背景主题（1-30）
  * @param {Object} track - 轨道对象
  * @param {number} themeCount - 主题总数，默认 30

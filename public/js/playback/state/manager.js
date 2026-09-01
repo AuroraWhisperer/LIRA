@@ -176,15 +176,6 @@ export function normalizeState(state) {
 }
 
 /**
- * 深拷贝状态对象
- * @param {Object} state - 源状态
- * @returns {Object} 拷贝后的状态
- */
-export function cloneState(state) {
-  return JSON.parse(JSON.stringify(state));
-}
-
-/**
  * 状态管理器类
  */
 export class StateManager {

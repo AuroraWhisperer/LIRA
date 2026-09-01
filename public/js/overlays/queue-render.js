@@ -209,32 +209,6 @@ export function renderIdentityQueue(
   scheduleIdentityRuleScroll(content);
 }
 
-export function renderIdentitySuperChats(superChats) {
-  const items = (Array.isArray(superChats) ? superChats : []).filter(
-    (item) => Number(item.price || 0) >= 2,
-  );
-  if (items.length === 0) return '';
-  return `
-    <div class="identity-sc-list">
-      ${items.map(renderIdentitySuperChat).join('')}
-    </div>
-  `;
-}
-
-export function renderIdentitySuperChat(item) {
-  const message = String(item.message || '').trim();
-  const shouldScroll = Array.from(message).length > 24;
-  const priceClass = superChatPriceClass(item.price);
-  return `
-    <div class="identity-sc-row">
-      <span class="identity-sc-price ${priceClass}">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
-      <span class="identity-sc-message ${shouldScroll ? 'is-scrolling' : ''}">
-        <span>${escapeHtml(message || '醒目留言')}</span>
-      </span>
-    </div>
-  `;
-}
-
 export function renderIdentitySuperChatRow(item) {
   const message = String(item.message || '').trim();
   const priceClass = superChatPriceClass(item.price);

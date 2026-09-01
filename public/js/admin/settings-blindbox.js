@@ -110,7 +110,7 @@ export function createBlindboxSettings({
         if (index < 0 || index >= config.length) return;
         const removed = config[index];
         config.splice(index, 1);
-        const newRaw = config.length ? JSON.stringify(config, null, 2) : '';
+        const newRaw = JSON.stringify(config, null, 2);
         textarea.value = newRaw;
         await saveSettings({ giftBlindBoxConfig: newRaw });
         toast(`已移除盲盒「${removed.name || '未命名'}」`);
@@ -130,16 +130,14 @@ export function createBlindboxSettings({
       .getElementById('giftBlindBoxSaveBtn')
       .addEventListener('click', async () => {
         const textarea = documentRef.getElementById('giftBlindBoxConfig');
-        let raw = textarea.value.trim();
-        if (raw) {
-          try {
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
-            raw = JSON.stringify(parsed);
-          } catch (error) {
-            toast('盲盒配置 JSON 格式错误：' + error.message);
-            return;
-          }
+        let raw = textarea.value.trim() || '[]';
+        try {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
+          raw = JSON.stringify(parsed);
+        } catch (error) {
+          toast('盲盒配置 JSON 格式错误：' + error.message);
+          return;
         }
         await saveSettings({ giftBlindBoxConfig: raw });
         toast('盲盒配置已保存');

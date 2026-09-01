@@ -28,10 +28,6 @@ export const calculateTooltipPosition = calculateTooltipPositionImpl;
 
 const TOUR_COMPLETED_KEY = 'liraTourCompleted';
 
-function getById(document, id) {
-  return document.getElementById(id);
-}
-
 export function createInteractiveTourController(deps = {}) {
   const document = deps.document || globalThis.document;
   const window = deps.window || globalThis.window || {};
