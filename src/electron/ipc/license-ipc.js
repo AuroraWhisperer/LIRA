@@ -1,5 +1,6 @@
 'use strict';
 
+const { isDnsHostname } = require('../../shared/remote-url-policy');
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const SAFE_LICENSE_STATES = new Set([
@@ -321,11 +322,9 @@ function sanitizePublicUrl(value) {
   if (typeof value !== 'string') return undefined;
   try {
     const parsed = new URL(value);
-    const allowedProtocol =
-      parsed.protocol === 'https:' ||
-      (parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1');
     if (
-      !allowedProtocol ||
+      parsed.protocol !== 'https:' ||
+      !isDnsHostname(parsed.hostname) ||
       parsed.username ||
       parsed.password ||
       hasCredentialQuery(parsed)

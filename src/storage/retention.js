@@ -75,13 +75,13 @@ function applyRetentionPolicies(databases, options = {}) {
     if (dryRun) {
       // Dry-run: 只统计数量
       result.giftEventsDeleted = maintenance.countGiftsByPredicate(
-        'created_at < ?',
+        'source_id IS NULL AND created_at < ?',
         [threshold],
       );
     } else {
       // 实际删除：使用维护存储协调删除，确保 pending settlements 被标记为 ignored
       const deleteResult = maintenance.deleteGiftsByPredicate(
-        'created_at < ?',
+        'source_id IS NULL AND created_at < ?',
         [threshold],
         'retention:expired',
         now(),

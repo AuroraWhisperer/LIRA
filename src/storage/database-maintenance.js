@@ -140,42 +140,16 @@ function clearPlaybackData(musicDb) {
   }
 }
 
-function clearGiftData(giftDb) {
+function clearGiftData(giftDb, options = {}) {
   const timestamp = now();
+  const sourceId = normalizeOptionalSourceId(options.sourceId);
 
   giftDb.exec('BEGIN IMMEDIATE');
   try {
-    // 第一步：将所有 pending settlements 标记为 ignored
-    giftDb
-      .prepare(
-        `
-      UPDATE overtime_settlements
-      SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
-          last_error = ?, updated_at = ?
-      WHERE status = 'pending'
-    `,
-      )
-      .run('manual:clear-gifts', timestamp);
-
-    // 第二步：删除所有礼物事件
-    const giftCount = countRows(giftDb, 'gift_events');
-    giftDb.prepare('DELETE FROM gift_events').run();
-
-    // 第三步：删除所有结算记录（包括 applied/ignored 审计记录）
-    // 这是用户显式的"清空全部礼物数据"操作
-    giftDb.prepare('DELETE FROM overtime_settlements').run();
-
-    // 清理自增序列
-    giftDb
-      .prepare(
-        `
-      DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
-    `,
-      )
-      .run();
+    const result = clearGiftScopeInTransaction(giftDb, sourceId, timestamp);
 
     giftDb.exec('COMMIT');
-    return { gifts: giftCount };
+    return result;
   } catch (error) {
     giftDb.exec('ROLLBACK');
     throw error;
@@ -187,7 +161,15 @@ function clearGiftData(giftDb) {
  * Phase 1: 开启所有事务并执行 DELETE，但不提交
  * Phase 2: 依次提交所有事务；如有失败则返回部分失败状态
  */
-function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
+function clearAllData(
+  songDb,
+  superChatDb,
+  giftDb,
+  musicDb,
+  checkinDb,
+  options = {},
+) {
+  const giftSourceId = normalizeOptionalSourceId(options.sourceId);
   const counts = {
     songs: 0,
     categories: 0,
@@ -207,6 +189,7 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
     playQueueState: 0,
     checkins: 0,
   };
+  let giftProjectionReset = null;
 
   const databases = [
     { name: 'songDb', db: songDb },
@@ -293,35 +276,15 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
   if (beginErrors.length === 0) {
     try {
       giftDb.exec('BEGIN IMMEDIATE');
-      counts.gifts = countRows(giftDb, 'gift_events');
-      counts.overtimeSettlements = countRows(giftDb, 'overtime_settlements');
       const timestamp = now();
-
-      // 将所有 pending settlements 标记为 ignored
-      giftDb
-        .prepare(
-          `
-        UPDATE overtime_settlements
-        SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
-            last_error = ?, updated_at = ?
-        WHERE status = 'pending'
-      `,
-        )
-        .run('manual:clear-all', timestamp);
-
-      // 删除所有礼物事件
-      giftDb.prepare('DELETE FROM gift_events').run();
-
-      // 手动清空全部操作：删除所有结算记录（包括审计记录）
-      giftDb.prepare('DELETE FROM overtime_settlements').run();
-
-      giftDb
-        .prepare(
-          `
-        DELETE FROM sqlite_sequence WHERE name IN ('gift_events', 'overtime_settlements')
-      `,
-        )
-        .run();
+      const giftResult = clearGiftScopeInTransaction(
+        giftDb,
+        giftSourceId,
+        timestamp,
+      );
+      counts.gifts = giftResult.gifts;
+      counts.overtimeSettlements = giftResult.overtimeSettlements;
+      giftProjectionReset = giftResult.projectionReset;
     } catch (error) {
       beginErrors.push({ db: 'giftDb', phase: 'delete', error: error.message });
       rollbackAll();
@@ -415,6 +378,7 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
       rollbackFailed,
       error: `Commit failed at ${failed[0]}`,
       deletedCounts: counts,
+      giftProjectionReset,
       results: commitResults,
     };
   }
@@ -456,8 +420,107 @@ function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb) {
     preserved: CLEAR_ALL_MATRIX.preserve,
     deletedCounts: counts,
     totalDeleted: Object.values(counts).reduce((a, b) => a + b, 0),
+    giftProjectionReset,
     recreated: ['song_categories', 'overtime_machine_state'],
   };
+}
+
+function clearGiftScopeInTransaction(giftDb, sourceId, timestamp) {
+  if (sourceId === null) {
+    return { gifts: 0, overtimeSettlements: 0, projectionReset: null };
+  }
+  const targetSql = 'source_id = ?';
+  const targetParams = [sourceId];
+  const reset = giftDb
+    .prepare(
+      `
+        UPDATE gift_sync_state
+        SET sync_epoch = NULL, final_cursor = NULL,
+            bootstrap_complete = 0, bootstrap_page_token = NULL,
+            bootstrap_recovery_cursor = NULL,
+            bootstrap_sync_epoch = NULL,
+            projection_generation = projection_generation + 1,
+            last_validated_at = NULL, updated_at = ?
+        WHERE source_id = ?
+      `,
+    )
+    .run(timestamp, sourceId);
+  if (Number(reset.changes) !== 1) throw new Error('GIFT_SOURCE_NOT_FOUND');
+  const state = giftDb
+    .prepare(
+      `
+        SELECT projection_generation
+        FROM gift_sync_state
+        WHERE source_id = ?
+      `,
+    )
+    .get(sourceId);
+  const projectionReset = Object.freeze({
+    sourceId,
+    projectionGeneration: Number(state.projection_generation),
+  });
+  const giftCount = Number(
+    giftDb
+      .prepare(
+        `SELECT COUNT(*) AS count FROM gift_events WHERE ${targetSql}`,
+      )
+      .get(...targetParams)?.count || 0,
+  );
+  const settlementCount = Number(
+    giftDb
+      .prepare(
+        `
+        SELECT COUNT(*) AS count
+        FROM overtime_settlements
+        WHERE gift_event_id IN (
+          SELECT id FROM gift_events WHERE ${targetSql}
+        )
+      `,
+      )
+      .get(...targetParams)?.count || 0,
+  );
+
+  giftDb
+    .prepare(
+      `
+      DELETE FROM overtime_settlements
+      WHERE gift_event_id IN (
+        SELECT id FROM gift_events WHERE ${targetSql}
+      )
+    `,
+    )
+    .run(...targetParams);
+  giftDb
+    .prepare(`DELETE FROM gift_events WHERE ${targetSql}`)
+    .run(...targetParams);
+
+  if (countRows(giftDb, 'gift_events') === 0) {
+    giftDb
+      .prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'")
+      .run();
+  }
+  if (countRows(giftDb, 'overtime_settlements') === 0) {
+    giftDb
+      .prepare(
+        "DELETE FROM sqlite_sequence WHERE name = 'overtime_settlements'",
+      )
+      .run();
+  }
+
+  return {
+    gifts: giftCount,
+    overtimeSettlements: settlementCount,
+    projectionReset,
+  };
+}
+
+function normalizeOptionalSourceId(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const sourceId = Number(value);
+  if (!Number.isSafeInteger(sourceId) || sourceId < 1) {
+    throw new Error('INVALID_GIFT_SOURCE');
+  }
+  return sourceId;
 }
 
 function countRows(db, tableName) {

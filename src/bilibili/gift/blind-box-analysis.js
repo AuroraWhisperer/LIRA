@@ -6,6 +6,7 @@ const {
   normalizeMoney,
   normalizeSignedMoney,
 } = require('../../shared/utils');
+const { resolveGiftSourceScope } = require('./source-scope');
 
 const BLIND_BOX_ANALYSIS_VIEWS = new Set(['users', 'boxes', 'records']);
 const BLIND_BOX_ANALYSIS_SORTS = {
@@ -185,6 +186,7 @@ function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
     nowDate.getMonth(),
     nowDate.getDate() + 1,
   ).toISOString();
+  const sourceScope = resolveGiftSourceScope(context);
   let sql = `
     SELECT id, gift_name, user_name, uid, blind_box_name, blind_box_price,
            total_price, blind_profit, num, created_at
@@ -196,8 +198,9 @@ function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
       AND blind_profit IS NOT NULL
       AND created_at >= ?
       AND created_at < ?
+      AND ${sourceScope.sql}
   `;
-  const params = [todayStart, tomorrowStart];
+  const params = [todayStart, tomorrowStart, ...sourceScope.params];
   const normalizedBoxName = cleanText(boxName);
   if (normalizedBoxName) {
     sql += ` AND blind_box_name = ?`;

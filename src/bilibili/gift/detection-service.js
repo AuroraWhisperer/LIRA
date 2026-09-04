@@ -2,7 +2,8 @@
 
 const { normalizeGiftInput, normalizeGiftRow } = require('./normalizer');
 const {
-  normalizeProcessedGiftEvent,
+  canonicalizeProcessedGiftEvent,
+  canonicalizeProcessedGiftHistoryRecord,
 } = require('../../shared/processed-gift-contract');
 const {
   extractComboRootKey,
@@ -131,20 +132,31 @@ function createGiftDetectionService(context, options = {}) {
     return row;
   }
 
-  function importProcessedEvent(input) {
+  function importProcessedEvent(input, sourceId, importOptions = {}) {
     if (disposed) return null;
 
-    const event = normalizeProcessedGiftEvent(input);
+    const capturedSourceId = requireRemoteSource(giftDb, sourceId);
+    const event = canonicalizeProcessedGiftEvent(input);
     const platformId = `lira-server:${event.eventId}`;
     let row = giftDb
       .prepare(
         `
       SELECT * FROM gift_events
-      WHERE platform_id = ? AND cmd = ?
+      WHERE source_id = ? AND platform_id = ? AND cmd = ?
       ORDER BY id ASC LIMIT 1
     `,
       )
-      .get(platformId, REMOTE_GIFT_COMMAND);
+      .get(capturedSourceId, platformId, REMOTE_GIFT_COMMAND);
+    if (
+      (row?.status === 'deleted' || row?.detection_status === 'final') &&
+      event.phase === 'final' &&
+      !isMatchingHistoryProjection(row, {
+        eventId: event.eventId,
+        gift: event.gift,
+      })
+    ) {
+      throw new Error('PROCESSED_GIFT_EVENT_CONFLICT');
+    }
     if (row?.status === 'deleted' || row?.detection_status === 'final') {
       return normalizeGiftRow(row);
     }
@@ -157,6 +169,7 @@ function createGiftDetectionService(context, options = {}) {
       uid: '',
       rawJson: '',
     });
+    gift.giftId = event.gift.giftId;
     gift.blindProfit = event.gift.blindProfit;
     if (!row) {
       const giftStatisticsEligible =
@@ -169,22 +182,104 @@ function createGiftDetectionService(context, options = {}) {
       // projection so the remote cursor can advance without losing a final
       // event merely because local consumers are currently disabled.
       row = insertProgressGift(giftDb, gift, {
+        sourceId: capturedSourceId,
         detectedAtMs,
         giftStatisticsEligible,
         overtimeEpoch,
       });
       if (event.phase === 'progress') dispatch(row, 'progress');
     } else {
-      updateProcessedGift(giftDb, row.id, gift, detectedAtMs);
+      updateProcessedGift(
+        giftDb,
+        row.id,
+        capturedSourceId,
+        gift,
+        detectedAtMs,
+      );
       row = readGift(giftDb, row.id);
     }
 
     if (event.phase === 'progress') return row;
-    updateProcessedGift(giftDb, row.id, gift, detectedAtMs);
-    return finalizeDetected(row.id, detectedAtMs);
+    updateProcessedGift(
+      giftDb,
+      row.id,
+      capturedSourceId,
+      gift,
+      detectedAtMs,
+    );
+    return finalizeDetected(row.id, detectedAtMs, importOptions);
   }
 
-  function finalizeDetected(giftEventId, finalizedAtMs = Math.floor(nowMs())) {
+  function importProcessedHistoryRecord(input, sourceId) {
+    if (disposed) return null;
+
+    const capturedSourceId = requireRemoteSource(giftDb, sourceId);
+    const record = canonicalizeProcessedGiftHistoryRecord(input);
+    const platformId = `lira-server:${record.eventId}`;
+    const existing = giftDb
+      .prepare(
+        `
+        SELECT * FROM gift_events
+        WHERE source_id = ? AND platform_id = ? AND cmd = ?
+        ORDER BY id ASC LIMIT 1
+      `,
+      )
+      .get(capturedSourceId, platformId, REMOTE_GIFT_COMMAND);
+    if (existing) {
+      if (!isMatchingHistoryProjection(existing, record)) {
+        throw new Error('PROCESSED_GIFT_HISTORY_CONFLICT');
+      }
+      return normalizeGiftRow(existing);
+    }
+
+    const gift = record.gift;
+    const createdAtMs = Date.parse(gift.createdAt);
+    const result = giftDb
+      .prepare(
+        `
+        INSERT INTO gift_events (
+          source_id, platform_id, cmd, gift_id, gift_name,
+          uid, user_name, num, unit_price, total_price, coin_type,
+          is_blind_box, blind_box_name, blind_box_price, blind_profit,
+          counted_in_sprint, detection_status,
+          first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
+          gift_stats_eligible, gift_stats_delivered, overtime_epoch,
+          status, raw_json, created_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          0, 'final', ?, ?, ?, 0, 1, 0, 'active', '', ?, ?
+        )
+      `,
+      )
+      .run(
+        capturedSourceId,
+        platformId,
+        REMOTE_GIFT_COMMAND,
+        gift.giftId,
+        gift.giftName,
+        gift.userName,
+        gift.num,
+        gift.unitPrice,
+        gift.totalPrice,
+        gift.coinType,
+        gift.isBlindBox ? 1 : 0,
+        gift.blindBoxName,
+        gift.blindBoxPrice,
+        gift.blindProfit,
+        createdAtMs,
+        createdAtMs,
+        createdAtMs,
+        gift.createdAt,
+        gift.createdAt,
+      );
+    return readGift(giftDb, result.lastInsertRowid);
+  }
+
+  function finalizeDetected(
+    giftEventId,
+    finalizedAtMs = Math.floor(nowMs()),
+    finalizeOptions = {},
+  ) {
     const id = Number(giftEventId) || 0;
     if (id <= 0) return null;
     clearGiftTimer(id);
@@ -201,8 +296,15 @@ function createGiftDetectionService(context, options = {}) {
     const row = readGift(giftDb, id);
     if (!row || Number(result.changes) === 0) return row;
 
-    dispatch(row, 'final');
-    if (onGiftFinalized) onGiftFinalized(row);
+    const deliverFinal = () => {
+      dispatch(row, 'final');
+      if (onGiftFinalized) onGiftFinalized(row);
+    };
+    if (typeof finalizeOptions.registerAfterCommit === 'function') {
+      finalizeOptions.registerAfterCommit(deliverFinal);
+    } else {
+      deliverFinal();
+    }
     return row;
   }
 
@@ -343,6 +445,7 @@ function createGiftDetectionService(context, options = {}) {
   return {
     detect,
     importProcessedEvent,
+    importProcessedHistoryRecord,
     recover,
     flushPending,
     finalizeDetected,
@@ -351,7 +454,7 @@ function createGiftDetectionService(context, options = {}) {
   };
 }
 
-function updateProcessedGift(giftDb, id, gift, detectedAtMs) {
+function updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs) {
   giftDb
     .prepare(
       `
@@ -360,7 +463,7 @@ function updateProcessedGift(giftDb, id, gift, detectedAtMs) {
         unit_price = ?, total_price = ?, coin_type = ?, is_blind_box = ?,
         blind_box_name = ?, blind_box_price = ?, blind_profit = ?,
         last_platform_at_ms = ?, raw_json = '', updated_at = ?
-    WHERE id = ? AND detection_status = 'progress'
+    WHERE id = ? AND source_id = ? AND detection_status = 'progress'
   `,
     )
     .run(
@@ -378,6 +481,7 @@ function updateProcessedGift(giftDb, id, gift, detectedAtMs) {
       detectedAtMs,
       gift.createdAt,
       Number(id),
+      Number(sourceId),
     );
 }
 
@@ -386,7 +490,7 @@ function insertProgressGift(giftDb, gift, eligibility) {
     .prepare(
       `
     INSERT INTO gift_events (
-      platform_id, cmd, gift_id, gift_name,
+      source_id, platform_id, cmd, gift_id, gift_name,
       uid, user_name, num, unit_price, total_price, coin_type,
       is_blind_box, blind_box_name, blind_box_price, blind_profit,
       counted_in_sprint, detection_status,
@@ -394,12 +498,13 @@ function insertProgressGift(giftDb, gift, eligibility) {
       gift_stats_eligible, gift_stats_delivered, overtime_epoch,
       status, raw_json, created_at, updated_at
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
       0, 'progress', ?, ?, 0, ?, 0, ?, 'active', ?, ?, ?
     )
   `,
     )
     .run(
+      eligibility.sourceId ?? null,
       gift.platformId,
       gift.cmd,
       gift.giftId,
@@ -423,6 +528,44 @@ function insertProgressGift(giftDb, gift, eligibility) {
       gift.createdAt,
     );
   return readGift(giftDb, result.lastInsertRowid);
+}
+
+function requireRemoteSource(giftDb, sourceId) {
+  const id = Number(sourceId);
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !giftDb.prepare('SELECT 1 FROM gift_sources WHERE id = ?').get(id)
+  ) {
+    throw new Error('REMOTE_GIFT_SOURCE_REQUIRED');
+  }
+  return id;
+}
+
+function isMatchingHistoryProjection(row, record) {
+  if (row.detection_status !== 'final' || row.status !== 'active') return false;
+  try {
+    const existing = canonicalizeProcessedGiftHistoryRecord({
+      eventId: record.eventId,
+      gift: {
+        giftId: row.gift_id,
+        giftName: row.gift_name,
+        userName: row.user_name,
+        num: row.num,
+        unitPrice: row.unit_price,
+        totalPrice: row.total_price,
+        coinType: row.coin_type,
+        isBlindBox: Number(row.is_blind_box) === 1,
+        blindBoxName: row.blind_box_name,
+        blindBoxPrice: row.blind_box_price,
+        blindProfit: row.blind_profit,
+        createdAt: row.created_at,
+      },
+    });
+    return JSON.stringify(existing) === JSON.stringify(record);
+  } catch {
+    return false;
+  }
 }
 
 function isPlatformFinal(gift, comboKey) {

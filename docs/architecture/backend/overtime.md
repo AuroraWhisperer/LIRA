@@ -57,7 +57,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 ### 1.5 服务器全局礼物目录联动
 
-目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、盲盒和当前账号可用背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog` 读取全局 active 礼物代码，但该快照只供弹窗“搜索服务器礼物”使用；生产使用 HTTPS，测试 SSH 隧道可显式使用 `http://127.0.0.1:<端口>`。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
+目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、盲盒和当前账号可用背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog` 读取全局 active 礼物代码，但该快照只供弹窗“搜索服务器礼物”使用；入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
 
 `remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog.json` 保存 ETag、同步版本、更新时间和规范化礼物数组。后台刷新和 `POST /api/overtime/gifts/server/search` 使用 `If-None-Match` 与单飞，`304` 只更新时间，网络或上游失败保留旧快照。搜索按名称/ID 返回至多 100 项，并把命中的服务器 `/gift-media/images/<basename>` 下载到 `data/overtime-gift-images/`；Admin 只接收本地 `/overtime-gift-images/<basename>`，避免跨 origin CORP 限制并支持离线复用。单图缺失或下载失败只显示占位图。
 

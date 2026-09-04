@@ -15,6 +15,9 @@ function clearRoute(clear, reason) {
       return;
     }
     const result = clear(context);
+    if (reason === 'database:clear-gifts' && result?.projectionReset) {
+      triggerGiftRebuild(context);
+    }
     context.broadcastSnapshot(reason);
     if (reason === 'database:clear') context.cloudSync?.request?.('songs');
     sendJson(res, 200, { ok: true, data: result });
@@ -89,6 +92,12 @@ const routes = {
 
     // 处理部分失败：某些数据库提交成功，某些失败
     if (result.partial === true) {
+      if (
+        result.giftProjectionReset &&
+        result.committed?.includes('giftDb')
+      ) {
+        triggerGiftRebuild(context);
+      }
       sendJson(res, 500, {
         ok: false,
         partial: true,
@@ -99,7 +108,10 @@ const routes = {
     }
 
     // 成功后重置内存状态
-    if (result.cleared) resumeClearAllWriters(context);
+    if (result.cleared) {
+      resumeClearAllWriters(context);
+      if (result.giftProjectionReset) triggerGiftRebuild(context);
+    }
 
     context.broadcastSnapshot('database:clear-all');
     context.cloudSync?.request?.('songs');
@@ -130,5 +142,15 @@ const routes = {
     sendJson(res, 200, { ok: true, data: result });
   },
 };
+
+function triggerGiftRebuild(context) {
+  try {
+    const pending = context.giftSync?.rebuild?.();
+    pending?.catch?.(() => false);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 module.exports = { prefixes, routes };

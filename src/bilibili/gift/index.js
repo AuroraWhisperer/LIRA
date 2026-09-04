@@ -11,6 +11,7 @@ const {
   resetGiftSprintProgress,
   getGiftSnapshot,
   getGiftHistory,
+  getGiftStatistics,
   getGiftSprintSnapshot,
   searchGifts,
   clearRecentGifts,
@@ -22,6 +23,11 @@ const {
 const { normalizeGiftRow, normalizeGiftInput } = require('./normalizer');
 
 function createGiftService(context, options = {}) {
+  let activeGiftSource = null;
+  const giftContext = {
+    ...context,
+    getActiveGiftSource: () => activeGiftSource,
+  };
   const statisticsConsumer =
     options.statisticsConsumer ||
     createGiftStatisticsConsumer({
@@ -33,23 +39,54 @@ function createGiftService(context, options = {}) {
       consumers: [statisticsConsumer, ...(options.consumers || [])],
       onError: options.onConsumerError,
     });
-  const detectionService = createGiftDetectionService(context, {
+  const detectionService = createGiftDetectionService(giftContext, {
     ...options,
     consumerRegistry,
   });
   return {
     ...detectionService,
     add: detectionService.detect,
-    getSnapshot: () => getGiftSnapshot(context),
-    getHistory: (queryOptions) => getGiftHistory(context, queryOptions),
-    getSprintSnapshot: () => getGiftSprintSnapshot(context),
-    getBlindBoxStats: (queryOptions) => getBlindBoxStats(context, queryOptions),
+    getSnapshot: () => getGiftSnapshot(giftContext),
+    getHistory: (queryOptions) => getGiftHistory(giftContext, queryOptions),
+    getStatistics: (queryOptions) =>
+      getGiftStatistics(giftContext, queryOptions),
+    getSprintSnapshot: () => getGiftSprintSnapshot(giftContext),
+    getBlindBoxStats: (queryOptions) =>
+      getBlindBoxStats(giftContext, queryOptions),
     getBlindBoxAnalysis: (queryOptions) =>
-      getBlindBoxAnalysis(context, queryOptions),
-    resetSprint: () => resetGiftSprintProgress(context),
-    search: (queryOptions) => searchGifts(context, queryOptions || {}),
-    clearRecent: () => clearRecentGifts(context),
+      getBlindBoxAnalysis(giftContext, queryOptions),
+    resetSprint: () => resetGiftSprintProgress(giftContext),
+    search: (queryOptions) => searchGifts(giftContext, queryOptions || {}),
+    clearRecent: () => clearRecentGifts(giftContext),
+    setActiveSource(source) {
+      activeGiftSource = normalizeActiveGiftSource(source);
+      return activeGiftSource;
+    },
+    getActiveSource: () => activeGiftSource,
   };
+}
+
+function normalizeActiveGiftSource(source) {
+  if (!source || typeof source !== 'object') return null;
+  const sourceId = Number(source.sourceId);
+  return Object.freeze({
+    sourceId:
+      Number.isSafeInteger(sourceId) && sourceId >= 1 ? sourceId : null,
+    syncState: String(source.syncState || 'OFFLINE').toUpperCase(),
+    partial: source.partial !== false,
+    syncedThroughCursor:
+      source.syncedThroughCursor === null ||
+      source.syncedThroughCursor === undefined
+        ? null
+        : Number(source.syncedThroughCursor),
+    syncedAt: source.syncedAt || null,
+    latestCursor:
+      source.latestCursor === null || source.latestCursor === undefined
+        ? null
+        : Number(source.latestCursor),
+    dirty: source.dirty !== false,
+    epochValidated: source.epochValidated === true,
+  });
 }
 
 module.exports = {
@@ -62,6 +99,7 @@ module.exports = {
   resetGiftSprintProgress,
   getGiftSnapshot,
   getGiftHistory,
+  getGiftStatistics,
   getGiftSprintSnapshot,
   getBlindBoxAnalysis,
   getBlindBoxStats,

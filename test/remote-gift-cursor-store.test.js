@@ -60,3 +60,46 @@ test('remote gift source key is tenant-specific without storing tenant text', ()
     /REMOTE_GIFT_SOURCE_UNAVAILABLE/,
   );
 });
+
+test('remote gift source key uses only canonical origin and immutable account', () => {
+  const expected = createRemoteGiftSourceKey(
+    'https://api.example.test',
+    { accountName: 'alice', subdomain: 'old-subdomain' },
+    { id: 'old-device' },
+  );
+  assert.equal(
+    createRemoteGiftSourceKey(
+      'HTTPS://API.EXAMPLE.TEST:443/',
+      { accountName: 'ALICE', subdomain: 'new-subdomain' },
+      { id: 'new-device' },
+    ),
+    expected,
+  );
+  assert.notEqual(
+    createRemoteGiftSourceKey('https://other.example.test', {
+      accountName: 'alice',
+    }),
+    expected,
+  );
+  for (const invalidUrl of [
+    'http://127.0.0.1:13000',
+    'http://localhost:13000',
+    'http://api.example.test',
+    'https://localhost',
+    'https://127.0.0.1',
+    'https://[::1]',
+    'https://bad_host.example',
+    'https://user@api.example.test',
+    'https://api.example.test/path',
+    'https://api.example.test/?token=secret',
+    'https://api.example.test/#fragment',
+  ]) {
+    assert.throws(
+      () =>
+        createRemoteGiftSourceKey(invalidUrl, {
+          accountName: 'alice',
+        }),
+      /INVALID_GIFT_SOURCE_ORIGIN/,
+    );
+  }
+});

@@ -9,6 +9,23 @@ its local Bilibili connection for danmaku song requests, Super Chat, user
 identity, and games, and projects only server-processed gift events into the
 existing local gift consumers.
 
+## Relationship to complete ledger projection sync
+
+This document remains the implemented baseline for server-authoritative live
+gift detection and for compatibility with servers that do not advertise gift
+history bootstrap. In that baseline, a client without a durable cursor saves the
+server's latest cursor and does not replay older gifts.
+
+The Accepted
+[`gift-ledger-projection-sync_design.md`](gift-ledger-projection-sync_design.md)
+adds source-partitioned storage, complete historical bootstrap, epoch validation,
+and local all-time queries for a capable client/server pair. It supersedes only
+the fresh-client no-replay baseline in that capability mode; it does not rewrite
+this document's original behavior or weaken the live Device DTO, server
+authority, consumer-idempotency, or non-gift Bilibili requirements. When the
+capability is absent, the client retains compatible live delivery and explicitly
+reports `LEGACY_PARTIAL` rather than claiming complete history.
+
 ## Requirements
 
 - While a tenant RoomMonitor is connected, when it receives any supported gift
@@ -116,9 +133,10 @@ instead of crossing the boundary as zero; `unitPrice` may still be zero.
 
 ### Electron main process
 
-- The remote client validates HTTPS/loopback transport as it does for all Device
-  calls, bounds response and SSE buffers, and keeps the Device token inside the
-  main process.
+- The remote client validates a credential-free HTTPS root origin with a valid
+  DNS hostname for all Device calls, rejects HTTP, localhost, IP literals, and
+  invalid DNS labels, bounds response and SSE buffers, and keeps the Device token
+  inside the main process.
 - The remote gift controller owns exactly one stream, reconnect backoff,
   backfill serialization, and cleanup. Initial startup obtains a no-replay
   baseline, opens the stream, and then pulls after that cursor so the
@@ -201,3 +219,6 @@ instead of crossing the boundary as zero; `unitPrice` may still be zero.
    Super Chat, game, or identity handling.
 8. Blind-box mappings converge to the server without an older server response
    erasing a non-empty local configuration.
+9. Remote Device transport accepts only a credential-free HTTPS root origin with
+   a valid DNS hostname and rejects HTTP, localhost, IP literals, invalid DNS
+   labels, non-root paths, queries, and fragments.

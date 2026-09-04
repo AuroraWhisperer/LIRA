@@ -1,18 +1,24 @@
 <!-- 全部礼物流水抽屉 -->
 <div class="gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
-<aside class="gift-drawer" id="giftHistoryDrawer">
+<aside
+  class="gift-drawer gift-ledger-drawer"
+  id="giftHistoryDrawer"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="giftHistoryTitle"
+>
   <div class="gift-drawer-head">
     <div class="gift-drawer-title">
-      <strong class="ui-section-title">全部礼物流水</strong>
-      <span id="giftHistoryTotal" class="ui-caption">共 0 条</span>
+      <strong id="giftHistoryTitle" class="ui-section-title">礼物流水</strong>
+      <span id="giftHistoryTotal" class="ui-caption">本页 0 条</span>
     </div>
     <button
       id="giftHistoryClearDisplayBtn"
       class="secondary sm"
       type="button"
-      title="清理显示（最近30条）"
+      title="重置搜索与时间范围"
     >
-      清理显示
+      重置筛选
     </button>
     <button
       id="giftHistoryClearDatabaseBtn"
@@ -36,34 +42,103 @@
         stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
+        aria-hidden="true"
       >
         <line x1="18" y1="6" x2="6" y2="18" />
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>
     </button>
   </div>
-  <div class="gift-drawer-body">
-    <table class="gift-history-table">
-      <thead>
-        <tr>
-          <th data-sort="created_at">时间<span class="sort-arrow"></span></th>
-          <th data-sort="gift_name">礼物<span class="sort-arrow"></span></th>
-          <th>数量</th>
-          <th data-sort="price">金额<span class="sort-arrow"></span></th>
-          <th>用户</th>
-          <th data-sort="remarks">备注<span class="sort-arrow"></span></th>
-        </tr>
-      </thead>
-      <tbody id="giftHistoryBody">
-        <tr>
-          <td colspan="6" class="empty">加载中…</td>
-        </tr>
-      </tbody>
-    </table>
+
+  <div class="gift-ledger-toolbar">
+    <form id="giftHistorySearchForm" class="gift-ledger-search" role="search">
+      <label class="sr-only" for="giftHistorySearch">搜索礼物或盲盒名称</label>
+      <input
+        id="giftHistorySearch"
+        type="search"
+        autocomplete="off"
+        placeholder="搜索礼物或盲盒名称"
+      />
+      <button id="giftHistorySearchBtn" class="primary" type="submit">
+        搜索
+      </button>
+    </form>
+    <div class="gift-ledger-ranges" role="group" aria-label="统计范围">
+      <button type="button" data-gift-range="7d">7 天</button>
+      <button type="button" data-gift-range="30d" class="active">30 天</button>
+      <button type="button" data-gift-range="90d">90 天</button>
+      <button type="button" data-gift-range="all">全部</button>
+    </div>
+  </div>
+
+  <div
+    id="giftLedgerSyncStatus"
+    class="gift-ledger-sync"
+    role="status"
+    aria-live="polite"
+    data-state="loading"
+  >
+    <span class="gift-ledger-sync-dot" aria-hidden="true"></span>
+    <strong id="giftLedgerSyncLabel">正在读取同步状态</strong>
+    <span id="giftLedgerSyncDetail" class="ui-caption"></span>
+  </div>
+
+  <div class="gift-drawer-body gift-ledger-body">
+    <section class="gift-ledger-statistics" aria-label="礼物统计">
+      <div id="giftLedgerSummary" class="gift-ledger-summary" data-state="loading">
+        <div class="gift-ledger-placeholder">正在加载统计…</div>
+      </div>
+      <div class="gift-ledger-analysis-grid">
+        <section class="gift-ledger-analysis" aria-labelledby="giftLedgerTopTitle">
+          <h3 id="giftLedgerTopTitle">礼物排行</h3>
+          <div id="giftLedgerTopGifts" class="gift-ledger-top" data-state="loading">
+            <div class="gift-ledger-placeholder">正在加载…</div>
+          </div>
+        </section>
+        <section class="gift-ledger-analysis" aria-labelledby="giftLedgerTrendTitle">
+          <h3 id="giftLedgerTrendTitle">时间趋势</h3>
+          <div id="giftLedgerTimeSeries" class="gift-ledger-series" data-state="loading">
+            <div class="gift-ledger-placeholder">正在加载…</div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="gift-ledger-history" aria-labelledby="giftLedgerHistoryTitle">
+      <div class="gift-ledger-history-head">
+        <h3 id="giftLedgerHistoryTitle">礼物记录</h3>
+        <span
+          id="giftHistoryState"
+          class="ui-caption"
+          role="status"
+          aria-live="polite"
+          >正在加载…</span
+        >
+      </div>
+      <div class="gift-history-table-wrap">
+        <table class="gift-history-table">
+          <thead>
+            <tr>
+              <th data-column="createdAt">时间</th>
+              <th>礼物</th>
+              <th>数量</th>
+              <th>金额</th>
+              <th>用户</th>
+              <th>备注</th>
+            </tr>
+          </thead>
+          <tbody id="giftHistoryBody">
+            <tr>
+              <td colspan="6" class="empty">加载中…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
   <div class="gift-drawer-footer">
-    <button id="giftHistoryPrev" type="button" disabled>← 上一页</button>
-    <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
-    <button id="giftHistoryNext" type="button" disabled>下一页 →</button>
+    <button id="giftHistoryPrev" type="button" disabled>上一页</button>
+    <span id="giftHistoryPageInfo" class="gift-page-info">第 1 页</span>
+    <button id="giftHistoryNext" type="button" disabled>下一页</button>
   </div>
 </aside>

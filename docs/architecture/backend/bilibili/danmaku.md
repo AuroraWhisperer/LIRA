@@ -207,7 +207,7 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 ## 8. 诊断快照与调试缓冲
 
 - `bilibiliDiagnostics` 对象([danmaku-client.js:408-419](../../../../src/bilibili/danmaku-client.js#L408-L419))由管道各环节填充:`lastPacketAt`(handlePackets)、`lastCommandAt/recentCommands`(`recordBilibiliCommandDiagnostic`,[helpers.js:23-30](../../../../src/bilibili/helpers.js#L23-L30))、`lastGiftAt/parsedGiftCount/unparsedGiftCount/recentGiftLikeCommands`(`recordBilibiliGiftDiagnostic`,[helpers.js:32-37](../../../../src/bilibili/helpers.js#L32-L37));经 WS 快照 `bilibiliDiagnostics` 字段下发(见 [ws.md](../ws.md) §2)。
-- 礼物调试环形缓冲 `createMessageBuffer(500)`(server.js 注入,[server.js:210](../../../../src/server.js#L210);实现默认容量 300、单条 data 截断 2000 字符,[message-buffer.js:8-9](../../../../src/bilibili/diagnostics/message-buffer.js#L8-L9)),分类 `parsed-ok / parse-failed / unrecognized-cmd / raw-packet`,由 `/api/*` 调试端点暴露(见 [api.md](../api.md))。
+- 内部礼物诊断环形缓冲 `createMessageBuffer(500)` 由 Bilibili runtime 持有；实现默认容量 300、单条 data 截断 2000 字符([message-buffer.js:8-9](../../../../src/bilibili/diagnostics/message-buffer.js#L8-L9)),分类 `parsed-ok / parse-failed / unrecognized-cmd / raw-packet`。正式运行时不通过 HTTP API 或静态调试页面暴露该原始缓冲。
 
 ## 9. 关键常数速查
 

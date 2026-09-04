@@ -92,7 +92,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 
 ### 决策记录 adr/
 
-[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md) · [0008-ai-assisted-change-governance](adr/0008-ai-assisted-change-governance.md) · [0009-first-run-onboarding](adr/0009-first-run-onboarding.md) · [0010-bilibili-user-info-facade](adr/0010-bilibili-user-info-facade.md)
+[0001-runtime-boundaries](adr/0001-runtime-boundaries.md) · [0002-server-authoritative-timing](adr/0002-server-authoritative-timing.md) · [0003-settle-once-per-gift-group](adr/0003-settle-once-per-gift-group.md) · [0004-reuse-monolith-and-gift-db](adr/0004-reuse-monolith-and-gift-db.md) · [0005-built-in-overtime-backgrounds](adr/0005-built-in-overtime-backgrounds.md) · [0006-shared-gift-detection-core](adr/0006-shared-gift-detection-core.md) · [0007-explicit-module-boundaries](adr/0007-explicit-module-boundaries.md) · [0008-ai-assisted-change-governance](adr/0008-ai-assisted-change-governance.md) · [0009-first-run-onboarding](adr/0009-first-run-onboarding.md) · [0010-bilibili-user-info-facade](adr/0010-bilibili-user-info-facade.md) · [0011-source-partitioned-gift-ledger-projection](adr/0011-source-partitioned-gift-ledger-projection.md)
 
 ## 技术栈速查(名称速览,精确版本见 [engineering/build.md](engineering/build.md))
 

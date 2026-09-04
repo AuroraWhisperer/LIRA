@@ -9,7 +9,14 @@ test('danmaku overlay style defaults to signal and accepts only named themes', a
   assert.equal(DEFAULT_SETTINGS.danmakuOverlayStyle, 'signal');
   assert.equal(DEFAULT_SETTINGS.danmakuFullscreenDurationSeconds, '6');
 
-  for (const style of ['bubble', 'signal', 'minimal', 'ranked', 'outline']) {
+  for (const style of [
+    'bubble',
+    'signal',
+    'minimal',
+    'ranked',
+    'transparent',
+    'outline',
+  ]) {
     const result = await postSettings({ danmakuOverlayStyle: ` ${style} ` });
     assert.equal(result.status, 200);
     assert.deepEqual(result.writes, [['danmakuOverlayStyle', style]]);

@@ -30,6 +30,8 @@ function createHarness({
     syncTokens: [],
     catalog: [],
     giftEventRequests: [],
+    giftEventOptions: [],
+    giftHistoryRequests: [],
     giftWatchRequests: [],
   };
   const generated = crypto.generateKeyPairSync('ec', {
@@ -117,9 +119,22 @@ function createHarness({
         etag: '"catalog-1"',
       };
     },
-    getGiftEvents: async (after, limit, token) => {
+    getGiftEvents: async (after, limit, token, options) => {
       calls.giftEventRequests.push({ after, limit, token });
+      calls.giftEventOptions.push(options);
       return { ok: true, events: [], nextCursor: after ?? 0, hasMore: false };
+    },
+    getGiftHistory: async (pageToken, token, options) => {
+      calls.giftHistoryRequests.push({ pageToken, token, options });
+      return {
+        ok: true,
+        events: [],
+        nextPageToken: null,
+        hasMore: false,
+        recoveryCursor: 4,
+        syncEpoch: 'epoch-1',
+        historyBootstrapVersion: 1,
+      };
     },
     watchGiftEvents: async (token, options) => {
       calls.giftWatchRequests.push({ token, options });
@@ -309,7 +324,18 @@ test('internal gift operations use the current authorized token and bypass publi
   await manager.bootstrap();
   const signal = new AbortController().signal;
 
-  const page = await manager.getGiftEventsInternal({ after: 4, limit: 17 });
+  const syncEpoch = 'x'.repeat(128);
+  const pageToken = 't'.repeat(4096);
+  const page = await manager.getGiftEventsInternal({
+    after: 4,
+    limit: 17,
+    syncEpoch,
+    signal,
+  });
+  const historyPage = await manager.getGiftHistoryInternal({
+    pageToken,
+    signal,
+  });
   await manager.watchGiftEventsInternal({ signal, onEvent() {} });
 
   assert.deepEqual(page, {
@@ -321,9 +347,45 @@ test('internal gift operations use the current authorized token and bypass publi
   assert.deepEqual(calls.giftEventRequests, [
     { after: 4, limit: 17, token: 'token' },
   ]);
+  assert.equal(calls.giftEventOptions[0].syncEpoch, syncEpoch);
+  assert.equal(calls.giftEventOptions[0].signal, signal);
+  assert.equal(historyPage.recoveryCursor, 4);
+  assert.equal(calls.giftHistoryRequests[0].pageToken, pageToken);
+  assert.equal(calls.giftHistoryRequests[0].token, 'token');
+  assert.equal(calls.giftHistoryRequests[0].options.signal, signal);
   assert.equal(calls.giftWatchRequests.length, 1);
   assert.equal(calls.giftWatchRequests[0].token, 'token');
   assert.equal(calls.giftWatchRequests[0].options.signal, signal);
+  manager.dispose();
+});
+
+test('internal gift operations reject coerced and oversized cursors before remote I/O', async () => {
+  const { manager, calls } = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+  });
+  await manager.bootstrap();
+
+  for (const input of [
+    { after: '4' },
+    { after: 1.5 },
+    { syncEpoch: 1 },
+    { syncEpoch: '' },
+    { syncEpoch: 'x'.repeat(129) },
+  ]) {
+    await assert.rejects(
+      manager.getGiftEventsInternal(input),
+      (error) => error.code === 'INVALID_GIFT_CURSOR',
+    );
+  }
+  for (const pageToken of [1, '', 'x'.repeat(4097)]) {
+    await assert.rejects(
+      manager.getGiftHistoryInternal({ pageToken }),
+      (error) => error.code === 'INVALID_BOOTSTRAP_TOKEN',
+    );
+  }
+
+  assert.deepEqual(calls.giftEventRequests, []);
+  assert.deepEqual(calls.giftHistoryRequests, []);
   manager.dispose();
 });
 

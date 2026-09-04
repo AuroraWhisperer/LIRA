@@ -73,7 +73,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 [src/server/api-routes.js](../../../src/server/api-routes.js) 无状态:业务状态全部通过 context 注入。
 
-- **15 个路由模块**按 `ROUTE_MODULES` 数组顺序前缀匹配(完整端点清单见 [api.md](api.md))。
+- **17 个路由模块**按 `ROUTE_MODULES` 数组顺序前缀匹配(完整端点清单见 [api.md](api.md))。
 - **Token 校验**:除 `PUBLIC_API_PATHS = {'/api/health', '/api/clock/config', '/api/opening/config'}` 外全部要求 Bearer 头或 `?token=` 查询参数,失败回 401(`verifyToken`,[http-utils.js:46-54](../../../src/server/http-utils.js#L46-L54))。
 - **405 与 404 区分**:`findRoute` 在模块前缀命中但方法不匹配时标记 `pathExists` → 405;否则 404。
 - **请求体惰性读取**:`createBodyReader` 只在 handler 真正调用时读一次 JSON([api-routes.js:42-47](../../../src/server/api-routes.js#L42-L47)),上限 `MAX_BODY_BYTES = 16 MB`([server.js:35](../../../src/server.js#L35)),超限/非法 JSON 在 `readJsonBody` 中拒绝。
@@ -81,7 +81,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 ### 4.2 API Context 注入
 
-`server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / debug / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music` 共 16 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
+`server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music` 共 15 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
 
 ### 4.3 静态页面服务与 Token 注入
 

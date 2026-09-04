@@ -77,6 +77,110 @@ test('gift history preserves negative blind box profit', () => {
     source,
     /formatMoney\(Math\.abs\(Number\(blindProfit\) \|\| 0\)\)/,
   );
+  assert.match(
+    source,
+    /blindProfit === null \|\| blindProfit === undefined[\s\S]*?盲盒 成本未知/,
+  );
+});
+
+test('gift ledger drawer exposes search, range, statistics, sync, and keyset controls', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'history.html'),
+    'utf8',
+  );
+
+  assert.match(html, /id="giftHistorySearch"/);
+  assert.match(html, /id="giftHistorySearchBtn"/);
+  assert.doesNotMatch(html, /id="giftHistorySearch"[^>]*maxlength=/s);
+  for (const range of ['7d', '30d', '90d', 'all']) {
+    assert.match(html, new RegExp(`data-gift-range="${range}"`));
+  }
+  assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"/);
+  assert.match(html, /id="giftLedgerSummary"/);
+  assert.match(html, /id="giftLedgerTopGifts"/);
+  assert.match(html, /id="giftLedgerTimeSeries"/);
+  assert.match(html, /id="giftHistoryState"[^>]*role="status"/);
+  assert.match(html, /id="giftHistoryPrev"/);
+  assert.match(html, /id="giftHistoryNext"/);
+});
+
+test('gift ledger queries use accepted filters and never expose source identity', async () => {
+  const modulePath = path.join(
+    ROOT_DIR,
+    'public',
+    'js',
+    'admin',
+    'gifts',
+    'history.js',
+  );
+  const source = fs.readFileSync(modulePath, 'utf8');
+  const ledger = await loadModuleExports(modulePath, {
+    document: {},
+    location: {},
+    URLSearchParams,
+  });
+
+  assert.match(source, /^export function buildGiftHistoryUrl/m);
+  assert.match(source, /^export function buildGiftStatisticsUrl/m);
+  assert.doesNotMatch(source, /sourceId|source_id/);
+  assert.equal(
+    ledger.buildGiftHistoryUrl({
+      query: '星光%_盒',
+      range: '30d',
+      cursor: 'opaque/+ token',
+      limit: 50,
+    }),
+    '/api/gifts/history?query=%E6%98%9F%E5%85%89%25_%E7%9B%92&range=30d&limit=50&cursor=opaque%2F%2B+token',
+  );
+  assert.equal(
+    ledger.buildGiftStatisticsUrl({ query: '星光%_盒', range: 'all' }),
+    '/api/gifts/statistics?query=%E6%98%9F%E5%85%89%25_%E7%9B%92&range=all',
+  );
+  assert.equal(ledger.formatGiftCents(12345), '¥123.45');
+  assert.deepEqual(
+    { ...ledger.describeGiftSyncStatus('LIVE', false) },
+    { state: 'live', label: '历史记录已同步' },
+  );
+  assert.equal(ledger.describeGiftSyncStatus('LIVE', true).state, 'partial');
+  assert.equal(
+    ledger.describeGiftSyncStatus('LEGACY_PARTIAL', true).state,
+    'partial',
+  );
+  assert.equal(
+    ledger.describeGiftSyncStatus('OFFLINE', true).state,
+    'offline',
+  );
+  assert.equal(ledger.describeGiftSyncStatus('ERROR', true).state, 'error');
+});
+
+test('clear display resets gift filters and cursor history without deleting rows', async () => {
+  const modulePath = path.join(
+    ROOT_DIR,
+    'public',
+    'js',
+    'admin',
+    'gifts',
+    'history.js',
+  );
+  const source = fs.readFileSync(modulePath, 'utf8');
+  const ledger = await loadModuleExports(modulePath, {
+    document: {},
+    location: {},
+    URLSearchParams,
+  });
+  const state = ledger.createGiftLedgerState();
+  state.query = '礼物';
+  state.range = '90d';
+  state.cursor = 'next-token';
+  state.cursorHistory.push(null, 'previous-token');
+
+  ledger.resetGiftLedgerDisplay(state);
+
+  assert.equal(state.query, '');
+  assert.equal(state.range, '30d');
+  assert.equal(state.cursor, null);
+  assert.deepEqual(Array.from(state.cursorHistory), []);
+  assert.doesNotMatch(source, /\/api\/gifts\/clear-recent/);
 });
 
 test('blind box analysis is a separate accessible workspace module', () => {

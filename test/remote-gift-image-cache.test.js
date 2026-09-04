@@ -63,6 +63,31 @@ test('rejects untrusted paths and invalid image bytes per gift', async () => {
     path.join(os.tmpdir(), 'lira-remote-gift-images-invalid-'),
   );
   try {
+    let insecureCalls = 0;
+    for (const origin of [
+      'http://127.0.0.1:13000',
+      'https://127.0.0.1',
+      'https://localhost',
+      'https://[::1]',
+    ]) {
+      const insecureCache = createRemoteGiftImageCache({
+        dataDir,
+        imageBaseUrl: origin,
+        fetch: async () => {
+          insecureCalls += 1;
+          return new Response(webpBytes());
+        },
+      });
+      const insecureResult = await insecureCache.cacheGifts([
+        {
+          id: 'untrusted-origin',
+          name: '非法来源图片',
+          imagePath: `${origin}/gift-media/images/insecure.webp`,
+        },
+      ]);
+      assert.equal(insecureResult[0].imagePath, '');
+    }
+    assert.equal(insecureCalls, 0);
     let calls = 0;
     const cache = createRemoteGiftImageCache({
       dataDir,
@@ -106,7 +131,7 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
     let peak = 0;
     const cache = createRemoteGiftImageCache({
       dataDir,
-      imageBaseUrl: 'http://127.0.0.1:13000',
+      imageBaseUrl: 'https://api.example.test',
       concurrency: 2,
       fetch: async () => {
         active += 1;
@@ -120,7 +145,7 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
     const gifts = Array.from({ length: 5 }, (_, index) => ({
       id: String(index + 1),
       name: `礼物${index + 1}`,
-      imagePath: `http://127.0.0.1:13000/gift-media/images/${index + 1}.webp`,
+      imagePath: `https://api.example.test/gift-media/images/${index + 1}.webp`,
     }));
     const result = await cache.cacheGifts(gifts);
     assert.equal(peak <= 2, true);
@@ -129,7 +154,7 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
 
     const oversizedCache = createRemoteGiftImageCache({
       dataDir,
-      imageBaseUrl: 'http://127.0.0.1:13000',
+      imageBaseUrl: 'https://api.example.test',
       fetch: async () => new Response(Buffer.alloc(MAX_IMAGE_BYTES + 1)),
       logger: QUIET_LOGGER,
     });
@@ -138,7 +163,7 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
         id: 'oversized',
         name: '超限礼物',
         imagePath:
-          'http://127.0.0.1:13000/gift-media/images/oversized.webp',
+          'https://api.example.test/gift-media/images/oversized.webp',
       },
     ]);
     assert.equal(oversized[0].imagePath, '');

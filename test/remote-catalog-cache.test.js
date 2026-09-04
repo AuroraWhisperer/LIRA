@@ -310,6 +310,12 @@ test('normalizes only same-origin immutable gift images and deduplicates ids', (
     normalizeImagePath('/gift-media/images/a.webp', 'http://evil.example'),
     '',
   );
+  assert.equal(normalizeImageBaseUrl('http://127.0.0.1:13000'), '');
+  assert.equal(normalizeImageBaseUrl('https://localhost'), '');
+  assert.equal(normalizeImageBaseUrl('https://127.0.0.1'), '');
+  assert.equal(normalizeImageBaseUrl('https://[::1]'), '');
+  assert.equal(normalizeImageBaseUrl('https://bad_host.example'), '');
+  assert.equal(normalizeImageBaseUrl('https://api.lirahub.cn/path'), '');
   assert.equal(
     normalizeImagePath('https://api.lirahub.cn/gift-media/images/a.webp'),
     '',
@@ -504,10 +510,19 @@ test('strictly normalizes remote booleans and binds restored image paths to the 
     await cache.refresh({ force: true });
     const switched = createRemoteGiftCatalogCache({
       dataDir,
-      imageBaseUrl: 'http://127.0.0.1:13000',
+      imageBaseUrl: 'https://api.two.example',
       fetchRemote: async () => null,
     });
     assert.equal(switched.getSnapshot().gifts[0].imagePath, '');
+    assert.throws(
+      () =>
+        createRemoteGiftCatalogCache({
+          dataDir,
+          imageBaseUrl: 'http://127.0.0.1:13000',
+          fetchRemote: async () => null,
+        }),
+      /REMOTE_CATALOG_IMAGE_BASE_INVALID/,
+    );
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

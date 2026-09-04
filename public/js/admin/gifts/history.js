@@ -1,329 +1,556 @@
 // 编写人：Aurora
-// 礼物历史模块 - 负责礼物历史抽屉和流水查询
+// 礼物流水抽屉：活动来源的历史、统计与同步完整性状态。
 'use strict';
 
-(function () {
-  const {
-    escapeHtml,
-    escapeAttr,
-    formatTime,
-    formatDateTime,
-    formatMoney,
-    toast,
-    readJsonResponse,
-    dangerConfirm,
-  } = window.AdminApp.utils;
+import {
+  dangerConfirm,
+  escapeAttr,
+  escapeHtml,
+  formatDateTime,
+  formatMoney,
+  readJsonResponse,
+  toast,
+} from '../../shared/utils.js';
 
-  const GIFT_HISTORY_LIMIT = 50;
-  let giftHistory = {
+const GIFT_HISTORY_LIMIT = 50;
+const DEFAULT_GIFT_RANGE = '30d';
+const GIFT_RANGES = new Set(['7d', '30d', '90d', 'all']);
+
+let initialized = false;
+let historyRequestSequence = 0;
+let statisticsRequestSequence = 0;
+let previousFocus = null;
+const giftLedgerState = createGiftLedgerState();
+
+export function createGiftLedgerState() {
+  return {
+    query: '',
+    range: DEFAULT_GIFT_RANGE,
+    cursor: null,
+    nextCursor: null,
+    cursorHistory: [],
     page: 1,
-    limit: GIFT_HISTORY_LIMIT,
-    total: 0,
-    totalPages: 1,
     items: [],
+    hasMore: false,
   };
-  let giftHistorySeq = 0;
-  let giftHistorySort = { field: 'created_at', direction: 'desc' };
+}
 
-  /**
-   * 初始化礼物历史抽屉事件监听
-   */
-  function initGiftHistoryDrawer() {
-    const openBtn = document.getElementById('giftHistoryOpenBtn');
-    const closeBtn = document.getElementById('giftHistoryClose');
-    const backdrop = document.getElementById('giftHistoryBackdrop');
+export function resetGiftLedgerDisplay(state) {
+  state.query = '';
+  state.range = DEFAULT_GIFT_RANGE;
+  resetGiftLedgerPagination(state);
+}
 
-    openBtn &&
-      openBtn.addEventListener('click', () => {
-        giftHistory.page = 1;
-        openGiftHistoryDrawer();
-        loadGiftHistory(1);
-      });
-    closeBtn && closeBtn.addEventListener('click', closeGiftHistoryDrawer);
-    backdrop && backdrop.addEventListener('click', closeGiftHistoryDrawer);
+export function buildGiftHistoryUrl({
+  query = '',
+  range = DEFAULT_GIFT_RANGE,
+  cursor = null,
+  limit = GIFT_HISTORY_LIMIT,
+} = {}) {
+  const params = new URLSearchParams();
+  if (query) params.set('query', query);
+  params.set('range', normalizeRange(range));
+  params.set('limit', String(limit));
+  if (cursor) params.set('cursor', cursor);
+  return `/api/gifts/history?${params}`;
+}
 
-    const clearDisplayBtn = document.getElementById(
-      'giftHistoryClearDisplayBtn',
-    );
-    const clearDatabaseBtn = document.getElementById(
-      'giftHistoryClearDatabaseBtn',
-    );
+export function buildGiftStatisticsUrl({
+  query = '',
+  range = DEFAULT_GIFT_RANGE,
+} = {}) {
+  const params = new URLSearchParams();
+  if (query) params.set('query', query);
+  params.set('range', normalizeRange(range));
+  return `/api/gifts/statistics?${params}`;
+}
 
-    clearDisplayBtn &&
-      clearDisplayBtn.addEventListener('click', async () => {
-        const confirmed = await dangerConfirm({
-          title: '清理显示',
-          message:
-            '将清理抽屉中显示的最近3000条礼物记录。更早的记录仍保留在数据库中。此操作无法恢复。',
-          confirmLabel: '确认清理',
-        });
-        if (!confirmed) return;
-        try {
-          const response = await fetch('/api/gifts/clear-recent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ confirm: true }),
-          });
-          const payload = await readJsonResponse(response, '清理显示失败');
-          if (!payload.ok) throw new Error(payload.error || '清理失败');
-          toast(`已清理 ${payload.data.deletedCount} 条显示记录`);
-          giftHistory = {
-            page: 1,
-            limit: GIFT_HISTORY_LIMIT,
-            total: 0,
-            totalPages: 1,
-            items: [],
-          };
-          renderGiftHistory();
-          if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-            window.AdminApp.state.reloadState();
-          }
-        } catch (error) {
-          toast(error.message || '清理显示失败');
-        }
-      });
+export function initGiftHistoryDrawer() {
+  if (initialized) return;
+  initialized = true;
 
-    clearDatabaseBtn &&
-      clearDatabaseBtn.addEventListener('click', async () => {
-        const confirmed = await dangerConfirm({
-          title: '清空数据库礼物记录',
-          message:
-            '此操作将永久删除数据库中的所有礼物流水（包括显示的和不显示的），无法恢复。',
-          confirmLabel: '确认清空',
-        });
-        if (!confirmed) return;
-        try {
-          const response = await fetch('/api/database/clear-gifts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ confirm: true }),
-          });
-          const payload = await readJsonResponse(response, '清空礼物失败');
-          if (!payload.ok) throw new Error(payload.error || '清空失败');
-          toast('已清空全部礼物记录');
-          giftHistory = {
-            page: 1,
-            limit: GIFT_HISTORY_LIMIT,
-            total: 0,
-            totalPages: 1,
-            items: [],
-          };
-          renderGiftHistory();
-          if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-            window.AdminApp.state.reloadState();
-          }
-        } catch (error) {
-          toast(error.message || '清空礼物失败');
-        }
-      });
+  const openButton = get('giftHistoryOpenBtn');
+  const closeButton = get('giftHistoryClose');
+  const backdrop = get('giftHistoryBackdrop');
+  const searchForm = get('giftHistorySearchForm');
+  const clearDisplayButton = get('giftHistoryClearDisplayBtn');
+  const clearDatabaseButton = get('giftHistoryClearDatabaseBtn');
+  const previousButton = get('giftHistoryPrev');
+  const nextButton = get('giftHistoryNext');
 
-    const prevBtn = document.getElementById('giftHistoryPrev');
-    const nextBtn = document.getElementById('giftHistoryNext');
-    prevBtn &&
-      prevBtn.addEventListener('click', () => {
-        if (giftHistory.page > 1) loadGiftHistory(giftHistory.page - 1);
-      });
-    nextBtn &&
-      nextBtn.addEventListener('click', () => {
-        if (giftHistory.page < giftHistory.totalPages)
-          loadGiftHistory(giftHistory.page + 1);
-      });
+  openButton?.addEventListener('click', () => {
+    previousFocus = openButton;
+    resetGiftLedgerPagination(giftLedgerState);
+    openGiftHistoryDrawer();
+    loadGiftLedger();
+  });
+  closeButton?.addEventListener('click', closeGiftHistoryDrawer);
+  backdrop?.addEventListener('click', closeGiftHistoryDrawer);
 
-    // 可排序列点击
-    document
-      .querySelectorAll('#giftHistoryDrawer th[data-sort]')
-      .forEach((th) => {
-        th.addEventListener('click', () => {
-          const field = th.dataset.sort;
-          if (!field) return;
-          if (giftHistorySort.field === field) {
-            giftHistorySort.direction =
-              giftHistorySort.direction === 'asc' ? 'desc' : 'asc';
-          } else {
-            giftHistorySort.field = field;
-            giftHistorySort.direction = 'asc';
-          }
-          // 重新从第一页加载（后端排序）
-          giftHistory.page = 1;
-          loadGiftHistory(1);
-        });
-      });
+  searchForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    giftLedgerState.query = String(get('giftHistorySearch')?.value || '').trim();
+    resetGiftLedgerPagination(giftLedgerState);
+    loadGiftLedger();
+  });
 
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeGiftHistoryDrawer();
+  document.querySelectorAll('[data-gift-range]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const range = normalizeRange(button.dataset.giftRange);
+      if (range === giftLedgerState.range) return;
+      giftLedgerState.range = range;
+      resetGiftLedgerPagination(giftLedgerState);
+      syncFilterControls();
+      loadGiftLedger();
     });
-  }
+  });
 
-  /**
-   * 打开礼物历史抽屉
-   */
-  function openGiftHistoryDrawer() {
-    const drawer = document.getElementById('giftHistoryDrawer');
-    const backdrop = document.getElementById('giftHistoryBackdrop');
-    drawer && drawer.classList.add('open');
-    backdrop && backdrop.classList.add('open');
-  }
+  clearDisplayButton?.addEventListener('click', () => {
+    resetGiftLedgerDisplay(giftLedgerState);
+    syncFilterControls();
+    loadGiftLedger();
+  });
 
-  /**
-   * 关闭礼物历史抽屉
-   */
-  function closeGiftHistoryDrawer() {
-    const drawer = document.getElementById('giftHistoryDrawer');
-    const backdrop = document.getElementById('giftHistoryBackdrop');
-    drawer && drawer.classList.remove('open');
-    backdrop && backdrop.classList.remove('open');
-  }
+  clearDatabaseButton?.addEventListener('click', clearGiftDatabase);
 
-  /**
-   * 加载礼物历史数据
-   * @param {number} page - 页码
-   */
-  async function loadGiftHistory(page) {
-    const seq = ++giftHistorySeq;
-    const body = document.getElementById('giftHistoryBody');
-    if (body)
-      body.innerHTML = '<tr><td colspan="6" class="empty">加载中…</td></tr>';
+  previousButton?.addEventListener('click', () => {
+    if (giftLedgerState.cursorHistory.length === 0) return;
+    giftLedgerState.cursor = giftLedgerState.cursorHistory.pop() ?? null;
+    giftLedgerState.page = Math.max(1, giftLedgerState.page - 1);
+    loadGiftHistory();
+  });
+  nextButton?.addEventListener('click', () => {
+    if (!giftLedgerState.hasMore || !giftLedgerState.nextCursor) return;
+    giftLedgerState.cursorHistory.push(giftLedgerState.cursor);
+    giftLedgerState.cursor = giftLedgerState.nextCursor;
+    giftLedgerState.page += 1;
+    loadGiftHistory();
+  });
 
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(GIFT_HISTORY_LIMIT),
-        sortField: giftHistorySort.field,
-        sortDirection: giftHistorySort.direction,
-      });
-      const response = await fetch(`/api/gifts/history?${params}`);
-      const payload = await readJsonResponse(response, '礼物流水加载失败');
-      if (!response.ok || !payload.ok)
-        throw new Error(
-          payload.error || `礼物流水加载失败（HTTP ${response.status}）`,
-        );
-      if (seq !== giftHistorySeq) return;
-      giftHistory = { ...giftHistory, ...payload.data };
-      renderGiftHistory();
-    } catch (error) {
-      if (seq !== giftHistorySeq) return;
-      if (body)
-        body.innerHTML = `<tr><td colspan="6" class="empty">加载失败：${escapeHtml(error.message)}</td></tr>`;
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && isGiftHistoryOpen()) {
+      closeGiftHistoryDrawer();
     }
-  }
+  });
 
-  /**
-   * 渲染礼物历史列表
-   */
-  function renderGiftHistory() {
-    const totalEl = document.getElementById('giftHistoryTotal');
-    const body = document.getElementById('giftHistoryBody');
-    if (totalEl) totalEl.textContent = `共 ${giftHistory.total} 条`;
+  initGiftRecentToggle();
+  syncFilterControls();
+}
 
-    if (!giftHistory.items || giftHistory.items.length === 0) {
-      if (body)
-        body.innerHTML =
-          '<tr><td colspan="6" class="empty">暂无礼物记录</td></tr>';
-    } else {
-      if (body)
-        body.innerHTML = giftHistory.items.map(renderGiftHistoryRow).join('');
-    }
+export function openGiftHistoryDrawer() {
+  get('giftHistoryDrawer')?.classList.add('open');
+  get('giftHistoryBackdrop')?.classList.add('open');
+  get('giftHistorySearch')?.focus();
+}
 
-    // 排序箭头
-    document
-      .querySelectorAll('#giftHistoryDrawer th[data-sort]')
-      .forEach((th) => {
-        const arrow = th.querySelector('.sort-arrow');
-        if (!arrow) return;
-        if (th.dataset.sort === giftHistorySort.field) {
-          arrow.textContent = giftHistorySort.direction === 'asc' ? ' ▲' : ' ▼';
-        } else {
-          arrow.textContent = '';
-        }
-      });
+export function closeGiftHistoryDrawer() {
+  historyRequestSequence += 1;
+  statisticsRequestSequence += 1;
+  get('giftHistoryDrawer')?.classList.remove('open');
+  get('giftHistoryBackdrop')?.classList.remove('open');
+  previousFocus?.focus?.();
+  previousFocus = null;
+}
 
-    const prev = document.getElementById('giftHistoryPrev');
-    const next = document.getElementById('giftHistoryNext');
-    const info = document.getElementById('giftHistoryPageInfo');
-    if (prev) prev.disabled = giftHistory.page <= 1;
-    if (next) next.disabled = giftHistory.page >= giftHistory.totalPages;
-    if (info)
-      info.textContent = `第 ${giftHistory.page}/${giftHistory.totalPages} 页`;
-  }
+export async function loadGiftLedger() {
+  await Promise.all([loadGiftHistory(), loadGiftStatistics()]);
+}
 
-  /**
-   * 渲染礼物历史单行
-   * @param {Object} item - 礼物项
-   * @returns {string} HTML 字符串
-   */
-  function renderGiftHistoryRow(item) {
-    // 使用 recent 模块的工具函数
-    const getGuardBadge = window.AdminApp.gifts.recent.getGuardBadge;
-    const getBlindBoxIcon = window.AdminApp.gifts.recent.getBlindBoxIcon;
+export async function loadGiftHistory() {
+  const sequence = ++historyRequestSequence;
+  renderHistoryLoading();
 
-    const price = item.sprint_count_price ?? item.total_price;
-    const guardBadge = getGuardBadge(item);
-    const blindBoxIcon = getBlindBoxIcon(item);
-    const remarks = [];
-    if (guardBadge) {
-      remarks.push(
-        `<span class="gift-remark-tag guard"><img class="gift-guard-icon" src="${escapeAttr(guardBadge.src)}" alt="${escapeAttr(guardBadge.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy"> ${escapeHtml(guardBadge.name)}</span>`,
+  try {
+    const response = await fetch(
+      buildGiftHistoryUrl({
+        query: giftLedgerState.query,
+        range: giftLedgerState.range,
+        cursor: giftLedgerState.cursor,
+        limit: GIFT_HISTORY_LIMIT,
+      }),
+    );
+    const payload = await readJsonResponse(response, '礼物流水加载失败');
+    if (!response.ok || !payload.ok) {
+      throw new Error(
+        payload.error || `礼物流水加载失败（HTTP ${response.status}）`,
       );
     }
-    if (item.is_blind_box) {
-      const blindProfit = item.blind_profit;
+    if (sequence !== historyRequestSequence) return;
+
+    const data = payload.data || {};
+    giftLedgerState.items = Array.isArray(data.items) ? data.items : [];
+    giftLedgerState.nextCursor = data.nextCursor || null;
+    giftLedgerState.hasMore = data.hasMore === true;
+    renderGiftHistory();
+    renderSyncStatus(data);
+  } catch (error) {
+    if (sequence !== historyRequestSequence) return;
+    renderHistoryError(error);
+  }
+}
+
+export async function loadGiftStatistics() {
+  const sequence = ++statisticsRequestSequence;
+  renderStatisticsLoading();
+
+  try {
+    const response = await fetch(
+      buildGiftStatisticsUrl({
+        query: giftLedgerState.query,
+        range: giftLedgerState.range,
+      }),
+    );
+    const payload = await readJsonResponse(response, '礼物统计加载失败');
+    if (!response.ok || !payload.ok) {
+      throw new Error(
+        payload.error || `礼物统计加载失败（HTTP ${response.status}）`,
+      );
+    }
+    if (sequence !== statisticsRequestSequence) return;
+
+    const data = payload.data || {};
+    renderGiftStatistics(data);
+    renderSyncStatus(data);
+  } catch (error) {
+    if (sequence !== statisticsRequestSequence) return;
+    renderStatisticsError(error);
+    renderSyncError(error);
+  }
+}
+
+function resetGiftLedgerPagination(state) {
+  state.cursor = null;
+  state.nextCursor = null;
+  state.cursorHistory.length = 0;
+  state.page = 1;
+  state.items = [];
+  state.hasMore = false;
+}
+
+function normalizeRange(range) {
+  return GIFT_RANGES.has(range) ? range : DEFAULT_GIFT_RANGE;
+}
+
+function syncFilterControls() {
+  const search = get('giftHistorySearch');
+  if (search) search.value = giftLedgerState.query;
+  document.querySelectorAll('[data-gift-range]').forEach((button) => {
+    const active = button.dataset.giftRange === giftLedgerState.range;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+async function clearGiftDatabase() {
+  const confirmed = await dangerConfirm({
+    title: '清空数据库礼物记录',
+    message:
+      '此操作会删除全部礼物流水并重新同步当前账号的历史记录。同步完成前统计会标记为不完整。',
+    confirmLabel: '确认清空',
+  });
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('/api/database/clear-gifts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    const payload = await readJsonResponse(response, '清空礼物失败');
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || '清空礼物失败');
+    }
+    toast('礼物数据库已清空，正在重新同步');
+    resetGiftLedgerPagination(giftLedgerState);
+    loadGiftLedger();
+  } catch (error) {
+    toast(error.message || '清空礼物失败');
+  }
+}
+
+function renderHistoryLoading() {
+  setText('giftHistoryState', '正在加载…');
+  setText('giftHistoryTotal', '正在加载');
+  setHistoryBody('<tr><td colspan="6" class="empty">加载中…</td></tr>');
+  updatePagination(true);
+}
+
+function renderHistoryError(error) {
+  setText('giftHistoryState', '加载失败');
+  setText('giftHistoryTotal', '读取失败');
+  setHistoryBody(
+    `<tr><td colspan="6" class="empty">${escapeHtml(error.message || '礼物流水加载失败')}</td></tr>`,
+  );
+  updatePagination(true);
+}
+
+function renderGiftHistory() {
+  const items = giftLedgerState.items;
+  setText('giftHistoryTotal', `本页 ${items.length} 条`);
+  setText(
+    'giftHistoryState',
+    items.length === 0
+      ? giftLedgerState.query
+        ? '没有匹配的礼物记录'
+        : '暂无礼物记录'
+      : '已加载',
+  );
+  setHistoryBody(
+    items.length === 0
+      ? `<tr><td colspan="6" class="empty">${giftLedgerState.query ? '没有匹配的礼物或盲盒' : '暂无礼物记录'}</td></tr>`
+      : items.map(renderGiftHistoryRow).join(''),
+  );
+  updatePagination(false);
+}
+
+function renderGiftHistoryRow(item) {
+  const gift = item?.gift || {};
+  const price = Number(gift.totalPrice || 0);
+  const blindProfit = gift.blindProfit;
+  const remarks = [];
+  if (gift.isBlindBox) {
+    if (blindProfit === null || blindProfit === undefined) {
+      remarks.push(
+        '<span class="gift-remark-tag blind">盲盒 成本未知</span>',
+      );
+    } else {
       const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
       const profitClass =
         blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
-      const iconHtml = blindBoxIcon
-        ? `<img class="gift-blind-box-icon" src="${escapeAttr(blindBoxIcon.src)}" alt="${escapeAttr(blindBoxIcon.name)}" style="width:16px;height:16px;vertical-align:middle" loading="lazy">`
-        : '🎁';
       remarks.push(
-        `<span class="gift-remark-tag blind ${profitClass}">${iconHtml} 盲盒 ${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
+        `<span class="gift-remark-tag blind ${profitClass}">盲盒 ${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
       );
     }
-    return `
-      <tr>
-        <td>${formatDateTime(item.created_at)}</td>
-        <td class="gift-name-cell" title="${escapeAttr(item.gift_name || '')}">${escapeHtml(item.gift_name || '未知礼物')}</td>
-        <td>${Number(item.num || 1)}</td>
-        <td>${formatMoney(price)}</td>
-        <td class="gift-user-cell" title="${escapeAttr(item.user_name || '')}">${escapeHtml(item.user_name || '观众')}</td>
-        <td>${remarks.length ? remarks.join(' ') : '<span class="hint">—</span>'}</td>
-      </tr>
-    `;
+  }
+  if (gift.blindBoxName) {
+    remarks.push(
+      `<span class="gift-remark-tag">${escapeHtml(gift.blindBoxName)}</span>`,
+    );
   }
 
-  /**
-   * 初始化最近礼物面板折叠功能
-   */
-  function initGiftRecentToggle() {
-    const section = document.querySelector('.gift-recent-panel');
-    const toggle = document.getElementById('giftRecentToggle');
-    const panelHeader = section?.querySelector('.panel-header');
+  return `
+    <tr data-event-id="${escapeAttr(item?.eventId || '')}">
+      <td>${formatDateTime(gift.createdAt)}</td>
+      <td class="gift-name-cell" title="${escapeAttr(gift.giftName || '')}">${escapeHtml(gift.giftName || '未知礼物')}</td>
+      <td>${Number(gift.num || 1)}</td>
+      <td>${formatMoney(price)}</td>
+      <td class="gift-user-cell" title="${escapeAttr(gift.userName || '')}">${escapeHtml(gift.userName || '观众')}</td>
+      <td>${remarks.length ? remarks.join(' ') : '<span class="hint">—</span>'}</td>
+    </tr>
+  `;
+}
 
-    panelHeader?.addEventListener('click', (e) => {
-      // 排除点击"查看全部"按钮的情况
-      if (e.target.closest('#giftHistoryOpenBtn')) return;
-
-      const collapsed = section?.classList.toggle('is-collapsed') || false;
-      if (toggle) {
-        toggle.setAttribute('aria-expanded', String(!collapsed));
-        toggle.title = collapsed ? '展开最近礼物' : '折叠最近礼物';
-      }
-    });
+function updatePagination(loading) {
+  const previousButton = get('giftHistoryPrev');
+  const nextButton = get('giftHistoryNext');
+  if (previousButton) {
+    previousButton.disabled =
+      loading || giftLedgerState.cursorHistory.length === 0;
   }
-
-  // 在 DOM 就绪后初始化
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initGiftRecentToggle);
-  } else {
-    initGiftRecentToggle();
+  if (nextButton) {
+    nextButton.disabled =
+      loading || !giftLedgerState.hasMore || !giftLedgerState.nextCursor;
   }
+  setText('giftHistoryPageInfo', `第 ${giftLedgerState.page} 页`);
+}
 
-  // 导出
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.history = {
-    initGiftHistoryDrawer,
-    openGiftHistoryDrawer,
-    closeGiftHistoryDrawer,
-    loadGiftHistory,
-    initGiftRecentToggle,
+function renderStatisticsLoading() {
+  renderPlaceholder('giftLedgerSummary', '正在加载统计…', 'loading');
+  renderPlaceholder('giftLedgerTopGifts', '正在加载…', 'loading');
+  renderPlaceholder('giftLedgerTimeSeries', '正在加载…', 'loading');
+}
+
+function renderStatisticsError(error) {
+  const message = error.message || '统计加载失败';
+  renderPlaceholder('giftLedgerSummary', message, 'error');
+  renderPlaceholder('giftLedgerTopGifts', '排行加载失败', 'error');
+  renderPlaceholder('giftLedgerTimeSeries', '趋势加载失败', 'error');
+}
+
+function renderGiftStatistics(data) {
+  const summary = data.summary || {};
+  const summaryElement = get('giftLedgerSummary');
+  if (summaryElement) {
+    summaryElement.dataset.state = 'ready';
+    summaryElement.innerHTML = [
+      renderSummaryItem('事件', formatCount(summary.eventCount)),
+      renderSummaryItem('礼物数量', formatCount(summary.itemCount)),
+      renderSummaryItem('礼物金额', formatGiftCents(summary.totalPriceCents)),
+      renderSummaryItem(
+        '盲盒事件',
+        formatCount(summary.blindBoxEventCount),
+      ),
+      renderSummaryItem(
+        '盲盒成本',
+        formatGiftCents(summary.blindBoxPriceCents),
+      ),
+      renderSummaryItem(
+        '盲盒价值',
+        formatGiftCents(summary.blindBoxValueCents),
+      ),
+      renderSummaryItem('盲盒盈亏', formatSignedCents(summary.blindProfitCents)),
+      renderSummaryItem(
+        '成本未知',
+        formatCount(summary.blindBoxUnknownCostEventCount),
+      ),
+    ].join('');
+  }
+  renderTopGifts(data.topGifts);
+  renderTimeSeries(data.timeSeries);
+}
+
+function renderSummaryItem(label, value) {
+  return `<div class="gift-ledger-summary-item"><span>${label}</span><strong>${value}</strong></div>`;
+}
+
+function renderTopGifts(topGifts) {
+  const element = get('giftLedgerTopGifts');
+  if (!element) return;
+  const rows = Array.isArray(topGifts) ? topGifts : [];
+  element.dataset.state = rows.length ? 'ready' : 'empty';
+  element.innerHTML = rows.length
+    ? rows
+        .map(
+          (gift) => `
+            <div class="gift-ledger-top-row">
+              <strong title="${escapeAttr(gift.giftName || '')}">${escapeHtml(gift.giftName || '未知礼物')}</strong>
+              <span>${formatCount(gift.itemCount)} 个</span>
+              <span>${formatGiftCents(gift.totalPriceCents)}</span>
+            </div>`,
+        )
+        .join('')
+    : '<div class="gift-ledger-placeholder">暂无排行数据</div>';
+}
+
+function renderTimeSeries(timeSeries) {
+  const element = get('giftLedgerTimeSeries');
+  if (!element) return;
+  const rows = Array.isArray(timeSeries) ? timeSeries : [];
+  const maximum = Math.max(
+    1,
+    ...rows.map((bucket) => Number(bucket.totalPriceCents || 0)),
+  );
+  element.dataset.state = rows.length ? 'ready' : 'empty';
+  element.innerHTML = rows.length
+    ? rows
+        .map((bucket) => {
+          const cents = Number(bucket.totalPriceCents || 0);
+          const width = Math.max(2, Math.round((cents / maximum) * 100));
+          return `
+            <div class="gift-ledger-series-row">
+              <span>${formatBucket(bucket.bucketStart)}</span>
+              <span class="gift-ledger-series-bar" aria-hidden="true"><span style="width:${width}%"></span></span>
+              <strong>${formatGiftCents(cents)}</strong>
+            </div>`;
+        })
+        .join('')
+    : '<div class="gift-ledger-placeholder">暂无趋势数据</div>';
+}
+
+function renderSyncStatus(data) {
+  const element = get('giftLedgerSyncStatus');
+  if (!element) return;
+  const syncState = String(data.syncState || '').toUpperCase();
+  const partial = data.partial !== false;
+  const status = describeGiftSyncStatus(syncState, partial);
+  element.dataset.state = status.state;
+  setText('giftLedgerSyncLabel', status.label);
+
+  const details = [];
+  if (data.syncedAt) details.push(`更新于 ${formatDateTime(data.syncedAt)}`);
+  if (partial) details.push('当前统计可能不完整');
+  setText('giftLedgerSyncDetail', details.join(' · '));
+}
+
+export function describeGiftSyncStatus(syncState, partial) {
+  if (syncState === 'LIVE' && !partial) {
+    return { state: 'live', label: '历史记录已同步' };
+  }
+  if (syncState === 'OFFLINE') {
+    return { state: 'offline', label: '离线，正在显示本地记录' };
+  }
+  if (syncState === 'ERROR') {
+    return { state: 'error', label: '礼物同步异常' };
+  }
+  const labels = {
+    SOURCE_SWITCHING: '正在切换账号',
+    BOOTSTRAPPING: '正在同步历史记录',
+    CATCHING_UP: '正在补齐最新记录',
+    LEGACY_PARTIAL: '服务器不支持完整历史同步',
+    LIVE: '历史记录尚未完成校验',
   };
-})();
+  return {
+    state: 'partial',
+    label: labels[syncState] || '历史记录同步中',
+  };
+}
+
+function renderSyncError(error) {
+  const element = get('giftLedgerSyncStatus');
+  if (element) element.dataset.state = 'error';
+  setText('giftLedgerSyncLabel', '无法读取同步状态');
+  setText('giftLedgerSyncDetail', error.message || '请稍后重试');
+}
+
+export function formatGiftCents(value) {
+  const cents = Number(value);
+  return formatMoney(Number.isFinite(cents) ? cents / 100 : 0);
+}
+
+function formatSignedCents(value) {
+  const cents = Number(value);
+  if (!Number.isFinite(cents) || cents === 0) return formatGiftCents(0);
+  return `${cents > 0 ? '+' : '-'}${formatGiftCents(Math.abs(cents))}`;
+}
+
+function formatCount(value) {
+  const count = Number(value);
+  return Number.isFinite(count)
+    ? Math.max(0, count).toLocaleString('zh-CN')
+    : '0';
+}
+
+function formatBucket(value) {
+  const text = String(value || '');
+  return giftLedgerState.range === 'all' ? text.slice(0, 7) : text.slice(5, 10);
+}
+
+function renderPlaceholder(id, message, state) {
+  const element = get(id);
+  if (!element) return;
+  element.dataset.state = state;
+  element.innerHTML = `<div class="gift-ledger-placeholder">${escapeHtml(message)}</div>`;
+}
+
+function setHistoryBody(html) {
+  const body = get('giftHistoryBody');
+  if (body) body.innerHTML = html;
+}
+
+function setText(id, value) {
+  const element = get(id);
+  if (element) element.textContent = value;
+}
+
+function get(id) {
+  return document.getElementById(id);
+}
+
+function isGiftHistoryOpen() {
+  return get('giftHistoryDrawer')?.classList.contains('open') === true;
+}
+
+function initGiftRecentToggle() {
+  const section = document.querySelector('.gift-recent-panel');
+  const toggle = get('giftRecentToggle');
+  const panelHeader = section?.querySelector('.panel-header');
+
+  panelHeader?.addEventListener('click', (event) => {
+    if (event.target.closest('#giftHistoryOpenBtn')) return;
+    const collapsed = section?.classList.toggle('is-collapsed') || false;
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.title = collapsed ? '展开最近礼物' : '折叠最近礼物';
+    }
+  });
+}

@@ -148,7 +148,12 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     getSnapshot: () => ({
       state: 'authorized',
       error: 'accessToken=should-not-cross',
-      streamer: { accountName: 'mlbb', token: 'drop' },
+      streamer: {
+        accountName: 'mlbb',
+        songPageUrl: 'http://127.0.0.1:13000/songs',
+        manageUrl: 'https://127.0.0.1/manage',
+        token: 'drop',
+      },
       device: { id: 'd', privateKeyPem: 'drop' },
       accessToken: 'drop',
     }),

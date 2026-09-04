@@ -183,13 +183,13 @@ PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` �
 
 ## 6.1 弹幕姬(/danmaku)
 
-[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动唯一固定 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在固定区域的聊天气泡(`bubble`)、直播信号带(`signal`)、极简字幕(`minimal`)、身份横卡(`ranked`)和全屏随机(`outline`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。全屏随机使用 snapshot 中的 `danmakuFullscreenDurationSeconds`，只渲染发送者和正文，在视口边界内定位并按时间移除；固定区域样式继续按顺序排列并保留身份渲染。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。Admin 通过 `/danmaku?preview=1&style=bubble|signal|minimal|ranked|outline` iframe 复用同一页面展示确定性样本，预览模式不连接 WebSocket。
+[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动唯一固定 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在固定区域的聊天气泡(`bubble`)、直播信号带(`signal`)、极简字幕(`minimal`)、身份横卡(`ranked`)、透明简约(`transparent`)和全屏随机(`outline`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。全屏随机使用 snapshot 中的 `danmakuFullscreenDurationSeconds`，只渲染发送者和正文，在视口边界内定位并按时间移除；固定区域样式继续按顺序排列，其中透明简约统一身份视觉并在正文下方显示粉丝牌名称与等级。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。Admin 通过 `/danmaku?preview=1&style=bubble|signal|minimal|ranked|transparent|outline` iframe 复用同一页面展示确定性样本，预览模式不连接 WebSocket。
 
 页面与 `/games` 的画猜消息共同复用 `danmaku-feed.js` DOM 组件。组件不读取 WebSocket 或领域状态，只接收显式消息数组和图片 URL resolver：
 
 - `measureDanmakuText(message)` 按中英文混合文本的视觉长度估算行数、宽度百分比和最小高度。
 - `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment`、`textContent` 和受控 `<img>` 创建头像、昵称、徽标、文字与 B 站表情，最多保留最近 120 条；`append(item)` 只追加新节点并按条数上限、缓存的容器高度和消息估算高度移除最旧的超限节点，不重建已有 DOM，也不逐消息读取布局。`ResizeObserver` 仅在容器尺寸变化时刷新高度并再次裁剪。表情按精确触发文本切分，加载失败回退原触发文本，不使用 `innerHTML`。游戏层按容器高度保留当前可见区及上方约 5 个视口的缓冲并自动滚到底部；固定 `/danmaku` 配置 `offscreenViewports: 0`，DOM 只保留约一个可见视口，同时关闭强制滚动。页面数据和服务端断线恢复快照仍分别硬限制为最近 50 条，不会无限缓存。
-- 共享组件按当前房间身份为每条消息输出 `data-identity=viewer|fan|captain|admiral|governor`；大航海身份优先，拥有大航海且佩戴当前房间灯牌时仍同时输出两枚徽标。四套固定弹幕姬只共享该语义，不共享身份视觉：`signal` 使用军衔刻度与分级信号色，`bubble` 使用会员胶囊、身份符号和柔和分级光晕，`minimal` 不绘制左侧色条，普通观众省略身份签，粉丝与大航海身份保留单字身份签和低遮挡分级色；`ranked` 隐藏徽标，以普通/粉丝共用的石墨灰及舰长蓝、提督紫、总督金四档整卡底色表达身份，用户名和正文在左、头像在右。`outline` 虽保留同一 DOM 身份字段以兼容共享组件，但 CSS 统一隐藏头像、徽标和灯牌，仅以白色昵称、正文和中性描边呈现，不使用身份颜色。
+- 共享组件按当前房间身份为每条消息输出 `data-identity=viewer|fan|captain|admiral|governor`；大航海身份优先，拥有大航海且佩戴当前房间灯牌时仍同时输出两枚徽标。五套固定弹幕姬只共享该语义，不共享身份视觉：`signal` 使用军衔刻度与分级信号色，`bubble` 使用会员胶囊、身份符号和柔和分级光晕，`minimal` 不绘制左侧色条，普通观众省略身份签，粉丝与大航海身份保留单字身份签和低遮挡分级色；`ranked` 隐藏徽标，以普通/粉丝共用的石墨灰及舰长蓝、提督紫、总督金四档整卡底色表达身份，用户名和正文在左、头像在右；`transparent` 不绘制卡片底色、边框或大航海徽标，所有身份统一为头像右侧的昵称、正文和下方粉丝牌等级。`outline` 虽保留同一 DOM 身份字段以兼容共享组件，但 CSS 统一隐藏头像、徽标和灯牌，仅以白色昵称、正文和中性描边呈现，不使用身份颜色。
 - `ranked` 使用 384×640 固定设计画布、360×64 卡片和 6px 卡片间距；`calculateRankedOverlayScale(width, height)` 取 `min(width / 384, height / 640)` 并投影到 `--ranked-scale`，让窗口 resize 时头像、文字和卡片统一等比缩放。浏览器源比例与设计画布不一致时在未占满的一轴保留透明空白，不拉伸或单独重排内部元素。
 - `/danmaku` 把头像与表情 CDN 地址交给 `/api/bilibili/avatar` 本地代理；未通过 B 站域名白名单的图片不会进入服务端公开流。
 

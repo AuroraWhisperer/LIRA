@@ -14,7 +14,7 @@
 - While `danmakuOverlayStyle` is `outline`, the overlay shall not display avatar, guard label, medal name, or medal level, regardless of the message identity fields.
 - While `danmakuOverlayStyle` is `outline`, each rendered message shall be removed after `danmakuFullscreenDurationSeconds` seconds.
 - While an Admin user edits the fullscreen duration, when the value is saved, the server shall accept only an integer from 2 through 30 and broadcast the normal settings snapshot.
-- While any other overlay style is selected, the existing ordered feed layout and identity rendering shall remain unchanged.
+- While `bubble`, `signal`, `minimal`, or `ranked` is selected, the existing ordered feed layout and identity rendering shall remain unchanged.
 
 ## Architecture
 

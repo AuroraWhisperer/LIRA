@@ -33,6 +33,24 @@ test('gift audit page loads dedicated assets without inline behavior', () => {
   assert.match(entrySource, /from '\.\/view\.js';/);
 });
 
+test('packaged frontend excludes the retired gift debug page and links', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'gift-audit.html'),
+    'utf8',
+  );
+  const view = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'view.js'),
+    'utf8',
+  );
+
+  assert.equal(
+    fs.existsSync(path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html')),
+    false,
+  );
+  assert.doesNotMatch(html, /debug-gifts/);
+  assert.doesNotMatch(view, /debug-gifts/);
+});
+
 test('gift audit analysis parses bubbles without browser dependencies', async () => {
   const { parseBubbleHtml } = await loadAnalysisModule();
   const gifts = parseBubbleHtml(`

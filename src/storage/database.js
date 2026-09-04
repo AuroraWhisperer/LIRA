@@ -38,6 +38,7 @@ function createDatabases(options = {}) {
     );
     databases.giftDb = openSqliteDatabase(
       path.join(dataDir, DB_FILE_NAMES.giftDb),
+      { foreignKeys: true },
     );
     databases.musicDb = openSqliteDatabase(
       path.join(dataDir, DB_FILE_NAMES.musicDb),

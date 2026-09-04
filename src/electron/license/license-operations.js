@@ -2,6 +2,7 @@
 
 const { RemoteLicenseError } = require('./remote-license-client');
 const {
+  normalizeProcessedGiftHistoryPage,
   normalizeProcessedGiftPage,
 } = require('../../shared/processed-gift-contract');
 const {
@@ -37,14 +38,22 @@ function createLicenseOperations(options = {}) {
 
   async function getGiftEventsInternal(input = {}) {
     const after = input.after;
-    const limit = input.limit === undefined ? 200 : Number(input.limit);
+    const limit = input.limit === undefined ? 200 : input.limit;
+    const syncEpoch =
+      input.syncEpoch === null || input.syncEpoch === undefined
+        ? null
+        : input.syncEpoch;
     if (
       (after !== null &&
         after !== undefined &&
-        (!Number.isSafeInteger(Number(after)) || Number(after) < 0)) ||
+        (!Number.isSafeInteger(after) || after < 0)) ||
       !Number.isInteger(limit) ||
       limit < 1 ||
-      limit > 200
+      limit > 200 ||
+      (syncEpoch !== null &&
+        (typeof syncEpoch !== 'string' ||
+          !syncEpoch ||
+          syncEpoch.length > 128))
     ) {
       throw new RemoteLicenseError(
         'INVALID_GIFT_CURSOR',
@@ -54,12 +63,49 @@ function createLicenseOperations(options = {}) {
     return withAuthorizedToken(
       async (token) => {
         const result = await remote.getGiftEvents(
-          after === null || after === undefined ? null : Number(after),
+          after === null || after === undefined ? null : after,
           limit,
           token,
+          { syncEpoch, signal: input.signal },
         );
         try {
           return normalizeProcessedGiftPage(result);
+        } catch {
+          throw new RemoteLicenseError(
+            'INVALID_RESPONSE',
+            '授权服务器返回无效响应。',
+            { retryable: true },
+          );
+        }
+      },
+      0,
+      false,
+    );
+  }
+
+  async function getGiftHistoryInternal(input = {}) {
+    const pageToken =
+      input.pageToken === null || input.pageToken === undefined
+        ? null
+        : input.pageToken;
+    if (
+      pageToken !== null &&
+      (typeof pageToken !== 'string' ||
+        !pageToken ||
+        pageToken.length > 4096)
+    ) {
+      throw new RemoteLicenseError(
+        'INVALID_BOOTSTRAP_TOKEN',
+        '礼物历史页令牌无效。',
+      );
+    }
+    return withAuthorizedToken(
+      async (token) => {
+        const result = await remote.getGiftHistory(pageToken, token, {
+          signal: input.signal,
+        });
+        try {
+          return normalizeProcessedGiftHistoryPage(result);
         } catch {
           throw new RemoteLicenseError(
             'INVALID_RESPONSE',
@@ -197,6 +243,7 @@ function createLicenseOperations(options = {}) {
     getCloudState,
     getGiftCatalog,
     getGiftEventsInternal,
+    getGiftHistoryInternal,
     getProfile,
     getSongPageBackground,
     setBilibiliCredentialsInternal,

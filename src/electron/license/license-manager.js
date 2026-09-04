@@ -59,8 +59,6 @@ function createLicenseManager(options = {}) {
     createRemoteLicenseClient({
       baseUrl: options.baseUrl,
       fetchImpl: options.fetchImpl,
-      isProduction: options.isProduction,
-      allowInsecure: options.allowInsecure,
     });
   const buildInfoProvider =
     options.buildInfoProvider ||
@@ -102,6 +100,7 @@ function createLicenseManager(options = {}) {
   let busy = null;
   let disposed = false;
   let lifecycleGeneration = 0;
+  let authorizationEpoch = 0;
   const listeners = new Set();
   const { handleAuthError, handleProtectedRequestError, isBlockedCode } =
     createLicenseErrorHandlers({
@@ -126,6 +125,10 @@ function createLicenseManager(options = {}) {
       streamer: sanitizeStreamer(profile?.streamer || identity),
       device: profile?.device ? sanitizeDevice(profile.device) : undefined,
     };
+  }
+
+  function getAuthorizationEpoch() {
+    return authorizationEpoch;
   }
 
   function onStateChanged(listener) {
@@ -370,6 +373,7 @@ function createLicenseManager(options = {}) {
         '授权服务器未返回有效会话。',
       );
     tokenExpiresAt = resolveTokenExpiresAt(result, Date.now());
+    authorizationEpoch += 1;
     profile = result.streamer
       ? {
           streamer: result.streamer,
@@ -513,6 +517,7 @@ function createLicenseManager(options = {}) {
   }
 
   function clearSession() {
+    if (accessToken || profile) authorizationEpoch += 1;
     accessToken = '';
     tokenExpiresAt = 0;
     profile = null;
@@ -542,6 +547,7 @@ function createLicenseManager(options = {}) {
     getCloudState,
     getGiftCatalog,
     getGiftEventsInternal,
+    getGiftHistoryInternal,
     getProfile,
     getSongPageBackground,
     setBilibiliCredentialsInternal,
@@ -566,6 +572,7 @@ function createLicenseManager(options = {}) {
     LicenseState,
     getState,
     getSnapshot,
+    getAuthorizationEpoch,
     onStateChanged,
     bootstrap,
     activate,
@@ -580,6 +587,7 @@ function createLicenseManager(options = {}) {
     getCloudSongs,
     getGiftCatalog,
     getGiftEventsInternal,
+    getGiftHistoryInternal,
     getSongPageBackground,
     uploadSongPageBackground,
     deleteSongPageBackground,

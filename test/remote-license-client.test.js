@@ -7,11 +7,10 @@ const {
   RemoteLicenseError,
 } = require('../src/electron/license/remote-license-client');
 
-test('debug client accepts an explicitly configured loopback HTTP tunnel', async () => {
+test('remote client accepts an HTTPS root origin', async () => {
   const requests = [];
   const client = createRemoteLicenseClient({
-    baseUrl: 'http://127.0.0.1:13000',
-    isProduction: false,
+    baseUrl: 'https://api.lirahub.cn/',
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       return new Response(JSON.stringify({ ok: true }), {
@@ -23,36 +22,47 @@ test('debug client accepts an explicitly configured loopback HTTP tunnel', async
 
   await client.challenge({ deviceId: 'device' });
 
-  assert.equal(client.baseUrl, 'http://127.0.0.1:13000');
-  assert.equal(requests[0].url, 'http://127.0.0.1:13000/api/device/challenge');
+  assert.equal(client.baseUrl, 'https://api.lirahub.cn');
+  assert.equal(
+    requests[0].url,
+    'https://api.lirahub.cn/api/device/challenge',
+  );
 });
 
-test('client still rejects non-loopback HTTP license endpoints', () => {
-  assert.throws(
-    () =>
-      createRemoteLicenseClient({
-        baseUrl: 'http://localhost:13000',
-        isProduction: true,
-        fetchImpl: async () => new Response('{}'),
-      }),
-    /License API must use HTTPS/,
-  );
-  assert.throws(
-    () =>
-      createRemoteLicenseClient({
-        baseUrl: 'http://192.168.1.10:13000',
-        isProduction: true,
-        fetchImpl: async () => new Response('{}'),
-      }),
-    /License API must use HTTPS/,
-  );
+test('remote client rejects every non-HTTPS or non-root origin', () => {
+  for (const baseUrl of [
+    'http://127.0.0.1:13000',
+    'http://127.0.0.2:13000',
+    'http://localhost:13000',
+    'http://[::1]:13000',
+    'http://192.168.1.10:13000',
+    'https://localhost',
+    'https://localhost.',
+    'https://127.0.0.1',
+    'https://2130706433',
+    'https://[::1]',
+    'https://bad_host.example',
+    'https://-bad.example',
+    'https://user:password@api.lirahub.cn',
+    'https://api.lirahub.cn/device',
+    'https://api.lirahub.cn?token=secret',
+    'https://api.lirahub.cn#fragment',
+  ]) {
+    assert.throws(
+      () =>
+        createRemoteLicenseClient({
+          baseUrl,
+          fetchImpl: async () => new Response('{}'),
+        }),
+      /HTTPS root origin/,
+    );
+  }
 });
 
 test('remote client marks throttling and server failures retryable without retrying auth rejection', async () => {
   for (const status of [429, 503]) {
     const client = createRemoteLicenseClient({
       baseUrl: 'https://api.lirahub.cn',
-      isProduction: true,
       fetchImpl: async () =>
         new Response(JSON.stringify({ error: `HTTP_${status}` }), {
           status,
@@ -70,7 +80,6 @@ test('remote client marks throttling and server failures retryable without retry
 
   const rejected = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async () =>
       new Response(JSON.stringify({ error: 'SESSION_SUPERSEDED' }), {
         status: 401,
@@ -87,7 +96,6 @@ test('remote client marks throttling and server failures retryable without retry
 
   const proxyFailure = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async () =>
       new Response('<html>Bad Gateway</html>', { status: 502 }),
   });
@@ -102,7 +110,6 @@ test('remote client marks throttling and server failures retryable without retry
 
   const authProxyRejection = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async () =>
       new Response('<html>Unauthorized</html>', { status: 401 }),
   });
@@ -119,7 +126,6 @@ test('remote client marks throttling and server failures retryable without retry
 test('remote client does not expose arbitrary response text as an error code', async () => {
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async () =>
       new Response(JSON.stringify({ error: 'accessToken=secret-value' }), {
         status: 400,
@@ -137,7 +143,6 @@ test('remote client rejects non-object JSON responses as protocol errors', async
   for (const body of ['null', '[]', '"ok"']) {
     const client = createRemoteLicenseClient({
       baseUrl: 'https://api.lirahub.cn',
-      isProduction: true,
       fetchImpl: async () =>
         new Response(body, {
           status: 200,
@@ -160,7 +165,6 @@ test('remote client sends the device token only to the fixed heartbeat endpoint'
   const requests = [];
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn/',
-    isProduction: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       return new Response(JSON.stringify({ ok: true }), {
@@ -184,7 +188,6 @@ test('remote client reads the public flat gift catalog with conditional etag req
   let call = 0;
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       call += 1;
@@ -233,7 +236,6 @@ test('cloud sync client keeps settings and Bilibili credentials on fixed Device 
   const requests = [];
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       const body = url.endsWith('/bilibili-credentials') && init.method === 'GET'
@@ -282,7 +284,6 @@ test('cloud state event stream uses DeviceBearer and parses revision-only SSE fr
   const encoder = new TextEncoder();
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       return new Response(
@@ -335,7 +336,6 @@ test('cloud state event stream rejects non-SSE and oversized event data', async 
   const createClient = (response) =>
     createRemoteLicenseClient({
       baseUrl: 'https://api.lirahub.cn',
-      isProduction: true,
       fetchImpl: async () => response,
     });
 
@@ -375,7 +375,6 @@ test('gift recovery uses the fixed Device endpoint and bounded cursor query', as
   const requests = [];
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       return new Response(
@@ -399,6 +398,87 @@ test('gift recovery uses the fixed Device endpoint and bounded cursor query', as
   assert.equal(requests[0].init.body, undefined);
 });
 
+test('gift history and epoch-aware recovery use fixed abortable Device endpoints', async () => {
+  const requests = [];
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.lirahub.cn',
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      const pathname = new URL(url).pathname;
+      const body =
+        pathname === '/api/device/gift-history'
+          ? {
+              ok: true,
+              events: [],
+              nextPageToken: null,
+              hasMore: false,
+              recoveryCursor: 8,
+              syncEpoch: 'epoch-1',
+              historyBootstrapVersion: 1,
+            }
+          : {
+              ok: true,
+              events: [],
+              nextCursor: 8,
+              hasMore: false,
+              historyBootstrapVersion: 1,
+              syncEpoch: 'epoch-1',
+              earliestCursor: 1,
+              latestCursor: 8,
+            };
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+  const historyAbort = new AbortController();
+  const recoveryAbort = new AbortController();
+
+  await client.getGiftHistory(
+    'opaque page/+ token',
+    'device-token',
+    { signal: historyAbort.signal },
+  );
+  await client.getGiftEvents(8, 200, 'device-token', {
+    syncEpoch: 'epoch-1',
+    signal: recoveryAbort.signal,
+  });
+
+  const historyUrl = new URL(requests[0].url);
+  assert.equal(historyUrl.pathname, '/api/device/gift-history');
+  assert.equal(historyUrl.searchParams.get('pageToken'), 'opaque page/+ token');
+  assert.equal(requests[0].init.signal.aborted, false);
+  const recoveryUrl = new URL(requests[1].url);
+  assert.equal(recoveryUrl.searchParams.get('after'), '8');
+  assert.equal(recoveryUrl.searchParams.get('syncEpoch'), 'epoch-1');
+  assert.equal(requests[1].init.signal.aborted, false);
+  assert.equal(
+    requests.every(({ init }) => init.headers.Authorization === 'Bearer device-token'),
+    true,
+  );
+});
+
+test('external abort is not misreported as a request timeout', async () => {
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.lirahub.cn',
+    fetchImpl: async (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal.addEventListener(
+          'abort',
+          () => reject(new DOMException('aborted', 'AbortError')),
+          { once: true },
+        );
+      }),
+  });
+  const controller = new AbortController();
+  const pending = client.getGiftHistory(null, 'device-token', {
+    signal: controller.signal,
+  });
+  controller.abort();
+  await assert.rejects(pending, (error) => error?.name === 'AbortError');
+});
+
 test('gift event stream allowlists valid SSE fields and ignores malformed blocks', async () => {
   const requests = [];
   const encoder = new TextEncoder();
@@ -406,8 +486,6 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
     eventId: 'event-1',
     cursor: 1,
     phase: 'final',
-    uid: 'not-forwarded',
-    rawJson: '{"secret":true}',
     gift: {
       giftId: '33988',
       giftName: '人气票',
@@ -421,7 +499,6 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
       blindBoxPrice: null,
       blindProfit: null,
       createdAt: '2027-01-15T08:00:00.000Z',
-      uid: 'not-forwarded',
     },
   };
   const invalid = {
@@ -430,9 +507,9 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
     cursor: 2,
     gift: { ...valid.gift, totalPrice: 0 },
   };
+  const extended = { ...valid, cursor: 3, uid: 'not-forwarded' };
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    isProduction: true,
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
       return new Response(
@@ -448,20 +525,30 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
                 `event: gift-event\ndata: ${JSON.stringify(invalid)}\n\n`,
               ),
             );
+            controller.enqueue(
+              encoder.encode(
+                `event: gift-event\ndata: ${JSON.stringify(extended)}\n\n`,
+              ),
+            );
             controller.close();
           },
         }),
         {
           status: 200,
-          headers: { 'content-type': 'text/event-stream; charset=utf-8' },
+          headers: {
+            'content-type': 'text/event-stream; charset=utf-8',
+            'x-lira-gift-sync-epoch': 'epoch-1',
+          },
         },
       );
     },
   });
   const events = [];
+  const openedEpochs = [];
 
   await client.watchGiftEvents('device-token', {
     onEvent: (event) => events.push(event),
+    onOpen: ({ syncEpoch }) => openedEpochs.push(syncEpoch),
   });
 
   assert.equal(events.length, 1);
@@ -478,4 +565,24 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
     'https://api.lirahub.cn/api/device/gift-events/stream',
   );
   assert.equal(requests[0].init.headers.Authorization, 'Bearer device-token');
+  assert.deepEqual(openedEpochs, ['epoch-1']);
+});
+
+test('gift event stream rejects an oversized sync epoch header', async () => {
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.lirahub.cn',
+    fetchImpl: async () =>
+      new Response('', {
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream',
+          'x-lira-gift-sync-epoch': 'x'.repeat(129),
+        },
+      }),
+  });
+
+  await assert.rejects(
+    client.watchGiftEvents('device-token'),
+    (error) => error.code === 'INVALID_RESPONSE',
+  );
 });

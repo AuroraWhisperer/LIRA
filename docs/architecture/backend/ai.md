@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/ai/config.js](../../../src/ai/config.js)、[src/ai/config-store.js](../../../src/ai/config-store.js)、[src/ai/model-endpoint.js](../../../src/ai/model-endpoint.js)、[src/ai/secret-codec.js](../../../src/ai/secret-codec.js)、[src/ai/deepseek-client.js](../../../src/ai/deepseek-client.js)、[src/ai/http-client.js](../../../src/ai/http-client.js)、[src/ai/prompt.js](../../../src/ai/prompt.js)、[src/ai/safety.js](../../../src/ai/safety.js)、[src/ai/ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[src/ai/ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)、[src/ai/async-coordinator.js](../../../src/ai/async-coordinator.js)、[src/ai/danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js)、[src/ai/api-quota-store.js](../../../src/ai/api-quota-store.js)、[src/ai/request-logger.js](../../../src/ai/request-logger.js)、[src/ai/tools/qweather-tool.js](../../../src/ai/tools/qweather-tool.js)、[src/ai/tools/amap-tool.js](../../../src/ai/tools/amap-tool.js)、[src/ai/tools/web-search-tool.js](../../../src/ai/tools/web-search-tool.js)、[src/ai/tools/current-time-tool.js](../../../src/ai/tools/current-time-tool.js)
 
-本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §14;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
+本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §13;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
 **内部模块边界:** `ai-assistant-service.js` 拥有触发、排队、工具调用与回复发送生命周期；`ai-assistant-helpers.js` 只提供上下文、提示与回复归一化纯函数。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
 
@@ -165,7 +165,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段(不出现在返回对象中),替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js)                                                                                                                      |
 | 前端遮罩     | 管理页密钥输入框类型为 `password`;已保存密钥不回填到真实 `value`（输入框保持为空，避免把掩码误当成新密钥提交）;提交时空值跳过该字段(保留现值);提示文案:"已加密保存；清空或输入新值以更新"                                                                                     | [ai-assistant-settings.js:266-286](../../../public/js/admin/ai-assistant-settings.js#L266-L286)、[256-264](../../../public/js/admin/ai-assistant-settings.js#L256-L264) |
 
-管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §14);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
+管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §13);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 
 ## 8. 月度配额与审计日志
 

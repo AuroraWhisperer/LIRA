@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { isDnsHostname } = require('../../shared/remote-url-policy');
 const { isGuardGiftAliasId } = require('./guard-gift-aliases');
 
 const CACHE_FILE_NAME = 'overtime-gift-catalog.json';
@@ -325,10 +326,11 @@ function normalizeImagePath(value, imageBaseUrl = '') {
     base &&
     (base.username ||
       base.password ||
+      !isDnsHostname(base.hostname) ||
+      (base.pathname !== '/' && base.pathname !== '') ||
       base.search ||
       base.hash ||
-      (base.protocol !== 'https:' &&
-        !(base.protocol === 'http:' && base.hostname === '127.0.0.1')))
+      base.protocol !== 'https:')
   ) {
     return '';
   }
@@ -356,11 +358,14 @@ function normalizeImageBaseUrl(value) {
   if (!raw) return '';
   try {
     const parsed = new URL(raw);
-    if (parsed.username || parsed.password || parsed.search || parsed.hash)
-      return '';
     if (
-      parsed.protocol !== 'https:' &&
-      !(parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1')
+      parsed.protocol !== 'https:' ||
+      !isDnsHostname(parsed.hostname) ||
+      parsed.username ||
+      parsed.password ||
+      (parsed.pathname !== '/' && parsed.pathname !== '') ||
+      parsed.search ||
+      parsed.hash
     )
       return '';
     return parsed.origin;

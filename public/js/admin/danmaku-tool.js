@@ -16,6 +16,7 @@ const DANMAKU_OVERLAY_STYLES = Object.freeze({
   signal: '直播信号带',
   minimal: '航海铭牌',
   ranked: '直播气泡',
+  transparent: '透明简约',
   outline: '全屏随机',
 });
 
@@ -330,7 +331,7 @@ function getElements() {
     document.querySelectorAll('[data-danmaku-style]'),
   );
   return Object.values(elements).some((element) => !element) ||
-    elements.styleButtons.length !== 5
+    elements.styleButtons.length !== 6
     ? null
     : elements;
 }

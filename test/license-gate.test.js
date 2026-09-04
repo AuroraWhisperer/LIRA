@@ -73,18 +73,18 @@ test('Electron startup restores authorized work and owns the system-resume liste
     source,
     /app\.on\(["']before-quit["'][^]*?licenseResumeController\?\.unregister\(\)/,
   );
-  const initialStart = source.indexOf(
-    'cloudSyncController\n      .start()',
+  const initialGiftStart = source.indexOf(
+    'remoteGiftController.start()',
     initialResumeIndex,
   );
-  const initialStartThen = source.indexOf('.then(()', initialStart);
-  const initialGiftStart = source.indexOf(
-    'remoteGiftController?.start()',
-    initialStartThen,
+  const initialStart = source.indexOf(
+    'cloudSyncController\n        .start()',
+    initialGiftStart,
   );
-  assert.ok(initialStart > initialResumeIndex);
+  const initialStartThen = source.indexOf('.then(()', initialStart);
+  assert.ok(initialGiftStart > initialResumeIndex);
+  assert.ok(initialStart > initialGiftStart);
   assert.ok(initialStartThen > initialStart);
-  assert.ok(initialGiftStart > initialStartThen);
   assert.match(source, /remoteGiftController\?\.stop\(\)/);
 
   const resumeSync = source.indexOf('cloudSyncController?.syncNow()');

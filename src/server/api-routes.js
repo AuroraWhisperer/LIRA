@@ -19,7 +19,6 @@ const ROUTE_MODULES = [
   require('./routes/superchat-routes'),
   require('./routes/gift-routes'),
   require('./routes/overtime-routes'),
-  require('./routes/debug-routes'),
   require('./routes/data-routes'),
   require('./routes/ai-routes'),
   require('./routes/game-routes'),

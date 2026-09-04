@@ -1026,6 +1026,139 @@ body[data-style='ranked'] .draw-danmaku-empty {
   background: rgba(110, 214, 220, 0.72);
   clip-path: none;
 }
+
+/* 透明简约：头像、昵称、正文与粉丝牌直接叠加在直播画面上。 */
+body[data-style='transparent'] .danmaku-signal-stage {
+  width: min(520px, 100vw);
+  padding: clamp(10px, 2vw, 18px);
+}
+body[data-style='transparent'] .danmaku-signal-header {
+  display: none;
+}
+body[data-style='transparent'] .draw-danmaku-feed {
+  gap: 14px;
+  max-height: calc(100vh - clamp(20px, 4vw, 36px));
+}
+body[data-style='transparent'] .draw-danmaku-item {
+  --transparent-ink: #fff;
+  --transparent-medal: #f3dda0;
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.png');
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  width: max-content;
+  max-width: min(100%, 500px);
+  min-height: 78px;
+  padding: 4px 8px 8px 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  animation-name: rankedMessageIn;
+}
+body[data-style='transparent'] .draw-danmaku-item::after {
+  display: none;
+}
+body[data-style='transparent'] .draw-danmaku-item[data-identity='viewer'],
+body[data-style='transparent'] .draw-danmaku-item[data-identity='fan'],
+body[data-style='transparent'] .draw-danmaku-item[data-identity='captain'],
+body[data-style='transparent'] .draw-danmaku-item[data-identity='admiral'],
+body[data-style='transparent'] .draw-danmaku-item[data-identity='governor'] {
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.png');
+}
+body[data-style='transparent'] .draw-danmaku-avatar {
+  align-self: start;
+  width: 58px;
+  height: 58px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: var(--danmaku-avatar-art) center / cover no-repeat;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.46);
+  clip-path: none;
+}
+body[data-style='transparent'] .draw-danmaku-avatar img {
+  border-radius: inherit;
+}
+body[data-style='transparent'] .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+body[data-style='transparent'] .draw-danmaku-identity {
+  display: contents;
+}
+body[data-style='transparent'] .draw-danmaku-identity strong {
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--transparent-ink);
+  font:
+    700 17px/1.25 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.92),
+    1px 0 1px rgba(0, 0, 0, 0.84),
+    -1px 0 1px rgba(0, 0, 0, 0.84);
+  white-space: nowrap;
+}
+body[data-style='transparent'] .draw-danmaku-guard {
+  display: none;
+}
+body[data-style='transparent'] .draw-danmaku-medal {
+  grid-row: 3;
+  justify-self: start;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  color: var(--transparent-medal);
+  background: transparent;
+  font:
+    700 13px/1.2 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+  text-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.92),
+    1px 0 1px rgba(0, 0, 0, 0.78),
+    -1px 0 1px rgba(0, 0, 0, 0.78);
+}
+body[data-style='transparent'] .draw-danmaku-medal-level {
+  font-size: 1em;
+  line-height: 1;
+}
+body[data-style='transparent'] .draw-danmaku-body p {
+  grid-row: 2;
+  width: max-content;
+  max-width: 100%;
+  margin: 2px 0 0;
+  color: var(--transparent-ink);
+  font-size: clamp(16px, 3vw, 20px);
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.94),
+    1px 0 1px rgba(0, 0, 0, 0.88),
+    -1px 0 1px rgba(0, 0, 0, 0.88);
+}
+body[data-style='transparent'] .draw-danmaku-empty {
+  padding: 18px 4px;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  clip-path: none;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.9);
+}
+body.is-preview[data-style='transparent'] {
+  background: transparent;
+}
+
 /* 全屏随机：只展示发送者和正文，位置由弹幕组件在插入后计算。 */
 body[data-style='outline'] .danmaku-signal-stage {
   display: block;

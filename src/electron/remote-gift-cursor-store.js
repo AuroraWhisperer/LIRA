@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { isDnsHostname } = require('../shared/remote-url-policy');
 
 const CURSOR_FILE_NAME = 'remote-gift-cursor.json';
 const MAX_CURSOR_FILE_BYTES = 4096;
@@ -67,17 +68,38 @@ function createRemoteGiftCursorStore(options = {}) {
   return { filePath, load, save };
 }
 
-function createRemoteGiftSourceKey(baseUrl, streamer = {}, device = {}) {
-  const source = [
-    String(baseUrl || '').trim().replace(/\/+$/u, ''),
-    String(streamer.accountName || '').trim().toLowerCase(),
-    String(streamer.subdomain || '').trim().toLowerCase(),
-    String(device.id || '').trim(),
-  ].join('\n');
-  if (!source.split('\n').some((part, index) => index > 0 && part)) {
+function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
+  const accountName = String(streamer.accountName || '').trim().toLowerCase();
+  if (!accountName) {
     throw new Error('REMOTE_GIFT_SOURCE_UNAVAILABLE');
   }
+  const source = [
+    'gift-source-v1',
+    canonicalizeGiftSourceOrigin(baseUrl),
+    accountName,
+  ].join('\n');
   return crypto.createHash('sha256').update(source).digest('hex');
+}
+
+function canonicalizeGiftSourceOrigin(baseUrl) {
+  let parsed;
+  try {
+    parsed = new URL(String(baseUrl || '').trim());
+  } catch {
+    throw new Error('INVALID_GIFT_SOURCE_ORIGIN');
+  }
+  if (
+    parsed.protocol !== 'https:' ||
+    !isDnsHostname(parsed.hostname) ||
+    parsed.username ||
+    parsed.password ||
+    parsed.pathname !== '/' ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new Error('INVALID_GIFT_SOURCE_ORIGIN');
+  }
+  return parsed.origin;
 }
 
 function normalizeSourceKey(value) {
@@ -90,6 +112,7 @@ function normalizeSourceKey(value) {
 
 module.exports = {
   CURSOR_FILE_NAME,
+  canonicalizeGiftSourceOrigin,
   createRemoteGiftCursorStore,
   createRemoteGiftSourceKey,
 };

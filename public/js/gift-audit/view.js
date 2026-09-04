@@ -11,7 +11,6 @@ export function renderConnBar(state) {
     <span class="hint">已解析 ${diag.parsedGiftCount || 0} 条礼物 · 未识别 ${diag.unparsedGiftCount || 0} 条</span>
     <span class="hint">收包 ${escHtml((diag.lastPacketAt || '').slice(11, 19) || '—')}</span>
     <a href="/admin" target="_blank" style="color:var(--blue);text-decoration:none;margin-left:auto">⚙️ 管理</a>
-    <a href="/debug-gifts" target="_blank" style="color:var(--blue);text-decoration:none">🔍 诊断</a>
   `;
 }
 

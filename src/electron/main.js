@@ -19,9 +19,6 @@ const {
 const { createDesktopAuthController } = require('./desktop-auth-controller');
 const { createCloudSyncController } = require('./cloud-sync-controller');
 const { createRemoteGiftController } = require('./remote-gift-controller');
-const {
-  createRemoteGiftCursorStore,
-} = require('./remote-gift-cursor-store');
 const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const {
@@ -298,6 +295,9 @@ async function startDesktopApp() {
       getCookieHeader: getBilibiliCookieHeader,
       getUid: getBilibiliUid,
     },
+    giftSync: {
+      rebuild: () => remoteGiftController?.start() ?? false,
+    },
     remoteGiftCatalog: {
       // The callback is evaluated after the license manager is created. It
       // deliberately exposes no token or remote client to the renderer.
@@ -344,8 +344,6 @@ async function startDesktopApp() {
     appVersion: app.getVersion(),
     isPackaged: app.isPackaged,
     appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
-    isProduction: app.isPackaged,
-    allowInsecure: !app.isPackaged,
   });
   registerLicenseIpc({
     ipcMain,
@@ -372,7 +370,6 @@ async function startDesktopApp() {
   remoteGiftController = createRemoteGiftController({
     licenseManager,
     runtime: lifecycleState.runtime,
-    cursorStore: createRemoteGiftCursorStore({ dataDir: pathState.dataDir }),
   });
   licenseResumeController = createLicenseResumeHandler({
     powerMonitor,
@@ -404,14 +401,12 @@ async function startDesktopApp() {
       error: snapshot.error || null,
     });
     if (snapshot.state === LicenseState.AUTHORIZED) {
-      const resumePromise = cloudSyncController
-        ?.whenIdle()
-        .then(() =>
-          Promise.all([
-            lifecycleState.runtime.resumeAuthorizedWork?.(),
-            remoteGiftController?.start(),
-          ]),
-        );
+      const resumePromise = Promise.all([
+        remoteGiftController?.start(),
+        cloudSyncController
+          ?.whenIdle()
+          .then(() => lifecycleState.runtime.resumeAuthorizedWork?.()),
+      ]);
       if (resumePromise?.catch)
         resumePromise.catch((error) => writeLog('license-resume', error));
     } else {
@@ -433,15 +428,13 @@ async function startDesktopApp() {
     }
   });
   if (licenseManager.getState() === LicenseState.AUTHORIZED) {
-    const resumePromise = cloudSyncController
-      .start()
-      .catch((error) => writeLog('cloud-sync', error))
-      .then(() =>
-        Promise.all([
-          lifecycleState.runtime.resumeAuthorizedWork?.(),
-          remoteGiftController?.start(),
-        ]),
-      );
+    const resumePromise = Promise.all([
+      remoteGiftController.start(),
+      cloudSyncController
+        .start()
+        .catch((error) => writeLog('cloud-sync', error))
+        .then(() => lifecycleState.runtime.resumeAuthorizedWork?.()),
+    ]);
     if (resumePromise?.catch)
       resumePromise.catch((error) => writeLog('license-resume', error));
   }

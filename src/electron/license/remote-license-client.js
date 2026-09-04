@@ -3,6 +3,7 @@
 const {
   normalizeProcessedGiftEvent,
 } = require('../../shared/processed-gift-contract');
+const { isDnsHostname } = require('../../shared/remote-url-policy');
 
 const DEFAULT_BASE_URL = 'https://api.lirahub.cn';
 
@@ -21,25 +22,17 @@ function createRemoteLicenseClient(options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 10000;
   const baseUrl = resolveConfiguredBaseUrl(options.baseUrl);
   const parsedBase = new URL(baseUrl);
-  const allowInsecure = Boolean(
-    options.allowInsecure ||
-    process.env.NODE_ENV === 'test' ||
-    !options.isProduction,
-  );
   if (
-    parsedBase.protocol !== 'https:' &&
-    !(allowInsecure && parsedBase.hostname === '127.0.0.1')
-  ) {
-    throw new Error('License API must use HTTPS.');
-  }
-  if (
+    parsedBase.protocol !== 'https:' ||
+    !isDnsHostname(parsedBase.hostname) ||
     parsedBase.username ||
     parsedBase.password ||
+    parsedBase.pathname !== '/' ||
     parsedBase.search ||
     parsedBase.hash
   ) {
     throw new Error(
-      'License API base URL must not contain credentials or query parameters.',
+      'License API base URL must be an HTTPS root origin with a DNS hostname and without credentials, query, or fragment.',
     );
   }
   if (typeof fetchImpl !== 'function') throw new Error('Fetch is unavailable.');
@@ -53,7 +46,17 @@ function createRemoteLicenseClient(options = {}) {
     requestOptions = {},
   ) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const externalSignal = requestOptions.signal;
+    let timedOut = false;
+    const abortFromCaller = () => controller.abort(externalSignal.reason);
+    if (externalSignal?.aborted) abortFromCaller();
+    else externalSignal?.addEventListener('abort', abortFromCaller, {
+      once: true,
+    });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
     try {
       const response = await fetchImpl(`${baseUrl}${pathname}`, {
         method,
@@ -136,7 +139,8 @@ function createRemoteLicenseClient(options = {}) {
       return data;
     } catch (error) {
       if (error instanceof RemoteLicenseError) throw error;
-      if (error?.name === 'AbortError')
+      if (error?.name === 'AbortError' && externalSignal?.aborted) throw error;
+      if (error?.name === 'AbortError' && timedOut)
         throw new RemoteLicenseError(
           'REQUEST_TIMEOUT',
           '连接授权服务器超时，请重试。',
@@ -149,6 +153,7 @@ function createRemoteLicenseClient(options = {}) {
       );
     } finally {
       clearTimeout(timer);
+      externalSignal?.removeEventListener('abort', abortFromCaller);
     }
   }
 
@@ -256,18 +261,34 @@ function createRemoteLicenseClient(options = {}) {
     }
   }
 
-  async function getGiftEvents(after, limit, token) {
+  async function getGiftEvents(after, limit, token, options = {}) {
     const query = new URLSearchParams();
     if (after !== null && after !== undefined) {
       query.set('after', String(after));
     }
     query.set('limit', String(limit));
+    if (options.syncEpoch) query.set('syncEpoch', String(options.syncEpoch));
     return request(
       'GET',
       `/api/device/gift-events?${query.toString()}`,
       undefined,
       token,
-      { maxResponseBytes: 512 * 1024 },
+      { maxResponseBytes: 512 * 1024, signal: options.signal },
+    );
+  }
+
+  async function getGiftHistory(pageToken, token, options = {}) {
+    const query = new URLSearchParams();
+    if (pageToken !== null && pageToken !== undefined) {
+      query.set('pageToken', String(pageToken));
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return request(
+      'GET',
+      `/api/device/gift-history${suffix}`,
+      undefined,
+      token,
+      { maxResponseBytes: 512 * 1024, signal: options.signal },
     );
   }
 
@@ -309,7 +330,18 @@ function createRemoteLicenseClient(options = {}) {
       );
     }
 
-    options.onOpen?.();
+    const rawSyncEpoch = response.headers?.get?.(
+      'x-lira-gift-sync-epoch',
+    );
+    const syncEpoch = normalizeSyncEpochHeader(rawSyncEpoch);
+    if (rawSyncEpoch !== null && syncEpoch === null) {
+      throw new RemoteLicenseError(
+        'INVALID_RESPONSE',
+        '授权服务器返回无效响应。',
+        { status: response.status, retryable: true },
+      );
+    }
+    options.onOpen?.({ syncEpoch });
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -350,6 +382,7 @@ function createRemoteLicenseClient(options = {}) {
       request('GET', '/api/device/cloud-state', undefined, token),
     watchCloudStateChanges,
     getGiftEvents,
+    getGiftHistory,
     watchGiftEvents,
     updateCloudSettings: (settings, token) =>
       request('PUT', '/api/device/cloud-settings', settings, token),
@@ -465,6 +498,13 @@ function safeHeaderValue(value) {
     .trim()
     .slice(0, 256);
   return /[\r\n]/u.test(text) ? '' : text;
+}
+
+function normalizeSyncEpochHeader(value) {
+  if (value === null || value === undefined) return null;
+  const text = String(value);
+  if (!text || text.length > 128 || /[\r\n]/u.test(text)) return null;
+  return text;
 }
 
 function resolveConfiguredBaseUrl(value) {

@@ -201,3 +201,9 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 | 登录窗(音乐/B站) | true             | false           | true      | 无             |
 
 主窗口 `sandbox: false`([main.js:325](../../../src/electron/main.js#L325)):preload 桥需在页面上下文暴露 `contextBridge` API 并访问完整 `ipcRenderer`;辅助窗口无此需求,保持 `sandbox: true` 收紧。IPC 安全边界见 [preload.md](preload.md) §1。
+
+## 10. 礼物 source 切换与完整投影（Accepted，实施中）
+
+ADR [0011](../adr/0011-source-partitioned-gift-ledger-projection.md) 接受以 SQLite `gift_sync_state` 替代 §2.3 的 JSON cursor 当前路径。remote gift controller 将拥有 `SOURCE_SWITCHING/BOOTSTRAPPING/CATCHING_UP/LIVE/OFFLINE/LEGACY_PARTIAL/ERROR` 状态和外部 HTTP/SSE abort。每个异步任务捕获 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`，在 await 前后与写事务前复核。
+
+授权 principal 变化时，`main.js` 先冻结本地礼物 API、递增 controller generation、abort HTTP/SSE 并 `await whenIdle()`，然后解析新 source 并只开放该分区。清库使用相同的 quiesce 边界并在 SQLite transaction 内递增 projection generation。Device token、source hash 输入、bootstrap token 和远端句柄始终只在 main process；日志不记录页 token 或完整礼物响应。完整时序见 [gift-ledger-projection-sync_design.md](../../specs/gift-ledger-projection-sync_design.md)。

@@ -105,7 +105,7 @@
 }
 .danmaku-style-options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 .danmaku-style-options-fullscreen {
@@ -330,6 +330,46 @@
 .danmaku-style-option-visual.is-ranked i:nth-child(4) {
   top: 60px;
   --preview-rank: #f0445a;
+}
+.danmaku-style-option-visual.is-transparent {
+  background:
+    linear-gradient(45deg, #354156 25%, transparent 25%) 0 0 / 16px 16px,
+    linear-gradient(45deg, transparent 75%, #354156 75%) 0 0 / 16px 16px,
+    #263145;
+}
+.danmaku-style-option-visual.is-transparent i {
+  left: 34px;
+  width: 58%;
+  height: 3px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow:
+    0 6px 0 rgba(255, 255, 255, 0.82),
+    0 13px 0 #f3dda0,
+    0 2px 3px rgba(0, 0, 0, 0.48);
+}
+.danmaku-style-option-visual.is-transparent i::before {
+  position: absolute;
+  top: -2px;
+  left: -23px;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: #8395ad;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.32);
+  content: '';
+}
+.danmaku-style-option-visual.is-transparent i:nth-child(1) {
+  top: 7px;
+}
+.danmaku-style-option-visual.is-transparent i:nth-child(2) {
+  top: 30px;
+  width: 48%;
+}
+.danmaku-style-option-visual.is-transparent i:nth-child(3) {
+  top: 53px;
+  width: 64%;
 }
 .danmaku-style-option-visual.is-outline {
   background:

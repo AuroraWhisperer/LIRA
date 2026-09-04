@@ -249,7 +249,9 @@ function createDomainServices(options) {
     clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
     clearPlayback: () => database.clearPlaybackData(db.musicDb),
     clearGifts() {
-      const result = database.clearGiftData(db.giftDb);
+      const result = database.clearGiftData(db.giftDb, {
+        sourceId: getActiveGiftSourceId(gifts),
+      });
       state.blindBoxCache = null;
       return result;
     },
@@ -260,6 +262,7 @@ function createDomainServices(options) {
         db.giftDb,
         db.musicDb,
         db.checkinDb,
+        { sourceId: getActiveGiftSourceId(gifts) },
       );
 
       // 只有完全成功时才重置内存状态
@@ -307,6 +310,13 @@ function createDomainServices(options) {
     theme: themeStore,
     cooldowns: cooldownStore,
   };
+}
+
+function getActiveGiftSourceId(gifts) {
+  const source = gifts.getActiveSource?.();
+  if (source?.syncState === 'SOURCE_SWITCHING') return null;
+  const sourceId = Number(source?.sourceId);
+  return Number.isSafeInteger(sourceId) && sourceId >= 1 ? sourceId : null;
 }
 
 module.exports = { createDomainServices };

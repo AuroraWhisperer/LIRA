@@ -208,6 +208,82 @@ function runAllMigrations(databases, options = {}) {
           ON overtime_gift_rules(enabled DESC, sort_order, gift_id);
       `);
       },
+      (db) => {
+        // v8: 服务器权威礼物按来源分区，并把同步状态放入同一个礼物库。
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS gift_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          )
+        `);
+        const columns = new Set(
+          db
+            .prepare('PRAGMA table_info(gift_events)')
+            .all()
+            .map((column) => column.name),
+        );
+        if (!columns.has('source_id')) {
+          db.exec(
+            'ALTER TABLE gift_events ADD COLUMN source_id INTEGER REFERENCES gift_sources(id)',
+          );
+        }
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS gift_sync_state (
+            source_id INTEGER PRIMARY KEY
+              REFERENCES gift_sources(id) ON DELETE CASCADE,
+            sync_epoch TEXT,
+            final_cursor INTEGER
+              CHECK (final_cursor IS NULL OR final_cursor >= 0),
+            bootstrap_complete INTEGER NOT NULL DEFAULT 0
+              CHECK (bootstrap_complete IN (0, 1)),
+            bootstrap_page_token TEXT,
+            bootstrap_recovery_cursor INTEGER
+              CHECK (
+                bootstrap_recovery_cursor IS NULL
+                OR bootstrap_recovery_cursor >= 0
+              ),
+            bootstrap_sync_epoch TEXT,
+            projection_generation INTEGER NOT NULL DEFAULT 1
+              CHECK (projection_generation >= 1),
+            last_validated_at TEXT,
+            updated_at TEXT NOT NULL,
+            CHECK (
+              bootstrap_complete = 0 OR (
+                sync_epoch IS NOT NULL
+                AND final_cursor IS NOT NULL
+                AND bootstrap_page_token IS NULL
+              )
+            )
+          );
+          CREATE INDEX IF NOT EXISTS idx_gift_events_source_time
+            ON gift_events(
+              source_id, detection_status, status, created_at DESC, id DESC
+            );
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_gift_events_remote_source_event
+            ON gift_events(source_id, platform_id, cmd)
+            WHERE source_id IS NOT NULL AND cmd = 'LIRA_SERVER_GIFT';
+          CREATE TRIGGER IF NOT EXISTS trg_remote_gift_source_insert
+          BEFORE INSERT ON gift_events
+          WHEN NEW.cmd = 'LIRA_SERVER_GIFT' AND (
+            NEW.source_id IS NULL OR
+            NOT EXISTS (SELECT 1 FROM gift_sources WHERE id = NEW.source_id)
+          )
+          BEGIN
+            SELECT RAISE(ABORT, 'REMOTE_GIFT_SOURCE_REQUIRED');
+          END;
+          CREATE TRIGGER IF NOT EXISTS trg_remote_gift_source_update
+          BEFORE UPDATE ON gift_events
+          WHEN NEW.cmd = 'LIRA_SERVER_GIFT' AND (
+            NEW.source_id IS NULL OR
+            NOT EXISTS (SELECT 1 FROM gift_sources WHERE id = NEW.source_id)
+          )
+          BEGIN
+            SELECT RAISE(ABORT, 'REMOTE_GIFT_SOURCE_REQUIRED');
+          END;
+        `);
+      },
     ]),
   );
 

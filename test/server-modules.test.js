@@ -86,7 +86,6 @@ test('server API context keeps route domains explicit and publishes lyric state'
     sessionToken: 'session-token',
     broadcastSnapshot: noop,
     domainServices,
-    messageBuffer: { getAll: noop, getStats: noop, clear: noop },
     publishLyricState: (state) => published.push(state),
     publishLyricTimeline: noop,
     weSingCapture: {
@@ -141,8 +140,33 @@ test('server API context keeps route domains explicit and publishes lyric state'
   assert.equal(context.sessionToken, 'session-token');
   assert.equal(context.songs.list, domainServices.songs.list);
   assert.equal(context.gifts.clearRecent, domainServices.gifts.clearRecent);
+  assert.equal('debug' in context, false);
   assert.equal(context.playback, domainServices.playback);
   context.playbackLyrics.publish({ trackTitle: '测试' });
   assert.deepEqual(published, [{ trackTitle: '测试' }]);
   assert.deepEqual(context.system.getHealth().schemaVersions, { song: 3 });
+});
+
+test('retired gift debug API is not registered', async () => {
+  const { handleApi } = require('../src/server/api-routes');
+  let status = 0;
+  let body = '';
+  const response = {
+    writeHead(value) {
+      status = value;
+    },
+    end(value) {
+      body = String(value || '');
+    },
+  };
+
+  await handleApi(
+    { maxBodyBytes: 1024, sessionToken: '' },
+    { method: 'GET', headers: {} },
+    response,
+    new URL('http://127.0.0.1/api/debug/gift-messages'),
+  );
+
+  assert.equal(status, 404);
+  assert.equal(JSON.parse(body).error, 'API 接口不存在');
 });

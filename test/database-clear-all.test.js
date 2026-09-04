@@ -209,14 +209,30 @@ describe('clearAllData Matrix', () => {
       )
       .run(timestamp, timestamp);
 
+    const giftSourceId = giftDb
+      .prepare(
+        `
+      INSERT INTO gift_sources (source_key, created_at, updated_at)
+      VALUES (?, ?, ?)
+    `,
+      )
+      .run('a'.repeat(64), timestamp, timestamp).lastInsertRowid;
     giftDb
       .prepare(
         `
-      INSERT INTO gift_events (platform_id, gift_id, gift_name, uid, user_name, num, unit_price, total_price, coin_type, status, created_at, updated_at)
-      VALUES ('test-gift', '31039', '小花花', '12345', '测试用户', 1, 0.1, 0.1, 'gold', 'active', ?, ?)
+      INSERT INTO gift_sync_state (source_id, updated_at)
+      VALUES (?, ?)
     `,
       )
-      .run(timestamp, timestamp);
+      .run(giftSourceId, timestamp);
+    giftDb
+      .prepare(
+        `
+      INSERT INTO gift_events (source_id, platform_id, cmd, gift_id, gift_name, uid, user_name, num, unit_price, total_price, coin_type, status, created_at, updated_at)
+      VALUES (?, 'test-gift', 'LIRA_SERVER_GIFT', '31039', '小花花', '12345', '测试用户', 1, 0.1, 0.1, 'gold', 'active', ?, ?)
+    `,
+      )
+      .run(giftSourceId, timestamp, timestamp);
 
     const giftEventId = giftDb
       .prepare('SELECT id FROM gift_events LIMIT 1')
@@ -264,6 +280,7 @@ describe('clearAllData Matrix', () => {
       giftDb,
       musicDb,
       checkinDb,
+      { sourceId: Number(giftSourceId) },
     );
 
     // Assert result structure

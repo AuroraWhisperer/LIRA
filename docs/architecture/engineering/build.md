@@ -10,7 +10,6 @@
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `start`               | `node src/server.js`                                                                                                                                              | 纯 Web 模式:仅启动 HTTP 服务,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
 | `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
-| `desktop:tunnel`      | `set LIRA_LICENSE_API_BASE=http://127.0.0.1:13000&& electron .`                                                                                                   | Windows 临时联调模式:授权 API 通过本机 SSH 隧道访问；不改变正式域名默认值                                    |
 | `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法检查(见 [test.md](test.md) §3)                                                                   |
 | `test`                | `node --experimental-vm-modules --test --test-concurrency=4`                                                                                                      | 单元测试:node:test,并发 4(见 [test.md](test.md))                                                             |
 | `test:admin`          | `node --experimental-vm-modules --test --test-concurrency=4 test/admin-page-composition.test.js test/frontend-admin-shell.test.js test/frontend-admin-ai.test.js` | 管理页完整回归测试(显式启用 ESM VM 模块)                                                                     |
@@ -25,7 +24,7 @@
 | `release:win`         | `node scripts/publish-release.js`                                                                                                                                 | 完整发布流水线(见 §7)                                                                                        |
 
 - 出处:[package.json](../../../package.json) 的 `scripts` 字段。
-- `desktop:tunnel` 与 `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具；通过 Windows 上的 npm 执行。
+- `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具；通过 Windows 上的 npm 执行。
 - `test` 的 `--test-concurrency=4`(并发数 4,勿改回 1);`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
 
 ## 2. 依赖清单(唯一成表处)

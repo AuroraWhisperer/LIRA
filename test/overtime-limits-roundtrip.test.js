@@ -82,7 +82,7 @@ test('backend accepts maximum boundary effect factor values', () => {
 test('backend accepts only configured remote catalog artwork paths', () => {
   const fixture = createFixture();
   const service = fixture.createService({
-    allowedRemoteImageOrigins: () => 'http://127.0.0.1:13000',
+    allowedRemoteImageOrigins: () => 'https://api.example.test',
   });
 
   try {
@@ -90,7 +90,7 @@ test('backend accepts only configured remote catalog artwork paths', () => {
       {
         giftId: 'remote-test',
         giftName: '远程礼物',
-        imagePath: 'http://127.0.0.1:13000/gift-media/images/hash.webp',
+        imagePath: 'https://api.example.test/gift-media/images/hash.webp',
         mode: 'fixed',
         fixedSeconds: 60,
         quantityMode: 'item',
@@ -98,7 +98,7 @@ test('backend accepts only configured remote catalog artwork paths', () => {
     ]);
     assert.equal(
       saved.rules[0].imagePath,
-      'http://127.0.0.1:13000/gift-media/images/hash.webp',
+      'https://api.example.test/gift-media/images/hash.webp',
     );
 
     assert.throws(
@@ -118,8 +118,33 @@ test('backend accepts only configured remote catalog artwork paths', () => {
         service.replaceRules([
           {
             giftId: 'remote-test',
+            imagePath: 'https://127.0.0.1/gift-media/images/hash.webp',
+            mode: 'fixed',
+            fixedSeconds: 60,
+          },
+        ]),
+      /imagePath is invalid/,
+    );
+    assert.throws(
+      () =>
+        service.replaceRules([
+          {
+            giftId: 'remote-test',
             imagePath:
-              'http://127.0.0.1:13000/gift-media/images/hash.webp?token=secret',
+              'https://api.example.test/gift-media/images/hash.webp?token=secret',
+            mode: 'fixed',
+            fixedSeconds: 60,
+          },
+        ]),
+      /imagePath is invalid/,
+    );
+    assert.throws(
+      () =>
+        service.replaceRules([
+          {
+            giftId: 'remote-test',
+            imagePath:
+              'http://127.0.0.1:13000/gift-media/images/hash.webp',
             mode: 'fixed',
             fixedSeconds: 60,
           },
@@ -134,7 +159,7 @@ test('backend accepts only configured remote catalog artwork paths', () => {
 
 test('backend migrates a saved remote rule image when the catalog origin changes', () => {
   const fixture = createFixture();
-  let origin = 'http://127.0.0.1:13000';
+  let origin = 'https://api.one.example';
   const service = fixture.createService({
     allowedRemoteImageOrigins: () => origin,
     resolveGiftImagePath: (giftId) =>
@@ -154,11 +179,11 @@ test('backend migrates a saved remote rule image when the catalog origin changes
       },
     ]);
 
-    origin = 'http://127.0.0.1:13001';
+    origin = 'https://api.two.example';
     const saved = service.replaceRules(service.getSnapshot().rules);
     assert.equal(
       saved.rules[0].imagePath,
-      'http://127.0.0.1:13001/gift-media/images/current.webp',
+      'https://api.two.example/gift-media/images/current.webp',
     );
   } finally {
     service.dispose();

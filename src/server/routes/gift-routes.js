@@ -17,17 +17,11 @@ const routes = {
   },
 
   'GET /api/gifts/history'(context, request, res) {
-    const page = Number(request.query.get('page')) || 1;
-    const limit = Number(request.query.get('limit')) || 50;
-    const sortField = request.query.get('sortField') || 'created_at';
-    const sortDirection = request.query.get('sortDirection') || 'desc';
-    const data = context.gifts.getHistory({
-      page,
-      limit,
-      sortField,
-      sortDirection,
-    });
-    sendJson(res, 200, { ok: true, data });
+    sendGiftLedgerResponse(context, request, res, 'getHistory');
+  },
+
+  'GET /api/gifts/statistics'(context, request, res) {
+    sendGiftLedgerResponse(context, request, res, 'getStatistics');
   },
 
   'GET /api/gifts/blind-box-stats'(context, request, res) {
@@ -142,6 +136,50 @@ function parseGiftEffectId(value) {
   if (!/^\d{1,12}$/.test(rawGiftId)) return 0;
   const giftId = Number(rawGiftId);
   return Number.isSafeInteger(giftId) && giftId > 0 ? giftId : 0;
+}
+
+function sendGiftLedgerResponse(context, request, res, operation) {
+  const query = request.query;
+  if (query?.has?.('sourceId') || query?.has?.('source_id')) {
+    sendJson(res, 400, {
+      ok: false,
+      error: '礼物来源不能由页面指定。',
+      code: 'GIFT_SOURCE_SELECTOR_FORBIDDEN',
+    });
+    return;
+  }
+  try {
+    const data = context.gifts[operation]({
+      query: query?.has?.('query') ? query.get('query') : undefined,
+      range: query?.get?.('range') || '30d',
+      limit: query?.get?.('limit') || undefined,
+      cursor: query?.get?.('cursor') || null,
+    });
+    sendJson(res, 200, { ok: true, data });
+  } catch (error) {
+    if (error?.code === 'GIFT_SOURCE_UNAVAILABLE') {
+      sendJson(res, 409, {
+        ok: false,
+        error: error.message,
+        code: error.code,
+      });
+      return;
+    }
+    if (
+      error?.code === 'INVALID_GIFT_QUERY' ||
+      error?.code === 'INVALID_GIFT_RANGE' ||
+      error?.code === 'INVALID_GIFT_LIMIT' ||
+      error?.code === 'INVALID_GIFT_CURSOR'
+    ) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message,
+        code: error.code,
+      });
+      return;
+    }
+    throw error;
+  }
 }
 
 module.exports = { prefixes, routes };

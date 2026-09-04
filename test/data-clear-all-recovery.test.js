@@ -104,6 +104,39 @@ test('clear-all route keeps writers paused after a partial commit failure', asyn
   ]);
 });
 
+test('partial clear-all rebuilds when the gift projection already committed', async () => {
+  const result = {
+    partial: true,
+    committed: ['songDb', 'superChatDb', 'giftDb'],
+    failed: ['musicDb'],
+    error: 'Commit failed at musicDb',
+    giftProjectionReset: { sourceId: 7, projectionGeneration: 2 },
+  };
+  const { context, calls } = createRouteContext(() => result);
+  context.giftSync = {
+    rebuild() {
+      calls.push('gift-sync:rebuild');
+      return Promise.resolve(true);
+    },
+  };
+  const response = createResponse();
+
+  await clearAllRoute(
+    context,
+    { body: async () => ({ confirm: true }) },
+    response,
+  );
+
+  assert.equal(response.status, 500);
+  assert.equal(response.payload.partial, true);
+  assert.deepEqual(calls, [
+    'gifts:pause',
+    'overtime:pause',
+    'music:clear-cache',
+    'gift-sync:rebuild',
+  ]);
+});
+
 test('clear-all route resumes writers and broadcasts after success', async () => {
   const { context, calls } = createRouteContext(() => ({
     cleared: true,
@@ -125,6 +158,36 @@ test('clear-all route resumes writers and broadcasts after success', async () =>
     'music:clear-cache',
     'gifts:resume',
     'overtime:resume',
+    'broadcast:database:clear-all',
+  ]);
+});
+
+test('successful projection clears trigger a gift bootstrap rebuild', async () => {
+  const { context, calls } = createRouteContext(() => ({
+    cleared: true,
+    scope: 'all',
+    giftProjectionReset: { sourceId: 7, projectionGeneration: 2 },
+  }));
+  context.giftSync = {
+    rebuild() {
+      calls.push('gift-sync:rebuild');
+      return Promise.resolve(true);
+    },
+  };
+
+  await clearAllRoute(
+    context,
+    { body: async () => ({ confirm: true }) },
+    createResponse(),
+  );
+
+  assert.deepEqual(calls, [
+    'gifts:pause',
+    'overtime:pause',
+    'music:clear-cache',
+    'gifts:resume',
+    'overtime:resume',
+    'gift-sync:rebuild',
     'broadcast:database:clear-all',
   ]);
 });

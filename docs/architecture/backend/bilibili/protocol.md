@@ -387,7 +387,7 @@ SHA1("{cmd}|{uid}|{giftName}|{price}|{timestamp}") → 40 位 hex
 
 ### 6.7 解析结果校验
 
-`MessageHandlers.handleGift` 对解析结果做 `isValidGiftResult` 校验([message-handlers.js:185-211](../../../../src/bilibili/danmaku/message-handlers.js#L185-L211)):有真实 `giftId` / 非占位 `giftName` / `totalPrice > 0` / 盲盒有价任一满足即视为有效;无效或 null 记录 `messageBuffer`(调试缓冲,容量 500,[server.js:210](../../../../src/server.js#L210))与未解析计数诊断([helpers.js:32-37](../../../../src/bilibili/helpers.js#L32-L37))。
+`MessageHandlers.handleGift` 对解析结果做 `isValidGiftResult` 校验([message-handlers.js:185-211](../../../../src/bilibili/danmaku/message-handlers.js#L185-L211)):有真实 `giftId` / 非占位 `giftName` / `totalPrice > 0` / 盲盒有价任一满足即视为有效;无效或 null 记录 Bilibili runtime 内部 `messageBuffer`(容量 500,不对 HTTP/静态页面暴露)与未解析计数诊断([helpers.js:32-37](../../../../src/bilibili/helpers.js#L32-L37))。
 
 ## 7. 关键常数速查
 

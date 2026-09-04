@@ -326,6 +326,10 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /data-danmaku-style="minimal"/);
   assert.match(
     html,
+    /data-danmaku-style="transparent"[\s\S]*class="danmaku-style-option-visual is-transparent"[\s\S]*<strong>透明简约<\/strong\s*>[\s\S]*<small>透明底色，粉丝牌等级在下<\/small\s*>/,
+  );
+  assert.match(
+    html,
     /data-danmaku-style="outline"[\s\S]*class="danmaku-style-option-visual is-outline"[\s\S]*<strong>全屏随机<\/strong\s*>[\s\S]*<small>只显示发送者和正文，随机散布<\/small\s*>/,
   );
   assert.match(html, /固定区域/);
@@ -371,13 +375,19 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(source, /danmakuOverlayStyle/);
   assert.match(source, /saveSetting\('danmakuOverlayStyle'/);
   assert.match(source, /outline:\s*'全屏随机'/);
+  assert.match(source, /transparent:\s*'透明简约'/);
+  assert.match(source, /styleButtons\.length !== 6/);
   assert.match(source, /danmakuFullscreenDurationSeconds/);
   assert.match(source, /Number\.isSafeInteger/);
   assert.match(source, /\?preview=1&style=/);
   assert.match(styles, /\.danmaku-style-options/);
-  assert.doesNotMatch(styles, /grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(
+    styles,
+    /\.danmaku-style-options\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s,
+  );
   assert.match(styles, /\.danmaku-style-group/);
   assert.match(styles, /\.danmaku-style-option-visual\.is-outline/);
+  assert.match(styles, /\.danmaku-style-option-visual\.is-transparent/);
   assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
   assert.match(styles, /\.danmaku-style-preview/);
   assert.doesNotMatch(styles, /\.danmaku-style-preview \.draw-danmaku-item/);

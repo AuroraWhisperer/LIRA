@@ -251,7 +251,6 @@ function createBilibiliRuntime(options) {
     getDanmakuSender: () => danmakuSender,
     getDiagnostics: () => diagnostics,
     getLiveStatus: () => liveStatus,
-    getMessageBuffer: () => messageBuffer,
     getViewerCandidates: () => client?.getViewerCandidates?.() || [],
     refreshViewerCandidates: () =>
       client?.refreshViewerCandidates?.() || Promise.resolve(),

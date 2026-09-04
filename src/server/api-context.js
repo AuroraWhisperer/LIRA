@@ -14,8 +14,8 @@ function createApiContext(options) {
     broadcastSnapshot,
     broadcastGiftEffectPreview,
     requestCloudSync,
+    giftSync,
     domainServices,
-    messageBuffer,
     publishLyricState,
     publishLyricTimeline,
     weSingCapture,
@@ -58,6 +58,8 @@ function createApiContext(options) {
       resetSprint: domainServices.gifts.resetSprint,
       getHistory: (historyOptions) =>
         domainServices.gifts.getHistory(historyOptions),
+      getStatistics: (statisticsOptions) =>
+        domainServices.gifts.getStatistics(statisticsOptions),
       getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
       getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
       search: domainServices.gifts.search,
@@ -65,6 +67,12 @@ function createApiContext(options) {
       resolveEffect: domainServices.gifts.resolveEffect,
       previewEffect: broadcastGiftEffectPreview,
       previewFrame: broadcastGiftEffectPreview,
+    },
+    giftSync: {
+      rebuild:
+        typeof giftSync?.rebuild === 'function'
+          ? giftSync.rebuild
+          : () => false,
     },
     overtime: {
       getOverview: domainServices.overtime.getOverview,
@@ -81,11 +89,6 @@ function createApiContext(options) {
           : () => {
               throw new Error('服务器礼物搜索服务未配置。');
             },
-    },
-    debug: {
-      getGiftMessages: () => messageBuffer.getAll(),
-      getGiftMessageStats: () => messageBuffer.getStats(),
-      clearGiftMessages: () => messageBuffer.clear(),
     },
     data: {
       clearSongLibrary: domainServices.data.clearSongLibrary,

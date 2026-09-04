@@ -1,6 +1,6 @@
 # HTTP API 端点注册表
 
-> 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/clock-routes.js](../../../src/server/routes/clock-routes.js)、[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/debug-routes.js](../../../src/server/routes/debug-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
+> 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/clock-routes.js](../../../src/server/routes/clock-routes.js)、[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/game-routes.js](../../../src/server/routes/game-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
 
 本文档是全部 HTTP API 端点的**唯一事实源**:每个端点的方法、路径、请求体、响应形态与错误码只在此成表。其他文档一律链接此处,不自行罗列端点。服务进程的端口、token 机制、请求管线详见 [server-core.md](server-core.md);WebSocket 消息与快照见 [ws.md](ws.md);数据库与设置见 [storage.md](storage.md)。
 
@@ -10,7 +10,7 @@
 
 | 事实            | 值                                                                                                                                  | 出处                                                             |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 模块注册        | `ROUTE_MODULES` 数组按序 require **18 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js:8-27](../../../src/server/api-routes.js#L8-L27)   |
+| 模块注册        | `ROUTE_MODULES` 数组按序 require **17 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js:8-26](../../../src/server/api-routes.js#L8-L26)   |
 | 匹配顺序        | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404**                               | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取  | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body)                                          | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
@@ -32,7 +32,7 @@
 
 > 远端模块:lira-server 的设备路由;桌面端通过 [remote-license-client.js](../../../src/electron/license/remote-license-client.js) 调用。服务地址由 `LIRA_LICENSE_API_BASE` 配置,生产环境默认 `https://api.lirahub.cn`。
 
-联调时可将 `LIRA_LICENSE_API_BASE` 显式设为 `http://127.0.0.1:<端口>`（例如 SSH 隧道的 `13000`）；该回环 HTTP 例外仅适用于明确配置的地址，其他 HTTP 地址仍被拒绝。这里填写服务根地址，不要填写 `/admin/activations` 页面路径，客户端会自行请求 `/api/device/*`。
+`LIRA_LICENSE_API_BASE` 只接受使用 DNS 主机名的 HTTPS 根 origin，不允许凭据、子路径、查询参数或片段；HTTP、`localhost` 和 IPv4/IPv6 literal 都会被拒绝。这里填写服务根地址，不要填写 `/admin/activations` 页面路径，客户端会自行请求 `/api/device/*`。
 
 以下端点使用设备 Bearer Token(`Authorization: Bearer <device accessToken>`),响应不套用本地服务的 `data` 包装:
 
@@ -48,7 +48,7 @@
 
 ## 0.2 LIRA Server 全局礼物目录(桌面选择器)
 
-桌面端通过已配置的 `LIRA_LICENSE_API_BASE` 请求独立 lira-server 的公开端点 `GET /api/public/gifts/catalog`。生产默认 `https://api.lirahub.cn`;测试 SSH 隧道可显式使用 `http://127.0.0.1:<端口>`(例如 `13000`)。该请求由 Electron main process 发起，不携带 DeviceBearer；renderer 的主目录只访问本地 `/api/overtime/gifts`，服务器搜索访问本地 `/api/overtime/gifts/server/search`，图片只显示本地 `/overtime-gift-images/<basename>`。
+桌面端通过已配置的 `LIRA_LICENSE_API_BASE` 请求独立 lira-server 的公开端点 `GET /api/public/gifts/catalog`。默认入口是 `https://api.lirahub.cn`，覆盖配置也必须是使用 DNS 主机名的 HTTPS 根 origin。该请求由 Electron main process 发起，不携带 DeviceBearer；renderer 的主目录只访问本地 `/api/overtime/gifts`，服务器搜索访问本地 `/api/overtime/gifts/server/search`，图片只显示本地 `/overtime-gift-images/<basename>`。
 
 成功响应是一次性的扁平全局 active 礼物代码快照，包含 `version`(最近成功同步 run ID 字符串)、`updatedAt`、`stale`、`sources`、`count` 与 `gifts[]`；每项含字符串 `id`、`name`、`coinType`，非 gold 礼物的 `battery`/`rmb` 可为 `null`，`priceRaw` 为非负数，`bagGift` 为布尔值，以及同源 `/gift-media/images/<basename>` 或 `null` 的 `imageUrl`。服务端按成功 run ID 在内存复用读模型并返回 ETag；客户端以 `If-None-Match` 条件请求，命中返回 `304`。未就绪返回 `503` 和 `Retry-After: 60`，网络失败时本地持久缓存继续服务。服务器端完整字段与缓存契约见 lira-server 的 `docs/protocol/client-server-api.md`；本地选择器联动与回退见 [overtime.md](overtime.md) §1.5。
 
@@ -298,14 +298,15 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
-| `GET /api/gifts/history`            | 查询参数:`page?`(默认 1)、`limit?`(默认 50)、`sortField?`(默认 `created_at`)、`sortDirection?`(默认 `desc`)                   | 礼物历史分页                                        | —                                   |
+| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset);禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页及同步完整性状态      | 400(参数/来源选择器无效)、409(来源未就绪) |
+| `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
 | `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`                                                                                                           | 盲盒统计                                            | —                                   |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`) | 盲盒开盒分析                                        | —                                   |
 | `GET /api/gifts/search`             | 查询参数:`from?`、`to?`、`limit?`(**1–500**,默认 100)                                                                         | 时间范围检索结果                                    | —                                   |
 | `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, totalPriceRmb, themeId?, motionMode?}`                                                          | 广播独立 `gift:frame` 预览事件，不读取实时开关/阈值 | 400(金额、数量、主题或动效模式无效) |
 | `POST /api/gifts/clear-recent`      | `{confirm: true}`(必须)                                                                                                       | 清空最近礼物;广播 `gift:clear-recent`               | 400(`缺少清空确认。`)               |
 
-行为文档:[bilibili/gift.md](bilibili/gift.md)(礼物事件、检测账本、冲刺)。
+行为文档:[bilibili/gift.md](bilibili/gift.md)(礼物事件、检测账本、冲刺)。礼物分区投影、同步完整性与查询合同见 [gift-ledger-projection-sync_design.md](../../specs/gift-ledger-projection-sync_design.md) 和 [ADR-0011](../adr/0011-source-partitioned-gift-ledger-projection.md)。
 
 ## 11. 加班机域(overtime)
 
@@ -332,7 +333,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `giftId`(必填)              | 字符串,≤ 100 字符,**数组内不可重复**                                                                                                                                                               |
 | `giftName`                  | ≤ 100 字符                                                                                                                                                                                         |
-| `imagePath`                 | 非空时必须是 `/img/admin/gifts/`、`/img/bilibili-gifts/` 或 `/img/overtime-machine/` 内置路径；桌面远程目录可另使用已配置服务器 origin 下的 `/gift-media/images/<basename>` HTTPS/SSH loopback URL |
+| `imagePath`                 | 非空时必须是 `/img/admin/gifts/`、`/img/bilibili-gifts/` 或 `/img/overtime-machine/` 内置路径；桌面远程目录可另使用已配置 HTTPS DNS origin 下的 `/gift-media/images/<basename>` URL |
 | `mode`(必填)                | `fixed`、`random` 或 `display`                                                                                                                                                                     |
 | `quantityMode`              | `group`(默认,按连击组)或 `item`(按具体数量)                                                                                                                                                        |
 | `enabled`                   | 默认 true;**启用的规则 ≤ 8 条**                                                                                                                                                                    |
@@ -343,22 +344,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 行为文档:[overtime.md](overtime.md)。
 
-## 12. 调试域(debug)
-
-> 模块文件:[src/server/routes/debug-routes.js](../../../src/server/routes/debug-routes.js)
-> 前缀:`/api/debug/`
-
-暴露原始礼物消息缓冲区(容量 500)供问题排查;`context.debug` 不存在时返回空值而非报错。
-
-| 端点                                  | 请求         | 响应(data)          | 错误码 |
-| ------------------------------------- | ------------ | ------------------- | ------ |
-| `GET /api/debug/gift-messages`        | 无           | `{messages, stats}` | —      |
-| `GET /api/debug/gift-stats`           | 无           | `{…统计}`           | —      |
-| `POST /api/debug/gift-messages/clear` | 无 body 要求 | `{cleared: true}`   | —      |
-
-行为文档:[server-core.md](server-core.md) §5(运行时组件装配:messageBuffer)。
-
-## 13. 数据清理域(data)
+## 12. 数据清理域(data)
 
 > 模块文件:[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)
 > 前缀:`/api/database/`
@@ -371,11 +357,11 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/database/clear-superchats` | `{confirm: true}`                                                                                            | 清 SC 库;广播 `database:clear-superchats`                                           | 400                             |
 | `POST /api/database/clear-playback`   | `{confirm: true}`                                                                                            | 清播放历史与队列态(保留收藏/歌单);广播 `database:clear-playback`                    | 400                             |
 | `POST /api/database/clear-gifts`      | `{confirm: true}`                                                                                            | 清礼物事件+结算流水(保留加班机状态/规则);广播 `database:clear-gifts`                | 400                             |
-| `POST /api/database/clear-all`        | `{confirm: true}`                                                                                            | **清五库全部业务数据**(见 §13.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、**500**(部分失败,见 §13.1) |
+| `POST /api/database/clear-all`        | `{confirm: true}`                                                                                            | **清五库全部业务数据**(见 §12.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、**500**(部分失败,见 §12.1) |
 | `GET /api/database/stats`             | 无                                                                                                           | `{schemaVersions, tables}`(各库版本 + 保留期统计行数/时间范围/raw_json 字节数)      | —                               |
 | `POST /api/database/retention`        | `{dryRun?`, `confirm?`, `policy?}`:`dryRun: true` 只统计不删除(**免 confirm**,不广播);否则需 `confirm: true` | 保留策略执行统计;非 dryRun 广播 `database:retention`                                | 400(`缺少清理确认。`)           |
 
-### 13.1 Clear-All 部分失败契约
+### 12.1 Clear-All 部分失败契约
 
 `POST /api/database/clear-all` 使用两阶段提交,可能返回部分失败状态:
 
@@ -464,7 +450,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 行为文档:[server-core.md](server-core.md) §5、[storage.md](storage.md) §6(清空矩阵详细说明)。
 
-## 14. AI 域(ai)
+## 13. AI 域(ai)
 
 > 模块文件:[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)
 > 前缀:`/api/ai`
@@ -486,7 +472,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 行为文档:[ai.md](ai.md)。
 
-## 15. Bilibili 域(bilibili)
+## 14. Bilibili 域(bilibili)
 
 > 模块文件:[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
 > 前缀:`/api/bilibili/`

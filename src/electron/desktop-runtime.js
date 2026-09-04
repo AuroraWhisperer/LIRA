@@ -34,9 +34,46 @@ function createDesktopRuntime(serverModule, options = {}) {
       typeof serverModule.pauseAuthorizedWork === 'function'
         ? () => serverModule.pauseAuthorizedWork()
         : null,
+    resolveGiftSource:
+      typeof serverModule.resolveGiftSource === 'function'
+        ? (sourceKey) => serverModule.resolveGiftSource(sourceKey)
+        : null,
+    getGiftSyncState:
+      typeof serverModule.getGiftSyncState === 'function'
+        ? (sourceId) => serverModule.getGiftSyncState(sourceId)
+        : null,
+    commitGiftHistoryPage:
+      typeof serverModule.commitGiftHistoryPage === 'function'
+        ? (page) => serverModule.commitGiftHistoryPage(page)
+        : null,
+    restartGiftHistoryBootstrap:
+      typeof serverModule.restartGiftHistoryBootstrap === 'function'
+        ? (sourceId, projectionGeneration) =>
+            serverModule.restartGiftHistoryBootstrap(
+              sourceId,
+              projectionGeneration,
+            )
+        : null,
+    commitGiftCatchUpPage:
+      typeof serverModule.commitGiftCatchUpPage === 'function'
+        ? (page) => serverModule.commitGiftCatchUpPage(page)
+        : null,
+    commitLegacyGiftPage:
+      typeof serverModule.commitLegacyGiftPage === 'function'
+        ? (page) => serverModule.commitLegacyGiftPage(page)
+        : null,
+    resetGiftProjectionForRebuild:
+      typeof serverModule.resetGiftProjectionForRebuild === 'function'
+        ? (sourceId) => serverModule.resetGiftProjectionForRebuild(sourceId)
+        : null,
+    setActiveGiftSource:
+      typeof serverModule.setActiveGiftSource === 'function'
+        ? (source) => serverModule.setActiveGiftSource(source)
+        : null,
     importProcessedGiftEvent:
       typeof serverModule.importProcessedGiftEvent === 'function'
-        ? (event) => serverModule.importProcessedGiftEvent(event)
+        ? (event, sourceId) =>
+            serverModule.importProcessedGiftEvent(event, sourceId)
         : null,
     getSetting:
       typeof serverModule.getSetting === 'function'

@@ -20,10 +20,10 @@ const {
   getSchemaVersions,
 } = require('../src/storage/database');
 
-test('gift database v7 creates overtime tables and safe singleton defaults', () => {
+test('gift database v8 creates overtime tables and safe singleton defaults', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.db).giftDb, 7);
+    assert.equal(getSchemaVersions(fixture.db).giftDb, 8);
     const tables = new Set(
       fixture.db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -50,7 +50,7 @@ test('gift database v7 creates overtime tables and safe singleton defaults', () 
   }
 });
 
-test('gift database v7 preserves v5 overtime state while widening its bounds', () => {
+test('gift database v8 preserves v5 overtime state while widening its bounds', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-overtime-migration-'),
   );
@@ -83,7 +83,7 @@ test('gift database v7 preserves v5 overtime state while widening its bounds', (
     const state = db.giftDb
       .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
       .get();
-    assert.equal(getSchemaVersions(db).giftDb, 7);
+    assert.equal(getSchemaVersions(db).giftDb, 8);
     assert.equal(state.enabled, 1);
     assert.equal(state.enable_epoch, 7);
     assert.equal(state.remaining_ms, 2_700_000);
@@ -906,7 +906,25 @@ test('clearing gifts also clears settlements while preserving overtime configura
     });
     consumer.handle(event);
 
-    clearGiftData(fixture.db.giftDb);
+    const timestamp = new Date().toISOString();
+    const sourceId = fixture.db.giftDb
+      .prepare(
+        `
+        INSERT INTO gift_sources (source_key, created_at, updated_at)
+        VALUES (?, ?, ?)
+      `,
+      )
+      .run('a'.repeat(64), timestamp, timestamp).lastInsertRowid;
+    fixture.db.giftDb
+      .prepare(
+        'INSERT INTO gift_sync_state (source_id, updated_at) VALUES (?, ?)',
+      )
+      .run(sourceId, timestamp);
+    fixture.db.giftDb
+      .prepare('UPDATE gift_events SET source_id = ? WHERE id = ?')
+      .run(sourceId, event.giftEventId);
+
+    clearGiftData(fixture.db.giftDb, { sourceId: Number(sourceId) });
 
     assert.equal(
       fixture.db.giftDb

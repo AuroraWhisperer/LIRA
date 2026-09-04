@@ -38,7 +38,7 @@
 ### Security
 
 - API 继续使用现有 session token 鉴权，客户端不能提交 URL 或直播间号。
-- 远程公共目录只由 Electron main process 使用已配置的 `LIRA_LICENSE_API_BASE` 访问；生产使用 HTTPS，测试 SSH 只允许显式 `http://127.0.0.1:<port>` loopback。设备 token 不进入 renderer，也不作为公共目录的必需鉴权。
+- 远程公共目录只由 Electron main process 使用已配置的 `LIRA_LICENSE_API_BASE` 访问；配置只接受使用有效 DNS 主机名且无凭据、无子路径/查询/片段的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备 token 不进入 renderer，也不作为公共目录的必需鉴权。
 - 上游 URL 固定为 Bilibili 官方 HTTPS 域名，禁止调用方控制目标，避免 SSRF。
 - 每次 Bilibili 房间目录请求设 15 秒超时，十秒内重复刷新返回缓存并合并并发刷新。服务器目录后台轮询使用更低频的条件请求；“搜索服务器礼物”可强制发起一次条件请求，以便失败后立即重试。
 - 只返回 `id`、`name`、`battery`、`rmb`、`imagePath` 等显式字段；服务器图片源仅允许已配置 API origin 下的 `/gift-media/images/<basename>`，下载禁止重定向、限制 15 秒和 5 MiB，并校验 raster 图片签名。
@@ -116,5 +116,5 @@
 - 已选择但下架的规则仍保留，并在界面显示“当前未在售”。
 - 未授权请求仍返回 `401`；缺少直播间号不会发起上游请求。
 - 已配置远程目录时，首次授权恢复后发起一次远程目录请求；后续轮询和服务器搜索携带 `If-None-Match`，304 不替换礼物数组；目录版本变化通过本地 WebSocket 更新搜索缓存但不覆盖当前直播间主目录。
-- SSH loopback 与 ICP 备案后的 HTTPS 使用相同相对 API 路径和响应结构；切换入口只改变 `LIRA_LICENSE_API_BASE`，不改变规则、结算或 overlay 的本地数据边界。
+- 远程目录及其图片只接受配置的、使用有效 DNS 主机名的 HTTPS 根 origin；HTTP、`localhost`、IP literal、跨 origin、带凭据/查询/片段和非根基址均被拒绝，且不改变规则、结算或 overlay 的本地数据边界。
 - `npm run check` 与 `npm test` 通过。

@@ -1,5 +1,6 @@
 'use strict';
 
+const { isDnsHostname } = require('../shared/remote-url-policy');
 const MAX_OVERTIME_YEARS = 9_999;
 const MAX_OVERTIME_SECONDS = MAX_OVERTIME_YEARS * 365 * 24 * 60 * 60;
 const MAX_EFFECT_FACTOR = 1_000;
@@ -318,12 +319,12 @@ function isAllowedImagePath(value, roots, allowedRemoteImageOrigins = []) {
   }
   if (
     !allowedRemoteImageOrigins.includes(parsed.origin) ||
+    !isDnsHostname(parsed.hostname) ||
     parsed.username ||
     parsed.password ||
     parsed.search ||
     parsed.hash ||
-    (parsed.protocol !== 'https:' &&
-      !(parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1')) ||
+    parsed.protocol !== 'https:' ||
     !/^\/gift-media\/images\/[A-Za-z0-9._-]+$/u.test(parsed.pathname)
   ) {
     return false;
@@ -343,13 +344,11 @@ function normalizeRemoteImageOrigins(value) {
             if (
               parsed.username ||
               parsed.password ||
+              !isDnsHostname(parsed.hostname) ||
               (parsed.pathname !== '/' && parsed.pathname !== '') ||
               parsed.search ||
               parsed.hash ||
-              (parsed.protocol !== 'https:' &&
-                !(
-                  parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1'
-                ))
+              parsed.protocol !== 'https:'
             ) {
               return '';
             }

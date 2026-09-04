@@ -33,6 +33,7 @@ const {
   optimizeDatabases,
   closeDatabases,
 } = require('./storage/database');
+const { createGiftSyncStore } = require('./storage/gift-sync-store');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
@@ -130,11 +131,11 @@ function createServerRuntime(runtimeOptions = {}) {
   let webSocketHub = null;
   let giftEffectResolver = null;
   let domainServices = null;
+  let giftSyncStore = null;
   let musicRuntime = null;
   let bilibiliRuntime = null;
   let liveStatus = null;
   let bilibiliDiagnostics = null;
-  let messageBuffer = null;
   let danmakuSender = null;
   let danmakuFeedBuffer = null;
   let aiRuntime = null;
@@ -148,6 +149,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let startPromise = null;
   let shutdownPromise = null;
   let sessionToken = '';
+  let rebuildGiftProjection = () => false;
   const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
   const licenseGate = runtimeOptions.licenseGate || {
@@ -181,6 +183,10 @@ function createServerRuntime(runtimeOptions = {}) {
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
     try {
+      rebuildGiftProjection =
+        typeof options.giftSync?.rebuild === 'function'
+          ? options.giftSync.rebuild
+          : () => false;
       const reportPhase =
         typeof runtimeOptions.onPhase === 'function'
           ? runtimeOptions.onPhase
@@ -241,6 +247,17 @@ function createServerRuntime(runtimeOptions = {}) {
         },
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
+      giftSyncStore = createGiftSyncStore({
+        giftDb: db.giftDb,
+        importHistoryRecord: (record, sourceId) =>
+          domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
+        importLiveEvent: (event, sourceId, importOptions) =>
+          domainServices.gifts.importProcessedEvent(
+            event,
+            sourceId,
+            importOptions,
+          ),
+      });
       musicRuntime = buildMusicRuntime({
         dataDir: {
           apiCacheDir: MUSIC_API_CACHE_DIR,
@@ -286,7 +303,6 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       liveStatus = bilibiliRuntime.getLiveStatus();
       bilibiliDiagnostics = bilibiliRuntime.getDiagnostics();
-      messageBuffer = bilibiliRuntime.getMessageBuffer();
       danmakuSender = bilibiliRuntime.getDanmakuSender();
       aiRuntime = buildAiRuntime({
         songDb: db.songDb,
@@ -328,8 +344,8 @@ function createServerRuntime(runtimeOptions = {}) {
     broadcastSnapshot,
     broadcastGiftEffectPreview: (payload) => webSocketHub.broadcast(payload),
     requestCloudSync,
+    rebuildGiftProjection: () => rebuildGiftProjection(),
     getDomainServices: () => domainServices,
-    getMessageBuffer: () => messageBuffer,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,
     getLiveStatus: () => liveStatus,
@@ -561,11 +577,11 @@ function createServerRuntime(runtimeOptions = {}) {
     webSocketHub = null;
     giftEffectResolver = null;
     domainServices = null;
+    giftSyncStore = null;
     musicRuntime = null;
     bilibiliRuntime = null;
     liveStatus = null;
     bilibiliDiagnostics = null;
-    messageBuffer = null;
     danmakuSender = null;
     danmakuFeedBuffer = null;
     aiRuntime = null;
@@ -573,6 +589,7 @@ function createServerRuntime(runtimeOptions = {}) {
     wheelSessionService = null;
     applicationInitialized = false;
     publishOvertimeUpdate = () => {};
+    rebuildGiftProjection = () => false;
   }
 
   function closeHttpServer() {
@@ -616,11 +633,52 @@ function createServerRuntime(runtimeOptions = {}) {
       : DEFAULT_SETTINGS[key];
   }
 
-  function importProcessedGiftEvent(event) {
+  function requireGiftSyncStore() {
+    if (!giftSyncStore) throw new Error('Gift sync store not ready.');
+    return giftSyncStore;
+  }
+
+  function resolveGiftSource(sourceKey) {
+    return requireGiftSyncStore().resolveSource(sourceKey);
+  }
+
+  function getGiftSyncState(sourceId) {
+    return requireGiftSyncStore().getState(sourceId);
+  }
+
+  function commitGiftHistoryPage(page) {
+    return requireGiftSyncStore().commitHistoryPage(page);
+  }
+
+  function restartGiftHistoryBootstrap(sourceId, projectionGeneration) {
+    return requireGiftSyncStore().restartHistoryBootstrap(
+      sourceId,
+      projectionGeneration,
+    );
+  }
+
+  function commitGiftCatchUpPage(page) {
+    return requireGiftSyncStore().commitCatchUpPage(page);
+  }
+
+  function commitLegacyGiftPage(page) {
+    return requireGiftSyncStore().commitLegacyPage(page);
+  }
+
+  function resetGiftProjectionForRebuild(sourceId) {
+    return requireGiftSyncStore().resetProjectionForRebuild(sourceId);
+  }
+
+  function setActiveGiftSource(source) {
+    if (!domainServices?.gifts) throw new Error('Gift service not ready.');
+    return domainServices.gifts.setActiveSource(source);
+  }
+
+  function importProcessedGiftEvent(event, sourceId) {
     if (!domainServices?.gifts?.importProcessedEvent) {
       throw new Error('Gift service not ready.');
     }
-    return domainServices.gifts.importProcessedEvent(event);
+    return domainServices.gifts.importProcessedEvent(event, sourceId);
   }
 
   function getCloudSettingsSnapshot() {
@@ -691,6 +749,14 @@ function createServerRuntime(runtimeOptions = {}) {
     persistPlaybackSnapshot,
     resumeAuthorizedWork,
     pauseAuthorizedWork,
+    resolveGiftSource,
+    getGiftSyncState,
+    commitGiftHistoryPage,
+    restartGiftHistoryBootstrap,
+    commitGiftCatchUpPage,
+    commitLegacyGiftPage,
+    resetGiftProjectionForRebuild,
+    setActiveGiftSource,
     importProcessedGiftEvent,
     getCloudSettingsSnapshot,
     applyCloudSettingsSnapshot,

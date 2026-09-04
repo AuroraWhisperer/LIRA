@@ -16,7 +16,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/admin/gifts/blindbox-analysis.js': 4,
   'public/js/admin/gifts/blindbox.js': 10,
   'public/js/admin/gifts/detection.js': 6,
-  'public/js/admin/gifts/history.js': 14,
   'public/js/admin/gifts/index.js': 18,
   'public/js/admin/gifts/notification.js': 6,
   'public/js/admin/gifts/recent.js': 6,

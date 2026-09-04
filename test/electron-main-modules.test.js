@@ -34,6 +34,7 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
   const { createDesktopRuntime } = require('../src/electron/desktop-runtime');
   const calls = [];
   const importedEvents = [];
+  const giftSyncCalls = [];
   const legacy = {
     startServer(options) {
       calls.push(['start', options]);
@@ -51,8 +52,40 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     getSetting(key) {
       return `setting:${key}`;
     },
-    importProcessedGiftEvent(event) {
-      importedEvents.push(event);
+    resolveGiftSource(sourceKey) {
+      giftSyncCalls.push(['resolve', sourceKey]);
+      return { id: 7, sourceKey };
+    },
+    getGiftSyncState(sourceId) {
+      giftSyncCalls.push(['state', sourceId]);
+      return { sourceId, projectionGeneration: 3 };
+    },
+    commitGiftHistoryPage(page) {
+      giftSyncCalls.push(['history', page]);
+      return page;
+    },
+    restartGiftHistoryBootstrap(sourceId, projectionGeneration) {
+      giftSyncCalls.push(['restart', sourceId, projectionGeneration]);
+      return { sourceId, projectionGeneration };
+    },
+    commitGiftCatchUpPage(page) {
+      giftSyncCalls.push(['catch-up', page]);
+      return page;
+    },
+    commitLegacyGiftPage(page) {
+      giftSyncCalls.push(['legacy', page]);
+      return page;
+    },
+    resetGiftProjectionForRebuild(sourceId) {
+      giftSyncCalls.push(['reset', sourceId]);
+      return { sourceId, projectionGeneration: 4 };
+    },
+    setActiveGiftSource(source) {
+      giftSyncCalls.push(['active', source]);
+      return source;
+    },
+    importProcessedGiftEvent(event, sourceId) {
+      importedEvents.push({ event, sourceId });
       return { imported: event.eventId };
     },
   };
@@ -79,15 +112,59 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     gift: { giftName: '小花花', totalPrice: 1 },
   };
   assert.deepEqual(
-    await runtime.importProcessedGiftEvent(processedEvent),
+    await runtime.importProcessedGiftEvent(processedEvent, 7),
     { imported: 'gift-1' },
   );
-  assert.deepEqual(importedEvents, [processedEvent]);
+  const sourceKey = 'a'.repeat(64);
+  assert.deepEqual(runtime.resolveGiftSource(sourceKey), {
+    id: 7,
+    sourceKey,
+  });
+  assert.deepEqual(runtime.getGiftSyncState(7), {
+    sourceId: 7,
+    projectionGeneration: 3,
+  });
+  runtime.commitGiftHistoryPage({ page: 'history' });
+  runtime.restartGiftHistoryBootstrap(7, 3);
+  runtime.commitGiftCatchUpPage({ page: 'catch-up' });
+  runtime.commitLegacyGiftPage({ page: 'legacy' });
+  runtime.resetGiftProjectionForRebuild(7);
+  runtime.setActiveGiftSource({ sourceId: 7 });
+  assert.deepEqual(importedEvents, [{ event: processedEvent, sourceId: 7 }]);
+  assert.deepEqual(giftSyncCalls, [
+    ['resolve', sourceKey],
+    ['state', 7],
+    ['history', { page: 'history' }],
+    ['restart', 7, 3],
+    ['catch-up', { page: 'catch-up' }],
+    ['legacy', { page: 'legacy' }],
+    ['reset', 7],
+    ['active', { sourceId: 7 }],
+  ]);
   assert.deepEqual(calls, [
     ['start', { host: '127.0.0.1' }],
     ['stop', { exitProcess: false }],
     ['hook', hook],
   ]);
+});
+
+test('desktop freezes gift source switching before waiting for cloud sync', () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'electron', 'main.js'),
+    'utf8',
+  );
+  const start = source.indexOf('licenseManager.onStateChanged');
+  const end = source.indexOf("if (licenseManager.getState()", start);
+  const stateChange = source.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.doesNotMatch(source, /createRemoteGiftCursorStore/u);
+  assert.match(source, /giftSync:\s*\{[\s\S]*?remoteGiftController\?\.start/u);
+  assert.ok(
+    stateChange.indexOf('remoteGiftController?.start()') <
+      stateChange.indexOf('cloudSyncController'),
+  );
+  assert.match(stateChange, /remoteGiftController\?\.stop\(\)/u);
 });
 
 test('local media protocol enforces authorization and serves byte ranges', async (t) => {
