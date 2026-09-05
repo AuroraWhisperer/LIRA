@@ -162,35 +162,32 @@
         >
           <div class="license-card-heading">
             <p class="license-kicker">首次使用准备</p>
-            <h1 id="giftCatalogInitializationHeading">正在准备礼物图片</h1>
-            <p id="giftCatalogInitializationPhase">正在获取礼物目录</p>
+            <h1 id="giftCatalogInitializationHeading">正在为你准备直播工具</h1>
           </div>
           <div class="license-progress-heading">
             <strong id="giftCatalogInitializationPercent">0%</strong>
-            <span id="giftCatalogInitializationCount">等待开始</span>
           </div>
           <progress
             id="giftCatalogInitializationProgress"
             class="license-progress"
             max="100"
             value="0"
-            aria-label="礼物图片初始化进度"
+            aria-label="准备进度"
           ></progress>
           <p
             id="giftCatalogInitializationStatus"
-            class="license-status license-initialization-status loading"
+            class="license-status license-initialization-status"
             role="status"
             aria-live="polite"
-          >
-            正在连接服务器…
-          </p>
+            hidden
+          ></p>
           <button
             id="giftCatalogInitializationRetryBtn"
             class="license-retry"
             type="button"
             hidden
           >
-            重试初始化
+            重试
           </button>
         </section>
       </main>

@@ -1258,7 +1258,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(html, /选择“文字展板”可让礼物只展示自定义文字/);
   assert.doesNotMatch(source, /· 房间 /);
   assert.match(source, /minute:\s*'2-digit'/);
-  assert.match(source, /当前未在售/);
+  assert.doesNotMatch(source, /本地礼物库|当前未在售|syncRuleAvailability|rule-sale-status|is-unavailable/);
   assert.match(
     source,
     /left\.catalogGroup - right\.catalogGroup[\s\S]*left\.catalogOrder - right\.catalogOrder[\s\S]*left\.rmb - right\.rmb/,

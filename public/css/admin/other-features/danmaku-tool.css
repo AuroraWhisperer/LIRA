@@ -215,7 +215,7 @@
   display: none;
 }
 .danmaku-style-preview {
-  height: 380px;
+  height: 480px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
   border-radius: 14px;

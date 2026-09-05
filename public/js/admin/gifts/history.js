@@ -13,8 +13,6 @@ import {
 } from '../../shared/utils.js';
 
 const GIFT_HISTORY_LIMIT = 50;
-const DEFAULT_GIFT_RANGE = '30d';
-const GIFT_RANGES = new Set(['7d', '30d', '90d', 'all']);
 
 let initialized = false;
 let historyRequestSequence = 0;
@@ -23,8 +21,6 @@ const giftLedgerState = createGiftLedgerState();
 
 export function createGiftLedgerState() {
   return {
-    query: '',
-    range: DEFAULT_GIFT_RANGE,
     cursor: null,
     nextCursor: null,
     cursorHistory: [],
@@ -35,20 +31,15 @@ export function createGiftLedgerState() {
 }
 
 export function resetGiftLedgerDisplay(state) {
-  state.query = '';
-  state.range = DEFAULT_GIFT_RANGE;
   resetGiftLedgerPagination(state);
 }
 
 export function buildGiftHistoryUrl({
-  query = '',
-  range = DEFAULT_GIFT_RANGE,
   cursor = null,
   limit = GIFT_HISTORY_LIMIT,
 } = {}) {
   const params = new URLSearchParams();
-  if (query) params.set('query', query);
-  params.set('range', normalizeRange(range));
+  params.set('range', 'all');
   params.set('limit', String(limit));
   if (cursor) params.set('cursor', cursor);
   return `/api/gifts/history?${params}`;
@@ -61,7 +52,6 @@ export function initGiftHistoryDrawer() {
   const openButton = get('giftHistoryOpenBtn');
   const closeButton = get('giftHistoryClose');
   const backdrop = get('giftHistoryBackdrop');
-  const searchForm = get('giftHistorySearchForm');
   const clearDisplayButton = get('giftHistoryClearDisplayBtn');
   const clearDatabaseButton = get('giftHistoryClearDatabaseBtn');
   const previousButton = get('giftHistoryPrev');
@@ -76,28 +66,14 @@ export function initGiftHistoryDrawer() {
   closeButton?.addEventListener('click', closeGiftHistoryDrawer);
   backdrop?.addEventListener('click', closeGiftHistoryDrawer);
 
-  searchForm?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    giftLedgerState.query = String(get('giftHistorySearch')?.value || '').trim();
-    resetGiftLedgerPagination(giftLedgerState);
-    loadGiftHistory();
-  });
-
-  document.querySelectorAll('[data-gift-range]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const range = normalizeRange(button.dataset.giftRange);
-      if (range === giftLedgerState.range) return;
-      giftLedgerState.range = range;
-      resetGiftLedgerPagination(giftLedgerState);
-      syncFilterControls();
-      loadGiftHistory();
-    });
-  });
-
   clearDisplayButton?.addEventListener('click', () => {
+    historyRequestSequence += 1;
     resetGiftLedgerDisplay(giftLedgerState);
-    syncFilterControls();
-    loadGiftHistory();
+    renderGiftHistory();
+    setText('giftHistoryState', '已清理显示');
+    setHistoryBody('<tr><td colspan="6" class="empty">已清理显示</td></tr>');
+    const syncStatus = get('giftLedgerSyncStatus');
+    if (syncStatus) syncStatus.hidden = true;
   });
 
   clearDatabaseButton?.addEventListener('click', clearGiftDatabase);
@@ -123,13 +99,12 @@ export function initGiftHistoryDrawer() {
   });
 
   initGiftRecentToggle();
-  syncFilterControls();
 }
 
 export function openGiftHistoryDrawer() {
   get('giftHistoryDrawer')?.classList.add('open');
   get('giftHistoryBackdrop')?.classList.add('open');
-  get('giftHistorySearch')?.focus();
+  get('giftHistoryClose')?.focus();
 }
 
 export function closeGiftHistoryDrawer() {
@@ -147,8 +122,6 @@ export async function loadGiftHistory() {
   try {
     const response = await fetch(
       buildGiftHistoryUrl({
-        query: giftLedgerState.query,
-        range: giftLedgerState.range,
         cursor: giftLedgerState.cursor,
         limit: GIFT_HISTORY_LIMIT,
       }),
@@ -183,20 +156,6 @@ function resetGiftLedgerPagination(state) {
   state.hasMore = false;
 }
 
-function normalizeRange(range) {
-  return GIFT_RANGES.has(range) ? range : DEFAULT_GIFT_RANGE;
-}
-
-function syncFilterControls() {
-  const search = get('giftHistorySearch');
-  if (search) search.value = giftLedgerState.query;
-  document.querySelectorAll('[data-gift-range]').forEach((button) => {
-    const active = button.dataset.giftRange === giftLedgerState.range;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
-  });
-}
-
 async function clearGiftDatabase() {
   const confirmed = await dangerConfirm({
     title: '清空数据库礼物记录',
@@ -225,6 +184,8 @@ async function clearGiftDatabase() {
 }
 
 function renderHistoryLoading() {
+  const syncStatus = get('giftLedgerSyncStatus');
+  if (syncStatus) syncStatus.hidden = true;
   setText('giftHistoryState', '正在加载…');
   setText('giftHistoryTotal', '正在加载');
   setHistoryBody('<tr><td colspan="6" class="empty">加载中…</td></tr>');
@@ -245,15 +206,11 @@ function renderGiftHistory() {
   setText('giftHistoryTotal', `本页 ${items.length} 条`);
   setText(
     'giftHistoryState',
-    items.length === 0
-      ? giftLedgerState.query
-        ? '没有匹配的礼物记录'
-        : '暂无礼物记录'
-      : '已加载',
+    items.length === 0 ? '暂无礼物记录' : '已加载',
   );
   setHistoryBody(
     items.length === 0
-      ? `<tr><td colspan="6" class="empty">${giftLedgerState.query ? '没有匹配的礼物或盲盒' : '暂无礼物记录'}</td></tr>`
+      ? '<tr><td colspan="6" class="empty">暂无礼物记录</td></tr>'
       : items.map(renderGiftHistoryRow).join(''),
   );
   updatePagination(false);
@@ -317,12 +274,9 @@ function renderSyncStatus(data) {
   const partial = data.partial !== false;
   const status = describeGiftSyncStatus(syncState, partial);
   element.dataset.state = status.state;
-  setText('giftLedgerSyncLabel', status.label);
-
-  const details = [];
-  if (data.syncedAt) details.push(`更新于 ${formatDateTime(data.syncedAt)}`);
-  if (partial) details.push('历史记录可能不完整');
-  setText('giftLedgerSyncDetail', details.join(' · '));
+  element.hidden = status.state === 'live';
+  element.textContent = status.label;
+  element.title = partial ? '历史记录可能不完整' : '';
 }
 
 export function describeGiftSyncStatus(syncState, partial) {
@@ -350,9 +304,11 @@ export function describeGiftSyncStatus(syncState, partial) {
 
 function renderSyncError(error) {
   const element = get('giftLedgerSyncStatus');
-  if (element) element.dataset.state = 'error';
-  setText('giftLedgerSyncLabel', '无法读取同步状态');
-  setText('giftLedgerSyncDetail', error.message || '请稍后重试');
+  if (!element) return;
+  element.dataset.state = 'error';
+  element.hidden = false;
+  element.textContent = '无法读取同步状态';
+  element.title = error.message || '请稍后重试';
 }
 
 function setHistoryBody(html) {

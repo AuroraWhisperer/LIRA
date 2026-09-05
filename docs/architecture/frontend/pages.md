@@ -216,4 +216,4 @@
 
 ## 7. 礼物完整历史页面（Implemented）
 
-客户端“最近礼物 → 查看全部”使用传统逐行流水表，按时间、礼物、数量、金额、用户、备注六列展示；保留名称搜索、`7d/30d/90d/all` 范围控制、复合 keyset 历史翻页，以及同步中/partial/离线/错误/空数据状态。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。“重置筛选”只重置筛选，不删除本地账本。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
+客户端“最近礼物 → 查看全部”恢复 3.x 的逐行数据库流水表结构：标题与操作按钮、时间/礼物/数量/金额/用户/备注六列表格、底部翻页。不显示名称搜索、日期范围控件或独立同步信息栏，固定以 `range=all` 读取全部历史并保留复合 keyset 翻页；仅在同步未完成、离线或异常时于标题下提示，不展示同步日期。保留加载/错误/空数据状态。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。“清理显示”只清空当前展示并使未完成请求失效，不删除本地账本，重新打开抽屉恢复读取。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。

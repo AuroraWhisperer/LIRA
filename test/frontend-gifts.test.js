@@ -72,19 +72,16 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
   assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);
 });
 
-test('gift history drawer exposes a traditional table, filters, sync, and keyset controls', () => {
+test('gift history drawer restores the 3.x table without search or date toolbars', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'history.html'),
     'utf8',
   );
 
-  assert.match(html, /id="giftHistorySearch"/);
-  assert.match(html, /id="giftHistorySearchBtn"/);
-  assert.doesNotMatch(html, /id="giftHistorySearch"[^>]*maxlength=/s);
-  for (const range of ['7d', '30d', '90d', 'all']) {
-    assert.match(html, new RegExp(`data-gift-range="${range}"`));
-  }
-  assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"/);
+  assert.doesNotMatch(html, /giftHistorySearch|data-gift-range|gift-ledger-toolbar|gift-ledger-sync/);
+  assert.doesNotMatch(html, /时间范围|重置筛选|giftLedgerSyncDetail/);
+  assert.match(html, /id="giftHistoryClearDisplayBtn"[^>]*>\s*清理显示\s*<\/button>/);
+  assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"[^>]*hidden/);
   assert.match(
     html,
     /<th[^>]*>时间<\/th>\s*<th[^>]*>礼物<\/th>\s*<th[^>]*>数量<\/th>\s*<th[^>]*>金额<\/th>\s*<th[^>]*>用户<\/th>\s*<th[^>]*>备注<\/th>/,
@@ -96,7 +93,7 @@ test('gift history drawer exposes a traditional table, filters, sync, and keyset
   assert.match(html, /id="giftHistoryNext"/);
 });
 
-test('gift ledger queries use accepted filters and never expose source identity', async () => {
+test('gift history always requests all dates and never exposes source identity', async () => {
   const modulePath = path.join(
     ROOT_DIR,
     'public',
@@ -116,14 +113,14 @@ test('gift ledger queries use accepted filters and never expose source identity'
   assert.doesNotMatch(source, /buildGiftStatisticsUrl|loadGiftStatistics|loadGiftLedger/);
   assert.doesNotMatch(source, /\/api\/gifts\/statistics/);
   assert.doesNotMatch(source, /sourceId|source_id/);
+  assert.doesNotMatch(source, /giftHistorySearch|data-gift-range|syncedAt/);
+  assert.equal(ledger.buildGiftHistoryUrl(), '/api/gifts/history?range=all&limit=50');
   assert.equal(
     ledger.buildGiftHistoryUrl({
-      query: '星光%_盒',
-      range: '30d',
       cursor: 'opaque/+ token',
       limit: 50,
     }),
-    '/api/gifts/history?query=%E6%98%9F%E5%85%89%25_%E7%9B%92&range=30d&limit=50&cursor=opaque%2F%2B+token',
+    '/api/gifts/history?range=all&limit=50&cursor=opaque%2F%2B+token',
   );
   assert.deepEqual(
     { ...ledger.describeGiftSyncStatus('LIVE', false) },
@@ -159,8 +156,6 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
       'giftHistoryNext',
       'giftHistoryPageInfo',
       'giftLedgerSyncStatus',
-      'giftLedgerSyncLabel',
-      'giftLedgerSyncDetail',
     ].map((id) => [
       id,
       { dataset: {}, disabled: false, innerHTML: '', textContent: '' },
@@ -225,7 +220,7 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
 
   await ledger.loadGiftHistory();
 
-  assert.deepEqual(requests, ['/api/gifts/history?range=30d&limit=50']);
+  assert.deepEqual(requests, ['/api/gifts/history?range=all&limit=50']);
   const body = elements.get('giftHistoryBody').innerHTML;
   const renderedRows = [
     ...body.matchAll(/<tr data-event-id="[^"]*">([\s\S]*?)<\/tr>/g),
@@ -249,14 +244,14 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
   assert.equal(elements.get('giftHistoryNext').disabled, false);
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1 页');
   assert.equal(elements.get('giftLedgerSyncStatus').dataset.state, 'live');
+  assert.equal(elements.get('giftLedgerSyncStatus').hidden, true);
   assert.equal(
-    elements.get('giftLedgerSyncLabel').textContent,
+    elements.get('giftLedgerSyncStatus').textContent,
     '历史记录已同步',
   );
-  assert.match(elements.get('giftLedgerSyncDetail').textContent, /更新于/);
 });
 
-test('clear display resets gift filters and cursor history without deleting rows', async () => {
+test('clear display resets the displayed rows and cursor history without deleting data', async () => {
   const modulePath = path.join(
     ROOT_DIR,
     'public',
@@ -272,18 +267,107 @@ test('clear display resets gift filters and cursor history without deleting rows
     URLSearchParams,
   });
   const state = ledger.createGiftLedgerState();
-  state.query = '礼物';
-  state.range = '90d';
   state.cursor = 'next-token';
+  state.nextCursor = 'following-token';
+  state.page = 3;
+  state.items = [{ eventId: 'event-1' }];
+  state.hasMore = true;
   state.cursorHistory.push(null, 'previous-token');
 
   ledger.resetGiftLedgerDisplay(state);
 
-  assert.equal(state.query, '');
-  assert.equal(state.range, '30d');
   assert.equal(state.cursor, null);
+  assert.equal(state.nextCursor, null);
+  assert.equal(state.page, 1);
+  assert.equal(state.hasMore, false);
+  assert.deepEqual(Array.from(state.items), []);
   assert.deepEqual(Array.from(state.cursorHistory), []);
   assert.doesNotMatch(source, /\/api\/gifts\/clear-recent/);
+});
+
+test('gift history keeps cursor navigation, ignores responses after clear, and reloads on reopen', async () => {
+  const elements = new Map();
+  for (const id of [
+    'giftHistoryOpenBtn', 'giftHistoryClose', 'giftHistoryBackdrop',
+    'giftHistoryDrawer', 'giftHistoryClearDisplayBtn', 'giftHistoryPrev',
+    'giftHistoryNext', 'giftHistoryState', 'giftHistoryTotal',
+    'giftHistoryBody', 'giftHistoryPageInfo', 'giftLedgerSyncStatus',
+  ]) {
+    elements.set(id, {
+      ...createLyricToggleButton(),
+      dataset: {},
+      handlers: {},
+      addEventListener(type, handler) { this.handlers[type] = handler; },
+      focus() { this.focused = true; },
+    });
+  }
+  const requests = [];
+  const pending = [];
+  const ledger = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'history.js'),
+    {
+      document: {
+        getElementById: (id) => elements.get(id) || null,
+        querySelector: () => null,
+        addEventListener() {},
+      },
+      location: {},
+      URLSearchParams,
+      fetch: (url) => {
+        requests.push(url);
+        return new Promise((resolve) => pending.push(resolve));
+      },
+    },
+  );
+  const click = (id) => elements.get(id).handlers.click();
+  const finishRequest = async (data) => {
+    pending.shift()({
+      ok: true,
+      text: async () => JSON.stringify({ ok: true, data }),
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  const firstPage = {
+    items: [{ eventId: 'first', gift: { giftName: '测试礼物' } }],
+    hasMore: true,
+    nextCursor: 'page-2',
+    syncState: 'LIVE',
+    partial: false,
+  };
+
+  ledger.initGiftHistoryDrawer();
+  click('giftHistoryOpenBtn');
+  await finishRequest(firstPage);
+  assert.equal(elements.get('giftHistoryClose').focused, true);
+  assert.match(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
+  click('giftHistoryNext');
+  await finishRequest({ items: [], syncState: 'OFFLINE', partial: true });
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50&cursor=page-2');
+  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 2 页');
+  assert.equal(elements.get('giftLedgerSyncStatus').hidden, false);
+  assert.equal(elements.get('giftLedgerSyncStatus').textContent, '离线，正在显示本地记录');
+  click('giftHistoryPrev');
+  await finishRequest(firstPage);
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
+  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1 页');
+
+  click('giftHistoryNext');
+  const countBeforeClear = requests.length;
+  click('giftHistoryClearDisplayBtn');
+  await finishRequest(firstPage);
+  assert.equal(requests.length, countBeforeClear);
+  assert.match(elements.get('giftHistoryBody').innerHTML, /已清理显示/);
+  assert.doesNotMatch(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
+  assert.equal(elements.get('giftHistoryPrev').disabled, true);
+  assert.equal(elements.get('giftHistoryNext').disabled, true);
+  assert.equal(elements.get('giftLedgerSyncStatus').hidden, true);
+
+  click('giftHistoryClose');
+  assert.equal(elements.get('giftHistoryOpenBtn').focused, true);
+  click('giftHistoryOpenBtn');
+  await finishRequest(firstPage);
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
+  assert.match(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
 });
 
 test('blind box analysis is a separate accessible workspace module', () => {
@@ -563,6 +647,9 @@ test('blind-box mapping puts room sale entries first and keeps official entries 
     },
   );
   const snapshot = {
+    schemaVersion: 2,
+    source: 'server',
+    roomId: '',
     gifts: [
       { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true, active: true },
       { id: '101', name: '官方产物', rmb: 3, isBlindBox: false },
@@ -585,6 +672,7 @@ test('blind-box mapping puts room sale entries first and keeps official entries 
   ]);
 
   assert.match(container.innerHTML, /官方盲盒/);
+  assert.match(container.innerHTML, /官方产物<small>#101<\/small><small>3<\/small>/);
   assert.match(container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
   assert.match(container.innerHTML, /主播自定义盒/);
   assert.equal((container.innerHTML.match(/class="chip-delete"/g) || []).length, 2);
@@ -604,11 +692,18 @@ test('blind-box mapping puts room sale entries first and keeps official entries 
     '官方盲盒', '在售官方盒甲', '历史官方盒', '在售官方盒乙',
     '主播自定义盒', '在售自定义盒',
   ]);
+
+  applyOfficialCatalogSnapshot({ roomId: '', gifts: [] });
+  assert.deepEqual(renderedNames(), [
+    '官方盲盒', '在售官方盒甲', '历史官方盒', '在售官方盒乙',
+    '主播自定义盒', '在售自定义盒',
+  ]);
+  assert.match(container.innerHTML, /官方产物/);
 });
 
-test('blind-box advanced editor hides empty settings without changing values or drafts', async () => {
+test('blind-box advanced editor remains available without changing values, drafts, or expansion', async () => {
   const textarea = { value: 'null', dataset: {} };
-  const toggle = { hidden: true, textContent: '高级 ▾' };
+  const toggle = { hidden: false, textContent: '高级 ▾' };
   const advanced = { hidden: true };
   const elements = {
     blindBoxList: { innerHTML: '' },
@@ -636,20 +731,26 @@ test('blind-box advanced editor hides empty settings without changing values or 
   );
   const { renderBlindBoxList } = window.AdminApp.gifts.blindbox;
 
+  renderBlindBoxList();
+  assert.equal(toggle.hidden, false);
+  assert.equal(advanced.hidden, true);
+
   for (const raw of ['null', '[]', '']) {
     textarea.value = raw;
     toggle.hidden = false;
     toggle.textContent = '高级 ▴';
     advanced.hidden = false;
     renderBlindBoxList();
-    assert.equal(toggle.hidden, true);
-    assert.equal(advanced.hidden, true);
-    assert.equal(toggle.textContent, '高级 ▾');
+    assert.equal(toggle.hidden, false);
+    assert.equal(advanced.hidden, false);
+    assert.equal(toggle.textContent, '高级 ▴');
     assert.equal(textarea.value, raw);
     assert.equal(textarea.dataset.dirty, undefined);
   }
 
   const config = '[{"name":"Custom box","price":5,"outputs":[]}]';
+  advanced.hidden = true;
+  toggle.textContent = '高级 ▾';
   textarea.value = config;
   renderBlindBoxList();
   assert.equal(toggle.hidden, false);
@@ -670,17 +771,16 @@ test('blind-box advanced editor hides empty settings without changing values or 
   textarea.value = '[]';
   textarea.dataset.dirty = 'false';
   renderBlindBoxList();
-  assert.equal(toggle.hidden, true);
-  assert.equal(advanced.hidden, true);
+  assert.equal(toggle.hidden, false);
+  assert.equal(advanced.hidden, false);
   assert.equal(textarea.value, '[]');
 
   textarea.value = config;
   renderBlindBoxList();
   assert.equal(toggle.hidden, false);
-  assert.equal(advanced.hidden, true);
+  assert.equal(advanced.hidden, false);
 
   textarea.value = '{';
-  toggle.hidden = true;
   renderBlindBoxList();
   assert.equal(toggle.hidden, false);
   assert.equal(textarea.value, '{');
@@ -689,7 +789,7 @@ test('blind-box advanced editor hides empty settings without changing values or 
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
     'utf8',
   );
-  assert.match(page, /id="blindBoxAdvancedToggle"[^>]*\bhidden\b/);
+  assert.doesNotMatch(page, /id="blindBoxAdvancedToggle"[^>]*\bhidden\b/);
   assert.match(page, /id="blindBoxAdvanced"[^>]*\bhidden\b/);
   assert.doesNotMatch(page, /id="blindBoxAddBtn"[^>]*\bhidden\b/);
 });
@@ -739,7 +839,9 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     'blindboxOverlayUrl', 'blindboxLiveLink',
   ]) elements.set(id, makeElement());
   const editable = elements.get('giftBlindBoxCustomConfigV2');
-  editable.value = draft;
+  editable.value = 'null';
+  const advanced = elements.get('blindBoxAdvanced');
+  advanced.hidden = true;
   const { createBlindboxSettings } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
   );
@@ -757,6 +859,16 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     localOverlayOrigin: () => 'http://127.0.0.1:3000',
   });
   settings.init();
+  const toggle = elements.get('blindBoxAdvancedToggle');
+  toggle.listeners.get('click')();
+  assert.equal(advanced.hidden, false);
+  assert.equal(toggle.textContent, '高级 ▴');
+  toggle.listeners.get('click')();
+  assert.equal(advanced.hidden, true);
+  assert.equal(toggle.textContent, '高级 ▾');
+  toggle.listeners.get('click')();
+  assert.equal(advanced.hidden, false);
+  editable.value = draft;
   editable.listeners.get('input')();
   await assert.rejects(
     elements.get('giftBlindBoxSaveBtn').listeners.get('click')(),

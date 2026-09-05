@@ -415,7 +415,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.doesNotMatch(styles, /\.danmaku-style-option-visual/);
   assert.match(styles, /\.danmaku-style-save-state:empty\s*\{\s*display:\s*none;/);
   assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
-  assert.match(styles, /\.danmaku-style-preview\s*\{[^}]*height:\s*380px;/s);
+  assert.match(styles, /\.danmaku-style-preview\s*\{[^}]*height:\s*480px;/s);
   assert.doesNotMatch(styles, /\.danmaku-style-preview \.draw-danmaku-item/);
 });
 

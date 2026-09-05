@@ -11,14 +11,21 @@
     <div class="gift-drawer-title">
       <strong id="giftHistoryTitle" class="ui-section-title">全部礼物流水</strong>
       <span id="giftHistoryTotal" class="ui-caption">本页 0 条</span>
+      <span
+        id="giftLedgerSyncStatus"
+        class="ui-caption"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></span>
     </div>
     <button
       id="giftHistoryClearDisplayBtn"
       class="secondary sm"
       type="button"
-      title="重置搜索与时间范围"
+      title="清理当前显示，不删除数据库记录"
     >
-      重置筛选
+      清理显示
     </button>
     <button
       id="giftHistoryClearDatabaseBtn"
@@ -48,39 +55,6 @@
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>
     </button>
-  </div>
-
-  <div class="gift-ledger-toolbar">
-    <form id="giftHistorySearchForm" class="gift-ledger-search" role="search">
-      <label class="sr-only" for="giftHistorySearch">搜索礼物或盲盒名称</label>
-      <input
-        id="giftHistorySearch"
-        type="search"
-        autocomplete="off"
-        placeholder="搜索礼物或盲盒名称"
-      />
-      <button id="giftHistorySearchBtn" class="primary" type="submit">
-        搜索
-      </button>
-    </form>
-    <div class="gift-ledger-ranges" role="group" aria-label="时间范围">
-      <button type="button" data-gift-range="7d">7 天</button>
-      <button type="button" data-gift-range="30d" class="active">30 天</button>
-      <button type="button" data-gift-range="90d">90 天</button>
-      <button type="button" data-gift-range="all">全部</button>
-    </div>
-  </div>
-
-  <div
-    id="giftLedgerSyncStatus"
-    class="gift-ledger-sync"
-    role="status"
-    aria-live="polite"
-    data-state="loading"
-  >
-    <span class="gift-ledger-sync-dot" aria-hidden="true"></span>
-    <strong id="giftLedgerSyncLabel">正在读取同步状态</strong>
-    <span id="giftLedgerSyncDetail" class="ui-caption"></span>
   </div>
 
   <div class="gift-drawer-body">

@@ -169,7 +169,13 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
     assert.match(panel, new RegExp(`id="${id}"`));
   }
   assert.doesNotMatch(panel, /clockCustomUrl|clockCopyCustom|带参数网址/);
-  assert.match(panel, /设置变化，网址不变/);
+  assert.match(panel, /id="clockPreviewTitle"[^>]*>实时预览<\/h3>/);
+  assert.match(panel, /id="clockFixedTitle"[^>]*>萌时钟网址<\/h3>/);
+  assert.match(panel, /id="clockParametersTitle"[^>]*>自定义设置<\/h3>/);
+  assert.doesNotMatch(
+    panel,
+    /画面里的实际大小|设置变化，网址不变|选一套今天的心情|clock-preview-note/,
+  );
   assert.match(panel, /data-clock-style-option="peach"/);
   assert.match(panel, /data-clock-style-option="starlight"/);
   assert.match(panel, /data-clock-style-option="soda"/);

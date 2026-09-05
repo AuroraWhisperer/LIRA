@@ -37,6 +37,11 @@ test('blank global activation renders the full local catalog and filters in plac
   assert.equal(fixture.elements.globalSearchButton.textContent, '返回在售礼物');
   assert.equal(optionNodes(fixture).length, 2999);
   assert.equal(
+    fixture.elements.results.children[0].textContent,
+    '礼物库 · 2999 / 3000 个',
+  );
+  assert.doesNotMatch(nodeText(fixture.elements.results), /本地礼物库|目录中|当前未在售|目录外/);
+  assert.equal(
     optionNodes(fixture).some((node) => nodeText(node).includes('Gift 0000')),
     false,
   );
@@ -97,14 +102,15 @@ test('global picker distinguishes an unavailable cache from a valid empty cache'
   for (const scenario of [
     {
       fetchPayload: { ok: true, data: null },
-      expected: /本地礼物库尚未缓存|读取本地礼物库失败/,
+      expected: /礼物库尚未缓存|读取礼物库失败/,
     },
-    { fetchPayload: { ok: true, data: { gifts: [] } }, expected: /本地礼物库暂无礼物/ },
+    { fetchPayload: { ok: true, data: { gifts: [] } }, expected: /礼物库暂无礼物/ },
   ]) {
     const fixture = await createFixture(scenario);
     await openPicker(fixture);
     await fixture.elements.globalSearchButton.dispatchEvent('click');
     assert.match(nodeText(fixture.elements.results), scenario.expected);
+    assert.doesNotMatch(nodeText(fixture.elements.results), /本地礼物库/);
     assert.equal(fixture.elements.globalSearchButton.disabled, false);
     assert.equal(fixture.elements.globalSearchButton.textContent, '返回在售礼物');
   }
@@ -138,10 +144,31 @@ test('off-sale global gifts remain selectable and are added through the rule edi
   fixture.elements.search.value = 'gift-off-sale';
   await fixture.elements.search.dispatchEvent('input');
   assert.equal(optionNodes(fixture).length, 1);
+  assert.equal(nodeText(optionNodes(fixture)[0]), 'Off SaleID gift-off-sale · ¥2.00');
   await optionNodes(fixture)[0].dispatchEvent('click');
 
   assert.equal(fixture.state.addedGifts[0].id, 'gift-off-sale');
   assert.equal(fixture.elements.picker.open, false);
+});
+
+test('catalog refreshes do not annotate or highlight saved rules by sale status', async () => {
+  const fixture = await createFixture({
+    selectedGiftIds: ['gift-0000', 'gift-off-sale', 'guard-1'],
+  });
+  const rules = fixture.document.getElementById('overtimeRules');
+  const assertNoSaleStatus = () => {
+    assert.equal(rules.querySelectorAll('[data-rule-sale-status]').length, 0);
+    for (const row of rules.querySelectorAll('[data-overtime-rule]')) {
+      assert.equal(row.classList.contains('is-unavailable'), false);
+    }
+  };
+  assertNoSaleStatus();
+  fixture.namespace.applyGiftCatalog({
+    refreshedAt: '2026-09-05T01:00:00.000Z',
+    gifts: [],
+  });
+  assertNoSaleStatus();
+  assert.equal(rules.querySelectorAll('[data-overtime-rule]').length, 3);
 });
 
 test('reopening the picker invalidates a pending global catalog response', async () => {
@@ -159,7 +186,7 @@ test('reopening the picker invalidates a pending global catalog response', async
   const loading = fixture.elements.globalSearchButton.dispatchEvent('click');
   await flush();
   assert.equal(fixture.elements.globalSearchButton.disabled, true);
-  assert.match(nodeText(fixture.elements.results), /正在读取本地礼物库/);
+  assert.match(nodeText(fixture.elements.results), /正在读取礼物库/);
 
   fixture.elements.picker.close();
   fixture.namespace.openGiftPicker();
@@ -180,7 +207,7 @@ test('reopening the picker invalidates a pending global catalog response', async
   await flush();
 
   assert.equal(fixture.elements.globalSearchButton.disabled, true);
-  assert.match(nodeText(fixture.elements.results), /正在读取本地礼物库/);
+  assert.match(nodeText(fixture.elements.results), /正在读取礼物库/);
 
   newerPending.resolve({
     ok: true,
@@ -224,6 +251,9 @@ async function createFixture({
     const row = document.createElement('article');
     row.dataset.overtimeRule = 'true';
     row.dataset.giftId = String(id);
+    const identity = document.createElement('span');
+    identity.className = 'overtime-rule-identity';
+    row.append(identity);
     rules.append(row);
   }
   namespace.applyGiftCatalog({

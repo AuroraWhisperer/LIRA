@@ -10,13 +10,10 @@
     <div class="clock-tool-layout">
       <section class="clock-preview-card" aria-labelledby="clockPreviewTitle">
         <div class="clock-card-heading">
-          <div>
-            <span>实时预览</span>
-            <h3 id="clockPreviewTitle" class="ui-section-title">
-              画面里的实际大小
-            </h3>
-          </div>
-          <small id="clockRecommendedSize">推荐浏览器源：580 × 210</small>
+          <h3 id="clockPreviewTitle" class="ui-section-title">实时预览</h3>
+          <button id="clockOpenPreview" class="secondary" type="button">
+            打开预览
+          </button>
         </div>
         <div class="clock-preview-canvas">
           <iframe
@@ -25,9 +22,7 @@
             loading="lazy"
           ></iframe>
         </div>
-        <p class="clock-preview-note">
-          卡片之外保持透明，可以直接叠在人物、游戏或背景画面上。
-        </p>
+        <small id="clockRecommendedSize">推荐浏览器源：580 × 210</small>
       </section>
 
       <aside class="clock-settings-card" aria-label="萌时钟地址与设置">
@@ -35,14 +30,7 @@
           class="clock-address-section"
           aria-labelledby="clockFixedTitle"
         >
-          <div class="clock-section-heading">
-            <div>
-              <span>萌时钟网址</span>
-              <h3 id="clockFixedTitle" class="ui-section-title">
-                设置变化，网址不变
-              </h3>
-            </div>
-          </div>
+          <h3 id="clockFixedTitle" class="ui-section-title">萌时钟网址</h3>
           <div class="clock-url-box">
             <code id="clockFixedUrl"></code>
             <button id="clockCopyFixed" class="secondary" type="button">
@@ -55,14 +43,7 @@
           class="clock-parameter-section"
           aria-labelledby="clockParametersTitle"
         >
-          <div class="clock-section-heading">
-            <div>
-              <span>自定义设置</span>
-              <h3 id="clockParametersTitle" class="ui-section-title">
-                选一套今天的心情
-              </h3>
-            </div>
-          </div>
+          <h3 id="clockParametersTitle" class="ui-section-title">自定义设置</h3>
 
           <div class="clock-style-options" role="group" aria-label="萌时钟风格">
             <button
@@ -74,10 +55,7 @@
               <span class="clock-style-swatch is-peach" aria-hidden="true"
                 ><i></i><b>12:08</b></span
               >
-              <span
-                ><strong>桃桃便签</strong
-                ><small>奶油蜜桃 · 软软兔耳</small></span
-              >
+              <strong>桃桃便签</strong>
             </button>
             <button
               class="clock-style-option"
@@ -88,10 +66,7 @@
               <span class="clock-style-swatch is-starlight" aria-hidden="true"
                 ><i></i><b>21:06</b></span
               >
-              <span
-                ><strong>星夜软糖</strong
-                ><small>靛蓝星光 · 月亮云朵</small></span
-              >
+              <strong>星夜软糖</strong>
             </button>
             <button
               class="clock-style-option"
@@ -102,10 +77,7 @@
               <span class="clock-style-swatch is-soda" aria-hidden="true"
                 ><i></i><b>09:25</b></span
               >
-              <span
-                ><strong>汽水小鸭</strong
-                ><small>薄荷汽水 · 泡泡鸭鸭</small></span
-              >
+              <strong>汽水小鸭</strong>
             </button>
             <button
               class="clock-style-option"
@@ -118,10 +90,7 @@
                 aria-hidden="true"
                 ><i></i><b>10—45</b></span
               >
-              <span
-                ><strong>横向刻度</strong
-                ><small>透明排版 · 横向时间轴</small></span
-              >
+              <strong>横向刻度</strong>
             </button>
             <button
               class="clock-style-option"
@@ -134,10 +103,7 @@
                 aria-hidden="true"
                 ><i></i><b>10<br />45</b></span
               >
-              <span
-                ><strong>竖向刻度</strong
-                ><small>透明排版 · 竖向时间轴</small></span
-              >
+              <strong>竖向刻度</strong>
             </button>
             <button
               class="clock-style-option"
@@ -148,21 +114,18 @@
               <span class="clock-style-swatch is-digital" aria-hidden="true"
                 ><small>2026-09-03 THU</small><b>09:54:12</b></span
               >
-              <span
-                ><strong>白字数显</strong
-                ><small>2026-09-03 THU</small></span
-              >
+              <strong>白字数显</strong>
             </button>
           </div>
 
           <div class="clock-toggle-grid">
             <label class="clock-toggle-field">
-              <span><strong>显示日期</strong><small>月日与星期</small></span>
+              <strong>显示日期</strong>
               <input id="clockShowDate" type="checkbox" checked />
               <i aria-hidden="true"></i>
             </label>
             <label class="clock-toggle-field">
-              <span><strong>显示秒数</strong><small>小号数字气泡</small></span>
+              <strong>显示秒数</strong>
               <input id="clockShowSeconds" type="checkbox" checked />
               <i aria-hidden="true"></i>
             </label>
@@ -190,11 +153,6 @@
             />
           </label>
 
-          <div class="clock-url-actions">
-            <button id="clockOpenPreview" class="primary" type="button">
-              打开预览
-            </button>
-          </div>
         </section>
       </aside>
     </div>

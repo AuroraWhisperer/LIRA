@@ -144,6 +144,7 @@ body:not(.is-connected) .danmaku-signal-count {
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
+  flex-shrink: 0;
   width: max-content;
   min-width: 0;
   max-width: min(100%, 660px);

@@ -238,14 +238,17 @@ filters, and the canonical paid-final predicate. Only a fully validated LIVE
 state returns `partial=false`; bootstrapping, catch-up, dirty, offline,
 `LEGACY_PARTIAL`, switching, and error states remain partial.
 
-The desktop client's recent-gift history drawer uses the traditional six-column
-row table: time, gift, quantity, amount, user, and remarks. It retains name search,
-`7d/30d/90d/all` range controls, sync/partial status, keyset history navigation,
-and explicit loading/error/empty states. Summary, ranking, and trend dashboards
-belong to the server web interface, not this drawer. The drawer requests history
-only; the local statistics API remains available without changing its contract.
-Resetting display clears UI filters only. New renderer modules use named ESM
-imports/exports and do not add to `window.AdminApp`.
+The desktop client's recent-gift history drawer restores the 3.x layout:
+title/actions, a six-column row table (time, gift, quantity, amount, user, remarks),
+and footer pagination. It has no name search, date-range controls, or separate
+sync toolbar. Requests always use `range=all` with keyset history navigation.
+Incomplete/offline/error sync states appear below the title only when relevant,
+without a sync timestamp. Explicit loading/error/empty states remain. Summary,
+ranking, and trend dashboards belong to the server web interface, not this
+drawer. The drawer requests history only; the local history filter and statistics
+API contracts remain unchanged. Clearing display empties the current table and
+invalidates pending requests without deleting data; reopening loads history again.
+New renderer modules use named ESM imports/exports and do not add to `window.AdminApp`.
 
 ## Security
 
@@ -304,9 +307,10 @@ imports/exports and do not add to `window.AdminApp`.
 15. Source identity accepts only a credential-free HTTPS root origin with a
     valid DNS hostname and rejects HTTP, localhost, IP literals, invalid DNS
     labels, non-root paths, queries, and fragments.
-16. The desktop history drawer renders individual six-column rows without
-    summary/ranking/trend panels or statistics requests, while preserving
-    search, range, keyset navigation, and synchronization status.
+16. The desktop history drawer renders individual six-column rows in the 3.x
+    table layout, without search/date/sync toolbars, summary/ranking/trend panels,
+    or statistics requests. It reads all dates with keyset navigation and shows
+    incomplete/offline/error synchronization status only when relevant.
 
 ## Done When
 

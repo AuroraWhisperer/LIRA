@@ -118,6 +118,16 @@ test('license page replaces the form with an accessible gift initialization card
   assert.match(html, /id="giftCatalogInitializationProgress"[^>]*max="100"/s);
   assert.match(html, /id="giftCatalogInitializationStatus"[^>]*role="status"/s);
   assert.match(html, /id="giftCatalogInitializationRetryBtn"/);
+  assert.match(html, /正在为你准备直播工具/);
+  assert.match(html, /aria-label="准备进度"/);
+  assert.match(html, /id="giftCatalogInitializationPercent">0%/);
+  assert.doesNotMatch(html, /giftCatalogInitialization(?:Phase|Count)/);
+  const script = fs.readFileSync(
+    path.join(ROOT, 'public', 'js', 'license.js'),
+    'utf8',
+  );
+  assert.match(script, /正在为你准备直播工具/);
+  assert.doesNotMatch(script, /initializationPhase|initializationCount|currentGiftName|礼物图片|礼物目录/);
   assert.match(styles, /\.license-initialization-card\s*\{/);
   assert.match(styles, /\.license-progress::-webkit-progress-value\s*\{/);
 });

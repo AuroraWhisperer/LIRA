@@ -338,10 +338,6 @@
   background: var(--surface);
   box-shadow: 0 4px 14px rgba(24, 24, 35, 0.05);
 }
-.overtime-rule-row.is-unavailable {
-  border-color: color-mix(in srgb, var(--ot-coral) 58%, var(--border));
-  background: color-mix(in srgb, var(--ot-coral) 5%, var(--surface));
-}
 .overtime-rule-header,
 .overtime-rule-gift,
 .overtime-rule-buttons,
@@ -401,13 +397,6 @@
 .overtime-rule-summary {
   color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
   font-weight: 700;
-}
-.overtime-rule-sale-status {
-  color: var(--ot-teal) !important;
-  font-weight: 700;
-}
-.overtime-rule-row.is-unavailable .overtime-rule-sale-status {
-  color: var(--ot-coral) !important;
 }
 .overtime-rule-buttons {
   flex-wrap: wrap;

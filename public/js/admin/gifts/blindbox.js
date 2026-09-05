@@ -21,7 +21,6 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     if (!container) return;
     const textarea = document.getElementById('giftBlindBoxCustomConfigV2');
     if (!textarea) return;
-    const advancedToggle = document.getElementById('blindBoxAdvancedToggle');
 
     const raw = (textarea.value || '').trim();
     let config = [];
@@ -30,17 +29,8 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
       if (parsed !== null && !Array.isArray(parsed)) throw new Error('不是数组');
       config = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-      if (advancedToggle) advancedToggle.hidden = false;
       container.innerHTML = '<span class="hint">配置格式错误</span>';
       return;
-    }
-
-    const showAdvanced = config.length > 0 || textarea.dataset?.dirty === 'true';
-    if (advancedToggle) advancedToggle.hidden = !showAdvanced;
-    if (!showAdvanced) {
-      const advanced = document.getElementById('blindBoxAdvanced');
-      if (advanced) advanced.hidden = true;
-      if (advancedToggle) advancedToggle.textContent = '高级 ▾';
     }
 
     const entries = [
@@ -128,7 +118,10 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
 
   function applyOfficialCatalogSnapshot(snapshot) {
     // Catalog updates also carry room sale snapshots without official relations.
-    if (typeof snapshot?.roomId === 'string') {
+    if (
+      typeof snapshot?.roomId === 'string' &&
+      !Array.isArray(snapshot?.blindBoxes)
+    ) {
       applySaleCatalogSnapshot(snapshot);
       return;
     }

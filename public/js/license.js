@@ -19,14 +19,8 @@
   const initializationHeading = document.getElementById(
     'giftCatalogInitializationHeading',
   );
-  const initializationPhase = document.getElementById(
-    'giftCatalogInitializationPhase',
-  );
   const initializationPercent = document.getElementById(
     'giftCatalogInitializationPercent',
-  );
-  const initializationCount = document.getElementById(
-    'giftCatalogInitializationCount',
   );
   const initializationProgress = document.getElementById(
     'giftCatalogInitializationProgress',
@@ -219,16 +213,9 @@
       snapshot?.ok === false && snapshot?.status !== 'ready'
         ? 'error'
         : String(snapshot.status || 'required');
-    const phase = String(snapshot.phase || 'idle');
-    const total = safeCount(snapshot.total);
-    const completed = Math.min(safeCount(snapshot.completed), total);
-    const failed = Math.min(safeCount(snapshot.failed), completed);
     const percent = Math.min(100, safeCount(snapshot.percent));
     initializationProgress.value = percent;
     initializationPercent.textContent = `${percent}%`;
-    initializationCount.textContent = total
-      ? `${completed} / ${total} 张`
-      : '等待目录';
     initializationRetryButton.hidden = catalogStatus !== 'error';
     initializationRetryButton.disabled = catalogStatus !== 'error';
     initializationCard.setAttribute(
@@ -237,39 +224,23 @@
     );
 
     if (catalogStatus === 'error') {
-      initializationHeading.textContent = '礼物图片准备未完成';
-      initializationPhase.textContent = '无法获取礼物目录';
+      initializationHeading.textContent = '准备未完成';
       setInitializationStatus(catalogErrorMessage(snapshot.error), 'error');
       return;
     }
     if (catalogStatus === 'ready') {
-      initializationHeading.textContent = '礼物图片准备完成';
-      initializationPhase.textContent = '正在进入 LIRA';
-      setInitializationStatus(
-        failed > 0
-          ? `${failed} 张图片暂不可用，后续启动会继续补齐。`
-          : '全部礼物图片已准备好。',
-        'good',
-      );
+      initializationHeading.textContent = '准备完成，正在进入 LIRA';
+      setInitializationStatus('');
       return;
     }
 
-    initializationHeading.textContent = '正在准备礼物图片';
-    if (phase === 'images') {
-      initializationPhase.textContent = '正在下载礼物图片';
-      const giftName = String(snapshot.currentGiftName || '').trim();
-      setInitializationStatus(
-        giftName ? `正在处理：${giftName}` : '正在检查本地图片…',
-        'loading',
-      );
-    } else {
-      initializationPhase.textContent = '正在获取礼物目录';
-      setInitializationStatus('正在连接服务器…', 'loading');
-    }
+    initializationHeading.textContent = '正在为你准备直播工具';
+    setInitializationStatus('');
   }
 
   function setInitializationStatus(message, tone) {
     initializationStatus.textContent = message;
+    initializationStatus.hidden = !message;
     initializationStatus.className = `license-status license-initialization-status${tone ? ` ${tone}` : ''}`;
   }
 
@@ -282,8 +253,8 @@
       value === 'REQUEST_TIMEOUT' ||
       /^HTTP_(429|5\d\d)$/.test(value)
     )
-      return '礼物目录暂时无法下载，请检查网络后重试。';
-    return '礼物图片初始化失败，请重试。';
+      return '暂时无法完成准备，请检查网络后重试。';
+    return '准备失败，请重试。';
   }
 
   function safeCount(value) {

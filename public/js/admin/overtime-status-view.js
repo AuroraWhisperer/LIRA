@@ -9,7 +9,6 @@ export function createOvertimeStatusView({
   getRuleEditor,
   isRulesDirty,
   isBackgroundDirty,
-  syncRuleAvailability,
   onLimits,
 }) {
   let overtimeState = null;
@@ -57,7 +56,6 @@ export function createOvertimeStatusView({
     renderConsumerStatus();
     if (Array.isArray(nextState.rules) && !isRulesDirty()) {
       getRuleEditor()?.renderRules(nextState.rules);
-      syncRuleAvailability();
     }
     syncClockLoop();
   }

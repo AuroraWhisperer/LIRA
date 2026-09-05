@@ -105,6 +105,10 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /\.draw-danmaku-item \{[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*min\(100%, 660px\);/s,
   );
+  assert.match(
+    styles,
+    /\.draw-danmaku-item \{ --signal-accent:[^}]*flex-shrink:\s*0;/,
+  );
   assert.doesNotMatch(
     styles,
     /body\[data-style='bubble'\] \.draw-danmaku-item \{[^}]*min-width:/s,

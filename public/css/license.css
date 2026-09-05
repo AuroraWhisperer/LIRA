@@ -223,12 +223,6 @@ button {
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.license-progress-heading span {
-  min-width: 0;
-  color: var(--license-muted);
-  font-size: 12px;
-  text-align: right;
-}
 .license-progress {
   display: block;
   width: 100%;
