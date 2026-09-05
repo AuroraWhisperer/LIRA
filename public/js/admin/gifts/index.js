@@ -11,8 +11,7 @@
       gifts.detection &&
       gifts.sprint &&
       gifts.recent &&
-      gifts.blindbox &&
-      gifts.history
+      gifts.blindbox
     );
   }
 

@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>登录 LIRA</title>
+    <link rel="stylesheet" href="/css/styles-base.css" />
+    <link rel="stylesheet" href="/css/components/contextual-help.css" />
     <link rel="stylesheet" href="/css/license.css" />
   </head>
   <body>
@@ -80,13 +82,21 @@
               <small>小写字母、数字或中划线</small>
             </label>
             <div class="license-field">
-              <label for="licensePassword">密码</label>
+              <div class="license-field-label">
+                <label for="licensePassword">密码</label>
+                <lira-help label="密码规则" tooltip-id="licensePasswordRules">
+                  8–64 个字符，必须包含大写英文字母、小写英文字母、数字和半角特殊符号（如 !@#$%）。不允许中文、空格或不可见字符。
+                </lira-help>
+              </div>
               <div class="license-password-control">
                 <input
                   id="licensePassword"
                   name="password"
                   type="password"
                   autocomplete="new-password"
+                  autocapitalize="none"
+                  spellcheck="false"
+                  aria-describedby="licensePasswordRules"
                   maxlength="128"
                   placeholder="8–64 个字符"
                   required
@@ -185,6 +195,7 @@
         </section>
       </main>
     </div>
+    <script type="module" src="/js/admin/contextual-help.js"></script>
     <script src="/js/license.js"></script>
   </body>
 </html>

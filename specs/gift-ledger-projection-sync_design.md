@@ -238,10 +238,14 @@ filters, and the canonical paid-final predicate. Only a fully validated LIVE
 state returns `partial=false`; bootstrapping, catch-up, dirty, offline,
 `LEGACY_PARTIAL`, switching, and error states remain partial.
 
-The gift page supplies name search, `7d/30d/90d/all` range controls, statistics,
-sync/partial status, keyset history navigation, and explicit loading/error/empty
-states. Resetting display clears UI filters only. New renderer modules use named
-ESM imports/exports and do not add to `window.AdminApp`.
+The desktop client's recent-gift history drawer uses the traditional six-column
+row table: time, gift, quantity, amount, user, and remarks. It retains name search,
+`7d/30d/90d/all` range controls, sync/partial status, keyset history navigation,
+and explicit loading/error/empty states. Summary, ranking, and trend dashboards
+belong to the server web interface, not this drawer. The drawer requests history
+only; the local statistics API remains available without changing its contract.
+Resetting display clears UI filters only. New renderer modules use named ESM
+imports/exports and do not add to `window.AdminApp`.
 
 ## Security
 
@@ -300,6 +304,9 @@ ESM imports/exports and do not add to `window.AdminApp`.
 15. Source identity accepts only a credential-free HTTPS root origin with a
     valid DNS hostname and rejects HTTP, localhost, IP literals, invalid DNS
     labels, non-root paths, queries, and fragments.
+16. The desktop history drawer renders individual six-column rows without
+    summary/ranking/trend panels or statistics requests, while preserving
+    search, range, keyset navigation, and synchronization status.
 
 ## Done When
 

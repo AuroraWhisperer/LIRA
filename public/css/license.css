@@ -284,6 +284,13 @@ button {
 .license-password-control {
   position: relative;
 }
+.license-field-label {
+  display: flex;
+  align-items: center;
+}
+.license-field-label label {
+  color: inherit;
+}
 .license-password-control input {
   padding-right: 44px;
 }
@@ -295,6 +302,7 @@ button {
   place-items: center;
   width: 32px;
   height: 32px;
+  min-height: 32px;
   padding: 0;
   border: 0;
   border-radius: 6px;

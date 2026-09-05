@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// 礼物流水抽屉：活动来源的历史、统计与同步完整性状态。
+// 礼物流水抽屉：活动来源的逐行历史与同步完整性状态。
 'use strict';
 
 import {
@@ -18,7 +18,6 @@ const GIFT_RANGES = new Set(['7d', '30d', '90d', 'all']);
 
 let initialized = false;
 let historyRequestSequence = 0;
-let statisticsRequestSequence = 0;
 let previousFocus = null;
 const giftLedgerState = createGiftLedgerState();
 
@@ -55,16 +54,6 @@ export function buildGiftHistoryUrl({
   return `/api/gifts/history?${params}`;
 }
 
-export function buildGiftStatisticsUrl({
-  query = '',
-  range = DEFAULT_GIFT_RANGE,
-} = {}) {
-  const params = new URLSearchParams();
-  if (query) params.set('query', query);
-  params.set('range', normalizeRange(range));
-  return `/api/gifts/statistics?${params}`;
-}
-
 export function initGiftHistoryDrawer() {
   if (initialized) return;
   initialized = true;
@@ -82,7 +71,7 @@ export function initGiftHistoryDrawer() {
     previousFocus = openButton;
     resetGiftLedgerPagination(giftLedgerState);
     openGiftHistoryDrawer();
-    loadGiftLedger();
+    loadGiftHistory();
   });
   closeButton?.addEventListener('click', closeGiftHistoryDrawer);
   backdrop?.addEventListener('click', closeGiftHistoryDrawer);
@@ -91,7 +80,7 @@ export function initGiftHistoryDrawer() {
     event.preventDefault();
     giftLedgerState.query = String(get('giftHistorySearch')?.value || '').trim();
     resetGiftLedgerPagination(giftLedgerState);
-    loadGiftLedger();
+    loadGiftHistory();
   });
 
   document.querySelectorAll('[data-gift-range]').forEach((button) => {
@@ -101,14 +90,14 @@ export function initGiftHistoryDrawer() {
       giftLedgerState.range = range;
       resetGiftLedgerPagination(giftLedgerState);
       syncFilterControls();
-      loadGiftLedger();
+      loadGiftHistory();
     });
   });
 
   clearDisplayButton?.addEventListener('click', () => {
     resetGiftLedgerDisplay(giftLedgerState);
     syncFilterControls();
-    loadGiftLedger();
+    loadGiftHistory();
   });
 
   clearDatabaseButton?.addEventListener('click', clearGiftDatabase);
@@ -145,15 +134,10 @@ export function openGiftHistoryDrawer() {
 
 export function closeGiftHistoryDrawer() {
   historyRequestSequence += 1;
-  statisticsRequestSequence += 1;
   get('giftHistoryDrawer')?.classList.remove('open');
   get('giftHistoryBackdrop')?.classList.remove('open');
   previousFocus?.focus?.();
   previousFocus = null;
-}
-
-export async function loadGiftLedger() {
-  await Promise.all([loadGiftHistory(), loadGiftStatistics()]);
 }
 
 export async function loadGiftHistory() {
@@ -186,34 +170,6 @@ export async function loadGiftHistory() {
   } catch (error) {
     if (sequence !== historyRequestSequence) return;
     renderHistoryError(error);
-  }
-}
-
-export async function loadGiftStatistics() {
-  const sequence = ++statisticsRequestSequence;
-  renderStatisticsLoading();
-
-  try {
-    const response = await fetch(
-      buildGiftStatisticsUrl({
-        query: giftLedgerState.query,
-        range: giftLedgerState.range,
-      }),
-    );
-    const payload = await readJsonResponse(response, '礼物统计加载失败');
-    if (!response.ok || !payload.ok) {
-      throw new Error(
-        payload.error || `礼物统计加载失败（HTTP ${response.status}）`,
-      );
-    }
-    if (sequence !== statisticsRequestSequence) return;
-
-    const data = payload.data || {};
-    renderGiftStatistics(data);
-    renderSyncStatus(data);
-  } catch (error) {
-    if (sequence !== statisticsRequestSequence) return;
-    renderStatisticsError(error);
     renderSyncError(error);
   }
 }
@@ -245,7 +201,7 @@ async function clearGiftDatabase() {
   const confirmed = await dangerConfirm({
     title: '清空数据库礼物记录',
     message:
-      '此操作会删除全部礼物流水并重新同步当前账号的历史记录。同步完成前统计会标记为不完整。',
+      '此操作会删除全部礼物流水并重新同步当前账号的历史记录。同步完成前历史记录可能不完整。',
     confirmLabel: '确认清空',
   });
   if (!confirmed) return;
@@ -262,7 +218,7 @@ async function clearGiftDatabase() {
     }
     toast('礼物数据库已清空，正在重新同步');
     resetGiftLedgerPagination(giftLedgerState);
-    loadGiftLedger();
+    loadGiftHistory();
   } catch (error) {
     toast(error.message || '清空礼物失败');
   }
@@ -354,99 +310,6 @@ function updatePagination(loading) {
   setText('giftHistoryPageInfo', `第 ${giftLedgerState.page} 页`);
 }
 
-function renderStatisticsLoading() {
-  renderPlaceholder('giftLedgerSummary', '正在加载统计…', 'loading');
-  renderPlaceholder('giftLedgerTopGifts', '正在加载…', 'loading');
-  renderPlaceholder('giftLedgerTimeSeries', '正在加载…', 'loading');
-}
-
-function renderStatisticsError(error) {
-  const message = error.message || '统计加载失败';
-  renderPlaceholder('giftLedgerSummary', message, 'error');
-  renderPlaceholder('giftLedgerTopGifts', '排行加载失败', 'error');
-  renderPlaceholder('giftLedgerTimeSeries', '趋势加载失败', 'error');
-}
-
-function renderGiftStatistics(data) {
-  const summary = data.summary || {};
-  const summaryElement = get('giftLedgerSummary');
-  if (summaryElement) {
-    summaryElement.dataset.state = 'ready';
-    summaryElement.innerHTML = [
-      renderSummaryItem('事件', formatCount(summary.eventCount)),
-      renderSummaryItem('礼物数量', formatCount(summary.itemCount)),
-      renderSummaryItem('礼物金额', formatGiftCents(summary.totalPriceCents)),
-      renderSummaryItem(
-        '盲盒事件',
-        formatCount(summary.blindBoxEventCount),
-      ),
-      renderSummaryItem(
-        '盲盒成本',
-        formatGiftCents(summary.blindBoxPriceCents),
-      ),
-      renderSummaryItem(
-        '盲盒价值',
-        formatGiftCents(summary.blindBoxValueCents),
-      ),
-      renderSummaryItem('盲盒盈亏', formatSignedCents(summary.blindProfitCents)),
-      renderSummaryItem(
-        '成本未知',
-        formatCount(summary.blindBoxUnknownCostEventCount),
-      ),
-    ].join('');
-  }
-  renderTopGifts(data.topGifts);
-  renderTimeSeries(data.timeSeries);
-}
-
-function renderSummaryItem(label, value) {
-  return `<div class="gift-ledger-summary-item"><span>${label}</span><strong>${value}</strong></div>`;
-}
-
-function renderTopGifts(topGifts) {
-  const element = get('giftLedgerTopGifts');
-  if (!element) return;
-  const rows = Array.isArray(topGifts) ? topGifts : [];
-  element.dataset.state = rows.length ? 'ready' : 'empty';
-  element.innerHTML = rows.length
-    ? rows
-        .map(
-          (gift) => `
-            <div class="gift-ledger-top-row">
-              <strong title="${escapeAttr(gift.giftName || '')}">${escapeHtml(gift.giftName || '未知礼物')}</strong>
-              <span>${formatCount(gift.itemCount)} 个</span>
-              <span>${formatGiftCents(gift.totalPriceCents)}</span>
-            </div>`,
-        )
-        .join('')
-    : '<div class="gift-ledger-placeholder">暂无排行数据</div>';
-}
-
-function renderTimeSeries(timeSeries) {
-  const element = get('giftLedgerTimeSeries');
-  if (!element) return;
-  const rows = Array.isArray(timeSeries) ? timeSeries : [];
-  const maximum = Math.max(
-    1,
-    ...rows.map((bucket) => Number(bucket.totalPriceCents || 0)),
-  );
-  element.dataset.state = rows.length ? 'ready' : 'empty';
-  element.innerHTML = rows.length
-    ? rows
-        .map((bucket) => {
-          const cents = Number(bucket.totalPriceCents || 0);
-          const width = Math.max(2, Math.round((cents / maximum) * 100));
-          return `
-            <div class="gift-ledger-series-row">
-              <span>${formatBucket(bucket.bucketStart)}</span>
-              <span class="gift-ledger-series-bar" aria-hidden="true"><span style="width:${width}%"></span></span>
-              <strong>${formatGiftCents(cents)}</strong>
-            </div>`;
-        })
-        .join('')
-    : '<div class="gift-ledger-placeholder">暂无趋势数据</div>';
-}
-
 function renderSyncStatus(data) {
   const element = get('giftLedgerSyncStatus');
   if (!element) return;
@@ -458,7 +321,7 @@ function renderSyncStatus(data) {
 
   const details = [];
   if (data.syncedAt) details.push(`更新于 ${formatDateTime(data.syncedAt)}`);
-  if (partial) details.push('当前统计可能不完整');
+  if (partial) details.push('历史记录可能不完整');
   setText('giftLedgerSyncDetail', details.join(' · '));
 }
 
@@ -490,36 +353,6 @@ function renderSyncError(error) {
   if (element) element.dataset.state = 'error';
   setText('giftLedgerSyncLabel', '无法读取同步状态');
   setText('giftLedgerSyncDetail', error.message || '请稍后重试');
-}
-
-export function formatGiftCents(value) {
-  const cents = Number(value);
-  return formatMoney(Number.isFinite(cents) ? cents / 100 : 0);
-}
-
-function formatSignedCents(value) {
-  const cents = Number(value);
-  if (!Number.isFinite(cents) || cents === 0) return formatGiftCents(0);
-  return `${cents > 0 ? '+' : '-'}${formatGiftCents(Math.abs(cents))}`;
-}
-
-function formatCount(value) {
-  const count = Number(value);
-  return Number.isFinite(count)
-    ? Math.max(0, count).toLocaleString('zh-CN')
-    : '0';
-}
-
-function formatBucket(value) {
-  const text = String(value || '');
-  return giftLedgerState.range === 'all' ? text.slice(0, 7) : text.slice(5, 10);
-}
-
-function renderPlaceholder(id, message, state) {
-  const element = get(id);
-  if (!element) return;
-  element.dataset.state = state;
-  element.innerHTML = `<div class="gift-ledger-placeholder">${escapeHtml(message)}</div>`;
 }
 
 function setHistoryBody(html) {

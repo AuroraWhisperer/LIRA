@@ -10,6 +10,8 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
   let statsInitialized = false;
   let officialBlindBoxes = [];
   let officialCatalogLoadPromise = null;
+  let saleGiftIds = new Set();
+  let saleCatalogRevision = 0;
 
   /**
    * 渲染盲盒映射配置列表
@@ -19,6 +21,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     if (!container) return;
     const textarea = document.getElementById('giftBlindBoxCustomConfigV2');
     if (!textarea) return;
+    const advancedToggle = document.getElementById('blindBoxAdvancedToggle');
 
     const raw = (textarea.value || '').trim();
     let config = [];
@@ -27,14 +30,27 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
       if (parsed !== null && !Array.isArray(parsed)) throw new Error('不是数组');
       config = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
+      if (advancedToggle) advancedToggle.hidden = false;
       container.innerHTML = '<span class="hint">配置格式错误</span>';
       return;
+    }
+
+    const showAdvanced = config.length > 0 || textarea.dataset?.dirty === 'true';
+    if (advancedToggle) advancedToggle.hidden = !showAdvanced;
+    if (!showAdvanced) {
+      const advanced = document.getElementById('blindBoxAdvanced');
+      if (advanced) advanced.hidden = true;
+      if (advancedToggle) advancedToggle.textContent = '高级 ▾';
     }
 
     const entries = [
       ...officialBlindBoxes.map((item) => ({ ...item, official: true })),
       ...config.map((item, index) => ({ ...item, index, official: false })),
-    ];
+    ].sort(
+      (left, right) =>
+        Number(saleGiftIds.has(String(right.giftId))) -
+        Number(saleGiftIds.has(String(left.giftId))),
+    );
     renderBlindBoxMappingStatus();
     if (entries.length === 0) {
       container.innerHTML = '<span class="hint">暂无盲盒配置</span>';
@@ -111,6 +127,11 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
   }
 
   function applyOfficialCatalogSnapshot(snapshot) {
+    // Catalog updates also carry room sale snapshots without official relations.
+    if (typeof snapshot?.roomId === 'string') {
+      applySaleCatalogSnapshot(snapshot);
+      return;
+    }
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     const giftById = new Map(
       gifts.map((gift) => [String(gift?.id || '').trim(), gift]),
@@ -140,6 +161,26 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
         };
       });
     renderBlindBoxList();
+  }
+
+  function applySaleCatalogSnapshot(snapshot) {
+    saleCatalogRevision += 1;
+    const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
+    saleGiftIds = new Set(gifts.map((gift) => String(gift.id)));
+    renderBlindBoxList();
+  }
+
+  async function loadSaleCatalog() {
+    const requestRevision = saleCatalogRevision;
+    try {
+      const response = await fetch('/api/overtime/gifts');
+      const payload = await readJsonResponse(response, '在售礼物目录加载失败');
+      if (!response.ok || payload?.ok === false) throw new Error(payload.error);
+      if (requestRevision === saleCatalogRevision)
+        applySaleCatalogSnapshot(payload?.data);
+    } catch (error) {
+      console.warn('[BlindBox] sale catalog load failed:', error.message || error);
+    }
   }
 
   function loadOfficialCatalog() {
@@ -369,4 +410,5 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     initBlindBoxStatsToggle,
   };
   loadOfficialCatalog();
+  loadSaleCatalog();
 })();

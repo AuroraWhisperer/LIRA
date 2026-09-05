@@ -216,4 +216,4 @@
 
 ## 7. 礼物完整历史页面（Implemented）
 
-礼物主页面提供名称搜索、`7d/30d/90d/all` 范围控制、整数分统计摘要/排行/趋势、复合 keyset 历史翻页，以及同步中/partial/离线/错误/空数据状态。“清理显示”只重置筛选，不删除本地账本。页面只调用当前 source 的本地 `/api/gifts/history` 与 `/api/gifts/statistics`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
+客户端“最近礼物 → 查看全部”使用传统逐行流水表，按时间、礼物、数量、金额、用户、备注六列展示；保留名称搜索、`7d/30d/90d/all` 范围控制、复合 keyset 历史翻页，以及同步中/partial/离线/错误/空数据状态。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。“重置筛选”只重置筛选，不删除本地账本。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。

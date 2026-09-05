@@ -72,25 +72,7 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
   assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);
 });
 
-test('gift history preserves negative blind box profit', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'history.js'),
-    'utf8',
-  );
-
-  assert.match(source, /blindProfit < 0 \? '-' : ''/);
-  assert.match(source, /gift-remark-tag blind \$\{profitClass\}/);
-  assert.match(
-    source,
-    /formatMoney\(Math\.abs\(Number\(blindProfit\) \|\| 0\)\)/,
-  );
-  assert.match(
-    source,
-    /blindProfit === null \|\| blindProfit === undefined[\s\S]*?盲盒 成本未知/,
-  );
-});
-
-test('gift ledger drawer exposes search, range, statistics, sync, and keyset controls', () => {
+test('gift history drawer exposes a traditional table, filters, sync, and keyset controls', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'history.html'),
     'utf8',
@@ -103,9 +85,12 @@ test('gift ledger drawer exposes search, range, statistics, sync, and keyset con
     assert.match(html, new RegExp(`data-gift-range="${range}"`));
   }
   assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"/);
-  assert.match(html, /id="giftLedgerSummary"/);
-  assert.match(html, /id="giftLedgerTopGifts"/);
-  assert.match(html, /id="giftLedgerTimeSeries"/);
+  assert.match(
+    html,
+    /<th[^>]*>时间<\/th>\s*<th[^>]*>礼物<\/th>\s*<th[^>]*>数量<\/th>\s*<th[^>]*>金额<\/th>\s*<th[^>]*>用户<\/th>\s*<th[^>]*>备注<\/th>/,
+  );
+  assert.doesNotMatch(html, /giftLedgerSummary|giftLedgerTopGifts|giftLedgerTimeSeries/);
+  assert.doesNotMatch(html, /礼物排行|时间趋势/);
   assert.match(html, /id="giftHistoryState"[^>]*role="status"/);
   assert.match(html, /id="giftHistoryPrev"/);
   assert.match(html, /id="giftHistoryNext"/);
@@ -128,7 +113,8 @@ test('gift ledger queries use accepted filters and never expose source identity'
   });
 
   assert.match(source, /^export function buildGiftHistoryUrl/m);
-  assert.match(source, /^export function buildGiftStatisticsUrl/m);
+  assert.doesNotMatch(source, /buildGiftStatisticsUrl|loadGiftStatistics|loadGiftLedger/);
+  assert.doesNotMatch(source, /\/api\/gifts\/statistics/);
   assert.doesNotMatch(source, /sourceId|source_id/);
   assert.equal(
     ledger.buildGiftHistoryUrl({
@@ -139,11 +125,6 @@ test('gift ledger queries use accepted filters and never expose source identity'
     }),
     '/api/gifts/history?query=%E6%98%9F%E5%85%89%25_%E7%9B%92&range=30d&limit=50&cursor=opaque%2F%2B+token',
   );
-  assert.equal(
-    ledger.buildGiftStatisticsUrl({ query: '星光%_盒', range: 'all' }),
-    '/api/gifts/statistics?query=%E6%98%9F%E5%85%89%25_%E7%9B%92&range=all',
-  );
-  assert.equal(ledger.formatGiftCents(12345), '¥123.45');
   assert.deepEqual(
     { ...ledger.describeGiftSyncStatus('LIVE', false) },
     { state: 'live', label: '历史记录已同步' },
@@ -158,6 +139,121 @@ test('gift ledger queries use accepted filters and never expose source identity'
     'offline',
   );
   assert.equal(ledger.describeGiftSyncStatus('ERROR', true).state, 'error');
+});
+
+test('loadGiftHistory requests one history page and renders canonical escaped rows', async () => {
+  const modulePath = path.join(
+    ROOT_DIR,
+    'public',
+    'js',
+    'admin',
+    'gifts',
+    'history.js',
+  );
+  const elements = new Map(
+    [
+      'giftHistoryState',
+      'giftHistoryTotal',
+      'giftHistoryBody',
+      'giftHistoryPrev',
+      'giftHistoryNext',
+      'giftHistoryPageInfo',
+      'giftLedgerSyncStatus',
+      'giftLedgerSyncLabel',
+      'giftLedgerSyncDetail',
+    ].map((id) => [
+      id,
+      { dataset: {}, disabled: false, innerHTML: '', textContent: '' },
+    ]),
+  );
+  const document = {
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+  };
+  const requests = [];
+  const ledger = await loadModuleExports(modulePath, {
+    document,
+    location: {},
+    URLSearchParams,
+    fetch: async (url) => {
+      requests.push(url);
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            ok: true,
+            data: {
+              items: [
+                {
+                  eventId: 'event-escaped',
+                  gift: {
+                    createdAt: '2025-01-02T03:04:05.000Z',
+                    giftName: '<script>alert("gift")</script>',
+                    num: 2,
+                    totalPrice: 12.5,
+                    userName: 'Alice & <img src=x>',
+                    isBlindBox: true,
+                    blindProfit: -3.5,
+                    blindBoxName: 'Box <one>',
+                  },
+                },
+                {
+                  eventId: 'event-unknown-cost',
+                  gift: {
+                    createdAt: '2025-01-03T03:04:05.000Z',
+                    giftName: '心动盲盒',
+                    num: 1,
+                    totalPrice: 0,
+                    userName: 'Bob',
+                    isBlindBox: true,
+                    blindProfit: null,
+                  },
+                },
+              ],
+              nextCursor: 'next-page-token',
+              hasMore: true,
+              syncState: 'LIVE',
+              partial: false,
+              syncedAt: '2025-01-03T04:05:06.000Z',
+            },
+          }),
+      };
+    },
+  });
+
+  await ledger.loadGiftHistory();
+
+  assert.deepEqual(requests, ['/api/gifts/history?range=30d&limit=50']);
+  const body = elements.get('giftHistoryBody').innerHTML;
+  const renderedRows = [
+    ...body.matchAll(/<tr data-event-id="[^"]*">([\s\S]*?)<\/tr>/g),
+  ];
+  assert.equal(renderedRows.length, 2);
+  assert.deepEqual(
+    renderedRows.map(([, row]) => (row.match(/<td\b/g) || []).length),
+    [6, 6],
+  );
+  assert.match(body, /&lt;script&gt;alert\(&quot;gift&quot;\)&lt;\/script&gt;/);
+  assert.match(body, /Alice &amp; &lt;img src=x&gt;/);
+  assert.doesNotMatch(body, /<script>alert\("gift"\)<\/script>/);
+  assert.match(body, /2<\/td>\s*<td>¥12\.50<\/td>/);
+  assert.match(body, /盲盒 -¥3\.50/);
+  assert.match(body, /Box &lt;one&gt;/);
+  assert.match(body, /盲盒 成本未知/);
+
+  assert.equal(elements.get('giftHistoryTotal').textContent, '本页 2 条');
+  assert.equal(elements.get('giftHistoryState').textContent, '已加载');
+  assert.equal(elements.get('giftHistoryPrev').disabled, true);
+  assert.equal(elements.get('giftHistoryNext').disabled, false);
+  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1 页');
+  assert.equal(elements.get('giftLedgerSyncStatus').dataset.state, 'live');
+  assert.equal(
+    elements.get('giftLedgerSyncLabel').textContent,
+    '历史记录已同步',
+  );
+  assert.match(elements.get('giftLedgerSyncDetail').textContent, /更新于/);
 });
 
 test('clear display resets gift filters and cursor history without deleting rows', async () => {
@@ -414,7 +510,7 @@ test('blind-box settings persist an explicit empty JSON array', () => {
   assert.match(source, /let raw = textarea\.value\.trim\(\) \|\| '\[\]'/);
 });
 
-test('blind-box mapping renders official entries read-only', async () => {
+test('blind-box mapping puts room sale entries first and keeps official entries read-only', async () => {
   const container = { innerHTML: '' };
   const textarea = {
     value: JSON.stringify([
@@ -424,6 +520,7 @@ test('blind-box mapping renders official entries read-only', async () => {
         price: 5,
         outputs: [{ giftId: '102', name: '自定义产物', price: 2 }],
       },
+      { giftId: '200', name: '在售自定义盒', price: 10, outputs: [] },
     ]),
   };
   const status = { textContent: '' };
@@ -442,7 +539,7 @@ test('blind-box mapping renders official entries read-only', async () => {
         escapeAttr: (value) => String(value),
         formatTime: (value) => String(value),
         formatMoney: (value) => String(value),
-        readJsonResponse: async () => ({}),
+        readJsonResponse: async (response) => response.payload,
       },
       state: {
         getAppState: () => ({
@@ -455,20 +552,146 @@ test('blind-box mapping renders official entries read-only', async () => {
 
   await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
-    { document, window, fetch: () => new Promise(() => {}) },
+    {
+      document,
+      window,
+      fetch: (url) => url === '/api/overtime/gifts'
+        ? Promise.resolve(response({ ok: true, data: {
+          roomId: '123', gifts: [{ id: 104 }, { id: '103' }, { id: '200' }],
+        } }))
+        : new Promise(() => {}),
+    },
   );
-  window.AdminApp.gifts.blindbox.applyOfficialCatalogSnapshot({
+  const snapshot = {
     gifts: [
-      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true },
+      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true, active: true },
       { id: '101', name: '官方产物', rmb: 3, isBlindBox: false },
+      { id: '103', name: '在售官方盒甲', rmb: 5, isBlindBox: true },
+      { id: '102', name: '历史官方盒', rmb: 5, isBlindBox: true, active: false },
+      { id: '104', name: '在售官方盒乙', rmb: 10, isBlindBox: true },
     ],
     blindBoxes: [{ giftId: '100', outputGiftIds: ['101'] }],
-  });
+  };
+  const { applyOfficialCatalogSnapshot } = window.AdminApp.gifts.blindbox;
+  applyOfficialCatalogSnapshot(snapshot);
+  await new Promise(setImmediate);
+
+  const renderedNames = () => [...container.innerHTML.matchAll(
+    /<span class="bb-chip-name">([^<]+)<\/span>/g,
+  )].map(([, name]) => name);
+  assert.deepEqual(renderedNames(), [
+    '在售官方盒甲', '在售官方盒乙', '在售自定义盒',
+    '官方盲盒', '历史官方盒', '主播自定义盒',
+  ]);
 
   assert.match(container.innerHTML, /官方盲盒/);
   assert.match(container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
   assert.match(container.innerHTML, /主播自定义盒/);
-  assert.equal((container.innerHTML.match(/class="chip-delete"/g) || []).length, 1);
+  assert.equal((container.innerHTML.match(/class="chip-delete"/g) || []).length, 2);
+  assert.deepEqual([...container.innerHTML.matchAll(/data-blind-index="(\d+)"/g)]
+    .map(([, index]) => index), ['1', '0']);
+  assert.equal(JSON.parse(textarea.value)[0].name, '主播自定义盒');
+
+  applyOfficialCatalogSnapshot({ roomId: '123', gifts: [{ id: '102' }] });
+  applyOfficialCatalogSnapshot(snapshot);
+  assert.deepEqual(renderedNames(), [
+    '历史官方盒', '官方盲盒', '在售官方盒甲', '在售官方盒乙',
+    '主播自定义盒', '在售自定义盒',
+  ]);
+
+  applyOfficialCatalogSnapshot({ roomId: '123', gifts: [] });
+  assert.deepEqual(renderedNames(), [
+    '官方盲盒', '在售官方盒甲', '历史官方盒', '在售官方盒乙',
+    '主播自定义盒', '在售自定义盒',
+  ]);
+});
+
+test('blind-box advanced editor hides empty settings without changing values or drafts', async () => {
+  const textarea = { value: 'null', dataset: {} };
+  const toggle = { hidden: true, textContent: '高级 ▾' };
+  const advanced = { hidden: true };
+  const elements = {
+    blindBoxList: { innerHTML: '' },
+    giftBlindBoxCustomConfigV2: textarea,
+    blindBoxAdvancedToggle: toggle,
+    blindBoxAdvanced: advanced,
+  };
+  const window = {
+    AdminApp: {
+      utils: { escapeHtml: String, escapeAttr: String, formatMoney: String },
+      gifts: { recent: { getBlindBoxIcon: () => null } },
+    },
+  };
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
+    {
+      document: {
+        readyState: 'loading',
+        addEventListener() {},
+        getElementById: (id) => elements[id] || null,
+      },
+      window,
+      fetch: () => new Promise(() => {}),
+    },
+  );
+  const { renderBlindBoxList } = window.AdminApp.gifts.blindbox;
+
+  for (const raw of ['null', '[]', '']) {
+    textarea.value = raw;
+    toggle.hidden = false;
+    toggle.textContent = '高级 ▴';
+    advanced.hidden = false;
+    renderBlindBoxList();
+    assert.equal(toggle.hidden, true);
+    assert.equal(advanced.hidden, true);
+    assert.equal(toggle.textContent, '高级 ▾');
+    assert.equal(textarea.value, raw);
+    assert.equal(textarea.dataset.dirty, undefined);
+  }
+
+  const config = '[{"name":"Custom box","price":5,"outputs":[]}]';
+  textarea.value = config;
+  renderBlindBoxList();
+  assert.equal(toggle.hidden, false);
+  assert.equal(advanced.hidden, true);
+  assert.equal(textarea.value, config);
+
+  advanced.hidden = false;
+  textarea.dataset.dirty = 'true';
+  for (const draft of ['', '[]', 'null', '[']) {
+    textarea.value = draft;
+    renderBlindBoxList();
+    assert.equal(toggle.hidden, false);
+    assert.equal(advanced.hidden, false);
+    assert.equal(textarea.value, draft);
+    assert.equal(textarea.dataset.dirty, 'true');
+  }
+
+  textarea.value = '[]';
+  textarea.dataset.dirty = 'false';
+  renderBlindBoxList();
+  assert.equal(toggle.hidden, true);
+  assert.equal(advanced.hidden, true);
+  assert.equal(textarea.value, '[]');
+
+  textarea.value = config;
+  renderBlindBoxList();
+  assert.equal(toggle.hidden, false);
+  assert.equal(advanced.hidden, true);
+
+  textarea.value = '{';
+  toggle.hidden = true;
+  renderBlindBoxList();
+  assert.equal(toggle.hidden, false);
+  assert.equal(textarea.value, '{');
+
+  const page = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
+    'utf8',
+  );
+  assert.match(page, /id="blindBoxAdvancedToggle"[^>]*\bhidden\b/);
+  assert.match(page, /id="blindBoxAdvanced"[^>]*\bhidden\b/);
+  assert.doesNotMatch(page, /id="blindBoxAddBtn"[^>]*\bhidden\b/);
 });
 
 test('blind-box JSON draft survives state refresh and a failed save', async () => {
@@ -1115,8 +1338,16 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
   );
 });
 
-test('blind box mapping cards keep distinct colors for known box types', () => {
+test('blind box mapping cards use a purple default gradient and keep distinct known colors', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
+
+  const defaultCardRule = styles.match(/\.blind-box-chip\s*\{([^}]+)\}/)?.[1];
+  assert.ok(defaultCardRule);
+  assert.match(defaultCardRule, /border:\s*1px solid #d8c4ef/);
+  assert.match(
+    defaultCardRule,
+    /background:\s*linear-gradient\(135deg, #f5edff 0%, #e9d8fa 100%\)/,
+  );
 
   for (const name of [
     '心动盲盒',
