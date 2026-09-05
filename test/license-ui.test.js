@@ -4,8 +4,75 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
+
+test('license titlebar keeps branding static and uses local window icons', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT, 'public', 'pages', 'license.html'),
+    'utf8',
+  );
+  const icons = fs.readFileSync(
+    path.join(ROOT, 'public', 'img', 'shared', 'window-controls.svg'),
+    'utf8',
+  );
+  assert.match(html, /<div class="license-brand">/);
+  assert.doesNotMatch(html, /<a\b[^>]*class="license-brand"/);
+  for (const name of ['minus', 'square', 'copy', 'x']) {
+    assert.ok(html.includes(`/img/shared/window-controls.svg#${name}`));
+    assert.ok(icons.includes(`<symbol id="${name}"`));
+  }
+});
+
+test('license window controls dispatch actions and reflect maximize events', () => {
+  const script = fs.readFileSync(
+    path.join(ROOT, 'public', 'js', 'license.js'),
+    'utf8',
+  );
+  const elements = new Map(
+    ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn'].map((id) => [
+      id,
+      new EventTarget(),
+    ]),
+  );
+  const maximizeButton = elements.get('licenseMaximizeBtn');
+  maximizeButton.dataset = {};
+  const attributes = new Map();
+  maximizeButton.setAttribute = (name, value) => attributes.set(name, value);
+  const calls = [];
+  let onMaximized;
+  let unsubscribed = false;
+  const window = new EventTarget();
+  window.songAssistantDesktop = {
+    minimizeWindow: () => calls.push('minimize'),
+    maximizeWindow: () => calls.push('maximize'),
+    closeWindow: () => calls.push('close'),
+    onWindowMaximized: (callback) => {
+      onMaximized = callback;
+      return () => { unsubscribed = true; };
+    },
+  };
+
+  vm.runInNewContext(script, {
+    window,
+    document: { getElementById: (id) => elements.get(id) || null },
+  });
+  for (const button of elements.values()) {
+    button.dispatchEvent(new Event('click'));
+  }
+  assert.deepEqual(calls, ['minimize', 'maximize', 'close']);
+  onMaximized(true);
+  assert.equal(maximizeButton.dataset.maximized, 'true');
+  assert.equal(maximizeButton.title, '还原');
+  assert.equal(attributes.get('aria-label'), '还原');
+  onMaximized(false);
+  assert.equal(maximizeButton.dataset.maximized, 'false');
+  assert.equal(maximizeButton.title, '最大化');
+  assert.equal(attributes.get('aria-label'), '最大化');
+  window.dispatchEvent(new Event('pagehide'));
+  assert.equal(unsubscribed, true);
+});
 
 test('license page is independent from existing onboarding and exposes only three inputs', () => {
   const html = fs.readFileSync(

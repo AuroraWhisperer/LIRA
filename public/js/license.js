@@ -9,9 +9,12 @@
   const form = document.getElementById('licenseForm');
   const accountInput = document.getElementById('licenseAccountName');
   const passwordInput = document.getElementById('licensePassword');
+  const passwordToggle = document.getElementById('licensePasswordToggle');
+  const passwordIcon = document.getElementById('licensePasswordIcon');
   const codeInput = document.getElementById('licenseActivationCode');
   const submitButton = document.getElementById('licenseSubmitBtn');
   const retryButton = document.getElementById('licenseRetryBtn');
+  const maximizeButton = document.getElementById('licenseMaximizeBtn');
   const status = document.getElementById('licenseStatus');
   const initializationHeading = document.getElementById(
     'giftCatalogInitializationHeading',
@@ -37,6 +40,7 @@
   let busy = false;
   let unsubscribe = () => {};
   let unsubscribeGiftCatalog = () => {};
+  let unsubscribeWindowMaximized = () => {};
 
   const messages = {
     ACTIVATION_CODE_INVALID: '激活密钥无效，请检查后重试。',
@@ -47,8 +51,14 @@
       '用户名只能使用小写字母、数字和中划线，且不能以中划线开头或结尾。',
     ACCOUNT_NAME_RESERVED: '此用户名为系统保留名称，请更换。',
     ACCOUNT_NAME_ALREADY_EXISTS: '此用户名已被使用，请更换或联系管理员。',
-    PASSWORD_TOO_SHORT: '密码至少 6 个字符。',
-    PASSWORD_TOO_LONG: '密码不能超过 128 个字符。',
+    PASSWORD_TOO_SHORT: '密码至少 8 个字符。',
+    PASSWORD_TOO_LONG: '密码不能超过 64 个字符。',
+    PASSWORD_CONTROL_CHARACTERS:
+      '密码不能包含换行、控制字符或不可见格式字符。',
+    PASSWORD_COMPLEXITY:
+      '密码需包含大写字母、小写字母、数字、特殊符号、中文等无大小写字母中的至少三类。',
+    PASSWORD_BCRYPT_TRUNCATED:
+      '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。',
     ACCOUNT_NAME_MISMATCH: '此激活码不属于该主播账号。',
     ACCOUNT_NAME_MUST_MATCH_SUBDOMAIN: '用户名与已分配主播空间不一致。',
     INVALID_CREDENTIALS: '用户名或密码错误。',
@@ -118,10 +128,24 @@
       return messages.ACCOUNT_NAME_LENGTH;
     if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(accountName))
       return messages.ACCOUNT_NAME_INVALID;
+    if (!password) return '请输入密码。';
+    // Keep legacy passwords eligible; the server owns new-password policy.
     if (password.length < 6) return messages.PASSWORD_TOO_SHORT;
     if (password.length > 128) return messages.PASSWORD_TOO_LONG;
     if (!activationCode) return '请输入激活密钥。';
     return '';
+  }
+
+  function setPasswordVisible(visible) {
+    const label = visible ? '隐藏密码' : '显示密码';
+    passwordInput.type = visible ? 'text' : 'password';
+    passwordToggle.setAttribute('aria-label', label);
+    passwordToggle.setAttribute('aria-pressed', String(visible));
+    passwordToggle.title = label;
+    passwordIcon.setAttribute(
+      'href',
+      `/img/shared/password-visibility.svg#${visible ? 'eye-off' : 'eye'}`,
+    );
   }
 
   function render(snapshot = {}) {
@@ -284,6 +308,7 @@
       if (result?.ok) {
         passwordInput.value = '';
         codeInput.value = '';
+        setPasswordVisible(false);
         render(result);
       } else {
         render(result || { state: 'needs_activation' });
@@ -325,6 +350,9 @@
   }
 
   form?.addEventListener('submit', activate);
+  passwordToggle?.addEventListener('click', () =>
+    setPasswordVisible(passwordInput.type === 'password'),
+  );
   retryButton?.addEventListener('click', retry);
   initializationRetryButton?.addEventListener('click', retryGiftCatalog);
   document
@@ -332,16 +360,23 @@
     ?.addEventListener('click', () =>
       window.songAssistantDesktop?.minimizeWindow?.(),
     );
-  document
-    .getElementById('licenseMaximizeBtn')
-    ?.addEventListener('click', () =>
-      window.songAssistantDesktop?.maximizeWindow?.(),
-    );
+  maximizeButton?.addEventListener('click', () =>
+    window.songAssistantDesktop?.maximizeWindow?.(),
+  );
   document
     .getElementById('licenseCloseBtn')
     ?.addEventListener('click', () =>
       window.songAssistantDesktop?.closeWindow?.(),
     );
+  if (maximizeButton && window.songAssistantDesktop?.onWindowMaximized) {
+    unsubscribeWindowMaximized = window.songAssistantDesktop.onWindowMaximized(
+      (isMaximized) => {
+        maximizeButton.dataset.maximized = String(isMaximized);
+        maximizeButton.title = isMaximized ? '还原' : '最大化';
+        maximizeButton.setAttribute('aria-label', maximizeButton.title);
+      },
+    );
+  }
   if (api?.onStateChanged)
     unsubscribe = api.onStateChanged((snapshot) => {
       render(snapshot);
@@ -351,6 +386,7 @@
       renderGiftCatalogState,
     );
   window.addEventListener('pagehide', () => {
+    unsubscribeWindowMaximized();
     unsubscribeGiftCatalog();
     unsubscribe();
   });

@@ -9,25 +9,44 @@
   <body>
     <div class="license-shell">
       <header class="license-titlebar">
-        <a class="license-brand" href="/license" aria-label="LIRA 激活">
+        <div class="license-brand">
           <span class="license-brand-mark" aria-hidden="true">L</span>
           <span>LIRA</span>
-        </a>
-        <span class="license-titlebar-label">主播登录</span>
+        </div>
         <div class="license-window-controls" aria-label="窗口控制">
-          <button id="licenseMinimizeBtn" type="button" aria-label="最小化">
-            −
+          <button
+            id="licenseMinimizeBtn"
+            type="button"
+            aria-label="最小化"
+            title="最小化"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <use href="/img/shared/window-controls.svg#minus"></use>
+            </svg>
           </button>
-          <button id="licenseMaximizeBtn" type="button" aria-label="最大化">
-            □
+          <button
+            id="licenseMaximizeBtn"
+            type="button"
+            aria-label="最大化"
+            title="最大化"
+          >
+            <svg class="maximize-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="/img/shared/window-controls.svg#square"></use>
+            </svg>
+            <svg class="restore-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <use href="/img/shared/window-controls.svg#copy"></use>
+            </svg>
           </button>
           <button
             id="licenseCloseBtn"
             class="close"
             type="button"
             aria-label="退出 LIRA"
+            title="退出 LIRA"
           >
-            ×
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <use href="/img/shared/window-controls.svg#x"></use>
+            </svg>
           </button>
         </div>
       </header>
@@ -55,23 +74,41 @@
                 autocapitalize="none"
                 spellcheck="false"
                 maxlength="32"
-                placeholder="例如 mlbb"
+                placeholder="请输入用户名"
                 required
               />
               <small>小写字母、数字或中划线</small>
             </label>
-            <label class="license-field" for="licensePassword">
-              <span>密码</span>
-              <input
-                id="licensePassword"
-                name="password"
-                type="password"
-                autocomplete="new-password"
-                maxlength="128"
-                placeholder="至少 6 个字符"
-                required
-              />
-            </label>
+            <div class="license-field">
+              <label for="licensePassword">密码</label>
+              <div class="license-password-control">
+                <input
+                  id="licensePassword"
+                  name="password"
+                  type="password"
+                  autocomplete="new-password"
+                  maxlength="128"
+                  placeholder="8–64 个字符"
+                  required
+                />
+                <button
+                  id="licensePasswordToggle"
+                  class="license-password-toggle"
+                  type="button"
+                  aria-label="显示密码"
+                  aria-pressed="false"
+                  aria-controls="licensePassword"
+                  title="显示密码"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <use
+                      id="licensePasswordIcon"
+                      href="/img/shared/password-visibility.svg#eye"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
             <label class="license-field" for="licenseActivationCode">
               <span>激活密钥</span>
               <input
@@ -105,7 +142,6 @@
               重试连接
             </button>
           </form>
-          <p class="license-footnote">密码和激活密钥不会保存在本机。</p>
         </section>
         <section
           id="giftCatalogInitializationCard"

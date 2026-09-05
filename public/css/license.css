@@ -74,7 +74,6 @@ button {
   -webkit-app-region: drag;
   border-bottom: 1px solid var(--license-border);
 }
-.license-brand,
 .license-window-controls button {
   -webkit-app-region: no-drag;
 }
@@ -83,10 +82,10 @@ button {
   align-items: center;
   gap: 9px;
   color: var(--license-text);
-  text-decoration: none;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
+  user-select: none;
 }
 .license-brand-mark {
   display: grid;
@@ -100,33 +99,68 @@ button {
   letter-spacing: 0;
   box-shadow: 0 5px 16px rgba(217, 75, 112, 0.26);
 }
-.license-titlebar-label {
-  color: var(--license-muted);
-  font-size: 12px;
-}
 .license-window-controls {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
 }
 .license-window-controls button {
-  width: 34px;
-  height: 28px;
-  min-height: 28px;
-  border: 0;
-  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
   color: var(--license-muted);
-  font-size: 16px;
   line-height: 1;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+.license-window-controls svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.license-window-controls .restore-icon,
+.license-window-controls [data-maximized='true'] .maximize-icon {
+  display: none;
+}
+.license-window-controls [data-maximized='true'] .restore-icon {
+  display: block;
 }
 .license-window-controls button:hover {
-  background: rgba(23, 32, 42, 0.08);
+  border-color: var(--license-border);
+  background: var(--license-border);
   color: var(--license-text);
 }
-.license-window-controls .close:hover {
+.license-window-controls button:active {
+  background: color-mix(in srgb, var(--license-text) 16%, transparent);
+}
+.license-window-controls button:focus-visible {
+  outline: 2px solid var(--license-primary);
+  outline-offset: 2px;
+}
+.license-window-controls .close:hover,
+.license-window-controls .close:active {
+  border-color: transparent;
   background: #c0392b;
   color: #fff;
+}
+.license-window-controls .close:active {
+  background: #a93226;
 }
 
 .license-main {
@@ -166,8 +200,7 @@ button {
   letter-spacing: -0.035em;
   line-height: 1.2;
 }
-.license-card-heading > p:not(.license-kicker),
-.license-footnote {
+.license-card-heading > p:not(.license-kicker) {
   margin: 0;
   color: var(--license-muted);
   font-size: 13px;
@@ -248,6 +281,35 @@ button {
   border-color: var(--license-primary);
   box-shadow: 0 0 0 3px rgba(217, 75, 112, 0.16);
 }
+.license-password-control {
+  position: relative;
+}
+.license-password-control input {
+  padding-right: 44px;
+}
+.license-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--license-muted);
+  transform: translateY(-50%);
+}
+.license-password-toggle:hover {
+  background: var(--license-border);
+  color: var(--license-text);
+}
+.license-password-toggle:focus-visible {
+  outline: 2px solid var(--license-primary);
+  outline-offset: 1px;
+}
 .license-field small {
   color: var(--license-muted);
   font-size: 11px;
@@ -308,11 +370,6 @@ button {
   border-color: var(--license-primary);
   color: var(--license-primary);
 }
-.license-footnote {
-  margin-top: 12px;
-  text-align: center;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -332,9 +389,6 @@ button {
   .license-field input {
     border-color: rgba(255, 255, 255, 0.16);
     background: rgba(16, 20, 29, 0.62);
-  }
-  .license-window-controls button:hover {
-    background: rgba(255, 255, 255, 0.1);
   }
   .license-progress,
   .license-progress::-webkit-progress-bar {
